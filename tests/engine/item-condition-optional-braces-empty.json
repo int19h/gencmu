@@ -1,0 +1,24 @@
+{
+  "description": "An optional list with an item capture stays a helper optional, so the production has two logical symbols and an empty list is one reading (engine §3.2, §3.5).",
+  "grammar": "%rule text B [{$c:A}]\n%conditions $c.value ≠ \"x\"",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "b"
+  }
+}

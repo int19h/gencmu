@@ -1,10 +1,10 @@
 {
-  "description": "A capture inside braces is an error at the capture, before any duplicate name, which the reader checks after the whole expression (engine §9).",
+  "description": "The name of an item capture stands once in its alternative. A second capture of the name, outside the braces, is an error at the later capture in the text, which the reader checks after the whole expression (engine §3.5, §9).",
   "document": "```jbogenbau\n%rule a { $c:B} $c:C\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 11
+      "column": 17
     }
   }
 }

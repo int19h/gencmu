@@ -288,7 +288,7 @@ The clauses of the rule serve every level, as they serve every alternative:
 - A warning on the chain's alternative gives one warning for each level in the chosen tree, each with the text of its level.
 - `%emits`, `%erased`, and constituent recipes serve each level. `%emits $` emits the outermost level as one token. Its string walk uses level recipes without executing inner emission lists.
 
-A chain cannot hold a capture, since a capture never stands inside braces (see "Captures"). So a clause can say nothing about a part of a chain, only about a level, `$`.
+A chain cannot hold a capture (see "Captures"). So a clause can say nothing about a part of a chain, only about a level, `$`.
 
 A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... / s}` read the same words. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. That makes three differences:
 
@@ -777,7 +777,7 @@ Implications apply only to the tokens that the stage emits. They do not change a
 
 Writing `$name:symbol` captures one symbol of a body. The symbol can carry a tag test followed by a value test. A capture gives the matched part a name for conditions, tags, and recipes. Its name starts lowercase and contains lowercase letters, digits, hyphens, or underscores.
 
-A capture wraps one symbol. That symbol can stand anywhere in an alternative, except inside braces and inside an elidable optional, `[+ ]`. So a capture can stand in a group, in a choice, in an item of `&` and in a plain optional, at any depth.
+A capture wraps one symbol. That symbol can stand anywhere in an alternative, except inside a chain and inside an elidable optional, `[+ ]`. So a capture can stand in a group, in a choice, in an item of `&`, in a plain optional and in flat braces, at any depth. Inside flat braces it is an item capture, which "Item captures" below explains.
 
 A name can stand at most once in each production (below), so two branches of a choice can capture one name, as two alternatives can. `A ($x:B | $x:C)` is valid, but `[$x:A] $x:B` and `$x:A & $x:B` are errors, because one of their productions reads `$x` twice. Before gates apply, gencmu makes sure that each capture name occurs at most once per production. A guard does not excuse a repeated capture. An alternative can have any number of captures, but each one has a cost (below). `$` alone is the whole constituent, a capture that every alternative has without writing it.
 
@@ -785,7 +785,7 @@ A capture cannot wrap anything but one symbol. So `$x:(a | b)`, `$x:(a b)` and `
 
 To capture a part that can be absent, write the capture inside the optional, as in `[$x:a]`. A presence test then says whether the part is there.
 
-A capture cannot wrap braces, and braces cannot hold a capture. A list is not a constituent, so no capture can name its span. A part of a list or of a chain repeats, so one name cannot stand for all its parts. To capture a list or chain, define a rule for it. Capture its reference, as in `$t:tag`.
+A capture cannot wrap braces. A list is not a constituent, so no capture can name its span. To capture a list or a chain, define a rule for it. Capture its reference, as in `$t:tag`. A chain cannot hold a capture either. Each level of a chain is a constituent of its rule, so a condition on `$` serves it.
 
 An elidable optional cannot hold a capture, at any depth. gencmu restores an elided terminator as the terminator alone (see "Elided terminators"), and it keeps the optional as one unit for that. A part inside it is there in some readings of one omission and not in others.
 
@@ -823,6 +823,26 @@ A constant counts in these rules as its value. So where `$E` is empty, `$E ∩ $
   | brivla-shape :: BRIVLA
 
 ```
+
+### Item captures
+
+A capture inside flat braces is an item capture. It names one part of one item of the list, or of one separator. It belongs to the innermost braces around it. It cannot stand inside a ranked group. Name the ranked choice as a rule and capture that rule. The list repeats, so the name stands for another part at each item. Only a condition can read an item capture. A tag term, a recipe, an emission item or a pattern comparison that names one is an error of the document, because the constituent has no single part of that name. The name of an item capture stands nowhere else in its alternative.
+
+A condition that reads an item capture is an item condition. It holds of each item of the list that binds the capture. The parser evaluates it as soon as the item reads the last capture that the condition uses. The rule's other captures stand in the condition as the parse holds them before the braces. So an item condition can read the item captures of its braces and the captures bound before the braces. It cannot read `$`, a capture that stands after its braces, or an item capture of other braces. Each of these is an error of the document.
+
+```jbogenbau
+%rule foreign-quote
+  CO $open:word "[" [{_<¬Close> | $c:Close}] Close $close:word
+%conditions
+  $open.value = $close.value,
+  $c.following-tokens.first-token.value ≠ $open.value
+```
+
+The example follows a rule of the `eberban/refgram` pipeline. Its quote body ends at the first closing bracket that the delimiter word follows. Each closing bracket inside the body binds `$c`, and the condition holds of each one.
+
+A presence test `$c` of an item capture decides per expansion of the item, as for any capture. So `{A | $c:B}` has one item expansion with `$c` and one without, and an item condition that uses `$c` applies to the first alone. An item condition can also read no other capture, as `$c.value ≠ "x"` does.
+
+An item capture costs what a capture costs. Where an item condition reads a capture bound before the braces, the parser also keeps that capture with each reading of the list. So the list has one set of readings for each way the rule binds that capture.
 
 ### The capture rule
 

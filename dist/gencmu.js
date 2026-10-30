@@ -134,7 +134,7 @@
    */
   function productionClauses(production) {
     return [production.conditions, production.tags, production.emit,
-      production.rankedDeferred, production.parentTags,
+      production.rankedDeferred, production.parentTags, production.itemConditions,
       production.source?.clauses];
   }
 
@@ -4917,7 +4917,7 @@
       } else if (kind === "expr") {
         if (value.test) {
           if (!TEST_OPS.has(value.test) || !exact(value, value.test === "tags" ? ["test", "requirements", "expr"] : ["test", "value", "expr"]) || !(value.test === "tags" ? base(value.expr) : target(value.expr))) return "a malformed test";
-          child("expr", value.expr, { sealed: task.sealed });
+          child("expr", value.expr, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked });
           if (value.test === "tags") {
             if (!Array.isArray(value.requirements)) return "a malformed tag test";
             for (const requirement of value.requirements) {
@@ -4926,20 +4926,24 @@
             }
           } else { if (!stringTerm(value.value)) return "a malformed value test"; child("term", value.value); }
         } else if ("capture" in value) {
-          if (!exact(value, ["capture", "expr"]) || !(typeof value.capture === "string" && CAPTURE_NAME.test(value.capture)) || task.sealed || !(target(value.expr) || ["=", "≠"].includes(value.expr?.test) && target(value.expr.expr))) return "a malformed capture";
-          child("expr", value.expr, { sealed: task.sealed });
+          if (!exact(value, ["capture", "expr"]) || !(typeof value.capture === "string" && CAPTURE_NAME.test(value.capture)) || task.sealed || task.chain || task.item && task.ranked || !(target(value.expr) || ["=", "≠"].includes(value.expr?.test) && target(value.expr.expr))) return "a malformed capture";
+          child("expr", value.expr, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked });
         } else if (["seq", "choice", "ranked", "and"].some(key => key in value)) {
           if (fields.length !== 1) return "a malformed expression";
           const key = fields[0];
           if (!Array.isArray(value[key]) || value[key].length < 2 || key === "and" && value[key].length > 16) return key === "ranked" ? "ranked-choice-syntax: a ranked expression requires two options" : "a malformed expression";
-          for (const item of value[key]) child("expr", item, { sealed: task.sealed });
+          for (const item of value[key]) child("expr", item, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked || key === "ranked" });
         } else if ("optional" in value) {
           if (!exact(value, ["optional", "elidable"]) || "elidable" in value && (value.elidable !== true || !elidableHead(value.optional))) return "a malformed optional";
-          child("expr", value.optional, { sealed: task.sealed || value.elidable });
+          child("expr", value.optional, { sealed: task.sealed || value.elidable, chain: task.chain, item: task.item, ranked: task.ranked });
         } else if ("repeat" in value) {
           if (!exact(value, ["repeat", "separator", "chain"]) || "chain" in value && (!task.whole || !["left", "right"].includes(value.chain))) return "a malformed repetition";
-          child("expr", value.repeat, { sealed: true });
-          if ("separator" in value) child("expr", value.separator, { sealed: true });
+          // A chain holds no capture, and the braces of a flat list hold item
+          // captures, also inside a chain, but not inside a ranked group
+          // (engine §3.5). An elidable optional seals everything inside it.
+          const inside = { sealed: task.sealed, chain: "chain" in value, item: !("chain" in value), ranked: false };
+          child("expr", value.repeat, inside);
+          if ("separator" in value) child("expr", value.separator, inside);
         } else if ("literal" in value) { if (fields.length !== 1 || !stringTerm(value.literal)) return "a malformed literal"; push("term", value.literal, depth); }
         else if ("range" in value) {
           if (fields.length !== 1 || !Array.isArray(value.range) || value.range.length !== 2 || !value.range.every(stringTerm)) return "a malformed range";
@@ -5653,6 +5657,275 @@
   }
 
   /**
+   * The item captures of an expression: the captures inside flat braces, each
+   * with the innermost flat braces around it (engine §3.5). A chain holds no
+   * capture, which the reader makes sure of, so a capture inside a chain's
+   * braces is not listed.
+   * @param {any} expr
+   * @returns {Map<string, {braces: any, order: number}>} name to its braces,
+   *   numbered in the order in which the braces are written
+   */
+  function itemCaptures(expr) {
+    /** @type {Map<string, {braces: any, order: number}>} */
+    const found = new Map();
+    let order = 0;
+    /** @type {(node: any, braces: any) => void} */
+    const walk = (node, braces) => {
+      if (!isDomObject(node)) return;
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      if (typeof node.capture === "string") {
+        if (braces !== null && !found.has(node.capture)) found.set(node.capture, braces);
+        walk(node.expr, braces);
+        return;
+      }
+      if ("repeat" in node) {
+        const inner = node.chain === undefined ? { braces: node, order: order++ } : braces;
+        walk(/** @type {any} */ (node.repeat), inner);
+        if (node.separator !== undefined) walk(/** @type {any} */ (node.separator), inner);
+        return;
+      }
+      for (const child of expressionChildren(/** @type {any} */ (node))) walk(child, braces);
+    };
+    walk(expr, null);
+    return found;
+  }
+
+  /**
+   * The sequences of captures that the productions of an expression read, as
+   * `captureSequences` lists them, with each pair of flat braces read as the
+   * pseudo-capture `\u0001` and its order among the braces. The item captures
+   * inside the braces stay out, as in every production. The check of item
+   * conditions compares the place of the braces with the places of the
+   * captures a condition reads (engine §3.6).
+   * @param {any} expr
+   * @returns {string[][]}
+   */
+  function bracesSequences(expr) {
+    let order = 0;
+    /** @type {(node: any) => string[][]} */
+    const visit = (node) => {
+      if (!isDomObject(node)) return [[]];
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      if (typeof node.capture === "string") return [[node.capture]];
+      if ("repeat" in node) {
+        if (node.chain !== undefined) return [[]];
+        return [["\u0001" + order++]];
+      }
+      if (Array.isArray(node.seq)) {
+        /** @type {string[][]} */
+        let sequences = [[]];
+        for (const item of node.seq) {
+          const next = visit(item);
+          sequences = sequences.flatMap((left) => next.map((right) => [...left, ...right]));
+        }
+        return sequences;
+      }
+      if (Array.isArray(node.choice) || Array.isArray(node.ranked)) return /** @type {unknown[]} */ (node.choice ?? node.ranked).flatMap(visit);
+      if (Array.isArray(node.and)) {
+        const parts = node.and.map(visit);
+        /** @type {string[][]} */
+        const result = [];
+        for (let mask = 1; mask < 1 << parts.length; mask++) {
+          /** @type {string[][]} */
+          let sequences = [[]];
+          parts.forEach((/** @type {string[][]} */ part, /** @type {number} */ index) => {
+            if (mask & (1 << index)) sequences = sequences.flatMap((left) => part.map((right) => [...left, ...right]));
+          });
+          for (const sequence of sequences) result.push(sequence);
+        }
+        return result;
+      }
+      if ("optional" in node) {
+        if (node.elidable === true) return [[]];
+        return [[], ...visit(node.optional)];
+      }
+      return [[]];
+    };
+    return visit(expr);
+  }
+
+  /**
+   * Why the item captures of a definition cannot be read (engine §3.6, §9),
+   * or null. Only a condition reads an item capture, and such a condition
+   * reads the item captures of one pair of braces, no `$`, and no capture
+   * that a production binds after those braces.
+   * @param {any} rule
+   * @returns {string | null}
+   */
+  function itemCaptureProblem(rule) {
+    /** @type {Map<string, {alternative: any, braces: any, order: number}>} */
+    const items = new Map();
+    for (const alternative of rule.alternatives) {
+      for (const [name, place] of itemCaptures(alternative.expr)) if (!items.has(name)) items.set(name, { alternative, ...place });
+    }
+    if (items.size === 0) return null;
+    const emitted = rule.emit ? rule.emit.items : [];
+    const named = emitted.flatMap((/** @type {any} */ item) => (typeof item.capture === "string" ? [item.capture, ...attachmentsOf(item)] : []));
+    /** @type {[string, unknown][]} */
+    const others = [
+      ...[rule.tags, rule.value, rule.image].map((clause) => /** @type {[string, unknown]} */ (["a clause", clause])),
+      ...rule.alternatives.flatMap((/** @type {any} */ a) => [a.tags, a.value, a.image].map((clause) => /** @type {[string, unknown]} */ (["a clause", clause]))),
+      ...emitted.map((/** @type {unknown} */ item) => /** @type {[string, unknown]} */ (["%emits", item])),
+    ];
+    for (const [kind, clause] of others) {
+      if (clause === undefined) continue;
+      const item = [...(kind === "%emits" ? named : []), ...capturesMentioned(clause)].find((name) => items.has(name));
+      if (item !== undefined) return `${kind} of ${rule.name} names $${item}, an item capture, which only a condition reads`;
+    }
+    /** @type {Map<any, string[][]>} */
+    const sequences = new Map();
+    for (const condition of rule.conditions) {
+      const mentioned = [...new Set(capturesMentioned(condition))];
+      const inside = mentioned.filter((name) => items.has(name));
+      if (inside.length === 0) continue;
+      if (mentioned.includes("")) return `a condition of ${rule.name} reads $${inside[0]}, an item capture, together with $, which is not complete at each item`;
+      if (isComparison(condition, "≅") || isComparison(condition, "≇")) return `a condition of ${rule.name} compares $${inside[0]}, an item capture, with a pattern`;
+      const first = /** @type {{alternative: any, braces: any, order: number}} */ (items.get(inside[0]));
+      const other = inside.find((name) => /** @type {{braces: any}} */ (items.get(name)).braces !== first.braces);
+      if (other !== undefined) return `a condition of ${rule.name} reads $${inside[0]} and $${other}, item captures of two pairs of braces`;
+      const outer = mentioned.filter((name) => name !== "" && !items.has(name));
+      if (outer.length === 0) continue;
+      let listed = sequences.get(first.alternative);
+      if (!listed) sequences.set(first.alternative, (listed = bracesSequences(first.alternative.expr)));
+      const pseudo = "\u0001" + first.order;
+      for (const sequence of listed) {
+        const at = sequence.indexOf(pseudo);
+        if (at === -1) continue;
+        const late = outer.find((name) => sequence.indexOf(name) > at);
+        if (late !== undefined) return `a condition of ${rule.name} reads $${late} with the item capture $${inside[0]}, but a production binds $${late} after the braces`;
+      }
+    }
+    return null;
+  }
+
+  /** @param {any} condition @param {string} op */
+  function isComparison(condition, op) {
+    const stack = [condition];
+    for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if (!isDomObject(current) && !Array.isArray(current)) continue;
+      if (isDomObject(current) && current.op === op) return true;
+      for (const value of clauseChildren(current)) if (value && typeof value === "object") stack.push(value);
+    }
+    return false;
+  }
+
+  /**
+   * The captures of each production of an alternative, name to its place in
+   * the order that the production reads them, with `$` at -1 (engine §3.5).
+   * @param {any} alternative
+   * @returns {Map<string, number>[]}
+   */
+  function alternativeCaptures(alternative) {
+    return captureSequences(alternative.expr).map((sequence) => {
+      /** @type {Map<string, number>} */
+      const captures = new Map([["", -1]]);
+      sequence.forEach((name, index) => captures.set(name, index));
+      return captures;
+    });
+  }
+
+  /**
+   * A sequence of capture names, as a node of a trie of all the sequences
+   * of one expression: one node for each distinct sequence, which shares its
+   * prefix with the sequences it extends.
+   * @typedef {{parent: CaptureNode | null, name: string, length: number, children: Map<string, CaptureNode> | null}} CaptureNode
+   */
+
+  /**
+   * The distinct sequences of captures that the productions of an expression
+   * read, each in the order read (engine §3.2, §3.5): a choice gives each
+   * branch's, an `&` each subsequence's, a plain optional none or its
+   * content's, and braces and an elidable optional none. Productions that
+   * read the same names in the same order are one sequence. Gates do not
+   * matter, since they drop whole alternatives.
+   *
+   * The sequences are nodes of a trie, so that extending one by a capture
+   * costs one step and two equal sequences are one node. A copy of each
+   * growing prefix would cost the square of a sequence's length.
+   * @param {any} expr
+   * @returns {string[][]}
+   */
+  function captureSequences(expr) {
+    /** @type {CaptureNode} */
+    const root = { parent: null, name: "", length: 0, children: null };
+    /** @type {(node: CaptureNode, name: string) => CaptureNode} */
+    const extended = (node, name) => {
+      if (hooks.work) countWork(hooks.work, "lowering");
+      const children = node.children ?? (node.children = new Map());
+      let child = children.get(name);
+      if (!child) children.set(name, (child = { parent: node, name, length: node.length + 1, children: null }));
+      return child;
+    };
+    /** @type {(node: CaptureNode) => string[]} */
+    const names = (node) => {
+      const list = new Array(node.length);
+      for (let at = node; at.parent !== null; at = at.parent) {
+        if (hooks.work) countWork(hooks.work, "lowering");
+        list[at.length - 1] = at.name;
+      }
+      return list;
+    };
+    /** @type {(lists: CaptureNode[]) => CaptureNode[]} */
+    const distinct = (lists) => (lists.length < 2 ? lists : [...new Set(lists)]);
+    /** @type {(left: CaptureNode[], right: CaptureNode[]) => CaptureNode[]} */
+    const product = (left, right) => {
+      /** @type {CaptureNode[]} */
+      const result = [];
+      const suffixes = right.map(names);
+      for (const a of left) {
+        for (const suffix of suffixes) {
+          let node = a;
+          for (const name of suffix) node = extended(node, name);
+          result.push(node);
+        }
+      }
+      return distinct(result);
+    };
+    /** @type {(node: any) => Generator<Step, CaptureNode[], any>} */
+    const visit = function* (node) {
+      if (!isDomObject(node)) return [root];
+      if (typeof node.capture === "string") return [extended(root, node.capture)];
+      if (Array.isArray(node.seq)) {
+        /** @type {CaptureNode[]} */
+        let sequences = [root];
+        for (const item of node.seq) sequences = product(sequences, yield visit(item));
+        return sequences;
+      }
+      if (Array.isArray(node.choice) || Array.isArray(node.ranked)) {
+        /** @type {CaptureNode[]} */
+        const all = [];
+        for (const item of /** @type {unknown[]} */ (node.choice ?? node.ranked)) for (const sequence of yield visit(item)) all.push(sequence);
+        return distinct(all);
+      }
+      if (Array.isArray(node.and)) {
+        /** @type {CaptureNode[][]} */
+        const parts = [];
+        for (const item of node.and) parts.push(yield visit(item));
+        /** @type {CaptureNode[]} */
+        const result = [];
+        for (let mask = 1; mask < 1 << parts.length; mask++) {
+          /** @type {CaptureNode[]} */
+          let sequences = [root];
+          parts.forEach((part, index) => {
+            if (mask & (1 << index)) sequences = product(sequences, part);
+          });
+          for (const sequence of sequences) result.push(sequence);
+        }
+        return distinct(result);
+      }
+      if ("optional" in node) {
+        if (node.elidable === true) return [root];
+        /** @type {CaptureNode[]} */
+        const all = [root];
+        for (const sequence of yield visit(node.optional)) all.push(sequence);
+        return distinct(all);
+      }
+      return [root];
+    };
+    return run(visit(expr)).map(names);
+  }
+
+  /**
    * The captures that some production of an expression reads after a
    * capture of the same name (engine §3.5, §9), found from the structure
    * alone: two captures are read by one production exactly when they stand
@@ -6083,7 +6356,8 @@
         if (!captures.has(name)) everywhere.delete(name);
       }
     }
-    const anyHas = (/** @type {string} */ name) => capturing.has(name);
+    const itemNames = new Set(rule.alternatives.flatMap((/** @type {any} */ alternative) => [...itemCaptures(alternative.expr).keys()]));
+    const anyHas = (/** @type {string} */ name) => capturing.has(name) || itemNames.has(name);
     const items = rule.emit ? rule.emit.items : [];
     const clauses = [rule.tags, rule.value, rule.image,
       ...rule.alternatives.flatMap((/** @type {any} */ a) => [a.tags, a.value, a.image]), ...rule.conditions];
@@ -6094,8 +6368,15 @@
     for (const clause of clauses) for (const name of capturesMentioned(clause)) {
       if (!anyHas(name)) yield {kind:"independent", problem:`$${name} is captured by no alternative of ${rule.name}`};
     }
+    if (itemNames.size > 0) {
+      const problem = itemCaptureProblem(rule);
+      if (problem) yield {kind:"independent", problem};
+    }
     for (const condition of rule.conditions) {
       if (waits(condition)) continue;
+      // An item condition applies to the productions of its braces' helper
+      // (engine §3.6), which are not listed here.
+      if (itemNames.size > 0 && capturesMentioned(condition).some((name) => itemNames.has(name))) continue;
       const prepared = prepareClause(condition);
       const applies = (/** @type {number} */ index) => {
         if (hooks.work) countWork(hooks.work, "clauses");
@@ -8888,7 +9169,7 @@
     const contextual = new Set(context.lowered.productions.filter((/** @type {any} */ p) => p.contextual).map((/** @type {any} */ p) => p.lhs));
     const helpers = new Map(context.lowered.productions.filter((/** @type {any} */ p) => p.helper).map((/** @type {any} */ p) => [p.lhs,p]));
     let next = 0;
-    const written = (/** @type {any} */ p) => [p.owner ?? p.lhs, p.source?.at, context.lowered.ranked.paths.get(p.writtenExpression) ?? ''];
+    const written = (/** @type {any} */ p) => [p.owner ?? p.lhs, p.source?.at ?? p.id, context.lowered.ranked?.paths.get(p.writtenExpression) ?? ''];
     const symbol = (/** @type {any} */ s) => [s.terminal ? s.name : helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test];
     const prefixKey = (/** @type {any} */ item) => {
       const captures = [];
@@ -8925,9 +9206,9 @@
           ? context.closes.concat(outer?.observationPrefix ?? context.closes.empty,item.observationPrefix ?? context.closes.empty)
           : null;
         const sealObservationPrefix = inside && outer ? outer.sealObservationPrefix : observationPrefix;
-        const sealGroup = inside && outer ? outer.sealGroup : context.lowered.ranked.groups.find((/** @type {any} */ group) => group.helper === name) ?? null;
+        const sealGroup = inside && outer ? outer.sealGroup : context.lowered.ranked?.groups.find((/** @type {any} */ group) => group.helper === name) ?? null;
         const sealEntry = inside && outer ? outer.sealEntry : item;
-        const knownPrivate = new Set([...outer?.knownPrivate ?? [],...item.production.rankedPrivate]);
+        const knownPrivate = new Set([...outer?.knownPrivate ?? [],...item.production.rankedPrivate ?? []]);
         const frame = {id:next++,key,captures,root,namedOrigin,prefix,inside,sealPrefix,present,knownPrivate,
           observationPrefix,sealObservationPrefix,sealGroup,sealEntry};
         frames.set(key,frame);
@@ -8941,9 +9222,22 @@
         if (old) return old;
         const present = new Set(['',...frame.present,...production.captures.map((/** @type {any} */ c) => c.name)]);
         const bound = {...production,lexicalFrame:frame};
+        // The item conditions of the braces' alternative run in the helper,
+        // with the enclosing item's captures from the frame (engine §4).
+        const itemConditions = production.itemAlternative ? itemFrameConditions(production.itemConditions,present,bound,frame.captures) : [];
+        if (!production.source) {
+          // A helper outside every ranked alternative: a frame gives it the
+          // enclosing item's captures and nothing else.
+          /** @type {any[][]} */
+          const conditionsAt = Array.from({length:production.rhs.length+1},() => []);
+          for (const c of itemConditions) conditionsAt[c.readyAt+1].push(c);
+          const result = {...production,baseProduction:production,lexicalFrame:frame,conditions:itemConditions,conditionsAt};
+          productions.set(key,result);
+          return result;
+        }
         // Every clause ready at this written boundary runs in source order,
         // including common clauses and clauses owned by an enclosing group.
-        const conditions = frameConditions(production.rankedGroup ? production.source.clauses.conditions : [],present,bound,frame.captures,production.rankedGroup?.final ?? false);
+        const conditions = [...frameConditions(production.rankedGroup ? production.source.clauses.conditions : [],present,bound,frame.captures,production.rankedGroup?.final ?? false),...itemConditions];
         /** @type {any[][]} */
         const conditionsAt = Array.from({length:production.rhs.length+1},() => []);
         for (const c of conditions) conditionsAt[c.readyAt+1].push(c);
@@ -8959,6 +9253,28 @@
         return result;
       },
     };
+  }
+
+  /**
+   * The item conditions of a contextual brace helper, simplified for one of
+   * its productions in one frame (engine §3.6, §4). A condition drops where the
+   * production lacks an item capture it uses, or the frame an outer one.
+   * @param {any[]} clauses @param {Set<string>} present @param {any} production @param {Map<string,any>} prefix
+   */
+  function itemFrameConditions(clauses, present, production, prefix) {
+    const positions = new Map(production.captures.map((/** @type {any} */ c) => [c.name,c.index]));
+    const result = [];
+    for (const raw of clauses) {
+      const atom = firstBoundaryAtom(raw);
+      for (const simplified of partsFor(prepareConditions([raw]), n => present.has(n), present)) {
+        const condition = simplified === DOM_FALSE ? {any:[]} : simplified;
+        const reads = rankedConditionVariables(condition);
+        if (!reads.every(n => positions.has(n) || prefix.has(n))) continue;
+        const readyAt = reads.reduce((last,n) => Math.max(last,prefix.has(n) ? -1 : positions.get(n)), -1);
+        result.push({condition,readyAt,wholeBoundary:!!atom});
+      }
+    }
+    return result;
   }
 
   /** @param {any} condition */
@@ -10134,6 +10450,9 @@
       /** @type {Map<string, Production[]>} */
       this.byLhs = new Map();
       this.helperCount = 0;
+      /** @type {Set<string>} the item captures of the alternative being lowered (engine §3.5) */
+      this.itemNames = new Set();
+      this.validation = false;
       this.helperExpressions = new Map();
       /** @type {Map<string, SequenceItem[][]>} */
       this.helperBodies = new Map();
@@ -10197,6 +10516,7 @@
       prepareRankedFrames(this,this.grammar.ranked);
       return {
         productions: this.productions,
+        contextual: this.productions.some((production) => production.contextual),
         byLhs: this.byLhs,
         resolution: /** @type {Resolution} */ (this.grammar.resolution),
         ranked: this.grammar.ranked,
@@ -10263,6 +10583,7 @@
       /** @type {Where} */
       const where = { rule, alternative, pending };
       this.source = alternative;
+      this.itemNames = new Set(itemCaptures(alternative.expr).keys());
       const expr = alternative.expr;
       let sequences;
       if (isChain(expr)) {
@@ -10377,6 +10698,7 @@
         emitted.add(name);
         const bodies = /** @type {SequenceItem[][]} */ (this.helperBodies.get(name));
         const helper = /** @type {PendingHelper} */ (this.pendingHelpers.get(name));
+        const helperItems = [...new Set(bodies.flatMap((sequence) => sequence.flatMap((item) => item.capture && this.itemNames.has(item.capture) ? [item.capture] : [])))];
         for (const sequence of bodies) {
           // A helper with one symbol has that symbol's tags, like any
           // production (engine §3.7).
@@ -10384,7 +10706,10 @@
           const inherited = inheritedIndex(logical);
           const single = inherited !== null;
           const ranked = this.rankedSequences.get(sequence);
-          const captures = ranked ? sequence.flatMap((item,index) => item.capture ? [{name:item.capture,index}] : []) : [];
+          // The item captures inside braces bind to the helper's productions
+          // (engine §3.5), as do the captures of a ranked option.
+          const captures = sequence.flatMap((item,index) => item.capture ? [{name:item.capture,index}] : []);
+          const items = helperItems;
           if (single && captures.length === 0) captures.push({name:"\u0000child",index:/** @type {number} */ (inherited)});
           this.addProduction({
             lhs: helper.name,
@@ -10402,6 +10727,13 @@
             erased: false,
             warnings: [],
             ...(ranked ? {rankedGroup:ranked.group,rankedOption:ranked.option} : {}),
+            // Every helper of an alternative with item captures is contextual,
+            // so that a frame reaches the braces' helper through the helpers
+            // around it, and its item conditions read the enclosing item's
+            // captures from the frame (engine §4).
+            ...(this.itemNames.size ? {contextual: true} : {}),
+            ...(items.length ? {itemAlternative: alternative, itemNames: items,
+              itemConditions: alternative.clauses.conditions.filter((condition) => capturesMentioned(condition).some((name) => items.includes(name)))} : {}),
           });
         }
         const children = this.usedHelpers(bodies);
@@ -10482,6 +10814,8 @@
         }
         commonConditions = common;
       }
+      // An item condition attaches to the helper of its braces (engine §3.6).
+      if (this.itemNames.size) commonConditions = commonConditions.filter((c) => !capturesMentioned(c).some((name) => this.itemNames.has(name)));
       for (const condition of partsFor(prepareConditions(commonConditions), has, names)) {
         // A condition false for this production removes it.
         if (condition === DOM_FALSE) return;
@@ -10771,6 +11105,9 @@
    */
   function holdsCapture(expr, includeRanked = false) {
     if ("ranked" in expr && !includeRanked) return false;
+    // An item capture binds to the helper of its braces, not to the
+    // enclosing production (engine §3.5).
+    if ("repeat" in expr) return false;
     if ("capture" in expr) return true;
     return expressionChildren(expr).some(child => holdsCapture(child, includeRanked));
   }
@@ -11926,7 +12263,7 @@
     /** @param {string} name @param {any} frame @param {boolean|undefined} requested */
     const demandKey = (name, frame, requested) =>
       (frame ? `${name}/${frame.id}` : name) + (requested ? "/observed" : "");
-    const lexical = lowered.ranked?.groups.length ? rankedFrameTable(context) : null;
+    const lexical = lowered.ranked?.groups.length || lowered.contextual ? rankedFrameTable(context) : null;
     /** @param {Item} item */
     const waitingKey = item => {
       const name = item.production.rhs[item.dot].name;
@@ -18678,6 +19015,7 @@
 
 
 
+
   /**
    * @import { Step } from "./trampoline.js"
    * @import { Argument, Comparator, Condition, DomAlternative, DomClassifier, DomConstant, DomDirective, DomEntry, DomImplication, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
@@ -18845,9 +19183,11 @@
     // an error about it is reported.
     /** @type {Map<object, ResultNode>} */
     let captureNodes = new Map();
-    // How many braces and elidable optionals the reader is inside, where no
-    // capture stands.
-    let braces = 0;
+    // The braces and elidable optionals the reader is inside. A chain and an
+    // elidable optional hold no capture, and flat braces hold item captures,
+    // outside a ranked group (engine §3.5, §9).
+    /** @type {{chain: boolean, ranked: number}[]} the braces around the construct being read, innermost last, with the ranked groups open inside each */
+    const braces = [];
     let marked = 0;
     let recipeContext = false;
     let featureContext = false;
@@ -19133,6 +19473,20 @@
         const first = twice.reduce((a, b) => (firstToken(b) < firstToken(a) ? b : a));
         fail(`the capture $${valueOf(token(first)).slice(1)} is read twice by one production of the alternative`, first);
       }
+      // The name of an item capture stands nowhere else in the alternative
+      // (engine §3.5, §9): the error stands at the later capture in the text.
+      const items = itemCaptures(alternative.expr);
+      if (items.size > 0) {
+        /** @type {Map<string, ResultNode>} */
+        const seen = new Map();
+        for (const capture of allCaptures(alternative.expr)) {
+          const name = capture.capture;
+          const at = /** @type {ResultNode} */ (captureNodes.get(capture));
+          const earlier = seen.get(name);
+          if (earlier && items.has(name)) fail(`the item capture $${name} is read again: the name of an item capture stands once in its alternative`, firstToken(earlier) < firstToken(at) ? at : earlier);
+          if (!earlier) seen.set(name, at);
+        }
+      }
       const tags = one(node, "alternative-tags");
       if (tags) alternative.tags = yield readConstituentTags(tags);
       Object.assign(alternative, yield readChannels(node));
@@ -19160,7 +19514,10 @@
           const found = some(node, "conjunction", 2);
           /** @type {Expr[]} */
           const items = [];
+          const enclosing = braces[braces.length - 1];
+          if (enclosing) enclosing.ranked++;
           for (const item of found) items.push(yield readExpression(item));
+          if (enclosing) enclosing.ranked--;
           const expr = {ranked:items};
           const separator = parts(node).find(child => child.kind === "token" && valueOf(child) === "≻");
           if (separator) rankedLocations.set(expr,at(separator));
@@ -19250,11 +19607,11 @@
       // A chain is the whole expression of its alternative, as the lowering
       // of its levels needs (engine §3.3, §9).
       if (chain && !whole) fail("a chain is the whole expression of its alternative: name it as a rule to use it here", node);
-      braces++;
+      braces.push({ chain: chain !== null, ranked: 0 });
       /** @type {Expr} */
       const result = { repeat: yield readExpression(choices[0]) };
       if (choices.length >= 2) result.separator = yield readExpression(choices[1]);
-      braces--;
+      braces.pop();
       if (chain) result.chain = chain;
       return result;
     }
@@ -19285,7 +19642,9 @@
           return expr;
         }
         case "capture": {
-          if (braces > 0) fail("a capture cannot stand inside braces, whose parts repeat: name the list as a rule, and capture that", node);
+          const innermost = braces[braces.length - 1];
+          if (innermost?.chain) fail("a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level", node);
+          if (innermost && innermost.ranked > 0) fail("an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule", node);
           if (marked > 0) fail("a capture cannot stand inside an elidable optional, which elision restores as one unit", node);
           const captureToken = token(node);
           const inner = only(node, "primary");
@@ -20071,6 +20430,23 @@
 
   // What a primary, a condition, a term and a term atom hold: the one rule
   // among their parts is one of these (engine §9).
+  /**
+   * The captures of an expression in the order written, braces included.
+   * @param {Expr} expr
+   * @returns {{capture: string, expr: Expr}[]}
+   */
+  function allCaptures(expr) {
+    /** @type {{capture: string, expr: Expr}[]} */
+    const found = [];
+    /** @type {(node: Expr) => void} */
+    const walk = (node) => {
+      if ("capture" in node) found.push(/** @type {{capture: string, expr: Expr}} */ (node));
+      for (const child of expressionChildren(node)) walk(child);
+    };
+    walk(expr);
+    return found;
+  }
+
   const PRIMARIES = new Set(["constant-reference", "call", "parameter", "reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty"]);
   const CONDITIONS = new Set(["tree-comparison", "comparison", "method", "negation", "presence", "implication"]);
   const TERMS = new Set(["union", "guarded-term"]);
@@ -22249,6 +22625,9 @@
    * @property {number} [rankedOption]
    * @property {Set<string>} [sourcePrivate]
    * @property {boolean} [contextual]
+   * @property {import("./grammar.js").StitchedAlternative} [itemAlternative] the alternative whose braces this helper production lowers, when it has item captures
+   * @property {string[]} [itemNames] the item captures of the helper (engine §3.5)
+   * @property {Condition[]} [itemConditions] the item conditions of the helper, which frames attach (engine §3.6, §4)
    * @property {Condition[]} [rankedDeferred]
    * @property {ReadyCondition[]} [rankedConditions] effective conditions across static ranked entry contexts
    * @property {Term} [parentTags]
@@ -22299,6 +22678,7 @@
    * @property {Map<string, Production[]>} byLhs
    * @property {Resolution} resolution
    * @property {import("./ranked.js").RankedGroups} ranked
+   * @property {boolean} [contextual] whether a production is contextual, so that recognition keeps frames (engine §4)
    * @property {Map<string,Set<string>>} families static members from written rules
    * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
    *   of the stage, resolved for these features: each key's classes (engine

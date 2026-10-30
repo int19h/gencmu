@@ -1,0 +1,35 @@
+{
+  "description": "An item condition holds of each item of the list: with the condition on $c, a list of two A tokens rejects the second one whose value is x (engine §3.5, §3.6, §4).",
+  "grammar": "%rule text {$c:A}\n%conditions $c.value ≠ \"x\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 1
+      }
+    },
+    "error": "rejected"
+  }
+}

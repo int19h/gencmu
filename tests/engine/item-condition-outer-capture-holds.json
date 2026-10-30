@@ -1,0 +1,36 @@
+{
+  "description": "An item condition on an outer capture holds of each item, so the list completes and the rule is unique (engine §3.6, §4).",
+  "grammar": "%rule text $o:B {$c:A}\n%conditions $c.value ≠ $o.value",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(b a c)"
+  }
+}
