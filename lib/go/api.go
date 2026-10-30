@@ -491,6 +491,7 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 				return
 			}
 			copy := *bundled.uni
+			copy.profiles = &scalarProfiles{}
 			var err error
 			if copy.properties, err = parseProperties(text, &copy); err != nil {
 				bundled.propertiesErr = err
@@ -636,6 +637,7 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *P
 	}
 	if text, ok := texts["data/unicode/unicode-properties.txt"]; ok {
 		copy := *l.uni
+		copy.profiles = &scalarProfiles{}
 		l.uni = &copy
 		if l.uni.properties, err = parseProperties(text, l.uni); err != nil {
 			return nil, err

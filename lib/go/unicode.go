@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // unicodeTable is data/unicode/unicode.txt: the General_Category of every
@@ -13,6 +14,7 @@ import (
 // (engine §1). Every library reads this table
 // rather than its platform's Unicode data, so that all of them agree.
 type unicodeTable struct {
+	profiles *scalarProfiles
 	// The category ranges, in order, for a binary search.
 	categories             []coreRange[string]
 	whiteSpace             [][2]rune
@@ -27,6 +29,11 @@ type unicodeTable struct {
 	version                string
 	versionCount           int
 	properties             map[string]*propertyData
+}
+
+type scalarProfiles struct {
+	mu      sync.Mutex
+	entries map[rune][]string
 }
 
 type coreRange[T comparable] struct {
@@ -65,7 +72,7 @@ var categoryNames = []string{
 }
 
 func parseUnicodeTable(text string) (*unicodeTable, error) {
-	t := &unicodeTable{decompositions: map[rune][]rune{}, abbreviations: map[string]rune{}, canonicalAbbreviations: map[rune]string{}, hash: fnv1a64(text)}
+	t := &unicodeTable{profiles: &scalarProfiles{}, decompositions: map[rune][]rune{}, abbreviations: map[string]rune{}, canonicalAbbreviations: map[rune]string{}, hash: fnv1a64(text)}
 	hex := func(s string) (rune, error) {
 		for _, c := range s {
 			if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {

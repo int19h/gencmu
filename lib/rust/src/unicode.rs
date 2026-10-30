@@ -44,6 +44,9 @@ impl Property {
     }
 }
 
+pub(crate) type ScalarProfile = std::sync::Arc<[String]>;
+type ProfileCache = std::sync::Arc<std::sync::Mutex<std::collections::BTreeMap<u32, ScalarProfile>>>;
+
 #[derive(Debug, Clone)]
 pub(crate) struct Unicode {
     /// The category ranges, sorted by their first code point: first, last
@@ -60,6 +63,7 @@ pub(crate) struct Unicode {
     pub(crate) version_count: usize,
     pub(crate) properties_fingerprint: Option<String>,
     pub(crate) properties: std::collections::BTreeMap<String, crate::unicode_properties::PropertyData>,
+    pub(crate) profiles: ProfileCache,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -106,6 +110,7 @@ impl Unicode {
             version_count: 0,
             properties: std::collections::BTreeMap::new(),
             properties_fingerprint: None,
+            profiles: Default::default(),
         };
         let mut decomposition_codes = std::collections::BTreeSet::new();
         for (index, raw) in text.split_inclusive('\n').enumerate() {

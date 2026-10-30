@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -699,5 +700,40 @@ func TestRecipeConcatenationDiagnostics(t *testing.T) {
 		if failure == nil || !strings.Contains(failure.Message, "++") || strings.Contains(strings.ToLower(failure.Message), "use ++") {
 			t.Fatalf("expected an ordinary type error: %v", failure)
 		}
+	}
+}
+
+func TestUnicodeProfilesShareSafely(t *testing.T) {
+	upper, err := parseUnicodeTable("category Lu 0041 0041\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	absent, err := parseUnicodeTable("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile := upper.profile('A')
+	if reflect.DeepEqual(profile, absent.profile('A')) {
+		t.Fatal("profiles crossed table identities")
+	}
+	var workers sync.WaitGroup
+	for range 4 {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			if other := upper.profile('A'); &profile[0] != &other[0] {
+				t.Error("the table did not share its profile")
+			}
+		}()
+	}
+	workers.Wait()
+	for code := range rune(5000) {
+		upper.profile(code)
+	}
+	if len(upper.profiles.entries) > 4096 {
+		t.Fatal("the profile cache exceeded its bound")
+	}
+	if !reflect.DeepEqual(profile, upper.profile('A')) {
+		t.Fatal("cache eviction changed the profile")
 	}
 }
