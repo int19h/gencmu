@@ -1,0 +1,89 @@
+{
+  "description": "The document reader flattens conditions and unions across directives, guards, and call arguments.",
+  "document": "```jbogenbau\n%features f %conditions ($ ∧ $) ∧ $, ($ ∨ $) ∨ $\n%rule text \"a\" %conditions (A ∪ B) ∪ C = A\n%rule f(@X) @X\n%rule use f((A ∪ B) ∪ C)\n```",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "features",
+          "conditions": [
+            {
+              "all": [
+                {
+                  "captured": ""
+                },
+                {
+                  "captured": ""
+                },
+                {
+                  "captured": ""
+                }
+              ]
+            },
+            {
+              "any": [
+                {
+                  "captured": ""
+                },
+                {
+                  "captured": ""
+                },
+                {
+                  "captured": ""
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "conditions": [
+            {
+              "left": {
+                "union": [
+                  {
+                    "tag": "A"
+                  },
+                  {
+                    "tag": "B"
+                  },
+                  {
+                    "tag": "C"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "f"
+        },
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "call": "f",
+                "args": [
+                  {
+                    "union": [
+                      {
+                        "tag": "A"
+                      },
+                      {
+                        "tag": "B"
+                      },
+                      {
+                        "tag": "C"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -13,9 +13,13 @@ type stageFeature struct {
 	directive *domDirective
 }
 
+type argumentSite struct {
+	doc string
+	at  [2]int
+}
+
 type stageGrammar struct {
-	templates         []*ruleTemplate
-	instances         []*ruleInstance
+	arguments         map[argumentSite][]constArgument
 	features          []stageFeature
 	families          map[string]map[string]bool
 	ranked            *rankedGroups
@@ -118,8 +122,8 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 	var pendingTemplates []*Error
 	for _, document := range docs {
 		for _, rule := range document.dom.Rules {
-			if rule.rawTemplate != nil && rule.rawTemplate["params"] != nil {
-				if issue := templateDeferredDefinition(rule.rawTemplate); issue != nil {
+			if rule.Params != nil {
+				if issue := rule.deferredEmission; issue != nil {
 					err := grammarError(document.path, rule.At, "%s", issue.message)
 					err.Stage = stageName
 					pendingTemplates = append(pendingTemplates, err)
@@ -133,7 +137,12 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 		return nil, expansionError
 	}
 	docs = expanded.docs
-	g := &stageGrammar{templates: expanded.templates, instances: expanded.instances, name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}}
+	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}}
+	g.arguments = map[argumentSite][]constArgument{}
+	for _, argument := range expanded.arguments {
+		key := argumentSite{argument.doc, argument.at}
+		g.arguments[key] = append(g.arguments[key], argument)
+	}
 	g.classifierSet.names = map[string]bool{}
 	var checks []func() *Error
 	fail := func(doc string, at [2]int, format string, args ...any) *Error {
@@ -179,7 +188,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 				if r.deferredEmission != nil && len(constRefs(r)) == 0 && !ruleHasPattern(r) {
 					g.deferredEmissions = append(g.deferredEmissions, fail(d.path, r.At, "%s", r.deferredEmission.message))
 				}
-				if len(constRefs(r)) > 0 || ruleHasPattern(r) {
+				if len(constRefs(r)) > 0 || ruleHasPattern(r) || len(g.arguments[argumentSite{d.path, r.At}]) > 0 {
 					user := constUser{doc: d.path, rule: r}
 					checks = append(checks, func() *Error { return g.checkConstantRule(user) })
 				}
@@ -283,11 +292,11 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 		}
 	}
 	for _, user := range expanded.validation {
-		if len(constRefs(user.rule)) > 0 || ruleHasPattern(user.rule) {
+		if len(constRefs(user.rule)) > 0 || ruleHasPattern(user.rule) || len(g.arguments[argumentSite{user.doc, user.rule.At}]) > 0 {
 			checks = append(checks, func() *Error { return g.checkConstantRule(user) })
 		}
 	}
-	if err := g.resolveConstants(checks); err != nil {
+	if err := g.resolveConstants(checks, expanded.arguments); err != nil {
 		return nil, err
 	}
 	if len(ambiguity) == 0 {

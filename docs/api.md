@@ -2,7 +2,7 @@
 
 The common API gives every gencmu library the same operations on the same data. An API is the operations that a library exposes. Each library spells them the way its language spells things. This document says what the operations are. The engine specification, `docs/engine.md`, says what they compute. `docs/output.md` says what the results look like as JSON.
 
-The audit is a JavaScript library and CLI tool outside the common API. Engine references to audit notes describe that tool.
+The audit is a JavaScript library and CLI tool outside the common API. Engine references to audit notes describe that tool. Other libraries discard template histories after expansion. Their conformance tests inspect instance names through an internal expansion result.
 
 ## What every library offers
 
@@ -316,3 +316,5 @@ gencmu::to_brackets(&result, true);
 - `to_brackets(&ParseResult, show_elided: bool) -> String` renders the tree as brackets.
 - A result owns its data (`String`, `Vec`) and borrows neither the text nor the pipeline. So it outlives both.
 - The crate has no dependencies. It states its minimum supported Rust version.
+
+Internal validation modes do not extend the generated declarations. The tree-conversion helpers keep their optional decoder callback in its final argument position.

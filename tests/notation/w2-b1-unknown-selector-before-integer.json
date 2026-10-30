@@ -1,0 +1,10 @@
+{
+  "description": "An unknown chained selector precedes its invalid integer argument.",
+  "document": "```jbogenbau\n%rule text $x:A %conditions $x.onward.foo(07)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 29
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "A stage rejects its operand kind before resolving an engine tag.",
+  "document": "```jbogenbau\n%stage _Foo\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

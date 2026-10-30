@@ -1,0 +1,10 @@
+{
+  "description": "An invalid emission target stands at the target after its attachments.",
+  "document": "```jbogenbau\n%rule r $a:A\n%emits ($a) Foo\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 13
+    }
+  }
+}

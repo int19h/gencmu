@@ -662,6 +662,7 @@ impl<'a> Lowerer<'a> {
 
     fn expand(&mut self, expr: &Expr) -> Vec<Sequence> {
         match expr {
+            Expr::Source(_) => unreachable!("source symbols expand before lowering"),
             Expr::Literal(_) | Expr::ScalarRange(..) => unreachable!("stitching binds terminal strings"),
             Expr::Seq(items) => {
                 let mut out = vec![Sequence::new()];
@@ -671,7 +672,7 @@ impl<'a> Lowerer<'a> {
                 }
                 out
             }
-            Expr::Ranked(items) => {
+            Expr::Ranked(items, _) => {
                 self.enter();
                 let mut prods = Vec::new();
                 let mut options = Vec::new();
@@ -824,8 +825,8 @@ impl<'a> Lowerer<'a> {
 fn holds_capture(expr: &Expr, include_ranked: bool) -> bool {
     match expr {
         Expr::Capture(..) => true,
-        Expr::Ranked(_) if !include_ranked => false,
-        Expr::Ranked(items) | Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+        Expr::Ranked(_, _) if !include_ranked => false,
+        Expr::Ranked(items, _) | Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
             items.iter().any(|item| holds_capture(item, include_ranked))
         }
         Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => holds_capture(inner, include_ranked),
@@ -833,7 +834,8 @@ fn holds_capture(expr: &Expr, include_ranked: bool) -> bool {
             holds_capture(item, include_ranked)
                 || separator.as_deref().is_some_and(|expr| holds_capture(expr, include_ranked))
         }
-        Expr::Ref(_)
+        Expr::Source(_)
+        | Expr::Ref(_)
         | Expr::Terminal(_)
         | Expr::Literal(_)
         | Expr::ScalarRange(..)
@@ -905,6 +907,7 @@ impl<'a> Scope<'a> {
             items.iter().map(|item| scope.term(item)).collect::<Result<Vec<_>, _>>()
         };
         Ok(match term {
+            Term::Source(_) => unreachable!("source symbols expand before lowering"),
             Term::Str(text) => LTerm::Str(text.clone()),
             Term::Tag(tag) => LTerm::Tag(tag.clone()),
             Term::EmptySet => LTerm::Empty,
@@ -970,6 +973,7 @@ impl<'a> Scope<'a> {
 
     fn cond(&mut self, cond: &Cond) -> Result<LCond, Missing> {
         Ok(match cond {
+            Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
             Cond::Compare(op, left, Term::Pattern(p)) if matches!(op.as_str(), "≅" | "≇") => {
                 LCond::Tree(self.span(left)?, op == "≅", (**p).clone())
             }
@@ -2290,6 +2294,7 @@ mod tests {
             Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").expect("the table")).expect("the table");
         {
             let rule = |name: String, alternatives: Vec<Expr>| RuleDef {
+                source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
                 name,
@@ -2379,6 +2384,7 @@ mod tests {
             Term::If(Box::new(Cond::Captured(format!("c{index}"))), Box::new(Term::Tag(format!("t{index}"))))
         });
         RuleDef {
+            source: Default::default(),
             strings: Default::default(),
             deferred_emission: None,
             name: "text".into(),

@@ -1,6 +1,7 @@
 //! Schema validation for grammar DOMs. The work list bounds the complete DOM
 //! before conversion constructs any recursively owned term or expression.
 use super::*;
+mod source;
 
 #[derive(Clone, Copy)]
 pub(crate) enum Part {
@@ -13,6 +14,10 @@ pub(crate) enum Part {
     Pattern,
     PatternNode,
     PatternItem,
+    Argument,
+    Call,
+    Target,
+    Requirements,
 }
 
 fn exact(value: &Json, required: &[&str], optional: &[&str]) -> bool {
@@ -30,8 +35,10 @@ fn tag(name: &str) -> bool {
     engine_tag(name) || name.starts_with(|c: char| c.is_ascii_uppercase()) && is_name(name)
 }
 
-fn rule_name(name: &str, unicode: &Unicode) -> bool {
-    unicode.is_emoji_name(name) || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name)
+fn rule_name(name: &str, unicode: &Unicode, expanded: bool) -> bool {
+    unicode.is_emoji_name(name)
+        || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name)
+        || expanded && name.contains('(') && name.ends_with(')')
 }
 
 fn feature(name: &str) -> bool {
@@ -59,6 +66,7 @@ fn bare_capture(value: &Json) -> bool {
 
 fn span(value: &Json) -> bool {
     bare_capture(value)
+        || source::leaf(value)
         || matches!(
             value.get("method").and_then(Json::as_str),
             Some(
@@ -89,7 +97,9 @@ pub(crate) fn restored_span(mut value: &Json) -> bool {
 }
 
 fn string_atom(value: &Json) -> bool {
-    exact(value, &["string"], &[]) && is_str(value.get("string")) || exact(value, &["const", "at"], &[])
+    exact(value, &["string"], &[]) && is_str(value.get("string"))
+        || exact(value, &["const", "at"], &[])
+        || value.get("param").is_some()
 }
 
 /// Literal endpoints must already form an ordered scalar interval.
@@ -103,22 +113,26 @@ pub(crate) fn literal_range(left: &Json, right: &Json) -> bool {
         }
 }
 
-fn base(value: &Json, unicode: &Unicode) -> bool {
-    exact(value, &["ref"], &[])
-        && value.get("ref").and_then(Json::as_str).is_some_and(|name| rule_name(name, unicode) || tag(name))
+fn base(value: &Json, unicode: &Unicode, expanded: bool) -> bool {
+    source::leaf(value)
+        || exact(value, &["ref"], &[])
+            && value
+                .get("ref")
+                .and_then(Json::as_str)
+                .is_some_and(|name| rule_name(name, unicode, expanded) || tag(name))
         || exact(value, &["literal"], &[])
         || exact(value, &["range"], &[])
         || exact(value, &["wildcard"], &[]) && is_true(value.get("wildcard"))
 }
 
-fn tested_base(value: &Json, unicode: &Unicode) -> bool {
-    base(value, unicode)
+fn tested_base(value: &Json, unicode: &Unicode, expanded: bool) -> bool {
+    base(value, unicode, expanded)
         || value.get("test").and_then(Json::as_str).is_some_and(|op| match (op, value.get("expr")) {
-            ("tags", Some(inner)) => base(inner, unicode),
+            ("tags", Some(inner)) => base(inner, unicode, expanded),
             ("=" | "≠", Some(inner)) => {
-                base(inner, unicode)
+                base(inner, unicode, expanded)
                     || inner.get("test").and_then(Json::as_str) == Some("tags")
-                        && inner.get("expr").is_some_and(|value| base(value, unicode))
+                        && inner.get("expr").is_some_and(|value| base(value, unicode, expanded))
             }
             _ => false,
         })
@@ -140,11 +154,14 @@ fn recipe_atom(value: &Json) -> bool {
     }
 }
 
-pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
+pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -> Option<&'static str> {
+    if crate::parameters::nodes(dom).any(|node| node.get(crate::parameters::SOURCE).is_some()) {
+        return Some("a private source annotation in a supplied DOM");
+    }
     if dom.get("format").and_then(Json::as_int) != Some(DOM_FORMAT) {
         return Some("not a DOM of this format");
     }
-    let rule = |name: &str| rule_name(name, unicode);
+    let rule = |name: &str| rule_name(name, unicode, expanded);
     let mut pending = Vec::new();
     let mut positions = FxSet::default();
     for name in ["rules", "directives", "constants", "classifiers", "implications"] {
@@ -156,6 +173,23 @@ pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
             let at = position(item).ok()?;
             if !positions.insert(at) {
                 return Some("two items at one position");
+            }
+            for node in crate::parameters::nodes(item) {
+                if name != "rules" && node.get("param").is_some() {
+                    return Some("an undeclared or malformed parameter");
+                }
+                if name != "directives"
+                    && node.get("method").and_then(Json::as_str) == Some("split")
+                    && node
+                        .get("args")
+                        .and_then(Json::as_array)
+                        .and_then(|args| args.first())
+                        .and_then(|arg| arg.get("string"))
+                        .and_then(Json::as_str)
+                        == Some("")
+                {
+                    return Some("split has an empty delimiter");
+                }
             }
             match name {
                 "directives" => {
@@ -190,13 +224,26 @@ pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                     }
                 }
                 "rules" => {
-                    if let Some(problem) = boundary_problem(item) {
+                    if !crate::parameters::unresolved(item) {
+                        if let Some(problem) = boundary_problem(item) {
+                            return Some(problem);
+                        }
+                    }
+                    if let Some(problem) = source::head(item, &mut pending) {
                         return Some(problem);
+                    }
+                    if item.get("instance").is_some() {
+                        if !item.get("name").and_then(Json::as_str).is_some_and(rule)
+                            || !matches!(item.get("op").and_then(Json::as_str), Some("define" | "redefine"))
+                        {
+                            return Some("a malformed instance binding");
+                        }
+                        continue;
                     }
                     if !exact(
                         item,
                         &["name", "op", "flags", "alternatives", "conditions", "at"],
-                        &["tags", "value", "image", "emit", "erased"],
+                        &["tags", "value", "image", "emit", "erased", "params", "args"],
                     ) || !item.get("name").and_then(Json::as_str).is_some_and(rule)
                         || !matches!(item.get("op").and_then(Json::as_str), Some("define" | "extend" | "redefine"))
                     {
@@ -236,6 +283,9 @@ pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                             || !guards(alt.get("guards"), false)
                         {
                             return Some("a malformed alternative");
+                        }
+                        if item.get("erased").is_some() && ["value", "image"].iter().any(|key| alt.get(key).is_some()) {
+                            return Some("an erased rule has a recipe");
                         }
                         pending.push((Part::Expr { whole: true, sealed: false }, alt.get("expr").unwrap(), 0));
                         for key in ["tags", "value", "image"] {
@@ -344,18 +394,31 @@ pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
             }
         }
     }
-    if let Some(problem) = parts_problem(pending, unicode) {
-        return Some(problem);
-    }
-    for item in dom.get("rules").and_then(Json::as_array).unwrap() {
-        let Ok(rule) = rule_from_json(item) else { return Some("a malformed rule") };
+    parts_problem(pending, unicode, expanded)
+}
+
+pub(crate) fn decoded_problem(raw: &Json, dom: &Dom) -> Option<&'static str> {
+    for (item, rule) in raw.get("rules").and_then(Json::as_array).unwrap().iter().zip(&dom.rules) {
+        if rule.source.instance.is_some() {
+            continue;
+        }
         if rule.alternatives.iter().any(|a| !crate::clauses::duplicate_captures(&a.expr).is_empty()) {
             return Some("a production captures a name twice");
         }
-        if rule_type_problem(&rule).is_some() {
+        let projected;
+        let checked = if crate::parameters::unresolved(item) {
+            projected = match super::partial::rule(rule) {
+                Ok(rule) => rule,
+                Err(_) => return Some("a malformed partial rule"),
+            };
+            &projected
+        } else {
+            rule
+        };
+        if rule_type_problem(checked).is_some() {
             return Some("a term or a condition whose types do not agree");
         }
-        if crate::clauses::check_definition(&rule, true).problem.is_some() {
+        if crate::clauses::check_definition(checked, true).problem.is_some() {
             return Some("a malformed definition");
         }
         for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alt| alt.tags.as_ref())) {
@@ -373,34 +436,31 @@ pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
             }
         }
     }
-    for definition in dom.get("constants").and_then(Json::as_array).unwrap() {
-        let Ok(term) = term_from_json(definition.get("value").unwrap()) else {
-            return Some("a malformed constant value");
-        };
-        if !closed(&term)
-            || any_engine_literal(&term)
-            || constant_value_type(&term, definition.get("op").and_then(Json::as_str) == Some("redefine"), &|_| {
-                Type::Any
-            })
-            .is_err()
+    for (definition, constant) in raw.get("constants").and_then(Json::as_array).unwrap().iter().zip(&dom.constants) {
+        let term = &constant.value;
+        if !closed(term)
+            || any_engine_literal(term)
+            || !crate::parameters::unresolved(definition)
+                && constant_value_type(term, definition.get("op").and_then(Json::as_str) == Some("redefine"), &|_| {
+                    Type::Any
+                })
+                .is_err()
         {
             return Some("an invalid closed constant value");
         }
     }
-    for implication in dom.get("implications").and_then(Json::as_array).unwrap() {
-        for key in ["if", "then"] {
-            let Ok(term) = term_from_json(implication.get(key).unwrap()) else {
-                return Some("a malformed implication side");
-            };
-            if !closed(&term)
-                || any_engine_literal(&term)
-                || term_type(&term).map_or(true, |ty| expected_problem(ty, Type::Tags).is_some())
+    for (raw, implication) in raw.get("implications").and_then(Json::as_array).unwrap().iter().zip(&dom.implications) {
+        for term in [&implication.antecedent, &implication.consequent] {
+            if !closed(term)
+                || any_engine_literal(term)
+                || !crate::parameters::unresolved(raw)
+                    && term_type(term).map_or(true, |ty| expected_problem(ty, Type::Tags).is_some())
             {
                 return Some("an invalid implication side");
             }
         }
     }
-    names_problem(dom)
+    names_problem(raw)
 }
 
 pub(crate) fn names_problem(dom: &Json) -> Option<&'static str> {
@@ -420,17 +480,62 @@ pub(crate) fn names_problem(dom: &Json) -> Option<&'static str> {
     None
 }
 
-pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode) -> Option<&'static str> {
-    let rule = |name: &str| rule_name(name, unicode);
+fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expanded: bool) -> Option<&'static str> {
+    let rule = |name: &str| rule_name(name, unicode, expanded);
     while let Some((kind, value, depth)) = pending.pop() {
         if depth > DOM_MAX_DEPTH {
             return Some("nested too deeply");
         }
         let next = depth + 1;
+        if value.get("param").is_some() && !matches!(kind, Part::Pattern | Part::PatternNode | Part::Argument) {
+            if !matches!(kind, Part::Expr { .. } | Part::Term | Part::RecipeAtom | Part::String | Part::Target) {
+                return Some("a parameter in the wrong source category");
+            }
+            if let Some(problem) = source::parameter_problem(value) {
+                return Some(problem);
+            }
+            continue;
+        }
+        if value.get("call").is_some() && !matches!(kind, Part::Pattern | Part::PatternNode | Part::Argument) {
+            if !matches!(kind, Part::Expr { .. } | Part::Term | Part::Target | Part::Call) {
+                return Some("a call in the wrong source category");
+            }
+            if let Some(problem) = source::call(value, depth, &mut pending, &rule, false) {
+                return Some(problem);
+            }
+            continue;
+        }
         match kind {
+            Part::Call => return Some("a malformed call"),
+            Part::Argument => {
+                if let Some(problem) = source::argument(value, depth, &mut pending, &rule) {
+                    return Some(problem);
+                }
+            }
+            Part::Target => {
+                if !(exact(value, &["rule"], &[]) && value.get("rule").and_then(Json::as_str).is_some_and(rule)
+                    || exact(value, &["terminal"], &[])
+                        && value.get("terminal").and_then(Json::as_str).is_some_and(|s| tag(s) && !engine_tag(s)))
+                {
+                    return Some("a malformed query target");
+                }
+            }
+            Part::Requirements => {
+                let Some(items) = value.as_array() else { return Some("a malformed requirement list") };
+                for item in items {
+                    let Some(term) = item.get("value") else { return Some("a missing requirement value") };
+                    if !exact(item, &["negated", "value"], &[])
+                        || !matches!(item.get("negated"), Some(Json::Bool(_)))
+                        || !["tag", "const", "param"].iter().any(|key| term.get(key).is_some())
+                    {
+                        return Some("a malformed requirement");
+                    }
+                    pending.push((Part::Term, term, next));
+                }
+            }
             Part::Expr { whole, sealed } => {
                 let expression = |value, sealed| (Part::Expr { whole: false, sealed }, value, next);
-                if base(value, unicode) {
+                if base(value, unicode, expanded) {
                     if value.get("ref").and_then(Json::as_str).is_some_and(|name| !rule(name) && !tag(name)) {
                         return Some("a malformed reference");
                     }
@@ -450,7 +555,7 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                     if sealed
                         || !exact(value, &["capture", "expr"], &[])
                         || !inner.as_str().is_some_and(is_capture_name)
-                        || !value.get("expr").is_some_and(|value| tested_base(value, unicode))
+                        || !value.get("expr").is_some_and(|value| tested_base(value, unicode, expanded))
                     {
                         return Some("a malformed capture");
                     }
@@ -461,7 +566,7 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                     {
                         return Some("a malformed optional");
                     }
-                    if value.get("elidable").is_some() && elidable_head_json(inner).is_none() {
+                    if value.get("elidable").is_some() && !source::elidable(inner) {
                         return Some("a malformed elidable optional");
                     }
                     pending.push(expression(inner, sealed || value.get("elidable").is_some()));
@@ -478,7 +583,7 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                         pending.push(expression(separator, true));
                     }
                 } else if value.get("test").is_some() {
-                    if !tested_base(value, unicode) {
+                    if !tested_base(value, unicode, expanded) {
                         return Some("a malformed test target or order");
                     }
                     pending.push(expression(value.get("expr").unwrap(), sealed));
@@ -487,19 +592,7 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                             pending.push((Part::String, value.get("value").unwrap(), next))
                         }
                         Some("tags") if exact(value, &["test", "requirements", "expr"], &[]) => {
-                            let Some(items) = value.get("requirements").and_then(Json::as_array) else {
-                                return Some("a malformed requirement list");
-                            };
-                            for item in items {
-                                let Some(term) = item.get("value") else { return Some("a missing requirement value") };
-                                if !exact(item, &["negated", "value"], &[])
-                                    || !matches!(item.get("negated"), Some(Json::Bool(_)))
-                                    || !(term.get("tag").is_some() || term.get("const").is_some())
-                                {
-                                    return Some("a malformed requirement");
-                                }
-                                pending.push((Part::Term, term, next));
-                            }
+                            pending.push((Part::Requirements, value.get("requirements").unwrap(), depth));
                         }
                         _ => return Some("a malformed test"),
                     }
@@ -514,7 +607,7 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                     let Some(items) = value
                         .get(key)
                         .and_then(Json::as_array)
-                        .filter(|items| items.len() >= 2 && (key != "and" || items.len() <= 16))
+                        .filter(|items| items.len() >= 2 && (key != "and" || items.len() <= crate::grammar::MAX_AND))
                     else {
                         return Some(if key == "ranked" {
                             "ranked-choice-syntax: a ranked expression requires two options"
@@ -579,14 +672,15 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                     };
                     let receiver = value.get("receiver").unwrap();
                     let name = value.get("method").and_then(Json::as_str).unwrap_or("");
+                    let capture = bare_capture(receiver) || source::leaf(receiver);
+                    let rule_arg = |arg: &Json| {
+                        source::leaf(arg)
+                            || exact(arg, &["rule"], &[]) && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
+                    };
                     let valid = match (name, args) {
-                        ("without-elision", []) => bare_capture(receiver),
-                        ("without-elision-except", [arg]) => {
-                            bare_capture(receiver)
-                                && exact(arg, &["rule"], &[])
-                                && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
-                        }
-                        ("verbatim-text" | "emitted", []) => matches!(kind, Part::RecipeAtom) && bare_capture(receiver),
+                        ("without-elision", []) => capture,
+                        ("without-elision-except", [arg]) => capture && rule_arg(arg),
+                        ("verbatim-text" | "emitted", []) => matches!(kind, Part::RecipeAtom) && capture,
                         ("value" | "image", []) => {
                             span(receiver)
                                 || matches!(kind, Part::RecipeAtom)
@@ -605,11 +699,7 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                             | "tags",
                             [],
                         ) => span(receiver),
-                        ("tags", [arg]) => {
-                            span(receiver)
-                                && exact(arg, &["rule"], &[])
-                                && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
-                        }
+                        ("tags", [arg]) => span(receiver) && rule_arg(arg),
                         ("ngrams", [arg]) => {
                             exact(arg, &["integer"], &[])
                                 && arg.get("integer").and_then(Json::as_str).is_some_and(crate::dom::valid_integer)
@@ -688,11 +778,12 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                         || !match (value.get("method").and_then(Json::as_str), args) {
                             (Some("starts-input" | "ends-input"), Some([])) => true,
                             (Some("followed-by" | "preceded-by"), Some(args)) => {
-                                bare_capture(receiver)
+                                (bare_capture(receiver) || source::leaf(receiver))
                                     && !args.is_empty()
                                     && args.iter().all(|arg| {
-                                        exact(arg, &["rule"], &[])
-                                            && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
+                                        source::leaf(arg)
+                                            || exact(arg, &["rule"], &[])
+                                                && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
                                             || exact(arg, &["terminal"], &[])
                                                 && arg.get("terminal").and_then(Json::as_str).is_some_and(|s| {
                                                     s.starts_with(|c: char| c.is_ascii_uppercase()) && tag(s)
@@ -703,8 +794,9 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                                 (name != "ends" || !restored_span(receiver))
                                     && !args.is_empty()
                                     && args.iter().all(|arg| {
-                                        exact(arg, &["rule"], &[])
-                                            && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
+                                        source::leaf(arg)
+                                            || exact(arg, &["rule"], &[])
+                                                && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
                                             || exact(arg, &["terminal"], &[])
                                                 && arg.get("terminal").and_then(Json::as_str).is_some_and(|s| {
                                                     s.starts_with(|c: char| c.is_ascii_uppercase()) && tag(s)
@@ -717,6 +809,7 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                         return Some("a malformed query predicate");
                     }
                     pending.push((Part::Term, receiver, next));
+                    pending.extend(args.unwrap().iter().map(|arg| (Part::Target, arg, next)));
                 } else {
                     let Some(key) = ["any", "all"].into_iter().find(|key| value.get(key).is_some()) else {
                         return Some("a malformed condition");
@@ -748,8 +841,10 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                 pending.push((Part::PatternNode, value, depth));
             }
             Part::PatternNode => {
-                if value.get("param").is_some() || value.get("call").is_some() {
-                    return Some("an unresolved pattern");
+                if value.get("call").is_some() {
+                    if let Some(problem) = source::call(value, depth, &mut pending, &rule, true) {
+                        return Some(problem);
+                    }
                 }
                 if let Some(term) = value.get("literal") {
                     pending.push((Part::String, term, depth));

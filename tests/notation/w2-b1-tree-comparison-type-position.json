@@ -1,0 +1,10 @@
+{
+  "description": "A tree-comparison type error stands at the complete comparison.",
+  "document": "```jbogenbau\n%rule text $c:A %conditions $c ≅ \"x\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 29
+    }
+  }
+}

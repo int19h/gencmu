@@ -24,6 +24,14 @@ type constUser struct {
 	rule *domRule
 }
 
+// constArgument retains an unused argument term until the stage binds constants.
+type constArgument struct {
+	doc  string
+	term *domTerm
+	at   [2]int
+	tags bool
+}
+
 // constantTypes gives the type of each constant of the stage now.
 func (g *stageGrammar) constantTypes() constTypes {
 	return func(name string) termType {
@@ -366,7 +374,7 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 // the types agree, and that a constant that split or tag reads directly is
 // a delimiter that is not empty, or a name (engine §2, §9, §10). Then it
 // gives every reference its final value.
-func (g *stageGrammar) resolveConstants(checks []func() *Error) *Error {
+func (g *stageGrammar) resolveConstants(checks []func() *Error, arguments []constArgument) *Error {
 	if err := g.bindConstants(); err != nil {
 		return err
 	}
@@ -375,6 +383,17 @@ func (g *stageGrammar) resolveConstants(checks []func() *Error) *Error {
 			return err
 		}
 	}
+
+	for _, argument := range arguments {
+		key := argumentSite{argument.doc, argument.at}
+		if uses, ok := g.arguments[key]; ok {
+			if err := g.checkArguments(uses); err != nil {
+				return err
+			}
+			delete(g.arguments, key)
+		}
+	}
+	g.arguments = nil
 
 	// Each reference holds the final value. The DOM is shared by every
 	// stage and pipeline that includes its document, so the clauses are
@@ -702,6 +721,38 @@ func (g *stageGrammar) resolveFeature(index int) *Error {
 	return nil
 }
 
+func earlierConstantError(a, b *Error) *Error {
+	if a == nil {
+		return b
+	}
+	if b != nil && (b.Line < a.Line || b.Line == a.Line && b.Column < a.Column) {
+		return b
+	}
+	return a
+}
+func (g *stageGrammar) checkArguments(arguments []constArgument) *Error {
+	types := g.constantTypes()
+	var selected *Error
+	for _, argument := range arguments {
+		for _, ref := range constRefs(argument.term) {
+			if g.constants[ref.Str] == nil {
+				return g.constError(argument.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
+			}
+		}
+		ty, fault := termTypeIn(argument.term, types)
+		var err *Error
+		if fault != nil {
+			err = g.faultError(argument.doc, fault.node, argument.at, fault.problem)
+		} else if argument.tags {
+			if problem := expectedProblem(ty, tyTags); problem != "" {
+				err = g.faultError(argument.doc, argument.term, argument.at, problem)
+			}
+		}
+		selected = earlierConstantError(selected, err)
+	}
+	return selected
+}
+
 // checkConstantRule checks one definition after constant binding.
 func (g *stageGrammar) checkConstantRule(u constUser) *Error {
 	types := g.constantTypes()
@@ -710,8 +761,14 @@ func (g *stageGrammar) checkConstantRule(u constUser) *Error {
 			return g.constError(u.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
 		}
 	}
+	key := argumentSite{u.doc, u.rule.At}
+	selected := g.checkArguments(g.arguments[key])
+	delete(g.arguments, key)
 	if f := ruleTypeFault(u.rule, types); f != nil {
-		return g.faultError(u.doc, f.node, u.rule.At, f.problem)
+		selected = earlierConstantError(selected, g.faultError(u.doc, f.node, u.rule.At, f.problem))
+	}
+	if selected != nil {
+		return selected
 	}
 	if err := g.validateStringUses(u.doc, u.rule); err != nil {
 		return err

@@ -27,6 +27,7 @@ pub(crate) enum Simple {
 pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
     work::count(Work::Walked, 1);
     match cond {
+        Cond::SourceQuery(..) => unreachable!("source queries expand before clause checks"),
         Cond::Captured(name) => {
             if has(name) {
                 Simple::True
@@ -171,9 +172,14 @@ fn walk_captures<'a>(start: Part<'a>, values: bool, presences: bool, out: &mut V
                     }
                 }
                 Term::If(cond, then) => stack.extend([Part::Term(then), Part::Cond(cond)]),
-                Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => {}
+                Term::Source(_) | Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => {
+                }
             },
             Part::Cond(cond) => match cond {
+                Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
+                    Arg::Term(term) => Some(Part::Term(term)),
+                    _ => None,
+                })),
                 Cond::Captured(name) => {
                     if presences {
                         out.push(name);
@@ -320,6 +326,7 @@ impl<'a> Shaped<'a> {
                     }
                 },
                 Part::Cond(cond) => match cond {
+                    Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
                     Cond::Captured(name) => {
                         if has(name) {
                             Outcome::True
@@ -967,7 +974,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
                     duplicate.push(false);
                     done.push((HashMap::from([(name.as_str(), vec![duplicate.len() - 1])]), 1));
                 }
-                Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) | Expr::Ranked(items) => {
+                Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) | Expr::Ranked(items, _) => {
                     stack.push((expr, true));
                     stack.extend(items.iter().rev().map(|item| (item, false)));
                 }
@@ -983,7 +990,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
                         work::count(Work::Walked, 1);
                         match current {
                             Expr::Capture(..) => duplicate.push(false),
-                            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                                 inside.extend(items.iter().rev())
                             }
                             Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => inside.push(inner),
@@ -996,7 +1003,8 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
                     }
                     done.push(empty());
                 }
-                Expr::Ref(_)
+                Expr::Source(_)
+                | Expr::Ref(_)
                 | Expr::Terminal(_)
                 | Expr::Literal(_)
                 | Expr::ScalarRange(..)
@@ -1007,7 +1015,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
             continue;
         }
         let count = match expr {
-            Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) | Expr::Ranked(items) => items.len(),
+            Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) | Expr::Ranked(items, _) => items.len(),
             _ => 1,
         };
         let parts = done.split_off(done.len() - count);
@@ -1175,7 +1183,7 @@ impl<'e> CaptureSequences<'e> {
             work::count(Work::Walked, 1);
             match current {
                 Expr::Capture(name, _) => self.names.push(name),
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     stack.extend(items.iter().rev())
                 }
                 Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => stack.push(inner),
@@ -1183,7 +1191,8 @@ impl<'e> CaptureSequences<'e> {
                     stack.extend(separator.as_deref());
                     stack.push(item);
                 }
-                Expr::Ref(_)
+                Expr::Source(_)
+                | Expr::Ref(_)
                 | Expr::Terminal(_)
                 | Expr::Literal(_)
                 | Expr::ScalarRange(..)
@@ -1209,7 +1218,7 @@ impl<'e> CaptureSequences<'e> {
                         self.names.push(name);
                         done.push(vec![vec![self.names.len() - 1]]);
                     }
-                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                         stack.push((expr, true));
                         stack.extend(items.iter().rev().map(|item| (item, false)));
                     }
@@ -1222,6 +1231,7 @@ impl<'e> CaptureSequences<'e> {
                         done.push(vec![Vec::new()]);
                     }
                     Expr::Tested(..)
+                    | Expr::Source(_)
                     | Expr::Ref(_)
                     | Expr::Terminal(_)
                     | Expr::Literal(_)
@@ -1241,7 +1251,7 @@ impl<'e> CaptureSequences<'e> {
                     }
                     sequences
                 }
-                Expr::Choice(items) | Expr::Ranked(items) => {
+                Expr::Choice(items) | Expr::Ranked(items, _) => {
                     let parts = done.split_off(done.len() - items.len());
                     let all = parts.into_iter().flatten().collect();
                     self.distinct(all)
@@ -1800,6 +1810,7 @@ mod tests {
                 .chain(names.iter().map(|name| EmitItem::Capture(name.clone(), None, Attachments::default())))
                 .collect();
             RuleDef {
+                source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
                 name: "r".into(),

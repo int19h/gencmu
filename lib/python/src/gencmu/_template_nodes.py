@@ -5,13 +5,27 @@ from __future__ import annotations
 from copy import copy
 
 
-def nodes(root):
+def source_keys(node):
+    if node.get('name') and node.get('op'):
+        prefix = ('instance', 'args', 'tags', 'value', 'image', 'alternatives', 'conditions', 'emit')
+    elif node.get('expr') and not node.get('test'):
+        prefix = ('expr', 'tags', 'value', 'image')
+    elif 'capture' in node or node.get('insert'):
+        prefix = ('tags', 'value', 'image')
+    else:
+        prefix = ()
+    order = (*prefix, 'if', 'then', 'left', 'right', 'not', 'any', 'all', 'receiver', 'args', 'expr', 'body', 'targets', 'requirements', 'negated', 'tags', 'value', 'image', 'pattern', 'child', 'children', 'repeat', 'separator', 'optional', 'seq', 'choice', 'ranked', 'and', 'union', 'intersection', 'difference', 'concat', 'items', 'before', 'after')
+    return [key for key in dict.fromkeys(order) if key in node] + sorted(key for key in node if key not in order)
+
+
+def nodes(root, *, source=False):
     pending = [root]
     while pending:
         node = pending.pop()
         if isinstance(node, dict):
             yield node
-            pending.extend(reversed([v for k, v in node.items() if k != "at"]))
+            keys = source_keys(node) if source else node.keys()
+            pending.extend(node[key] for key in reversed(list(keys)) if key != "at")
         elif isinstance(node, list):
             pending.extend(reversed(node))
 

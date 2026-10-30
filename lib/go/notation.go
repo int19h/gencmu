@@ -111,7 +111,7 @@ func (nr *notationReader) read(text, docPath string) (*domDoc, *Error) {
 func (nr *notationReader) readMode(text, docPath string, deferEmission bool, selected ...*namesScope) (dom *domDoc, err *Error) {
 	gt := extractGrammarText(text, nr.uni)
 	if gt.unclosed != nil {
-		return nil, grammarError(docPath, *gt.unclosed, "a jbogenbau block is never closed")
+		return nil, grammarError(docPath, *gt.unclosed, "a jbogenbau block that is never closed")
 	}
 	names := newNamesScope(func(path string) (string, bool, *Error) { text, ok := bundledNamesText(path); return text, ok, nil }, nr.uni, nil)
 	if len(selected) > 0 {
@@ -251,6 +251,9 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 }
 
 type domBuilder struct {
+	parameters     map[string]bool
+	readingHead    bool
+	unresolved     bool
 	strings        *documentStrings
 	hasBoundary    bool
 	deferEmission  bool
@@ -455,26 +458,12 @@ func (b *domBuilder) knownOf(n *Node, kinds []string) *Node {
 // What a primary, a condition, a term and a term atom hold: the one rule
 // among their parts is one of these (engine §9).
 var (
-	primaryRules   = []string{"reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
+	primaryRules   = []string{"call", "parameter", "reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
 	conditionRules = []string{"comparison", "tree-comparison", "method", "negation", "presence", "implication"}
 	termRules      = []string{"union", "guarded-term"}
-	atomRules      = []string{"string", "tag", "string-terminal", "wildcard", "range", "name", "empty-set", "term", "guarded-term", "union", "method", "tag-run", "string-run", "capture-reference", "constant-reference", "pattern-literal"}
+	atomRules      = []string{"call", "parameter", "string", "tag", "string-terminal", "wildcard", "range", "name", "empty-set", "term", "guarded-term", "union", "method", "tag-run", "string-run", "capture-reference", "constant-reference", "pattern-literal"}
 )
 
-// sourceText reads original spelling only for include paths and source positions.
-func (b *domBuilder) sourceText(n *Node) string {
-	if n.Kind == KindToken {
-		return b.toks[n.Token].Text
-	}
-	for _, c := range parts(n) {
-		if c.Kind == KindToken {
-			return b.toks[c.Token].Text
-		}
-	}
-	return ""
-}
-
-// tokenValue reads the decomposed spelling. Text remains the original spelling.
 func (b *domBuilder) tokenValue(n *Node) string {
 	if n.Kind == KindToken {
 		return b.toks[n.Token].Value
@@ -507,18 +496,12 @@ func (b *domBuilder) document(root *Node) *domDoc {
 	d := &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}, Classifiers: []*domClassifier{}, Implications: []*domImplication{}}
 	statementSeen := false
 	for _, c := range ruleParts(root) {
+		b.unresolved = false
 		names := c.Rule == "directive" && b.tokenValue(b.token(c)) == "%names"
 		if names && statementSeen {
 			b.fail(c, "%%names must precede every other statement")
 		}
 		statementSeen = statementSeen || !names
-		if templateSyntax(c) {
-			raw := b.templateDeclaration(c)
-			if err := b.appendReadDeclaration(d, c.Rule, raw); err != nil {
-				b.fail(c, "%s", err)
-			}
-			continue
-		}
 		switch c.Rule {
 		case "rule", "constant-definition", "classifier", "implication-declaration", "directive":
 		default:
@@ -528,11 +511,15 @@ func (b *domBuilder) document(root *Node) *domDoc {
 		case "rule":
 			d.Rules = append(d.Rules, b.rule(c))
 		case "constant-definition":
-			d.Constants = append(d.Constants, b.constant(c))
+			constant := b.constant(c)
+
+			d.Constants = append(d.Constants, constant)
 		case "classifier":
 			d.Classifiers = append(d.Classifiers, b.classifier(c))
 		case "implication-declaration":
-			d.Implications = append(d.Implications, b.implicationDeclaration(c))
+			implication := b.implicationDeclaration(c)
+
+			d.Implications = append(d.Implications, implication)
 		case "directive":
 			keyword := b.token(c)
 			ps := parts(c)
@@ -559,16 +546,11 @@ func (b *domBuilder) document(root *Node) *domDoc {
 					// Include paths name exact files. Other operands use values.
 					operand := b.tokenValue(b.token(p))
 					if (dir.Name == "include" || dir.Name == "names") && len(dir.Args) == 0 {
-						if b.strings != nil {
-							decoded, err := b.strings.decode(b.toks[b.token(p).Token], true)
-							if err != nil {
-								panic(err)
-							}
-							dir.Args = append(dir.Args, decoded)
-						} else {
-							operand = b.sourceText(b.token(p))
-							dir.Args = append(dir.Args, operand[1:len(operand)-1])
+						decoded, err := b.strings.decode(b.toks[b.token(p).Token], true)
+						if err != nil {
+							panic(err)
 						}
+						dir.Args = append(dir.Args, decoded)
 					} else {
 						dir.Args = append(dir.Args, operand)
 					}
@@ -580,7 +562,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 						dir.Args = append(dir.Args, b.tokenValue(t))
 						kinds = append(kinds, operandRange)
 					} else {
-						dir.Args = append(dir.Args, b.tagOf(t))
+						dir.Args = append(dir.Args, b.tokenValue(t))
 						kinds = append(kinds, operandTag)
 					}
 				}
@@ -589,7 +571,16 @@ func (b *domBuilder) document(root *Node) *domDoc {
 				b.fail(keyword, "%s", problem)
 			}
 			if !directiveOperandsOK(dir) {
-				b.fail(keyword, "invalid directive operands")
+				switch dir.Name {
+				case "stage", "extend-stage", "redefine-stage":
+					b.fail(keyword, "%%%s takes one lowercase name", dir.Name)
+				case "features":
+					b.fail(keyword, "%%features takes feature names")
+				case "ambiguity-resolution":
+					b.fail(keyword, "%%ambiguity-resolution takes a ranking name and optionally elision-only")
+				default:
+					b.fail(keyword, "invalid directive operands")
+				}
 			}
 			if clause := one(c, "conditions-clause"); clause != nil {
 				if dir.Name != "features" {
@@ -597,9 +588,11 @@ func (b *domBuilder) document(root *Node) *domDoc {
 				}
 				dir.Conditions = b.featureConditions(keyword, clause)
 			}
+
 			d.Directives = append(d.Directives, dir)
 		}
 	}
+	flattenGroups(d)
 	return d
 }
 
@@ -618,7 +611,7 @@ func (b *domBuilder) constant(n *Node) *domConst {
 		b.fail(reference, "a constant requires a user name")
 	}
 	b.closedFor = "a constant's value"
-	k.Value = b.value(valueNode)
+	k.Value = b.term(valueNode)
 	b.closedFor = ""
 	if _, f := constantValueType(k.Value, k.Op == "redefine", nil); f != nil {
 		b.fail(valueNode, "%s", f.problem)
@@ -684,9 +677,6 @@ func (b *domBuilder) implicationDeclaration(n *Node) *domImplication {
 	return m
 }
 
-// constantInBody is the error of a constant that stands in a body (§9).
-const constantInBody = "a constant cannot stand in a body: a body names a class of tokens with a rule, such as %rule digit '0'..'9'"
-
 func (b *domBuilder) ruleFlags(n *Node, op string) []string {
 	flags := []string{}
 	if list := one(n, "rule-flags"); list != nil {
@@ -714,13 +704,13 @@ func (b *domBuilder) ruleFlags(n *Node, op string) []string {
 
 func (b *domBuilder) rule(n *Node) *domRule {
 	b.hasBoundary = false
+	previous := b.parameters
+	b.parameters = map[string]bool{}
+	defer func() { b.parameters = previous }()
 	// The definer, the name, the alternatives and the clauses; the syntax
 	// allows at most one of each clause, in order.
 	definer := b.token(b.only(n, "definer"))
-	r := &domRule{Name: b.tokenValue(b.token(b.only(n, "rule-name"))), At: b.at(definer), Conditions: []*domCond{}, Flags: []string{}}
-	if !classifierName.MatchString(r.Name) && !b.uni.isEmojiName(r.Name) {
-		b.fail(b.only(n, "rule-name"), "a rule name starts with a lowercase letter or uses one eligible emoji")
-	}
+	r := &domRule{At: b.at(definer), Conditions: []*domCond{}, Flags: []string{}}
 	switch b.tokenValue(definer) {
 	case "%redefine-rule":
 		r.Op = "redefine"
@@ -730,6 +720,41 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		r.Op = "define"
 	}
 	r.Flags = b.ruleFlags(n, r.Op)
+	if name := one(n, "rule-name"); name != nil {
+		r.Name = b.tokenValue(b.token(name))
+		if !classifierName.MatchString(r.Name) && !b.uni.isEmojiName(r.Name) {
+			b.fail(name, "a rule name starts with a lowercase letter or uses one eligible emoji")
+		}
+	} else {
+		head := ofRule(n, "call")[0]
+		b.readingHead = true
+		call := b.run(&sourceCallFrame{n: head}).(*domSourceCall)
+		b.readingHead = false
+		r.Name = call.Name
+		allParameters := true
+		for _, arg := range call.Args {
+			allParameters = allParameters && arg.Term != nil && arg.Term.Kind == tmParam
+		}
+		if allParameters {
+			r.Params = []string{}
+			for _, arg := range call.Args {
+				if b.parameters[arg.Term.Str] {
+					b.fail(head, "duplicate parameter @%s", arg.Term.Str)
+				}
+				b.parameters[arg.Term.Str] = true
+				r.Params = append(r.Params, arg.Term.Str)
+			}
+		} else {
+			r.Args = call.Args
+		}
+	}
+	for _, p := range parts(n) {
+		if p.Kind == KindToken && b.tokenValue(p) == "=" {
+			calls := ofRule(n, "call")
+			r.Instance = b.run(&sourceCallFrame{n: calls[len(calls)-1]}).(*domSourceCall)
+			return r
+		}
+	}
 	// The parts of a definition are read in the order written: the body,
 	// then its clauses in their fixed order, and the checks of the whole
 	// definition last (engine §9).
@@ -760,7 +785,9 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		r.Emit = b.emission(p)
 	}
 	r.Erased = one(n, "erased-clause") != nil
-	flattenGroups(r)
+	if b.unresolved {
+		return r
+	}
 	if b.hasBoundary {
 		if atom, msg := boundaryRuleProblem(r); msg != "" {
 			panic(grammarError(b.doc, atom.At, "%s", msg))
@@ -834,7 +861,7 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 func (b *domBuilder) constituentTags(n *Node) *domTerm {
 	t := b.tagTerm(b.only(n, "term"))
 	if readsOwnTags(t) {
-		b.fail(n, "a constituent's tags cannot be made of its own tags, tags($) or classes($)")
+		b.fail(n, "a constituent's tags cannot be made of its own: $.tags or $.classes")
 	}
 	return t
 }
@@ -842,7 +869,7 @@ func (b *domBuilder) constituentTags(n *Node) *domTerm {
 // tagTerm reads a whole term that must be a tag set: a constituent's or an
 // item's tags (§10). The error stands at the term.
 func (b *domBuilder) tagTerm(n *Node) *domTerm {
-	t := b.value(n)
+	t := b.term(n)
 	var retained *[2]int
 	for _, occurrences := range literalEngineTags(t) {
 		for _, at := range occurrences {
@@ -866,19 +893,9 @@ func before(a, c [2]int) bool {
 	return a[0] < c[0] || (a[0] == c[0] && a[1] < c[1])
 }
 
-// comparator reads the written equality or inequality of a value test.
-func (b *domBuilder) comparator(testNode *Node) string {
-	var op strings.Builder
-	for _, p := range parts(testNode) {
-		if p.Kind == KindToken {
-			op.WriteString(b.tokenValue(p))
-		}
-	}
-	return canonicalOperator(op.String())
-}
-
 // capturedRules are the rules of the symbols a capture can wrap (engine §9).
 var capturedRules = map[string]bool{
+	"call": true, "parameter": true,
 	"reference": true, "tag": true, "string-terminal": true, "wildcard": true, "constant-reference": true, "range": true, "tested": true,
 }
 
@@ -919,7 +936,7 @@ func (b *domBuilder) tagOf(n *Node) string {
 }
 
 func isSpanTerm(t *domTerm) bool {
-	return t.Kind == tmCapture || (t.Kind == tmCall && isSpanFunction(t.Str))
+	return t.Kind == tmCapture || t.Kind == tmParam || t.Kind == tmSourceCall || (t.Kind == tmCall && isSpanFunction(t.Str))
 }
 
 // isStringTerm says whether a term, not a rule, is a string (§10). A
@@ -949,11 +966,11 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 	e := &domEmit{Items: []*domEmitItem{}}
 	items := ofRule(n, "emit-item")
 	if len(items) == 0 {
-		value, image := b.recipes(n)
-		it := &domEmitItem{Value: value, Image: image}
+		it := &domEmitItem{}
 		if tags := one(n, "emit-tags"); tags != nil {
 			it.Tags = b.tagTerm(b.only(tags, "term"))
 		}
+		it.Value, it.Image = b.recipes(n)
 		e.Items = append(e.Items, it)
 	}
 	for _, item := range items {
@@ -969,7 +986,7 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 		case text == "ε":
 			it.IsInsert = true
 		default:
-			b.fail(item, "an emission target requires a capture or ε")
+			b.fail(target, "an emission target requires a capture or ε")
 		}
 		for _, side := range []struct {
 			name string
@@ -1056,81 +1073,19 @@ func operandProblem(name string, kinds []string) string {
 		if len(kinds) == 0 || !names {
 			return "%features takes one or more names"
 		}
+	case "ambiguity-resolution":
+		if len(kinds) < 1 || len(kinds) > 2 {
+			return "%ambiguity-resolution takes one or two names"
+		}
+		if !names {
+			return "%ambiguity-resolution takes names only"
+		}
 	default:
 		if !names {
 			return "%" + name + " takes names only"
 		}
 	}
 	return ""
-}
-
-// flattenGroups folds each any that stands directly in an any, and each
-// all in an all, into the one around it, in place: a group in parentheses
-// of the same connective is part of the one around it (§9). One walk, with
-// an explicit stack, that gathers each folded list once.
-func flattenGroups(r *domRule) {
-	var conds []*domCond
-	var terms []*domTerm
-	push := func(t *domTerm) {
-		if t != nil {
-			terms = append(terms, t)
-		}
-	}
-	conds = append(conds, r.Conditions...)
-	push(r.Tags)
-	for _, a := range r.Alternatives {
-		push(a.Tags)
-	}
-	if r.Emit != nil {
-		for _, it := range r.Emit.Items {
-			push(it.Tags)
-		}
-	}
-	for len(conds) > 0 || len(terms) > 0 {
-		if w := work.Load(); w != nil {
-			w.readerSteps.add("reader steps")
-		}
-		if len(terms) > 0 {
-			t := terms[len(terms)-1]
-			terms = terms[:len(terms)-1]
-			terms = append(terms, t.Items...)
-			if t.Cond != nil {
-				conds = append(conds, t.Cond)
-			}
-			continue
-		}
-		c := conds[len(conds)-1]
-		conds = conds[:len(conds)-1]
-		if c.Kind == cdAny || c.Kind == cdAll {
-			var joined []*domCond
-			pending := make([]*domCond, 0, len(c.Items))
-			for i := len(c.Items) - 1; i >= 0; i-- {
-				pending = append(pending, c.Items[i])
-			}
-			for len(pending) > 0 {
-				if w := work.Load(); w != nil {
-					w.readerSteps.add("reader steps")
-				}
-				it := pending[len(pending)-1]
-				pending = pending[:len(pending)-1]
-				if it.Kind == c.Kind {
-					for i := len(it.Items) - 1; i >= 0; i-- {
-						pending = append(pending, it.Items[i])
-					}
-				} else {
-					joined = append(joined, it)
-				}
-			}
-			c.Items = joined
-		}
-		conds = append(conds, c.Items...)
-		if c.Inner != nil {
-			conds = append(conds, c.Inner)
-		}
-		for _, t := range []*domTerm{c.Left, c.Right, c.Span} {
-			push(t)
-		}
-	}
 }
 
 // Feature-condition diagnostics identify the directive that owns them.

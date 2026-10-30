@@ -1,4 +1,5 @@
 //! Finite observations of structural trees (engine §4.1).
+mod dropping;
 mod layered;
 pub(crate) mod shapes;
 
@@ -7,6 +8,7 @@ use crate::json::{write_str, Json};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Pattern {
+    Source(crate::dom::source::SourceSymbol),
     Name(String, (usize, usize)),
     Terminal(String, (usize, usize)),
     Literal(Term, (usize, usize)),
@@ -400,6 +402,7 @@ pub(crate) struct Machine {
 fn pattern_key(p: &Pattern) -> String {
     fn plain(p: &Pattern) -> Pattern {
         match p {
+            Pattern::Source(symbol) => Pattern::Source(symbol.clone()),
             Pattern::Literal(t, _) => Pattern::Literal(t.clone(), (0, 0)),
             Pattern::Range(a, b, _) => Pattern::Range(a.clone(), b.clone(), (0, 0)),
             Pattern::Wildcard(_) => Pattern::Wildcard((0, 0)),
@@ -477,6 +480,7 @@ impl Machine {
             return id;
         }
         let pred = match p {
+            Pattern::Source(_) => unreachable!("source symbols expand before pattern compilation"),
             Pattern::Node(node, exact, attached) => {
                 let test = self.node_test(node);
                 let children = attached.as_ref().map(|children| {

@@ -14,6 +14,7 @@
     "types": ["node"],
     "rootDir": "src",
     "declaration": true,
+    "stripInternal": true,
     "emitDeclarationOnly": true,
     "declarationDir": "types",
     "newLine": "lf"

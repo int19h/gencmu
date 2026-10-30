@@ -10,6 +10,7 @@ import (
 // domPattern holds either a node predicate or a children expression.
 // Its shape distinguishes the two sorts in the grammar DOM.
 type domPattern struct {
+	Call         *domSourceCall
 	Kind, Name   string
 	At           [2]int
 	Items        []*domPattern
@@ -185,7 +186,7 @@ func patternProblem(root *domPattern, depth int, check func(*domPattern, int) st
 			}
 			continue
 		}
-		if check != nil && (p.Kind == "name" || p.Kind == "literal" || p.Kind == "range" || p.Kind == "wildcard" || p.Kind == "test") {
+		if check != nil && (p.Kind == "param" || p.Kind == "call" || p.Kind == "name" || p.Kind == "literal" || p.Kind == "range" || p.Kind == "wildcard" || p.Kind == "test") {
 			if problem := check(p, e.depth); problem != "" {
 				return problem
 			}
@@ -197,7 +198,7 @@ func patternProblem(root *domPattern, depth int, check func(*domPattern, int) st
 			for _, v := range p.Items {
 				push(v, false)
 			}
-		case "name", "terminal", "constant", "literal", "range", "wildcard", "any":
+		case "param", "call", "name", "terminal", "constant", "literal", "range", "wildcard", "any":
 		default:
 			return "a malformed pattern"
 		}

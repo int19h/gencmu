@@ -1,0 +1,10 @@
+{
+  "description": "The ordinary reader reports an undeclared parameter at its use.",
+  "document": "```jbogenbau\n%rule r(@X) @Y\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 13
+    }
+  }
+}

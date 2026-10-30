@@ -3,6 +3,7 @@ package gencmu
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -49,17 +50,10 @@ func validateDOM(d *domDoc, uni *unicodeTable) error {
 }
 
 // checkDOM holds supplied and cached DOMs to engine §9.
-func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
+func checkDOM(d *domDoc, uni *unicodeTable) *domProblem { return checkDOMMode(d, uni, false) }
+func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
+	d.unresolved = false
 	for _, dir := range d.Directives {
-		if dir != nil && dir.rawTemplate != nil {
-			if dir.Args == nil || !directiveOperandsOK(dir) {
-				return &domProblem{message: "a malformed directive", at: dir.At}
-			}
-			if p := checkTemplateDeclaration(dir.rawTemplate, "directives", uni); p != nil {
-				return p
-			}
-			continue
-		}
 		if dir == nil || dir.Args == nil || !directiveOperandsOK(dir) {
 			return &domProblem{message: "a malformed directive"}
 		}
@@ -75,6 +69,7 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 					return checker.problem
 				}
 			}
+			d.unresolved = d.unresolved || checker.unresolved
 		}
 	}
 	// The order of a document's items is the order of their positions, so
@@ -154,20 +149,21 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		}
 	}
 	for _, r := range d.Rules {
-		if r != nil && r.rawTemplate != nil {
-			if p := checkTemplateDeclaration(r.rawTemplate, "rules", uni); p != nil {
-				p.rule = r
-				return p
-			}
-			continue
-		}
-		if r == nil || !isRuleName(r.Name, uni) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || len(r.Alternatives) == 0 {
+		if r == nil || !(isRuleName(r.Name, uni) || expanded && strings.Contains(r.Name, "(") && strings.HasSuffix(r.Name, ")")) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || r.Instance == nil && len(r.Alternatives) == 0 {
 			return &domProblem{message: "a malformed rule"}
 		}
 		if len(r.Flags) > 1 || (len(r.Flags) == 1 && ((r.Flags[0] != "leftmost-longest" && r.Flags[0] != "fewest") || r.Op == "extend")) {
 			return &domProblem{message: "a malformed rule flag list"}
 		}
-		c := &domChecker{rule: r, label: "rule " + r.Name, uni: uni}
+		c := &domChecker{rule: r, label: "rule " + r.Name, uni: uni, expanded: expanded}
+		c.sourceHead(r)
+		d.unresolved = d.unresolved || c.unresolved
+		if r.Instance != nil {
+			if c.problem != nil {
+				return c.problem
+			}
+			continue
+		}
 		c.constituentTags(r.Tags)
 		c.recipe(r.Value)
 		c.recipe(r.Image)
@@ -198,6 +194,14 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		if c.problem != nil {
 			return c.problem
 		}
+
+		if c.unresolved && !c.ruleName(r.Name) {
+			return &domProblem{message: "a malformed rule name", rule: r}
+		}
+		if r.Erased && (r.Emit != nil || hasRecipes(r)) {
+			return &domProblem{message: "an erased rule has an emission or recipe", rule: r}
+		}
+		d.unresolved = d.unresolved || c.unresolved
 		// A capture name stands at most once in each production (engine
 		// §3.5).
 		for _, a := range r.Alternatives {
@@ -213,30 +217,40 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		}
 		// The definition as a whole (engine §9, the end), and the types of
 		// its terms and conditions (engine §10).
-		if c.hasBoundary {
+		if !c.unresolved && c.hasBoundary {
 			if _, msg := boundaryRuleProblem(r); msg != "" {
 				return &domProblem{message: msg, rule: r}
 			}
 		}
-		result := checkDefinition(r, true)
+		checked := r
+		if c.unresolved {
+			var err error
+			checked, err = partialSourceRule(r)
+			if err != nil {
+				return &domProblem{message: err.Error(), rule: r}
+			}
+			if f := ruleTypeFault(checked, nil); f != nil {
+				return &domProblem{message: f.problem, rule: r}
+			}
+			if _, msg := boundaryRuleProblem(checked); msg != "" {
+				return &domProblem{message: msg, rule: r}
+			}
+		}
+		result := checkDefinition(checked, true)
 		r.deferredEmission = result.deferred
 		if result.problem != nil {
 			return &domProblem{message: result.problem.message, rule: r}
 		}
-		if msg := ruleTypeProblem(r); msg != "" {
-			return &domProblem{message: fmt.Sprintf("rule %s: %s", r.Name, msg), rule: r}
+		if !c.unresolved {
+			if msg := ruleTypeProblem(r); msg != "" {
+				return &domProblem{message: fmt.Sprintf("rule %s: %s", r.Name, msg), rule: r}
+			}
 		}
 	}
 	// A constant's definition: its name, its op, and a value that is a
 	// closed term of a type that a constant can have (engine §2, §10).
 	for _, k := range d.Constants {
-		if k.rawTemplate != nil {
-			if p := checkTemplateDeclaration(k.rawTemplate, "constants", uni); p != nil {
-				p.constant = k
-				return p
-			}
-			continue
-		}
+
 		if !constName.MatchString(k.Name) || (k.Op != "define" && k.Op != "redefine") || k.Value == nil {
 			return &domProblem{message: "a malformed constant", constant: k}
 		}
@@ -245,6 +259,7 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		if c.problem != nil {
 			return c.problem
 		}
+		d.unresolved = d.unresolved || c.unresolved
 		// The walks below recurse, so they run only once the nesting is
 		// bounded.
 		if hasEngineLiteral(k.Value) {
@@ -260,13 +275,7 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 	// An implication: two closed terms whose type is a tag set, checked
 	// once the nesting is bounded (engine §2, §9).
 	for _, m := range d.Implications {
-		if m.rawTemplate != nil {
-			if p := checkTemplateDeclaration(m.rawTemplate, "implications", uni); p != nil {
-				p.implication = m
-				return p
-			}
-			continue
-		}
+
 		c := &domChecker{implication: m, label: "an implication", uni: uni}
 		for _, side := range []*domTerm{m.If, m.Then} {
 			if side == nil {
@@ -277,6 +286,7 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		if c.problem != nil {
 			return c.problem
 		}
+		d.unresolved = d.unresolved || c.unresolved
 		for _, side := range []*domTerm{m.If, m.Then} {
 			if hasEngineLiteral(side) {
 				return &domProblem{message: "an implication contains an engine-tag literal", implication: m}
@@ -378,15 +388,20 @@ func directiveOperandsOK(dir *domDirective) bool {
 }
 
 type domChecker struct {
-	deferTypes  bool
-	hasBoundary bool
-	rule        *domRule        // the rule checked, or nil
-	constant    *domConst       // the constant checked, or nil
-	implication *domImplication // the implication checked, or nil
-	label       string          // what the diagnostic names
-	uni         *unicodeTable
-	tests       []*domExpr // the tested symbols seen, whose values are checked once the nesting is bounded
-	problem     *domProblem
+	expanded        bool
+	parameters      map[string]bool
+	unresolved      bool
+	inArgument      bool
+	patternArgument bool
+	deferTypes      bool
+	hasBoundary     bool
+	rule            *domRule        // the rule checked, or nil
+	constant        *domConst       // the constant checked, or nil
+	implication     *domImplication // the implication checked, or nil
+	label           string          // what the diagnostic names
+	uni             *unicodeTable
+	tests           []*domExpr // the tested symbols seen, whose values are checked once the nesting is bounded
+	problem         *domProblem
 }
 
 func literalRangeProblem(ends [2]*domTerm) string {
@@ -432,6 +447,10 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 		return
 	}
 	switch e.Kind {
+	case exParam:
+		c.parameter(e.Name, e.At)
+	case exCall:
+		c.sourceCall(e.Call, depth)
 	case exSeq, exChoice, exRanked, exAnd:
 		// The reader makes each only of two or more, an & of at most 16.
 		if len(e.Items) < 2 || (e.Kind == exAnd && len(e.Items) > maxAnd) {
@@ -466,7 +485,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 	case exCapture:
 		// A capture wraps one symbol, and stands anywhere but in braces or
 		// an elidable optional; $, the whole constituent, wraps nothing.
-		if sealed {
+		if sealed || c.inArgument {
 			c.fail("a capture inside braces or an elidable optional")
 			return
 		}
@@ -492,7 +511,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 			}
 			c.expr(e.Inner, depth+1, false, sealed)
 			for _, r := range e.Requirements {
-				if r.Value == nil || r.Value.Kind != tmTag && r.Value.Kind != tmConst {
+				if r.Value == nil || r.Value.Kind != tmTag && r.Value.Kind != tmConst && r.Value.Kind != tmParam {
 					c.fail("a malformed tag requirement")
 				}
 				c.term(r.Value, depth+1, false)
@@ -528,7 +547,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 	case exWildcard:
 	case exRef:
 		// A reference is an identifier or one eligible emoji (engine §9).
-		if !c.uni.isEmojiName(e.Name) && !domName.MatchString(e.Name) && !engineTag(e.Name) {
+		if !c.uni.isEmojiName(e.Name) && !domName.MatchString(e.Name) && !engineTag(e.Name) && !(c.expanded && c.ruleName(e.Name)) {
 			c.fail("a reference to %q, which is not a name", e.Name)
 		}
 	case exRange:
@@ -540,7 +559,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 		}
 		// A cached direct range must meet the reader's scalar restrictions too.
 		// User references remain unresolved until the whole stage is stitched.
-		if c.problem == nil && len(constRefs(e.Ends[0], e.Ends[1])) == 0 {
+		if c.problem == nil && !unresolvedTerm(e.Ends[0]) && !unresolvedTerm(e.Ends[1]) && len(constRefs(e.Ends[0], e.Ends[1])) == 0 {
 			var ends [2]rune
 			for i, end := range e.Ends {
 				v, err := (&stageGrammar{}).evaluateClosed("", end, [2]int{})
@@ -574,7 +593,7 @@ func elidableHead(e *domExpr) *domExpr {
 	for base != nil && base.Kind == exTest && (base.Op == "=" || base.Op == "≠" || base.Op == "tags") {
 		base = base.Inner
 	}
-	if base != nil && base.Kind == exRef && constName.MatchString(base.Name) {
+	if base != nil && (base.Kind == exParam || base.Kind == exRef && constName.MatchString(base.Name)) {
 		return head
 	}
 	return nil
@@ -708,7 +727,7 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 // reference, a terminal, a range, a property or a tested symbol (engine §9).
 func isCapturable(kind string) bool {
 	switch kind {
-	case exRef, exRange, exLiteral, exWildcard, exTest:
+	case exRef, exRange, exLiteral, exWildcard, exTest, exParam, exCall:
 		return true
 	}
 	return false
@@ -721,7 +740,7 @@ func isTestable(e *domExpr) bool {
 		return false
 	}
 	switch e.Kind {
-	case exRef:
+	case exRef, exParam, exCall:
 		return true
 	case exRange, exLiteral, exWildcard:
 		return true
@@ -799,7 +818,7 @@ func literalCallProblem(call string, args []*domTerm) string {
 
 // isSpanShape identifies captures and span methods (§10).
 func isSpanShape(t *domTerm) bool {
-	return t != nil && (t.Kind == tmCapture || (t.Kind == tmCall && isSpanFunction(t.Str)))
+	return t != nil && (t.Kind == tmCapture || unresolvedTerm(t) || (t.Kind == tmCall && isSpanFunction(t.Str)))
 }
 
 func isRuleName(name string, uni *unicodeTable) bool {
@@ -821,7 +840,14 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		if t.Str != "" && !captureName.MatchString(t.Str) {
 			c.fail("a malformed capture name")
 		}
+		if c.inArgument {
+			c.fail("an argument cannot read or declare captures")
+		}
 	case tmEmptySet:
+	case tmParam:
+		c.parameter(t.Str, t.At)
+	case tmSourceCall:
+		c.sourceCall(t.Call, depth)
 	case tmConcat:
 		if len(t.Items) < 2 {
 			c.fail("a concatenation requires two operands")
@@ -832,8 +858,17 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 	case tmPattern:
 		msg := patternProblem(t.Pattern, depth+1, func(p *domPattern, d int) string {
 			switch p.Kind {
+			case "param":
+				c.parameter(p.Name, p.At)
+				return ""
+			case "call":
+				before := c.patternArgument
+				c.patternArgument = true
+				c.sourceCall(p.Call, d)
+				c.patternArgument = before
+				return ""
 			case "name":
-				if !isRuleName(p.Name, c.uni) {
+				if !c.ruleName(p.Name) {
 					return "a malformed pattern rule name"
 				}
 				return ""
@@ -860,7 +895,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.term(p.Value, d+1, false)
 			if p.Op == "tags" {
 				for _, r := range p.Requirements {
-					if r.Value == nil || r.Value.Kind != tmTag && r.Value.Kind != tmConst {
+					if r.Value == nil || r.Value.Kind != tmTag && r.Value.Kind != tmConst && r.Value.Kind != tmParam {
 						return "a malformed tag requirement"
 					}
 					c.term(r.Value, d+1, false)
@@ -882,7 +917,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			}
 			return ""
 		})
-		if msg != "" {
+		if msg == "nested too deeply" {
+			c.deep(maxDOMDepth + 1)
+		} else if msg != "" {
 			c.fail("%s", msg)
 		}
 	case tmConst:
@@ -910,7 +947,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		// Span methods stand only where a span is allowed, and
 		// matches, begins and initial never as terms.
 		args := t.Items
-		isRule := func(a *domTerm) bool { return a != nil && a.Kind == tmRule && isRuleName(a.Str, c.uni) }
+		isRule := func(a *domTerm) bool { return a != nil && (unresolvedTerm(a) || a.Kind == tmRule && c.ruleName(a.Str)) }
 		isClassifier := func(a *domTerm) bool {
 			return a != nil && a.Kind == tmClassifier && classifierName.MatchString(a.Str)
 		}
@@ -920,9 +957,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		var ok bool
 		switch t.Str {
 		case "without-elision-except":
-			ok = len(args) == 2 && args[0] != nil && args[0].Kind == tmCapture && isRule(args[1])
+			ok = len(args) == 2 && args[0] != nil && (args[0].Kind == tmCapture || unresolvedTerm(args[0])) && isRule(args[1])
 		case "without-elision":
-			ok = len(args) == 1 && args[0] != nil && args[0].Kind == tmCapture
+			ok = len(args) == 1 && args[0] != nil && (args[0].Kind == tmCapture || unresolvedTerm(args[0]))
 		case "value", "image", "source-text", "decomposed-source-text", "classes", "first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens":
 			ok = len(args) == 1 && isSpanShape(args[0])
 		case "tags":
@@ -949,7 +986,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			return
 		}
 		for _, a := range args {
-			if isRule(a) || isClassifier(a) || a.Kind == tmInteger {
+			if unresolvedTerm(a) {
+				c.term(a, depth+1, true)
+			} else if isRule(a) || isClassifier(a) || a.Kind == tmInteger {
 				c.deep(depth + 1) // a rule's or a classifier's name is a node below the call
 			} else {
 				c.term(a, depth+1, true)
@@ -1000,11 +1039,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 			return
 		}
 		for _, t := range d.queryTargets() {
-			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && !isRuleName(t.Str, c.uni)) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
-				c.fail("a malformed query target")
-				return
-			}
-			c.deep(depth + 1)
+			c.target(t, depth+1)
 		}
 		if !isSpanShape(d.Span) {
 			c.fail("a malformed %s()", d.Kind)
@@ -1013,17 +1048,13 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		c.term(d.Span, depth+1, true)
 	case cdBoundary:
 		c.hasBoundary = true
-		if d.Span == nil || d.Span.Kind != tmCapture || !boundaryMethod(d.Op) || len(d.Targets) == 0 {
+		if d.Span == nil || d.Span.Kind != tmCapture && !unresolvedTerm(d.Span) || !boundaryMethod(d.Op) || len(d.Targets) == 0 {
 			c.fail("a malformed boundary atom")
 			return
 		}
 		c.term(d.Span, depth+1, true)
 		for _, t := range d.Targets {
-			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && !isRuleName(t.Str, c.uni)) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
-				c.fail("a malformed boundary target")
-				return
-			}
-			c.deep(depth + 1)
+			c.target(t, depth+1)
 		}
 	case cdInitial, cdEnd:
 		if !isSpanShape(d.Span) {
@@ -1050,6 +1081,9 @@ func (c *domChecker) condition(d *domCond, depth int) {
 			c.condition(it, depth+1)
 		}
 	case cdCaptured:
+		if c.inArgument {
+			c.fail("an argument cannot read or declare captures")
+		}
 		// A presence test, of a capture or of $.
 		if d.Capture != "" && !captureName.MatchString(d.Capture) {
 			c.fail("a presence test of %q", d.Capture)
@@ -1436,6 +1470,8 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 		w.readerSteps.add("reader steps")
 	}
 	switch t.Kind {
+	case tmParam, tmSourceCall:
+		return tyAny, nil
 	case tmPattern:
 		var fault *typeFault
 		walkPattern(t.Pattern, func(p *domPattern) {

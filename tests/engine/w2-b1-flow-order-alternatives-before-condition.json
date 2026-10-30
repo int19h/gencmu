@@ -1,0 +1,13 @@
+{
+  "description": "Flow inspection and substitution follow declaration and clause order.",
+  "grammar": "%rule f(@X)\n  | @X\n  | missingsecond(@X)\n%conditions $.matches(missingcondition(@X))\n%rule text f(A)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 5
+    }
+  }
+}

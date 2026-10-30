@@ -1,0 +1,10 @@
+{
+  "description": "A feature-condition error moves to its directive.",
+  "document": "```jbogenbau\n%features f %conditions $.foo\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

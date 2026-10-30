@@ -153,8 +153,6 @@ class Grammar:
     implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
     families: dict[str, frozenset[str]] = field(default_factory=dict, repr=False, compare=False)
     query_terminals: frozenset[str] = field(default_factory=frozenset, repr=False, compare=False)
-    templates: list[Dom] = field(default_factory=list, repr=False, compare=False)
-    instances: list[Dom] = field(default_factory=list, repr=False, compare=False)
     # The features that gate an entry of a classifier. Only these change
     # the classifiers.
     classifier_gates: frozenset[str] = field(init=False, repr=False, compare=False)
@@ -274,6 +272,7 @@ class _Constants:
         # checks once the constants have their final values.
         self.users: list[tuple[str, Dom]] = []
         self.deferred_emissions = []
+        self.arguments = {}
 
     def type_of(self, name: str) -> TermType:
         return self.values[name].type
@@ -531,14 +530,37 @@ class _Constants:
             sides.append(_set(run(self._closed(path, side, implication["at"]))))
         return sides[0], sides[1]
 
+    def check_arguments(self, arguments):
+        faults = []
+        for argument in arguments:
+            path, term, at = argument['path'], argument['term'], argument['at']
+            for reference in constants_in(term):
+                if reference['const'] not in self.values:
+                    raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference['at'], self.stage)
+            kind, fault = term_type_fault(term, self.type_of)
+            if fault is None and argument['tags']:
+                problem = expected_problem(kind, 'tags')
+                if problem is not None:
+                    fault = problem, term
+            if fault is not None:
+                faults.append(self.fault_error(path, fault[1], at, fault[0]))
+        if faults:
+            raise min(faults, key=lambda error: (error.line or 0, error.column or 0))
+
     def check_rule(self, path: str, rule: Dom) -> None:
         """Check one definition after constant binding (engine §2)."""
         for reference in constants_in(rule):
             if reference["const"] not in self.values:
                 raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference["at"], self.stage)
         fault = rule_type_fault(rule, self.type_of)
-        if fault is not None:
-            raise self.fault_error(path, fault[1], rule["at"], fault[0])
+        faults = [self.fault_error(path, fault[1], rule["at"], fault[0])] if fault is not None else []
+        uses = self.arguments.pop((path, tuple(rule["at"])), [])
+        try:
+            self.check_arguments(uses)
+        except GencmuError as error:
+            faults.append(error)
+        if faults:
+            raise min(faults, key=lambda error: (error.line or 0, error.column or 0))
         pending = [rule]
         while pending:
             node = pending.pop()
@@ -730,10 +752,12 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 issue = check_definition(rule, True).deferred
                 if issue is not None:
                     pending_templates.append((path, rule["at"], issue))
-    documents, template_order, templates, instances, validation = expand_templates(documents, unicode)
+    documents, template_order, _, validation, arguments_to_check = expand_templates(documents, unicode)
     rules: dict[str, Rule] = {}
     written_alternatives: list[Alternative] = []
     constants = _Constants(stage, unicode)
+    for argument in arguments_to_check:
+        constants.arguments.setdefault((argument['path'], tuple(argument['at'])), []).append(argument)
     changes: list[Change] = []
     resolutions: list[tuple[list[str], str, Any]] = []
     checks: list[tuple[str, str, Dom]] = []
@@ -744,7 +768,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         for kind, item in declarations:
             if kind == "rules":
                 rule = item
-                if constants_in(rule) or _rule_has_pattern(rule):
+                if constants_in(rule) or _rule_has_pattern(rule) or (path, tuple(rule["at"])) in constants.arguments:
                     constants.users.append((path, rule))
                     checks.append((path,"rule",rule))
                 elif rule_has_ranked(rule):
@@ -844,7 +868,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     if template_order is not None:
         rules = {name: rules[name] for name in template_order}
     for event in validation:
-        if constants_in(event["rule"]) or _rule_has_pattern(event["rule"]):
+        if constants_in(event["rule"]) or _rule_has_pattern(event["rule"]) or (event["path"], tuple(event["rule"]["at"])) in constants.arguments:
             constants.users.append((event["path"],event["rule"]))
             checks.append((event["path"],"rule",event["rule"]))
     constants.bind()
@@ -884,6 +908,8 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         else:
             implications.append(constants.implication(path,item))
     classifier_items = resolved_classifiers
+    for uses in constants.arguments.values():
+        constants.check_arguments(uses)
     constants.resolve(rules)
     _resolve_tests(rules, constants)
     if not resolutions:
@@ -959,8 +985,6 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         implications=implications,
         families=members(rules, family_names),
         query_terminals=frozenset(query_terminals),
-        templates=templates,
-        instances=instances,
     )
 
     grammar.ranked = RankedGroups(stage, rules)

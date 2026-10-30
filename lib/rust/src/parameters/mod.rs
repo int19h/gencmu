@@ -3,11 +3,9 @@ use crate::dom::{self, Dom};
 use crate::json::Json;
 use crate::unicode::Unicode;
 
-mod audit;
 pub(crate) mod expand;
 pub(crate) mod locations;
 mod print;
-mod schema;
 #[cfg(test)]
 mod tests;
 pub(crate) use expand::expand;
@@ -57,25 +55,106 @@ pub(crate) fn at(n: &Json) -> Option<(usize, usize)> {
         _ => None,
     }
 }
+pub(crate) fn source_fields(root: &Json) -> Vec<(&str, &Json)> {
+    let prefix: &[&str] = if has(root, "name") && has(root, "op") {
+        &["instance", "args", "tags", "value", "image", "alternatives", "conditions", "emit"]
+    } else if has(root, "expr") && !has(root, "test") {
+        &["expr", "tags", "value", "image"]
+    } else if has(root, "capture") || has(root, "insert") {
+        &["tags", "value", "image"]
+    } else {
+        &[]
+    };
+    const ORDER: &[&str] = &[
+        "if",
+        "then",
+        "left",
+        "right",
+        "not",
+        "any",
+        "all",
+        "receiver",
+        "args",
+        "expr",
+        "body",
+        "targets",
+        "requirements",
+        "negated",
+        "tags",
+        "value",
+        "image",
+        "pattern",
+        "child",
+        "children",
+        "repeat",
+        "separator",
+        "optional",
+        "seq",
+        "choice",
+        "ranked",
+        "and",
+        "union",
+        "intersection",
+        "difference",
+        "concat",
+        "items",
+        "before",
+        "after",
+    ];
+    let mut fields: Vec<_> = root
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter(|(key, _)| key != "at" && key != SOURCE)
+        .map(|(key, value)| (key.as_str(), value))
+        .collect();
+    fields.sort_by_key(|&(key, _)| {
+        let rank = prefix
+            .iter()
+            .position(|name| *name == key)
+            .unwrap_or_else(|| prefix.len() + ORDER.iter().position(|name| *name == key).unwrap_or(ORDER.len()));
+        (rank, key)
+    });
+    fields
+}
 pub(crate) fn nodes(root: &Json) -> impl Iterator<Item = &Json> {
-    struct Nodes<'a>(Vec<&'a Json>);
+    walk_nodes(root, false)
+}
+pub(crate) fn source_nodes(root: &Json) -> impl Iterator<Item = &Json> {
+    walk_nodes(root, true)
+}
+fn walk_nodes(root: &Json, source: bool) -> impl Iterator<Item = &Json> {
+    struct Nodes<'a> {
+        pending: Vec<&'a Json>,
+        source: bool,
+    }
     impl<'a> Iterator for Nodes<'a> {
         type Item = &'a Json;
         fn next(&mut self) -> Option<Self::Item> {
-            while let Some(n) = self.0.pop() {
+            while let Some(n) = self.pending.pop() {
                 match n {
                     Json::Obj(fields) => {
-                        self.0.extend(fields.iter().rev().filter(|(k, _)| k != "at" && k != SOURCE).map(|(_, v)| v));
+                        if self.source {
+                            self.pending.extend(source_fields(n).into_iter().rev().map(|(_, value)| value));
+                        } else {
+                            self.pending.extend(
+                                fields
+                                    .iter()
+                                    .rev()
+                                    .filter(|(key, _)| key != "at" && key != SOURCE)
+                                    .map(|(_, value)| value),
+                            );
+                        }
                         return Some(n);
                     }
-                    Json::Arr(items) => self.0.extend(items.iter().rev()),
+                    Json::Arr(items) => self.pending.extend(items.iter().rev()),
                     _ => (),
                 }
             }
             None
         }
     }
-    Nodes(vec![root])
+    Nodes { pending: vec![root], source }
 }
 pub(crate) fn unresolved(root: &Json) -> bool {
     nodes(root).any(|n| {
@@ -141,25 +220,6 @@ pub(crate) fn argument(expr: Json) -> Json {
     }
     obj([("body", expr)])
 }
-pub(crate) fn joined(key: &str, items: Vec<Json>) -> Json {
-    let mut values = Vec::new();
-    for mut item in items {
-        if ["union", "concat", "any", "all"].contains(&key) && has(&item, key) {
-            if let Json::Obj(ref mut fields) = item {
-                let i = fields.iter().position(|(k, _)| k == key).unwrap();
-                if let Json::Arr(xs) = &mut fields.remove(i).1 {
-                    values.append(xs);
-                }
-            }
-        } else {
-            values.push(item)
-        }
-    }
-    obj([(key, Json::Arr(values))])
-}
-pub(crate) fn normalize(root: &Json) -> Json {
-    normalize_patterns(root, &std::collections::BTreeSet::new())
-}
 pub(crate) fn normalize_patterns(root: &Json, patterns: &std::collections::BTreeSet<String>) -> Json {
     map_nodes(root, |mut value| {
         if let Some(body) = value.get("body") {
@@ -187,6 +247,7 @@ pub(crate) fn clean(root: &Json) -> Json {
         n
     })
 }
+#[cfg(test)]
 pub(crate) fn canonical_source(root: &Json) -> Json {
     map_nodes(root, |mut n| {
         remove(&mut n, SOURCE);
@@ -256,110 +317,6 @@ pub(crate) fn canonical_source(root: &Json) -> Json {
         n
     })
 }
-pub(crate) fn append_source(
-    dom: &mut Dom,
-    kind: &str,
-    raw: Json,
-    unicode: &Unicode,
-    defer: bool,
-) -> Result<(), String> {
-    if unresolved(&raw) {
-        return append(dom, kind, raw);
-    }
-    // Closed declarations use the same typed representation on cache hits and source reads.
-    let mut document = obj([]);
-    for key in KINDS {
-        set(&mut document, key, Json::Arr(if key == kind { vec![raw.clone()] } else { Vec::new() }));
-    }
-    let mut closed = dom::decode_checked(&clean(&document), unicode, defer)?;
-    locations::restore_document(&mut closed, &document);
-    dom.rules.extend(closed.rules);
-    dom.constants.extend(closed.constants);
-    dom.directives.extend(closed.directives);
-    dom.classifiers.extend(closed.classifiers);
-    dom.implications.extend(closed.implications);
-    Ok(())
-}
-pub(crate) fn append(dom: &mut Dom, kind: &str, r: Json) -> Result<(), String> {
-    let at = at(&r).ok_or("a declaration requires a position")?;
-    match kind {
-        "rules" | "rule" => dom.rules.push(dom::RuleDef {
-            deferred_emission: None,
-            name: text(get(&r, "name")).into(),
-            op: match text(get(&r, "op")) {
-                "extend" => dom::Op::Extend,
-                "redefine" => dom::Op::Redefine,
-                _ => dom::Op::Define,
-            },
-            flags: list(get(&r, "flags")).iter().map(|n| text(n).into()).collect(),
-            tags: None,
-            strings: Default::default(),
-            alternatives: Vec::new(),
-            emit: None,
-            conditions: Vec::new(),
-            erased: false,
-            at,
-        }),
-        "constants" | "constant-definition" => dom.constants.push(dom::ConstDef {
-            name: text(get(&r, "name")).into(),
-            redefine: text(get(&r, "op")) == "redefine",
-            value: dom::Term::EmptySet,
-            at,
-        }),
-        "directives" | "directive" => dom.directives.push(dom::Directive {
-            name: text(get(&r, "name")).into(),
-            args: list(get(&r, "args"))
-                .iter()
-                .map(|s| s.as_str().map(str::to_owned).ok_or("a malformed directive".into()))
-                .collect::<Result<_, String>>()?,
-            conditions: if has(&r, "conditions") { Some(Vec::new()) } else { None },
-            at,
-        }),
-        "implications" | "implication-declaration" => dom.implications.push(dom::ImplicationDef {
-            antecedent: dom::Term::EmptySet,
-            consequent: dom::Term::EmptySet,
-            at,
-        }),
-        _ => return Err("an unexpected unresolved declaration".into()),
-    }
-    dom.unresolved.insert(at, r);
-    Ok(())
-}
-pub(crate) fn decode(value: &Json, unicode: &Unicode, defer: bool) -> Result<Dom, String> {
-    schema::problem(value, unicode).map_or(Ok(()), |s| Err(s.to_string()))?;
-    let mut closed = value.clone();
-    let mut out = Dom::default();
-    for kind in KINDS {
-        let mut ordinary = Vec::new();
-        for r in list(get(value, kind)) {
-            if unresolved(r) {
-                append(&mut out, kind, r.clone())?
-            } else {
-                ordinary.push(r.clone())
-            }
-        }
-        set(&mut closed, kind, Json::Arr(ordinary));
-    }
-    let d = dom::dom_from_json_mode(&closed, unicode, defer)?;
-    out.rules.extend(d.rules);
-    out.constants.extend(d.constants);
-    out.directives.extend(d.directives);
-    out.classifiers = d.classifiers;
-    out.implications.extend(d.implications);
-    out.rules.sort_by_key(|r| r.at);
-    out.constants.sort_by_key(|r| r.at);
-    out.directives.sort_by_key(|r| r.at);
-    out.implications.sort_by_key(|r| r.at);
-    Ok(out)
-}
-pub(crate) fn problem(value: &Json, unicode: &Unicode) -> Option<&'static str> {
-    schema::problem(value, unicode)
-}
-
-pub(crate) use schema::declaration as declaration_problem;
-pub(crate) use schema::deferred_definition;
-pub(crate) use schema::engine_literals;
-pub(crate) use schema::first_duplicate;
 
 pub(crate) fn pattern_term(root: &Json, patterns: &std::collections::BTreeSet<String>) -> bool {
     let mut pending = vec![root];

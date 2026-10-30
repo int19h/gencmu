@@ -1,0 +1,6 @@
+{
+  "description": "A constituent tag guard compares the input value through bare $.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text :: ($ = \"a\" ⟹ B) | A",
+  "tokens": [{"text": "a", "tags": ["A"]}],
+  "expect": {"result": {"ok": true, "tree": {"rule": "text", "tags": ["B"]}}}
+}

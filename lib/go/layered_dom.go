@@ -87,6 +87,17 @@ func decodeLayeredPattern(raw json.RawMessage, depth int) (*domPattern, error) {
 			scheduleItems(values, p.Attached, d+1)
 		}
 		switch {
+		case n["param"] != nil:
+			p.Kind, p.Name, p.At = "param", templateText(n["param"]), templateAt(n)
+		case n["call"] != nil:
+			p.Kind, p.Name, p.At = "call", templateText(n["call"]), templateAt(n)
+			// Decorations belong to the pattern node, not to the call itself.
+			raw := templateJSON(templateObject{"call": n["call"], "args": n["args"], "at": n["at"]})
+			call, problem := decodeObj(raw)
+			if problem != nil {
+				return nil, problem
+			}
+			p.Call, err = decodeSourceCall(call, d)
 		case n["name"] != nil:
 			p.Kind, p.Name, p.At = "name", templateText(n["name"]), templateAt(n)
 		case n["terminal"] != nil:
@@ -203,10 +214,16 @@ func writeLayeredPattern(w *jsonWriter, root *domPattern) {
 			}
 			continue
 		}
-		w.raw(`{"` + p.Kind + `":`)
+		if p.Kind == "call" {
+			head := &jsonWriter{}
+			p.Call.writeJSON(head)
+			w.raw(string(head.buf[:len(head.buf)-1]))
+		} else {
+			w.raw(`{"` + p.Kind + `":`)
+		}
 		at := false
 		switch p.Kind {
-		case "name", "terminal", "constant":
+		case "name", "terminal", "constant", "param":
 			w.str(p.Name)
 			at = true
 		case "any", "wildcard":
@@ -237,6 +254,7 @@ func writeLayeredPattern(w *jsonWriter, root *domPattern) {
 			w.raw(`,"pattern":`)
 		case tmUnion, tmIntersection, tmDifference:
 			w.raw("[")
+		case "call":
 		default:
 			panic("a resolved pattern constructor is required")
 		}

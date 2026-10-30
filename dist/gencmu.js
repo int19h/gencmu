@@ -4376,11 +4376,55 @@
   // This walk keeps pattern and item positions distinct before substitution.
 
   /**
+   * @internal
+   * @param {any} node
+   * @returns {any[]}
+   */
+  function layeredPatternParts(node) {
+    if (node.union || node.intersection || node.difference) return node.union ?? node.intersection ?? node.difference;
+    if (node.path) return [node.pattern];
+    if (node.test) return [node.expr];
+    return node.children ?? [];
+  }
+
+  /**
+   * @internal
+   * @param {any} node
+   * @returns {any[]}
+   */
+  function patternItemParts(node) {
+    if (node.sequence) return node.sequence;
+    if (node.child) return [node.child];
+    if (node.choice) return node.choice.flat();
+    return [...(node.optional ?? node.repeat ?? []), ...(node.separator ?? [])];
+  }
+
+  /**
    * @param {any} root
    * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
    * @returns {string|null}
    */
   function layeredPatternProblem(root, inspect = {}) {
+    return inspectPattern(root, inspect, false);
+  }
+
+  /**
+   * @internal
+   * @param {any} root
+   * @param {Parameters<typeof layeredPatternProblem>[1]} [inspect]
+   * @returns {string|null}
+   */
+  function sourcePatternProblem(root, inspect = {}) {
+    return inspectPattern(root, inspect, true);
+  }
+
+  /**
+   * @param {any} root
+   * @param {NonNullable<Parameters<typeof layeredPatternProblem>[1]>} inspect
+   * @param {boolean} deferGroups
+   * @returns {string|null}
+   */
+  function inspectPattern(root, inspect, deferGroups) {
     const stack = [{node:root,item:false,repeated:false,depth:inspect.depth ?? 0,inner:false}];
     const object = (/** @type {any} */ n) => n && typeof n === 'object' && !Array.isArray(n);
     const position = (/** @type {any} */ n) => Array.isArray(n) && n.length === 2 && n.every((/** @type {any} */ x) => Number.isInteger(x) && x > 0);
@@ -4404,7 +4448,9 @@
         return true;
       };
       if (item) {
-        if (exact(['child'])) push(n.child,false,false);
+        if (deferGroups && exact(['sequence'])) {
+          if (!items(n.sequence)) return 'a malformed pattern sequence';
+        } else if (exact(['child'])) push(n.child,false,false);
         else if (exact(['siblings'])) {
           if (n.siblings !== true) return 'a malformed sibling ellipsis';
           if (repeated) return 'a sibling ellipsis cannot be a repeat item or separator';
@@ -4415,7 +4461,7 @@
         } else if (exact(['choice'])) {
           if (!Array.isArray(n.choice) || n.choice.length < 2) return 'a malformed pattern choice';
           for (const arm of n.choice) {
-            if (!items(arm) || arm.length === 1 && object(arm[0]) && 'choice' in arm[0]) return 'a malformed pattern choice';
+            if (!items(arm) || !deferGroups && arm.length === 1 && object(arm[0]) && 'choice' in arm[0]) return 'a malformed pattern choice';
           }
         } else return 'a malformed pattern child item';
         continue;
@@ -4424,7 +4470,7 @@
       if (compound) {
         const operands = n[compound];
         if (!exact([compound]) || !Array.isArray(operands) || operands.length < 2 || compound === 'difference' && operands.length !== 2) return 'a malformed pattern';
-        if (compound !== 'difference' && operands.some((/** @type {any} */ x) => object(x) && compound in x)) return 'a nested pattern set must be flat';
+        if (!deferGroups && compound !== 'difference' && operands.some((/** @type {any} */ x) => object(x) && compound in x)) return 'a nested pattern set must be flat';
         for (const node of operands) push(node,false,false);
         continue;
       }
@@ -4644,6 +4690,28 @@
    * @returns {string | null}
    */
   function domProblem(dom, unicode, deferEmission = true) {
+    return inspectDom(dom, unicode, deferEmission, false);
+  }
+
+  /**
+   * @internal
+   * @param {unknown} dom
+   * @param {Parameters<typeof domProblem>[1]} unicode
+   * @param {boolean} [deferEmission]
+   * @returns {string|null}
+   */
+  function expandedDomProblem(dom, unicode, deferEmission = true) {
+    return inspectDom(dom, unicode, deferEmission, true);
+  }
+
+  /**
+   * @param {unknown} dom
+   * @param {Parameters<typeof domProblem>[1]} unicode
+   * @param {boolean} deferEmission
+   * @param {boolean} expanded
+   * @returns {string|null}
+   */
+  function inspectDom(dom, unicode, deferEmission, expanded) {
     /** @type {(value: unknown) => value is Record<string, any>} */
     const object = isDomObject;
     if (!object(dom) || dom.format !== DOM_FORMAT || !["rules", "directives", "constants", "classifiers", "implications"].every(key => Array.isArray(dom[key]))) return `not a DOM of format ${DOM_FORMAT}`;
@@ -4667,7 +4735,7 @@
     let activeParams = new Set();
     /** @type {(kind: string, value: any, depth?: number, context?: any) => void} */
     const push = (kind, value, depth = 0, context = {}) => pending.push({ kind, value, depth, params:activeParams, ...context });
-    const ruleName = (/** @type {string} */ name) => typeof name === "string" && (CLASSIFIER_NAME.test(name) || unicode.isEmojiName(name));
+    const ruleName = (/** @type {string} */ name) => typeof name === "string" && (CLASSIFIER_NAME.test(name) || unicode.isEmojiName(name) || expanded && name.includes("(") && name.endsWith(")"));
     const positions = new Set();
     for (const item of [...dom.rules, ...dom.directives, ...dom.constants, ...dom.classifiers, ...dom.implications]) {
       if (!object(item) || !position(item.at)) return "a malformed declaration position";
@@ -5003,6 +5071,8 @@
    * @returns {boolean}
    */
   function readsOwnTags(node) {
+    // Only $.tags and $.classes read the constituent's own tags.
+    // Bare $ and $.value read input values.
     // The parts to look at, with an explicit stack: the depth of a term is
     // bounded only once the whole document is read (engine §9).
     const stack = [node];
@@ -7194,6 +7264,15 @@
     return [...order.filter(key=>Object.hasOwn(node,key)), ...Object.keys(node).filter(key=>key!=='at' && !order.includes(key)).sort()];
   }
 
+  /** @param {any} node @returns {string[]} */
+  function templateSourceKeys(node) {
+    const prefix = node.name && node.op ? ['instance','args','tags','value','image','alternatives','conditions','emit']
+      : node.expr && !node.test ? ['expr','tags','value','image']
+      : 'capture' in node || node.insert ? ['tags','value','image'] : [];
+    const order = [...prefix,'if','then','left','right','not','any','all','receiver','args','expr','body','targets','requirements','negated','tags','value','image','pattern','child','children','repeat','separator','optional','seq','choice','ranked','and','union','intersection','difference','concat','items','before','after'];
+    return [...new Set(order)].filter(key=>Object.hasOwn(node,key)).concat(Object.keys(node).filter(key=>!order.includes(key)).sort());
+  }
+
   /** @param {any} value @param {Set<string>} [patterns] @returns {any} */
   function normalizeTemplateArgument(value, patterns = new Set()) {
     return normalizeArgument(value,(source,target)=>{
@@ -7217,7 +7296,7 @@
       const n=pending.pop();
       if(!n || typeof n!=="object") continue;
       if(!Array.isArray(n)) found.push(n);
-      const children=Object.entries(n).filter(([k,v])=>k!=="at" && v && typeof v==="object").map(([,v])=>v);
+      const children=(Array.isArray(n) ? n : templateSourceKeys(n).filter(k=>k!=="at").map(k=>n[k])).filter(v=>v && typeof v==="object");
       for(let i=children.length-1;i>=0;i--) pending.push(children[i]);
     }
     return found;
@@ -7317,6 +7396,7 @@
     /** @type {any[]} */ const events=[];
     /** @type {any[]} */ const queue=[];
     /** @type {any[]} */ const extraEvents=[];
+    /** @type {any[]} */ const sourceEvents=[];
     /** @type {(event:any,node:any,message:string)=>never} */
     const fail=(event,node,message)=>{
       const at=node?.at??event.rule.at;
@@ -7325,10 +7405,11 @@
     };
     let serial=0;
     for(const document of documents) {
-      const declarations=[...document.dom.rules,...document.dom.constants,...document.dom.directives,...document.dom.classifiers,...document.dom.implications].sort((a,b)=>a.at[0]-b.at[0]||a.at[1]-b.at[1]);
-      for(const rule of declarations) {
+      const declarations=['rules','constants','directives','classifiers','implications'].flatMap(kind=>document.dom[kind].map((/** @type {any} */ rule)=>({kind,rule}))).sort((a,b)=>a.rule.at[0]-b.rule.at[0]||a.rule.at[1]-b.rule.at[1]);
+      for(const {kind,rule} of declarations) {
       const event={path:document.path,rule,index:serial++};
-      if(!document.dom.rules.includes(rule)) {extraEvents.push(event);continue;}
+      sourceEvents.push(event);
+      if(kind!=='rules') {extraEvents.push(event);continue;}
       events.push(event);
       if(rule.params) {
         const previous=templates.get(rule.name);
@@ -7355,7 +7436,7 @@
     // Inspect every definition, including discarded and uncalled definitions.
     const edges=new Map();
     for(const template of templates.values()) for(let i=0;i<template.arity;i++) edges.set(template.name+':'+i,[]);
-    for(const event of [...events,...extraEvents]) {
+    for(const event of sourceEvents) {
       const {rule}=event,params=rule.params??[];
       for(const n of templateNodes(rule)) {
         if(n.param && !params.includes(n.param)) fail(event,n,`undeclared parameter @${n.param}`);
@@ -7364,27 +7445,31 @@
         if(!target) fail(event,n,`unknown template ${n.call}`);
         if(n.args.length!==target.arity) fail(event,n,`template ${n.call} expects ${target.arity} arguments`);
         n.args.forEach((/** @type {any} */ arg,/** @type {number} */ i)=>{
+          let normalized;
           for(const part of templateNodes(arg)) {
             if(part.capture!==undefined || part.captured!==undefined) fail(event,part,'an argument cannot read or declare captures');
-            if(part.param && params.includes(part.param)) edges.get(rule.name+':'+params.indexOf(part.param))?.push({to:n.call+':'+i,growing:normalize(arg).param!==part.param,event,node:n,argument:arg});
+            if(part.param && params.includes(part.param)) edges.get(rule.name+':'+params.indexOf(part.param))?.push({to:n.call+':'+i,growing:(normalized??=normalize(arg)).param!==part.param,event,node:n,argument:arg});
           }
         });
       }
     }
     // Every growing edge must lack a return path. Unchanged cycles are finite.
     for(const [from,list] of edges) for(const edge of list) if(edge.growing) {
-      const pending=[{to:edge.to,steps:/** @type {any[]} */ ([]) }],seen=new Set();
+      const pending=[{to:edge.to,previous:/** @type {any} */ (null)}],seen=new Set();
       while(pending.length) {
         const state=pending.pop();
         if(!state) break;
         if(state.to===from) {
-          const cycle=[{from,...edge},...state.steps];
-          const trail=cycle.map(step=>`${step.from} → ${step.to} at ${step.event.path}:${step.node.at[0]}:${step.node.at[1]}`).join(' then ');
+          const steps=[];
+          for(let step=state.previous;step;step=step.previous) steps.push(step);
+          steps.reverse();
+          const cycle=[{from,edge},...steps];
+          const trail=cycle.map(({from,edge})=>`${from} → ${edge.to} at ${edge.event.path}:${edge.node.at[0]}:${edge.node.at[1]}`).join(' then ');
           fail(edge.event,edge.node,`unbounded-instantiation: ${trail}, growing argument ${canonicalArgument(edge.argument,unicode)}`);
         }
         if(seen.has(state.to)) continue;
         seen.add(state.to);
-        for(const next of edges.get(state.to)??[]) pending.push({to:next.to,steps:[...state.steps,{from:state.to,...next}]});
+        for(const next of edges.get(state.to)??[]) pending.push({to:next.to,previous:{from:state.to,edge:next,previous:state.previous}});
       }
     }
     /** @type {(call:any,event:any,discover?:boolean)=>any} */
@@ -7404,8 +7489,8 @@
       }
       return instance;
     };
-    /** @type {(root:any,event:any)=>void} */
-    const discover=(root,event)=>{
+    /** @type {(root:any,event:any,record?:typeof intern)=>void} */
+    const discover=(root,event,record=intern)=>{
       /** @type {(n:any)=>void} */
     const visit=(/** @type {any} */ n)=>{
         if(!n || typeof n!=='object') return;
@@ -7423,7 +7508,7 @@
         for(const value of children) {
           if(Array.isArray(value)) value.forEach(visit);else if(value && typeof value==='object') visit(value);
         }
-        if(n.call && !templateNodes(n.args).some((/** @type {any} */ x)=>x.param)) intern(n,event,true);
+        if(n.call && !templateNodes(n.args).some((/** @type {any} */ x)=>x.param)) record(n,event,true);
         if(n.call && n.children) visit(n.children);
       };
       visit(root);
@@ -7456,18 +7541,24 @@
       list.forEach((/** @type {any} */ event,/** @type {number} */ i)=>{if(event.rule.op!=='extend') start=i;});
       return list.slice(start);
     };
+    const extraIndexes=new Set(extraEvents.map(event=>event.index));
+    const retainedIndexes=new Set();
+    /** @param {any[][]} histories */
+    const rememberRetained=(...histories)=>{
+      let first=0;
+      for(const history of histories) for(const event of history) if(event.rule.op!=='extend') first=Math.max(first,event.index);
+      for(const history of histories) for(const event of history) if(event.index>=first) retainedIndexes.add(event.index);
+    };
+    for(const template of templates.values()) rememberRetained(template.events);
+    for(const history of ordinary.values()) rememberRetained(history);
+    for(const instance of instances.values()) rememberRetained(templates.get(instance.call.call).events,instance.locals);
     // Complete the source pass before processing expanded definitions.
-    for(const event of [...events,...extraEvents].sort((a,b)=>a.index-b.index)) {
+    for(const event of sourceEvents) {
       const rule=event.rule;
-      if(extraEvents.includes(event)) {discover(rule,event);continue;}
+      if(extraIndexes.has(event.index)) {discover(rule,event);continue;}
       if(rule.instance) {discover(rule.instance,event);continue;}
       if(rule.args) discover({call:rule.name,args:rule.args,at:rule.at},event);
-      let list=rule.params?templates.get(rule.name).events:ordinary.get(rule.name);
-      if(!list) {
-        const subject=[...instances.values()].find(instance=>instance.locals.includes(event));
-        if(subject) list=[...templates.get(subject.call.call).events,...subject.locals].sort((a,b)=>a.index-b.index);
-      }
-      if(list && retained(list).includes(event)) {
+      if(retainedIndexes.has(event.index)) {
         const body={...rule};delete body.args;
         discover(body,event);
       }
@@ -7517,7 +7608,8 @@
       }
       /** @type {Record<string,any>} */
     const result={};
-      for(const [key,value] of Object.entries(root)) {
+      for(const key of templateSourceKeys(root)) {
+        const value=root[key];
         if(key==='at') {result.at=value;continue;}
         if(key==='args' && root.call) {result.args=value.map((/** @type {any} */ x)=>substitute(x,env,event,'arg'));continue;}
         if(key==='args' && root.method) {
@@ -7584,11 +7676,41 @@
         const body={...event.rule};delete body.params;delete body.args;delete body.instance;
         body.name=instance.name??instance.canonical;
         const expanded=substitute(body,env,{...event,origin:instance.origin,instance:instance.canonical});
-        const problem=domProblem({format:documents[0].dom.format,rules:[{...expanded,name:'expanded'}],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
-        if(problem) fail({...event,origin:instance.origin,instance:instance.canonical},expanded,problem);
+        const problem=expandedDomProblem({format:documents[0].dom.format,rules:[expanded],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
+        if(problem) fail({...event,origin:instance.origin,instance:instance.canonical},expanded,`rule ${expanded.name}: ${problem}`);
         instance.definitions.push({...event,origin:instance.origin,instance:instance.canonical,rule:expanded});
       }
       for(const event of retained(instance.definitions)) discover(event.rule,event);
+    }
+    const validationKeys=new Set(instances.keys());
+    /** @type {any[]} */
+    const validationQueue=[];
+    /** @type {typeof intern} */
+    const validateCall=(call,event)=>{
+      const normalized={call:call.call,args:normalize(call.args),at:call.at};
+      const key=JSON.stringify(templateIdentity(normalized));
+      if(!validationKeys.has(key)) {
+        validationKeys.add(key);
+        validationQueue.push({call:normalized,origin:{document:event.path,at:call.at}});
+      }
+    };
+    for(const event of events) if(!event.rule.params && !event.rule.args && !event.rule.instance) discover(event.rule,event,validateCall);
+    for(const instance of queue) for(const event of instance.definitions) discover(event.rule,event,validateCall);
+    /** @type {any[]} */
+    const validationDefinitions=[];
+    for(let cursor=0;cursor<validationQueue.length;cursor++) {
+      const {call,origin}=validationQueue[cursor],name=canonicalArgument(call,unicode);
+      for(const event of templates.get(call.call).events) {
+        const env=new Map(event.rule.params.map((/** @type {string} */ parameter,/** @type {number} */ i)=>[parameter,call.args[i]]));
+        const body={...event.rule,name};delete body.params;
+        const context={...event,origin,instance:name};
+        const expanded=substitute(body,env,context);
+        const problem=expandedDomProblem({format:documents[0].dom.format,rules:[expanded],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
+        if(problem) fail(context,expanded,`rule ${expanded.name}: ${problem}`);
+        const definition={...context,rule:expanded};
+        validationDefinitions.push(definition);
+        discover(expanded,definition,validateCall);
+      }
     }
     /** @type {(instance:any)=>string} */
     const effective=(/** @type {any} */ instance)=>instance.name??instance.canonical;
@@ -7622,38 +7744,60 @@
       if(position==='pattern') for(const key of ['union','intersection']) if(result[key]) result[key]=result[key].flatMap((/** @type {any} */ part)=>part[key]??[part]);
       return result;
     };
+    /** @type {{path:string,term:any,at:[number,number],tags:boolean}[]} */
+    const argumentsToCheck=[];
+    /** @type {any[]} */
+    const argumentDefinitions=[];
+    /** @param {any} argument @param {any} event */
+    const inspectArgument=(argument,event)=>{
+      const parts=templateNodes(argument),references=parts.filter(n=>n.const || n.constant);
+      if(!references.length) return;
+      const add=(/** @type {any} */ term,tags=false)=>argumentsToCheck.push({path:event.path,term:rewrite(term,event),at:event.rule.at,tags});
+      if(parts.some(n=>n.param)) {
+        for(const reference of references) add({const:reference.const??reference.constant,at:reference.at});
+        return;
+      }
+      const arg=normalize(argument);
+      if(arg.body || arg.test || arg.range || arg.wildcard) {
+        const rule={name:extraIndexes.has(event.index)?'text':event.rule.name,op:'define',flags:[],conditions:[],alternatives:[{guards:[],expr:rewrite(arg.body??arg,event,'expr')}],at:event.rule.at};
+        argumentDefinitions.push({...event,rule});
+      } else if(arg.requirements) {
+        for(const requirement of arg.requirements) add(requirement.value,true);
+      } else if(!arg.call && !arg.rule && !arg.targets) add(arg);
+    };
+    /** @param {any} event */
+    const inspectArguments=event=>{
+      for(const node of templateNodes(event.rule)) if(node.call || node.name && node.args && node.op) {
+        for(const argument of node.args) inspectArgument(argument,event);
+      }
+    };
+    for(const event of sourceEvents) inspectArguments(event);
+    for(const instance of queue) for(const event of instance.definitions) inspectArguments(event);
+    for(const event of validationDefinitions) inspectArguments(event);
     const validation=[];
     for(const event of events) if(!event.rule.params && !event.rule.args && !event.rule.instance) validation.push({...event,rule:rewrite(event.rule,event)});
     for(const instance of queue) for(const event of instance.definitions) validation.push({...event,rule:rewrite({...event.rule,name:effective(instance)},event)});
+    for(const event of validationDefinitions) validation.push({...event,rule:rewrite(event.rule,event)});
+    for(const event of argumentDefinitions) validation.push(event);
     for(const event of validation) {
-      const aliases=new Map();
-      const shadow=structuredClone(event.rule);
-      for(const node of templateNodes(shadow)) for(const key of ["name","rule","ref"]) {
-        if(typeof node[key] === "string" && node[key].includes("(")) {
-          if(!aliases.has(node[key])) aliases.set(node[key],"instance-"+aliases.size);
-          node[key]=aliases.get(node[key]);
-        }
-      }
-      const problem=domProblem({format:documents[0].dom.format,rules:[shadow],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
+      const problem=expandedDomProblem({format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
       if(problem) fail(event,event.rule,problem);
     }
     const output=[];
     for(const list of ordinary.values()) for(const event of list) output.push({...event,rule:rewrite(event.rule,event)});
     for(const instance of queue) for(const event of instance.definitions) output.push({...event,rule:rewrite({...event.rule,name:effective(instance)},event)});
-    // Each final stream starts with a definition, independent of earlier discarded edits.
-    const started=new Set();
-    for(const event of output) {
-      if(!started.has(event.rule.name)) {event.rule={...event.rule,op:'define'};started.add(event.rule.name);}
-    }
     const expandedDocs=documents.map((/** @type {any} */ d)=>({...d,dom:{...d.dom,rules:[],...Object.fromEntries(['constants','directives','classifiers','implications'].map(key=>[key,d.dom[key].map((/** @type {any} */ item)=>rewrite(item,{path:d.path,rule:item}))]))}}));
     for(const event of output) expandedDocs.push({path:event.path,dom:{format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]}});
-    return {documents:expandedDocs,validation,order:[...slots.filter((/** @type {any} */ n)=>current.has(n)||ordinary.has(n)),...queue.filter((/** @type {any} */ x)=>!x.name).map(effective)],templates:[...templates.values()],instances:queue};
+    return {documents:expandedDocs,validation,argumentsToCheck,order:[...slots.filter((/** @type {any} */ n)=>current.has(n)||ordinary.has(n)),...queue.filter((/** @type {any} */ x)=>!x.name).map(effective)],templates:[...templates.values()],instances:queue};
   }
 
   /** @param {any} grammar @returns {{templates:any[],instances:any[]}} */
   function templateAudit(grammar) {
     const position=(/** @type {any} */ event)=>({document:event.path,line:event.rule.at[0],column:event.rule.at[1]});
-    const ordered=grammar.instances.slice().sort((/** @type {any} */ a,/** @type {any} */ b)=>[...grammar.rules.keys()].indexOf(a.name??a.canonical)-[...grammar.rules.keys()].indexOf(b.name??b.canonical));
+    const positions=new Map([...grammar.rules.keys()].map((name,index)=>[name,index]));
+    const templatesByName=new Map(grammar.templates.map((/** @type {any} */ template)=>[template.name,template]));
+    const ordered=grammar.instances.slice().sort((/** @type {any} */ a,/** @type {any} */ b)=>(positions.get(a.name??a.canonical)??-1)-(positions.get(b.name??b.canonical)??-1));
+    const usedTemplates=new Set(ordered.map((/** @type {any} */ instance)=>instance.call.call));
     const byName=new Map(ordered.filter((/** @type {any} */ item)=>item.name).map((/** @type {any} */ item)=>[item.name,item]));
     const aliases=(/** @type {any} */ a,/** @type {any} */ b)=>{
       /** @type {(a:any,b:any)=>boolean} */
@@ -7683,15 +7827,16 @@
         for(const event of template.events.slice(first)) for(const node of templateNodes(event.rule)) if(node.param) used.add(event.rule.params.indexOf(node.param));
         return {template:template.name,parameters:template.events[0].rule.params.slice(),document:template.path,line:template.at[0],column:template.at[1],notes:[
           ...template.events[0].rule.params.flatMap((/** @type {string} */ parameter,/** @type {number} */ i)=>used.has(i)?[]:[{kind:'unused-parameter',parameter}]),
-          ...(ordered.some((/** @type {any} */ i)=>i.call.call===template.name)?[]:[{kind:'uncalled-template'}])
+          ...(usedTemplates.has(template.name)?[]:[{kind:'uncalled-template'}])
         ]};
       }),
       instances:ordered.map((/** @type {any} */ instance)=>{
         /** @type {string[]} */
         let flags=[];
+        const eventIndexes=new Set(templatesByName.get(instance.call.call).events.map((/** @type {any} */ e)=>e.index));
         const events=instance.definitions.map((/** @type {any} */ event)=>{
           const before=flags.slice();if(event.rule.op!=='extend') flags=event.rule.flags.slice();
-          return {scope:event.rule.params?'template':grammar.templates.find((/** @type {any} */ t)=>t.name===instance.call.call).events.some((/** @type {any} */ e)=>e.index===event.index)?'template':'instance',op:event.rule.op,...position(event),flagsBefore:before,flagsAfter:flags.slice()};
+          return {scope:eventIndexes.has(event.index)?'template':'instance',op:event.rule.op,...position(event),flagsBefore:before,flagsAfter:flags.slice()};
         });
         const twins=ordered.filter((/** @type {any} */ other)=>other!==instance&&other.call.call===instance.call.call&&aliases(other.call.args,instance.call.args)).map((/** @type {any} */ other)=>other.name??other.canonical);
         return {template:instance.call.call,arguments:templateIdentity(instance.call.args),name:instance.name??instance.canonical,binding:instance.binding??null,firstCall:{document:instance.origin.document,line:instance.origin.at[0],column:instance.origin.at[1]},flags,events,notes:twins.length?[{kind:'argument-alias-twin',instances:twins}]:[]};
@@ -8854,6 +8999,10 @@
   // with k gates can have 2^k of them. The least recently used goes first.
   const MAX_LOWERED = 16;
 
+  /** @type {WeakMap<Grammar, Map<string, any[]>>} */
+  const argumentUses = new WeakMap();
+  /** @param {string} path @param {number[]} at */
+  const argumentSite = (path,at) => JSON.stringify([path,at]);
   // Stitches documents, each { path, dom }, into one grammar.
   class Grammar {
     /**
@@ -8906,11 +9055,18 @@
           if (deferredRecipeProblem(rule) || deferredEmissionProblem(rule)) pendingTemplates.push({path,rule});
         }
         const expansion = expandTemplates(documents,unicode);
+        const argumentsBySite = new Map();
+        for (const argument of expansion.argumentsToCheck ?? []) {
+          const key = argumentSite(argument.path,argument.at);
+          if (!argumentsBySite.has(key)) argumentsBySite.set(key,[]);
+          argumentsBySite.get(key).push(argument);
+        }
+        argumentUses.set(this,argumentsBySite);
         this.templates=expansion.templates;
         this.instances=expansion.instances;
         for (const { path, dom } of expansion.documents) this.addDocument(path, dom);
         if (expansion.order) this.rules = new Map(expansion.order.map((/** @type {string} */ name) => /** @type {[string,StitchedRule]} */ ([name,this.rules.get(name)])));
-        for (const event of expansion.validation ?? []) if (constantsIn(event.rule).length || hasPattern(event.rule)) {
+        for (const event of expansion.validation ?? []) if (constantsIn(event.rule).length || hasPattern(event.rule) || argumentsBySite.has(argumentSite(event.path,event.rule.at))) {
           this.constantUsers.push({path:event.path,rule:event.rule});
           this.validationItems.push(() => this.checkConstantRule(event.path,event.rule));
         }
@@ -8921,6 +9077,8 @@
         this.implications = [];
         for (const check of this.validationItems) check();
         this.validationItems.length = 0;
+        for (const uses of argumentsBySite.values()) inspectArgumentConstants(this,uses);
+        argumentUses.delete(this);
         this.resolveConstants();
         /**
          * The features that gate an entry of a classifier. Only these change
@@ -9027,7 +9185,7 @@
         if (kind === "rules") {
           const rule = /** @type {DomRule} */ (node);
           if (rule.instance) throw new Error("an instance binding survived expansion");
-          if (constantsIn(rule).length > 0 || hasPattern(rule)) {
+          if (constantsIn(rule).length > 0 || hasPattern(rule) || argumentUses.get(this)?.has(argumentSite(path,rule.at))) {
             this.constantUsers.push({path,rule});
             this.validationItems.push(() => this.checkConstantRule(path,rule));
           }
@@ -9416,7 +9574,14 @@
       }
       const resolvedRule = resolveNode(rule,this.constants);
       const fault = ruleTypeFault(resolvedRule,types);
-      if (fault) throw this.faultError(path, fault.node, rule.at, fault.problem);
+      const errors = fault ? [this.faultError(path, fault.node, rule.at, fault.problem)] : [];
+      const key = argumentSite(path,rule.at);
+      const uses = argumentUses.get(this)?.get(key) ?? [];
+      argumentUses.get(this)?.delete(key);
+      try { inspectArgumentConstants(this,uses); }
+      catch (error) { if (!(error instanceof GencmuError)) throw error; errors.push(error); }
+      errors.sort((a,b) => (a.where.line ?? 0)-(b.where.line ?? 0) || (a.where.column ?? 0)-(b.where.column ?? 0));
+      if (errors.length) throw errors[0];
       // The checks that simplification decides, which the reader left to
       // the loader, now with the constants' values (engine §9).
       const parts = [rule];
@@ -9633,6 +9798,28 @@
       }
       return lowered;
     }
+  }
+
+  /**
+   * @param {Grammar} grammar
+   * @param {{path:string,term:any,at:[number,number],tags:boolean}[]} argumentsToCheck
+   */
+  function inspectArgumentConstants(grammar, argumentsToCheck) {
+    /** @type {(name:string)=>TermType} */
+    const types = name => /** @type {StageConstant} */ (grammar.constants.get(name)).type;
+    /** @type {GencmuError[]} */
+    const faults = [];
+    for (const {path,term,at,tags} of argumentsToCheck) {
+      for (const reference of constantsIn(term)) if (!grammar.constants.has(reference.const)) {
+        throw grammar.documentError(path,reference.at,`$${reference.const} is not defined in stage ${grammar.stageName}`);
+      }
+      const found=termType(term,types);
+      if ("problem" in found) { faults.push(grammar.faultError(path,found.node,at,found.problem)); continue; }
+      const problem=tags ? expectedProblem(found.type,"tags") : null;
+      if (problem) faults.push(grammar.faultError(path,term,at,problem));
+    }
+    faults.sort((a,b) => (a.where.line ?? 0)-(b.where.line ?? 0) || (a.where.column ?? 0)-(b.where.column ?? 0));
+    if (faults.length) throw faults[0];
   }
 
   /**
@@ -18320,8 +18507,21 @@
    * @returns {GrammarDom}
    */
   function treeToDom(tree, tokens, positionOf, path, unicode, deferEmission = false, decodeString) {
-    /** @type {(node: ResultNode) => string} */
-    const sourceText = (node) => tokens[/** @type {import("./types.js").TokenNode} */ (node).token].text;
+    const decode = decodeString ?? ((/** @type {Token} */ token) => [...token.value].slice(1, -1).join(""));
+    return convertTree(tree, tokens, positionOf, path, unicode, decode, deferEmission);
+  }
+
+  /**
+   * @param {ResultNode} tree
+   * @param {Token[]} tokens
+   * @param {(token:Token)=>Position} positionOf
+   * @param {string} path
+   * @param {Parameters<typeof treeToDom>[4]} unicode
+   * @param {(token:Token, path:boolean)=>string} decodeString
+   * @param {boolean} deferEmission
+   * @returns {GrammarDom}
+   */
+  function convertTree(tree, tokens, positionOf, path, unicode, decodeString, deferEmission) {
     /** @type {(node: ResultNode) => Position} */
     const at = (node) => positionOf(tokens[firstToken(node)]);
     /** @type {(message: string, node: ResultNode) => never} */
@@ -18445,12 +18645,8 @@
         if (problem) fail(problem, item);
         const args = operands.map((child) => {
             if (ruleOf(child) === "argument-word") return valueOf(token(child));
-            if (ruleOf(child) === "argument-string") {
-              const part = /** @type {import("./types.js").TokenNode} */ (token(child));
-              return decodeString ? decodeString(tokens[part.token], true) : sourceText(part).slice(1, -1);
-            }
-            // A range or a property has no tag; operandProblem has refused it.
-            return tagOf(symbolPart(child));
+            const part = /** @type {import("./types.js").TokenNode} */ (token(child));
+            return decodeString(tokens[part.token], true);
           });
         if (["stage", "extend-stage", "redefine-stage"].includes(name) && !CLASSIFIER_NAME.test(args[0])) {
           fail(`%${name} takes one lowercase name`, item);
@@ -18462,6 +18658,7 @@
           fail("%ambiguity-resolution takes a ranking name and optionally elision-only", item);
         }
         const clause = one(item, "conditions-clause");
+        if (clause && name !== "features") fail("only %features accepts conditions", item);
         let conditions;
         featureContext = name === "features";
         try {
@@ -18469,11 +18666,12 @@
         } catch (error) {
           if (!featureContext || !(error instanceof GencmuError)) throw error;
           const [line,column] = at(item);
-          throw new GencmuError("grammar",error.message,{document:path,line,column});
+          const prefix = [error.where.document, error.where.line, error.where.column].filter(part => part !== undefined).join(":") + ": ";
+          const message = error.message.startsWith(prefix) ? error.message.slice(prefix.length) : error.message;
+          throw new GencmuError("grammar",message,{document:path,line,column});
         } finally {
           featureContext = false;
         }
-        if (conditions && name !== "features") fail("only %features accepts conditions", item);
         directives.push({
           ...(conditions ? { conditions } : {}),
           name,
@@ -18791,7 +18989,7 @@
     }
 
     /**
-     * Braces: the item, its separator if a backslash has one, and a chain's
+     * Braces: the item, its separator if a `/` has one, and a chain's
      * direction from its marker, a `...` among the parts (engine §9).
      * @param {RuleNode} node
      * @param {boolean} whole whether the braces are their alternative's whole
@@ -18988,14 +19186,14 @@
     }
 
     /**
-     * A constituent's tag term, which cannot read the tags it defines: `$`,
-     * `tags($)` or `classes($)` (engine §9).
+     * A constituent's tag term, which cannot read the tags it defines:
+     * `$.tags` or `$.classes` (engine §9).
      * @param {ResultNode} node
      * @returns {Generator<Step, Term, any>}
      */
     function* readConstituentTags(node) {
       const term = /** @type {Term} */ (yield readTagTerm(only(node, "term")));
-      if (readsOwnTags(term)) fail("a constituent's tags cannot be made of its own tags, tags($) or classes($)", node);
+      if (readsOwnTags(term)) fail("a constituent's tags cannot be made of its own: $.tags or $.classes", node);
       return term;
     }
 
@@ -19096,7 +19294,7 @@
           const right = /** @type {Term} */ (yield readTerm(rightNode));
           const found = termType(right);
           const problem = "problem" in found ? found.problem : expectedProblem(found.type,"pattern");
-          if (problem && !featureContext) fail(problem,rightNode);
+          if (problem && !featureContext) fail(problem,inner);
           return {op,left:{capture:valueOf(token(leftNode)).slice(1)},right};
         }
         case "comparison": {
@@ -19197,10 +19395,10 @@
           if (nodes.length > 1) {
             const found = termType(term);
             const problem = "problem" in found ? found.problem : !["string", "any"].includes(found.type) ? "++ requires string operands" : null;
-            if (problem && !featureContext && !hasUnresolved(term)) fail(problem, node);
+            const knownNonString = !("problem" in found) && !["string", "any"].includes(found.type);
+            if (problem && !featureContext && (knownNonString || !hasUnresolved(term))) fail(problem, node);
           }
-          if ("concat" in term) for (const child of term.concat) items.push(child);
-          else items.push(term);
+          items.push(term);
         }
         if (nodes.length === 1) return items.length === 1 ? items[0] : {concat: items};
         return {concat: items};
@@ -19235,7 +19433,7 @@
           closedFor = null;
           const pattern = yield readLayeredPattern(only(node, "pattern-primary"));
           closedFor = before;
-          const problem = layeredPatternProblem(pattern, {deferDepth:true, name:name => CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name)});
+          const problem = sourcePatternProblem(pattern, {deferDepth:true, name:name => CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name)});
           if (problem) fail(problem,node);
           return {pattern};
         }
@@ -19286,16 +19484,9 @@
     // Pattern constructors follow the layered syntax of engine section 9.
     /** @param {any[]} items @param {ResultNode} node @returns {any} */
     function childPredicate(items, node) {
+      while (items.length === 1 && items[0].sequence) items = items[0].sequence;
       if (items.length !== 1 || !('child' in items[0])) fail("a pattern path or set requires one whole pattern",node);
       return items[0].child;
-    }
-    /** @param {string} key @param {any[]} operands @returns {any} */
-    function patternSet(key,operands) {
-      if (operands.length === 1) return operands[0];
-      if (key === 'difference') return {difference:operands};
-      const flat=[];
-      for (const operand of operands) for (const part of operand[key] ?? [operand]) flat.push(part);
-      return {[key]:flat};
     }
     /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
     function* readLayeredPattern(node) {
@@ -19324,7 +19515,7 @@
         let result=values[0];
         for (let index=1;index<values.length;index++) {
           const key=kind.endsWith('intersection') || operators[index-1] === '∩' ? 'intersection' : operators[index-1] === '∖' ? 'difference' : 'union';
-          result=patternSet(key,[result,values[index]]);
+          result = {[key]:[result,values[index]]};
         }
         return result;
       }
@@ -19347,8 +19538,7 @@
         const arms=[];
         for (const alternative of some(node,'child-alternative')) {
           const items=yield readLayeredPattern(alternative);
-          if (items.length === 1 && items[0].choice) for (const arm of items[0].choice) arms.push(arm);
-          else arms.push(items);
+          arms.push(items);
         }
         return arms.length === 1 ? arms[0] : [{choice:arms}];
       }
@@ -19358,8 +19548,8 @@
       }
       if (kind === 'child-sequence') {
         const result=[];
-        for (const item of some(node,'child-item')) for (const part of yield readLayeredPattern(item)) result.push(part);
-        return result;
+        for (const item of some(node,'child-item')) result.push({sequence:yield readLayeredPattern(item)});
+        return [{sequence:result}];
       }
       if (kind === 'child-item') {
         const child=parts(node)[0];
@@ -19436,6 +19626,7 @@
       for (const selector of some(node, "method-selector")) {
         const name = valueOf(token(only(selector, "method-name")));
         if(!METHODS.has(name)) fail(`unknown method ${name}`,node);
+        if (closedFor && !["split", "ngrams"].includes(name)) fail(`${closedFor} cannot read an input method`, node);
         /** @type {any[]} */
         const args = [];
         const argumentsNode = one(selector, "arguments");
@@ -19472,8 +19663,11 @@
           }
         }
         const problem = methodProblem(name, receiver, args, found.type, types, recipeContext);
-        if (problem && !featureContext && !args.some(hasUnresolved) && !hasUnresolved(receiver)) fail(problem, node);
-        if (closedFor && (!["split", "ngrams"].includes(name) || found.type === "span")) fail(`${closedFor} cannot read an input method`, node);
+        if (problem && !featureContext && !args.some(hasUnresolved) && !hasUnresolved(receiver)) {
+          const specific = problem === "split has an empty delimiter" || problem.startsWith("ends requires") || problem.startsWith("without-elision");
+          fail(specific ? problem : "a method has the wrong receiver or arguments", node);
+        }
+        if (closedFor && found.type === "span") fail(`${closedFor} cannot read an input method`, node);
         receiver = { method: name, receiver, args };
         boundaryLocations.set(receiver, {tree:node,at:at(node)});
         if (argumentsNode) ofRule(argumentsNode,"argument").forEach((argument,index) => boundaryLocations.set(args[index],{tree:argument,at:at(argument)}));
@@ -19484,7 +19678,7 @@
     /** @param {ResultNode} tokenNode @returns {any} */
     function decode(tokenNode) {
       const part = /** @type {import("./types.js").TokenNode} */ (tokenNode);
-      return { string: decodeString ? decodeString(tokens[part.token], false) : [...valueOf(tokenNode)].slice(1, -1).join("") };
+      return { string: decodeString(tokens[part.token], false) };
     }
 
     /** @param {ResultNode} tokenNode @returns {string} */
@@ -19531,18 +19725,45 @@
    * @param {unknown} root
    */
   function flattenGroups(root) {
+    // Source-only sequence wrappers retain grouped child arrays until this walk.
+    /** @param {any[]} items @returns {any[]} */
+    const gatherItems = items => {
+      const joined = [];
+      const pending = items.slice().reverse();
+      while (pending.length) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        const item = pending.pop();
+        if (item.sequence) for (let index = item.sequence.length - 1; index >= 0; index--) pending.push(item.sequence[index]);
+        else joined.push(item);
+      }
+      return joined;
+    };
     /** @type {unknown[]} */
-    const stack = [root];
+    const stack = [{value:root,pattern:false}];
     while (stack.length > 0) {
       if (hooks.work) countWork(hooks.work, "walkSteps");
-      const current = stack.pop();
+      const {value:current,pattern} = /** @type {{value:unknown,pattern:boolean}} */ (stack.pop());
       if (Array.isArray(current)) {
-        for (const item of current) stack.push(item);
+        for (const item of current) stack.push({value:item,pattern});
         continue;
       }
       if (current === null || typeof current !== "object") continue;
       const node = /** @type {Record<string, unknown>} */ (current);
-      for (const key of ["any", "all", "union"]) {
+      if (pattern) {
+        for (const key of ["children", "optional", "repeat", "separator"]) if (Array.isArray(node[key])) node[key] = gatherItems(node[key]);
+        if (Array.isArray(node.choice)) {
+          const arms = [];
+          const pending = node.choice.slice().reverse();
+          while (pending.length) {
+            const arm = gatherItems(/** @type {any[]} */ (pending.pop()));
+            if (arm.length === 1 && arm[0].choice) {
+              for (let index = arm[0].choice.length - 1; index >= 0; index--) pending.push(arm[0].choice[index]);
+            } else arms.push(arm);
+          }
+          node.choice = arms;
+        }
+      }
+      for (const key of ["any", "all", "union", "concat", ...(pattern ? ["intersection"] : [])]) {
         const items = node[key];
         if (!Array.isArray(items)) continue;
         /** @type {unknown[]} */
@@ -19558,7 +19779,11 @@
         }
         node[key] = joined;
       }
-      for (const value of Object.values(node)) if (value !== null && typeof value === "object") stack.push(value);
+      for (const [key,value] of Object.entries(node)) if (value !== null && typeof value === "object") {
+        // Test and call operands leave the pattern context.
+        const childPattern = key === "pattern" || pattern && !["literal", "range", "value", "requirements", "args"].includes(key);
+        stack.push({value,pattern:childPattern});
+      }
     }
   }
 
@@ -19639,8 +19864,8 @@
 
 
   // The grammar text of a document: its `jbogenbau` blocks joined with a newline,
-  // with the line and column of every code point in the document, and the
-  // number of blocks. A document with no block holds no grammar.
+  // with the line and column of every code point in the document.
+  // A document with no block holds no grammar.
   /**
    * @param {string} markdown
    * @param {string} path
@@ -20627,8 +20852,8 @@
         throw new GencmuError("grammar", `${path}:${line}:${column}: ${message}`, { document: path, line, column, ...(ranked ? {code:"ranked-choice-syntax"} : {}) });
       }
       const syntax = run.stages[run.stages.length - 1];
-      const dom = domOfTree(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path, this.unicode, deferEmission,
-        (token, path) => strings.decode(token, path));
+      const dom = domOfTree(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path, this.unicode,
+        deferEmission, (token, path) => strings.decode(token, path));
       if (names.dependencies) this.namesDependencies.set(dom, names.dependencies);
       return dom;
     }

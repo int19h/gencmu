@@ -13,6 +13,7 @@ const domFormat = 40
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what data/preparsed/gencmu.json and data/preparsed/FAMILY.json hold.
 type domDoc struct {
+	unresolved        bool
 	namesDependencies map[string]string
 	Rules             []*domRule
 	Directives        []*domDirective
@@ -45,24 +46,24 @@ type domEntry struct {
 // domImplication is %implies If ⟹ Then (engine §2, §11): two closed terms
 // whose type is a tag set.
 type domImplication struct {
-	rawTemplate templateObject
-	If, Then    *domTerm
-	At          [2]int
+	If, Then *domTerm
+	At       [2]int
 }
 
 // domConst is a constant's definition (engine §2): %const, "define", or
 // %redefine-const, "redefine", its name without $, and its value, a closed
 // term. The DOM never holds the value the loader gives the constant.
 type domConst struct {
-	rawTemplate templateObject
-	Name        string
-	Op          string
-	Value       *domTerm
-	At          [2]int
+	Name  string
+	Op    string
+	Value *domTerm
+	At    [2]int
 }
 
 type domRule struct {
-	rawTemplate      templateObject
+	Params           []string
+	Args             []*domArgument
+	Instance         *domSourceCall
 	deferredEmission *definitionIssue
 	Name             string
 	Flags            []string
@@ -107,12 +108,17 @@ const (
 	exRange    = "range"
 	exLiteral  = "literal"
 	exWildcard = "wildcard"
+	exParam    = "param"
+	exCall     = "call"
 )
 
 type domExpr struct {
-	Kind  string
-	Items []*domExpr // seq, choice, and
-	Inner *domExpr   // optional, repeat (its item), capture, test (its symbol)
+	At       [2]int
+	RankedAt [2]int
+	Call     *domSourceCall
+	Kind     string
+	Items    []*domExpr // seq, choice, and
+	Inner    *domExpr   // optional, repeat (its item), capture, test (its symbol)
 	// Sep is a repeat's separator, or nil; Chain is "left" or "right" for
 	// a chain, "" for flat braces (engine §3.2, §3.3).
 	Sep          *domExpr
@@ -163,9 +169,12 @@ const (
 	tmConst        = "const"
 	tmPattern      = "pattern"
 	tmConcat       = "concat"
+	tmParam        = "param"
+	tmSourceCall   = "source-call"
 )
 
 type domTerm struct {
+	Call  *domSourceCall
 	Kind  string
 	Str   string     // string, tag, call (the function), capture, rule, classifier
 	Items []*domTerm // union, intersection, difference, call arguments; if: its term
@@ -247,11 +256,10 @@ func (it *domEmitItem) attachments() []string {
 }
 
 type domDirective struct {
-	rawTemplate templateObject
-	Conditions  []*domCond
-	Name        string
-	Args        []string
-	At          [2]int
+	Conditions []*domCond
+	Name       string
+	Args       []string
+	At         [2]int
 }
 
 // ---- writing
@@ -270,10 +278,6 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 	for i, dir := range d.Directives {
 		if i > 0 {
 			w.raw(",")
-		}
-		if dir.rawTemplate != nil {
-			writeTemplateJSON(w, dir.rawTemplate)
-			continue
 		}
 		w.raw(`{"name":`)
 		w.str(dir.Name)
@@ -303,10 +307,6 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 	for i, k := range d.Constants {
 		if i > 0 {
 			w.raw(",")
-		}
-		if k.rawTemplate != nil {
-			writeTemplateJSON(w, k.rawTemplate)
-			continue
 		}
 		w.raw(`{"name":`)
 		w.str(k.Name)
@@ -356,10 +356,6 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 		if i > 0 {
 			w.raw(",")
 		}
-		if m.rawTemplate != nil {
-			writeTemplateJSON(w, m.rawTemplate)
-			continue
-		}
 		w.raw(`{"if":`)
 		m.If.writeJSON(w)
 		w.raw(`,"then":`)
@@ -391,10 +387,6 @@ func writeGuards(w *jsonWriter, guards []domGuard) {
 }
 
 func (r *domRule) writeJSON(w *jsonWriter) {
-	if r.rawTemplate != nil {
-		writeTemplateJSON(w, r.rawTemplate)
-		return
-	}
 	w.raw(`{"name":`)
 	w.str(r.Name)
 	w.raw(`,"op":`)
@@ -407,6 +399,28 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 		w.str(flag)
 	}
 	w.raw("]")
+	if r.Params != nil {
+		w.raw(`,"params":[`)
+		for i, name := range r.Params {
+			if i > 0 {
+				w.raw(",")
+			}
+			w.str(name)
+		}
+		w.raw("]")
+	}
+	if r.Args != nil {
+		w.raw(`,"args":`)
+		writeSourceArguments(w, r.Args)
+	}
+	if r.Instance != nil {
+		w.raw(`,"instance":`)
+		r.Instance.writeJSON(w)
+		w.raw(`,"conditions":[],"at":`)
+		w.pair(r.At)
+		w.raw("}")
+		return
+	}
 	if r.Tags != nil {
 		w.raw(`,"tags":`)
 		r.Tags.writeJSON(w)
@@ -451,6 +465,10 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 
 func (e *domExpr) writeJSON(w *jsonWriter) {
 	switch e.Kind {
+	case exParam:
+		writeParameter(w, e.Name, e.At)
+	case exCall:
+		e.Call.writeJSON(w)
 	case exSeq, exChoice, exRanked, exAnd:
 		w.raw("{")
 		w.str(e.Kind)
@@ -521,6 +539,10 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 
 func (t *domTerm) writeJSON(w *jsonWriter) {
 	switch t.Kind {
+	case tmParam:
+		writeParameter(w, t.Str, t.At)
+	case tmSourceCall:
+		t.Call.writeJSON(w)
 	case tmPattern:
 		w.raw(`{"pattern":`)
 		w.pattern(t.Pattern)
@@ -725,9 +747,6 @@ func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domD
 				}
 			}
 		}
-		if !expanded && templateUnresolved(node) {
-			return decodeTemplateDOM(node, uni)
-		}
 	}
 	o, err := decodeObj(raw)
 	if err != nil {
@@ -931,7 +950,7 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !hasOneForm(o, [][]string{{"name", "op", "flags", "tags?", "value?", "image?", "alternatives", "emit?", "conditions", "erased?", "at"}}) {
+	if !onlyMembers(o, "name", "params", "args", "instance", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at") {
 		return nil, fmt.Errorf("a malformed rule")
 	}
 	r := &domRule{}
@@ -949,6 +968,31 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 	}
 	if _, ok := o["conditions"]; !ok {
 		return nil, fmt.Errorf("a malformed rule")
+	}
+	if params, ok := o["params"]; ok {
+		if r.Params, err = decodeList(params, decodeString); err != nil {
+			return nil, err
+		}
+	}
+	if args, ok := o["args"]; ok {
+		if r.Args, err = decodeSourceArguments(args, 1); err != nil {
+			return nil, err
+		}
+	}
+	if instance, ok := o["instance"]; ok {
+		if !hasOneForm(o, [][]string{{"name", "op", "flags", "instance", "conditions", "at"}}) {
+			return nil, fmt.Errorf("a malformed instance binding")
+		}
+		call, err := decodeObj(instance)
+		if err != nil {
+			return nil, err
+		}
+		r.Instance, err = decodeSourceCall(call, 0)
+		if err != nil {
+			return nil, err
+		}
+		r.Conditions, err = decodeList(o["conditions"], decodeCond)
+		return r, err
 	}
 	if t, ok := o["tags"]; ok {
 		if r.Tags, err = decodeTerm(t); err != nil {
@@ -974,6 +1018,9 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		return nil, err
 	}
 	if c, ok := o["conditions"]; ok {
+		if len(bytes.TrimSpace(c)) == 0 || bytes.TrimSpace(c)[0] != '[' {
+			return nil, fmt.Errorf("a malformed condition list")
+		}
 		if err := unmarshal(c, &conds); err != nil {
 			return nil, err
 		}
@@ -983,7 +1030,7 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !hasOneForm(ao, [][]string{{"guards", "expr", "tags?", "value?", "image?"}}) {
+		if !onlyMembers(ao, "guards", "expr", "tags", "value", "image") {
 			return nil, fmt.Errorf("a malformed alternative")
 		}
 		alt := &domAlt{}
@@ -1085,6 +1132,18 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 	// An expression has exactly the members of one form (docs/output.md).
 	if !hasOneForm(o, exprForms) {
 		return nil, fmt.Errorf("a malformed expression")
+	}
+	if _, ok := o["param"]; ok {
+		name, at, err := decodeParameter(o)
+		return &domExpr{Kind: exParam, Name: name, At: at}, err
+	}
+	if _, ok := o["call"]; ok {
+		call, err := decodeSourceCall(o, depth)
+		e := &domExpr{Kind: exCall, Call: call}
+		if call != nil {
+			e.At = call.At
+		}
+		return e, err
 	}
 	if v, ok := o[exRange]; ok {
 		r, err := decodeStringRange(v, depth)
@@ -1193,11 +1252,13 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 // forms of a term too.
 var exprForms = [][]string{
 	{exSeq}, {exChoice}, {exRanked}, {exAnd}, {exOptional, "elidable?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exCapture, "expr"},
+	{"param", "at"}, {"call", "args", "at"},
 	{exRange}, {exLiteral}, {exWildcard}, {exTest, "value?", "requirements?", "expr"}, {exEmpty},
 }
 
 var termForms = [][]string{
 	{tmUnion}, {tmIntersection}, {tmDifference}, {tmIf, "then"}, {"method", "receiver", "args"},
+	{"param", "at"}, {"call", "args", "at"},
 	{tmString}, {tmTag}, {tmTerminal}, {tmInteger}, {tmConcat}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"}, {tmPattern},
 }
 
@@ -1241,6 +1302,18 @@ func decodeTermAt(raw json.RawMessage, depth int) (*domTerm, error) {
 	}
 	if !hasOneForm(o, termForms) {
 		return nil, fmt.Errorf("a malformed term")
+	}
+	if _, ok := o["param"]; ok {
+		name, at, err := decodeParameter(o)
+		return &domTerm{Kind: tmParam, Str: name, At: at}, err
+	}
+	if _, ok := o["call"]; ok {
+		call, err := decodeSourceCall(o, depth)
+		t := &domTerm{Kind: tmSourceCall, Call: call}
+		if call != nil {
+			t.At = call.At
+		}
+		return t, err
 	}
 	for _, k := range []string{tmString, tmTag, tmCapture, tmRule, tmClassifier, tmTerminal, tmInteger} {
 		if v, ok := o[k]; ok {

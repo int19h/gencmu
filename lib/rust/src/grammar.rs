@@ -91,8 +91,6 @@ pub struct Change {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StageGrammar {
-    #[allow(dead_code)] // Retained for native audit consumers.
-    pub parameters: crate::parameters::expand::Records,
     pub features: Vec<(Arc<str>, crate::dom::Directive)>,
     pub unicode: Arc<Unicode>,
     pub name: String,
@@ -232,15 +230,21 @@ pub(crate) fn stitch(
 fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unicode) -> Result<StageGrammar, Error> {
     let mut pending_templates = Vec::new();
     for (document, dom) in documents {
-        for raw in dom.unresolved.values().filter(|raw| raw.get("params").is_some()) {
-            if let Some(issue) = crate::parameters::deferred_definition(raw) {
-                let at = crate::parameters::at(raw).unwrap_or((1, 1));
-                pending_templates.push(located(issue.message, document, at));
+        for rule in dom.rules.iter().filter(|rule| rule.source.params.is_some()) {
+            let projected = crate::dom::partial::rule(rule).map_err(|message| located(message, document, rule.at))?;
+            if let Some(issue) = crate::clauses::check_definition(&projected, true).deferred {
+                pending_templates.push(located(issue.message, document, rule.at));
             }
         }
     }
     let expansion = crate::parameters::expand(documents, unicode)?;
     let documents = expansion.as_ref().map_or(documents, |x| x.documents.as_slice());
+    let mut arguments_by_site: HashMap<_, Vec<_>> = HashMap::new();
+    if let Some(expanded) = &expansion {
+        for argument in &expanded.arguments {
+            arguments_by_site.entry((argument.path.clone(), argument.at)).or_default().push(argument);
+        }
+    }
     let mut grammar = StageGrammar {
         unicode: Arc::new(unicode.clone()),
         name: stage.to_string(),
@@ -254,7 +258,6 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         classifiers: Vec::new(),
         features: Vec::new(),
         implications: Arc::from(Vec::new()),
-        parameters: expansion.as_ref().map_or_else(Default::default, |x| x.records.clone()),
     };
     enum Check<'a> {
         Rule(&'a Arc<str>, &'a RuleDef),
@@ -295,7 +298,9 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                     if let Some(problem) = &rule.deferred_emission {
                         deferred.push(located(problem.message.clone(), document, rule.at));
                     }
-                    if !constants_in_rule(rule).is_empty() {
+                    if !constants_in_rule(rule).is_empty()
+                        || arguments_by_site.contains_key(&(document.clone(), rule.at))
+                    {
                         checks.push(Check::Rule(document, rule));
                     }
                     // The clauses are copied once for the rule, not for each
@@ -446,8 +451,8 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     }
     constants.bind()?;
     if let Some(expanded) = &expansion {
-        for (path, rule) in &expanded.validation {
-            checks.push(Check::Rule(path, rule));
+        for (path, dom) in &expanded.validation {
+            checks.extend(dom.rules.iter().map(|rule| Check::Rule(path, rule)));
         }
         let positions: HashMap<_, _> = expanded.order.iter().enumerate().map(|(i, n)| (n.as_str(), i)).collect();
         grammar.rules.sort_by_key(|r| positions.get(r.name.as_str()).copied().unwrap_or(usize::MAX));
@@ -456,7 +461,10 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     let mut implications = Vec::new();
     for check in checks {
         match check {
-            Check::Rule(document, rule) => constants.check_rule(document, rule, &mut deferred)?,
+            Check::Rule(document, rule) => {
+                let arguments = arguments_by_site.remove(&(document.clone(), rule.at)).unwrap_or_default();
+                constants.check_rule(document, rule, &arguments, &mut deferred)?;
+            }
             Check::Feature(index) => {
                 let (document, directive) = &mut grammar.features[index];
                 constants.resolve_feature(document, directive)?;
@@ -467,6 +475,13 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
             }
             Check::Implication(document, implication) => {
                 implications.push(constants.implication(document, implication)?)
+            }
+        }
+    }
+    if let Some(expanded) = &expansion {
+        for argument in &expanded.arguments {
+            if let Some(arguments) = arguments_by_site.remove(&(argument.path.clone(), argument.at)) {
+                constants.check_arguments(&arguments)?;
             }
         }
     }
@@ -564,6 +579,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
                 Cond::Any(items) | Cond::All(items) => pending.extend(items.iter().map(Part::Cond)),
                 Cond::If(a, b) => pending.extend([Part::Cond(a), Part::Cond(b)]),
                 Cond::Captured(_) => {}
+                Cond::SourceQuery(..) => unreachable!("source predicates expand before grammar checks"),
             },
         }
     }
@@ -623,7 +639,7 @@ fn consuming(expr: &Expr, rules: &FxSet<String>) -> bool {
             Expr::Terminal(_) | Expr::Literal(_) | Expr::ScalarRange(..) | Expr::Range(..) | Expr::Wildcard => {
                 return true
             }
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => pending.extend(items),
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => pending.extend(items),
             Expr::Capture(_, inner) | Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => pending.push(inner),
             Expr::Repeat(item, separator, _) => {
                 pending.push(item);
@@ -665,7 +681,7 @@ fn emission_overlap(grammar: &StageGrammar) -> Result<(), Error> {
                         *captures.entry(name.clone()).or_default() |= consuming(inner, &reads);
                         pending.push(inner);
                     }
-                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                         pending.extend(items)
                     }
                     Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => pending.push(inner),
@@ -1364,6 +1380,7 @@ impl Constants<'_> {
             }
             let mut operands = values.split_off(values.len() - children.len()).into_iter();
             let value = match term {
+                Term::Source(_) => unreachable!("source symbols expand before constant binding"),
                 Term::Str(text) => Value::Str(text.clone()),
                 Term::Tag(tag) => Value::Set(BTreeSet::from([tag.clone()])),
                 Term::EmptySet => Value::Set(BTreeSet::new()),
@@ -1459,15 +1476,63 @@ impl Constants<'_> {
         Ok(Implication { antecedent, consequent })
     }
 
+    fn check_arguments(&self, arguments: &[&crate::parameters::expand::ArgumentUse]) -> Result<(), Error> {
+        let mut faults = Vec::new();
+        for argument in arguments {
+            let mut references = Vec::new();
+            constants_in_term(&argument.term, &mut references);
+            for (name, at) in references {
+                if !self.values.contains_key(name) {
+                    return Err(located(format!("${name} is not defined in stage {}", self.stage), &argument.path, at));
+                }
+            }
+            let ty = match term_type_in(&argument.term, &|name| self.ty(name)) {
+                Ok(ty) => ty,
+                Err(fault) => {
+                    faults.push(fault_error(fault, &argument.path, argument.at));
+                    continue;
+                }
+            };
+            if argument.tags {
+                if let Some(problem) = expected_problem(ty, Type::Tags) {
+                    faults.push(located(
+                        problem,
+                        &argument.path,
+                        first_constant(&argument.term).unwrap_or(argument.at),
+                    ));
+                }
+            }
+        }
+        if let Some(error) = faults.into_iter().min_by_key(|error| (error.line.unwrap_or(0), error.column.unwrap_or(0)))
+        {
+            return Err(error);
+        }
+        Ok(())
+    }
+
     /// Checks one definition at its declaration slot after constant binding.
-    fn check_rule(&self, document: &Arc<str>, rule: &RuleDef, deferred: &mut Vec<Error>) -> Result<(), Error> {
+    fn check_rule(
+        &self,
+        document: &Arc<str>,
+        rule: &RuleDef,
+        arguments: &[&crate::parameters::expand::ArgumentUse],
+        deferred: &mut Vec<Error>,
+    ) -> Result<(), Error> {
         for (name, at) in constants_in_rule(rule) {
             if !self.values.contains_key(name) {
                 return Err(located(format!("${name} is not defined in stage {}", self.stage), document, at));
             }
         }
-        if let Some(fault) = rule_type_fault(rule, &|name| self.ty(name)) {
-            return Err(fault_error(fault, document, rule.at));
+        let mut faults: Vec<_> = rule_type_fault(rule, &|name| self.ty(name))
+            .map(|fault| fault_error(fault, document, rule.at))
+            .into_iter()
+            .collect();
+        if let Err(error) = self.check_arguments(arguments) {
+            faults.push(error);
+        }
+        if let Some(error) = faults.into_iter().min_by_key(|error| (error.line.unwrap_or(0), error.column.unwrap_or(0)))
+        {
+            return Err(error);
         }
         for alternative in &rule.alternatives {
             self.check_body_strings(&alternative.expr, document, rule.at)?;
@@ -1699,7 +1764,7 @@ impl Constants<'_> {
                 Expr::ScalarRange(a, b) => {
                     self.scalar_endpoints(a, b, document, at)?;
                 }
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     pending.extend(items.iter().rev())
                 }
                 Expr::Optional(inner, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
@@ -1722,7 +1787,7 @@ impl Constants<'_> {
                 let mut stack = vec![&mut alternative.alternative.expr];
                 while let Some(expr) = stack.pop() {
                     match expr {
-                        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                             stack.extend(items.iter_mut())
                         }
                         Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
@@ -1742,7 +1807,12 @@ impl Constants<'_> {
                             let (a, b) = self.scalar_endpoints(left, right, &alternative.document, alternative.at)?;
                             *expr = Expr::Range(a, b);
                         }
-                        Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Wildcard | Expr::Empty => {}
+                        Expr::Source(_)
+                        | Expr::Ref(_)
+                        | Expr::Terminal(_)
+                        | Expr::Range(..)
+                        | Expr::Wildcard
+                        | Expr::Empty => {}
                     }
                 }
             }
@@ -1773,6 +1843,7 @@ impl Constants<'_> {
             return;
         }
         match term {
+            Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
             Term::Const(name, _) => *term = self.values[name.as_str()].value.term(),
             Term::Union(items) | Term::Intersection(items) => {
                 items.iter_mut().for_each(|item| self.substitute_term(item));
@@ -1799,6 +1870,7 @@ impl Constants<'_> {
     fn substitute_cond(&self, cond: &mut Cond) {
         work::count(Work::Stitched, 1);
         match cond {
+            Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
             Cond::Compare(op, left, right) => {
                 if matches!(op.as_str(), "≅" | "≇") {
                     *right =
@@ -1842,6 +1914,7 @@ fn closed_string(term: &Term) -> bool {
     let mut pending = vec![term];
     while let Some(term) = pending.pop() {
         match term {
+            Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
             Term::Str(_) | Term::Const(..) => {}
             Term::Call(name, args) if name == "concat" => {
                 for arg in args {
@@ -1857,6 +1930,7 @@ fn closed_string(term: &Term) -> bool {
 
 fn calls_in_term<'r>(term: &'r Term, out: &mut Vec<(&'r str, &'r [Arg])>) {
     match term {
+        Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
         Term::Call(name, args) => {
             out.push((name, args));
             for arg in args {
@@ -1880,6 +1954,7 @@ fn calls_in_term<'r>(term: &'r Term, out: &mut Vec<(&'r str, &'r [Arg])>) {
 
 fn calls_in_condition<'r>(condition: &'r Cond, out: &mut Vec<(&'r str, &'r [Arg])>) {
     match condition {
+        Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
         Cond::Compare(_, left, right) => {
             calls_in_term(left, out);
             calls_in_term(right, out);
@@ -1950,7 +2025,8 @@ fn check_rule(grammar: &StageGrammar, name: &str) -> Result<(), String> {
 
 fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
     match expr {
-        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+        Expr::Source(_) => unreachable!("source symbols expand before grammar checks"),
+        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
             for item in items {
                 check_expr(grammar, item)?;
             }
@@ -1982,6 +2058,7 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
 
 fn check_span(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
     match term {
+        Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
         Term::Capture(_) => Ok(()),
         Term::Call(name, args) if name == "without-elision-except" => match &args[..] {
             [Arg::Term(Term::Capture(_)), Arg::Rule(rule)] => check_rule(grammar, rule),
@@ -2015,6 +2092,7 @@ fn check_span(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
 
 fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
     match term {
+        Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
         // Stitching has checked every constant (engine §2).
         Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => Ok(()),
         Term::Union(items) | Term::Intersection(items) => {
@@ -2099,6 +2177,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
 fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
     work::count(Work::Stitched, 1);
     match cond {
+        Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
         Cond::Compare(op, left, right) => {
             if !matches!(op.as_str(), "=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "≅" | "≇") {
                 return Err(format!("an unknown comparison {op}"));
@@ -2154,6 +2233,7 @@ mod tests {
         let dom = |n: usize| {
             let same = || Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()));
             let rule = RuleDef {
+                source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
                 name: "text".into(),
@@ -2237,7 +2317,6 @@ mod tests {
                 changes: Vec::new(),
                 classifiers: vec![(Arc::from("d.md"), ClassifierDef { name: "c".into(), entries, at: (0, 0) })],
                 implications: Arc::from(Vec::new()),
-                parameters: Default::default(),
             }
         };
         let grammars = [grammar(20_000), grammar(80_000)];

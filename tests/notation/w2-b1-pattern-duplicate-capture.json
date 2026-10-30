@@ -1,0 +1,10 @@
+{
+  "description": "A closed pattern does not change the position of a repeated body capture.",
+  "document": "```jbogenbau\n%rule r ($x:A | $y:B) ($y:C | $x:D)\n%conditions $x ≅ #a\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 24
+    }
+  }
+}

@@ -22,100 +22,6 @@ fn record_rank(n: &mut Json, a: (usize, usize)) {
     set(&mut s, "ranked", position(a));
     set(n, SOURCE, s);
 }
-fn visit(n: &mut Json, separators: &[(usize, usize)], index: &mut usize) {
-    if has(n, "ranked") {
-        let mut xs = list(get(n, "ranked")).to_vec();
-        if let Some(first) = xs.first_mut() {
-            visit(first, separators, index)
-        }
-        if let Some(a) = separators.get(*index) {
-            record_rank(n, *a)
-        }
-        for x in xs.iter_mut().skip(1) {
-            *index += 1;
-            visit(x, separators, index)
-        }
-        set(n, "ranked", Json::Arr(xs));
-        return;
-    }
-    if has(n, "alternatives") {
-        if has(n, "args") {
-            let mut args = get(n, "args").clone();
-            visit(&mut args, separators, index);
-            set(n, "args", args)
-        }
-        let mut alts = list(get(n, "alternatives")).to_vec();
-        for (i, alt) in alts.iter_mut().enumerate() {
-            for k in ["expr", "tags", "value", "image"] {
-                if let Some(v) = alt.get(k) {
-                    let mut v = v.clone();
-                    visit(&mut v, separators, index);
-                    set(alt, k, v)
-                }
-            }
-            if i == 0 {
-                for k in ["tags", "value", "image", "conditions", "emit"] {
-                    if let Some(v) = n.get(k) {
-                        let mut v = v.clone();
-                        visit(&mut v, separators, index);
-                        set(n, k, v)
-                    }
-                }
-            }
-        }
-        set(n, "alternatives", Json::Arr(alts));
-        return;
-    }
-    match n {
-        Json::Arr(xs) => {
-            for x in xs {
-                visit(x, separators, index)
-            }
-        }
-        Json::Obj(fs) => {
-            for (k, v) in fs {
-                if k != "at" && k != SOURCE {
-                    visit(v, separators, index)
-                }
-            }
-        }
-        _ => (),
-    }
-}
-pub(crate) fn recover(
-    dom: &mut Dom,
-    tokens: &[crate::result::Token],
-    position_: &dyn Fn(usize) -> (usize, usize),
-) -> bool {
-    if dom.unresolved.is_empty() {
-        return false;
-    }
-    let separators: Vec<_> = tokens.iter().filter(|t| t.value == "≻").map(|t| position_(t.source.start)).collect();
-    let mut index = 0;
-    let mut raw = crate::json::parse(&dom::dom_to_json(dom)).expect("a DOM writer produces JSON");
-    for k in KINDS {
-        let rs = list(get(&raw, k))
-            .iter()
-            .map(|r| dom.unresolved.get(&at(r).unwrap()).cloned().unwrap_or_else(|| r.clone()))
-            .collect();
-        set(&mut raw, k, Json::Arr(rs));
-    }
-    let mut declarations: Vec<_> =
-        KINDS.into_iter().flat_map(|k| list(get(&raw, k)).iter().map(move |r| (k, r.clone()))).collect();
-    declarations.sort_by_key(|(_, r)| at(r));
-    for (kind, mut r) in declarations {
-        visit(&mut r, &separators, &mut index);
-        let a = at(&r).unwrap();
-        if let Some(slot) = dom.unresolved.get_mut(&a) {
-            *slot = r
-        } else if kind == "rules" {
-            if let Some(rule) = dom.rules.iter_mut().find(|rule| rule.at == a) {
-                restore_rule(rule, &r)
-            }
-        }
-    }
-    true
-}
 fn expression(n: &Json, path: String, locations: &mut BTreeMap<String, (usize, usize)>) {
     if let Some(a) = ranked_at(n) {
         locations.insert(path.clone(), a);
@@ -240,9 +146,204 @@ fn slot<'a>(n: &'a mut Json, key: &str) -> Option<&'a mut Json> {
         _ => None,
     }
 }
+fn annotate_source(symbol: &dom::source::SourceSymbol, n: &mut Json) {
+    if let dom::source::SourceSymbol::Call(call) = symbol {
+        annotate_arguments(&call.args, n);
+    }
+}
+fn annotate_arguments(args: &[dom::source::SourceArgument], n: &mut Json) {
+    use dom::source::{SourceArgument, SourceTarget};
+    if let Some(Json::Arr(values)) = slot(n, "args") {
+        for (arg, n) in args.iter().zip(values) {
+            match arg {
+                SourceArgument::Body(expr) | SourceArgument::WrappedBody(expr) => {
+                    if has(n, "body") {
+                        annotate_expr(expr, slot(n, "body").unwrap());
+                    } else {
+                        annotate_expr(expr, n);
+                    }
+                }
+                SourceArgument::Term(term) => annotate_term(term, n),
+                SourceArgument::Targets(targets) => {
+                    if let Some(Json::Arr(values)) = slot(n, "targets") {
+                        for (target, n) in targets.iter().zip(values) {
+                            if let SourceTarget::Symbol(symbol) = target {
+                                annotate_source(symbol, n);
+                            }
+                        }
+                    }
+                }
+                SourceArgument::Requirements(_) => (),
+            }
+        }
+    }
+}
+fn annotate_expr(expr: &dom::Expr, n: &mut Json) {
+    use dom::Expr;
+    match expr {
+        Expr::Ranked(_, Some(at)) => record_rank(n, *at),
+        Expr::Source(symbol) => annotate_source(symbol, n),
+        Expr::Literal(term) => {
+            if let Some(n) = slot(n, "literal") {
+                annotate_term(term, n);
+            }
+        }
+        Expr::ScalarRange(a, b) => {
+            if let Some(Json::Arr(xs)) = slot(n, "range") {
+                if xs.len() == 2 {
+                    annotate_term(a, &mut xs[0]);
+                    annotate_term(b, &mut xs[1]);
+                }
+            }
+        }
+        Expr::Tested(kind, term, _) if kind != "tags" => {
+            if let Some(n) = slot(n, "value") {
+                annotate_term(term, n);
+            }
+        }
+        _ => (),
+    }
+    match expr {
+        Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
+            let key = match expr {
+                Expr::Seq(_) => "seq",
+                Expr::Choice(_) => "choice",
+                Expr::And(_) => "and",
+                _ => "ranked",
+            };
+            if let Some(Json::Arr(values)) = slot(n, key) {
+                for (expr, n) in xs.iter().zip(values) {
+                    annotate_expr(expr, n);
+                }
+            }
+        }
+        Expr::Optional(inner, _) | Expr::Repeat(inner, _, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => {
+            let key = match expr {
+                Expr::Optional(..) => "optional",
+                Expr::Repeat(..) => "repeat",
+                _ => "expr",
+            };
+            if let Some(n) = slot(n, key) {
+                annotate_expr(inner, n);
+            }
+            if let Expr::Repeat(_, Some(separator), _) = expr {
+                if let Some(n) = slot(n, "separator") {
+                    annotate_expr(separator, n);
+                }
+            }
+        }
+        _ => (),
+    }
+}
+fn annotate_pattern(pattern: &crate::patterns::Pattern, n: &mut Json) {
+    use crate::patterns::{Children, Pattern};
+    fn children(items: &Children, n: &mut Json) {
+        let mut pending = vec![items];
+        let mut flat = Vec::new();
+        while let Some(item) = pending.pop() {
+            if let Children::Sequence(xs) = item {
+                pending.extend(xs.iter().rev());
+            } else {
+                flat.push(item);
+            }
+        }
+        if let Json::Arr(values) = n {
+            for (item, n) in flat.into_iter().zip(values) {
+                match item {
+                    Children::Node(pattern) => {
+                        if let Some(n) = slot(n, "child") {
+                            annotate_pattern(pattern, n);
+                        }
+                    }
+                    Children::Choice(arms) => {
+                        if let Some(Json::Arr(values)) = slot(n, "choice") {
+                            for (arm, n) in arms.iter().zip(values) {
+                                children(arm, n);
+                            }
+                        }
+                    }
+                    Children::Optional(inner) => {
+                        if let Some(n) = slot(n, "optional") {
+                            children(inner, n);
+                        }
+                    }
+                    Children::Repeat(inner, separator) => {
+                        if let Some(n) = slot(n, "repeat") {
+                            children(inner, n);
+                        }
+                        if let (Some(separator), Some(n)) = (separator, slot(n, "separator")) {
+                            children(separator, n);
+                        }
+                    }
+                    _ => (),
+                }
+            }
+        }
+    }
+    match pattern {
+        Pattern::Source(symbol) => annotate_source(symbol, n),
+        Pattern::Node(inner, _, items) => {
+            annotate_pattern(inner, n);
+            if let (Some(items), Some(n)) = (items, slot(n, "children")) {
+                children(items, n);
+            }
+        }
+        Pattern::Test(kind, term, inner) => {
+            if kind != "tags" {
+                if let Some(n) = slot(n, "value") {
+                    annotate_term(term, n);
+                }
+            }
+            if let Some(n) = slot(n, "expr") {
+                annotate_pattern(inner, n);
+            }
+        }
+        Pattern::Literal(term, _) => {
+            if let Some(n) = slot(n, "literal") {
+                annotate_term(term, n);
+            }
+        }
+        Pattern::Range(a, b, _) => {
+            if let Some(Json::Arr(xs)) = slot(n, "range") {
+                if xs.len() == 2 {
+                    annotate_term(a, &mut xs[0]);
+                    annotate_term(b, &mut xs[1]);
+                }
+            }
+        }
+        Pattern::Path(_, inner) => {
+            if let Some(n) = slot(n, "pattern") {
+                annotate_pattern(inner, n);
+            }
+        }
+        Pattern::Union(xs) | Pattern::Intersection(xs) => {
+            let key = if matches!(pattern, Pattern::Union(_)) { "union" } else { "intersection" };
+            if let Some(Json::Arr(values)) = slot(n, key) {
+                for (pattern, n) in xs.iter().zip(values) {
+                    annotate_pattern(pattern, n);
+                }
+            }
+        }
+        Pattern::Difference(a, b) => {
+            if let Some(Json::Arr(xs)) = slot(n, "difference") {
+                if xs.len() == 2 {
+                    annotate_pattern(a, &mut xs[0]);
+                    annotate_pattern(b, &mut xs[1]);
+                }
+            }
+        }
+        _ => (),
+    }
+}
 fn annotate_term(t: &dom::Term, n: &mut Json) {
     use dom::{Arg, Term};
     match t {
+        Term::Source(symbol) => annotate_source(symbol, n),
+        Term::Pattern(pattern) => {
+            if let Some(n) = slot(n, "pattern") {
+                annotate_pattern(pattern, n);
+            }
+        }
         Term::If(c, t) => {
             if let Some(v) = slot(n, "if") {
                 annotate_condition(c, v)
@@ -297,6 +398,22 @@ fn annotate_term(t: &dom::Term, n: &mut Json) {
 pub(crate) fn annotate_condition(c: &dom::Cond, n: &mut Json) {
     use dom::Cond;
     match c {
+        Cond::SourceQuery(_, args, location) => {
+            locate(n, location.at);
+            if let Some(dom::Arg::Term(receiver)) = args.first() {
+                if let Some(v) = slot(n, "receiver") {
+                    annotate_term(receiver, v);
+                }
+            }
+            if let Some(Json::Arr(xs)) = slot(n, "args") {
+                for ((arg, n), a) in args.iter().skip(1).zip(xs).zip(&location.targets) {
+                    locate(n, Some(*a));
+                    if let dom::Arg::Term(term) = arg {
+                        annotate_term(term, n);
+                    }
+                }
+            }
+        }
         Cond::Boundary(_, receiver, _, location) => {
             locate(n, location.at);
             if let Some(v) = slot(n, "receiver") {
@@ -354,6 +471,12 @@ fn annotate_channels(c: &dom::Channels, n: &mut Json) {
     }
 }
 fn annotate_rule(rule: &dom::RuleDef, n: &mut Json) {
+    if let Some(args) = &rule.source.args {
+        annotate_arguments(args, n);
+    }
+    if let (Some(call), Some(n)) = (&rule.source.instance, slot(n, "instance")) {
+        annotate_arguments(&call.args, n);
+    }
     annotate_channels(&rule.strings, n);
     if let Some(t) = &rule.tags {
         if let Some(n) = slot(n, "tags") {
@@ -362,6 +485,9 @@ fn annotate_rule(rule: &dom::RuleDef, n: &mut Json) {
     }
     if let Some(Json::Arr(alts)) = slot(n, "alternatives") {
         for (alt, n) in rule.alternatives.iter().zip(alts) {
+            if let Some(n) = slot(n, "expr") {
+                annotate_expr(&alt.expr, n);
+            }
             annotate_channels(&alt.strings, n);
             if let Some(t) = &alt.tags {
                 if let Some(n) = slot(n, "tags") {
@@ -396,8 +522,23 @@ fn annotate_rule(rule: &dom::RuleDef, n: &mut Json) {
 pub(crate) fn annotate_document(raw: &mut Json, dom: &Dom) {
     if let Some(Json::Arr(rules)) = slot(raw, "rules") {
         for (rule, n) in dom.rules.iter().zip(rules) {
-            if !dom.unresolved.contains_key(&rule.at) {
-                annotate_rule(rule, n)
+            annotate_rule(rule, n)
+        }
+    }
+    if let Some(Json::Arr(constants)) = slot(raw, "constants") {
+        for (constant, n) in dom.constants.iter().zip(constants) {
+            if let Some(n) = slot(n, "value") {
+                annotate_term(&constant.value, n);
+            }
+        }
+    }
+    if let Some(Json::Arr(implications)) = slot(raw, "implications") {
+        for (implication, n) in dom.implications.iter().zip(implications) {
+            if let Some(n) = slot(n, "if") {
+                annotate_term(&implication.antecedent, n);
+            }
+            if let Some(n) = slot(n, "then") {
+                annotate_term(&implication.consequent, n);
             }
         }
     }

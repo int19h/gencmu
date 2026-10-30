@@ -2,10 +2,21 @@
 //! produces, what `data/preparsed/gencmu.json` and `data/preparsed/FAMILY.json` hold, and what
 //! stitching and lowering read.
 
+pub(crate) mod partial;
 pub(crate) mod schema;
+pub(crate) mod source;
+use source::{SourceHead, SourceSymbol};
 pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Unicode) -> Option<&'static str> {
     let cleaned = known_dom_members(dom);
     let dom = cleaned.as_ref().unwrap_or(dom);
+    if let Some(problem) = shape_problem(dom, unicode) {
+        return Some(problem);
+    }
+    let Ok(decoded) = decode_nodes(dom) else { return Some("a malformed DOM node") };
+    schema::decoded_problem(dom, &decoded)
+}
+
+fn shape_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
     let roots = ["rules", "directives", "constants", "classifiers", "implications"];
     for part in roots.iter().filter_map(|key| dom.get(key)).flat_map(crate::parameters::nodes) {
         for field in ["ref", "tag", "terminal"] {
@@ -16,11 +27,7 @@ pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Uni
             }
         }
     }
-    if crate::parameters::unresolved(dom) {
-        crate::parameters::problem(dom, unicode)
-    } else {
-        schema::problem(dom, unicode)
-    }
+    schema::structure_problem(dom, unicode, false)
 }
 
 fn known_dom_members(dom: &Json) -> Option<Json> {
@@ -68,7 +75,7 @@ pub(crate) struct Dom {
     pub constants: Vec<ConstDef>,
     pub classifiers: Vec<ClassifierDef>,
     pub implications: Vec<ImplicationDef>,
-    pub unresolved: std::collections::BTreeMap<(usize, usize), Json>,
+    pub unresolved: bool,
 }
 
 /// A `%classifier NAME` item (engine §2): its name, which begins with `a`
@@ -137,6 +144,7 @@ pub(crate) enum Op {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct RuleDef {
+    pub source: SourceHead,
     pub deferred_emission: Option<crate::clauses::DefinitionIssue>,
     pub name: String,
     pub op: Op,
@@ -183,9 +191,10 @@ pub(crate) struct Alternative {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Expr {
+    Source(SourceSymbol),
     Seq(Vec<Expr>),
     Choice(Vec<Expr>),
-    Ranked(Vec<Expr>),
+    Ranked(Vec<Expr>, Option<(usize, usize)>),
     And(Vec<Expr>),
     /// An optional `[x]`, or an elidable optional `[+T x]` (§3.8).
     Optional(Box<Expr>, Mark),
@@ -227,6 +236,7 @@ pub(crate) enum Chain {
 /// The capture named `""` is `$`, the whole constituent.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Term {
+    Source(SourceSymbol),
     Pattern(Box<crate::patterns::Pattern>),
     /// A string, decoded.
     Str(String),
@@ -265,6 +275,7 @@ pub(crate) struct BoundaryLocation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Cond {
+    SourceQuery(String, Vec<Arg>, BoundaryLocation),
     Compare(String, Term, Term),
     Matches(Term, Vec<String>),
     /// `begins(s, R)`: whether a prefix of the span, possibly empty, parses
@@ -360,16 +371,42 @@ pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
 pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -> R<Dom> {
     let cleaned = known_dom_members(value);
     let value = cleaned.as_ref().unwrap_or(value);
-    if crate::parameters::unresolved(value) {
-        return crate::parameters::decode(value, unicode, defer);
-    }
-    if let Some(problem) = dom_problem(value, unicode) {
+    if let Some(problem) = shape_problem(value, unicode) {
         return Err(problem.to_string());
     }
     decode_checked(value, unicode, defer)
 }
 pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode, defer: bool) -> R<Dom> {
-    let mut rules = array(value, "rules")?.iter().map(rule_from_json).collect::<R<Vec<_>>>()?;
+    let mut dom = decode_nodes(value)?;
+    if let Some(problem) = schema::decoded_problem(value, &dom) {
+        return Err(problem.into());
+    }
+    // Whole-definition checks use the same nodes as the runtime output.
+    for (rule, raw) in dom.rules.iter_mut().zip(array(value, "rules")?) {
+        if rule.source.instance.is_some() {
+            continue;
+        }
+        let projected;
+        let checked = if crate::parameters::unresolved(raw) {
+            projected = partial::rule(rule)?;
+            &projected
+        } else {
+            &*rule
+        };
+        if let Some((problem, _)) = crate::boundary::definition_problem(checked) {
+            return Err(problem);
+        }
+        let result = crate::clauses::check_definition(checked, defer);
+        if let Some(issue) = result.problem {
+            return Err(issue.message);
+        }
+        rule.deferred_emission = result.deferred;
+    }
+    Ok(dom)
+}
+
+fn decode_nodes(value: &Json) -> R<Dom> {
+    let rules = array(value, "rules")?.iter().map(rule_from_json).collect::<R<Vec<_>>>()?;
     let directives = array(value, "directives")?
         .iter()
         .map(|directive| {
@@ -429,18 +466,8 @@ pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode, defer: bool) -> R
             })
         })
         .collect::<R<Vec<_>>>()?;
-    // A definition the reader would refuse (engine §9).
-    for rule in &mut rules {
-        if let Some((problem, _)) = crate::boundary::definition_problem(rule) {
-            return Err(problem);
-        }
-        let result = crate::clauses::check_definition(rule, defer);
-        if let Some(issue) = result.problem {
-            return Err(issue.message);
-        }
-        rule.deferred_emission = result.deferred;
-    }
-    Ok(Dom { rules, directives, constants, classifiers, implications, ..Dom::default() })
+    let unresolved = crate::parameters::unresolved(value);
+    Ok(Dom { rules, directives, constants, classifiers, implications, unresolved, ..Dom::default() })
 }
 
 pub(crate) fn requirements_from_json(value: &Json) -> R<Term> {
@@ -543,6 +570,7 @@ pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
         other => return Err(format!("an unknown rule op {other:?}")),
     };
     Ok(RuleDef {
+        source: SourceHead::from_json(value)?,
         deferred_emission: None,
         name: string(value, "name")?,
         op,
@@ -552,7 +580,7 @@ pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
             .collect::<R<Vec<_>>>()?,
         tags: value.get("tags").map(term_from_json).transpose()?,
         strings: channels_from_json(value)?,
-        alternatives: array(value, "alternatives")?
+        alternatives: if value.get("instance").is_some() { &[] } else { array(value, "alternatives")? }
             .iter()
             .map(|alternative| {
                 Ok(Alternative {
@@ -601,6 +629,8 @@ fn first_key(value: &Json) -> R<&str> {
         "any",
         "all",
         "captured",
+        "param",
+        "call",
     ];
     let members = value.as_object().ok_or("not a JSON object")?;
     members
@@ -629,7 +659,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
     Ok(match first_key(value)? {
         "seq" => Expr::Seq(list("seq")?),
         "choice" => Expr::Choice(list("choice")?),
-        "ranked" => Expr::Ranked(list("ranked")?),
+        "ranked" => Expr::Ranked(list("ranked")?, None),
         "and" => Expr::And(list("and")?),
         "optional" => {
             let mark = if is_true(value.get("elidable")) { Mark::Elidable } else { Mark::Plain };
@@ -653,6 +683,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
             _ => return Err("a range requires two string terms".into()),
         },
         "capture" => Expr::Capture(string(value, "capture")?, Box::new(expr_from_json(field(value, "expr")?)?)),
+        "param" | "call" => Expr::Source(SourceSymbol::from_json(value)?),
         "empty" => Expr::Empty,
         other => return Err(format!("an unknown expression {other:?}")),
     })
@@ -737,7 +768,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                             .map(|arg| (arg, false)),
                     );
                 }
-                "pattern" | "string" | "tag" | "emptySet" | "capture" | "const" => {}
+                "pattern" | "string" | "tag" | "emptySet" | "capture" | "const" | "param" | "call" => {}
                 _ => return Err(format!("an unknown term {key:?}")),
             }
         }
@@ -757,6 +788,20 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                 "method" => {
                     let receiver = operands.next().unwrap().term();
                     let name = string(value, "method")?;
+                    if array(value, "args")?.iter().any(|arg| arg.get("param").is_some() || arg.get("call").is_some()) {
+                        let mut args = vec![Arg::Term(receiver)];
+                        for arg in array(value, "args")? {
+                            args.push(if arg.get("rule").is_some() {
+                                Arg::Rule(string(arg, "rule")?)
+                            } else if arg.get("terminal").is_some() {
+                                Arg::Term(Term::Tag(string(arg, "terminal")?))
+                            } else {
+                                Arg::Term(term_from_json(arg)?)
+                            });
+                        }
+                        values.push(ReadValue::Cond(Cond::SourceQuery(name, args, BoundaryLocation::default())));
+                        continue;
+                    }
                     match (name.as_str(), array(value, "args")?) {
                         ("starts-input", []) => Cond::Initial(receiver),
                         ("ends-input", []) => Cond::Final(receiver),
@@ -799,6 +844,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                 "emptySet" => Term::EmptySet,
                 "capture" => Term::Capture(string(value, "capture")?),
                 "const" => Term::Const(string(value, "const")?, position(value)?),
+                "param" | "call" => Term::Source(SourceSymbol::from_json(value)?),
                 "union" => Term::Union(operands.map(ReadValue::term).collect()),
                 "intersection" => Term::Intersection(operands.map(ReadValue::term).collect()),
                 "difference" => {
@@ -964,10 +1010,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
         if index > 0 {
             out.push(',');
         }
-        if let Some(raw) = dom.unresolved.get(&rule.at) {
-            out.push_str(&crate::parameters::canonical_source(raw).to_json());
-            continue;
-        }
+
         write_rule(&mut out, rule);
     }
     out.push_str("],\"directives\":[");
@@ -975,10 +1018,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
         if index > 0 {
             out.push(',');
         }
-        if let Some(raw) = dom.unresolved.get(&directive.at) {
-            out.push_str(&crate::parameters::canonical_source(raw).to_json());
-            continue;
-        }
+
         out.push_str("{\"name\":");
         write_str(&mut out, &directive.name);
         out.push_str(",\"args\":[");
@@ -1006,10 +1046,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
         if index > 0 {
             out.push(',');
         }
-        if let Some(raw) = dom.unresolved.get(&constant.at) {
-            out.push_str(&crate::parameters::canonical_source(raw).to_json());
-            continue;
-        }
+
         out.push_str("{\"name\":");
         write_str(&mut out, &constant.name);
         out.push_str(if constant.redefine { ",\"op\":\"redefine\"" } else { ",\"op\":\"define\"" });
@@ -1054,10 +1091,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
         if index > 0 {
             out.push(',');
         }
-        if let Some(raw) = dom.unresolved.get(&implication.at) {
-            out.push_str(&crate::parameters::canonical_source(raw).to_json());
-            continue;
-        }
+
         out.push_str("{\"if\":");
         write_term(&mut out, &implication.antecedent);
         out.push_str(",\"then\":");
@@ -1071,6 +1105,20 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
 pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
     out.push_str("{\"name\":");
     write_str(out, &rule.name);
+    if let Some(params) = &rule.source.params {
+        out.push_str(",\"params\":[");
+        for (index, name) in params.iter().enumerate() {
+            if index > 0 {
+                out.push(',');
+            }
+            write_str(out, name);
+        }
+        out.push(']');
+    }
+    if let Some(args) = &rule.source.args {
+        out.push_str(",\"args\":");
+        source::write_arguments(out, args);
+    }
     out.push_str(match rule.op {
         Op::Define => ",\"op\":\"define\"",
         Op::Redefine => ",\"op\":\"redefine\"",
@@ -1089,6 +1137,12 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
         write_term(out, tags);
     }
     write_channels(out, &rule.strings);
+    if let Some(instance) = &rule.source.instance {
+        out.push_str(",\"instance\":");
+        instance.write(out);
+        out.push_str(&format!(",\"conditions\":[],\"at\":[{},{}]}}", rule.at.0, rule.at.1));
+        return;
+    }
     out.push_str(",\"alternatives\":[");
     for (index, alternative) in rule.alternatives.iter().enumerate() {
         if index > 0 {
@@ -1200,9 +1254,10 @@ fn write_list<T>(out: &mut String, key: &str, items: &[T], write: fn(&mut String
 
 pub(crate) fn write_expr(out: &mut String, expr: &Expr) {
     match expr {
+        Expr::Source(symbol) => symbol.write(out),
         Expr::Seq(items) => write_list(out, "seq", items, write_expr),
         Expr::Choice(items) => write_list(out, "choice", items, write_expr),
-        Expr::Ranked(items) => write_list(out, "ranked", items, write_expr),
+        Expr::Ranked(items, _) => write_list(out, "ranked", items, write_expr),
         Expr::And(items) => write_list(out, "and", items, write_expr),
         Expr::Optional(inner, mark) => {
             out.push_str("{\"optional\":");
@@ -1284,6 +1339,7 @@ fn write_range(out: &mut String, start: char, end: char) {
 
 pub(crate) fn write_term(out: &mut String, term: &Term) {
     match term {
+        Term::Source(symbol) => symbol.write(out),
         Term::Pattern(p) => {
             out.push_str("{\"pattern\":");
             p.write(out);
@@ -1387,6 +1443,26 @@ pub(crate) fn write_requirements(out: &mut String, term: &Term) {
 
 pub(crate) fn write_cond(out: &mut String, cond: &Cond) {
     match cond {
+        Cond::SourceQuery(name, args, _) => {
+            out.push_str("{\"method\":");
+            write_str(out, name);
+            out.push_str(",\"receiver\":");
+            write_argument(out, &args[0]);
+            out.push_str(",\"args\":[");
+            for (index, arg) in args[1..].iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
+                }
+                if let Arg::Term(Term::Tag(tag)) = arg {
+                    out.push_str("{\"terminal\":");
+                    write_str(out, tag);
+                    out.push('}');
+                } else {
+                    write_argument(out, arg);
+                }
+            }
+            out.push_str("]}");
+        }
         Cond::Compare(op, left, right) => {
             out.push_str("{\"op\":");
             write_str(out, op);
@@ -1537,7 +1613,9 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
     while let Some(part) = stack.pop() {
         crate::work::count(crate::work::Work::Walked, 1);
         match part {
+            Nested::Source(symbol) => stack.extend(source_children(symbol).into_iter().rev()),
             Nested::Term(term) => match term {
+                Term::Source(symbol) => stack.push(Nested::Source(symbol)),
                 Term::Pattern(p) => {
                     if engine {
                         p.references(out)
@@ -1557,6 +1635,10 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) => {}
             },
             Nested::Cond(cond) => match cond {
+                Cond::SourceQuery(_, args, _) => stack.extend(args.iter().rev().filter_map(|arg| match arg {
+                    Arg::Term(term) => Some(Nested::Term(term)),
+                    _ => None,
+                })),
                 Cond::Compare(_, left, right) => stack.extend([Nested::Term(right), Nested::Term(left)]),
                 Cond::Not(inner) => stack.push(Nested::Cond(inner)),
                 Cond::Any(items) | Cond::All(items) => stack.extend(items.iter().rev().map(Nested::Cond)),
@@ -1582,11 +1664,33 @@ const MAX_NESTING: usize = DOM_MAX_DEPTH;
 /// A node of a DOM that the check of nesting walks.
 #[derive(Clone, Copy)]
 enum Nested<'d> {
+    Source(&'d SourceSymbol),
     Expr(&'d Expr),
     Term(&'d Term),
     Cond(&'d Cond),
     Pattern(&'d crate::patterns::Pattern),
     PatternItems(&'d crate::patterns::Children),
+}
+
+fn source_children(symbol: &SourceSymbol) -> Vec<Nested<'_>> {
+    let SourceSymbol::Call(call) = symbol else { return Vec::new() };
+    argument_children(&call.args)
+}
+
+fn argument_children(args: &[source::SourceArgument]) -> Vec<Nested<'_>> {
+    args.iter()
+        .flat_map(|arg| match arg {
+            source::SourceArgument::Term(term) | source::SourceArgument::Requirements(term) => vec![Nested::Term(term)],
+            source::SourceArgument::Body(expr) | source::SourceArgument::WrappedBody(expr) => vec![Nested::Expr(expr)],
+            source::SourceArgument::Targets(targets) => targets
+                .iter()
+                .filter_map(|target| match target {
+                    source::SourceTarget::Symbol(symbol) => Some(Nested::Source(symbol)),
+                    _ => None,
+                })
+                .collect(),
+        })
+        .collect()
 }
 
 /// Whether any DOM node exceeds the depth bound of engine §9.
@@ -1605,8 +1709,10 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
         }
         let below = depth + 1;
         match node {
+            Nested::Source(symbol) => stack.extend(source_children(symbol).into_iter().map(|part| (part, below))),
             Nested::Expr(expr) => match expr {
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                Expr::Source(symbol) => stack.push((Nested::Source(symbol), depth)),
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     stack.extend(items.iter().map(|item| (Nested::Expr(item), below)))
                 }
                 Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push((Nested::Expr(inner), below)),
@@ -1626,6 +1732,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                 Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Wildcard | Expr::Empty => {}
             },
             Nested::Term(term) => match term {
+                Term::Source(symbol) => stack.push((Nested::Source(symbol), depth)),
                 Term::Union(items) | Term::Intersection(items) => {
                     stack.extend(items.iter().map(|item| (Nested::Term(item), below)))
                 }
@@ -1652,6 +1759,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
             Nested::Pattern(pattern) => {
                 use crate::patterns::Pattern;
                 match pattern {
+                    Pattern::Source(symbol) => stack.push((Nested::Source(symbol), depth)),
                     Pattern::Literal(term, _) => stack.push((Nested::Term(term), depth)),
                     Pattern::Range(a, b, _) => {
                         stack.push((Nested::Term(a), depth));
@@ -1694,6 +1802,10 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                 }
             }
             Nested::Cond(cond) => match cond {
+                Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
+                    Arg::Term(term) => Some((Nested::Term(term), below)),
+                    _ => None,
+                })),
                 Cond::Any(items) | Cond::All(items) => {
                     stack.extend(items.iter().map(|item| (Nested::Cond(item), below)))
                 }
@@ -1722,6 +1834,10 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
 /// Whether a rule holds a node below more than 256 compound nodes.
 pub(crate) fn rule_too_deep(rule: &RuleDef) -> bool {
     let mut roots: Vec<Nested> = Vec::new();
+    roots.extend(rule.source.args.iter().flat_map(|args| argument_children(args)));
+    if let Some(call) = &rule.source.instance {
+        roots.extend(argument_children(&call.args));
+    }
     roots.extend(rule.tags.iter().map(Nested::Term));
     roots.extend(rule.strings.value.iter().chain(&rule.strings.image).map(Nested::Term));
     for alternative in &rule.alternatives {
@@ -1758,7 +1874,7 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
     let mut stack = vec![expr];
     while let Some(current) = stack.pop() {
         match current {
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.iter().rev())
             }
             Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
@@ -1771,7 +1887,8 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
                 found.push((op.as_str(), value, inner.as_ref()));
                 stack.push(inner);
             }
-            Expr::Ref(_)
+            Expr::Source(_)
+            | Expr::Ref(_)
             | Expr::Terminal(_)
             | Expr::Literal(_)
             | Expr::ScalarRange(..)
@@ -1803,7 +1920,9 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
                     references_in_term(value, &mut out);
                     pending.push(inner);
                 }
-                Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs) | Expr::And(xs) => pending.extend(xs.iter().rev()),
+                Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
+                    pending.extend(xs.iter().rev())
+                }
                 Expr::Capture(_, x) | Expr::Optional(x, _) => pending.push(x),
                 Expr::Repeat(x, s, _) => {
                     pending.extend(s.as_deref());
@@ -1985,6 +2104,7 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
         Term::EmptySet => Ok(Type::Set),
         Term::Capture(_) => Ok(Type::Span),
         Term::Const(name, _) => Ok(constants(name)),
+        Term::Source(_) => Ok(Type::Any),
         Term::Union(items) => joined(&mut items.iter(), "∪"),
         Term::Intersection(items) => joined(&mut items.iter(), "∩"),
         Term::Difference(left, right) => joined(&mut [left.as_ref(), right.as_ref()].into_iter(), "∖"),
@@ -2029,6 +2149,10 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
 /// that disagrees, or `None` (engine §10).
 pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<Fault> {
     match cond {
+        Cond::SourceQuery(_, args, _) => args.iter().find_map(|arg| match arg {
+            Arg::Term(term) => term_type_in(term, constants).err(),
+            _ => None,
+        }),
         Cond::Any(items) | Cond::All(items) => items.iter().find_map(|item| cond_type_fault(item, constants)),
         Cond::Not(inner) => cond_type_fault(inner, constants),
         Cond::If(antecedent, consequent) => {
@@ -2125,7 +2249,7 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
         let terms: [Option<&Term>; 2] = match expr {
             Expr::Literal(t) => [Some(t), None],
             Expr::ScalarRange(a, b) => [Some(a), Some(b)],
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 pending.extend(items.iter().rev());
                 continue;
             }
@@ -2188,6 +2312,9 @@ pub(crate) fn constant_type_problem(ty: Type, redefine: bool) -> Option<String> 
 
 /// A part of a DOM being dropped.
 enum Dropping {
+    Pattern(crate::patterns::Pattern),
+    Children(crate::patterns::Children),
+    Source(SourceSymbol),
     Expr(Expr),
     Term(Term),
     Cond(Cond),
@@ -2197,6 +2324,9 @@ impl Dropping {
     /// Moves the parts of a node out onto `stack`, leaving it shallow.
     fn take(&mut self, stack: &mut Vec<Dropping>) {
         match self {
+            Dropping::Pattern(pattern) => pattern.take_parts(stack),
+            Dropping::Children(children) => children.take_parts(stack),
+            Dropping::Source(symbol) => symbol.take_parts(stack),
             Dropping::Expr(expr) => expr.take_parts(stack),
             Dropping::Term(term) => term.take_parts(stack),
             Dropping::Cond(cond) => cond.take_parts(stack),
@@ -2213,10 +2343,89 @@ fn drop_parts(mut stack: Vec<Dropping>) {
     }
 }
 
+pub(crate) fn drop_pattern(pattern: crate::patterns::Pattern) {
+    drop_parts(vec![Dropping::Pattern(pattern)]);
+}
+
+pub(crate) fn drop_pattern_children(children: crate::patterns::Children) {
+    drop_parts(vec![Dropping::Children(children)]);
+}
+
+impl crate::patterns::Pattern {
+    fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
+        use crate::patterns::Pattern as P;
+        let take = |pattern: &mut P| Dropping::Pattern(std::mem::replace(pattern, P::Any));
+        let term = |term: &mut Term| Dropping::Term(std::mem::replace(term, Term::EmptySet));
+        match self {
+            P::Source(symbol) => symbol.take_parts(stack),
+            P::Literal(value, _) => stack.push(term(value)),
+            P::Range(a, b, _) => stack.extend([term(a), term(b)]),
+            P::Test(_, value, inner) => stack.extend([term(value), take(inner)]),
+            P::Path(_, inner) => stack.push(take(inner)),
+            P::Node(inner, _, children) => {
+                stack.push(take(inner));
+                stack.extend(children.take().map(Dropping::Children));
+            }
+            P::Union(items) | P::Intersection(items) => stack.extend(items.drain(..).map(Dropping::Pattern)),
+            P::Difference(a, b) => stack.extend([take(a), take(b)]),
+            _ => {}
+        }
+    }
+}
+
+impl crate::patterns::Children {
+    fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
+        use crate::patterns::{Children as C, Pattern as P};
+        let take = |children: &mut C| Dropping::Children(std::mem::replace(children, C::Siblings));
+        match self {
+            C::Node(pattern) => stack.push(Dropping::Pattern(std::mem::replace(&mut **pattern, P::Any))),
+            C::Sequence(items) | C::Choice(items) => stack.extend(items.drain(..).map(Dropping::Children)),
+            C::Optional(inner) => stack.push(take(inner)),
+            C::Repeat(inner, separator) => {
+                stack.push(take(inner));
+                stack.extend(separator.take().map(|inner| Dropping::Children(*inner)));
+            }
+            C::Siblings => {}
+        }
+    }
+}
+
+impl SourceSymbol {
+    fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
+        if let Self::Call(call) = self {
+            for arg in call.args.drain(..) {
+                match arg {
+                    source::SourceArgument::Term(term) | source::SourceArgument::Requirements(term) => {
+                        stack.push(Dropping::Term(term));
+                    }
+                    source::SourceArgument::Body(expr) | source::SourceArgument::WrappedBody(expr) => {
+                        stack.push(Dropping::Expr(expr))
+                    }
+                    source::SourceArgument::Targets(targets) => {
+                        stack.extend(targets.into_iter().filter_map(|target| match target {
+                            source::SourceTarget::Symbol(symbol) => Some(Dropping::Source(symbol)),
+                            _ => None,
+                        }));
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl Drop for SourceSymbol {
+    fn drop(&mut self) {
+        let mut stack = Vec::new();
+        self.take_parts(&mut stack);
+        drop_parts(stack);
+    }
+}
+
 impl Expr {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+            Self::Source(symbol) => symbol.take_parts(stack),
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.drain(..).map(Dropping::Expr))
             }
             Expr::Optional(inner, _) | Expr::Capture(_, inner) => {
@@ -2232,13 +2441,12 @@ impl Expr {
                 stack.push(Dropping::Term(std::mem::replace(value, Term::EmptySet)));
                 stack.push(Dropping::Expr(std::mem::replace(&mut **symbol, Expr::Empty)));
             }
-            Expr::Ref(_)
-            | Expr::Terminal(_)
-            | Expr::Literal(_)
-            | Expr::ScalarRange(..)
-            | Expr::Range(..)
-            | Expr::Wildcard
-            | Expr::Empty => {}
+            Expr::Literal(value) => stack.push(Dropping::Term(std::mem::replace(value, Term::EmptySet))),
+            Expr::ScalarRange(a, b) => {
+                stack.push(Dropping::Term(std::mem::replace(a, Term::EmptySet)));
+                stack.push(Dropping::Term(std::mem::replace(b, Term::EmptySet)));
+            }
+            Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Wildcard | Expr::Empty => {}
         }
     }
 }
@@ -2246,6 +2454,7 @@ impl Expr {
 impl Term {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
+            Self::Source(symbol) => symbol.take_parts(stack),
             Term::Union(items) | Term::Intersection(items) => stack.extend(items.drain(..).map(Dropping::Term)),
             Term::Difference(left, right) => {
                 stack.push(Dropping::Term(std::mem::replace(&mut **left, Term::EmptySet)));
@@ -2262,7 +2471,10 @@ impl Term {
                 stack.push(Dropping::Cond(std::mem::replace(&mut **cond, Cond::Captured(String::new()))));
                 stack.push(Dropping::Term(std::mem::replace(&mut **then, Term::EmptySet)));
             }
-            Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {}
+            Term::Pattern(pattern) => {
+                stack.push(Dropping::Pattern(std::mem::replace(&mut **pattern, crate::patterns::Pattern::Any)))
+            }
+            Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {}
         }
     }
 }
@@ -2270,6 +2482,12 @@ impl Term {
 impl Cond {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
+            Cond::SourceQuery(_, args, _) => {
+                stack.extend(args.drain(..).filter_map(|arg| match arg {
+                    Arg::Term(term) => Some(Dropping::Term(term)),
+                    _ => None,
+                }));
+            }
             Cond::Compare(_, left, right) => {
                 stack.push(Dropping::Term(std::mem::replace(left, Term::EmptySet)));
                 stack.push(Dropping::Term(std::mem::replace(right, Term::EmptySet)));

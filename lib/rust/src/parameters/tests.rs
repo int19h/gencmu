@@ -10,6 +10,27 @@ fn read(s: &str) -> Dom {
     let json = crate::tools::read_grammar_document(&format!("```jbogenbau\n{s}\n```\n"), "").unwrap();
     dom::dom_from_json(&crate::json::parse(&json).unwrap(), &unicode()).unwrap()
 }
+#[test]
+fn source_dom_decodes_into_native_nodes() {
+    for source in [
+        "%rule pair(@L,@R) @L @R\n%rule text = pair(\"a\",\"b\")",
+        "%rule use(@X) @X\n%rule text use((\"a\" \"b\")) use(ε) use([\"a\"]) use({\"a\"})",
+        "%rule tag(@R) A<@R>\n%rule text tag(<B ¬C>)",
+        "%rule query(@R) A %conditions $.matches(@R)\n%rule text query(a | b)",
+        "%rule pattern(@P) A %conditions $ ≅ #@P\n%rule text pattern(#a)",
+        "%rule atom(@X) @X\n%rule outer(@P) A %conditions $ ≅ #atom(@P)\n%rule text outer(\"a\")",
+        "%rule atom(@X) @X\n%const $P #atom(\"a\")\n%implies $P ⟹ $P",
+        "%rule atom(@X) @X\n%features f %conditions $.matches(atom(\"a\"))",
+    ] {
+        let mut decoded = read(source);
+        let expected = j(&dom::dom_to_json(&decoded));
+        decoded.unresolved = false;
+        assert_eq!(j(&dom::dom_to_json(&decoded)), expected, "{source}");
+    }
+}
+fn located(s: &str) -> Dom {
+    crate::loader::read_grammar_dom(&format!("```jbogenbau\n{s}\n```\n"), "").unwrap()
+}
 fn grammar(s: &str) -> crate::grammar::StageGrammar {
     let d = read(&format!("%ambiguity-resolution greedy\n{s}"));
     crate::grammar::stitch("main", &[(Arc::from("grammars/test/test.md"), Arc::new(d))], &unicode()).unwrap()
@@ -17,8 +38,10 @@ fn grammar(s: &str) -> crate::grammar::StageGrammar {
 fn names(g: &crate::grammar::StageGrammar) -> Vec<String> {
     g.rules.iter().map(|r| r.name.clone()).collect()
 }
-fn audit(g: &crate::grammar::StageGrammar) -> Json {
-    g.parameters.audit(&names(g))
+fn instance_names(source: &str) -> Vec<String> {
+    expand(&[(Arc::from("test.md"), Arc::new(read(source)))], &unicode())
+        .unwrap()
+        .map_or_else(Vec::new, |x| x.instance_names)
 }
 fn expression(r: &Json) -> &Json {
     get(&list(get(r, "alternatives"))[0], "expr")
@@ -32,10 +55,7 @@ fn replace_expression(r: &mut Json, expr: Json) {
 fn rule_order_and_rebinding() {
     let g=grammar("%rule atom(@X) @X\n%rule text atom(\"a\") named\n%rule named = atom(\"b\")\n%redefine-rule named = atom(\"c\")");
     assert_eq!(names(&g), ["text", "named", "atom(\"a\")", "atom(\"b\")"]);
-    assert_eq!(
-        list(get(&audit(&g), "instances")).iter().map(|n| text(get(n, "name"))).collect::<Vec<_>>(),
-        ["named", "atom(\"a\")", "atom(\"b\")"]
-    );
+    assert_eq!(instance_names("%rule atom(@X) @X\n%rule text atom(\"a\") named\n%rule named = atom(\"b\")\n%redefine-rule named = atom(\"c\")"), ["named", "atom(\"a\")", "atom(\"b\")"]);
 }
 #[test]
 fn closed_inner_calls() {
@@ -63,11 +83,6 @@ fn template_flags() {
     let g=grammar("%rule(fewest) atom(@X) @X\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"");
     assert!(g.rules[g.index["atom(\"a\")"]].flags.is_empty());
     assert_eq!(g.rules[g.index["atom(\"b\")"]].flags, ["fewest"]);
-    let a = audit(&g);
-    let events = list(get(&list(get(&a, "instances"))[0], "events"));
-    assert_eq!(events.len(), 3);
-    assert_eq!(events.iter().map(|e| text(get(e, "scope"))).collect::<Vec<_>>(), ["template", "instance", "template"]);
-    assert!(list(get(&events[2], "flagsAfter")).is_empty());
 }
 #[test]
 fn nominal_constants_and_group_normalization() {
@@ -78,21 +93,6 @@ fn nominal_constants_and_group_normalization() {
 fn named_instances_have_no_wrapper() {
     let case=crate::test_common::parse_json(r#"{"grammar":"%rule atom(@X) @X\n%rule text atom(\"a\")\n%rule named = atom(\"a\")","input":"a","expect":{"result":{"ok":true,"tree":{"rule":"text","children":[{"rule":"named","children":[{"kind":"token"}]}]}}}}"#).unwrap();
     crate::test_common::run_engine_case(&case).unwrap();
-}
-#[test]
-fn audit_notes() {
-    let g=grammar("%rule atom(@X) @X\n%rule unused(@A,@B) @A\n%rule outer(@X) @X\n%rule text outer(named) outer(atom(\"a\"))\n%rule named = atom(\"a\")");
-    let a = audit(&g);
-    assert_eq!(
-        get(&list(get(&a, "templates"))[1], "notes"),
-        &Json::Arr(vec![
-            obj([("kind", string("unused-parameter")), ("parameter", string("B"))]),
-            obj([("kind", string("uncalled-template"))])
-        ])
-    );
-    for i in list(get(&a, "instances")).iter().filter(|i| text(get(i, "template")) == "outer") {
-        assert_eq!(text(get(&list(get(i, "notes"))[0], "kind")), "argument-alias-twin")
-    }
 }
 #[test]
 fn canonical_arguments() {
@@ -133,19 +133,45 @@ fn supplied_dom_closure_and_scope() {
 #[test]
 fn supplied_body_normalizes() {
     let mut d = read("%rule atom(@X) @X\n%rule text atom(\"a\") atom(\"a\")");
-    let r = d.unresolved.get_mut(&(3, 1)).unwrap();
-    let mut expr = expression(r).clone();
-    let mut seq = list(get(&expr, "seq")).to_vec();
-    set(&mut seq[1], "args", j(r#"[{"body":{"literal":{"string":"a"}}}]"#));
-    set(&mut expr, "seq", Json::Arr(seq));
-    replace_expression(r, expr);
+    let dom::Expr::Seq(items) = &mut d.rules[1].alternatives[0].expr else { panic!("a sequence") };
+    let dom::Expr::Source(dom::source::SourceSymbol::Call(call)) = &mut items[1] else { panic!("a call") };
+    call.args[0] = dom::source::SourceArgument::Body(dom::Expr::Literal(dom::Term::Str("a".into())));
     let x = expand(&[(Arc::from("grammars/test/test.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
-    assert_eq!(x.records.instances.len(), 1);
+    assert_eq!(x.instance_names.len(), 1);
 }
 #[test]
 fn ordinary_documents_keep_identity() {
     let docs = vec![(Arc::from("grammars/test/plain.md"), Arc::new(read("%rule text \"a\"\n%extend-rule text \"b\"")))];
     assert!(expand(&docs, &unicode()).unwrap().is_none());
+}
+
+#[test]
+fn expansion_reuses_decoded_definitions() {
+    let document = read("%rule f(@X) @X\n%extend-rule f(@Y) @Y\n%rule text f(\"a\")");
+    let x = expand(&[(Arc::from("shared.md"), Arc::new(document))], &unicode()).unwrap().unwrap();
+    let mut count = 0;
+    for (path, output) in &x.documents {
+        if !output.rules.is_empty() {
+            assert!(x
+                .validation
+                .iter()
+                .any(|(checked_path, checked)| path == checked_path && Arc::ptr_eq(output, checked)));
+            count += 1;
+        }
+    }
+    assert_eq!(count, 3);
+}
+
+#[test]
+fn instance_errors_keep_effective_names() {
+    let document = read("%rule use(@X) @X :: @X\n%rule text use(\"a\")");
+    let error = match expand(&[(Arc::from("names.md"), Arc::new(document))], &unicode()) {
+        Err(error) => error,
+        _ => panic!("an invalid tag clause"),
+    };
+    assert!(error.message.contains("use(\"a\")"), "{error}");
+    assert!(!error.message.contains("expanded"), "{error}");
+    assert!(!error.message.contains("instance-"), "{error}");
 }
 #[test]
 fn ordinary_edit_history() {
@@ -157,25 +183,25 @@ fn deep_bodies() {
     for supplied in [false, true] {
         let mut d = read("%rule atom(@X) @X\n%rule text atom(\"a\")");
         let mut expr = if supplied {
-            obj([("literal", obj([("string", string("a"))]))])
+            dom::Expr::Literal(dom::Term::Str("a".into()))
         } else {
-            obj([("param", string("X")), ("at", position((2, 16)))])
+            dom::Expr::Source(dom::source::SourceSymbol::Parameter("X".into(), (2, 16)))
         };
         for _ in 0..250 {
-            expr = obj([("seq", Json::Arr(vec![expr, obj([("empty", Json::Bool(true))])]))])
+            expr = dom::Expr::Seq(vec![expr, dom::Expr::Empty]);
         }
         if supplied {
-            let r = d.unresolved.get_mut(&(3, 1)).unwrap();
-            let mut call = expression(r).clone();
-            set(&mut call, "args", Json::Arr(vec![obj([("body", expr)])]));
-            replace_expression(r, call)
+            let dom::Expr::Source(dom::source::SourceSymbol::Call(call)) = &mut d.rules[1].alternatives[0].expr else {
+                panic!("a call")
+            };
+            call.args[0] = dom::source::SourceArgument::Body(expr);
         } else {
-            replace_expression(d.unresolved.get_mut(&(2, 1)).unwrap(), expr)
+            d.rules[0].alternatives[0].expr = expr;
         }
         let raw = crate::json::parse(&dom::dom_to_json(&d)).unwrap();
         assert!(dom::dom_problem(&raw, &unicode()).is_none());
         let x = expand(&[(Arc::from("grammars/test/deep.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
-        assert_eq!(x.records.instances.len(), 1);
+        assert_eq!(x.instance_names.len(), 1);
     }
 }
 #[test]
@@ -189,14 +215,14 @@ fn elidable_owner() {
 #[test]
 fn uncalled_source_validation() {
     for (source, message) in [
-        ("%rule unused(@X) $x:A $x:@X", "capture name used twice"),
-        ("%rule unused(@X) $x:(A @X)", "malformed capture"),
-        ("%rule unused(@X) @X %emits $x :: @X, $x", "lists a capture twice"),
-        ("%rule unused(@X) @X %emits ($y) $x ($y) :: @X", "lists a capture twice"),
+        ("%rule unused(@X) $x:A $x:@X", "the capture $x is read twice by one production"),
+        ("%rule unused(@X) $x:(A @X)", "a capture wraps one symbol"),
+        ("%rule unused(@X) @X %emits $x :: @X, $x", "a repeated emission capture"),
+        ("%rule unused(@X) @X %emits ($y) $x ($y) :: @X", "a repeated emission capture"),
         ("%rule unused(@X) @X :: _L ∪ @X", "engine tag"),
-        ("%rule unused(@X) @X :: $.tags ∪ @X", "own tags"),
+        ("%rule unused(@X) @X :: $.tags ∪ @X", "$.tags or $.classes"),
         ("%rule unused(@X) @X := @X %erased", "erased"),
-        ("%rule unused(@X) [+| @X]", "one sequence"),
+        ("%rule unused(@X) [+| @X]", "without | or &"),
         (
             "%rule unused(@X) @X %conditions $.without-elision.ends(text)",
             "ends requires an ordinary span, not a restored span",
@@ -238,43 +264,49 @@ fn pattern_test_operands() {
 }
 #[test]
 fn ranked_locations_do_not_change_dom() {
-    let mut d = read("%rule pair(@X,@Y) @X @Y\n%rule text pair(\"a\",\"b\") (\"c\" ≻ \"d\") :: ∅");
+    let d = located("%rule pair(@X,@Y) @X @Y\n%rule text pair(\"a\",\"b\") (\"c\" ≻ \"d\") :: ∅");
     let before = dom::dom_to_json(&d);
-    let token = crate::result::Token {
-        text: String::new(),
-        value: "≻".into(),
-        image: String::new(),
-        tags: Default::default(),
-        span: 0..1,
-        source: 0..1,
-        inserted_by: None,
-        before: Vec::new(),
-        after: Vec::new(),
-    };
-    crate::ranked::restore_locations(&mut d, &[token], &|_| (3, 42));
     assert_eq!(dom::dom_to_json(&d), before);
     let x = expand(&[(Arc::from("grammars/test/locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
     let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "text").unwrap();
-    assert_eq!(r.alternatives[0].ranked_locations["/seq/1"], (3, 42));
+    assert_eq!(r.alternatives[0].ranked_locations["/seq/1"], (3, 31));
 }
 #[test]
 fn ranked_argument_location() {
-    let mut d = read("%rule choice(@X) @X :: ∅\n%rule text choice((\"a\" ≻ \"b\"))");
-    let token = crate::result::Token {
-        text: String::new(),
-        value: "≻".into(),
-        image: String::new(),
-        tags: Default::default(),
-        span: 0..1,
-        source: 0..1,
-        inserted_by: None,
-        before: Vec::new(),
-        after: Vec::new(),
-    };
-    crate::ranked::restore_locations(&mut d, &[token], &|_| (3, 29));
+    let d = located("%rule choice(@X) @X :: ∅\n%rule text choice((\"a\" ≻ \"b\"))");
     let x = expand(&[(Arc::from("grammars/test/locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
     let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "choice((\"a\" ≻ \"b\"))").unwrap();
-    assert_eq!(r.alternatives[0].ranked_locations[""], (3, 29));
+    assert_eq!(r.alternatives[0].ranked_locations[""], (3, 24));
+}
+
+#[test]
+fn cached_location_recovery_preserves_public_source_members() {
+    let text = "%rule f(@X) @X\n%rule text f(($A ≻ $B)) :: ∅";
+    let source = located(text);
+    let mut cached = read(text);
+    cached.rules[1].name = "cached".into();
+    let dom::Expr::Source(dom::source::SourceSymbol::Call(call)) = &mut cached.rules[1].alternatives[0].expr else {
+        panic!("a source call");
+    };
+    call.at = (90, 91);
+    let (dom::source::SourceArgument::Body(dom::Expr::Ranked(options, _))
+    | dom::source::SourceArgument::WrappedBody(dom::Expr::Ranked(options, _))) = &mut call.args[0]
+    else {
+        panic!("a ranked body");
+    };
+    options[0] = dom::Expr::Literal(dom::Term::Const("Cached".into(), (92, 93)));
+    let before = dom::dom_to_json(&cached);
+    dom::source::restore_locations(&mut cached, &source);
+    assert_eq!(dom::dom_to_json(&cached), before);
+    let dom::Expr::Source(dom::source::SourceSymbol::Call(call)) = &cached.rules[1].alternatives[0].expr else {
+        panic!("a source call");
+    };
+    let (dom::source::SourceArgument::Body(dom::Expr::Ranked(_, at))
+    | dom::source::SourceArgument::WrappedBody(dom::Expr::Ranked(_, at))) = &call.args[0]
+    else {
+        panic!("a ranked body");
+    };
+    assert_eq!(*at, Some((3, 18)));
 }
 
 #[test]
@@ -301,6 +333,11 @@ fn deep_source_constructors_report_the_dom_limit() {
             let cases = [
                 format!("%rule atom(@X) {}@X{}", "[".repeat(2000), "]".repeat(2000)),
                 format!("%rule atom(@X) @X\n%rule text {}\"a\"{}", "atom(".repeat(2000), ")".repeat(2000)),
+                format!(
+                    "%rule atom(@X) @X\n%rule text A %conditions $ ≅ #{}a{}",
+                    "atom(#".repeat(400),
+                    ")".repeat(400)
+                ),
             ];
             for text in cases {
                 let source = format!("```jbogenbau\n{text}\n```\n");
@@ -314,48 +351,23 @@ fn deep_source_constructors_report_the_dom_limit() {
 }
 #[test]
 fn ordinary_ranked_locations_survive_template_expansion() {
-    let mut d = read("%rule unused(@X) @X\n%rule text (\"a\" ≻ \"b\") :: ∅");
-    let token = crate::result::Token {
-        text: String::new(),
-        value: "≻".into(),
-        image: String::new(),
-        tags: Default::default(),
-        span: 0..1,
-        source: 0..1,
-        inserted_by: None,
-        before: Vec::new(),
-        after: Vec::new(),
-    };
-    crate::ranked::restore_locations(&mut d, &[token], &|_| (3, 21));
+    let d = located("%rule unused(@X) @X\n%rule text (\"a\" ≻ \"b\") :: ∅");
     let x = expand(&[(Arc::from("grammars/test/locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
     let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "text").unwrap();
-    assert_eq!(r.alternatives[0].ranked_locations[""], (3, 21));
-}
-
-#[test]
-fn nested_alias_twins_follow_expanded_order() {
-    for source in ["%rule atom(@X) @X\n%rule outer(@X) @X\n%rule public \"a\"\n%rule text outer((named named)) outer((atom(\"a\") atom(\"a\"))) outer((named atom(\"a\"))) outer((atom(\"a\") named))\n%rule named = atom(\"a\")\n%redefine-rule public = outer((atom(\"a\") named))","%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer(#named) outer(#atom(\"a\"))\n%rule named = atom(\"a\")"] {
-  let a=audit(&grammar(source));let instances:Vec<_>=list(get(&a,"instances")).iter().filter(|i|text(get(i,"template"))=="outer").collect();
-  assert_eq!(instances.len(),if source.contains("public"){4}else{2});
-  for (index,instance) in instances.iter().enumerate() {
-   let names:Vec<_>=instances.iter().enumerate().filter(|(other,_)|*other!=index).map(|(_,i)|get(i,"name").clone()).collect();
-   assert_eq!(get(instance,"notes"),&Json::Arr(vec![obj([("kind",string("argument-alias-twin")),("instances",Json::Arr(names))])]));
-  }
- }
+    assert_eq!(r.alternatives[0].ranked_locations[""], (3, 17));
 }
 
 #[test]
 fn unresolved_writer_ignores_object_member_order() {
     let mut d = read("%rule tag(@R) A<@R> %emits $ :: $.tags\n%rule text tag(<B ¬C>)");
     let expected = dom::dom_to_json(&d);
-    for raw in d.unresolved.values_mut() {
-        *raw = map_nodes(raw, |mut n| {
-            if let Json::Obj(fields) = &mut n {
-                fields.reverse();
-            }
-            n
-        });
-    }
+    let raw = map_nodes(&j(&expected), |mut n| {
+        if let Json::Obj(fields) = &mut n {
+            fields.reverse();
+        }
+        n
+    });
+    d = dom::dom_from_json(&raw, &unicode()).unwrap();
     assert_eq!(dom::dom_to_json(&d), expected);
 }
 
@@ -377,7 +389,11 @@ fn shared_parameter_structure() {
                 "{name}"
             );
             if let Some(count) = case.get("instances") {
-                assert_eq!(g.parameters.instances.len(), count.as_int().unwrap() as usize, "{name}");
+                assert_eq!(
+                    instance_names(text(get(case, "grammar"))).len(),
+                    count.as_int().unwrap() as usize,
+                    "{name}"
+                );
             }
             continue;
         }
@@ -421,7 +437,7 @@ fn shared_parameter_structure() {
             assert_eq!(x.order, list(order).iter().map(|n| text(n).to_string()).collect::<Vec<_>>(), "{name}");
         }
         if let Some(count) = case.get("instances") {
-            assert_eq!(x.records.instances.len(), count.as_int().unwrap() as usize, "{name}");
+            assert_eq!(x.instance_names.len(), count.as_int().unwrap() as usize, "{name}");
         }
         if let Some(flags) = case.get("flags").and_then(Json::as_object) {
             let g = grammar(text(get(case, "grammar")));
@@ -463,25 +479,6 @@ fn supplied_dom_depth_does_not_use_the_call_stack() {
 }
 
 #[test]
-fn alias_twins_preserve_decorations() {
-    for (left, right, twin) in [
-        ("#·named", r#"#atom("a")"#, false),
-        ("#named« text »", r#"#atom("a")"#, false),
-        ("#·named", r#"#·atom("a")"#, true),
-        ("#named« text »", r#"#atom("a")« text »"#, true),
-    ] {
-        let source=format!("%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer({left}) outer({right})\n%rule named = atom(\"a\")");
-        let a = audit(&grammar(&source));
-        let instances: Vec<_> =
-            list(get(&a, "instances")).iter().filter(|i| text(get(i, "template")) == "outer").collect();
-        assert_eq!(instances.len(), 2);
-        for i in instances {
-            assert_eq!(!list(get(i, "notes")).is_empty(), twin);
-        }
-    }
-}
-
-#[test]
 fn pattern_closedness_leaves_tests_to_schema() {
     for missing in [false, true] {
         let mut test = j(r#"{"test":"=","expr":{"terminal":"A"}}"#);
@@ -493,11 +490,9 @@ fn pattern_closedness_leaves_tests_to_schema() {
             obj([("name", string("P")), ("op", string("define")), ("value", value.clone()), ("at", j("[3,1]"))]);
         let implication = obj([("if", value), ("then", obj([("tag", string("A"))])), ("at", j("[3,1]"))]);
         for (kind, r) in [("constants", constant), ("implications", implication)] {
-            assert_eq!(
-                declaration_problem(&r, kind, &unicode()),
-                Some("a malformed pattern"),
-                "{kind}, missing={missing}"
-            );
+            let mut raw = j(&dom::dom_to_json(&Dom::default()));
+            set(&mut raw, kind, Json::Arr(vec![r]));
+            assert_eq!(dom::dom_problem(&raw, &unicode()), Some("a malformed pattern"), "{kind}, missing={missing}");
         }
     }
 }

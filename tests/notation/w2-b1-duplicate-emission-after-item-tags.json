@@ -1,0 +1,10 @@
+{
+  "description": "Local clause conversion precedes a completed-clause error.",
+  "document": "```jbogenbau\n%rule text $x:\"a\" %emits $x, $x :: \"bad\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 36
+    }
+  }
+}

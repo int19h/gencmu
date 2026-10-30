@@ -149,7 +149,7 @@ func isClass(name string) bool {
 }
 
 func stringTermShape(t *domTerm) bool {
-	return t != nil && (t.Kind == tmString || t.Kind == tmConst)
+	return t != nil && (t.Kind == tmString || t.Kind == tmConst || t.Kind == tmParam)
 }
 
 func hasRecipes(r *domRule) bool {

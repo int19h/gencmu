@@ -1,0 +1,13 @@
+{
+  "description": "Calls in replaced definitions receive instance validation.",
+  "grammar": "%rule bad(@X) $x:@X\n%rule text bad((\"a\" \"a\"))\n%redefine-rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

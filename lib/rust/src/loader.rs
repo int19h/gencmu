@@ -324,11 +324,13 @@ impl Context {
         if diagnostic {
             #[cfg(test)]
             LOCATION_RECOVERIES.with(|count| count.set(count.get() + 1));
+            if let Ok(source) = read_document_named(&self.notation, text, true, names) {
+                crate::ranked::restore_locations(&mut dom, &source);
+            }
             let grammar = grammar_text(text, &self.unicode)?;
             let options = ParseOptions { until: Some("lexical".into()), ..ParseOptions::default() };
             let result = self.notation.parse_chars(grammar.chars.clone(), &options)?;
             if let Some(tokens) = result.stages.last().and_then(|stage| stage.output.as_ref()) {
-                crate::ranked::restore_locations(&mut dom, tokens, &|at| grammar.position(at));
                 crate::notation::restore_recipe_locations(&mut dom, tokens, &|at| grammar.position(at));
             }
         }
@@ -398,7 +400,9 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
     // and the DOM with explicit stacks, so a document of any depth reads
     // on the caller's thread (engine §9).
     let reader = Reader {
-        parameter_state: Default::default(),
+        parameters: Default::default(),
+        reading_head: Default::default(),
+        unresolved: Default::default(),
         unicode: &notation.unicode,
         defer_emission: defer,
         feature_context: Default::default(),
@@ -426,20 +430,15 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
     // stack, at the first item in the order of the document that breaks
     // it: a DOM just read is as deep as its document nests, and the checks
     // below walk it by recursion.
-    let raw_deep = |at: &(usize, usize), kind: &str| {
-        dom.unresolved
-            .get(at)
-            .is_some_and(|raw| crate::parameters::declaration_problem(raw, kind, unicode) == Some("nested too deeply"))
-    };
     let mut deep: Vec<(usize, usize)> = dom
         .rules
         .iter()
-        .filter(|rule| crate::dom::rule_too_deep(rule) || raw_deep(&rule.at, "rules"))
+        .filter(|rule| crate::dom::rule_too_deep(rule))
         .map(|rule| rule.at)
         .chain(
             dom.constants
                 .iter()
-                .filter(|constant| crate::dom::term_too_deep(&constant.value) || raw_deep(&constant.at, "constants"))
+                .filter(|constant| crate::dom::term_too_deep(&constant.value))
                 .map(|constant| constant.at),
         )
         .chain(
@@ -448,17 +447,13 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
                 .filter(|implication| {
                     crate::dom::term_too_deep(&implication.antecedent)
                         || crate::dom::term_too_deep(&implication.consequent)
-                        || raw_deep(&implication.at, "implications")
                 })
                 .map(|implication| implication.at),
         )
         .chain(
             dom.directives
                 .iter()
-                .filter(|directive| {
-                    directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep)
-                        || raw_deep(&directive.at, "directives")
-                })
+                .filter(|directive| directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep))
                 .map(|directive| directive.at),
         )
         .chain(
@@ -520,10 +515,7 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
         )
         .collect();
     singles.sort_by_key(|(_, at)| *at);
-    for (mut single, at) in singles {
-        if let Some(raw) = dom.unresolved.get(&at) {
-            single.unresolved.insert(at, raw.clone());
-        }
+    for (single, at) in singles {
         if let Some(problem) = problem_of(&single) {
             return Err(grammar_error(problem).at(at.0, at.1));
         }
@@ -858,8 +850,12 @@ where
 /// "A grammar DOM"). The path supplies the base for relative names resources.
 /// An empty path selects the resource root. For tests and tools.
 pub fn read_grammar_document(text: &str, path: &str) -> Result<String, Error> {
+    read_grammar_dom(text, path).map(|dom| dom_to_json(&dom))
+}
+
+pub(crate) fn read_grammar_dom(text: &str, path: &str) -> Result<Dom, Error> {
     let context = Context::bundled()?;
-    read_document(&context.notation, text, path).map(|dom| dom_to_json(&dom))
+    read_document(&context.notation, text, path)
 }
 
 /// Why a DOM, given as JSON, is malformed (engine §9), or `None` when it is
@@ -1164,7 +1160,11 @@ mod ranked_location_tests {
         let mut preparsed = Preparsed::default();
         for (path, text) in &sources.map {
             let dom = read_document(&bundled.notation, text, "").unwrap();
-            assert!(dom.rules.iter().all(|rule| rule.alternatives.iter().all(|alt| alt.ranked_locations.is_empty())));
+            let cached = dom_from_json(&json::parse(&dom_to_json(&dom)).unwrap(), &bundled.unicode).unwrap();
+            assert!(cached
+                .rules
+                .iter()
+                .all(|rule| rule.alternatives.iter().all(|alt| alt.ranked_locations.is_empty())));
             preparsed.by_path.insert(
                 path.clone(),
                 (

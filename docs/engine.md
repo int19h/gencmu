@@ -538,6 +538,8 @@ A predecessor remains an expression, not a snapshot of earlier values. Its other
 
 After the loader stitches the stage, it makes sure that each rule definition that holds a constant meets the requirements of this section. An undefined user constant is an error there. The types of the terms, conditions and tests that hold constants must agree (§9, §10).
 
+This inspection includes template arguments that no parameter uses. The loader retains their terms and expression fragments until constant inspection finishes. Constants inside open arguments still require a definition. Kind-dependent argument requirements wait for substitution. These requirements also apply to replaced definitions and calls in patterns, bindings, and edit heads.
+
 A constant in a value test must resolve to a string (§9). The requirements of §9 that depend on the value of a constant apply there too. The loader applies these requirements to every definition of the stage. That includes a definition that a later `%redefine-rule` replaces, although its alternatives are then gone.
 
 Constant type propagation revisits dependent declarations in ascending declaration order. This order also decides which dependent type error the loader reports first.
@@ -687,6 +689,8 @@ The argument reader tries these forms in order:
 4. An ordinary term or tested symbol, including names, calls, literals, constants, ranges, wildcard, tag sets, strings, and patterns.
 
 A parenthesized expression that cannot parse as a body follows ordinary term syntax. A parenthesized argument with one symbol reads as that symbol. This includes a parameter, a tested symbol, and a literal.
+
+Native cache decoding preserves an explicitly supplied body wrapper until argument conversion. This wrapper does not change the instance key.
 
 Other bodies retain their argument category. Parentheses alone add no node. An unparenthesized run of body symbols is not one argument.
 
@@ -876,6 +880,8 @@ The loader constructs a directed parameter-flow graph before expansion. A node i
 
 An edge is unchanged when that argument is exactly the source parameter. Otherwise the edge grows. Nested calls, expressions, and lists count as wrapping forms. A parenthesized single parameter stays unchanged and adds no growth. Arguments with no parameter references create no edge. The loader includes calls at every depth and every definition, including replaced definitions and uncalled templates.
 
+The search visits templates in declaration order, then parameter positions from left to right. Edges retain references to their source definition, call, and argument. Cycle search retains predecessor links and constructs the diagnostic trail only for an error.
+
 A directed cycle with a growing edge causes `unbounded-instantiation`. The error names the cycle, growing wrapping form, and source locations. Unchanged recursive calls, permutations, and passing a nominal rule name remain valid. An arbitrary expansion-depth limit cannot replace this analysis.
 
 ```jbogenbau
@@ -890,19 +896,29 @@ The second declaration fails even when nothing calls it. The first declaration h
 
 The loader first records declaration order, bindings, template signatures, and edits. It then resolves names, constants, and parameter binders and performs the flow analysis. It records only closed calls during instance discovery.
 
+Flow inspection and substitution report the first error in source order. They visit declarations by source position. Within a rule, they visit header tags, value, and image before alternatives. Each alternative contributes its expression, tags, value, and image, in that order. Conditions follow all alternatives, then emission items. An exact-instance edit visits its head arguments before its clauses.
+
 The source pass visits declarations in source order. Every binding visits its instance call, including a binding that a later rebinding replaces. An exact-instance edit visits its head call before its body. A template head declares parameters and creates no instance.
 
 Within each retained definition, the pass uses the reference traversal of §2.2. It visits a call's arguments from left to right and finishes each argument before recording the enclosing call. Inner closed calls therefore precede outer closed calls.
 
 Calls that still contain parameters wait for substitution.
 
+The source pass records retained event indexes once for each owning history. Its per-declaration work does not search those histories again.
+
 The source pass finishes before the loader reads the discovery queue. Each new instance adds its effective expanded definitions to this first-in, first-out queue. Each definition includes its body, tag clauses, conditions, and emission clauses. The loader uses the same reference traversal and inner-first argument walk there. A repeated key adds nothing, including a recursive reference.
 
-For each instance, the loader replays applicable events and substitutes arguments using each event's parameter names. Replaced bodies and clauses receive per-instance document validation, but their calls create no live instance. Validation-only expansion uses separate keys and contributes no entry to the discovery queue or audit. A binding or exact-instance edit head still identifies its subject independently of its body's lifetime.
+Every output event stream starts with its existing defining event. Expansion does not promote an edit into a definition.
+
+For each instance, the loader replays applicable events and substitutes arguments using each event's parameter names. Replaced bodies and clauses receive per-instance document validation, but their calls create no live instance. Validation-only expansion uses separate keys and contributes no entry to the discovery queue or audit. It follows closed calls from every replaced ordinary definition and every substituted instance definition. It validates every applicable template event and follows nested calls until its queue is empty. Repeated validation keys add nothing, including unchanged recursive calls. A key already expanded as a live instance needs no second expansion. A binding or exact-instance edit head still identifies its subject independently of its body's lifetime.
 
 Ordinary document rules apply to every expanded definition. Structural analysis, ranked safety, capture analysis, depth limits, and lowering then use ordinary rules. Unused parameters and uncalled templates are audit notes, not errors.
 
+Expanded-definition diagnostics use the effective rule name, including its canonical instance spelling or public binding. Internal validation does not substitute placeholder names. Capture and test bases use the same effective-name predicate as other rule references.
+
 An error at a parameter use names the template definition and the originating call and argument. An argument error names that argument. Source locations stay separate from the position-free key. A wrong arity, unknown template, duplicate parameter, or undeclared parameter is a load error. Binder and flow errors also apply to uncalled templates. Kind-dependent errors require an instance.
+
+The audit determines each event's scope from the template's recorded event indexes. It indexes expanded rule positions before sorting instances.
 
 The audit lists templates, instance keys, effective names, first calls, bindings, flags, unused parameters, and uncalled templates. It records all applicable template and local events in source order, including events later replaced. Rule and instance lists use the expanded order defined below. Template order follows declaration order. The audit also notes argument-alias twins, as `docs/design.md` defines them.
 
@@ -2080,6 +2096,20 @@ The rules in §9 turn the notation tree into a document DOM. The bootstrap can t
 
 The grammar text is a text like any other, so stage zero decomposes it. Line and column numbers still count the code points of the document as written.
 
+Calls, parameters, and patterns use the same reader constructors as ordinary declarations. Their presence never changes local checks or diagnostic precedence. Source positions stay on the nodes that produce them.
+
+Cached and supplied DOMs use the same node decoder and validity checks for ordinary syntax, calls, parameters, and patterns. Each expanded definition is decoded once. Validation and runtime output use that same decoded definition.
+
+Structural checks precede decoding. Later definition checks use the decoded nodes and their effective rule names.
+
+Decoding retains every declaration and its children as typed nodes, including declarations that still need template expansion.
+
+One validator handles ordinary nodes and source nodes. Calls and parameters retain their scopes, argument categories, and local shape restrictions before expansion.
+
+The document retains one declaration representation. Cached diagnostic recovery copies private positions between typed nodes and preserves every public cached member.
+
+Each ranked-choice node retains the position of its first `≻`. Expansion carries that position with the node, including nodes inside call arguments.
+
 A tie in either stage of the notation pipeline, `lexical` or `syntax`, is an error of kind `grammar` of loading (§6). The error names the document. It has no line and no column, since an ambiguity has no single position. Its message names the notation stage and says that the grammar text is ambiguous. A library never puts such an error at the start of the document in place of a position.
 
 Every bootstrap failure names `data/preparsed/gencmu.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Stitching and lowering errors name the stage that failed. If the failure has a definition location, its structured line and column retain that location. The message also names the embedded document at that location. A failure without a definition location has no structured line or column.
@@ -2461,6 +2491,10 @@ A pattern argument is one term that the pattern grammar consumes. The argument r
 
 ### 9.3 Conversion and validation
 
+A known non-string operand fails concatenation even if it contains a parameter. This local failure uses the concatenation's position.
+
+Readers use common diagnostic text for unclosed grammar fences, classifier warnings, capture restrictions, method signatures, and directive operands. A method with an invalid receiver or arguments reports `a method has the wrong receiver or arguments`. Advice for restored spans and bare captures keeps its specific text. A diagnostic position remains separate from its text. A library can prefix the text with that position.
+
 The following table is the complete constructor contract, including the template forms of §2.3. A constructor is a recognized syntax-tree part. Its row specifies required parts, lookup order, and DOM conversion. Names outside this table are wrappers, never constructors. Each wrapper contributes its children recursively in written order.
 
 The reader reads only a constructor's parts, after wrapper flattening. A missing required part causes a document error at that constructor when its lookup occurs. Unused parts are ignored. Repeated operand lists preserve written order. Unless a row says otherwise, a named lookup selects its first matching part.
@@ -2528,20 +2562,20 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `conditions-clause` | One or more `implication` parts | Ordered conditions |
 | `emits-clause` | Item parts, or tag, value, image clauses alone | Ordered `items`. No target means implicit `$`. No written item also means `$`. |
 | `erased-clause` | One `%erased` token | Owner's `erased:true` |
-| `emit-item` | Target, before attachments, after attachments, tags, value, image | Capture or inserted item, with ordered attachments and clauses |
+| `emit-item` | Target, before attachments, after attachments, tags, value, image | Capture or inserted item, with ordered attachments and clauses. Read tags before value and image, including an implicit item. |
 | `emit-target` | One capture, `ε`, name, tag, or range | Require a capture or `ε`. Produce capture name, empty name, or `insert:true`. |
-| `emit-before`, `emit-after` | One or more named `capture-reference` parts | Attachment names without `$`, in written order |
+| `emit-before`, `emit-after` | One or more named `capture-reference` parts | Attachment names without `$`, in written order. These names are references, so binder-case rules do not apply. |
 | `recipe` | Exactly one valid `recipe-atom` | Ordered `concat`. Reject a second term at its first token with an instruction to use `++`. |
 | `recipe-atom` | One recognized term | Check its written form before conversion. Require string atoms joined by `++`, with methods restricted by §11. Reject juxtaposed strings with an instruction to use `++`. |
 | `concatenation` | One or more `term-atom` parts separated by `++` | Sole child, or ordered `concat` of string operands. Require each known operand to be a string before reading the next. Defer unresolved constant types until binding. Flatten grouped concatenation operands into the outer array in written order. |
 | `method` | `method-receiver`, then one or more `method-selector` parts | Fold selectors left into receiver-first method nodes |
 | `method-receiver` | One `term-atom` | Initial receiver, retaining its actual type |
-| `method-selector` | `method-name`, then optional `arguments` | Method name, prior receiver, ordered argument terms |
+| `method-selector` | `method-name`, then optional `arguments` | Check the method name and its permission in a closed term before reading arguments. Then apply the signature to the receiver and arguments. |
 | `method-name` | One method-name token | Exact method identifier |
 | `arguments` | One or more `argument` parts | Ordered argument array. Absent arguments gives `args:[]`. |
-| `argument` | One `term` or `integer` | Term, integer argument, or rule/classifier name in the signature's name position |
+| `argument` | One `term` or `integer` | Convert the complete immediate term, including its guard. Only a complete bare name can become a rule or classifier argument. |
 | `integer` | One Integer token | `integer`, retaining its positive decimal digits without leading zeros |
-| `string` | String token | Remove delimiters from its decomposed token value |
+| `string` | String token | Decode through the document's configured string decoder |
 | `name` | One name token | Capitalized tag, or rule/classifier name in its method argument position |
 | `term` | One `union` or `guarded-term` | Child term |
 | `tag-run`, `string-run` | At least two `tag` or `string` parts respectively, in written order | One `union` of singleton operands. Flatten into an enclosing union, regardless of grouping. |
@@ -2645,6 +2679,8 @@ A document can hold several errors. The reader reports one, and every reader cho
 5. After the whole alternative expression, the reader detects repeated capture names before that alternative's clauses. The rule below defines this test.
 6. Each alternative supplies guards, an expression, then tag, value, and image clauses. Header clauses already precede these under step 4. Conditions follow the complete body, then emission or erasure. Whole-definition errors follow all local construct errors.
 
+   Convert a clause's local parts before checking its completed form. Convert all emission items before checking repeated capture references.
+
    Each clause has its own errors. Examples are tags made of the constituent's own tags and a comparison whose sides do not fit. Such an error stands at the clause, or at the part of it that is wrong. These errors come in the order of the text. The checks of the whole definition below come last, and they stand at the definition.
 7. The bound on nesting is 256 compound nodes. After the reader reads every item without an error, the loader makes sure that the whole DOM meets this bound. So every other error of reading comes before it, in any item. That includes an error inside the deep part, and one in a later item. Among the items too deep, the first decides, as the paragraph of that error says.
 
@@ -2698,6 +2734,8 @@ A tree from a bootstrap of another notation can also lack a part that a construc
 - A `repetition`: its `choice`s, then its markers, then the placement of a chain, and then the item and the separator. So a `repetition` with two markers and no `choice` is an error at the `repetition`.
 - A `group`: its `choice`, and then its content.
 
+A directive rejects a forbidden operand kind before converting its contents. This includes an unknown engine tag in a tag operand.
+
 Inline `++` in body terminals, value tests, pattern terminals, range endpoints, or classifier keys fails syntax recognition at `++`. A grouped classifier key fails syntax recognition at its opening parenthesis. These syntax errors are document errors of kind `grammar`.
 
 The grammar does not state the restrictions below. Each of these is an error of the document. The reader reports it at the first token of the offending construct, unless the item names another place.
@@ -2709,7 +2747,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A capture that wraps anything but one symbol is an error, `$x:(B)`, `$x:(A | B)` and `$x:[B]` included. A symbol is a rule reference, call, parameter, tag terminal, string terminal, range, wildcard, or a tested form of one. The capture check ignores the target's test count and order. The `tested` constructor reports any test-order error.
 
   Thus `%rule r $x:A<B><C>` fails at the second `<`, column 16. `%rule r $x:A="a"<B>` fails at `<`, column 17, because a tag test cannot follow a value test.
-- A capture whose name has a capital is an error. Capture names are all lower case.
+- A capture binder whose name has a capital is an error. Capture binders are all lower case. Emission targets and attachments refer to captures. They do not bind names.
 - A grouped value-test operand is a reader error at its opening parenthesis.
 - A body constant must resolve to a string terminal or scalar range endpoint. A tag-set or pattern constant in that position is a document error.
 - `$` cannot bind a symbol. A named lowercase capture uses `:` to bind one symbol, optionally tested.
@@ -2751,8 +2789,8 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A `.verbatim-text` or `.emitted` read outside a recipe is a document error. A recipe accepts only the seven string methods and string atoms of §11.
 - A constant declaration requires a capitalized constant name. A string in that position is a document error.
 - A constant's value that is not a closed term (§10) is an error, reported at the first part that is not closed. Captures, `$`, guarded terms, and input methods such as `.value`, `.source-text`, `.tags`, `.classes`, or `.classify` are errors there.
-- An engine-tag literal in a constant's value, outside a pattern literal, is an error at that literal.
-- An engine tag on either side of `%implies` is an error at that tag.
+- An engine-tag literal in a constant's value, outside a pattern literal, is an error at that literal. Reject it during conversion, before reading the next part.
+- An engine tag on either side of `%implies` is an error at that tag. Reject it during conversion, before reading the next part.
 - A side of an implication that is not a closed term is an error, reported in the same way. A side whose type is not a tag set is an error too, reported at the side.
 - A classifier's name that does not begin with `a` to `z` is an error, reported at the name. `.classify` cannot name it, since a bare name with a capital is a tag.
 - A warning on a classifier's entry is an error, reported at the warning. An entry takes gates only.
@@ -2760,10 +2798,10 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A classifier class must start and end with uppercase ASCII letters and never start with `_`. A mark such as `Indicator` is invalid there.
 - A term or condition with incompatible types is an error (§10). Examples include `"a" ∈ $x.tags`, `$x.value = A`, and the untyped `∅ = ∅`. The reader reports the smallest construct whose parts disagree. This construct is a union with differences, intersection, concatenation, guarded term, method, or comparison. A concatenation error stands at its first operand. Otherwise, the error stands at the whole tag term or constant value.
 
-  The reader does not know the type of a constant, so it lets a constant stand for a value of any type but a span. After the loader stitches the stage, it makes sure again that the types agree (§2). It reports an error there at the first constant of the smallest construct whose parts disagree. Across the whole rule, the fault whose first constant comes first in the text wins. This order includes all clauses, alternatives, body operands, and symbol tests.
+  The reader does not know the type of a constant, so it lets a constant stand for a value of any type but a span. After the loader stitches the stage, it makes sure again that the types agree (§2). It reports an error there at the first constant of the smallest construct whose parts disagree. Across the whole rule, the fault whose first constant comes first in the text wins. This order includes all clauses, alternatives, body operands, and symbol tests. Retained call arguments follow the same order, including arguments that substitution does not use.
 - After method selection, a capture or span converts to its input value when a string is required or in `=` or `≠` (§10). It cannot convert to tags, sets, or patterns.
 - A bare name that does not begin with a capital is an error where a value is needed. Such a name is a rule or a classifier. A rule name is legal in `.tags`, `.matches`, `.begins`, `.ends`, `.without-elision-except`, `.followed-by`, and `.preceded-by` arguments. A classifier name is legal only in `.classify`.
-- `.matches`, `.begins`, `.ends`, `.starts-input`, `.ends-input`, `.followed-by` or `.preceded-by` as a value term is an error.
+- `.matches`, `.begins`, `.ends`, `.starts-input`, `.ends-input`, `.followed-by` or `.preceded-by` as a value term is an error. This includes method arguments. Report the error at the inner query method.
 - An `&` of more than 16 items is an error.
 - A DOM node at depth greater than 256 is an error. Depth counts compound ancestors, from zero at each root. The following rules cover every form in `docs/output.md`.
 
@@ -2797,6 +2835,12 @@ The grammar does not state the restrictions below. Each of these is an error of 
   Resolved pattern values also meet the bound of 256. For this bound, each pattern-valued term has one term wrapper around its normalized pattern. Constant references add no level and contribute their bound patterns. Aliases retain the same depth. Adjacent unions flatten, as do adjacent intersections, before this count. When `∅` supplies a pattern, its normalized form is the difference of two unrestricted child lists.
 
   The loader examines references in written order and reports the first reference whose substituted pattern exceeds the bound. This error uses the reference's document, position, and stage. The loader detects it before it copies or compiles the substituted pattern. A resolved pattern without an offending reference uses its declaration's position.
+
+  The reader flattens nested `union`, `all`, `any`, and `concat` nodes throughout the document before measuring depth. This includes conditions, guards, directive conditions, and call arguments.
+
+  Pattern intersections also flatten before depth validation. Term intersections retain their written nesting until type resolution.
+
+  Constructors append operands without copying a growing prefix. One document walk gathers each nested list in written order. It preserves duplicates and empty string operands. Plain pattern groups and choice-only alternatives flatten in the same walk.
 - A whole `$` carrier conflicts with a captured carrier or attachment capture that can consume input. Multiple `$` items require a structurally always-empty constituent under the overlap analysis below. Inserted items do not overlap carrier input. The loader reports an overlap error at the emitting definition after stitching, as the analysis below specifies.
 - An inserted `ε` item can carry tags, value, and image clauses. Its defaults are empty, and empty output tag sets are legal.
 - A bare name is not an inserted item. Use `ε` with explicit tag and string clauses.
@@ -2805,7 +2849,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An attachment (§11) that holds `$` is an error, reported at the attachment. An attachment holds a named capture.
 - An attachment on a `$` item or on an inserted item is an error, reported at the item. Only a named capture carries attachments. So a constituent never attaches to itself.
 - A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
-- A rule's or an alternative's tag term cannot read the tags that it defines. A read of `$.tags` or `$.classes` in that term is an error. `$.first-token.tags` and the like read the tokens' tags, not the constituent's, and are allowed, as is `$.tags(R)`.
+- A rule's or an alternative's tag term cannot read the tags that it defines. A read of `$.tags` or `$.classes` in that term is an error. `$.first-token.tags` and the like read the tokens' tags, not the constituent's, and are allowed, as is `$.tags(R)`. Bare `$` in a guard reads the constituent's input value.
 - An unknown directive or keyword is an error. The syntax grammar already refuses it.
 - A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` and `%names` take one path each, and `%features` takes one or more feature names as §9.1 defines them. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`.
 
@@ -3058,7 +3102,7 @@ A tree comparison has operator `≅` or `≇`, a bare capture on the left and a 
 
 Pattern union, intersection and difference combine predicates. Contextual `∅` supplies the always-false predicate. Pattern values do not support ordinary equality or implicit string conversion.
 
-For a bare name after either tree comparator, use the diagnostic of §9.3. Other wrong operand types receive the ordinary expected-pattern error.
+For a bare name after either tree comparator, use the diagnostic of §9.3. Other wrong operand types receive the ordinary expected-pattern error at the complete tree comparison.
 
 ### Method signatures
 
@@ -3376,7 +3420,7 @@ Constants bind in the selected stage (§2). Conditions use the usual Boolean typ
 
 Feature conditions undergo every applicable loading check of rule conditions, including closed delimiter checks after constant binding.
 
-A global declaration with conditions, or conditions on another directive, is a loading error at that directive.
+A global declaration with conditions, or conditions on another directive, is a loading error at that directive. Reject forbidden conditions before converting them. A moved diagnostic contains the directive location once.
 
 If all conditions hold, the declaration processes its operands in written order. It enables each operand until it reaches one that the caller disables. At that operand it stops and reports the conflict. Earlier operands stay enabled from this stage onward.
 

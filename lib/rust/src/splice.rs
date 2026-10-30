@@ -289,9 +289,7 @@ impl Splicer<'_> {
                         self.open_run = true;
                     }
                     let (_, run) = stage.documents.last_mut().expect("a run");
-                    if let Some(raw) = dom.unresolved.get(&item.at()) {
-                        run.unresolved.insert(item.at(), raw.clone());
-                    }
+                    run.unresolved |= dom.unresolved;
                     match item {
                         Item::Rule(rule) => run.rules.push(rule.clone()),
                         Item::Constant(constant) => run.constants.push(constant.clone()),
@@ -398,6 +396,7 @@ mod tests {
                 .collect();
             // Each stage at line 2k + 2, with its rule on the next line.
             let rule = |index: usize| RuleDef {
+                source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
                 name: "text".into(),

@@ -14,6 +14,7 @@ pub(crate) struct Group {
     pub source: (usize, usize),
     pub path: String,
     pub expression: usize,
+    pub at: Option<(usize, usize)>,
     pub final_position: bool,
     pub names: BTreeSet<String>,
 }
@@ -86,7 +87,7 @@ fn routes(
         Expr::Empty => vec![Route::default()],
         Expr::Seq(items) => items.iter().fold(vec![Route::default()], |left, child| product(left, visit(child))),
         Expr::Choice(items) => unique(items.iter().flat_map(visit)),
-        Expr::Ranked(items) => {
+        Expr::Ranked(items, _) => {
             let group = groups.expressions[&(expr as *const Expr as usize)];
             let names: Vec<_> = groups.groups[group].names.intersection(needed).collect();
             unique(items.iter().enumerate().flat_map(|(option, child)| {
@@ -179,6 +180,7 @@ fn capture_reads(start: ReadPart<'_>, out: &mut BTreeSet<String>) {
                 _ => {}
             },
             ReadPart::Condition(cond) => match cond {
+                Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
                 Cond::Captured(name) => {
                     out.insert(name.clone());
                 }
@@ -423,13 +425,14 @@ impl RankedGroups {
     fn visit(&mut self, expr: &Expr, path: &str, final_position: bool, owner: Option<usize>, source: (usize, usize)) {
         let pointer = expr as *const Expr as usize;
         self.paths.insert(pointer, path.to_string());
-        if let Expr::Ranked(items) = expr {
+        if let Expr::Ranked(items, at) = expr {
             let id = self.groups.len();
             self.groups.push(Group {
                 id,
                 source,
                 path: path.into(),
                 expression: pointer,
+                at: *at,
                 final_position,
                 names: capture_names(expr),
             });
@@ -475,7 +478,10 @@ impl RankedGroups {
         }
     }
     fn fail(&self, grammar: &StageGrammar, group: &Group, code: &str, message: &str) -> Error {
-        let site = self.site(grammar, group.source, group.path.clone(), true);
+        let mut site = self.site(grammar, group.source, group.path.clone(), true);
+        if group.at.is_some() {
+            site.at = group.at;
+        }
         let mut error = Error::grammar(format!("{code}: {message}")).coded(code);
         if let Some(document) = &site.document {
             error = error.in_document(document);
@@ -605,7 +611,7 @@ pub(crate) fn capture_names(expr: &Expr) -> BTreeSet<String> {
                 names.insert(name.clone());
                 pending.push(child);
             }
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => pending.extend(items),
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => pending.extend(items),
             Expr::Optional(child, _) | Expr::Tested(_, _, child) => pending.push(child),
             Expr::Repeat(child, separator, _) => {
                 pending.push(child);
@@ -622,7 +628,7 @@ pub(crate) fn capture_names(expr: &Expr) -> BTreeSet<String> {
 pub(crate) fn contains_ranked(expr: &Expr) -> bool {
     let mut pending = vec![expr];
     while let Some(expr) = pending.pop() {
-        if matches!(expr, Expr::Ranked(_)) {
+        if matches!(expr, Expr::Ranked(_, _)) {
             return true;
         }
         pending.extend(expression_children(expr).into_iter().map(|(child, _)| child));
@@ -631,7 +637,7 @@ pub(crate) fn contains_ranked(expr: &Expr) -> bool {
 }
 fn expression_children(expr: &Expr) -> Vec<(&Expr, String)> {
     match expr {
-        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) | Expr::Ranked(items) => {
+        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) | Expr::Ranked(items, _) => {
             let key = match expr {
                 Expr::Seq(_) => "seq",
                 Expr::Choice(_) => "choice",
@@ -652,52 +658,8 @@ fn expression_children(expr: &Expr) -> Vec<(&Expr, String)> {
         _ => vec![],
     }
 }
-pub(crate) fn restore_locations(
-    dom: &mut crate::dom::Dom,
-    tokens: &[crate::result::Token],
-    position: &dyn Fn(usize) -> (usize, usize),
-) {
-    if crate::parameters::locations::recover(dom, tokens, position) {
-        return;
-    }
-    let separators: Vec<_> =
-        tokens.iter().filter(|token| token.value == "≻").map(|token| position(token.source.start)).collect();
-    let mut index = 0;
-    for rule in &mut dom.rules {
-        for alternative in &mut rule.alternatives {
-            let locations = &mut alternative.ranked_locations;
-            let mut pending = vec![(&alternative.expr, String::new(), 0)];
-            while let Some((expr, path, action)) = pending.pop() {
-                if action == 1 {
-                    if let Some(at) = separators.get(index) {
-                        locations.insert(path, *at);
-                    }
-                } else if action == 2 {
-                    index += 1;
-                } else if let Expr::Ranked(options) = expr {
-                    for (i, option) in options.iter().enumerate().skip(1).rev() {
-                        pending.push((option, format!("{path}/ranked/{i}"), 0));
-                        pending.push((expr, String::new(), 2));
-                    }
-                    pending.push((expr, path.clone(), 1));
-                    if let Some(option) = options.first() {
-                        pending.push((option, format!("{path}/ranked/0"), 0));
-                    }
-                } else {
-                    for (child, component) in expression_children(expr).into_iter().rev() {
-                        pending.push((child, format!("{path}{component}"), 0));
-                    }
-                }
-            }
-        }
-    }
-    if index != separators.len() {
-        for rule in &mut dom.rules {
-            for alternative in &mut rule.alternatives {
-                alternative.ranked_locations.clear();
-            }
-        }
-    }
+pub(crate) fn restore_locations(dom: &mut crate::dom::Dom, source: &crate::dom::Dom) {
+    crate::dom::source::restore_locations(dom, source);
 }
 pub(crate) fn syntax_failure(tokens: &[crate::result::Token], at: usize) -> bool {
     if tokens.get(at).is_some_and(|token| token.value == "≻")
@@ -862,7 +824,7 @@ impl TagGraph {
             Expr::Optional(inner, crate::dom::Mark::Plain) if common_capture(inner, captured) => {
                 Unary { zero: false, children: self.describe(grammar, ranked, source, inner, memo, captured).children }
             }
-            Expr::Ranked(_) | Expr::Optional(..) | Expr::Repeat(..) => {
+            Expr::Ranked(..) | Expr::Optional(..) | Expr::Repeat(..) => {
                 let helper = self.node(source.0, true);
                 let result = Unary { zero: false, children: vec![Some(helper)] };
                 memo.insert(key, result.clone());
@@ -878,7 +840,7 @@ impl TagGraph {
                     });
                 };
                 match expr {
-                    Expr::Ranked(items) => {
+                    Expr::Ranked(items, _) => {
                         self.groups.insert(ranked.expressions[&key], helper);
                         for (option, child) in items.iter().enumerate() {
                             route(self, child, Some(option));
@@ -912,7 +874,7 @@ fn common_capture(expr: &Expr, memo: &mut FxMap<usize, bool>) -> bool {
         return known;
     }
     let value = match expr {
-        Expr::Ranked(_) => false,
+        Expr::Ranked(..) => false,
         Expr::Capture(..) => true,
         Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
             items.iter().any(|child| common_capture(child, memo))
@@ -952,7 +914,7 @@ impl WrittenSpans {
                         let rhs = items.iter().map(|child| self.expression(child, grammar)).collect();
                         self.branches.push((id, rhs));
                     }
-                    Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                    Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                         for child in items {
                             let child = self.expression(child, grammar);
                             self.branches.push((id, vec![child]));

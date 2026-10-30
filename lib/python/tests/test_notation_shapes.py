@@ -79,7 +79,7 @@ class NotationShapes(unittest.TestCase):
         from gencmu._unicode import UnicodeTable
 
         tokens = [gencmu.Token("a", frozenset(), (0, 1), (0, 1)), gencmu.Token("b", frozenset(), (1, 2), (2, 3))]
-        builder = DomBuilder(tokens, jbogenbau_text('```jbogenbau\na b   \n```', UnicodeTable("unicode 0.0.0\n")), "g.md", UnicodeTable("unicode 0.0.0\n"))
+        builder = DomBuilder(tokens, jbogenbau_text('```jbogenbau\na b   \n```', UnicodeTable("unicode 0.0.0\n")), "g.md", UnicodeTable("unicode 0.0.0\n"), lambda *_: self.fail("the position test decodes no string"))
         for boundary, column in ((1, 3), (2, 4)):
             with self.subTest(boundary=boundary):
                 node = gencmu.Node("rule", (boundary, boundary), (0, 0), rule="padding")

@@ -187,7 +187,7 @@ Apart from the table, each library's own tests lose the witness on purpose after
 
 Each library reads the document as a grammar document (engine §8, §9). The reading makes a DOM (document object model), as `docs/output.md` describes. The library matches the DOM against the pattern, or it compares the position of the error with the expected position. The reader reports a syntax error at the first token that cannot continue the document. It reports an error of §9 at the first token of the offending construct.
 
-Error cases pin their line and column. Only `expect.message` pins an agreed reason.
+A notation error can also specify `expect.error.message`. This member pins the diagnostic text without a location prefix. The reader diagnostics of engine §9.3 use this common text. Other error cases pin only their line and column.
 
 Every library also runs a notation case with `cacheMisses: true` through its document loader. The document first loads without a preparsed entry. A matching preparsed entry must give the same DOM.
 
