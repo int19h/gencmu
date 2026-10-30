@@ -1,0 +1,36 @@
+{
+  "grammar": "%rule text\n  | A D T D\n%conditions\n  $.matches(r)\n\n%rule r\n  | [$b:b] r [+T] D\n  | A\n\n%rule b B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "d",
+      "tags": [
+        "D"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    },
+    {
+      "text": "d",
+      "tags": [
+        "D"
+      ]
+    }
+  ],
+  "description": "An absent logical optional prevents an immediate self-reference from becoming initial (engine §4).",
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false
+    }
+  }
+}

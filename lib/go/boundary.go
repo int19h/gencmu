@@ -417,13 +417,12 @@ func (r *recognizer) bounded(k int, key *itemKey, l link) bool {
 			a, b := r.observed(int32(k-1), int32(k))
 			child = m.leaf(r.g.terminals[l.term], a == b)
 		}
-		fail := func(lit *boundaryLiteral) {
-			r.boundaryFailures = append(r.boundaryFailures, boundaryFailure{at: int32(k), end: k, source: annotations.meeting(sources, child.empty, lit.id)})
-		}
+		at := key.origin
 		if l.prev != nil {
-			fail = func(lit *boundaryLiteral) {
-				r.boundaryFailures = append(r.boundaryFailures, boundaryFailure{at: l.prev.set, end: k, source: annotations.meeting(sources, child.empty, lit.id)})
-			}
+			at = l.prev.set
+		}
+		fail := func(lit *boundaryLiteral) {
+			r.boundaryFailures = append(r.boundaryFailures, boundaryFailure{at: at, end: k, source: annotations.meeting(sources, child.empty, lit.id)})
 		}
 		result := m.advance(record, child, fail)
 		if result == nil {

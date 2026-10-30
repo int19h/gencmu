@@ -175,6 +175,7 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
             forest.prefix[item] if forest.prefix else 0,
             forest.close_prefix[item] if forest.close_prefix else 0,
             id(production.lexical),
+            forest.boundaries[item].id if forest.boundaries else 0,
         )
 
     group_further: dict[tuple, int] = {}
