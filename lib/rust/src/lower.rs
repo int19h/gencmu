@@ -668,9 +668,6 @@ impl<'a> Lowerer<'a> {
 
     fn expand(&mut self, expr: &Expr) -> Vec<Sequence> {
         match expr {
-            Expr::Literal(Term::Str(value)) => {
-                vec![Sequence::one((Sym::T(self.terminal(&format!("\"{value}\""), None)), None, None))]
-            }
             Expr::Literal(_) | Expr::ScalarRange(..) => unreachable!("stitching binds terminal strings"),
             Expr::Seq(items) => {
                 let mut out = vec![Sequence::new()];
@@ -703,9 +700,9 @@ impl<'a> Lowerer<'a> {
             Expr::And(items) => {
                 let expanded: Vec<Vec<Sequence>> = items.iter().map(|item| self.expand(item)).collect();
                 let mut out = Vec::new();
-                // At most MAX_AND items (§3.2), which stitching checks.
+                // At most MAX_AND items (§3.2), which DOM validation checks.
                 debug_assert!(items.len() <= crate::grammar::MAX_AND);
-                for mask in 1u64..(1u64 << items.len().min(crate::grammar::MAX_AND)) {
+                for mask in 1u64..(1u64 << items.len()) {
                     let mut chosen = vec![Sequence::new()];
                     for (bit, options) in expanded.iter().enumerate() {
                         if mask & (1 << bit) != 0 {

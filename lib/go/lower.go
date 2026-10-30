@@ -948,9 +948,6 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		// Flat braces are a helper, h → x | h s x, its base productions
 		// first; the places inside the item come before those inside the
 		// separator (§3.2).
-		if isChain(e) {
-			lw.loweringFault(a, "a chain in %s is not the whole of its rule", ruleName)
-		}
 		item, sep := e.Inner, e.Sep
 		return lw.helper(a, ruleName, "", nil, func(h int32) [][]slot {
 			xs := lw.expand(item, a, ruleName)

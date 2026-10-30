@@ -1277,10 +1277,6 @@ class _Lowerer:
         while "test" in symbol:
             symbol = symbol["expr"]
         name = symbol.get("ref")
-        if not is_terminal_name(name or ""):
-            name = None
-        if not isinstance(name, str):
-            raise self.fail(f"an elidable optional in {self.current.name if self.current else '?'} does not begin with its terminator")
         return (name, test)
 
     def character_class(self, expr: Dom) -> tuple[str, Any] | None:
@@ -1289,8 +1285,7 @@ class _Lowerer:
         (engine §4); None for any other expression."""
         if "literal" in expr:
             value = literal_string(expr["literal"])
-            if value is None:
-                raise self.fail("a string terminal requires a string constant")
+            assert value is not None
             name = spelling(value, self.unicode)
             self.characters[name] = value
             return ("t", name)
@@ -1299,8 +1294,6 @@ class _Lowerer:
             return ("t", "_")
         if "range" in expr:
             ends = [literal_string(end) for end in expr["range"]]
-            if any(end is None or len(end) != 1 for end in ends) or ends[0] > ends[1]:
-                raise self.fail("invalid scalar range")
             name = "..".join(spelling(end, self.unicode) for end in ends)
             self.characters[name] = tuple(ord(end) for end in ends)
             return ("t", name)
@@ -1310,8 +1303,7 @@ class _Lowerer:
         if is_terminal_name(name):
             return ("t", name)
         number = self.rule_ids.get(name)
-        if number is None:
-            raise self.fail(f"{name} is not a rule of stage {self.grammar.stage}")
+        assert number is not None
         return ("n", number)
 
     def expand(self, expr: Dom) -> list[list[_Sym]]:
@@ -1348,8 +1340,6 @@ class _Lowerer:
             return options
         if "and" in expr:
             items = expr["and"]
-            if len(items) > 16:
-                raise self.fail("& joins at most 16 items, since it expands to 2ⁿ−1 sequences")
             expanded = []
             for item in items:
                 expanded.append((yield self._expand(item)))
@@ -1383,8 +1373,6 @@ class _Lowerer:
             # Flat braces are a helper, h → x | h s x, its base productions
             # first; the places inside the item come before those inside the
             # separator (engine §3.2).
-            if "chain" in expr:
-                raise self.fail(f"a chain in {self.current.name if self.current else '?'} is not the whole of its rule")
             items = yield self._expand(expr["repeat"])
             self.brace_items.append((items, self.current_alt, self.current))
             separators = (yield self._expand(expr["separator"])) if "separator" in expr else [[]]

@@ -408,9 +408,6 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 		if e.Kind == exRef && !isTerminalName(e.Name) && g.byName[e.Name] == nil {
 			return fail("%s is not a rule of stage %s", e.Name, g.name)
 		}
-		if e.Kind == exAnd && len(e.Items) > maxAnd {
-			return fail("an & joins at most %d items", maxAnd)
-		}
 		for _, it := range e.Items {
 			if err := walk(it); err != nil {
 				return err

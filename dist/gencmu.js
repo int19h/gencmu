@@ -9808,7 +9808,6 @@
         // Flat braces are a helper, `h → x | h s x`, its base productions
         // first; the places inside the item come before those inside the
         // separator (engine §3.2).
-        if (isChain(expr)) throw loweringError(where.alternative.at, `a chain in ${where.rule.name} is not the whole of its rule`);
         const item = expr.repeat;
         const separator = expr.separator;
         this.helperExpression = expr;
@@ -9834,17 +9833,14 @@
       // A range or a property is a terminal whose name is its written form,
       // and which matches by its characters rather than by a tag (engine §4).
       if ("literal" in expr) {
-        const value = this.grammar.evaluateClosed(where.rule.document, expr.literal, [where.rule.at.line ?? 0, where.rule.at.column ?? 0]);
-        if (!("string" in value)) throw loweringError(where.alternative.at, "a literal requires a string");
+        const value = /** @type {{string: string}} */ (this.grammar.evaluateClosed(where.rule.document, expr.literal, [where.rule.at.line ?? 0, where.rule.at.column ?? 0]));
         return [[{ symbol: { name: stringName(value.string, this.grammar.unicode), terminal: true, literal: value.string } }]];
       }
       if ("wildcard" in expr) return [[{ symbol: { name: "_", terminal: true, wildcard: true } }]];
       if ("range" in expr) {
         const values = expr.range.map(end => this.grammar.evaluateClosed(where.rule.document, end, [where.rule.at.line ?? 0, where.rule.at.column ?? 0]));
-        if (values.some(value => !("string" in value) || [...value.string].length !== 1)) throw loweringError(where.alternative.at, "a range endpoint requires one scalar");
         const strings = values.map(value => /** @type {{string: string}} */ (value).string);
         const characters = { from: /** @type {number} */ (strings[0].codePointAt(0)), to: /** @type {number} */ (strings[1].codePointAt(0)) };
-        if (characters.from > characters.to) throw loweringError(where.alternative.at, "a range starts above its end");
         const name = strings.map(value => stringName(value, this.grammar.unicode)).join("..");
         return [[{ symbol: { name, terminal: true, characters } }]];
       }
@@ -9895,8 +9891,7 @@
       const first = "seq" in expr ? expr.seq[0] : expr;
       const tested = "test" in first ? first : null;
       const name = tagName(tested ? tested.expr : first);
-      if (name === undefined) throw loweringError(where.alternative.at, `an elidable optional in ${where.rule.name} does not begin with its terminator`);
-      return { terminal: name, test: tested ? this.grammar.symbolTest(tested, where.rule.document, where.rule.at) : null };
+      return { terminal: /** @type {string} */ (name), test: tested ? this.grammar.symbolTest(tested, where.rule.document, where.rule.at) : null };
     }
   }
 

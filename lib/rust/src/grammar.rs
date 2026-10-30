@@ -1758,9 +1758,6 @@ fn check_rule(grammar: &StageGrammar, name: &str) -> Result<(), String> {
 
 fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
     match expr {
-        Expr::And(items) if items.len() > MAX_AND => {
-            Err(format!("an & of {} items; at most {MAX_AND} are allowed", items.len()))
-        }
         Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
             for item in items {
                 check_expr(grammar, item)?;
