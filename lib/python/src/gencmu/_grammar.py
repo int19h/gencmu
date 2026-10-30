@@ -9,7 +9,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any, Union
 
-from ._clauses import WHOLE, Emission, Prepared, captures_in, check_definition, prepare, prepare_conditions, simplify_term
+from ._clauses import WHOLE, Emission, Prepared, captures_in, check_definition, rule_has_ranked, prepare, prepare_conditions, simplify_term
 from ._errors import ErrorData, GencmuError
 from ._memo import SharedMemo
 from ._recent import Recent
@@ -726,7 +726,9 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
         for rule in dom.get("rules", []):
             if constants_in(rule) or _rule_has_pattern(rule):
                 constants.users.append((path, rule))
-            else:
+            elif rule_has_ranked(rule):
+                # Readers and DOM admission cover ordinary definitions.
+                # Ranked definitions can retain deferred problems.
                 result = check_definition(rule, True)
                 if result.problem is not None:
                     raise _error(result.problem.message, path, rule["at"], stage)

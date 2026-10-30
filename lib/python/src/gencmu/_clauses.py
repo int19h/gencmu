@@ -848,9 +848,12 @@ class DefinitionCheck:
 
 def check_definition(rule: Dom, defer_ranked: bool = False) -> DefinitionCheck:
     result = DefinitionCheck()
-    defer = defer_ranked and rule_has_ranked(rule)
+    ranked: bool | None = None
     for issue in _definition_issues(rule):
-        if defer and issue.kind in ("recipe-capture", "empty-emission"):
+        deferred_kind = defer_ranked and issue.kind in ("recipe-capture", "empty-emission")
+        if deferred_kind and ranked is None:
+            ranked = rule_has_ranked(rule)
+        if deferred_kind and ranked:
             if result.deferred is None or result.deferred.kind == "empty-emission" and issue.kind == "recipe-capture":
                 result.deferred = issue
         else:
@@ -955,6 +958,8 @@ def _definition_issues(rule: Dom):
             missing = first_absent_recipe_capture(recipe, present)
             if missing is not None:
                 yield DefinitionIssue("recipe-capture", f"a selected recipe reads an absent capture ${missing}")
+    if not items:
+        return
     # The anchor of each inserted tag, the capture of the next capture
     # item, found for every item in one backward pass.
     anchors: list[str | None] = [None] * len(items)
