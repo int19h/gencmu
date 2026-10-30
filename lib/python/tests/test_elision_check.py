@@ -143,7 +143,7 @@ class WitnessHook(unittest.TestCase):
 
         def watch(run: _testing.CheckRun) -> _testing.CheckWatch:
             runs.append(run)
-            return _testing.CheckWatch(None, lambda ranking: None)
+            return _testing.CheckWatch(lambda ranking: None)
 
         with mock.patch.object(_testing, "elision_check", watch):
             parse()

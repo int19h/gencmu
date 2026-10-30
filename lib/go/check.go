@@ -94,11 +94,9 @@ type elisionCheckRun struct {
 	originalAt, recordAt []int
 }
 
-// elisionWatch is what the witness test gives back to a check: the marks of
-// W(D)'s links, nil where the chart does not hold W(D), and a callback that
-// receives the check's ranking, nil where it has none, and its ranker.
+// elisionWatch is the independent witness test's ranking observer.
+// Runtime tracking supplies the witness marks.
 type elisionWatch struct {
-	marks  map[*item]map[link]bool
 	ranked func(*rankResult, *ranker)
 }
 
@@ -112,8 +110,8 @@ type privateOptions struct {
 	slotAdmission func(slotStatistics)
 	// elisionCheck, when set, receives each check of elision-only that
 	// recognized R and met no error of the grammar, before it ranks, for
-	// the witness test of tests/README.md. It returns independent witness
-	// marks and a callback that receives the ranking and the ranker.
+	// the witness test of tests/README.md. It returns an independent
+	// observer that receives the ranking and the ranker.
 	// Runtime tracking supplies the ranker's marks independently.
 	elisionCheck func(*elisionCheckRun) elisionWatch
 	// loseWitness loses the witness of a check after recognition (§7.9):
@@ -231,22 +229,17 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 		watch = private.elisionCheck(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
 	}
 	// The check ranks with no lean (§7.7).
-	var restored *dn
-	marks := watch.marks
 	var chosenProfile ruleProfile
 	flagged := false
 	for _, rule := range g.rules {
 		flagged = flagged || rule.leftmostLongest || rule.fewest
 	}
-	protect := true
 	if flagged {
 		chosenProfile = derivationProfile(g, d)
 	}
-	if protect {
-		marks, restored = walkWitness(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
-		if restored == nil {
-			top = nil
-		}
+	marks, restored := walkWitness(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
+	if restored == nil {
+		top = nil
 	}
 	var res *rankResult
 	rk := newRanker(r, "")
@@ -263,37 +256,33 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	if len(top) > 0 && private.loseWitness != "count" {
 		res = rk.rank(top)
 	}
-	if res != nil && protect && (!rawCounted || !preferred && !res.witnessCounted) {
+	if res != nil && (!rawCounted || !preferred && !res.witnessCounted) {
 		res = nil
 	}
 	better := false
 	var selected *rankResult
 	if res != nil {
 		profileOrder := compareProfiles(res.profile, chosenProfile)
-		if !preferred && profileOrder > 0 {
-			res = nil
-		} else {
-			excluded := protect && !res.witnessCounted
-			better = excluded || profileOrder < 0
-			if watch.ranked != nil && !better && !preferred {
-				copy := *res
-				selected = &copy
+		excluded := !res.witnessCounted
+		better = excluded || profileOrder < 0
+		if watch.ranked != nil && !better && !preferred {
+			copy := *res
+			selected = &copy
+		}
+		if better || res.verdict == VerdictTie {
+			competitor := res.first
+			if rk.compare(restored, competitor).kind == cIdentical {
+				competitor = res.second
 			}
-			if better || res.verdict == VerdictTie && protect {
-				competitor := res.first
-				if rk.compare(restored, competitor).kind == cIdentical {
-					competitor = res.second
-				}
-				if competitor == nil {
-					panic("reconstruction requires a distinct best admitted competitor")
-				}
-				res.first, res.second = restored, competitor
-				diff := rk.compare(restored, competitor)
-				if diff.kind == cVisDiff {
-					res.witness = [2]action{diff.va, diff.vb}
-				} else {
-					res.witness = [2]action{diff.wa, diff.wb}
-				}
+			if competitor == nil {
+				panic("reconstruction requires a distinct best admitted competitor")
+			}
+			res.first, res.second = restored, competitor
+			diff := rk.compare(restored, competitor)
+			if diff.kind == cVisDiff {
+				res.witness = [2]action{diff.va, diff.vb}
+			} else {
+				res.witness = [2]action{diff.wa, diff.wb}
 			}
 		}
 	}
