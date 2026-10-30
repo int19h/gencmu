@@ -900,7 +900,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			}
 			return ""
 		})
-		if msg != "" {
+		if msg == "nested too deeply" {
+			c.deep(maxDOMDepth + 1)
+		} else if msg != "" {
 			c.fail("%s", msg)
 		}
 	case tmConst:
