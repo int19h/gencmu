@@ -411,12 +411,12 @@ func (g *stageGrammar) resolveConstants() *Error {
 
 		// The checks that simplification decides, which the reader left to
 		// the loader, now with the constants' values (§9).
-		if msg := definitionProblem(newResolver(g.constants, g.uni).rule(u.rule)); msg != "" {
-			if deferredEmissionProblem(msg) && ruleHasRanked(u.rule) {
-				g.deferredEmissions = append(g.deferredEmissions, g.constError(u.doc, u.rule.At, "%s", msg))
-			} else {
-				return g.constError(u.doc, u.rule.At, "%s", msg)
-			}
+		result := checkDefinition(newResolver(g.constants, g.uni).rule(u.rule), true)
+		if result.problem != nil {
+			return g.constError(u.doc, u.rule.At, "%s", result.problem.message)
+		}
+		if result.deferred != nil {
+			g.deferredEmissions = append(g.deferredEmissions, g.constError(u.doc, u.rule.At, "%s", result.deferred.message))
 		}
 		if err := g.checkDelimiters(u.doc, u.rule, false); err != nil {
 			return err

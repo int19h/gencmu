@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ._clauses import attachment_order, definition_problem, duplicate_captures, deferred_emission_problem, rule_has_ranked
+from ._clauses import attachment_order, check_definition, duplicate_captures
 from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
@@ -64,19 +64,12 @@ def _is_capital(name: str) -> bool:
     return "A" <= name[:1] <= "Z"
 
 
-class DeferredDom(dict):
-    def __init__(self,dom,pending):
-        super().__init__(dom)
-        self.deferred_emissions = pending
-
-
 class DomBuilder:
     """Reads the DOM off a document tree, rule by rule of the §9 table."""
 
     def __init__(self, tokens: list[Token], grammar_text: GrammarText, document: str, unicode: Marks, defer_emission: bool = False, decode_string=None) -> None:
         self.decode_string = decode_string
         self.defer_emission = defer_emission
-        self.deferred_emissions = []
         self.tokens = tokens
         self.grammar_text = grammar_text
         self.document = document
@@ -436,12 +429,9 @@ class DomBuilder:
         boundary = boundary_problem(dom)
         if boundary is not None:
             raise self.fail(self.boundary_nodes.get(id(boundary[1]), node), boundary[0])
-        problem = definition_problem(dom)
-        if problem is not None:
-            if self.defer_emission and deferred_emission_problem(problem) and rule_has_ranked(dom):
-                self.deferred_emissions.append((dom,problem))
-            else:
-                raise self.fail(node, problem)
+        result = check_definition(dom, self.defer_emission)
+        if result.problem is not None:
+            raise self.fail(node, result.problem.message)
         return dom
 
     def parameter(self, node):

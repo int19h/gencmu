@@ -1,0 +1,13 @@
+{
+  "description": "Definition deferral keeps the required phase: recipe-priority.",
+  "grammar": "%rule text [$a:A] (X ≻ Y) | [$b:B] Z := $b.value %emits $a",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

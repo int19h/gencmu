@@ -308,9 +308,6 @@ class NotationReader:
         try:
             builder = DomBuilder(tokens, grammar_text, path, self.unicode, defer_emission, strings.decode)
             dom = builder.document_dom(tree)
-            if builder.deferred_emissions:
-                from ._dom import DeferredDom
-                dom = DeferredDom(dom,builder.deferred_emissions)
         except GencmuError:
             raise
         except (LookupError, TypeError, ValueError, AttributeError, AssertionError) as error:

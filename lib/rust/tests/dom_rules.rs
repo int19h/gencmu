@@ -1643,3 +1643,14 @@ fn absent_recipe_capture_order() {
         }
     }
 }
+
+#[test]
+fn deferred_recipe_precedes_empty_emission() {
+    let sources: std::collections::BTreeMap<String,String> = std::collections::BTreeMap::from([
+        ("p.md".into(), "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".into()),
+        ("g.md".into(), "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [$a:A] (X ≻ Y) | [$b:B] Z := $b.value %emits $a\n```\n".into()),
+    ]);
+    let error = gencmu::load_pipeline_sources(&sources, "p.md").err().expect("a deferred recipe fault");
+    assert!(error.message.contains("recipe") && error.message.contains("$b"), "{error}");
+    assert!(error.diagnostic.is_none(), "{error}");
+}

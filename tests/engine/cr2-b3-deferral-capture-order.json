@@ -1,0 +1,13 @@
+{
+  "description": "An immediate definition fault precedes ranked validation: capture-order.",
+  "grammar": "%rule text [$a:A] [$b:B] (X ≻ Y) %emits $b, $a",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

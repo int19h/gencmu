@@ -468,16 +468,11 @@ impl<'a> Reader<'a> {
             return Err(Error::grammar(message).at(line, column));
         }
         // The definition is checked as a whole once it is read (§9).
-        if let Some(problem) = crate::clauses::definition_problem(&rule) {
-            if self.defer_emission
-                && crate::dom::deferred_emission_problem(&problem)
-                && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))
-            {
-                rule.deferred_emission = Some(problem);
-            } else {
-                return Err(self.error(definer, problem));
-            }
+        let result = crate::clauses::check_definition(&rule, self.defer_emission);
+        if let Some(issue) = result.problem {
+            return Err(self.error(definer, issue.message));
         }
+        rule.deferred_emission = result.deferred;
         Ok(rule)
     }
 

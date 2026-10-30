@@ -8,7 +8,7 @@ from ._types import _METHODS
 import re
 from typing import Any, Protocol
 
-from ._clauses import definition_problem, duplicate_captures, deferred_emission_problem, rule_has_ranked
+from ._clauses import check_definition, duplicate_captures
 from ._patterns import walk_pattern
 from ._pattern_shapes import layered_pattern_problem
 from ._strings import ENGINE_TAGS, USER_NAME, is_constant, literal_string, lit
@@ -153,7 +153,7 @@ def known_dom_members(dom):
     return dom
 
 
-def dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str | None:
+def dom_problem(dom: Any, unicode: Marks, defer_emission: bool = True) -> str | None:
     try:
         dom = known_dom_members(dom)
         problem = _dom_problem(dom, unicode, defer_emission)
@@ -375,8 +375,13 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
                 return "a capture name used twice in one production"
         from ._boundary import problem as boundary_problem
         boundary = boundary_problem(r)
-        problem = (boundary[0] if boundary else None) or definition_problem(r) or rule_type_problem(r)
-        if problem and not (defer_emission and deferred_emission_problem(problem) and rule_has_ranked(r)):
+        if boundary:
+            return boundary[0]
+        issue = check_definition(r, defer_emission).problem
+        if issue:
+            return issue.message
+        problem = rule_type_problem(r)
+        if problem:
             return problem
     for c in dom["constants"]:
         problem = constant_value_problem(c["value"], c["op"] == "redefine")

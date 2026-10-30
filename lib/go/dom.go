@@ -63,7 +63,7 @@ type domConst struct {
 
 type domRule struct {
 	rawTemplate      templateObject
-	deferredEmission string
+	deferredEmission *definitionIssue
 	Name             string
 	Flags            []string
 	Op               string // "define", "redefine" or "extend"

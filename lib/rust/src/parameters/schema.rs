@@ -383,12 +383,8 @@ pub(crate) fn declaration(r: &Json, kind: &str, uni: &Unicode) -> Option<&'stati
         if crate::boundary::definition_problem(&native).is_some() {
             return Some("a malformed boundary clause");
         }
-        if let Some(problem) = crate::clauses::definition_problem(&native) {
-            if !(dom::deferred_emission_problem(&problem)
-                && native.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr)))
-            {
-                return Some("a malformed definition");
-            }
+        if crate::clauses::check_definition(&native, true).problem.is_some() {
+            return Some("a malformed definition");
         }
     }
     None
@@ -1098,4 +1094,12 @@ pub(crate) fn first_duplicate(rule: &Json) -> Option<&Json> {
         }
     }
     None
+}
+
+// Preserve argument-independent deferred faults of uninstantiated templates.
+pub(crate) fn deferred_definition(r: &Json) -> Option<crate::clauses::DefinitionIssue> {
+    let mut projected = partial(r, "declaration");
+    remove(&mut projected, "params");
+    remove(&mut projected, "args");
+    dom::rule_from_json(&projected).ok().and_then(|rule| crate::clauses::check_definition(&rule, true).deferred)
 }

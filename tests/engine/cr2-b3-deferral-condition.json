@@ -1,0 +1,13 @@
+{
+  "description": "An immediate definition fault precedes ranked validation: condition.",
+  "grammar": "%rule text ($a:A ≻ $b:B) %conditions $a.value = $b.value",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

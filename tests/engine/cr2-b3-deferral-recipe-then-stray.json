@@ -1,0 +1,13 @@
+{
+  "description": "An immediate definition fault precedes ranked validation: recipe-then-stray.",
+  "grammar": "%rule text := $d.value | $d:D ≻ $c:C $d:D %emits $c ($d)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

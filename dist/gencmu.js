@@ -4522,7 +4522,7 @@
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
    * @returns {string | null}
    */
-  function domProblem(dom, unicode, deferEmission = false) {
+  function domProblem(dom, unicode, deferEmission = true) {
     /** @type {(value: unknown) => value is Record<string, any>} */
     const object = isDomObject;
     if (!object(dom) || dom.format !== DOM_FORMAT || !["rules", "directives", "constants", "classifiers", "implications"].every(key => Array.isArray(dom[key]))) return `not a DOM of format ${DOM_FORMAT}`;
@@ -4868,7 +4868,7 @@
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
    * @returns {dom is GrammarDom}
    */
-  function isDom(dom, unicode, deferEmission = false) {
+  function isDom(dom, unicode, deferEmission = true) {
     return domProblem(dom, unicode, deferEmission) === null;
   }
 
@@ -5539,14 +5539,18 @@
     return null;
   }
 
-  /** @type {WeakMap<object,string>} */
-  const deferredEmissionProblems = new WeakMap();
-  /** @type {WeakMap<object,string>} */
-  const deferredRecipeProblems = new WeakMap();
+  /** @type {WeakMap<object,{kind:"independent"|"recipe-capture"|"empty-emission",problem:string}>} */
+  const deferredDefinitionProblems = new WeakMap();
   /** @param {object} rule */
-  const deferredRecipeProblem = rule => deferredRecipeProblems.get(rule);
+  const deferredRecipeProblem = rule => {
+    const issue = deferredDefinitionProblems.get(rule);
+    return issue?.kind === "recipe-capture" ? issue.problem : undefined;
+  };
   /** @param {object} rule @returns {string | undefined} */
-  const deferredEmissionProblem = rule => deferredEmissionProblems.get(rule);
+  const deferredEmissionProblem = rule => {
+    const issue = deferredDefinitionProblems.get(rule);
+    return issue?.kind === "empty-emission" ? issue.problem : undefined;
+  };
 
   /** @param {any} rule @returns {boolean} */
   function ruleHasRanked(rule) {
@@ -5724,6 +5728,19 @@
    * @returns {string | null}
    */
   function definitionProblem(rule, deferEmission = false) {
+    deferredDefinitionProblems.delete(rule);
+    const defer = deferEmission && ruleHasRanked(rule);
+    for (const issue of definitionIssues(rule)) {
+      if (defer && (issue.kind === "recipe-capture" || issue.kind === "empty-emission")) {
+        const previous = deferredDefinitionProblems.get(rule);
+        if (!previous || previous.kind === "empty-emission" && issue.kind === "recipe-capture") deferredDefinitionProblems.set(rule, issue);
+      } else return issue.problem;
+    }
+    return null;
+  }
+
+  /** @param {any} rule @returns {Generator<{kind:"independent"|"recipe-capture"|"empty-emission",problem:string}, void, unknown>} */
+  function* definitionIssues(rule) {
     // A constant is its value in simplification (engine §3.6). A clause that
     // holds a constant without one waits for the loader, which checks the
     // definition again once the constants have their values (engine §9).
@@ -5739,7 +5756,7 @@
     // A definition with no clause has nothing to check about its captures,
     // and its productions, whose number can be exponential, are not listed.
     if (rule.tags === undefined && rule.conditions.length === 0 && rule.emit === undefined &&
-        rule.alternatives.every((/** @type {any} */ alternative) => alternative.tags === undefined && alternative.value === undefined && alternative.image === undefined) && rule.value === undefined && rule.image === undefined) return null;
+        rule.alternatives.every((/** @type {any} */ alternative) => alternative.tags === undefined && alternative.value === undefined && alternative.image === undefined) && rule.value === undefined && rule.image === undefined) return;
     // Each production of each alternative, with the captures it reads
     // (engine §3.5, §9); productions that read the same captures in the same
     // order are one.
@@ -5774,7 +5791,7 @@
     // whatever else it says.
     const named = items.flatMap((/** @type {any} */ item) => (typeof item.capture === "string" ? [item.capture, ...attachmentsOf(item)] : []));
     for (const name of [...named, ...clauses.flatMap(capturesMentioned)]) {
-      if (!anyHas(name)) return `$${name} is captured by no alternative of ${rule.name}`;
+      if (!anyHas(name)) yield {kind:"independent", problem:`$${name} is captured by no alternative of ${rule.name}`};
     }
     for (const condition of rule.conditions) {
       if (waits(condition)) continue;
@@ -5815,14 +5832,14 @@
       } else {
         found = alternatives.some((/** @type {unknown} */ _, /** @type {number} */ index) => applies(index));
       }
-      if (!found) return `a condition of ${rule.name} applies to no production`;
+      if (!found) yield {kind:"independent", problem:`a condition of ${rule.name} applies to no production`};
     }
     for (const { captures, alternative } of productions) {
       const has = (/** @type {string} */ name) => captures.has(name);
       for (const term of [rule.tags, alternative.tags]) {
         if (term === undefined || waits(term)) continue;
         const missing = capturesUsed(simplifyFor(prepareClause(term), has, captures)).find((name) => !has(name));
-        if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which a production lacks; guard it with $${missing} ⟹`;
+        if (missing !== undefined) yield {kind:"independent", problem:`a tag term of ${rule.name} uses $${missing}, which a production lacks; guard it with $${missing} ⟹`};
       }
       const recipes = new Set([
         alternative.value ?? rule.value,
@@ -5833,8 +5850,7 @@
         const missing = capturesUsed(recipe).find((name) => !has(name));
         if (missing !== undefined) {
           const problem = `a recipe of ${rule.name} uses $${missing}, which a production lacks`;
-          if (!ruleHasRanked(rule)) return problem;
-          if (!deferredRecipeProblems.has(rule)) deferredRecipeProblems.set(rule,problem);
+          yield {kind:"recipe-capture", problem};
         }
       }
       if (!rule.emit) continue;
@@ -5843,8 +5859,7 @@
       const present = presentItems(items, has, captures).map((index) => items[index]);
       if (items.length > 0 && present.length === 0) {
         const problem = `%emits of ${rule.name} leaves a production nothing to emit`;
-        if (!deferEmission || !ruleHasRanked(rule)) return problem;
-        deferredEmissionProblems.set(rule, problem);
+        yield {kind:"empty-emission", problem};
       }
       // A production without an item's carrier lacks its attachments too
       // (engine §9). The first such item, in order, is found from the index
@@ -5853,28 +5868,27 @@
       if (strayAt !== -1) {
         const item = items[strayAt];
         const stray = attachmentsOf(item).find(has);
-        return `%emits of ${rule.name} attaches $${stray} in a production without its carrier $${item.capture}`;
+        yield {kind:"independent", problem:`%emits of ${rule.name} attaches $${stray} in a production without its carrier $${item.capture}`};
       }
       // The written order of the captures, attachments included, is the order
       // they stand in (engine §9).
       const written = present.flatMap((/** @type {any} */ item) => (item.capture ? [...(item.before ?? []), item.capture, ...(item.after ?? [])] : []));
       const positions = written.filter(has).map((/** @type {string} */ name) => /** @type {number} */ (captures.get(name)));
       if (positions.some((/** @type {number} */ position, /** @type {number} */ at) => at > 0 && position < positions[at - 1])) {
-        return `%emits of ${rule.name} lists captures out of the order they stand in`;
+        yield {kind:"independent", problem:`%emits of ${rule.name} lists captures out of the order they stand in`};
       }
       for (const item of present) {
         for (const recipe of [item.value, item.image]) {
           if (recipe === undefined) continue;
           const missing = capturesUsed(recipe).find((name) => !has(name));
           if (missing !== undefined) {
-          const problem = `a recipe of ${rule.name} uses $${missing}, which a production lacks`;
-          if (!ruleHasRanked(rule)) return problem;
-          if (!deferredRecipeProblems.has(rule)) deferredRecipeProblems.set(rule,problem);
-        }
+            const problem = `a recipe of ${rule.name} uses $${missing}, which a production lacks`;
+            yield {kind:"recipe-capture", problem};
+          }
         }
         if (!item.tags || waits(item.tags)) continue;
         const missing = capturesUsed(simplifyFor(prepareClause(item.tags), has, captures)).find((name) => !has(name));
-        if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which a production lacks; guard it with $${missing} ⟹`;
+        if (missing !== undefined) yield {kind:"independent", problem:`a tag term of ${rule.name} uses $${missing}, which a production lacks; guard it with $${missing} ⟹`};
       }
     }
     // Each inserted tag's anchor is the next capture item, found in one
@@ -5892,10 +5906,10 @@
       if (items[index].insert === undefined) continue;
       const next = anchors[index];
       if (next && next.capture !== "" && !allHave(next.capture)) {
-        return `%emits of ${rule.name} inserts a tag before $${next.capture}, which a production lacks`;
+        yield {kind:"independent", problem:`%emits of ${rule.name} inserts a tag before $${next.capture}, which a production lacks`};
       }
     }
-    return null;
+
   }
 
   /**
@@ -8619,6 +8633,12 @@
       this.implicationItems = [];
       /** @type {{path:string,directive:import("./types.js").DomDirective}[]} */
       this.featureItems = [];
+      const pendingTemplates = [];
+      for (const {path,dom} of documents) for (const rule of dom.rules) if (rule.params) {
+        const problem = definitionProblem(rule,true);
+        if (problem) throw this.documentError(path,rule.at,problem);
+        if (deferredRecipeProblem(rule) || deferredEmissionProblem(rule)) pendingTemplates.push({path,rule});
+      }
       const expansion = expandTemplates(documents,unicode);
       this.templates=expansion.templates;
       this.instances=expansion.instances;
@@ -8741,6 +8761,10 @@
       for (const { path, rule } of this.emissionUsers) {
         const problem = deferredRecipeProblem(rule) ?? deferredEmissionProblem(rule);
         if (problem) throw this.documentError(path, rule.at, problem);
+      }
+      for (const {path,rule} of pendingTemplates) {
+        const problem = deferredRecipeProblem(rule) ?? deferredEmissionProblem(rule);
+        if (problem) throw this.documentError(path,rule.at,problem);
       }
       // Recipe name analysis precedes effective channel dependencies (§11.4).
       const recipeAlternatives = [...this.rules.values()].flatMap(rule => rule.alternatives);

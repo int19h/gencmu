@@ -386,8 +386,8 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 		if _, msg := boundaryRuleProblem(native); msg != "" {
 			return problem(msg)
 		}
-		if msg := definitionProblem(native); msg != "" && !(deferredEmissionProblem(msg) && ruleHasRanked(native)) {
-			return problem(msg)
+		if issue := checkDefinition(native, true).problem; issue != nil {
+			return problem(issue.message)
 		}
 	}
 	return nil
@@ -1147,4 +1147,16 @@ func templatePartial(value any, kind string) any {
 		}
 	}
 	return out
+}
+
+// templateDeferredDefinition retains known faults even without an instance.
+func templateDeferredDefinition(r templateObject) *definitionIssue {
+	projected := templateObj(templatePartial(r, "declaration"))
+	delete(projected, "params")
+	delete(projected, "args")
+	native, err := decodeRule(templateJSON(projected))
+	if err != nil {
+		return nil
+	}
+	return checkDefinition(native, true).deferred
 }

@@ -1,0 +1,13 @@
+{
+  "description": "An immediate definition fault precedes ranked validation: tag-guard.",
+  "grammar": "%rule text $a:A ≻ $b:B :: $a.tags",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

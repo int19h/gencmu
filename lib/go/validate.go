@@ -218,8 +218,10 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 				return &domProblem{message: msg, rule: r}
 			}
 		}
-		if msg := definitionProblem(r); msg != "" && msg != r.deferredEmission {
-			return &domProblem{message: msg, rule: r}
+		result := checkDefinition(r, true)
+		r.deferredEmission = result.deferred
+		if result.problem != nil {
+			return &domProblem{message: result.problem.message, rule: r}
 		}
 		if msg := ruleTypeProblem(r); msg != "" {
 			return &domProblem{message: fmt.Sprintf("rule %s: %s", r.Name, msg), rule: r}

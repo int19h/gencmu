@@ -355,6 +355,9 @@ pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
         if rule_type_problem(&rule).is_some() {
             return Some("a term or a condition whose types do not agree");
         }
+        if crate::clauses::check_definition(&rule, true).problem.is_some() {
+            return Some("a malformed definition");
+        }
         for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alt| alt.tags.as_ref())) {
             if crate::notation::reads_own_tags(term) {
                 return Some("a tag clause reads its own tags");

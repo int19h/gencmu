@@ -1,0 +1,13 @@
+{
+  "description": "Definition deferral keeps the required phase: uncalled-template.",
+  "grammar": "%rule choose(@T) A ≻ $d:D ≻ $c:C $d:D %emits $c ($d)\n%rule text X",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

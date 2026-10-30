@@ -15870,5 +15870,164 @@
     }
   },
   "malformed": false
+},
+{
+  "description": "An immediate stray attachment is not hidden by a deferred empty emission.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": [
+            {
+              "capture": "d",
+              "expr": {
+                "ref": "D"
+              }
+            },
+            {
+              "seq": [
+                {
+                  "capture": "c",
+                  "expr": {
+                    "ref": "C"
+                  }
+                },
+                {
+                  "capture": "d",
+                  "expr": {
+                    "ref": "D"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "emit": {
+      "items": [
+        {
+          "capture": "c",
+          "after": [
+            "d"
+          ]
+        }
+      ]
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "A ranked rule defers an empty emission during DOM admission.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "seq": [
+            {
+              "optional": {
+                "capture": "a",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            },
+            {
+              "ranked": [
+                {
+                  "ref": "X"
+                },
+                {
+                  "ref": "Y"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "emit": {
+      "items": [
+        {
+          "capture": "a"
+        }
+      ]
+    }
+  },
+  "malformed": false
+},
+{
+  "description": "A ranked rule defers recipe capture absence during DOM admission.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": [
+            {
+              "capture": "d",
+              "expr": {
+                "ref": "D"
+              }
+            },
+            {
+              "seq": [
+                {
+                  "capture": "c",
+                  "expr": {
+                    "ref": "C"
+                  }
+                },
+                {
+                  "capture": "d",
+                  "expr": {
+                    "ref": "D"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "value": {
+      "concat": [
+        {
+          "method": "value",
+          "receiver": {
+            "capture": "c"
+          },
+          "args": []
+        }
+      ]
+    }
+  },
+  "malformed": false
 }
 ]

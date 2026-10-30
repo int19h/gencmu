@@ -137,7 +137,7 @@ pub(crate) enum Op {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct RuleDef {
-    pub deferred_emission: Option<String>,
+    pub deferred_emission: Option<crate::clauses::DefinitionIssue>,
     pub name: String,
     pub op: Op,
     pub flags: Vec<String>,
@@ -356,7 +356,7 @@ fn position(value: &Json) -> R<(usize, usize)> {
 }
 
 pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
-    dom_from_json_mode(value, unicode, false)
+    dom_from_json_mode(value, unicode, true)
 }
 pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -> R<Dom> {
     let cleaned = known_dom_members(value);
@@ -435,16 +435,11 @@ pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode, defer: bool) -> R
         if let Some((problem, _)) = crate::boundary::definition_problem(rule) {
             return Err(problem);
         }
-        if let Some(problem) = crate::clauses::definition_problem(rule) {
-            if defer
-                && deferred_emission_problem(&problem)
-                && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))
-            {
-                rule.deferred_emission = Some(problem);
-            } else {
-                return Err(problem);
-            }
+        let result = crate::clauses::check_definition(rule, defer);
+        if let Some(issue) = result.problem {
+            return Err(issue.message);
         }
+        rule.deferred_emission = result.deferred;
     }
     Ok(Dom { rules, directives, constants, classifiers, implications, ..Dom::default() })
 }
@@ -2324,14 +2319,6 @@ impl Drop for Cond {
         self.take_parts(&mut stack);
         drop_parts(stack);
     }
-}
-
-pub(crate) fn deferred_emission_problem(s: &str) -> bool {
-    s.starts_with("%emits of ")
-        || s.starts_with("a selected recipe of ")
-        || s.starts_with("an item recipe of ")
-        || s.starts_with("a tag term of ")
-        || s.starts_with("a condition of ") && s.ends_with("applies to no production")
 }
 
 pub(crate) fn valid_integer(s: &str) -> bool {

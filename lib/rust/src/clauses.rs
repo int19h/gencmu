@@ -1326,10 +1326,48 @@ fn cond_waits(cond: &Cond) -> bool {
     !out.is_empty()
 }
 
-/// Why a definition, a rule's alternatives with its own clauses, is an
-/// error of the document (engine §9), or `None`. The checks that
-/// simplification decides skip a clause that holds a constant.
+/// Definition problem kinds determine which checks wait for ranked validation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DefinitionKind {
+    Independent,
+    RecipeCapture,
+    EmptyEmission,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DefinitionIssue {
+    pub kind: DefinitionKind,
+    pub message: String,
+}
+pub(crate) struct DefinitionCheck {
+    pub problem: Option<DefinitionIssue>,
+    pub deferred: Option<DefinitionIssue>,
+}
+
+pub(crate) fn check_definition(rule: &RuleDef, defer_ranked: bool) -> DefinitionCheck {
+    let defer_ranked = defer_ranked && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr));
+    let mut deferred = None;
+    let problem = definition_fault(rule, &mut |issue| {
+        if defer_ranked && matches!(issue.kind, DefinitionKind::RecipeCapture | DefinitionKind::EmptyEmission) {
+            if deferred.as_ref().map_or(true, |previous: &DefinitionIssue| {
+                previous.kind == DefinitionKind::EmptyEmission && issue.kind == DefinitionKind::RecipeCapture
+            }) {
+                deferred = Some(issue.clone());
+            }
+            true
+        } else {
+            false
+        }
+    });
+    DefinitionCheck { problem, deferred }
+}
+
+#[cfg(test)]
 pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
+    check_definition(rule, false).problem.map(|issue| issue.message)
+}
+
+fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssue) -> bool) -> Option<DefinitionIssue> {
+    let immediate = |message| Some(DefinitionIssue { kind: DefinitionKind::Independent, message });
     // A definition with no clause has nothing to check about its captures,
     // and its productions, whose number can be exponential, are not listed.
     if rule.tags.is_none()
@@ -1396,7 +1434,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             || rule.strings.image.is_some()
             || rule.alternatives.iter().any(|a| a.strings.value.is_some() || a.strings.image.is_some()))
     {
-        return Some(format!("{} is erased and has an emission or recipe", rule.name));
+        return immediate(format!("{} is erased and has an emission or recipe", rule.name));
     }
 
     // A capture mentioned anywhere, presence tests included, that no
@@ -1448,7 +1486,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         }
     }
     if let Some(name) = mentioned.iter().find(|name| !any_has(name)) {
-        return Some(format!("${name} is captured by no alternative of {}", rule.name));
+        return immediate(format!("${name} is captured by no alternative of {}", rule.name));
     }
 
     // A condition that applies to no production.
@@ -1491,7 +1529,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             Reach::Named(name) => holders.get(name).into_iter().flatten().any(|&index| applies_to(index)),
         };
         if !applies {
-            return Some(format!("a condition of {} applies to no production", rule.name));
+            return immediate(format!("a condition of {} applies to no production", rule.name));
         }
     }
 
@@ -1528,13 +1566,13 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             // term for each production.
             for term in [rule_tags, alternative_tags[*alternative]].into_iter().flatten() {
                 if let Outcome::Uses(Some(missing)) = simplified_outcome(Part::Term(term), &has) {
-                    return Some(unguarded(missing));
+                    return immediate(unguarded(missing));
                 }
             }
         }
         for check in [&rule_check, &alternative_checks[*alternative]].into_iter().flatten() {
             if let Some(missing) = check.missing(positions[index].keys().copied(), &has) {
-                return Some(unguarded(missing));
+                return immediate(unguarded(missing));
             }
         }
         let alternative = &rule.alternatives[*alternative];
@@ -1544,7 +1582,13 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             let mut used = Vec::new();
             term_captures(recipe, &mut used);
             if let Some(missing) = used.into_iter().find(|name| !has(name)) {
-                return Some(format!("a selected recipe of {} uses absent capture ${missing}", rule.name));
+                let issue = DefinitionIssue {
+                    kind: DefinitionKind::RecipeCapture,
+                    message: format!("a selected recipe of {} uses absent capture ${missing}", rule.name),
+                };
+                if !defer_issue(&issue) {
+                    return Some(issue);
+                }
             }
         }
         if rule.emit.is_none() {
@@ -1569,7 +1613,13 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         };
         // An emission that loses every item is an error (§9).
         if present.is_empty() && !items.is_empty() {
-            return Some(format!("%emits of {} leaves a production nothing to emit", rule.name));
+            let issue = DefinitionIssue {
+                kind: DefinitionKind::EmptyEmission,
+                message: format!("%emits of {} leaves a production nothing to emit", rule.name),
+            };
+            if !defer_issue(&issue) {
+                return Some(issue);
+            }
         }
         // A production without an item's carrier lacks its attachments too
         // (§9).
@@ -1584,7 +1634,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                     continue;
                 }
                 if let Some(stray) = attachments.names().find(|name| has(name)) {
-                    return Some(format!(
+                    return immediate(format!(
                         "%emits of {} attaches ${stray} in a production without its carrier ${carrier}",
                         rule.name
                     ));
@@ -1611,7 +1661,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             })
             .collect();
         if order.windows(2).any(|pair| pair[1] < pair[0]) {
-            return Some(format!("%emits of {} lists captures out of the order they stand in", rule.name));
+            return immediate(format!("%emits of {} lists captures out of the order they stand in", rule.name));
         }
         for &(item, waits) in &present {
             let strings = match item {
@@ -1622,7 +1672,13 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                 let mut used = Vec::new();
                 term_captures(recipe, &mut used);
                 if let Some(missing) = used.into_iter().find(|name| !has(name)) {
-                    return Some(format!("an item recipe of {} uses absent capture ${missing}", rule.name));
+                    let issue = DefinitionIssue {
+                        kind: DefinitionKind::RecipeCapture,
+                        message: format!("an item recipe of {} uses absent capture ${missing}", rule.name),
+                    };
+                    if !defer_issue(&issue) {
+                        return Some(issue);
+                    }
                 }
             }
             if let EmitItem::Capture(_, Some(term), ..) | EmitItem::Insert(Some(term), _) = item {
@@ -1630,7 +1686,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                     continue;
                 }
                 if let Outcome::Uses(Some(missing)) = simplified_outcome(Part::Term(term), &has) {
-                    return Some(unguarded(missing));
+                    return immediate(unguarded(missing));
                 }
             }
         }
@@ -1661,7 +1717,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                 anchor.is_empty() || holders.get(anchor).map_or(0, Vec::len) == productions.len()
             };
             if !everywhere {
-                return Some(format!(
+                return immediate(format!(
                     "%emits of {} inserts a tag before ${anchor}, which a production lacks",
                     rule.name
                 ));

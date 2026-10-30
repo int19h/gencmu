@@ -141,3 +141,14 @@ func TestValidRankedCacheSkipsLocationRecovery(t *testing.T) {
 		}
 	}
 }
+
+func TestDeferredRecipePrecedesEmptyEmission(t *testing.T) {
+	grammar := `%rule text [$a:A] (X ≻ Y) | [$b:B] Z := $b.value %emits $a`
+	_, err := casePipeline(&engineCase{Grammar: &grammar}, false)
+	if err == nil || !strings.Contains(err.Error(), "recipe") || !strings.Contains(err.Error(), "$b") {
+		t.Fatalf("got %v", err)
+	}
+	if e, ok := err.(*Error); !ok || e.Code != "" {
+		t.Fatalf("got %v", err)
+	}
+}
