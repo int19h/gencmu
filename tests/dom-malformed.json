@@ -15077,5 +15077,157 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "A header tag guard reads bare $ as a value.",
+    "rule": {
+      "name": "unit",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "tags": {
+        "if": {
+          "op": "=",
+          "left": {
+            "capture": ""
+          },
+          "right": {
+            "string": "a"
+          }
+        },
+        "then": {
+          "tag": "B"
+        }
+      }
+    },
+    "malformed": false
+  },
+  {
+    "description": "An alternative tag guard reads bare $ as a value.",
+    "rule": {
+      "name": "unit",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          },
+          "tags": {
+            "if": {
+              "op": "=",
+              "left": {
+                "capture": ""
+              },
+              "right": {
+                "string": "a"
+              }
+            },
+            "then": {
+              "tag": "B"
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A tag guard cannot read its constituent through $.tags.",
+    "rule": {
+      "name": "unit",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "tags": {
+        "if": {
+          "op": "⊆",
+          "left": {
+            "method": "tags",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "tag": "B"
+          }
+        },
+        "then": {
+          "tag": "B"
+        }
+      },
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A tag guard cannot read its constituent through $.classes.",
+    "rule": {
+      "name": "unit",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "tags": {
+        "if": {
+          "op": "⊆",
+          "left": {
+            "method": "classes",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "tag": "B"
+          }
+        },
+        "then": {
+          "tag": "B"
+        }
+      },
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]

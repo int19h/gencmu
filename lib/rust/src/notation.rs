@@ -2568,10 +2568,9 @@ fn is_capital(name: &str) -> bool {
     name.starts_with(|c: char| c.is_ascii_uppercase())
 }
 
-/// Whether a tag term, or a condition inside one, reads the tags of `$`,
-/// the constituent whose tags it defines: `$` as a value, `tags($)` or
-/// `classes($)` (§9). A span argument such as `value($)` reads tokens,
-/// and `tags($, R)` parses them again.
+/// Whether a tag term, or a condition inside one, reads `$.tags` or
+/// `$.classes` (§9). Bare `$` reads the input value, and `$.tags(R)`
+/// parses the input again.
 pub(crate) fn reads_own_tags(term: &Term) -> bool {
     // The parts to look at, with an explicit stack: a term is as deep as
     // its document nests until the check of its depth (§9).
@@ -2580,11 +2579,6 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
         work::count(Work::Walked, 1);
         match part {
             Part::Term(term) => match term {
-                Term::Capture(name) => {
-                    if name.is_empty() {
-                        return true;
-                    }
-                }
                 Term::Call(name, args) => {
                     if matches!(name.as_str(), "tags" | "classes")
                         && matches!(&args[..], [Arg::Term(Term::Capture(name))] if name.is_empty())
@@ -2595,8 +2589,13 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().map(Part::Term)),
                 Term::Difference(left, right) => stack.extend([Part::Term(left), Part::Term(right)]),
                 Term::If(cond, then) => stack.extend([Part::Cond(cond), Part::Term(then)]),
-                Term::Source(_) | Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => {
-                }
+                Term::Source(_)
+                | Term::Pattern(_)
+                | Term::Str(_)
+                | Term::Tag(_)
+                | Term::EmptySet
+                | Term::Const(..)
+                | Term::Capture(_) => {}
             },
             Part::Cond(cond) => match cond {
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
