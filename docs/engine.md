@@ -265,6 +265,8 @@ Outside ranges, each property uses its declared default. Duplicate members withi
 
 The file is strict UTF-8. Line endings, blank lines, field separators, and number spellings follow `data/unicode/unicode.txt`. Every range contains only scalars and excludes surrogates. Records after the header can appear in any order. Unknown records, duplicate declarations, undeclared properties, invalid types, unavailable values, and malformed fields are grammar errors.
 
+After record inspection, the loader inspects each property's defaults and ranges in declaration order. The first error ends that inspection.
+
 Property and value names must belong to the pinned catalog. Custom files cannot invent properties or tag aliases. For a supported property, the bundled file declares every catalog value, including unused values. For core combining classes, an absent PropertyValueAliases.txt row requires the decimal spellings defined above. A row containing `CCC10` still supplies aliases and forbids decimal alternatives.
 
 The generator reads the pinned UCD files, including PropertyAliases.txt and PropertyValueAliases.txt. Binary sources include PropList.txt, DerivedCoreProperties.txt, emoji/emoji-data.txt, CompositionExclusions.txt, and DerivedNormalizationProps.txt. That last file supplies the binary properties Full_Composition_Exclusion and Changes_When_NFKC_Casefolded. Bidi_Mirrored comes from extracted/DerivedBinaryProperties.txt.
@@ -1040,6 +1042,8 @@ A tag terminal `T` matches a token with that stored tag. A string terminal match
 
 Only a tag terminal can read a synthetic terminator, through that terminator's own tag. A value terminal, range, or wildcard never reads one. Empty-valued ordinary tokens remain consumable. Terminal identities and canonical diagnostic spellings follow §9.
 
+Prediction lookahead and scanning apply the same restriction on synthetic tokens.
+
 A tested symbol (§2) matches what its symbol matches, where its test holds. The test reads the symbol's own span and its own tags. For a terminal, the span covers that one token in the current input, and the tags are the token's tags. For a reference, they are the span and the tag set of the completed item that the item advances over.
 
 `X="s"` compares the symbol's value exactly. `X≠"s"` negates that equality. `X<A ¬B>` requires A and forbids B on the symbol's own tags. Constant requirements expand with the same sign.
@@ -1110,6 +1114,8 @@ Whether an omission is forbidden depends on the production prefix that the proof
 - Where no preceding nonterminal applies, the fixed prefix is the item before the optional itself. The omission is forbidden when the chart advances that item over a completed nonempty alternative of the optional, from `p`.
 
 The preceding symbol is read in logical helper structure (§3.2). The fixed prefix ends before that symbol, independent of capture expansion. A preceding plain optional supplies both absent and present blocker routes. Its nested helpers keep the same logical boundaries.
+
+The fixed prefix retains its actual boundary record (§4.2). Different boundary records cannot share an omission blocker.
 
 Three cases use the prefix immediately before the elidable optional: production start, a preceding terminal, and an initial recursive self-reference. The blocker search retains each proof's own prefix and eligible route. An omission does not record which constituent it closes.
 
@@ -1446,6 +1452,8 @@ On the two tokens with values `b` and `a`, `.ends(start-a)` is false. The target
 All target starts belong to one recognition computation. Written-terminator priority and finite eligible proofs follow §4. Ranked admission, rule flags, and stage preferences do not rank query proofs.
 
 The query selects no longest suffix. A grammar error that this computation reaches remains an error even when another suffix succeeds. Within one shared recognition, an error first raised at input boundary p fails its requests ending at p or later. It does not fail a request ending before p.
+
+A grammar error ends the stage. The shared recognition therefore serves no later request after that error.
 
 `.ends` requires a capture or ordinary span. A restored receiver causes a load error, including after `.onward`, which preserves restoration. This includes `.without-elision-except(F)` views. Restored suffix queries can be added when a grammar needs them.
 
@@ -2702,6 +2710,8 @@ Each of the following is an error of the document too, and the reader reports it
 A condition item holds at most one boundary atom. If the receiver of its atom is a capture, the item reads no other capture and no `$`. A boundary atom stands only in `%conditions` and in an emission item's tag clause.
 
 Its target is one ordinary rule, exact instance, user tag, or a choice of these. `🆓` counts as a rule name. Each target must be one that some recognition can build. It is a rule reachable through body references from `text` or from the rule argument of a nested query. Or it is a tag that such a rule reads as a terminal.
+
+Boundary-target inspection follows expanded rule order, then alternative order. Within one alternative, it follows the targets' written order.
 
 A terminal argument of `.matches`, `.begins`, or `.ends` also makes that tag buildable. Every alternative counts, even when evaluation never reaches it. Gates do not count.
 
