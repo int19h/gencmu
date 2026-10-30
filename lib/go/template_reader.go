@@ -10,7 +10,7 @@ func templateSyntax(root *Node) bool {
 	for len(pending) > 0 {
 		n := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
-		if n.Rule == "call" || n.Rule == "parameter" || n.Rule == "pattern-primary" || n.Rule == "pattern-literal" {
+		if n.Rule == "call" || n.Rule == "parameter" {
 			return true
 		}
 		pending = append(pending, n.Children...)

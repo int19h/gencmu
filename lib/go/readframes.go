@@ -545,6 +545,11 @@ func (f *termFrame) start(b *domBuilder) readStep {
 	case "method":
 		f.pass = true
 		return ask(&methodFrame{n: n})
+	case "pattern-literal":
+		closed := b.closedFor
+		b.closedFor = ""
+		defer func() { b.closedFor = closed }()
+		return give(&domTerm{Kind: tmPattern, Pattern: b.run(&patternFrame{n: b.only(n, "pattern-primary")}).(*domPattern)})
 	}
 	b.fail(n, "unexpected %s in a term", n.Rule)
 	return readStep{}

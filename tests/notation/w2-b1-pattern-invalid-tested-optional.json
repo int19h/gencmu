@@ -1,0 +1,10 @@
+{
+  "description": "A closed pattern does not move an invalid tested optional to its definition.",
+  "document": "```jbogenbau\n%rule r $x:A [B]=\"x\"\n%conditions $x ≅ #a\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 17
+    }
+  }
+}
