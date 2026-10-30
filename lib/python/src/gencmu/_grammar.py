@@ -524,44 +524,40 @@ class _Constants:
             sides.append(_set(run(self._closed(path, side, implication["at"]))))
         return sides[0], sides[1]
 
-    def check(self) -> None:
-        """Checks what the reader could not in each rule that uses a
-        constant: that each is defined, that the types agree, and that a
-        constant that split reads directly is a delimiter that is
-        not empty (engine §2, §9, §10)."""
-        for path, rule in self.users:
-            for reference in constants_in(rule):
-                if reference["const"] not in self.values:
-                    raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference["at"], self.stage)
-            fault = rule_type_fault(rule, self.type_of)
-            if fault is not None:
-                raise self.fault_error(path, fault[1], rule["at"], fault[0])
-            pending = [rule]
-            while pending:
-                node = pending.pop()
-                if isinstance(node, list):
-                    pending.extend(node)
-                elif isinstance(node, dict):
-                    if "pattern" in node:
-                        run(self._closed(path, node, rule["at"]))
-                    else:
-                        if "range" in node:
-                            ends = [run(self._closed(path, end, rule["at"])) for end in node["range"]]
-                            for i, end in enumerate(ends):
-                                if len(end) != 1:
-                                    raise self.fault_error(path, node["range"][i], rule["at"], "a range endpoint is one scalar")
-                            if ends[0] > ends[1]:
-                                raise self.fault_error(path, node["range"], rule["at"], "a range starts above its end")
-                        pending.extend(node.values())
-            # The checks that simplification decides, which the reader left
-            # to the loader, now with the constants' values (engine §9).
-            problem = definition_problem(run(self.with_values(rule)))
-            if problem is not None:
-                if deferred_emission_problem(problem) and rule_has_ranked(rule):
-                    self.deferred_emissions.append(_error(problem,path,rule["at"],self.stage))
+    def check_rule(self, path: str, rule: Dom) -> None:
+        """Check one definition after constant binding (engine §2)."""
+        for reference in constants_in(rule):
+            if reference["const"] not in self.values:
+                raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference["at"], self.stage)
+        fault = rule_type_fault(rule, self.type_of)
+        if fault is not None:
+            raise self.fault_error(path, fault[1], rule["at"], fault[0])
+        pending = [rule]
+        while pending:
+            node = pending.pop()
+            if isinstance(node, list):
+                pending.extend(node)
+            elif isinstance(node, dict):
+                if "pattern" in node:
+                    run(self._closed(path, node, rule["at"]))
                 else:
-                    raise _error(problem, path, rule["at"], self.stage)
-            self.check_delimiters(path, rule, rule["at"])
+                    if "range" in node:
+                        ends = [run(self._closed(path, end, rule["at"])) for end in node["range"]]
+                        for i, end in enumerate(ends):
+                            if len(end) != 1:
+                                raise self.fault_error(path, node["range"][i], rule["at"], "a range endpoint is one scalar")
+                        if ends[0] > ends[1]:
+                            raise self.fault_error(path, node["range"], rule["at"], "a range starts above its end")
+                    pending.extend(node.values())
+        # The checks that simplification decides, which the reader left
+        # to the loader, now with the constants' values (engine §9).
+        problem = definition_problem(run(self.with_values(rule)))
+        if problem is not None:
+            if deferred_emission_problem(problem) and rule_has_ranked(rule):
+                self.deferred_emissions.append(_error(problem,path,rule["at"],self.stage))
+            else:
+                raise _error(problem, path, rule["at"], self.stage)
+        self.check_delimiters(path, rule, rule["at"])
 
     def check_delimiters(self, path: str, clauses: Any, at: Any, *, computed: bool = False) -> None:
         """Reject direct empty delimiters, or all closed feature delimiters."""
@@ -706,6 +702,15 @@ def _calls_in(node: Any) -> list[Dom]:
 
 
 def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Grammar:
+    """Stitch one stage and attach its name to every loading error."""
+    try:
+        return _stitch(stage, documents, unicode)
+    except GencmuError as error:
+        error.stage = stage
+        raise
+
+
+def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Grammar:
     """Stitch a stage's documents, in order, into one grammar. ``unicode``
     controls canonical terminal spellings in diagnostics."""
     from ._templates import expand_templates
@@ -714,148 +719,160 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     rules: dict[str, Rule] = {}
     written_alternatives: list[Alternative] = []
     constants = _Constants(stage, unicode)
-    for event in validation:
-        if constants_in(event['rule']) or _rule_has_pattern(event['rule']):
-            constants.users.append((event['path'], event['rule']))
     changes: list[Change] = []
     resolutions: list[tuple[list[str], str, Any]] = []
-    classifier_items: list[tuple[str, Dom]] = []
-    implication_items: list[tuple[str, Dom]] = []
-    feature_items: list[tuple[str, Dom]] = []
+    checks: list[tuple[str, str, Dom]] = []
+    elision_only = False
     for path, dom in documents:
         for rule,message in getattr(dom,"deferred_emissions",()):
             if not constants_in(rule) and not _rule_has_pattern(rule):
                 constants.deferred_emissions.append(_error(message,path,rule["at"],stage))
-        for rule in dom.get("rules", []):
-            if constants_in(rule) or _rule_has_pattern(rule):
-                constants.users.append((path, rule))
-            name = rule["name"]
-            at: tuple[int, int] = (int(rule.get("at", (0, 0))[0]), int(rule.get("at", (0, 0))[1]))
-            # One list that the alternatives share, as they share the other
-            # rule-level clauses, so that walks of it can skip it once seen.
-            conditions = list(rule.get("conditions", []))
-            alternatives = [
-                Alternative(
-                    guards=list(alt.get("guards", [])),
-                    expr=alt["expr"],
-                    tags=alt.get("tags"),
-                    rule_tags=rule.get("tags"),
-                    emit=rule.get("emit"),
-                    conditions=conditions,
-                    erased=rule.get("erased") is True,
-                    value=alt.get("value"),
-                    image=alt.get("image"),
-                    rule_value=rule.get("value"),
-                    rule_image=rule.get("image"),
-                    document=path,
-                    at=at,
-                    ranked_locations=getattr(rule,"ranked_locations",{}).get(alternative_index,{}),
-                    index=alternative_index,
-                )
-                for alternative_index,alt in enumerate(rule.get("alternatives", []))
-            ]
-            if template_order is not None:
-                for alternative in alternatives:
-                    alternative.ranked_locations = {**alternative.ranked_locations, **expression_locations(alternative.expr)}
-            written_alternatives.extend(alternatives)
-            previous = rules.get(name)
-            op = rule.get("op")
-            if op == "extend":
-                if previous is None:
-                    raise _error(f"%extend-rule {name} extends a rule that is not defined before it", path, at, stage)
-                previous.alternatives.extend(alternatives)
-                changes.append(Change("extend", name, path, previous.document))
-            elif op == "redefine":
-                if previous is None:
-                    raise _error(f"%redefine-rule {name} replaces no rule defined before it", path, at, stage)
-                flags = list(rule["flags"])
-                flag_change = FlagChange(previous.flags.copy(), flags.copy()) if previous.flags != flags else None
-                changes.append(Change("replace", name, path, previous.document, flag_change))
-                # The rule keeps its place (engine §3, "Numbering").
-                rules[name] = Rule(name, alternatives, path, at, list(rule["flags"]))
-            else:
-                if previous is not None:
-                    raise _error(
-                        f"%rule {name} is already defined, in {previous.document}; %redefine-rule replaces a rule",
-                        path,
-                        at,
-                        stage,
+        declarations = sorted(((kind, item) for kind in ("rules", "directives", "constants", "classifiers", "implications")
+                               for item in dom.get(kind, [])), key=lambda entry: entry[1]["at"])
+        for kind, item in declarations:
+            if kind == "rules":
+                rule = item
+                if constants_in(rule) or _rule_has_pattern(rule):
+                    constants.users.append((path, rule))
+                    checks.append((path,"rule",rule))
+                name = rule["name"]
+                at: tuple[int, int] = (int(rule.get("at", (0, 0))[0]), int(rule.get("at", (0, 0))[1]))
+                # One list that the alternatives share, as they share the other
+                # rule-level clauses, so that walks of it can skip it once seen.
+                conditions = list(rule.get("conditions", []))
+                alternatives = [
+                    Alternative(
+                        guards=list(alt.get("guards", [])),
+                        expr=alt["expr"],
+                        tags=alt.get("tags"),
+                        rule_tags=rule.get("tags"),
+                        emit=rule.get("emit"),
+                        conditions=conditions,
+                        erased=rule.get("erased") is True,
+                        value=alt.get("value"),
+                        image=alt.get("image"),
+                        rule_value=rule.get("value"),
+                        rule_image=rule.get("image"),
+                        document=path,
+                        at=at,
+                        ranked_locations=getattr(rule,"ranked_locations",{}).get(alternative_index,{}),
+                        index=alternative_index,
                     )
-                rules[name] = Rule(name, alternatives, path, at, list(rule["flags"]))
-        for directive in dom.get("directives", []):
-            name = directive["name"]
-            args = list(directive.get("args", []))
-            at = directive.get("at")
-            if name == "features":
-                feature_items.append((path, directive))
-            elif name == "ambiguity-resolution":
-                resolutions.append((args, path, at))
+                    for alternative_index,alt in enumerate(rule.get("alternatives", []))
+                ]
+                if template_order is not None:
+                    for alternative in alternatives:
+                        alternative.ranked_locations = {**alternative.ranked_locations, **expression_locations(alternative.expr)}
+                written_alternatives.extend(alternatives)
+                previous = rules.get(name)
+                op = rule.get("op")
+                if op == "extend":
+                    if previous is None:
+                        raise _error(f"%extend-rule {name} extends a rule that is not defined before it", path, at, stage)
+                    previous.alternatives.extend(alternatives)
+                    changes.append(Change("extend", name, path, previous.document))
+                elif op == "redefine":
+                    if previous is None:
+                        raise _error(f"%redefine-rule {name} replaces no rule defined before it", path, at, stage)
+                    flags = list(rule["flags"])
+                    flag_change = FlagChange(previous.flags.copy(), flags.copy()) if previous.flags != flags else None
+                    changes.append(Change("replace", name, path, previous.document, flag_change))
+                    # The rule keeps its place (engine §3, "Numbering").
+                    rules[name] = Rule(name, alternatives, path, at, list(rule["flags"]))
+                else:
+                    if previous is not None:
+                        raise _error(
+                            f"%rule {name} is already defined, in {previous.document}; %redefine-rule replaces a rule",
+                            path,
+                            at,
+                            stage,
+                        )
+                    rules[name] = Rule(name, alternatives, path, at, list(rule["flags"]))
+            elif kind == "directives":
+                directive = item
+                name = directive["name"]
+                args = list(directive.get("args", []))
+                at = directive.get("at")
+                if name == "features":
+                    checks.append((path,"features",directive))
+                elif name == "ambiguity-resolution":
+                    if resolutions:
+                        raise _error(f"stage {stage} has a second %ambiguity-resolution", path, at, stage)
+                    resolutions.append((args, path, at))
+                    # The rule of the ranking (engine §6), then optionally elision-only,
+                    # each optional, in that order (engine §2).
+                    rest = args[1:]
+                    elision_only = rest[:1] == ["elision-only"]
+                    if elision_only:
+                        rest = rest[1:]
+                    if not args or args[0] not in RANKING_RULES or rest:
+                        raise _error(
+                            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only",
+                            path,
+                            at,
+                            stage,
+                        )
+
+                else:
+                    raise _error(f"an unknown directive %{name}", path, at, stage)
+            elif kind == "constants":
+                constants.add(path, item)
+            elif kind == "classifiers":
+                checks.append((path,"classifier",item))
             else:
-                raise _error(f"an unknown directive %{name}", path, at, stage)
-        for constant in dom.get("constants", []):
-            constants.add(path, constant)
-        classifier_items.extend((path, classifier) for classifier in dom.get("classifiers", []))
-        implication_items.extend((path, implication) for implication in dom.get("implications", []))
+                checks.append((path,"implication",item))
     if template_order is not None:
         rules = {name: rules[name] for name in template_order}
+    for event in validation:
+        if constants_in(event["rule"]) or _rule_has_pattern(event["rule"]):
+            constants.users.append((event["path"],event["rule"]))
+            checks.append((event["path"],"rule",event["rule"]))
     constants.bind()
-    constants.check()
-    constants.resolve(rules)
     from ._validate import input_conditions_problem
     from ._types import condition_type_fault
     resolved_features = []
-    for path, directive in feature_items:
-        try:
-            if "conditions" not in directive:
-                resolved_features.append((path, directive))
-                continue
-            for reference in constants_in(directive["conditions"]):
-                if reference["const"] not in constants.values:
-                    raise _error(f"${reference['const']} is not defined in stage {stage}", path, directive["at"], stage)
-            conditions = run(constants.with_values(directive["conditions"]))
-            problem = input_conditions_problem(conditions)
-            if problem:
-                raise _error(problem, path, directive["at"], stage)
-            for condition in conditions:
-                fault = condition_type_fault(condition, lambda name: constants.values[name].type)
-                if fault:
-                    raise _error(fault[0], path, directive["at"], stage)
-            constants.check_delimiters(path, directive["conditions"], directive["at"], computed=True)
-            resolved_features.append((path, {**directive, "conditions": conditions}))
-        except GencmuError as error:
-            raise _error(error.message, path, directive["at"], stage) from error
-    from ._boundary import validate_targets
-    validate_targets(rules, stage)
-    classifier_items = [
-        (path, {**classifier, "entries": [
-            {**entry, "keys": [constants.string(path, key, entry["at"]) for key in entry["keys"]]}
-            for entry in classifier["entries"]
-        ]})
-        for path, classifier in classifier_items
-    ]
+    resolved_classifiers = []
+    implications = []
+    for path, kind, item in checks:
+        if kind == "rule":
+            constants.check_rule(path,item)
+        elif kind == "features":
+            directive = item
+            try:
+                if "conditions" not in directive:
+                    resolved_features.append((path, directive))
+                    continue
+                for reference in constants_in(directive["conditions"]):
+                    if reference["const"] not in constants.values:
+                        raise _error(f"${reference['const']} is not defined in stage {stage}", path, directive["at"], stage)
+                conditions = run(constants.with_values(directive["conditions"]))
+                problem = input_conditions_problem(conditions)
+                if problem:
+                    raise _error(problem, path, directive["at"], stage)
+                for condition in conditions:
+                    fault = condition_type_fault(condition, lambda name: constants.values[name].type)
+                    if fault:
+                        raise _error(fault[0], path, directive["at"], stage)
+                constants.check_delimiters(path, directive["conditions"], directive["at"], computed=True)
+                resolved_features.append((path, {**directive, "conditions": conditions}))
+            except GencmuError as error:
+                raise _error(error.message, path, directive["at"], stage) from error
+        elif kind == "classifier":
+            resolved_classifiers.append((path,{**item,"entries":[
+                {**entry,"keys":[constants.string(path,key,entry["at"]) for key in entry["keys"]]}
+                for entry in item["entries"]]}))
+        else:
+            implications.append(constants.implication(path,item))
+    classifier_items = resolved_classifiers
+    constants.resolve(rules)
     _resolve_tests(rules, constants)
-    implications = [constants.implication(path, implication) for path, implication in implication_items]
     if not resolutions:
         raise GencmuError(f"stage {stage} has no %ambiguity-resolution", stage=stage)
-    if len(resolutions) > 1:
-        args, path, at = resolutions[1]
-        raise _error(f"stage {stage} has a second %ambiguity-resolution", path, at, stage)
-    args, path, at = resolutions[0]
-    # The rule of the ranking (engine §6), then optionally elision-only,
-    # each optional, in that order (engine §2).
-    rest = args[1:]
-    elision_only = rest[:1] == ["elision-only"]
-    if elision_only:
-        rest = rest[1:]
-    if not args or args[0] not in RANKING_RULES or rest:
-        raise _error(
-            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only",
-            path,
-            at,
-            stage,
-        )
+    args, _, _ = resolutions[0]
     if "text" not in rules:
         raise GencmuError(f"stage {stage} has no rule text", stage=stage)
+    from ._boundary import validate_targets
+    validate_targets(rules, stage)
     classifier_names = {classifier["name"] for _, classifier in classifier_items}
     # The clauses of a rule that its alternatives share, by identity, once
     # checked: an error in one would have stopped the first check, at the

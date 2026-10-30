@@ -8,8 +8,8 @@ use std::sync::Arc;
 use crate::clauses::definition_problem;
 use crate::dom::{
     constant_value_type, constants_in_rule, constants_in_term, expected_problem, rule_type_fault, term_type_in,
-    tests_in, Alternative, Arg, Channels, ClassifierDef, Cond, ConstDef, Dom, EmitItem, Expr, Fault, FeatureKind,
-    ImplicationDef, Op, RuleDef, Term, Type,
+    tests_in, Alternative, Arg, Channels, ClassifierDef, Cond, ConstDef, Directive, Dom, EmitItem, Expr, Fault,
+    FeatureKind, ImplicationDef, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
 use crate::fxhash::{FxMap, FxSet};
@@ -226,6 +226,10 @@ pub(crate) fn stitch(
     documents: &[(Arc<str>, Arc<Dom>)],
     unicode: &Unicode,
 ) -> Result<StageGrammar, Error> {
+    stitch_stage(stage, documents, unicode).map_err(|error| error.in_stage(stage))
+}
+
+fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unicode) -> Result<StageGrammar, Error> {
     let expansion = crate::parameters::expand(documents, unicode)?;
     let documents = expansion.as_ref().map_or(documents, |x| x.documents.as_slice());
     let mut grammar = StageGrammar {
@@ -243,205 +247,223 @@ pub(crate) fn stitch(
         implications: Arc::from(Vec::new()),
         parameters: expansion.as_ref().map_or_else(Default::default, |x| x.records.clone()),
     };
-    let mut implications: Vec<(&Arc<str>, &ImplicationDef)> = Vec::new();
+    enum Check<'a> {
+        Rule(&'a Arc<str>, &'a RuleDef),
+        Feature(usize),
+        Classifier(usize),
+        Implication(&'a Arc<str>, &'a ImplicationDef),
+    }
+    let mut checks = Vec::new();
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
     let mut constants =
         Constants { stage, unicode, values: HashMap::new(), versions: Vec::new(), latest: HashMap::new() };
-    // The definitions of rules that use constants, which are checked once
-    // the constants have their final values; a rule that a later one
-    // replaces included.
-    let mut users: Vec<(&Arc<str>, &RuleDef)> = Vec::new();
     let mut deferred = Vec::new();
     let mut text_order = 0;
     for (document, dom) in documents {
-        for rule in &dom.rules {
-            if let Some(problem) = &rule.deferred_emission {
-                deferred.push(located(problem.clone(), document, rule.at));
-            }
-            if !constants_in_rule(rule).is_empty() {
-                users.push((document, rule));
-            }
-            // The clauses are copied once for the rule, not for each
-            // alternative. Each condition counts as it is copied.
-            let copy_clauses = || {
-                Arc::new(RuleClauses {
-                    tags: rule.tags.clone(),
-                    strings: rule.strings.clone(),
-                    emit: rule.emit.clone(),
-                    conditions: rule.conditions.iter().inspect(|_| work::count(Work::Stitched, 1)).cloned().collect(),
-                })
-            };
-            let written = if rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr)) {
-                let mut text = String::new();
-                crate::dom::write_rule(&mut text, rule);
-                Some(Arc::new(crate::json::parse(&text).expect("the written rule DOM")))
-            } else {
-                None
-            };
-            let clauses = copy_clauses();
-            let alternatives: Vec<StitchedAlternative> = rule
-                .alternatives
-                .iter()
-                .enumerate()
-                .map(|(written_alternative, alternative)| StitchedAlternative {
-                    alternative: alternative.clone(),
-                    written: written.clone(),
-                    written_alternative,
-                    text_order: text_order + written_alternative,
-                    clauses: if work::mutated(Mutant::ClausesPerAlternative) {
-                        copy_clauses()
+        enum Declaration<'a> {
+            Rule(&'a RuleDef),
+            Directive(&'a Directive),
+            Constant(&'a ConstDef),
+            Classifier(&'a ClassifierDef),
+            Implication(&'a ImplicationDef),
+        }
+        let mut declarations = Vec::new();
+        declarations.extend(dom.rules.iter().map(Declaration::Rule));
+        declarations.extend(dom.directives.iter().map(Declaration::Directive));
+        declarations.extend(dom.constants.iter().map(Declaration::Constant));
+        declarations.extend(dom.classifiers.iter().map(Declaration::Classifier));
+        declarations.extend(dom.implications.iter().map(Declaration::Implication));
+        declarations.sort_by_key(|item| match item {
+            Declaration::Rule(x) => x.at,
+            Declaration::Directive(x) => x.at,
+            Declaration::Constant(x) => x.at,
+            Declaration::Classifier(x) => x.at,
+            Declaration::Implication(x) => x.at,
+        });
+        for declaration in declarations {
+            match declaration {
+                Declaration::Rule(rule) => {
+                    if let Some(problem) = &rule.deferred_emission {
+                        deferred.push(located(problem.clone(), document, rule.at));
+                    }
+                    if !constants_in_rule(rule).is_empty() {
+                        checks.push(Check::Rule(document, rule));
+                    }
+                    // The clauses are copied once for the rule, not for each
+                    // alternative. Each condition counts as it is copied.
+                    let copy_clauses = || {
+                        Arc::new(RuleClauses {
+                            tags: rule.tags.clone(),
+                            strings: rule.strings.clone(),
+                            emit: rule.emit.clone(),
+                            conditions: rule
+                                .conditions
+                                .iter()
+                                .inspect(|_| work::count(Work::Stitched, 1))
+                                .cloned()
+                                .collect(),
+                        })
+                    };
+                    let written = if rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr)) {
+                        let mut text = String::new();
+                        crate::dom::write_rule(&mut text, rule);
+                        Some(Arc::new(crate::json::parse(&text).expect("the written rule DOM")))
                     } else {
-                        clauses.clone()
-                    },
-                    erased: rule.erased,
-                    document: document.clone(),
-                    at: rule.at,
-                })
-                .collect();
-            text_order += rule.alternatives.len();
-            let error = |message: String| Err(located(message, document, rule.at));
-            let stitched = || StitchedRule {
-                flags: rule.flags.clone(),
-                name: rule.name.clone(),
-                alternatives: alternatives.clone(),
-                document: document.clone(),
-            };
-            match rule.op {
-                Op::Define => {
-                    if grammar.index.contains_key(&rule.name) {
-                        return error(format!(
-                            "%rule {} is already defined, in {}; %redefine-rule replaces a rule",
-                            rule.name, grammar.rules[grammar.index[&rule.name]].document
-                        ));
-                    }
-                    grammar.index.insert(rule.name.clone(), grammar.rules.len());
-                    grammar.rules.push(stitched());
-                }
-                Op::Redefine => {
-                    // Any earlier item of the stage, in this document or
-                    // another, may have defined it (engine §2).
-                    let Some(&index) = grammar.index.get(&rule.name) else {
-                        return error(format!("%redefine-rule {} replaces no rule defined before it", rule.name));
+                        None
                     };
-                    // The replacement keeps the place of the rule it
-                    // replaces (§3, "Numbering").
-                    let previous_flags = &grammar.rules[index].flags;
-                    let flag_change = (previous_flags != &rule.flags)
-                        .then(|| FlagChange { from: previous_flags.clone(), to: rule.flags.clone() });
-                    grammar.rules[index] = stitched();
-                    grammar.changes.push(Change {
-                        stage: stage.to_string(),
-                        rule: rule.name.clone(),
-                        extension: false,
-                        document: document.to_string(),
-                        flag_change,
-                    });
-                }
-                Op::Extend => {
-                    let Some(&index) = grammar.index.get(&rule.name) else {
-                        return error(format!(
-                            "%extend-rule {} extends a rule that is not defined before it",
-                            rule.name
-                        ));
+                    let clauses = copy_clauses();
+                    let alternatives: Vec<StitchedAlternative> = rule
+                        .alternatives
+                        .iter()
+                        .enumerate()
+                        .map(|(written_alternative, alternative)| StitchedAlternative {
+                            alternative: alternative.clone(),
+                            written: written.clone(),
+                            written_alternative,
+                            text_order: text_order + written_alternative,
+                            clauses: if work::mutated(Mutant::ClausesPerAlternative) {
+                                copy_clauses()
+                            } else {
+                                clauses.clone()
+                            },
+                            erased: rule.erased,
+                            document: document.clone(),
+                            at: rule.at,
+                        })
+                        .collect();
+                    text_order += rule.alternatives.len();
+                    let error = |message: String| Err(located(message, document, rule.at));
+                    let stitched = || StitchedRule {
+                        flags: rule.flags.clone(),
+                        name: rule.name.clone(),
+                        alternatives: alternatives.clone(),
+                        document: document.clone(),
                     };
-                    grammar.rules[index].alternatives.extend(alternatives);
-                    grammar.changes.push(Change {
-                        stage: stage.to_string(),
-                        rule: rule.name.clone(),
-                        extension: true,
-                        document: document.to_string(),
-                        flag_change: None,
-                    });
-                }
-            }
-        }
-        for directive in &dom.directives {
-            let here = |message: String| located(message, document, directive.at);
-            match directive.name.as_str() {
-                "features" => grammar.features.push((document.clone(), directive.clone())),
-                "ambiguity-resolution" => {
-                    if resolution.is_some() {
-                        return Err(here(format!("stage {stage} has a second %ambiguity-resolution")));
-                    }
-                    let refused = || {
-                        here(
-                            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only"
-                                .to_string(),
-                        )
-                    };
-                    let mut args = directive.args.iter().map(String::as_str).peekable();
-                    grammar.lean = match args.next() {
-                        Some("greedy") => Lean::Greedy,
-                        Some("lazy") => Lean::Lazy,
-                        Some("late-elision") => Lean::LateElision,
-                        _ => return Err(refused()),
-                    };
-                    // Each optional word in its place, and nothing after
-                    // them (engine §2).
-                    grammar.elision_only = args.next_if_eq(&"elision-only").is_some();
-                    if args.next().is_some() {
-                        return Err(refused());
-                    }
-                    resolution = Some((document.clone(), directive.at));
-                }
-                other => return Err(here(format!("an unknown directive %{other}"))),
-            }
-        }
-        for constant in &dom.constants {
-            constants.add(document, constant)?;
-        }
-        grammar.classifiers.extend(dom.classifiers.iter().map(|classifier| (document.clone(), classifier.clone())));
-        implications.extend(dom.implications.iter().map(|implication| (document, implication)));
-    }
-    constants.bind()?;
-    for (document, directive) in &mut grammar.features {
-        if let Some(conditions) = &mut directive.conditions {
-            crate::features::problem(conditions).map_err(|message| located(message, document, directive.at))?;
-            for condition in conditions.iter_mut() {
-                let mut references = Vec::new();
-                crate::dom::constants_in_cond(condition, &mut references);
-                for (name, _) in references {
-                    if !constants.values.contains_key(name) {
-                        return Err(located(
-                            format!("${name} is not defined in stage {stage}"),
-                            document,
-                            directive.at,
-                        ));
-                    }
-                }
-                if let Some(fault) = crate::dom::cond_type_fault(condition, &|name| constants.ty(name)) {
-                    return Err(located(fault.problem, document, directive.at));
-                }
-                let mut calls = Vec::new();
-                calls_in_condition(condition, &mut calls);
-                for (call, args) in calls {
-                    if let ("split", [_, Arg::Term(delimiter)]) = (call, args) {
-                        if closed_string(delimiter)
-                            && constants.evaluate(delimiter, document, directive.at)?.string().is_empty()
-                        {
-                            return Err(located("split has an empty delimiter".into(), document, directive.at));
+                    match rule.op {
+                        Op::Define => {
+                            if grammar.index.contains_key(&rule.name) {
+                                return error(format!(
+                                    "%rule {} is already defined, in {}; %redefine-rule replaces a rule",
+                                    rule.name, grammar.rules[grammar.index[&rule.name]].document
+                                ));
+                            }
+                            grammar.index.insert(rule.name.clone(), grammar.rules.len());
+                            grammar.rules.push(stitched());
+                        }
+                        Op::Redefine => {
+                            // Any earlier item of the stage, in this document or
+                            // another, may have defined it (engine §2).
+                            let Some(&index) = grammar.index.get(&rule.name) else {
+                                return error(format!(
+                                    "%redefine-rule {} replaces no rule defined before it",
+                                    rule.name
+                                ));
+                            };
+                            // The replacement keeps the place of the rule it
+                            // replaces (§3, "Numbering").
+                            let previous_flags = &grammar.rules[index].flags;
+                            let flag_change = (previous_flags != &rule.flags)
+                                .then(|| FlagChange { from: previous_flags.clone(), to: rule.flags.clone() });
+                            grammar.rules[index] = stitched();
+                            grammar.changes.push(Change {
+                                stage: stage.to_string(),
+                                rule: rule.name.clone(),
+                                extension: false,
+                                document: document.to_string(),
+                                flag_change,
+                            });
+                        }
+                        Op::Extend => {
+                            let Some(&index) = grammar.index.get(&rule.name) else {
+                                return error(format!(
+                                    "%extend-rule {} extends a rule that is not defined before it",
+                                    rule.name
+                                ));
+                            };
+                            grammar.rules[index].alternatives.extend(alternatives);
+                            grammar.changes.push(Change {
+                                stage: stage.to_string(),
+                                rule: rule.name.clone(),
+                                extension: true,
+                                document: document.to_string(),
+                                flag_change: None,
+                            });
                         }
                     }
                 }
-                constants.substitute_cond(condition);
+                Declaration::Directive(directive) => {
+                    let here = |message: String| located(message, document, directive.at);
+                    match directive.name.as_str() {
+                        "features" => {
+                            checks.push(Check::Feature(grammar.features.len()));
+                            grammar.features.push((document.clone(), directive.clone()));
+                        }
+                        "ambiguity-resolution" => {
+                            if resolution.is_some() {
+                                return Err(here(format!("stage {stage} has a second %ambiguity-resolution")));
+                            }
+                            let refused = || {
+                                here(
+                            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only"
+                                .to_string(),
+                        )
+                            };
+                            let mut args = directive.args.iter().map(String::as_str).peekable();
+                            grammar.lean = match args.next() {
+                                Some("greedy") => Lean::Greedy,
+                                Some("lazy") => Lean::Lazy,
+                                Some("late-elision") => Lean::LateElision,
+                                _ => return Err(refused()),
+                            };
+                            // Each optional word in its place, and nothing after
+                            // them (engine §2).
+                            grammar.elision_only = args.next_if_eq(&"elision-only").is_some();
+                            if args.next().is_some() {
+                                return Err(refused());
+                            }
+                            resolution = Some((document.clone(), directive.at));
+                        }
+                        other => return Err(here(format!("an unknown directive %{other}"))),
+                    }
+                }
+                Declaration::Constant(constant) => constants.add(document, constant)?,
+                Declaration::Classifier(classifier) => {
+                    checks.push(Check::Classifier(grammar.classifiers.len()));
+                    grammar.classifiers.push((document.clone(), classifier.clone()));
+                }
+                Declaration::Implication(implication) => checks.push(Check::Implication(document, implication)),
             }
         }
     }
+    constants.bind()?;
     if let Some(expanded) = &expansion {
         for (path, rule) in &expanded.validation {
-            users.push((path, rule));
+            checks.push(Check::Rule(path, rule));
         }
         let positions: HashMap<_, _> = expanded.order.iter().enumerate().map(|(i, n)| (n.as_str(), i)).collect();
         grammar.rules.sort_by_key(|r| positions.get(r.name.as_str()).copied().unwrap_or(usize::MAX));
         grammar.index = grammar.rules.iter().enumerate().map(|(i, r)| (r.name.clone(), i)).collect();
     }
-    constants.resolve(&mut grammar, &users, &mut deferred)?;
+    let mut implications = Vec::new();
+    for check in checks {
+        match check {
+            Check::Rule(document, rule) => constants.check_rule(document, rule, &mut deferred)?,
+            Check::Feature(index) => {
+                let (document, directive) = &mut grammar.features[index];
+                constants.resolve_feature(document, directive)?;
+            }
+            Check::Classifier(index) => {
+                let (document, classifier) = &mut grammar.classifiers[index];
+                constants.resolve_classifier(document, classifier)?;
+            }
+            Check::Implication(document, implication) => {
+                implications.push(constants.implication(document, implication)?)
+            }
+        }
+    }
+    constants.substitute_rules(&mut grammar);
     constants.evaluate_tests(&mut grammar)?;
-    grammar.implications = implications
-        .into_iter()
-        .map(|(document, implication)| constants.implication(document, implication))
-        .collect::<Result<Vec<_>, _>>()?
-        .into();
+    grammar.implications = implications.into();
     if resolution.is_none() {
         return Err(Error::grammar(format!("stage {stage} has no %ambiguity-resolution")).in_stage(stage));
     }
@@ -1303,44 +1325,35 @@ impl Constants<'_> {
         Ok(Implication { antecedent, consequent })
     }
 
-    /// Gives every constant in a rule its final value, once the stage is
-    /// stitched, and checks what the reader could not: that each is
-    /// defined, that the types agree, and that a constant that `split` or
-    /// `tag` reads directly is a delimiter that is not empty, or a name
-    /// (engine §2, §9, §10).
-    fn resolve(
-        &self,
-        grammar: &mut StageGrammar,
-        users: &[(&Arc<str>, &RuleDef)],
-        deferred: &mut Vec<Error>,
-    ) -> Result<(), Error> {
-        for &(document, rule) in users {
-            for (name, at) in constants_in_rule(rule) {
-                if !self.values.contains_key(name) {
-                    return Err(located(format!("${name} is not defined in stage {}", self.stage), document, at));
-                }
+    /// Checks one definition at its declaration slot after constant binding.
+    fn check_rule(&self, document: &Arc<str>, rule: &RuleDef, deferred: &mut Vec<Error>) -> Result<(), Error> {
+        for (name, at) in constants_in_rule(rule) {
+            if !self.values.contains_key(name) {
+                return Err(located(format!("${name} is not defined in stage {}", self.stage), document, at));
             }
-            if let Some(fault) = rule_type_fault(rule, &|name| self.ty(name)) {
-                return Err(fault_error(fault, document, rule.at));
+        }
+        if let Some(fault) = rule_type_fault(rule, &|name| self.ty(name)) {
+            return Err(fault_error(fault, document, rule.at));
+        }
+        for alternative in &rule.alternatives {
+            self.check_body_strings(&alternative.expr, document, rule.at)?;
+        }
+        enum Part<'a> {
+            Term(&'a Term),
+            Cond(&'a Cond),
+        }
+        let mut todo: Vec<Part> = rule.conditions.iter().map(Part::Cond).collect();
+        todo.extend(rule.tags.iter().map(Part::Term));
+        todo.extend(rule.alternatives.iter().filter_map(|a| a.tags.as_ref()).map(Part::Term));
+        for item in rule.emit.iter().flatten() {
+            if let EmitItem::Capture(_, Some(t), ..) | EmitItem::Insert(Some(t), _) = item {
+                todo.push(Part::Term(t));
             }
-            for alternative in &rule.alternatives {
-                self.check_body_strings(&alternative.expr, document, rule.at)?;
-            }
-            enum Part<'a> {
-                Term(&'a Term),
-                Cond(&'a Cond),
-            }
-            let mut todo: Vec<Part> = rule.conditions.iter().map(Part::Cond).collect();
-            todo.extend(rule.tags.iter().map(Part::Term));
-            todo.extend(rule.alternatives.iter().filter_map(|a| a.tags.as_ref()).map(Part::Term));
-            for item in rule.emit.iter().flatten() {
-                if let EmitItem::Capture(_, Some(t), ..) | EmitItem::Insert(Some(t), _) = item {
-                    todo.push(Part::Term(t));
-                }
-            }
-            while let Some(part) = todo.pop() {
-                match part {
-                    Part::Term(t) => match t {
+        }
+        while let Some(part) = todo.pop() {
+            match part {
+                Part::Term(t) => {
+                    match t {
                         Term::Pattern(_) => {
                             self.evaluate_pattern(t, document, rule.at)?;
                         }
@@ -1361,52 +1374,111 @@ impl Constants<'_> {
                             }
                         })),
                         _ => {}
-                    },
-                    Part::Cond(c) => match c {
-                        Cond::Compare(op, a, b) => {
-                            if matches!(op.as_str(), "≅" | "≇") {
-                                self.evaluate_pattern(b, document, rule.at)?;
-                            }
-                            todo.push(Part::Term(a));
-                            todo.push(Part::Term(b));
-                        }
-                        Cond::Any(xs) | Cond::All(xs) => todo.extend(xs.iter().map(Part::Cond)),
-                        Cond::Not(c) => todo.push(Part::Cond(c)),
-                        Cond::If(a, b) => {
-                            todo.push(Part::Cond(a));
-                            todo.push(Part::Cond(b));
-                        }
-                        _ => {}
-                    },
-                }
-            }
-            // The checks that simplification decides, which the reader left
-            // to the loader, now with the constants' values (§9).
-            if let Some(problem) = definition_problem(&self.substitute_rule(rule)) {
-                if crate::dom::deferred_emission_problem(&problem)
-                    && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))
-                {
-                    deferred.push(located(problem, document, rule.at));
-                } else {
-                    return Err(located(problem, document, rule.at));
-                }
-            }
-            let mut calls = Vec::new();
-            calls_in_rule(rule, &mut calls);
-            for (call, args) in calls {
-                if let ("split", [_, Arg::Term(delimiter)]) = (call, args) {
-                    if matches!(delimiter, Term::Str(_) | Term::Const(..))
-                        && self.evaluate(delimiter, document, rule.at)?.string().is_empty()
-                    {
-                        return Err(located(
-                            "split has an empty delimiter".into(),
-                            document,
-                            first_constant(delimiter).unwrap_or(rule.at),
-                        ));
                     }
+                }
+                Part::Cond(c) => match c {
+                    Cond::Compare(op, a, b) => {
+                        if matches!(op.as_str(), "≅" | "≇") {
+                            self.evaluate_pattern(b, document, rule.at)?;
+                        }
+                        todo.push(Part::Term(a));
+                        todo.push(Part::Term(b));
+                    }
+                    Cond::Any(xs) | Cond::All(xs) => todo.extend(xs.iter().map(Part::Cond)),
+                    Cond::Not(c) => todo.push(Part::Cond(c)),
+                    Cond::If(a, b) => {
+                        todo.push(Part::Cond(a));
+                        todo.push(Part::Cond(b));
+                    }
+                    _ => {}
+                },
+            }
+        }
+        // The checks that simplification decides, which the reader left
+        // to the loader, now with the constants' values (§9).
+        if let Some(problem) = definition_problem(&self.substitute_rule(rule)) {
+            if crate::dom::deferred_emission_problem(&problem)
+                && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))
+            {
+                deferred.push(located(problem, document, rule.at));
+            } else {
+                return Err(located(problem, document, rule.at));
+            }
+        }
+        let mut calls = Vec::new();
+        calls_in_rule(rule, &mut calls);
+        for (call, args) in calls {
+            if let ("split", [_, Arg::Term(delimiter)]) = (call, args) {
+                if matches!(delimiter, Term::Str(_) | Term::Const(..))
+                    && self.evaluate(delimiter, document, rule.at)?.string().is_empty()
+                {
+                    return Err(located(
+                        "split has an empty delimiter".into(),
+                        document,
+                        first_constant(delimiter).unwrap_or(rule.at),
+                    ));
                 }
             }
         }
+        Ok(())
+    }
+
+    fn resolve_feature(&self, document: &str, directive: &mut Directive) -> Result<(), Error> {
+        if let Some(conditions) = &mut directive.conditions {
+            crate::features::problem(conditions).map_err(|message| located(message, document, directive.at))?;
+            for condition in conditions.iter_mut() {
+                let mut references = Vec::new();
+                crate::dom::constants_in_cond(condition, &mut references);
+                for (name, _) in references {
+                    if !self.values.contains_key(name) {
+                        return Err(located(
+                            format!("${name} is not defined in stage {}", self.stage),
+                            document,
+                            directive.at,
+                        ));
+                    }
+                }
+                if let Some(fault) = crate::dom::cond_type_fault(condition, &|name| self.ty(name)) {
+                    return Err(located(fault.problem, document, directive.at));
+                }
+                let mut calls = Vec::new();
+                calls_in_condition(condition, &mut calls);
+                for (call, args) in calls {
+                    if let ("split", [_, Arg::Term(delimiter)]) = (call, args) {
+                        if closed_string(delimiter)
+                            && self.evaluate(delimiter, document, directive.at)?.string().is_empty()
+                        {
+                            return Err(located("split has an empty delimiter".into(), document, directive.at));
+                        }
+                    }
+                }
+                self.substitute_cond(condition);
+            }
+        }
+        Ok(())
+    }
+
+    fn resolve_classifier(&self, document: &str, classifier: &mut ClassifierDef) -> Result<(), Error> {
+        for entry in &mut classifier.entries {
+            for key in &mut entry.keys {
+                let mut references = Vec::new();
+                constants_in_term(key, &mut references);
+                for (name, at) in references {
+                    if !self.values.contains_key(name) {
+                        return Err(located(format!("${name} is not defined in stage {}", self.stage), document, at));
+                    }
+                }
+                let ty = term_type_in(key, &|name| self.ty(name)).map_err(|f| fault_error(f, document, entry.at))?;
+                if let Some(problem) = expected_problem(ty, Type::String) {
+                    return Err(located(problem, document, first_constant(key).unwrap_or(entry.at)));
+                }
+                *key = self.evaluate(key, document, entry.at)?.term();
+            }
+        }
+        Ok(())
+    }
+
+    fn substitute_rules(&self, grammar: &mut StageGrammar) {
         // Each reference holds the final value. Shared clauses are
         // substituted once, and the alternatives that share them share the
         // result.
@@ -1457,30 +1529,6 @@ impl Constants<'_> {
                 alternative.clauses = clauses;
             }
         }
-        for (document, classifier) in &mut grammar.classifiers {
-            for entry in &mut classifier.entries {
-                for key in &mut entry.keys {
-                    let mut references = Vec::new();
-                    constants_in_term(key, &mut references);
-                    for (name, at) in references {
-                        if !self.values.contains_key(name) {
-                            return Err(located(
-                                format!("${name} is not defined in stage {}", self.stage),
-                                document,
-                                at,
-                            ));
-                        }
-                    }
-                    let ty =
-                        term_type_in(key, &|name| self.ty(name)).map_err(|f| fault_error(f, document, entry.at))?;
-                    if let Some(problem) = expected_problem(ty, Type::String) {
-                        return Err(located(problem, document, first_constant(key).unwrap_or(entry.at)));
-                    }
-                    *key = self.evaluate(key, document, entry.at)?.term();
-                }
-            }
-        }
-        Ok(())
     }
 
     fn scalar_endpoints(

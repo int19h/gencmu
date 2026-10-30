@@ -104,6 +104,8 @@ export declare class Grammar {
         path: string;
         directive: import("./types.js").DomDirective;
     }[];
+    /** @type {(() => void)[]} */
+    validationItems: (() => void)[];
     templates: any;
     instances: any;
     /** @type {WeakMap<DomEntry,string[]>} */
@@ -244,12 +246,18 @@ export declare class Grammar {
     evaluateClosed(path: string, term: Term, item: [number, number], lookup?: (name: string) => TermValue, expected?: TermType): TermValue;
     /** @param {any} node @param {string} path @param {[number,number]} at @returns {any} */
     resolvePatterns(node: any, path: string, at: [number, number]): any;
+    /** @param {string} path @param {DomRule} rule */
+    checkConstantRule(path: string, rule: DomRule): void;
+    /** @param {string} path @param {import("./types.js").DomDirective} directive */
+    resolveFeature(path: string, directive: import("./types.js").DomDirective): {
+        path: string;
+        directive: import("./types.js").DomDirective;
+    };
+    /** @param {string} path @param {DomClassifier} classifier */
+    resolveClassifierKeys(path: string, classifier: DomClassifier): void;
     /**
-     * Gives every constant in a rule its final value, once the stage is
-     * stitched, and checks what the reader could not: that each is defined,
-     * that the types agree, and that a constant that split or tag reads
-     * directly is a delimiter that is not empty, or a name (engine §2, §9,
-     * §10).
+     * Substitutes final values in the stitched rules after declaration checks.
+     * Clauses shared by alternatives stay shared (engine §2).
      */
     resolveConstants(): void;
     /**

@@ -360,81 +360,12 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 // the types agree, and that a constant that split or tag reads directly is
 // a delimiter that is not empty, or a name (engine §2, §9, §10). Then it
 // gives every reference its final value.
-func (g *stageGrammar) resolveConstants() *Error {
+func (g *stageGrammar) resolveConstants(checks []func() *Error) *Error {
 	if err := g.bindConstants(); err != nil {
 		return err
 	}
-	types := g.constantTypes()
-	resolvedFeatures := newResolver(g.constants, g.uni)
-	for index, item := range g.features {
-		directive := item.directive
-		if directive.Conditions == nil {
-			continue
-		}
-		for _, ref := range constRefs(directive.Conditions) {
-			if g.constants[ref.Str] == nil {
-				return g.constError(item.doc, directive.At, "$%s is not defined in stage %s", ref.Str, g.name)
-			}
-		}
-		if problem := inputConditionsProblem(directive.Conditions); problem != "" {
-			return g.constError(item.doc, directive.At, "%s", problem)
-		}
-		for _, condition := range directive.Conditions {
-			if fault := condTypeFault(condition, types); fault != nil {
-				return g.constError(item.doc, directive.At, "%s", fault.problem)
-			}
-		}
-		if err := g.checkDelimiters(item.doc, &domRule{Conditions: directive.Conditions, At: directive.At}, true); err != nil {
-			err.Document, err.Line, err.Column = item.doc, directive.At[0], directive.At[1]
-			return err
-		}
-		copied := *directive
-		copied.Conditions = resolvedFeatures.condList(directive.Conditions)
-		g.features[index].directive = &copied
-	}
-	for _, u := range g.constUsers {
-		for _, ref := range constRefs(u.rule) {
-			if g.constants[ref.Str] == nil {
-				return g.constError(u.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
-			}
-		}
-		if err := g.validateStringUses(u.doc, u.rule); err != nil {
-			return err
-		}
-		if f := ruleTypeFault(u.rule, types); f != nil {
-			return g.faultError(u.doc, f.node, u.rule.At, f.problem)
-		}
-		var patternErr *Error
-		scan := func(p clausePart) bool {
-			if patternErr != nil {
-				return false
-			}
-			if p.t != nil && p.t.Kind == tmPattern {
-				_, patternErr = g.evaluateClosed(u.doc, p.t, u.rule.At)
-				return false
-			}
-			return true
-		}
-		for _, c := range u.rule.Conditions {
-			walkClause(clausePart{c: c}, scan)
-		}
-		for _, t := range ruleTagTerms(u.rule) {
-			walkClause(clausePart{t: t}, scan)
-		}
-		if patternErr != nil {
-			return patternErr
-		}
-
-		// The checks that simplification decides, which the reader left to
-		// the loader, now with the constants' values (§9).
-		if msg := definitionProblem(newResolver(g.constants, g.uni).rule(u.rule)); msg != "" {
-			if deferredEmissionProblem(msg) && ruleHasRanked(u.rule) {
-				g.deferredEmissions = append(g.deferredEmissions, g.constError(u.doc, u.rule.At, "%s", msg))
-			} else {
-				return g.constError(u.doc, u.rule.At, "%s", msg)
-			}
-		}
-		if err := g.checkDelimiters(u.doc, u.rule, false); err != nil {
+	for _, check := range checks {
+		if err := check(); err != nil {
 			return err
 		}
 	}
@@ -731,4 +662,86 @@ func (r *resolver) emit(e *domEmit) *domEmit {
 	}
 	r.emits[e] = out
 	return out
+}
+
+// resolveFeature checks one directive at its declaration slot.
+func (g *stageGrammar) resolveFeature(index int) *Error {
+	item := g.features[index]
+	types := g.constantTypes()
+	resolvedFeatures := newResolver(g.constants, g.uni)
+	directive := item.directive
+	if directive.Conditions == nil {
+		return nil
+	}
+	for _, ref := range constRefs(directive.Conditions) {
+		if g.constants[ref.Str] == nil {
+			return g.constError(item.doc, directive.At, "$%s is not defined in stage %s", ref.Str, g.name)
+		}
+	}
+	if problem := inputConditionsProblem(directive.Conditions); problem != "" {
+		return g.constError(item.doc, directive.At, "%s", problem)
+	}
+	for _, condition := range directive.Conditions {
+		if fault := condTypeFault(condition, types); fault != nil {
+			return g.constError(item.doc, directive.At, "%s", fault.problem)
+		}
+	}
+	if err := g.checkDelimiters(item.doc, &domRule{Conditions: directive.Conditions, At: directive.At}, true); err != nil {
+		err.Document, err.Line, err.Column = item.doc, directive.At[0], directive.At[1]
+		return err
+	}
+	copied := *directive
+	copied.Conditions = resolvedFeatures.condList(directive.Conditions)
+	g.features[index].directive = &copied
+	return nil
+}
+
+// checkConstantRule checks one definition after constant binding.
+func (g *stageGrammar) checkConstantRule(u constUser) *Error {
+	types := g.constantTypes()
+	for _, ref := range constRefs(u.rule) {
+		if g.constants[ref.Str] == nil {
+			return g.constError(u.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
+		}
+	}
+	if err := g.validateStringUses(u.doc, u.rule); err != nil {
+		return err
+	}
+	if f := ruleTypeFault(u.rule, types); f != nil {
+		return g.faultError(u.doc, f.node, u.rule.At, f.problem)
+	}
+	var patternErr *Error
+	scan := func(p clausePart) bool {
+		if patternErr != nil {
+			return false
+		}
+		if p.t != nil && p.t.Kind == tmPattern {
+			_, patternErr = g.evaluateClosed(u.doc, p.t, u.rule.At)
+			return false
+		}
+		return true
+	}
+	for _, c := range u.rule.Conditions {
+		walkClause(clausePart{c: c}, scan)
+	}
+	for _, t := range ruleTagTerms(u.rule) {
+		walkClause(clausePart{t: t}, scan)
+	}
+	if patternErr != nil {
+		return patternErr
+	}
+
+	// The checks that simplification decides, which the reader left to
+	// the loader, now with the constants' values (§9).
+	if msg := definitionProblem(newResolver(g.constants, g.uni).rule(u.rule)); msg != "" {
+		if deferredEmissionProblem(msg) && ruleHasRanked(u.rule) {
+			g.deferredEmissions = append(g.deferredEmissions, g.constError(u.doc, u.rule.At, "%s", msg))
+		} else {
+			return g.constError(u.doc, u.rule.At, "%s", msg)
+		}
+	}
+	if err := g.checkDelimiters(u.doc, u.rule, false); err != nil {
+		return err
+	}
+	return nil
 }

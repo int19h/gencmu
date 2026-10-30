@@ -492,6 +492,12 @@ Classifier membership errors print keys with the canonical string spelling of §
 
 A grammar is the stitching of the items of one stage of a pipeline (§13) into a set of rules, directives, constants, classifiers and implications. An item is a rule, a directive, a constant definition, a classifier or an implication, read from a document (§8, §9). A rule has a name and alternatives, and optionally rule-level tags, recipes, conditions, and an output directive. An alternative has guards, an expression, and optionally tags and recipes. The grammar DOM (document object model), in `docs/output.md`, is the exact data.
 
+The loader records declarations in written order within each expanded document run. Equal DOM positions retain the category order of rules, directives, constants, classifiers, then implications. It rejects a duplicate resolution directive as soon as it records that directive.
+
+After recording declarations, the loader binds constant versions. It then checks rule uses, feature conditions, classifier keys, and implication sides in the same declaration order. Final rule references follow the expanded rule order of §2.3. The loader checks for a resolution directive and the start rule `text` before those references.
+
+A clause uses one written-order walk for rule and classifier names together. A method's receiver precedes its arguments. A loading error from stitching always carries the stage name. A missing resolution or start rule has no document, line, or column.
+
 To stitch a stage's items, the loader reads them in order, whatever documents they come from. Each rule is stated one of three ways, and each is an error in the case given:
 
 - `%rule` (`define`) defines a rule. It is an error if a rule of that name was defined before it in the stage.

@@ -1387,3 +1387,35 @@ fn missing_resolution_message() {
     let error = gencmu::load_pipeline_sources(single("%rule text \"a\""), "p.md").expect_err("a missing resolution");
     assert_eq!(error.message, "stage main has no %ambiguity-resolution");
 }
+
+#[test]
+fn stitching_stages_and_reference_order() {
+    let cases = [
+        ("%rule other missing", "stage main has no rule text", true, true),
+        ("%rule text A", "stage main has no %ambiguity-resolution", false, true),
+        (
+            "%rule text A :: $.value.classify(nolex) ∪ $.tags(norule)",
+            "nolex is not a classifier of stage main",
+            true,
+            false,
+        ),
+        ("%rule text A :: $.tags(norule) ∪ $.value.classify(nolex)", "norule is not a rule of stage main", true, false),
+        (
+            "%const $A $MISSING\n%rule text A",
+            "$MISSING is not defined in stage main; dependency $A → $MISSING",
+            true,
+            false,
+        ),
+        ("%ambiguity-resolution greedy\n%rule text A", "stage main has a second %ambiguity-resolution", true, false),
+    ];
+    for (source, expected, resolution, unlocated) in cases {
+        let prefix = if resolution { "%ambiguity-resolution greedy\n" } else { "" };
+        let error =
+            gencmu::load_pipeline_sources(single(&format!("{prefix}{source}")), "p.md").expect_err("a stitching error");
+        assert_eq!(error.message, expected, "{source}");
+        assert_eq!(error.stage.as_deref(), Some("main"));
+        if unlocated {
+            assert_eq!((error.document, error.line, error.column), (None, None, None));
+        }
+    }
+}

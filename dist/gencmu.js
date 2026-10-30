@@ -8481,182 +8481,150 @@
      *   the canonical value of a string constant in a test
      */
     constructor(stageName, documents, unicode) {
-      this.stageName = stageName;
-      this.unicode = unicode;
-      /** @type {Map<string, StageConstant>} */
-      this.constants = new Map();
-      /** @type {any[]} */ this.constantVersions = [];
-      /** @type {Map<string, any>} */ this.finalConstants = new Map();
-      /**
-       * The definitions of rules that use constants, which the loader checks
-       * once the constants have their final values.
-       * @type {{path: string, rule: DomRule}[]}
-       */
-      this.constantUsers = [];
-      /** @type {{path:string, rule:DomRule}[]} */
-      this.emissionUsers = [];
-      /** @type {Map<string, StitchedRule>} */
-      this.rules = new Map();
-      // Written alternative order survives grouping, replacement and binding.
-      this.alternativeOrder = 0;
-      /** @type {RuleChange[]} */
-      this.changes = [];
-      /** @type {Resolution | null} */
-      this.resolution = null;
-      /**
-       * The stage's `%classifier` items in stitching order, each with its
-       * document (engine §2).
-       * @type {{path: string, classifier: DomClassifier}[]}
-       */
-      this.classifierItems = [];
-      /** @type {{path: string, implication: DomImplication}[]} */
-      this.implicationItems = [];
-      /** @type {{path:string,directive:import("./types.js").DomDirective}[]} */
-      this.featureItems = [];
-      const expansion = expandTemplates(documents,unicode);
-      this.templates=expansion.templates;
-      this.instances=expansion.instances;
-      for (const { path, dom } of expansion.documents) this.addDocument(path, dom);
-      if (expansion.order) this.rules = new Map(expansion.order.map((/** @type {string} */ name) => /** @type {[string,StitchedRule]} */ ([name,this.rules.get(name)])));
-      for (const event of expansion.validation ?? []) if (constantsIn(event.rule).length || hasPattern(event.rule)) this.constantUsers.push({path:event.path,rule:event.rule});
-      this.bindConstants();
-      this.resolveConstants();
-      this.featureItems = this.featureItems.map(({path,directive}) => {
-        try {
-          if (!directive.conditions) return {path,directive};
-          for (const reference of constantsIn(directive.conditions)) {
-            if (!this.constants.has(reference.const)) throw this.documentError(path,directive.at,`$${reference.const} is not defined in stage ${this.stageName}`);
-          }
-          const conditions = /** @type {Condition[]} */ (resolveNode(directive.conditions,this.constants));
-          const problem = inputConditionsProblem(conditions);
-          if (problem) throw this.documentError(path,directive.at,problem);
-          for (const condition of conditions) {
-            const fault = conditionTypeFault(condition,name => /** @type {StageConstant} */ (this.constants.get(name)).type);
-            if (fault) throw this.documentError(path,directive.at,fault.problem);
-          }
-          /** @type {unknown[]} */
-          const pending = [...conditions];
-          while (pending.length) {
-            const part = /** @type {any} */ (pending.pop());
-            if (part.method === "split" && !openPart(part.args[0])) {
-              const delimiter = /** @type {{string:string}} */ (this.evaluateClosed(path,part.args[0],directive.at));
-              if (delimiter.string === "") throw this.documentError(path,directive.at,"split has an empty delimiter");
+      try {
+        this.stageName = stageName;
+        this.unicode = unicode;
+        /** @type {Map<string, StageConstant>} */
+        this.constants = new Map();
+        /** @type {any[]} */ this.constantVersions = [];
+        /** @type {Map<string, any>} */ this.finalConstants = new Map();
+        /**
+         * The definitions of rules that use constants, which the loader checks
+         * once the constants have their final values.
+         * @type {{path: string, rule: DomRule}[]}
+         */
+        this.constantUsers = [];
+        /** @type {{path:string, rule:DomRule}[]} */
+        this.emissionUsers = [];
+        /** @type {Map<string, StitchedRule>} */
+        this.rules = new Map();
+        // Written alternative order survives grouping, replacement and binding.
+        this.alternativeOrder = 0;
+        /** @type {RuleChange[]} */
+        this.changes = [];
+        /** @type {Resolution | null} */
+        this.resolution = null;
+        /**
+         * The stage's `%classifier` items in stitching order, each with its
+         * document (engine §2).
+         * @type {{path: string, classifier: DomClassifier}[]}
+         */
+        this.classifierItems = [];
+        /** @type {{path: string, implication: DomImplication}[]} */
+        this.implicationItems = [];
+        /** @type {{path:string,directive:import("./types.js").DomDirective}[]} */
+        this.featureItems = [];
+        /** @type {(() => void)[]} */
+        this.validationItems = [];
+        const expansion = expandTemplates(documents,unicode);
+        this.templates=expansion.templates;
+        this.instances=expansion.instances;
+        for (const { path, dom } of expansion.documents) this.addDocument(path, dom);
+        if (expansion.order) this.rules = new Map(expansion.order.map((/** @type {string} */ name) => /** @type {[string,StitchedRule]} */ ([name,this.rules.get(name)])));
+        for (const event of expansion.validation ?? []) if (constantsIn(event.rule).length || hasPattern(event.rule)) {
+          this.constantUsers.push({path:event.path,rule:event.rule});
+          this.validationItems.push(() => this.checkConstantRule(event.path,event.rule));
+        }
+        this.bindConstants();
+        /** @type {WeakMap<DomEntry,string[]>} */
+        this.classifierKeys = new WeakMap();
+        /** @type {StageImplication[]} */
+        this.implications = [];
+        for (const check of this.validationItems) check();
+        this.validationItems.length = 0;
+        this.resolveConstants();
+        /**
+         * The features that gate an entry of a classifier. Only these change
+         * the classifiers' values.
+         * @type {string[]}
+         */
+        this.classifierGates = gateNames(this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.guards)));
+        /**
+         * The classifiers resolved for each set of the classifier gates that is
+         * on (engine §2).
+         * @type {Map<string, Map<string, Map<string, TagSet>> | GencmuError>}
+         */
+        this.classifierTables = new Map();
+        /**
+         * Each test of a body with its value, made once for every lowering.
+         * @type {WeakMap<object, SymbolTest>}
+         */
+        this.tests = new WeakMap();
+        if (!this.resolution) {
+          throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
+        }
+        if (!this.rules.has("text")) throw new GencmuError("grammar", `stage ${stageName} has no rule text`, {stage:stageName});
+        /** @type {WeakMap<RuleClauses,WeakMap<object,{rule:string,condition:number,order:number}>>} */
+        this.boundarySites = new WeakMap();
+        let ruleOrder = 0;
+        for (const rule of this.rules.values()) {
+          let conditionIndex = 0;
+          const definitions = new Set();
+          for (const alternative of rule.alternatives) {
+            if (definitions.has(alternative.clauses)) continue;
+            definitions.add(alternative.clauses);
+            // Repeated includes share DOM nodes, but each definition has its
+            // own position in the stitched condition list.
+            const sites = new WeakMap();
+            this.boundarySites.set(alternative.clauses,sites);
+            for (const condition of alternative.clauses.conditions) {
+              for (const atom of boundaryAtoms(condition)) sites.set(atom,{rule:rule.name,condition:conditionIndex,order:ruleOrder});
+              conditionIndex++;
             }
-            for (const child of clauseChildren(part)) pending.push(child);
           }
-          return {path,directive:{...directive,conditions}};
-        } catch (error) {
-          if (!(error instanceof GencmuError)) throw error;
-          if (error.where.document === path && error.where.line === directive.at[0] && error.where.column === directive.at[1]) throw error;
-          const prefix = `${error.where.document}:${error.where.line}:${error.where.column}: `;
-          const message = error.message.startsWith(prefix) ? error.message.slice(prefix.length) : error.message;
-          throw this.documentError(path,directive.at,message);
+          ruleOrder++;
         }
-      });
-      /** @type {WeakMap<DomEntry,string[]>} */
-      this.classifierKeys = new WeakMap();
-      for (const {path,classifier} of this.classifierItems) for (const entry of classifier.entries) {
-        const keys = entry.keys.map(term => {
-          for (const reference of constantsIn(term)) if (!this.constants.has(reference.const)) {
-            throw this.documentError(path,reference.at,`$${reference.const} is not defined in stage ${this.stageName}`);
-          }
-          const found = termType(term,name => /** @type {StageConstant} */ (this.constants.get(name)).type);
-          if ("problem" in found) throw this.faultError(path,found.node,entry.at,found.problem);
-          const wrong = expectedProblem(found.type,"string");
-          if (wrong) throw this.faultError(path,term,entry.at,wrong);
-          return /** @type {{string:string}} */ (this.evaluateClosed(path,term,entry.at)).string;
-        });
-        this.classifierKeys.set(entry,keys);
-      }
-      /** @type {StageImplication[]} */
-      this.implications = this.implicationItems.map(({ path, implication }) => this.resolveImplication(path, implication));
-      /**
-       * The features that gate an entry of a classifier. Only these change
-       * the classifiers' values.
-       * @type {string[]}
-       */
-      this.classifierGates = gateNames(this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.guards)));
-      /**
-       * The classifiers resolved for each set of the classifier gates that is
-       * on (engine §2).
-       * @type {Map<string, Map<string, Map<string, TagSet>> | GencmuError>}
-       */
-      this.classifierTables = new Map();
-      /**
-       * Each test of a body with its value, made once for every lowering.
-       * @type {WeakMap<object, SymbolTest>}
-       */
-      this.tests = new WeakMap();
-      if (!this.resolution) {
-        throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
-      }
-      /** @type {WeakMap<RuleClauses,WeakMap<object,{rule:string,condition:number,order:number}>>} */
-      this.boundarySites = new WeakMap();
-      let ruleOrder = 0;
-      for (const rule of this.rules.values()) {
-        let conditionIndex = 0;
-        const definitions = new Set();
-        for (const alternative of rule.alternatives) {
-          if (definitions.has(alternative.clauses)) continue;
-          definitions.add(alternative.clauses);
-          // Repeated includes share DOM nodes, but each definition has its
-          // own position in the stitched condition list.
-          const sites = new WeakMap();
-          this.boundarySites.set(alternative.clauses,sites);
-          for (const condition of alternative.clauses.conditions) {
-            for (const atom of boundaryAtoms(condition)) sites.set(atom,{rule:rule.name,condition:conditionIndex,order:ruleOrder});
-            conditionIndex++;
+        this.boundaries = boundaryReachability(this);
+        for (const {atom,alternative} of this.boundaries.atoms) for (const target of atom.args) {
+          if (!(target.rule ? this.boundaries.all.rules.has(target.rule) : this.boundaries.all.terminals.has(target.terminal))) {
+            const location = boundaryLocations.get(target);
+            const at = location?.at;
+            const error = new GencmuError("grammar",`boundary target ${target.rule ?? target.terminal} is unreachable`,
+              {document:alternative.document,...(at ? {line:at[0],column:at[1]} : {})});
+            boundaryDocumentErrors.set(error,{document:alternative.document,node:target});
+            throw error;
           }
         }
-        ruleOrder++;
-      }
-      this.boundaries = boundaryReachability(this);
-      for (const {atom,alternative} of this.boundaries.atoms) for (const target of atom.args) {
-        if (!(target.rule ? this.boundaries.all.rules.has(target.rule) : this.boundaries.all.terminals.has(target.terminal))) {
-          const location = boundaryLocations.get(target);
-          const at = location?.at;
-          const error = new GencmuError("grammar",`boundary target ${target.rule ?? target.terminal} is unreachable`,
-            {document:alternative.document,...(at ? {line:at[0],column:at[1]} : {})});
-          boundaryDocumentErrors.set(error,{document:alternative.document,node:target});
-          throw error;
+        this.checkReferences();
+        this.families = closeFamilies(this.rules);
+        this.ranked = new RankedGroups(this.rules);
+        if (this.ranked.groups.length) {
+          // Validate every surviving variant without enumerating feature assignments.
+          const validation = new Lowering(this, new Set());
+          validation.validation = true;
+          for (const rule of this.rules.values()) for (const alternative of rule.alternatives) validation.lowerAlternative(rule, alternative);
+          this.ranked.validate(validation.productions);
         }
+        // Slot emission checks inspect written carriers before absent ones disappear.
+        for (const { path, rule } of this.emissionUsers) {
+          const problem = deferredRecipeProblem(rule) ?? deferredEmissionProblem(rule);
+          if (problem) throw this.documentError(path, rule.at, problem);
+        }
+        // Recipe name analysis precedes effective channel dependencies (§11.4).
+        const recipeAlternatives = [...this.rules.values()].flatMap(rule => rule.alternatives);
+        recipeAlternatives.sort((a,b) => a.order - b.order);
+        for (const alternative of recipeAlternatives) {
+          validateRecipeCycles(alternative.value ?? alternative.clauses.value,alternative.image ?? alternative.clauses.image,alternative.document);
+        }
+        /**
+         * The features that gate an alternative or an entry of a classifier.
+         * Only these change a lowered grammar. A warning keeps its alternative
+         * (engine §3.1), and any other name matches no guard (engine §13).
+         * @type {string[]}
+         */
+        this.gates = gateNames([
+          ...[...this.rules.values()].flatMap((rule) => rule.alternatives.flatMap((alternative) => alternative.guards)),
+          ...this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.guards)),
+        ]);
+        /**
+         * The lowered grammars, keyed by the gates that are on.
+         * @type {Map<string, LoweredGrammar | GencmuError>}
+         */
+        this.lowered = new Map();
+      } catch (error) {
+        if (error instanceof GencmuError) error.where.stage = stageName;
+        throw error;
       }
-      this.checkReferences();
-      this.families = closeFamilies(this.rules);
-      this.ranked = new RankedGroups(this.rules);
-      if (this.ranked.groups.length) {
-        // Validate every surviving variant without enumerating feature assignments.
-        const validation = new Lowering(this, new Set());
-        validation.validation = true;
-        for (const rule of this.rules.values()) for (const alternative of rule.alternatives) validation.lowerAlternative(rule, alternative);
-        this.ranked.validate(validation.productions);
-      }
-      // Slot emission checks inspect written carriers before absent ones disappear.
-      for (const { path, rule } of this.emissionUsers) {
-        const problem = deferredRecipeProblem(rule) ?? deferredEmissionProblem(rule);
-        if (problem) throw this.documentError(path, rule.at, problem);
-      }
-      // Recipe name analysis precedes effective channel dependencies (§11.4).
-      const recipeAlternatives = [...this.rules.values()].flatMap(rule => rule.alternatives);
-      recipeAlternatives.sort((a,b) => a.order - b.order);
-      for (const alternative of recipeAlternatives) {
-        validateRecipeCycles(alternative.value ?? alternative.clauses.value,alternative.image ?? alternative.clauses.image,alternative.document);
-      }
-      /**
-       * The features that gate an alternative or an entry of a classifier.
-       * Only these change a lowered grammar. A warning keeps its alternative
-       * (engine §3.1), and any other name matches no guard (engine §13).
-       * @type {string[]}
-       */
-      this.gates = gateNames([
-        ...[...this.rules.values()].flatMap((rule) => rule.alternatives.flatMap((alternative) => alternative.guards)),
-        ...this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.guards)),
-      ]);
-      /**
-       * The lowered grammars, keyed by the gates that are on.
-       * @type {Map<string, LoweredGrammar | GencmuError>}
-       */
-      this.lowered = new Map();
     }
 
     /**
@@ -8664,70 +8632,85 @@
      * @param {GrammarDom} dom
      */
     addDocument(path, dom) {
-      for (const rule of dom.rules) {
-        if (rule.instance) throw new Error("an instance binding survived expansion");
-        if (constantsIn(rule).length > 0 || hasPattern(rule)) this.constantUsers.push({ path, rule });
-        if (deferredEmissionProblem(rule) || deferredRecipeProblem(rule)) this.emissionUsers.push({path, rule});
-        const at = { document: path, line: rule.at[0], column: rule.at[1] };
-        const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], erased: rule.erased === true, value:rule.value, image:rule.image };
-        const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path, at, order:this.alternativeOrder++ }));
-        const previous = this.rules.get(rule.name);
-        if (rule.op === "define") {
-          if (previous) {
-            throw new GencmuError("grammar", `%rule ${rule.name} is already defined, in ${previous.document}; %redefine-rule replaces a rule`, at);
+      const declarations = ["rules","directives","constants","classifiers","implications"]
+        .flatMap(kind => /** @type {any[]} */ (/** @type {any} */ (dom)[kind]).map(node => ({kind,node})))
+        .sort((a,b) => a.node.at[0]-b.node.at[0] || a.node.at[1]-b.node.at[1]);
+      for (const {kind,node} of declarations) {
+        if (kind === "rules") {
+          const rule = /** @type {DomRule} */ (node);
+          if (rule.instance) throw new Error("an instance binding survived expansion");
+          if (constantsIn(rule).length > 0 || hasPattern(rule)) {
+            this.constantUsers.push({path,rule});
+            this.validationItems.push(() => this.checkConstantRule(path,rule));
           }
-          this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives, flags: rule.flags });
-        } else if (rule.op === "redefine") {
-          if (!previous) {
-            throw new GencmuError("grammar", `%redefine-rule ${rule.name} replaces no rule defined before it`, at);
+          if (deferredEmissionProblem(rule) || deferredRecipeProblem(rule)) this.emissionUsers.push({path, rule});
+          const at = { document: path, line: rule.at[0], column: rule.at[1] };
+          const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], erased: rule.erased === true, value:rule.value, image:rule.image };
+          const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path, at, order:this.alternativeOrder++ }));
+          const previous = this.rules.get(rule.name);
+          if (rule.op === "define") {
+            if (previous) {
+              throw new GencmuError("grammar", `%rule ${rule.name} is already defined, in ${previous.document}; %redefine-rule replaces a rule`, at);
+            }
+            this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives, flags: rule.flags });
+          } else if (rule.op === "redefine") {
+            if (!previous) {
+              throw new GencmuError("grammar", `%redefine-rule ${rule.name} replaces no rule defined before it`, at);
+            }
+            /** @type {RuleChange} */
+            const change = { kind: "replaced", rule: rule.name, document: path, previous: previous.document };
+            if (previous.flags.join(",") !== rule.flags.join(",")) {
+              change.flagChange = { from: previous.flags.slice(), to: rule.flags.slice() };
+            }
+            this.changes.push(change);
+            this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives, flags: rule.flags });
+          } else {
+            const base = previous;
+            if (!base) {
+              throw new GencmuError("grammar", `%extend-rule ${rule.name} extends a rule that is not defined before it`, at);
+            }
+            this.changes.push({ kind: "extended", rule: rule.name, document: path, previous: base.document });
+            // Added in place: a copy of the list for each %extend-rule would
+            // cost the square of their number.
+            for (const alternative of alternatives) {
+              if (hooks.work) countWork(hooks.work, "clauses");
+              base.alternatives.push(alternative);
+            }
           }
-          /** @type {RuleChange} */
-          const change = { kind: "replaced", rule: rule.name, document: path, previous: previous.document };
-          if (previous.flags.join(",") !== rule.flags.join(",")) {
-            change.flagChange = { from: previous.flags.slice(), to: rule.flags.slice() };
+        } else if (kind === "directives") {
+          const directive = /** @type {import("./types.js").DomDirective} */ (node);
+          const at = { document: path, line: directive.at[0], column: directive.at[1] };
+          switch (directive.name) {
+            case "features":
+              const item = {path,directive};
+              this.featureItems.push(item);
+              this.validationItems.push(() => Object.assign(item,this.resolveFeature(path,directive)));
+              break;
+            case "ambiguity-resolution": {
+              if (this.resolution) {
+                throw new GencmuError("grammar", `stage ${this.stageName} has a second %ambiguity-resolution`, at);
+              }
+              const [lean, ...rest] = directive.args;
+              const elisionOnly = rest[0] === "elision-only";
+              if (elisionOnly) rest.shift();
+              if ((lean !== "greedy" && lean !== "lazy" && lean !== "late-elision") || rest.length > 0) {
+                throw new GencmuError("grammar", `%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only`, at);
+              }
+              this.resolution = { lean, elisionOnly };
+              break;
+            }
+            default:
+              throw new GencmuError("grammar", `unknown directive %${directive.name}`, at);
           }
-          this.changes.push(change);
-          this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives, flags: rule.flags });
+        } else if (kind === "constants") this.addConstant(path,node);
+        else if (kind === "classifiers") {
+          this.classifierItems.push({path,classifier:node});
+          this.validationItems.push(() => this.resolveClassifierKeys(path,node));
         } else {
-          const base = previous;
-          if (!base) {
-            throw new GencmuError("grammar", `%extend-rule ${rule.name} extends a rule that is not defined before it`, at);
-          }
-          this.changes.push({ kind: "extended", rule: rule.name, document: path, previous: base.document });
-          // Added in place: a copy of the list for each %extend-rule would
-          // cost the square of their number.
-          for (const alternative of alternatives) {
-            if (hooks.work) countWork(hooks.work, "clauses");
-            base.alternatives.push(alternative);
-          }
+          this.implicationItems.push({path,implication:node});
+          this.validationItems.push(() => this.implications.push(this.resolveImplication(path,node)));
         }
       }
-      for (const directive of dom.directives) {
-        const at = { document: path, line: directive.at[0], column: directive.at[1] };
-        switch (directive.name) {
-          case "features":
-            this.featureItems.push({path,directive});
-            break;
-          case "ambiguity-resolution": {
-            if (this.resolution) {
-              throw new GencmuError("grammar", `stage ${this.stageName} has a second %ambiguity-resolution`, at);
-            }
-            const [lean, ...rest] = directive.args;
-            const elisionOnly = rest[0] === "elision-only";
-            if (elisionOnly) rest.shift();
-            if ((lean !== "greedy" && lean !== "lazy" && lean !== "late-elision") || rest.length > 0) {
-              throw new GencmuError("grammar", `%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only`, at);
-            }
-            this.resolution = { lean, elisionOnly };
-            break;
-          }
-          default:
-            throw new GencmuError("grammar", `unknown directive %${directive.name}`, at);
-        }
-      }
-      for (const constant of dom.constants) this.addConstant(path, constant);
-      for (const classifier of dom.classifiers) this.classifierItems.push({ path, classifier });
-      for (const implication of dom.implications) this.implicationItems.push({ path, implication });
     }
 
     /**
@@ -9028,43 +9011,93 @@
       return copy;
     }
 
+    /** @param {string} path @param {DomRule} rule */
+    checkConstantRule(path, rule) {
+      /** @type {(name:string) => TermType} */
+      const types = name => /** @type {StageConstant} */ (this.constants.get(name)).type;
+      for (const reference of constantsIn(rule)) {
+        if (!this.constants.has(reference.const)) {
+          throw this.documentError(path, reference.at, `$${reference.const} is not defined in stage ${this.stageName}`);
+        }
+      }
+      const resolvedRule = resolveNode(rule,this.constants);
+      const fault = ruleTypeFault(resolvedRule,types);
+      if (fault) throw this.faultError(path, fault.node, rule.at, fault.problem);
+      // The checks that simplification decides, which the reader left to
+      // the loader, now with the constants' values (engine §9).
+      const parts = [rule];
+      while (parts.length) {
+        const part = /** @type {any} */ (parts.pop());
+        if (!part || typeof part !== "object") continue;
+        if (part.method === "split" && ("string" in part.args[0] || "const" in part.args[0])) {
+          const delimiter = /** @type {{string:string}} */ (this.evaluateClosed(path,part.args[0],rule.at));
+          if (delimiter.string === "") throw this.faultError(path,part.args[0],rule.at,"split has an empty delimiter");
+        }
+        for (const child of Object.values(part)) if (child && typeof child === "object") parts.push(child);
+      }
+      const checked = this.resolvePatterns(resolvedRule,path,rule.at);
+      const problem = definitionProblem(checked, true);
+      if (deferredEmissionProblem(checked) || deferredRecipeProblem(checked)) this.emissionUsers.push({path, rule:checked});
+      if (problem) throw this.documentError(path, rule.at, problem);
+
+    }
+
+    /** @param {string} path @param {import("./types.js").DomDirective} directive */
+    resolveFeature(path, directive) {
+      try {
+        if (!directive.conditions) return {path,directive};
+        for (const reference of constantsIn(directive.conditions)) {
+          if (!this.constants.has(reference.const)) throw this.documentError(path,directive.at,`$${reference.const} is not defined in stage ${this.stageName}`);
+        }
+        const conditions = /** @type {Condition[]} */ (resolveNode(directive.conditions,this.constants));
+        const problem = inputConditionsProblem(conditions);
+        if (problem) throw this.documentError(path,directive.at,problem);
+        for (const condition of conditions) {
+          const fault = conditionTypeFault(condition,name => /** @type {StageConstant} */ (this.constants.get(name)).type);
+          if (fault) throw this.documentError(path,directive.at,fault.problem);
+        }
+        /** @type {unknown[]} */
+        const pending = [...conditions];
+        while (pending.length) {
+          const part = /** @type {any} */ (pending.pop());
+          if (part.method === "split" && !openPart(part.args[0])) {
+            const delimiter = /** @type {{string:string}} */ (this.evaluateClosed(path,part.args[0],directive.at));
+            if (delimiter.string === "") throw this.documentError(path,directive.at,"split has an empty delimiter");
+          }
+          for (const child of clauseChildren(part)) pending.push(child);
+        }
+        return {path,directive:{...directive,conditions}};
+      } catch (error) {
+        if (!(error instanceof GencmuError)) throw error;
+        if (error.where.document === path && error.where.line === directive.at[0] && error.where.column === directive.at[1]) throw error;
+        const prefix = `${error.where.document}:${error.where.line}:${error.where.column}: `;
+        const message = error.message.startsWith(prefix) ? error.message.slice(prefix.length) : error.message;
+        throw this.documentError(path,directive.at,message);
+      }
+    }
+
+    /** @param {string} path @param {DomClassifier} classifier */
+    resolveClassifierKeys(path, classifier) {
+      for (const entry of classifier.entries) {
+        const keys = entry.keys.map(term => {
+          for (const reference of constantsIn(term)) if (!this.constants.has(reference.const)) {
+            throw this.documentError(path,reference.at,`$${reference.const} is not defined in stage ${this.stageName}`);
+          }
+          const found = termType(term,name => /** @type {StageConstant} */ (this.constants.get(name)).type);
+          if ("problem" in found) throw this.faultError(path,found.node,entry.at,found.problem);
+          const wrong = expectedProblem(found.type,"string");
+          if (wrong) throw this.faultError(path,term,entry.at,wrong);
+          return /** @type {{string:string}} */ (this.evaluateClosed(path,term,entry.at)).string;
+        });
+        this.classifierKeys.set(entry,keys);
+      }
+    }
+
     /**
-     * Gives every constant in a rule its final value, once the stage is
-     * stitched, and checks what the reader could not: that each is defined,
-     * that the types agree, and that a constant that split or tag reads
-     * directly is a delimiter that is not empty, or a name (engine §2, §9,
-     * §10).
+     * Substitutes final values in the stitched rules after declaration checks.
+     * Clauses shared by alternatives stay shared (engine §2).
      */
     resolveConstants() {
-      /** @type {(name: string) => TermType} */
-      const types = (name) => /** @type {StageConstant} */ (this.constants.get(name)).type;
-      for (const { path, rule } of this.constantUsers) {
-        for (const reference of constantsIn(rule)) {
-          if (!this.constants.has(reference.const)) {
-            throw this.documentError(path, reference.at, `$${reference.const} is not defined in stage ${this.stageName}`);
-          }
-        }
-        const resolvedRule = resolveNode(rule,this.constants);
-        const fault = ruleTypeFault(resolvedRule,types);
-        if (fault) throw this.faultError(path, fault.node, rule.at, fault.problem);
-        // The checks that simplification decides, which the reader left to
-        // the loader, now with the constants' values (engine §9).
-        const parts = [rule];
-        while (parts.length) {
-          const part = /** @type {any} */ (parts.pop());
-          if (!part || typeof part !== "object") continue;
-          if (part.method === "split" && ("string" in part.args[0] || "const" in part.args[0])) {
-            const delimiter = /** @type {{string:string}} */ (this.evaluateClosed(path,part.args[0],rule.at));
-            if (delimiter.string === "") throw this.faultError(path,part.args[0],rule.at,"split has an empty delimiter");
-          }
-          for (const child of Object.values(part)) if (child && typeof child === "object") parts.push(child);
-        }
-        const checked = this.resolvePatterns(resolvedRule,path,rule.at);
-        const problem = definitionProblem(checked, true);
-        if (deferredEmissionProblem(checked) || deferredRecipeProblem(checked)) this.emissionUsers.push({path, rule:checked});
-        if (problem) throw this.documentError(path, rule.at, problem);
-
-      }
       if (this.constantUsers.length === 0) return;
       // Each reference holds the final value; the clauses that a definition's
       // alternatives share stay shared.
@@ -9158,17 +9191,21 @@
             const { tags, conditions, emit } = alternative.clauses;
             clauses.push(tags, conditions, emit ? emit.items.map((item) => item.tags) : []);
           }
-          for (const name of clauseRules(clauses)) check(name, rule, alternative);
-          // A classifier that classify names belongs to the stage (engine §2).
-          for (const name of clauseClassifiers(clauses)) {
+          const pending = clauses.slice().reverse();
+          while (pending.length) {
+            const node = /** @type {any} */ (pending.pop());
             if (hooks.work) countWork(hooks.work, "clauses");
-            if (!classifierNames.has(name)) {
-              throw new GencmuError("grammar", `${name} is not a classifier of stage ${this.stageName}`, alternative.at);
+            if (!node || typeof node !== "object") continue;
+            if (BOUNDARY_METHODS.has(node.method)) continue;
+            if (typeof node.rule === "string") check(node.rule,rule,alternative);
+            if (typeof node.classifier === "string" && !classifierNames.has(node.classifier)) {
+              throw new GencmuError("grammar", `${node.classifier} is not a classifier of stage ${this.stageName}`, alternative.at);
             }
+            const children = clauseChildren(node);
+            for (let index = children.length-1; index >= 0; index--) pending.push(children[index]);
           }
         }
       }
-      if (!this.rules.has("text")) throw new GencmuError("grammar", `stage ${this.stageName} has no rule text`, { stage: this.stageName });
     }
 
     /**
@@ -9316,40 +9353,6 @@
   function tagName(expr) {
     while ("test" in expr) expr = expr.expr;
     return "ref" in expr && isTerminalName(expr.ref) ? expr.ref : undefined;
-  }
-
-  /**
-   * The rules that terms and conditions name: the rule of a matches or begins
-   * condition, and the rule argument of a call such as tags(span, rule).
-   * @param {unknown} value
-   * @returns {Generator<string>}
-   */
-  function* clauseRules(value) {
-    if (hooks.work) countWork(hooks.work, "clauses");
-    if (Array.isArray(value)) {
-      for (const item of value) yield* clauseRules(item);
-    } else if (value !== null && typeof value === "object") {
-      const node = /** @type {Record<string, unknown>} */ (value);
-      if (BOUNDARY_METHODS.has(/** @type {string} */ (node.method))) return;
-      if (typeof node.rule === "string") yield node.rule;
-      for (const child of clauseChildren(node)) yield* clauseRules(child);
-    }
-  }
-
-  /**
-   * The classifiers that terms name, as the second argument of classify.
-   * @param {unknown} value
-   * @returns {Generator<string>}
-   */
-  function* clauseClassifiers(value) {
-    if (hooks.work) countWork(hooks.work, "clauses");
-    if (Array.isArray(value)) {
-      for (const item of value) yield* clauseClassifiers(item);
-    } else if (value !== null && typeof value === "object") {
-      const node = /** @type {Record<string, unknown>} */ (value);
-      if (typeof node.classifier === "string") yield node.classifier;
-      for (const child of clauseChildren(node)) yield* clauseClassifiers(child);
-    }
   }
 
   // The lowered grammar: productions, numbered as engine §3 says.

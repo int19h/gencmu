@@ -31,6 +31,28 @@ class Values(unittest.TestCase):
                 self.assertIsNotNone(error)
                 self.assertEqual(error.message, expected.replace("g.md", "main.md"))
 
+    def test_stitching_errors_retain_stages_and_written_reference_order(self) -> None:
+        import gencmu
+        cases = [
+            ('%rule other missing', 'stage main has no rule text', True, True),
+            ('%rule text A', 'stage main has no %ambiguity-resolution', False, True),
+            ('%rule text A :: $.value.classify(nolex) ∪ $.tags(norule)', 'nolex is not a classifier of stage main', True, False),
+            ('%rule text A :: $.tags(norule) ∪ $.value.classify(nolex)', 'norule is not a rule of stage main', True, False),
+            ('%const $A $MISSING\n%rule text A', '$MISSING is not defined in stage main; dependency $A → $MISSING', True, False),
+            ('%ambiguity-resolution greedy\n%rule text A', 'stage main has a second %ambiguity-resolution', True, False),
+        ]
+        for source, expected, resolution, unlocated in cases:
+            with self.subTest(source=source):
+                sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```',
+                           "g.md": '```jbogenbau\n' + ('%ambiguity-resolution greedy\n' if resolution else '') + source + '\n```'}
+                with self.assertRaises(gencmu.GencmuError) as found:
+                    gencmu.load_pipeline_sources(sources, "p.md")
+                error = found.exception
+                self.assertEqual(error.message, expected)
+                self.assertEqual(error.stage, "main")
+                if unlocated:
+                    self.assertEqual((error.document, error.line, error.column), (None, None, None))
+
     def test_missing_resolution_message(self) -> None:
         import gencmu
         sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```',

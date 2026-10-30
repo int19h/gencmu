@@ -1541,3 +1541,34 @@ func TestMissingResolutionMessage(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestStitchingStagesAndReferenceOrder(t *testing.T) {
+	cases := []struct {
+		source, message       string
+		resolution, unlocated bool
+	}{
+		{"%rule other missing", "stage main has no rule text", true, true},
+		{"%rule text A", "stage main has no %ambiguity-resolution", false, true},
+		{"%rule text A :: $.value.classify(nolex) ∪ $.tags(norule)", "nolex is not a classifier of stage main", true, false},
+		{"%rule text A :: $.tags(norule) ∪ $.value.classify(nolex)", "norule is not a rule of stage main", true, false},
+		{"%const $A $MISSING\n%rule text A", "$MISSING is not defined in stage main; dependency $A → $MISSING", true, false},
+		{"%ambiguity-resolution greedy\n%rule text A", "stage main has a second %ambiguity-resolution", true, false},
+	}
+	for _, c := range cases {
+		source := c.source
+		if c.resolution {
+			source = "%ambiguity-resolution greedy\n" + source
+		}
+		_, err := LoadPipelineSources(oneStage(source), "p.md")
+		var fault *Error
+		if !errors.As(err, &fault) {
+			t.Fatalf("expected error, got %v", err)
+		}
+		if fault.Message != c.message || fault.Stage != "main" {
+			t.Errorf("%s: %+v", c.source, fault)
+		}
+		if c.unlocated && (fault.Document != "" || fault.Line != 0 || fault.Column != 0) {
+			t.Errorf("unexpected location: %+v", fault)
+		}
+	}
+}

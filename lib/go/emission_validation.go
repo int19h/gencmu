@@ -185,35 +185,34 @@ func (g *stageGrammar) validateAlternativeRecipeCycle(rule string, a *sAlt) *Err
 	return nil
 }
 
-func (g *stageGrammar) resolveClassifierKeys() *Error {
-	for index, item := range g.classifierSet.items {
-		copy := *item.classifier
-		copy.Entries = make([]*domEntry, len(item.classifier.Entries))
-		for i, e := range item.classifier.Entries {
-			entry := *e
-			copy.Entries[i] = &entry
-		}
-		item.classifier = &copy
-		g.classifierSet.items[index] = item
-		for _, entry := range item.classifier.Entries {
-			entry.Keys = nil
-			for _, key := range entry.KeyTerms {
-				for _, ref := range constRefs(key) {
-					if g.constants[ref.Str] == nil {
-						return g.constError(item.doc, ref.At, "unknown classifier string constant $%s", ref.Str)
-					}
+func (g *stageGrammar) resolveClassifierKeys(index int) *Error {
+	item := g.classifierSet.items[index]
+	copy := *item.classifier
+	copy.Entries = make([]*domEntry, len(item.classifier.Entries))
+	for i, e := range item.classifier.Entries {
+		entry := *e
+		copy.Entries[i] = &entry
+	}
+	item.classifier = &copy
+	g.classifierSet.items[index] = item
+	for _, entry := range item.classifier.Entries {
+		entry.Keys = nil
+		for _, key := range entry.KeyTerms {
+			for _, ref := range constRefs(key) {
+				if g.constants[ref.Str] == nil {
+					return g.constError(item.doc, ref.At, "unknown classifier string constant $%s", ref.Str)
 				}
-				if ty, f := termTypeIn(key, g.constantTypes()); f != nil {
-					return g.faultError(item.doc, f.node, entry.At, f.problem)
-				} else if ty != tyString {
-					return g.faultError(item.doc, key, entry.At, "classifier keys require strings")
-				}
-				value, err := g.evaluateClosed(item.doc, key, entry.At)
-				if err != nil {
-					return err
-				}
-				entry.Keys = append(entry.Keys, value.s)
 			}
+			if ty, f := termTypeIn(key, g.constantTypes()); f != nil {
+				return g.faultError(item.doc, f.node, entry.At, f.problem)
+			} else if ty != tyString {
+				return g.faultError(item.doc, key, entry.At, "classifier keys require strings")
+			}
+			value, err := g.evaluateClosed(item.doc, key, entry.At)
+			if err != nil {
+				return err
+			}
+			entry.Keys = append(entry.Keys, value.s)
 		}
 	}
 	return nil

@@ -332,10 +332,6 @@ func (l *loader) loadMode(pipelinePath string) (*Pipeline, error) {
 	for _, s := range p.stages {
 		g, err := stitch(s.name, s.documents, l.uni)
 		if err != nil {
-			if err.Document == "" {
-				err.Document = s.doc
-				err.Line, err.Column = s.at[0], s.at[1]
-			}
 			return nil, err
 		}
 		d.stages = append(d.stages, g)

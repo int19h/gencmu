@@ -165,6 +165,8 @@ Examples are `KOhA<UI Word>`, `KOhA<¬UI>`, `LE≠"lo"`, `X<¬A B>`, and `X<A>="
 
 A grammar that fails to load produces an error alone, outside any parse result. Its kind is `grammar`. The error has `document`, `line`, and `column` where known. A tie in a notation stage has `document`, with no `line` or `column` (engine §8).
 
+Every stitching error carries `stage`. Missing resolution and start rule errors have no document or position.
+
 Engine §2 specifies common stitching and classifier messages. Existing unit tests pin those messages. Other wording stays library-specific unless this specification states otherwise.
 
 Ranked loading errors have these members, in this order:
