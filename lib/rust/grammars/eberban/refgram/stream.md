@@ -28,15 +28,18 @@ The stream is a sequence of units with gaps between them. A gap is one or more s
 <p><img src="../../../docs/diagrams/eberban/refgram/stream/unit.svg" alt="Railroad diagram of the rule unit"></p>
 </details>
 
-A plain word is any word token except a compound prefix, which only a compound reads. A `co` that opens no quote stays a plain word, and the syntax stage has no use for it. Junk is a run that the forms stage read as no word. It passes through for the syntax stage, where only erased text admits it.
+A plain word is any word token except a compound prefix, which only a compound reads. A `co` that no bracket follows stays a plain word, and the syntax stage has no use for it. A `co` that a bracket follows opens a quote, so it is never a plain word. If the quote never closes, the text has no parse. Junk is a run that the forms stage read as no word. It passes through for the syntax stage, where only erased text admits it.
 
 ```jbogenbau
 %rule plain-word
   $w:Word<¬Prefix> :: $w.tags
 %conditions
-  ¬$w.onward.begins(foreign-quote)
+  ¬$w.onward.begins(quote-opening)
 %emits
   $
+
+%rule quote-opening
+  CO [gap] Open | CO [Space] delimiter Open
 
 %rule junk
   $j:Junk :: $j.tags
@@ -44,8 +47,9 @@ A plain word is any word token except a compound prefix, which only a compound r
   $
 ```
 
-<details><summary>Railroad diagrams of <code>plain-word</code> and <code>junk</code></summary>
+<details><summary>Railroad diagrams of <code>plain-word</code>, <code>quote-opening</code> and <code>junk</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/stream/plain-word.svg" alt="Railroad diagram of the rule plain-word"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/quote-opening.svg" alt="Railroad diagram of the rule quote-opening"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/stream/junk.svg" alt="Railroad diagram of the rule junk"></p>
 </details>
 
@@ -160,6 +164,6 @@ The quote emits one token tagged `Word`, `Particle`, `CO` and `Quote`. Its image
 
 ## Differences from the reference grammar and the PEG
 
-The PEG reads a foreign quote only where the syntax expects a verb. When the sentence around it is ungrammatical, the PEG reads its characters again as erasable text. So a `ra` inside a closed quote erases an ungrammatical sentence, and the text after the `ra` leaks out of the quote. The chapter on sentences describes this as a hazard and advises closing quotes properly. This stage reads every quote as a quote, so a `ra` inside one is quoted text. An ungrammatical sentence with a `ra` inside its quote and none after it has no parse here.
+The sentences chapter says that a `ra` inside a foreign quote erases a sentence that was already ungrammatical. It describes the PEG, which reads a foreign quote only where the syntax expects a verb. When a sentence is ungrammatical, the PEG reads its characters again as erasable text and ignores quotes. mia, who designed Eberban, considers this a limitation of the PEG. Her intent is that words and quotes are read first and parsed after. This stage does that. A closed quote is one word wherever it stands, so a `ra` inside it is quoted text. A `co` and bracket that no closer follows is an unclosed quote, and the text has no parse. The PEG reads such text again as erasable characters, so `a sune co [mi ra a sunu` is a text there.
 
 The PEG records each prefix as the text writes it, so `ei ber ban ban` has the inner prefix `i` and `e e ber ban ban` has `e`. Two spellings of one compound then differ, and a `pa` resumption that repeats the verb in the other spelling fails there. The compounds chapter calls the joined prefix a shorthand for the spaced one. This stage gives both spellings one value, in the shortest canonical form that the chapter says the dictionary uses.
