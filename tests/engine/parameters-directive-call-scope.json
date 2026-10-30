@@ -1,0 +1,13 @@
+{
+  "description": "Calls in feature directives receive template scope checks before feature evaluation.",
+  "grammar": "%features f %conditions $.tags = missing(\"a\")\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 34
+    }
+  }
+}

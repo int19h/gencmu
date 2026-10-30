@@ -69,6 +69,7 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 					return checker.problem
 				}
 			}
+			d.unresolved = d.unresolved || checker.unresolved
 		}
 	}
 	// The order of a document's items is the order of their positions, so
