@@ -154,8 +154,6 @@ class Grammar:
     implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
     families: dict[str, frozenset[str]] = field(default_factory=dict, repr=False, compare=False)
     query_terminals: frozenset[str] = field(default_factory=frozenset, repr=False, compare=False)
-    templates: list[Dom] = field(default_factory=list, repr=False, compare=False)
-    instances: list[Dom] = field(default_factory=list, repr=False, compare=False)
     # The features that gate an entry of a classifier. Only these change
     # the classifiers.
     classifier_gates: frozenset[str] = field(init=False, repr=False, compare=False)
@@ -704,7 +702,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     controls canonical terminal spellings in diagnostics."""
     from ._templates import expand_templates
     from ._ranked import expression_locations
-    documents, template_order, templates, instances, validation = expand_templates(documents, unicode)
+    documents, template_order, _, validation = expand_templates(documents, unicode)
     rules: dict[str, Rule] = {}
     written_alternatives: list[Alternative] = []
     constants = _Constants(stage, unicode)
@@ -916,8 +914,6 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
         implications=implications,
         families=members(rules, family_names),
         query_terminals=frozenset(query_terminals),
-        templates=templates,
-        instances=instances,
     )
 
     grammar.ranked = RankedGroups(stage, rules)

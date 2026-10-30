@@ -3,7 +3,6 @@ use crate::dom::{self, Dom};
 use crate::json::Json;
 use crate::unicode::Unicode;
 
-mod audit;
 pub(crate) mod expand;
 pub(crate) mod locations;
 mod print;
@@ -220,9 +219,6 @@ pub(crate) fn argument(expr: Json) -> Json {
         return expr;
     }
     obj([("body", expr)])
-}
-pub(crate) fn normalize(root: &Json) -> Json {
-    normalize_patterns(root, &std::collections::BTreeSet::new())
 }
 pub(crate) fn normalize_patterns(root: &Json, patterns: &std::collections::BTreeSet<String>) -> Json {
     map_nodes(root, |mut value| {

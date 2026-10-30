@@ -14,8 +14,6 @@ type stageFeature struct {
 }
 
 type stageGrammar struct {
-	templates         []*ruleTemplate
-	instances         []*ruleInstance
 	features          []stageFeature
 	families          map[string]map[string]bool
 	ranked            *rankedGroups
@@ -114,7 +112,7 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 		return nil, expansionError
 	}
 	docs = expanded.docs
-	g := &stageGrammar{templates: expanded.templates, instances: expanded.instances, name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}}
+	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}}
 	for _, user := range expanded.validation {
 		if len(constRefs(user.rule)) > 0 || ruleHasPattern(user.rule) {
 			g.constUsers = append(g.constUsers, user)

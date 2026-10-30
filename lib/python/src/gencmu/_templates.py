@@ -163,7 +163,7 @@ def _print_body(n, unicode, parent=''):
 def expand_templates(documents, unicode):
     from ._validate import dom_problem
     if not any(has_unresolved(dom) for _, dom in documents):
-        return documents, None, [], [], []
+        return documents, None, [], []
     patterns = pattern_constant_names(c for _, dom in documents for c in dom["constants"])
     normalize = lambda value: normalize_argument(value, patterns)
     templates, names, instances = {}, {}, {}
@@ -194,7 +194,7 @@ def expand_templates(documents, unicode):
                 if rule['op'] == 'define':
                     if previous or name in names:
                         fail(event, rule, f'duplicate template {name}')
-                    templates[name] = dict(name=name, arity=len(rule['params']), events=[event], at=rule['at'], path=path)
+                    templates[name] = dict(name=name, arity=len(rule['params']), events=[event])
                 else:
                     if not previous or previous['arity'] != len(rule['params']):
                         fail(event, rule, f'template {name} requires an earlier declaration with the same arity')
@@ -262,7 +262,7 @@ def expand_templates(documents, unicode):
         normalized = dict(call=call['call'], args=normalize(call['args']), at=call['at'])
         key = key_of(normalized)
         if key not in instances:
-            instances[key] = dict(key=key, call=normalized, canonical=canonical_argument(normalized, unicode), name=None,
+            instances[key] = dict(call=normalized, canonical=canonical_argument(normalized, unicode), name=None,
                                   origin=dict(document=event['path'], at=call['at']), locals=[], definitions=[])
         instance = instances[key]
         if discover and not instance.get('discovered'):
@@ -311,8 +311,8 @@ def expand_templates(documents, unicode):
             if old is instance:
                 fail(event, rule, 'repeating an instance binding is invalid')
             if old:
-                old.update(name=None, binding=None)
-            instance.update(name=name, binding=dict(document=event['path'], line=rule['at'][0], column=rule['at'][1]))
+                old.update(name=None)
+            instance.update(name=name)
             current[name] = instance
             ordinary.pop(name, None)
         elif name in current:
@@ -555,7 +555,8 @@ def expand_templates(documents, unicode):
     expanded_docs = [(path, {**dom, 'rules': [], **{k: [rewrite(item, dict(path=path, rule=item)) for item in dom[k]] for k in ('constants', 'directives', 'classifiers', 'implications')}}) for path, dom in documents]
     expanded_docs.extend((e['path'], empty_dom(documents[0][1]['format'], [e['rule']])) for e in output)
     order = [n for n in slots if n in current or n in ordinary] + [effective(i) for i in queue if not i['name']]
-    return expanded_docs, order, list(templates.values()), queue, validation
+    instance_names = {effective(i) for i in queue}
+    return expanded_docs, order, [name for name in order if name in instance_names], validation
 
 
 def effective(instance):
@@ -578,73 +579,6 @@ def child_position(key, position):
     if key in ('pattern', 'child'):
         return 'pattern'
     return position
-
-
-def template_audit(grammar):
-    ordered = sorted(grammar.instances, key=lambda i: list(grammar.rules).index(effective(i)))
-    by_name = {i['name']: i for i in ordered if i['name']}
-
-    def aliases(a, b):
-        pending = [(a, b)]
-        while pending:
-            a, b = pending.pop()
-            if isinstance(a, dict) and isinstance(b, dict):
-                an = a.get('rule', a.get('ref', a.get('name')))
-                bn = b.get('rule', b.get('ref', b.get('name')))
-                if an in by_name and 'call' in b:
-                    if by_name[an]['key'] != key_of(normalize_argument(dict(call=b['call'], args=b['args']))):
-                        return False
-                    a = {**by_name[an]['call'], **{k: v for k, v in a.items() if k not in ('rule', 'ref', 'name')}}
-                if bn in by_name and 'call' in a:
-                    if by_name[bn]['key'] != key_of(normalize_argument(dict(call=a['call'], args=a['args']))):
-                        return False
-                    b = {**by_name[bn]['call'], **{k: v for k, v in b.items() if k not in ('rule', 'ref', 'name')}}
-                ka, kb = set(a) - {'at'}, set(b) - {'at'}
-                if ka != kb:
-                    return False
-                pending.extend((a[k], b[k]) for k in ka)
-            elif isinstance(a, list) and isinstance(b, list):
-                if len(a) != len(b):
-                    return False
-                pending.extend(zip(a, b))
-            elif isinstance(a, (dict, list)) or isinstance(b, (dict, list)) or a != b:
-                return False
-        return True
-
-    templates = []
-    for template in grammar.templates:
-        first = 0
-        for i, event in enumerate(template['events']):
-            if event['rule']['op'] != 'extend':
-                first = i
-        used = {e['rule']['params'].index(n['param']) for e in template['events'][first:]
-                for n in nodes(e['rule']) if 'param' in n}
-        parameters = list(template['events'][0]['rule']['params'])
-        notes = [dict(kind='unused-parameter', parameter=p) for i, p in enumerate(parameters) if i not in used]
-        if not any(i['call']['call'] == template['name'] for i in ordered):
-            notes.append(dict(kind='uncalled-template'))
-        templates.append(dict(template=template['name'], parameters=parameters, document=template['path'],
-                              line=template['at'][0], column=template['at'][1], notes=notes))
-    instances = []
-    for instance in ordered:
-        flags, events = [], []
-        template = next(t for t in grammar.templates if t['name'] == instance['call']['call'])
-        indices = {e['index'] for e in template['events']}
-        for event in instance['definitions']:
-            before = list(flags)
-            if event['rule']['op'] != 'extend':
-                flags = list(event['rule']['flags'])
-            events.append(dict(scope='template' if event['index'] in indices else 'instance', op=event['rule']['op'],
-                               document=event['path'], line=event['rule']['at'][0], column=event['rule']['at'][1],
-                               flagsBefore=before, flagsAfter=list(flags)))
-        twins = [effective(other) for other in ordered if other is not instance
-                 and other['call']['call'] == instance['call']['call'] and aliases(other['call']['args'], instance['call']['args'])]
-        origin = instance['origin']
-        instances.append(dict(template=instance['call']['call'], arguments=identity(instance['call']['args']),
-                              name=effective(instance), binding=instance.get('binding'),
-                              firstCall=dict(document=origin['document'], line=origin['at'][0], column=origin['at'][1]),
-                              flags=flags, events=events, notes=[dict(kind='argument-alias-twin', instances=twins)] if twins else []))
-    return dict(templates=templates, instances=instances)
 
 
 def ordered_keys(node):

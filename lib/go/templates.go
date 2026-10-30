@@ -15,16 +15,15 @@ type templateEvent struct {
 	instance   string
 }
 type ruleTemplate struct {
-	name, path string
-	arity      int
-	at         [2]int
-	events     []*templateEvent
+	name   string
+	arity  int
+	events []*templateEvent
 }
 type ruleInstance struct {
-	key, canonical, name  string
-	call, origin, binding templateObject
-	locals, definitions   []*templateEvent
-	discovered            bool
+	canonical, name     string
+	call, origin        templateObject
+	locals, definitions []*templateEvent
+	discovered          bool
 }
 
 func (i *ruleInstance) effective() string {
@@ -35,11 +34,10 @@ func (i *ruleInstance) effective() string {
 }
 
 type templateExpansion struct {
-	docs       []docDOM
-	order      []string
-	templates  []*ruleTemplate
-	instances  []*ruleInstance
-	validation []constUser
+	docs          []docDOM
+	order         []string
+	instanceNames []string
+	validation    []constUser
 }
 type templateExpander struct {
 	uni           *unicodeTable
@@ -142,7 +140,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 					if previous != nil || names[name] != nil {
 						x.fail(e, r, "duplicate template "+name)
 					}
-					t := &ruleTemplate{name: name, path: d.path, arity: len(templateList(r["params"])), at: templateAt(r), events: []*templateEvent{e}}
+					t := &ruleTemplate{name: name, arity: len(templateList(r["params"])), events: []*templateEvent{e}}
 					x.templates[name] = t
 					x.templateOrder = append(x.templateOrder, t)
 				} else {
@@ -204,10 +202,8 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			}
 			if old != nil {
 				old.name = ""
-				old.binding = nil
 			}
 			i.name = name
-			i.binding = templateObject{"document": e.path, "line": float64(templateAt(r)[0]), "column": float64(templateAt(r)[1])}
 			current[name] = i
 			delete(ordinary, name)
 		} else if current[name] != nil {
@@ -377,7 +373,17 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			order = append(order, i.effective())
 		}
 	}
-	return &templateExpansion{docs: expandedDocs, order: order, templates: x.templateOrder, instances: x.queue, validation: users}, nil
+	instanceSet := map[string]bool{}
+	for _, i := range x.queue {
+		instanceSet[i.effective()] = true
+	}
+	instanceNames := []string{}
+	for _, name := range order {
+		if instanceSet[name] {
+			instanceNames = append(instanceNames, name)
+		}
+	}
+	return &templateExpansion{docs: expandedDocs, order: order, instanceNames: instanceNames, validation: users}, nil
 }
 func templateClone(v any) any {
 	switch n := v.(type) {
@@ -405,7 +411,7 @@ func (x *templateExpander) intern(call templateObject, e *templateEvent, discove
 	key := templateKey(normalized)
 	i := x.instances[key]
 	if i == nil {
-		i = &ruleInstance{key: key, canonical: templateCanonical(normalized, x.uni), call: normalized, origin: templateObject{"document": e.path, "at": call["at"]}}
+		i = &ruleInstance{canonical: templateCanonical(normalized, x.uni), call: normalized, origin: templateObject{"document": e.path, "at": call["at"]}}
 		x.instances[key] = i
 		x.instanceOrder = append(x.instanceOrder, i)
 	}

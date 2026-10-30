@@ -87,15 +87,19 @@ func parameterEqual(t *testing.T, got, want any) {
 		t.Fatalf("got %#v, want %#v", got, want)
 	}
 }
+func parameterInstanceNames(t *testing.T, source string) []string {
+	t.Helper()
+	d := parameterRead(t, source)
+	x, err := expandTemplates([]docDOM{{"test.md", d}}, bundled.uni)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return x.instanceNames
+}
 func TestParameterRuleOrderAndRebinding(t *testing.T) {
 	g := parameterGrammar(t, "%rule atom(@X) @X\n%rule text atom(\"a\") named\n%rule named = atom(\"b\")\n%redefine-rule named = atom(\"c\")")
 	parameterEqual(t, parameterRuleNames(g), []string{"text", "named", "atom(\"a\")", "atom(\"b\")"})
-	audit := templateAudit(g)
-	names := []string{}
-	for _, v := range templateList(audit["instances"]) {
-		names = append(names, templateText(templateObj(v)["name"]))
-	}
-	parameterEqual(t, names, []string{"named", "atom(\"a\")", "atom(\"b\")"})
+	parameterEqual(t, parameterInstanceNames(t, "%rule atom(@X) @X\n%rule text atom(\"a\") named\n%rule named = atom(\"b\")\n%redefine-rule named = atom(\"c\")"), []string{"named", "atom(\"a\")", "atom(\"b\")"})
 }
 func TestParameterClosedInnerCalls(t *testing.T) {
 	g := parameterGrammar(t, "%rule atom(@X) @X\n%rule outer(@X) atom(@X) @X\n%rule text outer(atom(\"a\")) atom(\"b\")")
@@ -115,13 +119,7 @@ func TestParameterFlags(t *testing.T) {
 	g := parameterGrammar(t, "%rule(fewest) atom(@X) @X\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"")
 	parameterEqual(t, g.byName["atom(\"a\")"].flags, []string{})
 	parameterEqual(t, g.byName["atom(\"b\")"].flags, []string{"fewest"})
-	instance := templateObj(templateList(templateAudit(g)["instances"])[0])
-	events := []any{}
-	for _, v := range templateList(instance["events"]) {
-		e := templateObj(v)
-		events = append(events, []any{e["scope"], e["op"], e["flagsAfter"]})
-	}
-	parameterEqual(t, events, []any{[]any{"template", "define", []any{"fewest"}}, []any{"instance", "redefine", []any{}}, []any{"template", "extend", []any{}}})
+
 }
 func TestParameterNormalizationAndConstants(t *testing.T) {
 	g := parameterGrammar(t, "%const $A \"a\"\n%rule atom(@X) @X\n%rule text atom(\"a\") atom((\"a\")) atom($A)")
@@ -140,19 +138,6 @@ func TestParameterBindingTree(t *testing.T) {
 	if result.Tree.Children[0].Rule != "named" || result.Tree.Children[0].Children[0].Kind != KindToken {
 		t.Fatalf("binding adds a wrapper: %+v", result.Tree)
 	}
-}
-func TestParameterAuditNotes(t *testing.T) {
-	g := parameterGrammar(t, "%rule atom(@X) @X\n%rule unused(@A,@B) @A\n%rule outer(@X) @X\n%rule text outer(named) outer(atom(\"a\"))\n%rule named = atom(\"a\")")
-	audit := templateAudit(g)
-	parameterEqual(t, templateObj(templateList(audit["templates"])[1])["notes"], []any{templateObject{"kind": "unused-parameter", "parameter": "B"}, templateObject{"kind": "uncalled-template"}})
-	notes := []any{}
-	for _, v := range templateList(audit["instances"]) {
-		i := templateObj(v)
-		if i["template"] == "outer" {
-			notes = append(notes, i["notes"])
-		}
-	}
-	parameterEqual(t, notes, []any{[]any{templateObject{"kind": "argument-alias-twin", "instances": []any{"outer(atom(\"a\"))"}}}, []any{templateObject{"kind": "argument-alias-twin", "instances": []any{"outer(named)"}}}})
 }
 func TestParameterCanonicalArguments(t *testing.T) {
 	uni := parameterGrammar(t, "%rule text \"a\"").uni
@@ -193,8 +178,8 @@ func TestParameterSuppliedBodyNormalizes(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if len(x.instances) != 1 {
-		t.Fatalf("got %d instances", len(x.instances))
+	if len(x.instanceNames) != 1 {
+		t.Fatalf("got %d instances", len(x.instanceNames))
 	}
 }
 func TestParameterOrdinaryIdentity(t *testing.T) {
@@ -239,7 +224,7 @@ func TestParameterDeepBodies(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		if len(x.instances) != 1 {
+		if len(x.instanceNames) != 1 {
 			t.Fatal("deep body changed instance count")
 		}
 	}
@@ -400,39 +385,6 @@ func TestParameterPatternTestOperands(t *testing.T) {
 	}
 }
 
-func TestParameterNestedAliasTwins(t *testing.T) {
-	for _, source := range []string{`%rule atom(@X) @X
-%rule outer(@X) @X
-%rule public "a"
-%rule text outer((named named)) outer((atom("a") atom("a"))) outer((named atom("a"))) outer((atom("a") named))
-%rule named = atom("a")
-%redefine-rule public = outer((atom("a") named))`, `%rule atom(@X) @X
-%rule outer(@P) $x:named %conditions $x ≅ @P
-%rule text outer(#named) outer(#atom("a"))
-%rule named = atom("a")`} {
-		instances := []templateObject{}
-		for _, v := range templateList(templateAudit(parameterGrammar(t, source))["instances"]) {
-			if i := templateObj(v); i["template"] == "outer" {
-				instances = append(instances, i)
-			}
-		}
-		want := 2
-		if strings.Contains(source, "public") {
-			want = 4
-		}
-		parameterEqual(t, len(instances), want)
-		for index, instance := range instances {
-			names := []any{}
-			for other, item := range instances {
-				if other != index {
-					names = append(names, item["name"])
-				}
-			}
-			parameterEqual(t, instance["notes"], []any{templateObject{"kind": "argument-alias-twin", "instances": names}})
-		}
-	}
-}
-
 func TestParameterSharedStructure(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
@@ -460,8 +412,8 @@ func TestParameterSharedStructure(t *testing.T) {
 			if c.Public {
 				grammar := parameterGrammar(t, c.Grammar)
 				parameterEqual(t, parameterRuleNames(grammar), c.Order)
-				if c.Instances != 0 && len(grammar.instances) != c.Instances {
-					t.Fatalf("instance count: %d", len(grammar.instances))
+				if c.Instances != 0 && len(parameterInstanceNames(t, c.Grammar)) != c.Instances {
+					t.Fatalf("instance count: %d", len(parameterInstanceNames(t, c.Grammar)))
 				}
 				return
 			}
@@ -510,8 +462,8 @@ func TestParameterSharedStructure(t *testing.T) {
 			if c.Order != nil {
 				parameterEqual(t, x.order, c.Order)
 			}
-			if c.Instances != 0 && len(x.instances) != c.Instances {
-				t.Fatalf("got %d instances, want %d", len(x.instances), c.Instances)
+			if c.Instances != 0 && len(x.instanceNames) != c.Instances {
+				t.Fatalf("got %d instances, want %d", len(x.instanceNames), c.Instances)
 			}
 			if c.Flags != nil {
 				g := parameterGrammar(t, c.Grammar)
@@ -533,28 +485,6 @@ func TestParameterOverDeepSuppliedTemplate(t *testing.T) {
 	p := checkDOM(d, bundled.uni)
 	if p == nil || !p.tooDeep {
 		t.Fatalf("got %v", p)
-	}
-}
-
-func TestParameterAliasDecorations(t *testing.T) {
-	for _, c := range []struct {
-		left, right string
-		twin        bool
-	}{
-		{`#·named`, `#atom("a")`, false}, {`#named« text »`, `#atom("a")`, false},
-		{`#·named`, `#·atom("a")`, true}, {`#named« text »`, `#atom("a")« text »`, true},
-	} {
-		source := "%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer(" + c.left + ") outer(" + c.right + ")\n%rule named = atom(\"a\")"
-		count := 0
-		for _, v := range templateList(templateAudit(parameterGrammar(t, source))["instances"]) {
-			i := templateObj(v)
-			if i["template"] != "outer" {
-				continue
-			}
-			count++
-			parameterEqual(t, len(templateList(i["notes"])) > 0, c.twin)
-		}
-		parameterEqual(t, count, 2)
 	}
 }
 

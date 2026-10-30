@@ -40,19 +40,15 @@ fn at_origin(n: &Json) -> (usize, usize) {
 #[derive(Debug, Clone)]
 pub(crate) struct Template {
     pub name: String,
-    pub path: Arc<str>,
-    pub at: (usize, usize),
     pub arity: usize,
     pub events: Vec<Event>,
 }
 #[derive(Debug, Clone)]
 pub(crate) struct Instance {
-    pub key: String,
     pub canonical: String,
     pub name: Option<String>,
     pub call: Json,
     pub origin: Json,
-    pub binding: Json,
     pub locals: Vec<Event>,
     pub definitions: Vec<Event>,
     discovered: bool,
@@ -62,15 +58,11 @@ impl Instance {
         self.name.as_deref().unwrap_or(&self.canonical)
     }
 }
-#[derive(Debug, Clone, Default)]
-pub(crate) struct Records {
-    pub templates: Vec<Template>,
-    pub instances: Vec<Instance>,
-}
 pub(crate) struct Expansion {
     pub documents: Documents,
     pub order: Vec<String>,
-    pub records: Records,
+    #[cfg(test)]
+    pub instance_names: Vec<String>,
     pub validation: Documents,
 }
 struct Expander<'a> {
@@ -193,13 +185,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
                         return Err(e.fail(r, format!("duplicate template {name}")));
                     }
                     x.template_names.insert(name.clone(), x.templates.len());
-                    x.templates.push(Template {
-                        name,
-                        path: path.clone(),
-                        at: at(r).unwrap(),
-                        arity: list(get(r, "params")).len(),
-                        events: vec![e.clone()],
-                    });
+                    x.templates.push(Template { name, arity: list(get(r, "params")).len(), events: vec![e.clone()] });
                 } else {
                     let t = x
                         .template_names
@@ -260,15 +246,8 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             }
             if let Some(old) = current.get(name) {
                 x.instances[*old].name = None;
-                x.instances[*old].binding = Json::Null
             }
-            let a = at(r).unwrap();
             x.instances[i].name = Some(name.into());
-            x.instances[i].binding = obj([
-                ("document", string(&*e.path)),
-                ("line", Json::Int(a.0 as i64)),
-                ("column", Json::Int(a.1 as i64)),
-            ]);
             current.insert(name.into(), i);
             ordinary.remove(name);
         } else if let Some(i) = current.get(name) {
@@ -401,9 +380,18 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
     order.extend(
         x.queue.iter().map(|i| &x.instances[*i]).filter(|i| i.name.is_none()).map(|i| i.effective().to_string()),
     );
-    let records =
-        Records { templates: x.templates, instances: x.queue.into_iter().map(|i| x.instances[i].clone()).collect() };
-    Ok(Some(Expansion { documents: expanded, order, records, validation: users }))
+    #[cfg(test)]
+    let instance_names = {
+        let names: BTreeSet<_> = x.queue.iter().map(|i| x.instances[*i].effective()).collect();
+        order.iter().filter(|name| names.contains(name.as_str())).cloned().collect()
+    };
+    Ok(Some(Expansion {
+        documents: expanded,
+        order,
+        #[cfg(test)]
+        instance_names,
+        validation: users,
+    }))
 }
 impl Expander<'_> {
     fn normalize(&self, root: &Json) -> Json {
@@ -535,12 +523,10 @@ impl Expander<'_> {
             let i = self.instances.len();
             self.keys.insert(k.clone(), i);
             self.instances.push(Instance {
-                key: k,
                 canonical: canonical(&call, self.uni),
                 name: None,
                 origin: obj([("document", string(&*event.path)), ("at", get(&call, "at").clone())]),
                 call: call.clone(),
-                binding: Json::Null,
                 locals: Vec::new(),
                 definitions: Vec::new(),
                 discovered: false,

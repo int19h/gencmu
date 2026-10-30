@@ -38,8 +38,10 @@ fn grammar(s: &str) -> crate::grammar::StageGrammar {
 fn names(g: &crate::grammar::StageGrammar) -> Vec<String> {
     g.rules.iter().map(|r| r.name.clone()).collect()
 }
-fn audit(g: &crate::grammar::StageGrammar) -> Json {
-    g.parameters.audit(&names(g))
+fn instance_names(source: &str) -> Vec<String> {
+    expand(&[(Arc::from("test.md"), Arc::new(read(source)))], &unicode())
+        .unwrap()
+        .map_or_else(Vec::new, |x| x.instance_names)
 }
 fn expression(r: &Json) -> &Json {
     get(&list(get(r, "alternatives"))[0], "expr")
@@ -53,10 +55,7 @@ fn replace_expression(r: &mut Json, expr: Json) {
 fn rule_order_and_rebinding() {
     let g=grammar("%rule atom(@X) @X\n%rule text atom(\"a\") named\n%rule named = atom(\"b\")\n%redefine-rule named = atom(\"c\")");
     assert_eq!(names(&g), ["text", "named", "atom(\"a\")", "atom(\"b\")"]);
-    assert_eq!(
-        list(get(&audit(&g), "instances")).iter().map(|n| text(get(n, "name"))).collect::<Vec<_>>(),
-        ["named", "atom(\"a\")", "atom(\"b\")"]
-    );
+    assert_eq!(instance_names("%rule atom(@X) @X\n%rule text atom(\"a\") named\n%rule named = atom(\"b\")\n%redefine-rule named = atom(\"c\")"), ["named", "atom(\"a\")", "atom(\"b\")"]);
 }
 #[test]
 fn closed_inner_calls() {
@@ -84,11 +83,6 @@ fn template_flags() {
     let g=grammar("%rule(fewest) atom(@X) @X\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"");
     assert!(g.rules[g.index["atom(\"a\")"]].flags.is_empty());
     assert_eq!(g.rules[g.index["atom(\"b\")"]].flags, ["fewest"]);
-    let a = audit(&g);
-    let events = list(get(&list(get(&a, "instances"))[0], "events"));
-    assert_eq!(events.len(), 3);
-    assert_eq!(events.iter().map(|e| text(get(e, "scope"))).collect::<Vec<_>>(), ["template", "instance", "template"]);
-    assert!(list(get(&events[2], "flagsAfter")).is_empty());
 }
 #[test]
 fn nominal_constants_and_group_normalization() {
@@ -99,21 +93,6 @@ fn nominal_constants_and_group_normalization() {
 fn named_instances_have_no_wrapper() {
     let case=crate::test_common::parse_json(r#"{"grammar":"%rule atom(@X) @X\n%rule text atom(\"a\")\n%rule named = atom(\"a\")","input":"a","expect":{"result":{"ok":true,"tree":{"rule":"text","children":[{"rule":"named","children":[{"kind":"token"}]}]}}}}"#).unwrap();
     crate::test_common::run_engine_case(&case).unwrap();
-}
-#[test]
-fn audit_notes() {
-    let g=grammar("%rule atom(@X) @X\n%rule unused(@A,@B) @A\n%rule outer(@X) @X\n%rule text outer(named) outer(atom(\"a\"))\n%rule named = atom(\"a\")");
-    let a = audit(&g);
-    assert_eq!(
-        get(&list(get(&a, "templates"))[1], "notes"),
-        &Json::Arr(vec![
-            obj([("kind", string("unused-parameter")), ("parameter", string("B"))]),
-            obj([("kind", string("uncalled-template"))])
-        ])
-    );
-    for i in list(get(&a, "instances")).iter().filter(|i| text(get(i, "template")) == "outer") {
-        assert_eq!(text(get(&list(get(i, "notes"))[0], "kind")), "argument-alias-twin")
-    }
 }
 #[test]
 fn canonical_arguments() {
@@ -158,7 +137,7 @@ fn supplied_body_normalizes() {
     let dom::Expr::Source(dom::source::SourceSymbol::Call(call)) = &mut items[1] else { panic!("a call") };
     call.args[0] = dom::source::SourceArgument::Body(dom::Expr::Literal(dom::Term::Str("a".into())));
     let x = expand(&[(Arc::from("grammars/test/test.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
-    assert_eq!(x.records.instances.len(), 1);
+    assert_eq!(x.instance_names.len(), 1);
 }
 #[test]
 fn ordinary_documents_keep_identity() {
@@ -222,7 +201,7 @@ fn deep_bodies() {
         let raw = crate::json::parse(&dom::dom_to_json(&d)).unwrap();
         assert!(dom::dom_problem(&raw, &unicode()).is_none());
         let x = expand(&[(Arc::from("grammars/test/deep.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
-        assert_eq!(x.records.instances.len(), 1);
+        assert_eq!(x.instance_names.len(), 1);
     }
 }
 #[test]
@@ -375,18 +354,6 @@ fn ordinary_ranked_locations_survive_template_expansion() {
 }
 
 #[test]
-fn nested_alias_twins_follow_expanded_order() {
-    for source in ["%rule atom(@X) @X\n%rule outer(@X) @X\n%rule public \"a\"\n%rule text outer((named named)) outer((atom(\"a\") atom(\"a\"))) outer((named atom(\"a\"))) outer((atom(\"a\") named))\n%rule named = atom(\"a\")\n%redefine-rule public = outer((atom(\"a\") named))","%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer(#named) outer(#atom(\"a\"))\n%rule named = atom(\"a\")"] {
-  let a=audit(&grammar(source));let instances:Vec<_>=list(get(&a,"instances")).iter().filter(|i|text(get(i,"template"))=="outer").collect();
-  assert_eq!(instances.len(),if source.contains("public"){4}else{2});
-  for (index,instance) in instances.iter().enumerate() {
-   let names:Vec<_>=instances.iter().enumerate().filter(|(other,_)|*other!=index).map(|(_,i)|get(i,"name").clone()).collect();
-   assert_eq!(get(instance,"notes"),&Json::Arr(vec![obj([("kind",string("argument-alias-twin")),("instances",Json::Arr(names))])]));
-  }
- }
-}
-
-#[test]
 fn unresolved_writer_ignores_object_member_order() {
     let mut d = read("%rule tag(@R) A<@R> %emits $ :: $.tags\n%rule text tag(<B ¬C>)");
     let expected = dom::dom_to_json(&d);
@@ -418,7 +385,11 @@ fn shared_parameter_structure() {
                 "{name}"
             );
             if let Some(count) = case.get("instances") {
-                assert_eq!(g.parameters.instances.len(), count.as_int().unwrap() as usize, "{name}");
+                assert_eq!(
+                    instance_names(text(get(case, "grammar"))).len(),
+                    count.as_int().unwrap() as usize,
+                    "{name}"
+                );
             }
             continue;
         }
@@ -462,7 +433,7 @@ fn shared_parameter_structure() {
             assert_eq!(x.order, list(order).iter().map(|n| text(n).to_string()).collect::<Vec<_>>(), "{name}");
         }
         if let Some(count) = case.get("instances") {
-            assert_eq!(x.records.instances.len(), count.as_int().unwrap() as usize, "{name}");
+            assert_eq!(x.instance_names.len(), count.as_int().unwrap() as usize, "{name}");
         }
         if let Some(flags) = case.get("flags").and_then(Json::as_object) {
             let g = grammar(text(get(case, "grammar")));
@@ -501,25 +472,6 @@ fn supplied_dom_depth_does_not_use_the_call_stack() {
         .unwrap()
         .join()
         .unwrap();
-}
-
-#[test]
-fn alias_twins_preserve_decorations() {
-    for (left, right, twin) in [
-        ("#·named", r#"#atom("a")"#, false),
-        ("#named« text »", r#"#atom("a")"#, false),
-        ("#·named", r#"#·atom("a")"#, true),
-        ("#named« text »", r#"#atom("a")« text »"#, true),
-    ] {
-        let source=format!("%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer({left}) outer({right})\n%rule named = atom(\"a\")");
-        let a = audit(&grammar(&source));
-        let instances: Vec<_> =
-            list(get(&a, "instances")).iter().filter(|i| text(get(i, "template")) == "outer").collect();
-        assert_eq!(instances.len(), 2);
-        for i in instances {
-            assert_eq!(!list(get(i, "notes")).is_empty(), twin);
-        }
-    }
 }
 
 #[test]

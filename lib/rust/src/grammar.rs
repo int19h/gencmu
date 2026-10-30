@@ -92,8 +92,6 @@ pub struct Change {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StageGrammar {
-    #[allow(dead_code)] // Retained for native audit consumers.
-    pub parameters: crate::parameters::expand::Records,
     pub features: Vec<(Arc<str>, crate::dom::Directive)>,
     pub unicode: Arc<Unicode>,
     pub name: String,
@@ -233,7 +231,6 @@ pub(crate) fn stitch(
         classifiers: Vec::new(),
         features: Vec::new(),
         implications: Arc::from(Vec::new()),
-        parameters: expansion.as_ref().map_or_else(Default::default, |x| x.records.clone()),
     };
     let mut implications: Vec<(&Arc<str>, &ImplicationDef)> = Vec::new();
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
@@ -1955,7 +1952,6 @@ mod tests {
                 changes: Vec::new(),
                 classifiers: vec![(Arc::from("d.md"), ClassifierDef { name: "c".into(), entries, at: (0, 0) })],
                 implications: Arc::from(Vec::new()),
-                parameters: Default::default(),
             }
         };
         let grammars = [grammar(20_000), grammar(80_000)];

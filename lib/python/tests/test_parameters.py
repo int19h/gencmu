@@ -7,7 +7,7 @@ import unittest
 from gencmu import GencmuError
 
 from gencmu._pipeline import read_document
-from gencmu._templates import canonical_argument, expand_templates, template_audit
+from gencmu._templates import canonical_argument, expand_templates
 from gencmu._validate import dom_problem
 from .shared import load_case_pipeline, run_case
 
@@ -20,6 +20,12 @@ def grammar_of(text):
     if error:
         raise error
     return pipeline.grammars[0]
+
+
+def instance_names(text):
+    dom = read_document('```jbogenbau\n' + text + '\n```')
+    unicode = grammar_of('%rule text "a"').unicode
+    return expand_templates([('test.md', dom)], unicode)[2]
 
 
 class Parameters(unittest.TestCase):
@@ -35,7 +41,7 @@ class Parameters(unittest.TestCase):
     def test_rule_order_and_rebinding(self):
         grammar = grammar_of('%rule atom(@X) @X\n%rule text atom("a") named\n%rule named = atom("b")\n%redefine-rule named = atom("c")')
         self.assertEqual(list(grammar.rules), ['text', 'named', 'atom("a")', 'atom("b")'])
-        self.assertEqual([i['name'] for i in template_audit(grammar)['instances']], ['named', 'atom("a")', 'atom("b")'])
+        self.assertEqual(instance_names('%rule atom(@X) @X\n%rule text atom("a") named\n%rule named = atom("b")\n%redefine-rule named = atom("c")'), ['named', 'atom("a")', 'atom("b")'])
 
     def test_closed_inner_calls_precede_outer_calls(self):
         grammar = grammar_of('%rule atom(@X) @X\n%rule outer(@X) atom(@X) @X\n%rule text outer(atom("a")) atom("b")')
@@ -50,8 +56,6 @@ class Parameters(unittest.TestCase):
         grammar = grammar_of('%rule(fewest) atom(@X) @X\n%rule text atom("a") atom("b")\n%redefine-rule atom("a") "c"\n%extend-rule atom(@Y) "d"')
         self.assertEqual(grammar.rules['atom("a")'].flags, [])
         self.assertEqual(grammar.rules['atom("b")'].flags, ['fewest'])
-        self.assertEqual([[e['scope'], e['op'], e['flagsAfter']] for e in template_audit(grammar)['instances'][0]['events']],
-                         [['template', 'define', ['fewest']], ['instance', 'redefine', []], ['template', 'extend', []]])
 
     def test_symbol_normalization_and_nominal_constants(self):
         grammar = grammar_of('%const $A "a"\n%rule atom(@X) @X\n%rule text atom("a") atom(("a")) atom($A)')
@@ -63,13 +67,6 @@ class Parameters(unittest.TestCase):
         tree = pipeline.parse('a').tree
         self.assertEqual(tree.children[0].rule, 'named')
         self.assertEqual(tree.children[0].children[0].kind, 'token')
-
-    def test_audit_notes(self):
-        grammar = grammar_of('%rule atom(@X) @X\n%rule unused(@A,@B) @A\n%rule outer(@X) @X\n%rule text outer(named) outer(atom("a"))\n%rule named = atom("a")')
-        audit = template_audit(grammar)
-        self.assertEqual(audit['templates'][1]['notes'], [dict(kind='unused-parameter', parameter='B'), dict(kind='uncalled-template')])
-        self.assertEqual([i['notes'] for i in audit['instances'] if i['template'] == 'outer'],
-                         [[dict(kind='argument-alias-twin', instances=['outer(atom("a"))'])], [dict(kind='argument-alias-twin', instances=['outer(named)'])]])
 
     def test_canonical_arguments(self):
         unicode = grammar_of('%rule text "a"').unicode
@@ -94,7 +91,7 @@ class Parameters(unittest.TestCase):
         dom = read_document('```jbogenbau\n%ambiguity-resolution greedy\n%rule atom(@X) @X\n%rule text atom("a") atom("a")\n```')
         dom['rules'][1]['alternatives'][0]['expr']['seq'][1]['args'] = [dict(body=dict(literal=dict(string='a')))]
         self.assertIsNone(dom_problem(dom, unicode))
-        self.assertEqual(len(expand_templates([('test.md', dom)], unicode)[3]), 1)
+        self.assertEqual(len(expand_templates([('test.md', dom)], unicode)[2]), 1)
 
     def test_ordinary_documents_keep_identity(self):
         unicode = grammar_of('%rule text "a"').unicode
@@ -121,7 +118,7 @@ class Parameters(unittest.TestCase):
                 dom['rules'][0]['alternatives'][0]['expr'] = expr
             self.assertIsNone(dom_problem(dom, unicode))
             expanded = expand_templates([('deep.md', dom)], unicode)
-            self.assertEqual(len(expanded[3]), 1)
+            self.assertEqual(len(expanded[2]), 1)
 
     def test_substituted_optionals_belong_to_the_instance(self):
         from gencmu._grammar import lower
@@ -187,21 +184,6 @@ for index, case in enumerate(CASES):
     setattr(Parameters, f'test_parameter_{index:03d}', case_test(case))
 
 class NestedArgumentAliases(unittest.TestCase):
-    def test_nested_alias_twins_follow_expanded_order(self):
-        for source in ['%rule atom(@X) @X\n%rule outer(@X) @X\n%rule public "a"\n%rule text outer((named named)) outer((atom("a") atom("a"))) outer((named atom("a"))) outer((atom("a") named))\n%rule named = atom("a")\n%redefine-rule public = outer((atom("a") named))','%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer(#named) outer(#atom("a"))\n%rule named = atom("a")']:
-            instances = [i for i in template_audit(grammar_of(source))['instances'] if i['template'] == 'outer']
-            assert len(instances) == (4 if 'public' in source else 2)
-            for instance in instances:
-                assert instance['notes'] == [dict(kind='argument-alias-twin', instances=[other['name'] for other in instances if other is not instance])]
-
-    def test_audit_twins_preserve_decorations(self):
-        for left, right, twin in [('#·named', '#atom("a")', False), ('#named« text »', '#atom("a")', False), ('#·named', '#·atom("a")', True), ('#named« text »', '#atom("a")« text »', True)]:
-            source = '%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer(' + left + ') outer(' + right + ')\n%rule named = atom("a")'
-            instances = [i for i in template_audit(grammar_of(source))['instances'] if i['template'] == 'outer']
-            self.assertEqual(len(instances), 2)
-            for instance in instances:
-                self.assertEqual(bool(instance['notes']), twin)
-
     def test_pattern_constant_fault_comes_from_pattern_schema(self):
         unicode = grammar_of('%rule text "a"').unicode
         for operand in ({'capture': 'x'}, None):
@@ -222,7 +204,7 @@ class ParameterStructure(unittest.TestCase):
                     grammar = grammar_of(case['grammar'])
                     self.assertEqual(list(grammar.rules), case['order'])
                     if 'instances' in case:
-                        self.assertEqual(len(template_audit(grammar)['instances']), case['instances'])
+                        self.assertEqual(len(instance_names(case['grammar'])), case['instances'])
                     continue
                 dom = case.get('dom') or read_document('```jbogenbau\n' + case['grammar'] + '\n```')
                 if case.get('cacheFallback'):
@@ -236,7 +218,7 @@ class ParameterStructure(unittest.TestCase):
                 self.assertIsNone(dom_problem(dom, unicode))
                 if 'argument' in case:
                     self.assertEqual(dom['rules'][-1]['alternatives'][0]['expr']['args'][0], case['argument'])
-                _, order, _, instances, _ = expand_templates([('review.md', dom)], unicode)
+                _, order, instances, _ = expand_templates([('review.md', dom)], unicode)
                 if 'order' in case:
                     self.assertEqual(order, case['order'])
                 if 'instances' in case:
