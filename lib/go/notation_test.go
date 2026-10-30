@@ -553,10 +553,10 @@ func TestUnicodeTablePartial(t *testing.T) {
 			t.Errorf("U+%04X: category %s, want %s", c, got, want)
 		}
 	}
-	if !uni.hasProperty("Cn", 'a') || !uni.hasProperty("C", 'a') || uni.hasProperty("L", 'a') || uni.hasProperty("Cs", 'a') {
-		t.Error("hasProperty is wrong for an omitted scalar value")
+	if uni.category('a') != "Cn" {
+		t.Error("category is wrong for an omitted scalar value")
 	}
-	if uni.isWhiteSpace(' ') || uni.isWhiteSpace('\t') || uni.hasProperty("White_Space", ' ') {
+	if uni.isWhiteSpace(' ') || uni.isWhiteSpace('\t') {
 		t.Error("a table without white-space lines has White_Space")
 	}
 	if uni.isMark(0x301) {
@@ -619,12 +619,12 @@ func TestUnicodeTable(t *testing.T) {
 		t.Error("isMark disagrees with Mn")
 	}
 	for _, c := range []rune{9, 0x0D, ' ', 0x85, 0xA0, 0x2028, 0x3000} {
-		if !uni.hasProperty("White_Space", c) {
+		if !uni.isWhiteSpace(c) {
 			t.Errorf("U+%04X lacks White_Space", c)
 		}
 	}
-	if uni.hasProperty("White_Space", 0x200B) || !uni.hasProperty("L", 'é') || uni.hasProperty("L", '1') || !uni.hasProperty("Any", 0x378) {
-		t.Error("hasProperty is wrong")
+	if uni.isWhiteSpace(0x200B) || uni.category('é')[0] != 'L' || uni.category('1')[0] == 'L' || uni.category(0x378) != "Cn" {
+		t.Error("scalar properties are wrong")
 	}
 }
 

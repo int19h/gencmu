@@ -334,7 +334,7 @@ impl Unicode {
     }
 
     /// Whether a code point is a nonspacing mark, of General_Category `Mn`,
-    /// which a character tag writes escaped (engine §1).
+    /// which canonical string diagnostics escape (engine §1, §9.1).
     pub(crate) fn is_mark(&self, code: u32) -> bool {
         self.category(code) == "Mn"
     }

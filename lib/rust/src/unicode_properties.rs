@@ -148,7 +148,9 @@ pub(crate) fn read_properties(text: &str, core: &Unicode) -> Result<BTreeMap<Str
             property.ranges.push(PropertyRange { first, last, values, line });
         }
     }
-    for property in properties.values_mut() {
+    let mut declaration_order: Vec<_> = properties.values_mut().collect();
+    declaration_order.sort_by_key(|property| property.line);
+    for property in declaration_order {
         if property.defaults.iter().any(|value| !property.values.contains(value)) {
             return Err(error(Some(property.line)));
         }

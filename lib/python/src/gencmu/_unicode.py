@@ -1,5 +1,7 @@
-"""The character table every library shares, data/unicode/unicode.txt (engine §1):
-the General_Category of a character and the White_Space property."""
+"""Shared Unicode categories, whitespace, emoji, and canonical normalization data.
+
+The table also supplies abbreviations and complete scalar profiles (engine §1).
+"""
 
 from __future__ import annotations
 
@@ -215,7 +217,7 @@ class UnicodeTable:
 
     def is_mark(self, code: int) -> bool:
         """Whether a code point is a nonspacing mark, of General_Category
-        ``Mn``. A character tag writes such a character escaped (engine §1)."""
+        ``Mn``. Canonical string diagnostics escape these scalars (engine §1, §9.1)."""
         return self.category(code) == "Mn"
 
     def combining_class(self, code: int) -> int:

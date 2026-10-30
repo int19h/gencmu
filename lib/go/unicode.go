@@ -223,24 +223,6 @@ func (t *unicodeTable) isWhiteSpace(c rune) bool {
 	return i < len(r) && r[i][0] <= c
 }
 
-// hasProperty tests a core predicate used to build stored scalar tags (engine §1).
-// The wildcard uses Any and requires no stored tag. Stored tags use qualified long names.
-func (t *unicodeTable) hasProperty(name string, c rune) bool {
-	switch {
-	case name == "Any":
-		return true
-	case name == "Emoji_Presentation":
-		return inUnicodeRanges(t.emojiPresentation, c)
-	case name == "Emoji_Component":
-		return inUnicodeRanges(t.emojiComponent, c)
-	case name == "White_Space":
-		return t.isWhiteSpace(c)
-	case len(name) == 1:
-		return t.category(c)[0] == name[0]
-	}
-	return t.category(c) == name
-}
-
 // fnv1a64 is the hash that keys preparsed DOMs (engine §8).
 func fnv1a64(text string) string {
 	h := uint64(0xcbf29ce484222325)
@@ -325,7 +307,7 @@ func inUnicodeRanges(ranges [][2]rune, c rune) bool {
 }
 func (t *unicodeTable) isEmojiName(name string) bool {
 	chars := []rune(name)
-	return name != "#" && name != "@" && len(chars) == 1 && t.hasProperty("Emoji_Presentation", chars[0]) && !t.hasProperty("Emoji_Component", chars[0])
+	return name != "#" && name != "@" && len(chars) == 1 && inUnicodeRanges(t.emojiPresentation, chars[0]) && !inUnicodeRanges(t.emojiComponent, chars[0])
 }
 
 // unionUnicodeRanges merges overlapping and adjacent property records.
