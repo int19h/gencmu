@@ -349,7 +349,7 @@ enum Work<'g> {
         tags: SetId,
         strings: &'g crate::dom::Channels,
     },
-    /// An inserted token with one tag, at a token index, in a node.
+    /// An inserted token with an optional tag term, at a token index, in a node.
     Insert {
         tag: Option<&'g LTerm>,
         at: u32,
@@ -477,8 +477,8 @@ fn attachment(recognizer: &Recognizer, token: Emitted) -> Attachment {
     }
 }
 
-/// The tags an emission item's term gives a token (§11): a term that gives
-/// none is an error of the grammar, since no terminal could read the token.
+/// The tags an emission item's term gives a token (§11). An empty set is
+/// legal, and string terminals and `_` can read the resulting token.
 fn item_tags(recognizer: &mut Recognizer, term: &LTerm, frame: &Frame, tokens: &[Tok]) -> Result<SetId, EngineError> {
     recognizer.tag_term(term, frame, tokens, 0)
 }
