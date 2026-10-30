@@ -263,3 +263,24 @@ fn the_corpus_runner_refuses_the_error_elision_witness_lost() {
         assert!(problem.contains("elision-witness-lost"), "{problem}");
     }
 }
+
+#[test]
+fn corpus_comparison_ignores_object_member_order_and_preserves_array_order() {
+    let got = BTreeMap::from([
+        ("error", parse_json(r#"{"kind":"ambiguous","reason":"tie"}"#).unwrap()),
+        ("ties", parse_json(r#"["a","b"]"#).unwrap()),
+    ]);
+    let case = parse_json(r#"{"ties":["a","b"],"error":{"reason":"tie","kind":"ambiguous"}}"#).unwrap();
+    assert_eq!(compare(&case, &got), None);
+    for text in [
+        r#"{"ties":["b","a"],"error":{"reason":"tie","kind":"ambiguous"}}"#,
+        r#"{"ties":["a","b"],"error":{"reason":"other","kind":"ambiguous"}}"#,
+        r#"{"ties":["a","b"],"error":{"kind":"ambiguous"}}"#,
+    ] {
+        assert!(compare(&parse_json(text).unwrap(), &got).is_some());
+    }
+    assert_eq!(
+        parse_json(r#"{"nested":{"a":1,"b":2},"other":true}"#).unwrap(),
+        parse_json(r#"{"other":true,"nested":{"b":2,"a":1}}"#).unwrap()
+    );
+}

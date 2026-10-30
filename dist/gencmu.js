@@ -3186,11 +3186,34 @@
   function caseDifference(expected, got) {
     for (const key of CASE_FIELDS) {
       if (!(key in expected) && !(key in got)) continue;
-      if (JSON.stringify(expected[key]) !== JSON.stringify(got[key])) {
+      if (!sameValue(expected[key], got[key])) {
         return `${key} expected ${JSON.stringify(expected[key])}, got ${JSON.stringify(got[key])}`;
       }
     }
     return null;
+  }
+
+
+  // JSON objects compare by member name. Arrays retain their written order.
+  /** @param {unknown} left @param {unknown} right @returns {boolean} */
+  function sameValue(left, right) {
+    const stack = [[left, right]];
+    while (stack.length) {
+      const [a, b] = /** @type {[unknown, unknown]} */ (stack.pop());
+      if (a === b) continue;
+      if (Array.isArray(a)) {
+        if (!Array.isArray(b) || a.length !== b.length) return false;
+        for (let index = 0; index < a.length; index++) stack.push([a[index], b[index]]);
+      } else if (a !== null && typeof a === "object" && b !== null && typeof b === "object" && !Array.isArray(b)) {
+        const keys = Object.keys(a);
+        if (keys.length !== Object.keys(b).length) return false;
+        for (const key of keys) {
+          if (!Object.hasOwn(b, key)) return false;
+          stack.push([/** @type {Record<string, unknown>} */ (a)[key], /** @type {Record<string, unknown>} */ (b)[key]]);
+        }
+      } else return false;
+    }
+    return true;
   }
 
   // ---- close-families.js

@@ -151,11 +151,10 @@ impl PartialEq for Value {
             match pair {
                 (Value::Array(a), Value::Array(b)) if a.len() == b.len() => pairs.extend(a.iter().zip(b)),
                 (Value::Object(a), Value::Object(b)) if a.len() == b.len() => {
-                    for ((name_a, value_a), (name_b, value_b)) in a.iter().zip(b) {
-                        if name_a != name_b {
-                            return false;
-                        }
-                        pairs.push((value_a, value_b));
+                    let by_name: BTreeMap<_, _> = b.iter().map(|(name, value)| (name.as_str(), value)).collect();
+                    for (name, value) in a {
+                        let Some(other) = by_name.get(name.as_str()) else { return false };
+                        pairs.push((value, *other));
                     }
                 }
                 (Value::Null, Value::Null) => {}
