@@ -224,7 +224,7 @@ A scalar profile stores one scalar's initial engine tags. A profile never change
 
 Every included and available binary property contributes its Yes tag. Every included and available enumerated property contributes its value tag. Script_Extensions contributes every member tag. Long category tags and their major groups remain present.
 
-Libraries can share profiles across repeated scalars and equal profiles. They must keep table identities separate. Profile construction can wait until first use, but every observation sees the complete logical set from token creation. Filtering or extending one token's tags never mutates another token's profile.
+Libraries can share profiles across repeated scalars and equal profiles. They must keep table identities separate. Each configured table keeps a bounded profile cache across parse calls. Concurrent calls share that cache safely. Profile construction can wait until first use, but every observation sees the complete logical set from token creation. Filtering or extending one token's tags never mutates another token's profile.
 
 Later stages read stored sets, without deriving properties from value, image, text, or source. A changed value grants no new property tag. A filter can remove every tag of an enumerated property. A union can retain several values of that property. Neither operation reclassifies the resulting token.
 
