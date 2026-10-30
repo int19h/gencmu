@@ -10,6 +10,24 @@ fn read(s: &str) -> Dom {
     let json = crate::tools::read_grammar_document(&format!("```jbogenbau\n{s}\n```\n"), "").unwrap();
     dom::dom_from_json(&crate::json::parse(&json).unwrap(), &unicode()).unwrap()
 }
+#[test]
+fn source_dom_decodes_into_native_nodes() {
+    for source in [
+        "%rule pair(@L,@R) @L @R\n%rule text = pair(\"a\",\"b\")",
+        "%rule use(@X) @X\n%rule text use((\"a\" \"b\")) use(ε) use([\"a\"]) use({\"a\"})",
+        "%rule tag(@R) A<@R>\n%rule text tag(<B ¬C>)",
+        "%rule query(@R) A %conditions $.matches(@R)\n%rule text query(a | b)",
+        "%rule pattern(@P) A %conditions $ ≅ #@P\n%rule text pattern(#a)",
+        "%rule atom(@X) @X\n%rule outer(@P) A %conditions $ ≅ #atom(@P)\n%rule text outer(\"a\")",
+        "%rule atom(@X) @X\n%const $P #atom(\"a\")\n%implies $P ⟹ $P",
+        "%rule atom(@X) @X\n%features f %conditions $.matches(atom(\"a\"))",
+    ] {
+        let mut decoded = read(source);
+        let expected = j(&dom::dom_to_json(&decoded));
+        decoded.unresolved.clear();
+        assert_eq!(j(&dom::dom_to_json(&decoded)), expected, "{source}");
+    }
+}
 fn grammar(s: &str) -> crate::grammar::StageGrammar {
     let d = read(&format!("%ambiguity-resolution greedy\n{s}"));
     crate::grammar::stitch("main", &[(Arc::from("grammars/test/test.md"), Arc::new(d))], &unicode()).unwrap()

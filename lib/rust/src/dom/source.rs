@@ -1,5 +1,77 @@
 //! Typed source symbols before template expansion (engine §2.3).
-use super::{write_expr, write_requirements, write_str, write_term, Expr, Term};
+use super::{
+    array, expr_from_json, position, requirements_from_json, string, term_from_json, write_expr, write_requirements,
+    write_str, write_term, Expr, Term, R,
+};
+use crate::json::Json;
+
+impl SourceSymbol {
+    pub(crate) fn from_json(value: &Json) -> R<Self> {
+        if value.get("param").is_some() {
+            Ok(Self::Parameter(string(value, "param")?, position(value)?))
+        } else {
+            Ok(Self::Call(SourceCall::from_json(value)?))
+        }
+    }
+}
+
+impl SourceCall {
+    pub(crate) fn from_json(value: &Json) -> R<Self> {
+        Ok(Self { name: string(value, "call")?, args: arguments_from_json(value)?, at: position(value)? })
+    }
+}
+
+pub(crate) fn arguments_from_json(value: &Json) -> R<Vec<SourceArgument>> {
+    array(value, "args")?
+        .iter()
+        .map(|arg| {
+            Ok(if let Some(body) = arg.get("body") {
+                SourceArgument::Body(expr_from_json(body)?)
+            } else if arg.get("requirements").is_some() && arg.get("test").is_none() {
+                SourceArgument::Requirements(requirements_from_json(arg)?)
+            } else if arg.get("targets").is_some() {
+                SourceArgument::Targets(
+                    array(arg, "targets")?
+                        .iter()
+                        .map(|target| {
+                            Ok(if target.get("rule").is_some() {
+                                SourceTarget::Rule(string(target, "rule")?)
+                            } else if target.get("terminal").is_some() {
+                                SourceTarget::Terminal(string(target, "terminal")?)
+                            } else {
+                                SourceTarget::Symbol(SourceSymbol::from_json(target)?)
+                            })
+                        })
+                        .collect::<R<Vec<_>>>()?,
+                )
+            } else if arg.get("rule").is_some() {
+                SourceArgument::Body(Expr::Ref(string(arg, "rule")?))
+            } else if ["test", "range", "wildcard"].iter().any(|key| arg.get(key).is_some()) {
+                SourceArgument::Body(expr_from_json(arg)?)
+            } else {
+                SourceArgument::Term(term_from_json(arg)?)
+            })
+        })
+        .collect()
+}
+
+impl SourceHead {
+    pub(crate) fn from_json(value: &Json) -> R<Self> {
+        Ok(Self {
+            params: value
+                .get("params")
+                .map(|_| {
+                    array(value, "params")?
+                        .iter()
+                        .map(|v| v.as_str().map(str::to_owned).ok_or_else(|| "a malformed parameter name".to_string()))
+                        .collect::<R<Vec<_>>>()
+                })
+                .transpose()?,
+            args: value.get("args").map(|_| arguments_from_json(value)).transpose()?,
+            instance: value.get("instance").map(SourceCall::from_json).transpose()?,
+        })
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum SourceSymbol {

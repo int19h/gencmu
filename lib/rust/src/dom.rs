@@ -370,9 +370,6 @@ pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
 pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -> R<Dom> {
     let cleaned = known_dom_members(value);
     let value = cleaned.as_ref().unwrap_or(value);
-    if crate::parameters::unresolved(value) {
-        return crate::parameters::decode(value, unicode, defer);
-    }
     if let Some(problem) = dom_problem(value, unicode) {
         return Err(problem.to_string());
     }
@@ -440,7 +437,10 @@ pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode, defer: bool) -> R
         })
         .collect::<R<Vec<_>>>()?;
     // A definition the reader would refuse (engine §9).
-    for rule in &mut rules {
+    for (rule, raw) in rules.iter_mut().zip(array(value, "rules")?) {
+        if crate::parameters::unresolved(raw) {
+            continue;
+        }
         if let Some((problem, _)) = crate::boundary::definition_problem(rule) {
             return Err(problem);
         }
@@ -455,7 +455,15 @@ pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode, defer: bool) -> R
             }
         }
     }
-    Ok(Dom { rules, directives, constants, classifiers, implications, ..Dom::default() })
+    let mut unresolved = std::collections::BTreeMap::new();
+    for kind in crate::parameters::KINDS {
+        for raw in array(value, kind)? {
+            if crate::parameters::unresolved(raw) {
+                unresolved.insert(position(raw)?, raw.clone());
+            }
+        }
+    }
+    Ok(Dom { rules, directives, constants, classifiers, implications, unresolved, ..Dom::default() })
 }
 
 pub(crate) fn requirements_from_json(value: &Json) -> R<Term> {
@@ -586,7 +594,7 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
         other => return Err(format!("an unknown rule op {other:?}")),
     };
     Ok(RuleDef {
-        source: Default::default(),
+        source: SourceHead::from_json(value)?,
         deferred_emission: None,
         name: string(value, "name")?,
         op,
@@ -596,7 +604,7 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
             .collect::<R<Vec<_>>>()?,
         tags: value.get("tags").map(term_from_json).transpose()?,
         strings: channels_from_json(value)?,
-        alternatives: array(value, "alternatives")?
+        alternatives: if value.get("instance").is_some() { &[] } else { array(value, "alternatives")? }
             .iter()
             .map(|alternative| {
                 Ok(Alternative {
@@ -645,6 +653,8 @@ fn first_key(value: &Json) -> R<&str> {
         "any",
         "all",
         "captured",
+        "param",
+        "call",
     ];
     let members = value.as_object().ok_or("not a JSON object")?;
     members
@@ -697,6 +707,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
             _ => return Err("a range requires two string terms".into()),
         },
         "capture" => Expr::Capture(string(value, "capture")?, Box::new(expr_from_json(field(value, "expr")?)?)),
+        "param" | "call" => Expr::Source(SourceSymbol::from_json(value)?),
         "empty" => Expr::Empty,
         other => return Err(format!("an unknown expression {other:?}")),
     })
@@ -781,7 +792,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                             .map(|arg| (arg, false)),
                     );
                 }
-                "pattern" | "string" | "tag" | "emptySet" | "capture" | "const" => {}
+                "pattern" | "string" | "tag" | "emptySet" | "capture" | "const" | "param" | "call" => {}
                 _ => return Err(format!("an unknown term {key:?}")),
             }
         }
@@ -801,6 +812,20 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                 "method" => {
                     let receiver = operands.next().unwrap().term();
                     let name = string(value, "method")?;
+                    if array(value, "args")?.iter().any(|arg| arg.get("param").is_some() || arg.get("call").is_some()) {
+                        let mut args = vec![Arg::Term(receiver)];
+                        for arg in array(value, "args")? {
+                            args.push(if arg.get("rule").is_some() {
+                                Arg::Rule(string(arg, "rule")?)
+                            } else if arg.get("terminal").is_some() {
+                                Arg::Term(Term::Tag(string(arg, "terminal")?))
+                            } else {
+                                Arg::Term(term_from_json(arg)?)
+                            });
+                        }
+                        values.push(ReadValue::Cond(Cond::SourceQuery(name, args, BoundaryLocation::default())));
+                        continue;
+                    }
                     match (name.as_str(), array(value, "args")?) {
                         ("starts-input", []) => Cond::Initial(receiver),
                         ("ends-input", []) => Cond::Final(receiver),
@@ -843,6 +868,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                 "emptySet" => Term::EmptySet,
                 "capture" => Term::Capture(string(value, "capture")?),
                 "const" => Term::Const(string(value, "const")?, position(value)?),
+                "param" | "call" => Term::Source(SourceSymbol::from_json(value)?),
                 "union" => Term::Union(operands.map(ReadValue::term).collect()),
                 "intersection" => Term::Intersection(operands.map(ReadValue::term).collect()),
                 "difference" => {

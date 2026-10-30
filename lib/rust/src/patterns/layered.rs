@@ -124,9 +124,6 @@ impl Pattern {
                     } else if node.get("any").is_some() {
                         Self::Any
                     } else {
-                        if node.get("call").is_some() || node.get("param").is_some() {
-                            return Err("a pattern still contains an unresolved reference".into());
-                        }
                         let Json::Obj(fields) = node else { unreachable!() };
                         let atom = Json::Obj(
                             fields
@@ -135,7 +132,11 @@ impl Pattern {
                                 .cloned()
                                 .collect(),
                         );
-                        Self::read_atom(&atom)?
+                        if node.get("call").is_some() || node.get("param").is_some() {
+                            Self::Source(dom::source::SourceSymbol::from_json(&atom)?)
+                        } else {
+                            Self::read_atom(&atom)?
+                        }
                     };
                     let exact = node.get("exact").and_then(Json::as_bool) == Some(true);
                     if exact || attached.is_some() {
