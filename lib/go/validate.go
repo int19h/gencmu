@@ -3,6 +3,7 @@ package gencmu
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -190,7 +191,7 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 					c.fail("a malformed guard: a guard's feature is a name")
 				}
 			}
-			c.expr(a.Expr, 0, true, false)
+			c.expr(a.Expr, 0, true, false, false, false, false)
 			c.constituentTags(a.Tags)
 			c.recipe(a.Value)
 			c.recipe(a.Image)
@@ -203,6 +204,11 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		for _, a := range r.Alternatives {
 			if twice := duplicateCaptures(a.Expr); len(twice) > 0 {
 				return &domProblem{message: fmt.Sprintf("rule %s: a capture name used twice in one production", r.Name), rule: r}
+			}
+			// The name of an item capture stands nowhere else in its
+			// alternative (engine §3.5, §9).
+			if repeatsItemCapture(a.Expr) {
+				return &domProblem{message: fmt.Sprintf("rule %s: the name of an item capture used twice in one alternative", r.Name), rule: r}
 			}
 		}
 		// The values of its tests, once the nesting is bounded (engine §9).
@@ -418,10 +424,13 @@ func (c *domChecker) deep(depth int) bool {
 }
 
 // expr checks an expression. whole says it is the alternative's whole
-// expression, the only place a chain may stand, and sealed that it lies
-// inside braces or an elidable optional, where no capture stands (engine
-// §3.5, §9).
-func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
+// expression, the only place a chain may stand. sealed says it lies inside
+// an elidable optional, and chain that the innermost braces around it are
+// a chain: no capture stands in either. item says the innermost braces are
+// flat, where a capture is an item capture, and ranked that a ranked group
+// stands between those braces and the expression, where no item capture
+// stands (engine §3.5, §9).
+func (c *domChecker) expr(e *domExpr, depth int, whole, sealed, chain, item, ranked bool) {
 	if c.deep(depth) {
 		return
 	}
@@ -440,7 +449,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 			return
 		}
 		for _, it := range e.Items {
-			c.expr(it, depth+1, false, sealed)
+			c.expr(it, depth+1, false, sealed, chain, item, ranked || e.Kind == exRanked)
 		}
 	case exOptional:
 		// An elidable optional begins with its terminal (engine §3.8, §9).
@@ -448,24 +457,26 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 			c.fail("a malformed elidable optional")
 			return
 		}
-		c.expr(e.Inner, depth+1, false, sealed || e.Elidable)
+		c.expr(e.Inner, depth+1, false, sealed || e.Elidable, chain, item, ranked)
 	case exRepeat:
 		// A chain is the whole expression of its alternative (engine §9).
 		// A separator counts on from the depth of its repeat, as the item
-		// does.
+		// does. The innermost braces decide whether a capture inside them
+		// is an item capture (engine §3.5).
 		if e.Chain != "" && !whole {
 			c.fail("a chain that is not the whole expression of its alternative")
 			return
 		}
-		c.expr(e.Inner, depth+1, false, true)
+		c.expr(e.Inner, depth+1, false, sealed, e.Chain != "", e.Chain == "", false)
 		if e.Sep != nil {
-			c.expr(e.Sep, depth+1, false, true)
+			c.expr(e.Sep, depth+1, false, sealed, e.Chain != "", e.Chain == "", false)
 		}
 	case exCapture:
-		// A capture wraps one symbol, and stands anywhere but in braces or
-		// an elidable optional; $, the whole constituent, wraps nothing.
-		if sealed {
-			c.fail("a capture inside braces or an elidable optional")
+		// A capture wraps one symbol, and stands anywhere but in a chain
+		// or an elidable optional, and an item capture not in a ranked
+		// group; $, the whole constituent, wraps nothing.
+		if sealed || chain || item && ranked {
+			c.fail("a capture inside a chain or an elidable optional, or an item capture inside a ranked group")
 			return
 		}
 		if e.Name == "" {
@@ -482,13 +493,13 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 		}
 		// A capture is a compound node: its symbol lies below it, and is
 		// checked as any expression is.
-		c.expr(e.Inner, depth+1, false, sealed)
+		c.expr(e.Inner, depth+1, false, sealed, chain, item, ranked)
 	case exTest:
 		if e.Op == "tags" {
 			if !isTestable(e.Inner) {
 				c.fail("a tag test requires a base symbol")
 			}
-			c.expr(e.Inner, depth+1, false, sealed)
+			c.expr(e.Inner, depth+1, false, sealed, chain, item, ranked)
 			for _, r := range e.Requirements {
 				if r.Value == nil || r.Value.Kind != tmTag && r.Value.Kind != tmConst {
 					c.fail("a malformed tag requirement")
@@ -507,7 +518,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 			c.fail("a test follows only a reference, a terminal, a range or a property")
 			return
 		}
-		c.expr(e.Inner, depth+1, false, sealed)
+		c.expr(e.Inner, depth+1, false, sealed, chain, item, ranked)
 		if e.Value == nil {
 			c.fail("a missing value of a test")
 			return
@@ -710,6 +721,243 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 		done = append(done, joined)
 	}
 	return duplicates
+}
+
+// exprChildren lists the parts of an expression in the order written: the
+// items of a list, then what a capture, a test, an optional or braces
+// wrap, then a separator.
+func exprChildren(e *domExpr) []*domExpr {
+	var out []*domExpr
+	if e == nil {
+		return out
+	}
+	out = append(out, e.Items...)
+	if e.Inner != nil {
+		out = append(out, e.Inner)
+	}
+	if e.Sep != nil {
+		out = append(out, e.Sep)
+	}
+	return out
+}
+
+// allCaptures lists the captures of an expression in the order written,
+// those inside braces and elidable optionals included. Each node counts
+// before it is met.
+func allCaptures(e *domExpr) []*domExpr {
+	var found []*domExpr
+	stack := []*domExpr{e}
+	for len(stack) > 0 {
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if n == nil {
+			continue
+		}
+		if n.Kind == exCapture {
+			found = append(found, n)
+		}
+		kids := exprChildren(n)
+		for i := len(kids) - 1; i >= 0; i-- {
+			stack = append(stack, kids[i])
+		}
+	}
+	return found
+}
+
+// itemPlace is where an item capture stands: the innermost flat braces
+// around it, whose item captures one condition may read together, and the
+// outermost flat braces around it, which a production of the alternative
+// reads in their place (engine §3.5, §3.6).
+type itemPlace struct {
+	braces, outer *domExpr
+}
+
+// itemCaptures lists the item captures of an expression, the captures
+// inside flat braces, by name, each with its place (engine §3.5). A chain
+// holds no capture, which the reader makes sure of, so a capture inside a
+// chain's own braces is not listed. Flat braces inside a chain's item are
+// the outermost flat braces of their captures.
+func itemCaptures(e *domExpr) map[string]itemPlace {
+	found := map[string]itemPlace{}
+	type frame struct {
+		n     *domExpr
+		place *itemPlace
+	}
+	stack := []frame{{n: e}}
+	for len(stack) > 0 {
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		n := top.n
+		if n == nil {
+			continue
+		}
+		place := top.place
+		switch n.Kind {
+		case exCapture:
+			if place != nil {
+				if _, ok := found[n.Name]; !ok {
+					found[n.Name] = *place
+				}
+			}
+		case exRepeat:
+			if n.Chain == "" {
+				inner := &itemPlace{braces: n, outer: n}
+				if place != nil {
+					inner.outer = place.outer
+				}
+				place = inner
+			}
+		}
+		kids := exprChildren(n)
+		for i := len(kids) - 1; i >= 0; i-- {
+			stack = append(stack, frame{kids[i], place})
+		}
+	}
+	return found
+}
+
+// repeatsItemCapture says whether the name of an item capture stands more
+// than once in an expression, inside its braces or outside them (engine
+// §3.5, §9).
+func repeatsItemCapture(e *domExpr) bool {
+	items := itemCaptures(e)
+	if len(items) == 0 {
+		return false
+	}
+	seen := map[string]bool{}
+	for _, c := range allCaptures(e) {
+		if _, item := items[c.Name]; item {
+			if seen[c.Name] {
+				return true
+			}
+			seen[c.Name] = true
+		}
+	}
+	return false
+}
+
+// bracesName is the pseudo-capture that stands for a pair of flat braces
+// in bracesSequences: the braces themselves, by their identity.
+func bracesName(braces *domExpr) string { return fmt.Sprintf("\x01%p", braces) }
+
+// bracesSequences lists the distinct sequences of captures that the
+// productions of an expression read, as captureSequences does, with each
+// pair of flat braces that a production reads as a pseudo-capture named
+// by bracesName. The captures and braces inside the braces stay out, as in
+// every production. The check of item conditions compares the place of
+// the braces with the places of the captures a condition reads (engine
+// §3.6).
+func bracesSequences(e *domExpr) [][]string {
+	w := work.Load()
+	step := func() {
+		if w != nil {
+			w.readerSteps.add("reader steps")
+		}
+	}
+	distinct := func(lists [][]string) [][]string {
+		seen := map[string]bool{}
+		var out [][]string
+		for _, list := range lists {
+			step()
+			key := strings.Join(list, "\x00")
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			out = append(out, list)
+		}
+		return out
+	}
+	product := func(left, right [][]string) [][]string {
+		var out [][]string
+		for _, a := range left {
+			for _, b := range right {
+				step()
+				out = append(out, append(append([]string{}, a...), b...))
+			}
+		}
+		return distinct(out)
+	}
+	kids := func(n *domExpr) []*domExpr {
+		switch {
+		case n == nil:
+			return nil
+		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
+			return n.Items
+		case n.Kind == exOptional && !n.Elidable:
+			return []*domExpr{n.Inner}
+		}
+		return nil
+	}
+	type frame struct {
+		n       *domExpr
+		combine bool
+	}
+	stack := []frame{{n: e}}
+	var done [][][]string
+	for len(stack) > 0 {
+		step()
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		n := top.n
+		if !top.combine {
+			switch {
+			case n != nil && n.Kind == exCapture:
+				done = append(done, [][]string{{n.Name}})
+				continue
+			case n != nil && n.Kind == exRepeat && n.Chain == "":
+				done = append(done, [][]string{{bracesName(n)}})
+				continue
+			}
+			items := kids(n)
+			if len(items) == 0 {
+				done = append(done, [][]string{{}})
+				continue
+			}
+			stack = append(stack, frame{n: n, combine: true})
+			for i := len(items) - 1; i >= 0; i-- {
+				stack = append(stack, frame{n: items[i]})
+			}
+			continue
+		}
+		count := len(kids(n))
+		parts := append([][][]string{}, done[len(done)-count:]...)
+		done = done[:len(done)-count]
+		var out [][]string
+		switch n.Kind {
+		case exSeq:
+			out = [][]string{{}}
+			for _, part := range parts {
+				out = product(out, part)
+			}
+		case exChoice, exRanked:
+			for _, part := range parts {
+				out = append(out, part...)
+			}
+			out = distinct(out)
+		case exAnd:
+			for mask := 1; mask < 1<<len(parts); mask++ {
+				seqs := [][]string{{}}
+				for i, part := range parts {
+					if mask&(1<<i) != 0 {
+						seqs = product(seqs, part)
+					}
+				}
+				out = append(out, seqs...)
+			}
+			out = distinct(out)
+		case exOptional:
+			out = append([][]string{{}}, parts[0]...)
+		}
+		done = append(done, out)
+	}
+	return done[0]
 }
 
 // captureSequences lists the distinct sequences of captures that the

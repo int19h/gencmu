@@ -206,7 +206,7 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 		}
 	}
 	walk := func(n any, k string, whole bool) *domProblem {
-		if msg := templateNodeProblem(n, k, 0, whole, false, uni); msg != "" {
+		if msg := templateNodeProblem(n, k, 0, whole, false, false, false, false, uni); msg != "" {
 			return problem(msg)
 		}
 		return nil
@@ -279,8 +279,14 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 			if p := walk(alt["expr"], "expr", true); p != nil {
 				return p
 			}
-			if len(duplicateCaptures(templateCaptureShape(templateObj(alt["expr"])))) > 0 {
+			shape := templateCaptureShape(templateObj(alt["expr"]))
+			if len(duplicateCaptures(shape)) > 0 {
 				return problem("a capture name used twice in one production")
+			}
+			// The name of an item capture stands nowhere else in its
+			// alternative (engine §3.5, §9).
+			if repeatsItemCapture(shape) {
+				return problem("the name of an item capture used twice in one alternative")
 			}
 			if r["erased"] == true && (alt["value"] != nil || alt["image"] != nil) {
 				return problem("an erased rule has a recipe")
@@ -472,7 +478,12 @@ var templateSourceForms = map[string][]string{
 	"recipe-term": {"string", "tag", "const", "emptySet", "capture", "concat", "union", "intersection", "difference", "if", "pattern", "method"},
 }
 
-func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, uni *unicodeTable) string {
+// templateNodeProblem is why a node of a template DOM is malformed, or "".
+// sealed says the node lies inside an elidable optional, chain that the
+// innermost braces around it are a chain, item that they are flat braces,
+// and ranked that a ranked group stands between those braces and the node
+// (engine §3.5, §9).
+func templateNodeProblem(value any, kind string, depth int, whole, sealed, chain, item, ranked bool, uni *unicodeTable) string {
 	if depth > maxDOMDepth {
 		return errTooDeep.Error()
 	}
@@ -480,13 +491,16 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 	if n == nil {
 		return "a malformed " + kind
 	}
-	walk := func(v any, k string) string { return templateNodeProblem(v, k, depth+1, false, sealed, uni) }
+	walk := func(v any, k string) string {
+		return templateNodeProblem(v, k, depth+1, false, sealed, chain, item, ranked, uni)
+	}
 	list := func(key, k string, min int) string {
 		if !templateArray(n, key, min) {
 			return "a malformed " + kind
 		}
 		for _, v := range templateList(n[key]) {
-			if p := walk(v, k); p != "" {
+			// An item capture stands in no ranked group (engine §3.5).
+			if p := templateNodeProblem(v, k, depth+1, false, sealed, chain, item, ranked || key == "ranked", uni); p != "" {
 				return p
 			}
 		}
@@ -497,7 +511,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		if problem != "" {
 			return problem
 		}
-		return templateNodeProblem(n, "pattern-part", depth, whole, sealed, uni)
+		return templateNodeProblem(n, "pattern-part", depth, whole, sealed, chain, item, ranked, uni)
 	}
 	if kind == "pattern-part" {
 		if n["call"] != nil {
@@ -511,7 +525,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			}
 		}
 		if n["literal"] != nil {
-			if p := templateNodeProblem(n["literal"], "string", depth, false, sealed, uni); p != "" {
+			if p := templateNodeProblem(n["literal"], "string", depth, false, sealed, chain, item, ranked, uni); p != "" {
 				return p
 			}
 		}
@@ -527,7 +541,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			}
 		}
 		for _, end := range templateList(n["range"]) {
-			if p := templateNodeProblem(end, "string", depth, false, sealed, uni); p != "" {
+			if p := templateNodeProblem(end, "string", depth, false, sealed, chain, item, ranked, uni); p != "" {
 				return p
 			}
 		}
@@ -621,7 +635,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			if !templateOnly(n, "body") {
 				return "a malformed body argument"
 			}
-			return templateNodeProblem(n["body"], "expr", depth, true, false, uni)
+			return templateNodeProblem(n["body"], "expr", depth, true, false, false, false, false, uni)
 		}
 		if n["targets"] != nil {
 			if !templateOnly(n, "targets") {
@@ -631,7 +645,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 				return "a malformed target choice"
 			}
 			for _, v := range templateList(n["targets"]) {
-				if p := templateNodeProblem(v, "target", depth, false, sealed, uni); p != "" {
+				if p := templateNodeProblem(v, "target", depth, false, sealed, chain, item, ranked, uni); p != "" {
 					return p
 				}
 			}
@@ -693,7 +707,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			var e *domExpr
 			e, err = decodeExpr(raw)
 			if err == nil {
-				c.expr(e, depth, whole, sealed)
+				c.expr(e, depth, whole, sealed, chain, item, ranked)
 			}
 		case "condition":
 			var e *domCond
@@ -736,22 +750,25 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			if !templateAllowed(n, "optional", "elidable") || n["elidable"] != nil && (n["elidable"] != true || !templateElidableHead(templateObj(n["optional"]))) {
 				return "a malformed optional"
 			}
-			return templateNodeProblem(n["optional"], "expr", depth+1, false, sealed || n["elidable"] == true, uni)
+			return templateNodeProblem(n["optional"], "expr", depth+1, false, sealed || n["elidable"] == true, chain, item, ranked, uni)
 		}
 		if n["repeat"] != nil {
 			if !templateAllowed(n, "repeat", "separator", "chain") || n["chain"] != nil && (!whole || n["chain"] != "left" && n["chain"] != "right") {
 				return "a malformed repetition"
 			}
-			if p := templateNodeProblem(n["repeat"], "expr", depth+1, false, true, uni); p != "" {
+			// A chain holds no capture, and flat braces hold item captures,
+			// also inside a chain; an elidable optional seals everything
+			// inside it (engine §3.5).
+			if p := templateNodeProblem(n["repeat"], "expr", depth+1, false, sealed, n["chain"] != nil, n["chain"] == nil, false, uni); p != "" {
 				return p
 			}
 			if n["separator"] != nil {
-				return templateNodeProblem(n["separator"], "expr", depth+1, false, true, uni)
+				return templateNodeProblem(n["separator"], "expr", depth+1, false, sealed, n["chain"] != nil, n["chain"] == nil, false, uni)
 			}
 			return ""
 		}
 		if n["capture"] != nil {
-			if !templateOnly(n, "capture", "expr") || sealed || (!captureName.MatchString(templateText(n["capture"])) || !templateSymbol(templateObj(n["expr"]))) {
+			if !templateOnly(n, "capture", "expr") || sealed || chain || item && ranked || (!captureName.MatchString(templateText(n["capture"])) || !templateSymbol(templateObj(n["expr"]))) {
 				return "a malformed capture"
 			}
 			return walk(n["expr"], "expr")
@@ -784,7 +801,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			return "a malformed range"
 		}
 		for _, v := range templateList(n["range"]) {
-			if p := templateNodeProblem(v, "string", depth, false, false, uni); p != "" {
+			if p := templateNodeProblem(v, "string", depth, false, false, false, false, false, uni); p != "" {
 				return p
 			}
 		}
@@ -795,7 +812,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		if !templateOnly(n, fields...) {
 			return "a malformed literal"
 		}
-		return templateNodeProblem(n["literal"], "string", depth, false, false, uni)
+		return templateNodeProblem(n["literal"], "string", depth, false, false, false, false, false, uni)
 	}
 	if kind == "recipe" {
 		if !templateOnly(n, "concat") {
@@ -906,7 +923,7 @@ func templateRequirementProblem(value any, depth int, uni *unicodeTable) string 
 		if !templateOnly(r, "negated", "value") || !ok || operand["tag"] == nil && operand["const"] == nil && operand["param"] == nil {
 			return "a malformed requirement"
 		}
-		if p := templateNodeProblem(operand, "term", depth, false, false, uni); p != "" {
+		if p := templateNodeProblem(operand, "term", depth, false, false, false, false, false, uni); p != "" {
 			return p
 		}
 	}
@@ -951,6 +968,9 @@ func templateCaptureShape(n templateObject) *domExpr {
 	for _, kind := range []string{exOptional, exRepeat} {
 		if n[kind] != nil {
 			e := &domExpr{Kind: kind, Inner: templateCaptureShape(templateObj(n[kind]))}
+			if kind == exRepeat && n["chain"] != nil {
+				e.Chain = templateText(n["chain"])
+			}
 			if n["separator"] != nil {
 				e.Sep = templateCaptureShape(templateObj(n["separator"]))
 			}

@@ -111,7 +111,7 @@ func (b *domBuilder) templateDeclaration(n *Node) templateObject {
 		}
 		values := []any{}
 		for _, a := range alts {
-			b.braces = 0
+			b.braces = nil
 			b.captureNodes = map[*domExpr]*Node{}
 			b.marked = 0
 			guards := []any{}
@@ -244,11 +244,18 @@ func (b *domBuilder) templateExpr(n *Node, whole bool) (result templateObject) {
 			b.fail(n, "an & joins at most %d items", maxAnd)
 		}
 		values := []any{}
+		// An item capture cannot stand inside a ranked group (engine §3.5).
+		if kind == "ranked" && len(b.braces) > 0 {
+			b.braces[len(b.braces)-1].ranked++
+		}
 		for _, p := range xs {
 			if kind == "seq" {
 				p = b.knownOf(p, templatePrimaries)
 			}
 			values = append(values, b.templateExpr(p, whole && kind != "choice" && kind != "ranked" && len(xs) == 1))
+		}
+		if kind == "ranked" && len(b.braces) > 0 {
+			b.braces[len(b.braces)-1].ranked--
 		}
 		if len(values) == 1 {
 			return templateObj(values[0])
@@ -257,8 +264,11 @@ func (b *domBuilder) templateExpr(n *Node, whole bool) (result templateObject) {
 	case "group":
 		return b.templateExpr(b.only(n, "choice"), false)
 	case "capture":
-		if b.braces > 0 || b.marked > 0 {
-			b.fail(n, "a capture cannot stand inside braces or an elidable optional")
+		if len(b.braces) > 0 && b.braces[len(b.braces)-1].chain || b.marked > 0 {
+			b.fail(n, "a capture cannot stand inside a chain or an elidable optional")
+		}
+		if len(b.braces) > 0 && b.braces[len(b.braces)-1].ranked > 0 {
+			b.fail(n, "an item capture cannot stand inside a ranked group")
 		}
 		name := strings.TrimPrefix(b.tokenValue(b.token(n)), "$")
 		if !captureName.MatchString(name) {
@@ -338,12 +348,12 @@ func (b *domBuilder) templateExpr(n *Node, whole bool) (result templateObject) {
 				chain = "left"
 			}
 		}
-		b.braces++
+		b.braces = append(b.braces, bracesEntry{chain: chain != ""})
 		r := templateObject{"repeat": b.templateExpr(cs[0], false)}
 		if len(cs) > 1 {
 			r["separator"] = b.templateExpr(cs[1], false)
 		}
-		b.braces--
+		b.braces = b.braces[:len(b.braces)-1]
 		if chain != "" {
 			r["chain"] = chain
 		}

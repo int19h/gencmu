@@ -271,6 +271,13 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 	return found
 }
 
+// bracesEntry is one pair of braces the reader is inside: whether it is
+// a chain, and how many ranked groups below it the reader is inside.
+type bracesEntry struct {
+	chain  bool
+	ranked int
+}
+
 type domBuilder struct {
 	strings        *documentStrings
 	hasBoundary    bool
@@ -279,13 +286,16 @@ type domBuilder struct {
 	// captureNodes holds the notation node of each capture of the
 	// alternative being read, where an error about it is reported.
 	captureNodes map[*domExpr]*Node
-	// braces and marked count the braces and the elidable optionals the
-	// reader is inside, where no capture stands (engine §3.5).
-	braces, marked int
-	toks           []Token
-	gt             *grammarText
-	doc            string
-	uni            *unicodeTable // configured Unicode data for input and diagnostics
+	// braces holds the braces the reader is inside, innermost last: a
+	// chain holds no capture, and flat braces no capture inside a ranked
+	// group. marked counts the elidable optionals, where no capture stands
+	// either (engine §3.5).
+	braces []bracesEntry
+	marked int
+	toks   []Token
+	gt     *grammarText
+	doc    string
+	uni    *unicodeTable // configured Unicode data for input and diagnostics
 	// closedFor is what the reader is reading as a closed term, a
 	// constant's value or a test's operand, or "" (§9, §10).
 	closedFor string
@@ -833,6 +843,26 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 			}
 		}
 		b.fail(first, "the capture %s is read twice by one production of the alternative", b.tokenValue(b.token(first)))
+	}
+	// The name of an item capture stands nowhere else in the alternative
+	// (engine §3.5, §9): the error stands at the later capture in the text.
+	if items := itemCaptures(a.Expr); len(items) > 0 {
+		seen := map[string]*Node{}
+		for _, c := range allCaptures(a.Expr) {
+			at := b.captureNodes[c]
+			earlier, ok := seen[c.Name]
+			if ok {
+				if _, item := items[c.Name]; item {
+					later := at
+					if before(b.at(at), b.at(earlier)) {
+						later = earlier
+					}
+					b.fail(later, "the item capture %s is read again: the name of an item capture stands once in its alternative", b.tokenValue(b.token(later)))
+				}
+				continue
+			}
+			seen[c.Name] = at
+		}
 	}
 	if p := one(n, "alternative-tags"); p != nil {
 		a.Tags = b.constituentTags(p)

@@ -33,37 +33,44 @@ type production struct {
 	ranked            *rankedGroup
 	option            int
 	contextual        bool
-	privateNames      map[string]bool
-	rankedBindings    string
-	parentTags        *domTerm
-	slot              *slotMetadata
-	num               int
-	lhs               int32
-	rhs               []symbol
-	tests             []*symTest // per position: the test its symbol must pass, or nil; nil when no symbol is tested (§4)
-	capName           []string   // per position: the capture's name, or ""
-	capSlot           []int32    // per position: the item's capture slot, or -1
-	nslots            int
-	slotOf            map[string]int32 // capture name → slot
-	posOf             map[string]int   // capture name → its first position
-	tags              *domTerm         // nil: default tags (§4)
-	inheritIndex      int
-	logicalCount      int
-	implicit          bool // one symbol and no tags: the constituent has its symbol's tags (§3.7)
-	conds             []lcond
-	condFrom          []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
-	predictConds      []*domCond // conditions using no capture but $ of an empty production, checked at prediction
-	rankedConditions  []*domCond // effective conditions across static ranked entry contexts
-	emit              *domEmit   // as dropped and simplified for the production (§3.6)
-	nothing           bool       // %erased: the constituent emits nothing and does not count (§11)
-	value, image      *domTerm
-	transparent       bool
-	helper            bool
-	elided            string   // for the ε production of an optional beginning with an elidable terminal
-	elidedTest        *symTest // the test of that terminal, if it is tested; a restored token sounds like the string of an = test (§7)
-	ruleName          string   // the rule the author wrote (for a helper, the one it serves)
-	doc               string
-	at                [2]int
+	// itemConds are the conditions of the alternative that read an item
+	// capture of this helper of flat braces, as written; a frame
+	// simplifies them for each production in it (engine §3.6, §4).
+	itemConds []*domCond
+	// altItems are the item captures of a helper's alternative, which no
+	// condition of the helper's ranked group reads (§3.6).
+	altItems         map[string]bool
+	privateNames     map[string]bool
+	rankedBindings   string
+	parentTags       *domTerm
+	slot             *slotMetadata
+	num              int
+	lhs              int32
+	rhs              []symbol
+	tests            []*symTest // per position: the test its symbol must pass, or nil; nil when no symbol is tested (§4)
+	capName          []string   // per position: the capture's name, or ""
+	capSlot          []int32    // per position: the item's capture slot, or -1
+	nslots           int
+	slotOf           map[string]int32 // capture name → slot
+	posOf            map[string]int   // capture name → its first position
+	tags             *domTerm         // nil: default tags (§4)
+	inheritIndex     int
+	logicalCount     int
+	implicit         bool // one symbol and no tags: the constituent has its symbol's tags (§3.7)
+	conds            []lcond
+	condFrom         []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
+	predictConds     []*domCond // conditions using no capture but $ of an empty production, checked at prediction
+	rankedConditions []*domCond // effective conditions across static ranked entry contexts
+	emit             *domEmit   // as dropped and simplified for the production (§3.6)
+	nothing          bool       // %erased: the constituent emits nothing and does not count (§11)
+	value, image     *domTerm
+	transparent      bool
+	helper           bool
+	elided           string   // for the ε production of an optional beginning with an elidable terminal
+	elidedTest       *symTest // the test of that terminal, if it is tested; a restored token sounds like the string of an = test (§7)
+	ruleName         string   // the rule the author wrote (for a helper, the one it serves)
+	doc              string
+	at               [2]int
 	// warnings are the features of its alternative's warnings that are on,
 	// in the order written, each giving a warning for a node of the chosen
 	// tree built by the production (§12); a helper has none.
@@ -174,13 +181,18 @@ type lowerer struct {
 	commonConds map[*sAlt]map[string][]*domCond
 	validation  bool
 	currentExpr *domExpr
-	g           *stageGrammar
-	l           *lowered
-	features    map[string]bool
-	helpers     int
-	memo        map[*domExpr][][]slot // expansions of one alternative, by place
-	tests       map[*domExpr]*symTest // the tests of that alternative with their values
-	into        *[]*helperNode        // where a new helper goes
+	// itemNames are the item captures of the alternative being lowered,
+	// and altConds its conditions less the item conditions, which attach
+	// to the helpers of their braces instead (engine §3.5, §3.6).
+	itemNames map[string]bool
+	altConds  []*domCond
+	g         *stageGrammar
+	l         *lowered
+	features  map[string]bool
+	helpers   int
+	memo      map[*domExpr][][]slot // expansions of one alternative, by place
+	tests     map[*domExpr]*symTest // the tests of that alternative with their values
+	into      *[]*helperNode        // where a new helper goes
 	// structural is every production that the gates and the expansion
 	// make, before a false condition removes any (§3.3).
 	structural []structuralProduction
@@ -400,6 +412,20 @@ func (lw *lowerer) guardsHold(a *domAlt) bool {
 	return true
 }
 
+// mentionsItem says whether a condition mentions an item capture of the
+// alternative being lowered: it is then an item condition (§3.6).
+func (lw *lowerer) mentionsItem(c *domCond) bool {
+	if len(lw.itemNames) == 0 {
+		return false
+	}
+	for _, name := range orderedMentions(clausePart{c: c}) {
+		if lw.itemNames[name] {
+			return true
+		}
+	}
+	return false
+}
+
 func (lw *lowerer) lowerRule(r *sRule) {
 	var alts []*sAlt
 	for _, a := range r.alts {
@@ -424,6 +450,23 @@ func (lw *lowerer) lowerRule(r *sRule) {
 			lw.tests[t] = a.tests[i]
 		}
 		lw.into = &helpers
+		lw.itemNames = map[string]bool{}
+		if places := itemCaptures(a.alt.Expr); len(places) > 0 {
+			for name := range places {
+				lw.itemNames[name] = true
+			}
+		}
+		// An item condition attaches to the helper of its braces, not to
+		// the productions of the alternative (engine §3.6).
+		lw.altConds = a.conds
+		if len(lw.itemNames) > 0 {
+			lw.altConds = nil
+			for _, c := range a.conds {
+				if !lw.mentionsItem(c) {
+					lw.altConds = append(lw.altConds, c)
+				}
+			}
+		}
 		if e := a.alt.Expr; isChain(e) {
 			// A chain is recursion on the rule itself, with no helper: its
 			// base productions first, one for each expansion of the item,
@@ -461,36 +504,74 @@ func (lw *lowerer) lowerRule(r *sRule) {
 		var number func(hs []*helperNode)
 		number = func(hs []*helperNode) {
 			for _, h := range hs {
+				ranked := lw.g.ranked != nil && len(lw.g.ranked.groups) > 0
+				// The item captures that any production of the helper
+				// reads: every production of the helper then carries the
+				// item conditions that read them, as the productions of a
+				// rule carry its conditions (engine §3.6).
+				var helperItems map[string]bool
+				var itemConds []*domCond
+				if len(lw.itemNames) > 0 {
+					helperItems = map[string]bool{}
+					for _, b := range h.bodies {
+						for _, s := range b {
+							if s.capture != "" && lw.itemNames[s.capture] {
+								helperItems[s.capture] = true
+							}
+						}
+					}
+					for _, c := range h.owner.conds {
+						for _, name := range orderedMentions(clausePart{c: c}) {
+							if helperItems[name] {
+								itemConds = append(itemConds, c)
+								break
+							}
+						}
+					}
+				}
 				for optionIndex, b := range h.bodies {
 					lw.structural = append(lw.structural, structuralProduction{h.rule, symbolsOf(b)})
 					p := lw.newProduction(h.rule, b)
 					p.sourceAlternative = h.owner
 					p.helperExpression = h.path
 					b, _, _ = logicalBody(b)
-					if lw.validation || lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
+					if lw.validation || ranked || len(lw.itemNames) > 0 {
 						p.slot = &slotMetadata{source: h.owner, path: h.path}
 					}
-					if lw.validation || lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
-						p.posOf = map[string]int{}
-						p.nslots = 0
-						for i, s := range b {
-							p.capSlot[i] = -1
-							if s.capture != "" {
-								p.capName[i] = s.capture
-								p.capSlot[i] = int32(p.nslots)
-								p.slotOf[s.capture] = int32(p.nslots)
-								p.posOf[s.capture] = i
-								p.nslots++
-							}
-						}
-						if p.implicit && p.capSlot[p.inheritIndex] < 0 {
-							p.capSlot[p.inheritIndex] = int32(p.nslots)
+					// The captures of a ranked option and the item captures
+					// inside braces bind to the helper's productions (engine
+					// §3.4, §3.5).
+					p.posOf = map[string]int{}
+					p.nslots = 0
+					for i, s := range b {
+						p.capSlot[i] = -1
+						if s.capture != "" {
+							p.capName[i] = s.capture
+							p.capSlot[i] = int32(p.nslots)
+							p.slotOf[s.capture] = int32(p.nslots)
+							p.posOf[s.capture] = i
 							p.nslots++
 						}
+					}
+					if p.implicit && p.capSlot[p.inheritIndex] < 0 {
+						p.capSlot[p.inheritIndex] = int32(p.nslots)
+						p.nslots++
+					}
+					if lw.validation || ranked {
 						if group := lw.g.ranked.expressions[h.path]; group != nil {
 							p.ranked = group
 							p.option = lw.rankOptions[h.rule][optionIndex]
 						}
+					}
+					// Every helper of an alternative with item captures is
+					// contextual, so that a frame reaches the braces' helper
+					// through the helpers around it, and its item conditions
+					// read the enclosing item's captures from the frame
+					// (engine §4).
+					if len(lw.itemNames) > 0 {
+						p.contextual = true
+						p.itemConds = itemConds
+						p.altItems = lw.itemNames
 					}
 					p.helper = true
 					p.transparent = true
@@ -521,6 +602,11 @@ func holdsCapture(e *domExpr, includeRanked bool) bool {
 		return false
 	}
 	if e.Kind == exRanked && !includeRanked {
+		return false
+	}
+	// An item capture binds to the helper of its braces, not to the
+	// enclosing production (§3.5).
+	if e.Kind == exRepeat {
 		return false
 	}
 	if e.Kind == exCapture {

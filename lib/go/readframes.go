@@ -122,7 +122,7 @@ func (f *exprFrame) resume(b *domBuilder, in any) readStep {
 		} else {
 			f.repeat.Sep = in.(*domExpr)
 		}
-		b.braces--
+		b.braces = b.braces[:len(b.braces)-1]
 		return give(f.repeat)
 	}
 	panic("an expression frame resumed with nothing to do")
@@ -136,6 +136,9 @@ func (f *exprFrame) next(b *domBuilder) readStep {
 			return ask(&exprFrame{n: b.knownOf(p, primaryRules), whole: f.inWhole})
 		}
 		return ask(&exprFrame{n: p, whole: f.inWhole})
+	}
+	if f.kind == exRanked && len(b.braces) > 0 {
+		b.braces[len(b.braces)-1].ranked--
 	}
 	if len(f.items) == 1 {
 		return give(f.items[0])
@@ -167,6 +170,10 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 		if f.kind == exAnd && len(f.parts) > maxAnd {
 			b.fail(n, "an & joins at most %d items, since it expands to 2ⁿ−1 sequences", maxAnd)
 		}
+		// An item capture cannot stand inside a ranked group (engine §3.5).
+		if f.kind == exRanked && len(b.braces) > 0 {
+			b.braces[len(b.braces)-1].ranked++
+		}
 		return f.next(b)
 	case "repetition":
 		return f.startRepetition(b)
@@ -187,8 +194,17 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 	case "capture":
 		// Its place, then $, its name and its symbol, each at the capture,
 		// before what it wraps (engine §9).
-		if b.braces > 0 {
-			b.fail(n, "a capture cannot stand inside braces, whose parts repeat: name the list as a rule, and capture that")
+		// Inside flat braces it is an item capture, and the innermost
+		// braces decide; an item capture stands in no ranked group
+		// (engine §3.5).
+		if len(b.braces) > 0 {
+			inner := b.braces[len(b.braces)-1]
+			if inner.chain {
+				b.fail(n, "a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level")
+			}
+			if inner.ranked > 0 {
+				b.fail(n, "an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule")
+			}
 		}
 		if b.marked > 0 {
 			b.fail(n, "a capture cannot stand inside an elidable optional, which elision restores as one unit")
@@ -333,7 +349,7 @@ func (f *exprFrame) startRepetition(b *domBuilder) readStep {
 	if e.Chain != "" && !f.whole {
 		b.fail(n, "a chain is the whole expression of its alternative: name it as a rule to use it here")
 	}
-	b.braces++
+	b.braces = append(b.braces, bracesEntry{chain: e.Chain != ""})
 	f.repeat = e
 	f.choices = choices
 	return ask(&exprFrame{n: choices[0]})
