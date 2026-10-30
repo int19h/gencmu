@@ -94,21 +94,32 @@ pub struct RankedDiagnostic {
     pub inheritance: Option<Vec<GroupSite>>,
 }
 
-impl std::ops::Deref for Error {
-    type Target = RankedDiagnostic;
-    fn deref(&self) -> &RankedDiagnostic {
-        static EMPTY: RankedDiagnostic =
-            RankedDiagnostic { code: None, group: None, option: None, expression: None, inheritance: None };
-        self.diagnostic.as_deref().unwrap_or(&EMPTY)
-    }
-}
-impl std::ops::DerefMut for Error {
-    fn deref_mut(&mut self) -> &mut RankedDiagnostic {
-        self.diagnostic.get_or_insert_with(Default::default)
-    }
-}
-
 impl Error {
+    /// The stable loading code, when present.
+    pub fn code(&self) -> Option<&str> {
+        self.diagnostic.as_ref()?.code.as_deref()
+    }
+
+    /// The written ranked group, when present.
+    pub fn group(&self) -> Option<&GroupSite> {
+        self.diagnostic.as_ref()?.group.as_ref()
+    }
+
+    /// The zero-based option index, when present.
+    pub fn option(&self) -> Option<usize> {
+        self.diagnostic.as_ref()?.option
+    }
+
+    /// The original written DOM expression, when present.
+    pub fn expression(&self) -> Option<&Json> {
+        self.diagnostic.as_ref()?.expression.as_ref()
+    }
+
+    /// The shortest tag inheritance witness, when present.
+    pub fn inheritance(&self) -> Option<&[GroupSite]> {
+        self.diagnostic.as_ref()?.inheritance.as_deref()
+    }
+
     /// Writes the canonical loading diagnostic schema.
     pub fn to_json(&self) -> String {
         let kind = match self.kind {
@@ -116,31 +127,32 @@ impl Error {
             ErrorKind::Usage => "usage",
         };
         let mut fields = vec![("kind".into(), Json::Str(kind.into()))];
-        if let Some(code) = &self.code {
-            fields.push(("code".into(), Json::Str(code.clone())));
+        if let Some(code) = self.code() {
+            fields.push(("code".into(), Json::Str(code.into())));
         }
         fields.push(("message".into(), Json::Str(self.to_string())));
-        if let Some(group) = &self.group {
+        if let Some(group) = self.group() {
             fields.push(("group".into(), group.value()));
         }
-        if let Some(option) = self.option {
+        if let Some(option) = self.option() {
             fields.push(("option".into(), Json::Int(option as i64)));
         }
-        if let Some(expression) = &self.expression {
+        if let Some(expression) = self.expression() {
             fields.push(("expression".into(), expression.clone()));
         }
-        if let Some(inheritance) = &self.inheritance {
+        if let Some(inheritance) = self.inheritance() {
             fields.push(("inheritance".into(), Json::Arr(inheritance.iter().map(GroupSite::value).collect())));
         }
         Json::Obj(fields).to_json()
     }
     pub(crate) fn ranked_detail(mut self, option: usize, expression: Option<Json>) -> Self {
-        self.option = Some(option);
-        self.expression = expression;
+        let diagnostic = self.diagnostic.get_or_insert_with(Default::default);
+        diagnostic.option = Some(option);
+        diagnostic.expression = expression;
         self
     }
     pub(crate) fn coded(mut self, code: &str) -> Self {
-        self.code = Some(code.into());
+        self.diagnostic.get_or_insert_with(Default::default).code = Some(code.into());
         self
     }
 

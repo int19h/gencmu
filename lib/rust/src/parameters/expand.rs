@@ -29,7 +29,7 @@ impl Event {
         }
         let mut e = Error::grammar(message).in_document(&self.path).at(at.0, at.1);
         if e.message.starts_with("unbounded-instantiation:") {
-            e.code = Some("unbounded-instantiation".into())
+            e = e.coded("unbounded-instantiation")
         }
         e
     }

@@ -404,7 +404,7 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
             if let Some(tokens) = syntax_input {
                 let at = error.token.unwrap_or(0);
                 if crate::ranked::syntax_failure(tokens, at) {
-                    failure.code = Some("ranked-choice-syntax".into());
+                    failure = failure.coded("ranked-choice-syntax");
                 }
             }
         }
@@ -741,11 +741,11 @@ fn splice_pipeline(context: &Context, sources: &dyn Sources, path: &str) -> Resu
 fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result<Pipeline, Error> {
     match load_mode(context, sources, pipeline_path, None) {
         Err(error)
-            if error.code.as_deref().is_some_and(|code| code.starts_with("ranked-choice-"))
-                && error.group.as_ref().is_some_and(|group| group.at.is_none() && group.document.is_some()) =>
+            if error.code().is_some_and(|code| code.starts_with("ranked-choice-"))
+                && error.group().is_some_and(|group| group.at.is_none() && group.document.is_some()) =>
         {
             // Retry only a failed load, with locations for its diagnostic document.
-            let document = error.group.as_ref().and_then(|group| group.document.as_deref());
+            let document = error.group().and_then(|group| group.document.as_deref());
             load_mode(context, sources, pipeline_path, document)
         }
         Err(error) if error.location_recovery.is_some() && error.line.is_none() && error.document.is_some() => {

@@ -66,6 +66,8 @@ The error is an exception in JavaScript and Python, and a returned error in Go a
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
+Rust exposes these optional fields through `code()`, `group()`, `option()`, `expression()`, and `inheritance()` on `Error`. These accessors borrow stored data without creating a diagnostic.
+
 [Output formats](output.md) defines the grammar DOM, cache, and parse-result schemas. The compatibility boundary is the schema version and the notation contract. Callers supply DOMs of that version or grammar text in the specified notation.
 
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.

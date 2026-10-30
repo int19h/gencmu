@@ -755,7 +755,7 @@ pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), Str
         return Err(format!("expect.where is only for a grammar error: {error}"));
     }
     if let Some(code) = expect.get("diagnostic").and_then(Value::str) {
-        if error.code.as_deref() != Some(code) {
+        if error.code() != Some(code) {
             return Err(format!("expected diagnostic {code}: {error}"));
         }
     }
