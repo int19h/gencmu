@@ -269,7 +269,9 @@ pub(crate) fn declaration(r: &Json, kind: &str, uni: &Unicode) -> Option<&'stati
                     return Some(p);
                 }
                 let shape = capture_shape(get(alt, "expr"));
-                if !crate::clauses::duplicate_captures(&shape).is_empty() || crate::clauses::repeats_item_capture(&shape) {
+                if !crate::clauses::duplicate_captures(&shape).is_empty()
+                    || crate::clauses::repeats_item_capture(&shape)
+                {
                     return Some("a capture name used twice in one production");
                 }
                 if get(r, "erased") == &Json::Bool(true) && (has(alt, "value") || has(alt, "image")) {

@@ -364,11 +364,9 @@ pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
     }
     for item in dom.get("rules").and_then(Json::as_array).unwrap() {
         let Ok(rule) = rule_from_json(item) else { return Some("a malformed rule") };
-        if rule
-            .alternatives
-            .iter()
-            .any(|a| !crate::clauses::duplicate_captures(&a.expr).is_empty() || crate::clauses::repeats_item_capture(&a.expr))
-        {
+        if rule.alternatives.iter().any(|a| {
+            !crate::clauses::duplicate_captures(&a.expr).is_empty() || crate::clauses::repeats_item_capture(&a.expr)
+        }) {
             return Some("a production captures a name twice");
         }
         if rule_type_problem(&rule).is_some() {
