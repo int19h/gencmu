@@ -1478,3 +1478,17 @@ func TestWarningFeaturesShareALowering(t *testing.T) {
 		t.Fatalf("%d lowered grammars", n)
 	}
 }
+
+func TestConstantCyclePathAndVersions(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ declarations, path string }{
+		{"%const $A $B\n%const $B $C\n%const $C $B", "$B → $C → $B"},
+		{"%const $A $B\n%const $B $A\n%redefine-const $A $A", "$A [g.md:3:1] → $B [g.md:4:1] → $A [g.md:5:1] → $A [g.md:3:1]"},
+	} {
+		sources := map[string]string{"p.md": block("%stage main", `%include "g.md"`), "g.md": block("%ambiguity-resolution greedy", c.declarations, `%rule text "a"`)}
+		_, err := LoadPipelineSources(sources, "p.md")
+		if err == nil || !strings.HasSuffix(err.Error(), "constant dependency cycle: "+c.path) {
+			t.Fatalf("expected %s, got %v", c.path, err)
+		}
+	}
+}

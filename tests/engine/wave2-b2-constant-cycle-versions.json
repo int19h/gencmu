@@ -1,0 +1,13 @@
+{
+  "description": "Constant cycle errors retain the cycle and distinguish immutable versions (engine §2).",
+  "grammar": "%const $A $B\n%const $B $A\n%redefine-const $A $A\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 20
+    }
+  }
+}

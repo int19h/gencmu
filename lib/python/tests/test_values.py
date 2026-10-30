@@ -9,6 +9,17 @@ from .shared import run_case
 
 
 class Values(unittest.TestCase):
+    def test_constant_cycles_exclude_entry_paths_and_identify_versions(self) -> None:
+        cases = [
+            ('%const $A $B\n%const $B $C\n%const $C $B', r'constant dependency cycle: \$B → \$C → \$B$'),
+            ('%const $A $B\n%const $B $A\n%redefine-const $A $A',
+             r'constant dependency cycle: \$A \[(?P<doc>[^]]+):3:1\] → \$B \[(?P=doc):4:1\] → \$A \[(?P=doc):5:1\] → \$A \[(?P=doc):3:1\]$'),
+        ]
+        for declarations, expected in cases:
+            _, _, error, _ = run_case({'grammar': declarations + '\n%rule text "a"', 'input': 'a'})
+            self.assertIsNotNone(error)
+            self.assertRegex(str(error), expected)
+
     def test_parent_helper_routes_preserve_optional_priority(self) -> None:
         # Engine §4 keeps one logical parent across the physical helper
         # routes introduced by a private capture.

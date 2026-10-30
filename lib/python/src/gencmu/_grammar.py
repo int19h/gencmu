@@ -298,7 +298,9 @@ class _Constants:
         self.latest[name] = version
 
     def bind(self) -> None:
+        versions_by_name: dict[str, int] = {}
         for version in self.versions:
+            versions_by_name[version["name"]] = versions_by_name.get(version["name"], 0) + 1
             dependencies = []
             for reference in constants_in(version["value"]):
                 name = reference["const"]
@@ -319,7 +321,12 @@ class _Constants:
                     target, at = version["dependencies"][index]
                     stack[-1] = (version, index + 1)
                     if target["state"] == 1:
-                        cycle = " → ".join(["$" + v["name"] for v, _ in stack] + ["$" + target["name"]])
+                        start = next(i for i, (v, _) in enumerate(stack) if v is target)
+                        versions = [v for v, _ in stack[start:]] + [target]
+                        ambiguous = any(versions_by_name[v["name"]] > 1 for v in versions)
+                        cycle = " → ".join(
+                            f"${v['name']} [{v['path']}:{v['at'][0]}:{v['at'][1]}]" if ambiguous else "$" + v["name"]
+                            for v in versions)
                         raise _error("constant dependency cycle: " + cycle, version["path"], at, self.stage)
                     if target["state"] == 0:
                         target["state"] = 1

@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 )
@@ -76,7 +77,9 @@ func (g *stageGrammar) addConstant(doc string, k *domConst) *Error {
 	return nil
 }
 func (g *stageGrammar) bindConstants() *Error {
+	versionsByName := map[string]int{}
 	for _, v := range g.constVersions {
+		versionsByName[v.definition.Name]++
 		v.references = userConstRefs(v.definition.Value)
 		for _, r := range v.references {
 			target, ok := g.constLatest[r.Str]
@@ -107,11 +110,25 @@ func (g *stageGrammar) bindConstants() *Error {
 				f.next++
 				target := v.dependencies[i]
 				if state[target] == 1 {
-					var names []string
-					for _, e := range stack {
-						names = append(names, "$"+g.constVersions[e.id].definition.Name)
+					start := 0
+					for stack[start].id != target {
+						start++
 					}
-					names = append(names, "$"+g.constVersions[target].definition.Name)
+					cycle := append(append([]entry{}, stack[start:]...), entry{id: target})
+					ambiguous := false
+					for _, edge := range cycle {
+						ambiguous = ambiguous || versionsByName[g.constVersions[edge.id].definition.Name] > 1
+					}
+					var names []string
+					for _, edge := range cycle {
+						version := g.constVersions[edge.id]
+						name := "$" + version.definition.Name
+						if ambiguous {
+							at := version.definition.At
+							name += fmt.Sprintf(" [%s:%d:%d]", version.doc, at[0], at[1])
+						}
+						names = append(names, name)
+					}
 					return g.constError(v.doc, v.references[i].At, "constant dependency cycle: %s", strings.Join(names, " → "))
 				}
 				if state[target] == 0 {
