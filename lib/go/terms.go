@@ -730,9 +730,6 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 	var suffix *suffixState
 	if kind == cdEnds {
 		suffix = run.suffixState(g, start, s.a, s.b)
-		if suffix.fault != nil && s.b >= suffix.errorAt {
-			panic(suffix.fault)
-		}
 		if answer, known := suffix.answers[s.b]; known {
 			return answer, nil, nil
 		}
@@ -910,9 +907,6 @@ func (run *stageRun) drive(root *recognizer) {
 		for _, r := range frames {
 			if r.suffix != nil {
 				r.suffix.active = false
-				if failure != nil {
-					r.suffix.fault = failure
-				}
 			}
 			if r.query != nil {
 				delete(run.ps.inProgress, r.query.at)

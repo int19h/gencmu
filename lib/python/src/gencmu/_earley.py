@@ -329,8 +329,6 @@ class SuffixState:
     parser: Any = None
     walk: Walk | None = None
     active: bool = False
-    error_at: int = 0
-    error: tuple[int, Exception] | None = None
 
     def resume(self, context: StageContext, number: int, start: int, end: int) -> Walk:
         if self.parser is None:
@@ -339,22 +337,18 @@ class SuffixState:
         self.parser.end = end
         self.parser.evaluator.end = end
         value, error = None, None
-        try:
-            while True:
-                if error is not None:
-                    pending, error = error, None
-                    request = self.walk.throw(pending)
-                else:
-                    request = self.walk.send(value)
-                if request is _SUFFIX_BOUNDARY:
-                    return self.answers[end]
-                try:
-                    value = yield request
-                except Exception as exception:
-                    error = exception
-        except Exception as exception:
-            self.error = self.error_at, exception
-            raise
+        while True:
+            if error is not None:
+                pending, error = error, None
+                request = self.walk.throw(pending)
+            else:
+                request = self.walk.send(value)
+            if request is _SUFFIX_BOUNDARY:
+                return self.answers[end]
+            try:
+                value = yield request
+            except Exception as exception:
+                error = exception
 
 
 def suffix_reads_end(lowered: Lowered, number: int) -> bool:
@@ -591,8 +585,6 @@ class StageContext:
         state = self.suffixes.get(key)
         if state is None:
             state = self.suffixes[key] = SuffixState()
-        if state.error is not None and end >= state.error[0]:
-            raise state.error[1]
         if end in state.answers:
             return state.answers[end]
         if state.active:
@@ -619,8 +611,6 @@ class StageContext:
         self.require_inactive(rule, span.start, span.context_end)
         closes = self.closes
         assert closes is not None
-        if span.observation == closes.INVALID:
-            return NestedAnswer(False, EMPTY)
         ancestry = frozenset(self.running)
         key = (rule, span.start, span.context_end, span.end, span.captured_end, prefix,
                closes.semantic(span.observation), span.family, ancestry)
@@ -690,11 +680,6 @@ class StageContext:
         condition asks of it. So alternating matches, begins and tags cannot
         hide a question about a span from inside its own parse (engine §4)."""
         running = (rule, start, end)
-        if running in self.running:
-            raise _GrammarFault(
-                f"a condition asks whether its own span parses as {rule} from inside the parse of that span as {rule}: "
-                f"the grammar defines {rule} in terms of itself over the same text"
-            )
         number = self.lowered.rule_ids.get(rule)
         if number is None:
             raise _GrammarFault(f"{rule} is not a rule of this stage")
@@ -1085,12 +1070,9 @@ class Parser:
         stack, and its answer resumes the evaluation that asked (engine §4).
         So a chain of nested parses costs heap and not the call stack.
 
-        This is the design of the Rust recognizer, with the same frames and
-        order of work. There a run keeps its chart, its queue's place and
-        its step by hand, and a step that needs an answer is made again once
-        it is known. Here the generator's frame keeps the parse's state, and
-        the evaluation's own walks keep their place. So nothing is evaluated
-        twice, which matters more in Python, where each repeat is costly.
+        The generator's frame keeps the parse's state. Evaluation walks
+        keep their place while nested queries run, so resumption preserves
+        the work already done.
 
         Only the work that can ask a nested parse is a walk: a prediction,
         the conditions of an advance, and a tag term. A plain call costs
@@ -1487,8 +1469,6 @@ class Parser:
             conditions ready, it gives the walk that evaluates them and then
             adds the item, which the caller yields. A plain call costs less
             than a walk, so an advance without conditions makes none."""
-            if suffix is not None:
-                suffix.error_at = base + at
             production = productions[prod[item]]
             position = dot[item]
             if strict_step and position + 1 == len(production.rhs):
@@ -1667,7 +1647,6 @@ class Parser:
             """The prediction that :func:`begin` began, a walk since its
             conditions can ask nested parses."""
             if suffix is not None:
-                suffix.error_at = base + j
                 # Keep terminal-first predictions at the window end too.
                 # Their scans wait until a later request extends the window.
                 for number in lowered.rule_productions[rule]:
@@ -1734,7 +1713,6 @@ class Parser:
                 agenda = following
                 following = []
             if suffix is not None:
-                suffix.error_at = base + j
                 if begin(start_rule,j):
                     yield from predict(start_rule,j)
             if suffix is None and not agenda and not sets[j]:

@@ -1,5 +1,10 @@
 package gencmu
 
+import (
+	"cmp"
+	"slices"
+)
+
 // The recognizer (engine §4): an Earley parser whose items carry, for each
 // capture before the dot, the captured part's span and tag set, and which
 // evaluates each condition as soon as the item has read the last capture it
@@ -486,7 +491,6 @@ func (r *recognizer) nextEntry() bool {
 			r.entered = true
 			if r.suffix != nil {
 				r.scans, r.scanIndex = nil, 0
-				r.suffix.errorAt = r.base + k
 				if r.beginPredict(s, r.startRule, false, false) {
 					r.step = step{kind: stepPredict, rule: r.startRule, k: k}
 					return true
@@ -580,9 +584,6 @@ func (r *recognizer) beginPredict(s *eset, rule int32, strict bool, requested bo
 // goes on in its conditions when the step does.
 func (r *recognizer) predictFrom(st *step) *nestedQuery {
 	k, strict := st.k, st.strict
-	if r.suffix != nil {
-		r.suffix.errorAt = r.base + k
-	}
 	var reading *readingSets
 	if r.recon != nil {
 		reading = r.recon.reading
@@ -677,8 +678,7 @@ func (r *recognizer) canRead(k int, term int32) bool {
 	return r.reads(k, term)
 }
 
-// reads says whether a terminal matches a token with these tags (§4): a tag
-// it carries, or, for a range or a property, one of its character tags.
+// reads matches stored tags or values. Only tag terminals read synthetic tokens (§4).
 func (r *recognizer) reads(k int, term int32) bool {
 	if cc := r.g.classes[term]; cc != nil {
 		index := r.base + k
@@ -916,9 +916,6 @@ func (r *recognizer) process(k int, it *item) bool {
 // a nested parse, before the step records anything. Called again, it goes
 // on with them from where they halted.
 func (r *recognizer) complete(k int, it *item) *nestedQuery {
-	if r.suffix != nil {
-		r.suffix.errorAt = r.base + k
-	}
 	p := it.prod
 	s := r.sets[k]
 	in := r.run.ps.in
@@ -988,9 +985,6 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 // query and keeps its place in r.adv. Called again with the same
 // arguments, it goes on from that condition, in the walk that halted.
 func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *nestedQuery {
-	if r.suffix != nil {
-		r.suffix.errorAt = r.base + k
-	}
 	p := it.prod
 	var key itemKey
 	var whole *lazyTags
@@ -1252,9 +1246,10 @@ func (r *recognizer) begun(start int32) bool {
 }
 
 func sortSyms(s []*symNode) {
-	for i := 1; i < len(s); i++ {
-		for j := i; j > 0 && (s[j].tags.key < s[j-1].tags.key || s[j].tags.key == s[j-1].tags.key && s[j].structure < s[j-1].structure); j-- {
-			s[j], s[j-1] = s[j-1], s[j]
+	slices.SortFunc(s, func(a, b *symNode) int {
+		if order := cmp.Compare(a.tags.key, b.tags.key); order != 0 {
+			return order
 		}
-	}
+		return cmp.Compare(a.structure, b.structure)
+	})
 }

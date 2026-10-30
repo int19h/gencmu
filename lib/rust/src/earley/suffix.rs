@@ -14,8 +14,6 @@ pub(super) struct SuffixState {
     pub(super) answers: FxMap<usize, bool>,
     pub(super) retained: Option<Retained>,
     pub(super) active: bool,
-    pub(super) error_at: usize,
-    pub(super) error: Option<EngineError>,
 }
 
 pub(super) struct Retained {

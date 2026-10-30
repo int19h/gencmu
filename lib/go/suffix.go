@@ -15,8 +15,6 @@ type suffixState struct {
 	answers map[int]bool
 	rec     *recognizer
 	active  bool
-	errorAt int
-	fault   any
 }
 
 func restoredTerm(term *domTerm) bool {

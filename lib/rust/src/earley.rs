@@ -20,8 +20,8 @@ use crate::unicode::Unicode;
 use crate::witness::{self, Fault};
 use crate::work::{self, Mutant, Work};
 
-/// How a terminal matches a token (engine §4): by a tag the token carries,
-/// or, for a range or a property, by one of its character tags.
+/// A tag matches a stored tag. Other terminals match stored values and
+/// never read synthetic tokens (engine §4).
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Matcher {
     Tag(TagId),
@@ -905,10 +905,12 @@ impl<'a> Shared<'a> {
         self.suffix_deps.clear();
     }
 
-    /// Whether a terminal matches a token whose tags are `set` (§4). A
-    /// range or a property matches once, however many of its tags qualify.
+    /// Match stored tags or values. Only tag terminals read synthetic tokens (§4).
     #[inline]
-    pub(crate) fn reads(&self, matcher: Matcher, token: &Tok) -> bool {
+    pub(crate) fn reads(&self, matcher: Matcher, token: &Tok, synthetic: bool) -> bool {
+        if synthetic && !matches!(matcher, Matcher::Tag(_)) {
+            return false;
+        }
         match matcher {
             Matcher::Tag(tag) => self.tags.contains(token.tags, tag),
             Matcher::Value(value) => token.value.as_str() == self.tags.name(value),
@@ -1659,7 +1661,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
         rules.iter().any(|rule| {
             let prefix = &self.shared.close_prefixes[*rule as usize];
-            prefix.nullable || prefix.first.iter().any(|t| self.shared.reads(self.matchers[*t as usize], &tokens[at]))
+            prefix.nullable
+                || prefix.first.iter().any(|t| self.shared.reads(self.matchers[*t as usize], &tokens[at], false))
         })
     }
     fn finish_structure(&self, family: Option<(u32, u32)>, item: &mut Item, set: usize, base: usize, tokens: &[Tok]) {
@@ -1889,9 +1892,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 if let Some(id) = request.suffix {
                     let state = &mut self.shared.suffixes[id];
                     state.active = false;
-                    if let Err(error) = &outcome {
-                        state.error = Some(error.clone());
-                    }
                 }
             }
         }
@@ -2049,17 +2049,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     {
         let (tokens, base) = (run.tokens, run.base);
         loop {
-            if let Some(id) = run.request.as_ref().and_then(|r| r.suffix) {
-                let at = match &run.step {
-                    Step::Next => run.e,
-                    Step::Predict { e, .. }
-                    | Step::Empties { e, .. }
-                    | Step::Complete { e, .. }
-                    | Step::Waiters { e, .. } => *e,
-                    Step::Terminal { into, .. } => *into,
-                };
-                self.shared.suffixes[id].error_at = run.base + at;
-            }
             match &mut run.step {
                 Step::Next => {
                     if !self.next_entry(run) {
@@ -2257,7 +2246,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let chart = &mut run.chart;
         let g = self.g;
         let production = &g.prods[item.prod as usize];
-        if e < tokens.len() && self.shared.reads(self.matchers[terminal as usize], &tokens[e]) {
+        if e < tokens.len()
+            && self.shared.reads(
+                self.matchers[terminal as usize],
+                &tokens[e],
+                self.recon.is_some_and(|recon| recon.synthetic[e]),
+            )
+        {
             // A terminal that reads a synthetic token captures
             // no tags (§7.5).
             let synthetic = self.recon.is_some_and(|recon| recon.synthetic[e]);
@@ -2750,7 +2745,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // the rejection report adds back the terminal it expected.
         if let (Some(Sym::T(terminal)), false, false) = (lowered.syms.first(), lowered.has_conds_at(0), chart.suffix) {
             let matcher = self.matchers[*terminal as usize];
-            if e >= tokens.len() || !self.shared.reads(matcher, &tokens[e]) {
+            if e >= tokens.len()
+                || !self.shared.reads(matcher, &tokens[e], self.recon.is_some_and(|recon| recon.synthetic[e]))
+            {
                 if before.is_none() {
                     chart.sets[e].skipped.push(production);
                 }
@@ -3290,9 +3287,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
             let mut id = self.suffix_state(rule, base + start, base + end);
             let state = &self.shared.suffixes[id];
-            if let Some(error) = state.error.as_ref().filter(|_| base + end >= state.error_at) {
-                return Err(Halt::Error(error.clone()));
-            }
             if let Some(&holds) = state.answers.get(&(base + end)) {
                 return Ok(Out::Bool(holds));
             }
