@@ -335,7 +335,7 @@ impl Prod {
 pub(crate) struct Lowered {
     pub unicode: Arc<crate::unicode::Unicode>,
     pub ranked: RankedRuntime,
-    pub close_families: Vec<FxSet<u32>>,
+    pub close_families: Arc<Vec<FxSet<u32>>>,
     pub rules: Vec<LRule>,
     pub prods: Vec<Prod>,
     pub terminals: Vec<String>,
@@ -1103,10 +1103,11 @@ fn lower_mode(
     for (index, rule) in grammar.rules.iter().enumerate() {
         lowerer.owner = index as u32;
         // Only a gate drops an alternative; a warning keeps it (§3.1).
-        let live: Vec<&StitchedAlternative> = rule
+        let live: Vec<(usize, &StitchedAlternative)> = rule
             .alternatives
             .iter()
-            .filter(|alternative| {
+            .enumerate()
+            .filter(|(_, alternative)| {
                 validation
                     || alternative.alternative.guards.iter().all(|guard| {
                         guard.kind == FeatureKind::Warning || features.contains(&guard.feature) != guard.negated
@@ -1116,8 +1117,9 @@ fn lower_mode(
         // A chain is the only alternative of its rule that the gates
         // leave (§3.3); a %extend-rule can add another. This is reported
         // before the rule's alternatives are lowered.
-        let chain = live.iter().find(|alternative| matches!(alternative.alternative.expr, Expr::Repeat(_, _, Some(_))));
-        if let Some(chain) = chain.filter(|_| !validation && live.len() > 1) {
+        let chain =
+            live.iter().find(|(_, alternative)| matches!(alternative.alternative.expr, Expr::Repeat(_, _, Some(_))));
+        if let Some((_, chain)) = chain.filter(|_| !validation && live.len() > 1) {
             return Err(LowerError::at(
                 &grammar.name,
                 &chain.document,
@@ -1128,13 +1130,13 @@ fn lower_mode(
                 ),
             ));
         }
-        for (number, alternative) in live.iter().enumerate() {
-            lowerer.alternative =
-                rule.alternatives.iter().position(|a| std::ptr::eq(a, *alternative)).expect("a written alternative");
+        for (number, (written, alternative)) in live.iter().enumerate() {
+            lowerer.alternative = *written;
             lowerer.places = vec![Vec::new()];
             lowerer.written = (alternative.document.clone(), alternative.at);
-            let own =
-                |sequence| Slot::Own(Pending { rule: index as u32, sequence, source: Some((number, 0)), option: None });
+            let own = |sequence| {
+                Slot::Own(Pending { rule: index as u32, sequence, source: Some((number, *written)), option: None })
+            };
             let sequences = match &alternative.alternative.expr {
                 // A chain is recursion on the rule itself, with no helper
                 // (§3.3).
@@ -1153,7 +1155,7 @@ fn lower_mode(
                 stack.extend(lowerer.helpers[helper].children.iter().rev());
             }
         }
-        alternatives.push(live);
+        alternatives.push(live.into_iter().map(|(_, alternative)| alternative).collect());
     }
 
     let user_count = grammar.rules.len();
@@ -1225,22 +1227,19 @@ fn lower_mode(
 
     let mut private_helpers: FxMap<u32, BTreeSet<String>> = FxMap::default();
     if !grammar.ranked.groups.is_empty() {
+        let mut helper_productions = vec![Vec::new(); lowerer.helpers.len()];
+        for (index, pending) in order.iter().enumerate() {
+            if pending.rule as usize >= user_count {
+                helper_productions[pending.rule as usize - user_count].push(index);
+            }
+        }
         for (i, helper) in lowerer.helpers.iter().enumerate() {
             let mut names = BTreeSet::new();
             if let Some(group) = grammar.ranked.expressions.get(&helper.expr) {
                 names.extend(grammar.ranked.groups[*group].names.iter().cloned());
             }
-            for sequence in &helper.prods {
-                for (symbol, _, _) in sequence.iter() {
-                    if let Sym::N(rule) = symbol {
-                        if let Some(child) = private_helpers.get(rule) {
-                            names.extend(child.iter().cloned());
-                        }
-                    }
-                }
-            }
-            // Helper sequences moved into `order` above. Inspect those sequences too.
-            for pending in order.iter().filter(|p| p.rule == (user_count + i) as u32) {
+            for &index in &helper_productions[i] {
+                let pending = &order[index];
                 for (symbol, _, _) in pending.sequence.iter() {
                     if let Sym::N(rule) = symbol {
                         if let Some(child) = private_helpers.get(rule) {
@@ -1368,19 +1367,7 @@ fn lower_mode(
                         let h = &lowerer.helpers[pending.rule as usize - user_count];
                         (owner as usize, h.alternative)
                     } else {
-                        pending
-                            .source
-                            .map(|(n, _)| {
-                                (
-                                    owner as usize,
-                                    grammar.rules[owner as usize]
-                                        .alternatives
-                                        .iter()
-                                        .position(|a| std::ptr::eq(a, alternatives[owner as usize][n]))
-                                        .unwrap(),
-                                )
-                            })
-                            .expect("a written production")
+                        pending.source.map(|(_, written)| (owner as usize, written)).expect("a written production")
                     },
                     path: helper.then(|| lowerer.helpers[pending.rule as usize - user_count].expr),
                     names: pending
@@ -1666,15 +1653,6 @@ fn lower_mode(
                 None => production.tags = Some(LTerm::Empty),
             }
         }
-        // A production with one symbol and no tags has its symbol's tags:
-        // the symbol is captured (§3.7).
-        if production.tags.is_none() && production.syms.len() == 1 && production.cap_at[0].is_none() {
-            production.cap_at[0] = Some(production.cap_pos.len() as u32);
-            production.cap_pos.push(0);
-            if let Some(slot) = &mut production.slot {
-                slot.names.push(None);
-            }
-        }
         // An item finds the conditions of its dot without a scan of all.
         production.conds.sort_by_key(|&(_, trigger)| trigger);
         let mut cond_at = vec![0u32; production.syms.len() + 2];
@@ -1723,7 +1701,7 @@ fn lower_mode(
     let elides = rules.iter().any(|rule| rule.elided.is_some());
     let mut lowered = Lowered {
         unicode: grammar.unicode.clone(),
-        close_families: close_families(grammar),
+        close_families: grammar.close_families.clone(),
         ranked: RankedRuntime::default(),
         start: grammar.index["text"] as u32,
         elides,
@@ -2267,49 +2245,6 @@ fn cycles(rules: &[LRule], prods: &[Prod]) -> Vec<Option<u32>> {
     cycle
 }
 
-/// Membership reads only written reference paths, before gates or lowering.
-fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
-    fn edges(expr: &Expr, grammar: &StageGrammar, out: &mut Vec<u32>) {
-        match expr {
-            Expr::Ref(name) => {
-                if let Some(&rule) = grammar.index.get(name) {
-                    out.push(rule as u32);
-                }
-            }
-            Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => edges(inner, grammar, out),
-            Expr::Choice(branches) => {
-                for branch in branches {
-                    edges(branch, grammar, out);
-                }
-            }
-            _ => {}
-        }
-    }
-    let links: Vec<_> = grammar
-        .rules
-        .iter()
-        .map(|rule| {
-            let mut out = Vec::new();
-            for alternative in &rule.alternatives {
-                edges(&alternative.alternative.expr, grammar, &mut out);
-            }
-            out
-        })
-        .collect();
-    (0..grammar.rules.len())
-        .map(|root| {
-            let mut members = FxSet::default();
-            let mut pending = vec![root as u32];
-            while let Some(rule) = pending.pop() {
-                if members.insert(rule) {
-                    pending.extend(&links[rule as usize]);
-                }
-            }
-            members
-        })
-        .collect()
-}
-
 fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
     enum Part<'a> {
         T(&'a Term),
@@ -2374,6 +2309,26 @@ mod tests {
     use crate::grammar::stitch;
     use crate::unicode::Unicode;
     use crate::work::{assert_linear, assert_mutant_stops, assert_stops, Mutant, Work};
+
+    #[test]
+    fn close_families_compute_only_demanded_roots_and_share_memberships() {
+        let source = "%ambiguity-resolution greedy\n%rule text $x:r\n%conditions $x.without-elision-except(fam).matches(r)\n%rule fam f? r | other\n%rule r A [+T]\n%rule other B\n%rule unused U";
+        let unicode = Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").unwrap()).unwrap();
+        let json = crate::tools::read_grammar_document(&format!("```jbogenbau\n{source}\n```\n"), "g.md").unwrap();
+        let dom = crate::dom::dom_from_json(&crate::json::parse(&json).unwrap(), &unicode).unwrap();
+        let grammar = stitch("main", &[(Arc::from("g.md"), Arc::new(dom))], &unicode).unwrap();
+        let family = grammar.index["fam"];
+        let expected = [family as u32, grammar.index["r"] as u32, grammar.index["other"] as u32];
+        assert_eq!(grammar.close_families[family].len(), expected.len());
+        for member in expected {
+            assert!(grammar.close_families[family].contains(&member));
+        }
+        assert!(grammar.close_families[grammar.index["unused"]].is_empty());
+        let off = lower(&grammar, &BTreeSet::new(), Arc::default()).unwrap();
+        let on = lower(&grammar, &BTreeSet::from(["f".into()]), Arc::default()).unwrap();
+        assert!(Arc::ptr_eq(&off.close_families, &on.close_families));
+        assert!(Arc::ptr_eq(&off.close_families, &grammar.close_families));
+    }
 
     /// A grammar of a chain of n rules, each nullable and reading only
     /// through the next, a chain of n rules nullable only through the

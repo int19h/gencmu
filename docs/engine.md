@@ -587,6 +587,8 @@ So `{"choice":[{"ref":"a"},{"ref":"b"}]}` gives two edges, and `{"optional":{"re
 
 The loader reads members from final expanded rules, never from lowered productions. Instance calls become ordinary rule edges after expansion. Every alternative counts, whatever its guards. Tests, tag clauses and conditions do not gate membership either. So an `%extend-rule` can add a member, and a `%redefine-rule` can remove one. Members never depend on the enabled features.
 
+The loader computes memberships only for family roots that written calls name. Lowered grammars share these immutable memberships across feature selections.
+
 A rule owns the elidable optionals that its definition writes outside call arguments. Helpers never own an optional, whatever expression holds it. An `%extend-rule r` writes optionals that `r` owns outside call arguments. A family permits each elidable optional that one of its members owns. A family can permit none. Its queries then answer as `.without-elision` does.
 
 After expansion, only an instance owns each elidable optional of its expanded definition, including one that an argument supplies. A template owns no optional.
@@ -1009,6 +1011,8 @@ Before predicting an empty elidable production, the recognizer requires its omis
 A false predicate creates no omitted node, elision count or restoration record. It causes no declaration error or warning. Written productions remain available.
 
 ### 3.9 Numbering
+
+Lowering retains each surviving alternative's original index from the stitched rule. Helpers index their pending productions once. Later passes visit that index instead of searching every production again.
 
 Lowering numbers the productions from 0. The canonical order *T* of §6 uses this numbering. *T* orders the ambiguity diagnostics. The canonical tie-break keys never turn a tie into an accepted reading.
 

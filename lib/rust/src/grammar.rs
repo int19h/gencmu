@@ -102,6 +102,7 @@ pub(crate) struct StageGrammar {
     pub lean: Lean,
     pub elision_only: bool,
     pub ranked: Arc<crate::ranked::RankedGroups>,
+    pub close_families: Arc<Vec<FxSet<u32>>>,
     /// The rule replacements and extensions recorded during stitching.
     pub changes: Vec<Change>,
     /// The stage's `%classifier` items in stitching order, each with its
@@ -228,6 +229,7 @@ pub(crate) fn stitch(
         lean: Lean::Greedy,
         elision_only: false,
         ranked: Arc::new(crate::ranked::RankedGroups::default()),
+        close_families: Arc::default(),
         changes: Vec::new(),
         classifiers: Vec::new(),
         features: Vec::new(),
@@ -451,6 +453,7 @@ pub(crate) fn stitch(
         }
     }
     crate::boundary::reachable(&grammar)?;
+    grammar.close_families = Arc::new(close_families(&grammar));
     grammar.ranked = Arc::new(crate::ranked::RankedGroups::new(&grammar)?);
     if !grammar.ranked.groups.is_empty() {
         let lowered =
@@ -467,6 +470,110 @@ pub(crate) fn stitch(
     }
     emission_overlap(&grammar)?;
     Ok(grammar)
+}
+
+/// Membership reads only written reference paths, before gates or lowering.
+fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
+    enum Part<'a> {
+        Term(&'a Term),
+        Cond(&'a Cond),
+    }
+    let mut pending = Vec::new();
+    let mut seen = FxSet::default();
+    for rule in &grammar.rules {
+        for alternative in &rule.alternatives {
+            pending.extend(alternative.alternative.tags.iter().map(Part::Term));
+            if seen.insert(Arc::as_ptr(&alternative.clauses)) {
+                let clauses = &alternative.clauses;
+                pending.extend(clauses.tags.iter().map(Part::Term));
+                pending.extend(clauses.conditions.iter().map(Part::Cond));
+                for item in clauses.emit.iter().flatten() {
+                    let (EmitItem::Capture(_, term, _) | EmitItem::Insert(term, _)) = item;
+                    pending.extend(term.iter().map(Part::Term));
+                }
+            }
+        }
+    }
+    let mut roots = FxSet::default();
+    while let Some(part) = pending.pop() {
+        match part {
+            Part::Term(term) => match term {
+                Term::Call(name, args) => {
+                    if let ("without-elision-except", [Arg::Term(_), Arg::Rule(root)]) =
+                        (name.as_str(), args.as_slice())
+                    {
+                        roots.insert(grammar.index[root] as u32);
+                    }
+                    pending.extend(args.iter().filter_map(|arg| match arg {
+                        Arg::Term(term) => Some(Part::Term(term)),
+                        _ => None,
+                    }));
+                }
+                Term::Union(items) | Term::Intersection(items) => pending.extend(items.iter().map(Part::Term)),
+                Term::Difference(a, b) => pending.extend([Part::Term(a), Part::Term(b)]),
+                Term::If(c, t) => pending.extend([Part::Cond(c), Part::Term(t)]),
+                _ => {}
+            },
+            Part::Cond(condition) => match condition {
+                Cond::Compare(_, a, b) => pending.extend([Part::Term(a), Part::Term(b)]),
+                Cond::Matches(t, _)
+                | Cond::Begins(t, _)
+                | Cond::Ends(t, _)
+                | Cond::Initial(t)
+                | Cond::Final(t)
+                | Cond::Boundary(_, t, _, _) => pending.push(Part::Term(t)),
+                Cond::Not(c) => pending.push(Part::Cond(c)),
+                Cond::Any(items) | Cond::All(items) => pending.extend(items.iter().map(Part::Cond)),
+                Cond::If(a, b) => pending.extend([Part::Cond(a), Part::Cond(b)]),
+                Cond::Captured(_) => {}
+            },
+        }
+    }
+    if roots.is_empty() {
+        return vec![FxSet::default(); grammar.rules.len()];
+    }
+    fn edges(expr: &Expr, grammar: &StageGrammar, out: &mut Vec<u32>) {
+        match expr {
+            Expr::Ref(name) => {
+                if let Some(&rule) = grammar.index.get(name) {
+                    out.push(rule as u32);
+                }
+            }
+            Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => edges(inner, grammar, out),
+            Expr::Choice(branches) => {
+                for branch in branches {
+                    edges(branch, grammar, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let links: Vec<_> = grammar
+        .rules
+        .iter()
+        .map(|rule| {
+            let mut out = Vec::new();
+            for alternative in &rule.alternatives {
+                edges(&alternative.alternative.expr, grammar, &mut out);
+            }
+            out
+        })
+        .collect();
+    (0..grammar.rules.len())
+        .map(|root| {
+            let mut members = FxSet::default();
+            if !roots.contains(&(root as u32)) {
+                return members;
+            }
+            let mut pending = vec![root as u32];
+            while let Some(rule) = pending.pop() {
+                if members.insert(rule) {
+                    pending.extend(&links[rule as usize]);
+                }
+            }
+            members
+        })
+        .collect()
 }
 
 /// Potential input consumption ignores gates, tests, and productivity.
@@ -1932,6 +2039,7 @@ mod tests {
                 lean: Lean::Greedy,
                 elision_only: false,
                 ranked: Arc::new(crate::ranked::RankedGroups::default()),
+                close_families: Arc::default(),
                 changes: Vec::new(),
                 classifiers: vec![(Arc::from("d.md"), ClassifierDef { name: "c".into(), entries, at: (0, 0) })],
                 implications: Arc::from(Vec::new()),
