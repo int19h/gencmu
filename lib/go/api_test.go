@@ -1481,3 +1481,31 @@ func TestSourceMapsRejectNonScalarResourcesBeforeParsing(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestParseUsageErrorOrder(t *testing.T) {
+	d, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text A"), "p.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := ParseOptions{Features: []string{"f"}, WithoutFeatures: []string{"f"}, Until: "missing"}
+	tokens := []InputToken{
+		{Text: "a", Tags: []string{"first invalid tag"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}},
+		{Text: "a", Tags: []string{"second invalid tag"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}},
+	}
+	_, err = d.ParseTokens("\xff", tokens, options)
+	if err == nil || !strings.Contains(err.Error(), "the text is not a sequence") {
+		t.Fatalf("text: %v", err)
+	}
+	_, err = d.ParseTokens("a", tokens, options)
+	if err == nil || !strings.Contains(err.Error(), "token 0: invalid stored tag") {
+		t.Fatalf("tokens: %v", err)
+	}
+	_, err = d.Parse("a", options)
+	if err == nil || !strings.Contains(err.Error(), "the feature f is named both") {
+		t.Fatalf("features: %v", err)
+	}
+	_, err = d.Parse("a", ParseOptions{Until: "missing"})
+	if err == nil || !strings.Contains(err.Error(), "has no stage") {
+		t.Fatalf("until: %v", err)
+	}
+}

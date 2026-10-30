@@ -84,6 +84,8 @@ Unconditional declarations, global or stage-local, set `default:true`. The inven
 
 A loaded pipeline parses a text with these configuration arguments. Each argument is optional:
 
+Usage errors follow this order: the original text, each caller token in input order, the feature lists, then `until`. The first invalid category ends the call. Within one token, the order of field errors is not defined.
+
 | Argument | Default | Meaning |
 | --- | --- | --- |
 | features | none | feature names to turn on for every stage, besides those the pipeline's `%features` turns on. Unknown names are legal and do not change grammar behavior. |

@@ -851,18 +851,6 @@ func (d *Pipeline) parse(text []rune, tokens []Token, options ParseOptions) (res
 		}
 	}()
 	defer guard(ErrorGrammar, &err)
-	last := len(d.stages) - 1
-	if options.Until != "" {
-		last = -1
-		for i, s := range d.stages {
-			if s.name == options.Until {
-				last = i
-			}
-		}
-		if last < 0 {
-			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("the pipeline has no stage %q", options.Until)}
-		}
-	}
 	// The features on are the pipeline's and the caller's, less those the
 	// caller turns off (§13).
 	off := map[string]bool{}
@@ -876,6 +864,19 @@ func (d *Pipeline) parse(text []rune, tokens []Token, options ParseOptions) (res
 		}
 		features[f] = true
 	}
+	last := len(d.stages) - 1
+	if options.Until != "" {
+		last = -1
+		for i, s := range d.stages {
+			if s.name == options.Until {
+				last = i
+			}
+		}
+		if last < 0 {
+			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("the pipeline has no stage %q", options.Until)}
+		}
+	}
+
 	for _, f := range d.declared {
 		if !off[f] {
 			features[f] = true

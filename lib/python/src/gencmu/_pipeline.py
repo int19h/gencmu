@@ -720,6 +720,10 @@ class Pipeline:
         for option, value in (("features", features), ("without_features", without_features)):
             if isinstance(value, str):
                 raise GencmuError(f"{option} is a collection of names, not one string", kind="usage")
+        on = frozenset(features)
+        off = frozenset(without_features)
+        if on & off:
+            raise GencmuError(f"the feature {min(on & off)} is named both to turn on and to turn off", kind="usage")
         names = self.stage_names
         if until is None:
             last = len(names) - 1
@@ -727,10 +731,6 @@ class Pipeline:
             last = names.index(until)
         else:
             raise GencmuError(f"the pipeline has no stage {until}; its stages are {', '.join(names)}", kind="usage")
-        on = frozenset(features)
-        off = frozenset(without_features)
-        if on & off:
-            raise GencmuError(f"the feature {min(on & off)} is named both to turn on and to turn off", kind="usage")
         return (self.declared | on) - off, off, last
 
     def parse(
@@ -774,7 +774,6 @@ class Pipeline:
         problem = scalar_problem(text)
         if problem is not None:
             raise GencmuError(f"the text is not a sequence of Unicode scalar values: {problem}", kind="usage")
-        enabled, off, last = self._parse_selection(features, without_features, until)
         # A caller token stores value and image independently (engine
         # §5). It has no attachments: a list that is not empty is the
         # caller's mistake, and an empty one is dropped (docs/api.md). The
@@ -796,6 +795,7 @@ class Pipeline:
                 raise GencmuError(f"token {index}: invalid stored tags", kind="usage")
             if not valid_range(token.source, len(text)) or not valid_range(token.span):
                 raise GencmuError(f"token {index}: invalid source or span", kind="usage")
+        enabled, off, last = self._parse_selection(features, without_features, until)
         tokens = [
             replace(
                 token,

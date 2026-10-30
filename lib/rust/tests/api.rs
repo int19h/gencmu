@@ -1333,3 +1333,26 @@ fn an_include_keeps_its_original_precomposed_path() {
     assert!(pipeline.parse("é", &ParseOptions::default()).unwrap().ok);
     assert!(pipeline.parse("e\u{301}", &ParseOptions::default()).unwrap().ok);
 }
+
+#[test]
+fn parse_usage_errors_follow_text_tokens_features_until_order() {
+    let pipeline = gencmu::load_pipeline_sources(single("%ambiguity-resolution greedy\n%rule text A"), "p.md").unwrap();
+    let options = gencmu::ParseOptions {
+        features: ["f".into()].into_iter().collect(),
+        without_features: ["f".into()].into_iter().collect(),
+        until: Some("missing".into()),
+        ..Default::default()
+    };
+    let tokens = ["first invalid tag", "second invalid tag"].map(|tag| gencmu::InputToken {
+        text: "a".into(),
+        tags: [tag.into()].into_iter().collect(),
+        ..Default::default()
+    });
+    let error = pipeline.parse_tokens(&tokens, &options).unwrap_err();
+    assert!(error.message.contains("first invalid tag"), "{error}");
+    let error = pipeline.parse("a", &options).unwrap_err();
+    assert!(error.message.contains("the feature f is named both"), "{error}");
+    let error =
+        pipeline.parse("a", &gencmu::ParseOptions { until: Some("missing".into()), ..Default::default() }).unwrap_err();
+    assert!(error.message.contains("has no stage"), "{error}");
+}

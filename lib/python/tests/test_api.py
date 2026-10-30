@@ -1033,6 +1033,20 @@ class SharedCaches(unittest.TestCase):
 
 
 class CallerTokens(unittest.TestCase):
+    def test_usage_error_order(self):
+        pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
+        assert pipeline is not None, error
+        options = {"features": ["f"], "without_features": ["f"], "until": "missing"}
+        tokens = [gencmu.Token("a", {tag}, (0, 1), (0, 1)) for tag in ("first invalid tag", "second invalid tag")]
+        with self.assertRaisesRegex(gencmu.GencmuError, "the text is not a sequence"):
+            pipeline.parse_tokens(tokens, "\ud800", **options)
+        with self.assertRaisesRegex(gencmu.GencmuError, "token 0: invalid stored tags"):
+            pipeline.parse_tokens(tokens, "a", **options)
+        with self.assertRaisesRegex(gencmu.GencmuError, "the feature f is named both"):
+            pipeline.parse("a", **options)
+        with self.assertRaisesRegex(gencmu.GencmuError, "has no stage missing"):
+            pipeline.parse("a", until="missing")
+
     def test_caller_insertion_provenance_is_dropped(self):
         pipeline, error = load_case_pipeline({"grammar": '%rule text "a"'})
         assert pipeline is not None, error
