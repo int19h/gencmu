@@ -293,15 +293,30 @@ impl<'a> Queries<'a> {
         branch(self, p, carrier, &guards, &mut Vec::new(), &mut Vec::new());
     }
 }
-pub(super) fn captures<'a>(rule: &'a RuleDef, alternative: usize) -> Vec<Vec<&'a str>> {
-    let alt = &rule.alternatives[alternative];
-    if !variable(&alt.expr) {
-        #[cfg(test)]
-        if work::mutated(Mutant::CopySequences) {
-            return CaptureSequences::of(&alt.expr).named();
+/// Independent choice branches need one witness each. Their capture lists
+/// occupy disjoint parts of the expression, so collecting them costs its size.
+/// A variable sequence, optional or conjunction needs the structural queries.
+fn independent_choices(expr: &Expr) -> Option<Vec<Vec<&str>>> {
+    let mut branches = vec![expr];
+    let mut witnesses = Vec::new();
+    let mut seen = FxSet::default();
+    while let Some(expr) = branches.pop() {
+        match expr {
+            Expr::Choice(items) | Expr::Ranked(items) => {
+                work::count(Work::Checked, 1);
+                branches.extend(items.iter().rev());
+                continue;
+            }
+            Expr::Tested(_, _, inner) => {
+                work::count(Work::Checked, 1);
+                branches.push(inner);
+                continue;
+            }
+            _ if variable(expr) => return None,
+            _ => {}
         }
         let mut names = Vec::new();
-        let mut pending = vec![&alt.expr];
+        let mut pending = vec![expr];
         while let Some(e) = pending.pop() {
             work::count(Work::Checked, 1);
             match e {
@@ -312,7 +327,21 @@ pub(super) fn captures<'a>(rule: &'a RuleDef, alternative: usize) -> Vec<Vec<&'a
                 _ => {}
             }
         }
-        return vec![names];
+        if seen.insert(names.clone()) {
+            witnesses.push(names);
+        }
+    }
+    Some(witnesses)
+}
+
+pub(super) fn captures(rule: &RuleDef, alternative: usize) -> Vec<Vec<&str>> {
+    let alt = &rule.alternatives[alternative];
+    #[cfg(test)]
+    if work::mutated(Mutant::CopySequences) && !variable(&alt.expr) {
+        return CaptureSequences::of(&alt.expr).named();
+    }
+    if let Some(witnesses) = independent_choices(&alt.expr) {
+        return witnesses;
     }
     let mut q = Queries { expr: &alt.expr, witnesses: Vec::new() };
     q.ask(Vec::new(), Vec::new(), &[]);
