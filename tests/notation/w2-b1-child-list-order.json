@@ -1,0 +1,110 @@
+{
+  "description": "Grouped operands flatten once without changing child order or term intersections.",
+  "document": "```jbogenbau\n%const $P #r« ((a b) c) ((a | b) | c) [((a b) c)] {((a b) c) / (d e)} »\n```\n",
+  "expect": {
+    "dom": {
+      "constants": [
+        {
+          "name": "P",
+          "value": {
+            "pattern": {
+              "name": "r",
+              "children": [
+                {
+                  "child": {
+                    "name": "a"
+                  }
+                },
+                {
+                  "child": {
+                    "name": "b"
+                  }
+                },
+                {
+                  "child": {
+                    "name": "c"
+                  }
+                },
+                {
+                  "choice": [
+                    [
+                      {
+                        "child": {
+                          "name": "a"
+                        }
+                      }
+                    ],
+                    [
+                      {
+                        "child": {
+                          "name": "b"
+                        }
+                      }
+                    ],
+                    [
+                      {
+                        "child": {
+                          "name": "c"
+                        }
+                      }
+                    ]
+                  ]
+                },
+                {
+                  "optional": [
+                    {
+                      "child": {
+                        "name": "a"
+                      }
+                    },
+                    {
+                      "child": {
+                        "name": "b"
+                      }
+                    },
+                    {
+                      "child": {
+                        "name": "c"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "repeat": [
+                    {
+                      "child": {
+                        "name": "a"
+                      }
+                    },
+                    {
+                      "child": {
+                        "name": "b"
+                      }
+                    },
+                    {
+                      "child": {
+                        "name": "c"
+                      }
+                    }
+                  ],
+                  "separator": [
+                    {
+                      "child": {
+                        "name": "d"
+                      }
+                    },
+                    {
+                      "child": {
+                        "name": "e"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -4237,6 +4237,7 @@
 
   /** @param {any} node @returns {any[]} */
   function patternItemParts(node) {
+    if (node.sequence) return node.sequence;
     if (node.child) return [node.child];
     if (node.choice) return node.choice.flat();
     return [...(node.optional ?? node.repeat ?? []), ...(node.separator ?? [])];
@@ -4244,7 +4245,7 @@
 
   /**
    * @param {any} root
-   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
+   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean, deferGroups?:boolean}} [inspect]
    * @returns {string|null}
    */
   function layeredPatternProblem(root, inspect = {}) {
@@ -4272,7 +4273,9 @@
         return true;
       };
       if (item) {
-        if (exact(['child'])) push(n.child,false,false);
+        if (inspect.deferGroups && exact(['sequence'])) {
+          if (!items(n.sequence)) return 'a malformed pattern sequence';
+        } else if (exact(['child'])) push(n.child,false,false);
         else if (exact(['siblings'])) {
           if (n.siblings !== true) return 'a malformed sibling ellipsis';
           if (repeated) return 'a sibling ellipsis cannot be a repeat item or separator';
@@ -4284,7 +4287,7 @@
         } else if (exact(['choice'])) {
           if (!Array.isArray(n.choice) || n.choice.length < 2) return 'a malformed pattern choice';
           for (const arm of n.choice) {
-            if (!items(arm) || arm.length === 1 && object(arm[0]) && 'choice' in arm[0]) return 'a malformed pattern choice';
+            if (!items(arm) || !inspect.deferGroups && arm.length === 1 && object(arm[0]) && 'choice' in arm[0]) return 'a malformed pattern choice';
           }
         } else return 'a malformed pattern child item';
         continue;
@@ -4293,7 +4296,7 @@
       if (compound) {
         const operands = n[compound];
         if (!exact([compound]) || !Array.isArray(operands) || operands.length < 2 || compound === 'difference' && operands.length !== 2) return 'a malformed pattern';
-        if (compound !== 'difference' && operands.some((/** @type {any} */ x) => object(x) && compound in x)) return 'a nested pattern set must be flat';
+        if (!inspect.deferGroups && compound !== 'difference' && operands.some((/** @type {any} */ x) => object(x) && compound in x)) return 'a nested pattern set must be flat';
         for (const node of operands) push(node,false,false);
         continue;
       }
@@ -18824,8 +18827,7 @@
             const problem = "problem" in found ? found.problem : !["string", "any"].includes(found.type) ? "++ requires string operands" : null;
             if (problem && !featureContext && !hasUnresolved(term)) fail(problem, node);
           }
-          if ("concat" in term) for (const child of term.concat) items.push(child);
-          else items.push(term);
+          items.push(term);
         }
         if (nodes.length === 1) return items.length === 1 ? items[0] : {concat: items};
         return {concat: items};
@@ -18860,7 +18862,7 @@
           closedFor = null;
           const pattern = yield readLayeredPattern(only(node, "pattern-primary"));
           closedFor = before;
-          const problem = layeredPatternProblem(pattern, {deferDepth:true, name:name => CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name)});
+          const problem = layeredPatternProblem(pattern, {deferDepth:true, deferGroups:true, name:name => CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name)});
           if (problem) fail(problem,node);
           return {pattern};
         }
@@ -18911,16 +18913,9 @@
     // Pattern constructors follow the layered syntax of engine section 9.
     /** @param {any[]} items @param {ResultNode} node @returns {any} */
     function childPredicate(items, node) {
+      while (items.length === 1 && items[0].sequence) items = items[0].sequence;
       if (items.length !== 1 || !('child' in items[0])) fail("a pattern path or set requires one whole pattern",node);
       return items[0].child;
-    }
-    /** @param {string} key @param {any[]} operands @returns {any} */
-    function patternSet(key,operands) {
-      if (operands.length === 1) return operands[0];
-      if (key === 'difference') return {difference:operands};
-      const flat=[];
-      for (const operand of operands) for (const part of operand[key] ?? [operand]) flat.push(part);
-      return {[key]:flat};
     }
     /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
     function* readLayeredPattern(node) {
@@ -18949,7 +18944,7 @@
         let result=values[0];
         for (let index=1;index<values.length;index++) {
           const key=kind.endsWith('intersection') || operators[index-1] === '∩' ? 'intersection' : operators[index-1] === '∖' ? 'difference' : 'union';
-          result=patternSet(key,[result,values[index]]);
+          result = {[key]:[result,values[index]]};
         }
         return result;
       }
@@ -18972,8 +18967,7 @@
         const arms=[];
         for (const alternative of some(node,'child-alternative')) {
           const items=yield readLayeredPattern(alternative);
-          if (items.length === 1 && items[0].choice) for (const arm of items[0].choice) arms.push(arm);
-          else arms.push(items);
+          arms.push(items);
         }
         return arms.length === 1 ? arms[0] : [{choice:arms}];
       }
@@ -18983,8 +18977,8 @@
       }
       if (kind === 'child-sequence') {
         const result=[];
-        for (const item of some(node,'child-item')) for (const part of yield readLayeredPattern(item)) result.push(part);
-        return result;
+        for (const item of some(node,'child-item')) result.push({sequence:yield readLayeredPattern(item)});
+        return [{sequence:result}];
       }
       if (kind === 'child-item') {
         const child=parts(node)[0];
@@ -19157,18 +19151,45 @@
    * @param {unknown} root
    */
   function flattenGroups(root) {
+    // Source-only sequence wrappers retain grouped child arrays until this walk.
+    /** @param {any[]} items @returns {any[]} */
+    const gatherItems = items => {
+      const joined = [];
+      const pending = items.slice().reverse();
+      while (pending.length) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        const item = pending.pop();
+        if (item.sequence) for (let index = item.sequence.length - 1; index >= 0; index--) pending.push(item.sequence[index]);
+        else joined.push(item);
+      }
+      return joined;
+    };
     /** @type {unknown[]} */
-    const stack = [root];
+    const stack = [{value:root,pattern:false}];
     while (stack.length > 0) {
       if (hooks.work) countWork(hooks.work, "walkSteps");
-      const current = stack.pop();
+      const {value:current,pattern} = /** @type {{value:unknown,pattern:boolean}} */ (stack.pop());
       if (Array.isArray(current)) {
-        for (const item of current) stack.push(item);
+        for (const item of current) stack.push({value:item,pattern});
         continue;
       }
       if (current === null || typeof current !== "object") continue;
       const node = /** @type {Record<string, unknown>} */ (current);
-      for (const key of ["any", "all", "union"]) {
+      if (pattern) {
+        for (const key of ["children", "optional", "repeat", "separator"]) if (Array.isArray(node[key])) node[key] = gatherItems(node[key]);
+        if (Array.isArray(node.choice)) {
+          const arms = [];
+          const pending = node.choice.slice().reverse();
+          while (pending.length) {
+            const arm = gatherItems(/** @type {any[]} */ (pending.pop()));
+            if (arm.length === 1 && arm[0].choice) {
+              for (let index = arm[0].choice.length - 1; index >= 0; index--) pending.push(arm[0].choice[index]);
+            } else arms.push(arm);
+          }
+          node.choice = arms;
+        }
+      }
+      for (const key of ["any", "all", "union", "concat", ...(pattern ? ["intersection"] : [])]) {
         const items = node[key];
         if (!Array.isArray(items)) continue;
         /** @type {unknown[]} */
@@ -19184,7 +19205,11 @@
         }
         node[key] = joined;
       }
-      for (const value of Object.values(node)) if (value !== null && typeof value === "object") stack.push(value);
+      for (const [key,value] of Object.entries(node)) if (value !== null && typeof value === "object") {
+        // Test and call operands leave the pattern context.
+        const childPattern = key === "pattern" || pattern && !["literal", "range", "value", "requirements", "args"].includes(key);
+        stack.push({value,pattern:childPattern});
+      }
     }
   }
 

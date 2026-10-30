@@ -29,6 +29,8 @@ def _string_term(node):
 
 
 def pattern_item_parts(node):
+    if "sequence" in node:
+        return node["sequence"]
     if "child" in node:
         return [node["child"]]
     if "choice" in node:
@@ -36,7 +38,7 @@ def pattern_item_parts(node):
     return node.get("optional", node.get("repeat", [])) + node.get("separator", [])
 
 
-def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=0, defer_depth=False):
+def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=0, defer_depth=False, defer_groups=False):
     def rule_name(value):
         return isinstance(value, str) and (name(value) if name else bool(_RULE.fullmatch(value)) or len(value) == 1 and ord(value) > 127)
 
@@ -72,7 +74,10 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
             return True
 
         if item:
-            if keys == {"child"}:
+            if defer_groups and keys == {"sequence"}:
+                if not items(node["sequence"]):
+                    return "a malformed pattern sequence"
+            elif keys == {"child"}:
                 push(node["child"], False, False)
             elif keys == {"siblings"}:
                 if node["siblings"] is not True:
@@ -90,7 +95,7 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
                 if not isinstance(node["choice"], list) or len(node["choice"]) < 2:
                     return "a malformed pattern choice"
                 for arm in node["choice"]:
-                    if not items(arm) or len(arm) == 1 and isinstance(arm[0], dict) and "choice" in arm[0]:
+                    if not items(arm) or not defer_groups and len(arm) == 1 and isinstance(arm[0], dict) and "choice" in arm[0]:
                         return "a malformed pattern choice"
             else:
                 return "a malformed pattern child item"
@@ -100,7 +105,7 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
             operands = node[compound]
             if keys != {compound} or not isinstance(operands, list) or len(operands) < 2 or compound == "difference" and len(operands) != 2:
                 return "a malformed pattern"
-            if compound != "difference" and any(isinstance(x, dict) and compound in x for x in operands):
+            if not defer_groups and compound != "difference" and any(isinstance(x, dict) and compound in x for x in operands):
                 return "a nested pattern set must be flat"
             for child in operands:
                 push(child, False, False)

@@ -1,0 +1,109 @@
+{
+  "description": "The reader flattens operand lists once and preserves written order, duplicates, and empty strings.",
+  "document": "```jbogenbau\n%const $TEXT \"a\" ++ (\"\" ++ (\"b\" ++ \"c\")) ++ \"a\"\n%const $UNION #((A ∪ B) ∪ C ∪ (A ∪ B))\n%const $INTERSECTION #((A ∩ B) ∩ C ∩ (A ∩ B))\n%const $DIFFERENCE #(A ∪ B ∖ C ∪ A)\n```\n",
+  "expect": {
+    "dom": {
+      "constants": [
+        {
+          "name": "TEXT",
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "string": ""
+              },
+              {
+                "string": "b"
+              },
+              {
+                "string": "c"
+              },
+              {
+                "string": "a"
+              }
+            ]
+          }
+        },
+        {
+          "name": "UNION",
+          "value": {
+            "pattern": {
+              "union": [
+                {
+                  "terminal": "A"
+                },
+                {
+                  "terminal": "B"
+                },
+                {
+                  "terminal": "C"
+                },
+                {
+                  "terminal": "A"
+                },
+                {
+                  "terminal": "B"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "INTERSECTION",
+          "value": {
+            "pattern": {
+              "intersection": [
+                {
+                  "terminal": "A"
+                },
+                {
+                  "terminal": "B"
+                },
+                {
+                  "terminal": "C"
+                },
+                {
+                  "terminal": "A"
+                },
+                {
+                  "terminal": "B"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "DIFFERENCE",
+          "value": {
+            "pattern": {
+              "union": [
+                {
+                  "difference": [
+                    {
+                      "union": [
+                        {
+                          "terminal": "A"
+                        },
+                        {
+                          "terminal": "B"
+                        }
+                      ]
+                    },
+                    {
+                      "terminal": "C"
+                    }
+                  ]
+                },
+                {
+                  "terminal": "A"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

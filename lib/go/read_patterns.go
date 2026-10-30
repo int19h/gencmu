@@ -12,6 +12,9 @@ type patternFrame struct {
 }
 
 func (b *domBuilder) patternChild(value *domPattern, n *Node) *domPattern {
+	for value.Kind == "sequence" && len(value.Items) == 1 && value.Items[0].Kind == "sequence" {
+		value = value.Items[0]
+	}
 	if value.Kind != "sequence" || len(value.Items) != 1 || value.Items[0].Kind != "node" {
 		b.fail(n, "a pattern path or set requires one whole pattern")
 	}
@@ -92,21 +95,7 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 			} else if i < len(ops) && ops[i] == "∖" {
 				kind = "difference"
 			}
-			if kind != "difference" && result.Kind == kind && !result.Exact && result.Attached == nil {
-				if value.Kind == kind && !value.Exact && value.Attached == nil {
-					result.Items = append(result.Items, value.Items...)
-				} else {
-					result.Items = append(result.Items, value)
-				}
-			} else {
-				items := []*domPattern{result}
-				if kind != "difference" && value.Kind == kind && !value.Exact && value.Attached == nil {
-					items = append(items, value.Items...)
-				} else {
-					items = append(items, value)
-				}
-				result = &domPattern{Kind: kind, Items: items}
-			}
+			result = &domPattern{Kind: kind, Items: []*domPattern{result, value}}
 		}
 		return give(result)
 	case "pattern-path", "child-path":
@@ -142,18 +131,10 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 		}
 		return give(values[0])
 	case "child-choice":
-		var arms []*domPattern
-		for _, value := range values {
-			if len(value.Items) == 1 && value.Items[0].Kind == "choice" {
-				arms = append(arms, value.Items[0].Items...)
-			} else {
-				arms = append(arms, value)
-			}
+		if len(values) == 1 {
+			return give(values[0])
 		}
-		if len(arms) == 1 {
-			return give(arms[0])
-		}
-		return give(&domPattern{Kind: "sequence", Items: []*domPattern{{Kind: "choice", Items: arms}}})
+		return give(&domPattern{Kind: "sequence", Items: []*domPattern{{Kind: "choice", Items: values}}})
 	case "child-alternative", "child-primary":
 		if len(values) != 1 {
 			b.lacks(n, "one child operand")
@@ -163,11 +144,7 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 		}
 		return give(values[0])
 	case "child-sequence":
-		items := []*domPattern{}
-		for _, value := range values {
-			items = append(items, value.Items...)
-		}
-		return give(&domPattern{Kind: "sequence", Items: items})
+		return give(&domPattern{Kind: "sequence", Items: values})
 	case "pattern-brackets", "pattern-repeat":
 		if len(values) == 0 || n.Rule == "pattern-brackets" && len(values) != 1 {
 			b.lacks(n, "child choice")

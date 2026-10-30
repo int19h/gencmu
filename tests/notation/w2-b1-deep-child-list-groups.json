@@ -1,0 +1,1238 @@
+{
+  "description": "Grouped operands flatten once without changing child order or term intersections.",
+  "document": "```jbogenbau\n%const $SEQUENCE #r« b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (b (a)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) »\n%const $CHOICE #r« b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (b | (a)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) »\n```\n",
+  "expect": {
+    "dom": {
+      "constants": [
+        {
+          "name": "SEQUENCE",
+          "value": {
+            "pattern": {
+              "name": "r",
+              "children": [
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "b"}},
+                {"child": {"name": "a"}}
+              ]
+            }
+          }
+        },
+        {
+          "name": "CHOICE",
+          "value": {
+            "pattern": {
+              "name": "r",
+              "children": [
+                {
+                  "choice": [
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "b"}}
+                    ],
+                    [
+                      {"child": {"name": "a"}}
+                    ]
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

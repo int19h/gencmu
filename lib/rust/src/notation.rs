@@ -1241,16 +1241,7 @@ impl<'a> Reader<'a> {
         if let Some(&atom) = atoms.get(frame.items.len()) {
             return Ok(Step::Call(Frame::Atom(Atom::new(atom, false))));
         }
-        let mut args = Vec::new();
-        for mut term in std::mem::take(&mut frame.items) {
-            if let Term::Call(name, nested) = &mut term {
-                if name == "concat" {
-                    args.append(nested);
-                    continue;
-                }
-            }
-            args.push(Arg::Term(term));
-        }
+        let args = std::mem::take(&mut frame.items).into_iter().map(Arg::Term).collect();
         Ok(Step::Done(Val::Term(Term::Call("concat".into(), args), Type::String)))
     }
 

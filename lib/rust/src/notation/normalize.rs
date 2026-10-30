@@ -78,13 +78,21 @@ pub(super) fn document(dom: &mut Dom) {
                 Term::Intersection(xs) => stack.extend(xs.iter_mut().map(Part::Term)),
                 Term::Difference(a, b) => stack.extend([Part::Term(a), Part::Term(b)]),
                 Term::If(c, t) => stack.extend([Part::Cond(c), Part::Term(t)]),
-                Term::Call(_, args) => stack.extend(args.iter_mut().filter_map(|arg| {
-                    if let Arg::Term(t) = arg {
-                        Some(Part::Term(t))
-                    } else {
-                        None
+                Term::Call(name, args) => {
+                    if name == "concat" {
+                        fold(args, |arg| match arg {
+                            Arg::Term(Term::Call(name, args)) if name == "concat" => Some(std::mem::take(args)),
+                            _ => None,
+                        });
                     }
-                })),
+                    stack.extend(args.iter_mut().filter_map(|arg| {
+                        if let Arg::Term(t) = arg {
+                            Some(Part::Term(t))
+                        } else {
+                            None
+                        }
+                    }));
+                }
                 Term::Source(symbol) => stack.push(Part::Symbol(symbol)),
                 Term::Pattern(pattern) => stack.push(Part::Pattern(pattern)),
                 _ => (),
@@ -138,7 +146,10 @@ pub(super) fn document(dom: &mut Dom) {
                     fold(xs, |p| if let Pattern::Union(xs) = p { Some(std::mem::take(xs)) } else { None });
                     stack.extend(xs.iter_mut().map(Part::Pattern));
                 }
-                Pattern::Intersection(xs) => stack.extend(xs.iter_mut().map(Part::Pattern)),
+                Pattern::Intersection(xs) => {
+                    fold(xs, |p| if let Pattern::Intersection(xs) = p { Some(std::mem::take(xs)) } else { None });
+                    stack.extend(xs.iter_mut().map(Part::Pattern));
+                }
                 Pattern::Difference(a, b) => stack.extend([Part::Pattern(a), Part::Pattern(b)]),
                 Pattern::Source(s) => stack.push(Part::Symbol(s)),
                 Pattern::Literal(t, _) => stack.push(Part::Term(t)),
@@ -153,7 +164,26 @@ pub(super) fn document(dom: &mut Dom) {
             },
             Part::Children(children) => match children {
                 Children::Node(p) => stack.push(Part::Pattern(p)),
-                Children::Sequence(xs) | Children::Choice(xs) => stack.extend(xs.iter_mut().map(Part::Children)),
+                Children::Sequence(xs) => {
+                    fold(xs, |c| if let Children::Sequence(xs) = c { Some(std::mem::take(xs)) } else { None });
+                    stack.extend(xs.iter_mut().map(Part::Children));
+                }
+                Children::Choice(xs) => {
+                    fold(xs, |arm| {
+                        if let Children::Sequence(items) = arm {
+                            fold(
+                                items,
+                                |c| if let Children::Sequence(xs) = c { Some(std::mem::take(xs)) } else { None },
+                            );
+                            if items.len() == 1 && matches!(items[0], Children::Choice(_)) {
+                                let Children::Choice(xs) = items.pop().unwrap() else { unreachable!() };
+                                return Some(xs);
+                            }
+                        }
+                        None
+                    });
+                    stack.extend(xs.iter_mut().map(Part::Children));
+                }
                 Children::Optional(c) => stack.push(Part::Children(c)),
                 Children::Repeat(c, separator) => {
                     stack.push(Part::Children(c));

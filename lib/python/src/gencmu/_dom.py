@@ -980,15 +980,11 @@ class DomBuilder:
         return {"node": self.wrap_tests(pattern, tests)}
 
     def _child_predicate(self, items: list[Dom], node: Node) -> Dom:
+        while len(items) == 1 and "sequence" in items[0]:
+            items = items[0]["sequence"]
         if len(items) != 1 or "child" not in items[0]:
             raise self.fail(node, "a pattern path or set requires one whole pattern")
         return items[0]["child"]
-
-    @staticmethod
-    def _pattern_set(key: str, left: Dom, right: Dom) -> Dom:
-        if key == "difference":
-            return {key: [left, right]}
-        return {key: [*left.get(key, [left]), *right.get(key, [right])]}
 
     def _layered_pattern(self, node: Node) -> Walk:
         kind = node.rule
@@ -1020,7 +1016,7 @@ class DomBuilder:
             for index, value in enumerate(values[1:]):
                 operator = operators[index] if index < len(operators) else None
                 key = "intersection" if kind.endswith("intersection") or operator == "∩" else "difference" if operator == "∖" else "union"
-                result = self._pattern_set(key, result, value)
+                result = {key: [result, value]}
             return result
         if kind in ("pattern-path", "child-path"):
             primary = self.only(node, "pattern-primary" if kind == "pattern-path" else "child-primary")
@@ -1041,7 +1037,7 @@ class DomBuilder:
             arms = []
             for alternative in self.some(node, "child-alternative"):
                 items = yield self._layered_pattern(alternative)
-                arms.extend(items[0]["choice"] if len(items) == 1 and "choice" in items[0] else [items])
+                arms.append(items)
             return arms[0] if len(arms) == 1 else [{"choice": arms}]
         if kind == "child-alternative":
             sequence = self.one(node, "child-sequence")
@@ -1049,8 +1045,8 @@ class DomBuilder:
         if kind == "child-sequence":
             result = []
             for item in self.some(node, "child-item"):
-                result.extend((yield self._layered_pattern(item)))
-            return result
+                result.append({"sequence": (yield self._layered_pattern(item))})
+            return [{"sequence": result}]
         if kind == "child-item":
             parts = self.kids(node)
             if not parts:
@@ -1092,7 +1088,7 @@ class DomBuilder:
             self.closed_for = None
             try:
                 pattern = yield self._layered_pattern(self.only(node, "pattern-primary"))
-                problem = layered_pattern_problem(pattern, defer_depth=True, name=lambda name: CLASSIFIER_NAME.fullmatch(name) is not None or self.unicode.is_emoji_name(name))
+                problem = layered_pattern_problem(pattern, defer_depth=True, defer_groups=True, name=lambda name: CLASSIFIER_NAME.fullmatch(name) is not None or self.unicode.is_emoji_name(name))
                 if problem is not None:
                     raise self.fail(node, problem)
             finally:
@@ -1165,7 +1161,7 @@ class DomBuilder:
                     kind, problem = term_type(value, memo=self.types)
                     if not self.feature_context and (problem and not has_unresolved(value) or problem is None and kind not in ("string", "any")):
                         raise self.fail(node, problem or "++ requires string operands")
-                items.extend(value.get("concat", [value]))
+                items.append(value)
             if len(nodes) == 1:
                 return items[0] if len(items) == 1 else {"concat": items}
             return {"concat": items}
@@ -1225,15 +1221,40 @@ def flatten_groups(root: Any) -> None:
     Parentheses preserve the reader's grouping rules (engine §9).
     An explicit stack gathers each folded list once.
     """
-    stack: list[Any] = [root]
+    def gather_items(items):
+        joined = []
+        pending = list(reversed(items))
+        while pending:
+            item = pending.pop()
+            if "sequence" in item:
+                pending.extend(reversed(item["sequence"]))
+            else:
+                joined.append(item)
+        return joined
+
+    stack: list[tuple[Any, bool]] = [(root, False)]
     while stack:
-        current = stack.pop()
+        current, pattern = stack.pop()
         if isinstance(current, list):
-            stack.extend(current)
+            stack.extend((item, pattern) for item in current)
             continue
         if not isinstance(current, dict):
             continue
-        for key in ("any", "all", "union"):
+        if pattern:
+            for key in ("children", "optional", "repeat", "separator"):
+                if isinstance(current.get(key), list):
+                    current[key] = gather_items(current[key])
+            if isinstance(current.get("choice"), list):
+                arms = []
+                pending = list(reversed(current["choice"]))
+                while pending:
+                    arm = gather_items(pending.pop())
+                    if len(arm) == 1 and "choice" in arm[0]:
+                        pending.extend(reversed(arm[0]["choice"]))
+                    else:
+                        arms.append(arm)
+                current["choice"] = arms
+        for key in ("any", "all", "union", "concat", *(["intersection"] if pattern else [])):
             items = current.get(key)
             if not isinstance(items, list):
                 continue
@@ -1247,7 +1268,11 @@ def flatten_groups(root: Any) -> None:
                 else:
                     joined.append(item)
             current[key] = joined
-        stack.extend(value for value in current.values() if isinstance(value, (dict, list)))
+        for key, value in current.items():
+            if isinstance(value, (dict, list)):
+                # Test and call operands leave the pattern context.
+                child_pattern = key == "pattern" or pattern and key not in ("literal", "range", "value", "requirements", "args")
+                stack.append((value, child_pattern))
 
 
 def operand_problem(name: str, kinds: list[str]) -> str | None:

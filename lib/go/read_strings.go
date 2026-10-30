@@ -2,18 +2,6 @@ package gencmu
 
 import "strings"
 
-func unionTerm(a, b *domTerm) *domTerm {
-	var parts []*domTerm
-	for _, t := range []*domTerm{a, b} {
-		if t.Kind == tmUnion {
-			parts = append(parts, t.Items...)
-		} else {
-			parts = append(parts, t)
-		}
-	}
-	return &domTerm{Kind: tmUnion, Items: parts}
-}
-
 func (b *domBuilder) tagRun(n *Node) *domTerm {
 	if b.inRecipe && n.Rule == "string-run" {
 		b.fail(n, "juxtaposed recipe strings require ++, use ++ between string atoms")

@@ -430,15 +430,7 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 		return ask(&termFrame{n: f.parts[len(f.items)]})
 	}
 	if n.Rule == "concatenation" {
-		var items []*domTerm
-		for _, t := range f.items {
-			if t.Kind == tmConcat {
-				items = append(items, t.Items...)
-			} else {
-				items = append(items, t)
-			}
-		}
-		return give(&domTerm{Kind: tmConcat, Items: items})
+		return give(&domTerm{Kind: tmConcat, Items: f.items})
 	}
 	op := f.ops[0]
 	for _, o := range f.ops {
@@ -463,13 +455,9 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 			result = &domTerm{Kind: tmDifference, Items: []*domTerm{result, next}}
 			open = false
 		case open:
-			if next.Kind == tmUnion {
-				result.Items = append(result.Items, next.Items...)
-			} else {
-				result.Items = append(result.Items, next)
-			}
+			result.Items = append(result.Items, next)
 		default:
-			result = unionTerm(result, next)
+			result = &domTerm{Kind: tmUnion, Items: []*domTerm{result, next}}
 			open = true
 		}
 	}

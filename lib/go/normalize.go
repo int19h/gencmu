@@ -59,8 +59,8 @@ func flattenGroups(d *domDoc) {
 			if n == nil {
 				continue
 			}
-			if n.Kind == tmUnion {
-				n.Items = flattenList(n.Items, func(it *domTerm) ([]*domTerm, bool) { return it.Items, it.Kind == tmUnion })
+			if n.Kind == tmUnion || n.Kind == tmConcat {
+				n.Items = flattenList(n.Items, func(it *domTerm) ([]*domTerm, bool) { return it.Items, it.Kind == n.Kind })
 			}
 			stack = append(stack, n.Cond, n.Call, n.Pattern)
 			for _, it := range n.Items {
@@ -99,8 +99,26 @@ func flattenGroups(d *domDoc) {
 			if n == nil {
 				continue
 			}
-			if n.Kind == tmUnion {
-				n.Items = flattenList(n.Items, func(it *domPattern) ([]*domPattern, bool) { return it.Items, it.Kind == tmUnion })
+			if n.Kind == tmUnion || n.Kind == tmIntersection {
+				n.Items = flattenList(n.Items, func(it *domPattern) ([]*domPattern, bool) {
+					return it.Items, it.Kind == n.Kind && !it.Exact && it.Attached == nil
+				})
+			}
+			sequence := func(it *domPattern) ([]*domPattern, bool) { return it.Items, it.Kind == "sequence" }
+			if n.Kind == "sequence" {
+				n.Items = flattenList(n.Items, sequence)
+			}
+			if n.Attached != nil {
+				n.Attached = flattenList(n.Attached, sequence)
+			}
+			if n.Kind == "choice" {
+				n.Items = flattenList(n.Items, func(arm *domPattern) ([]*domPattern, bool) {
+					arm.Items = flattenList(arm.Items, sequence)
+					if len(arm.Items) == 1 && arm.Items[0].Kind == "choice" {
+						return arm.Items[0].Items, true
+					}
+					return nil, false
+				})
 			}
 			stack = append(stack, n.Value, n.Call, n.Ends[0], n.Ends[1])
 			for _, r := range n.Requirements {

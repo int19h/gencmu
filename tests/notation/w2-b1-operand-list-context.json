@@ -1,0 +1,57 @@
+{
+  "description": "Grouped operands flatten once without changing child order or term intersections.",
+  "document": "```jbogenbau\n%rule f(@X) @X\n%const $TAGS (A ∩ B) ∩ C\n%const $P #f((A ∩ B) ∩ C)\n```\n",
+  "expect": {
+    "dom": {
+      "constants": [
+        {
+          "name": "TAGS",
+          "value": {
+            "intersection": [
+              {
+                "intersection": [
+                  {
+                    "tag": "A"
+                  },
+                  {
+                    "tag": "B"
+                  }
+                ]
+              },
+              {
+                "tag": "C"
+              }
+            ]
+          }
+        },
+        {
+          "name": "P",
+          "value": {
+            "pattern": {
+              "call": "f",
+              "args": [
+                {
+                  "intersection": [
+                    {
+                      "intersection": [
+                        {
+                          "tag": "A"
+                        },
+                        {
+                          "tag": "B"
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "C"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

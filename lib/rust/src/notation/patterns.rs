@@ -94,6 +94,10 @@ impl<'a> Reader<'a> {
 
     fn pattern_child(&self, value: Value, node: &Node) -> R<Pattern> {
         let mut items = value.items();
+        while items.len() == 1 && matches!(items[0], Children::Sequence(_)) {
+            let Children::Sequence(nested) = items.pop().unwrap() else { unreachable!() };
+            items = nested;
+        }
         if items.len() == 1 && matches!(items[0], Children::Node(_)) {
             let Children::Node(pattern) = items.remove(0) else { unreachable!() };
             return Ok(*pattern);
@@ -142,27 +146,11 @@ impl<'a> Reader<'a> {
                 let mut result = operands.next().unwrap();
                 for (index, value) in operands.enumerate() {
                     if kind.ends_with("intersection") || ops.get(index) == Some(&"∩") {
-                        let mut items = match result {
-                            Pattern::Intersection(items) => items,
-                            other => vec![other],
-                        };
-                        match value {
-                            Pattern::Intersection(nested) => items.extend(nested),
-                            other => items.push(other),
-                        }
-                        result = Pattern::Intersection(items);
+                        result = Pattern::Intersection(vec![result, value]);
                     } else if ops.get(index) == Some(&"∖") {
                         result = Pattern::Difference(Box::new(result), Box::new(value));
                     } else {
-                        let mut items = match result {
-                            Pattern::Union(items) => items,
-                            other => vec![other],
-                        };
-                        match value {
-                            Pattern::Union(nested) => items.extend(nested),
-                            other => items.push(other),
-                        }
-                        result = Pattern::Union(items);
+                        result = Pattern::Union(vec![result, value]);
                     }
                 }
                 Ok(Value::Pattern(result))
@@ -190,16 +178,7 @@ impl<'a> Reader<'a> {
             }
             "pattern-children" => Ok(values.pop().unwrap_or_else(|| Value::Items(Vec::new()))),
             "child-choice" => {
-                let mut arms = Vec::new();
-                for value in values {
-                    let mut items = value.items();
-                    if items.len() == 1 && matches!(items[0], Children::Choice(_)) {
-                        let Children::Choice(nested) = items.pop().unwrap() else { unreachable!() };
-                        arms.extend(nested);
-                    } else {
-                        arms.push(Children::Sequence(items));
-                    }
-                }
+                let mut arms: Vec<_> = values.into_iter().map(|value| Children::Sequence(value.items())).collect();
                 Ok(Value::Items(if arms.len() == 1 {
                     let Children::Sequence(items) = arms.pop().unwrap() else { unreachable!() };
                     items
@@ -218,7 +197,9 @@ impl<'a> Reader<'a> {
                     value
                 })
             }
-            "child-sequence" => Ok(Value::Items(values.into_iter().flat_map(Value::items).collect())),
+            "child-sequence" => Ok(Value::Items(vec![Children::Sequence(
+                values.into_iter().map(|value| Children::Sequence(value.items())).collect(),
+            )])),
             "pattern-brackets" | "pattern-repeat" => {
                 if values.is_empty() || kind == "pattern-brackets" && values.len() != 1 {
                     return Err(self.shape_error(node, "child choice"));
