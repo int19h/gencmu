@@ -16831,6 +16831,17 @@
     return node.children[node.production.captures[slot].index];
   }
 
+  /** @param {number[]} values @param {number} target @returns {number} */
+  function lowerBound(values, target) {
+    let first = 0, last = values.length;
+    while (first < last) {
+      const middle = first + Math.floor((last-first)/2);
+      if (values[middle] < target) first = middle+1;
+      else last = middle;
+    }
+    return first;
+  }
+
   class StringWalk {
     /** @param {ParseContext} context @param {(node:DerivationRule)=>Scope} scope */
     constructor(context, scope) {
@@ -16840,8 +16851,11 @@
       this.values = new WeakMap();
       /** @type {WeakMap<Derivation,Set<object|string>>} */
       this.active = new WeakMap();
-      /** @type {{span:Span, intervals:Span[]}[]} */
-      this.claims = [];
+      /** @type {Set<string>} */
+      this.claims = new Set();
+      this.claimPoints = [...new Set([0, context.sourceText.length, ...context.tokens.flatMap(token => token.source)])].sort((a,b) => a-b);
+      /** @type {Set<number>} */
+      this.claimedCells = new Set();
       // Every input source participates, including tokens outside a capture.
       /** @type {Span[]} */
       this.covered = context.tokens.map(token => token.source).filter(([a,b]) => a < b).sort((a,b) => a[0]-b[0]);
@@ -16853,6 +16867,8 @@
         else merged.push([a,b]);
       }
       this.covered = merged;
+      this.coveredStarts = merged.map(span => span[0]);
+      this.coveredEnds = merged.map(span => span[1]);
       /** @type {WeakMap<object,Map<object,object>>} */
       this.itemKeys = new WeakMap();
     }
@@ -16952,31 +16968,28 @@
       const q = b < tokens.length ? tokens[b].source[0] : sourceText.length;
       let left = l, right = r;
       if (p < l) {
-        left = p;
-        for (const [start,end] of this.covered) {
-          if (start >= l) break;
-          if (end > left) left = Math.min(l,end);
-        }
+        const previous = lowerBound(this.coveredStarts, l)-1;
+        left = Math.max(p, previous < 0 ? 0 : Math.min(l,this.covered[previous][1]));
       }
       if (r < q) {
-        right = q;
-        for (const [start,end] of this.covered) {
-          if (end <= r) continue;
-          right = Math.max(r,Math.min(right,start));
-          break;
-        }
+        const following = lowerBound(this.coveredEnds, r+1);
+        right = Math.max(r, following === this.covered.length ? q : Math.min(q,this.covered[following][0]));
       }
       /** @type {Span[]} */
       const intervals = [];
       if (left < l) intervals.push([left,l]);
       if (r < right) intervals.push([r,right]);
-      for (const claim of this.claims) {
-        if (claim.span[0] === a && claim.span[1] === b) continue;
-        for (const [x,y] of intervals) for (const [u,v] of claim.intervals) {
-          if (Math.max(x,u) < Math.min(y,v)) throw new GencmuError("grammar", "different verbatim spans claim the same uncovered source text");
+      const span = `${a}/${b}`;
+      if (!this.claims.has(span)) {
+        for (const [start,end] of intervals) {
+          const limit = lowerBound(this.claimPoints,end);
+          for (let cell = lowerBound(this.claimPoints,start); cell < limit; cell++) {
+            if (this.claimedCells.has(cell)) throw new GencmuError("grammar", "different verbatim spans claim the same uncovered source text");
+            this.claimedCells.add(cell);
+          }
         }
+        this.claims.add(span);
       }
-      if (intervals.length) this.claims.push({span:[a,b], intervals});
       return sourceText.slice(left,right).join("");
     }
   }

@@ -396,6 +396,8 @@ An empty delimited body contributes empty concatenation to the quote value. The 
 
 The image extension does not enlarge `source` or `text`. This lets quote punctuation appear without changing source provenance. Different evaluated spans cannot claim the same uncovered text. The conflict rule avoids any hidden priority between touching quoted parts.
 
+Each emission indexes evaluated spans and claimed intervals. Source endpoints divide those intervals into cells, whose interiors contain no endpoint. A new span marks each claimed cell once. Repeated requests for that span reuse its claim. Coverage searches use sorted interval boundaries.
+
 In pipelines with punctuation pauses, a one-word foreign quote takes the next raw stretch between whitespace or period boundaries. A decimal point between digits stays inside its run. Punctuation and ignored characters belong to that body.
 
 The Latin conventions expose punctuation as pause tokens tagged `Quote-Material`. Each token keeps the punctuation's source spelling as its image. Its phoneme-stage value keeps the decomposed punctuation. The [pause rules](#pauses-and-spacing) define its later normalized value.

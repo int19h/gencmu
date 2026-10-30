@@ -1,5 +1,7 @@
 package gencmu
 
+import "sort"
+
 // occurrence distinguishes uses of a shared derivation node. Recipes use
 // occurrence identity, not production numbers or spans (engine §11.3).
 type occurrence struct {
@@ -15,7 +17,9 @@ type stringEmitter struct {
 	boundaryStarts, boundaryEnds map[string]map[int]bool
 	run                          *stageRun
 	rec                          *recognizer
-	claims                       map[[2]int][][2]int
+	claims                       map[[2]int]bool
+	claimPoints                  []int
+	claimedCells                 []bool
 	inherited                    map[int]bool
 	coverage                     []bool
 }
@@ -206,6 +210,17 @@ func (em *stringEmitter) verbatim(a, b int) string {
 		q = em.run.toks[b].Source[0]
 	}
 	if em.coverage == nil {
+		points := []int{0, len(em.run.ps.text)}
+		for _, token := range em.run.toks {
+			points = append(points, token.Source[0], token.Source[1])
+		}
+		sort.Ints(points)
+		for _, point := range points {
+			if len(em.claimPoints) == 0 || em.claimPoints[len(em.claimPoints)-1] != point {
+				em.claimPoints = append(em.claimPoints, point)
+			}
+		}
+		em.claimedCells = make([]bool, len(em.claimPoints)-1)
 		// A difference array unions overlapping sources in one pass.
 		changes := make([]int, len(em.run.ps.text)+1)
 		for _, token := range em.run.toks {
@@ -234,19 +249,16 @@ func (em *stringEmitter) verbatim(a, b int) string {
 		if source[1] < r {
 			claims = append(claims, [2]int{source[1], r})
 		}
-		for other, intervals := range em.claims {
-			if other == span {
-				continue
-			}
-			for _, x := range intervals {
-				for _, y := range claims {
-					if x[0] < y[1] && y[0] < x[1] {
-						panic(&parseFailure{message: "different verbatim spans claim the same source gap"})
-					}
+		for _, interval := range claims {
+			limit := sort.SearchInts(em.claimPoints, interval[1])
+			for cell := sort.SearchInts(em.claimPoints, interval[0]); cell < limit; cell++ {
+				if em.claimedCells[cell] {
+					panic(&parseFailure{message: "different verbatim spans claim the same source gap"})
 				}
+				em.claimedCells[cell] = true
 			}
 		}
-		em.claims[span] = claims
+		em.claims[span] = true
 	}
 	return string(em.run.ps.text[l:r])
 }
@@ -293,7 +305,7 @@ func (em *stringEmitter) ownership(o *occurrence) int {
 }
 
 func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
-	em := &stringEmitter{run: run, rec: rec, claims: map[[2]int][][2]int{}, inherited: map[int]bool{}}
+	em := &stringEmitter{run: run, rec: rec, claims: map[[2]int]bool{}, inherited: map[int]bool{}}
 	root := occurrenceTree(d)
 	demands := map[string]bool{}
 	for _, p := range rec.g.prods {
