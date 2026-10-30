@@ -547,11 +547,6 @@ def expand_templates(documents, unicode):
             fail(event, event['rule'], problem)
     output = [{**e, 'rule': rewrite(e['rule'], e)} for items in ordinary.values() for e in items]
     output.extend({**e, 'rule': rewrite({**e['rule'], 'name': effective(i)}, e)} for i in queue for e in i['definitions'])
-    started = set()
-    for event in output:
-        if event['rule']['name'] not in started:
-            event['rule'] = {**event['rule'], 'op': 'define'}
-            started.add(event['rule']['name'])
     expanded_docs = [(path, {**dom, 'rules': [], **{k: [rewrite(item, dict(path=path, rule=item)) for item in dom[k]] for k in ('constants', 'directives', 'classifiers', 'implications')}}) for path, dom in documents]
     expanded_docs.extend((e['path'], empty_dom(documents[0][1]['format'], [e['rule']])) for e in output)
     order = [n for n in slots if n in current or n in ordinary] + [effective(i) for i in queue if not i['name']]

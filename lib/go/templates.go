@@ -331,15 +331,6 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			output = append(output, &copy)
 		}
 	}
-	started := map[string]bool{}
-	for _, e := range output {
-		name := templateText(e.rule["name"])
-		if !started[name] {
-			e.rule = templateCopy(e.rule)
-			e.rule["op"] = "define"
-			started[name] = true
-		}
-	}
 	expandedDocs := []docDOM{}
 	for index, d := range docs {
 		dom := templateCopy(rawDocs[index])
@@ -362,12 +353,6 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		dom := decoded[e.definition]
 		if dom == nil {
 			panic("an expanded output definition was not validated")
-		}
-		// The first output definition of a name introduces that runtime rule.
-		if dom.Rules[0].Op != templateText(e.rule["op"]) {
-			rule := *dom.Rules[0]
-			rule.Op = templateText(e.rule["op"])
-			dom = &domDoc{Rules: []*domRule{&rule}}
 		}
 		expandedDocs = append(expandedDocs, docDOM{e.path, dom})
 	}
