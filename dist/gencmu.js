@@ -19178,7 +19178,10 @@
           }
         }
         const problem = methodProblem(name, receiver, args, found.type, types, recipeContext);
-        if (problem && !featureContext && !args.some(hasUnresolved) && !hasUnresolved(receiver)) fail(problem, node);
+        if (problem && !featureContext && !args.some(hasUnresolved) && !hasUnresolved(receiver)) {
+          const specific = problem === "split has an empty delimiter" || problem.startsWith("ends requires") || problem.startsWith("without-elision");
+          fail(specific ? problem : "a method has the wrong receiver or arguments", node);
+        }
         if (closedFor && found.type === "span") fail(`${closedFor} cannot read an input method`, node);
         receiver = { method: name, receiver, args };
         boundaryLocations.set(receiver, {tree:node,at:at(node)});

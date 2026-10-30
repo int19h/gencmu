@@ -1,0 +1,11 @@
+{
+  "description": "Reader diagnostics use common text and retain their positions.",
+  "document": "```jbogenbau\n%include a\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1,
+      "message": "%include takes one string"
+    }
+  }
+}

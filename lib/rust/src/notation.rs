@@ -286,6 +286,25 @@ impl<'a> Reader<'a> {
                 matches!(rule_name(part), "argument-word" | "argument-string" | "argument-tag" | "argument-term")
             })
             .collect();
+        let names = parts.iter().all(|part| rule_name(part) == "argument-word");
+        let operand_problem = match name {
+            "include" | "names" if parts.len() != 1 || rule_name(parts[0]) != "argument-string" => {
+                Some(format!("%{name} takes one string"))
+            }
+            "stage" | "extend-stage" | "redefine-stage" if parts.len() != 1 || !names => {
+                Some(format!("%{name} takes one name"))
+            }
+            "features" if parts.is_empty() || !names => Some("%features takes one or more names".into()),
+            "ambiguity-resolution" if !(1..=2).contains(&parts.len()) => {
+                Some("%ambiguity-resolution takes one or two names".into())
+            }
+            "include" | "names" => None,
+            _ if !names => Some(format!("%{name} takes names only")),
+            _ => None,
+        };
+        if let Some(problem) = operand_problem {
+            return Err(self.error(node, problem));
+        }
         let mut args = Vec::new();
         let feature = |name: &str| {
             name.starts_with(|c: char| c.is_ascii_alphabetic())
@@ -293,9 +312,6 @@ impl<'a> Reader<'a> {
         };
         for part in &parts {
             if name == "include" || name == "names" {
-                if rule_name(part) != "argument-string" {
-                    return Err(self.error(node, "%include takes one quoted path"));
-                }
                 let token = self.token(part)?;
                 let token = token
                     .token
@@ -303,9 +319,6 @@ impl<'a> Reader<'a> {
                     .ok_or_else(|| self.shape_error(node, "path token"))?;
                 args.push(self.strings.decode(token, true)?);
             } else {
-                if rule_name(part) != "argument-word" {
-                    return Err(self.error(node, "directive requires name operands"));
-                }
                 args.push(self.value(self.token(part)?).into());
             }
         }
@@ -322,7 +335,15 @@ impl<'a> Reader<'a> {
             _ => false,
         };
         if !valid {
-            return Err(self.error(node, "directive has the wrong operands"));
+            let problem = match name {
+                "stage" | "extend-stage" | "redefine-stage" => format!("%{name} takes one lowercase name"),
+                "features" => "%features takes feature names".into(),
+                "ambiguity-resolution" => {
+                    "%ambiguity-resolution takes a ranking name and optionally elision-only".into()
+                }
+                _ => "directive has the wrong operands".into(),
+            };
+            return Err(self.error(node, problem));
         }
         let conditions = match Self::rules(node, "conditions-clause").next() {
             Some(clause) => {
@@ -512,8 +533,11 @@ impl<'a> Reader<'a> {
             Some(feature) => (feature, true),
             None => (text, false),
         };
-        if kind == FeatureKind::Warning && (gates_only || negated) {
-            return Err(self.error(node, "a warning cannot be negated or used on a classifier entry"));
+        if kind == FeatureKind::Warning && negated {
+            return Err(self.error(node, "a warning cannot be negated"));
+        }
+        if kind == FeatureKind::Warning && gates_only {
+            return Err(self.error(node, "an entry of a classifier takes gates only, not a warning"));
         }
         if !feature.starts_with(|c: char| c.is_ascii_alphabetic())
             || !feature.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
@@ -816,7 +840,7 @@ impl<'a> Reader<'a> {
                                 | "parameter"
                         )
                     }) {
-                        return Err(self.error(capture, "a capture must wrap a single symbol"));
+                        return Err(self.error(capture, "a capture wraps one symbol"));
                     }
                 }
                 if !matches!(
@@ -831,7 +855,7 @@ impl<'a> Reader<'a> {
                         | "parameter"
                         | "tested"
                 ) {
-                    return Err(self.error(capture, "a capture must wrap a single symbol"));
+                    return Err(self.error(capture, "a capture wraps one symbol"));
                 }
                 self.captures.borrow_mut().push(inner);
                 frame.capture = Some(name);
@@ -1504,7 +1528,7 @@ impl<'a> Reader<'a> {
                 return Err(self.error(frame.node, format!("unknown method {name}")));
             }
             if let Some(closed) = self.closed_for.get().filter(|_| name != "split" && name != "ngrams") {
-                return Err(self.error(frame.node, format!("{closed} cannot read .{name}")));
+                return Err(self.error(frame.node, format!("{closed} cannot read an input method")));
             }
             frame.arguments = Some(match Self::rules(selector, "arguments").next() {
                 Some(arguments) => self.some(arguments, "argument", 1)?,
@@ -1582,19 +1606,25 @@ impl<'a> Reader<'a> {
             return Err(self.error(frame.node, "ends requires an ordinary span, not a restored span"));
         }
         if !valid {
-            let hint = if name == "without-elision" {
-                "; write $x.without-elision.onward for an extended restored query"
-            } else if name == "without-elision-except" {
-                "; write $x.without-elision-except(F).onward for an extended restored query"
-            } else {
-                ""
+            let mut dependent = self.feature_context.get();
+            let mut pending = vec![frame.node];
+            while let Some(node) = pending.pop().filter(|_| !dependent) {
+                dependent = matches!(rule_name(node), "parameter" | "call");
+                pending.extend(Self::parts(node));
+            }
+            let problem = match name {
+                _ if dependent => "a method has the wrong receiver or arguments",
+                "without-elision" => "without-elision requires a bare capture: write $x.without-elision.onward",
+                "without-elision-except" if !bare => {
+                    "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward"
+                }
+                "without-elision-except" => "without-elision-except requires one rule name",
+                _ => "a method has the wrong receiver or arguments",
             };
-            return Err(
-                self.error(frame.node, format!(".{name} has an unknown name or invalid receiver or arguments{hint}"))
-            );
+            return Err(self.error(frame.node, problem));
         }
         if !self.in_recipe.get() && matches!(name, "verbatim-text" | "emitted") {
-            return Err(self.error(frame.node, format!(".{name} is allowed only in a recipe")));
+            return Err(self.error(frame.node, "a method has the wrong receiver or arguments"));
         }
         let mut args = vec![Arg::Term(receiver)];
         args.append(&mut frame.args);
@@ -1611,7 +1641,7 @@ impl<'a> Reader<'a> {
             "starts-input" | "ends-input" | "followed-by" | "preceded-by" | "matches" | "begins" | "ends"
         ) {
             if !frame.condition || !last {
-                return Err(self.error(frame.node, "a predicate method cannot supply a value"));
+                return Err(self.error(frame.node, "a query method is a condition, not a term"));
             }
             if args.iter().any(|arg| matches!(arg, Arg::Term(Term::Source(_)))) {
                 return Ok(Step::Done(Val::Cond(Cond::SourceQuery(
@@ -1659,7 +1689,7 @@ impl<'a> Reader<'a> {
             })
         } else {
             if last && frame.condition {
-                return Err(self.error(frame.node, "a condition requires a predicate method"));
+                return Err(self.error(frame.node, "a condition requires a query method"));
             }
             let alias = crate::dom::method_alias(name);
             Val::Term(Term::Call(alias.into(), args), call_type(alias))
@@ -1685,7 +1715,7 @@ impl<'a> Reader<'a> {
         if let Some(integer) = Self::rules(frame.node, "integer").next() {
             let digits = self.value(self.token(integer)?);
             if !crate::dom::valid_integer(digits) {
-                return Err(self.error(integer, "an integer argument is positive without leading zeros"));
+                return Err(self.error(integer, "an integer argument is positive and has no leading zeros"));
             }
             return Ok(Step::Done(Val::Arg(Arg::Integer(digits.into()), None)));
         }

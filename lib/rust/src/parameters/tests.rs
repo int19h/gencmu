@@ -216,7 +216,7 @@ fn elidable_owner() {
 fn uncalled_source_validation() {
     for (source, message) in [
         ("%rule unused(@X) $x:A $x:@X", "the capture $x is read twice by one production"),
-        ("%rule unused(@X) $x:(A @X)", "a capture must wrap a single symbol"),
+        ("%rule unused(@X) $x:(A @X)", "a capture wraps one symbol"),
         ("%rule unused(@X) @X %emits $x :: @X, $x", "a repeated emission capture"),
         ("%rule unused(@X) @X %emits ($y) $x ($y) :: @X", "a repeated emission capture"),
         ("%rule unused(@X) @X :: _L ∪ @X", "engine tag"),

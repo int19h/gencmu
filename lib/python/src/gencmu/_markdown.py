@@ -85,7 +85,7 @@ def jbogenbau_text(document: str, unicode) -> GrammarText:
         if index >= len(lines) and trim(info) == INFO:
             # A jbogenbau block that is never closed is an error; any other
             # runs to the end of the document, as in CommonMark (engine §8).
-            raise GencmuError(f"a {INFO} block is never closed", line=opening, column=column)
+            raise GencmuError(f"a {INFO} block that is never closed", line=opening, column=column)
         index += 1
         if trim(info) == INFO:
             blocks.append(body)

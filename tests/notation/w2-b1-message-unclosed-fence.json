@@ -1,0 +1,11 @@
+{
+  "description": "An unclosed grammar fence uses common diagnostic text.",
+  "document": "```jbogenbau\n%rule text A\n",
+  "expect": {
+    "error": {
+      "line": 1,
+      "column": 1,
+      "message": "a jbogenbau block that is never closed"
+    }
+  }
+}

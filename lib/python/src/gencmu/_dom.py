@@ -234,7 +234,7 @@ class DomBuilder:
         for guard in self.rules(node, "guard"):
             value = self.guard(guard)
             if value["kind"] != "gate":
-                raise self.fail(guard, "a classifier entry accepts gates only")
+                raise self.fail(guard, "an entry of a classifier takes gates only, not a warning")
             guards.append(value)
         for key_node in self.some(node, "classifier-key"):
             keys.append(self.value(self.known_of(key_node, frozenset(("string", "constant-reference")))))
@@ -293,11 +293,11 @@ class DomBuilder:
         args = [self.token_value(self.token(kid)) if kid.rule == "argument-word" else
                 self.decode_string(self.tokens[self.token(kid).token], True) for kid in operands]
         if name in ("stage", "extend-stage", "redefine-stage") and not CLASSIFIER_NAME.fullmatch(args[0]):
-            raise self.fail(node, "a stage name starts lowercase")
+            raise self.fail(node, f"%{name} takes one lowercase name")
         if name == "features" and any(re.fullmatch(r"[A-Za-z][A-Za-z0-9-]*", arg) is None for arg in args):
-            raise self.fail(node, "invalid feature name")
+            raise self.fail(node, "%features takes feature names")
         if name == "ambiguity-resolution" and args not in (["greedy"], ["lazy"], ["late-elision"], ["greedy", "elision-only"], ["lazy", "elision-only"], ["late-elision", "elision-only"]):
-            raise self.fail(node, "invalid ambiguity resolution operands")
+            raise self.fail(node, "%ambiguity-resolution takes a ranking name and optionally elision-only")
         directive = {"name": name, "args": args, "at": list(self.position(node))}
         clause = self.one(node, "conditions-clause")
         if clause is not None:
@@ -325,8 +325,10 @@ class DomBuilder:
     def guard(self, node: Node) -> Dom:
         text = self.token_value(self.token(node))
         match = re.fullmatch(r"(¬?)([A-Za-z][A-Za-z0-9-]*)([?!])", text)
-        if match is None or match[1] and match[3] == "!":
+        if match is None:
             raise self.fail(node, "invalid guard")
+        if match[1] and match[3] == "!":
+            raise self.fail(node, "a warning cannot be negated")
         return {"feature": match[2], "kind": "gate" if match[3] == "?" else "warning", "negated": bool(match[1])}
 
     def clauses(self, node: Node, tag_name: str, own: bool = False) -> Dom:
@@ -565,13 +567,13 @@ class DomBuilder:
             if not name:
                 raise self.fail(node, "$ is the whole constituent and wraps nothing")
             if not CAPTURE_NAME.fullmatch(name):
-                raise self.fail(node, f"the capture ${name} has a capital; a capture's name is all lower case")
+                raise self.fail(node, "a capture's name is all lower case")
             inner = self.known_of(wrapped, _PRIMARIES)
             base = inner
             if base.rule == "tested":
                 base = self.test_base(base)
             if base.rule not in _SYMBOLS:
-                raise self.fail(node, f"the capture ${name} must wrap one reference or terminal, tested or not")
+                raise self.fail(node, "a capture wraps one symbol")
             capture = {"capture": name, "expr": (yield self._expr(inner))}
             self.capture_nodes[id(capture)] = node
             return capture
@@ -849,7 +851,7 @@ class DomBuilder:
         if node.rule == "method":
             method = yield self._method(node)
             if term_type(method, memo=self.types)[0] != "predicate" and not has_unresolved(method):
-                raise self.fail(node, "a condition requires a query or starts-input method")
+                raise self.fail(node, "a condition requires a query method")
             return method
         raise self.fail(node, f"unexpected {node.rule} in a condition")
 
@@ -865,9 +867,9 @@ class DomBuilder:
             if name not in _METHODS:
                 raise self.fail(node, 'unknown method ' + name)
             if self.closed_for and name not in ("split", "ngrams"):
-                raise self.fail(node, f"{self.closed_for} requires a closed term")
+                raise self.fail(node, f"{self.closed_for} cannot read an input method")
             if not self.recipe_context and name in ("verbatim-text", "emitted"):
-                raise self.fail(node, "this method is legal only in recipes")
+                raise self.fail(node, "a method has the wrong receiver or arguments")
             arguments = self.one(selector, "arguments")
             args = []
             for part in self.some(arguments, "argument") if arguments else []:
@@ -875,13 +877,13 @@ class DomBuilder:
                 if integer is not None:
                     digits = self.token_value(self.token(integer))
                     if re.fullmatch(r"[1-9][0-9]*", digits) is None:
-                        raise self.fail(integer, "an integer argument is positive without leading zeros")
+                        raise self.fail(integer, "an integer argument is positive and has no leading zeros")
                     arg = {"integer": digits}
                 else:
                     arg = yield self._term(self.only(part, "term"), True)
                 if name == "classify" and "rule" in arg:
                     if CLASSIFIER_NAME.fullmatch(arg["rule"]) is None:
-                        raise self.fail(node, "a classifier name must start with a lowercase letter")
+                        raise self.fail(node, "a method has the wrong receiver or arguments")
                     arg = {"classifier": arg["rule"]}
                 if name in ("matches", "begins", "ends", "followed-by", "preceded-by") and "tag" in arg and not arg["tag"].startswith("_"):
                     arg = {"terminal": arg["tag"]}
@@ -903,9 +905,15 @@ class DomBuilder:
             if problem is None:
                 _, problem = method_type(name, kind, args, set(receiver) == {"capture"}, self.recipe_context)
             if name in ("without-elision", "without-elision-except") and set(receiver) != {"capture"}:
-                call = name + ("(F)" if name == "without-elision-except" else "")
-                problem = f".{name} requires a bare capture; use $x.{call}.onward"
+                problem = "without-elision requires a bare capture: write $x.without-elision.onward" if name == "without-elision" else "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward"
             if problem is not None and not self.feature_context and not dependent:
+                if problem.startswith('invalid receiver or arguments'):
+                    if name == 'without-elision':
+                        problem = 'without-elision requires a bare capture: write $x.without-elision.onward'
+                    elif name == 'without-elision-except':
+                        problem = 'without-elision-except requires one rule name'
+                    else:
+                        problem = 'a method has the wrong receiver or arguments'
                 raise self.fail(node, problem)
             if not self.feature_context and name == "split" and literal_string(args[0]) == "":
                 raise self.fail(node, "split has an empty delimiter")
@@ -1210,7 +1218,7 @@ class DomBuilder:
         if rule == "method":
             result = yield self._method(node)
             if term_type(result, memo=self.types)[0] == "predicate":
-                raise self.fail(node, "a predicate cannot stand as a value term")
+                raise self.fail(node, "a query method is a condition, not a term")
             return result
         raise self.fail(node, f"unexpected {rule} in a term")
 
@@ -1287,4 +1295,6 @@ def operand_problem(name: str, kinds: list[str]) -> str | None:
         return None if kinds == ["string"] else f"%{name} takes one string"
     if name == "features":
         return None if kinds and names else "%features takes one or more names"
+    if name == "ambiguity-resolution" and not 1 <= len(kinds) <= 2:
+        return "%ambiguity-resolution takes one or two names"
     return None if names else f"%{name} takes names only"

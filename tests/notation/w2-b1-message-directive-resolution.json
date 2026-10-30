@@ -1,0 +1,11 @@
+{
+  "description": "Reader diagnostics use common text and retain their positions.",
+  "document": "```jbogenbau\n%ambiguity-resolution other\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1,
+      "message": "%ambiguity-resolution takes a ranking name and optionally elision-only"
+    }
+  }
+}

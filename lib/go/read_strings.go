@@ -365,10 +365,10 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 	name := b.tokenValue(b.token(b.only(selector, "method-name")))
 	if f.arguments == nil {
 		if !knownMethod(name) {
-			b.fail(f.n, "unknown method .%s", name)
+			b.fail(f.n, "unknown method %s", name)
 		}
 		if b.closedFor != "" && name != "split" && name != "ngrams" {
-			b.fail(f.n, "%s requires a closed term", b.closedFor)
+			b.fail(f.n, "%s cannot read an input method", b.closedFor)
 		}
 		f.arguments = []*Node{}
 		if arguments := one(selector, "arguments"); arguments != nil {
@@ -380,7 +380,7 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 		if integer := one(arg, "integer"); integer != nil {
 			digits := b.tokenValue(b.token(integer))
 			if !validInteger(digits) {
-				b.fail(integer, "an integer argument is positive without leading zeros")
+				b.fail(integer, "an integer argument is positive and has no leading zeros")
 			}
 			f.args = append(f.args, &domTerm{Kind: tmInteger, Str: digits})
 			return f.resume(b, nil)
@@ -416,7 +416,29 @@ func knownMethod(name string) bool {
 }
 
 func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, predicate bool) *domTerm {
-	fail := func() { b.fail(n, "invalid receiver or arguments for .%s", name) }
+	fail := func() {
+		dependent := b.featureContext
+		pending := []*Node{n}
+		for len(pending) > 0 && !dependent {
+			node := pending[len(pending)-1]
+			pending = pending[:len(pending)-1]
+			dependent = node.Rule == "parameter" || node.Rule == "call"
+			pending = append(pending, parts(node)...)
+		}
+		if dependent {
+			b.fail(n, "a method has the wrong receiver or arguments")
+		}
+		if name == "without-elision" {
+			b.fail(n, "without-elision requires a bare capture: write $x.without-elision.onward")
+		}
+		if name == "without-elision-except" {
+			if receiver.Kind != tmCapture {
+				b.fail(n, "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward")
+			}
+			b.fail(n, "without-elision-except requires one rule name")
+		}
+		b.fail(n, "a method has the wrong receiver or arguments")
+	}
 	if name == "ends" && restoredTerm(receiver) {
 		b.fail(n, "ends requires an ordinary span, not a restored span")
 	}
@@ -431,10 +453,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 		}
 	case "without-elision", "without-elision-except":
 		if receiver.Kind != tmCapture && !unknown(receiver) && !b.featureContext {
-			if name == "without-elision-except" {
-				b.fail(n, ".without-elision-except requires a bare capture. Use $x.without-elision-except(f).onward.")
-			}
-			b.fail(n, ".without-elision requires a bare capture. Use $x.without-elision.onward.")
+			fail()
 		}
 		valid = name == "without-elision" && len(args) == 0 || name == "without-elision-except" && len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0]))
 	case "verbatim-text", "emitted":
@@ -467,14 +486,17 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 			args[0] = &domTerm{Kind: tmClassifier, Str: args[0].Str}
 		}
 	default:
-		b.fail(n, "unknown method .%s", name)
+		b.fail(n, "unknown method %s", name)
 	}
 	if !valid {
 		fail()
 	}
 	isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends"
 	if isPredicate != predicate {
-		b.fail(n, ".%s has the wrong result type here", name)
+		if isPredicate {
+			b.fail(n, "a query method is a condition, not a term")
+		}
+		b.fail(n, "a condition requires a query method")
 	}
 	items := append([]*domTerm{receiver}, args...)
 	if msg := literalCallProblem(name, items); msg != "" && !b.featureContext {

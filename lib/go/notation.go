@@ -125,7 +125,7 @@ func (nr *notationReader) read(text, docPath string) (*domDoc, *Error) {
 func (nr *notationReader) readMode(text, docPath string, deferEmission bool, selected ...*namesScope) (dom *domDoc, err *Error) {
 	gt := extractGrammarText(text)
 	if gt.unclosed != nil {
-		return nil, grammarError(docPath, *gt.unclosed, "a jbogenbau block is never closed")
+		return nil, grammarError(docPath, *gt.unclosed, "a jbogenbau block that is never closed")
 	}
 	names := newNamesScope(func(path string) (string, bool, *Error) { text, ok := bundledNamesText(path); return text, ok, nil }, nr.uni, nil)
 	if len(selected) > 0 {
@@ -592,7 +592,16 @@ func (b *domBuilder) document(root *Node) *domDoc {
 				b.fail(keyword, "%s", problem)
 			}
 			if !directiveOperandsOK(dir) {
-				b.fail(keyword, "invalid directive operands")
+				switch dir.Name {
+				case "stage", "extend-stage", "redefine-stage":
+					b.fail(keyword, "%%%s takes one lowercase name", dir.Name)
+				case "features":
+					b.fail(keyword, "%%features takes feature names")
+				case "ambiguity-resolution":
+					b.fail(keyword, "%%ambiguity-resolution takes a ranking name and optionally elision-only")
+				default:
+					b.fail(keyword, "invalid directive operands")
+				}
 			}
 			if clause := one(c, "conditions-clause"); clause != nil {
 				if dir.Name != "features" {
@@ -1086,6 +1095,13 @@ func operandProblem(name string, kinds []string) string {
 	case "features":
 		if len(kinds) == 0 || !names {
 			return "%features takes one or more names"
+		}
+	case "ambiguity-resolution":
+		if len(kinds) < 1 || len(kinds) > 2 {
+			return "%ambiguity-resolution takes one or two names"
+		}
+		if !names {
+			return "%ambiguity-resolution takes names only"
 		}
 	default:
 		if !names {
