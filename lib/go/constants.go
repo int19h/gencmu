@@ -382,11 +382,11 @@ func (g *stageGrammar) resolveConstants() *Error {
 				return g.constError(u.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
 			}
 		}
-		if err := g.validateStringUses(u.doc, u.rule); err != nil {
-			return err
-		}
 		if f := ruleTypeFault(u.rule, types); f != nil {
 			return g.faultError(u.doc, f.node, u.rule.At, f.problem)
+		}
+		if err := g.validateStringUses(u.doc, u.rule); err != nil {
+			return err
 		}
 		var patternErr *Error
 		scan := func(p clausePart) bool {

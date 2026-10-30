@@ -456,8 +456,14 @@ def tag_term_problem(term: Any, memo: Optional[Memo] = None) -> str | None:
 
 
 def rule_type_fault(rule: Any, constants: ConstantTypes = _unknown_constants) -> Optional[Fault]:
-    """Why a well-formed rule's terms and conditions do not agree in type,
-    with the construct at fault, or None."""
+    """Select the fault whose first constant occurs first in the rule."""
+    def position(fault: Fault) -> tuple[int, int]:
+        return min((tuple(reference["at"]) for reference in constants_in(fault[1])), default=(0, 0))
+    return min(_rule_type_faults(rule, constants), key=position, default=None)
+
+
+def _rule_type_faults(rule: Any, constants: ConstantTypes = _unknown_constants) -> Any:
+    """Yield rule type faults with their smallest disagreeing constructs."""
     terms = [rule.get("tags"), *(alternative.get("tags") for alternative in rule["alternatives"])]
     if "emit" in rule:
         terms.extend(item.get("tags") for item in rule["emit"]["items"])
@@ -466,21 +472,22 @@ def rule_type_fault(rule: Any, constants: ConstantTypes = _unknown_constants) ->
             continue
         fault = tag_term_fault(term, constants)
         if fault is not None:
-            return fault
+            yield fault
     for condition in rule["conditions"]:
         fault = condition_type_fault(condition, constants)
         if fault is not None:
-            return fault
+            yield fault
     for alternative in rule["alternatives"]:
         for test in tests_in(alternative["expr"]):
             operands = [r["value"] for r in test["requirements"]] if test["test"] == "tags" else [test["value"]]
             for value in operands:
                 kind, fault = term_type_fault(value, constants)
                 if fault is not None:
-                    return fault
+                    yield fault
+                    continue
                 problem = test_type_problem(test["test"], kind)
                 if problem is not None:
-                    return problem, value
+                    yield problem, value
     # The reader knows the shape of string terminals and recipe atoms.
     # Binding supplies the types of their user constants, including those
     # in definitions that a later declaration replaces.
@@ -496,12 +503,12 @@ def rule_type_fault(rule: Any, constants: ConstantTypes = _unknown_constants) ->
             for operand in operands:
                 kind, fault = term_type_fault(operand, constants)
                 if fault is not None:
-                    return fault
+                    yield fault
+                    continue
                 problem = expected_problem(kind, "string")
                 if problem is not None:
-                    return problem, operand
+                    yield problem, operand
             pending.extend(reversed(list(node.values())))
-    return None
 
 
 def tests_in(expr: Any) -> list[dict[str, Any]]:

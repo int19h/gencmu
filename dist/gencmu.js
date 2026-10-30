@@ -6238,6 +6238,17 @@
    * @returns {TypeFault | null}
    */
   function ruleTypeFault(rule, constants) {
+    let first = null;
+    let position = [Infinity, Infinity];
+    for (const fault of ruleTypeFaults(rule, constants)) {
+      const at = constantsIn(fault.node).map(reference => reference.at).sort((a,b) => a[0]-b[0] || a[1]-b[1])[0] ?? [0,0];
+      if (at[0] < position[0] || at[0] === position[0] && at[1] < position[1]) { first = fault; position = at; }
+    }
+    return first;
+  }
+
+  /** @param {any} rule @param {ConstantTypes} [constants] @returns {Generator<TypeFault>} */
+  function* ruleTypeFaults(rule, constants) {
     const recipes = [rule.value, rule.image,
       ...rule.alternatives.flatMap((/** @type {any} */ alternative) => [alternative.value, alternative.image]),
       ...(rule.emit ? rule.emit.items.flatMap((/** @type {any} */ item) => [item.value, item.image]) : [])];
@@ -6245,9 +6256,9 @@
       if (recipe === undefined) continue;
       for (const atom of recipe.concat) {
         const found = termType(atom, constants);
-        if ("problem" in found) return found;
+        if ("problem" in found) { yield found; continue; }
         const problem = expectedProblem(found.type, "string");
-        if (problem) return { problem, node: atom };
+        if (problem) yield { problem, node: atom };
       }
     }
     const tagTerms = [rule.tags, ...rule.alternatives.map((/** @type {any} */ alternative) => alternative.tags),
@@ -6255,11 +6266,11 @@
     for (const term of tagTerms) {
       if (term === undefined) continue;
       const fault = tagTermFault(term, constants);
-      if (fault) return fault;
+      if (fault) yield fault;
     }
     for (const condition of rule.conditions) {
       const fault = conditionTypeFault(condition, constants);
-      if (fault) return fault;
+      if (fault) yield fault;
     }
     for (const alternative of rule.alternatives) {
       const pending = [alternative.expr];
@@ -6268,20 +6279,20 @@
         const operands = expr.literal ? [expr.literal] : expr.range ?? [];
         for (const operand of operands) {
           const found = termType(operand,constants);
-          if ("problem" in found) return found;
+          if ("problem" in found) { yield found; continue; }
           const problem = expectedProblem(found.type,"string");
-          if (problem) return {problem,node:operand};
+          if (problem) yield {problem,node:operand};
         }
         if (expr.range) {
           const ends = expr.range.map((/** @type {any} */ end) => end.const ? end.value : end);
           for (let i=0;i<ends.length;i++) {
-            if (typeof ends[i]?.string === "string" && [...ends[i].string].length !== 1) return {problem:"a range endpoint is one scalar",node:expr.range[i]};
+            if (typeof ends[i]?.string === "string" && [...ends[i].string].length !== 1) yield {problem:"a range endpoint is one scalar",node:expr.range[i]};
           }
           const problem = rangeProblem(ends);
-          if (problem) return {problem,node:expr};
+          if (problem) yield {problem,node:expr};
         }
-        for (const key of ["seq","choice","ranked","and"]) if (expr[key]) for (const child of expr[key]) pending.push(child);
-        for (const key of ["optional","repeat","separator","expr"]) if (expr[key]) pending.push(expr[key]);
+        for (const key of ["seq","choice","ranked","and"]) if (expr[key]) for (let i = expr[key].length - 1; i >= 0; i--) pending.push(expr[key][i]);
+        for (const key of ["expr","separator","repeat","optional"]) if (expr[key]) pending.push(expr[key]);
       }
     }
     // A test's value is a string for a value test and a tag set for a tag
@@ -6291,13 +6302,13 @@
         const operands = test.test === "tags" ? /** @type {any} */ (test).requirements.map((/** @type {any} */ requirement) => requirement.value) : [test.value];
         for (const value of operands) {
           const found = termType(value, constants);
-          if ("problem" in found) return found;
+          if ("problem" in found) { yield found; continue; }
           const problem = expectedProblem(found.type, test.test === "tags" ? "tags" : "string");
-          if (problem) return { problem, node: value };
+          if (problem) yield { problem, node: value };
         }
       }
     }
-    return null;
+
   }
 
   /**

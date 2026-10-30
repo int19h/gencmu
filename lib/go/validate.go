@@ -1638,14 +1638,65 @@ func ruleTypeProblem(r *domRule) string {
 // ruleTypeFault is why a rule's terms and conditions do not agree in type,
 // with the construct at fault, or nil.
 func ruleTypeFault(r *domRule, ct constTypes) *typeFault {
+	var first *typeFault
+	position := [2]int{int(^uint(0) >> 1), int(^uint(0) >> 1)}
+	keep := func(f *typeFault) {
+		if f == nil {
+			return
+		}
+		at := [2]int{}
+		for i, ref := range constRefs(f.node) {
+			if i == 0 || ref.At[0] < at[0] || ref.At[0] == at[0] && ref.At[1] < at[1] {
+				at = ref.At
+			}
+		}
+		if first == nil || at[0] < position[0] || at[0] == position[0] && at[1] < position[1] {
+			first, position = f, at
+		}
+	}
+	stringUse := func(t *domTerm) {
+		ty, f := termTypeIn(t, ct)
+		if f != nil {
+			keep(f)
+		} else if problem := expectedProblem(ty, tyString); problem != "" {
+			keep(&typeFault{problem, t})
+		}
+	}
+	for _, recipe := range ruleRecipes(r) {
+		for _, atom := range recipe.Items {
+			stringUse(atom)
+		}
+	}
+	for _, a := range r.Alternatives {
+		stack := []*domExpr{a.Expr}
+		for len(stack) > 0 {
+			e := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			if e == nil {
+				continue
+			}
+			if e.Kind == exLiteral {
+				stringUse(e.Value)
+			}
+			if e.Kind == exRange {
+				for _, end := range e.Ends {
+					stringUse(end)
+				}
+			}
+			stack = append(stack, e.Sep, e.Inner)
+			for i := len(e.Items) - 1; i >= 0; i-- {
+				stack = append(stack, e.Items[i])
+			}
+		}
+	}
 	for _, t := range ruleTagTerms(r) {
 		if f := tagTermFault(t, ct); f != nil {
-			return f
+			keep(f)
 		}
 	}
 	for _, c := range r.Conditions {
 		if f := condTypeFault(c, ct); f != nil {
-			return f
+			keep(f)
 		}
 	}
 	// A test's value is a string for a sound test and a tag set for a tag
@@ -1656,24 +1707,26 @@ func ruleTypeFault(r *domRule, ct constTypes) *typeFault {
 				for _, r := range t.Requirements {
 					ty, f := termTypeIn(r.Value, ct)
 					if f != nil {
-						return f
+						keep(f)
+						continue
 					}
 					if problem := expectedProblem(ty, tyTags); problem != "" {
-						return &typeFault{problem, r.Value}
+						keep(&typeFault{problem, r.Value})
 					}
 				}
 				continue
 			}
 			ty, f := termTypeIn(t.Value, ct)
 			if f != nil {
-				return f
+				keep(f)
+				continue
 			}
 			if problem := testTypeProblem(t.Op, ty); problem != "" {
-				return &typeFault{problem, t.Value}
+				keep(&typeFault{problem, t.Value})
 			}
 		}
 	}
-	return nil
+	return first
 }
 
 // ruleTagTerms lists a rule's tag terms that are written: its %tags, its

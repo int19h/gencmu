@@ -2082,91 +2082,95 @@ pub(crate) fn rule_type_problem(rule: &RuleDef) -> Option<String> {
 /// Why a rule's terms and conditions do not agree in type, at the
 /// smallest construct that disagrees, or `None`.
 pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Option<Fault> {
-    let items = rule.emit.iter().flatten().filter_map(|item| match item {
-        EmitItem::Capture(_, tags, ..) | EmitItem::Insert(tags, _) => tags.as_ref(),
-    });
-    rule.tags
+    let mut faults = Vec::new();
+    for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|a| a.tags.as_ref())).chain(
+        rule.emit.iter().flatten().filter_map(|item| match item {
+            EmitItem::Capture(_, tags, ..) | EmitItem::Insert(tags, _) => tags.as_ref(),
+        }),
+    ) {
+        faults.extend(tag_term_fault(term, constants));
+    }
+    for term in rule
+        .strings
+        .value
         .iter()
-        .chain(rule.alternatives.iter().filter_map(|alternative| alternative.tags.as_ref()))
-        .chain(items)
-        .find_map(|term| tag_term_fault(term, constants))
-        .or_else(|| {
-            rule.strings
-                .value
-                .iter()
-                .chain(&rule.strings.image)
-                .chain(rule.alternatives.iter().flat_map(|a| a.strings.value.iter().chain(&a.strings.image)))
-                .chain(rule.emit.iter().flatten().flat_map(|item| {
-                    let strings = match item {
-                        EmitItem::Capture(_, _, a) => &a.strings,
-                        EmitItem::Insert(_, s) => s,
-                    };
-                    strings.value.iter().chain(&strings.image)
-                }))
-                .find_map(|term| match term_type_in(term, constants) {
-                    Err(fault) => Some(fault),
-                    Ok(ty) => expected_problem(ty, Type::String).map(|problem| Fault::in_term(problem, term)),
-                })
-        })
-        .or_else(|| rule.conditions.iter().find_map(|cond| cond_type_fault(cond, constants)))
-        .or_else(|| {
-            // A test's value is a string for a sound test and a tag set for
-            // a tag test (engine §9, §10).
-            rule.alternatives.iter().flat_map(|alternative| tests_in(&alternative.expr)).find_map(|(op, value, _)| {
-                match term_type_in(value, constants) {
-                    Err(fault) => Some(fault),
-                    Ok(ty) => test_type_problem(op, ty).map(|problem| Fault::in_term(problem, value)),
+        .chain(&rule.strings.image)
+        .chain(rule.alternatives.iter().flat_map(|a| a.strings.value.iter().chain(&a.strings.image)))
+        .chain(rule.emit.iter().flatten().flat_map(|item| {
+            let strings = match item {
+                EmitItem::Capture(_, _, a) => &a.strings,
+                EmitItem::Insert(_, s) => s,
+            };
+            strings.value.iter().chain(&strings.image)
+        }))
+    {
+        match term_type_in(term, constants) {
+            Err(fault) => faults.push(fault),
+            Ok(ty) => {
+                if let Some(problem) = expected_problem(ty, Type::String) {
+                    faults.push(Fault::in_term(problem, term));
                 }
-            })
-        })
-        .or_else(|| {
-            let mut pending: Vec<_> = rule.alternatives.iter().map(|a| &a.expr).collect();
-            while let Some(expr) = pending.pop() {
-                let terms: [Option<&Term>; 2] = match expr {
-                    Expr::Literal(t) => [Some(t), None],
-                    Expr::ScalarRange(a, b) => [Some(a), Some(b)],
-                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
-                        pending.extend(items);
-                        continue;
-                    }
-                    Expr::Optional(inner, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => {
-                        pending.push(inner);
-                        continue;
-                    }
-                    Expr::Repeat(item, separator, _) => {
-                        pending.push(item);
-                        pending.extend(separator.as_deref());
-                        continue;
-                    }
-                    _ => continue,
-                };
-                for term in terms.into_iter().flatten() {
-                    match term_type_in(term, constants) {
-                        Err(fault) => return Some(fault),
-                        Ok(ty) => {
-                            if let Some(problem) = expected_problem(ty, Type::String) {
-                                return Some(Fault::in_term(problem, term));
-                            }
-                        }
-                    }
+            }
+        }
+    }
+    for cond in &rule.conditions {
+        faults.extend(cond_type_fault(cond, constants));
+    }
+    for (op, value, _) in rule.alternatives.iter().flat_map(|a| tests_in(&a.expr)) {
+        match term_type_in(value, constants) {
+            Err(fault) => faults.push(fault),
+            Ok(ty) => {
+                if let Some(problem) = test_type_problem(op, ty) {
+                    faults.push(Fault::in_term(problem, value));
                 }
-                if let Expr::ScalarRange(Term::Str(a), Term::Str(b)) = expr {
-                    let mut a_chars = a.chars();
-                    let mut b_chars = b.chars();
-                    let endpoints = (a_chars.next(), b_chars.next());
-                    if !matches!(endpoints, (Some(a), Some(b)) if a <= b)
-                        || a_chars.next().is_some()
-                        || b_chars.next().is_some()
-                    {
-                        return Some(Fault {
-                            problem: "a scalar range requires ordered single-scalar endpoints".into(),
-                            at: None,
-                        });
+            }
+        }
+    }
+    let mut pending: Vec<_> = rule.alternatives.iter().rev().map(|a| &a.expr).collect();
+    while let Some(expr) = pending.pop() {
+        let terms: [Option<&Term>; 2] = match expr {
+            Expr::Literal(t) => [Some(t), None],
+            Expr::ScalarRange(a, b) => [Some(a), Some(b)],
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                pending.extend(items.iter().rev());
+                continue;
+            }
+            Expr::Optional(inner, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => {
+                pending.push(inner);
+                continue;
+            }
+            Expr::Repeat(item, separator, _) => {
+                pending.extend(separator.as_deref());
+                pending.push(item);
+                continue;
+            }
+            _ => continue,
+        };
+        for term in terms.into_iter().flatten() {
+            match term_type_in(term, constants) {
+                Err(fault) => faults.push(fault),
+                Ok(ty) => {
+                    if let Some(problem) = expected_problem(ty, Type::String) {
+                        faults.push(Fault::in_term(problem, term));
                     }
                 }
             }
-            None
-        })
+        }
+        if let Expr::ScalarRange(Term::Str(a), Term::Str(b)) = expr {
+            let mut a_chars = a.chars();
+            let mut b_chars = b.chars();
+            if !matches!((a_chars.next(), b_chars.next()), (Some(a), Some(b)) if a <= b)
+                || a_chars.next().is_some()
+                || b_chars.next().is_some()
+            {
+                faults.push(Fault {
+                    problem: "a scalar range requires ordered single-scalar endpoints".into(),
+                    at: None,
+                });
+            }
+        }
+    }
+    faults.into_iter().min_by_key(|fault| fault.at.unwrap_or((0, 0)))
 }
 
 /// The type of a constant's value, or why it cannot be one (engine §2,
