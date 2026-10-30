@@ -45,7 +45,7 @@ pub(crate) struct State<'a> {
 pub(super) fn syntax(root: &Node) -> bool {
     let mut stack = vec![root];
     while let Some(n) = stack.pop() {
-        if matches!(rule_name(n), "call" | "parameter" | "pattern-primary" | "pattern-literal") {
+        if matches!(rule_name(n), "call" | "parameter") {
             return true;
         }
         stack.extend(n.children.iter())

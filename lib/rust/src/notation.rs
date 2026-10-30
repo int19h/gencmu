@@ -10,6 +10,7 @@ use crate::fxhash::FxSet;
 use crate::result::{Node, NodeKind, Token};
 use crate::work::{self, Work};
 mod parameters;
+mod patterns;
 
 pub(crate) struct Reader<'a> {
     pub parameter_state: std::cell::RefCell<parameters::State<'a>>,
@@ -1292,6 +1293,12 @@ impl<'a> Reader<'a> {
                 typed(Term::Capture(name), Type::Span)
             }
             "method" => Ok(Step::Call(Frame::Method(MethodFrame::new(inner, false)))),
+            "pattern-literal" => {
+                let before = self.closed_for.replace(None);
+                let result = self.one(inner, "pattern-primary").and_then(|primary| self.pattern(primary));
+                self.closed_for.set(before);
+                typed(Term::Pattern(Box::new(result?)), Type::Pattern)
+            }
             other => Err(self.unknown(node, other)),
         }
     }

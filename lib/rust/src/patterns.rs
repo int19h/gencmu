@@ -1,4 +1,5 @@
 //! Finite observations of structural trees (engine §4.1).
+mod dropping;
 mod layered;
 pub(crate) mod shapes;
 
