@@ -1256,7 +1256,7 @@ func decodeTermAt(raw json.RawMessage, depth int) (*domTerm, error) {
 		}
 	}
 	if v, ok := o[tmPattern]; ok {
-		p, err := decodePattern(v, false, depth+1)
+		p, err := decodeLayeredPattern(v, depth+1)
 		return &domTerm{Kind: tmPattern, Pattern: p}, err
 	}
 	if isTrue(o["emptySet"]) {

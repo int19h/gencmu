@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import re
-from typing import Any, Callable
+from typing import Any
 
 from . import _testing
-from ._strings import ENGINE_TAGS, USER_NAME, is_constant
 
 Dom = dict[str, Any]
 

@@ -1,7 +1,3 @@
-/** @param {any} node @returns {any[]} */
-export declare function layeredPatternParts(node: any): any[];
-/** @param {any} node @returns {any[]} */
-export declare function patternItemParts(node: any): any[];
 /**
  * @param {any} root
  * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]

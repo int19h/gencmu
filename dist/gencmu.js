@@ -2314,9 +2314,7 @@
    * @returns {string[]}
    */
   function sortedTags(tags) {
-    const names = [...tags];
-    // UTF-16 and code-point order agree unless a string contains a surrogate.
-    return names.some(name => /[\uD800-\uDFFF]/.test(name)) ? names.sort(compareCodePoints) : names.sort();
+    return [...tags].sort();
   }
 
   /** @param {string} string @param {string} digits @returns {Set<string>} */
@@ -2401,21 +2399,6 @@
       if (stack.length === 0) return value;
       stack[stack.length - 1].values.push(value);
     }
-  }
-
-  /**
-   * Whether any node of a tree satisfies a test, visiting nodes top-down.
-   * @param {ResultNode} root
-   * @param {(node: ResultNode) => boolean} test
-   * @returns {boolean}
-   */
-  function someNode(root, test) {
-    const stack = [root];
-    for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
-      if (test(node)) return true;
-      if (node.kind === "rule") for (let index = node.children.length - 1; index >= 0; index--) stack.push(node.children[index]);
-    }
-    return false;
   }
 
   // ---- output.js
@@ -4226,21 +4209,6 @@
   // Layered pattern constructors (docs/output.md, "Pattern values").
   // This walk keeps pattern and item positions distinct before substitution.
 
-  /** @param {any} node @returns {any[]} */
-  function layeredPatternParts(node) {
-    if (node.union || node.intersection || node.difference) return node.union ?? node.intersection ?? node.difference;
-    if (node.path) return [node.pattern];
-    if (node.test) return [node.expr];
-    return node.children ?? [];
-  }
-
-  /** @param {any} node @returns {any[]} */
-  function patternItemParts(node) {
-    if (node.child) return [node.child];
-    if (node.choice) return node.choice.flat();
-    return [...(node.optional ?? node.repeat ?? []), ...(node.separator ?? [])];
-  }
-
   /**
    * @param {any} root
    * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
@@ -4248,7 +4216,6 @@
    */
   function layeredPatternProblem(root, inspect = {}) {
     const stack = [{node:root,item:false,repeated:false,depth:inspect.depth ?? 0,inner:false}];
-    const repeats = [];
     const object = (/** @type {any} */ n) => n && typeof n === 'object' && !Array.isArray(n);
     const position = (/** @type {any} */ n) => Array.isArray(n) && n.length === 2 && n.every((/** @type {any} */ x) => Number.isInteger(x) && x > 0);
     const stringTerm = (/** @type {any} */ n) => object(n) && (
@@ -4279,7 +4246,6 @@
           if (!items(n.optional)) return 'a malformed pattern optional';
         } else if (exact(['repeat']) || exact(['repeat','separator'])) {
           if (!items(n.repeat,true) || 'separator' in n && !items(n.separator,true)) return 'a malformed pattern repeat';
-          repeats.push(n.repeat);
         } else if (exact(['choice'])) {
           if (!Array.isArray(n.choice) || n.choice.length < 2) return 'a malformed pattern choice';
           for (const arm of n.choice) {
@@ -4346,16 +4312,6 @@
       }
       if (!exact(fields)) return 'a malformed pattern node test';
       if ('children' in n && !items(n.children,false,true)) return 'a malformed pattern child list';
-    }
-    for (const repeat of repeats) {
-      const pending = [...repeat];
-      let consumes = false;
-      while (pending.length && !consumes) {
-        const item = pending.pop();
-        if ('child' in item) consumes = true;
-        else for (const child of patternItemParts(item)) pending.push(child);
-      }
-      if (!consumes) return 'a pattern repeat cannot match only empty sequences';
     }
     return null;
   }
@@ -7853,15 +7809,6 @@
     return tokens;
   }
 
-  // A text's code points, for slicing by code point positions.
-  /**
-   * @param {string} text
-   * @returns {string[]}
-   */
-  function codePoints(text) {
-    return [...text];
-  }
-
   // ---- restoration.js
   // Tokens and source projection shared by elision-only and restored spans.
 
@@ -8867,8 +8814,8 @@
     }
 
     /**
-     * Defines or redefines a constant, with the value its term has at this
-     * point of the stage (engine §2).
+     * Records an immutable constant version. Final bindings select the
+     * dependency graph before evaluation (engine §2).
      * @param {string} path
      * @param {DomConstant} constant
      */
@@ -9926,7 +9873,7 @@
 
     /**
      * The terminal of an elidable optional, the first item of its content,
-     * and its `=` test, if any (engine §3.8, §12).
+     * and its complete symbol predicate (engine §3.8, §12).
      * @param {Expr} expr
      * @param {Where} where
      * @returns {{terminal: string, test: SymbolTest | null}}
@@ -10030,7 +9977,7 @@
   }
 
   /**
-   * Whether an expression is a chain, `{... x \ s}` or `{x ... \ s}`.
+   * Whether an expression is a chain, `{... x / s}` or `{x ... / s}`.
    * @param {Expr} expr
    * @returns {expr is {repeat: Expr, separator?: Expr, chain: "left" | "right"}}
    */

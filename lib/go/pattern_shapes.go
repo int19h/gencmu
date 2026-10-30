@@ -64,24 +64,6 @@ func layeredPatternSet(n templateObject) string {
 	}
 	return ""
 }
-func layeredItemParts(n templateObject) []any {
-	if layeredHas(n, "child") {
-		return []any{n["child"]}
-	}
-	var parts []any
-	if layeredHas(n, "choice") {
-		for _, arm := range templateList(n["choice"]) {
-			parts = append(parts, templateList(arm)...)
-		}
-		return parts
-	}
-	key := "repeat"
-	if layeredHas(n, "optional") {
-		key = "optional"
-	}
-	parts = append(parts, templateList(n[key])...)
-	return append(parts, templateList(n["separator"])...)
-}
 func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 	type task struct {
 		node                  any
@@ -105,7 +87,6 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 		return layeredOnly(n, "tag") && ok && terminal(s)
 	}
 	pending := []task{{node: root, depth: inspect.depth}}
-	var repeats [][]any
 	for len(pending) > 0 {
 		t := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
@@ -148,7 +129,6 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 				if !items(n["repeat"], true, false) || layeredHas(n, "separator") && !items(n["separator"], true, false) {
 					return "a malformed pattern repeat"
 				}
-				repeats = append(repeats, templateList(n["repeat"]))
 			case layeredOnly(n, "choice"):
 				arms, ok := n["choice"].([]any)
 				if !ok || len(arms) < 2 {
@@ -295,22 +275,6 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 		}
 		if layeredHas(n, "children") && !items(n["children"], false, true) {
 			return "a malformed pattern child list"
-		}
-	}
-	for _, repeat := range repeats {
-		pendingItems := append([]any{}, repeat...)
-		consumes := false
-		for len(pendingItems) > 0 && !consumes {
-			n := templateObj(pendingItems[len(pendingItems)-1])
-			pendingItems = pendingItems[:len(pendingItems)-1]
-			if layeredHas(n, "child") {
-				consumes = true
-			} else {
-				pendingItems = append(pendingItems, layeredItemParts(n)...)
-			}
-		}
-		if !consumes {
-			return "a pattern repeat cannot match only empty sequences"
 		}
 	}
 	return ""

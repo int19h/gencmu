@@ -35,9 +35,9 @@ func TestPatternResolutionCachedStages(t *testing.T) {
 				sources := map[string]string{
 					"p.md": block("%stage before", "%ambiguity-resolution greedy", `%include "before.md"`, `%include "shared.md"`,
 						"%stage after", "%ambiguity-resolution greedy", `%include "after.md"`, `%include "shared.md"`),
-					"before.md":               block("%const $P "+c.before, "%const $GOOD Extra", "%const $BAD Blocked"),
-					"after.md":                block("%const $P "+c.after, "%const $GOOD Extra", "%const $BAD Blocked"),
-					"shared.md":               block("%rule text "+c.body+" :: ("+condition+" ⟹ X)", "%emits $ :: (A Extra) ∪ ("+condition+" ⟹ X)"),
+					"before.md":                  block("%const $P "+c.before, "%const $GOOD Extra", "%const $BAD Blocked"),
+					"after.md":                   block("%const $P "+c.after, "%const $GOOD Extra", "%const $BAD Blocked"),
+					"shared.md":                  block("%rule text "+c.body+" :: ("+condition+" ⟹ X)", "%emits $ :: (A Extra) ∪ ("+condition+" ⟹ X)"),
 					"data/preparsed/gencmu.json": bundled.sources["data/preparsed/gencmu.json"],
 				}
 				fresh := mustLoad(t, sources)
@@ -89,7 +89,7 @@ func TestPatternResolutionCachedStages(t *testing.T) {
 
 func TestPatternStateGrowth(t *testing.T) {
 	t.Parallel()
-	p := &domPattern{Kind: "children", Items: []*domPattern{{Kind: "repeat", Items: []*domPattern{patternChildren(&domPattern{Kind: "terminal", Name: "A"})}}}}
+	p := &domPattern{Kind: "any", Attached: []*domPattern{{Kind: "repeat", Items: []*domPattern{patternChildren(&domPattern{Kind: "terminal", Name: "A"})}}}}
 	m := newPatternMachine([]*domPattern{p})
 	leaf := m.node("", m.empty, "A", "a", newInterner().single("A"))
 	prefix := m.empty
@@ -112,7 +112,7 @@ func TestPatternMachineBeyondWordSize(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		children = append(children, patternChildren(&domPattern{Kind: "terminal", Name: "A149"}))
 	}
-	sequence := &domPattern{Kind: "children", Items: []*domPattern{{Kind: "sequence", Items: children}}}
+	sequence := &domPattern{Kind: "any", Attached: children}
 	roots = append(roots, sequence)
 	m := newPatternMachine(roots)
 	leaf := m.node("", m.empty, "A149", "a", newInterner().single("A149"))

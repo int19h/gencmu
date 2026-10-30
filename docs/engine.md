@@ -761,6 +761,8 @@ Pattern literals print `#` directly before a node test, constant, parameter, or 
 
 A nonempty list prints `« `, its items, and ` »`. An empty list prints `«»`. Child items have one separating space. Optional brackets and braces have no internal padding. A separator prints as ` / `, and a sibling gap prints `⋯`.
 
+Pattern tag requirements use the ordinary term printer, including when their spelling supplies an instance name.
+
 Paths print as `⋮ P`, `⋱ P`, and `P ⋰`. If the operand is a compound pattern, the printer adds parentheses around it. A node test, constant, parameter, or bare child list takes no parentheses. Thus nested paths retain parentheses. A path over children prints `« A B » ⋰`, with the list boundary intact.
 
 Pattern union, intersection, and difference use spaces around their operators. Intersection operands that are unions or differences take parentheses. Union and intersection flatten their own kind. A difference's left operand takes no parentheses. If its right operand is a union or difference, that operand takes parentheses. Other parentheses follow binding strength.
@@ -1273,6 +1275,8 @@ Each sibling gap has a private consuming loop. Its loop cannot consume children 
 Each structural machine reuses one seal state. Completing another ranked option does not rebuild the seal's sequence relations.
 
 A node test evaluates its atom and attached child list together at the current node. Unless `exact:true` is present, it propagates that complete local answer through a sole child. A bare child list follows the same rule without an atom. Each child pattern computes its own complete answer, with its own exact prefix.
+
+A bare child list uses the ordinary node form with `any:true` and its `children` array. Internal empty patterns use this same form.
 
 Descendant paths combine local and child answers. First and last paths use only their respective child. Set operations combine complete predicate answers on one candidate. Difference complements the completed deterministic answer, never incomplete evidence or another unary layer.
 
@@ -2816,7 +2820,7 @@ For `$x ≅ NAME`, report at NAME: `tree comparison requires a pattern; write #N
 
 Source captures, guards, elision markers, and chain repetitions inside patterns fail syntax recognition. A tree comparison with a non-capture left operand also fails syntax recognition. Supplied trees and DOMs still undergo the stated reader restrictions.
 
-Readers reject missing parts, unknown members and invalid arities. Tests require terminal atoms and ordinary closed operands. Captures, guards, emissions, alternative tags, elision markers and chain repetitions cannot occur in patterns. Repeat bodies cannot match only empty sequences.
+Readers reject missing parts, unknown members and invalid arities. Tests require terminal atoms and ordinary closed operands. Captures, guards, emissions, alternative tags, elision markers and chain repetitions cannot occur in patterns. Every repeat body contains a child pattern under these restrictions.
 
 Child arrays retain their context throughout unresolved inspection. An optional accepts no `separator`, and only a repeat accepts that member. A sibling ellipsis cannot occur at a repeat's sibling level, including through optional, choice, or repeat wrappers. A `child` pattern starts another node and therefore another sibling level for its own child list. Supplied DOMs obey the same restrictions. Stage resolution includes every pattern in replaced definitions and uncalled templates.
 

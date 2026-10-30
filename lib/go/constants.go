@@ -5,10 +5,9 @@ import (
 	"strings"
 )
 
-// A stage's constants (engine §2): the loader gives each its value when it
-// stitches the stage, in the stitching order, and then gives every
-// reference in a rule the final value. A DOM never holds a value, so a
-// document shared by several stages or pipelines takes the values of each.
+// The loader records immutable constant versions, binds their dependency
+// graph, and evaluates that graph (engine §2). Rule references use final
+// bindings. A shared document retains independent values in each stage.
 
 // stageConst is a constant of a stage: its value now, with its type, and
 // the document of its last definition.

@@ -508,8 +508,8 @@ func (lw *lowerer) lowerRule(r *sRule) {
 	}
 }
 
-// isChain says whether an expression is a chain, {... x \ s} or
-// {x ... \ s}.
+// isChain says whether an expression is a chain, {... x / s} or
+// {x ... / s}.
 func isChain(e *domExpr) bool {
 	return e.Kind == exRepeat && e.Chain != ""
 }

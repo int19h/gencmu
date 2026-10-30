@@ -213,8 +213,8 @@ export declare class Grammar {
      */
     documentError(path: string, position: [number, number], message: string): GencmuError;
     /**
-     * Defines or redefines a constant, with the value its term has at this
-     * point of the stage (engine §2).
+     * Records an immutable constant version. Final bindings select the
+     * dependency graph before evaluation (engine §2).
      * @param {string} path
      * @param {DomConstant} constant
      */

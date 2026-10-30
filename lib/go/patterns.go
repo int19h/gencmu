@@ -1,7 +1,6 @@
 package gencmu
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -89,8 +88,6 @@ func patternProblem(root *domPattern, depth int, check func(*domPattern, int) st
 			for _, v := range p.Items {
 				push(v, false)
 			}
-		case "children":
-			push(p.Items[0], true)
 		case "name", "terminal", "constant", "literal", "range", "wildcard", "any":
 		default:
 			return "a malformed pattern"
@@ -100,12 +97,6 @@ func patternProblem(root *domPattern, depth int, check func(*domPattern, int) st
 		}
 	}
 	return ""
-}
-func decodePattern(raw json.RawMessage, children bool, depth int) (*domPattern, error) {
-	if children {
-		return nil, fmt.Errorf("a pattern child must be an item in an array")
-	}
-	return decodeLayeredPattern(raw, depth)
 }
 func (w *jsonWriter) pattern(p *domPattern) { writeLayeredPattern(w, p) }
 func patternKey(p *domPattern) string {
@@ -188,11 +179,8 @@ func (m *patternMachine) compile(p *domPattern) int {
 			pred.operands = append(pred.operands, m.compile(n))
 		}
 	}
-	if p.Kind == "children" || p.Attached != nil {
+	if p.Attached != nil {
 		items := &domPattern{Kind: "sequence", Items: p.Attached}
-		if p.Kind == "children" {
-			items = p.Items[0]
-		}
 		n := m.sequence(items)
 		pred.machine = len(m.machines)
 		m.machines = append(m.machines, n)
@@ -374,8 +362,6 @@ func (m *patternMachine) node(name string, children int, terminal, sound string,
 			holds = tags != nil && terminal == p.Name
 		case "test":
 			holds = tags != nil && patternLeafMatches(p, terminal, sound, tags)
-		case "children":
-			holds = true
 		case "any":
 			holds = name != "" || tags != nil
 		case "path":
@@ -403,7 +389,7 @@ func (m *patternMachine) node(name string, children int, terminal, sound string,
 			n := m.machines[pr.machine]
 			holds = holds && s.relations[pr.machine][n.start].Bit(n.end) != 0
 		}
-		if !p.Exact && (p.Kind == "name" || p.Kind == "terminal" || p.Kind == "test" || p.Kind == "children" || p.Kind == "any") && s.count == 1 {
+		if !p.Exact && (p.Kind == "name" || p.Kind == "terminal" || p.Kind == "test" || p.Kind == "any") && s.count == 1 {
 			holds = holds || s.first.Bit(i) != 0
 		}
 		if holds {
@@ -449,7 +435,7 @@ func ruleHasPattern(r *domRule) bool {
 }
 
 func emptyPattern() *domPattern {
-	p := &domPattern{Kind: "children", Items: []*domPattern{{Kind: "siblings"}}}
+	p := &domPattern{Kind: "any", Attached: []*domPattern{{Kind: "siblings"}}}
 	return &domPattern{Kind: tmDifference, Items: []*domPattern{p, p}}
 }
 func patternLiteral(v *constValue) *domTerm {

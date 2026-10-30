@@ -291,8 +291,8 @@ pub(crate) struct LRule {
     /// For the helper of an elidable optional, `[+T …]`: its
     /// terminator `T` (§3.8, §12).
     pub elided: Option<String>,
-    /// The id of that terminator's test, if it has one: an `=` test,
-    /// whose string a restored token sounds like (engine §7).
+    /// The complete symbol predicate on the terminator, if present.
+    /// An equality test also supplies its restored value (engine §7).
     pub elided_test: Option<u32>,
     pub elided_owner: Option<u32>,
 }

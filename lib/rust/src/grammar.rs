@@ -102,8 +102,7 @@ pub(crate) struct StageGrammar {
     pub lean: Lean,
     pub elision_only: bool,
     pub ranked: Arc<crate::ranked::RankedGroups>,
-    /// Whether an elided terminator is forbidden where its constituent
-    /// could have been longer (engine §4).
+    /// The rule replacements and extensions recorded during stitching.
     pub changes: Vec<Change>,
     /// The stage's `%classifier` items in stitching order, each with its
     /// document (engine §2).
@@ -710,8 +709,8 @@ impl Constants<'_> {
         self.values.get(name).map_or(Type::Any, |constant| constant.ty)
     }
 
-    /// Defines or redefines a constant, with the value its term has at this
-    /// point of the stage (engine §2).
+    /// Records an immutable constant version. Final bindings select the
+    /// dependency graph before evaluation (engine §2).
     fn add(&mut self, document: &Arc<str>, constant: &ConstDef) -> Result<(), Error> {
         let ConstDef { name, redefine, at, .. } = constant;
         let previous = self.values.get(name);
