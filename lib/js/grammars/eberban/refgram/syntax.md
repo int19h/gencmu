@@ -452,4 +452,6 @@ The [annotations chapter](https://eberban.github.io/eberban/grammar/annotations.
 
 The PEG compares the repeated verb of a resumption with the earlier verb as a whole, free suffixes included. This grammar compares the verb with its `ZI` modifiers and leaves the annotations free, because an annotation has no logical effect.
 
+A resumption also matches a nested compound that repeats the verb in its other spelling, as `pa e e ber ban ban` after `ei ber ban ban`. Both spellings have one value here, and the PEG fails to resume. [The word stream](stream.md#differences-from-the-reference-grammar-and-the-peg) explains the choice.
+
 After an erasure, the PEG requires a sentence starter, a paragraph mark or the end of the whole text. It requires that inside a quote or a parenthesis too. This grammar also accepts the end of the quote or parenthesis there.
