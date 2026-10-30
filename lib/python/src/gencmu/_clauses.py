@@ -718,8 +718,23 @@ def _variable_captures(expr):
 
 def validation_captures(rule, alternative):
     expr = alternative['expr']
-    if not _variable_captures(expr):
-        captures, pending = {WHOLE: -1}, [expr]
+    # A direct capture already fixes its complete capture list.
+    if 'capture' in expr:
+        return [{WHOLE: -1, expr['capture']: 0}]
+    branches, independent, distinct = [expr], [], set()
+    fixed = True
+    while branches:
+        branch = branches.pop()
+        if 'choice' in branch or 'ranked' in branch:
+            branches.extend(reversed(branch.get('choice', branch.get('ranked'))))
+            continue
+        if 'test' in branch:
+            branches.append(branch['expr'])
+            continue
+        if _variable_captures(branch):
+            fixed = False
+            break
+        captures, pending = {WHOLE: -1}, [branch]
         while pending:
             node = pending.pop()
             if 'capture' in node:
@@ -730,7 +745,12 @@ def validation_captures(rule, alternative):
                 pending.append(next(node[k][0] for k in ('choice', 'ranked', 'and') if k in node))
             elif 'test' in node:
                 pending.append(node['expr'])
-        return [captures]
+        key = tuple(captures)
+        if key not in distinct:
+            distinct.add(key)
+            independent.append(captures)
+    if fixed:
+        return independent
     witnesses = []
 
     def ask(required=(), forbidden=(), order=()):

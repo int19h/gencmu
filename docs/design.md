@@ -422,6 +422,8 @@ Every kind of braces requires one or more items. ISO 14977 reads braces as zero 
 
 A capture cannot stand inside braces or around them because a repeated part has no single captured occurrence. A grammar that needs a capture names its list or chain as a rule. A capture next to flat braces remains legal, as in `$a:A {B}`.
 
+Independent alternatives with fixed capture lists need one validation witness per list. They do not enumerate unrelated capture-presence combinations.
+
 The engine defines these rules in §3:
 
 - A flat list is a helper. The `greedy` and `lazy` rankings do not observe its prefix ends. A rule's conditions do not apply to each list prefix. A grammar that needs those prefixes uses a chain or explicit recursion.

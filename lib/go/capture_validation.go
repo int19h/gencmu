@@ -261,30 +261,71 @@ func variableCaptureExpr(root *domExpr) bool {
 	}
 	return done[0].variable
 }
-func validationCaptures(r *domRule, a *domAlt) []map[string]int {
-	if !variableCaptureExpr(a.Expr) {
-		caps := map[string]int{"": -1}
-		pending := []*domExpr{a.Expr}
-		for len(pending) > 0 {
-			e := pending[len(pending)-1]
-			pending = pending[:len(pending)-1]
-			if e == nil {
+
+// Independent choices have fixed capture lists in each branch. They need
+// no search over combinations of unrelated presence guards.
+func independentCaptureChoices(root *domExpr) ([]map[string]int, bool) {
+	branches := []*domExpr{root}
+	var out []map[string]int
+	seen := map[string]bool{}
+	for len(branches) > 0 {
+		expr := branches[len(branches)-1]
+		branches = branches[:len(branches)-1]
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
+		if expr != nil {
+			if expr.Kind == exChoice || expr.Kind == exRanked {
+				for i := len(expr.Items) - 1; i >= 0; i-- {
+					branches = append(branches, expr.Items[i])
+				}
 				continue
 			}
-			switch e.Kind {
-			case exCapture:
-				caps[e.Name] = len(caps) - 1
-			case exSeq:
-				for i := len(e.Items) - 1; i >= 0; i-- {
-					pending = append(pending, e.Items[i])
-				}
-			case exChoice, exRanked, exAnd:
-				pending = append(pending, e.Items[0])
-			case exTest:
-				pending = append(pending, e.Inner)
+			if expr.Kind == exTest {
+				branches = append(branches, expr.Inner)
+				continue
 			}
 		}
-		return []map[string]int{caps}
+		if variableCaptureExpr(expr) {
+			return nil, false
+		}
+		caps := map[string]int{"": -1}
+		var names []string
+		pending := []*domExpr{expr}
+		for len(pending) > 0 {
+			node := pending[len(pending)-1]
+			pending = pending[:len(pending)-1]
+			if w := work.Load(); w != nil {
+				w.readerSteps.add("reader steps")
+			}
+			if node == nil {
+				continue
+			}
+			switch node.Kind {
+			case exCapture:
+				caps[node.Name] = len(caps) - 1
+				names = append(names, node.Name)
+			case exSeq:
+				for i := len(node.Items) - 1; i >= 0; i-- {
+					pending = append(pending, node.Items[i])
+				}
+			case exChoice, exRanked, exAnd:
+				pending = append(pending, node.Items[0])
+			case exTest:
+				pending = append(pending, node.Inner)
+			}
+		}
+		key := strings.Join(names, "\x00")
+		if !seen[key] {
+			seen[key] = true
+			out = append(out, caps)
+		}
+	}
+	return out, true
+}
+func validationCaptures(r *domRule, a *domAlt) []map[string]int {
+	if captures, ok := independentCaptureChoices(a.Expr); ok {
+		return captures
 	}
 	var witnesses []*captureWitness
 	ask := func(required, forbidden, order []string) {
