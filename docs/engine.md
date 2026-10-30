@@ -1246,7 +1246,7 @@ The recursive-query reason uses this template, with the requested rule name in p
 a condition asks whether its own span parses as R from inside the parse of that span as R: the grammar defines R in terms of itself over the same text
 ```
 
-The reason omits source text, so arbitrary token contents do not require a second escaping convention.
+The reason omits source text, so arbitrary token contents do not require a second escaping convention. Libraries add no stage prefix or document suffix. The structured error retains its stage.
 
 Only queries are active. The main parse of a stage is not a query, and neither is the recognition of the check of §7. In the main parse this changes no result. A query there about the whole input as `text` runs a nested parse of the same tokens with the same grammar. That nested parse reaches the same condition again, and then it is the active query. The check of §7 reads other tokens, so there the difference shows (§7.6).
 
