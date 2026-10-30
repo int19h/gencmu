@@ -884,6 +884,10 @@ func bracesSequences(e *domExpr) [][]string {
 		}
 		return distinct(out)
 	}
+	// A chain holds no capture, and its productions read an item, or a
+	// separator followed by an item, so it gives the item's sequences and
+	// each separator sequence followed by an item sequence (engine §3.3).
+	// Only braces stand in them.
 	kids := func(n *domExpr) []*domExpr {
 		switch {
 		case n == nil:
@@ -891,6 +895,11 @@ func bracesSequences(e *domExpr) [][]string {
 		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
 			return n.Items
 		case n.Kind == exOptional && !n.Elidable:
+			return []*domExpr{n.Inner}
+		case n.Kind == exRepeat && n.Chain != "":
+			if n.Sep != nil {
+				return []*domExpr{n.Inner, n.Sep}
+			}
 			return []*domExpr{n.Inner}
 		}
 		return nil
@@ -939,6 +948,12 @@ func bracesSequences(e *domExpr) [][]string {
 		case exChoice, exRanked:
 			for _, part := range parts {
 				out = append(out, part...)
+			}
+			out = distinct(out)
+		case exRepeat:
+			out = append(out, parts[0]...)
+			if len(parts) > 1 {
+				out = append(out, product(parts[1], parts[0])...)
 			}
 			out = distinct(out)
 		case exAnd:

@@ -647,6 +647,11 @@ func (g *lowered) prepared() *preparation {
 					walkClause(clausePart{c: c}, scan)
 				}
 			}
+			// A frame binds the item conditions of a helper of braces at
+			// recognition (§3.6, §4).
+			for _, c := range p.itemConds {
+				walkClause(clausePart{c: c}, scan)
+			}
 			if p.contextual {
 				for _, term := range []*domTerm{p.slot.source.alt.Tags, p.slot.source.ruleTags} {
 					walkClause(clausePart{t: term}, scan)
