@@ -871,6 +871,8 @@ Every production of a named rule records the stitched rule's flags. Productions 
 
 A stage lowers its grammar when a parse gives it the enabled features. So a pipeline whose documents read and stitch loads, whatever errors lowering finds for some features. An error that lowering finds is an error of the grammar for the features of that parse. It ends the stage as the stage's result, as other parsing errors do. The stage has no verdict, no tree and no output, and no later stage runs.
 
+Loading an ordinary pipeline does not expand production combinations. Bootstrap validation still lowers the notation stages (§8).
+
 The error has the kind `grammar` and the stage's name, and no position member, since its position is not one of the stage's input (`docs/output.md`). Its message begins with the document, the line and the column of the definition that wrote the alternative at fault, as `case/a.md:3:1:`. That definition is the `%rule`, `%redefine-rule` or `%extend-rule` that holds the alternative. It is not the place of the braces in it, and not another definition that makes an item of the braces empty. The stage reports classifier errors in the same way, at their entries (§2).
 
 Where a grammar has several errors of lowering, the parse reports one, in this order. Errors of classifiers come first. Then lowering takes the rules in order (§3.9). For each rule, it reports a chain beside another alternative (§3.3) before it lowers that rule's alternatives.

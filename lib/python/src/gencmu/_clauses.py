@@ -696,23 +696,24 @@ def _capture_witness(expr, required=(), forbidden=(), order=()):
 
 
 def _variable_captures(expr):
-    pending, done = [(expr, False)], []
+    # A capture varies only below an optional or a branching choice or &.
+    # Its content does not change the presence of the capture itself.
+    pending = [(expr, False)]
     while pending:
-        node, ready = pending.pop()
-        children = next((node[k] for k in ('seq', 'choice', 'ranked', 'and') if k in node), None)
-        if children is None:
-            children = [node['optional']] if 'optional' in node and not node.get('elidable') else [node['expr']] if 'test' in node else []
-        if not ready:
-            pending.append((node, True))
-            pending.extend((child, False) for child in reversed(children))
+        node, variable = pending.pop()
+        if 'capture' in node:
+            if variable:
+                return True
             continue
-        parts = done[-len(children):] if children else []
-        if children:
-            del done[-len(children):]
-        has = 'capture' in node or any(p[0] for p in parts)
-        variable = any(p[1] for p in parts) or has and ('optional' in node or len(children) > 1 and any(k in node for k in ('choice', 'ranked', 'and')))
-        done.append((has, variable))
-    return done[0][1]
+        children = next((node[k] for k in ('seq', 'choice', 'ranked', 'and') if k in node), None)
+        if children is not None:
+            variable = variable or len(children) > 1 and any(k in node for k in ('choice', 'ranked', 'and'))
+            pending.extend((child, variable) for child in reversed(children))
+        elif 'optional' in node and not node.get('elidable'):
+            pending.append((node['optional'], True))
+        elif 'test' in node:
+            pending.append((node['expr'], variable))
+    return False
 
 
 def validation_captures(rule, alternative):
