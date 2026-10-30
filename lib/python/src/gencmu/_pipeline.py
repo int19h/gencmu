@@ -450,7 +450,7 @@ class _Loader:
         return text
 
     def names_text(self, path: str) -> str | None:
-        if self.from_disk and path == "data/unicode/unicode-names-reference.txt":
+        if self.from_disk and path in ("data/unicode/unicode-names.txt", "data/unicode/unicode-names-reference.txt"):
             return bundled_text(path)
         text = self.lookup(path)
         return text if text is not None else bundled_text(path)
@@ -604,6 +604,8 @@ def load_pipeline_file(path: str | os.PathLike[str], *, use_cache: bool = True) 
         return _decode(data, key)
 
     def names_override(key):
+        if key in ("data/unicode/unicode-names.txt", "data/unicode/unicode-names-reference.txt"):
+            return False
         try:
             os.stat(key.replace("/", os.sep))
         except FileNotFoundError:

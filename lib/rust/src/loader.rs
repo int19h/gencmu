@@ -625,10 +625,11 @@ fn normalize(path: &Path) -> PathBuf {
 
 impl Sources for DiskSources {
     fn names_override(&self, path: &str) -> bool {
-        !matches!(std::fs::metadata(path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
+        !matches!(path, "data/unicode/unicode-names.txt" | "data/unicode/unicode-names-reference.txt")
+            && !matches!(std::fs::metadata(path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
     }
     fn names(&self, path: &str) -> Result<Option<String>, Error> {
-        if path == "data/unicode/unicode-names-reference.txt" {
+        if matches!(path, "data/unicode/unicode-names.txt" | "data/unicode/unicode-names-reference.txt") {
             return bundled_names(path);
         }
         match self.read(path)? {

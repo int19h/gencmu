@@ -261,7 +261,7 @@ func bundledNamesText(p string) (string, bool) {
 	return string(data), err == nil
 }
 func (l *loader) namesText(p string) (string, bool, *Error) {
-	if l.fromDisk && p == "data/unicode/unicode-names-reference.txt" {
+	if l.fromDisk && (p == "data/unicode/unicode-names.txt" || p == "data/unicode/unicode-names-reference.txt") {
 		text, ok := bundledNamesText(p)
 		return text, ok, nil
 	}
@@ -598,6 +598,9 @@ func LoadPipelineFile(file string) (*Pipeline, error) {
 	}
 	l.fromDisk = true
 	l.namesOverride = func(p string) bool {
+		if p == "data/unicode/unicode-names.txt" || p == "data/unicode/unicode-names-reference.txt" {
+			return false
+		}
 		_, err := os.Stat(filepath.FromSlash(p))
 		return !os.IsNotExist(err)
 	}
