@@ -1585,34 +1585,49 @@
   const PROPERTY_NAMES = new Set(Object.keys(PROPERTY_CATALOG.tags).map(name => name.slice(1)));
 
 
-  // Keep disjoint ranges while reading records, so a conflict names the later line.
-  /**
-   * @template T
-   * @param {[number, number, T][]} ranges
-   * @param {number} start
-   * @param {number} end
-   * @param {T} value
-   * @param {() => void} fail
-   */
-  function addValueRange(ranges, start, end, value, fail) {
-    let low = 0, high = ranges.length;
-    while (low < high) {
+  // A sparse interval tree has at most 21 levels over the Unicode code space.
+  // Uniform nodes collapse after insertion. No insertion moves earlier records.
+  /** @template T */
+  class ValueRanges {
+    constructor() {
+      /** @type {T | undefined} */
+      this.value = undefined;
+      /** @type {[ValueRanges<T>, ValueRanges<T>] | undefined} */
+      this.children = undefined;
+    }
+
+    /** @param {number} start @param {number} end @param {T} value @param {() => void} fail
+     * @param {number} [low] @param {number} [high] */
+    add(start, end, value, fail, low = 0, high = 0x10ffff) {
+      if (this.value !== undefined) {
+        if (this.value !== value) fail();
+        return;
+      }
+      if (start <= low && high <= end && !this.children) { this.value = value; return; }
+      this.children ??= [new ValueRanges(), new ValueRanges()];
       const mid = (low + high) >>> 1;
-      if (ranges[mid][1] < start) low = mid + 1;
-      else high = mid;
+      const [left, right] = this.children;
+      if (start <= mid) left.add(start, end, value, fail, low, mid);
+      if (end > mid) right.add(start, end, value, fail, mid + 1, high);
+      if (left.value !== undefined && left.value === right.value) {
+        this.value = left.value;
+        this.children = undefined;
+      }
     }
-    let last = low;
-    while (last < ranges.length && ranges[last][0] <= end) {
-      if (ranges[last][2] !== value) fail();
-      last++;
+
+    /** @param {[number, number, T][]} [result] @param {number} [low] @param {number} [high] */
+    ranges(result = [], low = 0, high = 0x10ffff) {
+      if (this.value !== undefined) {
+        const previous = result.at(-1);
+        if (previous && previous[1] + 1 === low && previous[2] === this.value) previous[1] = high;
+        else result.push([low, high, this.value]);
+      } else if (this.children) {
+        const mid = (low + high) >>> 1;
+        this.children[0].ranges(result, low, mid);
+        this.children[1].ranges(result, mid + 1, high);
+      }
+      return result;
     }
-    if (low > 0 && ranges[low - 1][1] + 1 === start && ranges[low - 1][2] === value) low--;
-    if (last < ranges.length && ranges[last][0] === end + 1 && ranges[last][2] === value) last++;
-    if (low < last) {
-      start = Math.min(start, ranges[low][0]);
-      end = Math.max(end, ranges[last - 1][1]);
-    }
-    ranges.splice(low, last - low, [start, end, value]);
   }
 
   /** @param {[number, number][]} ranges @returns {[number, number][]} */
@@ -1649,8 +1664,10 @@
       this.whiteSpace = [];
       /** @type {Map<string, [number, number][]>} */
       this.emoji = new Map([["Emoji_Presentation", []], ["Emoji_Component", []]]);
-      /** @type {[number, number, string][]} */
-      const ranges = [];
+      /** @type {ValueRanges<string>} */
+      const ranges = new ValueRanges();
+      /** @type {ValueRanges<number>} */
+      const combining = new ValueRanges();
       /** @type {Map<number, number[]>} */
       this.decompositions = new Map();
       /** @type {[number, number, number][]} */
@@ -1660,8 +1677,8 @@
         const line = index < lines.length - 1 && raw.endsWith("\r") ? raw.slice(0, -1) : raw;
         const fields = line.split(/[ \t]+/).filter(field => field !== "");
         if (!fields[0]) continue;
-        const fail = () => {
-          throw new GencmuError("grammar", `data/unicode/unicode.txt:${index + 1}: an unreadable record`, {document: "data/unicode/unicode.txt", line: index + 1});
+        const fail = (reason = "the core record is invalid") => {
+          throw new GencmuError("grammar", reason, {document: "data/unicode/unicode.txt", line: index + 1});
         };
         const entry = fields[0];
         const count = entry === "unicode" ? 2 : entry === "category" || entry === "combining" ? 4
@@ -1669,45 +1686,48 @@
         if (entry === "decompose" ? fields.length < 3 : count === null || fields.length !== count) fail();
         /** @param {string} field */
         const hex = field => {
-          if (!/^[0-9A-Fa-f]+$/.test(field)) fail();
+          if (!/^[0-9A-Fa-f]+$/.test(field)) fail("an invalid code point");
           const digits = field.replace(/^0+/, "");
-          if (digits.length > 6) fail();
+          if (digits.length > 6) fail("an invalid code point");
           const value = Number.parseInt(digits || "0", 16);
-          if (value > 0x10ffff) fail();
+          if (value > 0x10ffff) fail("an invalid code point");
           return value;
         };
         if (entry === "unicode") { this.version = fields[1]; this.versionCount++; }
         else if (entry === "abbreviation") {
           const code = hex(fields[1]), alias = fields[2];
           if (code >= 0xd800 && code <= 0xdfff || !/^[A-Z][A-Z0-9]*$/.test(alias)
-            || this.abbreviations.has(alias) || PINNED_CORE_NAMES.has(alias) && PINNED_CORE_NAMES.get(alias) !== code) fail();
+            || this.abbreviations.has(alias) || PINNED_CORE_NAMES.has(alias) && PINNED_CORE_NAMES.get(alias) !== code) fail("an invalid abbreviation");
           this.abbreviations.set(alias, code);
           const earlier = this.canonicalAbbreviations.get(code);
           if (earlier === undefined || alias.length < earlier.length || alias.length === earlier.length && alias < earlier) this.canonicalAbbreviations.set(code,alias);
         }
         else if (entry === "decompose") {
           const scalars = fields.slice(1).map(hex);
-          if (scalars.some(code => code >= 0xd800 && code <= 0xdfff) || this.decompositions.has(scalars[0])) fail();
+          if (scalars.some(code => code >= 0xd800 && code <= 0xdfff)) fail("an invalid scalar");
+          if (this.decompositions.has(scalars[0])) fail("a second decompose record");
           this.decompositions.set(scalars[0], scalars.slice(1));
         } else {
           const start = hex(fields[fields.length - 2]), end = hex(fields[fields.length - 1]);
-          if (start > end) fail();
+          if (start > end) fail("a reversed range");
           if (entry === "category") {
-            if (!CATEGORIES.includes(fields[1]) || fields[1] === "Cs") fail();
-            addValueRange(ranges, start, end, fields[1], fail);
+            if (!CATEGORIES.includes(fields[1])) fail("an unknown category");
+            if (fields[1] === "Cs") fail("category Cs is not allowed");
+            ranges.add(start, end, fields[1], () => fail("conflicting category ranges"));
           } else if (entry === "combining") {
             const digits = fields[1].replace(/^0+/, "");
-            if (!/^[0-9]+$/.test(fields[1]) || digits.length > 3) fail();
+            if (!/^[0-9]+$/.test(fields[1]) || digits.length > 3) fail("an invalid combining class");
             const klass = Number(digits);
-            if (klass < 1 || klass > 254) fail();
-            addValueRange(this.combining, start, end, klass, fail);
+            if (klass < 1 || klass > 254) fail("an invalid combining class");
+            combining.add(start, end, klass, () => fail("conflicting combining ranges"));
           } else if (entry === "white-space") this.whiteSpace.push([start, end]);
           else this.emoji.get(entry === "emoji-presentation" ? "Emoji_Presentation" : "Emoji_Component")?.push([start, end]);
         }
       }
       this.whiteSpace = unionRanges(this.whiteSpace);
       for (const [property, ranges] of this.emoji) this.emoji.set(property, unionRanges(ranges));
-      for (const [start, end, category] of ranges) {
+      this.combining = combining.ranges();
+      for (const [start, end, category] of ranges.ranges()) {
         this.starts.push(start);
         this.ends.push(end);
         this.categories.push(category);
@@ -10974,7 +10994,7 @@
     const circular = "parse\u0001" + rule + "\u0001" + start + "\u0001" + end;
     if (context.inProgress.has(circular)) {
       throw new GencmuError("grammar",
-        `a condition asks whether ${JSON.stringify(textOf(context, start, end))} parses as ${rule} from inside the parse of that span as ${rule}: ` +
+        `a condition asks whether its own span parses as ${rule} from inside the parse of that span as ${rule}: ` +
         `the grammar defines ${rule} in terms of itself over the same text`, { rule });
     }
     return circular;
@@ -19604,6 +19624,8 @@
       this.extras = [...new Set(extras)].sort(compareCodePoints);
       /** @type {UnicodeNames[] | null} */
       this.tables = null;
+      /** @type {Map<string, number>} */
+      this.names = new Map();
       /** @type {Record<string,string> | undefined} */
       this.dependencies = undefined;
     }
@@ -19621,6 +19643,8 @@
       const pinned = hash === PINNED_NAMES_HASH ? base : new UnicodeNames(reference, "data/unicode/unicode-names-reference.txt", "15.1.0");
       base.inspect(pinned, this.unicode.abbreviations, false);
       const tables = [base];
+      const names = new Map(base.names);
+      const formal = new Map([...base.formal].map(([code, record]) => [code, record.name]));
       /** @type {Record<string,string>} */
       const dependencies = Object.create(null);
       dependencies["data/unicode/unicode-names.txt"] = hash;
@@ -19628,16 +19652,18 @@
         const text = this.read(path), table = new UnicodeNames(text, path, version);
         table.inspect(pinned, this.unicode.abbreviations, true);
         for (const record of table.records) {
-          for (const earlier of tables) {
-            const code = earlier.lookup(record.name), formal = earlier.formal.get(record.code);
-            if (code !== undefined && code !== record.code || formal && formal.name !== record.name) namesFailure(path, "names resources conflict", record.line);
-          }
+          // inspect excludes every pinned algorithmic spelling and scalar first.
+          const code = names.get(record.name), previous = formal.get(record.code);
+          if (code !== undefined && code !== record.code || previous !== undefined && previous !== record.name) namesFailure(path, "names resources conflict", record.line);
+          names.set(record.name, record.code);
+          formal.set(record.code, record.name);
         }
         dependencies[path] = fnv1a64(text);
         tables.push(table);
       }
       this.dependencies = Object.fromEntries(Object.entries(dependencies).sort(([a], [b]) => compareCodePoints(a, b)));
       this.tables = tables;
+      this.names = names;
     }
 
     /** @param {string} name @param {boolean} [coreOnly] @returns {number | undefined} */
@@ -19645,11 +19671,7 @@
       const core = this.unicode.abbreviations.get(name);
       if (core !== undefined || coreOnly) return core;
       this.load();
-      for (const table of /** @type {UnicodeNames[]} */ (this.tables)) {
-        const code = table.lookup(name);
-        if (code !== undefined) return code;
-      }
-      return undefined;
+      return this.names.get(name) ?? /** @type {UnicodeNames[]} */ (this.tables)[0].lookup(name);
     }
   }
 

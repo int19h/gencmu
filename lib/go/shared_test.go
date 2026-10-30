@@ -69,6 +69,7 @@ type caseOptions struct {
 // caseExpect is what a case expects. Result, Warnings and Features are
 // decoded JSON, nil where the case leaves them out.
 type caseExpect struct {
+	Message          *string `json:"message"`
 	BundledPipelines *any    `json:"bundledPipelines"`
 	Diagnostic       string  `json:"diagnostic"`
 	Result           *any    `json:"result"`
@@ -341,6 +342,9 @@ func checkLoadError(expect *caseExpect, err error) error {
 	if !ok {
 		return fmt.Errorf("load: %v", err)
 	}
+	if expect.Message != nil && e.Message != *expect.Message {
+		return fmt.Errorf("load message: got %q, expected %q", e.Message, *expect.Message)
+	}
 	if expect.Error != e.Kind {
 		return fmt.Errorf("unexpected load error: %v", err)
 	}
@@ -488,6 +492,9 @@ func resultProblems(got any) []string {
 // checkResult matches a result, and its canonical JSON as got and as data,
 // against an expectation. The invariants of the result come first.
 func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect) error {
+	if expect.Message != nil && (res.Error == nil || res.Error.Message != *expect.Message) {
+		return fmt.Errorf("runtime message: expected %q, got %s", *expect.Message, data)
+	}
 	if problems := resultProblems(got); len(problems) > 0 {
 		return fmt.Errorf("the result breaks an invariant: %s\n%s", strings.Join(problems, "; "), data)
 	}
@@ -526,6 +533,20 @@ func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect) err
 
 // The runner fails a case whose pipeline does not load, when the case
 // expects another kind of error, or more than the error.
+func TestEngineRunnerAgreedReasons(t *testing.T) {
+	for _, name := range []string{"cr1-unicode-categories-conflict.json", "w2-75-suffix-recursion-local.json"} {
+		c := loadCase(t, "../../tests/engine/"+name)
+		if err := checkCase(c, false); err != nil {
+			t.Fatal(err)
+		}
+		wrong := "a wrong reason"
+		c.Expect.Message = &wrong
+		if checkCase(c, false) == nil {
+			t.Fatalf("%s accepted a wrong reason", name)
+		}
+	}
+}
+
 func TestEngineRunnerLoadError(t *testing.T) {
 	t.Parallel()
 	grammar := "%rule text A\n%rule text A"

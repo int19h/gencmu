@@ -310,7 +310,7 @@ func (run *stageRun) run(g *lowered, elisionOnly bool) (out stageOutcome) {
 	// An error of the grammar that lowering for these features found is a
 	// result like one found while parsing (§3).
 	if g.fault != "" {
-		panic(&parseFailure{message: g.fault, located: true})
+		panic(&parseFailure{message: g.fault, bare: true})
 	}
 	start := g.byName["text"]
 	rec := run.recognize(g, start, 0, len(run.toks))
@@ -447,7 +447,7 @@ func (run *stageRun) rejectedAt(k int, expected []Expected) *ParseError {
 // failure is a grammar error found while parsing: its kind, stage and
 // message, and no position (§13).
 func (run *stageRun) failure(f *parseFailure) *ParseError {
-	if f.located {
+	if f.bare {
 		return &ParseError{Kind: ErrorGrammar, Stage: run.name, Message: f.message}
 	}
 	return &ParseError{Kind: ErrorGrammar, Stage: run.name, Message: "stage " + run.name + ": " + f.message}

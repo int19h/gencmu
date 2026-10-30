@@ -12,6 +12,7 @@
     "where": {
       "document": "data/unicode/unicode.txt",
       "line": 4
-    }
+    },
+    "message": "category Cs is not allowed"
   }
 }

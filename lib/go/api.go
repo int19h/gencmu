@@ -630,9 +630,7 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *P
 	l.namesOverride = func(p string) bool { _, ok := texts[p]; return ok }
 	if t, ok := texts["data/unicode/unicode.txt"]; ok {
 		if l.uni, err = parseUnicodeTable(t); err != nil {
-			problem := &Error{Kind: ErrorGrammar, Document: "data/unicode/unicode.txt", Message: err.Error()}
-			_, _ = fmt.Sscanf(err.Error(), "data/unicode/unicode.txt line %d:", &problem.Line)
-			return nil, problem
+			return nil, err
 		}
 	}
 	if text, ok := texts["data/unicode/unicode-properties.txt"]; ok {

@@ -721,6 +721,12 @@ const contentKeyLimit = 16
 // is remembered for the whole parse. Where it is not yet known, nested
 // gives the query instead, which halts the walk that asked it. The
 // recognition that walks, or emission, answers it on a stack of its own.
+func recursiveQuery(rule string) *parseFailure {
+	return &parseFailure{bare: true, message: "a condition asks whether its own span parses as " + rule +
+		" from inside the parse of that span as " + rule + ": the grammar defines " + rule +
+		" in terms of itself over the same text"}
+}
+
 func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *tagset, *nestedQuery) {
 	ps := run.ps
 	start := g.byName[rule]
@@ -739,7 +745,7 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 	}
 	at := spanKey{g: g, rule: start, a: s.a, b: contextEnd}
 	if ps.inProgress[at] {
-		panic(&parseFailure{message: "a condition asks whether its own span parses as " + rule + ", which defines " + rule + " in terms of itself over the same text"})
+		panic(recursiveQuery(rule))
 	}
 	if s.aligned != nil {
 		k.queryContext = ps.queryContext
@@ -989,7 +995,7 @@ func (run *stageRun) drive(root *recognizer) {
 func (run *stageRun) startQuery(q *nestedQuery) {
 	ps := run.ps
 	if ps.inProgress[q.at] {
-		panic(&parseFailure{message: "a condition asks whether its own span parses as " + q.name + ", which defines " + q.name + " in terms of itself over the same text"})
+		panic(recursiveQuery(q.name))
 	}
 	ps.inProgress[q.at] = true
 	if ps.queryContexts == nil {
@@ -1181,8 +1187,7 @@ type nestedResult struct {
 // parse (engine §4, §5). It has a message and no position (§13).
 type parseFailure struct {
 	message string
-	// located says that the message begins with the document, line and
-	// column at fault, as an error of lowering does (§3), and needs no
-	// stage before it.
-	located bool
+	// bare preserves a prescribed reason or a message with its own location.
+	// The structured parse error still carries its stage.
+	bare bool
 }

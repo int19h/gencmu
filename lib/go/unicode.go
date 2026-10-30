@@ -41,27 +41,63 @@ type coreRange[T comparable] struct {
 	value      T
 }
 
-// addCoreRange keeps disjoint ranges and reports conflicts at the later record.
-func addCoreRange[T comparable](ranges []coreRange[T], start, end rune, value T, line int) ([]coreRange[T], error) {
-	low := sort.Search(len(ranges), func(i int) bool { return ranges[i].end >= start })
-	high := low
-	for high < len(ranges) && ranges[high].start <= end {
-		if ranges[high].value != value {
-			return nil, fmt.Errorf("data/unicode/unicode.txt line %d: overlapping ranges with different values", line)
+func coreError(line int, reason string) *Error {
+	return &Error{Kind: ErrorGrammar, Document: "data/unicode/unicode.txt", Line: line, Message: reason}
+}
+
+// coreRangeIndex is a sparse interval tree over the Unicode code space.
+// Its depth is at most 21. No insertion moves earlier records.
+type coreRangeIndex[T comparable] struct {
+	assigned bool
+	value    T
+	children *[2]coreRangeIndex[T]
+}
+
+func (node *coreRangeIndex[T]) add(start, end rune, value T, low, high rune, line int, reason string) error {
+	if node.assigned {
+		if node.value != value {
+			return coreError(line, reason)
 		}
-		high++
+		return nil
 	}
-	if low > 0 && ranges[low-1].end+1 == start && ranges[low-1].value == value {
-		low--
+	if start <= low && high <= end && node.children == nil {
+		node.assigned, node.value = true, value
+		return nil
 	}
-	if high < len(ranges) && ranges[high].start == end+1 && ranges[high].value == value {
-		high++
+	if node.children == nil {
+		node.children = new([2]coreRangeIndex[T])
 	}
-	if low < high {
-		start = min(start, ranges[low].start)
-		end = max(end, ranges[high-1].end)
+	mid := (low + high) / 2
+	left, right := &node.children[0], &node.children[1]
+	if start <= mid {
+		if err := left.add(start, end, value, low, mid, line, reason); err != nil {
+			return err
+		}
 	}
-	return slices.Replace(ranges, low, high, coreRange[T]{start, end, value}), nil
+	if end > mid {
+		if err := right.add(start, end, value, mid+1, high, line, reason); err != nil {
+			return err
+		}
+	}
+	if left.assigned && right.assigned && left.value == right.value {
+		node.assigned, node.value, node.children = true, left.value, nil
+	}
+	return nil
+}
+
+func (node *coreRangeIndex[T]) ranges(result []coreRange[T], low, high rune) []coreRange[T] {
+	if node.assigned {
+		if n := len(result); n > 0 && result[n-1].end+1 == low && result[n-1].value == node.value {
+			result[n-1].end = high
+		} else {
+			result = append(result, coreRange[T]{low, high, node.value})
+		}
+	} else if node.children != nil {
+		mid := (low + high) / 2
+		result = node.children[0].ranges(result, low, mid)
+		result = node.children[1].ranges(result, mid+1, high)
+	}
+	return result
 }
 
 // categoryNames are the General_Category values in their short form
@@ -73,6 +109,8 @@ var categoryNames = []string{
 
 func parseUnicodeTable(text string) (*unicodeTable, error) {
 	t := &unicodeTable{profiles: &scalarProfiles{}, decompositions: map[rune][]rune{}, abbreviations: map[string]rune{}, canonicalAbbreviations: map[rune]string{}, hash: fnv1a64(text)}
+	var categories coreRangeIndex[string]
+	var combining coreRangeIndex[int]
 	hex := func(s string) (rune, error) {
 		for _, c := range s {
 			if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
@@ -105,16 +143,19 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 		switch f[0] {
 		case "unicode":
 			if len(f) != 2 {
-				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: expected 2 fields", n+1)
+				return nil, coreError(n+1, "the core record is invalid")
 			}
 			t.version = f[1]
 			t.versionCount++
 			continue
 		case "abbreviation":
 			if len(f) != 3 {
-				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: expected 3 fields", n+1)
+				return nil, coreError(n+1, "the core record is invalid")
 			}
 			code, err := hex(f[1])
+			if err != nil {
+				return nil, coreError(n+1, "an invalid code point")
+			}
 			alias := f[2]
 			valid := len(alias) > 0 && alias[0] >= 'A' && alias[0] <= 'Z'
 			for _, c := range alias {
@@ -122,8 +163,8 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 			}
 			_, duplicate := t.abbreviations[alias]
 			pinned, standard := pinnedCoreNames[alias]
-			if err != nil || code >= 0xd800 && code <= 0xdfff || !valid || duplicate || standard && pinned != code {
-				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: an invalid abbreviation", n+1)
+			if code >= 0xd800 && code <= 0xdfff || !valid || duplicate || standard && pinned != code {
+				return nil, coreError(n+1, "an invalid abbreviation")
 			}
 			t.abbreviations[alias] = code
 			earlier, found := t.canonicalAbbreviations[code]
@@ -133,18 +174,21 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 			continue
 		case "decompose":
 			if len(f) < 3 {
-				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: expected at least 3 fields", n+1)
+				return nil, coreError(n+1, "the core record is invalid")
 			}
 			scalars := make([]rune, len(f)-1)
 			for i, field := range f[1:] {
 				c, err := hex(field)
-				if err != nil || c > 0x10ffff || c >= 0xd800 && c <= 0xdfff {
-					return nil, fmt.Errorf("data/unicode/unicode.txt line %d: bad code point", n+1)
+				if err != nil {
+					return nil, coreError(n+1, "an invalid code point")
+				}
+				if c >= 0xd800 && c <= 0xdfff {
+					return nil, coreError(n+1, "an invalid scalar")
 				}
 				scalars[i] = c
 			}
 			if _, duplicate := t.decompositions[scalars[0]]; duplicate {
-				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: a duplicate decomposition", n+1)
+				return nil, coreError(n+1, "a second decompose record")
 			}
 			t.decompositions[scalars[0]] = scalars[1:]
 			continue
@@ -152,41 +196,47 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 			want = 4
 		case "white-space", "emoji-presentation", "emoji-component":
 		default:
-			return nil, fmt.Errorf("data/unicode/unicode.txt line %d: unknown entry %q", n+1, f[0])
+			return nil, coreError(n+1, "the core record is invalid")
 		}
 		if len(f) != want {
-			return nil, fmt.Errorf("data/unicode/unicode.txt line %d: expected %d fields", n+1, want)
+			return nil, coreError(n+1, "the core record is invalid")
 		}
 		a, err1 := hex(f[want-2])
 		b, err2 := hex(f[want-1])
-		if err1 != nil || err2 != nil || a > b {
-			return nil, fmt.Errorf("data/unicode/unicode.txt line %d: bad code point", n+1)
+		if err1 != nil || err2 != nil {
+			return nil, coreError(n+1, "an invalid code point")
+		}
+		if a > b {
+			return nil, coreError(n+1, "a reversed range")
 		}
 		switch f[0] {
 		case "category":
-			if !slices.Contains(categoryNames, f[1]) || f[1] == "Cs" {
-				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: bad category", n+1)
+			if !slices.Contains(categoryNames, f[1]) {
+				return nil, coreError(n+1, "an unknown category")
+			}
+			if f[1] == "Cs" {
+				return nil, coreError(n+1, "category Cs is not allowed")
 			}
 			var err error
-			t.categories, err = addCoreRange(t.categories, a, b, f[1], n+1)
+			err = categories.add(a, b, f[1], 0, 0x10ffff, n+1, "conflicting category ranges")
 			if err != nil {
 				return nil, err
 			}
 		case "combining":
 			for _, c := range f[1] {
 				if c < '0' || c > '9' {
-					return nil, fmt.Errorf("data/unicode/unicode.txt line %d: bad combining class", n+1)
+					return nil, coreError(n+1, "an invalid combining class")
 				}
 			}
 			digits := strings.TrimLeft(f[1], "0")
 			if len(digits) > 3 {
-				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: bad combining class", n+1)
+				return nil, coreError(n+1, "an invalid combining class")
 			}
 			class, err := strconv.Atoi(digits)
 			if err != nil || class < 1 || class > 254 {
-				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: bad combining class", n+1)
+				return nil, coreError(n+1, "an invalid combining class")
 			}
-			t.combining, err = addCoreRange(t.combining, a, b, class, n+1)
+			err = combining.add(a, b, class, 0, 0x10ffff, n+1, "conflicting combining ranges")
 			if err != nil {
 				return nil, err
 			}
@@ -198,6 +248,8 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 			t.whiteSpace = append(t.whiteSpace, [2]rune{a, b})
 		}
 	}
+	t.categories = categories.ranges(nil, 0, 0x10ffff)
+	t.combining = combining.ranges(nil, 0, 0x10ffff)
 	t.emojiPresentation = unionUnicodeRanges(t.emojiPresentation)
 	t.emojiComponent = unionUnicodeRanges(t.emojiComponent)
 	t.whiteSpace = unionUnicodeRanges(t.whiteSpace)

@@ -744,6 +744,11 @@ pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), Str
     if AFTER_LOAD.iter().any(|name| expect.get(name).is_some()) {
         return Err(format!("the pipeline did not load: {error}"));
     }
+    if let Some(message) = expect.get("message").and_then(Value::str) {
+        if error.message != message {
+            return Err(format!("expected error reason {message:?}: {error}"));
+        }
+    }
     // `where` is given only for a grammar error.
     if kind != "grammar" && expect.get("where").is_some() {
         return Err(format!("expect.where is only for a grammar error: {error}"));
@@ -936,6 +941,11 @@ fn check_parse(pipeline: &gencmu::Pipeline, case: &Value, run: &Value, expect: &
         return Ok(());
     }
     let actual = parse_json(&json).map_err(|error| format!("the result is not JSON ({error}): {json}"))?;
+    if let Some(message) = expect.get("message").and_then(Value::str) {
+        if actual.get("error").and_then(|error| error.get("message")).and_then(Value::str) != Some(message) {
+            let _ = writeln!(problems, "expected runtime error reason {message:?}");
+        }
+    }
     if actual.get("features").is_some() {
         return Err("canonical JSON contains enabled features".into());
     }

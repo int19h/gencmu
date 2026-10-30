@@ -1918,14 +1918,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
             return Ok(());
         }
-        let text = self.text(request.tokens, request.start, request.end);
         let name = &self.g.rules[request.rule as usize].name;
         Err(EngineError {
             message: format!(
-                "a condition asks whether {text:?} parses as {name} from inside the parse of that span as {name}: \
+                "a condition asks whether its own span parses as {name} from inside the parse of that span as {name}: \
                  the grammar defines {name} in terms of itself over the same text"
             ),
-            rule: Some(request.rule),
+            rule: None,
         })
     }
 
