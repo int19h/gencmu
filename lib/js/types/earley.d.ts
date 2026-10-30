@@ -538,11 +538,6 @@ export type SuffixState = {
     answers: Map<number, boolean>;
     run: Run | null;
     active: boolean;
-    errorAt: number;
-    error: {
-        at: number;
-        error: unknown;
-    } | null;
     extend: ((end: number) => void) | null;
 };
 /**

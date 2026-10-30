@@ -1859,8 +1859,13 @@
      * @returns {boolean}
      */
     isWhiteSpace(code) {
-      for (const [start, end] of this.whiteSpace) if (code >= start && code <= end) return true;
-      return false;
+      let low = 0, high = this.whiteSpace.length;
+      while (low < high) {
+        const mid = (low + high) >>> 1;
+        if (this.whiteSpace[mid][0] <= code) low = mid + 1;
+        else high = mid;
+      }
+      return low > 0 && code <= this.whiteSpace[low - 1][1];
     }
 
   }
@@ -7546,6 +7551,7 @@
         if (group) group.push(event);
         else this.groups.set(at, [event]);
       }
+      this.groupPositions = [...this.groups.keys()].sort((a, b) => a - b);
       /** @type {Map<string,FamilySummary>} */ this.summaries = new Map();
       /** @type {Set<number>} */ this.taken = new Set();
       /** @type {Map<string,bigint[]>} */ this.records = new Map();
@@ -7632,7 +7638,16 @@
      */
     tokens(start, end) {
       if (start < this.end && this.end < end) return this.dead;
-      for (const at of this.groups.keys()) if (start < at && at < end && at <= this.end) return this.dead;
+      if (end - start > 1) {
+        let low = 0, high = this.groupPositions.length;
+        while (low < high) {
+          const mid = (low + high) >>> 1;
+          if (this.groupPositions[mid] <= start) low = mid + 1;
+          else high = mid;
+        }
+        const at = this.groupPositions[low];
+        if (at !== undefined && at < end && at <= this.end) return this.dead;
+      }
       return this.intern(false, this.accept(start), 1n, null);
     }
 
@@ -7903,7 +7918,7 @@
 
   // ---- eligible.js
   // Written-terminator priority for nested queries (engine §4): which
-  // completed items of a queried rule have an eligible witness.
+  // completed items of a queried rule have an eligible proof tree.
 
   /**
    * @import { Edge, Item, LoweredGrammar } from "./types.js"
@@ -7989,14 +8004,14 @@
   }
 
   /**
-   * The witnesses, completed items of the queried rule, that have an eligible
-   * witness in the chart (engine §4). An omission is an advance over the
+   * The completed items of the queried rule with an eligible proof tree in
+   * the chart (engine §4). An omission is an advance over the
    * empty helper of an elidable optional at its position p. It is forbidden
-   * where the prefix that the witness holds fixed can go on and read the
+   * where the prefix that the proof tree holds fixed can go on and read the
    * optional as written:
    *
    * - Where the optional has a constituent Y, the prefix is the item before Y
-   *   in the same witness. The omission is forbidden when the chart advances
+   *   in the same proof tree. The omission is forbidden when the chart advances
    *   that item over Y to some p' ≥ p, and the item so made advances over the
    *   optional's nonempty alternative.
    * - Otherwise the prefix is the item before the optional, and the omission
@@ -8007,9 +8022,9 @@
    * so an attempt that never completes the rule can forbid an omission.
    *
    * Each item has two states, computed together to the least fixpoint: it has
-   * an eligible witness (A), and it has an eligible witness that permits the
-   * optional after it to be empty (L). L follows the edge of the witness,
-   * so a permitted omission never combines with another witness's prefix.
+   * an eligible proof tree (E), and an eligible proof tree that permits
+   * the optional after it to be empty (P). P follows the proof tree,
+   * so a permitted omission never combines with another proof tree's prefix.
    * @param {Chart} chart
    * @param {Item[]} witnesses
    * @returns {Item[]}
@@ -8136,7 +8151,7 @@
       const owner = optionals.get(item.production.lhs);
       const scope = owner ? ["optional",identity(owner)] : item.production.lhs;
       return JSON.stringify([identity(item.production.logicalSource ?? item.production.source),scope,identity(group.written),
-        item.origin,item.end,item.structure,item.observationPrefix?.sequence,outside,captures.reverse()]);
+        item.origin,item.end,item.structure,item.observationPrefix?.sequence,item.boundary?.id,outside,captures.reverse()]);
     };
     /** @param {Item} item @param {number} dot @returns {Item[]} */
     const boundaries = (item,dot) => {
@@ -8186,11 +8201,11 @@
       for (let x = 0; x < order.length; x++) {
         if (eligible[x] && (permits[x] || next[x] === "none")) continue;
         const item = order[x];
-        let a = 0;
-        let l = 0;
+        let e = 0;
+        let p = 0;
         for (const edge of item.edges) {
           let through = 0;
-          // A query reads no synthetic token, so it has no restoration.
+          // Seeds and restoration edges supply a base proof state.
           if (edge.kind === "seed" || edge.kind === "restore") through = 1;
           else if (edge.kind === "scan") through = eligible[at(edge.previous)];
           else {
@@ -8198,22 +8213,22 @@
             through = (omitted(edge.child) ? permits[before] : eligible[before]) & eligible[at(edge.child)];
           }
           if (!through) continue;
-          a = 1;
+          e = 1;
           if (next[x] === "alone") {
-            if (!reads.has(item)) l = 1;
+            if (!reads.has(item)) p = 1;
           } else if (next[x] === "group") {
             const group = /** @type {import("./logical.js").LogicalSymbol} */ (precedingGroups.get(item));
-            if (groupPermits(item,group,item.end)) l = 1;
+            if (groupPermits(item,group,item.end)) p = 1;
           } else if (next[x] === "constituent" && edge.kind === "complete") {
             const end = further.get(edge.previous);
-            if (end === undefined || end < item.end) l = 1;
+            if (end === undefined || end < item.end) p = 1;
           }
         }
-        if (a && !eligible[x]) {
+        if (e && !eligible[x]) {
           eligible[x] = 1;
           changed = true;
         }
-        if (l && !permits[x]) {
+        if (p && !permits[x]) {
           permits[x] = 1;
           changed = true;
         }
@@ -10877,12 +10892,6 @@
         if (run.query !== null) answer = settle(run.query, chart);
         if (runs.length === 0) return chart;
       }
-    } catch (error) {
-      for (const run of runs) {
-        const state = run.query && suffixRequests.get(run.query);
-        if (state) state.error = {at:state.errorAt,error};
-      }
-      throw error;
     } finally {
       // A parse that failed frees its place and its bounds, as one that
       // finished does, the innermost first.
@@ -11111,7 +11120,7 @@
       for (const rule of rules) {
         const prefix = prefixTable?.get(rule);
         if (!prefix || prefix.nullable) return true;
-        for (const terminal of prefix.first) if (reads(context,terminal,token)) return true;
+        for (const terminal of prefix.first) if (reads(context,terminal,token,item.end)) return true;
       }
       return false;
     };
@@ -11354,7 +11363,6 @@
     /** @type {() => void | Halt} */
     const predictRest = () => {
       const set = predictSet;
-      if (suffix) suffix.errorAt = set.position;
       const strict = predictStrict;
       const productions = lowered.byLhs.get(predictName) || [];
       const next = set.position < end ? tokens[set.position] : null;
@@ -11410,7 +11418,7 @@
         }
         // The conditions run first, as they did when every prediction was
         // made an item, so that a trace shows the production as dropped.
-        if (lookaheadSkips(context, production, next)) {
+        if (lookaheadSkips(context, production, next, set.position)) {
           predictSkipped = true;
           return;
         }
@@ -11431,7 +11439,6 @@
     // saves a frame that does the rest, through advanceFrom.
     /** @type {(item: Item, from: number, to: number, child: Item | null) => Advanced | null | Halt} */
     const advance = (item, from, to, child) => {
-      if (suffix) suffix.errorAt = to;
       const production = item.production;
       // A tested symbol's test must hold of its own span and tags, which is
       // checked before any condition the advance makes ready (engine §4).
@@ -11635,7 +11642,7 @@
                 let scan = null;
                 if (suffix) while (scanIndex < scans.length) {
                   const candidate = scans[scanIndex++];
-                  if (reads(context,candidate.production.rhs[candidate.dot],tokens[at])) { scan = candidate; break; }
+                  if (reads(context,candidate.production.rhs[candidate.dot],tokens[at],at)) { scan = candidate; break; }
                 }
                 if (scan) {
                   entry = scan;
@@ -11665,7 +11672,7 @@
                   // Finish this boundary before any condition can read the next.
                   scans.push(taken);
                   continue;
-                } else if (at < end && reads(context, symbol, tokens[at])) {
+                } else if (at < end && reads(context, symbol, tokens[at],at)) {
                   // The written routes of an elidable optional (engine §7.4):
                   // from an original token, or from a synthetic one, after
                   // which the rest of the optional must read, so the item after
@@ -12027,22 +12034,25 @@
    * @param {ParseContext} context
    * @param {Production} production
    * @param {Token | null} next
+   * @param {number} at
    * @returns {boolean}
    */
-  function lookaheadSkips(context, production, next) {
+  function lookaheadSkips(context, production, next, at) {
     const first = production.rhs[0];
-    return Boolean(first && first.terminal && !(next && reads(context, first, next)));
+    return Boolean(first && first.terminal && !(next && reads(context, first, next, at)));
   }
 
   /**
-   * Whether a terminal matches a token (engine §4): a tag it carries, or, for
-   * a range or a property, one of its character tags.
+   * A tag matches a stored tag. Other terminals match stored values and
+   * never read synthetic tokens (engine §4).
    * @param {ParseContext} context
    * @param {GrammarSymbol} symbol
    * @param {Token} token
+   * @param {number} at
    * @returns {boolean}
    */
-  function reads(context, symbol, token) {
+  function reads(context, symbol, token, at) {
+    if (context.synthetic?.[at] && (symbol.wildcard || symbol.literal !== undefined || symbol.characters)) return false;
     if (symbol.wildcard) return true;
     if (symbol.literal !== undefined) return token.value === symbol.literal;
     if (symbol.characters) {
@@ -13172,7 +13182,6 @@
     if (kind === "ends") {
       requireInactive(context,rule,start,end);
       const state = suffixState(context, rule, start, end);
-      if (state.error && end >= state.error.at) throw state.error.error;
       if (state.answers.has(end)) return /** @type {boolean} */ (state.answers.get(end));
     }
     const known = context.nested.get(key);
@@ -13212,13 +13221,11 @@
    * @property {Map<number,boolean>} answers
    * @property {Run|null} run
    * @property {boolean} active
-   * @property {number} errorAt
-   * @property {{at:number,error:unknown}|null} error
    * @property {((end:number) => void)|null} extend
    */
   /** @returns {SuffixState} */
   function freshSuffix() {
-    return {answers:new Map(),run:null,active:false,errorAt:0,error:null,extend:null};
+    return {answers:new Map(),run:null,active:false,extend:null};
   }
   /** @type {WeakMap<ParseContext,Map<string,SuffixState>>} */
   const suffixStates = new WeakMap();
@@ -13495,7 +13502,7 @@
     const next = position < chart.end ? context.tokens[position] : null;
     for (const rule of set.skipped) {
       for (const production of context.lowered.byLhs.get(rule) || []) {
-        if (!lookaheadSkips(context, production, next)) continue;
+        if (!lookaheadSkips(context, production, next, position)) continue;
         const failed = settled(() => failedCondition(context, production, -1, null, position, position, { scope: null, structure: structuralStep(context, production, 0, null, null, position).structure, observation: closeStep(context,production,0,position,null,null,position)?.observation ?? null }));
         if (failed) continue;
         note(writtenSymbol(production.rhs[0]), production.owner);
@@ -19369,6 +19376,7 @@
 
 
 
+
   /** @typedef {{code:number, name:string, kind:string, line:number}} NameRecord */
   /** @typedef {{kind:string, first:number, last:number, prefix:string, line:number}} NameAlgorithm */
   /** @import { UnicodeTable } from "./unicode.js" */
@@ -19415,14 +19423,6 @@
   const NAMES_HANGUL_V = ["A", "AE", "YA", "YAE", "EO", "E", "YEO", "YE", "O", "WA", "WAE", "OE", "YO", "U", "WEO", "WE", "WI", "YU", "EU", "YI", "I"];
   const NAMES_HANGUL_T = ["", "G", "GG", "GS", "N", "NJ", "NH", "D", "L", "LG", "LM", "LB", "LS", "LT", "LP", "LH", "M", "B", "BS", "S", "SS", "NG", "J", "C", "K", "T", "P", "H"];
 
-  /** @param {NameAlgorithm} rule @param {number} code @returns {string} */
-  function algorithmName(rule, code) {
-    if (rule.kind === "hex") return rule.prefix + code.toString(16).toUpperCase().padStart(4, "0");
-    const offset = code - 0xac00;
-    return "HANGUL SYLLABLE " + NAMES_HANGUL_L[Math.floor(offset / 588)]
-      + NAMES_HANGUL_V[Math.floor(offset % 588 / 28)] + NAMES_HANGUL_T[offset % 28];
-  }
-
   /** @param {NameAlgorithm} rule @param {string} name @returns {number | undefined} */
   function algorithmLookup(rule, name) {
     if (rule.kind === "hex") {
@@ -19430,7 +19430,7 @@
       const suffix = name.slice(rule.prefix.length);
       if (!/^[0-9A-F]{4,6}$/.test(suffix)) return undefined;
       const code = Number.parseInt(suffix, 16);
-      return code >= rule.first && code <= rule.last && algorithmName(rule, code) === name ? code : undefined;
+      return code >= rule.first && code <= rule.last && code.toString(16).toUpperCase().padStart(4, "0") === suffix ? code : undefined;
     }
     if (!name.startsWith("HANGUL SYLLABLE ")) return undefined;
     const suffix = name.slice(16);
@@ -19560,13 +19560,11 @@
     /**
      * @param {(path:string)=>string} read
      * @param {UnicodeTable} unicode
-     * @param {(text:string)=>string} fingerprint
      * @param {Iterable<string>} [extras]
      */
-    constructor(read, unicode, fingerprint, extras = []) {
+    constructor(read, unicode, extras = []) {
       this.read = read;
       this.unicode = unicode;
-      this.fingerprint = fingerprint;
       this.extras = [...new Set(extras)].sort(compareCodePoints);
       /** @type {UnicodeNames[] | null} */
       this.tables = null;
@@ -19579,10 +19577,10 @@
       const version = this.unicode.version;
       if (this.unicode.versionCount !== 1 || version === null) namesFailure("data/unicode/unicode.txt", "names require exactly one Unicode version");
       const text = this.read("data/unicode/unicode-names.txt");
-      const hash = this.fingerprint(text);
+      const hash = fnv1a64(text);
       const base = new UnicodeNames(text, "data/unicode/unicode-names.txt", version);
       const reference = hash === PINNED_NAMES_HASH ? text : this.read("data/unicode/unicode-names-reference.txt");
-      if (this.fingerprint(reference) !== PINNED_NAMES_HASH) namesFailure("data/unicode/unicode-names-reference.txt", "the reference fingerprint differs from the pinned data");
+      if (fnv1a64(reference) !== PINNED_NAMES_HASH) namesFailure("data/unicode/unicode-names-reference.txt", "the reference fingerprint differs from the pinned data");
       if (version !== "15.1.0") namesFailure("data/unicode/unicode-names-reference.txt", "the reference version differs from the selected names version");
       const pinned = hash === PINNED_NAMES_HASH ? base : new UnicodeNames(reference, "data/unicode/unicode-names-reference.txt", "15.1.0");
       base.inspect(pinned, this.unicode.abbreviations, false);
@@ -19599,7 +19597,7 @@
             if (code !== undefined && code !== record.code || formal && formal.name !== record.name) namesFailure(path, "names resources conflict", record.line);
           }
         }
-        dependencies[path] = this.fingerprint(text);
+        dependencies[path] = fnv1a64(text);
         tables.push(table);
       }
       this.dependencies = Object.fromEntries(Object.entries(dependencies).sort(([a], [b]) => compareCodePoints(a, b)));
@@ -19946,7 +19944,7 @@
       if (hasStrings) {
         const lexical = loader.notation.parse(text, {until:"lexical"});
         if (!lexical.ok) throw new GencmuError("grammar", `${documentPath}: cannot read strings for textual stitching`, {document:documentPath});
-        const names = new NamesScope(key => loader.needNames(key), loader.unicode, fnv1a64, inherited);
+        const names = new NamesScope(key => loader.needNames(key), loader.unicode, inherited);
         const decoder = new DocumentStrings(documentPath, loader.unicode, names, offset => positions[offset] ?? [1,1]);
         const tokens = /** @type {import("./tokens.js").Token[]} */ (lexical.stages[0].output);
         decoder.inspect(tokens);
@@ -20222,7 +20220,7 @@
     readDocument(markdown, path, deferEmission = false, inherited = []) {
       if (loneSurrogate(markdown) !== null) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
       const { text, positions } = extractGrammarText(markdown, path);
-      const names = new NamesScope(key => this.needNames(key), this.unicode, fnv1a64, inherited);
+      const names = new NamesScope(key => this.needNames(key), this.unicode, inherited);
       const strings = new DocumentStrings(path, this.unicode, names,
         offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
       const run = this.notation.run(text, { features: new Set(this.notation.declared), inspectLexical: tokens => strings.inspect(tokens) });
@@ -20262,7 +20260,7 @@
         }
         return paths.every(path => registry[path] === dependencies[path]);
       }
-      const names = new NamesScope(key => this.needNames(key), this.unicode, fnv1a64, extras);
+      const names = new NamesScope(key => this.needNames(key), this.unicode, extras);
       names.load();
       return paths.every(path => names.dependencies?.[path] === dependencies[path]);
     }

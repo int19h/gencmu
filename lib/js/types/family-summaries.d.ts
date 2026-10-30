@@ -29,6 +29,7 @@ export declare class FamilySummaries {
     start: number;
     end: number;
     /** @type {Map<number,Event[]>} */ groups: Map<number, Event[]>;
+    groupPositions: number[];
     /** @type {Map<string,FamilySummary>} */ summaries: Map<string, FamilySummary>;
     /** @type {Set<number>} */ taken: Set<number>;
     /** @type {Map<string,bigint[]>} */ records: Map<string, bigint[]>;
