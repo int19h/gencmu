@@ -64,6 +64,9 @@
       // One Loader for the worker's life: it caches every document's DOM by
       // path and text hash, so a document read once is not read again.
       loader = gencmu.loaderFromSources(sources);
+      // The worker owns this map and updates it for edits and fetched names.
+      loader.read = path => sources.get(path);
+      loader.namesOverride = path => sources.has(path);
       loader.needNames = (path) => {
         if (sources.has(path)) return loader.need(path);
         if (namesErrors.has(path)) throw new gencmu.GencmuError("grammar", namesErrors.get(path), { document: path });
