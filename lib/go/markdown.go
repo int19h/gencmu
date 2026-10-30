@@ -154,7 +154,7 @@ func extractGrammarText(doc string) *grammarText {
 	}
 	g.pos = append(g.pos, lastEnd)
 	if fence != "" && isGrammar {
-		// Another unclosed block runs to the end, as in CommonMark; an
+		// Another unclosed block runs to the end, as in CommonMark. A
 		// jbogenbau block is an error at its fence (§8).
 		g.unclosed = &opened
 	}

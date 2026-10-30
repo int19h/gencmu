@@ -54,10 +54,6 @@ _SYMBOLS = frozenset(("reference", "tag", "string-terminal", "wildcard", "range"
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
 
 
-def _is_span(dom: Any) -> bool:
-    return isinstance(dom, dict) and term_type(dom)[0] in ("capture", "span", "restored")
-
-
 def _is_capital(name: str) -> bool:
     """Whether a name begins with a capital, and so is a terminal and a tag
     literal (engine §2)."""
@@ -73,7 +69,7 @@ class DeferredDom(dict):
 class DomBuilder:
     """Reads the DOM off a document tree, rule by rule of the §9 table."""
 
-    def __init__(self, tokens: list[Token], grammar_text: GrammarText, document: str, unicode: Marks, defer_emission: bool = False, decode_string=None) -> None:
+    def __init__(self, tokens: list[Token], grammar_text: GrammarText, document: str, unicode: Marks, decode_string, defer_emission: bool = False) -> None:
         self.decode_string = decode_string
         self.defer_emission = defer_emission
         self.deferred_emissions = []
@@ -123,10 +119,6 @@ class DomBuilder:
     def fail(self, node: Node, message: str) -> GencmuError:
         line, column = self.position(node)
         return GencmuError(message, document=self.document, line=line, column=column, code="ranked-choice-syntax" if node.rule == "ranked-choice" else None)
-
-    def source_text(self, node: Node) -> str:
-        assert node.kind == "token" and node.token is not None
-        return self.tokens[node.token].text
 
     def token_value(self, node: Node) -> str:
         assert node.kind == "token" and node.token is not None
@@ -205,7 +197,7 @@ class DomBuilder:
             statement_seen = statement_seen or not names
             if kid.kind == "rule" and kid.rule == "rule":
                 rules.append(self.rule(kid))
-            elif kid.kind == "rule" and kid.rule in ("directive"):
+            elif kid.kind == "rule" and kid.rule == "directive":
                 directives.append(self.directive(kid))
             elif kid.kind == "rule" and kid.rule == "constant-definition":
                 constants.append(self.constant(kid))
@@ -299,8 +291,7 @@ class DomBuilder:
         if problem:
             raise self.fail(node, problem)
         args = [self.token_value(self.token(kid)) if kid.rule == "argument-word" else
-                self.decode_string(self.tokens[self.token(kid).token], True) if self.decode_string else
-                self.source_text(self.token(kid))[1:-1] for kid in operands]
+                self.decode_string(self.tokens[self.token(kid).token], True) for kid in operands]
         if name in ("stage", "extend-stage", "redefine-stage") and not CLASSIFIER_NAME.fullmatch(args[0]):
             raise self.fail(node, "a stage name starts lowercase")
         if name == "features" and any(re.fullmatch(r"[A-Za-z][A-Za-z0-9-]*", arg) is None for arg in args):
@@ -639,7 +630,7 @@ class DomBuilder:
         return {"optional": expr, "elidable": True}
 
     def _repetition(self, node: Node, whole: bool) -> Walk:
-        """Braces: the item, its separator if a backslash has one, and a
+        """Braces: the item, its separator if a `/` has one, and a
         chain's direction from its marker, a ``...`` among the parts
         (engine §9)."""
         # Its choices are looked up before its markers are counted (engine
@@ -682,7 +673,7 @@ class DomBuilder:
         return None
 
     def decode(self, token: Node) -> Dom:
-        return {"string": self.decode_string(self.tokens[token.token]) if self.decode_string else self.token_value(token)[1:-1]}
+        return {"string": self.decode_string(self.tokens[token.token], False)}
 
     def tag_of(self, token: Node) -> str:
         name = self.token_value(token)
@@ -921,10 +912,6 @@ class DomBuilder:
             from ._boundary import Located
             receiver = Located({"method": name, "receiver": receiver, "args": args}, self.position(node))
             self.boundary_nodes[id(receiver)] = node
-            if arguments is not None:
-                separators = [self.token_value(child) for child in arguments.children if child.kind == "token"]
-                if any(separator != ("|" if name in ("matches", "begins", "ends", "followed-by", "preceded-by") else ",") for separator in separators):
-                    raise self.fail(arguments, "invalid method argument separator")
             kind, problem = term_type(receiver, memo=self.types)
             if problem and not self.feature_context and not dependent:
                 raise self.fail(node, problem)

@@ -485,20 +485,6 @@ var (
 	atomRules      = []string{"call", "parameter", "string", "tag", "string-terminal", "wildcard", "range", "name", "empty-set", "term", "guarded-term", "union", "method", "tag-run", "string-run", "capture-reference", "constant-reference", "pattern-literal"}
 )
 
-// sourceText reads original spelling only for include paths and source positions.
-func (b *domBuilder) sourceText(n *Node) string {
-	if n.Kind == KindToken {
-		return b.toks[n.Token].Text
-	}
-	for _, c := range parts(n) {
-		if c.Kind == KindToken {
-			return b.toks[c.Token].Text
-		}
-	}
-	return ""
-}
-
-// tokenValue reads the decomposed spelling. Text remains the original spelling.
 func (b *domBuilder) tokenValue(n *Node) string {
 	if n.Kind == KindToken {
 		return b.toks[n.Token].Value
@@ -581,16 +567,11 @@ func (b *domBuilder) document(root *Node) *domDoc {
 					// Include paths name exact files. Other operands use values.
 					operand := b.tokenValue(b.token(p))
 					if (dir.Name == "include" || dir.Name == "names") && len(dir.Args) == 0 {
-						if b.strings != nil {
-							decoded, err := b.strings.decode(b.toks[b.token(p).Token], true)
-							if err != nil {
-								panic(err)
-							}
-							dir.Args = append(dir.Args, decoded)
-						} else {
-							operand = b.sourceText(b.token(p))
-							dir.Args = append(dir.Args, operand[1:len(operand)-1])
+						decoded, err := b.strings.decode(b.toks[b.token(p).Token], true)
+						if err != nil {
+							panic(err)
 						}
+						dir.Args = append(dir.Args, decoded)
 					} else {
 						dir.Args = append(dir.Args, operand)
 					}
@@ -642,7 +623,7 @@ func (b *domBuilder) constant(n *Node) *domConst {
 		b.fail(reference, "a constant requires a user name")
 	}
 	b.closedFor = "a constant's value"
-	k.Value = b.value(valueNode)
+	k.Value = b.term(valueNode)
 	b.closedFor = ""
 	if _, f := constantValueType(k.Value, k.Op == "redefine", nil); f != nil {
 		b.fail(valueNode, "%s", f.problem)
@@ -707,9 +688,6 @@ func (b *domBuilder) implicationDeclaration(n *Node) *domImplication {
 	m.If, m.Then = sides[0], sides[1]
 	return m
 }
-
-// constantInBody is the error of a constant that stands in a body (§9).
-const constantInBody = "a constant cannot stand in a body: a body names a class of tokens with a rule, such as %rule digit '0'..'9'"
 
 func (b *domBuilder) ruleFlags(n *Node, op string) []string {
 	flags := []string{}
@@ -897,7 +875,7 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 func (b *domBuilder) constituentTags(n *Node) *domTerm {
 	t := b.tagTerm(b.only(n, "term"))
 	if readsOwnTags(t) {
-		b.fail(n, "a constituent's tags cannot be made of its own tags, tags($) or classes($)")
+		b.fail(n, "a constituent's tags cannot be made of its own: $.tags or $.classes")
 	}
 	return t
 }
@@ -905,7 +883,7 @@ func (b *domBuilder) constituentTags(n *Node) *domTerm {
 // tagTerm reads a whole term that must be a tag set: a constituent's or an
 // item's tags (§10). The error stands at the term.
 func (b *domBuilder) tagTerm(n *Node) *domTerm {
-	t := b.value(n)
+	t := b.term(n)
 	var retained *[2]int
 	for _, occurrences := range literalEngineTags(t) {
 		for _, at := range occurrences {
@@ -927,17 +905,6 @@ func (b *domBuilder) tagTerm(n *Node) *domTerm {
 // before says whether a position comes before another in the document.
 func before(a, c [2]int) bool {
 	return a[0] < c[0] || (a[0] == c[0] && a[1] < c[1])
-}
-
-// comparator reads the written equality or inequality of a value test.
-func (b *domBuilder) comparator(testNode *Node) string {
-	var op strings.Builder
-	for _, p := range parts(testNode) {
-		if p.Kind == KindToken {
-			op.WriteString(b.tokenValue(p))
-		}
-	}
-	return canonicalOperator(op.String())
 }
 
 // capturedRules are the rules of the symbols a capture can wrap (engine §9).

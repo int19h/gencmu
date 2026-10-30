@@ -2440,7 +2440,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `arguments` | One or more `argument` parts | Ordered argument array. Absent arguments gives `args:[]`. |
 | `argument` | One `term` or `integer` | Convert the complete immediate term, including its guard. Only a complete bare name can become a rule or classifier argument. |
 | `integer` | One Integer token | `integer`, retaining its positive decimal digits without leading zeros |
-| `string` | String token | Remove delimiters from its decomposed token value |
+| `string` | String token | Decode through the document's configured string decoder |
 | `name` | One name token | Capitalized tag, or rule/classifier name in its method argument position |
 | `term` | One `union` or `guarded-term` | Child term |
 | `tag-run`, `string-run` | At least two `tag` or `string` parts respectively, in written order | One `union` of singleton operands. Flatten into an enclosing union, regardless of grouping. |

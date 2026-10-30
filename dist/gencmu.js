@@ -4897,8 +4897,8 @@
 
   /**
    * Whether a term, or a condition inside one, reads the tags of `$`, the
-   * constituent whose tags it may be defining: `$` as a value, `tags($)` or
-   * `classes($)`. A span argument such as `value($)` reads tokens, not tags.
+   * constituent whose tags it defines: `$.tags` or `$.classes`.
+   * Bare `$` and `$.value` read input values, not tags.
    * The DOM's shape need not have been checked: anything malformed reads
    * nothing, and the check of its shape refuses it.
    * @param {unknown} node
@@ -17944,13 +17944,11 @@
    * @param {string} path
    * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag(name:string):string|null}} unicode
    *   the configured category table for diagnostic strings
+   * @param {(token:Token, path:boolean)=>string} decodeString
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
-   * @param {(token:Token, path:boolean)=>string} [decodeString]
    * @returns {GrammarDom}
    */
-  function treeToDom(tree, tokens, positionOf, path, unicode, deferEmission = false, decodeString) {
-    /** @type {(node: ResultNode) => string} */
-    const sourceText = (node) => tokens[/** @type {import("./types.js").TokenNode} */ (node).token].text;
+  function treeToDom(tree, tokens, positionOf, path, unicode, decodeString, deferEmission = false) {
     /** @type {(node: ResultNode) => Position} */
     const at = (node) => positionOf(tokens[firstToken(node)]);
     /** @type {(message: string, node: ResultNode) => never} */
@@ -18075,7 +18073,7 @@
         const args = operands.map((child) => {
             if (ruleOf(child) === "argument-word") return valueOf(token(child));
             const part = /** @type {import("./types.js").TokenNode} */ (token(child));
-            return decodeString ? decodeString(tokens[part.token], true) : sourceText(part).slice(1, -1);
+            return decodeString(tokens[part.token], true);
           });
         if (["stage", "extend-stage", "redefine-stage"].includes(name) && !CLASSIFIER_NAME.test(args[0])) {
           fail(`%${name} takes one lowercase name`, item);
@@ -18418,7 +18416,7 @@
     }
 
     /**
-     * Braces: the item, its separator if a backslash has one, and a chain's
+     * Braces: the item, its separator if a `/` has one, and a chain's
      * direction from its marker, a `...` among the parts (engine §9).
      * @param {RuleNode} node
      * @param {boolean} whole whether the braces are their alternative's whole
@@ -18615,14 +18613,14 @@
     }
 
     /**
-     * A constituent's tag term, which cannot read the tags it defines: `$`,
-     * `tags($)` or `classes($)` (engine §9).
+     * A constituent's tag term, which cannot read the tags it defines:
+     * `$.tags` or `$.classes` (engine §9).
      * @param {ResultNode} node
      * @returns {Generator<Step, Term, any>}
      */
     function* readConstituentTags(node) {
       const term = /** @type {Term} */ (yield readTagTerm(only(node, "term")));
-      if (readsOwnTags(term)) fail("a constituent's tags cannot be made of its own tags, tags($) or classes($)", node);
+      if (readsOwnTags(term)) fail("a constituent's tags cannot be made of its own: $.tags or $.classes", node);
       return term;
     }
 
@@ -19112,7 +19110,7 @@
     /** @param {ResultNode} tokenNode @returns {any} */
     function decode(tokenNode) {
       const part = /** @type {import("./types.js").TokenNode} */ (tokenNode);
-      return { string: decodeString ? decodeString(tokens[part.token], false) : [...valueOf(tokenNode)].slice(1, -1).join("") };
+      return { string: decodeString(tokens[part.token], false) };
     }
 
     /** @param {ResultNode} tokenNode @returns {string} */
@@ -19267,8 +19265,8 @@
 
 
   // The grammar text of a document: its `jbogenbau` blocks joined with a newline,
-  // with the line and column of every code point in the document, and the
-  // number of blocks. A document with no block holds no grammar.
+  // with the line and column of every code point in the document.
+  // A document with no block holds no grammar.
   /**
    * @param {string} markdown
    * @param {string} path
@@ -20242,8 +20240,8 @@
         throw new GencmuError("grammar", `${path}:${line}:${column}: ${message}`, { document: path, line, column, ...(ranked ? {code:"ranked-choice-syntax"} : {}) });
       }
       const syntax = run.stages[run.stages.length - 1];
-      const dom = domOfTree(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path, this.unicode, deferEmission,
-        (token, path) => strings.decode(token, path));
+      const dom = domOfTree(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path, this.unicode,
+        (token, path) => strings.decode(token, path), deferEmission);
       if (names.dependencies) this.namesDependencies.set(dom, names.dependencies);
       return dom;
     }
@@ -20568,15 +20566,15 @@
    * @param {(token: Token) => import("./types.js").Position} positionOf
    * @param {string} path
    * @param {UnicodeTable} unicode
+   * @param {(token:Token, path:boolean)=>string} decodeString
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
-   * @param {(token:Token, path:boolean)=>string} [decodeString]
    * @returns {GrammarDom}
    */
-  function domOfTree(tree, tokens, positionOf, path, unicode, deferEmission = false, decodeString) {
+  function domOfTree(tree, tokens, positionOf, path, unicode, decodeString, deferEmission = false) {
     /** @type {GrammarDom} */
     let dom;
     try {
-      dom = treeToDom(tree, tokens, positionOf, path, unicode, deferEmission, decodeString);
+      dom = treeToDom(tree, tokens, positionOf, path, unicode, decodeString, deferEmission);
     } catch (error) {
       // A count past a test's budget must reach the test as itself, or the
       // reader's work would run on past the budget as an error of the grammar.

@@ -270,7 +270,7 @@ func TestDOMRules(t *testing.T) {
 		{"a rule's tag term is well formed", rule(`"tags":{"call":"classes","args":null},"alternatives":[{"guards":[],"expr":` + good + `}],"conditions":[]`)},
 		{"an alternative's tags are not $", tagged(`{"union":[{"tag":"X"},{"capture":""}]}`)},
 		{"an alternative's tags are not $.tags", tagged(`{"method":"tags","receiver":{"capture":""},"args":[]}`)},
-		{"an alternative's tags are not classes($)", tagged(`{"method":"classes","receiver":{"capture":""},"args":[]}`)},
+		{"an alternative's tags are not $.classes", tagged(`{"method":"classes","receiver":{"capture":""},"args":[]}`)},
 		{"a rule's tags are not $.tags", rule(`"tags":{"method":"tags","receiver":{"capture":""},"args":[]},"alternatives":[{"guards":[],"expr":` + good + `}],"conditions":[]`)},
 		{"a comparison is known", cond(`{"op":"<","left":{"string":"a"},"right":{"string":"b"}}`)},
 		{"a comparison has two terms", cond(`{"op":"=","left":{"string":"a"}}`)},

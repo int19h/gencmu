@@ -32,35 +32,9 @@ func (b *domBuilder) tagRun(n *Node) *domTerm {
 		kind = "string"
 	}
 	for _, tag := range b.some(n, kind, 2) {
-		t.Items = append(t.Items, b.value(tag))
+		t.Items = append(t.Items, b.term(tag))
 	}
 	return t
-}
-
-func joinedPattern(kind string, a, b *domPattern) *domPattern {
-	if kind != tmUnion {
-		return &domPattern{Kind: kind, Items: []*domPattern{a, b}}
-	}
-	var items []*domPattern
-	for _, p := range []*domPattern{a, b} {
-		if p.Kind == tmUnion {
-			items = append(items, p.Items...)
-		} else {
-			items = append(items, p)
-		}
-	}
-	return &domPattern{Kind: kind, Items: items}
-}
-
-func patternTestTarget(p *domPattern) bool {
-	if len(p.Items) != 1 {
-		return false
-	}
-	n := p.Items[0]
-	if p.Op != "tags" && n.Kind == "test" && n.Op == "tags" {
-		return patternTestTarget(n)
-	}
-	return n.Kind == "terminal" || n.Kind == "constant" || n.Kind == "literal" || n.Kind == "range" || n.Kind == "wildcard"
 }
 
 func patternLeafMatches(p *domPattern, terminal, value string, tags *tagset) bool {
@@ -204,22 +178,15 @@ func (b *domBuilder) constantRef(n *Node) *domTerm {
 }
 
 func (b *domBuilder) stringTerm(n *Node) *domTerm {
-	if b.strings != nil {
-		token := n
-		if token.Kind != KindToken {
-			token = b.token(n)
-		}
-		value, err := b.strings.decode(b.toks[token.Token], false)
-		if err != nil {
-			panic(err)
-		}
-		return &domTerm{Kind: tmString, Str: value}
+	token := n
+	if token.Kind != KindToken {
+		token = b.token(n)
 	}
-	rs := []rune(b.tokenValue(n))
-	if len(rs) < 2 || rs[0] != '"' || rs[len(rs)-1] != '"' {
-		b.fail(n, "a string uses double quotes")
+	value, err := b.strings.decode(b.toks[token.Token], false)
+	if err != nil {
+		panic(err)
 	}
-	return &domTerm{Kind: tmString, Str: string(rs[1 : len(rs)-1])}
+	return &domTerm{Kind: tmString, Str: value}
 }
 
 func (b *domBuilder) stringRange(n *Node) [2]*domTerm {

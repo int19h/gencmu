@@ -60,12 +60,6 @@ func (b *domBuilder) termIn(n *Node, argument bool) *domTerm {
 
 func (b *domBuilder) term(n *Node) *domTerm { return b.termIn(n, false) }
 
-// value reads a term where a value is needed: head, tail, last, from and
-// after give spans, which are not values (§9).
-func (b *domBuilder) value(n *Node) *domTerm {
-	return b.run(&valueFrame{n: n}).(*domTerm)
-}
-
 // implication reads A ⟹ B, which groups to the right, or the one any-of.
 func (b *domBuilder) implication(n *Node) *domCond {
 	return b.run(&implicationFrame{n: n}).(*domCond)
@@ -307,7 +301,7 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 	return ask(&exprFrame{n: choice})
 }
 
-// startRepetition checks braces: the item, its separator if a backslash
+// startRepetition checks braces: the item, its separator if a `/`
 // has one, and a chain's direction from its marker, a ... among the parts
 // (engine §9).
 func (f *exprFrame) startRepetition(b *domBuilder) readStep {
@@ -399,7 +393,7 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 			if last == nil {
 				last = b.only(n, "term")
 			}
-			return ask(&valueFrame{n: last})
+			return ask(&termFrame{n: last})
 		}
 		t := in.(*domTerm)
 		// The reader has checked each comparison of a condition, so a
@@ -433,7 +427,7 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 	f.items = append(f.items, t)
 	f.types = append(f.types, ty)
 	if len(f.items) < len(f.parts) {
-		return ask(&valueFrame{n: f.parts[len(f.items)]})
+		return ask(&termFrame{n: f.parts[len(f.items)]})
 	}
 	if n.Rule == "concatenation" {
 		var items []*domTerm
@@ -526,7 +520,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 			ops = ops[1:]
 		}
 		f.parts, f.ops = ps, ops
-		return ask(&valueFrame{n: ps[0]})
+		return ask(&termFrame{n: ps[0]})
 	case "concatenation":
 		ps := b.some(n, "term-atom", 1)
 		if len(ps) == 1 {
@@ -534,7 +528,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 			return ask(&termFrame{n: ps[0], argument: f.argument})
 		}
 		f.parts, f.ops = ps, []string{"++"}
-		return ask(&valueFrame{n: ps[0]})
+		return ask(&termFrame{n: ps[0]})
 	case "intersection":
 		ps := b.some(n, "concatenation", 1)
 		if len(ps) == 1 {
@@ -542,7 +536,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 			return ask(&termFrame{n: ps[0], argument: f.argument})
 		}
 		f.parts, f.ops = ps, []string{"∩"}
-		return ask(&valueFrame{n: ps[0]})
+		return ask(&termFrame{n: ps[0]})
 	case "string":
 		return give(b.stringTerm(b.token(n)))
 	case "tag":
@@ -591,21 +585,6 @@ func (f *termFrame) start(b *domBuilder) readStep {
 	return readStep{}
 }
 
-// valueFrame reads a term where a value is needed.
-type valueFrame struct {
-	n       *Node
-	started bool
-}
-
-func (f *valueFrame) resume(b *domBuilder, in any) readStep {
-	if !f.started {
-		f.started = true
-		return ask(&termFrame{n: f.n})
-	}
-	t := in.(*domTerm)
-	return give(t)
-}
-
 // implicationFrame reads its any-ofs in order, and after them the
 // implication of a notation that writes one after ⟹, grouped to the right
 // (§9).
@@ -613,7 +592,6 @@ type implicationFrame struct {
 	n       *Node
 	started bool
 	anyOfs  []*Node
-	nested  *Node
 	items   []*domCond
 }
 
@@ -703,12 +681,12 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			f.compare.Op = b.operator(b.token(b.only(n, "tree-comparator")))
 			right := b.only(n, "union")
 			b.patternOperand(right)
-			return ask(&valueFrame{n: right})
+			return ask(&termFrame{n: right})
 		case "comparison":
 			ps := b.some(n, "union", 2)
 			f.compare = &domCond{Kind: cdCompare}
 			f.right = ps[1]
-			return ask(&valueFrame{n: ps[0]})
+			return ask(&termFrame{n: ps[0]})
 		case "negation", "method", "implication":
 		case "presence":
 			return give(&domCond{Kind: cdCaptured, Rule: strings.TrimPrefix(b.tokenValue(b.token(n)), "$")})
@@ -741,7 +719,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			f.compare.Op = b.operator(b.token(b.only(n, "comparator")))
 			right := f.right
 			f.right = nil
-			return ask(&valueFrame{n: right})
+			return ask(&termFrame{n: right})
 		}
 		f.compare.Right = in.(*domTerm)
 		// The two sides fit the comparator (§10).

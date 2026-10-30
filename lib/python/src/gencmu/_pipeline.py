@@ -306,7 +306,7 @@ class NotationReader:
                     strings.inspect(tokens)
         assert tree is not None
         try:
-            builder = DomBuilder(tokens, grammar_text, path, self.unicode, defer_emission, strings.decode)
+            builder = DomBuilder(tokens, grammar_text, path, self.unicode, strings.decode, defer_emission)
             dom = builder.document_dom(tree)
             if builder.deferred_emissions:
                 from ._dom import DeferredDom

@@ -554,14 +554,14 @@ impl<'a> Reader<'a> {
     }
 
     /// A rule's or an alternative's tags, which say what the constituent's
-    /// tags are and so cannot read them: `tags($)` and `classes($)` are
+    /// tags are and so cannot read them: `$.tags` and `$.classes` are
     /// errors anywhere in them, guards included (§9), reported at the
     /// clause.
     fn constituent_tags(&self, node: &'a Node) -> R<Term> {
         let source = self.one(node, "term")?;
         let term = self.tag_term(source)?;
         if reads_own_tags(&term) {
-            return Err(self.error(node, "a constituent's tags cannot be made of its own tags, tags($) or classes($)"));
+            return Err(self.error(node, "a constituent's tags cannot be made of its own: $.tags or $.classes"));
         }
         Ok(term)
     }
@@ -914,7 +914,7 @@ impl<'a> Reader<'a> {
         Ok(Step::Call(Frame::Choice(Choice::new(choice))))
     }
 
-    /// Braces: the item, its separator if a backslash has one, and a
+    /// Braces: the item, its separator if a `/` has one, and a
     /// chain's direction from its marker, a `...` among the parts (§9).
     /// `whole` is whether the braces are their alternative's whole
     /// expression.
@@ -1834,9 +1834,6 @@ impl<'a> Reader<'a> {
             "reference" => {
                 let token = self.token(node)?;
                 let name = self.value(token);
-                if name.starts_with('_') {
-                    self.tag_of(token)?;
-                }
                 Ok(Expr::Ref(name.into()))
             }
             "tag" => Ok(Expr::Ref(self.tag_of(self.token(node)?)?)),
