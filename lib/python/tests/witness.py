@@ -31,7 +31,7 @@ def checks() -> Iterator[list[bool]]:
         def ranked(ranking: Ranking | None) -> None:
             answers[index] = walk is not None and keeps(walk, ranking)
 
-        return _testing.CheckWatch(walk.marks if walk is not None else None, ranked)
+        return _testing.CheckWatch(ranked)
 
     _testing.elision_check = watch
     try:

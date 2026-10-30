@@ -1,0 +1,29 @@
+{
+  "description": "Optional priority retains the fixed prefix boundary record (engine §4).",
+  "grammar": "%rule text B D T\n%conditions $.matches(r)\n%rule r a [$c:c] [+T] D T\n%rule a q | B\n%rule q B\n%rule c D\n%conditions ¬$.preceded-by(q)",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "d",
+      "tags": [
+        "D"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

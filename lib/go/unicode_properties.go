@@ -52,6 +52,7 @@ func parseProperties(text string, core *unicodeTable) (map[string]*propertyData,
 		return nil, &Error{Kind: ErrorGrammar, Document: "data/unicode/unicode-properties.txt", Message: "the resource bytes do not decode as UTF-8"}
 	}
 	properties := map[string]*propertyData{}
+	var declarationOrder []string
 	type record struct {
 		fields []string
 		line   int
@@ -90,6 +91,7 @@ func parseProperties(text string, core *unicodeTable) (map[string]*propertyData,
 				return nil, propertyError(line)
 			}
 			properties[name] = &propertyData{kind: kind, values: map[string]bool{}, defaults: defaults, line: line}
+			declarationOrder = append(declarationOrder, name)
 		case "value", "range":
 			pending = append(pending, record{fields, line})
 		default:
@@ -143,7 +145,8 @@ func parseProperties(text string, core *unicodeTable) (map[string]*propertyData,
 		}
 		prop.ranges = append(prop.ranges, propertyRange{codes[0], codes[1], values, line})
 	}
-	for _, prop := range properties {
+	for _, name := range declarationOrder {
+		prop := properties[name]
 		for _, value := range prop.defaults {
 			if !prop.values[value] {
 				return nil, propertyError(prop.line)
@@ -202,13 +205,27 @@ func (t *unicodeTable) canonicalTag(spelling string) string {
 }
 
 func (t *unicodeTable) profile(code rune) []string {
+	t.profiles.mu.Lock()
+	defer t.profiles.mu.Unlock()
+	if profile, ok := t.profiles.entries[code]; ok {
+		return profile
+	}
+	if t.profiles.entries == nil || len(t.profiles.entries) >= 4096 {
+		t.profiles.entries = make(map[rune][]string)
+	}
+	profile := t.buildProfile(code)
+	t.profiles.entries[code] = profile
+	return profile
+}
+
+func (t *unicodeTable) buildProfile(code rune) []string {
 	category := t.category(code)
 	tags := []string{propertyInventory.Aliases["_"+category], propertyInventory.Aliases["_"+category[:1]], propertyInventory.Combining[strconv.Itoa(t.combiningClass(code))]}
 	if t.isWhiteSpace(code) {
 		tags = append(tags, "_White_Space")
 	}
 	for _, prop := range []string{"Emoji_Presentation", "Emoji_Component"} {
-		if t.hasProperty(prop, code) {
+		if prop == "Emoji_Presentation" && inUnicodeRanges(t.emojiPresentation, code) || prop == "Emoji_Component" && inUnicodeRanges(t.emojiComponent, code) {
 			tags = append(tags, "_"+prop)
 		}
 	}

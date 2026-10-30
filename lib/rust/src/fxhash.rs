@@ -1,6 +1,8 @@
 //! A fast, non-cryptographic hasher for the parser's tables (the one rustc
-//! uses), since the standard library's SipHash dominates otherwise. The
-//! tables' keys are the parser's own, never an adversary's.
+//! uses), since the standard library's SipHash dominates otherwise. Some
+//! keys contain caller input, including token text and generated tag names.
+//! This unkeyed hash permits crafted collisions and accepts their lookup cost.
+//! Keyed hashing for input-derived tables is tracked separately.
 
 use std::collections::{HashMap, HashSet};
 use std::hash::{BuildHasherDefault, Hasher};

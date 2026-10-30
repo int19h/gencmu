@@ -45,6 +45,7 @@ func (p *production) precedingLogicalOptional(dot int) *logicalGroup {
 // A later written route can forbid an earlier omission even when that
 // route never completes its named rule (engine §4).
 type logicalPrefixKey struct {
+	boundary         *boundaryRecord
 	alternative      *sAlt
 	expression       *domExpr
 	parent           *domExpr
@@ -134,7 +135,7 @@ func (l *logicalPriority) key(it, prefix *item) logicalPrefixKey {
 	if parent != nil {
 		rule = -1
 	}
-	return logicalPrefixKey{alternative: it.prod.sourceAlternative, expression: g.expression, parent: parent, rule: rule, origin: it.origin, position: prefix.set, prefix: prefix.prefix, closes: prefix.closes, lexical: it.prod.lexical, requested: it.prod.closeRequested, captures: captures.String()}
+	return logicalPrefixKey{boundary: prefix.boundary, alternative: it.prod.sourceAlternative, expression: g.expression, parent: parent, rule: rule, origin: it.origin, position: prefix.set, prefix: prefix.prefix, closes: prefix.closes, lexical: it.prod.lexical, requested: it.prod.closeRequested, captures: captures.String()}
 }
 
 func (l *logicalPriority) permits(it, prefix *item) bool {

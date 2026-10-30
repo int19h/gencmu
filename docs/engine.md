@@ -88,13 +88,15 @@ Code point fields contain hexadecimal digits and range from U+0000 to U+10FFFF. 
 
 Any number of leading zeros is allowed in a number field. After these zeros, a code point has at most six hexadecimal digits. A combining class has at most three decimal digits. The value bounds above still apply.
 
-The records can stand in any order in a file. Each library sorts them when it loads the file, so their order never changes an answer.
+The records can stand in any order in a file. Each library indexes them while it reads the file, then writes sorted lookup ranges once. Inserting a record never shifts every earlier record. Record order never changes a valid table's answers.
 
 Overlapping or touching category ranges with the same value merge. Combining ranges with the same class follow this rule. White-space ranges form their union.
 
 An overlap between category ranges with different values is a grammar error. Combining ranges with different classes follow this rule. A second `decompose` record for one scalar is also a grammar error, even when its mapping matches.
 
 These errors name `data/unicode/unicode.txt` and the line of the later record. A category record with the value `Cs` is a grammar error at that record.
+
+Core errors keep the resource path and line separate from their reason. Conflicting category ranges use `conflicting category ranges`. Conflicting combining ranges use `conflicting combining ranges`. A repeated decomposition uses `a second decompose record`. A `Cs` category uses `category Cs is not allowed`.
 
 An `abbreviation` record has one scalar and one alias matching `[A-Z][A-Z0-9]*`. A scalar can have several aliases. Repeated records or an alias assigned to different scalars are grammar loading errors. These records supply neither tags nor property memberships.
 
@@ -226,7 +228,7 @@ A scalar profile stores one scalar's initial engine tags. A profile never change
 
 Every included and available binary property contributes its Yes tag. Every included and available enumerated property contributes its value tag. Script_Extensions contributes every member tag. Long category tags and their major groups remain present.
 
-Libraries can share profiles across repeated scalars and equal profiles. They must keep table identities separate. Profile construction can wait until first use, but every observation sees the complete logical set from token creation. Filtering or extending one token's tags never mutates another token's profile.
+Libraries can share profiles across repeated scalars and equal profiles. They must keep table identities separate. Each configured table keeps a bounded profile cache across parse calls. Concurrent calls share that cache safely. Profile construction can wait until first use, but every observation sees the complete logical set from token creation. Filtering or extending one token's tags never mutates another token's profile.
 
 Later stages read stored sets, without deriving properties from value, image, text, or source. A changed value grants no new property tag. A filter can remove every tag of an enumerated property. A union can retain several values of that property. Neither operation reclassifies the resulting token.
 
@@ -266,6 +268,8 @@ Property resources use only long property and value names, independently of acce
 Outside ranges, each property uses its declared default. Duplicate members within a set are malformed. Set order has no meaning. Equal overlapping assignments can merge. Conflicting enumerated values or extension sets at one scalar are grammar errors. Repeated binary ranges denote their union.
 
 The file is strict UTF-8. Line endings, blank lines, field separators, and number spellings follow `data/unicode/unicode.txt`. Every range contains only scalars and excludes surrogates. Records after the header can appear in any order. Unknown records, duplicate declarations, undeclared properties, invalid types, unavailable values, and malformed fields are grammar errors.
+
+After record inspection, the loader inspects each property's defaults and ranges in declaration order. The first error ends that inspection.
 
 Property and value names must belong to the pinned catalog. Custom files cannot invent properties or tag aliases. For a supported property, the bundled file declares every catalog value, including unused values. For core combining classes, an absent PropertyValueAliases.txt row requires the decimal spellings defined above. A row containing `CCC10` still supplies aliases and forbids decimal alternatives.
 
@@ -409,7 +413,7 @@ Normalized resolved paths identify resources. Repeated declarations of one path 
 
 Extras contain only `name` records for unnamed scalars, without aliases or algorithms. Duplicate equal records across files are harmless. All other duplicate and conflict rules still apply.
 
-The first noncore name escape loads the base file, followed by extras in code-point order of resolved paths. The loader inspects the complete combined namespace before lookup. A conflict is a resource error naming the later file. Core abbreviation lookup still comes first. A missing extra file names its resolved path. A declared file that remains unused is not loaded.
+The first noncore name escape loads the base file, followed by extras in code-point order of resolved paths. The loader inspects the complete combined namespace before lookup. Each added record uses combined indexes for spellings and formal names. A conflict is a resource error naming the later file. Core abbreviation lookup still comes first. A missing extra file names its resolved path. A declared file that remains unused is not loaded.
 
 The DOM retains each `%names` directive and its decoded path. Its declaration order follows source positions across all five declaration arrays. Distinct names declarations require distinct positions. Every statement of another kind must follow all names declarations.
 
@@ -1044,6 +1048,8 @@ A tag terminal `T` matches a token with that stored tag. A string terminal match
 
 Only a tag terminal can read a synthetic terminator, through that terminator's own tag. A value terminal, range, or wildcard never reads one. Empty-valued ordinary tokens remain consumable. Terminal identities and canonical diagnostic spellings follow §9.
 
+Prediction lookahead and scanning apply the same restriction on synthetic tokens.
+
 A tested symbol (§2) matches what its symbol matches, where its test holds. The test reads the symbol's own span and its own tags. For a terminal, the span covers that one token in the current input, and the tags are the token's tags. For a reference, they are the span and the tag set of the completed item that the item advances over.
 
 `X="s"` compares the symbol's value exactly. `X≠"s"` negates that equality. `X<A ¬B>` requires A and forbids B on the symbol's own tags. Constant requirements expand with the same sign.
@@ -1069,7 +1075,7 @@ A step of the recognizer is an advance of one item, or the prediction of one pro
 1. In the check of §7, the step drops an additional item that is strict and stands at the end of its production (§7.4).
 2. The test of the symbol that the step advances over, where that symbol has one.
 3. The conditions that the step makes ready, in their written order. A condition on captures and a condition on `$` that become ready at one advance keep that order. Each one stops early as §10 says. The first that fails drops the item.
-4. Where the step completes the item, its production's tag term. The recognizer evaluates it where a condition of step 3 first reads `$.tags` or `$.classes`. Otherwise it evaluates it once every ready condition holds.
+4. Where the step completes the item, its production's tag term. The recognizer evaluates it where a condition of step 3 first reads `$.tags` or `$.classes`. Otherwise it evaluates it once every ready condition holds. Completion reuses the result when a ready condition already computed it. Boundary processing shares that same result.
 
    So a failing condition that does not read them stops the tag term. This holds also for a production with no symbols at its prediction. How many times the step evaluates the tag term is not observable.
 5. The boundary rules of §4.2. They run last, so a test, condition or tag term that drops the item first leaves no obligation.
@@ -1114,6 +1120,8 @@ Whether an omission is forbidden depends on the production prefix that the proof
 - Where no preceding nonterminal applies, the fixed prefix is the item before the optional itself. The omission is forbidden when the chart advances that item over a completed nonempty alternative of the optional, from `p`.
 
 The preceding symbol is read in logical helper structure (§3.2). The fixed prefix ends before that symbol, independent of capture expansion. A preceding plain optional supplies both absent and present blocker routes. Its nested helpers keep the same logical boundaries.
+
+The fixed prefix retains its actual boundary record (§4.2). Different boundary records cannot share an omission blocker.
 
 Three cases use the prefix immediately before the elidable optional: production start, a preceding terminal, and an initial recursive self-reference. The blocker search retains each proof's own prefix and eligible route. An omission does not record which constituent it closes.
 
@@ -1206,6 +1214,8 @@ The active-query identity remains the requested rule and projected context inter
 
 Answer keys distinguish constraints, while active keys detect self-definition.
 
+Aligned requests share qualification by rule, start, context end, and active query context. Family requests also retain the family, candidate end, and candidate observation in that key. Each request filters the qualified witnesses for its endpoint and alignment constraints. Reusable qualification stores completed observations and tags, without retaining the recognition chart or its proof edges.
+
 An ordinary query reads the tokens of its span alone. A `matches` over a span does not look past the span's end, even where a written terminator stands after it. So the keys of the memo (below) fit its answer.
 
 `begins` is one recognition over the whole span, not a separate parse of each prefix. Conditions see the query's context end. For an ordinary span, that end equals the span end. A recognizer can stop at a set that holds no item, since no later set can then hold one. Otherwise it reads as far as it can. An error of the grammar that it meets is an error, even after `rule` completed once.
@@ -1224,7 +1234,7 @@ But such a key costs time in proportion to the span, and the span of `.onward` o
 
 The recognition of §7 is not a query and has no entry.
 
-`matches` and `tags` of one span and rule can share an entry, since one recognition answers both. `begins` and `ends` need separate entries, since `begins` of a span can hold where `matches` of it does not. The key of a memo that outlives one stage parse must also include what differs between the parses that it serves. These are the tokens, the original text, and the inputs that select a shared memo. §4.3 specifies such a memo.
+`matches` and `tags` of one span and rule share one recognition and answer entry. `begins` and `ends` need separate entries, since `begins` of a span can hold where `matches` of it does not. The key of a memo that outlives one stage parse must also include what differs between the parses that it serves. These are the tokens, the original text, and the inputs that select a shared memo. §4.3 specifies such a memo.
 
 An ordinary nested parse uses its span as the context for all position and surrounding-token methods. An aligned parse uses its context bounds above. It restores both when it ends, also when it fails with an error of the grammar.
 
@@ -1233,6 +1243,14 @@ A nested parse's own conditions and tag terms can start further queries, so quer
 A query is active from the start of its nested parse to its end. Take a query about a span as a rule. It is an error of the grammar where an active query is about the same span and rule. `.matches`, `.begins`, `.ends`, and `.tags(rule)` are one kind here, so the methods of the two queries do not matter.
 
 Whether a query is negated does not matter either. The error names the rule, and the whole parse fails with it. Such a query makes the grammar define the rule in terms of itself over the same text.
+
+The recursive-query reason uses this template, with the requested rule name in place of `R`:
+
+```text
+a condition asks whether its own span parses as R from inside the parse of that span as R: the grammar defines R in terms of itself over the same text
+```
+
+The reason omits source text, so arbitrary token contents do not require a second escaping convention. Libraries add no stage prefix or document suffix. The structured error retains its stage.
 
 Only queries are active. The main parse of a stage is not a query, and neither is the recognition of the check of §7. In the main parse this changes no result. A query there about the whole input as `text` runs a nested parse of the same tokens with the same grammar. That nested parse reaches the same condition again, and then it is the active query. The check of §7 reads other tokens, so there the difference shows (§7.6).
 
@@ -1309,6 +1327,8 @@ A ranked group contributes one opaque block outside its options. The block ident
 An aligned witness must carry that same block through the same written group occurrence. It cannot replace the block with unrelated syntax or finish inside it. Compare original positions and common entry observations, rather than unrelated runtime parser identifiers. All proofs that one block represents supply the same outside answer. The query does not ask admission which option wins. Private captures inside an option retain their own real observations for ready conditions.
 
 Candidates and aligned witnesses use finite noncyclic observation proofs. Named-rule cycle exclusion uses original positions, including during restoration. A repeated named rule over one original span supplies no additional aligned observation. Synthetic positions and different observations cannot excuse that cycle. Ordinary unmarked queries keep their proof policy.
+
+If a reached restoration lacks a finite noncyclic observation proof, the current step drops immediately. No later operand or condition of that step runs. In a boundary condition, only the current Boolean assignment fails, and the other assignment still runs.
 
 The engine shares candidate and witness proof states with their relevant cycle contexts. It cannot enumerate every complete tree before evaluating a captured condition. It cannot impose an arbitrary limit on restoration length. Nullable recursive omission lists, such as `r → r [+T] | X`, must reach a finite shared construction.
 
@@ -1414,13 +1434,15 @@ An entry for `begins` holds whether a prefix is accepted. An entry for `ends` ho
 
 A shared memo must never change a result. A warm shared memo holds entries from earlier parses. A parse with a warm shared memo gives exactly the result of the same parse with an empty one. This holds for every order of parses, and for parses that run at the same time on other threads.
 
-With the inputs of one memo, a nested parse of one content asks the same queries in every parse, and gives the same answer. Aligned queries are the exception, since they depend on the stack of active queries (above). So an answer stays out of the shared memo where its nested parse, at any depth, asks an aligned query. It also stays out where that nested parse reads such an answer from the memo of its parse. Every other answer depends on its content alone, so a shared answer is the answer that its nested parse computes. A query with a key of position inside it changes nothing here, since its answer also depends on its content alone.
+An answer stays out of the shared memo where its nested parse, at any depth, asks an aligned query. It also stays out where that parse reads an answer with this dependency. Retained suffix answers carry and propagate the same dependency.
 
-A shared answer also never hides an error. The shared memo serves no answer while an aligned query is active. Then every active query is ordinary, and its context is its span. A nested parse asks only about parts of its context.
+Every query tests its active identity before any cached lookup. A cached answer must not hide a recursive-query error.
 
-Take an active query, and a later query inside it with the same rule and span. Every query between them is over that span and reads its content. By the premise above, the later query then asks the same chain again, and so it asks about itself. No parse completes such a query, so the shared memo never holds one.
+Whole and suffix recognitions can reach different roots over the same content. Content alone therefore cannot prove that a cached query chain avoids an active suffix query.
 
-An aligned query has the context `[a,N)`, which can run past its span. The argument above does not cover a query asked while an aligned query is active. So the shared memo serves no answer then. It still keeps the ordinary answers computed in that time.
+Nested requests made while a suffix query is active bypass all reusable answer and qualification caches. They insert no reusable entries. This includes retained suffix computations and shared answers. Each request receives its current computation's answer directly.
+
+The shared memo also serves no answer while an aligned query is active. Outside suffix activity, it can keep ordinary answers computed during aligned activity when those answers have no aligned dependency.
 
 A shared memo keeps its entries in two generations, a newer and an older set of entries. A lookup reads the newer generation, then the older one. An entry found in the older one moves to the newer one. Before an entry enters the newer generation, by an insertion or by that move, the memo makes room. Where the newer generation already holds the bound, the older one is dropped, and the newer one becomes the older one. This drop is eviction.
 
@@ -1451,17 +1473,21 @@ All target starts belong to one recognition computation. Written-terminator prio
 
 The query selects no longest suffix. A grammar error that this computation reaches remains an error even when another suffix succeeds. Within one shared recognition, an error first raised at input boundary p fails its requests ending at p or later. It does not fail a request ending before p.
 
+A grammar error ends the stage. The shared recognition therefore serves no later request after that error.
+
 `.ends` requires a capture or ordinary span. A restored receiver causes a load error, including after `.onward`, which preserves restoration. This includes `.without-elision-except(F)` views. Restored suffix queries can be added when a grammar needs them.
 
 A span method that drops restoration can supply an ordinary receiver. For example, `$x.without-elision.preceding-tokens.ends(R)` queries the raw prefix. It applies no suffix alignment constraint.
 
 Query answer keys distinguish suffix mode from whole and prefix modes. They include the target instance and fixed window. The active-query identity remains the target and projected context interval, across `matches`, `begins`, `ends`, and `tags`. Changing direction cannot evade the recursive-query error.
 
-Requests with one lowered target and window start share recognition when that target reads no window end. The shared recognition starts the target at every position from that window start. It retains one answer for each requested end boundary. The total cost is that recognition, including its nested queries, plus constant work per request. Complex targets can cost more than linear time even with sharing.
+Requests outside active suffix queries share recognition when they have one lowered target and window start, and that target reads no window end. The shared recognition starts the target at every position from that window start. It retains one answer for each requested end boundary. The total cost is that recognition, including its nested queries, plus constant work per request. Complex targets can cost more than linear time even with sharing.
 
 A target reads the window end when its recognition evaluates `.onward`, `.following-tokens`, `.ends-input`, or `.followed-by`. This includes conditions and tag terms of rules reached through body references. A target also counts as reading the window end if its recognition contains a nested query with a restored receiver. This rule includes restored queries at any nesting depth. An ordinary nested query target uses its own window end. Its end-reading methods alone do not create this outer dependency.
 
 Written-terminator priority uses only blockers that complete within the requested window. Shared recognition therefore decides eligibility separately for each end boundary. A later blocker cannot change an earlier retained answer. Errors retain the boundary scope defined above.
+
+A retained suffix computation records whether its reached work depends on an aligned query. Each retained-answer hit propagates that dependency to its caller.
 
 A target that reads the window end requires separate recognition for each distinct end. Its errors retain the complete window identity and never propagate to a different window. Repeated requests for the same window can reuse its answer. Use `.ends` sparingly because complex targets can require more than linear work.
 
@@ -1915,6 +1941,8 @@ The message is the same in every library. Section 7.10 gives witness loss priori
 ### 7.10 Readings
 
 This policy applies to every grammar, including grammars without ranked groups or flagged rules. Raw witness membership tests the concrete derivation. A competitor is a best admitted derivation other than W(D).
+
+Runtime witness tracking is mandatory. An optional observer only inspects the result and never supplies the runtime witness marks.
 
 If recognition ends without a grammar error, decide in this order.
 
@@ -2711,6 +2739,8 @@ A condition item holds at most one boundary atom. If the receiver of its atom is
 
 Its target is one ordinary rule, exact instance, user tag, or a choice of these. `🆓` counts as a rule name. Each target must be one that some recognition can build. It is a rule reachable through body references from `text` or from the rule argument of a nested query. Or it is a tag that such a rule reads as a terminal.
 
+Boundary-target inspection follows expanded rule order, then alternative order. Within one alternative, it follows the targets' written order.
+
 A terminal argument of `.matches`, `.begins`, or `.ends` also makes that tag buildable. Every alternative counts, even when evaluation never reaches it. Gates do not count.
 
 Each violation is a document error at the atom, at the name, or at the second atom. The limit of one atom per item and the receiver limit bind `%conditions` only. An emission tag clause can hold several atoms, because it reads the chosen derivation.
@@ -2735,7 +2765,7 @@ The error stands at the first atom of the recipe whose dependency reaches a chan
 
 Two of these checks depend on simplification (§3.6). They are the check that a condition applies to a production, and the check of the captures that a tag term uses. In simplification, a constant is its value, and the reader does not know that value. So the reader leaves these two checks to the loader for each clause that holds a constant. The loader makes them after it gives the constants their values (§2), and it reports an error at the definition. The check that some alternative captures each mentioned capture does not depend on a value, so the reader makes it for every clause.
 
-Capture validation queries the expression without listing capture sequences or production products. A query requires captures, forbids captures, and can require one capture before another. Each fixed query walks the expression once and retains its first matching expansion. Clause analysis branches only on presence tests written in that clause. Unrelated optional captures add no clause states. The validator compares failing witnesses in expansion order, so error priority and definition positions remain unchanged.
+Capture validation queries variable capture structure without listing production products. A query requires captures, forbids captures, and can require one capture before another. Each fixed query walks the expression once and retains its first matching expansion. Independent choice branches contribute their distinct capture lists directly, without guard assignments for combinations that no branch admits. Clause analysis branches only on presence tests written in that clause. Unrelated optional captures add no clause states. The validator compares failing witnesses in expansion order, so error priority and definition positions remain unchanged.
 
 Emission overlap uses a conservative structural analysis of the final stitched stage. The loader runs it after all other stitching checks, including ranked-choice validation, and before lowering. All remaining rules participate, including unreachable rules. Replaced rule definitions do not participate.
 

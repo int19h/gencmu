@@ -935,9 +935,7 @@ impl Pipeline {
         // An optional test hook observes the witness (tests/README.md).
         let flagged = g.rules.iter().any(|rule| rule.leftmost_longest || rule.fewest);
         let chosen_profile = if flagged { tree_profile(g, chosen) } else { crate::rank::Profile::ZERO };
-        let protect = true;
-        let walk = if witness::watched() || protect {
-            let empty = shared.tags.set(Vec::new());
+        let walk = {
             let forest = CheckForest {
                 g,
                 chart: &chart,
@@ -950,16 +948,13 @@ impl Pipeline {
                 record_at: &record_at,
                 unicode: shared.unicode,
                 tags: &shared.tags,
-                empty,
             };
-            Some(witness::walk(&forest, chosen))
-        } else {
-            None
+            witness::walk(&forest, chosen)
         };
         // The ranking of R has no lean (§7.7).
-        let rooted = rooted && (!protect || walk.as_ref().is_some_and(|walk| walk.is_some()));
+        let rooted = rooted && walk.is_some();
         let ranking = if rooted {
-            let marks = walk.as_ref().and_then(|walk| walk.as_ref()).map(|walk| &walk.marks);
+            let marks = walk.as_ref().map(|walk| &walk.marks);
             let mut ranker =
                 Ranker::new(g, &chart, &tokens, shared, Lean::Neither).observing(input, &recon.project).checking(marks);
             let preferred = !g.ranked.slots.is_empty();
@@ -976,20 +971,21 @@ impl Pipeline {
                 .rank()
                 .filter(|ranking| {
                     loss != Some(witness::Loss::Count)
-                        && (!protect || (raw_counted && (preferred || ranking.witness_counted == Some(true))))
-                        && (preferred
-                            || compare_profiles(&ranking.profile, &chosen_profile) != std::cmp::Ordering::Greater)
+                        && raw_counted
+                        && (preferred || ranking.witness_counted == Some(true))
                 })
                 .map(|mut ranking| {
-                    let excluded = protect && ranking.witness_counted != Some(true);
+                    let excluded = ranking.witness_counted != Some(true);
                     let better =
                         excluded || compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less;
-                    let keeps = if preferred {
+                    let keeps = if !witness::watched() {
+                        false
+                    } else if preferred {
                         raw_counted
                     } else {
                         ranking.witness_counted == Some(true)
                             && (better
-                                || walk.as_ref().and_then(|w| w.as_ref()).is_some_and(|walk| match ranking.second {
+                                || walk.as_ref().is_some_and(|walk| match ranking.second {
                                     Some(second) if ranking.verdict == RankVerdict::Tie || better => {
                                         let w = ranker.derivation(&walk.sequence);
                                         !ranker.before(w, ranking.first)
@@ -998,9 +994,8 @@ impl Pipeline {
                                     _ => true,
                                 }))
                     };
-                    if better || ranking.verdict == RankVerdict::Tie && protect {
-                        let w = ranker
-                            .derivation(&walk.as_ref().and_then(|w| w.as_ref()).expect("a restored witness").sequence);
+                    if better || ranking.verdict == RankVerdict::Tie {
+                        let w = ranker.derivation(&walk.as_ref().expect("a restored witness").sequence);
                         let competitor = if excluded {
                             ranking.first
                         } else {

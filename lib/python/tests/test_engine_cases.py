@@ -115,6 +115,8 @@ class EngineCases(unittest.TestCase):
             self.assertEqual(error.kind, expect.get("error"), f"{label}: unexpected load error: {error}")
             loaded_only = [name for name in AFTER_LOAD if name in expect]
             self.assertEqual(loaded_only, [], f"{label}: the pipeline did not load: {error}")
+            if "message" in expect:
+                self.assertEqual(error.message, expect["message"], label)
             if "diagnostic" in expect:
                 self.assertEqual(error.code, expect["diagnostic"], f"{label}: {error.message}")
             if "where" in expect:
@@ -156,6 +158,8 @@ class EngineCases(unittest.TestCase):
             self.assertIsNone(problem, f"{label}: {problem}\n{text[:3000]}")
         if "brackets" in expect:
             self.assertEqual(gencmu.to_brackets(result), expect["brackets"], label)
+        if "message" in expect:
+            self.assertEqual(value["error"]["message"], expect["message"], label)
         if "error" in expect:
             self.assertIsNotNone(value["error"], f"{label}: expected an error\n{text[:2000]}")
             self.assertEqual(value["error"]["kind"], expect["error"], label)
@@ -222,6 +226,14 @@ class EngineCases(unittest.TestCase):
             self.assertTrue(same_json(load_case(path)["expect"]["result"], value))
         changed = apply_mutant({"error": None}, {"path": ["error"], "set": value})
         self.assertTrue(same_json(changed["error"], value))
+
+    def test_the_runner_refuses_wrong_agreed_error_reasons(self):
+        for name in ("cr1-unicode-categories-conflict.json", "w2-75-suffix-recursion-local.json"):
+            fixture = load_case(Path(__file__).resolve().parents[3] / "tests" / "engine" / name)
+            outcome = run_case(fixture)
+            self.check(name, fixture["expect"], *outcome)
+            with self.assertRaises(AssertionError):
+                self.check(name, {**fixture["expect"], "message": "a wrong reason"}, *outcome)
 
     def test_a_load_error_meets_only_an_expectation_of_the_error(self) -> None:
         # The runner fails a case whose pipeline does not load, when the case

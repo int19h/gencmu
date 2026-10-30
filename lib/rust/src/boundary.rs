@@ -495,6 +495,7 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
                     stack.extend(t.iter().map(Part::T));
                 }
             }
+            let first_atom = atoms.len();
             while let Some(part) = stack.pop() {
                 match part {
                     Part::C(c) => match c {
@@ -532,14 +533,13 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
                     },
                 }
             }
+            atoms[first_atom..].sort_by_key(|(_, _, location)| location.at);
         }
     }
     if atoms.is_empty() {
         return Ok(());
     }
     let (rules, terminals) = reach(g, roots);
-    // Restore source order: target diagnostics follow written atom order.
-    atoms.sort_by_key(|(alt, _, location)| (alt.text_order, location.at));
     for (alt, targets, location) in atoms {
         for (index, target) in targets.iter().enumerate() {
             let found = if target.starts_with(|c: char| c.is_ascii_uppercase()) {

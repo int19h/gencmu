@@ -417,13 +417,12 @@ func (r *recognizer) bounded(k int, key *itemKey, l link) bool {
 			a, b := r.observed(int32(k-1), int32(k))
 			child = m.leaf(r.g.terminals[l.term], a == b)
 		}
-		fail := func(lit *boundaryLiteral) {
-			r.boundaryFailures = append(r.boundaryFailures, boundaryFailure{at: int32(k), end: k, source: annotations.meeting(sources, child.empty, lit.id)})
-		}
+		at := key.origin
 		if l.prev != nil {
-			fail = func(lit *boundaryLiteral) {
-				r.boundaryFailures = append(r.boundaryFailures, boundaryFailure{at: l.prev.set, end: k, source: annotations.meeting(sources, child.empty, lit.id)})
-			}
+			at = l.prev.set
+		}
+		fail := func(lit *boundaryLiteral) {
+			r.boundaryFailures = append(r.boundaryFailures, boundaryFailure{at: at, end: k, source: annotations.meeting(sources, child.empty, lit.id)})
 		}
 		result := m.advance(record, child, fail)
 		if result == nil {
@@ -521,28 +520,6 @@ func (r *recognizer) boundaryDiagnostic(position int) *BoundaryCondition {
 		}
 	}
 	return best
-}
-
-// Boundary meetings follow ordinary tag evaluation, including its errors.
-func (r *recognizer) finishBoundaryTags(p *production, key *itemKey, end int32) *nestedQuery {
-	if r.boundaries == nil || p.tags == nil || int(key.dot) != len(p.rhs) {
-		r.nextBoundaryTags = nil
-		return nil
-	}
-	if !r.boundaryTagActive {
-		r.boundaryTagActive = true
-		r.w.term(r.run.evaluator(r.g, r.captureFunc(p, r.caps(key), key.origin, end, nil, key.structure, key.closes)), p.tags)
-	}
-	if q := r.w.resume(); q != nil {
-		return q
-	}
-	r.boundaryTagActive = false
-	if r.w.invalidObservation {
-		r.boundaryTagInvalid = true
-		return nil
-	}
-	r.nextBoundaryTags = toSet(r.w.v)
-	return nil
 }
 
 // The template caches static clauses. Runtime simplifications stay local.

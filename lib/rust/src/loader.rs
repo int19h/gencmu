@@ -166,14 +166,6 @@ fn grammar_error(message: String) -> Error {
     }
 }
 
-fn unicode_error(message: String) -> Error {
-    let line =
-        message.strip_prefix("data/unicode/unicode.txt line ").and_then(|tail| tail.split(':').next()?.parse().ok());
-    let mut error = Error::grammar(message).in_document("data/unicode/unicode.txt");
-    error.line = line;
-    error
-}
-
 fn notation_pipeline(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Pipeline, Error> {
     build_notation_pipeline(bootstrap, unicode).map_err(|mut error| {
         if let Some(embedded) = &error.document {
@@ -259,7 +251,7 @@ impl Context {
         preparsed: &str,
     ) -> Result<Context, Error> {
         let unicode_hash = fnv1a64(unicode);
-        let mut unicode = Unicode::parse(unicode).map_err(unicode_error)?;
+        let mut unicode = Unicode::parse(unicode)?;
         if let Some(properties) = properties {
             unicode.properties = crate::unicode_properties::read_properties(properties, &unicode)?;
             unicode.properties_fingerprint = Some(fnv1a64(properties));
@@ -883,7 +875,7 @@ pub fn check_dom(json: &str) -> Result<Option<String>, Error> {
 /// Why a supplied DOM is malformed with a caller's Unicode table.
 /// This uses the same validation as the preparsed cache. For tests and tools.
 pub fn check_dom_with_unicode(json: &str, table: &str) -> Result<Option<String>, Error> {
-    let unicode = Unicode::parse(table).map_err(unicode_error)?;
+    let unicode = Unicode::parse(table)?;
     let value = crate::json::parse(json).map_err(grammar_error)?;
     Ok(crate::dom::dom_problem(&value, &unicode).map(str::to_string))
 }

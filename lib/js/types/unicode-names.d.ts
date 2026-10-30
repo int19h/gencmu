@@ -47,19 +47,19 @@ export declare class UnicodeNames {
 export declare class NamesScope {
     read: (path: string) => string;
     unicode: UnicodeTable;
-    fingerprint: (text: string) => string;
     extras: string[];
     /** @type {UnicodeNames[] | null} */
     tables: UnicodeNames[] | null;
+    /** @type {Map<string, number>} */
+    names: Map<string, number>;
     /** @type {Record<string,string> | undefined} */
     dependencies: Record<string, string> | undefined;
     /**
      * @param {(path:string)=>string} read
      * @param {UnicodeTable} unicode
-     * @param {(text:string)=>string} fingerprint
      * @param {Iterable<string>} [extras]
      */
-    constructor(read: (path: string) => string, unicode: UnicodeTable, fingerprint: (text: string) => string, extras?: Iterable<string>);
+    constructor(read: (path: string) => string, unicode: UnicodeTable, extras?: Iterable<string>);
     load(): void;
     /** @param {string} name @param {boolean} [coreOnly] @returns {number | undefined} */
     lookup(name: string, coreOnly?: boolean): number | undefined;

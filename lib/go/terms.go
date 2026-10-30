@@ -193,10 +193,23 @@ func (w *walk) endTerm(v value) {
 
 func (w *walk) endSet(set *tagset) { w.endTerm(value{kind: vSet, set: set}) }
 
+type invalidRestoration struct{}
+
 // resume goes on with the walk until it ends, or halts for the nested parse
 // that it returns. Each step works on the frame on top: it enters a child,
 // ends the frame with its value, or halts and keeps it as it is.
-func (w *walk) resume() *nestedQuery {
+
+func (w *walk) resume() (query *nestedQuery) {
+	defer func() {
+		if failure := recover(); failure != nil {
+			if _, invalid := failure.(invalidRestoration); !invalid {
+				panic(failure)
+			}
+			w.frames = w.frames[:0]
+			w.b = false
+			w.v = value{}
+		}
+	}()
 	for len(w.frames) > 0 {
 		f := &w.frames[len(w.frames)-1]
 		var q *nestedQuery
@@ -246,6 +259,7 @@ func (w *walk) span(ev *evaluator, t *domTerm) spanVal {
 		case "without-elision", "without-elision-except":
 			if s.arena != nil && s.closes == invalidCloses {
 				w.invalidObservation = true
+				panic(invalidRestoration{})
 			}
 			s.aligned = &alignedSpan{end: s.b, contextEnd: ev.run.inputEnd, observation: s.closes, arena: s.arena}
 			if call.Str == "without-elision-except" {
@@ -707,6 +721,12 @@ const contentKeyLimit = 16
 // is remembered for the whole parse. Where it is not yet known, nested
 // gives the query instead, which halts the walk that asked it. The
 // recognition that walks, or emission, answers it on a stack of its own.
+func recursiveQuery(rule string) *parseFailure {
+	return &parseFailure{bare: true, message: "a condition asks whether its own span parses as " + rule +
+		" from inside the parse of that span as " + rule + ": the grammar defines " + rule +
+		" in terms of itself over the same text"}
+}
+
 func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *tagset, *nestedQuery) {
 	ps := run.ps
 	start := g.byName[rule]
@@ -725,34 +745,44 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 	}
 	at := spanKey{g: g, rule: start, a: s.a, b: contextEnd}
 	if ps.inProgress[at] {
-		panic(&parseFailure{message: "a condition asks whether its own span parses as " + rule + ", which defines " + rule + " in terms of itself over the same text"})
+		panic(recursiveQuery(rule))
 	}
-	var suffix *suffixState
-	if kind == cdEnds {
-		suffix = run.suffixState(g, start, s.a, s.b)
-		if suffix.fault != nil && s.b >= suffix.errorAt {
-			panic(suffix.fault)
-		}
-		if answer, known := suffix.answers[s.b]; known {
-			return answer, nil, nil
-		}
-		if suffix.active {
-			suffix = &suffixState{answers: map[int]bool{}}
-		}
-	}
-	// Only aligned proof summaries depend on the active cycle context.
 	if s.aligned != nil {
 		k.queryContext = ps.queryContext
 	}
-	if r, ok := ps.nested[k]; ok {
-		if r.aligned {
+	// This result belongs to the suspended caller, rather than a cache.
+	if ps.answer != nil && ps.answerKey == k {
+		answer := ps.answer
+		ps.answer = nil
+		if answer.aligned {
 			ps.alignedAsked++
 		}
-		return r.holds, r.tags, nil
+		return answer.holds, answer.tags, nil
 	}
-	// While an aligned query is active, the shared memo serves nothing
-	// (engine §4.3). It still keeps what the parse computes.
-	if k.content != 0 && ps.memoLimit > 0 && ps.alignedActive == 0 {
+	var suffix *suffixState
+	if kind == cdEnds {
+		if ps.suffixActive > 0 {
+			suffix = &suffixState{answers: map[int]bool{}}
+		} else {
+			suffix = run.suffixState(g, start, s.a, s.b)
+			if answer, known := suffix.answers[s.b]; known {
+				if suffix.dependent {
+					ps.alignedAsked++
+				}
+				return answer, nil, nil
+			}
+		}
+	}
+	if ps.suffixActive == 0 {
+		if r, ok := ps.nested[k]; ok {
+			if r.aligned {
+				ps.alignedAsked++
+			}
+			return r.holds, r.tags, nil
+		}
+	}
+	// Shared answers cannot hide recursive aligned or suffix requests (§4.3).
+	if k.content != 0 && ps.memoLimit > 0 && ps.alignedActive == 0 && ps.suffixActive == 0 {
 		if a, ok := g.memo.get(sharedKey{k.kind == cdBegins, start, ps.contentStrings[k.content-1]}, ps.memoLimit); ok {
 			if memoHitHook != nil {
 				memoHitHook(start, ps.alignedActive)
@@ -768,7 +798,7 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 		}
 	}
 	q := &nestedQuery{g: g, name: rule, start: start, key: k, at: at, aligned: s.aligned, matchEnd: s.b, parentContext: ps.queryContext, suffix: suffix}
-	if q.aligned != nil {
+	if q.aligned != nil && ps.suffixActive == 0 {
 		if proofs, ok := run.qualifiedQueries[q.qualifiedKey()]; ok {
 			answer := run.alignedAnswer(q, proofs)
 			ps.nested[k] = answer
@@ -875,7 +905,7 @@ func (q *nestedQuery) recognizer(run *stageRun) *recognizer {
 		alignedQueryHook(1)
 	}
 	if q.suffix != nil {
-		q.suffix.active = true
+		run.ps.suffixActive++
 		if r := q.suffix.rec; r != nil {
 			r.query, r.n, r.lo, r.hi = q, b-a, a, b
 			return r
@@ -909,10 +939,7 @@ func (run *stageRun) drive(root *recognizer) {
 		// A parse that failed frees its place, as one that finished does.
 		for _, r := range frames {
 			if r.suffix != nil {
-				r.suffix.active = false
-				if failure != nil {
-					r.suffix.fault = failure
-				}
+				run.ps.suffixActive--
 			}
 			if r.query != nil {
 				delete(run.ps.inProgress, r.query.at)
@@ -956,7 +983,7 @@ func (run *stageRun) drive(root *recognizer) {
 				r.w = walk{}
 				run.recycle(r)
 			} else {
-				r.suffix.active = false
+				run.ps.suffixActive--
 			}
 		}
 	}
@@ -968,7 +995,7 @@ func (run *stageRun) drive(root *recognizer) {
 func (run *stageRun) startQuery(q *nestedQuery) {
 	ps := run.ps
 	if ps.inProgress[q.at] {
-		panic(&parseFailure{message: "a condition asks whether its own span parses as " + q.name + ", which defines " + q.name + " in terms of itself over the same text"})
+		panic(recursiveQuery(q.name))
 	}
 	ps.inProgress[q.at] = true
 	if ps.queryContexts == nil {
@@ -998,15 +1025,14 @@ func (run *stageRun) settle(rec *recognizer) {
 	res := &nestedResult{}
 	if q.aligned != nil {
 		proofs := run.qualifiedProofs(rec)
-		if run.qualifiedQueries == nil {
-			run.qualifiedQueries = map[qualifiedQueryKey][]qualifiedProof{}
+		if ps.suffixActive == 0 {
+			if run.qualifiedQueries == nil {
+				run.qualifiedQueries = map[qualifiedQueryKey][]qualifiedProof{}
+			}
+			run.qualifiedQueries[q.qualifiedKey()] = proofs
 		}
-		run.qualifiedQueries[q.qualifiedKey()] = proofs
 		res = run.alignedAnswer(q, proofs)
-		ps.nested[q.key] = res
-		return
-	}
-	if q.key.kind == cdEnds {
+	} else if q.key.kind == cdEnds {
 		res.holds = q.suffix.answers[q.at.b]
 	} else if q.key.kind == cdBegins {
 		res.holds = rec.begun(start)
@@ -1033,19 +1059,25 @@ func (run *stageRun) settle(rec *recognizer) {
 		}
 		res.holds, res.tags = len(sets) > 0, ps.in.unionAll(sets)
 	}
-	ps.nested[q.key] = res
 	run.remember(q, res)
+	if ps.suffixActive > 0 {
+		ps.answerKey, ps.answer = q.key, res
+	} else {
+		ps.nested[q.key] = res
+	}
 }
 
 // remember keeps the answer of a nested parse that has finished in the
 // shared memo, unless it depends on an aligned query (engine §4.3).
 func (run *stageRun) remember(q *nestedQuery, res *nestedResult) {
 	ps := run.ps
-	if ps.alignedAsked != q.asked {
+	if q.aligned != nil || ps.alignedAsked != q.asked {
 		res.aligned = true
-		return
 	}
-	if q.key.content == 0 || ps.memoLimit <= 0 {
+	if q.suffix != nil {
+		q.suffix.dependent = q.suffix.dependent || res.aligned
+	}
+	if res.aligned || ps.suffixActive > 0 || q.key.content == 0 || ps.memoLimit <= 0 {
 		return
 	}
 	a := sharedAnswer{holds: res.holds}
@@ -1155,8 +1187,7 @@ type nestedResult struct {
 // parse (engine §4, §5). It has a message and no position (§13).
 type parseFailure struct {
 	message string
-	// located says that the message begins with the document, line and
-	// column at fault, as an error of lowering does (§3), and needs no
-	// stage before it.
-	located bool
+	// bare preserves a prescribed reason or a message with its own location.
+	// The structured parse error still carries its stage.
+	bare bool
 }

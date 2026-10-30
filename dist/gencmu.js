@@ -1599,34 +1599,49 @@
   const PROPERTY_NAMES = new Set(Object.keys(PROPERTY_CATALOG.tags).map(name => name.slice(1)));
 
 
-  // Keep disjoint ranges while reading records, so a conflict names the later line.
-  /**
-   * @template T
-   * @param {[number, number, T][]} ranges
-   * @param {number} start
-   * @param {number} end
-   * @param {T} value
-   * @param {() => void} fail
-   */
-  function addValueRange(ranges, start, end, value, fail) {
-    let low = 0, high = ranges.length;
-    while (low < high) {
+  // The sparse interval tree has depth at most 21 over the Unicode code space.
+  // Uniform nodes collapse after insertion. No insertion moves earlier records.
+  /** @template T */
+  class ValueRanges {
+    constructor() {
+      /** @type {T | undefined} */
+      this.value = undefined;
+      /** @type {[ValueRanges<T>, ValueRanges<T>] | undefined} */
+      this.children = undefined;
+    }
+
+    /** @param {number} start @param {number} end @param {T} value @param {() => void} fail
+     * @param {number} [low] @param {number} [high] */
+    add(start, end, value, fail, low = 0, high = 0x10ffff) {
+      if (this.value !== undefined) {
+        if (this.value !== value) fail();
+        return;
+      }
+      if (start <= low && high <= end && !this.children) { this.value = value; return; }
+      this.children ??= [new ValueRanges(), new ValueRanges()];
       const mid = (low + high) >>> 1;
-      if (ranges[mid][1] < start) low = mid + 1;
-      else high = mid;
+      const [left, right] = this.children;
+      if (start <= mid) left.add(start, end, value, fail, low, mid);
+      if (end > mid) right.add(start, end, value, fail, mid + 1, high);
+      if (left.value !== undefined && left.value === right.value) {
+        this.value = left.value;
+        this.children = undefined;
+      }
     }
-    let last = low;
-    while (last < ranges.length && ranges[last][0] <= end) {
-      if (ranges[last][2] !== value) fail();
-      last++;
+
+    /** @param {[number, number, T][]} [result] @param {number} [low] @param {number} [high] */
+    ranges(result = [], low = 0, high = 0x10ffff) {
+      if (this.value !== undefined) {
+        const previous = result.at(-1);
+        if (previous && previous[1] + 1 === low && previous[2] === this.value) previous[1] = high;
+        else result.push([low, high, this.value]);
+      } else if (this.children) {
+        const mid = (low + high) >>> 1;
+        this.children[0].ranges(result, low, mid);
+        this.children[1].ranges(result, mid + 1, high);
+      }
+      return result;
     }
-    if (low > 0 && ranges[low - 1][1] + 1 === start && ranges[low - 1][2] === value) low--;
-    if (last < ranges.length && ranges[last][0] === end + 1 && ranges[last][2] === value) last++;
-    if (low < last) {
-      start = Math.min(start, ranges[low][0]);
-      end = Math.max(end, ranges[last - 1][1]);
-    }
-    ranges.splice(low, last - low, [start, end, value]);
   }
 
   /** @param {[number, number][]} ranges @returns {[number, number][]} */
@@ -1663,8 +1678,10 @@
       this.whiteSpace = [];
       /** @type {Map<string, [number, number][]>} */
       this.emoji = new Map([["Emoji_Presentation", []], ["Emoji_Component", []]]);
-      /** @type {[number, number, string][]} */
-      const ranges = [];
+      /** @type {ValueRanges<string>} */
+      const ranges = new ValueRanges();
+      /** @type {ValueRanges<number>} */
+      const combining = new ValueRanges();
       /** @type {Map<number, number[]>} */
       this.decompositions = new Map();
       /** @type {[number, number, number][]} */
@@ -1674,8 +1691,8 @@
         const line = index < lines.length - 1 && raw.endsWith("\r") ? raw.slice(0, -1) : raw;
         const fields = line.split(/[ \t]+/).filter(field => field !== "");
         if (!fields[0]) continue;
-        const fail = () => {
-          throw new GencmuError("grammar", `data/unicode/unicode.txt:${index + 1}: an unreadable record`, {document: "data/unicode/unicode.txt", line: index + 1});
+        const fail = (reason = "the core record is invalid") => {
+          throw new GencmuError("grammar", reason, {document: "data/unicode/unicode.txt", line: index + 1});
         };
         const entry = fields[0];
         const count = entry === "unicode" ? 2 : entry === "category" || entry === "combining" ? 4
@@ -1683,45 +1700,48 @@
         if (entry === "decompose" ? fields.length < 3 : count === null || fields.length !== count) fail();
         /** @param {string} field */
         const hex = field => {
-          if (!/^[0-9A-Fa-f]+$/.test(field)) fail();
+          if (!/^[0-9A-Fa-f]+$/.test(field)) fail("an invalid code point");
           const digits = field.replace(/^0+/, "");
-          if (digits.length > 6) fail();
+          if (digits.length > 6) fail("an invalid code point");
           const value = Number.parseInt(digits || "0", 16);
-          if (value > 0x10ffff) fail();
+          if (value > 0x10ffff) fail("an invalid code point");
           return value;
         };
         if (entry === "unicode") { this.version = fields[1]; this.versionCount++; }
         else if (entry === "abbreviation") {
           const code = hex(fields[1]), alias = fields[2];
           if (code >= 0xd800 && code <= 0xdfff || !/^[A-Z][A-Z0-9]*$/.test(alias)
-            || this.abbreviations.has(alias) || PINNED_CORE_NAMES.has(alias) && PINNED_CORE_NAMES.get(alias) !== code) fail();
+            || this.abbreviations.has(alias) || PINNED_CORE_NAMES.has(alias) && PINNED_CORE_NAMES.get(alias) !== code) fail("an invalid abbreviation");
           this.abbreviations.set(alias, code);
           const earlier = this.canonicalAbbreviations.get(code);
           if (earlier === undefined || alias.length < earlier.length || alias.length === earlier.length && alias < earlier) this.canonicalAbbreviations.set(code,alias);
         }
         else if (entry === "decompose") {
           const scalars = fields.slice(1).map(hex);
-          if (scalars.some(code => code >= 0xd800 && code <= 0xdfff) || this.decompositions.has(scalars[0])) fail();
+          if (scalars.some(code => code >= 0xd800 && code <= 0xdfff)) fail("an invalid scalar");
+          if (this.decompositions.has(scalars[0])) fail("a second decompose record");
           this.decompositions.set(scalars[0], scalars.slice(1));
         } else {
           const start = hex(fields[fields.length - 2]), end = hex(fields[fields.length - 1]);
-          if (start > end) fail();
+          if (start > end) fail("a reversed range");
           if (entry === "category") {
-            if (!CATEGORIES.includes(fields[1]) || fields[1] === "Cs") fail();
-            addValueRange(ranges, start, end, fields[1], fail);
+            if (!CATEGORIES.includes(fields[1])) fail("an unknown category");
+            if (fields[1] === "Cs") fail("category Cs is not allowed");
+            ranges.add(start, end, fields[1], () => fail("conflicting category ranges"));
           } else if (entry === "combining") {
             const digits = fields[1].replace(/^0+/, "");
-            if (!/^[0-9]+$/.test(fields[1]) || digits.length > 3) fail();
+            if (!/^[0-9]+$/.test(fields[1]) || digits.length > 3) fail("an invalid combining class");
             const klass = Number(digits);
-            if (klass < 1 || klass > 254) fail();
-            addValueRange(this.combining, start, end, klass, fail);
+            if (klass < 1 || klass > 254) fail("an invalid combining class");
+            combining.add(start, end, klass, () => fail("conflicting combining ranges"));
           } else if (entry === "white-space") this.whiteSpace.push([start, end]);
           else this.emoji.get(entry === "emoji-presentation" ? "Emoji_Presentation" : "Emoji_Component")?.push([start, end]);
         }
       }
       this.whiteSpace = unionRanges(this.whiteSpace);
       for (const [property, ranges] of this.emoji) this.emoji.set(property, unionRanges(ranges));
-      for (const [start, end, category] of ranges) {
+      this.combining = combining.ranges();
+      for (const [start, end, category] of ranges.ranges()) {
         this.starts.push(start);
         this.ends.push(end);
         this.categories.push(category);
@@ -1873,8 +1893,13 @@
      * @returns {boolean}
      */
     isWhiteSpace(code) {
-      for (const [start, end] of this.whiteSpace) if (code >= start && code <= end) return true;
-      return false;
+      let low = 0, high = this.whiteSpace.length;
+      while (low < high) {
+        const mid = (low + high) >>> 1;
+        if (this.whiteSpace[mid][0] <= code) low = mid + 1;
+        else high = mid;
+      }
+      return low > 0 && code <= this.whiteSpace[low - 1][1];
     }
 
   }
@@ -1952,8 +1977,8 @@
   //
   // `hooks.elisionCheck`, when set, receives each check that recognized R
   // and met no error of the grammar, before the check ranks, for the witness
-  // test of tests/README.md. It returns the marks of W(D)'s edges, which the
-  // check's own ranker takes, and a callback that receives the ranking.
+  // test of tests/README.md. It returns a ranking observer. Runtime tracking
+  // supplies witness marks independently of that observer.
   //
   // `hooks.work`, when set, counts work for the tests that it grows with the
   // input as it should: the items that the recognizer makes, in parses and
@@ -2050,12 +2075,8 @@
    */
 
   /**
-   * What the witness test hands back to the check: the marks of W(D)'s
-   * edges, for each item the indices of the edges that W(D) uses, or null
-   * where the chart does not hold W(D); and a callback that receives the
-   * check's ranking, with whether its count counted W(D).
+   * The independent witness test's ranking observer.
    * @typedef {object} ElisionCheckWatch
-   * @property {Map<import("./earley.js").Item, Set<number>> | null} marks
    * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
    */
 
@@ -5769,33 +5790,38 @@
     }
     return !!done[0].variable;
   }
-  /** @param {any} rule @param {any} alternative @returns {Map<string,number>[]} */
-  function validationCaptures(rule,alternative) {
-    const branches = [alternative.expr];
-    /** @type {Map<string,number>[]} */ const independent = [];
-    const distinct = new Set();
-    let fixed = true;
+  /** @param {any} expr @returns {Map<string,number>[] | null} */
+  function independentCaptureChoices(expr) {
+    const branches = [expr], seen = new Set();
+    /** @type {Map<string,number>[]} */
+    const lists = [];
     while (branches.length) {
-      const expr = branches.pop();
-      if (expr.choice || expr.ranked) {
-        const choices = expr.choice ?? expr.ranked;
-        for (let index=choices.length-1;index>=0;index--) branches.push(choices[index]);
+      const branch = branches.pop();
+      if (branch.choice || branch.ranked) {
+        const parts = branch.choice ?? branch.ranked;
+        for (let i = parts.length - 1; i >= 0; i--) branches.push(parts[i]);
         continue;
       }
-      if (expr.test) { branches.push(expr.expr); continue; }
-      if (variableCaptures(expr)) { fixed = false; break; }
-      const caps = new Map([['',-1]]), pending = [expr];
+      if (branch.test) { branches.push(branch.expr); continue; }
+      if (variableCaptures(branch)) return null;
+      const caps = new Map([["", -1]]), pending = [branch];
       while (pending.length) {
         const node = pending.pop();
-        if (node.capture !== undefined) caps.set(node.capture,caps.size-1);
-        else if (node.seq) for (let i=node.seq.length-1;i>=0;i--) pending.push(node.seq[i]);
+        if (node.capture !== undefined) caps.set(node.capture, caps.size - 1);
+        else if (node.seq) for (let i = node.seq.length - 1; i >= 0; i--) pending.push(node.seq[i]);
         else if (node.choice || node.ranked || node.and) pending.push((node.choice ?? node.ranked ?? node.and)[0]);
         else if (node.test) pending.push(node.expr);
       }
       const key = JSON.stringify([...caps.keys()]);
-      if (!distinct.has(key)) { distinct.add(key); independent.push(caps); }
+      if (!seen.has(key)) { seen.add(key); lists.push(caps); }
     }
-    if (fixed) return independent;
+    return lists;
+  }
+
+  /** @param {any} rule @param {any} alternative @returns {Map<string,number>[]} */
+  function validationCaptures(rule,alternative) {
+    const lists = independentCaptureChoices(alternative.expr);
+    if (lists !== null) return lists;
     /** @type {CaptureWitness[]} */ const witnesses=[];
     const ask=(/** @type {Iterable<string>} */ required=[],/** @type {Iterable<string>} */ forbidden=[],/** @type {string[]} */ order=[])=>{
       const found=captureWitness(alternative.expr,new Set(required),new Set(forbidden),order);
@@ -7651,6 +7677,7 @@
         if (group) group.push(event);
         else this.groups.set(at, [event]);
       }
+      this.groupPositions = [...this.groups.keys()].sort((a, b) => a - b);
       /** @type {Map<string,FamilySummary>} */ this.summaries = new Map();
       /** @type {Set<number>} */ this.taken = new Set();
       /** @type {Map<string,bigint[]>} */ this.records = new Map();
@@ -7737,7 +7764,16 @@
      */
     tokens(start, end) {
       if (start < this.end && this.end < end) return this.dead;
-      for (const at of this.groups.keys()) if (start < at && at < end && at <= this.end) return this.dead;
+      if (end - start > 1) {
+        let low = 0, high = this.groupPositions.length;
+        while (low < high) {
+          const mid = (low + high) >>> 1;
+          if (this.groupPositions[mid] <= start) low = mid + 1;
+          else high = mid;
+        }
+        const at = this.groupPositions[low];
+        if (at !== undefined && at < end && at <= this.end) return this.dead;
+      }
       return this.intern(false, this.accept(start), 1n, null);
     }
 
@@ -8008,7 +8044,7 @@
 
   // ---- eligible.js
   // Written-terminator priority for nested queries (engine §4): which
-  // completed items of a queried rule have an eligible witness.
+  // completed items of a queried rule have an eligible proof tree.
 
   /**
    * @import { Edge, Item, LoweredGrammar } from "./types.js"
@@ -8094,14 +8130,14 @@
   }
 
   /**
-   * The witnesses, completed items of the queried rule, that have an eligible
-   * witness in the chart (engine §4). An omission is an advance over the
+   * The completed items of the queried rule with an eligible proof tree in
+   * the chart (engine §4). An omission is an advance over the
    * empty helper of an elidable optional at its position p. It is forbidden
-   * where the prefix that the witness holds fixed can go on and read the
+   * where the prefix that the proof tree holds fixed can go on and read the
    * optional as written:
    *
    * - Where the optional has a constituent Y, the prefix is the item before Y
-   *   in the same witness. The omission is forbidden when the chart advances
+   *   in the same proof tree. The omission is forbidden when the chart advances
    *   that item over Y to some p' ≥ p, and the item so made advances over the
    *   optional's nonempty alternative.
    * - Otherwise the prefix is the item before the optional, and the omission
@@ -8112,9 +8148,9 @@
    * so an attempt that never completes the rule can forbid an omission.
    *
    * Each item has two states, computed together to the least fixpoint: it has
-   * an eligible witness (A), and it has an eligible witness that permits the
-   * optional after it to be empty (L). L follows the edge of the witness,
-   * so a permitted omission never combines with another witness's prefix.
+   * an eligible proof tree (E), and an eligible proof tree that permits
+   * the optional after it to be empty (P). P follows the proof tree,
+   * so a permitted omission never combines with another proof tree's prefix.
    * @param {Chart} chart
    * @param {Item[]} witnesses
    * @returns {Item[]}
@@ -8241,7 +8277,7 @@
       const owner = optionals.get(item.production.lhs);
       const scope = owner ? ["optional",identity(owner)] : item.production.lhs;
       return JSON.stringify([identity(item.production.logicalSource ?? item.production.source),scope,identity(group.written),
-        item.origin,item.end,item.structure,item.observationPrefix?.sequence,outside,captures.reverse()]);
+        item.origin,item.end,item.structure,item.observationPrefix?.sequence,item.boundary?.id,outside,captures.reverse()]);
     };
     /** @param {Item} item @param {number} dot @returns {Item[]} */
     const boundaries = (item,dot) => {
@@ -8291,11 +8327,11 @@
       for (let x = 0; x < order.length; x++) {
         if (eligible[x] && (permits[x] || next[x] === "none")) continue;
         const item = order[x];
-        let a = 0;
-        let l = 0;
+        let e = 0;
+        let p = 0;
         for (const edge of item.edges) {
           let through = 0;
-          // A query reads no synthetic token, so it has no restoration.
+          // Seeds and restoration edges supply a base proof state.
           if (edge.kind === "seed" || edge.kind === "restore") through = 1;
           else if (edge.kind === "scan") through = eligible[at(edge.previous)];
           else {
@@ -8303,22 +8339,22 @@
             through = (omitted(edge.child) ? permits[before] : eligible[before]) & eligible[at(edge.child)];
           }
           if (!through) continue;
-          a = 1;
+          e = 1;
           if (next[x] === "alone") {
-            if (!reads.has(item)) l = 1;
+            if (!reads.has(item)) p = 1;
           } else if (next[x] === "group") {
             const group = /** @type {import("./logical.js").LogicalSymbol} */ (precedingGroups.get(item));
-            if (groupPermits(item,group,item.end)) l = 1;
+            if (groupPermits(item,group,item.end)) p = 1;
           } else if (next[x] === "constituent" && edge.kind === "complete") {
             const end = further.get(edge.previous);
-            if (end === undefined || end < item.end) l = 1;
+            if (end === undefined || end < item.end) p = 1;
           }
         }
-        if (a && !eligible[x]) {
+        if (e && !eligible[x]) {
           eligible[x] = 1;
           changed = true;
         }
-        if (l && !permits[x]) {
+        if (p && !permits[x]) {
           permits[x] = 1;
           changed = true;
         }
@@ -10213,6 +10249,12 @@
    * @property {Map<Item,{event:CloseEvent,permitted:boolean}[]>|null} [familyTrace]
    */
 
+  /**
+   * One eligible completion, detached from the chart and its proof edges.
+   * Family qualification fixes the candidate, so its alignment is final here.
+   * @typedef {{end:number, tags:TagSet, observation:CloseObservation|null, familyAligned:boolean|null, direct:boolean|null}} QualifiedObservation
+   */
+
   // Interns tag sets, so that an item names a captured part's tags by number.
   class TagInterner {
     constructor() {
@@ -10661,8 +10703,10 @@
       // The most places a dot can be in one production, for numbering the
       // items of a set (see itemKey).
       this.dots = lowered.productions.reduce((most, production) => Math.max(most, production.rhs.length + 1), 1);
-      /** @type {Map<string, boolean | TagSet>} */
+      /** @type {Map<string, QueryAnswer>} */
       this.nested = new Map();
+      /** @type {Map<string, QualifiedObservation[]>} */
+      this.qualified = new Map();
       /** @type {Set<string>} */
       this.inProgress = new Set();
       /** Where the input of the recognition now running begins. */
@@ -10838,6 +10882,8 @@
       this.asked = 0;
       /** @type {import("./types.js").AlignedSpan|null} */
       this.aligned = null;
+      /** @type {string|null} */
+      this.qualificationKey = null;
       /**
        * What the halted evaluation has left to do, the innermost part first.
        * Each frame takes the value of the part inside it and gives its own,
@@ -10887,6 +10933,30 @@
     return halt;
   }
 
+  // Invalid restoration ends the current step or Boolean boundary assignment.
+  const INVALID_RESTORATION = Symbol("invalid restoration");
+  /** @type {WeakMap<(value:any)=>any, ()=>any>} */
+  const restorationRecoveries = new WeakMap();
+
+  /**
+   * @template T
+   * @param {()=>T|Halt} action
+   * @param {()=>T} failed
+   * @returns {T|Halt}
+   */
+  function restorationStep(action, failed) {
+    try {
+      const value = action();
+      if (value !== HALT) return value;
+      const frame = (/** @type {any} */ result) => result;
+      restorationRecoveries.set(frame, failed);
+      return pause(frame);
+    } catch (error) {
+      if (error !== INVALID_RESTORATION) throw error;
+      return failed();
+    }
+  }
+
   /**
    * Goes on with a halted evaluation: the answer goes through its frames, the
    * innermost first. A frame that halts again keeps the frames outside it,
@@ -10897,7 +10967,15 @@
    */
   function proceed(frames, value) {
     for (let index = 0; index < frames.length; index++) {
-      value = frames[index](value);
+      try {
+        value = frames[index](value);
+      } catch (error) {
+        if (error !== INVALID_RESTORATION) throw error;
+        while (++index < frames.length && !restorationRecoveries.has(frames[index])) {}
+        const recover = restorationRecoveries.get(frames[index]);
+        if (!recover) throw error;
+        value = recover();
+      }
       if (value === HALT) {
         const inner = /** @type {Pending} */ (halting).frames;
         for (let outer = index + 1; outer < frames.length; outer++) inner.push(frames[outer]);
@@ -10947,7 +11025,7 @@
     while (value === HALT) {
       const halt = takeHalt();
       drive(startQuery(halt));
-      value = proceed(halt.frames, halt.context.nested.get(halt.key));
+      value = proceed(halt.frames, queryAnswer(halt.kind, /** @type {QueryAnswer} */ (halt.context.nested.get(halt.key))));
     }
     return value;
   }
@@ -10982,12 +11060,6 @@
         if (run.query !== null) answer = settle(run.query, chart);
         if (runs.length === 0) return chart;
       }
-    } catch (error) {
-      for (const run of runs) {
-        const state = run.query && suffixRequests.get(run.query);
-        if (state) state.error = {at:state.errorAt,error};
-      }
-      throw error;
     } finally {
       // A parse that failed frees its place and its bounds, as one that
       // finished does, the innermost first.
@@ -11016,7 +11088,7 @@
     if (context.trace) context.trace.depth++;
     const suffix = query.kind === "ends" ? suffixRequests.get(query) : undefined;
     if (suffix) {
-      suffix.active = true;
+      sharingOf(context).suffixActive++;
       if (suffix.run) {
         const run = suffix.run;
         run.outerStart = context.inputStart;
@@ -11038,7 +11110,7 @@
     const circular = "parse\u0001" + rule + "\u0001" + start + "\u0001" + end;
     if (context.inProgress.has(circular)) {
       throw new GencmuError("grammar",
-        `a condition asks whether ${JSON.stringify(textOf(context, start, end))} parses as ${rule} from inside the parse of that span as ${rule}: ` +
+        `a condition asks whether its own span parses as ${rule} from inside the parse of that span as ${rule}: ` +
         `the grammar defines ${rule} in terms of itself over the same text`, { rule });
     }
     return circular;
@@ -11055,7 +11127,9 @@
     context.inputEnd = run.outerEnd;
     if (query === null) return;
     const suffix = query.kind === "ends" ? suffixRequests.get(query) : undefined;
-    if (suffix) suffix.active = false;
+    if (suffix) {
+      sharingOf(context).suffixActive--;
+    }
     if (!query.unseen) context.inProgress.delete("parse\u0001" + query.rule + "\u0001" + query.start + "\u0001" + query.end);
     else unseenDepth--;
     if (query.aligned) sharingOf(context).alignedActive--;
@@ -11076,33 +11150,29 @@
     let answer;
     /** @type {boolean | {accepted: boolean, tags: string[]} | null} */
     let shared = null;
+    /** @type {QueryAnswer|undefined} */
+    let entry;
     if (query.aligned) {
-      const constraint = query.aligned;
       const witnesses = [];
       for (const set of chart.sets) {
-        if (!set || set.position > constraint.matchEnd) continue;
-        if (kind !== "begins" && set.position !== constraint.matchEnd) continue;
+        if (!set) continue;
         for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
-      const qualified = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses));
-      const aligned = qualified.filter(item => {
-        const answer = !!item.observation && (chart.family
-          ? !!item.familySummary && chart.family.accepts(item.familySummary, item.end)
-          : !!context.closes?.aligned(constraint.observation,item.observation,Math.min(constraint.candidateEnd,item.end)));
-        if (chart.familyTrace && hooks.familyAlignment && context.closes) {
-          const direct = !!item.observation?.valid && deletionTest(context.closes.list(constraint.observation.sequence),
-            chart.familyTrace.get(item) ?? [], start, Math.min(constraint.candidateEnd, item.end));
-          hooks.familyAlignment(answer, direct);
-        }
-        return answer;
-      });
-      if (kind === "tags") {
-        const tags = new TagUnion();
-        for (const item of aligned) tags.add(context.interner.get(item.tagId));
-        answer = tags.result();
-      } else answer = aligned.length !== 0;
+      const constraint = query.aligned;
+      const qualified = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses)).map(item => ({
+        end:item.end, tags:context.interner.get(item.tagId), observation:item.observation ?? null,
+        familyAligned:chart.family ? !!item.familySummary && chart.family.accepts(item.familySummary, item.end) : null,
+        direct:chart.familyTrace && context.closes ? deletionTest(context.closes.list(constraint.observation.sequence),
+          chart.familyTrace.get(item) ?? [], chart.start, Math.min(constraint.candidateEnd,item.end)) : null,
+      }));
+      if (sharingOf(context).suffixActive === 0 && query.qualificationKey !== null) context.qualified.set(query.qualificationKey, qualified);
+      const entry = alignedAnswer(context, kind, /** @type {import("./types.js").AlignedSpan} */ (query.aligned), qualified);
+      if (sharingOf(context).suffixActive === 0) context.nested.set(query.key, entry);
+      return queryAnswer(kind, entry);
     } else if (kind === "ends") {
-      answer = /** @type {SuffixState} */ (suffixRequests.get(query)).answers.get(query.end) ?? false;
+      const state = /** @type {SuffixState} */ (suffixRequests.get(query));
+      state.dependent ||= sharingOf(context).asked !== query.asked;
+      answer = state.answers.get(query.end) ?? false;
     } else if (kind === "begins") {
       // A completed item from the span's start, in any set (engine §4).
       /** @type {Item[]} */
@@ -11120,12 +11190,40 @@
       const result = new TagUnion();
       for (const item of witnesses) result.add(context.interner.get(item.tagId));
       const tags = result.result();
-      answer = kind === "matches" ? witnesses.length > 0 : tags;
+      entry = {accepted:witnesses.length > 0,tags};
+      answer = queryAnswer(kind, entry);
       shared = { accepted: witnesses.length > 0, tags: [...tags] };
     }
-    context.nested.set(query.key, answer);
+    if (sharingOf(context).suffixActive === 0) context.nested.set(query.key, entry ?? /** @type {boolean} */ (answer));
     if (shared !== null) rememberShared(query, shared);
     return answer;
+  }
+
+  /** @typedef {boolean|{accepted:boolean,tags:TagSet}} QueryAnswer */
+  /** @param {string} kind @param {QueryAnswer} entry @returns {boolean|TagSet} */
+  function queryAnswer(kind, entry) {
+    return typeof entry === "boolean" ? entry : kind === "tags" ? entry.tags : entry.accepted;
+  }
+
+  /**
+   * Filter one qualification for this request's endpoint and close constraints.
+   * @param {ParseContext} context
+   * @param {string} kind
+   * @param {import("./types.js").AlignedSpan} constraint
+   * @param {QualifiedObservation[]} qualified
+   * @returns {{accepted:boolean,tags:TagSet}}
+   */
+  function alignedAnswer(context, kind, constraint, qualified) {
+    const aligned = qualified.filter(item => {
+      if (item.end > constraint.matchEnd || kind !== "begins" && item.end !== constraint.matchEnd) return false;
+      const answer = !!item.observation && (item.familyAligned
+        ?? !!context.closes?.aligned(constraint.observation,item.observation,Math.min(constraint.candidateEnd,item.end)));
+      if (item.direct !== null && hooks.familyAlignment) hooks.familyAlignment(answer, !!item.observation?.valid && item.direct);
+      return answer;
+    });
+    const tags = new TagUnion();
+    for (const item of aligned) tags.add(item.tags);
+    return {accepted:aligned.length !== 0,tags:tags.result()};
   }
 
   // What a run does next. A step that halts for a nested parse keeps its
@@ -11216,7 +11314,7 @@
       for (const rule of rules) {
         const prefix = prefixTable?.get(rule);
         if (!prefix || prefix.nullable) return true;
-        for (const terminal of prefix.first) if (reads(context,terminal,token)) return true;
+        for (const terminal of prefix.first) if (reads(context,terminal,token,item.end)) return true;
       }
       return false;
     };
@@ -11459,7 +11557,6 @@
     /** @type {() => void | Halt} */
     const predictRest = () => {
       const set = predictSet;
-      if (suffix) suffix.errorAt = set.position;
       const strict = predictStrict;
       const productions = lowered.byLhs.get(predictName) || [];
       const next = set.position < end ? tokens[set.position] : null;
@@ -11515,7 +11612,7 @@
         }
         // The conditions run first, as they did when every prediction was
         // made an item, so that a trace shows the production as dropped.
-        if (lookaheadSkips(context, production, next)) {
+        if (lookaheadSkips(context, production, next, set.position)) {
           predictSkipped = true;
           return;
         }
@@ -11536,7 +11633,6 @@
     // saves a frame that does the rest, through advanceFrom.
     /** @type {(item: Item, from: number, to: number, child: Item | null) => Advanced | null | Halt} */
     const advance = (item, from, to, child) => {
-      if (suffix) suffix.errorAt = to;
       const production = item.production;
       // A tested symbol's test must hold of its own span and tags, which is
       // checked before any condition the advance makes ready (engine §4).
@@ -11740,7 +11836,7 @@
                 let scan = null;
                 if (suffix) while (scanIndex < scans.length) {
                   const candidate = scans[scanIndex++];
-                  if (reads(context,candidate.production.rhs[candidate.dot],tokens[at])) { scan = candidate; break; }
+                  if (reads(context,candidate.production.rhs[candidate.dot],tokens[at],at)) { scan = candidate; break; }
                 }
                 if (scan) {
                   entry = scan;
@@ -11770,7 +11866,7 @@
                   // Finish this boundary before any condition can read the next.
                   scans.push(taken);
                   continue;
-                } else if (at < end && reads(context, symbol, tokens[at])) {
+                } else if (at < end && reads(context, symbol, tokens[at],at)) {
                   // The written routes of an elidable optional (engine §7.4):
                   // from an original token, or from a synthetic one, after
                   // which the rest of the optional must read, so the item after
@@ -12132,22 +12228,25 @@
    * @param {ParseContext} context
    * @param {Production} production
    * @param {Token | null} next
+   * @param {number} at
    * @returns {boolean}
    */
-  function lookaheadSkips(context, production, next) {
+  function lookaheadSkips(context, production, next, at) {
     const first = production.rhs[0];
-    return Boolean(first && first.terminal && !(next && reads(context, first, next)));
+    return Boolean(first && first.terminal && !(next && reads(context, first, next, at)));
   }
 
   /**
-   * Whether a terminal matches a token (engine §4): a tag it carries, or, for
-   * a range or a property, one of its character tags.
+   * A tag matches a stored tag. Other terminals match stored values and
+   * never read synthetic tokens (engine §4).
    * @param {ParseContext} context
    * @param {GrammarSymbol} symbol
    * @param {Token} token
+   * @param {number} at
    * @returns {boolean}
    */
-  function reads(context, symbol, token) {
+  function reads(context, symbol, token, at) {
+    if (context.synthetic?.[at] && (symbol.wildcard || symbol.literal !== undefined || symbol.characters)) return false;
     if (symbol.wildcard) return true;
     if (symbol.literal !== undefined) return token.value === symbol.literal;
     if (symbol.characters) {
@@ -12290,7 +12389,7 @@
       if (at !== readyAt) continue;
       const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure,step.observation);
       const atom = firstBoundaryAtom(condition);
-      const held = atom ? boundaryCondition(scope.observing,condition,scope,atom,step,conditions[index].wholeBoundary !== false) : holds(scope.observing, condition, scope);
+      const held = atom ? boundaryCondition(scope.observing,condition,scope,atom,step,conditions[index].wholeBoundary !== false) : restorationStep(() => holds(scope.observing, condition, scope), () => false);
       if (held === HALT) return pause((/** @type {boolean} */ value) => value && !scope.invalidRestoration ? failedFrom(context, production, conditions, index + 1, readyAt, slots, origin, end, step) : condition);
       if (!held || scope.invalidRestoration) return condition;
     }
@@ -12309,7 +12408,7 @@
    */
   function completeTags(context, production, slots, origin, end, step) {
     const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure,step.observation);
-    const tags = scope.constituent();
+    const tags = restorationStep(() => scope.constituent(), () => tagSet());
     if (tags === HALT) return pause((/** @type {TagSet} */ value) => context.interner.intern(value));
     return context.interner.intern(tags);
   }
@@ -12512,7 +12611,10 @@
       const machine = context.closes;
       if (!machine || !captured.observation) throw new GencmuError("grammar","a restored span lacks its captured close observation");
       const observation = captured.observation;
-      if (!observation.valid && "invalidRestoration" in scope) scope.invalidRestoration = true;
+      if (!observation.valid) {
+        if ("invalidRestoration" in scope) scope.invalidRestoration = true;
+        throw INVALID_RESTORATION;
+      }
       const r = reconstructionOf(scope);
       const contextEnd = r ? originalPosition(r,r.inputEnd) : context.inputEnd;
       return { start: inner.start, end: inner.end,
@@ -13270,44 +13372,54 @@
     const sharing = sharingOf(context);
     if (aligned) sharing.asked++;
     if (aligned && !aligned.observation.valid) return kind === "tags" ? tagSet() : false;
-    const key = kind === "ends" ? JSON.stringify(["suffix",rule,start,end]) : aligned ? JSON.stringify(["aligned",kind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation)])
+    const memoKind = kind === "tags" ? "matches" : kind;
+    const ancestry = aligned ? [...context.inProgress].sort(compareCodePoints) : null;
+    const key = kind === "ends" ? JSON.stringify(["suffix",rule,start,end]) : aligned ? JSON.stringify(["aligned",memoKind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation),ancestry])
       : at !== null && end - start > CONTENT_KEY_LIMIT
-        ? JSON.stringify(["at", kind, rule, at[0], at[1]])
-        : nestedKey(context, kind, rule, start, end);
+        ? JSON.stringify(["at", memoKind, rule, at[0], at[1]])
+        : nestedKey(context, memoKind, rule, start, end);
+    requireInactive(context,rule,start,end);
+    let suffix = null;
     if (kind === "ends") {
-      requireInactive(context,rule,start,end);
-      const state = suffixState(context, rule, start, end);
-      if (state.error && end >= state.error.at) throw state.error.error;
-      if (state.answers.has(end)) return /** @type {boolean} */ (state.answers.get(end));
+      suffix = sharing.suffixActive > 0 ? freshSuffix() : suffixState(context, rule, start, end);
+      if (suffix.answers.has(end)) {
+        if (suffix.dependent) sharing.asked++;
+        return /** @type {boolean} */ (suffix.answers.get(end));
+      }
     }
-    const known = context.nested.get(key);
+    const known = sharing.suffixActive > 0 ? undefined : context.nested.get(key);
     if (known !== undefined) {
       if (sharing.tainted.has(key)) sharing.asked++;
-      return known;
+      return queryAnswer(kind, known);
     }
     const limit = memoLimit();
-    // While an aligned query is active, the shared memo serves nothing
-    // (engine §4.3). Then a shared answer cannot hide an error of the stack
-    // of active queries, so the stack can be checked after the memos.
-    if (!aligned && limit > 0 && sharing.alignedActive === 0 && key.startsWith('["of"')) {
+    // Shared answers cannot hide recursive aligned or suffix requests (§4.3).
+    if (!aligned && limit > 0 && sharing.alignedActive === 0 && sharing.suffixActive === 0 && key.startsWith('["of"')) {
       const found = sharedMemoOf(context.lowered).get(sharedKey(key), limit);
       if (found !== undefined) {
         if (hooks.memoHit) hooks.memoHit(sharedKey(key), sharing.alignedActive);
         // The answer enters the memo of the parse, as the answer of its
         // nested parse does.
-        const answer = typeof found === "boolean" ? found : kind === "tags" ? tagSet(found.tags) : found.accepted;
-        context.nested.set(key, answer);
-        return answer;
+        const entry = typeof found === "boolean" ? found : {accepted:found.accepted,tags:tagSet(found.tags)};
+        context.nested.set(key, entry);
+        return queryAnswer(kind, entry);
       }
+    }
+    const qualificationKey = aligned ? JSON.stringify([rule,start,end,ancestry,
+      ...(aligned.family ? [aligned.family,aligned.candidateEnd,context.closes?.identity(aligned.observation)] : [])]) : null;
+    const qualified = qualificationKey !== null && sharing.suffixActive === 0 ? context.qualified.get(qualificationKey) : undefined;
+    if (qualified && aligned) {
+      const entry = alignedAnswer(context,kind,aligned,qualified);
+      context.nested.set(key, entry);
+      return queryAnswer(kind, entry);
     }
     // A fault finds no query cycle while the check runs (F25).
     halting = new Pending(context, kind, rule, start, end, at, key, context.checking && fault("F25"));
     halting.aligned = aligned ?? null;
+    halting.qualificationKey = qualificationKey;
     halting.asked = sharing.asked;
     if (kind === "ends") {
-      const state = suffixState(context, rule, start, end);
-      // An unfinished boundary needs its own active-window identity.
-      suffixRequests.set(halting, state.active ? freshSuffix() : state);
+      suffixRequests.set(halting, /** @type {SuffixState} */ (suffix));
     }
     return HALT;
   }
@@ -13316,14 +13428,12 @@
    * @typedef {object} SuffixState
    * @property {Map<number,boolean>} answers
    * @property {Run|null} run
-   * @property {boolean} active
-   * @property {number} errorAt
-   * @property {{at:number,error:unknown}|null} error
+   * @property {boolean} dependent
    * @property {((end:number) => void)|null} extend
    */
   /** @returns {SuffixState} */
   function freshSuffix() {
-    return {answers:new Map(),run:null,active:false,errorAt:0,error:null,extend:null};
+    return {answers:new Map(),run:null,dependent:false,extend:null};
   }
   /** @type {WeakMap<ParseContext,Map<string,SuffixState>>} */
   const suffixStates = new WeakMap();
@@ -13472,17 +13582,17 @@
    * answers that depend on one. Such an answer stays out of the shared memo,
    * and so does every answer that reads it (engine §4.3). Also how many
    * aligned queries are active now.
-   * @type {WeakMap<ParseContext, {asked: number, tainted: Set<string>, alignedActive: number}>}
+   * @type {WeakMap<ParseContext, {asked: number, tainted: Set<string>, alignedActive: number, suffixActive: number}>}
    */
   const sharings = new WeakMap();
 
   /**
    * @param {ParseContext} context
-   * @returns {{asked: number, tainted: Set<string>, alignedActive: number}}
+   * @returns {{asked: number, tainted: Set<string>, alignedActive: number, suffixActive: number}}
    */
   function sharingOf(context) {
     let sharing = sharings.get(context);
-    if (!sharing) sharings.set(context, sharing = { asked: 0, tainted: new Set(), alignedActive: 0 });
+    if (!sharing) sharings.set(context, sharing = { asked: 0, tainted: new Set(), alignedActive: 0, suffixActive: 0 });
     return sharing;
   }
 
@@ -13511,7 +13621,7 @@
       return;
     }
     const limit = memoLimit();
-    if (query.aligned || limit === 0 || !key.startsWith('["of"')) return;
+    if (query.aligned || sharing.suffixActive > 0 || limit === 0 || !key.startsWith('["of"')) return;
     if (hooks.memoInsert) hooks.memoInsert(sharedKey(key));
     sharedMemoOf(context.lowered).set(sharedKey(key), answer, limit);
   }
@@ -13600,7 +13710,7 @@
     const next = position < chart.end ? context.tokens[position] : null;
     for (const rule of set.skipped) {
       for (const production of context.lowered.byLhs.get(rule) || []) {
-        if (!lookaheadSkips(context, production, next)) continue;
+        if (!lookaheadSkips(context, production, next, position)) continue;
         const failed = settled(() => failedCondition(context, production, -1, null, position, position, { scope: null, structure: structuralStep(context, production, 0, null, null, position).structure, observation: closeStep(context,production,0,position,null,null,position)?.observation ?? null }));
         if (failed) continue;
         note(writtenSymbol(production.rhs[0]), production.owner);
@@ -13616,12 +13726,12 @@
    * @param {any} context @param {any} condition @param {any} scope @param {any} atom @param {any} step @param {boolean} wholeBoundary */
   function boundaryCondition(context,condition,scope,atom,step,wholeBoundary) {
     scope.boundaryValue = true;
-    const yes = holds(context,condition,scope);
+    const yes = restorationStep(() => holds(context,condition,scope), () => false);
     const withYes = (/** @type {boolean} */ value) => {
       value = value && !scope.invalidRestoration;
       scope.invalidRestoration = false;
       scope.boundaryValue = false;
-      const no = holds(context,condition,scope);
+      const no = restorationStep(() => holds(context,condition,scope), () => false);
       const finish = (/** @type {boolean} */ other) => {
         delete scope.boundaryValue;
         other = other && !scope.invalidRestoration;
@@ -17324,14 +17434,13 @@
       // Runtime tracking marks W(D)'s edges before the check ranks.
       // An optional test hook observes the witness (tests/README.md).
       const run = { chosen, chart, roots, synthetic, originalAt, recordAt };
-      const protectWitness = true;
-      const walk = protectWitness ? walkWitness(run) : null;
+      const walk = walkWitness(run);
       const watch = hooks.elisionCheck ? hooks.elisionCheck(run) : null;
       // The check's ranker: no lean, and cycles over spans of R (engine §7.7).
       const ranker = slotRanker(chart, restored, "none", fault("F19") ? project : null);
       ranker.profileProject = project;
       ranker.check = true;
-      ranker.marks = protectWitness ? walk?.marks ?? null : watch?.marks ?? null;
+      ranker.marks = walk?.marks ?? null;
       // Raw witness membership and filtered admission are separate decisions.
       let raw = ranker;
       if (ranker.admission) {
@@ -17342,28 +17451,24 @@
       }
       const rawRanking = roots.length === 0 ? null : raw.rank(roots);
       let ranking = raw === ranker ? rawRanking : roots.length === 0 ? null : ranker.rank(roots);
-      if (fault("lost:count") || (protectWitness && (!walk || rawRanking?.witnessCounted !== true))) ranking = null;
+      if (fault("lost:count") || rawRanking?.witnessCounted !== true) ranking = null;
       if (fault("F23")) {
         // A fault leaves the main grammar in the mode of the check.
         for (const [name, productions] of lowered.byLhs) {
           lowered.byLhs.set(name, productions.filter((production) => !(production.rhs.length === 0 && production.helper && production.elided !== null)));
         }
       }
-      if (ranking === null) {
+      if (!walk || ranking === null) {
         if (watch) watch.ranked({ ranking: null, counted: false });
         return old ? { kind: "pass" } : { kind: "lost", completion: records };
       }
       const profileOrder = ranker.profiles ? compareProfiles(ranking.profile, derivationProfile(chosen)) : 0;
-      if (profileOrder > 0 && !ranker.admission) {
-        if (watch) watch.ranked({ ranking: null, counted: false });
-        return { kind: "lost", completion: records };
-      }
-      const restoredWitness = walk ? ropeOf(walk.sequence) : witnessRope(chosen);
-      const excluded = protectWitness && ranking.witnessCounted !== true;
+      const restoredWitness = ropeOf(walk.sequence);
+      const excluded = ranking.witnessCounted !== true;
       const better = excluded || profileOrder < 0;
       // Observe candidate selection before arranging the diagnostic pair.
       const selectedRanking = ranking;
-      if (better || ranking.verdict === "tie" && protectWitness) {
+      if (better || ranking.verdict === "tie") {
         const first = ranking.first;
         const second = ranking.second;
         const competitor = firstDifference(restoredWitness, first, false) !== null ? first : second;
@@ -17988,37 +18093,6 @@
   }
 
 
-
-  /**
-   * Builds the restored witness actions in leaf order (engine §7.8).
-   * The witness keeps each production and gives each omission one token.
-   * @param {Derivation} chosen
-   * @returns {import("./types.js").Rope}
-   */
-  function witnessRope(chosen) {
-    /** @type {Action[]} */
-    const sequence = [];
-    let cursor = 0;
-    const stack = [{ node: chosen, next: 0, start: 0 }];
-    while (stack.length) {
-      const frame = stack[stack.length - 1];
-      const node = frame.node;
-      if ("read" in node) {
-        sequence.push({ ...node.read, token: cursor++ });
-        stack.pop();
-      } else if (node.production.helper && node.production.elided !== null && !node.children.length) {
-        sequence.push({ kind: "read", terminal: node.production.elided, token: cursor++ });
-        sequence.push({ kind: "close", item: Object.assign(Object.create(Object.getPrototypeOf(node.item)), node.item, { origin: frame.start, end: cursor, restores: true }) });
-        stack.pop();
-      } else if (frame.next < node.children.length) {
-        stack.push({ node: node.children[frame.next++], next: 0, start: cursor });
-      } else {
-        sequence.push({ kind: "close", item: Object.assign(Object.create(Object.getPrototypeOf(node.item)), node.item, { origin: frame.start, end: cursor }) });
-        stack.pop();
-      }
-    }
-    return ropeOf(sequence);
-  }
 
   /** @param {ResultNode} tree @returns {boolean} */
   function hasElided(tree) {
@@ -19495,6 +19569,7 @@
 
 
 
+
   /** @typedef {{code:number, name:string, kind:string, line:number}} NameRecord */
   /** @typedef {{kind:string, first:number, last:number, prefix:string, line:number}} NameAlgorithm */
   /** @import { UnicodeTable } from "./unicode.js" */
@@ -19541,14 +19616,6 @@
   const NAMES_HANGUL_V = ["A", "AE", "YA", "YAE", "EO", "E", "YEO", "YE", "O", "WA", "WAE", "OE", "YO", "U", "WEO", "WE", "WI", "YU", "EU", "YI", "I"];
   const NAMES_HANGUL_T = ["", "G", "GG", "GS", "N", "NJ", "NH", "D", "L", "LG", "LM", "LB", "LS", "LT", "LP", "LH", "M", "B", "BS", "S", "SS", "NG", "J", "C", "K", "T", "P", "H"];
 
-  /** @param {NameAlgorithm} rule @param {number} code @returns {string} */
-  function algorithmName(rule, code) {
-    if (rule.kind === "hex") return rule.prefix + code.toString(16).toUpperCase().padStart(4, "0");
-    const offset = code - 0xac00;
-    return "HANGUL SYLLABLE " + NAMES_HANGUL_L[Math.floor(offset / 588)]
-      + NAMES_HANGUL_V[Math.floor(offset % 588 / 28)] + NAMES_HANGUL_T[offset % 28];
-  }
-
   /** @param {NameAlgorithm} rule @param {string} name @returns {number | undefined} */
   function algorithmLookup(rule, name) {
     if (rule.kind === "hex") {
@@ -19556,7 +19623,7 @@
       const suffix = name.slice(rule.prefix.length);
       if (!/^[0-9A-F]{4,6}$/.test(suffix)) return undefined;
       const code = Number.parseInt(suffix, 16);
-      return code >= rule.first && code <= rule.last && algorithmName(rule, code) === name ? code : undefined;
+      return code >= rule.first && code <= rule.last && code.toString(16).toUpperCase().padStart(4, "0") === suffix ? code : undefined;
     }
     if (!name.startsWith("HANGUL SYLLABLE ")) return undefined;
     const suffix = name.slice(16);
@@ -19686,16 +19753,16 @@
     /**
      * @param {(path:string)=>string} read
      * @param {UnicodeTable} unicode
-     * @param {(text:string)=>string} fingerprint
      * @param {Iterable<string>} [extras]
      */
-    constructor(read, unicode, fingerprint, extras = []) {
+    constructor(read, unicode, extras = []) {
       this.read = read;
       this.unicode = unicode;
-      this.fingerprint = fingerprint;
       this.extras = [...new Set(extras)].sort(compareCodePoints);
       /** @type {UnicodeNames[] | null} */
       this.tables = null;
+      /** @type {Map<string, number>} */
+      this.names = new Map();
       /** @type {Record<string,string> | undefined} */
       this.dependencies = undefined;
     }
@@ -19705,14 +19772,16 @@
       const version = this.unicode.version;
       if (this.unicode.versionCount !== 1 || version === null) namesFailure("data/unicode/unicode.txt", "names require exactly one Unicode version");
       const text = this.read("data/unicode/unicode-names.txt");
-      const hash = this.fingerprint(text);
+      const hash = fnv1a64(text);
       const base = new UnicodeNames(text, "data/unicode/unicode-names.txt", version);
       const reference = hash === PINNED_NAMES_HASH ? text : this.read("data/unicode/unicode-names-reference.txt");
-      if (this.fingerprint(reference) !== PINNED_NAMES_HASH) namesFailure("data/unicode/unicode-names-reference.txt", "the reference fingerprint differs from the pinned data");
+      if (fnv1a64(reference) !== PINNED_NAMES_HASH) namesFailure("data/unicode/unicode-names-reference.txt", "the reference fingerprint differs from the pinned data");
       if (version !== "15.1.0") namesFailure("data/unicode/unicode-names-reference.txt", "the reference version differs from the selected names version");
       const pinned = hash === PINNED_NAMES_HASH ? base : new UnicodeNames(reference, "data/unicode/unicode-names-reference.txt", "15.1.0");
       base.inspect(pinned, this.unicode.abbreviations, false);
       const tables = [base];
+      const names = new Map(base.names);
+      const formal = new Map([...base.formal].map(([code, record]) => [code, record.name]));
       /** @type {Record<string,string>} */
       const dependencies = Object.create(null);
       dependencies["data/unicode/unicode-names.txt"] = hash;
@@ -19720,16 +19789,18 @@
         const text = this.read(path), table = new UnicodeNames(text, path, version);
         table.inspect(pinned, this.unicode.abbreviations, true);
         for (const record of table.records) {
-          for (const earlier of tables) {
-            const code = earlier.lookup(record.name), formal = earlier.formal.get(record.code);
-            if (code !== undefined && code !== record.code || formal && formal.name !== record.name) namesFailure(path, "names resources conflict", record.line);
-          }
+          // inspect excludes every pinned algorithmic spelling and scalar first.
+          const code = names.get(record.name), previous = formal.get(record.code);
+          if (code !== undefined && code !== record.code || previous !== undefined && previous !== record.name) namesFailure(path, "names resources conflict", record.line);
+          names.set(record.name, record.code);
+          formal.set(record.code, record.name);
         }
-        dependencies[path] = this.fingerprint(text);
+        dependencies[path] = fnv1a64(text);
         tables.push(table);
       }
       this.dependencies = Object.fromEntries(Object.entries(dependencies).sort(([a], [b]) => compareCodePoints(a, b)));
       this.tables = tables;
+      this.names = names;
     }
 
     /** @param {string} name @param {boolean} [coreOnly] @returns {number | undefined} */
@@ -19737,11 +19808,7 @@
       const core = this.unicode.abbreviations.get(name);
       if (core !== undefined || coreOnly) return core;
       this.load();
-      for (const table of /** @type {UnicodeNames[]} */ (this.tables)) {
-        const code = table.lookup(name);
-        if (code !== undefined) return code;
-      }
-      return undefined;
+      return this.names.get(name) ?? /** @type {UnicodeNames[]} */ (this.tables)[0].lookup(name);
     }
   }
 
@@ -20072,7 +20139,7 @@
       if (hasStrings) {
         const lexical = loader.notation.parse(text, {until:"lexical"});
         if (!lexical.ok) throw new GencmuError("grammar", `${documentPath}: cannot read strings for textual stitching`, {document:documentPath});
-        const names = new NamesScope(key => loader.needNames(key), loader.unicode, fnv1a64, inherited);
+        const names = new NamesScope(key => loader.needNames(key), loader.unicode, inherited);
         const decoder = new DocumentStrings(documentPath, loader.unicode, names, offset => positions[offset] ?? [1,1]);
         const tokens = /** @type {import("./tokens.js").Token[]} */ (lexical.stages[0].output);
         decoder.inspect(tokens);
@@ -20342,7 +20409,7 @@
     readDocument(markdown, path, deferEmission = false, inherited = []) {
       if (loneSurrogate(markdown) !== null) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
       const { text, positions } = extractGrammarText(markdown, path, this.unicode);
-      const names = new NamesScope(key => this.needNames(key), this.unicode, fnv1a64, inherited);
+      const names = new NamesScope(key => this.needNames(key), this.unicode, inherited);
       const strings = new DocumentStrings(path, this.unicode, names,
         offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
       const run = this.notation.run(text, { features: new Set(this.notation.declared), inspectLexical: tokens => strings.inspect(tokens) });
@@ -20382,7 +20449,7 @@
         }
         return paths.every(path => registry[path] === dependencies[path]);
       }
-      const names = new NamesScope(key => this.needNames(key), this.unicode, fnv1a64, extras);
+      const names = new NamesScope(key => this.needNames(key), this.unicode, extras);
       names.load();
       return paths.every(path => names.dependencies?.[path] === dependencies[path]);
     }

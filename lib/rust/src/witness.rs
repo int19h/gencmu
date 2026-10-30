@@ -206,9 +206,6 @@ pub(crate) struct CheckForest<'a> {
     pub record_at: &'a [u32],
     pub unicode: &'a Unicode,
     pub tags: &'a Tags,
-    /// The empty tag set, which a terminal that reads a synthetic token
-    /// captures.
-    pub empty: SetId,
 }
 
 /// The marks of W(D) that the check's ranker takes (tests/README.md): the
@@ -373,23 +370,20 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                     let mut caps = Vec::new();
                     match (&chosen.nodes[child as usize].kind, production.syms[position]) {
                         (IKind::Read { tok, terminal }, Sym::T(symbol)) if *terminal == symbol => {
-                            let rule = &g.rules[production.rule as usize];
-                            let omitted = forest.synthetic[from as usize]
-                                && position == 0
-                                && rule.helper
-                                && rule.elided.is_some();
                             if let Some(structure) = forest
                                 .chart
                                 .terminal_states
-                                .get(&(from, symbol, omitted))
+                                .get(&(from, symbol, false))
                                 .copied()
                                 .or_else(|| forest.chart.boundaries.as_ref().map(|_| u32::MAX))
                             {
                                 let token = &forest.tokens[forest.original_at[*tok as usize] as usize];
-                                let tags = if forest.synthetic[from as usize] { forest.empty } else { token.tags };
-                                let boundary = forest.chart.boundaries.as_ref().map_or(0, |m| {
-                                    m.borrow_mut().leaf(&g.terminals[symbol as usize], forest.synthetic[from as usize])
-                                });
+                                let tags = token.tags;
+                                let boundary = forest
+                                    .chart
+                                    .boundaries
+                                    .as_ref()
+                                    .map_or(0, |m| m.borrow_mut().leaf(&g.terminals[symbol as usize], false));
                                 caps.push(Cap {
                                     boundary,
                                     close_requested: false,
@@ -482,9 +476,8 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
         for (position, &child) in node.children.iter().enumerate() {
             let (from, to) = spans[child as usize];
             let test = g.test(prod, position);
-            // The tag sets that the child can have here: a read's token's,
-            // or none for a synthetic one; the derived items' own for a
-            // rule. Each must pass the symbol's test.
+            // A read supplies its original token tags. A rule supplies the
+            // derived items' tags. Each must pass the symbol test.
             let own: Vec<SetId> = match (chosen.nodes[child as usize].kind.clone(), production.syms[position]) {
                 (IKind::Read { tok, terminal }, Sym::T(symbol)) if terminal == symbol => {
                     let token = &forest.tokens[forest.original_at[tok as usize] as usize];
@@ -518,10 +511,6 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
             for item in &current {
                 if production.cap_at[position].is_some() {
                     for &tags in &own {
-                        let tags = match production.syms[position] {
-                            Sym::T(_) if forest.synthetic[from as usize] => forest.empty,
-                            _ => tags,
-                        };
                         let Some(caps) = forest.chart.lookup_caps(
                             item.caps,
                             Cap {

@@ -20,8 +20,8 @@ use crate::unicode::Unicode;
 use crate::witness::{self, Fault};
 use crate::work::{self, Mutant, Work};
 
-/// How a terminal matches a token (engine §4): by a tag the token carries,
-/// or, for a range or a property, by one of its character tags.
+/// A tag matches a stored tag. Other terminals match stored values and
+/// never read synthetic tokens (engine §4).
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Matcher {
     Tag(TagId),
@@ -837,6 +837,7 @@ pub(crate) struct Shared<'a> {
     running: FxSet<Place>,
     suffix_keys: FxMap<SuffixKey, usize>,
     suffixes: Vec<SuffixState>,
+    suffix_active: usize,
     suffix_deps: FxMap<(usize, u32), bool>,
     /// Empty sets with room, kept from the charts of nested parses that
     /// finished, which later charts reuse.
@@ -865,6 +866,7 @@ impl<'a> Shared<'a> {
             running: FxSet::default(),
             suffix_keys: FxMap::default(),
             suffixes: Vec::new(),
+            suffix_active: 0,
             suffix_deps: FxMap::default(),
             spare: Vec::new(),
             lists: Vec::new(),
@@ -904,13 +906,16 @@ impl<'a> Shared<'a> {
         self.running.clear();
         self.suffix_keys.clear();
         self.suffixes.clear();
+        self.suffix_active = 0;
         self.suffix_deps.clear();
     }
 
-    /// Whether a terminal matches a token whose tags are `set` (§4). A
-    /// range or a property matches once, however many of its tags qualify.
+    /// Match stored tags or values. Only tag terminals read synthetic tokens (§4).
     #[inline]
-    pub(crate) fn reads(&self, matcher: Matcher, token: &Tok) -> bool {
+    pub(crate) fn reads(&self, matcher: Matcher, token: &Tok, synthetic: bool) -> bool {
+        if synthetic && !matches!(matcher, Matcher::Tag(_)) {
+            return false;
+        }
         match matcher {
             Matcher::Tag(tag) => self.tags.contains(token.tags, tag),
             Matcher::Value(value) => token.value.as_str() == self.tags.name(value),
@@ -1661,7 +1666,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
         rules.iter().any(|rule| {
             let prefix = &self.shared.close_prefixes[*rule as usize];
-            prefix.nullable || prefix.first.iter().any(|t| self.shared.reads(self.matchers[*t as usize], &tokens[at]))
+            prefix.nullable
+                || prefix.first.iter().any(|t| self.shared.reads(self.matchers[*t as usize], &tokens[at], false))
         })
     }
     fn finish_structure(&self, family: Option<(u32, u32)>, item: &mut Item, set: usize, base: usize, tokens: &[Tok]) {
@@ -1856,11 +1862,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         self.settle(request, &finished.chart)
                     });
                     let chart = if let Some(id) = suffix {
-                        let Run { chart, e, head, entered, scans, scan_index, .. } = finished;
-                        self.shared.suffixes[id].retained =
-                            Some(suffix::Retained { chart, e, head, entered, scans, scan_index });
-                        self.shared.suffixes[id].active = false;
-                        Chart::default()
+                        self.shared.suffix_active -= 1;
+                        if self.shared.suffixes[id].transient {
+                            debug_assert_eq!(id + 1, self.shared.suffixes.len());
+                            self.shared.suffixes.pop();
+                            finished.chart
+                        } else {
+                            let Run { chart, e, head, entered, scans, scan_index, .. } = finished;
+                            self.shared.suffixes[id].retained =
+                                Some(suffix::Retained { chart, e, head, entered, scans, scan_index });
+                            Chart::default()
+                        }
                     } else {
                         finished.chart
                     };
@@ -1888,12 +1900,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         for run in &runs {
             if let Some(request) = &run.request {
                 self.shared.running.remove(&request.place());
-                if let Some(id) = request.suffix {
-                    let state = &mut self.shared.suffixes[id];
-                    state.active = false;
-                    if let Err(error) = &outcome {
-                        state.error = Some(error.clone());
-                    }
+                if request.suffix.is_some() {
+                    self.shared.suffix_active -= 1;
                 }
             }
         }
@@ -1907,16 +1915,18 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// cannot hide a query about a span from inside its own parse (§4).
     fn start_query(&mut self, request: &Request) -> Result<(), EngineError> {
         if self.shared.running.insert(request.place()) {
+            if request.suffix.is_some() {
+                self.shared.suffix_active += 1;
+            }
             return Ok(());
         }
-        let text = self.text(request.tokens, request.start, request.end);
         let name = &self.g.rules[request.rule as usize].name;
         Err(EngineError {
             message: format!(
-                "a condition asks whether {text:?} parses as {name} from inside the parse of that span as {name}: \
+                "a condition asks whether its own span parses as {name} from inside the parse of that span as {name}: \
                  the grammar defines {name} in terms of itself over the same text"
             ),
-            rule: Some(request.rule),
+            rule: None,
         })
     }
 
@@ -1953,13 +1963,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             for w in witnesses {
                 accepted |= aligned(&w);
             }
-            self.shared.begins.insert(request.key, accepted);
+            if self.shared.suffix_active == 0 {
+                self.shared.begins.insert(request.key, accepted);
+            }
             return (accepted, 0);
         }
         let retained: Vec<_> = witnesses.iter().filter(aligned).collect();
         let list = union_all(retained.iter().map(|w| self.shared.tags.list(w.tags)));
         let answer = (!retained.is_empty(), self.shared.tags.set(list));
-        self.shared.memo.insert(request.key, answer);
+        if self.shared.suffix_active == 0 {
+            self.shared.memo.insert(request.key, answer);
+        }
         answer
     }
     fn settle(&mut self, request: Request, chart: &Chart) -> Answer {
@@ -2025,21 +2039,27 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 .collect();
             let context = request.qualification_key();
             let answer = self.aligned_answer(request, &qualified);
-            self.shared.qualified.insert(context, qualified);
+            if self.shared.suffix_active == 0 {
+                self.shared.qualified.insert(context, qualified);
+            }
             return answer;
         }
         let retained: Vec<_> =
             witnesses.into_iter().zip(eligible).filter_map(|(witness, eligible)| eligible.then_some(witness)).collect();
         let accepted = !retained.is_empty();
         if request.begins {
-            self.shared.begins.insert(request.key, accepted);
+            if self.shared.suffix_active == 0 {
+                self.shared.begins.insert(request.key, accepted);
+            }
             return (accepted, 0);
         }
         let tags = &self.shared.tags;
         let list =
             union_all(retained.iter().map(|&(set, index)| tags.list(chart.sets[set as usize].tagset[index as usize])));
         let answer = (accepted, self.shared.tags.set(list));
-        self.shared.memo.insert(request.key, answer);
+        if self.shared.suffix_active == 0 {
+            self.shared.memo.insert(request.key, answer);
+        }
         answer
     }
 
@@ -2051,17 +2071,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     {
         let (tokens, base) = (run.tokens, run.base);
         loop {
-            if let Some(id) = run.request.as_ref().and_then(|r| r.suffix) {
-                let at = match &run.step {
-                    Step::Next => run.e,
-                    Step::Predict { e, .. }
-                    | Step::Empties { e, .. }
-                    | Step::Complete { e, .. }
-                    | Step::Waiters { e, .. } => *e,
-                    Step::Terminal { into, .. } => *into,
-                };
-                self.shared.suffixes[id].error_at = run.base + at;
-            }
             match &mut run.step {
                 Step::Next => {
                     if !self.next_entry(run) {
@@ -2259,7 +2268,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let chart = &mut run.chart;
         let g = self.g;
         let production = &g.prods[item.prod as usize];
-        if e < tokens.len() && self.shared.reads(self.matchers[terminal as usize], &tokens[e]) {
+        if e < tokens.len()
+            && self.shared.reads(
+                self.matchers[terminal as usize],
+                &tokens[e],
+                self.recon.is_some_and(|recon| recon.synthetic[e]),
+            )
+        {
             // A terminal that reads a synthetic token captures
             // no tags (§7.5).
             let synthetic = self.recon.is_some_and(|recon| recon.synthetic[e]);
@@ -2749,7 +2764,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // the rejection report adds back the terminal it expected.
         if let (Some(Sym::T(terminal)), false, false) = (lowered.syms.first(), lowered.has_conds_at(0), chart.suffix) {
             let matcher = self.matchers[*terminal as usize];
-            if e >= tokens.len() || !self.shared.reads(matcher, &tokens[e]) {
+            if e >= tokens.len()
+                || !self.shared.reads(matcher, &tokens[e], self.recon.is_some_and(|recon| recon.synthetic[e]))
+            {
                 if before.is_none() {
                     chart.sets[e].skipped.push(production);
                 }
@@ -3287,17 +3304,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             if self.shared.running.contains(&place) {
                 return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
             }
-            let mut id = self.suffix_state(rule, base + start, base + end);
+            let id = if self.shared.suffix_active == 0 {
+                self.suffix_state(rule, base + start, base + end)
+            } else {
+                let id = self.shared.suffixes.len();
+                self.shared.suffixes.push(SuffixState { transient: true, ..SuffixState::default() });
+                id
+            };
             let state = &self.shared.suffixes[id];
-            if let Some(error) = state.error.as_ref().filter(|_| base + end >= state.error_at) {
-                return Err(Halt::Error(error.clone()));
-            }
             if let Some(&holds) = state.answers.get(&(base + end)) {
                 return Ok(Out::Bool(holds));
-            }
-            if state.active {
-                id = self.shared.suffixes.len();
-                self.shared.suffixes.push(SuffixState::default());
             }
             request.suffix = Some(id);
             eval.tasks.push(Task::Await(query));
@@ -3333,7 +3349,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             let request = Request { tokens, base, start, end, rule, key, begins, suffix: None, aligned };
             return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
         }
-        let known = if begins {
+        let known = if self.shared.suffix_active > 0 {
+            None
+        } else if begins {
             self.shared.begins.get(&key).map(|&holds| (holds, 0))
         } else {
             self.shared.memo.get(&key).copied()
@@ -3342,7 +3360,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             Some(answer) => Ok(query.out(answer, &self.shared.tags)),
             None => {
                 let request = Request { tokens, base, start, end, rule, key, begins, suffix: None, aligned };
-                if aligned.is_some() {
+                if aligned.is_some() && self.shared.suffix_active == 0 {
                     if let Some(qualified) = self.shared.qualified.remove(&request.qualification_key()) {
                         let context = request.qualification_key();
                         let answer = self.aligned_answer(request, &qualified);

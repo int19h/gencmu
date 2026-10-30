@@ -252,6 +252,7 @@ func (t *unicodeNames) inspect(pinned *unicodeNames, abbreviations map[string]ru
 }
 
 type namesScope struct {
+	names        map[string]rune
 	read         func(string) (string, bool, *Error)
 	uni          *unicodeTable
 	extras       []string
@@ -332,6 +333,14 @@ func (n *namesScope) load() *Error {
 		return err
 	}
 	tables := []*unicodeNames{base}
+	names := make(map[string]rune, len(base.names))
+	for name, code := range base.names {
+		names[name] = code
+	}
+	formal := make(map[rune]string, len(base.formal))
+	for code, record := range base.formal {
+		formal[code] = record.name
+	}
 	dependencies := map[string]string{"data/unicode/unicode-names.txt": hash}
 	for _, path := range n.extras {
 		text, err := n.need(path)
@@ -346,18 +355,18 @@ func (n *namesScope) load() *Error {
 			return err
 		}
 		for _, r := range table.records {
-			for _, earlier := range tables {
-				code, ok := earlier.lookup(r.name)
-				formal, hasFormal := earlier.formal[r.code]
-				if ok && code != r.code || hasFormal && formal.name != r.name {
-					return namesError(path, r.line, "names resources conflict")
-				}
+			// inspect excludes every pinned algorithmic spelling and scalar first.
+			code, ok := names[r.name]
+			previous, hasFormal := formal[r.code]
+			if ok && code != r.code || hasFormal && previous != r.name {
+				return namesError(path, r.line, "names resources conflict")
 			}
+			names[r.name], formal[r.code] = r.code, r.name
 		}
 		dependencies[path] = fnv1a64(text)
 		tables = append(tables, table)
 	}
-	n.tables, n.dependencies = tables, dependencies
+	n.tables, n.dependencies, n.names = tables, dependencies, names
 	return nil
 }
 func (n *namesScope) lookup(name string, coreOnly bool) (rune, bool, *Error) {
@@ -370,12 +379,11 @@ func (n *namesScope) lookup(name string, coreOnly bool) (rune, bool, *Error) {
 	if err := n.load(); err != nil {
 		return 0, false, err
 	}
-	for _, table := range n.tables {
-		if code, ok := table.lookup(name); ok {
-			return code, true, nil
-		}
+	if code, ok := n.names[name]; ok {
+		return code, true, nil
 	}
-	return 0, false, nil
+	code, ok := n.tables[0].lookup(name)
+	return code, ok, nil
 }
 
 var namesFingerprintPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)

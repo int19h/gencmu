@@ -242,7 +242,7 @@ impl<'a> Proofs<'a> {
                 }
                 a.test(at) == b.test(at) && name(a, at) == name(b, at)
             })
-            && Item { boundary: 0, prod: other.prod, ..item } == other
+            && Item { prod: other.prod, ..item } == other
     }
 
     /// The furthest optional route that reaches a written terminator,

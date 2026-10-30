@@ -30,6 +30,13 @@ export type Chart = {
         permitted: boolean;
     }[]> | null;
 };
+export type QualifiedObservation = {
+    end: number;
+    tags: TagSet;
+    observation: CloseObservation | null;
+    familyAligned: boolean | null;
+    direct: boolean | null;
+};
 /**
  * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, ReadyCondition, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
  * @import { CloseEvent, CloseObservation } from "./close-observations.js"
@@ -50,6 +57,11 @@ export type Chart = {
  * @property {any[]} [boundaryFailures]
  * @property {FamilySummaries|null} [family]
  * @property {Map<Item,{event:CloseEvent,permitted:boolean}[]>|null} [familyTrace]
+ */
+/**
+ * One eligible completion, detached from the chart and its proof edges.
+ * Family qualification fixes the candidate, so its alignment is final here.
+ * @typedef {{end:number, tags:TagSet, observation:CloseObservation|null, familyAligned:boolean|null, direct:boolean|null}} QualifiedObservation
  */
 export declare class TagInterner {
     /** @type {TagSet[]} */
@@ -138,8 +150,10 @@ export declare class ParseContext {
      */
     nextSounding: Int32Array | null;
     dots: number;
-    /** @type {Map<string, boolean | TagSet>} */
-    nested: Map<string, boolean | TagSet>;
+    /** @type {Map<string, QueryAnswer>} */
+    nested: Map<string, QueryAnswer>;
+    /** @type {Map<string, QualifiedObservation[]>} */
+    qualified: Map<string, QualifiedObservation[]>;
     /** @type {Set<string>} */
     inProgress: Set<string>;
     /** Where the input of the recognition now running begins. */
@@ -327,6 +341,8 @@ declare class Pending {
     asked: number;
     /** @type {import("./types.js").AlignedSpan|null} */
     aligned: import("./types.js").AlignedSpan | null;
+    /** @type {string|null} */
+    qualificationKey: string | null;
     /**
      * What the halted evaluation has left to do, the innermost part first.
      * Each frame takes the value of the part inside it and gives its own,
@@ -402,6 +418,10 @@ export declare function recognize(context: ParseContext, rule: string, start: nu
  * @returns {T}
  */
 export declare function settled<T>(evaluation: () => T | Halt): T;
+export type QueryAnswer = boolean | {
+    accepted: boolean;
+    tags: TagSet;
+};
 export type Advanced = {
     dot: number;
     slots: Captured;
@@ -537,12 +557,7 @@ export type Comparison = Extract<Condition, {
 export type SuffixState = {
     answers: Map<number, boolean>;
     run: Run | null;
-    active: boolean;
-    errorAt: number;
-    error: {
-        at: number;
-        error: unknown;
-    } | null;
+    dependent: boolean;
     extend: ((end: number) => void) | null;
 };
 /**

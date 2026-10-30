@@ -1,5 +1,7 @@
-"""The character table every library shares, data/unicode/unicode.txt (engine §1):
-the General_Category of a character and the White_Space property."""
+"""Shared Unicode categories, whitespace, emoji, and canonical normalization data.
+
+The table also supplies abbreviations and complete scalar profiles (engine §1).
+"""
 
 from __future__ import annotations
 
@@ -29,28 +31,48 @@ def _number(field: str, base: int, limit: int) -> int:
     return int(digits or "0", base)
 
 
-def _add_value_range[T](ranges: list[tuple[int, int, T]], start: int, end: int, value: T) -> None:
-    """Keep disjoint ranges, with conflicts raised at the later record."""
-    low, high = 0, len(ranges)
-    while low < high:
+class _ValueRanges[T]:
+    """A sparse interval tree of depth at most 21 over Unicode code points."""
+
+    def __init__(self):
+        self.value: T | None = None
+        self.children: tuple[_ValueRanges[T], _ValueRanges[T]] | None = None
+
+    def add(self, start: int, end: int, value: T, low=0, high=0x10FFFF) -> None:
+        if self.value is not None:
+            if self.value != value:
+                raise ValueError("overlapping ranges with different values")
+            return
+        if start <= low and high <= end and self.children is None:
+            self.value = value
+            return
+        if self.children is None:
+            self.children = (_ValueRanges(), _ValueRanges())
         mid = (low + high) // 2
-        if ranges[mid][1] < start:
-            low = mid + 1
-        else:
-            high = mid
-    last = low
-    while last < len(ranges) and ranges[last][0] <= end:
-        if ranges[last][2] != value:
-            raise ValueError("overlapping ranges with different values")
-        last += 1
-    if low and ranges[low - 1][1] + 1 == start and ranges[low - 1][2] == value:
-        low -= 1
-    if last < len(ranges) and ranges[last][0] == end + 1 and ranges[last][2] == value:
-        last += 1
-    if low < last:
-        start = min(start, ranges[low][0])
-        end = max(end, ranges[last - 1][1])
-    ranges[low:last] = [(start, end, value)]
+        left, right = self.children
+        if start <= mid:
+            left.add(start, end, value, low, mid)
+        if end > mid:
+            right.add(start, end, value, mid + 1, high)
+        if left.value is not None and left.value == right.value:
+            self.value, self.children = left.value, None
+
+    def ranges(self) -> list[tuple[int, int, T]]:
+        result = []
+
+        def visit(node, low, high):
+            if node.value is not None:
+                if result and result[-1][1] + 1 == low and result[-1][2] == node.value:
+                    result[-1] = (result[-1][0], high, node.value)
+                else:
+                    result.append((low, high, node.value))
+            elif node.children is not None:
+                mid = (low + high) // 2
+                visit(node.children[0], low, mid)
+                visit(node.children[1], mid + 1, high)
+
+        visit(self, 0, 0x10FFFF)
+        return result
 
 
 def _union_ranges(ranges: list[tuple[int, int]]) -> list[tuple[int, int]]:
@@ -68,9 +90,9 @@ class UnicodeTable:
 
     def __init__(self, text: str, properties: str | None = None) -> None:
         self.emoji: dict[str, list[tuple[int, int]]] = {"Emoji_Presentation": [], "Emoji_Component": []}
-        categories: list[tuple[int, int, str]] = []
+        categories_index: _ValueRanges[str] = _ValueRanges()
         white_space: list[tuple[int, int]] = []
-        combining: list[tuple[int, int, int]] = []
+        combining_index: _ValueRanges[int] = _ValueRanges()
         self.decompositions: dict[int, tuple[int, ...]] = {}
         self.fingerprint = fnv1a64(text)
         self.version = ""
@@ -83,6 +105,7 @@ class UnicodeTable:
             fields = [field for field in re.split(r"[ \t]+", line) if field]
             if not fields:
                 continue
+            reason = "the core record is invalid"
             try:
                 entry = fields[0]
                 count = {"unicode": 2, "category": 4, "combining": 4, "white-space": 3,
@@ -93,18 +116,22 @@ class UnicodeTable:
                 elif count is None or len(fields) != count:
                     raise ValueError(entry)
                 code_fields = fields[1:2] if entry == "abbreviation" else fields[1:] if entry == "decompose" else fields[2:] if entry in ("category", "combining") else fields[1:] if entry != "unicode" else []
+                reason = "an invalid code point"
                 codes = [_number(field, 16, 6) for field in code_fields]
                 if any(code > 0x10FFFF for code in codes):
                     raise ValueError(entry)
                 if entry == "decompose":
                     if any(0xD800 <= code <= 0xDFFF for code in codes):
+                        reason = "an invalid scalar"
                         raise ValueError(entry)
                 elif len(codes) == 2 and codes[0] > codes[1]:
+                    reason = "a reversed range"
                     raise ValueError(entry)
                 if fields[0] == "unicode":
                     self.version = fields[1]
                     self.version_count += 1
                 elif entry == "abbreviation":
+                    reason = "an invalid abbreviation"
                     code, alias = codes[0], fields[2]
                     if (0xD800 <= code <= 0xDFFF or re.fullmatch(r"[A-Z][A-Z0-9]*", alias) is None
                             or alias in self.abbreviations or alias in PINNED_CORE_NAMES and PINNED_CORE_NAMES[alias] != code):
@@ -114,9 +141,14 @@ class UnicodeTable:
                     if earlier is None or (len(alias), alias) < (len(earlier), earlier):
                         self.canonical_abbreviations[code] = alias
                 elif fields[0] == "category":
-                    if fields[1] not in CATEGORIES or fields[1] == "Cs":
+                    if fields[1] not in CATEGORIES:
+                        reason = "an unknown category"
                         raise ValueError(fields[1])
-                    _add_value_range(categories, codes[0], codes[1], fields[1])
+                    if fields[1] == "Cs":
+                        reason = "category Cs is not allowed"
+                        raise ValueError(fields[1])
+                    reason = "conflicting category ranges"
+                    categories_index.add(codes[0], codes[1], fields[1])
                 elif fields[0] == "white-space":
                     white_space.append((codes[0], codes[1]))
                 elif fields[0] in ("emoji-presentation", "emoji-component"):
@@ -124,17 +156,22 @@ class UnicodeTable:
                     self.emoji[prop].append((codes[0], codes[1]))
                 elif fields[0] == "decompose":
                     if codes[0] in self.decompositions:
-                        raise ValueError("duplicate decomposition")
+                        reason = "a second decompose record"
+                        raise ValueError(reason)
                     self.decompositions[codes[0]] = tuple(codes[1:])
                 elif fields[0] == "combining":
+                    reason = "an invalid combining class"
                     klass = _number(fields[1], 10, 3)
                     if not 1 <= klass <= 254:
                         raise ValueError(fields[1])
-                    _add_value_range(combining, codes[0], codes[1], klass)
+                    reason = "conflicting combining ranges"
+                    combining_index.add(codes[0], codes[1], klass)
                 else:
                     raise ValueError(fields[0])
             except (ValueError, IndexError) as error:
-                raise GencmuError(f"unreadable line: {line!r}", document="data/unicode/unicode.txt", line=number) from error
+                raise GencmuError(reason, document="data/unicode/unicode.txt", line=number) from error
+        categories = categories_index.ranges()
+        combining = combining_index.ranges()
         for prop, ranges in self.emoji.items():
             self.emoji[prop] = _union_ranges(ranges)
         self._emoji_starts = {prop: [start for start, _ in ranges] for prop, ranges in self.emoji.items()}
@@ -215,7 +252,7 @@ class UnicodeTable:
 
     def is_mark(self, code: int) -> bool:
         """Whether a code point is a nonspacing mark, of General_Category
-        ``Mn``. A character tag writes such a character escaped (engine §1)."""
+        ``Mn``. Canonical string diagnostics escape these scalars (engine §1, §9.1)."""
         return self.category(code) == "Mn"
 
     def combining_class(self, code: int) -> int:

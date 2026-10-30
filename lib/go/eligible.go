@@ -94,7 +94,7 @@ func (e *eligibility) next(it *item) int {
 	if it.prod.precedingLogicalOptional(d) != nil {
 		return nextLogicalOptional
 	}
-	if d == 0 || rhs[d-1].term || (d == 1 && rhs[0].id == it.prod.lhs) {
+	if d == 0 || rhs[d-1].term || (d == 1 && rhs[0].id == it.prod.lhs && it.prod.precedingLogicalOptional(0) == nil) {
 		return nextAlone
 	}
 	return nextConstituent

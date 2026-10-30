@@ -190,6 +190,7 @@ class NamesScope:
         self.unicode = unicode
         self.extras = sorted(set(extras))
         self.tables = None
+        self.names = {}
         self.dependencies = None
 
     def need(self, path):
@@ -217,19 +218,24 @@ class NamesScope:
         pinned = base if fingerprint == PINNED_NAMES_HASH else UnicodeNames(reference, "data/unicode/unicode-names-reference.txt", "15.1.0")
         base.inspect(pinned, self.unicode.abbreviations, False)
         tables = [base]
+        names = dict(base.names)
+        formal = {code: record.name for code, record in base.formal.items()}
         dependencies = {"data/unicode/unicode-names.txt": fingerprint}
         for path in self.extras:
             text = self.need(path)
             table = UnicodeNames(text, path, version)
             table.inspect(pinned, self.unicode.abbreviations, True)
             for record in table.records:
-                for earlier in tables:
-                    code, formal = earlier.lookup(record.name), earlier.formal.get(record.code)
-                    if code is not None and code != record.code or formal is not None and formal.name != record.name:
-                        _fail(path, "names resources conflict", record.line)
+                # inspect excludes every pinned algorithmic spelling and scalar first.
+                code, previous = names.get(record.name), formal.get(record.code)
+                if code is not None and code != record.code or previous is not None and previous != record.name:
+                    _fail(path, "names resources conflict", record.line)
+                names[record.name] = record.code
+                formal[record.code] = record.name
             dependencies[path] = fnv1a64(text)
             tables.append(table)
         self.tables = tables
+        self.names = names
         self.dependencies = dict(sorted(dependencies.items()))
 
     def lookup(self, name, core_only=False):
@@ -237,11 +243,8 @@ class NamesScope:
         if core is not None or core_only:
             return core
         self.load()
-        for table in self.tables:
-            code = table.lookup(name)
-            if code is not None:
-                return code
-        return None
+        code = self.names.get(name)
+        return code if code is not None else self.tables[0].lookup(name)
 
     def matches(self, dependencies, registry=None, overridden=lambda path: True):
         if dependencies is NO_NAMES:

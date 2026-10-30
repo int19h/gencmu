@@ -2,6 +2,8 @@
 //! category, whitespace, decomposition and combining-class properties. Every library reads this
 //! table rather than its platform's Unicode data.
 
+use crate::error::Error;
+
 include!("unicode_names_catalog.rs");
 
 /// The General_Category values in their short form (engine §1).
@@ -44,6 +46,9 @@ impl Property {
     }
 }
 
+pub(crate) type ScalarProfile = std::sync::Arc<[String]>;
+type ProfileCache = std::sync::Arc<std::sync::Mutex<std::collections::BTreeMap<u32, ScalarProfile>>>;
+
 #[derive(Debug, Clone)]
 pub(crate) struct Unicode {
     /// The category ranges, sorted by their first code point: first, last
@@ -60,6 +65,75 @@ pub(crate) struct Unicode {
     pub(crate) version_count: usize,
     pub(crate) properties_fingerprint: Option<String>,
     pub(crate) properties: std::collections::BTreeMap<String, crate::unicode_properties::PropertyData>,
+    pub(crate) profiles: ProfileCache,
+}
+
+// The sparse interval tree has depth at most 21 over the Unicode code space.
+#[derive(Default)]
+enum ValueRanges<T> {
+    #[default]
+    Empty,
+    Value(T),
+    Split(Box<[Self; 2]>),
+}
+
+impl<T: Copy + Eq> ValueRanges<T> {
+    fn add(
+        &mut self,
+        first: u32,
+        last: u32,
+        value: T,
+        bounds: (u32, u32),
+        line: usize,
+        reason: &str,
+    ) -> Result<(), Error> {
+        let (low, high) = bounds;
+        match self {
+            Self::Value(previous) => {
+                return if *previous == value { Ok(()) } else { Err(core_error(line, reason)) };
+            }
+            Self::Empty if first <= low && high <= last => {
+                *self = Self::Value(value);
+                return Ok(());
+            }
+            Self::Empty => *self = Self::Split(Box::new([Self::Empty, Self::Empty])),
+            Self::Split(_) => {}
+        }
+        let mid = (low + high) / 2;
+        let Self::Split(children) = self else { unreachable!() };
+        if first <= mid {
+            children[0].add(first, last, value, (low, mid), line, reason)?;
+        }
+        if last > mid {
+            children[1].add(first, last, value, (mid + 1, high), line, reason)?;
+        }
+        if let (Self::Value(left), Self::Value(right)) = (&children[0], &children[1]) {
+            if left == right {
+                *self = Self::Value(*left);
+            }
+        }
+        Ok(())
+    }
+
+    fn ranges(&self, result: &mut Vec<(u32, u32, T)>, low: u32, high: u32) {
+        match self {
+            Self::Empty => {}
+            Self::Value(value) => {
+                if let Some(previous) =
+                    result.last_mut().filter(|previous| previous.1 + 1 == low && previous.2 == *value)
+                {
+                    previous.1 = high;
+                } else {
+                    result.push((low, high, *value));
+                }
+            }
+            Self::Split(children) => {
+                let mid = (low + high) / 2;
+                children[0].ranges(result, low, mid);
+                children[1].ranges(result, mid + 1, high);
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,30 +143,36 @@ pub(crate) struct Decomposed {
     klass: u8,
 }
 
-fn hex(field: &str, line: usize) -> Result<u32, String> {
+fn core_error(line: usize, reason: &str) -> Error {
+    let mut error = Error::grammar(reason).in_document("data/unicode/unicode.txt");
+    error.line = Some(line);
+    error
+}
+
+fn hex(field: &str, line: usize) -> Result<u32, Error> {
     if field.is_empty() || !field.bytes().all(|c| c.is_ascii_hexdigit()) {
-        return Err(format!("data/unicode/unicode.txt line {line}: a bad code point {field:?}"));
+        return Err(core_error(line, "an invalid code point"));
     }
     let digits = field.trim_start_matches('0');
     if digits.len() > 6 {
-        return Err(format!("data/unicode/unicode.txt line {line}: a bad code point {field:?}"));
+        return Err(core_error(line, "an invalid code point"));
     }
     u32::from_str_radix(if digits.is_empty() { "0" } else { digits }, 16)
         .ok()
         .filter(|&code| code <= 0x10ffff)
-        .ok_or_else(|| format!("data/unicode/unicode.txt line {line}: a bad code point {field:?}"))
+        .ok_or_else(|| core_error(line, "an invalid code point"))
 }
 
-fn range(first: &str, last: &str, line: usize) -> Result<(u32, u32), String> {
+fn range(first: &str, last: &str, line: usize) -> Result<(u32, u32), Error> {
     let (first, last) = (hex(first, line)?, hex(last, line)?);
     if first > last {
-        return Err(format!("data/unicode/unicode.txt line {line}: a reversed range"));
+        return Err(core_error(line, "a reversed range"));
     }
     Ok((first, last))
 }
 
 impl Unicode {
-    pub(crate) fn parse(text: &str) -> Result<Unicode, String> {
+    pub(crate) fn parse(text: &str) -> Result<Unicode, Error> {
         let mut table = Unicode {
             categories: Vec::new(),
             white_space: Vec::new(),
@@ -106,7 +186,10 @@ impl Unicode {
             version_count: 0,
             properties: std::collections::BTreeMap::new(),
             properties_fingerprint: None,
+            profiles: Default::default(),
         };
+        let mut categories = ValueRanges::default();
+        let mut combining = ValueRanges::default();
         let mut decomposition_codes = std::collections::BTreeSet::new();
         for (index, raw) in text.split_inclusive('\n').enumerate() {
             let number = index + 1;
@@ -130,7 +213,7 @@ impl Unicode {
                         || table.abbreviations.contains_key(*alias)
                         || pinned.is_some_and(|known| known != code)
                     {
-                        return Err(format!("data/unicode/unicode.txt line {number}: an invalid abbreviation"));
+                        return Err(core_error(number, "an invalid abbreviation"));
                     }
                     table.abbreviations.insert((*alias).into(), code);
                     if table
@@ -143,13 +226,13 @@ impl Unicode {
                 }
                 ["category", name, first, last] => {
                     let Some(&category) = CATEGORIES.iter().find(|&&known| known == *name) else {
-                        return Err(format!("data/unicode/unicode.txt line {number}: an unknown category {name:?}"));
+                        return Err(core_error(number, "an unknown category"));
                     };
                     if category == "Cs" {
-                        return Err(format!("data/unicode/unicode.txt line {number}: an invalid category Cs"));
+                        return Err(core_error(number, "category Cs is not allowed"));
                     }
                     let (first, last) = range(first, last, number)?;
-                    Self::add_value_range(&mut table.categories, first, last, category, number)?;
+                    categories.add(first, last, category, (0, 0x10ffff), number, "conflicting category ranges")?;
                 }
                 [entry @ ("white-space" | "emoji-presentation" | "emoji-component"), first, last] => {
                     let record = range(first, last, number)?;
@@ -162,36 +245,37 @@ impl Unicode {
                 ["decompose", code, scalars @ ..] if !scalars.is_empty() => {
                     let code = hex(code, number)?;
                     if char::from_u32(code).is_none() {
-                        return Err(format!("data/unicode/unicode.txt line {number}: an invalid scalar"));
+                        return Err(core_error(number, "an invalid scalar"));
                     }
                     let scalars = scalars
                         .iter()
                         .map(|field| {
-                            char::from_u32(hex(field, number)?)
-                                .ok_or_else(|| format!("data/unicode/unicode.txt line {number}: an invalid scalar"))
+                            char::from_u32(hex(field, number)?).ok_or_else(|| core_error(number, "an invalid scalar"))
                         })
-                        .collect::<Result<Vec<_>, String>>()?;
+                        .collect::<Result<Vec<_>, Error>>()?;
                     if !decomposition_codes.insert(code) {
-                        return Err(format!("data/unicode/unicode.txt line {number}: a duplicate decomposition"));
+                        return Err(core_error(number, "a second decompose record"));
                     }
                     table.decompositions.push((code, scalars));
                 }
                 ["combining", klass, first, last] => {
                     let digits = klass.trim_start_matches('0');
                     if digits.len() > 3 || !klass.bytes().all(|c| c.is_ascii_digit()) {
-                        return Err(format!("data/unicode/unicode.txt line {number}: a bad combining class"));
+                        return Err(core_error(number, "an invalid combining class"));
                     }
                     let klass = digits
                         .parse::<u8>()
                         .ok()
                         .filter(|&n| n > 0 && n < 255)
-                        .ok_or_else(|| format!("data/unicode/unicode.txt line {number}: a bad combining class"))?;
+                        .ok_or_else(|| core_error(number, "an invalid combining class"))?;
                     let (first, last) = range(first, last, number)?;
-                    Self::add_value_range(&mut table.combining, first, last, klass, number)?;
+                    combining.add(first, last, klass, (0, 0x10ffff), number, "conflicting combining ranges")?;
                 }
-                _ => return Err(format!("data/unicode/unicode.txt line {number}: an unreadable record")),
+                _ => return Err(core_error(number, "the core record is invalid")),
             }
         }
+        categories.ranges(&mut table.categories, 0, 0x10ffff);
+        combining.ranges(&mut table.combining, 0, 0x10ffff);
         Self::union_ranges(&mut table.white_space);
         Self::union_ranges(&mut table.emoji_presentation);
         Self::union_ranges(&mut table.emoji_component);
@@ -273,36 +357,6 @@ impl Unicode {
         }
     }
 
-    // Inspect records in file order so a conflict names the later record.
-    fn add_value_range<T: Copy + Eq>(
-        ranges: &mut Vec<(u32, u32, T)>,
-        mut first: u32,
-        mut last: u32,
-        value: T,
-        line: usize,
-    ) -> Result<(), String> {
-        let mut low = ranges.partition_point(|&(_, end, _)| end < first);
-        let mut high = low;
-        while high < ranges.len() && ranges[high].0 <= last {
-            if ranges[high].2 != value {
-                return Err(format!("data/unicode/unicode.txt line {line}: overlapping ranges with different values"));
-            }
-            high += 1;
-        }
-        if low > 0 && ranges[low - 1].1 + 1 == first && ranges[low - 1].2 == value {
-            low -= 1;
-        }
-        if high < ranges.len() && ranges[high].0 == last + 1 && ranges[high].2 == value {
-            high += 1;
-        }
-        if low < high {
-            first = first.min(ranges[low].0);
-            last = last.max(ranges[high - 1].1);
-        }
-        ranges.splice(low..high, [(first, last, value)]);
-        Ok(())
-    }
-
     fn union_ranges(ranges: &mut Vec<(u32, u32)>) {
         ranges.sort_unstable();
         let mut length = 0;
@@ -334,7 +388,7 @@ impl Unicode {
     }
 
     /// Whether a code point is a nonspacing mark, of General_Category `Mn`,
-    /// which a character tag writes escaped (engine §1).
+    /// which canonical string diagnostics escape (engine §1, §9.1).
     pub(crate) fn is_mark(&self, code: u32) -> bool {
         self.category(code) == "Mn"
     }

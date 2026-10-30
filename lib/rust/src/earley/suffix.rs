@@ -13,9 +13,7 @@ pub(super) struct SuffixKey {
 pub(super) struct SuffixState {
     pub(super) answers: FxMap<usize, bool>,
     pub(super) retained: Option<Retained>,
-    pub(super) active: bool,
-    pub(super) error_at: usize,
-    pub(super) error: Option<EngineError>,
+    pub(super) transient: bool,
 }
 
 pub(super) struct Retained {
@@ -132,7 +130,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     pub(super) fn answering<'t>(&mut self, request: Request<'t>) -> Run<'t, 'g> {
         let retained = request.suffix.and_then(|id| {
             let state = &mut self.shared.suffixes[id];
-            state.active = true;
             state.retained.take()
         });
         if let Some(Retained { chart, e, head, entered, scans, scan_index }) = retained {

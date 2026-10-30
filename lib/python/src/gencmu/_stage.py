@@ -694,24 +694,21 @@ class StageRunner:
         # The reconstruction ranks with no stage policy, and
         # they rank with no lean (engine §7.7).
         chosen_profile = ()
-        walk = None
-        protected = True
-        if protected:
-            from ._witness import walk_witness
+        from ._witness import walk_witness
 
-            pending = [chosen]
-            while pending:
-                node = pending.pop()
-                if isinstance(node, DRead):
-                    continue
-                if node.production.leftmost_longest and node.start < node.end:
-                    chosen_profile = sum_profiles(chosen_profile, ((node.start, node.end, 1),))
-                if node.production.fewest and node.start < node.end:
-                    from ._rank import Profile
-                    chosen_profile = Profile(chosen_profile, getattr(chosen_profile, "fewest", 0) + 1)
-                pending.extend(node.children)
-            walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
-        marks = walk.marks if walk is not None else watch.marks if watch is not None else None
+        pending = [chosen]
+        while pending:
+            node = pending.pop()
+            if isinstance(node, DRead):
+                continue
+            if node.production.leftmost_longest and node.start < node.end:
+                chosen_profile = sum_profiles(chosen_profile, ((node.start, node.end, 1),))
+            if node.production.fewest and node.start < node.end:
+                from ._rank import Profile
+                chosen_profile = Profile(chosen_profile, getattr(chosen_profile, "fewest", 0) + 1)
+            pending.extend(node.children)
+        walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
+        marks = walk.marks if walk is not None else None
         preferred = bool(lowered.ranked_helpers)
         raw_counted = True
         if preferred:
@@ -720,9 +717,9 @@ class StageRunner:
         ranking = _rank_check(forest, marks)
         better = False
         watched_selection = False
-        if protected and ranking is not None:
+        if ranking is not None:
             order = compare_profiles(ranking.profile, chosen_profile)
-            if walk is None or not raw_counted or not preferred and (ranking.witness_counted is not True or order > 0):
+            if walk is None or not raw_counted or not preferred and ranking.witness_counted is not True:
                 ranking = None
             else:
                 restored_rope = None

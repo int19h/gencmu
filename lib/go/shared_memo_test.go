@@ -14,10 +14,10 @@ import (
 // memoRun is one run of tests/shared-memo.json (tests/README.md).
 type memoRun struct {
 	Pipeline string          `json:"pipeline"`
-	Grammar string          `json:"grammar"`
-	Texts   []string        `json:"texts"`
-	Inputs  [][]caseToken   `json:"inputs"`
-	Options []memoRunOption `json:"options"`
+	Grammar  string          `json:"grammar"`
+	Texts    []string        `json:"texts"`
+	Inputs   [][]caseToken   `json:"inputs"`
+	Options  []memoRunOption `json:"options"`
 }
 
 type memoRunOption struct {
@@ -414,5 +414,31 @@ func TestSharedMemoTwoPipelines(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestWarmMemoCannotHideSuffixRecursion(t *testing.T) {
+	runs := memoRuns(t)
+	pipeline := memoPipeline(t, runs[len(runs)-1], 1<<13)
+	first, err := pipeline.Parse("paa", ParseOptions{})
+	if err != nil || !first.OK {
+		t.Fatalf("warmup: %v %+v", err, first)
+	}
+	result, err := pipeline.Parse("qaa", ParseOptions{})
+	if err != nil || result.OK || result.Error == nil || result.Error.Kind != ErrorGrammar {
+		t.Fatalf("a warm cache hid recursion: %v %+v", err, result)
+	}
+}
+
+func TestSuffixCacheHitsPreserveAlignedDependencies(t *testing.T) {
+	c := loadCase(t, "../../tests/engine/w2-76-retained-suffix-dependency.json")
+	pipeline := memoPipeline(t, memoRun{Grammar: *c.Grammar}, 1<<13)
+	result, err := pipeline.Parse("a", ParseOptions{})
+	if err != nil || !result.OK {
+		t.Fatalf("parse: %v %+v", err, result)
+	}
+	rules := memoRules(pipeline)
+	if !slices.Contains(rules, "plain") || slices.Contains(rules, "driver") || slices.Contains(rules, "wrap") {
+		t.Fatalf("retained suffix dependency: %v", rules)
 	}
 }

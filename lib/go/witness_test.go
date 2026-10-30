@@ -27,7 +27,7 @@ func withChecks(opts *ParseOptions) *checkLog {
 	log := &checkLog{}
 	opts.private = &privateOptions{elisionCheck: func(run *elisionCheckRun) elisionWatch {
 		marks, w := walkWitness(run)
-		return elisionWatch{marks: marks, ranked: func(res *rankResult, rk *ranker) {
+		return elisionWatch{ranked: func(res *rankResult, rk *ranker) {
 			kept := marks != nil && keeps(res, rk, w)
 			log.mu.Lock()
 			log.checks++
