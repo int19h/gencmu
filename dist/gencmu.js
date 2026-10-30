@@ -1942,8 +1942,8 @@
   //
   // `hooks.elisionCheck`, when set, receives each check that recognized R
   // and met no error of the grammar, before the check ranks, for the witness
-  // test of tests/README.md. It returns the marks of W(D)'s edges, which the
-  // check's own ranker takes, and a callback that receives the ranking.
+  // test of tests/README.md. It returns a ranking observer. Runtime tracking
+  // supplies witness marks independently of that observer.
   //
   // `hooks.work`, when set, counts work for the tests that it grows with the
   // input as it should: the items that the recognizer makes, in parses and
@@ -1987,12 +1987,8 @@
    */
 
   /**
-   * What the witness test hands back to the check: the marks of W(D)'s
-   * edges, for each item the indices of the edges that W(D) uses, or null
-   * where the chart does not hold W(D); and a callback that receives the
-   * check's ranking, with whether its count counted W(D).
+   * The independent witness test's ranking observer.
    * @typedef {object} ElisionCheckWatch
-   * @property {Map<import("./earley.js").Item, Set<number>> | null} marks
    * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
    */
 
@@ -10571,8 +10567,10 @@
       // The most places a dot can be in one production, for numbering the
       // items of a set (see itemKey).
       this.dots = lowered.productions.reduce((most, production) => Math.max(most, production.rhs.length + 1), 1);
-      /** @type {Map<string, boolean | TagSet>} */
+      /** @type {Map<string, QueryAnswer>} */
       this.nested = new Map();
+      /** @type {Map<string, {chart:Chart, witnesses:Item[]}>} */
+      this.qualified = new Map();
       /** @type {Set<string>} */
       this.inProgress = new Set();
       /** Where the input of the recognition now running begins. */
@@ -10748,6 +10746,8 @@
       this.asked = 0;
       /** @type {import("./types.js").AlignedSpan|null} */
       this.aligned = null;
+      /** @type {string|null} */
+      this.qualificationKey = null;
       /**
        * What the halted evaluation has left to do, the innermost part first.
        * Each frame takes the value of the part inside it and gives its own,
@@ -10797,6 +10797,30 @@
     return halt;
   }
 
+  // Invalid restoration ends the current step or Boolean boundary assignment.
+  const INVALID_RESTORATION = Symbol("invalid restoration");
+  /** @type {WeakMap<(value:any)=>any, ()=>any>} */
+  const restorationRecoveries = new WeakMap();
+
+  /**
+   * @template T
+   * @param {()=>T|Halt} action
+   * @param {()=>T} failed
+   * @returns {T|Halt}
+   */
+  function restorationStep(action, failed) {
+    try {
+      const value = action();
+      if (value !== HALT) return value;
+      const frame = (/** @type {any} */ result) => result;
+      restorationRecoveries.set(frame, failed);
+      return pause(frame);
+    } catch (error) {
+      if (error !== INVALID_RESTORATION) throw error;
+      return failed();
+    }
+  }
+
   /**
    * Goes on with a halted evaluation: the answer goes through its frames, the
    * innermost first. A frame that halts again keeps the frames outside it,
@@ -10807,7 +10831,15 @@
    */
   function proceed(frames, value) {
     for (let index = 0; index < frames.length; index++) {
-      value = frames[index](value);
+      try {
+        value = frames[index](value);
+      } catch (error) {
+        if (error !== INVALID_RESTORATION) throw error;
+        while (++index < frames.length && !restorationRecoveries.has(frames[index])) {}
+        const recover = restorationRecoveries.get(frames[index]);
+        if (!recover) throw error;
+        value = recover();
+      }
       if (value === HALT) {
         const inner = /** @type {Pending} */ (halting).frames;
         for (let outer = index + 1; outer < frames.length; outer++) inner.push(frames[outer]);
@@ -10857,7 +10889,7 @@
     while (value === HALT) {
       const halt = takeHalt();
       drive(startQuery(halt));
-      value = proceed(halt.frames, halt.context.nested.get(halt.key));
+      value = proceed(halt.frames, queryAnswer(halt.kind, /** @type {QueryAnswer} */ (halt.context.nested.get(halt.key))));
     }
     return value;
   }
@@ -10920,7 +10952,7 @@
     if (context.trace) context.trace.depth++;
     const suffix = query.kind === "ends" ? suffixRequests.get(query) : undefined;
     if (suffix) {
-      suffix.active = true;
+      sharingOf(context).suffixActive++;
       if (suffix.run) {
         const run = suffix.run;
         run.outerStart = context.inputStart;
@@ -10959,7 +10991,9 @@
     context.inputEnd = run.outerEnd;
     if (query === null) return;
     const suffix = query.kind === "ends" ? suffixRequests.get(query) : undefined;
-    if (suffix) suffix.active = false;
+    if (suffix) {
+      sharingOf(context).suffixActive--;
+    }
     if (!query.unseen) context.inProgress.delete("parse\u0001" + query.rule + "\u0001" + query.start + "\u0001" + query.end);
     else unseenDepth--;
     if (query.aligned) sharingOf(context).alignedActive--;
@@ -10980,33 +11014,23 @@
     let answer;
     /** @type {boolean | {accepted: boolean, tags: string[]} | null} */
     let shared = null;
+    /** @type {QueryAnswer|undefined} */
+    let entry;
     if (query.aligned) {
-      const constraint = query.aligned;
       const witnesses = [];
       for (const set of chart.sets) {
-        if (!set || set.position > constraint.matchEnd) continue;
-        if (kind !== "begins" && set.position !== constraint.matchEnd) continue;
+        if (!set) continue;
         for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
-      const qualified = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses));
-      const aligned = qualified.filter(item => {
-        const answer = !!item.observation && (chart.family
-          ? !!item.familySummary && chart.family.accepts(item.familySummary, item.end)
-          : !!context.closes?.aligned(constraint.observation,item.observation,Math.min(constraint.candidateEnd,item.end)));
-        if (chart.familyTrace && hooks.familyAlignment && context.closes) {
-          const direct = !!item.observation?.valid && deletionTest(context.closes.list(constraint.observation.sequence),
-            chart.familyTrace.get(item) ?? [], start, Math.min(constraint.candidateEnd, item.end));
-          hooks.familyAlignment(answer, direct);
-        }
-        return answer;
-      });
-      if (kind === "tags") {
-        const tags = new TagUnion();
-        for (const item of aligned) tags.add(context.interner.get(item.tagId));
-        answer = tags.result();
-      } else answer = aligned.length !== 0;
+      const qualified = {chart, witnesses:eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses))};
+      if (sharingOf(context).suffixActive === 0 && query.qualificationKey !== null) context.qualified.set(query.qualificationKey, qualified);
+      const entry = alignedAnswer(context, kind, /** @type {import("./types.js").AlignedSpan} */ (query.aligned), qualified);
+      if (sharingOf(context).suffixActive === 0) context.nested.set(query.key, entry);
+      return queryAnswer(kind, entry);
     } else if (kind === "ends") {
-      answer = /** @type {SuffixState} */ (suffixRequests.get(query)).answers.get(query.end) ?? false;
+      const state = /** @type {SuffixState} */ (suffixRequests.get(query));
+      state.dependent ||= sharingOf(context).asked !== query.asked;
+      answer = state.answers.get(query.end) ?? false;
     } else if (kind === "begins") {
       // A completed item from the span's start, in any set (engine §4).
       /** @type {Item[]} */
@@ -11024,12 +11048,46 @@
       const result = new TagUnion();
       for (const item of witnesses) result.add(context.interner.get(item.tagId));
       const tags = result.result();
-      answer = kind === "matches" ? witnesses.length > 0 : tags;
+      entry = {accepted:witnesses.length > 0,tags};
+      answer = queryAnswer(kind, entry);
       shared = { accepted: witnesses.length > 0, tags: [...tags] };
     }
-    context.nested.set(query.key, answer);
+    if (sharingOf(context).suffixActive === 0) context.nested.set(query.key, entry ?? /** @type {boolean} */ (answer));
     if (shared !== null) rememberShared(query, shared);
     return answer;
+  }
+
+  /** @typedef {boolean|{accepted:boolean,tags:TagSet}} QueryAnswer */
+  /** @param {string} kind @param {QueryAnswer} entry @returns {boolean|TagSet} */
+  function queryAnswer(kind, entry) {
+    return typeof entry === "boolean" ? entry : kind === "tags" ? entry.tags : entry.accepted;
+  }
+
+  /**
+   * Filter one qualification for this request's endpoint and close constraints.
+   * @param {ParseContext} context
+   * @param {string} kind
+   * @param {import("./types.js").AlignedSpan} constraint
+   * @param {{chart:Chart,witnesses:Item[]}} qualified
+   * @returns {{accepted:boolean,tags:TagSet}}
+   */
+  function alignedAnswer(context, kind, constraint, qualified) {
+    const {chart,witnesses} = qualified;
+    const aligned = witnesses.filter(item => {
+      if (item.end > constraint.matchEnd || kind !== "begins" && item.end !== constraint.matchEnd) return false;
+      const answer = !!item.observation && (chart.family
+        ? !!item.familySummary && chart.family.accepts(item.familySummary, item.end)
+        : !!context.closes?.aligned(constraint.observation,item.observation,Math.min(constraint.candidateEnd,item.end)));
+      if (chart.familyTrace && hooks.familyAlignment && context.closes) {
+        const direct = !!item.observation?.valid && deletionTest(context.closes.list(constraint.observation.sequence),
+          chart.familyTrace.get(item) ?? [], chart.start, Math.min(constraint.candidateEnd, item.end));
+        hooks.familyAlignment(answer, direct);
+      }
+      return answer;
+    });
+    const tags = new TagUnion();
+    for (const item of aligned) tags.add(context.interner.get(item.tagId));
+    return {accepted:aligned.length !== 0,tags:tags.result()};
   }
 
   // What a run does next. A step that halts for a nested parse keeps its
@@ -12195,7 +12253,7 @@
       if (at !== readyAt) continue;
       const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure,step.observation);
       const atom = firstBoundaryAtom(condition);
-      const held = atom ? boundaryCondition(scope.observing,condition,scope,atom,step,conditions[index].wholeBoundary !== false) : holds(scope.observing, condition, scope);
+      const held = atom ? boundaryCondition(scope.observing,condition,scope,atom,step,conditions[index].wholeBoundary !== false) : restorationStep(() => holds(scope.observing, condition, scope), () => false);
       if (held === HALT) return pause((/** @type {boolean} */ value) => value && !scope.invalidRestoration ? failedFrom(context, production, conditions, index + 1, readyAt, slots, origin, end, step) : condition);
       if (!held || scope.invalidRestoration) return condition;
     }
@@ -12214,7 +12272,7 @@
    */
   function completeTags(context, production, slots, origin, end, step) {
     const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure,step.observation);
-    const tags = scope.constituent();
+    const tags = restorationStep(() => scope.constituent(), () => tagSet());
     if (tags === HALT) return pause((/** @type {TagSet} */ value) => context.interner.intern(value));
     return context.interner.intern(tags);
   }
@@ -12417,7 +12475,10 @@
       const machine = context.closes;
       if (!machine || !captured.observation) throw new GencmuError("grammar","a restored span lacks its captured close observation");
       const observation = captured.observation;
-      if (!observation.valid && "invalidRestoration" in scope) scope.invalidRestoration = true;
+      if (!observation.valid) {
+        if ("invalidRestoration" in scope) scope.invalidRestoration = true;
+        throw INVALID_RESTORATION;
+      }
       const r = reconstructionOf(scope);
       const contextEnd = r ? originalPosition(r,r.inputEnd) : context.inputEnd;
       return { start: inner.start, end: inner.end,
@@ -13175,43 +13236,54 @@
     const sharing = sharingOf(context);
     if (aligned) sharing.asked++;
     if (aligned && !aligned.observation.valid) return kind === "tags" ? tagSet() : false;
-    const key = kind === "ends" ? JSON.stringify(["suffix",rule,start,end]) : aligned ? JSON.stringify(["aligned",kind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation)])
+    const memoKind = kind === "tags" ? "matches" : kind;
+    const ancestry = aligned ? [...context.inProgress].sort(compareCodePoints) : null;
+    const key = kind === "ends" ? JSON.stringify(["suffix",rule,start,end]) : aligned ? JSON.stringify(["aligned",memoKind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation),ancestry])
       : at !== null && end - start > CONTENT_KEY_LIMIT
-        ? JSON.stringify(["at", kind, rule, at[0], at[1]])
-        : nestedKey(context, kind, rule, start, end);
+        ? JSON.stringify(["at", memoKind, rule, at[0], at[1]])
+        : nestedKey(context, memoKind, rule, start, end);
+    requireInactive(context,rule,start,end);
+    let suffix = null;
     if (kind === "ends") {
-      requireInactive(context,rule,start,end);
-      const state = suffixState(context, rule, start, end);
-      if (state.answers.has(end)) return /** @type {boolean} */ (state.answers.get(end));
+      suffix = sharing.suffixActive > 0 ? freshSuffix() : suffixState(context, rule, start, end);
+      if (suffix.answers.has(end)) {
+        if (suffix.dependent) sharing.asked++;
+        return /** @type {boolean} */ (suffix.answers.get(end));
+      }
     }
-    const known = context.nested.get(key);
+    const known = sharing.suffixActive > 0 ? undefined : context.nested.get(key);
     if (known !== undefined) {
       if (sharing.tainted.has(key)) sharing.asked++;
-      return known;
+      return queryAnswer(kind, known);
     }
     const limit = memoLimit();
-    // While an aligned query is active, the shared memo serves nothing
-    // (engine §4.3). Then a shared answer cannot hide an error of the stack
-    // of active queries, so the stack can be checked after the memos.
-    if (!aligned && limit > 0 && sharing.alignedActive === 0 && key.startsWith('["of"')) {
+    // Shared answers cannot hide recursive aligned or suffix requests (§4.3).
+    if (!aligned && limit > 0 && sharing.alignedActive === 0 && sharing.suffixActive === 0 && key.startsWith('["of"')) {
       const found = sharedMemoOf(context.lowered).get(sharedKey(key), limit);
       if (found !== undefined) {
         if (hooks.memoHit) hooks.memoHit(sharedKey(key), sharing.alignedActive);
         // The answer enters the memo of the parse, as the answer of its
         // nested parse does.
-        const answer = typeof found === "boolean" ? found : kind === "tags" ? tagSet(found.tags) : found.accepted;
-        context.nested.set(key, answer);
-        return answer;
+        const entry = typeof found === "boolean" ? found : {accepted:found.accepted,tags:tagSet(found.tags)};
+        context.nested.set(key, entry);
+        return queryAnswer(kind, entry);
       }
+    }
+    const qualificationKey = aligned ? JSON.stringify([rule,start,end,ancestry,
+      ...(aligned.family ? [aligned.family,aligned.candidateEnd,context.closes?.identity(aligned.observation)] : [])]) : null;
+    const qualified = qualificationKey !== null && sharing.suffixActive === 0 ? context.qualified.get(qualificationKey) : undefined;
+    if (qualified && aligned) {
+      const entry = alignedAnswer(context,kind,aligned,qualified);
+      context.nested.set(key, entry);
+      return queryAnswer(kind, entry);
     }
     // A fault finds no query cycle while the check runs (F25).
     halting = new Pending(context, kind, rule, start, end, at, key, context.checking && fault("F25"));
     halting.aligned = aligned ?? null;
+    halting.qualificationKey = qualificationKey;
     halting.asked = sharing.asked;
     if (kind === "ends") {
-      const state = suffixState(context, rule, start, end);
-      // An unfinished boundary needs its own active-window identity.
-      suffixRequests.set(halting, state.active ? freshSuffix() : state);
+      suffixRequests.set(halting, /** @type {SuffixState} */ (suffix));
     }
     return HALT;
   }
@@ -13220,12 +13292,12 @@
    * @typedef {object} SuffixState
    * @property {Map<number,boolean>} answers
    * @property {Run|null} run
-   * @property {boolean} active
+   * @property {boolean} dependent
    * @property {((end:number) => void)|null} extend
    */
   /** @returns {SuffixState} */
   function freshSuffix() {
-    return {answers:new Map(),run:null,active:false,extend:null};
+    return {answers:new Map(),run:null,dependent:false,extend:null};
   }
   /** @type {WeakMap<ParseContext,Map<string,SuffixState>>} */
   const suffixStates = new WeakMap();
@@ -13374,17 +13446,17 @@
    * answers that depend on one. Such an answer stays out of the shared memo,
    * and so does every answer that reads it (engine §4.3). Also how many
    * aligned queries are active now.
-   * @type {WeakMap<ParseContext, {asked: number, tainted: Set<string>, alignedActive: number}>}
+   * @type {WeakMap<ParseContext, {asked: number, tainted: Set<string>, alignedActive: number, suffixActive: number}>}
    */
   const sharings = new WeakMap();
 
   /**
    * @param {ParseContext} context
-   * @returns {{asked: number, tainted: Set<string>, alignedActive: number}}
+   * @returns {{asked: number, tainted: Set<string>, alignedActive: number, suffixActive: number}}
    */
   function sharingOf(context) {
     let sharing = sharings.get(context);
-    if (!sharing) sharings.set(context, sharing = { asked: 0, tainted: new Set(), alignedActive: 0 });
+    if (!sharing) sharings.set(context, sharing = { asked: 0, tainted: new Set(), alignedActive: 0, suffixActive: 0 });
     return sharing;
   }
 
@@ -13413,7 +13485,7 @@
       return;
     }
     const limit = memoLimit();
-    if (query.aligned || limit === 0 || !key.startsWith('["of"')) return;
+    if (query.aligned || sharing.suffixActive > 0 || limit === 0 || !key.startsWith('["of"')) return;
     if (hooks.memoInsert) hooks.memoInsert(sharedKey(key));
     sharedMemoOf(context.lowered).set(sharedKey(key), answer, limit);
   }
@@ -13518,12 +13590,12 @@
    * @param {any} context @param {any} condition @param {any} scope @param {any} atom @param {any} step @param {boolean} wholeBoundary */
   function boundaryCondition(context,condition,scope,atom,step,wholeBoundary) {
     scope.boundaryValue = true;
-    const yes = holds(context,condition,scope);
+    const yes = restorationStep(() => holds(context,condition,scope), () => false);
     const withYes = (/** @type {boolean} */ value) => {
       value = value && !scope.invalidRestoration;
       scope.invalidRestoration = false;
       scope.boundaryValue = false;
-      const no = holds(context,condition,scope);
+      const no = restorationStep(() => holds(context,condition,scope), () => false);
       const finish = (/** @type {boolean} */ other) => {
         delete scope.boundaryValue;
         other = other && !scope.invalidRestoration;
@@ -17206,14 +17278,13 @@
       // Runtime tracking marks W(D)'s edges before the check ranks.
       // An optional test hook observes the witness (tests/README.md).
       const run = { chosen, chart, roots, synthetic, originalAt, recordAt };
-      const protectWitness = true;
-      const walk = protectWitness ? walkWitness(run) : null;
+      const walk = walkWitness(run);
       const watch = hooks.elisionCheck ? hooks.elisionCheck(run) : null;
       // The check's ranker: no lean, and cycles over spans of R (engine §7.7).
       const ranker = slotRanker(chart, restored, "none", fault("F19") ? project : null);
       ranker.profileProject = project;
       ranker.check = true;
-      ranker.marks = protectWitness ? walk?.marks ?? null : watch?.marks ?? null;
+      ranker.marks = walk?.marks ?? null;
       // Raw witness membership and filtered admission are separate decisions.
       let raw = ranker;
       if (ranker.admission) {
@@ -17224,28 +17295,24 @@
       }
       const rawRanking = roots.length === 0 ? null : raw.rank(roots);
       let ranking = raw === ranker ? rawRanking : roots.length === 0 ? null : ranker.rank(roots);
-      if (fault("lost:count") || (protectWitness && (!walk || rawRanking?.witnessCounted !== true))) ranking = null;
+      if (fault("lost:count") || rawRanking?.witnessCounted !== true) ranking = null;
       if (fault("F23")) {
         // A fault leaves the main grammar in the mode of the check.
         for (const [name, productions] of lowered.byLhs) {
           lowered.byLhs.set(name, productions.filter((production) => !(production.rhs.length === 0 && production.helper && production.elided !== null)));
         }
       }
-      if (ranking === null) {
+      if (!walk || ranking === null) {
         if (watch) watch.ranked({ ranking: null, counted: false });
         return old ? { kind: "pass" } : { kind: "lost", completion: records };
       }
       const profileOrder = ranker.profiles ? compareProfiles(ranking.profile, derivationProfile(chosen)) : 0;
-      if (profileOrder > 0 && !ranker.admission) {
-        if (watch) watch.ranked({ ranking: null, counted: false });
-        return { kind: "lost", completion: records };
-      }
-      const restoredWitness = walk ? ropeOf(walk.sequence) : witnessRope(chosen);
-      const excluded = protectWitness && ranking.witnessCounted !== true;
+      const restoredWitness = ropeOf(walk.sequence);
+      const excluded = ranking.witnessCounted !== true;
       const better = excluded || profileOrder < 0;
       // Observe candidate selection before arranging the diagnostic pair.
       const selectedRanking = ranking;
-      if (better || ranking.verdict === "tie" && protectWitness) {
+      if (better || ranking.verdict === "tie") {
         const first = ranking.first;
         const second = ranking.second;
         const competitor = firstDifference(restoredWitness, first, false) !== null ? first : second;
@@ -17878,37 +17945,6 @@
   }
 
 
-
-  /**
-   * Builds the restored witness actions in leaf order (engine §7.8).
-   * The witness keeps each production and gives each omission one token.
-   * @param {Derivation} chosen
-   * @returns {import("./types.js").Rope}
-   */
-  function witnessRope(chosen) {
-    /** @type {Action[]} */
-    const sequence = [];
-    let cursor = 0;
-    const stack = [{ node: chosen, next: 0, start: 0 }];
-    while (stack.length) {
-      const frame = stack[stack.length - 1];
-      const node = frame.node;
-      if ("read" in node) {
-        sequence.push({ ...node.read, token: cursor++ });
-        stack.pop();
-      } else if (node.production.helper && node.production.elided !== null && !node.children.length) {
-        sequence.push({ kind: "read", terminal: node.production.elided, token: cursor++ });
-        sequence.push({ kind: "close", item: Object.assign(Object.create(Object.getPrototypeOf(node.item)), node.item, { origin: frame.start, end: cursor, restores: true }) });
-        stack.pop();
-      } else if (frame.next < node.children.length) {
-        stack.push({ node: node.children[frame.next++], next: 0, start: cursor });
-      } else {
-        sequence.push({ kind: "close", item: Object.assign(Object.create(Object.getPrototypeOf(node.item)), node.item, { origin: frame.start, end: cursor }) });
-        stack.pop();
-      }
-    }
-    return ropeOf(sequence);
-  }
 
   /** @param {ResultNode} tree @returns {boolean} */
   function hasElided(tree) {

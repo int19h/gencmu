@@ -138,8 +138,13 @@ export declare class ParseContext {
      */
     nextSounding: Int32Array | null;
     dots: number;
-    /** @type {Map<string, boolean | TagSet>} */
-    nested: Map<string, boolean | TagSet>;
+    /** @type {Map<string, QueryAnswer>} */
+    nested: Map<string, QueryAnswer>;
+    /** @type {Map<string, {chart:Chart, witnesses:Item[]}>} */
+    qualified: Map<string, {
+        chart: Chart;
+        witnesses: Item[];
+    }>;
     /** @type {Set<string>} */
     inProgress: Set<string>;
     /** Where the input of the recognition now running begins. */
@@ -327,6 +332,8 @@ declare class Pending {
     asked: number;
     /** @type {import("./types.js").AlignedSpan|null} */
     aligned: import("./types.js").AlignedSpan | null;
+    /** @type {string|null} */
+    qualificationKey: string | null;
     /**
      * What the halted evaluation has left to do, the innermost part first.
      * Each frame takes the value of the part inside it and gives its own,
@@ -402,6 +409,10 @@ export declare function recognize(context: ParseContext, rule: string, start: nu
  * @returns {T}
  */
 export declare function settled<T>(evaluation: () => T | Halt): T;
+export type QueryAnswer = boolean | {
+    accepted: boolean;
+    tags: TagSet;
+};
 export type Advanced = {
     dot: number;
     slots: Captured;
@@ -537,7 +548,7 @@ export type Comparison = Extract<Condition, {
 export type SuffixState = {
     answers: Map<number, boolean>;
     run: Run | null;
-    active: boolean;
+    dependent: boolean;
     extend: ((end: number) => void) | null;
 };
 /**
