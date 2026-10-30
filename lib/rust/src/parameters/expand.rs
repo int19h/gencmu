@@ -151,7 +151,7 @@ fn empty(rules: Vec<Json>) -> Json {
     ])
 }
 pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Option<Expansion>> {
-    if !documents.iter().any(|(_, d)| !d.unresolved.is_empty()) {
+    if !documents.iter().any(|(_, d)| d.unresolved) {
         return Ok(None);
     }
     let mut x = Expander {
@@ -171,13 +171,6 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
     let mut serial = 0;
     for (path, d) in documents {
         let mut raw = crate::json::parse(&dom::dom_to_json(d)).expect("a DOM writer produces JSON");
-        for kind in KINDS {
-            let rs = list(get(&raw, kind))
-                .iter()
-                .map(|r| d.unresolved.get(&at(r).unwrap()).cloned().unwrap_or_else(|| r.clone()))
-                .collect();
-            set(&mut raw, kind, Json::Arr(rs));
-        }
         super::locations::annotate_document(&mut raw, d);
         let mut items: Vec<_> =
             KINDS.into_iter().flat_map(|k| list(get(&raw, k)).iter().map(move |r| (k, r))).collect();

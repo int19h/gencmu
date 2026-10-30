@@ -170,6 +170,7 @@ pub(crate) fn clean(root: &Json) -> Json {
         n
     })
 }
+#[cfg(test)]
 pub(crate) fn canonical_source(root: &Json) -> Json {
     map_nodes(root, |mut n| {
         remove(&mut n, SOURCE);

@@ -22,65 +22,6 @@ fn record_rank(n: &mut Json, a: (usize, usize)) {
     set(&mut s, "ranked", position(a));
     set(n, SOURCE, s);
 }
-/// Copy private positions by node structure. Public cached members remain authoritative.
-pub(crate) fn recover(dom: &mut Dom, source: &Dom) {
-    fn annotated(dom: &Dom) -> Json {
-        let mut raw = crate::json::parse(&dom::dom_to_json(dom)).expect("a DOM writer produces JSON");
-        for kind in KINDS {
-            if let Some(Json::Arr(items)) = slot(&mut raw, kind) {
-                for item in items {
-                    if let Some(saved) = at(item).and_then(|a| dom.unresolved.get(&a)) {
-                        *item = saved.clone();
-                    }
-                }
-            }
-        }
-        annotate_document(&mut raw, dom);
-        raw
-    }
-    fn copy(to: &mut Json, from: &Json) {
-        match (to, from) {
-            (Json::Obj(to), Json::Obj(from)) => {
-                if let Some((_, position)) = from.iter().find(|(k, _)| k == SOURCE) {
-                    if let Some((_, target)) = to.iter_mut().find(|(k, _)| k == SOURCE) {
-                        *target = position.clone();
-                    } else {
-                        to.push((SOURCE.into(), position.clone()));
-                    }
-                }
-                for (key, target) in to {
-                    if key != "at" && key != SOURCE {
-                        if let Some((_, source)) = from.iter().find(|(k, _)| k == key) {
-                            copy(target, source);
-                        }
-                    }
-                }
-            }
-            (Json::Arr(to), Json::Arr(from)) => {
-                for (to, from) in to.iter_mut().zip(from) {
-                    copy(to, from);
-                }
-            }
-            _ => (),
-        }
-    }
-    let mut raw = annotated(dom);
-    let written = annotated(source);
-    for kind in KINDS {
-        let sources: BTreeMap<_, _> = list(get(&written, kind)).iter().filter_map(|n| Some((at(n)?, n))).collect();
-        if let Some(Json::Arr(items)) = slot(&mut raw, kind) {
-            for item in items {
-                if let Some(source) = at(item).and_then(|a| sources.get(&a)) {
-                    copy(item, source);
-                }
-                if let Some(target) = at(item).and_then(|a| dom.unresolved.get_mut(&a)) {
-                    *target = item.clone();
-                }
-            }
-        }
-    }
-    restore_document(dom, &raw);
-}
 fn expression(n: &Json, path: String, locations: &mut BTreeMap<String, (usize, usize)>) {
     if let Some(a) = ranked_at(n) {
         locations.insert(path.clone(), a);

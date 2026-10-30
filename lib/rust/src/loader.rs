@@ -453,20 +453,15 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
     // stack, at the first item in the order of the document that breaks
     // it: a DOM just read is as deep as its document nests, and the checks
     // below walk it by recursion.
-    let raw_deep = |at: &(usize, usize), kind: &str| {
-        dom.unresolved
-            .get(at)
-            .is_some_and(|raw| crate::parameters::declaration_problem(raw, kind, unicode) == Some("nested too deeply"))
-    };
     let mut deep: Vec<(usize, usize)> = dom
         .rules
         .iter()
-        .filter(|rule| crate::dom::rule_too_deep(rule) || raw_deep(&rule.at, "rules"))
+        .filter(|rule| crate::dom::rule_too_deep(rule))
         .map(|rule| rule.at)
         .chain(
             dom.constants
                 .iter()
-                .filter(|constant| crate::dom::term_too_deep(&constant.value) || raw_deep(&constant.at, "constants"))
+                .filter(|constant| crate::dom::term_too_deep(&constant.value))
                 .map(|constant| constant.at),
         )
         .chain(
@@ -475,17 +470,13 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
                 .filter(|implication| {
                     crate::dom::term_too_deep(&implication.antecedent)
                         || crate::dom::term_too_deep(&implication.consequent)
-                        || raw_deep(&implication.at, "implications")
                 })
                 .map(|implication| implication.at),
         )
         .chain(
             dom.directives
                 .iter()
-                .filter(|directive| {
-                    directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep)
-                        || raw_deep(&directive.at, "directives")
-                })
+                .filter(|directive| directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep))
                 .map(|directive| directive.at),
         )
         .chain(
@@ -547,10 +538,7 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
         )
         .collect();
     singles.sort_by_key(|(_, at)| *at);
-    for (mut single, at) in singles {
-        if let Some(raw) = dom.unresolved.get(&at) {
-            single.unresolved.insert(at, raw.clone());
-        }
+    for (single, at) in singles {
         if let Some(problem) = problem_of(&single) {
             return Err(grammar_error(problem).at(at.0, at.1));
         }

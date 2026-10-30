@@ -620,7 +620,7 @@ fn expression_children(expr: &Expr) -> Vec<(&Expr, String)> {
     }
 }
 pub(crate) fn restore_locations(dom: &mut crate::dom::Dom, source: &crate::dom::Dom) {
-    crate::parameters::locations::recover(dom, source);
+    crate::dom::source::restore_locations(dom, source);
 }
 pub(crate) fn syntax_failure(tokens: &[crate::result::Token], at: usize) -> bool {
     if tokens.get(at).is_some_and(|token| token.value == "≻")

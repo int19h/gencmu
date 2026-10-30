@@ -24,7 +24,7 @@ fn source_dom_decodes_into_native_nodes() {
     ] {
         let mut decoded = read(source);
         let expected = j(&dom::dom_to_json(&decoded));
-        decoded.unresolved.clear();
+        decoded.unresolved = false;
         assert_eq!(j(&dom::dom_to_json(&decoded)), expected, "{source}");
     }
 }
@@ -154,12 +154,9 @@ fn supplied_dom_closure_and_scope() {
 #[test]
 fn supplied_body_normalizes() {
     let mut d = read("%rule atom(@X) @X\n%rule text atom(\"a\") atom(\"a\")");
-    let r = d.unresolved.get_mut(&(3, 1)).unwrap();
-    let mut expr = expression(r).clone();
-    let mut seq = list(get(&expr, "seq")).to_vec();
-    set(&mut seq[1], "args", j(r#"[{"body":{"literal":{"string":"a"}}}]"#));
-    set(&mut expr, "seq", Json::Arr(seq));
-    replace_expression(r, expr);
+    let dom::Expr::Seq(items) = &mut d.rules[1].alternatives[0].expr else { panic!("a sequence") };
+    let dom::Expr::Source(dom::source::SourceSymbol::Call(call)) = &mut items[1] else { panic!("a call") };
+    call.args[0] = dom::source::SourceArgument::Body(dom::Expr::Literal(dom::Term::Str("a".into())));
     let x = expand(&[(Arc::from("grammars/test/test.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
     assert_eq!(x.records.instances.len(), 1);
 }
@@ -178,20 +175,20 @@ fn deep_bodies() {
     for supplied in [false, true] {
         let mut d = read("%rule atom(@X) @X\n%rule text atom(\"a\")");
         let mut expr = if supplied {
-            obj([("literal", obj([("string", string("a"))]))])
+            dom::Expr::Literal(dom::Term::Str("a".into()))
         } else {
-            obj([("param", string("X")), ("at", position((2, 16)))])
+            dom::Expr::Source(dom::source::SourceSymbol::Parameter("X".into(), (2, 16)))
         };
         for _ in 0..250 {
-            expr = obj([("seq", Json::Arr(vec![expr, obj([("empty", Json::Bool(true))])]))])
+            expr = dom::Expr::Seq(vec![expr, dom::Expr::Empty]);
         }
         if supplied {
-            let r = d.unresolved.get_mut(&(3, 1)).unwrap();
-            let mut call = expression(r).clone();
-            set(&mut call, "args", Json::Arr(vec![obj([("body", expr)])]));
-            replace_expression(r, call)
+            let dom::Expr::Source(dom::source::SourceSymbol::Call(call)) = &mut d.rules[1].alternatives[0].expr else {
+                panic!("a call")
+            };
+            call.args[0] = dom::source::SourceArgument::Body(expr);
         } else {
-            replace_expression(d.unresolved.get_mut(&(2, 1)).unwrap(), expr)
+            d.rules[0].alternatives[0].expr = expr;
         }
         let raw = crate::json::parse(&dom::dom_to_json(&d)).unwrap();
         assert!(dom::dom_problem(&raw, &unicode()).is_none());
@@ -275,6 +272,32 @@ fn ranked_argument_location() {
 }
 
 #[test]
+fn cached_location_recovery_preserves_public_source_members() {
+    let text = "%rule f(@X) @X\n%rule text f(($A ≻ $B)) :: ∅";
+    let source = located(text);
+    let mut cached = read(text);
+    cached.rules[1].name = "cached".into();
+    let dom::Expr::Source(dom::source::SourceSymbol::Call(call)) = &mut cached.rules[1].alternatives[0].expr else {
+        panic!("a source call");
+    };
+    call.at = (90, 91);
+    let dom::source::SourceArgument::Body(dom::Expr::Ranked(options, _)) = &mut call.args[0] else {
+        panic!("a ranked body");
+    };
+    options[0] = dom::Expr::Literal(dom::Term::Const("Cached".into(), (92, 93)));
+    let before = dom::dom_to_json(&cached);
+    dom::source::restore_locations(&mut cached, &source);
+    assert_eq!(dom::dom_to_json(&cached), before);
+    let dom::Expr::Source(dom::source::SourceSymbol::Call(call)) = &cached.rules[1].alternatives[0].expr else {
+        panic!("a source call");
+    };
+    let dom::source::SourceArgument::Body(dom::Expr::Ranked(_, at)) = &call.args[0] else {
+        panic!("a ranked body");
+    };
+    assert_eq!(*at, Some((3, 18)));
+}
+
+#[test]
 fn deep_source_groups_need_no_recursive_conversion() {
     std::thread::Builder::new()
         .stack_size(2 * 1024 * 1024)
@@ -338,14 +361,13 @@ fn nested_alias_twins_follow_expanded_order() {
 fn unresolved_writer_ignores_object_member_order() {
     let mut d = read("%rule tag(@R) A<@R> %emits $ :: $.tags\n%rule text tag(<B ¬C>)");
     let expected = dom::dom_to_json(&d);
-    for raw in d.unresolved.values_mut() {
-        *raw = map_nodes(raw, |mut n| {
-            if let Json::Obj(fields) = &mut n {
-                fields.reverse();
-            }
-            n
-        });
-    }
+    let raw = map_nodes(&j(&expected), |mut n| {
+        if let Json::Obj(fields) = &mut n {
+            fields.reverse();
+        }
+        n
+    });
+    d = dom::dom_from_json(&raw, &unicode()).unwrap();
     assert_eq!(dom::dom_to_json(&d), expected);
 }
 

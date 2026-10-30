@@ -66,7 +66,7 @@ pub(crate) struct Dom {
     pub constants: Vec<ConstDef>,
     pub classifiers: Vec<ClassifierDef>,
     pub implications: Vec<ImplicationDef>,
-    pub unresolved: std::collections::BTreeMap<(usize, usize), Json>,
+    pub unresolved: bool,
 }
 
 /// A `%classifier NAME` item (engine §2): its name, which begins with `a`
@@ -451,14 +451,7 @@ pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode, defer: bool) -> R
             }
         }
     }
-    let mut unresolved = std::collections::BTreeMap::new();
-    for kind in crate::parameters::KINDS {
-        for raw in array(value, kind)? {
-            if crate::parameters::unresolved(raw) {
-                unresolved.insert(position(raw)?, raw.clone());
-            }
-        }
-    }
+    let unresolved = crate::parameters::unresolved(value);
     Ok(Dom { rules, directives, constants, classifiers, implications, unresolved, ..Dom::default() })
 }
 
@@ -1030,10 +1023,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
         if index > 0 {
             out.push(',');
         }
-        if let Some(raw) = dom.unresolved.get(&rule.at) {
-            out.push_str(&crate::parameters::canonical_source(raw).to_json());
-            continue;
-        }
+
         write_rule(&mut out, rule);
     }
     out.push_str("],\"directives\":[");
@@ -1041,10 +1031,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
         if index > 0 {
             out.push(',');
         }
-        if let Some(raw) = dom.unresolved.get(&directive.at) {
-            out.push_str(&crate::parameters::canonical_source(raw).to_json());
-            continue;
-        }
+
         out.push_str("{\"name\":");
         write_str(&mut out, &directive.name);
         out.push_str(",\"args\":[");
@@ -1072,10 +1059,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
         if index > 0 {
             out.push(',');
         }
-        if let Some(raw) = dom.unresolved.get(&constant.at) {
-            out.push_str(&crate::parameters::canonical_source(raw).to_json());
-            continue;
-        }
+
         out.push_str("{\"name\":");
         write_str(&mut out, &constant.name);
         out.push_str(if constant.redefine { ",\"op\":\"redefine\"" } else { ",\"op\":\"define\"" });
@@ -1120,10 +1104,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
         if index > 0 {
             out.push(',');
         }
-        if let Some(raw) = dom.unresolved.get(&implication.at) {
-            out.push_str(&crate::parameters::canonical_source(raw).to_json());
-            continue;
-        }
+
         out.push_str("{\"if\":");
         write_term(&mut out, &implication.antecedent);
         out.push_str(",\"then\":");

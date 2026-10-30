@@ -175,37 +175,7 @@ impl<'a> Reader<'a> {
                 "implication-declaration" => item.implications.push(self.implication_declaration(node)?),
                 other => return Err(self.error(node, format!("the notation gives a {other} where an item stands"))),
             }
-            if self.unresolved.get() {
-                if item.rules.iter().any(crate::dom::rule_too_deep)
-                    || item.constants.iter().any(|constant| crate::dom::term_too_deep(&constant.value))
-                    || item.implications.iter().any(|implication| {
-                        crate::dom::term_too_deep(&implication.antecedent)
-                            || crate::dom::term_too_deep(&implication.consequent)
-                    })
-                    || item
-                        .directives
-                        .iter()
-                        .any(|directive| directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep))
-                {
-                    return Err(self.error(node, "an expression, term or condition is nested more than 256 deep"));
-                }
-                let mut raw = crate::json::parse(&crate::dom::dom_to_json(&item)).expect("a DOM writer produces JSON");
-                crate::parameters::locations::annotate_document(&mut raw, &item);
-                let kind = match rule_name(node) {
-                    "rule" => "rules",
-                    "directive" => "directives",
-                    "constant-definition" => "constants",
-                    "implication-declaration" => "implications",
-                    _ => "classifiers",
-                };
-                let raw = crate::parameters::list(crate::parameters::get(&raw, kind))[0].clone();
-                if let Some(problem) = crate::parameters::declaration_problem(&raw, kind, self.unicode) {
-                    if problem != "nested too deeply" {
-                        return Err(self.error(node, problem));
-                    }
-                }
-                dom.unresolved.insert(self.first(node), raw);
-            }
+            dom.unresolved |= self.unresolved.get();
             dom.rules.extend(item.rules);
             dom.directives.extend(item.directives);
             dom.constants.extend(item.constants);
