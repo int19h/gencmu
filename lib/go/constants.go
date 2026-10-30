@@ -252,6 +252,9 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 	in := newInterner()
 	switch t.Kind {
 	case tmPattern:
+		if err := g.checkPatternDepth(doc, t, item); err != nil {
+			return nil, err
+		}
 		p, err := g.resolvePatternValue(doc, t.Pattern, item)
 		return &constValue{ty: tyPattern, pattern: p}, err
 	case tmString:
@@ -279,6 +282,9 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 	case tmUnion, tmIntersection, tmDifference:
 		ty, _ := termTypeIn(t, g.constantTypes())
 		if ty == tyPattern || len(expected) > 0 && expected[0] == tyPattern {
+			if err := g.checkPatternDepth(doc, t, item); err != nil {
+				return nil, err
+			}
 			var patterns []*domPattern
 			for _, it := range t.Items {
 				v, err := g.evaluateClosed(doc, it, item, tyPattern)
@@ -714,6 +720,12 @@ func (g *stageGrammar) checkConstantRule(u constUser) *Error {
 	scan := func(p clausePart) bool {
 		if patternErr != nil {
 			return false
+		}
+		if p.c != nil && (p.c.Op == "≅" || p.c.Op == "≇") {
+			_, patternErr = g.evaluateClosed(u.doc, p.c.Right, u.rule.At, tyPattern)
+			if patternErr != nil {
+				return false
+			}
 		}
 		if p.t != nil && p.t.Kind == tmPattern {
 			_, patternErr = g.evaluateClosed(u.doc, p.t, u.rule.At)

@@ -1034,8 +1034,7 @@ impl Constants<'_> {
                     .map_err(|f| fault_error(f, &v.document, v.definition.at))?
                     == Type::Set
             {
-                let p = Pattern::Terminal("EMPTY".into(), (0, 0));
-                Value::Pattern(Pattern::Difference(Box::new(p.clone()), Box::new(p)))
+                Value::Pattern(Pattern::empty())
             } else {
                 self.evaluate(&v.definition.value, &v.document, v.definition.at)?
             };
@@ -1104,6 +1103,131 @@ impl Constants<'_> {
         Ok(self.evaluate(value, document, at)?.term())
     }
 
+    /// Follow shared substitutions before cloning or compiling their values.
+    fn check_pattern_depth(&self, term: &Term, document: &str, item: (usize, usize)) -> Result<(), Error> {
+        use crate::patterns::Children;
+        #[derive(Clone, Copy)]
+        enum Part<'a> {
+            Term(&'a Term),
+            Pattern(&'a Pattern),
+            Children(&'a Children),
+        }
+        let empty = Pattern::empty();
+        let mut pending = vec![(Part::Term(term), 1usize, 0u8, None)];
+        let mut seen = HashMap::new();
+        while let Some((part, depth, parent, reference)) = pending.pop() {
+            let (kind, identity, operation) = match part {
+                Part::Term(t) => (
+                    0u8,
+                    t as *const Term as usize,
+                    match t {
+                        Term::Union(_) => 1,
+                        Term::Intersection(_) => 2,
+                        Term::Difference(..) => 3,
+                        _ => 0,
+                    },
+                ),
+                Part::Pattern(p) => (
+                    1,
+                    p as *const Pattern as usize,
+                    match p {
+                        Pattern::Union(_) => 1,
+                        Pattern::Intersection(_) => 2,
+                        Pattern::Difference(..) => 3,
+                        _ => 0,
+                    },
+                ),
+                Part::Children(c) => (2, c as *const Children as usize, 0),
+            };
+            let constant = match part {
+                Part::Term(Term::Const(name, at)) | Part::Pattern(Pattern::Constant(name, at)) => Some((name, at)),
+                _ => None,
+            };
+            if let Some((name, at)) = constant {
+                if let Value::Pattern(pattern) = &self.values[name].value {
+                    pending.push((Part::Pattern(pattern), depth, parent, reference.or(Some(*at))));
+                    continue;
+                }
+                if matches!(part, Part::Term(_))
+                    && matches!(&self.values[name].value, Value::Set(set) if set.is_empty())
+                {
+                    pending.push((Part::Pattern(&empty), depth, parent, reference.or(Some(*at))));
+                    continue;
+                }
+            }
+            if matches!(part, Part::Term(Term::EmptySet)) {
+                pending.push((Part::Pattern(&empty), depth, parent, reference));
+                continue;
+            }
+            // Term wrappers, node decorations, and sequence arrays are transparent.
+            let transparent = match part {
+                Part::Term(Term::Pattern(pattern)) => Some(Part::Pattern(pattern)),
+                Part::Pattern(Pattern::Node(pattern, _, _)) => Some(Part::Pattern(pattern)),
+                _ => None,
+            };
+            if let Some(inner) = transparent {
+                if let Part::Pattern(Pattern::Node(_, _, Some(children))) = part {
+                    pending.push((Part::Children(children), depth + 1, 0, reference));
+                }
+                pending.push((inner, depth, parent, reference));
+                continue;
+            }
+            let flat = operation != 0 && operation != 3 && operation == parent;
+            let sequence = matches!(part, Part::Children(Children::Sequence(_)));
+            if !flat && !sequence && depth > 256 {
+                return Err(located(
+                    "a resolved pattern is nested more than 256 deep".into(),
+                    document,
+                    reference.unwrap_or(item),
+                ));
+            }
+            let key = (kind, identity, parent);
+            if seen.get(&key).is_some_and(|&previous| previous >= depth) {
+                continue;
+            }
+            seen.insert(key, depth);
+            let child_depth = depth + usize::from(!flat && !sequence);
+            let child_parent = if sequence { parent } else { operation };
+            let mut push = |child| pending.push((child, child_depth, child_parent, reference));
+            match part {
+                Part::Term(Term::Union(items) | Term::Intersection(items)) => {
+                    for child in items.iter().rev() {
+                        push(Part::Term(child));
+                    }
+                }
+                Part::Term(Term::Difference(a, b)) => {
+                    push(Part::Term(b));
+                    push(Part::Term(a));
+                }
+                Part::Pattern(Pattern::Union(items) | Pattern::Intersection(items)) => {
+                    for child in items.iter().rev() {
+                        push(Part::Pattern(child));
+                    }
+                }
+                Part::Pattern(Pattern::Difference(a, b)) => {
+                    push(Part::Pattern(b));
+                    push(Part::Pattern(a));
+                }
+                Part::Pattern(Pattern::Path(_, inner) | Pattern::Test(_, _, inner)) => push(Part::Pattern(inner)),
+                Part::Children(Children::Node(inner)) => push(Part::Pattern(inner)),
+                Part::Children(Children::Sequence(items) | Children::Choice(items)) => {
+                    for child in items.iter().rev() {
+                        push(Part::Children(child));
+                    }
+                }
+                Part::Children(Children::Optional(inner)) => push(Part::Children(inner)),
+                Part::Children(Children::Repeat(inner, separator)) => {
+                    if let Some(separator) = separator {
+                        push(Part::Children(separator));
+                    }
+                    push(Part::Children(inner));
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
     fn evaluate_pattern_value(&self, term: &Term, document: &str, item: (usize, usize)) -> Result<Value, Error> {
         if let Term::Pattern(root) = term {
             if let Some(fault) = root.type_fault(&|name| self.ty(name)) {
@@ -1150,6 +1274,7 @@ impl Constants<'_> {
                 }
             }
         }
+        self.check_pattern_depth(term, document, item)?;
         let pattern = match term {
             Term::Pattern(p) => p.map_values(
                 &|n, at| match &self.values[n].value {
@@ -1289,10 +1414,7 @@ impl Constants<'_> {
     fn evaluate_pattern(&self, t: &Term, document: &str, at: (usize, usize)) -> Result<Pattern, Error> {
         match self.evaluate(t, document, at)? {
             Value::Pattern(p) => Ok(p),
-            Value::Set(s) if s.is_empty() => {
-                let p = Pattern::Terminal("EMPTY".into(), (0, 0));
-                Ok(Pattern::Difference(Box::new(p.clone()), Box::new(p)))
-            }
+            Value::Set(s) if s.is_empty() => Ok(Pattern::empty()),
             _ => Err(located("a pattern is needed here".into(), document, at)),
         }
     }

@@ -21,6 +21,115 @@ type domPattern struct {
 	Attached     []*domPattern
 }
 
+// checkPatternDepth follows substitutions before copying or compiling them.
+// Shared nodes retain the greatest visited depth in each flattening context.
+func (g *stageGrammar) checkPatternDepth(doc string, root *domTerm, item [2]int) *Error {
+	type entry struct {
+		t      *domTerm
+		p      *domPattern
+		depth  int
+		parent string
+		at     [2]int
+	}
+	type key struct {
+		t      *domTerm
+		p      *domPattern
+		parent string
+	}
+	pending := []entry{{t: root, depth: 1}}
+	empty := emptyPattern()
+	seen := map[key]int{}
+	for len(pending) > 0 {
+		e := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		kind, name, at := "", "", [2]int{}
+		if e.t != nil {
+			kind, at = e.t.Kind, e.t.At
+			if kind == tmConst {
+				name = e.t.Str
+			}
+			if kind == tmPattern {
+				e.p, e.t = e.t.Pattern, nil
+				pending = append(pending, e)
+				continue
+			}
+			if kind == tmEmptySet {
+				e.p, e.t = empty, nil
+				pending = append(pending, e)
+				continue
+			}
+		} else {
+			kind, at = e.p.Kind, e.p.At
+			if kind == "constant" {
+				name = e.p.Name
+			}
+		}
+		if name != "" {
+			value := g.constants[name].value
+			if value.ty == tyPattern {
+				e.t, e.p = nil, value.pattern
+				if e.at == [2]int{} {
+					e.at = at
+				}
+				pending = append(pending, e)
+				continue
+			}
+			if e.t != nil && value.ty == tySet {
+				e.t, e.p = nil, empty
+				if e.at == [2]int{} {
+					e.at = at
+				}
+				pending = append(pending, e)
+				continue
+			}
+		}
+		flat := (kind == tmUnion || kind == tmIntersection) && kind == e.parent
+		if !flat && e.depth > maxDOMDepth {
+			where := e.at
+			if where == [2]int{} {
+				where = item
+			}
+			return g.constError(doc, where, "a resolved pattern is nested more than 256 deep")
+		}
+		k := key{e.t, e.p, e.parent}
+		if previous, ok := seen[k]; ok && previous >= e.depth {
+			continue
+		}
+		seen[k] = e.depth
+		child := e
+		child.parent = ""
+		child.depth++
+		if kind == tmUnion || kind == tmIntersection || kind == tmDifference {
+			child.parent = kind
+			if flat {
+				child.depth--
+			}
+		}
+		if e.t != nil {
+			if kind == tmUnion || kind == tmIntersection || kind == tmDifference {
+				for i := len(e.t.Items) - 1; i >= 0; i-- {
+					child.t = e.t.Items[i]
+					pending = append(pending, child)
+				}
+			}
+		} else {
+			if kind == "sequence" {
+				child.depth = e.depth
+				child.parent = e.parent
+			}
+			for i := len(e.p.Attached) - 1; i >= 0; i-- {
+				child.p = e.p.Attached[i]
+				pending = append(pending, child)
+			}
+			for i := len(e.p.Items) - 1; i >= 0; i-- {
+				child.p = e.p.Items[i]
+				pending = append(pending, child)
+			}
+		}
+	}
+	return nil
+}
+
 func walkPattern(p *domPattern, visit func(*domPattern)) {
 	stack := []*domPattern{p}
 	for len(stack) > 0 {

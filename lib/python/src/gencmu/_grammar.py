@@ -21,7 +21,7 @@ from ._tags import (
     ngrams,
 )
 from ._trampoline import Walk, run
-from ._patterns import empty_pattern, walk_pattern
+from ._patterns import empty_pattern, walk_pattern, pattern_depth_problem
 from ._ranked import RankedGroups, reads
 from ._types import (
     TermType,
@@ -453,9 +453,16 @@ class _Constants:
         """The value of a closed term, with the constants' values now
         (engine §2, §10). A joined empty delimiter errors at the definition.
         A direct constant delimiter errors at its reference."""
+        def check_depth():
+            problem = pattern_depth_problem(term, lambda name: self.values[name].value)
+            if problem is not None:
+                raise _error("a resolved pattern is nested more than 256 deep", path, problem[0] or item, self.stage)
+
         if "pattern" in term:
+            check_depth()
             return {"pattern":(yield self._closed_pattern(path, term["pattern"], item))}
         if any(key in term for key in ("union", "intersection", "difference")) and (expected == "pattern" or self._is_pattern(term)):
+            check_depth()
             key = next(key for key in ("union", "intersection", "difference") if key in term)
             patterns = []
             for part in term[key]:
@@ -538,6 +545,8 @@ class _Constants:
             if isinstance(node, list):
                 pending.extend(node)
             elif isinstance(node, dict):
+                if node.get("op") in ("≅", "≇"):
+                    run(self._closed(path, node["right"], rule["at"], "pattern"))
                 if "pattern" in node:
                     run(self._closed(path, node, rule["at"]))
                 else:

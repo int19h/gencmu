@@ -4030,6 +4030,61 @@
   }
 
   /**
+   * Inspect substitution before copying values. The cache records the greatest
+   * depth already visited for each shared node and flattening context.
+   * @param {any} term
+   * @param {(name:string) => any} constant
+   * @returns {{at?:[number,number]}|null}
+   */
+  function patternDepthProblem(term, constant) {
+    const all = {any:true,children:[{siblings:true}]};
+    const empty = {difference:[all,all]};
+    /** @type {{node:any,depth:number,parent:string,term:boolean,at?:[number,number]}[]} */
+    const pending = [{node:term, depth:1, parent:"", term:true, at:undefined}];
+    /** @type {WeakMap<object,Map<string,number>>} */
+    const seen = new WeakMap();
+    while (pending.length) {
+      const entry = /** @type {{node:any,depth:number,parent:string,term:boolean,at?:[number,number]}} */ (pending.pop());
+      const {node,depth,parent,at} = entry;
+      if (Array.isArray(node)) {
+        for (let i=node.length-1;i>=0;i--) pending.push({...entry,node:node[i]});
+        continue;
+      }
+      const name = entry.term ? node.const : node.constant;
+      if (name) {
+        const value = constant(name);
+        if ("pattern" in value) pending.push({...entry,node:value.pattern,term:false,at:at ?? node.at});
+        else if (entry.term && "set" in value && value.set.size === 0) pending.push({...entry,node:empty,term:false,at:at ?? node.at});
+        else if (depth > 256) return {at};
+        continue;
+      }
+      if (entry.term && node.emptySet) {
+        pending.push({...entry,node:empty,term:false});
+        continue;
+      }
+      if (entry.term && node.pattern) {
+        pending.push({...entry,node:node.pattern,term:false});
+        continue;
+      }
+      const operation = ["union","intersection","difference"].find(key => node[key]);
+      const flat = operation !== undefined && operation !== "difference" && operation === parent;
+      if (!flat && depth > 256) return {at};
+      let visits = seen.get(node);
+      if (!visits) seen.set(node,visits=new Map());
+      const context = `${entry.term}:${parent}`;
+      if ((visits.get(context) ?? -1) >= depth) continue;
+      visits.set(context,depth);
+      if (operation) {
+        pending.push({...entry,node:node[operation],depth:depth+(flat?0:1),parent:operation});
+      } else if (!entry.term) {
+        const children = node.path ? [node.pattern] : patternParts(node);
+        pending.push({...entry,node:children,depth:depth+1,parent:""});
+      }
+    }
+    return null;
+  }
+
+  /**
    * @param {any} root
    * @param {(name:string, at:[number,number]) => any} constant
    * @param {(term:any, test:any) => any} value
@@ -8922,6 +8977,10 @@
      * @returns {TermValue}
      */
     evaluateClosed(path, term, item, lookup = (name) => /** @type {StageConstant} */ (this.constants.get(name)).value, expected = undefined) {
+      const checkDepth = () => {
+        const problem = patternDepthProblem(term,lookup);
+        if (problem) throw this.documentError(path,problem.at ?? item,"a resolved pattern is nested more than 256 deep");
+      };
       /** @type {(term: Term) => Set<string>} */
       const set = (part) => {
         const value = this.evaluateClosed(path, part, item, lookup);
@@ -8938,6 +8997,7 @@
       if ("emptySet" in term) return expected === "pattern" ? { pattern: { difference: [{ any:true, children:[{siblings:true}] }, { any:true, children:[{siblings:true}] }] } } : { set: tagSet() };
       if ("const" in term) return lookup(term.const);
       if ("pattern" in term) {
+        checkDepth();
         try {
           return { pattern: resolvePattern(term.pattern, (name,at) => {
             const resolved = lookup(name);
@@ -8970,6 +9030,7 @@
           else for (const key of ["union", "intersection", "difference"]) if (part[key]) for (const child of part[key]) pending.push(child);
         }
         if (pattern) {
+          checkDepth();
           let values=operands.map((/** @type {Term} */ part) => /** @type {{pattern:any}} */ (this.evaluateClosed(path, part, item, lookup, "pattern")).pattern);
           if(operation!=='difference') values=values.flatMap((/** @type {any} */ part)=>part[operation]??[part]);
           return {pattern:{[operation]:values}};

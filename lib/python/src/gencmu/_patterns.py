@@ -26,6 +26,47 @@ def pattern_parts(node):
     return [*node.get('children', []), *node.get('optional', node.get('repeat', [])), *node.get('separator', [])]
 
 
+def pattern_depth_problem(term, constant):
+    """Inspect shared substitutions before copying or compiling their values."""
+    empty = empty_pattern()
+    pending = [(term, 1, "", True, None)]
+    seen = {}
+    while pending:
+        node, depth, parent, is_term, at = pending.pop()
+        if isinstance(node, list):
+            pending.extend((child, depth, parent, is_term, at) for child in reversed(node))
+            continue
+        name = node.get("const" if is_term else "constant")
+        if name:
+            value = constant(name)
+            if isinstance(value, dict) and "pattern" in value:
+                pending.append((value["pattern"], depth, parent, False, at or node["at"]))
+            elif is_term and isinstance(value, frozenset) and not value:
+                pending.append((empty, depth, parent, False, at or node["at"]))
+            elif depth > 256:
+                return (at,)
+            continue
+        if is_term and "emptySet" in node:
+            pending.append((empty, depth, parent, False, at))
+            continue
+        if is_term and "pattern" in node:
+            pending.append((node["pattern"], depth, parent, False, at))
+            continue
+        operation = next((key for key in ("union", "intersection", "difference") if key in node), None)
+        flat = operation is not None and operation != "difference" and operation == parent
+        if not flat and depth > 256:
+            return (at,)
+        context = (id(node), is_term, parent)
+        if seen.get(context, -1) >= depth:
+            continue
+        seen[context] = depth
+        if operation:
+            pending.append((node[operation], depth + (not flat), operation, is_term, at))
+        elif not is_term:
+            pending.append((pattern_parts(node), depth + 1, "", False, at))
+    return None
+
+
 def walk_pattern(root: Dom):
     stack = [(root, 0)]
     while stack:

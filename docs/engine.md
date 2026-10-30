@@ -2747,6 +2747,10 @@ The grammar does not state the restrictions below. Each of these is an error of 
   Pattern names, terminals, constants, wildcards, and parameters without children are leaves. Child `siblings` is a leaf. A `concat` term adds depth under the term rule.
 
   Parentheses make no DOM node and add no depth. Thus 256 optional wrappers around a reference or a plain string literal are allowed, and 257 are not. The reader reports the first offending declaration in document order. That declaration is a rule, constant, classifier, implication, or `%features` directive.
+
+  Resolved pattern values also meet the bound of 256. For this bound, each pattern-valued term has one term wrapper around its normalized pattern. Constant references add no level and contribute their bound patterns. Aliases retain the same depth. Adjacent unions flatten, as do adjacent intersections, before this count. When `∅` supplies a pattern, its normalized form is the difference of two unrestricted child lists.
+
+  The loader examines references in written order and reports the first reference whose substituted pattern exceeds the bound. This error uses the reference's document, position, and stage. The loader detects it before it copies or compiles the substituted pattern. A resolved pattern without an offending reference uses its declaration's position.
 - A whole `$` carrier conflicts with a captured carrier or attachment capture that can consume input. Multiple `$` items require a structurally always-empty constituent under the overlap analysis below. Inserted items do not overlap carrier input. The loader reports an overlap error at the emitting definition after stitching, as the analysis below specifies.
 - An inserted `ε` item can carry tags, value, and image clauses. Its defaults are empty, and empty output tag sets are legal.
 - A bare name is not an inserted item. Use `ε` with explicit tag and string clauses.

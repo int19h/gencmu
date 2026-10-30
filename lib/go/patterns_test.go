@@ -11,6 +11,23 @@ func patternChildren(p *domPattern) *domPattern {
 	return &domPattern{Kind: "node", Items: []*domPattern{p}}
 }
 
+func TestPatternDepthSharedValues(t *testing.T) {
+	pattern := &domPattern{Kind: "terminal", Name: "A"}
+	for range 255 {
+		pattern = &domPattern{Kind: tmDifference, Items: []*domPattern{pattern, pattern}}
+	}
+	g := &stageGrammar{name: "main", constants: map[string]*stageConst{
+		"P": {value: &constValue{ty: tyPattern, pattern: pattern}},
+	}}
+	reference := &domTerm{Kind: tmConst, Str: "P", At: [2]int{4, 7}}
+	if err := g.checkPatternDepth("g.md", reference, [2]int{1, 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := g.checkPatternDepth("g.md", &domTerm{Kind: tmDifference, Items: []*domTerm{reference, reference}}, [2]int{1, 1}); err == nil || err.Line != 4 || err.Column != 7 || err.Stage != "main" {
+		t.Fatalf("the overflowing reference: %v", err)
+	}
+}
+
 // A shared source DOM must resolve independently in each stage, including
 // when a matching cache supplies that DOM (engine §§2, 8, and 10).
 func TestPatternResolutionCachedStages(t *testing.T) {

@@ -47,6 +47,11 @@ fn exact(j: &Json, keys: &[&str]) -> bool {
 }
 /// Convert patterns and child expressions without a recursive call stack.
 impl Pattern {
+    pub(crate) fn empty() -> Self {
+        let all = Self::Node(Box::new(Self::Any), false, Some(Children::Siblings));
+        Self::Difference(Box::new(all.clone()), Box::new(all))
+    }
+
     pub(crate) fn from_json(j: &Json) -> Result<Self, String> {
         Self::from_layered_json(j)
     }
