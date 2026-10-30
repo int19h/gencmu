@@ -1710,6 +1710,8 @@ A candidate must pass its tests and ready conditions in the requested recognitio
 
 The summaries compose over admitted edges. Their totals count admitted derivations, capped at two, before rule-profile selection. Rank by rule profile, its span vector first and its fewest count second, then by the stage directive. With no flagged rule, the stage directive alone ranks admitted derivations.
 
+Candidate construction visits only edges that admission and profile selection retain. Profile summaries run for flagged rules under every stage directive. Under late-elision, they also compare elision vectors. Admission needs existence counts. The separate ranking pass supplies witness membership where reconstruction requires it.
+
 Under late-elision, a least count of two agrees exactly with a second tied derivation. A disagreement is a library defect. Admission records each group that retains a lower proof beside a qualified higher proof at most once per ranking. Recording that fact takes constant expected time per group.
 
 Outside observations of either restoration method retain the same opaque group block for every option. Private captures keep their real closes only for ready conditions within the option. The admission key includes demanded common restoration observations and excludes all private closes. Thus an aligned outside condition gives the same answer for each admitted proof of one block.

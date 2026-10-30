@@ -91,10 +91,10 @@ export declare class Ranker {
     profileProject: number[] | null;
     /** @type {Lean} */
     lean: Lean;
-    /** @type {{plain: Map<Item, ElisionSummary>, contextual: Map<Item, Map<string, ElisionSummary>>}} */
+    /** @type {{plain: Map<Item, ProfileSummary>, contextual: Map<Item, Map<string, ProfileSummary>>}} */
     summaries: {
-        plain: Map<Item, ElisionSummary>;
-        contextual: Map<Item, Map<string, ElisionSummary>>;
+        plain: Map<Item, ProfileSummary>;
+        contextual: Map<Item, Map<string, ProfileSummary>>;
     };
     /** @type {Map<number, ElisionSeq>} */
     elisionLeaves: Map<number, ElisionSeq>;
@@ -147,27 +147,22 @@ export declare class Ranker {
      * @param {Item} item
      * @returns {Candidate[]}
      */
-    candidates(item: Item): Candidate[];
-    /**
-     * @param {Item} item
-     * @returns {Candidate[]}
-     */
     candidateSummary(item: Item): Candidate[];
     /**
      * @param {Item} item
-     * @returns {ElisionSummary}
+     * @returns {ProfileSummary}
      */
-    elisionSummary(item: Item): ElisionSummary;
+    profileSummary(item: Item): ProfileSummary;
     /**
      * The summaries of an item in the context that `key` names, which
-     * elisionSummary has already computed.
+     * profileSummary has already computed.
      * @param {Item} item
      * @param {string} key
-     * @returns {ElisionSummary}
+     * @returns {ProfileSummary}
      */
-    summaryAt(item: Item, key: string): ElisionSummary;
+    summaryAt(item: Item, key: string): ProfileSummary;
     /**
-     * The edges of an item that attain a least vector in its context.
+     * The edges of an item that attain its best profile and elision score.
      * @param {Item} item
      * @param {string} key
      * @returns {import("./types.js").Edge[]}
@@ -272,7 +267,7 @@ export type ElisionNode = {
     left?: ElisionSeq;
     right?: ElisionSeq;
 };
-export type ElisionSummary = {
+export type ProfileSummary = {
     /**
      * null when there is no derivation
      */

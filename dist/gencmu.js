@@ -15320,7 +15320,7 @@
       this.profileProject = null;
       /** @type {Lean} */
       this.lean = this.elisions ? "none" : lean;
-      /** @type {{plain: Map<Item, ElisionSummary>, contextual: Map<Item, Map<string, ElisionSummary>>}} */
+      /** @type {{plain: Map<Item, ProfileSummary>, contextual: Map<Item, Map<string, ProfileSummary>>}} */
       this.summaries = { plain: new Map(), contextual: new Map() };
       /** @type {Map<number, ElisionSeq>} */
       this.elisionLeaves = new Map();
@@ -15362,14 +15362,6 @@
     // side by side. Sequences one of which is a visible prefix
     // of the other are not yet decided and are kept side by side; everything
     // else is settled here, so the list stays short.
-    /**
-     * @param {Item} item
-     * @returns {Candidate[]}
-     */
-    candidates(item) {
-      return this.candidateSummary(item);
-    }
-
     // Candidates preserve their cycle and admission context.
     /**
      * @param {Item} item
@@ -15377,8 +15369,8 @@
      */
     candidateSummary(item) {
       return this.traverse(item, this.memo, (current, dependency, key) => {
-        // Under late-elision, only the edges that attain the least vector of
-        // the item in its context (engine §6).
+        // Profile summaries retain the best rule score, with elision vectors
+        // under late-elision (engine §6).
         const summary = this.elisions || this.profiles ? this.summaryAt(current, key) : null;
         const admitted = this.admission?.mask(current, key);
         /** @type {Candidate[]} */
@@ -15418,19 +15410,19 @@
             }
           }
           for (const entry of produced) {
-            if (inAll) all = this.keep(all, entry);
+            all = this.keep(all, entry);
           }
         });
         return all;
       }, [], this.elisions || this.profiles ? (current, key) => this.keptEdges(current, key) : null);
     }
 
-    // Each context holds its least elision vector and retained edges.
+    // Each context holds its best rule profile and retained edges.
     /**
      * @param {Item} item
-     * @returns {ElisionSummary}
+     * @returns {ProfileSummary}
      */
-    elisionSummary(item) {
+    profileSummary(item) {
       return this.traverse(item, this.summaries, (current, dependency, key) => {
         const all = noDerivation();
         const admitted = this.admission?.mask(current, key);
@@ -15456,8 +15448,7 @@
             least = before.least;
             total = before.total;
           } else {
-            const earlier = dependency(edge.previous);
-            const before = earlier;
+            const before = dependency(edge.previous);
             const child = dependency(edge.child);
             if (before.total === 0 || child.total === 0) return;
             vector = concatElisions(/** @type {ElisionSeq} */ (before.vector), /** @type {ElisionSeq} */ (child.vector));
@@ -15470,7 +15461,7 @@
             const q = this.profileProject?.[current.end] ?? current.end;
             if (p < q) profile = sumProfiles(profile, occurrenceProfile(current.production.flags[0],p,q));
           }
-          if (!admitted || admitted.has(index)) addEdge(all, index, vector, least, total, profile);
+          addEdge(all, index, vector, least, total, profile);
         });
         return all;
       }, noDerivation());
@@ -15478,10 +15469,10 @@
 
     /**
      * The summaries of an item in the context that `key` names, which
-     * elisionSummary has already computed.
+     * profileSummary has already computed.
      * @param {Item} item
      * @param {string} key
-     * @returns {ElisionSummary}
+     * @returns {ProfileSummary}
      */
     summaryAt(item, key) {
       const found = key === "" ? this.summaries.plain.get(item) : this.summaries.contextual.get(item)?.get(key);
@@ -15490,7 +15481,7 @@
     }
 
     /**
-     * The edges of an item that attain a least vector in its context.
+     * The edges of an item that attain its best profile and elision score.
      * @param {Item} item
      * @param {string} key
      * @returns {import("./types.js").Edge[]}
@@ -15543,7 +15534,7 @@
      */
     full(item) {
       const close = this.closeLeaf(item);
-      return this.candidates(item).map((entry) => extend(entry, close));
+      return this.candidateSummary(item).map((entry) => extend(entry, close));
     }
 
     // The entry with `alt`, which diverges after `at` visible actions, among
@@ -15681,8 +15672,8 @@
             ways = before.all * child.all;
             edgeW = before.w && child.w;
           }
-          if ((!admitted || admitted.has(index)) && marked !== undefined && ways > 0 && edgeW && marked.has(this.admission?.forest?.rawIndices.get(edge) ?? index)) w = true;
-          if (!admitted || admitted.has(index)) all = Math.min(2, all + ways);
+          if (marked !== undefined && ways > 0 && edgeW && marked.has(this.admission?.forest?.rawIndices.get(edge) ?? index)) w = true;
+          all = Math.min(2, all + ways);
           // The count is capped and only grows, so the loop can stop at two,
           // but with marks only once `w` is known.
           if (all === 2 && (marked === undefined || w)) break;
@@ -15967,7 +15958,7 @@
         // Every complete item of `text` is an edge of one root (engine §6).
         const root = noDerivation();
         roots.forEach((item, index) => {
-          const summary = this.elisionSummary(item);
+          const summary = this.profileSummary(item);
           if (summary.total > 0) addEdge(root, index, /** @type {ElisionSeq} */ (summary.vector), summary.least, summary.total, summary.profile);
         });
         if (this.marks !== null) {
@@ -16102,11 +16093,10 @@
    */
 
   /**
-   * An item's derivations in one context under late-elision: the least
-   * vector and the number of derivations that attain it, the number of all
-   * derivations, both capped at two, and the indices of the edges that attain
-   * the least vector.
-   * @typedef {object} ElisionSummary
+   * An item's best rule profile in one context, with its least elision
+   * vector under late-elision. Counts retain the best and total derivations,
+   * capped at two. The summary records the edges that attain the best score.
+   * @typedef {object} ProfileSummary
    * @property {ElisionSeq | null} vector null when there is no derivation
    * @property {RuleProfile} profile
    * @property {number} least
@@ -16117,7 +16107,7 @@
   /** @type {ElisionSeq} */
   const NO_ELISIONS = { size: 0 };
 
-  /** @returns {ElisionSummary} */
+  /** @returns {ProfileSummary} */
   function noDerivation() {
     return { vector: null, profile: ZERO_PROFILE, least: 0, total: 0, kept: new Set() };
   }
@@ -16135,9 +16125,9 @@
 
   // Adds an edge's derivations to a summary. The total counts every edge,
   // losing ones included. The least count and the kept edges count only the
-  // edges that attain the least vector.
+  // edges that attain the best profile and elision score.
   /**
-   * @param {ElisionSummary} summary
+   * @param {ProfileSummary} summary
    * @param {number} index
    * @param {ElisionSeq} vector
    * @param {number} least

@@ -9,11 +9,9 @@ import (
 // The ranking (engine §6), composed over the packed forest the recognizer
 // leaves, without enumerating derivations.
 //
-// Under greedy, lazy and no lean, the ranking compares the action sequences
-// of derivations, as below. Under late-elision, it first keeps, for each
-// item in each context, the least elision vector of its derivations and the
-// links that attain it (see elSeq). Then it ranks with no lean over that
-// smaller forest of the best derivations, which gives the two readings.
+// Profile summaries first retain the best rule profile in each context.
+// Under late-elision they also compare elision vectors (see elSeq).
+// The action comparison then uses greedy, lazy or no lean on that forest.
 //
 // A derivation is kept as a persistent structure (dn) whose bottom-up action
 // sequence is read lazily, so that two derivations sharing a subtree compare
@@ -507,9 +505,9 @@ type entry struct {
 	profile ruleProfile
 	cands   []*cand
 	count   int // derivations, up to 2: the total of engine §6
-	// Under late-elision, vec is the least elision vector of the
-	// derivations, and least the number of them that attain it, up to 2.
-	// cands then holds only derivations that attain vec.
+	// Profile selection retains the best rule profile and, under late-elision,
+	// its least elision vector. least counts derivations at that score, up to 2.
+	// cands holds only derivations that attain that score.
 	vec   *elSeq
 	least int
 	// w, with the runtime witness marks, says whether count includes a
@@ -844,8 +842,8 @@ func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 	return &itemFrame{it: it, f: f, slot: slot, marked: rk.slotMarks(it)}, nil
 }
 
-// linkVal is the summary of one link: its derivations, and under
-// late-elision their least vector and how many attain it.
+// linkVal summarizes one link's rule profile and derivation counts.
+// Under late-elision it also retains the least elision vector.
 type linkVal struct {
 	profile     ruleProfile
 	prev, child *entry
@@ -975,8 +973,7 @@ func (fr *itemFrame) summarize(rk *ranker, l link) {
 
 // finish gives the item's value from its links' and remembers it.
 func (fr *itemFrame) finish(rk *ranker) *entry {
-	// The candidates. Under late-elision, only the links that attain the
-	// least vector of the summary give them.
+	// Only links that attain the best profile and elision score give candidates.
 	var cands []*cand
 	for _, v := range fr.vals {
 		inAll := v.admitted && (!(rk.elisions || rk.profiles) || compareScore(v.profile, v.vec, fr.all.profile, fr.all.vec) == 0)
@@ -984,9 +981,7 @@ func (fr *itemFrame) finish(rk *ranker) *entry {
 			continue
 		}
 		produced := rk.extend(v.prev.cands, v.child.cands, nil)
-		if inAll {
-			cands = append(cands, produced...)
-		}
+		cands = append(cands, produced...)
 	}
 	var e *entry
 	if fr.all.total > 0 {
@@ -1264,8 +1259,8 @@ func (rk *ranker) rankOriginal(top []*symNode) *rankResult {
 }
 
 // summary sums the derivations of the edges of one item, constituent or
-// root in one context (engine §6): their total, and under late-elision the
-// least vector and the number of derivations that attain it, each up to 2.
+// root in one context (engine §6). It retains their total and best rule
+// profile, with an elision vector under late-elision, and both counts up to 2.
 type summary struct {
 	profile ruleProfile
 	total   int
@@ -1274,8 +1269,8 @@ type summary struct {
 }
 
 // add adds an edge's derivations. The total counts every edge, losing ones
-// included; the least count counts only those that attain the least vector.
-// Outside late-elision every vector is empty, so least follows total.
+// included. The least count counts only derivations at the best score.
+// Without flags or late-elision, the least count equals the total.
 func (s *summary) add(profile ruleProfile, vec *elSeq, least, total int) {
 	if total == 0 {
 		return

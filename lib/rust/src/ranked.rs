@@ -229,12 +229,11 @@ impl RankedGroups {
                             self.written_clause(grammar, group, "conditions", Some(condition_index)),
                         ));
                 }
-                if let Some(Cond::Boundary(false, Term::Capture(receiver), targets, _)) =
+                if let Some(Cond::Boundary(false, Term::Capture(_), targets, _)) =
                     crate::boundary::dom_atoms(&effective)
                         .into_iter()
                         .find(|c| matches!(c,Cond::Boundary(false,Term::Capture(n),_,_) if n.is_empty()))
                 {
-                    let _ = receiver;
                     let prefix = &route.steps[..route.starts[&group.id]];
                     if !prefix.is_empty()
                         && spans.get_or_insert_with(|| SymbolSpans::new(lowered)).prefix(prefix, grammar)

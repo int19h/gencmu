@@ -82,8 +82,6 @@ class RankedAdmission(RankedFacts):
                         'start': self.forest.origin[child],
                         'end': self.forest.end[child],
                     })
-            child = self.forest.edges[key[1]][index][2]
-            option = self.productions[self.forest.prod[child]].option
             if (key[1], index) in kept:
                 all_.add(index)
         mask = frozenset(all_)
