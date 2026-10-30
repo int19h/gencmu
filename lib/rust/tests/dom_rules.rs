@@ -1638,7 +1638,7 @@ fn absent_recipe_capture_order() {
                 ("p.md".to_string(), "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
                 ("g.md".to_string(), format!("```jbogenbau\n%ambiguity-resolution greedy\n{grammar}\n```\n")),
             ]);
-            let error = gencmu::load_pipeline_sources(&sources, "p.md").err().expect("an absent recipe capture");
+            let error = gencmu::load_pipeline_sources(&sources, "p.md").expect_err("an absent recipe capture");
             assert!(error.message.contains(&format!("capture {}", &recipe[..2])), "{error}");
         }
     }
@@ -1650,7 +1650,7 @@ fn deferred_recipe_precedes_empty_emission() {
         ("p.md".into(), "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".into()),
         ("g.md".into(), "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [$a:A] (X ≻ Y) | [$b:B] Z := $b.value %emits $a\n```\n".into()),
     ]);
-    let error = gencmu::load_pipeline_sources(&sources, "p.md").err().expect("a deferred recipe fault");
+    let error = gencmu::load_pipeline_sources(&sources, "p.md").expect_err("a deferred recipe fault");
     assert!(error.message.contains("recipe") && error.message.contains("$b"), "{error}");
     assert!(error.diagnostic.is_none(), "{error}");
 }

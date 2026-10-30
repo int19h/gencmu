@@ -365,7 +365,7 @@ pub(crate) fn declaration(r: &Json, kind: &str, uni: &Unicode) -> Option<&'stati
                 return Some("malformed feature conditions");
             }
             for c in list(get(r, "conditions")) {
-                if let Some(p) = node(c, "condition", 0, false, false, uni) {
+                if let Some(p) = node_with_deferred_types(c, "condition", 0, false, false, uni, true) {
                     return Some(p);
                 }
             }
@@ -504,11 +504,22 @@ pub(super) fn node(
     sealed: bool,
     uni: &Unicode,
 ) -> Option<&'static str> {
+    node_with_deferred_types(n, kind, depth, whole, sealed, uni, false)
+}
+fn node_with_deferred_types(
+    n: &Json,
+    kind: &str,
+    depth: usize,
+    whole: bool,
+    sealed: bool,
+    uni: &Unicode,
+    defer_types: bool,
+) -> Option<&'static str> {
     let pending = std::cell::RefCell::new(vec![(n, kind, depth, whole, sealed)]);
     loop {
         let task = pending.borrow_mut().pop();
         let (n, kind, depth, whole, sealed) = task?;
-        if let Some(p) = node_step(&pending, n, kind, depth, whole, sealed, uni) {
+        if let Some(p) = node_step(&pending, n, kind, depth, (whole, sealed), uni, defer_types) {
             return Some(p);
         }
     }
@@ -518,10 +529,11 @@ fn node_step<'a>(
     n: &'a Json,
     mut kind: &'a str,
     depth: usize,
-    whole: bool,
-    sealed: bool,
+    context: (bool, bool),
     uni: &Unicode,
+    defer_types: bool,
 ) -> Option<&'static str> {
+    let (whole, sealed) = context;
     if depth > dom::DOM_MAX_DEPTH {
         return Some("nested too deeply");
     }
@@ -737,6 +749,9 @@ fn node_step<'a>(
         let value = clean(n);
         if let Some(problem) = parts_problem(vec![(part, &value, depth)], uni) {
             return Some(problem);
+        }
+        if defer_types {
+            return None;
         }
         let unknown = &|_: &str| dom::Type::Any;
         let fault = match kind {

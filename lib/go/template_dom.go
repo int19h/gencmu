@@ -205,8 +205,9 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 			}
 		}
 	}
+	checker := templateNodeChecker{deferTypes: kind == "directives"}
 	walk := func(n any, k string, whole bool) *domProblem {
-		if msg := templateNodeProblem(n, k, 0, whole, false, uni); msg != "" {
+		if msg := checker.node(n, k, 0, whole, false, uni); msg != "" {
 			return problem(msg)
 		}
 		return nil
@@ -514,7 +515,15 @@ var templateSourceForms = map[string][]string{
 	"recipe-term": {"string", "tag", "const", "emptySet", "capture", "concat", "union", "intersection", "difference", "if", "pattern", "method"},
 }
 
+type templateNodeChecker struct {
+	deferTypes bool
+}
+
 func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, uni *unicodeTable) string {
+	return (&templateNodeChecker{}).node(value, kind, depth, whole, sealed, uni)
+}
+
+func (checker *templateNodeChecker) node(value any, kind string, depth int, whole, sealed bool, uni *unicodeTable) string {
 	if depth > maxDOMDepth {
 		return errTooDeep.Error()
 	}
@@ -522,7 +531,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 	if n == nil {
 		return "a malformed " + kind
 	}
-	walk := func(v any, k string) string { return templateNodeProblem(v, k, depth+1, false, sealed, uni) }
+	walk := func(v any, k string) string { return checker.node(v, k, depth+1, false, sealed, uni) }
 	list := func(key, k string, min int) string {
 		if !templateArray(n, key, min) {
 			return "a malformed " + kind
@@ -539,7 +548,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		if problem != "" {
 			return problem
 		}
-		return templateNodeProblem(n, "pattern-part", depth, whole, sealed, uni)
+		return checker.node(n, "pattern-part", depth, whole, sealed, uni)
 	}
 	if kind == "pattern-part" {
 		if n["call"] != nil {
@@ -553,7 +562,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			}
 		}
 		if n["literal"] != nil {
-			if p := templateNodeProblem(n["literal"], "string", depth, false, sealed, uni); p != "" {
+			if p := checker.node(n["literal"], "string", depth, false, sealed, uni); p != "" {
 				return p
 			}
 		}
@@ -569,7 +578,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			}
 		}
 		for _, end := range templateList(n["range"]) {
-			if p := templateNodeProblem(end, "string", depth, false, sealed, uni); p != "" {
+			if p := checker.node(end, "string", depth, false, sealed, uni); p != "" {
 				return p
 			}
 		}
@@ -663,7 +672,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			if !templateOnly(n, "body") {
 				return "a malformed body argument"
 			}
-			return templateNodeProblem(n["body"], "expr", depth, true, false, uni)
+			return checker.node(n["body"], "expr", depth, true, false, uni)
 		}
 		if n["targets"] != nil {
 			if !templateOnly(n, "targets") {
@@ -673,7 +682,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 				return "a malformed target choice"
 			}
 			for _, v := range templateList(n["targets"]) {
-				if p := templateNodeProblem(v, "target", depth, false, sealed, uni); p != "" {
+				if p := checker.node(v, "target", depth, false, sealed, uni); p != "" {
 					return p
 				}
 			}
@@ -727,7 +736,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		return "a malformed source category"
 	}
 	if !templateUnresolved(n) && !(kind == "recipe-term" && n["method"] != nil) {
-		c := &domChecker{uni: uni}
+		c := &domChecker{uni: uni, deferTypes: checker.deferTypes}
 		raw := templateJSON(n)
 		var err error
 		switch kind {
@@ -763,6 +772,9 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		if c.problem != nil {
 			return c.problem.message
 		}
+		if checker.deferTypes {
+			return ""
+		}
 		switch kind {
 		case "expr":
 			e, _ := decodeExpr(raw)
@@ -795,17 +807,17 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			if !templateAllowed(n, "optional", "elidable") || n["elidable"] != nil && (n["elidable"] != true || !templateElidableHead(templateObj(n["optional"]))) {
 				return "a malformed optional"
 			}
-			return templateNodeProblem(n["optional"], "expr", depth+1, false, sealed || n["elidable"] == true, uni)
+			return checker.node(n["optional"], "expr", depth+1, false, sealed || n["elidable"] == true, uni)
 		}
 		if n["repeat"] != nil {
 			if !templateAllowed(n, "repeat", "separator", "chain") || n["chain"] != nil && (!whole || n["chain"] != "left" && n["chain"] != "right") {
 				return "a malformed repetition"
 			}
-			if p := templateNodeProblem(n["repeat"], "expr", depth+1, false, true, uni); p != "" {
+			if p := checker.node(n["repeat"], "expr", depth+1, false, true, uni); p != "" {
 				return p
 			}
 			if n["separator"] != nil {
-				return templateNodeProblem(n["separator"], "expr", depth+1, false, true, uni)
+				return checker.node(n["separator"], "expr", depth+1, false, true, uni)
 			}
 			return ""
 		}
@@ -843,7 +855,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			return "a malformed range"
 		}
 		for _, v := range templateList(n["range"]) {
-			if p := templateNodeProblem(v, "string", depth, false, false, uni); p != "" {
+			if p := checker.node(v, "string", depth, false, false, uni); p != "" {
 				return p
 			}
 		}
@@ -854,7 +866,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		if !templateOnly(n, fields...) {
 			return "a malformed literal"
 		}
-		return templateNodeProblem(n["literal"], "string", depth, false, false, uni)
+		return checker.node(n["literal"], "string", depth, false, false, uni)
 	}
 	if kind == "recipe" {
 		if !templateOnly(n, "concat") {
