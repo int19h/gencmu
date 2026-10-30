@@ -1208,6 +1208,8 @@ The active-query identity remains the requested rule and projected context inter
 
 Answer keys distinguish constraints, while active keys detect self-definition.
 
+Aligned requests share qualification by rule, start, context end, and active query context. Family requests also retain the family, candidate end, and candidate observation in that key. Each request filters the qualified witnesses for its endpoint and alignment constraints.
+
 An ordinary query reads the tokens of its span alone. A `matches` over a span does not look past the span's end, even where a written terminator stands after it. So the keys of the memo (below) fit its answer.
 
 `begins` is one recognition over the whole span, not a separate parse of each prefix. Conditions see the query's context end. For an ordinary span, that end equals the span end. A recognizer can stop at a set that holds no item, since no later set can then hold one. Otherwise it reads as far as it can. An error of the grammar that it meets is an error, even after `rule` completed once.
@@ -1226,7 +1228,7 @@ But such a key costs time in proportion to the span, and the span of `.onward` o
 
 The recognition of §7 is not a query and has no entry.
 
-`matches` and `tags` of one span and rule can share an entry, since one recognition answers both. `begins` and `ends` need separate entries, since `begins` of a span can hold where `matches` of it does not. The key of a memo that outlives one stage parse must also include what differs between the parses that it serves. These are the tokens, the original text, and the inputs that select a shared memo. §4.3 specifies such a memo.
+`matches` and `tags` of one span and rule share one recognition and answer entry. `begins` and `ends` need separate entries, since `begins` of a span can hold where `matches` of it does not. The key of a memo that outlives one stage parse must also include what differs between the parses that it serves. These are the tokens, the original text, and the inputs that select a shared memo. §4.3 specifies such a memo.
 
 An ordinary nested parse uses its span as the context for all position and surrounding-token methods. An aligned parse uses its context bounds above. It restores both when it ends, also when it fails with an error of the grammar.
 
@@ -1311,6 +1313,8 @@ A ranked group contributes one opaque block outside its options. The block ident
 An aligned witness must carry that same block through the same written group occurrence. It cannot replace the block with unrelated syntax or finish inside it. Compare original positions and common entry observations, rather than unrelated runtime parser identifiers. All proofs that one block represents supply the same outside answer. The query does not ask admission which option wins. Private captures inside an option retain their own real observations for ready conditions.
 
 Candidates and aligned witnesses use finite noncyclic observation proofs. Named-rule cycle exclusion uses original positions, including during restoration. A repeated named rule over one original span supplies no additional aligned observation. Synthetic positions and different observations cannot excuse that cycle. Ordinary unmarked queries keep their proof policy.
+
+If a reached restoration lacks a finite noncyclic observation proof, the current step drops immediately. No later operand or condition of that step runs. In a boundary condition, only the current Boolean assignment fails, and the other assignment still runs.
 
 The engine shares candidate and witness proof states with their relevant cycle contexts. It cannot enumerate every complete tree before evaluating a captured condition. It cannot impose an arbitrary limit on restoration length. Nullable recursive omission lists, such as `r → r [+T] | X`, must reach a finite shared construction.
 
@@ -1416,13 +1420,15 @@ An entry for `begins` holds whether a prefix is accepted. An entry for `ends` ho
 
 A shared memo must never change a result. A warm shared memo holds entries from earlier parses. A parse with a warm shared memo gives exactly the result of the same parse with an empty one. This holds for every order of parses, and for parses that run at the same time on other threads.
 
-With the inputs of one memo, a nested parse of one content asks the same queries in every parse, and gives the same answer. Aligned queries are the exception, since they depend on the stack of active queries (above). So an answer stays out of the shared memo where its nested parse, at any depth, asks an aligned query. It also stays out where that nested parse reads such an answer from the memo of its parse. Every other answer depends on its content alone, so a shared answer is the answer that its nested parse computes. A query with a key of position inside it changes nothing here, since its answer also depends on its content alone.
+An answer stays out of the shared memo where its nested parse, at any depth, asks an aligned query. It also stays out where that parse reads an answer with this dependency. Retained suffix answers carry and propagate the same dependency.
 
-A shared answer also never hides an error. The shared memo serves no answer while an aligned query is active. Then every active query is ordinary, and its context is its span. A nested parse asks only about parts of its context.
+Every query tests its active identity before any cached lookup. A cached answer must not hide a recursive-query error.
 
-Take an active query, and a later query inside it with the same rule and span. Every query between them is over that span and reads its content. By the premise above, the later query then asks the same chain again, and so it asks about itself. No parse completes such a query, so the shared memo never holds one.
+Whole and suffix recognitions can reach different roots over the same content. Content alone therefore cannot prove that a cached query chain avoids an active suffix query.
 
-An aligned query has the context `[a,N)`, which can run past its span. The argument above does not cover a query asked while an aligned query is active. So the shared memo serves no answer then. It still keeps the ordinary answers computed in that time.
+Nested requests made while a suffix query is active bypass all reusable answer and qualification caches. They insert no reusable entries. This includes retained suffix computations and shared answers. Each request receives its current computation's answer directly.
+
+The shared memo also serves no answer while an aligned query is active. Outside suffix activity, it can keep ordinary answers computed during aligned activity when those answers have no aligned dependency.
 
 A shared memo keeps its entries in two generations, a newer and an older set of entries. A lookup reads the newer generation, then the older one. An entry found in the older one moves to the newer one. Before an entry enters the newer generation, by an insertion or by that move, the memo makes room. Where the newer generation already holds the bound, the older one is dropped, and the newer one becomes the older one. This drop is eviction.
 
@@ -1461,11 +1467,13 @@ A span method that drops restoration can supply an ordinary receiver. For exampl
 
 Query answer keys distinguish suffix mode from whole and prefix modes. They include the target instance and fixed window. The active-query identity remains the target and projected context interval, across `matches`, `begins`, `ends`, and `tags`. Changing direction cannot evade the recursive-query error.
 
-Requests with one lowered target and window start share recognition when that target reads no window end. The shared recognition starts the target at every position from that window start. It retains one answer for each requested end boundary. The total cost is that recognition, including its nested queries, plus constant work per request. Complex targets can cost more than linear time even with sharing.
+Requests outside active suffix queries share recognition when they have one lowered target and window start, and that target reads no window end. The shared recognition starts the target at every position from that window start. It retains one answer for each requested end boundary. The total cost is that recognition, including its nested queries, plus constant work per request. Complex targets can cost more than linear time even with sharing.
 
 A target reads the window end when its recognition evaluates `.onward`, `.following-tokens`, `.ends-input`, or `.followed-by`. This includes conditions and tag terms of rules reached through body references. A target also counts as reading the window end if its recognition contains a nested query with a restored receiver. This rule includes restored queries at any nesting depth. An ordinary nested query target uses its own window end. Its end-reading methods alone do not create this outer dependency.
 
 Written-terminator priority uses only blockers that complete within the requested window. Shared recognition therefore decides eligibility separately for each end boundary. A later blocker cannot change an earlier retained answer. Errors retain the boundary scope defined above.
+
+A retained suffix computation records whether its reached work depends on an aligned query. Each retained-answer hit propagates that dependency to its caller.
 
 A target that reads the window end requires separate recognition for each distinct end. Its errors retain the complete window identity and never propagate to a different window. Repeated requests for the same window can reuse its answer. Use `.ends` sparingly because complex targets can require more than linear work.
 
@@ -1919,6 +1927,8 @@ The message is the same in every library. Section 7.10 gives witness loss priori
 ### 7.10 Readings
 
 This policy applies to every grammar, including grammars without ranked groups or flagged rules. Raw witness membership tests the concrete derivation. A competitor is a best admitted derivation other than W(D).
+
+Runtime witness tracking is mandatory. An optional observer only inspects the result and never supplies the runtime witness marks.
 
 If recognition ends without a grammar error, decide in this order.
 
