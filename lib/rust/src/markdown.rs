@@ -70,10 +70,6 @@ fn fence(line: &[char]) -> Option<(char, usize, String)> {
         return None;
     }
     let info: String = line[indent + length..].iter().collect();
-    // A backtick fence's info string may not hold a backtick (CommonMark).
-    if first == '`' && info.contains('`') {
-        return None;
-    }
     Some((first, length, info))
 }
 
@@ -90,6 +86,11 @@ pub(crate) fn grammar_text(document: &str, unicode: &Unicode) -> Result<GrammarT
             index += 1;
             continue;
         };
+        // Only an opening fence has an info string.
+        if mark == '`' && info.contains('`') {
+            index += 1;
+            continue;
+        }
         let grammar = info.trim_matches(|c: char| unicode.is_white_space(c as u32)) == "jbogenbau";
         let mut end = index + 1;
         while end < lines.len() {
@@ -113,7 +114,6 @@ pub(crate) fn grammar_text(document: &str, unicode: &Unicode) -> Result<GrammarT
                 text.positions.push(cursor);
             }
             blocks += 1;
-            cursor = (lines[index].number + 1, 1);
             for (offset, line) in lines[index + 1..end].iter().enumerate() {
                 for (column, &c) in line.chars.iter().enumerate() {
                     text.chars.push(c);
