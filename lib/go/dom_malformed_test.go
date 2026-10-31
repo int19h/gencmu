@@ -90,3 +90,17 @@ func TestArgumentCaptureMessage(t *testing.T) {
 		t.Fatalf("capture in a call argument: %v", err)
 	}
 }
+
+func TestInputBoundaryMethodMessage(t *testing.T) {
+	t.Parallel()
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	for _, method := range []string{"starts-input", "ends-input"} {
+		raw := `{"format":40,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"ref":"A"}}],"conditions":[{"method":"` + method + `","receiver":{"string":"a"},"args":[]}],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
+		_, err := decodeDOM(json.RawMessage(raw), bundled.uni)
+		if err == nil || !strings.Contains(err.Error(), "a malformed "+method+"()") {
+			t.Fatalf("%s receiver: %v", method, err)
+		}
+	}
+}

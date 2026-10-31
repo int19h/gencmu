@@ -16441,5 +16441,65 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "starts-input requires a span receiver.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "starts-input",
+          "receiver": {
+            "string": "a"
+          },
+          "args": []
+        }
+      ],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "ends-input requires a span receiver.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "ends-input",
+          "receiver": {
+            "string": "a"
+          },
+          "args": []
+        }
+      ],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]
