@@ -468,7 +468,7 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
                 if problem == "nested too deeply" {
                     TOO_DEEP.to_string()
                 } else {
-                    problem.to_string()
+                    problem
                 }
             }),
             Err(message) if message.contains("nested too deeply") => Some(TOO_DEEP.to_string()),
@@ -856,7 +856,7 @@ pub(crate) fn read_grammar_dom(text: &str, path: &str) -> Result<Dom, Error> {
 pub fn check_dom(json: &str) -> Result<Option<String>, Error> {
     let context = Context::bundled()?;
     let value = crate::json::parse(json).map_err(grammar_error)?;
-    Ok(crate::dom::dom_problem(&value, &context.unicode).map(str::to_string))
+    Ok(crate::dom::dom_problem(&value, &context.unicode))
 }
 
 /// Why a supplied DOM is malformed with a caller's Unicode table.
@@ -864,7 +864,7 @@ pub fn check_dom(json: &str) -> Result<Option<String>, Error> {
 pub fn check_dom_with_unicode(json: &str, table: &str) -> Result<Option<String>, Error> {
     let unicode = Unicode::parse(table)?;
     let value = crate::json::parse(json).map_err(grammar_error)?;
-    Ok(crate::dom::dom_problem(&value, &unicode).map(str::to_string))
+    Ok(crate::dom::dom_problem(&value, &unicode))
 }
 
 /// Splices a bundled pipeline document (engine §13) and returns the result

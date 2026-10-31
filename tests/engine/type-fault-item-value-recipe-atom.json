@@ -1,0 +1,13 @@
+{
+  "description": "A recipe fault names its failing atom in the selected recipe position and channel.",
+  "grammar": "%const $GOOD \"a\"\n%const $BAD A\n%rule text $x:\"a\" %emits $x := $GOOD ++ $BAD",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 41
+    }
+  }
+}

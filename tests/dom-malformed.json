@@ -16405,5 +16405,41 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "A capture in a call body argument is malformed.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "call": "pair",
+            "args": [
+              {
+                "body": {
+                  "capture": "x",
+                  "expr": {
+                    "ref": "A"
+                  }
+                }
+              }
+            ],
+            "at": [
+              2,
+              12
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]

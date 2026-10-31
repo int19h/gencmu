@@ -478,7 +478,7 @@ fn supplied_dom_depth_does_not_use_the_call_stack() {
                 unreachable!()
             };
             set(&mut alts[0], "expr", expr);
-            assert_eq!(dom::dom_problem(&raw, &uni), Some("nested too deeply"));
+            assert_eq!(dom::dom_problem(&raw, &uni).as_deref(), Some("nested too deeply"));
         })
         .unwrap()
         .join()
@@ -499,7 +499,11 @@ fn pattern_closedness_leaves_tests_to_schema() {
         for (kind, r) in [("constants", constant), ("implications", implication)] {
             let mut raw = j(&dom::dom_to_json(&Dom::default()));
             set(&mut raw, kind, Json::Arr(vec![r]));
-            assert_eq!(dom::dom_problem(&raw, &unicode()), Some("a malformed pattern"), "{kind}, missing={missing}");
+            assert_eq!(
+                dom::dom_problem(&raw, &unicode()).as_deref(),
+                Some("a malformed pattern"),
+                "{kind}, missing={missing}"
+            );
         }
     }
 }
