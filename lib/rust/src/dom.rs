@@ -6,14 +6,14 @@ pub(crate) mod partial;
 pub(crate) mod schema;
 pub(crate) mod source;
 use source::{SourceHead, SourceSymbol};
-pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Unicode) -> Option<&'static str> {
+pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Unicode) -> Option<String> {
     let cleaned = known_dom_members(dom);
     let dom = cleaned.as_ref().unwrap_or(dom);
     if let Some(problem) = shape_problem(dom, unicode) {
-        return Some(problem);
+        return Some(problem.into());
     }
-    let Ok(decoded) = decode_nodes(dom) else { return Some("a malformed DOM node") };
-    schema::decoded_problem(dom, &decoded)
+    let Ok(mut decoded) = decode_nodes(dom) else { return Some("a malformed DOM node".into()) };
+    schema::decoded_problem(dom, &mut decoded)
 }
 
 fn shape_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
@@ -198,7 +198,7 @@ pub(crate) enum Expr {
     And(Vec<Expr>),
     /// An optional `[x]`, or an elidable optional `[+T x]` (§3.8).
     Optional(Box<Expr>, Mark),
-    /// Braces: the item, the separator after `&` if any, and a chain's
+    /// Braces: the item, the separator after `/` if any, and a chain's
     /// direction, from its marker `...` (engine §3.2, §3.3).
     Repeat(Box<Expr>, Option<Box<Expr>>, Option<Chain>),
     Ref(String),
@@ -224,8 +224,8 @@ pub(crate) enum Mark {
     Elidable,
 }
 
-/// The direction of a chain (engine §3.3): `{... x & s}` nests from the
-/// left, `{x ... & s}` from the right.
+/// The direction of a chain (engine §3.3): `{... x / s}` nests from the
+/// left, `{x ... / s}` from the right.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Chain {
     Left,
@@ -378,10 +378,10 @@ pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -
 }
 pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode, defer: bool) -> R<Dom> {
     let mut dom = decode_nodes(value)?;
-    if let Some(problem) = schema::decoded_problem(value, &dom) {
-        return Err(problem.into());
+    if let Some(problem) = schema::decoded_problem(value, &mut dom) {
+        return Err(problem);
     }
-    // Whole-definition checks use the same nodes as the runtime output.
+    // Boundary checks and strict conversion use the same partial projection.
     for (rule, raw) in dom.rules.iter_mut().zip(array(value, "rules")?) {
         if rule.source.instance.is_some() {
             continue;
@@ -396,11 +396,11 @@ pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode, defer: bool) -> R
         if let Some((problem, _)) = crate::boundary::definition_problem(checked) {
             return Err(problem);
         }
-        let result = crate::clauses::check_definition(checked, defer);
-        if let Some(issue) = result.problem {
-            return Err(issue.message);
+        if !defer && rule.deferred_emission.is_some() {
+            if let Some(issue) = crate::clauses::check_definition(checked, false).problem {
+                return Err(issue.message);
+            }
         }
-        rule.deferred_emission = result.deferred;
     }
     Ok(dom)
 }
@@ -2133,7 +2133,11 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
                         return Err(Fault::in_term("++ requires string operands".into(), term));
                     }
                     if let Some(problem) = expected_problem(ty, expected) {
-                        return Err(Fault::in_term(format!(".{}: {problem}", call), term));
+                        return Err(if matches!(call.as_str(), "requirements" | "forbid") {
+                            Fault::in_term(problem, arg)
+                        } else {
+                            Fault::in_term(format!(".{}: {problem}", call), term)
+                        });
                     }
                 }
             }
@@ -2222,11 +2226,23 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
             strings.value.iter().chain(&strings.image)
         }))
     {
-        match term_type_in(term, constants) {
-            Err(fault) => faults.push(fault),
-            Ok(ty) => {
-                if let Some(problem) = expected_problem(ty, Type::String) {
-                    faults.push(Fault::in_term(problem, term));
+        let atoms: Vec<_> = match term {
+            Term::Call(name, args) if name == "concat" => args
+                .iter()
+                .filter_map(|arg| match arg {
+                    Arg::Term(atom) => Some(atom),
+                    _ => None,
+                })
+                .collect(),
+            _ => vec![term],
+        };
+        for atom in atoms {
+            match term_type_in(atom, constants) {
+                Err(fault) => faults.push(fault),
+                Ok(ty) => {
+                    if let Some(problem) = expected_problem(ty, Type::String) {
+                        faults.push(Fault::in_term(problem, atom));
+                    }
                 }
             }
         }

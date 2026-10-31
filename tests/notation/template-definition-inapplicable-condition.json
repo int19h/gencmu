@@ -1,0 +1,10 @@
+{
+  "description": "An uncalled template retains the specific definition error.",
+  "document": "```jbogenbau\n%rule pair(@X) $x:@X | $y:A %conditions $x.value = $y.value\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

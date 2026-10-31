@@ -1654,3 +1654,26 @@ fn deferred_recipe_precedes_empty_emission() {
     assert!(error.message.contains("recipe") && error.message.contains("$b"), "{error}");
     assert!(error.diagnostic.is_none(), "{error}");
 }
+
+#[test]
+fn template_definition_keeps_its_specific_problem() {
+    for params in ["", r#","params":["X"]"#] {
+        let raw = format!(
+            r#"{{"format":40,"rules":[{{"name":"pair"{params},"op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"tags":{{"method":"tags","receiver":{{"capture":"y"}},"args":[]}},"conditions":[],"at":[2,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
+        );
+        let problem = gencmu::tools::check_dom(&raw).unwrap().unwrap();
+        assert!(problem.contains("$y") && problem.contains("pair"), "{problem}");
+    }
+}
+
+#[test]
+fn requirement_type_fault_hides_private_container_names() {
+    for sign in ["", "¬"] {
+        let sources = std::collections::BTreeMap::from([
+            ("p.md".to_string(), format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $GOOD A\n%const $BAD \"x\"\n%rule text A<$GOOD {sign}$BAD>\n```\n")),
+        ]);
+        let error = gencmu::load_pipeline_sources(&sources, "p.md").expect_err("a string requirement");
+        assert!(!error.message.contains(".requirements") && !error.message.contains(".forbid"), "{error}");
+        assert!(error.message.contains("tag set"), "{error}");
+    }
+}

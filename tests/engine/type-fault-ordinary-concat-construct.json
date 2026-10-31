@@ -1,0 +1,13 @@
+{
+  "description": "An ordinary concatenation remains one source construct for type-fault attribution.",
+  "grammar": "%const $GOOD \"a\"\n%const $BAD A\n%rule text \"a\" %conditions $GOOD ++ $BAD = \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 28
+    }
+  }
+}

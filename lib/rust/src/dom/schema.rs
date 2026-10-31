@@ -397,33 +397,36 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
     parts_problem(pending, unicode, expanded)
 }
 
-pub(crate) fn decoded_problem(raw: &Json, dom: &Dom) -> Option<&'static str> {
-    for (item, rule) in raw.get("rules").and_then(Json::as_array).unwrap().iter().zip(&dom.rules) {
+pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
+    for (item, rule) in raw.get("rules").and_then(Json::as_array).unwrap().iter().zip(&mut dom.rules) {
         if rule.source.instance.is_some() {
             continue;
         }
         if rule.alternatives.iter().any(|a| !crate::clauses::duplicate_captures(&a.expr).is_empty()) {
-            return Some("a production captures a name twice");
+            return Some("a production captures a name twice".into());
         }
         let projected;
         let checked = if crate::parameters::unresolved(item) {
             projected = match super::partial::rule(rule) {
                 Ok(rule) => rule,
-                Err(_) => return Some("a malformed partial rule"),
+                Err(_) => return Some("a malformed partial rule".into()),
             };
             &projected
         } else {
-            rule
+            &*rule
         };
         if rule_type_problem(checked).is_some() {
-            return Some("a term or a condition whose types do not agree");
+            return Some("a term or a condition whose types do not agree".into());
         }
-        if crate::clauses::check_definition(checked, true).problem.is_some() {
-            return Some("a malformed definition");
+        // Retain the detailed issue and the deferred result on these nodes.
+        let result = crate::clauses::check_definition(checked, true);
+        if let Some(issue) = result.problem {
+            return Some(issue.message);
         }
+        rule.deferred_emission = result.deferred;
         for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alt| alt.tags.as_ref())) {
             if crate::notation::reads_own_tags(term) {
-                return Some("a tag clause reads its own tags");
+                return Some("a tag clause reads its own tags".into());
             }
         }
         for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alt| alt.tags.as_ref())).chain(
@@ -432,7 +435,7 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &Dom) -> Option<&'static str> {
             }),
         ) {
             if !engine_literals(term).is_empty() {
-                return Some("a tag clause introduces an engine tag");
+                return Some("a tag clause introduces an engine tag".into());
             }
         }
     }
@@ -446,7 +449,7 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &Dom) -> Option<&'static str> {
                 })
                 .is_err()
         {
-            return Some("an invalid closed constant value");
+            return Some("an invalid closed constant value".into());
         }
     }
     for (raw, implication) in raw.get("implications").and_then(Json::as_array).unwrap().iter().zip(&dom.implications) {
@@ -456,11 +459,11 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &Dom) -> Option<&'static str> {
                 || !crate::parameters::unresolved(raw)
                     && term_type(term).map_or(true, |ty| expected_problem(ty, Type::Tags).is_some())
             {
-                return Some("an invalid implication side");
+                return Some("an invalid implication side".into());
             }
         }
     }
-    names_problem(raw)
+    names_problem(raw).map(str::to_string)
 }
 
 pub(crate) fn names_problem(dom: &Json) -> Option<&'static str> {
