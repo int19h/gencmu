@@ -962,7 +962,7 @@ A stage lowers its grammar when a parse gives it the enabled features. So a pipe
 
 The stage remembers classifier and lowering errors under the same gate key as successful results. Repeated parses reuse that error until its cache entry expires. Internal exceptions do not enter this cache.
 
-Clause and ranked validation can take exponential time in the presence tests that remain relevant to one clause.
+Clause validation can take exponential time in the presence tests that remain relevant to one clause. Ranked validation can take exponential time in the presence tests of all conditions that can bind to one group.
 
 Loading an ordinary pipeline does not expand production combinations. Bootstrap validation still lowers the notation stages (§8).
 
@@ -2872,7 +2872,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   The reader flattens nested `union`, `all`, `any`, and `concat` nodes throughout the document before measuring depth. This includes conditions, guards, directive conditions, and call arguments.
 
-  Pattern reference and type walks use explicit stacks before depth validation.
+  Pattern reference and type walks share one written-order traversal with an explicit stack before depth validation. Range inspection uses that traversal too. A reference walk gathers user and engine references together.
 
   Pattern intersections also flatten before depth validation. Term intersections retain their written nesting until type resolution.
 
@@ -2905,7 +2905,9 @@ Templates retain argument-independent deferred problems even when no call instan
 
 Simplify each clause after each partial presence assignment. Stop branching when simplification removes its remaining presence tests. An `∨` stops at a present guard, and an `∧` stops at an absent guard. Analyze each term of a tag union separately.
 
-Retain the first structural witness for each partial assignment. A compatible new guard reuses that witness. A conflicting guard queries the structure for a replacement. Discard an assignment when no structural production realizes its required and absent captures. A choice among mutually exclusive captures does not require all Boolean combinations of those captures.
+Retain the first structural witness for each partial assignment. A compatible new guard reuses that witness and its cached set of capture names. A conflicting guard queries the structure for a replacement. Discard an assignment when no structural production realizes its required and absent captures. A choice among mutually exclusive captures does not require all Boolean combinations of those captures.
+
+Simplification returns the next unresolved guard during the same walk. It reuses reductions for parts without presence tests. It does not copy unchanged clause parts.
 
 Each of the following is an error of the document too, and the reader reports it at the definition:
 

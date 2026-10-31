@@ -36,179 +36,235 @@ func isEmptySet(t *domTerm) bool {
 // left to evaluate; the one given is returned where nothing changed. A
 // reduced part is never evaluated (§10).
 func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
-	return simplifyCondPartial(c, func(name string) truth {
+	value, truth, _ := simplifyCondPartial(c, func(name string) truth {
 		if has(name) {
 			return alwaysTrue
 		}
 		return alwaysFalse
-	})
+	}, nil)
+	return value, truth
 }
-
-// simplifyTerm gives the shared reducer a complete presence assignment.
 func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
-	return simplifyTermPartial(t, func(name string) truth {
+	value, _ := simplifyTermPartial(t, func(name string) truth {
 		if has(name) {
 			return alwaysTrue
 		}
 		return alwaysFalse
-	})
+	}, nil)
+	return value
 }
 
-// simplifyCondPartial retains a presence test when its answer is open.
-func simplifyCondPartial(c *domCond, has func(string) truth) (*domCond, truth) {
+// firstPresence retains the first unresolved guard in written order.
+func firstPresence(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
+}
+
+// Partial reducers return the next guard with the reduced clause.
+// A deciding or dropped part contributes no guard.
+func simplifyCondPartial(c *domCond, has func(string) truth, fixed map[clausePart]fixedReduction) (*domCond, truth, string) {
+	if known, ok := fixed[clausePart{c: c}]; ok {
+		if !known.ready {
+			known.value.c, known.truth, _ = simplifyCondPartial(c, has, nil)
+			known.ready = true
+			fixed[clausePart{c: c}] = known
+		}
+		return known.value.c, known.truth, ""
+	}
 	if w := work.Load(); w != nil {
 		w.readerSteps.add("reader steps")
 	}
 	switch c.Kind {
 	case cdCaptured:
 		if value := has(c.Capture); value != open {
-			return nil, value
+			return nil, value, ""
 		}
-		return c, open
+		return c, open, c.Capture
 	case cdNot:
-		inner, tv := simplifyCondPartial(c.Inner, has)
+		inner, tv, guard := simplifyCondPartial(c.Inner, has, fixed)
 		switch tv {
 		case alwaysTrue:
-			return nil, alwaysFalse
+			return nil, alwaysFalse, ""
 		case alwaysFalse:
-			return nil, alwaysTrue
+			return nil, alwaysTrue, ""
 		}
 		if inner == c.Inner {
-			return c, open
+			return c, open, guard
 		}
-		return &domCond{Kind: cdNot, Inner: inner}, open
+		return &domCond{Kind: cdNot, Inner: inner}, open, guard
 	case cdAll, cdAny:
-		// A false part decides an all, a true part an any; the other
-		// constant is dropped.
 		decides, drops := alwaysFalse, alwaysTrue
 		if c.Kind == cdAny {
 			decides, drops = alwaysTrue, alwaysFalse
 		}
 		var items []*domCond
-		changed := false
+		changed, guard := false, ""
 		for _, it := range c.Items {
-			s, tv := simplifyCondPartial(it, has)
+			value, tv, next := simplifyCondPartial(it, has, fixed)
 			switch tv {
 			case decides:
-				return nil, decides
+				return nil, decides, ""
 			case drops:
 				changed = true
 				continue
 			}
-			if s != it {
-				changed = true
-			}
-			items = append(items, s)
+			changed = changed || value != it
+			items = append(items, value)
+			guard = firstPresence(guard, next)
 		}
 		switch {
 		case len(items) == 0:
-			return nil, drops
+			return nil, drops, ""
 		case len(items) == 1:
-			return items[0], open
+			return items[0], open, guard
 		case !changed:
-			return c, open
+			return c, open, guard
 		}
-		return &domCond{Kind: c.Kind, Items: items}, open
+		return &domCond{Kind: c.Kind, Items: items}, open, guard
 	case cdIf:
-		premise, tv := simplifyCondPartial(c.Items[0], has)
+		premise, tv, guard := simplifyCondPartial(c.Items[0], has, fixed)
 		if tv == alwaysFalse {
-			return nil, alwaysTrue
+			return nil, alwaysTrue, ""
 		}
-		then, ttv := simplifyCondPartial(c.Items[1], has)
+		then, ttv, next := simplifyCondPartial(c.Items[1], has, fixed)
 		switch {
 		case tv == alwaysTrue:
-			return then, ttv
+			return then, ttv, next
 		case ttv == alwaysTrue:
-			return nil, alwaysTrue
+			return nil, alwaysTrue, ""
 		case ttv == alwaysFalse:
-			return &domCond{Kind: cdNot, Inner: premise}, open
+			return &domCond{Kind: cdNot, Inner: premise}, open, guard
 		case premise == c.Items[0] && then == c.Items[1]:
-			return c, open
+			return c, open, firstPresence(guard, next)
 		}
-		return &domCond{Kind: cdIf, Items: []*domCond{premise, then}}, open
+		return &domCond{Kind: cdIf, Items: []*domCond{premise, then}}, open, firstPresence(guard, next)
 	case cdCompare:
-		l, r := simplifyTermPartial(c.Left, has), simplifyTermPartial(c.Right, has)
-		if l == c.Left && r == c.Right {
-			return c, open
+		left, guard := simplifyTermPartial(c.Left, has, fixed)
+		right, next := simplifyTermPartial(c.Right, has, fixed)
+		if left == c.Left && right == c.Right {
+			return c, open, firstPresence(guard, next)
 		}
-		return &domCond{Kind: cdCompare, Op: c.Op, Left: l, Right: r}, open
+		return &domCond{Kind: cdCompare, Op: c.Op, Left: left, Right: right}, open, firstPresence(guard, next)
 	}
-	return c, open
+	return c, open, ""
 }
 
-// simplifyTermPartial simplifies a term, as simplifyCondPartial does a
-// condition: a guarded term is its term where its condition is true, and
-// the empty set where it is false or its term is empty; an empty set is
-// dropped from a union, a union of nothing else is empty, and so is an
-// intersection with one. A difference whose first part is empty is empty,
-// and one whose second part is empty is its first part.
-func simplifyTermPartial(t *domTerm, has func(string) truth) *domTerm {
+func simplifyTermPartial(t *domTerm, has func(string) truth, fixed map[clausePart]fixedReduction) (*domTerm, string) {
+	if known, ok := fixed[clausePart{t: t}]; ok {
+		if !known.ready {
+			known.value.t, _ = simplifyTermPartial(t, has, nil)
+			known.ready = true
+			fixed[clausePart{t: t}] = known
+		}
+		return known.value.t, ""
+	}
 	if w := work.Load(); w != nil {
 		w.readerSteps.add("reader steps")
 	}
 	if t == nil {
-		return nil
+		return nil, ""
 	}
 	switch t.Kind {
 	case tmIf:
-		cond, tv := simplifyCondPartial(t.Cond, has)
+		cond, tv, guard := simplifyCondPartial(t.Cond, has, fixed)
 		switch tv {
 		case alwaysFalse:
-			return reducedEmpty
+			return reducedEmpty, ""
 		case alwaysTrue:
-			return simplifyTermPartial(t.Items[0], has)
+			return simplifyTermPartial(t.Items[0], has, fixed)
 		}
-		then := simplifyTermPartial(t.Items[0], has)
+		then, next := simplifyTermPartial(t.Items[0], has, fixed)
 		if isEmptySet(then) {
-			return reducedEmpty
+			return reducedEmpty, ""
 		}
 		if cond == t.Cond && then == t.Items[0] {
-			return t
+			return t, firstPresence(guard, next)
 		}
-		return &domTerm{Kind: tmIf, Cond: cond, Items: []*domTerm{then}}
+		return &domTerm{Kind: tmIf, Cond: cond, Items: []*domTerm{then}}, firstPresence(guard, next)
 	case tmDifference:
-		l, r := simplifyTermPartial(t.Items[0], has), simplifyTermPartial(t.Items[1], has)
+		left, guard := simplifyTermPartial(t.Items[0], has, fixed)
+		right, next := simplifyTermPartial(t.Items[1], has, fixed)
 		switch {
-		case isEmptySet(l):
-			return reducedEmpty
-		case isEmptySet(r):
-			return l
-		case l == t.Items[0] && r == t.Items[1]:
-			return t
+		case isEmptySet(left):
+			return reducedEmpty, ""
+		case isEmptySet(right):
+			return left, guard
+		case left == t.Items[0] && right == t.Items[1]:
+			return t, firstPresence(guard, next)
 		}
-		return &domTerm{Kind: tmDifference, Items: []*domTerm{l, r}}
+		return &domTerm{Kind: tmDifference, Items: []*domTerm{left, right}}, firstPresence(guard, next)
 	case tmUnion, tmIntersection, tmConcat, tmCall:
-		// An empty set, written ∅ or left by a guard, is dropped from a
-		// union and makes an intersection empty.
 		var items []*domTerm
-		changed := false
+		changed, guard := false, ""
 		for _, it := range t.Items {
-			s := simplifyTermPartial(it, has)
-			if s != it {
-				changed = true
-			}
-			if isEmptySet(s) {
+			value, next := simplifyTermPartial(it, has, fixed)
+			changed = changed || value != it
+			if isEmptySet(value) {
 				if t.Kind == tmIntersection {
-					return reducedEmpty
+					return reducedEmpty, ""
 				}
 				if t.Kind == tmUnion {
 					changed = true
 					continue
 				}
 			}
-			items = append(items, s)
+			items = append(items, value)
+			guard = firstPresence(guard, next)
 		}
 		switch {
 		case !changed:
-			return t
+			return t, guard
 		case t.Kind == tmUnion && len(items) == 0:
-			return reducedEmpty
+			return reducedEmpty, ""
 		case t.Kind == tmUnion && len(items) == 1:
-			return items[0]
+			return items[0], guard
 		}
-		return &domTerm{Kind: t.Kind, Str: t.Str, Items: items}
+		return &domTerm{Kind: t.Kind, Str: t.Str, Items: items}, guard
 	}
-	return t
+	return t, ""
+}
+
+// fixedReduction is computed once for a part without presence tests.
+type fixedReduction struct {
+	value clausePart
+	truth truth
+	ready bool
+}
+
+func fixedClauseParts(root clausePart) map[clausePart]fixedReduction {
+	type visit struct {
+		part  clausePart
+		ready bool
+	}
+	pending := []visit{{part: root}}
+	free := map[clausePart]bool{}
+	fixed := map[clausePart]fixedReduction{}
+	for len(pending) > 0 {
+		item := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if _, seen := free[item.part]; seen {
+			continue
+		}
+		children := item.part.children()
+		if !item.ready {
+			pending = append(pending, visit{part: item.part, ready: true})
+			for _, child := range children {
+				pending = append(pending, visit{part: child})
+			}
+		} else {
+			stable := item.part.c == nil || item.part.c.Kind != cdCaptured || item.part.c.Capture == ""
+			for _, child := range children {
+				stable = stable && free[child]
+			}
+			free[item.part] = stable
+			if stable {
+				fixed[item.part] = fixedReduction{}
+			}
+		}
+	}
+	return fixed
 }
 
 // termCaptures adds the captures a term uses, as values or spans, "" for $;

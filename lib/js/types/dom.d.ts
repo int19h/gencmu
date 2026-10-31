@@ -223,6 +223,7 @@ export type CaptureWitness = {
     names: any;
     key: any;
     mask?: number;
+    present?: Set<string>;
 };
 /**
  * Why a definition, a rule's alternatives with its own clauses, cannot be

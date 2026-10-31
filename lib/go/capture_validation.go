@@ -42,10 +42,11 @@ func captureFlat[T any](r *captureRope[T]) []T {
 }
 
 type captureWitness struct {
-	count int
-	names *captureRope[string]
-	key   *captureRope[int]
-	mask  int
+	present map[string]bool
+	count   int
+	names   *captureRope[string]
+	key     *captureRope[int]
+	mask    int
 }
 
 func captureBefore(a, b *captureWitness) bool {
@@ -212,6 +213,10 @@ func captureQuery(e *domExpr, required, forbidden map[string]bool, order []strin
 	}
 	w := states[state]
 	if w != nil && w.count == need {
+		w.present = map[string]bool{"": true}
+		for _, name := range captureFlat(w.names) {
+			w.present[name] = true
+		}
 		return w
 	}
 	return nil
@@ -396,6 +401,7 @@ func validationCaptures(r *domRule, a *domAlt) []map[string]int {
 			}
 			return
 		}
+		fixed := fixedClauseParts(p)
 		var branch func(clausePart, []string, []string, *captureWitness)
 		branch = func(part clausePart, yes, no []string, witness *captureWitness) {
 			has := func(name string) truth {
@@ -415,40 +421,42 @@ func validationCaptures(r *domRule, a *domAlt) []map[string]int {
 				return open
 			}
 			var simple clausePart
+			var guard string
 			if part.c != nil {
-				condition, value := simplifyCondPartial(part.c, has)
+				var value truth
+				simple.c, value, guard = simplifyCondPartial(part.c, has, fixed)
 				if value == alwaysTrue {
 					return
 				}
-				// A false condition has no reads or remaining presence tests.
-				simple.c = condition
 			} else {
-				simple.t = simplifyTermPartial(part.t, has)
+				simple.t, guard = simplifyTermPartial(part.t, has, fixed)
 			}
-			var guard string
-			walkClause(simple, func(node clausePart) bool {
-				if node.c != nil && node.c.Kind == cdCaptured && guard == "" {
-					guard = node.c.Capture
-				}
-				return guard == ""
-			})
 			extend := func(required, forbidden []string) *captureWitness {
-				names := map[string]bool{"": true}
-				for _, name := range captureFlat(witness.names) {
-					names[name] = true
-				}
+				names := witness.present
 				matches := true
-				req, absent := map[string]bool{}, map[string]bool{}
 				for _, name := range required {
-					req[name] = true
-					matches = matches && names[name]
+					if !names[name] {
+						matches = false
+						break
+					}
 				}
-				for _, name := range forbidden {
-					absent[name] = true
-					matches = matches && !names[name]
+				if matches {
+					for _, name := range forbidden {
+						if names[name] {
+							matches = false
+							break
+						}
+					}
 				}
 				if matches {
 					return witness
+				}
+				req, absent := map[string]bool{}, map[string]bool{}
+				for _, name := range required {
+					req[name] = true
+				}
+				for _, name := range forbidden {
+					absent[name] = true
 				}
 				return captureQuery(a.Expr, req, absent, nil)
 			}

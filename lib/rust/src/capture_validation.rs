@@ -32,8 +32,13 @@ fn flat<T: Clone>(tree: &Link<T>) -> Vec<T> {
     }
     out
 }
+struct Presence<'a> {
+    names: FxSet<&'a str>,
+    order: Vec<&'a str>,
+}
 #[derive(Clone)]
 struct Witness<'a> {
+    present: Option<Arc<Presence<'a>>>,
     count: usize,
     names: Link<&'a str>,
     key: Link<usize>,
@@ -41,7 +46,7 @@ struct Witness<'a> {
 }
 impl Witness<'_> {
     fn empty() -> Self {
-        Self { count: 0, names: None, key: None, mask: 0 }
+        Self { present: None, count: 0, names: None, key: None, mask: 0 }
     }
 }
 type States<'a> = [Option<Witness<'a>>; 4];
@@ -87,21 +92,16 @@ fn pick<'a>(into: &mut States<'a>, state: usize, w: Witness<'a>) {
         into[state] = Some(w);
     }
 }
-fn query<'a>(
-    expr: &'a Expr,
-    required: &FxSet<String>,
-    forbidden: &FxSet<String>,
-    order: &[&str],
-) -> Option<Witness<'a>> {
+fn query<'a>(expr: &'a Expr, required: &FxSet<&str>, forbidden: &FxSet<&str>, order: &[&str]) -> Option<Witness<'a>> {
     if forbidden.contains("") || required.iter().any(|n| forbidden.contains(n)) {
         return None;
     }
-    fn visit<'a>(e: &'a Expr, yes: &FxSet<String>, no: &FxSet<String>, order: &[&str]) -> States<'a> {
+    fn visit<'a>(e: &'a Expr, yes: &FxSet<&str>, no: &FxSet<&str>, order: &[&str]) -> States<'a> {
         work::count(Work::Checked, 1);
         let mut out = states();
         match e {
             Expr::Capture(name, _) => {
-                if no.contains(name) {
+                if no.contains(name.as_str()) {
                     return out;
                 }
                 let state = if order.first() == Some(&name.as_str()) {
@@ -112,7 +112,8 @@ fn query<'a>(
                     0
                 };
                 out[state] = Some(Witness {
-                    count: usize::from(yes.contains(name)),
+                    present: None,
+                    count: usize::from(yes.contains(name.as_str())),
                     names: leaf(name.as_str()),
                     key: None,
                     mask: 0,
@@ -154,6 +155,7 @@ fn query<'a>(
                                 continue;
                             }
                             let mut w = Witness {
+                                present: None,
                                 count: x.count + y.count,
                                 names: join(x.names.clone(), y.names.clone()),
                                 key: join(x.key.clone(), y.key.clone()),
@@ -190,8 +192,15 @@ fn query<'a>(
         out
     }
     let mut found = visit(expr, required, forbidden, order);
-    let w = found[if order.is_empty() { 0 } else { 3 }].take()?;
-    (w.count == required.iter().filter(|n| !n.is_empty()).count()).then_some(w)
+    let mut w = found[if order.is_empty() { 0 } else { 3 }].take()?;
+    if w.count != required.iter().filter(|n| !n.is_empty()).count() {
+        return None;
+    }
+    let order = flat(&w.names);
+    let mut names: FxSet<_> = order.iter().copied().collect();
+    names.insert("");
+    w.present = Some(Arc::new(Presence { names, order }));
+    Some(w)
 }
 fn variable(expr: &Expr) -> bool {
     let mut pending = vec![(expr, false)];
@@ -219,18 +228,229 @@ fn variable(expr: &Expr) -> bool {
     }
     done[0].1
 }
+#[derive(Clone, Copy)]
+struct Reduction<'a> {
+    shape: Outcome<'a>,
+    guard: Option<&'a str>,
+}
+impl Reduction<'_> {
+    fn plain(shape: Outcome<'_>) -> Reduction<'_> {
+        Reduction { shape, guard: None }
+    }
+}
+struct PartialNode<'a> {
+    guard: Option<usize>,
+    part: Part<'a>,
+    children: Vec<usize>,
+    reads: Vec<&'a str>,
+    fixed: bool,
+}
+/// A borrowed clause in postorder. Each assignment updates the affected
+/// ancestors and returns the next guard without constructing a new clause.
+struct PartialClause<'a> {
+    nodes: Vec<PartialNode<'a>>,
+    reduced: Vec<Reduction<'a>>,
+    condition: bool,
+    affected: Vec<Vec<usize>>,
+    guard_ids: FxMap<&'a str, usize>,
+    assigned: Vec<Option<bool>>,
+    dirty: Vec<bool>,
+    pending: Vec<usize>,
+}
+impl<'a> PartialClause<'a> {
+    fn new(root: Part<'a>) -> Self {
+        let mut nodes: Vec<PartialNode<'a>> = Vec::new();
+        let mut reduced = Vec::new();
+        let mut guard_ids = FxMap::default();
+        let mut assigned = Vec::new();
+        let mut pending = vec![(root, false)];
+        let mut done = Vec::new();
+        while let Some((part, ready)) = pending.pop() {
+            let children = part.reducing_children();
+            if !ready {
+                pending.push((part, true));
+                pending.extend(children.into_iter().rev().map(|child| (child, false)));
+                continue;
+            }
+            let children = done.split_off(done.len() - children.len());
+            let fixed = !matches!(part, Part::Cond(Cond::Captured(name)) if !name.is_empty())
+                && children.iter().all(|&i: &usize| nodes[i].fixed);
+            let guard = match part {
+                Part::Cond(Cond::Captured(name)) if !name.is_empty() => {
+                    let next = guard_ids.len();
+                    let index = *guard_ids.entry(name.as_str()).or_insert(next);
+                    if index == assigned.len() {
+                        assigned.push(None);
+                    }
+                    Some(index)
+                }
+                _ => None,
+            };
+            let mut node = PartialNode { part, children, fixed, reads: Vec::new(), guard };
+            let value = if node.children.is_empty() && !matches!(part, Part::Cond(Cond::Captured(_))) {
+                let shaped = Shaped::of(part, &|_| true);
+                node.reads = shaped.uses;
+                Reduction::plain(shaped.shape)
+            } else {
+                Self::combine(&node, &reduced, &assigned)
+            };
+            done.push(nodes.len());
+            nodes.push(node);
+            reduced.push(value);
+        }
+        let mut parents = vec![Vec::new(); nodes.len()];
+        let mut affected = vec![Vec::new(); assigned.len()];
+        for (index, node) in nodes.iter().enumerate() {
+            for &child in &node.children {
+                parents[child].push(index);
+            }
+            if let Some(guard) = node.guard {
+                affected[guard].push(index);
+            }
+        }
+        for indices in &mut affected {
+            let mut pending = std::mem::take(indices);
+            let mut seen = vec![false; nodes.len()];
+            while let Some(index) = pending.pop() {
+                if !seen[index] {
+                    seen[index] = true;
+                    indices.push(index);
+                    pending.extend_from_slice(&parents[index]);
+                }
+            }
+            indices.sort_unstable();
+        }
+        let dirty = vec![false; nodes.len()];
+        Self {
+            nodes,
+            reduced,
+            condition: matches!(root, Part::Cond(_)),
+            affected,
+            guard_ids,
+            assigned,
+            dirty,
+            pending: Vec::new(),
+        }
+    }
+    fn combine(node: &PartialNode<'a>, values: &[Reduction<'a>], assigned: &[Option<bool>]) -> Reduction<'a> {
+        let used = Outcome::Uses(None);
+        let plain = Reduction::plain;
+        let first = |a: Reduction<'a>, b: Reduction<'a>| Reduction { shape: used, guard: a.guard.or(b.guard) };
+        let child = |i| values[node.children[i]];
+        match node.part {
+            Part::Cond(Cond::Captured(name)) => match node.guard.map_or(Some(true), |index| assigned[index]) {
+                Some(true) => plain(Outcome::True),
+                Some(false) => plain(Outcome::False),
+                None => Reduction { shape: used, guard: Some(name) },
+            },
+            Part::Cond(Cond::Not(_)) => {
+                let inner = child(0);
+                match inner.shape {
+                    Outcome::True => plain(Outcome::False),
+                    Outcome::False => plain(Outcome::True),
+                    _ => inner,
+                }
+            }
+            Part::Cond(Cond::All(_) | Cond::Any(_)) => {
+                let all = matches!(node.part, Part::Cond(Cond::All(_)));
+                let mut result = plain(if all { Outcome::True } else { Outcome::False });
+                for &index in &node.children {
+                    let value = values[index];
+                    match value.shape {
+                        Outcome::True if !all => return plain(Outcome::True),
+                        Outcome::False if all => return plain(Outcome::False),
+                        Outcome::True | Outcome::False => {}
+                        _ => result = first(result, value),
+                    }
+                }
+                result
+            }
+            Part::Cond(Cond::If(_, _)) => {
+                let (premise, then) = (child(0), child(1));
+                match (premise.shape, then.shape) {
+                    (Outcome::False, _) | (_, Outcome::True) => plain(Outcome::True),
+                    (Outcome::True, _) => then,
+                    _ => first(premise, then),
+                }
+            }
+            Part::Term(Term::If(_, _)) => {
+                let (premise, then) = (child(0), child(1));
+                match (premise.shape, then.shape) {
+                    (Outcome::False, _) | (_, Outcome::Empty) => plain(Outcome::Empty),
+                    (Outcome::True, _) => then,
+                    _ => first(premise, then),
+                }
+            }
+            Part::Term(Term::Union(_) | Term::Intersection(_)) => {
+                let intersection = matches!(node.part, Part::Term(Term::Intersection(_)));
+                let mut result = plain(if intersection { used } else { Outcome::Empty });
+                for &index in &node.children {
+                    let value = values[index];
+                    if value.shape == Outcome::Empty {
+                        if intersection {
+                            return plain(Outcome::Empty);
+                        }
+                    } else {
+                        result = first(result, value);
+                    }
+                }
+                result
+            }
+            Part::Term(Term::Difference(_, _)) => {
+                let (left, right) = (child(0), child(1));
+                if left.shape == Outcome::Empty {
+                    plain(Outcome::Empty)
+                } else if right.shape == Outcome::Empty {
+                    left
+                } else {
+                    first(left, right)
+                }
+            }
+            Part::Cond(Cond::Compare(_, _, _)) => first(child(0), child(1)),
+            _ => unreachable!("a variable clause node"),
+        }
+    }
+    fn assign(&mut self, slot: usize, value: Option<bool>) {
+        self.assigned[slot] = value;
+        for &index in &self.affected[slot] {
+            work::count(Work::Walked, 1);
+            if !self.dirty[index] {
+                self.dirty[index] = true;
+                self.pending.push(index);
+            }
+        }
+    }
+    fn reduce(&mut self) -> Reduction<'a> {
+        // Restoring a guard and extending its parent share ancestor work.
+        self.pending.sort_unstable();
+        for index in self.pending.drain(..) {
+            work::count(Work::Walked, 1);
+            self.reduced[index] = Self::combine(&self.nodes[index], &self.reduced, &self.assigned);
+            self.dirty[index] = false;
+        }
+        *self.reduced.last().expect("a clause root")
+    }
+    fn reads(&self) -> Vec<&'a str> {
+        let mut pending = vec![self.nodes.len() - 1];
+        let mut out = Vec::new();
+        while let Some(index) = pending.pop() {
+            if matches!(self.reduced[index].shape, Outcome::Uses(_)) {
+                let node = &self.nodes[index];
+                out.extend_from_slice(&node.reads);
+                pending.extend(node.children.iter().rev());
+            }
+        }
+        out
+    }
+}
+
 struct Queries<'a> {
     expr: &'a Expr,
     witnesses: Vec<Witness<'a>>,
 }
 impl<'a> Queries<'a> {
     fn ask(&mut self, yes: Vec<&str>, no: Vec<&str>, order: &[&str]) {
-        if let Some(w) = query(
-            self.expr,
-            &yes.into_iter().map(str::to_string).collect(),
-            &no.into_iter().map(str::to_string).collect(),
-            order,
-        ) {
+        if let Some(w) = query(self.expr, &yes.into_iter().collect(), &no.into_iter().collect(), order) {
             self.witnesses.push(w);
         }
     }
@@ -247,103 +467,72 @@ impl<'a> Queries<'a> {
             }
             return;
         }
-        fn extend<'a>(expr: &'a Expr, witness: &Witness<'a>, yes: Vec<&str>, no: Vec<&str>) -> Option<Witness<'a>> {
-            let mut names: FxSet<_> = flat(&witness.names).into_iter().collect();
-            names.insert("");
-            if yes.iter().all(|name| names.contains(name)) && no.iter().all(|name| !names.contains(name)) {
+        // The witness already meets yes and no. Only new constraints need
+        // membership tests before the same witness can be reused.
+        fn extend<'a>(
+            expr: &'a Expr,
+            witness: &Witness<'a>,
+            yes: &[&str],
+            no: &[&str],
+            required: &[&str],
+            forbidden: &[&str],
+        ) -> Option<Witness<'a>> {
+            let names = &witness.present.as_ref().expect("a completed query witness").names;
+            if required.iter().all(|name| names.contains(name)) && forbidden.iter().all(|name| !names.contains(name)) {
                 return Some(witness.clone());
             }
             query(
                 expr,
-                &yes.into_iter().map(str::to_owned).collect(),
-                &no.into_iter().map(str::to_owned).collect(),
+                &yes.iter().chain(required).copied().collect(),
+                &no.iter().chain(forbidden).copied().collect(),
                 &[],
             )
         }
-        fn branch<'a>(
+        fn branch<'a, 'c>(
             q: &mut Queries<'a>,
-            p: Part<'_>,
+            plan: &mut PartialClause<'c>,
             carrier: &[&str],
-            yes: &mut Vec<String>,
-            no: &mut Vec<String>,
+            yes: &mut Vec<&'c str>,
+            no: &mut Vec<&'c str>,
             witness: Witness<'a>,
         ) {
-            let has = |name: &str| {
-                if name.is_empty() || yes.iter().any(|v| v == name) {
-                    Some(true)
-                } else if no.iter().any(|v| v == name) {
-                    Some(false)
-                } else {
-                    None
-                }
-            };
-            let condition;
-            let term;
-            let simple = match p {
-                Part::Cond(c) => {
-                    condition = simplify_cond_partial(c, &has);
-                    match &condition {
-                        Simple::True => return,
-                        Simple::False => None,
-                        Simple::Cond(c) => Some(Part::Cond(c)),
-                    }
-                }
-                Part::Term(t) => {
-                    term = simplify_term_partial(t, &has);
-                    term.as_ref().map(Part::Term)
-                }
-            };
-            let mut guards = Vec::new();
-            if let Some(simple) = simple {
-                walk_captures(simple, false, true, &mut guards);
-            }
-            if let Some(name) = guards.first() {
-                no.push(name.to_string());
-                if let Some(found) = extend(
-                    q.expr,
-                    &witness,
-                    yes.iter().map(String::as_str).collect(),
-                    no.iter().map(String::as_str).collect(),
-                ) {
-                    branch(q, simple.unwrap(), carrier, yes, no, found);
-                }
-                no.pop();
-                yes.push(name.to_string());
-                if let Some(found) = extend(
-                    q.expr,
-                    &witness,
-                    yes.iter().map(String::as_str).collect(),
-                    no.iter().map(String::as_str).collect(),
-                ) {
-                    branch(q, simple.unwrap(), carrier, yes, no, found);
-                }
-                yes.pop();
+            let simple = plan.reduce();
+            if simple.shape == Outcome::True {
                 return;
             }
-            let mut used = Vec::new();
-            if let Some(simple) = simple {
-                walk_captures(simple, true, false, &mut used);
-            }
-            match p {
-                Part::Cond(_) => {
-                    let required = carrier.iter().copied().chain(yes.iter().map(String::as_str)).chain(used).collect();
-                    if let Some(found) = extend(q.expr, &witness, required, no.iter().map(String::as_str).collect()) {
-                        q.witnesses.push(found);
-                    }
+            if let Some(name) = simple.guard {
+                let slot = plan.guard_ids[name];
+                no.push(name);
+                plan.assign(slot, Some(false));
+                if let Some(found) = extend(q.expr, &witness, yes, no, &[], &[name]) {
+                    branch(q, plan, carrier, yes, no, found);
                 }
-                Part::Term(_) => {
-                    for name in used {
-                        let required = carrier.iter().copied().chain(yes.iter().map(String::as_str)).collect();
-                        let forbidden = no.iter().map(String::as_str).chain(std::iter::once(name)).collect();
-                        if let Some(found) = extend(q.expr, &witness, required, forbidden) {
-                            q.witnesses.push(found);
-                        }
+                no.pop();
+                yes.push(name);
+                plan.assign(slot, Some(true));
+                if let Some(found) = extend(q.expr, &witness, yes, no, &[name], &[]) {
+                    branch(q, plan, carrier, yes, no, found);
+                }
+                yes.pop();
+                plan.assign(slot, None);
+                return;
+            }
+            let used = plan.reads();
+            if plan.condition {
+                let required: Vec<_> = carrier.iter().copied().chain(used).collect();
+                if let Some(found) = extend(q.expr, &witness, yes, no, &required, &[]) {
+                    q.witnesses.push(found);
+                }
+            } else {
+                for name in used {
+                    if let Some(found) = extend(q.expr, &witness, yes, no, carrier, &[name]) {
+                        q.witnesses.push(found);
                     }
                 }
             }
         }
         if let Some(initial) = self.witnesses.first().cloned() {
-            branch(self, p, carrier, &mut Vec::new(), &mut Vec::new(), initial);
+            branch(self, &mut PartialClause::new(p), carrier, &mut Vec::new(), &mut Vec::new(), initial);
         }
     }
 }
@@ -493,7 +682,11 @@ pub(super) fn captures(rule: &RuleDef, alternative: usize) -> Vec<Vec<&str>> {
             }
         }
     }
-    q.witnesses.sort_by_key(|w| flat(&w.key));
+    q.witnesses.sort_by_cached_key(|w| flat(&w.key));
     let mut seen = FxSet::default();
-    q.witnesses.into_iter().map(|w| flat(&w.names)).filter(|names| seen.insert(names.clone())).collect()
+    q.witnesses
+        .into_iter()
+        .map(|w| w.present.as_ref().expect("a completed query witness").order.clone())
+        .filter(|names| seen.insert(names.clone()))
+        .collect()
 }

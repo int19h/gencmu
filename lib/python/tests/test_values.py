@@ -19,6 +19,7 @@ class Values(unittest.TestCase):
         for clause in [
             {"conditions": [{"any": [{"captured": c} for c in names]}]},
             {"conditions": [{"all": [{"captured": c} for c in names]}]},
+            {"conditions": [{"all": [{"if": {"captured": c}, "then": {"op": "=", "left": {"method": "value", "receiver": {"capture": c}, "args": []}, "right": {"string": "x"}}} for c in names[:8]]}]},
             {"tags": {"union": [{"if": {"captured": c}, "then": {"method": "tags", "receiver": {"capture": c}, "args": []}} for c in names]}},
         ]:
             with self.subTest(clause=clause), count_work(calls(_clauses._capture_witness), budget=8*n*n):
