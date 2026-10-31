@@ -92,6 +92,7 @@ def jbogenbau_text(document: str, unicode) -> GrammarText:
     chars: list[str] = []
     positions: list[tuple[int, int]] = []
     last = (1, 1)
+    line_end = last
     for number, block in enumerate(blocks):
         if number > 0:
             chars.append("\n")
@@ -99,11 +100,13 @@ def jbogenbau_text(document: str, unicode) -> GrammarText:
         for row, (line_number, line) in enumerate(block):
             if row > 0:
                 chars.append("\n")
-                positions.append(last)
+                positions.append(line_end)
             for column, char in enumerate(line, 1):
                 chars.append(char)
                 positions.append((line_number, column))
-            last = (line_number, len(line) + 1)
+            line_end = (line_number, len(line) + 1)
+            if line or row > 0:
+                last = line_end
     positions.append(last)
     return GrammarText("".join(chars), positions)
 

@@ -103,10 +103,11 @@ func extractGrammarText(doc string, uni *unicodeTable) *grammarText {
 	var fence string // the open fence, or "" outside a block
 	isGrammar, blocks, linesInBlock := false, 0, 0
 	lastEnd := [2]int{1, 1}
+	lineEnd := lastEnd
 	var opened [2]int
-	newline := func() {
+	newline := func(at [2]int) {
 		g.text = append(g.text, '\n')
-		g.pos = append(g.pos, lastEnd)
+		g.pos = append(g.pos, at)
 	}
 	for n, line := range lines {
 		if fence == "" {
@@ -123,7 +124,7 @@ func extractGrammarText(doc string, uni *unicodeTable) *grammarText {
 			opened = [2]int{n + 1, runeColumn(line, strings.Index(line, fence))}
 			if isGrammar {
 				if blocks > 0 {
-					newline()
+					newline(lastEnd)
 				}
 				blocks++
 				linesInBlock = 0
@@ -138,7 +139,7 @@ func extractGrammarText(doc string, uni *unicodeTable) *grammarText {
 			continue
 		}
 		if linesInBlock > 0 {
-			newline()
+			newline(lineEnd)
 		}
 		linesInBlock++
 		col := 1
@@ -147,7 +148,10 @@ func extractGrammarText(doc string, uni *unicodeTable) *grammarText {
 			g.pos = append(g.pos, [2]int{n + 1, col})
 			col++
 		}
-		lastEnd = [2]int{n + 1, col}
+		lineEnd = [2]int{n + 1, col}
+		if col > 1 || linesInBlock > 1 {
+			lastEnd = lineEnd
+		}
 	}
 	g.pos = append(g.pos, lastEnd)
 	if fence != "" && isGrammar {

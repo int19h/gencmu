@@ -2108,7 +2108,7 @@ The info string is `jbogenbau` after the reader removes leading and trailing Whi
 
 An unclosed `jbogenbau` block is a document error. The reader reports it at the column of its opening fence character. Any other unclosed block runs to the end of the document, as in CommonMark.
 
-The reader joins each block's lines with `\n` and joins the blocks with one `\n` between them. Every line end inside a block reads as `\n`, whether the document uses LF, CRLF, or CR. Every character of the grammar text keeps its line and column in the document. An end-of-text error stands after its last character. An empty final block does not move that position.
+The reader joins each block's lines with `\n` and joins the blocks with one `\n` between them. Every line end inside a block reads as `\n`, whether the document uses LF, CRLF, or CR. Every character of the grammar text keeps its line and column in the document. An end-of-text error stands after its last character. An empty final block does not move that position. A line that adds no character to the grammar text does not move that position either.
 
 The reader parses grammar text with the notation pipeline, `grammars/gencmu/jbogenbau/pipeline.md`. Its preparsed documents ship in `data/preparsed/gencmu.json`. The loader splices their DOMs under §13 to build the notation stages. Bootstrap entries need no source files or text hash comparison. Every required entry must exist and meet the DOM rules. An invalid format, malformed entry, missing include, or splice error is a bootstrap loading error.
 

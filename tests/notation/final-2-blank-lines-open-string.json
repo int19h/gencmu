@@ -1,0 +1,10 @@
+{
+  "description": "Two final blank lines contribute a newline and move the grammar end position (engine §8).",
+  "document": "```jbogenbau\n%rule text \"a\n```\n```jbogenbau\n\n\n```\n",
+  "expect": {
+    "error": {
+      "line": 6,
+      "column": 1
+    }
+  }
+}
