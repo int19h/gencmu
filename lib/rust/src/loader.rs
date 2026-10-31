@@ -212,24 +212,15 @@ fn build_notation_pipeline(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Pip
     }
     let spliced =
         splice(NOTATION_PATH, &mut BootstrapDocuments { entries, unicode: &unicode }).map_err(|mut error| {
-            error.stage = None;
+            if let Some(stage) = error.stage.take() {
+                error.message = format!("stage {stage}: {}", error.message);
+            }
             error
         })?;
-    let inputs: Vec<_> = spliced
-        .stages
-        .into_iter()
-        .map(|stage| {
-            (stage.name, stage.documents.into_iter().map(|(path, dom)| (path, Arc::new(dom))).collect::<Vec<_>>())
-        })
-        .collect();
     let mut stages = Vec::new();
-    for (name, documents) in &inputs {
-        if !documents.iter().any(|(_, dom)| !dom.rules.is_empty()) {
-            return Err(Error::grammar("has no rules").in_stage(name));
-        }
-    }
-    for (name, documents) in inputs {
-        stages.push(stitch(&name, &documents, &unicode).map_err(|error| error.in_stage(&name))?);
+    for stage in spliced.stages {
+        let documents: Vec<_> = stage.documents.into_iter().map(|(path, dom)| (path, Arc::new(dom))).collect();
+        stages.push(stitch(&stage.name, &documents, &unicode).map_err(|error| error.in_stage(&stage.name))?);
     }
     let pipeline = Pipeline::new(stages, spliced.features, unicode)?;
     pipeline.prepare_bootstrap()?;

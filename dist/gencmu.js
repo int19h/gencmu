@@ -21278,16 +21278,11 @@
       });
     } catch (error) {
       if (error instanceof GencmuError) {
-        const splicing = error.withLocation({stage:undefined});
-        delete splicing.where.stage;
-        throw splicing;
+        const where = {...error.where};
+        delete where.stage;
+        throw new GencmuError(error.kind, error.message, where, {cause:error});
       }
       throw error;
-    }
-    for (const stage of bootstrap.stages) {
-      if (!stage.documents.some(document => document.dom.rules.length > 0)) {
-        throw new GencmuError("grammar", "has no rules", { stage:stage.name });
-      }
     }
     return bootstrap;
   }

@@ -265,7 +265,8 @@
       "stage": null,
       "line": 1,
       "column": 1,
-      "context": "grammars/gencmu/jbogenbau/pipeline.md"
+      "context": "grammars/gencmu/jbogenbau/pipeline.md",
+      "message": "stage lexical: has no rules"
     },
     {
       "description": "Malformed bootstrap pipeline directives",
@@ -288,7 +289,8 @@
       "stage": null,
       "line": 1,
       "column": 1,
-      "context": "grammars/gencmu/jbogenbau/pipeline.md"
+      "context": "grammars/gencmu/jbogenbau/pipeline.md",
+      "message": "stage lexical: has no rules"
     },
     {
       "description": "Undefined bootstrap constant (engine §8 and §9.3)",
@@ -364,7 +366,7 @@
     {
       "description": "Bootstrap stage contains no rules (engine §8 and §9.3)",
       "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../empty.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"empty.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
-      "message": "no rules",
+      "message": "stage lexical: has no rules",
       "stage": null,
       "line": 1,
       "column": 1,
@@ -373,7 +375,7 @@
     {
       "description": "All bootstrap stages require rules before stitching (engine §8 and §9.3)",
       "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../syntax.md\"],\"at\":[2,1]},{\"name\":\"stage\",\"args\":[\"syntax\"],\"at\":[3,1]},{\"name\":\"include\",\"args\":[\"../../../empty.md\"],\"at\":[4,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"syntax.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"missing\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"empty.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
-      "message": "no rules",
+      "message": "stage syntax: has no rules",
       "stage": null,
       "line": 3,
       "column": 1,
@@ -611,6 +613,15 @@
       "line": 10000,
       "column": 1,
       "message": "(embedded document: grammars/gencmu/jbogenbau/lexical.md)"
+    },
+    {
+      "description": "An empty bootstrap stage retains its name in the description with no stage field.",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"empty-stage\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "stage": null,
+      "line": 1,
+      "column": 1,
+      "context": "grammars/gencmu/jbogenbau/pipeline.md",
+      "message": "stage empty-stage: has no rules"
     }
   ]
 }

@@ -205,19 +205,17 @@ class NotationReader:
         try:
             pipeline = splice_pipeline("grammars/gencmu/jbogenbau/pipeline.md", dom_of)
         except GencmuError as error:
+            if error.stage:
+                error.message = f"stage {error.stage}: {error.message}"
             error.stage = None
             raise
         self.bootstrap_features = pipeline.features
         stages: list[Grammar] = []
-        inputs = [(stage.name, stage.documents) for stage in pipeline.stages]
-        for name, pairs in inputs:
-            if not any(dom["rules"] for _, dom in pairs):
-                raise GencmuError("has no rules", stage=name)
-        for name, pairs in inputs:
+        for stage in pipeline.stages:
             try:
-                stages.append(stitch(name, pairs, unicode))
+                stages.append(stitch(stage.name, stage.documents, unicode))
             except GencmuError as error:
-                error.stage = name
+                error.stage = stage.name
                 raise
         _pipeline_features(stages, pipeline.features)
         lowered = []

@@ -61,31 +61,17 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 		return dom, nil
 	})
 	if failure != nil {
+		if failure.Stage != "" {
+			failure.Message = "stage " + failure.Stage + ": " + failure.Message
+		}
 		failure.Stage = ""
 		return nil, failure
 	}
 	nr := &notationReader{uni: uni, hash: fnv1a64(bootstrap), defaults: pipeline.features}
-	type stageInput struct {
-		name      string
-		documents []docDOM
-	}
-	var inputs []stageInput
 	for _, stage := range pipeline.stages {
-		inputs = append(inputs, stageInput{stage.name, stage.documents})
-	}
-	for _, input := range inputs {
-		hasRules := false
-		for _, document := range input.documents {
-			hasRules = hasRules || len(document.dom.Rules) > 0
-		}
-		if !hasRules {
-			return nil, &Error{Kind: ErrorGrammar, Stage: input.name, Message: "has no rules"}
-		}
-	}
-	for _, input := range inputs {
-		g, gerr := stitch(input.name, input.documents, uni)
+		g, gerr := stitch(stage.name, stage.documents, uni)
 		if gerr != nil {
-			gerr.Stage = input.name
+			gerr.Stage = stage.name
 			return nil, gerr
 		}
 		nr.stages = append(nr.stages, g)
