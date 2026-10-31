@@ -176,6 +176,11 @@ impl<'a> Reader<'a> {
                 "implication-declaration" => item.implications.push(self.implication_declaration(node)?),
                 other => return Err(self.error(node, format!("the notation gives a {other} where an item stands"))),
             }
+            // Normalize each declaration once before a partial view decodes it.
+            normalize::document(&mut item);
+            for rule in &mut item.rules {
+                self.check_rule(rule)?;
+            }
             dom.unresolved |= self.unresolved.get();
             dom.rules.extend(item.rules);
             dom.directives.extend(item.directives);
@@ -183,7 +188,6 @@ impl<'a> Reader<'a> {
             dom.classifiers.extend(item.classifiers);
             dom.implications.extend(item.implications);
         }
-        normalize::document(&mut dom);
         Ok(dom)
     }
 
@@ -497,7 +501,7 @@ impl<'a> Reader<'a> {
             Some(clause) => Some(self.emission(clause)?),
             None => None,
         };
-        let mut rule = RuleDef {
+        let rule = RuleDef {
             source,
             deferred_emission: None,
             name,
@@ -519,12 +523,20 @@ impl<'a> Reader<'a> {
         {
             return Err(self.error(definer, "an erased definition cannot have an emission or recipe"));
         }
+        Ok(rule)
+    }
+
+    fn check_rule(&self, rule: &mut RuleDef) -> R<()> {
+        if rule.source.instance.is_some() {
+            return Ok(());
+        }
+        let (line, column) = rule.at;
         let projected;
         let checked = if self.unresolved.get() {
-            projected = crate::dom::partial::rule(&rule).map_err(|problem| self.error(definer, problem))?;
+            projected = crate::dom::partial::rule(rule).map_err(|problem| Error::grammar(problem).at(line, column))?;
             &projected
         } else {
-            &rule
+            &*rule
         };
         if let Some((message, at)) = crate::boundary::definition_problem(checked) {
             let (line, column) = at.unwrap_or(rule.at);
@@ -533,10 +545,10 @@ impl<'a> Reader<'a> {
         // The definition is checked as a whole once it is read (§9).
         let result = crate::clauses::check_definition(checked, self.defer_emission);
         if let Some(issue) = result.problem {
-            return Err(self.error(definer, issue.message));
+            return Err(Error::grammar(issue.message).at(line, column));
         }
         rule.deferred_emission = result.deferred;
-        Ok(rule)
+        Ok(())
     }
 
     fn guard(&self, node: &'a Node, gates_only: bool) -> R<Guard> {

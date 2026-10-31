@@ -507,19 +507,20 @@ func (b *domBuilder) document(root *Node) *domDoc {
 		default:
 			b.fail(c, "the notation gives a %s where an item stands", c.Rule)
 		}
+		item := &domDoc{}
 		switch c.Rule {
 		case "rule":
-			d.Rules = append(d.Rules, b.rule(c))
+			item.Rules = append(item.Rules, b.rule(c))
 		case "constant-definition":
 			constant := b.constant(c)
 
-			d.Constants = append(d.Constants, constant)
+			item.Constants = append(item.Constants, constant)
 		case "classifier":
-			d.Classifiers = append(d.Classifiers, b.classifier(c))
+			item.Classifiers = append(item.Classifiers, b.classifier(c))
 		case "implication-declaration":
 			implication := b.implicationDeclaration(c)
 
-			d.Implications = append(d.Implications, implication)
+			item.Implications = append(item.Implications, implication)
 		case "directive":
 			keyword := b.token(c)
 			ps := parts(c)
@@ -589,10 +590,19 @@ func (b *domBuilder) document(root *Node) *domDoc {
 				dir.Conditions = b.featureConditions(keyword, clause)
 			}
 
-			d.Directives = append(d.Directives, dir)
+			item.Directives = append(item.Directives, dir)
 		}
+		// Normalize each declaration once before a partial view decodes it.
+		flattenGroups(item)
+		for _, rule := range item.Rules {
+			b.checkRule(rule)
+		}
+		d.Rules = append(d.Rules, item.Rules...)
+		d.Directives = append(d.Directives, item.Directives...)
+		d.Constants = append(d.Constants, item.Constants...)
+		d.Classifiers = append(d.Classifiers, item.Classifiers...)
+		d.Implications = append(d.Implications, item.Implications...)
 	}
-	flattenGroups(d)
 	return d
 }
 
@@ -804,12 +814,19 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		r.Emit = b.emission(p)
 	}
 	r.Erased = one(n, "erased-clause") != nil
+	return r
+}
+
+func (b *domBuilder) checkRule(r *domRule) {
+	if r.Instance != nil {
+		return
+	}
 	checked := r
 	if b.unresolved {
 		var err error
 		checked, err = partialSourceRule(r)
 		if err != nil {
-			b.fail(definer, "%s", err.Error())
+			panic(grammarError(b.doc, r.At, "%s", err.Error()))
 		}
 	}
 	if b.hasBoundary {
@@ -820,10 +837,9 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	// The definition as a whole (§9), reported at the rule.
 	result := checkDefinition(checked, b.deferEmission)
 	if result.problem != nil {
-		b.fail(definer, "%s", result.problem.message)
+		panic(grammarError(b.doc, r.At, "%s", result.problem.message))
 	}
 	r.deferredEmission = result.deferred
-	return r
 }
 
 // guard validates the complete token before the constructor reads later parts (§9.3).
