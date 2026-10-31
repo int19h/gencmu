@@ -328,7 +328,7 @@ pub(crate) fn assert_linear(work: Work, n: usize, run: &mut dyn FnMut(usize)) {
 
 #[cfg(test)]
 mod tests {
-    use super::{assert_linear, bound, budget, counted, reset, Work};
+    use super::{assert_linear, assert_mutant_stops, bound, budget, counted, reset, Mutant, Work};
     use crate::json::Json;
     use crate::{InputToken, ParseOptions, Verdict};
     use std::collections::BTreeMap;
@@ -415,13 +415,14 @@ mod tests {
     /// Written-terminator priority (engine §4): a nested query over a long
     /// text with many omissions and no written terminator takes work in
     /// proportion to the text, through a whole parse. Each search for a
-    /// blocking path counts the chart entries that it examines. A mutation
-    /// scans later chart sets for every omission and must exceed the budget.
+    /// blocking path counts the chart entries that it examines. The final
+    /// assertion turns on IndexPerSearch and requires the budget to stop
+    /// an index rebuilt for every search.
     #[test]
     fn nested_queries_with_many_omissions_take_linear_work() {
         let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions $.matches(r)\n\n                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]";
         let pipeline = crate::load_pipeline_sources(single(grammar), "p.md").unwrap();
-        let work = |n: usize, most: Option<(u64, u64)>| {
+        let mut parse = |n: usize| {
             let token = |tag: &str| InputToken {
                 image: None,
                 text: tag.to_lowercase(),
@@ -429,6 +430,10 @@ mod tests {
                 value: None,
             };
             let tokens: Vec<_> = (0..n).map(|_| token("A")).chain([token("B")]).collect();
+            let result = pipeline.parse_tokens(&tokens, &ParseOptions::default()).unwrap();
+            assert!(result.ok, "{n}");
+        };
+        let work = |n: usize, most: Option<(u64, u64)>| {
             reset();
             // The index is one pass over the chart, the searches read each
             // completed item of it at most once, and two sweeps settle the
@@ -440,8 +445,7 @@ mod tests {
                 budget(Work::Items, items);
                 budget(Work::Searched, searched);
             }
-            let result = pipeline.parse_tokens(&tokens, &ParseOptions::default()).unwrap();
-            assert!(result.ok, "{n}");
+            parse(n);
             (counted(Work::Items), counted(Work::Searched))
         };
         let short = work(2000, None);
@@ -450,6 +454,7 @@ mod tests {
         let long = work(8000, Some((5 * short.0, 5 * short.1)));
         // Linear work gives about four times as much; quadratic, sixteen.
         assert!(long.0 <= 5 * short.0 && long.1 <= 5 * short.1, "2000 tokens: {short:?}; 8000: {long:?}");
+        assert_mutant_stops(Work::Searched, Mutant::IndexPerSearch, 20, &mut parse);
     }
 
     /// The check of `elision-only` restores each elidable optional at a
