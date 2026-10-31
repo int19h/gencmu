@@ -216,8 +216,6 @@ Rules have no members beyond the forms shown here, including the template and in
 
 `alternatives` is nonempty on body definitions. A rule name is lowercase or one valid emoji scalar (engine §9.1).
 
-Rules and alternatives have no other members.
-
 A template body definition adds `"params":["Left","Right"]` immediately after `name`. The names exclude `@` and obey engine §2.3. A template has at least one distinct parameter. Its other fields follow the ordinary rule schema.
 
 An exact instance edit uses `"name":"pair","args":[ARG,ARG...]` instead of `params`. Its `op` is `redefine` or `extend`. A public-name edit uses the ordinary rule shape and resolves to that instance during stitching. Parameters and concrete arguments cannot mix in a head.
@@ -276,8 +274,6 @@ A requirement-list argument splices only into an unnegated requirement placehold
 These forms remain unresolved in document caches. Supplied, cached, and source DOMs undergo the same binder, argument, expansion, and ordinary validation. Calls add one depth level before their arguments. Category wrappers add no depth, and parameters are leaves. Expanded definitions also obey the depth limit.
 
 An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM,"value":RECIPE,"image":RECIPE}`. Its three clause members are optional. `guards` is present even when empty. A guard is `{"feature":"cbm","kind":"gate","negated":false}` or `{"feature":"y-cmavo","kind":"warning","negated":false}`. A gate can have `negated:true`. A warning cannot.
-
-Pattern tag requirements must resolve to tag sets, as ordinary symbol requirements do.
 
 Alternatives have no members beyond `guards`, `expr`, `tags`, `value`, and `image`.
 
@@ -488,6 +484,8 @@ A library ignores unknown members of a directive. Its known members, `name`, `ar
 DOMs store unresolved references and source positions, never stage-resolved constant or classifier values. Source, cached, and supplied DOMs obey the same arity, type, capture, clause, and depth rules.
 
 ### Pattern values
+
+Pattern tag requirements must resolve to tag sets, as ordinary symbol requirements do.
 
 PATTERN tests one structural tree. An item consumes part of an ordered list of siblings. A pattern term has exactly one member, `pattern`, whose value is a PATTERN. Pattern terms also support `const`, `union`, `intersection`, `difference`, and contextual `emptySet`. Mixed pattern and tag-set operations are malformed.
 

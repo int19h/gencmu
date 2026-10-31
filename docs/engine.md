@@ -2799,6 +2799,8 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A term or condition with incompatible types is an error (§10). Examples include `"a" ∈ $x.tags`, `$x.value = A`, and the untyped `∅ = ∅`. The reader reports the smallest construct whose parts disagree. This construct is a union with differences, intersection, concatenation, guarded term, method, or comparison. A concatenation error stands at its first operand. Otherwise, the error stands at the whole tag term or constant value.
 
   The reader does not know the type of a constant, so it lets a constant stand for a value of any type but a span. After the loader stitches the stage, it makes sure again that the types agree (§2). It reports an error there at the first constant of the smallest construct whose parts disagree. Across the whole rule, the fault whose first constant comes first in the text wins. This order includes all clauses, alternatives, body operands, and symbol tests. Retained call arguments follow the same order, including arguments that substitution does not use.
+
+  A signed tag requirement and a recipe atom are separate source constructs. Their type faults name the failing operand, without private container names. Ordinary term concatenation remains one construct.
 - After method selection, a capture or span converts to its input value when a string is required or in `=` or `≠` (§10). It cannot convert to tags, sets, or patterns.
 - A bare name that does not begin with a capital is an error where a value is needed. Such a name is a rule or a classifier. A rule name is legal in `.tags`, `.matches`, `.begins`, `.ends`, `.without-elision-except`, `.followed-by`, and `.preceded-by` arguments. A classifier name is legal only in `.classify`.
 - `.matches`, `.begins`, `.ends`, `.starts-input`, `.ends-input`, `.followed-by` or `.preceded-by` as a value term is an error. This includes method arguments. Report the error at the inner query method.
@@ -2857,13 +2859,15 @@ Feature conditions receive syntax and DOM-shape analysis before stitching. Their
 
 A template first undergoes binder and syntax analysis (§2.3). Every source, cached, or supplied template receives all checks that do not depend on an argument. Uncalled templates receive the same checks. Unresolved symbols introduce no caller-visible captures. Unresolved terms have an unknown type during these checks. Argument-dependent requirements apply after substitution to every expanded definition.
 
+Definition errors retain their specific reason, including capture names, in every validation path. A call argument that reads or declares a capture reports "an argument cannot read or declare captures".
+
 Once the reader reads an ordinary definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the reader can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.
 
 A definition that contains a ranked choice defers two problem kinds until ranked validation completes: recipe-capture absence and empty emission. Recipe-capture absence means a production lacks a recipe's capture. A selected rule, alternative, or item recipe can report this problem. Empty emission means a production retains no items. These checks use explicit problem kinds, never message text.
 
 All other definition checks remain immediate, including capture guards, condition applicability, stray attachments, capture order, and insertion anchors. A deferred problem never hides a later immediate problem. After ranked validation, recipe-capture absence precedes empty emission. Within each kind, the definition checks' established order decides the first deferred problem. Source, cached, supplied, and expanded definitions use the same policy. A ranked definition with only these deferred problems remains valid for cache admission.
 
-Templates retain argument-independent deferred problems even when no call instantiates them. After ranked validation, expanded definitions' deferred problems come first. Remaining template problems follow in document and written order.
+Templates retain argument-independent deferred problems even when no call instantiates them. After ranked validation, expanded definitions' deferred problems come first. Remaining template problems follow in document and written order. Rewriting an ordinary rule during expansion preserves its deferred problems.
 
 Before extending a partial presence assignment, discard it when no structural production can realize its required and absent captures. A choice among mutually exclusive captures does not require all Boolean combinations of those captures.
 
