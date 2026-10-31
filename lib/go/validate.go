@@ -485,7 +485,11 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 	case exCapture:
 		// A capture wraps one symbol, and stands anywhere but in braces or
 		// an elidable optional; $, the whole constituent, wraps nothing.
-		if sealed || c.inArgument {
+		if c.inArgument {
+			c.fail("an argument cannot read or declare captures")
+			return
+		}
+		if sealed {
 			c.fail("a capture inside braces or an elidable optional")
 			return
 		}
@@ -945,7 +949,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 	case tmCall:
 		// The reader's signatures (engine §9), with a span where one is due;
 		// Span methods stand only where a span is allowed, and
-		// matches, begins and initial never as terms.
+		// matches, begins and starts-input never as terms.
 		args := t.Items
 		isRule := func(a *domTerm) bool { return a != nil && (unresolvedTerm(a) || a.Kind == tmRule && c.ruleName(a.Str)) }
 		isClassifier := func(a *domTerm) bool {

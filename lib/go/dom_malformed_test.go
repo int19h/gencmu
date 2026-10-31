@@ -78,3 +78,15 @@ func TestRankedSyntaxCodeShape(t *testing.T) {
 		}
 	}
 }
+
+func TestArgumentCaptureMessage(t *testing.T) {
+	t.Parallel()
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	raw := `{"format":40,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"call":"pair","args":[{"body":{"capture":"x","expr":{"ref":"A"}}}],"at":[2,12]}}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
+	_, err := decodeDOM(json.RawMessage(raw), bundled.uni)
+	if err == nil || !strings.Contains(err.Error(), "an argument cannot read or declare captures") {
+		t.Fatalf("capture in a call argument: %v", err)
+	}
+}
