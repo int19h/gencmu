@@ -13800,7 +13800,7 @@
     const aligned = target?.aligned;
     const sharing = sharingOf(context);
     if (aligned) sharing.asked++;
-    if (aligned && !aligned.observation.valid) return kind === "tags" ? tagSet() : false;
+    // One recognition answers matches and tags, so both memos share a kind (§4.3).
     const memoKind = kind === "tags" ? "matches" : kind;
     const ancestry = aligned ? [...context.inProgress].sort(compareCodePoints) : null;
     const key = kind === "ends" ? JSON.stringify(["suffix",rule,start,end]) : aligned ? JSON.stringify(["aligned",memoKind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation),ancestry])
@@ -13824,9 +13824,9 @@
     const limit = memoLimit();
     // Shared answers cannot hide recursive aligned or suffix requests (§4.3).
     if (!aligned && limit > 0 && sharing.alignedActive === 0 && sharing.suffixActive === 0 && key.startsWith('["of"')) {
-      const found = sharedMemoOf(context.lowered).get(sharedKey(key), limit);
+      const found = sharedMemoOf(context.lowered).get(key, limit);
       if (found !== undefined) {
-        if (hooks.memoHit) hooks.memoHit(sharedKey(key), sharing.alignedActive);
+        if (hooks.memoHit) hooks.memoHit(key, sharing.alignedActive);
         // The answer enters the memo of the parse, as the answer of its
         // nested parse does.
         const entry = typeof found === "boolean" ? found : {accepted:found.accepted,tags:tagSet(found.tags)};
@@ -14026,17 +14026,6 @@
   }
 
   /**
-   * The key of the shared memo for a key of content: matches and tags share
-   * a kind, since one recognition answers both (engine §4.3).
-   * @param {string} key
-   * @returns {string}
-   */
-  function sharedKey(key) {
-    const tags = '["of","tags",';
-    return key.startsWith(tags) ? '["of","matches",' + key.slice(tags.length) : key;
-  }
-
-  /**
    * Keeps the answer of a nested parse that has finished in the shared memo,
    * unless it depends on an aligned query.
    * @param {Pending} query
@@ -14051,8 +14040,8 @@
     }
     const limit = memoLimit();
     if (query.aligned || sharing.suffixActive > 0 || limit === 0 || !key.startsWith('["of"')) return;
-    if (hooks.memoInsert) hooks.memoInsert(sharedKey(key));
-    sharedMemoOf(context.lowered).set(sharedKey(key), answer, limit);
+    if (hooks.memoInsert) hooks.memoInsert(key);
+    sharedMemoOf(context.lowered).set(key, answer, limit);
   }
 
   /**
@@ -17846,7 +17835,7 @@
           witness: difference ? [difference.left, difference.right] : null };
       }
       if (watch) watch.ranked({ ranking: better || ranker.admission ? ranking : selectedRanking, counted: rawRanking?.witnessCounted === true });
-      if (!better && profileOrder === 0 && ranking.verdict !== "tie") return { kind: "pass" };
+      if (!better && ranking.verdict !== "tie") return { kind: "pass" };
       // The readings, mapped to the stage's input (engine §7.10).
       const original = new Sources(tokens);
       /** @type {Map<string, TagSet>} */
@@ -20164,16 +20153,16 @@
       this.read = read;
       this.unicode = unicode;
       this.extras = [...new Set(extras)].sort(compareCodePoints);
-      /** @type {UnicodeNames[] | null} */
-      this.tables = null;
-      /** @type {Map<string, number>} */
-      this.names = new Map();
+      /** @type {UnicodeNames | null} */
+      this.base = null;
+      /** @type {Map<string, number> | null} */
+      this.names = null;
       /** @type {Record<string,string> | undefined} */
       this.dependencies = undefined;
     }
 
     load() {
-      if (this.tables !== null) return;
+      if (this.names !== null) return;
       const version = this.unicode.version;
       if (this.unicode.versionCount !== 1 || version === null) namesFailure("data/unicode/unicode.txt", "names require exactly one Unicode version");
       const text = this.read("data/unicode/unicode-names.txt");
@@ -20184,7 +20173,6 @@
       if (version !== "15.1.0") namesFailure("data/unicode/unicode-names-reference.txt", "the reference version differs from the selected names version");
       const pinned = hash === PINNED_NAMES_HASH ? base : new UnicodeNames(reference, "data/unicode/unicode-names-reference.txt", "15.1.0");
       base.inspect(pinned, this.unicode.abbreviations, false);
-      const tables = [base];
       const names = new Map(base.names);
       const formal = new Map([...base.formal].map(([code, record]) => [code, record.name]));
       /** @type {Record<string,string>} */
@@ -20201,10 +20189,9 @@
           formal.set(record.code, record.name);
         }
         dependencies[path] = fnv1a64(text);
-        tables.push(table);
       }
       this.dependencies = Object.fromEntries(Object.entries(dependencies).sort(([a], [b]) => compareCodePoints(a, b)));
-      this.tables = tables;
+      this.base = base;
       this.names = names;
     }
 
@@ -20213,7 +20200,7 @@
       const core = this.unicode.abbreviations.get(name);
       if (core !== undefined || coreOnly) return core;
       this.load();
-      return this.names.get(name) ?? /** @type {UnicodeNames[]} */ (this.tables)[0].lookup(name);
+      return this.names?.get(name) ?? this.base?.lookup(name);
     }
   }
 
