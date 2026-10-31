@@ -29,7 +29,12 @@
 <path d="M60 110a10 10 0 0 0 10 -10V98a10 10 0 0 1 10 -10H231a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
 <path d="M251 110h10"/>
 <g class="rule"><rect x="261" y="98" width="84" height="24" rx="0"/><text x="303" y="115" textLength="67.2" lengthAdjust="spacingAndGlyphs">prefixes</text></g>
-<path d="M345 110H625a10 10 0 0 1 10 10V122a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V164a10 10 0 0 0 10 10"/>
+<path d="M345 110h10"/>
+<path d="M355 110h20"/>
+<g class="rule"><rect x="375" y="98" width="151" height="24" rx="0"/><text x="450.5" y="115" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<path d="M526 110H546"/>
+<path d="M355 110a10 10 0 0 0 10 -10V98a10 10 0 0 1 10 -10H526a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
+<path d="M546 110H625a10 10 0 0 1 10 10V122a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V164a10 10 0 0 0 10 10"/>
 <path d="M60 174h20"/>
 <path d="M80 174h20"/>
 <g class="rule"><rect x="100" y="162" width="176" height="24" rx="0"/><text x="188" y="179" textLength="159.6" lengthAdjust="spacingAndGlyphs">vowel-particle-word</text></g>

@@ -29,7 +29,7 @@ The text is a sequence of letters, spaces, hyphens, digits and brackets. The sta
 
 ## Letters and their classes
 
-The forms stage reads letters by their sound classes. The tags below name the classes that the morphology chapter uses for its pair and triplet rules. A tag marks a token by an identifier.
+The tags below name the sound classes of the morphology chapter and the PEG. The forms stage reads `Vowel`, `H`, `Consonant` and `Sonorant`, and it copies the chapter's lists of pairs. A tag marks a token by an identifier.
 
 - `Vowel`: `i`, `e`, `a`, `o` and `u`.
 - `H`: the letter `h`, which stands only between vowels.
@@ -38,9 +38,11 @@ The forms stage reads letters by their sound classes. The tags below name the cl
 - `Nasal`: `m` and `n`. `Liquid`: `r` and `l`.
 - `Plosive`: `p`, `b`, `t`, `d`, `k` and `g`. `Sibilant`: `s`, `z`, `c` and `j`.
 - `Voiced`: `b`, `d`, `g`, `v`, `z` and `j`. `Unvoiced`: `p`, `t`, `k`, `f`, `s` and `c`. The nasals and liquids have no voicing.
-- `Other`: `p`, `b`, `t`, `d`, `v`, `f`, `k`, `g` and `m`, the non-sibilant consonants that can precede a sonorant in a medial pair.
+- `Other`: `p`, `b`, `t`, `d`, `v`, `f`, `k`, `g` and `m`, the consonants that are neither sibilants nor sonorants.
 
 Every letter token also carries `Letter`. The template `letter-of` reads one letter in either case, repeated any number of times, and emits one token whose value is the lowercase letter. Its condition makes the run maximal, so two tokens never hold the same letter side by side.
+
+The book says that any character other than its 25 symbols and the digits is a space. A precomposed letter such as `é` is such a character. The engine decomposes the text first, so `é` arrives as `e` and a combining accent. The template `plain` reads a character only where the text wrote that very character. So the `e` of `é` is no letter, and the whole `é` is a space.
 
 ```jbogenbau
 %rule letter
@@ -48,11 +50,16 @@ Every letter token also carries `Letter`. The template `letter-of` reads one let
   | n | r | l | m | p | b | f | v | t | d | s | z | c | j | k | g
 
 %rule letter-of(@Chars, @Value, @Tags)
-  {@Chars} :: Letter ∪ @Tags := @Value
+  {plain(@Chars)} :: Letter ∪ @Tags := @Value
 %conditions
-  ¬$.following-tokens.begins(@Chars)
+  ¬$.following-tokens.begins(plain(@Chars))
 %emits
   $
+
+%rule plain(@Chars)
+  $c:@Chars
+%conditions
+  $c.source-text = $c.value
 
 %const $NASAL-SONORANT Consonant ∪ Sonorant ∪ Nasal
 %const $LIQUID Consonant ∪ Sonorant ∪ Liquid
@@ -175,9 +182,10 @@ Every letter token also carries `Letter`. The template `letter-of` reads one let
 %rule g = letter-of(g-chars, "g", $VOICED-PLOSIVE)
 ```
 
-<details><summary>Railroad diagrams of the 46 rules from <code>letter</code> to <code>g</code></summary>
+<details><summary>Railroad diagrams of the 47 rules from <code>letter</code> to <code>g</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/letter.svg" alt="Railroad diagram of the rule letter"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/letter-of.svg" alt="Railroad diagram of the rule letter-of"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/letters/plain.svg" alt="Railroad diagram of the rule plain"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/i-chars.svg" alt="Railroad diagram of the rule i-chars"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/i.svg" alt="Railroad diagram of the rule i"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/e-chars.svg" alt="Railroad diagram of the rule e-chars"></p>
@@ -228,7 +236,7 @@ The Latin letters `q`, `w`, `x` and `y` are not Eberban letters. Like every othe
 
 ```jbogenbau
 %rule foreign-run
-  [{space-char}] foreign-char [{space-char}]
+  [{space-char}] plain(foreign-char) [{space-char}]
 
 %rule foreign-char
   "q" | "Q" | "w" | "W" | "x" | "X" | "y" | "Y"
@@ -243,7 +251,7 @@ The Latin letters `q`, `w`, `x` and `y` are not Eberban letters. Like every othe
 
 The book says that any character other than a letter, a hyphen, a digit or a quotation bracket is a space. The numbers chapter makes each digit a `TI` particle. A run of space characters is one `Space` token with the value of one space. The run keeps its source text, which a foreign quote shows verbatim.
 
-The numbers chapter says that `+`, `*` and `/` are spaces, and that verbs express mathematical operations. The PEG warns when one of them follows a number. The tag `Math-Symbol` marks a space run that holds one of them, so the forms stage can warn in the same place.
+The numbers chapter says that `+`, `*` and `/` are spaces, and that verbs express mathematical operations. The PEG warns when one of them follows a digit, directly or after plain spaces. The tag `Math-Symbol` marks a space run that starts that way, so the forms stage can warn in the same place. A tab or any other character before the symbol hides it, as in the PEG.
 
 ```jbogenbau
 %rule space
@@ -259,7 +267,7 @@ The numbers chapter says that `+`, `*` and `/` are spaces, and that verbs expres
   ¬$c.matches(word-char)
 
 %rule word-char
-  letter-char | digit-char | hyphen-char | "[" | "]"
+  plain(letter-char) | digit-char | hyphen-char | "[" | "]"
 
 %rule letter-char
   "a".."p" | "r".."v" | "z" | "A".."P" | "R".."V" | "Z"
@@ -268,7 +276,7 @@ The numbers chapter says that `+`, `*` and `/` are spaces, and that verbs expres
   "0".."9"
 
 %rule math-run
-  [{space-char}] ("+" | "*" | "/") [{space-char}]
+  [{" "}] ("+" | "*" | "/") [{space-char}]
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>space</code> to <code>math-run</code></summary>
@@ -280,24 +288,34 @@ The numbers chapter says that `+`, `*` and `/` are spaces, and that verbs expres
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/math-run.svg" alt="Railroad diagram of the rule math-run"></p>
 </details>
 
-A hyphen can stand at a syllable boundary to make the syllable stand out, and it lets a word continue on the next line. The book names the hyphen-minus `-`. The PEG also reads U+2010, the hyphen of Unicode, and this stage does the same. An em dash is a space. A hyphen token has an empty value, so it never changes the value of a word. Its image is `-`. The line breaks after a hyphen belong to its token.
+A hyphen can stand at a syllable boundary to make the syllable stand out, and it lets a word continue on the next line. The book names the hyphen-minus `-`. The PEG also reads U+2010, the hyphen of Unicode, and this stage does the same. An em dash is a space. A hyphen token has an empty value, so it never changes the value of a word. Its image is `-`.
+
+The line breaks after a hyphen belong to its token. The [new course](https://eberban.github.io/eberban/books/new_course/book/02_01_morphology.html) allows spaces on the new line before the rest of the word. So the spaces and tabs after those line breaks belong to the token too. Then `bja-` and an indented `n` on the next line form `bjan`.
 
 ```jbogenbau
 %rule hyphen
-  hyphen-char [{"‹U+000A›" | "‹U+000D›"}]
+  hyphen-char [{line-break} [{indent-char}]]
 %emits
   $ :: Hyphen := "" :- "-"
 
 %rule hyphen-char
   "-" | "‹U+2010›"
+
+%rule line-break
+  "‹U+000A›" | "‹U+000D›"
+
+%rule indent-char
+  " " | "‹U+0009›"
 ```
 
-<details><summary>Railroad diagrams of <code>hyphen</code> and <code>hyphen-char</code></summary>
+<details><summary>Railroad diagrams of <code>hyphen</code>, <code>hyphen-char</code>, <code>line-break</code> and <code>indent-char</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/hyphen.svg" alt="Railroad diagram of the rule hyphen"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/hyphen-char.svg" alt="Railroad diagram of the rule hyphen-char"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/letters/line-break.svg" alt="Railroad diagram of the rule line-break"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/letters/indent-char.svg" alt="Railroad diagram of the rule indent-char"></p>
 </details>
 
-The [numbers chapter](https://eberban.github.io/eberban/grammar/numbers.html) accepts the digit characters `0` to `9` as `TI` particles, so `42` is `tu ta`. The stage emits each digit as a `Digit` token whose value is the digit. The brackets `[` and `]` delimit foreign quotes. Outside a quote they are spaces, which the forms stage decides.
+The [numbers chapter](https://eberban.github.io/eberban/grammar/numbers.html) accepts the digit characters `0` to `9` as `TI` particles, so `42` is `tu ta`. The stage emits each digit as a `Digit` token whose value is the digit. The brackets `[` and `]` delimit foreign quotes. Outside a quote they are spaces, which the later stages decide.
 
 ```jbogenbau
 %rule digit
@@ -326,4 +344,6 @@ The [numbers chapter](https://eberban.github.io/eberban/grammar/numbers.html) ac
 
 The book names only the hyphen-minus `-`. The PEG also reads U+2010 as a hyphen, and this stage follows it, because U+2010 is the hyphen of Unicode.
 
-The PEG treats every non-ASCII letter as a space. This stage does the same, because the book says that any other character is a space.
+The PEG reads only the ASCII letters as letters, and so does this stage. The engine decomposes the text first, so the template `plain` checks the source of each letter. A precomposed `é` is then a space, as in the PEG and the book. Where the text writes `e` and then a separate combining accent, `e` is a letter and the accent is a space, as in the PEG.
+
+The new course says that spaces can stand on the new line before the rest of a word. The PEG keeps only the line breaks after a hyphen. It reads `bja-` and an indented `n` on the next line as `bja` and a hesitation. This stage follows the new course and reads `bjan`.

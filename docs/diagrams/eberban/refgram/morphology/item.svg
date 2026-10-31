@@ -1,40 +1,55 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="239" height="408" viewBox="0 0 239 408" role="img" aria-label="Railroad diagram of the rule item">
-<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<svg xmlns="http://www.w3.org/2000/svg" width="755" height="428" viewBox="0 0 755 428" role="img" aria-label="Railroad diagram of the rule item">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}.rank-frame{fill:none;stroke:#777;stroke-width:1;stroke-dasharray:3 3}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="33.6" lengthAdjust="spacingAndGlyphs">item</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
 <g class="rule"><rect x="40" y="34" width="58" height="24" rx="0"/><text x="69" y="51" textLength="42" lengthAdjust="spacingAndGlyphs">space</text></g>
-<path d="M98 46H219"/>
+<path d="M98 46H384"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="68" width="117" height="24" rx="0"/><text x="98.5" y="85" textLength="100.8" lengthAdjust="spacingAndGlyphs">open-bracket</text></g>
-<path d="M157 80H199a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M157 80H364a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="102" width="126" height="24" rx="0"/><text x="103" y="119" textLength="109.2" lengthAdjust="spacingAndGlyphs">close-bracket</text></g>
-<path d="M166 114H199a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M166 114H364a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="136" width="100" height="24" rx="0"/><text x="90" y="153" textLength="84" lengthAdjust="spacingAndGlyphs">digit-word</text></g>
-<path d="M140 148H199a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M140 148H364a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="170" width="100" height="24" rx="0"/><text x="90" y="187" textLength="84" lengthAdjust="spacingAndGlyphs">hesitation</text></g>
-<path d="M140 182H199a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="170" width="92" height="24" rx="0"/><text x="86" y="187" textLength="75.6" lengthAdjust="spacingAndGlyphs">borrowing</text></g>
+<path d="M132 182H364a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="204" width="100" height="24" rx="0"/><text x="90" y="221" textLength="84" lengthAdjust="spacingAndGlyphs">eraser-run</text></g>
-<path d="M140 216H199a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V240a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="238" width="92" height="24" rx="0"/><text x="86" y="255" textLength="75.6" lengthAdjust="spacingAndGlyphs">borrowing</text></g>
-<path d="M132 250H199a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V274a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="272" width="159" height="24" rx="0"/><text x="119.5" y="289" textLength="142.8" lengthAdjust="spacingAndGlyphs">freeform-variable</text></g>
-<path d="M199 284H199a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V308a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="306" width="84" height="24" rx="0"/><text x="82" y="323" textLength="67.2" lengthAdjust="spacingAndGlyphs">word-run</text></g>
-<path d="M124 318H199a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V342a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="340" width="134" height="24" rx="0"/><text x="107" y="357" textLength="117.6" lengthAdjust="spacingAndGlyphs">spelling-quote</text></g>
-<path d="M174 352H199a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V376a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="374" width="84" height="24" rx="0"/><text x="82" y="391" textLength="67.2" lengthAdjust="spacingAndGlyphs">junk-run</text></g>
-<path d="M124 386H199a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M219 46h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="40" y="204" width="159" height="24" rx="0"/><text x="119.5" y="221" textLength="142.8" lengthAdjust="spacingAndGlyphs">freeform-variable</text></g>
+<path d="M199 216H364a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V254a10 10 0 0 0 10 10"/>
+<path d="M40 264h88"/>
+<text class="label" x="44" y="259" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
+<path d="M128 264h10"/>
+<g class="ranked-choice"><rect class="rank-frame" x="143" y="243" width="216" height="144" rx="4"/>
+<path d="M138 264h10"/>
+<path d="M148 264h20"/>
+<path d="M168 264h16"/>
+<text class="label" x="172" y="259" textLength="7.2" lengthAdjust="spacingAndGlyphs">1</text>
+<path d="M184 264h10"/>
+<path d="M194 264h20"/>
+<g class="rule"><rect x="214" y="252" width="100" height="24" rx="0"/><text x="264" y="269" textLength="84" lengthAdjust="spacingAndGlyphs">hesitation</text></g>
+<path d="M314 264H334"/>
+<path d="M194 264a10 10 0 0 1 10 10V288a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="214" y="286" width="100" height="24" rx="0"/><text x="264" y="303" textLength="84" lengthAdjust="spacingAndGlyphs">eraser-run</text></g>
+<path d="M314 298H314a10 10 0 0 0 10 -10V274a10 10 0 0 1 10 -10"/>
+<path d="M194 264a10 10 0 0 1 10 10V322a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="214" y="320" width="84" height="24" rx="0"/><text x="256" y="337" textLength="67.2" lengthAdjust="spacingAndGlyphs">word-run</text></g>
+<path d="M298 332H314a10 10 0 0 0 10 -10V274a10 10 0 0 1 10 -10"/>
+<path d="M334 264H354"/>
+<path d="M148 264a10 10 0 0 1 10 10V360a10 10 0 0 0 10 10"/>
+<path d="M168 370h16"/>
+<text class="label" x="172" y="365" textLength="7.2" lengthAdjust="spacingAndGlyphs">2</text>
+<path d="M184 370h10"/>
+<g class="rule"><rect x="194" y="358" width="84" height="24" rx="0"/><text x="236" y="375" textLength="67.2" lengthAdjust="spacingAndGlyphs">junk-run</text></g>
+<path d="M278 370H334a10 10 0 0 0 10 -10V274a10 10 0 0 1 10 -10"/>
+<path d="M354 264h10"/>
+</g>
+<path d="M364 264H364a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M384 46h6m0 -8v16m4 -16v16"/>
+<text class="label" x="10" y="414" textLength="734.4" lengthAdjust="spacingAndGlyphs">A qualified higher proof removes a lower proof only over the same span and with dominating open facts.</text>
 </svg>

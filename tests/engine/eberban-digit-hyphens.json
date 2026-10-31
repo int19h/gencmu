@@ -1,0 +1,41 @@
+{
+  "description": "In the eberban/refgram pipeline, both hyphens beside a digit belong to it, each with the warning minus-sign.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "mi -1- bjan",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "forms",
+        "feature": "minus-sign",
+        "rule": "minus-hyphen",
+        "span": [
+          3,
+          4
+        ],
+        "source": [
+          3,
+          4
+        ]
+      },
+      {
+        "stage": "forms",
+        "feature": "minus-sign",
+        "rule": "minus-hyphen",
+        "span": [
+          5,
+          6
+        ],
+        "source": [
+          5,
+          6
+        ]
+      }
+    ]
+  }
+}

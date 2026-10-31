@@ -1,0 +1,28 @@
+{
+  "description": "In the eberban/refgram pipeline, q outside a foreign quote is a space and carries the warning non-eberban-letter, as in the PEG at 0.67.3.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "a miqbjan",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "words",
+        "feature": "non-eberban-letter",
+        "rule": "space-unit",
+        "span": [
+          3,
+          4
+        ],
+        "source": [
+          4,
+          5
+        ]
+      }
+    ]
+  }
+}

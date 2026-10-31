@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="817" height="176" viewBox="0 0 817 176" role="img" aria-label="Railroad diagram of the rule foreign-quote">
+<svg xmlns="http://www.w3.org/2000/svg" width="620" height="122" viewBox="0 0 620 122" role="img" aria-label="Railroad diagram of the rule foreign-quote">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="109.2" lengthAdjust="spacingAndGlyphs">foreign-quote</text>
@@ -8,50 +8,25 @@
 <g class="terminal"><rect x="40" y="44" width="33" height="24" rx="12"/><text x="56.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">CO</text></g>
 <path d="M73 56h10"/>
 <path d="M83 56h20"/>
-<g class="rule"><rect x="103" y="44" width="42" height="24" rx="0"/><text x="124" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">gap</text></g>
-<path d="M145 56H165"/>
-<path d="M83 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H145a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M165 56h10"/>
-<g class="terminal"><rect x="175" y="44" width="50" height="24" rx="12"/><text x="200" y="61" textLength="33.6" lengthAdjust="spacingAndGlyphs">Open</text></g>
-<path d="M225 56h10"/>
-<path d="M235 56h20"/>
-<path d="M255 56h20"/>
-<g class="terminal"><rect x="275" y="44" width="92" height="24" rx="12"/><text x="321" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">_&lt;¬Close&gt;</text></g>
-<path d="M367 56H387"/>
-<path d="M367 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H275a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M387 56H407"/>
-<path d="M235 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H387a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M407 56h10"/>
-<g class="terminal"><rect x="417" y="44" width="58" height="24" rx="12"/><text x="446" y="61" textLength="42" lengthAdjust="spacingAndGlyphs">Close</text></g>
-<path d="M475 56H797"/>
-<path d="M20 56a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="98" width="33" height="24" rx="12"/><text x="56.5" y="115" textLength="16.8" lengthAdjust="spacingAndGlyphs">CO</text></g>
-<path d="M73 110h10"/>
-<path d="M83 110h20"/>
-<g class="rule"><rect x="103" y="98" width="100" height="24" rx="0"/><text x="153" y="115" textLength="84" lengthAdjust="spacingAndGlyphs">space-unit</text></g>
-<path d="M203 110H223"/>
-<path d="M83 110a10 10 0 0 0 10 -10V98a10 10 0 0 1 10 -10H203a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
-<path d="M223 110h10"/>
-<g class="rule"><rect x="233" y="98" width="92" height="24" rx="0"/><text x="279" y="115" textLength="75.6" lengthAdjust="spacingAndGlyphs">delimiter</text></g>
-<path d="M325 110h10"/>
-<g class="terminal"><rect x="335" y="98" width="50" height="24" rx="12"/><text x="360" y="115" textLength="33.6" lengthAdjust="spacingAndGlyphs">Open</text></g>
-<path d="M385 110h10"/>
-<path d="M395 110h20"/>
-<path d="M415 110h20"/>
-<path d="M435 110h20"/>
-<g class="terminal"><rect x="455" y="98" width="92" height="24" rx="12"/><text x="501" y="115" textLength="75.6" lengthAdjust="spacingAndGlyphs">_&lt;¬Close&gt;</text></g>
-<path d="M547 110H567"/>
-<path d="M435 110a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="455" y="132" width="58" height="24" rx="12"/><text x="484" y="149" textLength="42" lengthAdjust="spacingAndGlyphs">Close</text></g>
-<path d="M513 144H547a10 10 0 0 0 10 -10V120a10 10 0 0 1 10 -10"/>
-<path d="M567 110H587"/>
-<path d="M567 110a10 10 0 0 1 10 10V156a10 10 0 0 1 -10 10H435a10 10 0 0 1 -10 -10V120a10 10 0 0 1 10 -10"/>
-<path d="M587 110H607"/>
-<path d="M395 110a10 10 0 0 0 10 -10V98a10 10 0 0 1 10 -10H587a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
-<path d="M607 110h10"/>
-<g class="terminal"><rect x="617" y="98" width="58" height="24" rx="12"/><text x="646" y="115" textLength="42" lengthAdjust="spacingAndGlyphs">Close</text></g>
-<path d="M675 110h10"/>
-<g class="rule"><rect x="685" y="98" width="92" height="24" rx="0"/><text x="731" y="115" textLength="75.6" lengthAdjust="spacingAndGlyphs">delimiter</text></g>
-<path d="M777 110H777a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M797 56h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="103" y="44" width="109" height="24" rx="0"/><text x="157.5" y="61" textLength="92.4" lengthAdjust="spacingAndGlyphs">opening-gap</text></g>
+<path d="M212 56H232"/>
+<path d="M83 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H212a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M232 56h10"/>
+<g class="rule"><rect x="242" y="44" width="109" height="24" rx="0"/><text x="296.5" y="61" textLength="92.4" lengthAdjust="spacingAndGlyphs">simple-text</text></g>
+<path d="M351 56H600"/>
+<path d="M20 56a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="88" width="33" height="24" rx="12"/><text x="56.5" y="105" textLength="16.8" lengthAdjust="spacingAndGlyphs">CO</text></g>
+<path d="M73 100h10"/>
+<path d="M83 100h20"/>
+<g class="rule"><rect x="103" y="88" width="109" height="24" rx="0"/><text x="157.5" y="105" textLength="92.4" lengthAdjust="spacingAndGlyphs">opening-gap</text></g>
+<path d="M212 100H232"/>
+<path d="M83 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H212a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M232 100h10"/>
+<g class="rule"><rect x="242" y="88" width="92" height="24" rx="0"/><text x="288" y="105" textLength="75.6" lengthAdjust="spacingAndGlyphs">delimiter</text></g>
+<path d="M334 100h10"/>
+<g class="rule"><rect x="344" y="88" width="134" height="24" rx="0"/><text x="411" y="105" textLength="117.6" lengthAdjust="spacingAndGlyphs">delimited-text</text></g>
+<path d="M478 100h10"/>
+<g class="rule"><rect x="488" y="88" width="92" height="24" rx="0"/><text x="534" y="105" textLength="75.6" lengthAdjust="spacingAndGlyphs">delimiter</text></g>
+<path d="M580 100H580a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M600 56h6m0 -8v16m4 -16v16"/>
 </svg>

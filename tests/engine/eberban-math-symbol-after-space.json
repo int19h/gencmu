@@ -1,0 +1,28 @@
+{
+  "description": "In the eberban/refgram pipeline, a math symbol after plain spaces carries the warning math-symbol, as in the PEG.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "mi 1 + 2",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "forms",
+        "feature": "math-symbol",
+        "rule": "math-mark",
+        "span": [
+          4,
+          4
+        ],
+        "source": [
+          4,
+          4
+        ]
+      }
+    ]
+  }
+}

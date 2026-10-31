@@ -4,12 +4,12 @@ Eberban is a logical constructed language by mia. This pipeline reads Eberban as
 
 A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. [The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars.
 
-Eberban has no lexicon in its grammar. Every particle family is infinite, and the shape of a word gives its family. So the stages classify words by shape, and no document lists words.
+Eberban has no lexicon in its grammar. The shape of a word gives its family, and most particle families have no fixed list of members. So the stages classify words by shape, and no document lists words.
 
-The pipeline turns on the warnings below by default. Each marks a spelling that the grammar accepts but the book does not recommend. A caller can turn a warning off.
+The pipeline turns on the warnings below by default. Each marks a text that the grammar accepts but that the book or the PEG does not recommend. A caller can turn a warning off.
 
 ```jbogenbau
-%features hyphen-misplaced prefix-i-after-sonorant minus-sign math-symbol compound-size non-eberban-letter
+%features hyphen-misplaced prefix-i-after-sonorant minus-sign math-symbol compound-size non-eberban-letter multi-sentence-cai-elided
 ```
 
 ## Stage 1: letters
@@ -72,6 +72,6 @@ The stage builds the tree of the text. An elided terminator is a closing word le
 
 Each stage document closes with its own list. The pipeline as a whole departs from the PEG in two policies.
 
-The PEG reports a custom message for each mistake it recognizes, and a parse that queued such a message fails even when another reading succeeds. This pipeline reports only that a text has no parse and where the parse stops. Its grammar states each rule that a message of the PEG describes. So a text that the PEG rejects with a message has no parse here.
+The PEG reports a custom message for each mistake it recognizes. It keeps the first message queued even when the reading that queued it fails, and the queued message then rejects the text. Around a few speculative attempts, it saves the queued message and restores it when it discards the attempt. A later `ra` that erases ungrammatical text discards the queued message. This pipeline reports only that a text has no parse and where the parse stops. Its grammar states the rule behind each message. A reading that fails here leaves nothing behind, so only the readings that succeed decide. A text that the PEG rejects with a message has no parse here. The exceptions are the departures that the stage documents list, and a message that a failed reading left queued.
 
-The sentences chapter says that a `ra` inside a foreign quote erases an ungrammatical sentence. That passage describes the PEG, which reads the characters of such a sentence again without regard to quotes. mia, who designed Eberban, considers it a limitation of the PEG. Her intent is that words and quotes are read first and parsed after. This pipeline does that, so a `ra` inside a quote is always quoted text. [The word stream](stream.md#differences-from-the-reference-grammar-and-the-peg) gives the details.
+The sentences chapter says that a `ra` inside a foreign quote erases an ungrammatical sentence. That passage describes the PEG. The PEG reads the characters of such a sentence again, without regard to quotes. mia, who designed Eberban, considers it a limitation of the PEG. Her intent is that words and quotes are read first and parsed after. This pipeline does that, so a `ra` inside a quote is always quoted text. [The word stream](stream.md#differences-from-the-reference-grammar-and-the-peg) gives the details.
