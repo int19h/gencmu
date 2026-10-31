@@ -119,6 +119,14 @@ pub(crate) fn restore_locations(to: &mut Dom, from: &Dom) {
             }
         }
     }
+    restore(pending);
+}
+
+pub(crate) fn restore_rule_locations(to: &mut RuleDef, from: &RuleDef) {
+    restore(vec![Pair::Rule(to, from)]);
+}
+
+fn restore(mut pending: Vec<Pair<'_>>) {
     while let Some(pair) = pending.pop() {
         match pair {
             Pair::Rule(to, from) => {

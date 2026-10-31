@@ -738,3 +738,31 @@ func TestUnicodeProfilesShareSafely(t *testing.T) {
 		t.Fatal("cache eviction changed the profile")
 	}
 }
+
+func TestDecoratedPatternMemberOrder(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	document := "```jbogenbau\n%const $P #·pair(\"a\")«»\n%rule f(@X) A %conditions $ ≅ #·@X«»\n```\n"
+	dom, err := bundled.reader.read(document, "order.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	json := string(dom.json())
+	for _, want := range []string{`"call":"pair","args":[{"string":"a"}],"exact":true,"children":[],"at":[2,13]`, `"param":"X","exact":true,"children":[],"at":[3,33]`} {
+		if !strings.Contains(json, want) {
+			t.Fatalf("missing %s in %s", want, json)
+		}
+	}
+}
+
+func TestFeatureConditionDepthLabel(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	document := "```jbogenbau\n%features f %conditions " + strings.Repeat("¬(", 300) + "$" + strings.Repeat(")", 300) + "\n```\n"
+	_, err := bundled.reader.read(document, "depth.md")
+	if err == nil || !strings.HasPrefix(err.Message, "%features: an expression, term or condition is nested") {
+		t.Fatalf("got %v", err)
+	}
+}

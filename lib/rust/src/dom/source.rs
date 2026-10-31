@@ -5,7 +5,7 @@ use super::{
 };
 use crate::json::Json;
 mod locations;
-pub(crate) use locations::restore_locations;
+pub(crate) use locations::{restore_locations, restore_rule_locations};
 
 impl SourceSymbol {
     pub(crate) fn from_json(value: &Json) -> R<Self> {
@@ -119,13 +119,25 @@ impl SourceSymbol {
     }
 
     pub(crate) fn write_fields(&self, out: &mut String) {
+        self.write_atom_fields(out);
+        let at = self.at();
+        out.push_str(&format!(",\"at\":[{},{}]", at.0, at.1));
+    }
+
+    pub(crate) fn at(&self) -> (usize, usize) {
         match self {
-            Self::Parameter(name, at) => {
+            Self::Parameter(_, at) => *at,
+            Self::Call(call) => call.at,
+        }
+    }
+
+    pub(crate) fn write_atom_fields(&self, out: &mut String) {
+        match self {
+            Self::Parameter(name, _) => {
                 out.push_str("\"param\":");
                 write_str(out, name);
-                out.push_str(&format!(",\"at\":[{},{}]", at.0, at.1));
             }
-            Self::Call(call) => call.write_fields(out),
+            Self::Call(call) => call.write_atom_fields(out),
         }
     }
 }
@@ -138,11 +150,15 @@ impl SourceCall {
     }
 
     fn write_fields(&self, out: &mut String) {
+        self.write_atom_fields(out);
+        out.push_str(&format!(",\"at\":[{},{}]", self.at.0, self.at.1));
+    }
+
+    fn write_atom_fields(&self, out: &mut String) {
         out.push_str("\"call\":");
         write_str(out, &self.name);
         out.push_str(",\"args\":");
         write_arguments(out, &self.args);
-        out.push_str(&format!(",\"at\":[{},{}]", self.at.0, self.at.1));
     }
 }
 

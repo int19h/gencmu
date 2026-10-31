@@ -511,7 +511,9 @@ An undecorated node test has one of these forms:
 
 TERMINALATOM is an undecorated `terminal`, `literal`, `range`, `wildcard`, or string-valued `constant`. Before substitution, it can also be a declared `param` that must become a terminal atom. TESTTARGET is TERMINALATOM or exactly one tag test on TERMINALATOM. The source order is tag then value. These inner objects carry no `exact` or `children` fields.
 
-A node test can add `"exact":true`, then `"children":[ITEM...]` where permitted below. If the object has an `at` member, that member follows both additions. Both additions are optional. `exact` occurs only as true and suppresses the search for that node alone. `children` always records the written guillemets, including an empty or one-item array. Its absence imposes no child constraint.
+A node test can add `"exact":true`, then `"children":[ITEM...]` where permitted below. If the object has an `at` member, that member follows both additions. This order also applies to calls and parameters before expansion. Both additions are optional.
+
+`exact` occurs only as true and suppresses the search for that node alone. `children` always records the written guillemets, including an empty or one-item array. Its absence imposes no child constraint.
 
 Only `name`, `call`, and compatible `param` node tests accept `children`. A terminal, `wildcard`, tested atom, or string-valued `constant` cannot carry that member. Every node-test form can carry `exact:true`. On a tested atom, the exact prefix belongs to the outermost test object, never its inner `expr`.
 

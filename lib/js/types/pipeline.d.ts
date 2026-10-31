@@ -150,10 +150,10 @@ export declare class Pipeline {
  * @param {(token: Token) => import("./types.js").Position} positionOf
  * @param {string} path
  * @param {UnicodeTable} unicode
+ * @param {(token:Token, path:boolean)=>string} decodeString
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
- * @param {(token:Token, path:boolean)=>string} [decodeString]
  * @returns {GrammarDom}
  */
-export declare function domOfTree(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => import("./types.js").Position, path: string, unicode: UnicodeTable, deferEmission?: boolean, decodeString?: (token: Token, path: boolean) => string): GrammarDom;
+export declare function domOfTree(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => import("./types.js").Position, path: string, unicode: UnicodeTable, decodeString: (token: Token, path: boolean) => string, deferEmission?: boolean): GrammarDom;
 /** @param {Map<string, string>} sources */
 export declare function checkSourceStrings(sources: Map<string, string>): void;

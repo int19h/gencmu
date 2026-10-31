@@ -1500,7 +1500,18 @@ impl Constants<'_> {
                         &argument.path,
                         first_constant(&argument.term).unwrap_or(argument.at),
                     ));
+                    continue;
                 }
+            }
+            let values = self.check_pattern_values(vec![&argument.term], Vec::new(), &argument.path, argument.at);
+            if let Err(error) = values {
+                faults.push(error);
+                continue;
+            }
+            let mut calls = Vec::new();
+            calls_in_term(&argument.term, &mut calls);
+            if let Err(error) = self.check_delimiters(calls, &argument.path, argument.at) {
+                faults.push(error);
             }
         }
         if let Some(error) = faults.into_iter().min_by_key(|error| (error.line.unwrap_or(0), error.column.unwrap_or(0)))
@@ -1537,24 +1548,66 @@ impl Constants<'_> {
         for alternative in &rule.alternatives {
             self.check_body_strings(&alternative.expr, document, rule.at)?;
         }
+        let conditions: Vec<&Cond> = rule.conditions.iter().collect();
+        let mut terms: Vec<&Term> = Vec::new();
+        terms.extend(rule.tags.iter());
+        terms.extend(rule.alternatives.iter().filter_map(|a| a.tags.as_ref()));
+        for item in rule.emit.iter().flatten() {
+            if let EmitItem::Capture(_, Some(t), ..) | EmitItem::Insert(Some(t), _) = item {
+                terms.push(t);
+            }
+        }
+        self.check_pattern_values(terms, conditions, document, rule.at)?;
+        // The checks that simplification decides, which the reader left
+        // to the loader, now with the constants' values (§9).
+        let result = check_definition(&self.substitute_rule(rule), true);
+        if let Some(issue) = result.problem {
+            return Err(located(issue.message, document, rule.at));
+        }
+        if let Some(issue) = result.deferred {
+            deferred.push(located(issue.message, document, rule.at));
+        }
+        let mut calls = Vec::new();
+        calls_in_rule(rule, &mut calls);
+        self.check_delimiters(calls, document, rule.at)
+    }
+
+    fn check_delimiters(&self, calls: Vec<(&str, &[Arg])>, document: &str, at: (usize, usize)) -> Result<(), Error> {
+        for (call, args) in calls {
+            if let ("split", [_, Arg::Term(delimiter)]) = (call, args) {
+                if matches!(delimiter, Term::Str(_) | Term::Const(..))
+                    && self.evaluate(delimiter, document, at)?.string().is_empty()
+                {
+                    return Err(located(
+                        "split has an empty delimiter".into(),
+                        document,
+                        first_constant(delimiter).unwrap_or(at),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn check_pattern_values(
+        &self,
+        terms: Vec<&Term>,
+        conditions: Vec<&Cond>,
+        document: &str,
+        at: (usize, usize),
+    ) -> Result<(), Error> {
         enum Part<'a> {
             Term(&'a Term),
             Cond(&'a Cond),
         }
-        let mut todo: Vec<Part> = rule.conditions.iter().map(Part::Cond).collect();
-        todo.extend(rule.tags.iter().map(Part::Term));
-        todo.extend(rule.alternatives.iter().filter_map(|a| a.tags.as_ref()).map(Part::Term));
-        for item in rule.emit.iter().flatten() {
-            if let EmitItem::Capture(_, Some(t), ..) | EmitItem::Insert(Some(t), _) = item {
-                todo.push(Part::Term(t));
-            }
-        }
+        let mut todo: Vec<_> = conditions.into_iter().map(Part::Cond).collect();
+        todo.extend(terms.into_iter().map(Part::Term));
         while let Some(part) = todo.pop() {
             match part {
                 Part::Term(t) => {
                     match t {
                         Term::Pattern(_) => {
-                            self.evaluate_pattern(t, document, rule.at)?;
+                            self.evaluate_pattern(t, document, at)?;
                         }
                         Term::Union(xs) | Term::Intersection(xs) => todo.extend(xs.iter().map(Part::Term)),
                         Term::Difference(a, b) => {
@@ -1578,7 +1631,7 @@ impl Constants<'_> {
                 Part::Cond(c) => match c {
                     Cond::Compare(op, a, b) => {
                         if matches!(op.as_str(), "≅" | "≇") {
-                            self.evaluate_pattern(b, document, rule.at)?;
+                            self.evaluate_pattern(b, document, at)?;
                         }
                         todo.push(Part::Term(a));
                         todo.push(Part::Term(b));
@@ -1591,30 +1644,6 @@ impl Constants<'_> {
                     }
                     _ => {}
                 },
-            }
-        }
-        // The checks that simplification decides, which the reader left
-        // to the loader, now with the constants' values (§9).
-        let result = check_definition(&self.substitute_rule(rule), true);
-        if let Some(issue) = result.problem {
-            return Err(located(issue.message, document, rule.at));
-        }
-        if let Some(issue) = result.deferred {
-            deferred.push(located(issue.message, document, rule.at));
-        }
-        let mut calls = Vec::new();
-        calls_in_rule(rule, &mut calls);
-        for (call, args) in calls {
-            if let ("split", [_, Arg::Term(delimiter)]) = (call, args) {
-                if matches!(delimiter, Term::Str(_) | Term::Const(..))
-                    && self.evaluate(delimiter, document, rule.at)?.string().is_empty()
-                {
-                    return Err(located(
-                        "split has an empty delimiter".into(),
-                        document,
-                        first_constant(delimiter).unwrap_or(rule.at),
-                    ));
-                }
             }
         }
         Ok(())

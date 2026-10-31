@@ -398,6 +398,9 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 			a.At = b.at(f.arguments[i])
 		}
 	}
+	if (name == "classify" || name == "ngrams") && one(selector, "arguments") != nil && sourceSyntaxUnresolved(one(selector, "arguments")) {
+		b.fail(f.n, "a parameter cannot replace a classifier name or integer argument")
+	}
 	f.receiver = b.finishMethod(f.n, name, f.receiver, f.args, f.inCondition && f.index == len(f.selectors)-1)
 	f.index++
 	if f.index == len(f.selectors) {
@@ -407,13 +410,33 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 	return f.resume(b, nil)
 }
 
-func knownMethod(name string) bool {
-	switch name {
-	case "value", "image", "source-text", "decomposed-source-text", "classes", "onward", "following-tokens", "preceding-tokens", "first-token", "last-token", "tokens-after-first", "starts-input", "ends-input", "without-elision", "without-elision-except", "verbatim-text", "emitted", "tags", "followed-by", "preceded-by", "matches", "begins", "ends", "ngrams", "split", "classify":
-		return true
-	}
-	return false
+type sourceMethodKind int
+
+const (
+	methodSpan sourceMethodKind = iota + 1
+	methodRestored
+	methodRecipe
+	methodTags
+	methodBoundary
+	methodQuery
+	methodNgrams
+	methodSplit
+	methodClassify
+)
+
+var sourceMethods = map[string]sourceMethodKind{
+	"value": methodSpan, "image": methodSpan, "source-text": methodSpan,
+	"decomposed-source-text": methodSpan, "classes": methodSpan, "onward": methodSpan,
+	"following-tokens": methodSpan, "preceding-tokens": methodSpan, "first-token": methodSpan,
+	"last-token": methodSpan, "tokens-after-first": methodSpan, "starts-input": methodSpan, "ends-input": methodSpan,
+	"without-elision": methodRestored, "without-elision-except": methodRestored,
+	"verbatim-text": methodRecipe, "emitted": methodRecipe,
+	"tags": methodTags, "followed-by": methodBoundary, "preceded-by": methodBoundary,
+	"matches": methodQuery, "begins": methodQuery, "ends": methodQuery,
+	"ngrams": methodNgrams, "split": methodSplit, "classify": methodClassify,
 }
+
+func knownMethod(name string) bool { return sourceMethods[name] != 0 }
 
 func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, predicate bool) *domTerm {
 	fail := func() {
@@ -445,22 +468,22 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	unknown := func(t *domTerm) bool { return t.Kind == tmParam || t.Kind == tmSourceCall }
 	span := b.featureContext || isSpanTerm(receiver)
 	valid := false
-	switch name {
-	case "value", "image", "source-text", "decomposed-source-text", "classes", "onward", "following-tokens", "preceding-tokens", "first-token", "last-token", "tokens-after-first", "starts-input", "ends-input":
+	switch sourceMethods[name] {
+	case methodSpan:
 		valid = len(args) == 0 && span
 		if b.inRecipe && receiver.Kind == tmCall && receiver.Str == "emitted" {
 			valid = len(args) == 0 && (name == "value" || name == "image")
 		}
-	case "without-elision", "without-elision-except":
+	case methodRestored:
 		if receiver.Kind != tmCapture && !unknown(receiver) && !b.featureContext {
 			fail()
 		}
 		valid = name == "without-elision" && len(args) == 0 || name == "without-elision-except" && len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0]))
-	case "verbatim-text", "emitted":
+	case methodRecipe:
 		valid = b.inRecipe && len(args) == 0 && receiver.Kind == tmCapture
-	case "tags":
+	case methodTags:
 		valid = span && (len(args) == 0 || len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0])))
-	case "followed-by", "preceded-by":
+	case methodBoundary:
 		valid = (b.featureContext || receiver.Kind == tmCapture || unknown(receiver)) && len(args) > 0
 		for _, a := range args {
 			if a.Kind == tmTag && isCapital(a.Str) {
@@ -468,7 +491,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 			}
 			valid = valid && (a.Kind == tmRule || a.Kind == tmTerminal || unknown(a)) && !engineTag(a.Str)
 		}
-	case "matches", "begins", "ends":
+	case methodQuery:
 		valid = span && len(args) > 0
 		for _, a := range args {
 			if a.Kind == tmTag && isCapital(a.Str) {
@@ -476,17 +499,15 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 			}
 			valid = valid && (a.Kind == tmRule || a.Kind == tmTerminal || unknown(a)) && !engineTag(a.Str)
 		}
-	case "ngrams":
+	case methodNgrams:
 		valid = len(args) == 1 && (b.featureContext || b.isStringTerm(receiver)) && args[0].Kind == tmInteger && validInteger(args[0].Str)
-	case "split":
+	case methodSplit:
 		valid = len(args) == 1 && (b.featureContext || b.isStringTerm(receiver) && b.isStringTerm(args[0]))
-	case "classify":
+	case methodClassify:
 		valid = len(args) == 1 && (b.featureContext || b.isStringTerm(receiver)) && (unknown(args[0]) || args[0].Kind == tmRule && classifierName.MatchString(args[0].Str))
 		if valid && !unknown(args[0]) {
 			args[0] = &domTerm{Kind: tmClassifier, Str: args[0].Str}
 		}
-	default:
-		b.fail(n, "unknown method %s", name)
 	}
 	if !valid {
 		fail()
@@ -503,4 +524,17 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 		b.fail(n, "%s", msg)
 	}
 	return &domTerm{Kind: tmCall, Str: name, Items: items, At: b.at(n)}
+}
+
+func sourceSyntaxUnresolved(n *Node) bool {
+	pending := []*Node{n}
+	for len(pending) > 0 {
+		node := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if node.Rule == "parameter" || node.Rule == "call" {
+			return true
+		}
+		pending = append(pending, parts(node)...)
+	}
+	return false
 }

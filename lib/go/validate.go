@@ -61,7 +61,7 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			if dir.Name != "features" || len(dir.Conditions) == 0 {
 				return &domProblem{message: "malformed feature conditions", at: dir.At}
 			}
-			checker := &domChecker{uni: uni, deferTypes: true}
+			checker := &domChecker{uni: uni, label: "%features", deferTypes: true}
 			for _, condition := range dir.Conditions {
 				checker.condition(condition, 0)
 				if checker.problem != nil {

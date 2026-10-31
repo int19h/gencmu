@@ -280,6 +280,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			expanded := x.substitute(body, env, context, "term")
 			copy := *context
 			copy.rule = templateObj(expanded)
+			x.inspectDefinition(&copy)
 			i.definitions = append(i.definitions, &copy)
 		}
 		for _, e := range templateRetained(i.definitions) {
@@ -327,6 +328,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			context := &templateEvent{path: e.path, rule: e.rule, index: e.index, origin: origin, instance: name}
 			definition := *context
 			definition.rule = templateObj(x.substitute(body, env, context, "term"))
+			x.inspectDefinition(&definition)
 			definition.definition = &definition
 			validationDefinitions = append(validationDefinitions, &definition)
 			collect(definition.rule, &definition)
@@ -1020,4 +1022,15 @@ func (x *templateExpander) rewrite(root any, e *templateEvent, position string) 
 		return r
 	}
 	return root
+}
+
+// Substituted arguments must meet the schema before calls become rule names.
+func (x *templateExpander) inspectDefinition(e *templateEvent) {
+	dom, err := decodeDOMMode(templateJSON(templateDocument([]any{e.rule})), x.uni, true)
+	if err != nil {
+		x.fail(e, e.rule, "rule "+templateText(e.rule["name"])+": "+err.Error())
+	}
+	if problem := checkDOMMode(dom, x.uni, true); problem != nil {
+		x.fail(e, e.rule, problem.message)
+	}
 }

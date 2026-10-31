@@ -373,14 +373,26 @@ class DomBuilder:
         self.parameter_scope = set()
         self.reading_head = True
         name_node = self.one(node, "rule-name")
-        head = run(self._call(self.only(node, "call"))) if name_node is None else None
+        head_node = self.only(node, "call") if name_node is None else None
+        head = run(self._call(head_node)) if head_node is not None else None
         self.reading_head = False
         head_fields = {}
         if head:
             if all('param' in arg for arg in head['args']):
                 head_fields['params'] = [arg['param'] for arg in head['args']]
-                self.parameter_scope = set(head_fields['params'])
+                for name, argument in zip(head_fields['params'], self.some(head_node, "call-argument")):
+                    if name in self.parameter_scope:
+                        raise self.fail(argument, f"duplicate parameter @{name}")
+                    self.parameter_scope.add(name)
             else:
+                pending = [head_node]
+                while pending:
+                    part = pending.pop()
+                    if part.rule == "parameter":
+                        raise self.fail(head_node, "a head cannot mix parameters and concrete arguments")
+                    pending.extend(self.kids(part))
+                if op == "define":
+                    raise self.fail(head_node, "an instance head requires an edit")
                 head_fields['args'] = head['args']
         name = head['call'] if head else self.token_value(self.token(name_node))
         if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
@@ -897,7 +909,7 @@ class DomBuilder:
             if name in ("without-elision", "without-elision-except") and set(receiver) != {"capture"}:
                 problem = "without-elision requires a bare capture: write $x.without-elision.onward" if name == "without-elision" else "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward"
             if problem is not None and not self.feature_context and not dependent:
-                if problem.startswith('invalid receiver or arguments'):
+                if not (problem.startswith('without-elision') or problem.startswith('ends requires') or problem == 'split has an empty delimiter'):
                     if name == 'without-elision':
                         problem = 'without-elision requires a bare capture: write $x.without-elision.onward'
                     elif name == 'without-elision-except':
@@ -912,7 +924,8 @@ class DomBuilder:
             self.boundary_nodes[id(receiver)] = node
             kind, problem = term_type(receiver, memo=self.types)
             if problem and not self.feature_context and not dependent:
-                raise self.fail(node, problem)
+                specific = problem.startswith(("without-elision", "ends requires")) or problem == "split has an empty delimiter"
+                raise self.fail(node, problem if specific else "a method has the wrong receiver or arguments")
         return receiver
 
     def _joined(self, node: Node, items: list[Dom], operator: str) -> None:
@@ -995,11 +1008,13 @@ class DomBuilder:
                 raise self.fail(children, "a child list requires a rule test")
             if isinstance(atom.get('literal'), dict) and 'const' in atom['literal']:
                 atom = {**{key: value for key, value in atom.items() if key != 'literal'}, 'constant': atom['literal']['const']}
-            result = dict(atom)
+            result = {key: value for key, value in atom.items() if key != "at"}
             if any(part.kind == "token" and self.token_value(part) == "·" for part in self.kids(node)):
                 result["exact"] = True
             if children is not None:
                 result["children"] = yield self._layered_pattern(children)
+            if "at" in atom:
+                result["at"] = atom["at"]
             return result
         if kind in ("pattern-union", "pattern-intersection", "child-set", "child-intersection"):
             operands = [part for part in self.kids(node) if part.rule in ("pattern-intersection", "pattern-path", "child-intersection", "child-path")]

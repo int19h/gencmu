@@ -201,8 +201,8 @@ fn write(out: &mut String, root: Write<'_>) {
                 out.push('{');
                 let at = match atom {
                     Pattern::Source(symbol) => {
-                        symbol.write_fields(out);
-                        None
+                        symbol.write_atom_fields(out);
+                        Some(symbol.at())
                     }
                     Pattern::Name(name, at) | Pattern::Terminal(name, at) | Pattern::Constant(name, at) => {
                         write_str(

@@ -248,6 +248,8 @@ export declare class Grammar {
     resolvePatterns(node: any, path: string, at: [number, number]): any;
     /** @param {string} path @param {DomRule} rule */
     checkConstantRule(path: string, rule: DomRule): void;
+    /** @param {any} root @param {string} path @param {[number,number]} at @param {boolean} [patterns] */
+    checkValueUses(root: any, path: string, at: [number, number], patterns?: boolean): void;
     /** @param {string} path @param {import("./types.js").DomDirective} directive */
     resolveFeature(path: string, directive: import("./types.js").DomDirective): {
         path: string;

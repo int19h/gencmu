@@ -317,7 +317,9 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             set(&mut body, "name", string(i.effective()));
             let context = Event { origin: Some(i.origin.clone()), instance: i.canonical.clone(), ..e };
             let expanded = x.substitute(&body, &env, &context, "term")?;
-            x.instances[id].definitions.push(Event { rule: expanded, ..context });
+            let definition = Event { rule: expanded, ..context };
+            x.decode(&empty(vec![definition.rule.clone()]), &definition)?;
+            x.instances[id].definitions.push(definition);
         }
         for e in retained(&x.instances[id].definitions.clone()) {
             x.discover(&e.rule, e)?
@@ -351,6 +353,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             let context = Event { origin: Some(origin.clone()), instance: name.clone(), ..e.clone() };
             let rule = x.substitute(&body, &env, &context, "term")?;
             let definition = Event { rule, ..context };
+            x.decode(&empty(vec![definition.rule.clone()]), &definition)?;
             x.validation_calls(&definition.rule, &definition, &mut validation_keys, &mut validation_queue)?;
             validation_definitions.push(definition);
         }
@@ -1063,10 +1066,16 @@ impl Expander<'_> {
     }
     fn decode(&self, root: &Json, event: &Event) -> R<Dom> {
         let checked = clean(root);
+        let failure = |message: String| {
+            let name = text(get(&event.rule, "name"));
+            let prefix = format!("rule {name}: ");
+            let message = if name.is_empty() || message.starts_with(&prefix) { message } else { prefix + &message };
+            event.fail(&event.rule, message)
+        };
         if let Some(problem) = dom::schema::structure_problem(&checked, self.uni, true) {
-            return Err(event.fail(&event.rule, problem.into()));
+            return Err(failure(problem.into()));
         }
-        let mut d = dom::decode_checked(&checked, self.uni, true).map_err(|s| event.fail(&event.rule, s))?;
+        let mut d = dom::decode_checked(&checked, self.uni, true).map_err(failure)?;
         super::locations::restore_document(&mut d, root);
         Ok(d)
     }

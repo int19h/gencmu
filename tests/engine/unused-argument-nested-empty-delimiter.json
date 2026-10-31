@@ -1,0 +1,13 @@
+{
+  "description": "Unused arguments receive ordinary value inspection after constant binding.",
+  "grammar": "%const $S \"\"\n%rule f(@X) \"a\"\n%rule text f(\"x\".split($S) ∪ \"y\".split(\",\"))",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 24
+    }
+  }
+}

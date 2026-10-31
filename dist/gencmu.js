@@ -9584,21 +9584,27 @@
       if (errors.length) throw errors[0];
       // The checks that simplification decides, which the reader left to
       // the loader, now with the constants' values (engine §9).
-      const parts = [rule];
-      while (parts.length) {
-        const part = /** @type {any} */ (parts.pop());
-        if (!part || typeof part !== "object") continue;
-        if (part.method === "split" && ("string" in part.args[0] || "const" in part.args[0])) {
-          const delimiter = /** @type {{string:string}} */ (this.evaluateClosed(path,part.args[0],rule.at));
-          if (delimiter.string === "") throw this.faultError(path,part.args[0],rule.at,"split has an empty delimiter");
-        }
-        for (const child of Object.values(part)) if (child && typeof child === "object") parts.push(child);
-      }
+      this.checkValueUses(rule,path,rule.at);
       const checked = this.resolvePatterns(resolvedRule,path,rule.at);
       const problem = definitionProblem(checked, true);
       if (deferredEmissionProblem(checked) || deferredRecipeProblem(checked)) this.emissionUsers.push({path, rule:checked});
       if (problem) throw this.documentError(path, rule.at, problem);
 
+    }
+
+    /** @param {any} root @param {string} path @param {[number,number]} at @param {boolean} [patterns] */
+    checkValueUses(root, path, at, patterns = false) {
+      const parts = [root];
+      while (parts.length) {
+        const part = /** @type {any} */ (parts.pop());
+        if (!part || typeof part !== "object") continue;
+        if (patterns && part.pattern) { this.evaluateClosed(path,part,at); continue; }
+        if (part.method === "split" && ("string" in part.args[0] || "const" in part.args[0])) {
+          const delimiter = /** @type {{string:string}} */ (this.evaluateClosed(path,part.args[0],at));
+          if (delimiter.string === "") throw this.faultError(path,part.args[0],at,"split has an empty delimiter");
+        }
+        for (const child of Object.values(part)) if (child && typeof child === "object") parts.push(child);
+      }
     }
 
     /** @param {string} path @param {import("./types.js").DomDirective} directive */
@@ -9816,7 +9822,9 @@
       const found=termType(term,types);
       if ("problem" in found) { faults.push(grammar.faultError(path,found.node,at,found.problem)); continue; }
       const problem=tags ? expectedProblem(found.type,"tags") : null;
-      if (problem) faults.push(grammar.faultError(path,term,at,problem));
+      if (problem) { faults.push(grammar.faultError(path,term,at,problem)); continue; }
+      try { grammar.checkValueUses(term,path,at,true); }
+      catch (error) { if (!(error instanceof GencmuError)) throw error; faults.push(error); }
     }
     faults.sort((a,b) => (a.where.line ?? 0)-(b.where.line ?? 0) || (a.where.column ?? 0)-(b.where.column ?? 0));
     if (faults.length) throw faults[0];
@@ -18502,26 +18510,11 @@
    * @param {string} path
    * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag(name:string):string|null}} unicode
    *   the configured category table for diagnostic strings
-   * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
-   * @param {(token:Token, path:boolean)=>string} [decodeString]
-   * @returns {GrammarDom}
-   */
-  function treeToDom(tree, tokens, positionOf, path, unicode, deferEmission = false, decodeString) {
-    const decode = decodeString ?? ((/** @type {Token} */ token) => [...token.value].slice(1, -1).join(""));
-    return convertTree(tree, tokens, positionOf, path, unicode, decode, deferEmission);
-  }
-
-  /**
-   * @param {ResultNode} tree
-   * @param {Token[]} tokens
-   * @param {(token:Token)=>Position} positionOf
-   * @param {string} path
-   * @param {Parameters<typeof treeToDom>[4]} unicode
    * @param {(token:Token, path:boolean)=>string} decodeString
-   * @param {boolean} deferEmission
+   * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
    * @returns {GrammarDom}
    */
-  function convertTree(tree, tokens, positionOf, path, unicode, decodeString, deferEmission) {
+  function treeToDom(tree, tokens, positionOf, path, unicode, decodeString, deferEmission = false) {
     /** @type {(node: ResultNode) => Position} */
     const at = (node) => positionOf(tokens[firstToken(node)]);
     /** @type {(message: string, node: ResultNode) => never} */
@@ -18781,7 +18774,25 @@
       const headCall = one(node,"rule-name") ? undefined : one(node, "call");
       const head = headCall ? yield readCall(headCall) : null;
       readingHead=false;
-      if(head?.args.every((/** @type {any} */ arg)=>arg.param)) parameterScope=new Set(head.args.map((/** @type {any} */ arg)=>arg.param));
+      if (head && headCall) {
+        if (head.args.every((/** @type {any} */ arg) => arg.param)) {
+          const argumentsNodes = some(headCall, "call-argument");
+          for (let index = 0; index < head.args.length; index++) {
+            const name = head.args[index].param;
+            if (parameterScope.has(name)) fail(`duplicate parameter @${name}`, argumentsNodes[index]);
+            parameterScope.add(name);
+          }
+        } else {
+          /** @type {ResultNode[]} */
+          const pending = [headCall];
+          while (pending.length) {
+            const part = /** @type {ResultNode} */ (pending.pop());
+            if (ruleOf(part) === "parameter") fail("a head cannot mix parameters and concrete arguments", headCall);
+            for (const child of parts(part)) pending.push(child);
+          }
+          if (keyword === "%rule") fail("an instance head requires an edit", headCall);
+        }
+      }
       /** @type {any} */
       const rule = { name: head ? head.call : valueOf(token(only(node, "rule-name"))), ...(head ? head.args.every((/** @type {any} */ arg) => arg.param) ? {params:head.args.map((/** @type {any} */ arg) => arg.param)} : {args:head.args} : {}), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
       if (!unicode.isEmojiName?.(rule.name || "") && !/^[a-z][A-Za-z0-9_-]*$/.test(rule.name || "")) fail("a rule name starts with a lowercase letter or uses one eligible emoji", only(node, "rule-name"));
@@ -19801,7 +19812,7 @@
   /**
    * A directive's operand: a bare name, lower case or with a capital, a
    * string, or another recognized term atom.
-   * @typedef {"name" | "class" | "string" | "tag" | "range" | "term"} OperandKind
+   * @typedef {"name" | "class" | "string" | "tag"} OperandKind
    */
 
 
@@ -20853,7 +20864,7 @@
       }
       const syntax = run.stages[run.stages.length - 1];
       const dom = domOfTree(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path, this.unicode,
-        deferEmission, (token, path) => strings.decode(token, path));
+        (token, path) => strings.decode(token, path), deferEmission);
       if (names.dependencies) this.namesDependencies.set(dom, names.dependencies);
       return dom;
     }
@@ -21180,15 +21191,15 @@
    * @param {(token: Token) => import("./types.js").Position} positionOf
    * @param {string} path
    * @param {UnicodeTable} unicode
+   * @param {(token:Token, path:boolean)=>string} decodeString
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
-   * @param {(token:Token, path:boolean)=>string} [decodeString]
    * @returns {GrammarDom}
    */
-  function domOfTree(tree, tokens, positionOf, path, unicode, deferEmission = false, decodeString) {
+  function domOfTree(tree, tokens, positionOf, path, unicode, decodeString, deferEmission = false) {
     /** @type {GrammarDom} */
     let dom;
     try {
-      dom = treeToDom(tree, tokens, positionOf, path, unicode, deferEmission, decodeString);
+      dom = treeToDom(tree, tokens, positionOf, path, unicode, decodeString, deferEmission);
     } catch (error) {
       // A count past a test's budget must reach the test as itself, or the
       // reader's work would run on past the budget as an error of the grammar.

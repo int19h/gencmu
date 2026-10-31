@@ -278,13 +278,18 @@ func writeParameter(w *jsonWriter, name string, at [2]int) {
 }
 
 func (c *domSourceCall) writeJSON(w *jsonWriter) {
-	w.raw(`{"call":`)
-	w.str(c.Name)
-	w.raw(`,"args":`)
-	writeSourceArguments(w, c.Args)
+	w.raw("{")
+	c.writeFields(w)
 	w.raw(`,"at":`)
 	w.pair(c.At)
 	w.raw("}")
+}
+
+func (c *domSourceCall) writeFields(w *jsonWriter) {
+	w.raw(`"call":`)
+	w.str(c.Name)
+	w.raw(`,"args":`)
+	writeSourceArguments(w, c.Args)
 }
 
 func writeSourceArguments(w *jsonWriter, args []*domArgument) {
