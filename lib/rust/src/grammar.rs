@@ -1261,6 +1261,7 @@ impl Constants<'_> {
             if let Some(fault) = root.type_fault(&|name| self.ty(name)) {
                 return Err(located(fault.problem, document, fault.at.unwrap_or(item)));
             }
+            self.check_pattern_depth(term, document, item)?;
             enum Part<'a> {
                 Pattern(&'a Pattern),
                 Children(&'a crate::patterns::Children),
@@ -1301,8 +1302,9 @@ impl Constants<'_> {
                     },
                 }
             }
+        } else {
+            self.check_pattern_depth(term, document, item)?;
         }
-        self.check_pattern_depth(term, document, item)?;
         let pattern = match term {
             Term::Pattern(p) => p.map_values(
                 &|n, at| match &self.values[n].value {
