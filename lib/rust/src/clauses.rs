@@ -25,17 +25,26 @@ pub(crate) enum Simple {
 /// (engine §3.6): each presence test becomes true or false, and `⟹`, `¬`,
 /// `∧` and `∨` over a true or false part are reduced.
 pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
+    simplify_cond_partial(cond, &|name| Some(has(name)))
+}
+pub(crate) fn simplify_term(term: &Term, has: &dyn Fn(&str) -> bool) -> Option<Term> {
+    simplify_term_partial(term, &|name| Some(has(name)))
+}
+pub(crate) fn simplify_value(term: &Term, has: &dyn Fn(&str) -> bool) -> Term {
+    simplify_value_partial(term, &|name| Some(has(name)))
+}
+
+/// Retains presence tests whose partial assignment is still unknown.
+fn simplify_cond_partial(cond: &Cond, has: &dyn Fn(&str) -> Option<bool>) -> Simple {
     work::count(Work::Walked, 1);
     match cond {
         Cond::SourceQuery(..) => unreachable!("source queries expand before clause checks"),
-        Cond::Captured(name) => {
-            if has(name) {
-                Simple::True
-            } else {
-                Simple::False
-            }
-        }
-        Cond::Not(inner) => match simplify_cond(inner, has) {
+        Cond::Captured(name) => match has(name) {
+            Some(true) => Simple::True,
+            Some(false) => Simple::False,
+            None => Simple::Cond(cond.clone()),
+        },
+        Cond::Not(inner) => match simplify_cond_partial(inner, has) {
             Simple::True => Simple::False,
             Simple::False => Simple::True,
             Simple::Cond(inner) => Simple::Cond(Cond::Not(Box::new(inner))),
@@ -43,7 +52,7 @@ pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
         Cond::All(items) => {
             let mut left = Vec::new();
             for item in items {
-                match simplify_cond(item, has) {
+                match simplify_cond_partial(item, has) {
                     Simple::False => return Simple::False,
                     Simple::True => {}
                     Simple::Cond(item) => left.push(item),
@@ -58,7 +67,7 @@ pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
         Cond::Any(items) => {
             let mut left = Vec::new();
             for item in items {
-                match simplify_cond(item, has) {
+                match simplify_cond_partial(item, has) {
                     Simple::True => return Simple::True,
                     Simple::False => {}
                     Simple::Cond(item) => left.push(item),
@@ -71,20 +80,22 @@ pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
             }
         }
         Cond::If(antecedent, consequent) => {
-            let antecedent = match simplify_cond(antecedent, has) {
+            let antecedent = match simplify_cond_partial(antecedent, has) {
                 Simple::False => return Simple::True,
-                Simple::True => return simplify_cond(consequent, has),
+                Simple::True => return simplify_cond_partial(consequent, has),
                 Simple::Cond(antecedent) => antecedent,
             };
-            match simplify_cond(consequent, has) {
+            match simplify_cond_partial(consequent, has) {
                 Simple::True => Simple::True,
                 Simple::False => Simple::Cond(Cond::Not(Box::new(antecedent))),
                 Simple::Cond(consequent) => Simple::Cond(Cond::If(Box::new(antecedent), Box::new(consequent))),
             }
         }
-        Cond::Compare(op, left, right) => {
-            Simple::Cond(Cond::Compare(op.clone(), simplify_value(left, has), simplify_value(right, has)))
-        }
+        Cond::Compare(op, left, right) => Simple::Cond(Cond::Compare(
+            op.clone(),
+            simplify_value_partial(left, has),
+            simplify_value_partial(right, has),
+        )),
         Cond::Matches(..)
         | Cond::Begins(..)
         | Cond::Ends(..)
@@ -99,17 +110,17 @@ pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
 /// empty set is dropped from a union, makes an intersection empty, makes a
 /// difference whose first part it is empty and one whose second part it is
 /// its first part, and makes a guarded term empty.
-pub(crate) fn simplify_term(term: &Term, has: &dyn Fn(&str) -> bool) -> Option<Term> {
+fn simplify_term_partial(term: &Term, has: &dyn Fn(&str) -> Option<bool>) -> Option<Term> {
     work::count(Work::Walked, 1);
     match term {
         Term::EmptySet => None,
-        Term::If(cond, then) => match simplify_cond(cond, has) {
+        Term::If(cond, then) => match simplify_cond_partial(cond, has) {
             Simple::False => None,
-            Simple::True => simplify_term(then, has),
-            Simple::Cond(cond) => Some(Term::If(Box::new(cond), Box::new(simplify_term(then, has)?))),
+            Simple::True => simplify_term_partial(then, has),
+            Simple::Cond(cond) => Some(Term::If(Box::new(cond), Box::new(simplify_term_partial(then, has)?))),
         },
         Term::Union(items) => {
-            let mut left: Vec<Term> = items.iter().filter_map(|item| simplify_term(item, has)).collect();
+            let mut left: Vec<Term> = items.iter().filter_map(|item| simplify_term_partial(item, has)).collect();
             match left.len() {
                 0 => None,
                 1 => left.pop(),
@@ -119,13 +130,13 @@ pub(crate) fn simplify_term(term: &Term, has: &dyn Fn(&str) -> bool) -> Option<T
         Term::Intersection(items) => {
             let mut left = Vec::with_capacity(items.len());
             for item in items {
-                left.push(simplify_term(item, has)?);
+                left.push(simplify_term_partial(item, has)?);
             }
             Some(Term::Intersection(left))
         }
         Term::Difference(left, right) => {
-            let left = simplify_term(left, has)?;
-            Some(match simplify_term(right, has) {
+            let left = simplify_term_partial(left, has)?;
+            Some(match simplify_term_partial(right, has) {
                 None => left,
                 Some(right) => Term::Difference(Box::new(left), Box::new(right)),
             })
@@ -135,8 +146,8 @@ pub(crate) fn simplify_term(term: &Term, has: &dyn Fn(&str) -> bool) -> Option<T
 }
 
 /// A term simplified for a production, the empty set written out.
-pub(crate) fn simplify_value(term: &Term, has: &dyn Fn(&str) -> bool) -> Term {
-    simplify_term(term, has).unwrap_or(Term::EmptySet)
+fn simplify_value_partial(term: &Term, has: &dyn Fn(&str) -> Option<bool>) -> Term {
+    simplify_term_partial(term, has).unwrap_or(Term::EmptySet)
 }
 
 /// A part of a clause: a term or a condition.
@@ -1685,6 +1696,52 @@ mod tests {
     use super::{definition_problem, duplicate_captures, CaptureSequences};
     use crate::dom::{Alternative, Arg, Attachments, EmitItem, Expr, Op, RuleDef, Term};
     use crate::work::{assert_linear, assert_mutant_stops, Mutant, Work};
+
+    #[test]
+    fn partial_presence_simplification_bounds_independent_guards() {
+        use crate::dom::{Cond, Mark};
+        use crate::work::{self, Work};
+        const N: usize = 24;
+        for kind in ["any", "all", "tags"] {
+            let mut rule = many_captures(N);
+            rule.emit = None;
+            rule.tags = None;
+            let names: Vec<_> = (0..N).map(|i| format!("c{i}")).collect();
+            rule.alternatives[0].expr = Expr::Seq(
+                names
+                    .iter()
+                    .map(|name| {
+                        Expr::Optional(
+                            Box::new(Expr::Capture(name.clone(), Box::new(Expr::Terminal("A".into())))),
+                            Mark::Plain,
+                        )
+                    })
+                    .collect(),
+            );
+            let guards = names.iter().map(|name| Cond::Captured(name.clone())).collect();
+            match kind {
+                "any" => rule.conditions = vec![Cond::Any(guards)],
+                "all" => rule.conditions = vec![Cond::All(guards)],
+                _ => {
+                    rule.tags = Some(Term::Union(
+                        names
+                            .iter()
+                            .map(|name| {
+                                Term::If(
+                                    Box::new(Cond::Captured(name.clone())),
+                                    Box::new(Term::Call("tags".into(), vec![Arg::Term(Term::Capture(name.clone()))])),
+                                )
+                            })
+                            .collect(),
+                    ))
+                }
+            }
+            work::reset();
+            work::budget(Work::Checked, (100 * N * N) as u64);
+            assert_eq!(definition_problem(&rule), None, "{kind}");
+            work::reset();
+        }
+    }
 
     /// A rule of n captures whose tag term reads each and whose emission
     /// lists n inserted tags and then each capture: its checks and the

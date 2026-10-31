@@ -901,3 +901,35 @@ func altCaptures(a *domAlt) []map[string]int {
 	}
 	return out
 }
+
+func TestPartialPresenceSimplificationBoundsIndependentGuards(t *testing.T) {
+	const n = 24
+	for _, kind := range []string{"any", "all", "tags"} {
+		expr := &domExpr{Kind: exSeq}
+		condition := &domCond{Kind: cdAny}
+		if kind == "all" {
+			condition.Kind = cdAll
+		}
+		tags := &domTerm{Kind: tmUnion}
+		for i := range n {
+			name := fmt.Sprintf("c%d", i)
+			expr.Items = append(expr.Items, &domExpr{Kind: exOptional, Inner: &domExpr{Kind: exCapture, Name: name, Inner: &domExpr{Kind: exRef, Name: "A"}}})
+			guard := &domCond{Kind: cdCaptured, Capture: name}
+			condition.Items = append(condition.Items, guard)
+			tags.Items = append(tags.Items, &domTerm{Kind: tmIf, Cond: guard, Items: []*domTerm{{Kind: tmCall, Str: "tags", Items: []*domTerm{{Kind: tmCapture, Str: name}}}}})
+		}
+		rule := &domRule{Name: "r", Alternatives: []*domAlt{{Expr: expr}}}
+		if kind == "tags" {
+			rule.Tags = tags
+		} else {
+			rule.Conditions = []*domCond{condition}
+		}
+		w := &workCounts{}
+		w.readerSteps.most = 100 * n * n
+		countWorkIn(w, func() {
+			if result := checkDefinition(rule, false); result.problem != nil {
+				t.Fatalf("%s: %s", kind, result.problem.message)
+			}
+		})
+	}
+}

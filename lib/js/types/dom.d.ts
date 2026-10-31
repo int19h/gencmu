@@ -69,12 +69,13 @@ export declare const DOM_FALSE: Readonly<{
  * A clause simplified for a production that has the captures `has`: each
  * presence test becomes true or false, and guards and logic over them are
  * reduced (engine §3.6). A condition may become DOM_TRUE or DOM_FALSE; a term may
- * become the empty set.
+ * become the empty set. An undefined answer retains its presence test
+ * for a partial assignment.
  * @param {any} node a condition or a term
- * @param {(name: string) => boolean} has
+ * @param {(name: string) => boolean | undefined} has
  * @returns {any}
  */
-export declare function simplify(node: any, has: (name: string) => boolean): any;
+export declare function simplify(node: any, has: (name: string) => boolean | undefined): any;
 export type PreparedClause = {
     /**
      * how the parts join, or

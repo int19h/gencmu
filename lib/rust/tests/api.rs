@@ -1378,6 +1378,7 @@ fn stitching_messages_and_capture_order() {
     let cases = [
         ("%rule text := $zz.value | \"a\" :: $bb.tags", "$zz is captured by no alternative of text"),
         ("%rule text missing", "missing is not a rule of stage main"),
+        ("%classifier lex $NOPEK ∈ K\n%rule text \"a\"", "$NOPEK is not defined in stage main"),
         ("%rule other \"a\"", "has no rule text"),
         ("%ambiguity-resolution greedy\n%rule text \"a\"", "has a second %ambiguity-resolution"),
         ("%rule text $x:A :: $x.value.classify(unknown)", "unknown is not a classifier of stage main"),

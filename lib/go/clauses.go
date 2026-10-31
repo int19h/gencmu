@@ -36,17 +36,37 @@ func isEmptySet(t *domTerm) bool {
 // left to evaluate; the one given is returned where nothing changed. A
 // reduced part is never evaluated (§10).
 func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
+	return simplifyCondPartial(c, func(name string) truth {
+		if has(name) {
+			return alwaysTrue
+		}
+		return alwaysFalse
+	})
+}
+
+// simplifyTerm gives the shared reducer a complete presence assignment.
+func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
+	return simplifyTermPartial(t, func(name string) truth {
+		if has(name) {
+			return alwaysTrue
+		}
+		return alwaysFalse
+	})
+}
+
+// simplifyCondPartial retains a presence test when its answer is open.
+func simplifyCondPartial(c *domCond, has func(string) truth) (*domCond, truth) {
 	if w := work.Load(); w != nil {
 		w.readerSteps.add("reader steps")
 	}
 	switch c.Kind {
 	case cdCaptured:
-		if has(c.Capture) {
-			return nil, alwaysTrue
+		if value := has(c.Capture); value != open {
+			return nil, value
 		}
-		return nil, alwaysFalse
+		return c, open
 	case cdNot:
-		inner, tv := simplifyCond(c.Inner, has)
+		inner, tv := simplifyCondPartial(c.Inner, has)
 		switch tv {
 		case alwaysTrue:
 			return nil, alwaysFalse
@@ -67,7 +87,7 @@ func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
 		var items []*domCond
 		changed := false
 		for _, it := range c.Items {
-			s, tv := simplifyCond(it, has)
+			s, tv := simplifyCondPartial(it, has)
 			switch tv {
 			case decides:
 				return nil, decides
@@ -90,11 +110,11 @@ func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
 		}
 		return &domCond{Kind: c.Kind, Items: items}, open
 	case cdIf:
-		premise, tv := simplifyCond(c.Items[0], has)
+		premise, tv := simplifyCondPartial(c.Items[0], has)
 		if tv == alwaysFalse {
 			return nil, alwaysTrue
 		}
-		then, ttv := simplifyCond(c.Items[1], has)
+		then, ttv := simplifyCondPartial(c.Items[1], has)
 		switch {
 		case tv == alwaysTrue:
 			return then, ttv
@@ -107,7 +127,7 @@ func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
 		}
 		return &domCond{Kind: cdIf, Items: []*domCond{premise, then}}, open
 	case cdCompare:
-		l, r := simplifyTerm(c.Left, has), simplifyTerm(c.Right, has)
+		l, r := simplifyTermPartial(c.Left, has), simplifyTermPartial(c.Right, has)
 		if l == c.Left && r == c.Right {
 			return c, open
 		}
@@ -116,13 +136,13 @@ func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
 	return c, open
 }
 
-// simplifyTerm simplifies a term for a production, as simplifyCond does a
+// simplifyTermPartial simplifies a term, as simplifyCondPartial does a
 // condition: a guarded term is its term where its condition is true, and
 // the empty set where it is false or its term is empty; an empty set is
 // dropped from a union, a union of nothing else is empty, and so is an
 // intersection with one. A difference whose first part is empty is empty,
 // and one whose second part is empty is its first part.
-func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
+func simplifyTermPartial(t *domTerm, has func(string) truth) *domTerm {
 	if w := work.Load(); w != nil {
 		w.readerSteps.add("reader steps")
 	}
@@ -131,14 +151,14 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 	}
 	switch t.Kind {
 	case tmIf:
-		cond, tv := simplifyCond(t.Cond, has)
+		cond, tv := simplifyCondPartial(t.Cond, has)
 		switch tv {
 		case alwaysFalse:
 			return reducedEmpty
 		case alwaysTrue:
-			return simplifyTerm(t.Items[0], has)
+			return simplifyTermPartial(t.Items[0], has)
 		}
-		then := simplifyTerm(t.Items[0], has)
+		then := simplifyTermPartial(t.Items[0], has)
 		if isEmptySet(then) {
 			return reducedEmpty
 		}
@@ -147,7 +167,7 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 		}
 		return &domTerm{Kind: tmIf, Cond: cond, Items: []*domTerm{then}}
 	case tmDifference:
-		l, r := simplifyTerm(t.Items[0], has), simplifyTerm(t.Items[1], has)
+		l, r := simplifyTermPartial(t.Items[0], has), simplifyTermPartial(t.Items[1], has)
 		switch {
 		case isEmptySet(l):
 			return reducedEmpty
@@ -163,7 +183,7 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 		var items []*domTerm
 		changed := false
 		for _, it := range t.Items {
-			s := simplifyTerm(it, has)
+			s := simplifyTermPartial(it, has)
 			if s != it {
 				changed = true
 			}

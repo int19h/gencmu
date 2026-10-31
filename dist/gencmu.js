@@ -4376,30 +4376,6 @@
   // This walk keeps pattern and item positions distinct before substitution.
 
   /**
-   * @internal
-   * @param {any} node
-   * @returns {any[]}
-   */
-  function layeredPatternParts(node) {
-    if (node.union || node.intersection || node.difference) return node.union ?? node.intersection ?? node.difference;
-    if (node.path) return [node.pattern];
-    if (node.test) return [node.expr];
-    return node.children ?? [];
-  }
-
-  /**
-   * @internal
-   * @param {any} node
-   * @returns {any[]}
-   */
-  function patternItemParts(node) {
-    if (node.sequence) return node.sequence;
-    if (node.child) return [node.child];
-    if (node.choice) return node.choice.flat();
-    return [...(node.optional ?? node.repeat ?? []), ...(node.separator ?? [])];
-  }
-
-  /**
    * @param {any} root
    * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
    * @returns {string|null}
@@ -5107,9 +5083,10 @@
    * A clause simplified for a production that has the captures `has`: each
    * presence test becomes true or false, and guards and logic over them are
    * reduced (engine §3.6). A condition may become DOM_TRUE or DOM_FALSE; a term may
-   * become the empty set.
+   * become the empty set. An undefined answer retains its presence test
+   * for a partial assignment.
    * @param {any} node a condition or a term
-   * @param {(name: string) => boolean} has
+   * @param {(name: string) => boolean | undefined} has
    * @returns {any}
    */
   function simplify(node, has) {
@@ -5119,12 +5096,15 @@
   /**
    * The steps of simplify, run without the call stack.
    * @param {any} node
-   * @param {(name: string) => boolean} has
+   * @param {(name: string) => boolean | undefined} has
    * @returns {Generator<Step, any, any>}
    */
   function* simplifying(node, has) {
     if (!isDomObject(node)) return node;
-    if (typeof node.captured === "string") return has(node.captured) ? DOM_TRUE : DOM_FALSE;
+    if (typeof node.captured === "string") {
+      const present = has(node.captured);
+      return present === undefined ? node : present ? DOM_TRUE : DOM_FALSE;
+    }
     if ("not" in node) {
       const inner = yield simplifying(node.not, has);
       return inner === DOM_TRUE ? DOM_FALSE : inner === DOM_FALSE ? DOM_TRUE : { not: inner };
@@ -5883,24 +5863,50 @@
       const found=captureWitness(alternative.expr,new Set(required),new Set(forbidden),order);
       if(found) witnesses.push(found);
     };
-    ask();
+    const initial=captureWitness(alternative.expr,new Set(),new Set(),[]);
+    if(initial) witnesses.push(initial);
     const items=rule.emit?.items??[];
     const mentioned=[rule.tags,rule.value,rule.image,...rule.conditions,...rule.alternatives.flatMap((/** @type {any} */ a)=>[a.tags,a.value,a.image]),...items];
     for(const clause of mentioned) for(const name of capturesMentioned(clause)) ask([name]);
     for(const item of items) if(item.capture!==undefined) for(const name of [item.capture,...attachmentsOf(item)]) ask([name]);
     const clause=(/** @type {any} */ value,/** @type {boolean} */ condition,/** @type {string[]} */ carrier=[])=>{
       if(value===undefined || constantsIn(value).some(ref=>!('value' in ref))) return;
-      /** @type {string[]} */ const guards=[]; const pending=[value];
-      while(pending.length) { const n=pending.pop(); if(n && typeof n==='object') { if(typeof n.captured==='string' && n.captured!=='' && !guards.includes(n.captured)) guards.push(n.captured); for(const c of clauseChildren(n)) pending.push(c); } }
-      const branch=(/** @type {number} */ i,/** @type {string[]} */ yes,/** @type {string[]} */ no)=>{
-        if(i && !captureWitness(alternative.expr,new Set(yes),new Set(no),[])) return;
-        if(i<guards.length) { branch(i+1,yes,[...no,guards[i]]); branch(i+1,[...yes,guards[i]],no); return; }
-        const simple=simplify(value,name=>name===''||yes.includes(name));
+      if(!condition && value.union) { for(const part of value.union) clause(part,false,carrier); return; }
+      const branch=(/** @type {any} */ part,/** @type {string[]} */ yes,/** @type {string[]} */ no,/** @type {CaptureWitness} */ witness)=>{
+        const simple=simplify(part,name=>name===''||yes.includes(name)?true:no.includes(name)?false:undefined);
+        if(simple===DOM_TRUE) return;
+        let guard;
+        const pending=[simple];
+        while(pending.length && guard===undefined) {
+          const node=pending.pop();
+          if(node && typeof node==='object') {
+            if(typeof node.captured==='string') guard=node.captured;
+            else pending.push(...[...clauseChildren(node)].reverse());
+          }
+        }
+        const extend=(/** @type {string[]} */ required,/** @type {string[]} */ forbidden)=>{
+          const names=new Set(['',...witnessList(witness.names)]);
+          return required.every(name=>names.has(name)) && forbidden.every(name=>!names.has(name))
+            ? witness : captureWitness(alternative.expr,new Set(required),new Set(forbidden),[]);
+        };
+        if(guard!==undefined) {
+          const absent=[...no,guard], present=[...yes,guard];
+          const without=extend(yes,absent);
+          if(without) branch(simple,yes,absent,without);
+          const withGuard=extend(present,no);
+          if(withGuard) branch(simple,present,no,withGuard);
+          return;
+        }
         const used=capturesUsed(simple);
-        if(condition) { if(simple!==DOM_TRUE) ask([...carrier,...yes,...used],no); }
-        else for(const name of used) ask([...carrier,...yes],[...no,name]);
+        if(condition) {
+          const found=extend([...carrier,...yes,...used],no);
+          if(found) witnesses.push(found);
+        } else for(const name of used) {
+          const found=extend([...carrier,...yes],[...no,name]);
+          if(found) witnesses.push(found);
+        }
       };
-      branch(0,[],[]);
+      if(initial) branch(value,[],[],initial);
     };
     for(const c of rule.conditions) clause(c,true);
     for(const t of [rule.tags,alternative.tags]) clause(t,false);
@@ -10470,9 +10476,6 @@
       }
       if ("capture" in expr) {
         const inner = this.expand(expr.expr, where);
-        if (inner.length !== 1 || inner[0].length !== 1) {
-          throw loweringError(where.alternative.at, `a capture in ${where.rule.name} must wrap one symbol`);
-        }
         return [[{ symbol: inner[0][0].symbol, capture: expr.capture }]];
       }
       throw loweringError(where.alternative.at, `an unknown expression in ${where.rule.name}`);
@@ -16120,7 +16123,7 @@
      */
     summaryAt(item, key) {
       const found = key === "" ? this.summaries.plain.get(item) : this.summaries.contextual.get(item)?.get(key);
-      if (found === undefined) throw new Error(`no elision summary for an item in context ${JSON.stringify(key)}`);
+      if (found === undefined) throw new Error(`no profile summary for an item in context ${JSON.stringify(key)}`);
       return found;
     }
 

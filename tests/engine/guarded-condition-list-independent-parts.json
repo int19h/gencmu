@@ -1,0 +1,10 @@
+{
+  "description": "Definition analysis simplifies partial presence assignments before extending them.",
+  "grammar": "%rule text \"z\"\n%rule other off? \"a\" [$c0:\"x\"] [$c1:\"x\"] [$c2:\"x\"] [$c3:\"x\"] [$c4:\"x\"] [$c5:\"x\"] [$c6:\"x\"] [$c7:\"x\"] [$c8:\"x\"] [$c9:\"x\"] [$c10:\"x\"] [$c11:\"x\"] [$c12:\"x\"] [$c13:\"x\"] [$c14:\"x\"] [$c15:\"x\"] [$c16:\"x\"] [$c17:\"x\"] [$c18:\"x\"] [$c19:\"x\"] [$c20:\"x\"] [$c21:\"x\"] [$c22:\"x\"] [$c23:\"x\"]\n%conditions $c0 ⟹ $c0.value = \"x\", $c1 ⟹ $c1.value = \"x\", $c2 ⟹ $c2.value = \"x\", $c3 ⟹ $c3.value = \"x\", $c4 ⟹ $c4.value = \"x\", $c5 ⟹ $c5.value = \"x\", $c6 ⟹ $c6.value = \"x\", $c7 ⟹ $c7.value = \"x\", $c8 ⟹ $c8.value = \"x\", $c9 ⟹ $c9.value = \"x\", $c10 ⟹ $c10.value = \"x\", $c11 ⟹ $c11.value = \"x\", $c12 ⟹ $c12.value = \"x\", $c13 ⟹ $c13.value = \"x\", $c14 ⟹ $c14.value = \"x\", $c15 ⟹ $c15.value = \"x\", $c16 ⟹ $c16.value = \"x\", $c17 ⟹ $c17.value = \"x\", $c18 ⟹ $c18.value = \"x\", $c19 ⟹ $c19.value = \"x\", $c20 ⟹ $c20.value = \"x\", $c21 ⟹ $c21.value = \"x\", $c22 ⟹ $c22.value = \"x\", $c23 ⟹ $c23.value = \"x\"",
+  "input": "z",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

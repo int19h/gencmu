@@ -241,63 +241,110 @@ impl<'a> Queries<'a> {
         } {
             return;
         }
-        let mut guards = Vec::new();
-        walk_captures(p, false, true, &mut guards);
-        guards.retain(|n| !n.is_empty());
-        guards.sort_unstable();
-        guards.dedup();
-        fn branch(
-            q: &mut Queries<'_>,
+        if let Part::Term(Term::Union(parts)) = p {
+            for part in parts {
+                self.clause(Part::Term(part), carrier);
+            }
+            return;
+        }
+        fn extend<'a>(expr: &'a Expr, witness: &Witness<'a>, yes: Vec<&str>, no: Vec<&str>) -> Option<Witness<'a>> {
+            let mut names: FxSet<_> = flat(&witness.names).into_iter().collect();
+            names.insert("");
+            if yes.iter().all(|name| names.contains(name)) && no.iter().all(|name| !names.contains(name)) {
+                return Some(witness.clone());
+            }
+            query(
+                expr,
+                &yes.into_iter().map(str::to_owned).collect(),
+                &no.into_iter().map(str::to_owned).collect(),
+                &[],
+            )
+        }
+        fn branch<'a>(
+            q: &mut Queries<'a>,
             p: Part<'_>,
             carrier: &[&str],
-            guards: &[&str],
             yes: &mut Vec<String>,
             no: &mut Vec<String>,
+            witness: Witness<'a>,
         ) {
-            if (!yes.is_empty() || !no.is_empty())
-                && query(q.expr, &yes.iter().cloned().collect(), &no.iter().cloned().collect(), &[]).is_none()
-            {
-                return;
+            let has = |name: &str| {
+                if name.is_empty() || yes.iter().any(|v| v == name) {
+                    Some(true)
+                } else if no.iter().any(|v| v == name) {
+                    Some(false)
+                } else {
+                    None
+                }
+            };
+            let condition;
+            let term;
+            let simple = match p {
+                Part::Cond(c) => {
+                    condition = simplify_cond_partial(c, &has);
+                    match &condition {
+                        Simple::True => return,
+                        Simple::False => None,
+                        Simple::Cond(c) => Some(Part::Cond(c)),
+                    }
+                }
+                Part::Term(t) => {
+                    term = simplify_term_partial(t, &has);
+                    term.as_ref().map(Part::Term)
+                }
+            };
+            let mut guards = Vec::new();
+            if let Some(simple) = simple {
+                walk_captures(simple, false, true, &mut guards);
             }
-            if let Some((name, rest)) = guards.split_first() {
+            if let Some(name) = guards.first() {
                 no.push(name.to_string());
-                branch(q, p, carrier, rest, yes, no);
+                if let Some(found) = extend(
+                    q.expr,
+                    &witness,
+                    yes.iter().map(String::as_str).collect(),
+                    no.iter().map(String::as_str).collect(),
+                ) {
+                    branch(q, simple.unwrap(), carrier, yes, no, found);
+                }
                 no.pop();
                 yes.push(name.to_string());
-                branch(q, p, carrier, rest, yes, no);
+                if let Some(found) = extend(
+                    q.expr,
+                    &witness,
+                    yes.iter().map(String::as_str).collect(),
+                    no.iter().map(String::as_str).collect(),
+                ) {
+                    branch(q, simple.unwrap(), carrier, yes, no, found);
+                }
                 yes.pop();
                 return;
             }
-            let has = |n: &str| n.is_empty() || yes.iter().any(|v| v == n);
+            let mut used = Vec::new();
+            if let Some(simple) = simple {
+                walk_captures(simple, true, false, &mut used);
+            }
             match p {
-                Part::Cond(c) => {
-                    let simple = simplify_cond(c, &has);
-                    if simple == Simple::True {
-                        return;
-                    }
-                    let mut used = Vec::new();
-                    if let Simple::Cond(c) = &simple {
-                        cond_captures(c, &mut used);
-                    }
+                Part::Cond(_) => {
                     let required = carrier.iter().copied().chain(yes.iter().map(String::as_str)).chain(used).collect();
-                    q.ask(required, no.iter().map(String::as_str).collect(), &[]);
+                    if let Some(found) = extend(q.expr, &witness, required, no.iter().map(String::as_str).collect()) {
+                        q.witnesses.push(found);
+                    }
                 }
-                Part::Term(t) => {
-                    if let Some(simple) = simplify_term(t, &has) {
-                        let mut used = Vec::new();
-                        term_captures(&simple, &mut used);
-                        for name in used {
-                            q.ask(
-                                carrier.iter().copied().chain(yes.iter().map(String::as_str)).collect(),
-                                no.iter().map(String::as_str).chain(std::iter::once(name)).collect(),
-                                &[],
-                            );
+                Part::Term(_) => {
+                    for name in used {
+                        let required = carrier.iter().copied().chain(yes.iter().map(String::as_str)).collect();
+                        let forbidden = no.iter().map(String::as_str).chain(std::iter::once(name)).collect();
+                        if let Some(found) = extend(q.expr, &witness, required, forbidden) {
+                            q.witnesses.push(found);
                         }
                     }
                 }
             }
         }
-        branch(self, p, carrier, &guards, &mut Vec::new(), &mut Vec::new());
+        if let Some(initial) = self.witnesses.first().cloned() {
+            branch(self, p, carrier, &mut Vec::new(), &mut Vec::new(), initial);
+        }
     }
 }
 /// Independent choice branches need one witness each. Their capture lists

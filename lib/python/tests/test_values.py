@@ -9,9 +9,25 @@ from .shared import run_case
 
 
 class Values(unittest.TestCase):
+    def test_partial_presence_simplification_bounds_independent_guards(self) -> None:
+        from gencmu import _clauses
+        from .shared import calls, count_work
+        n = 24
+        names = [f"c{i}" for i in range(n)]
+        base = {"name": "r", "op": "define", "flags": [], "at": [1, 1], "conditions": [],
+                "alternatives": [{"guards": [], "expr": {"seq": [{"optional": {"capture": c, "expr": {"ref": "A"}}} for c in names]}}]}
+        for clause in [
+            {"conditions": [{"any": [{"captured": c} for c in names]}]},
+            {"conditions": [{"all": [{"captured": c} for c in names]}]},
+            {"tags": {"union": [{"if": {"captured": c}, "then": {"method": "tags", "receiver": {"capture": c}, "args": []}} for c in names]}},
+        ]:
+            with self.subTest(clause=clause), count_work(calls(_clauses._capture_witness), budget=8*n*n):
+                self.assertIsNone(_clauses.definition_problem({**base, **clause}))
+
     def test_stitching_diagnostics_use_common_messages_and_written_capture_order(self) -> None:
         cases = [
             ('%rule text missing', 'missing is not a rule of stage main'),
+            ('%classifier lex $NOPEK ∈ K\n%rule text \"a\"', '$NOPEK is not defined in stage main'),
             ('%rule other "a"', 'has no rule text'),
             ('%ambiguity-resolution greedy\n%rule text "a"', 'has a second %ambiguity-resolution'),
             ('%rule text $x:A :: $x.value.classify(unknown)', 'unknown is not a classifier of stage main'),

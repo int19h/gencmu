@@ -1542,6 +1542,7 @@ func TestStitchingMessagesAndCaptureOrder(t *testing.T) {
 	t.Parallel()
 	cases := [][2]string{
 		{"%rule text missing", "missing is not a rule of stage main"},
+		{"%classifier lex $NOPEK ∈ K\n%rule text \"a\"", "$NOPEK is not defined in stage main"},
 		{"%rule other \"a\"", "has no rule text"},
 		{"%ambiguity-resolution greedy\n%rule text \"a\"", "has a second %ambiguity-resolution"},
 		{"%rule text $x:A :: $x.value.classify(unknown)", "unknown is not a classifier of stage main"},
