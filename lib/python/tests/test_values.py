@@ -12,6 +12,7 @@ class Values(unittest.TestCase):
     def test_stitching_diagnostics_use_common_messages_and_written_capture_order(self) -> None:
         cases = [
             ('%rule text missing', 'missing is not a rule of stage main'),
+            ('%classifier lex $NOPEK ∈ K\n%rule text \"a\"', '$NOPEK is not defined in stage main'),
             ('%rule other "a"', 'stage main has no rule text'),
             ('%ambiguity-resolution greedy\n%rule text "a"', 'stage main has a second %ambiguity-resolution'),
             ('%rule text $x:A :: $x.value.classify(unknown)', 'unknown is not a classifier of stage main'),

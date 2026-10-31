@@ -481,6 +481,7 @@ Corresponding stitching errors use common wording across libraries. A located me
 
 | Error | Message after any location prefix |
 | --- | --- |
+| Undefined constant | `$NAME is not defined in stage STAGE` |
 | Undefined rule | `NAME is not a rule of stage STAGE` |
 | Missing start rule | `stage STAGE has no rule text` |
 | Missing resolution | `stage STAGE has no %ambiguity-resolution` |
@@ -493,6 +494,8 @@ Corresponding stitching errors use common wording across libraries. A located me
 A duplicate rule names its earlier document as `%rule NAME is already defined, in DOCUMENT; %redefine-rule replaces a rule`. An invalid extension says `%extend-rule NAME extends a rule that is not defined before it`. An undefined constant dependency adds `; dependency $FROM → $MISSING` after its undefined-constant message.
 
 An undefined capture diagnostic chooses the first name that no alternative captures, in written clause order. The order is header tags and recipes, alternative tags and recipes, conditions, then emission items. Each emission visits its carrier, tags, recipes, then attachments. Within each clause, receivers, operands, guards, and branches keep their written order. Presence tests and value reads share that order.
+
+The loader resolves implication sides in declaration order and builds their membership index once.
 
 Classifier membership errors print keys with the canonical string spelling of §9.1. They say `the classifier NAME: KEY is already in CLASS` or `the classifier NAME: KEY is not in CLASS, so ∉ has nothing to remove`. Their messages begin with the entry's location.
 
@@ -941,6 +944,8 @@ Every production of a named rule records the stitched rule's flags. Productions 
 A stage lowers its grammar when a parse gives it the enabled features. So a pipeline whose documents read and stitch loads, whatever errors lowering finds for some features. An error that lowering finds is an error of the grammar for the features of that parse. It ends the stage as the stage's result, as other parsing errors do. The stage has no verdict, no tree and no output, and no later stage runs.
 
 The stage remembers classifier and lowering errors under the same gate key as successful results. Repeated parses reuse that error until its cache entry expires. Internal exceptions do not enter this cache.
+
+Clause and ranked validation can cost exponentially in the presence tests that remain relevant to one clause.
 
 Loading an ordinary pipeline does not expand production combinations. Bootstrap validation still lowers the notation stages (§8).
 
@@ -2834,9 +2839,11 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   Resolved pattern values also meet the bound of 256. For this bound, each pattern-valued term has one term wrapper around its normalized pattern. Constant references add no level and contribute their bound patterns. Aliases retain the same depth. Adjacent unions flatten, as do adjacent intersections, before this count. When `∅` supplies a pattern, its normalized form is the difference of two unrestricted child lists.
 
-  The loader examines references in written order and reports the first reference whose substituted pattern exceeds the bound. This error uses the reference's document, position, and stage. The loader detects it before it copies or compiles the substituted pattern. A resolved pattern without an offending reference uses its declaration's position.
+  The loader examines references in written order and reports the first reference whose substituted pattern exceeds the bound. This error uses the reference's document, position, and stage. The loader detects it before it copies or compiles the substituted pattern. Pattern type errors precede this depth error. Range endpoint values follow it. A resolved pattern without an offending reference uses its declaration's position.
 
   The reader flattens nested `union`, `all`, `any`, and `concat` nodes throughout the document before measuring depth. This includes conditions, guards, directive conditions, and call arguments.
+
+  Pattern reference and type walks use explicit stacks before depth validation.
 
   Pattern intersections also flatten before depth validation. Term intersections retain their written nesting until type resolution.
 
@@ -2861,11 +2868,13 @@ Once the reader reads an ordinary definition (§2), it makes sure that the whole
 
 A definition that contains a ranked choice defers two problem kinds until ranked validation completes: recipe-capture absence and empty emission. Recipe-capture absence means a production lacks a recipe's capture. A selected rule, alternative, or item recipe can report this problem. Empty emission means a production retains no items. These checks use explicit problem kinds, never message text.
 
-All other definition checks remain immediate, including capture guards, condition applicability, stray attachments, capture order, and insertion anchors. A deferred problem never hides a later immediate problem. After ranked validation, recipe-capture absence precedes empty emission. Within each kind, the definition checks' established order decides the first deferred problem. Source, cached, supplied, and expanded definitions use the same policy. A ranked definition with only these deferred problems remains valid for cache admission.
+All other definition checks remain immediate, including capture guards, condition applicability, stray attachments, capture order, and insertion anchors. A deferred problem never hides a later immediate problem. After ranked validation, recipe-capture absence precedes empty emission. Within each kind, the definition checks' established order decides the first deferred problem. Deferred problems retain declaration order across constant binding. Source, cached, supplied, and expanded definitions use the same policy. A ranked definition with only these deferred problems remains valid for cache admission.
 
 Templates retain argument-independent deferred problems even when no call instantiates them. After ranked validation, expanded definitions' deferred problems come first. Remaining template problems follow in document and written order.
 
-Before extending a partial presence assignment, discard it when no structural production can realize its required and absent captures. A choice among mutually exclusive captures does not require all Boolean combinations of those captures.
+Simplify each clause after each partial presence assignment. Stop branching when simplification removes its remaining presence tests. An `∨` stops at a present guard, and an `∧` stops at an absent guard. Analyze each term of a tag union separately.
+
+Retain the first structural witness for each partial assignment. A compatible new guard reuses that witness. A conflicting guard queries the structure for a replacement. Discard an assignment when no structural production realizes its required and absent captures. A choice among mutually exclusive captures does not require all Boolean combinations of those captures.
 
 Each of the following is an error of the document too, and the reader reports it at the definition:
 

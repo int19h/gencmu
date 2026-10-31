@@ -1,0 +1,12 @@
+{
+  "description": "An undefined classifier key constant uses the common stitching location.",
+  "grammar": "%ambiguity-resolution greedy\n%classifier lex $NOPEK ∈ K\n%rule text \"a\"",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 17
+    }
+  }
+}

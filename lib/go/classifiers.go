@@ -77,7 +77,6 @@ func (g *stageGrammar) addImplications(items []implicationItem) *Error {
 		}
 		g.implications = append(g.implications, stageImplication{ifNames: sides[0], thenNames: sides[1]})
 	}
-	g.indexImplications()
 	return nil
 }
 
@@ -306,7 +305,7 @@ func (g *stageGrammar) resolveClassifierKeys(index int) *Error {
 		for _, key := range entry.KeyTerms {
 			for _, ref := range constRefs(key) {
 				if g.constants[ref.Str] == nil {
-					return g.constError(item.doc, ref.At, "unknown classifier string constant $%s", ref.Str)
+					return g.constError(item.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
 				}
 			}
 			if ty, f := termTypeIn(key, g.constantTypes()); f != nil {

@@ -760,7 +760,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         constants.arguments.setdefault((argument['path'], tuple(argument['at'])), []).append(argument)
     changes: list[Change] = []
     resolutions: list[tuple[list[str], str, Any]] = []
-    checks: list[tuple[str, str, Dom]] = []
+    checks: list[tuple[str, str, Any]] = []
     elision_only = False
     for path, dom in documents:
         declarations = sorted(((kind, item) for kind in ("rules", "directives", "constants", "classifiers", "implications")
@@ -778,7 +778,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                     if result.problem is not None:
                         raise _error(result.problem.message, path, rule["at"], stage)
                     if result.deferred is not None:
-                        constants.deferred_emissions.append(_error(result.deferred.message, path, rule["at"], stage))
+                        checks.append((path, "deferred", _error(result.deferred.message, path, rule["at"], stage)))
                 name = rule["name"]
                 at: tuple[int, int] = (int(rule.get("at", (0, 0))[0]), int(rule.get("at", (0, 0))[1]))
                 # One list that the alternatives share, as they share the other
@@ -880,6 +880,8 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     for path, kind, item in checks:
         if kind == "rule":
             constants.check_rule(path,item)
+        elif kind == "deferred":
+            constants.deferred_emissions.append(item)
         elif kind == "features":
             directive = item
             try:

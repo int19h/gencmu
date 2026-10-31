@@ -1,0 +1,12 @@
+{
+  "description": "Deferred errors retain declaration order across constant binding (engine §2).",
+  "grammar": "%ambiguity-resolution greedy\n%const $A \"a\"\n%rule text a b\n%rule a [$x:\"a\"] (\"b\" ≻ \"c\") :: ∅\n%emits $x\n%rule b [$x:$A] (\"b\" ≻ \"c\") :: ∅\n%emits $x",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 1
+    }
+  }
+}

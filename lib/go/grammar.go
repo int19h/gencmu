@@ -185,12 +185,14 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 		})
 		for _, it := range items {
 			if r := it.rule; r != nil {
-				if r.deferredEmission != nil && len(constRefs(r)) == 0 && !ruleHasPattern(r) {
-					g.deferredEmissions = append(g.deferredEmissions, fail(d.path, r.At, "%s", r.deferredEmission.message))
-				}
 				if len(constRefs(r)) > 0 || ruleHasPattern(r) || len(g.arguments[argumentSite{d.path, r.At}]) > 0 {
 					user := constUser{doc: d.path, rule: r}
 					checks = append(checks, func() *Error { return g.checkConstantRule(user) })
+				} else if r.deferredEmission != nil {
+					checks = append(checks, func() *Error {
+						g.deferredEmissions = append(g.deferredEmissions, fail(d.path, r.At, "%s", r.deferredEmission.message))
+						return nil
+					})
 				}
 				var written jobj
 				for _, alternative := range r.Alternatives {
@@ -299,6 +301,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 	if err := g.resolveConstants(checks, expanded.arguments); err != nil {
 		return nil, err
 	}
+	g.indexImplications()
 	if len(ambiguity) == 0 {
 		e := &Error{Kind: "grammar", Stage: stageName, Message: "stage " + stageName + " has no %ambiguity-resolution"}
 		return nil, e
