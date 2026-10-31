@@ -1518,10 +1518,8 @@ impl<'a> Reader<'a> {
         let selectors = frame.selectors.as_ref().unwrap();
         let selector = selectors[frame.index];
         let name = self.value(self.token(self.one(selector, "method-name")?)?);
+        let method = known_method(name).ok_or_else(|| self.error(frame.node, format!("unknown method {name}")))?;
         if frame.arguments.is_none() {
-            if !known_method(name) {
-                return Err(self.error(frame.node, format!("unknown method {name}")));
-            }
             if let Some(closed) = self.closed_for.get().filter(|_| name != "split" && name != "ngrams") {
                 return Err(self.error(frame.node, format!("{closed} cannot read an input method")));
             }
@@ -1540,6 +1538,17 @@ impl<'a> Reader<'a> {
                 return Err(self.error(arguments, "invalid method argument separator"));
             }
         }
+        if matches!(name, "classify" | "ngrams") {
+            let mut pending = frame.arguments.clone().unwrap_or_default();
+            while let Some(node) = pending.pop() {
+                if matches!(rule_name(node), "parameter" | "call") {
+                    return Err(
+                        self.error(frame.node, "a parameter cannot replace a classifier name or integer argument")
+                    );
+                }
+                pending.extend(Self::parts(node));
+            }
+        }
         let (receiver, ty) = frame.receiver.take().unwrap();
         let unresolved = matches!(&receiver, Term::Source(_));
         let span = self.feature_context.get() || unresolved || ty == Type::Span;
@@ -1550,27 +1559,12 @@ impl<'a> Reader<'a> {
         let valid = if emitted_receiver {
             matches!((name, arguments), ("value" | "image", []))
         } else {
-            match (name, arguments) {
-                (
-                    "value"
-                    | "image"
-                    | "source-text"
-                    | "decomposed-source-text"
-                    | "first-token"
-                    | "tokens-after-first"
-                    | "last-token"
-                    | "onward"
-                    | "following-tokens"
-                    | "preceding-tokens"
-                    | "classes"
-                    | "starts-input"
-                    | "ends-input"
-                    | "tags",
-                    [],
-                ) => span,
-                ("without-elision" | "verbatim-text" | "emitted", []) => bare,
-                ("tags", [Arg::Rule(_) | Arg::Term(Term::Source(_))]) => span,
-                ("matches" | "begins" | "ends", args) => {
+            match (method, arguments) {
+                (MethodKind::Span | MethodKind::Tags, []) => span,
+                (MethodKind::Restored, []) if name == "without-elision" => bare,
+                (MethodKind::Recipe, []) => bare,
+                (MethodKind::Tags, [Arg::Rule(_) | Arg::Term(Term::Source(_))]) => span,
+                (MethodKind::Query, args) => {
                     span && (name != "ends" || !crate::dom::restored_span(&receiver))
                         && !args.is_empty()
                         && args.iter().all(|a| {
@@ -1578,22 +1572,25 @@ impl<'a> Reader<'a> {
                                 || matches!(a,Arg::Term(Term::Tag(n)) if is_capital(n))
                         })
                 }
-                ("ngrams", [Arg::Integer(n)]) => string && crate::dom::valid_integer(n),
-                ("without-elision-except", [Arg::Rule(_) | Arg::Term(Term::Source(_))]) => bare,
-                ("followed-by" | "preceded-by", args) => {
+                (MethodKind::Ngrams, [Arg::Integer(n)]) => string && crate::dom::valid_integer(n),
+                (MethodKind::Restored, [Arg::Rule(_) | Arg::Term(Term::Source(_))])
+                    if name == "without-elision-except" =>
+                {
+                    bare
+                }
+                (MethodKind::Boundary, args) => {
                     bare && !args.is_empty()
                         && args.iter().all(|arg| {
                             matches!(arg, Arg::Rule(_) | Arg::Term(Term::Source(_)))
                                 || matches!(arg, Arg::Term(Term::Tag(name)) if is_capital(name))
                         })
                 }
-                ("split", [Arg::Term(_)]) => {
+                (MethodKind::Split, [Arg::Term(_)]) => {
                     string
                         && (self.feature_context.get()
                             || matches!(frame.types.first(), Some(Some(Type::String | Type::Span | Type::Any))))
                 }
-                ("classify", [Arg::Rule(classifier)]) => string && is_classifier_name(classifier),
-                ("classify", [Arg::Term(Term::Source(_))]) => string,
+                (MethodKind::Classify, [Arg::Rule(classifier)]) => string && is_classifier_name(classifier),
                 _ => false,
             }
         };
@@ -2537,40 +2534,48 @@ const ATOMS: &[&str] = &[
     "constant-reference",
 ];
 
-/// Whether a name begins with a capital, and so is a terminal and a tag
-/// literal (engine §2).
-fn known_method(name: &str) -> bool {
-    matches!(
-        name,
-        "value"
-            | "image"
-            | "source-text"
-            | "decomposed-source-text"
-            | "classes"
-            | "onward"
-            | "following-tokens"
-            | "preceding-tokens"
-            | "first-token"
-            | "last-token"
-            | "tokens-after-first"
-            | "starts-input"
-            | "ends-input"
-            | "without-elision"
-            | "without-elision-except"
-            | "verbatim-text"
-            | "emitted"
-            | "tags"
-            | "followed-by"
-            | "preceded-by"
-            | "matches"
-            | "begins"
-            | "ends"
-            | "ngrams"
-            | "split"
-            | "classify"
-    )
+enum MethodKind {
+    Span,
+    Restored,
+    Recipe,
+    Tags,
+    Boundary,
+    Query,
+    Ngrams,
+    Split,
+    Classify,
 }
 
+/// The signature family of a supported method.
+fn known_method(name: &str) -> Option<MethodKind> {
+    Some(match name {
+        "value"
+        | "image"
+        | "source-text"
+        | "decomposed-source-text"
+        | "classes"
+        | "onward"
+        | "following-tokens"
+        | "preceding-tokens"
+        | "first-token"
+        | "last-token"
+        | "tokens-after-first"
+        | "starts-input"
+        | "ends-input" => MethodKind::Span,
+        "without-elision" | "without-elision-except" => MethodKind::Restored,
+        "verbatim-text" | "emitted" => MethodKind::Recipe,
+        "tags" => MethodKind::Tags,
+        "followed-by" | "preceded-by" => MethodKind::Boundary,
+        "matches" | "begins" | "ends" => MethodKind::Query,
+        "ngrams" => MethodKind::Ngrams,
+        "split" => MethodKind::Split,
+        "classify" => MethodKind::Classify,
+        _ => return None,
+    })
+}
+
+/// Whether a name begins with a capital, and so is a terminal and a tag
+/// literal (engine §2).
 fn is_capital(name: &str) -> bool {
     name.starts_with(|c: char| c.is_ascii_uppercase())
 }

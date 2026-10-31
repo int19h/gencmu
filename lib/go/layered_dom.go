@@ -215,9 +215,8 @@ func writeLayeredPattern(w *jsonWriter, root *domPattern) {
 			continue
 		}
 		if p.Kind == "call" {
-			head := &jsonWriter{}
-			p.Call.writeJSON(head)
-			w.raw(string(head.buf[:len(head.buf)-1]))
+			w.raw("{")
+			p.Call.writeFields(w)
 		} else {
 			w.raw(`{"` + p.Kind + `":`)
 		}
@@ -255,6 +254,7 @@ func writeLayeredPattern(w *jsonWriter, root *domPattern) {
 		case tmUnion, tmIntersection, tmDifference:
 			w.raw("[")
 		case "call":
+			at = true
 		default:
 			panic("a resolved pattern constructor is required")
 		}
@@ -262,7 +262,11 @@ func writeLayeredPattern(w *jsonWriter, root *domPattern) {
 		if at {
 			tail := &jsonWriter{}
 			tail.raw(`,"at":`)
-			tail.pair(p.At)
+			position := p.At
+			if p.Kind == "call" {
+				position = p.Call.At
+			}
+			tail.pair(position)
 			tail.raw("}")
 			suffix = string(tail.buf)
 		}

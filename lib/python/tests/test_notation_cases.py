@@ -16,6 +16,14 @@ from .shared import REPOSITORY, add_case_tests, cases, load_case, mismatch, read
 
 
 class NotationCases(unittest.TestCase):
+    def test_decorated_pattern_member_order(self) -> None:
+        document = '```jbogenbau\n%const $P #·pair("a")«»\n%rule f(@X) A %conditions $ ≅ #·@X«»\n```\n'
+        dom = read_document(document, "order.md")
+        json = write_json(dom)
+        for want in ('"call":"pair","args":[{"string":"a"}],"exact":true,"children":[],"at":[2,13]',
+                     '"param":"X","exact":true,"children":[],"at":[3,33]'):
+            self.assertIn(want, json)
+
     def test_the_final_notation_stage_reports_emission_errors(self) -> None:
         found = _resources()
         bootstrap = json.loads(found.bootstrap)

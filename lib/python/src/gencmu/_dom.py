@@ -897,7 +897,7 @@ class DomBuilder:
             if name in ("without-elision", "without-elision-except") and set(receiver) != {"capture"}:
                 problem = "without-elision requires a bare capture: write $x.without-elision.onward" if name == "without-elision" else "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward"
             if problem is not None and not self.feature_context and not dependent:
-                if problem.startswith('invalid receiver or arguments'):
+                if not (problem.startswith('without-elision') or problem.startswith('ends requires') or problem == 'split has an empty delimiter'):
                     if name == 'without-elision':
                         problem = 'without-elision requires a bare capture: write $x.without-elision.onward'
                     elif name == 'without-elision-except':
@@ -912,7 +912,8 @@ class DomBuilder:
             self.boundary_nodes[id(receiver)] = node
             kind, problem = term_type(receiver, memo=self.types)
             if problem and not self.feature_context and not dependent:
-                raise self.fail(node, problem)
+                specific = problem.startswith(("without-elision", "ends requires")) or problem == "split has an empty delimiter"
+                raise self.fail(node, problem if specific else "a method has the wrong receiver or arguments")
         return receiver
 
     def _joined(self, node: Node, items: list[Dom], operator: str) -> None:
@@ -995,11 +996,13 @@ class DomBuilder:
                 raise self.fail(children, "a child list requires a rule test")
             if isinstance(atom.get('literal'), dict) and 'const' in atom['literal']:
                 atom = {**{key: value for key, value in atom.items() if key != 'literal'}, 'constant': atom['literal']['const']}
-            result = dict(atom)
+            result = {key: value for key, value in atom.items() if key != "at"}
             if any(part.kind == "token" and self.token_value(part) == "·" for part in self.kids(node)):
                 result["exact"] = True
             if children is not None:
                 result["children"] = yield self._layered_pattern(children)
+            if "at" in atom:
+                result["at"] = atom["at"]
             return result
         if kind in ("pattern-union", "pattern-intersection", "child-set", "child-intersection"):
             operands = [part for part in self.kids(node) if part.rule in ("pattern-intersection", "pattern-path", "child-intersection", "child-path")]

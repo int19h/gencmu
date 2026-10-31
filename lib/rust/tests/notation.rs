@@ -254,3 +254,15 @@ fn every_recipe_position_instructs_the_author_to_use_concat() {
         assert!(!error.message.to_lowercase().contains("use ++"), "{body}: {error}");
     }
 }
+
+#[test]
+fn decorated_pattern_member_order() {
+    let document = "```jbogenbau\n%const $P #·pair(\"a\")«»\n%rule f(@X) A %conditions $ ≅ #·@X«»\n```\n";
+    let json = gencmu::tools::read_grammar_document(document, "order.md").unwrap();
+    for want in [
+        r#""call":"pair","args":[{"string":"a"}],"exact":true,"children":[],"at":[2,13]"#,
+        r#""param":"X","exact":true,"children":[],"at":[3,33]"#,
+    ] {
+        assert!(json.contains(want), "missing {want} in {json}");
+    }
+}
