@@ -1,0 +1,22 @@
+{
+  "description": "A runtime grammar error keeps its description separate from its stage (API parsing contract).",
+  "grammar": "%rule text $e:nothing A %conditions \"x\" ∈ $.value.split($e.value)\n%rule nothing ε",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "message": "split has an empty delimiter",
+    "result": {
+      "error": {
+        "kind": "grammar",
+        "stage": "main"
+      }
+    }
+  }
+}

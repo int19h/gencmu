@@ -722,7 +722,7 @@ const contentKeyLimit = 16
 // gives the query instead, which halts the walk that asked it. The
 // recognition that walks, or emission, answers it on a stack of its own.
 func recursiveQuery(rule string) *parseFailure {
-	return &parseFailure{bare: true, message: "a condition asks whether its own span parses as " + rule +
+	return &parseFailure{message: "a condition asks whether its own span parses as " + rule +
 		" from inside the parse of that span as " + rule + ": the grammar defines " + rule +
 		" in terms of itself over the same text"}
 }
@@ -1186,7 +1186,4 @@ type nestedResult struct {
 // parse (engine §4, §5). It has a message and no position (§13).
 type parseFailure struct {
 	message string
-	// bare preserves a prescribed reason or a message with its own location.
-	// The structured parse error still carries its stage.
-	bare bool
 }

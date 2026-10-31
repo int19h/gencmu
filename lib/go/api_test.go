@@ -1031,14 +1031,14 @@ func TestGrammarFaultHasNoPosition(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct{ grammar, message string }{
 		{`%rule text $w:W %emits $w :: $.tags(bad)
-%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "stage main: split has an empty delimiter"},
+%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "split has an empty delimiter"},
 		{`%rule text $w:W %emits $, ε :: $.tags(bad) := "a"
-%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "stage main: split has an empty delimiter"},
+%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "split has an empty delimiter"},
 		{`%rule text $w:W %emits ε :: $.tags(bad) := "a", $w
-%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "stage main: split has an empty delimiter"},
+%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "split has an empty delimiter"},
 		// Empty user tag sets are valid in the redesign. The failed query still tests error positions.
 		{`%rule text $a:W %emits $a :: $.tags(bad)
-%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "stage main: split has an empty delimiter"},
+%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "split has an empty delimiter"},
 		{"%rule text $a:x %conditions ¬$a.matches(text)\n%rule x W",
 			"a condition asks whether its own span parses as text from inside the parse of that span as text: the grammar defines text in terms of itself over the same text"},
 		{"%rule text $a:x %conditions ¬$a.onward.begins(text)\n%rule x W",

@@ -101,7 +101,7 @@ Each source-map loader copies the supplied entries. Later changes to the caller'
 
 A document read from disk is different: bytes that are not valid UTF-8 there are a `grammar` load error, with no line or column.
 
-A text that does not parse gives a failed result. Its `ok` is false, and its `error` explains the failure. The kind of that error is `rejected`, `ambiguous`, `feature-conflict`, or `grammar`. A grammar result message keeps the document location and description. Its separate `stage` field names the stage.
+A text that does not parse gives a failed result. Its `ok` is false, and its `error` explains the failure. The kind of that error is `rejected`, `ambiguous`, `feature-conflict`, or `grammar`. A grammar result message keeps the document location and description. Its separate `stage` field names the stage. This rule also applies to grammar errors from conditions, queries, and emission.
 
 An `ambiguous` error has a reason. It is `tie` where a stage has two or more best readings (engine §6). It is `elision-only` where the check of engine §7 fails.
 
