@@ -904,7 +904,7 @@ func altCaptures(a *domAlt) []map[string]int {
 
 func TestPartialPresenceSimplificationBoundsIndependentGuards(t *testing.T) {
 	const n = 24
-	for _, kind := range []string{"any", "all", "tags"} {
+	for _, kind := range []string{"any", "all", "tags", "guarded"} {
 		expr := &domExpr{Kind: exSeq}
 		condition := &domCond{Kind: cdAny}
 		if kind == "all" {
@@ -922,6 +922,14 @@ func TestPartialPresenceSimplificationBoundsIndependentGuards(t *testing.T) {
 		if kind == "tags" {
 			rule.Tags = tags
 		} else {
+			if kind == "guarded" {
+				condition.Kind = cdAll
+				condition.Items = condition.Items[:8]
+				for i, guard := range condition.Items {
+					value := &domTerm{Kind: tmCall, Str: "value", Items: []*domTerm{{Kind: tmCapture, Str: guard.Capture}}}
+					condition.Items[i] = &domCond{Kind: cdIf, Items: []*domCond{guard, {Kind: cdCompare, Op: "=", Left: value, Right: &domTerm{Kind: tmString, Str: "x"}}}}
+				}
+			}
 			rule.Conditions = []*domCond{condition}
 		}
 		w := &workCounts{}
