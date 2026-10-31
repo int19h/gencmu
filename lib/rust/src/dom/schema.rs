@@ -415,8 +415,8 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
         } else {
             &*rule
         };
-        if rule_type_problem(checked).is_some() {
-            return Some("a term or a condition whose types do not agree".into());
+        if let Some(problem) = rule_type_problem(checked) {
+            return Some(problem);
         }
         // Retain the detailed issue and the deferred result on these nodes.
         let result = crate::clauses::check_definition(checked, true);

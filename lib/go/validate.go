@@ -1058,7 +1058,11 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		}
 	case cdInitial, cdEnd:
 		if !isSpanShape(d.Span) {
-			c.fail("a malformed initial()")
+			method := "starts-input"
+			if d.Kind == cdEnd {
+				method = "ends-input"
+			}
+			c.fail("a malformed %s()", method)
 			return
 		}
 		c.term(d.Span, depth+1, true)

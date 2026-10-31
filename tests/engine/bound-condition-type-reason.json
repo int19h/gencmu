@@ -1,0 +1,13 @@
+{
+  "description": "An argument-dependent condition fault retains its specific type reason after expansion.",
+  "grammar": "%rule f(@X) $c:\"a\" %conditions $c.value ⊆ @X\n%rule named = f(A)\n%rule text named",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}
