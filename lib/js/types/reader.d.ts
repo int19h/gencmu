@@ -15,8 +15,8 @@ import type { Token } from "./tokens.js";
  * @param {string} path
  * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag(name:string):string|null}} unicode
  *   the configured category table for diagnostic strings
+ * @param {(token:Token, path:boolean)=>string} decodeString
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
- * @param {(token:Token, path:boolean)=>string} [decodeString]
  * @returns {GrammarDom}
  */
 export declare function treeToDom(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => Position, path: string, unicode: {
@@ -24,12 +24,12 @@ export declare function treeToDom(tree: ResultNode, tokens: Token[], positionOf:
     changesInDocument?(code: number): boolean;
     isEmojiName?(name: string): boolean;
     canonicalTag(name: string): string | null;
-}, deferEmission?: boolean, decodeString?: (token: Token, path: boolean) => string): GrammarDom;
-export type OperandKind = "name" | "class" | "string" | "tag" | "range" | "term";
+}, decodeString: (token: Token, path: boolean) => string, deferEmission?: boolean): GrammarDom;
+export type OperandKind = "name" | "class" | "string" | "tag";
 /**
  * A directive's operand: a bare name, lower case or with a capital, a
  * string, or another recognized term atom.
- * @typedef {"name" | "class" | "string" | "tag" | "range" | "term"} OperandKind
+ * @typedef {"name" | "class" | "string" | "tag"} OperandKind
  */
 /**
  * What is wrong with a directive's operands, or null (engine §9).

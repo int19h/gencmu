@@ -18502,26 +18502,11 @@
    * @param {string} path
    * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag(name:string):string|null}} unicode
    *   the configured category table for diagnostic strings
-   * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
-   * @param {(token:Token, path:boolean)=>string} [decodeString]
-   * @returns {GrammarDom}
-   */
-  function treeToDom(tree, tokens, positionOf, path, unicode, deferEmission = false, decodeString) {
-    const decode = decodeString ?? ((/** @type {Token} */ token) => [...token.value].slice(1, -1).join(""));
-    return convertTree(tree, tokens, positionOf, path, unicode, decode, deferEmission);
-  }
-
-  /**
-   * @param {ResultNode} tree
-   * @param {Token[]} tokens
-   * @param {(token:Token)=>Position} positionOf
-   * @param {string} path
-   * @param {Parameters<typeof treeToDom>[4]} unicode
    * @param {(token:Token, path:boolean)=>string} decodeString
-   * @param {boolean} deferEmission
+   * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
    * @returns {GrammarDom}
    */
-  function convertTree(tree, tokens, positionOf, path, unicode, decodeString, deferEmission) {
+  function treeToDom(tree, tokens, positionOf, path, unicode, decodeString, deferEmission = false) {
     /** @type {(node: ResultNode) => Position} */
     const at = (node) => positionOf(tokens[firstToken(node)]);
     /** @type {(message: string, node: ResultNode) => never} */
@@ -19801,7 +19786,7 @@
   /**
    * A directive's operand: a bare name, lower case or with a capital, a
    * string, or another recognized term atom.
-   * @typedef {"name" | "class" | "string" | "tag" | "range" | "term"} OperandKind
+   * @typedef {"name" | "class" | "string" | "tag"} OperandKind
    */
 
 
@@ -20853,7 +20838,7 @@
       }
       const syntax = run.stages[run.stages.length - 1];
       const dom = domOfTree(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path, this.unicode,
-        deferEmission, (token, path) => strings.decode(token, path));
+        (token, path) => strings.decode(token, path), deferEmission);
       if (names.dependencies) this.namesDependencies.set(dom, names.dependencies);
       return dom;
     }
@@ -21180,15 +21165,15 @@
    * @param {(token: Token) => import("./types.js").Position} positionOf
    * @param {string} path
    * @param {UnicodeTable} unicode
+   * @param {(token:Token, path:boolean)=>string} decodeString
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
-   * @param {(token:Token, path:boolean)=>string} [decodeString]
    * @returns {GrammarDom}
    */
-  function domOfTree(tree, tokens, positionOf, path, unicode, deferEmission = false, decodeString) {
+  function domOfTree(tree, tokens, positionOf, path, unicode, decodeString, deferEmission = false) {
     /** @type {GrammarDom} */
     let dom;
     try {
-      dom = treeToDom(tree, tokens, positionOf, path, unicode, deferEmission, decodeString);
+      dom = treeToDom(tree, tokens, positionOf, path, unicode, decodeString, deferEmission);
     } catch (error) {
       // A count past a test's budget must reach the test as itself, or the
       // reader's work would run on past the budget as an error of the grammar.
