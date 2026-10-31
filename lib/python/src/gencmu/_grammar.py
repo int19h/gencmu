@@ -544,6 +544,12 @@ class _Constants:
                     fault = problem, term
             if fault is not None:
                 faults.append(self.fault_error(path, fault[1], at, fault[0]))
+                continue
+            try:
+                self.check_value_uses(path, term, at)
+                self.check_delimiters(path, term, at)
+            except GencmuError as error:
+                faults.append(error)
         if faults:
             raise min(faults, key=lambda error: (error.line or 0, error.column or 0))
 
@@ -561,25 +567,7 @@ class _Constants:
             faults.append(error)
         if faults:
             raise min(faults, key=lambda error: (error.line or 0, error.column or 0))
-        pending = [rule]
-        while pending:
-            node = pending.pop()
-            if isinstance(node, list):
-                pending.extend(node)
-            elif isinstance(node, dict):
-                if node.get("op") in ("≅", "≇"):
-                    run(self._closed(path, node["right"], rule["at"], "pattern"))
-                if "pattern" in node:
-                    run(self._closed(path, node, rule["at"]))
-                else:
-                    if "range" in node:
-                        ends = [run(self._closed(path, end, rule["at"])) for end in node["range"]]
-                        for i, end in enumerate(ends):
-                            if len(end) != 1:
-                                raise self.fault_error(path, node["range"][i], rule["at"], "a range endpoint is one scalar")
-                        if ends[0] > ends[1]:
-                            raise self.fault_error(path, node["range"], rule["at"], "a range starts above its end")
-                    pending.extend(node.values())
+        self.check_value_uses(path, rule, rule["at"])
         # The checks that simplification decides, which the reader left
         # to the loader, now with the constants' values (engine §9).
         result = check_definition(run(self.with_values(rule)), True)
@@ -588,6 +576,28 @@ class _Constants:
         if result.deferred is not None:
             self.deferred_emissions.append(_error(result.deferred.message, path, rule["at"], self.stage))
         self.check_delimiters(path, rule, rule["at"])
+
+    def check_value_uses(self, path: str, root: Any, at: Any) -> None:
+        """Inspect range endpoints and pattern values after constant binding."""
+        pending = [root]
+        while pending:
+            node = pending.pop()
+            if isinstance(node, list):
+                pending.extend(node)
+            elif isinstance(node, dict):
+                if node.get("op") in ("≅", "≇"):
+                    run(self._closed(path, node["right"], at, "pattern"))
+                if "pattern" in node:
+                    run(self._closed(path, node, at))
+                else:
+                    if "range" in node:
+                        ends = [run(self._closed(path, end, at)) for end in node["range"]]
+                        for i, end in enumerate(ends):
+                            if len(end) != 1:
+                                raise self.fault_error(path, node["range"][i], at, "a range endpoint is one scalar")
+                        if ends[0] > ends[1]:
+                            raise self.fault_error(path, node["range"], at, "a range starts above its end")
+                    pending.extend(node.values())
 
     def check_delimiters(self, path: str, clauses: Any, at: Any, *, computed: bool = False) -> None:
         """Reject direct empty delimiters, or all closed feature delimiters."""

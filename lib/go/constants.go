@@ -748,6 +748,13 @@ func (g *stageGrammar) checkArguments(arguments []constArgument) *Error {
 				err = g.faultError(argument.doc, argument.term, argument.at, problem)
 			}
 		}
+		if err == nil {
+			root := &domRule{Tags: argument.term, At: argument.at}
+			err = g.checkPatternValues(argument.doc, root)
+			if err == nil {
+				err = g.checkDelimiters(argument.doc, root, false)
+			}
+		}
 		selected = earlierConstantError(selected, err)
 	}
 	return selected
@@ -773,31 +780,8 @@ func (g *stageGrammar) checkConstantRule(u constUser) *Error {
 	if err := g.validateStringUses(u.doc, u.rule); err != nil {
 		return err
 	}
-	var patternErr *Error
-	scan := func(p clausePart) bool {
-		if patternErr != nil {
-			return false
-		}
-		if p.c != nil && (p.c.Op == "≅" || p.c.Op == "≇") {
-			_, patternErr = g.evaluateClosed(u.doc, p.c.Right, u.rule.At, tyPattern)
-			if patternErr != nil {
-				return false
-			}
-		}
-		if p.t != nil && p.t.Kind == tmPattern {
-			_, patternErr = g.evaluateClosed(u.doc, p.t, u.rule.At)
-			return false
-		}
-		return true
-	}
-	for _, c := range u.rule.Conditions {
-		walkClause(clausePart{c: c}, scan)
-	}
-	for _, t := range ruleTagTerms(u.rule) {
-		walkClause(clausePart{t: t}, scan)
-	}
-	if patternErr != nil {
-		return patternErr
+	if err := g.checkPatternValues(u.doc, u.rule); err != nil {
+		return err
 	}
 
 	// The checks that simplification decides, which the reader left to
@@ -812,5 +796,36 @@ func (g *stageGrammar) checkConstantRule(u constUser) *Error {
 	if err := g.checkDelimiters(u.doc, u.rule, false); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (g *stageGrammar) checkPatternValues(doc string, rule *domRule) *Error {
+	var patternErr *Error
+	scan := func(p clausePart) bool {
+		if patternErr != nil {
+			return false
+		}
+		if p.c != nil && (p.c.Op == "≅" || p.c.Op == "≇") {
+			_, patternErr = g.evaluateClosed(doc, p.c.Right, rule.At, tyPattern)
+			if patternErr != nil {
+				return false
+			}
+		}
+		if p.t != nil && p.t.Kind == tmPattern {
+			_, patternErr = g.evaluateClosed(doc, p.t, rule.At)
+			return false
+		}
+		return true
+	}
+	for _, c := range rule.Conditions {
+		walkClause(clausePart{c: c}, scan)
+	}
+	for _, t := range ruleTagTerms(rule) {
+		walkClause(clausePart{t: t}, scan)
+	}
+	if patternErr != nil {
+		return patternErr
+	}
+
 	return nil
 }
