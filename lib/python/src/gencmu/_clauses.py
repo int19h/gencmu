@@ -166,34 +166,38 @@ def duplicate_captures(expr: Any) -> list[Dom]:
         stack[-1][2].append(joined)
 
 
-def simplify_condition(condition: Dom, present: AbstractSet[str]) -> Simplified:
+def simplify_condition(condition: Dom, present: AbstractSet[str], absent: AbstractSet[str] | None = None) -> Simplified:
     """A condition simplified for a production that has the captures
-    ``present`` (engine §3.6)."""
-    return run(_condition(condition, present))  # type: ignore[no-any-return]
+    ``present`` (engine §3.6). If ``absent`` is supplied, other names
+    retain their presence tests for partial assignments."""
+    return run(_condition(condition, present, absent))  # type: ignore[no-any-return]
 
 
-def simplify_term(term: Dom, present: AbstractSet[str]) -> Dom:
+def simplify_term(term: Dom, present: AbstractSet[str], absent: AbstractSet[str] | None = None) -> Dom:
     """A tag term simplified for a production that has the captures
     ``present``: a guarded term whose condition is false is the empty set
-    (engine §3.6)."""
-    return run(_term(term, present))  # type: ignore[no-any-return]
+    (engine §3.6). If ``absent`` is supplied, other names stay unresolved."""
+    return run(_term(term, present, absent))  # type: ignore[no-any-return]
 
 
-def _condition(dom: Dom, present: AbstractSet[str]) -> Walk:
+def _condition(dom: Dom, present: AbstractSet[str], absent: AbstractSet[str] | None = None) -> Walk:
     if "captured" in dom:
-        return dom["captured"] == WHOLE or dom["captured"] in present
+        name = dom["captured"]
+        if name == WHOLE or name in present:
+            return True
+        return dom if absent is not None and name not in absent else False
     if "if" in dom:
-        premise = yield _condition(dom["if"], present)
+        premise = yield _condition(dom["if"], present, absent)
         if premise is False:
             return True
-        consequent = yield _condition(dom["then"], present)
+        consequent = yield _condition(dom["then"], present, absent)
         if premise is True or consequent is True:
             return consequent
         if consequent is False:
             return {"not": premise}
         return {"if": premise, "then": consequent}
     if "not" in dom:
-        inner = yield _condition(dom["not"], present)
+        inner = yield _condition(dom["not"], present, absent)
         return (not inner) if isinstance(inner, bool) else {"not": inner}
     if "all" in dom or "any" in dom:
         key = "all" if "all" in dom else "any"
@@ -202,7 +206,7 @@ def _condition(dom: Dom, present: AbstractSet[str]) -> Walk:
         deciding = key == "any"
         parts: list[Dom] = []
         for item in dom[key]:
-            part = yield _condition(item, present)
+            part = yield _condition(item, present, absent)
             if part is deciding:
                 return deciding
             if part is not (not deciding):
@@ -211,8 +215,8 @@ def _condition(dom: Dom, present: AbstractSet[str]) -> Walk:
             return not deciding
         return parts[0] if len(parts) == 1 else {key: parts}
     if "op" in dom:
-        left = yield _term(dom["left"], present)
-        right = yield _term(dom["right"], present)
+        left = yield _term(dom["left"], present, absent)
+        right = yield _term(dom["right"], present, absent)
         return {"op": dom["op"], "left": left, "right": right}
     return dom
 
@@ -229,7 +233,7 @@ def is_empty_set(dom: Any) -> bool:
     return isinstance(dom.get("const"), str) and isinstance(value, frozenset) and not value
 
 
-def _term(dom: Any, present: AbstractSet[str]) -> Walk:
+def _term(dom: Any, present: AbstractSet[str], absent: AbstractSet[str] | None = None) -> Walk:
     """A term's empty set, written or left by a guard, is dropped from a
     union, and makes an intersection, a difference from it or a guarded term
     empty (engine §3.6):
@@ -237,17 +241,17 @@ def _term(dom: Any, present: AbstractSet[str]) -> Walk:
     if not isinstance(dom, dict):
         return dom
     if "if" in dom:
-        premise = yield _condition(dom["if"], present)
+        premise = yield _condition(dom["if"], present, absent)
         if premise is False:
             return dict(EMPTY_SET)
-        then = yield _term(dom["then"], present)
+        then = yield _term(dom["then"], present, absent)
         if is_empty_set(then):
             return then
         return then if premise is True else {"if": premise, "then": then}
     if isinstance(dom.get("union"), list):
         parts = []
         for item in dom["union"]:
-            part = yield _term(item, present)
+            part = yield _term(item, present, absent)
             if not is_empty_set(part):
                 parts.append(part)
         if not parts:
@@ -256,7 +260,7 @@ def _term(dom: Any, present: AbstractSet[str]) -> Walk:
     if isinstance(dom.get("intersection"), list):
         parts = []
         for item in dom["intersection"]:
-            part = yield _term(item, present)
+            part = yield _term(item, present, absent)
             if is_empty_set(part):
                 return part
             parts.append(part)
@@ -264,17 +268,17 @@ def _term(dom: Any, present: AbstractSet[str]) -> Walk:
     if isinstance(dom.get("difference"), list):
         # A difference from the empty set is empty, and one of the empty set
         # is its first part (engine §3.6).
-        left = yield _term(dom["difference"][0], present)
+        left = yield _term(dom["difference"][0], present, absent)
         if is_empty_set(left):
             return left
-        right = yield _term(dom["difference"][1], present)
+        right = yield _term(dom["difference"][1], present, absent)
         return left if is_empty_set(right) else {"difference": [left, right]}
     if isinstance(dom.get("args"), list):
         args = []
         for arg in dom["args"]:
-            args.append((yield _term(arg, present)))
+            args.append((yield _term(arg, present, absent)))
         if "receiver" in dom:
-            return {**dom, "receiver": (yield _term(dom["receiver"], present)), "args": args}
+            return {**dom, "receiver": (yield _term(dom["receiver"], present, absent)), "args": args}
         return {**dom, "args": args}
     return dom
 
@@ -775,7 +779,9 @@ def validation_captures(rule, alternative):
         if w is not None:
             witnesses.append(w)
 
-    ask()
+    initial = _capture_witness(expr)
+    if initial is not None:
+        witnesses.append(initial)
     items = rule.get('emit', {}).get('items', [])
     clauses = [rule.get('tags'), rule.get('value'), rule.get('image'), *rule['conditions']]
     for item in items:
@@ -792,35 +798,53 @@ def validation_captures(rule, alternative):
     def clause(value, condition=False, carrier=()):
         if value is None or waits(value):
             return
-        # A capture can be both tested for presence and read as a value.
-        pending = [value]
-        guards = set()
-        while pending:
-            n = pending.pop()
-            if isinstance(n, dict) and 'pattern' not in n:
-                if 'captured' in n and n['captured'] != WHOLE:
-                    guards.add(n['captured'])
-                pending.extend(n.values())
-            elif isinstance(n, list):
-                pending.extend(n)
-        guards = sorted(guards)
+        if not condition and 'union' in value:
+            for part in value['union']:
+                clause(part, carrier=carrier)
+            return
 
-        def branch(i, yes, no):
-            if i and _capture_witness(expr, yes, no) is None:
+        def branch(part, yes, no, witness):
+            simple = (simplify_condition(part, set(yes) | {WHOLE}, set(no)) if condition
+                      else simplify_term(part, set(yes) | {WHOLE}, set(no)))
+            if simple is True:
                 return
-            if i < len(guards):
-                branch(i + 1, yes, no + [guards[i]])
-                branch(i + 1, yes + [guards[i]], no)
+            pending, guard = [simple], None
+            while pending and guard is None:
+                node = pending.pop()
+                if isinstance(node, dict) and 'pattern' not in node:
+                    if 'captured' in node:
+                        guard = node['captured']
+                    else:
+                        pending.extend(reversed(list(node.values())))
+                elif isinstance(node, list):
+                    pending.extend(reversed(node))
+
+            def extend(required, forbidden):
+                names = set(_witness_flat(witness[1])) | {WHOLE}
+                if set(required) <= names and not (set(forbidden) & names):
+                    return witness
+                return _capture_witness(expr, required, forbidden)
+
+            if guard is not None:
+                without = extend(yes, [*no, guard])
+                if without is not None:
+                    branch(simple, yes, [*no, guard], without)
+                with_guard = extend([*yes, guard], no)
+                if with_guard is not None:
+                    branch(simple, [*yes, guard], no, with_guard)
                 return
-            simple = simplify_condition(value, set(yes) | {WHOLE}) if condition else simplify_term(value, set(yes) | {WHOLE})
             used = captures_in(simple)
             if condition:
-                if simple is not True:
-                    ask([*carrier, *yes, *used], no)
+                found = extend([*carrier, *yes, *used], no)
+                if found is not None:
+                    witnesses.append(found)
             else:
                 for name in used:
-                    ask([*carrier, *yes], [*no, name])
-        branch(0, [], [])
+                    found = extend([*carrier, *yes], [*no, name])
+                    if found is not None:
+                        witnesses.append(found)
+        if initial is not None:
+            branch(value, [], [], initial)
 
     for value in rule['conditions']:
         clause(value, True)

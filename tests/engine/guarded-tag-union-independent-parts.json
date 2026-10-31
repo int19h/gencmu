@@ -1,0 +1,10 @@
+{
+  "description": "Definition analysis simplifies partial presence assignments before extending them.",
+  "grammar": "%rule text \"z\"\n%rule other off? \"a\" [$c0:\"x\"] [$c1:\"x\"] [$c2:\"x\"] [$c3:\"x\"] [$c4:\"x\"] [$c5:\"x\"] [$c6:\"x\"] [$c7:\"x\"] [$c8:\"x\"] [$c9:\"x\"] [$c10:\"x\"] [$c11:\"x\"] [$c12:\"x\"] [$c13:\"x\"] [$c14:\"x\"] [$c15:\"x\"] [$c16:\"x\"] [$c17:\"x\"] [$c18:\"x\"] [$c19:\"x\"] [$c20:\"x\"] [$c21:\"x\"] [$c22:\"x\"] [$c23:\"x\"]\n:: ($c0 ⟹ $c0.tags) ∪ ($c1 ⟹ $c1.tags) ∪ ($c2 ⟹ $c2.tags) ∪ ($c3 ⟹ $c3.tags) ∪ ($c4 ⟹ $c4.tags) ∪ ($c5 ⟹ $c5.tags) ∪ ($c6 ⟹ $c6.tags) ∪ ($c7 ⟹ $c7.tags) ∪ ($c8 ⟹ $c8.tags) ∪ ($c9 ⟹ $c9.tags) ∪ ($c10 ⟹ $c10.tags) ∪ ($c11 ⟹ $c11.tags) ∪ ($c12 ⟹ $c12.tags) ∪ ($c13 ⟹ $c13.tags) ∪ ($c14 ⟹ $c14.tags) ∪ ($c15 ⟹ $c15.tags) ∪ ($c16 ⟹ $c16.tags) ∪ ($c17 ⟹ $c17.tags) ∪ ($c18 ⟹ $c18.tags) ∪ ($c19 ⟹ $c19.tags) ∪ ($c20 ⟹ $c20.tags) ∪ ($c21 ⟹ $c21.tags) ∪ ($c22 ⟹ $c22.tags) ∪ ($c23 ⟹ $c23.tags)",
+  "input": "z",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

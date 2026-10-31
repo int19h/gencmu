@@ -340,7 +340,10 @@ func validationCaptures(r *domRule, a *domAlt) []map[string]int {
 			witnesses = append(witnesses, w)
 		}
 	}
-	ask(nil, nil, nil)
+	initial := captureQuery(a.Expr, nil, nil, nil)
+	if initial != nil {
+		witnesses = append(witnesses, initial)
+	}
 	var items []*domEmitItem
 	if r.Emit != nil {
 		items = r.Emit.Items
@@ -371,7 +374,8 @@ func validationCaptures(r *domRule, a *domAlt) []map[string]int {
 	for n := range mentioned {
 		ask([]string{n}, nil, nil)
 	}
-	clause := func(p clausePart, carrier []string) {
+	var clause func(clausePart, []string)
+	clause = func(p clausePart, carrier []string) {
 		if p.t == nil && p.c == nil {
 			return
 		}
@@ -386,66 +390,101 @@ func validationCaptures(r *domRule, a *domAlt) []map[string]int {
 				return
 			}
 		}
-		var guards []string
-		seen := map[string]bool{}
-		walkClause(p, func(v clausePart) bool {
-			if v.c != nil && v.c.Kind == cdCaptured && v.c.Capture != "" && !seen[v.c.Capture] {
-				seen[v.c.Capture] = true
-				guards = append(guards, v.c.Capture)
+		if p.t != nil && p.t.Kind == tmUnion {
+			for _, term := range p.t.Items {
+				clause(clausePart{t: term}, carrier)
 			}
-			return true
-		})
-		var branch func(int, []string, []string)
-		branch = func(i int, yes, no []string) {
-			if i > 0 {
-				required, forbidden := map[string]bool{}, map[string]bool{}
-				for _, name := range yes {
-					required[name] = true
+			return
+		}
+		var branch func(clausePart, []string, []string, *captureWitness)
+		branch = func(part clausePart, yes, no []string, witness *captureWitness) {
+			has := func(name string) truth {
+				if name == "" {
+					return alwaysTrue
 				}
-				for _, name := range no {
-					forbidden[name] = true
-				}
-				if captureQuery(a.Expr, required, forbidden, nil) == nil {
-					return
-				}
-			}
-			if i < len(guards) {
-				branch(i+1, yes, append(append([]string{}, no...), guards[i]))
-				branch(i+1, append(append([]string{}, yes...), guards[i]), no)
-				return
-			}
-			has := func(n string) bool {
-				if n == "" {
-					return true
-				}
-				for _, v := range yes {
-					if n == v {
-						return true
+				for _, present := range yes {
+					if name == present {
+						return alwaysTrue
 					}
 				}
-				return false
+				for _, absent := range no {
+					if name == absent {
+						return alwaysFalse
+					}
+				}
+				return open
 			}
-			used := map[string]bool{}
-			if p.c != nil {
-				simple, truth := simplifyCond(p.c, has)
-				if truth == alwaysTrue {
+			var simple clausePart
+			if part.c != nil {
+				condition, value := simplifyCondPartial(part.c, has)
+				if value == alwaysTrue {
 					return
 				}
-				condCaptures(simple, used)
-				required := append(append([]string{}, carrier...), yes...)
-				for n := range used {
-					required = append(required, n)
-				}
-				ask(required, no, nil)
+				// A false condition has no reads or remaining presence tests.
+				simple.c = condition
 			} else {
-				simple := simplifyTerm(p.t, has)
-				termCaptures(simple, used)
-				for n := range used {
-					ask(append(append([]string{}, carrier...), yes...), append(append([]string{}, no...), n), nil)
+				simple.t = simplifyTermPartial(part.t, has)
+			}
+			var guard string
+			walkClause(simple, func(node clausePart) bool {
+				if node.c != nil && node.c.Kind == cdCaptured && guard == "" {
+					guard = node.c.Capture
+				}
+				return guard == ""
+			})
+			extend := func(required, forbidden []string) *captureWitness {
+				names := map[string]bool{"": true}
+				for _, name := range captureFlat(witness.names) {
+					names[name] = true
+				}
+				matches := true
+				req, absent := map[string]bool{}, map[string]bool{}
+				for _, name := range required {
+					req[name] = true
+					matches = matches && names[name]
+				}
+				for _, name := range forbidden {
+					absent[name] = true
+					matches = matches && !names[name]
+				}
+				if matches {
+					return witness
+				}
+				return captureQuery(a.Expr, req, absent, nil)
+			}
+			if guard != "" {
+				absent := append(append([]string{}, no...), guard)
+				present := append(append([]string{}, yes...), guard)
+				if found := extend(yes, absent); found != nil {
+					branch(simple, yes, absent, found)
+				}
+				if found := extend(present, no); found != nil {
+					branch(simple, present, no, found)
+				}
+				return
+			}
+			used := map[string]bool{}
+			if part.c != nil {
+				condCaptures(simple.c, used)
+				required := append(append([]string{}, carrier...), yes...)
+				for name := range used {
+					required = append(required, name)
+				}
+				if found := extend(required, no); found != nil {
+					witnesses = append(witnesses, found)
+				}
+			} else {
+				termCaptures(simple.t, used)
+				for name := range used {
+					if found := extend(append(append([]string{}, carrier...), yes...), append(append([]string{}, no...), name)); found != nil {
+						witnesses = append(witnesses, found)
+					}
 				}
 			}
 		}
-		branch(0, nil, nil)
+		if initial != nil {
+			branch(p, nil, nil, initial)
+		}
 	}
 	for _, c := range r.Conditions {
 		clause(clausePart{c: c}, nil)

@@ -945,7 +945,7 @@ A stage lowers its grammar when a parse gives it the enabled features. So a pipe
 
 The stage remembers classifier and lowering errors under the same gate key as successful results. Repeated parses reuse that error until its cache entry expires. Internal exceptions do not enter this cache.
 
-Clause and ranked validation can cost exponentially in the presence tests that remain relevant to one clause.
+Clause and ranked validation can take exponential time in the presence tests that remain relevant to one clause.
 
 Loading an ordinary pipeline does not expand production combinations. Bootstrap validation still lowers the notation stages (§8).
 
@@ -1376,7 +1376,7 @@ Each structural machine reuses one seal state. Completing another ranked option 
 
 A node test evaluates its atom and attached child list together at the current node. Unless `exact:true` is present, it propagates that complete local answer through a sole child. A bare child list follows the same rule without an atom. Each child pattern computes its own complete answer, with its own exact prefix.
 
-A bare child list uses the ordinary node form with `any:true` and its `children` array. Internal empty patterns use this same form. A native child list uses one sequence wrapper, including a list with one sibling gap.
+A bare child list uses the ordinary node form with `any:true` and its `children` array. Internal empty patterns use this same form. A list with one sibling gap uses the same sequence form as every other child list.
 
 Descendant paths combine local and child answers. First and last paths use only their respective child. Set operations combine complete predicate answers on one candidate. Difference complements the completed deterministic answer, never incomplete evidence or another unary layer.
 
