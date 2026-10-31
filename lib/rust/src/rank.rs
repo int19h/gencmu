@@ -1151,10 +1151,8 @@ impl<'c> Ranker<'c> {
             results: Vec::new(),
             fsets: vec![Vec::new()],
             fset_index: FxMap::default(),
-            profile_summaries: (late || g.rules.iter().any(|rule| rule.leftmost_longest || rule.fewest)).then(|| ProfileSummaries {
-                count_elisions: late,
-                vectors: Vectors::new(),
-                summaries: FxMap::default(),
+            profile_summaries: (late || g.rules.iter().any(|rule| rule.leftmost_longest || rule.fewest)).then(|| {
+                ProfileSummaries { count_elisions: late, vectors: Vectors::new(), summaries: FxMap::default() }
             }),
             marks: None,
             check: false,
@@ -1536,7 +1534,10 @@ impl<'c> Ranker<'c> {
     fn done(&self, pass: Pass, key: &Key) -> bool {
         match pass {
             Pass::Admission => self.admission.as_ref().is_some_and(|a| a.counts.contains_key(key)),
-            Pass::Summaries => self.profile_summaries.as_ref().is_some_and(|profile_summaries| profile_summaries.summaries.contains_key(key)),
+            Pass::Summaries => self
+                .profile_summaries
+                .as_ref()
+                .is_some_and(|profile_summaries| profile_summaries.summaries.contains_key(key)),
             Pass::Entries => self.memo.contains_key(key),
         }
     }

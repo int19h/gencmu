@@ -1478,7 +1478,8 @@ fn projected_ranked_routes_keep_route_first_errors_and_nested_bindings() {
 
 #[test]
 fn cached_recipe_cycle_survives_boundary_location_recovery() {
-    let text = "%ambiguity-resolution greedy\n%rule text $a:a b\n%conditions $a.followed-by(b)\n%rule a \"a\"\n%rule b \"b\"";
+    let text =
+        "%ambiguity-resolution greedy\n%rule text $a:a b\n%conditions $a.followed-by(b)\n%rule a \"a\"\n%rule b \"b\"";
     let with_cycle = text.replace("$a:a b", "$a:a b := $.emitted.value");
     let dom = gencmu::tools::read_grammar_document(&grammar(&with_cycle), "").unwrap();
     let sources = single(text)
