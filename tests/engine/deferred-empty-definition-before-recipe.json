@@ -1,0 +1,13 @@
+{
+  "description": "Deferred faults follow definition declaration order before applying the error-kind order within each definition.",
+  "grammar": "%rule text empty recipe\n%rule empty [$x:B] (A ≻ C) :: ∅ %emits $x\n%rule recipe [$y:B] (A ≻ C) :: ∅ :- $y.value",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}
