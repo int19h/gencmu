@@ -960,7 +960,7 @@ A stage lowers its grammar when a parse gives it the enabled features. So a pipe
 
 The stage remembers classifier and lowering errors under the same gate key as successful results. Repeated parses reuse that error until its cache entry expires. Internal exceptions do not enter this cache.
 
-Clause and ranked validation can take exponential time in the presence tests that remain relevant to one clause.
+Clause validation can take exponential time in the presence tests that remain relevant to one clause. Ranked validation can take exponential time in the presence tests of all conditions that can bind to one group.
 
 Loading an ordinary pipeline does not expand production combinations. Bootstrap validation still lowers the notation stages (§8).
 
