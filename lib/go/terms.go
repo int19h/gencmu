@@ -734,9 +734,8 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 	contextEnd := s.b
 	if s.aligned != nil {
 		ps.alignedAsked++
-		if s.aligned.arena == nil || s.aligned.observation == invalidCloses {
-			return false, ps.in.empty(), nil
-		}
+		// Preparation collects close observations for every reachable restored
+		// query target, so its receiver has an arena here.
 		k.aligned, k.observation, k.fixedEnd = true, s.aligned.observation, s.aligned.end
 		k.family = s.aligned.family
 		contextEnd, k.contextEnd = s.aligned.contextEnd, s.aligned.contextEnd

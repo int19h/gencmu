@@ -48,10 +48,10 @@ export declare class NamesScope {
     read: (path: string) => string;
     unicode: UnicodeTable;
     extras: string[];
-    /** @type {UnicodeNames[] | null} */
-    tables: UnicodeNames[] | null;
-    /** @type {Map<string, number>} */
-    names: Map<string, number>;
+    /** @type {UnicodeNames | null} */
+    base: UnicodeNames | null;
+    /** @type {Map<string, number> | null} */
+    names: Map<string, number> | null;
     /** @type {Record<string,string> | undefined} */
     dependencies: Record<string, string> | undefined;
     /**

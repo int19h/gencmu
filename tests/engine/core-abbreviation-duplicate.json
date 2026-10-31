@@ -12,6 +12,7 @@
     "where": {
       "document": "data/unicode/unicode.txt",
       "line": 5
-    }
+    },
+    "message": "an invalid abbreviation"
   }
 }

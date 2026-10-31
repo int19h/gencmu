@@ -256,7 +256,7 @@ type namesScope struct {
 	read         func(string) (string, bool, *Error)
 	uni          *unicodeTable
 	extras       []string
-	tables       []*unicodeNames
+	base         *unicodeNames
 	dependencies map[string]string
 }
 
@@ -294,7 +294,7 @@ func (n *namesScope) need(path string) (string, *Error) {
 	return text, nil
 }
 func (n *namesScope) load() *Error {
-	if n.tables != nil {
+	if n.names != nil {
 		return nil
 	}
 	if n.uni.versionCount != 1 || n.uni.version == "" {
@@ -332,7 +332,6 @@ func (n *namesScope) load() *Error {
 	if err = base.inspect(pinned, n.uni.abbreviations, false); err != nil {
 		return err
 	}
-	tables := []*unicodeNames{base}
 	names := make(map[string]rune, len(base.names))
 	for name, code := range base.names {
 		names[name] = code
@@ -364,9 +363,8 @@ func (n *namesScope) load() *Error {
 			names[r.name], formal[r.code] = r.code, r.name
 		}
 		dependencies[path] = fnv1a64(text)
-		tables = append(tables, table)
 	}
-	n.tables, n.dependencies, n.names = tables, dependencies, names
+	n.base, n.dependencies, n.names = base, dependencies, names
 	return nil
 }
 func (n *namesScope) lookup(name string, coreOnly bool) (rune, bool, *Error) {
@@ -382,7 +380,7 @@ func (n *namesScope) lookup(name string, coreOnly bool) (rune, bool, *Error) {
 	if code, ok := n.names[name]; ok {
 		return code, true, nil
 	}
-	code, ok := n.tables[0].lookup(name)
+	code, ok := n.base.lookup(name)
 	return code, ok, nil
 }
 

@@ -191,13 +191,13 @@ impl Unicode {
                     }
                 }
                 ["category", name, first, last] => {
+                    let (first, last) = range(first, last, number)?;
                     let Some(&category) = CATEGORIES.iter().find(|&&known| known == *name) else {
                         return Err(core_error(number, "an unknown category"));
                     };
                     if category == "Cs" {
                         return Err(core_error(number, "category Cs is not allowed"));
                     }
-                    let (first, last) = range(first, last, number)?;
                     categories.add(first, last, category, (0, 0x10ffff), number, "conflicting category ranges")?;
                 }
                 [entry @ ("white-space" | "emoji-presentation" | "emoji-component"), first, last] => {
@@ -210,21 +210,18 @@ impl Unicode {
                 }
                 ["decompose", code, scalars @ ..] if !scalars.is_empty() => {
                     let code = hex(code, number)?;
-                    if char::from_u32(code).is_none() {
+                    let scalars = scalars.iter().map(|field| hex(field, number)).collect::<Result<Vec<_>, Error>>()?;
+                    if char::from_u32(code).is_none() || scalars.iter().any(|&code| char::from_u32(code).is_none()) {
                         return Err(core_error(number, "an invalid scalar"));
                     }
-                    let scalars = scalars
-                        .iter()
-                        .map(|field| {
-                            char::from_u32(hex(field, number)?).ok_or_else(|| core_error(number, "an invalid scalar"))
-                        })
-                        .collect::<Result<Vec<_>, Error>>()?;
+                    let scalars = scalars.into_iter().map(|code| char::from_u32(code).unwrap()).collect();
                     if !decomposition_codes.insert(code) {
                         return Err(core_error(number, "a second decompose record"));
                     }
                     table.decompositions.push((code, scalars));
                 }
                 ["combining", klass, first, last] => {
+                    let (first, last) = range(first, last, number)?;
                     let digits = klass.trim_start_matches('0');
                     if digits.len() > 3 || !klass.bytes().all(|c| c.is_ascii_digit()) {
                         return Err(core_error(number, "an invalid combining class"));
@@ -234,7 +231,6 @@ impl Unicode {
                         .ok()
                         .filter(|&n| n > 0 && n < 255)
                         .ok_or_else(|| core_error(number, "an invalid combining class"))?;
-                    let (first, last) = range(first, last, number)?;
                     combining.add(first, last, klass, (0, 0x10ffff), number, "conflicting combining ranges")?;
                 }
                 _ => return Err(core_error(number, "the core record is invalid")),

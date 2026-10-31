@@ -224,10 +224,11 @@ func (t *unicodeTable) buildProfile(code rune) []string {
 	if t.isWhiteSpace(code) {
 		tags = append(tags, "_White_Space")
 	}
-	for _, prop := range []string{"Emoji_Presentation", "Emoji_Component"} {
-		if prop == "Emoji_Presentation" && inUnicodeRanges(t.emojiPresentation, code) || prop == "Emoji_Component" && inUnicodeRanges(t.emojiComponent, code) {
-			tags = append(tags, "_"+prop)
-		}
+	if inUnicodeRanges(t.emojiPresentation, code) {
+		tags = append(tags, "_Emoji_Presentation")
+	}
+	if inUnicodeRanges(t.emojiComponent, code) {
+		tags = append(tags, "_Emoji_Component")
 	}
 	for prop, data := range t.properties {
 		i := sort.Search(len(data.ranges), func(i int) bool { return data.ranges[i].first > code })

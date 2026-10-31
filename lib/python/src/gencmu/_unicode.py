@@ -117,9 +117,12 @@ class UnicodeTable:
                     raise ValueError(entry)
                 code_fields = fields[1:2] if entry == "abbreviation" else fields[1:] if entry == "decompose" else fields[2:] if entry in ("category", "combining") else fields[1:] if entry != "unicode" else []
                 reason = "an invalid code point"
-                codes = [_number(field, 16, 6) for field in code_fields]
-                if any(code > 0x10FFFF for code in codes):
-                    raise ValueError(entry)
+                codes = []
+                for field in code_fields:
+                    code = _number(field, 16, 6)
+                    if code > 0x10FFFF:
+                        raise ValueError(entry)
+                    codes.append(code)
                 if entry == "decompose":
                     if any(0xD800 <= code <= 0xDFFF for code in codes):
                         reason = "an invalid scalar"

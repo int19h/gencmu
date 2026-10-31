@@ -8,6 +8,7 @@
   "pipelineDocument": "p.md",
   "input": "a",
   "expect": {
-    "error": "grammar"
+    "error": "grammar",
+    "message": "an invalid scalar"
   }
 }
