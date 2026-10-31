@@ -578,7 +578,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 
 			item.Directives = append(item.Directives, dir)
 		}
-		// Normalize each declaration once before a partial view decodes it.
+		// Normalize each declaration once before building its partial view.
 		flattenGroups(item)
 		for _, rule := range item.Rules {
 			b.checkRule(rule)
@@ -809,11 +809,7 @@ func (b *domBuilder) checkRule(r *domRule) {
 	}
 	checked := r
 	if b.unresolved {
-		var err error
-		checked, err = partialSourceRule(r)
-		if err != nil {
-			panic(grammarError(b.doc, r.At, "%s", err.Error()))
-		}
+		checked = partialSourceRule(r)
 	}
 	if b.hasBoundary {
 		if atom, msg := boundaryRuleProblem(checked); msg != "" {

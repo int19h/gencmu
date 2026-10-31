@@ -224,11 +224,7 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 		}
 		checked := r
 		if c.unresolved {
-			var err error
-			checked, err = partialSourceRule(r)
-			if err != nil {
-				return &domProblem{message: err.Error(), rule: r}
-			}
+			checked = partialSourceRule(r)
 			if f := ruleTypeFault(checked, nil); f != nil {
 				return &domProblem{message: f.problem, rule: r}
 			}

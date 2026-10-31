@@ -419,9 +419,14 @@ impl<'a> Reader<'a> {
                 })
                 .collect();
             if let Some(params) = params {
-                for (name, argument) in params.iter().zip(self.some(head, "call-argument", 1)?) {
+                for argument in &call.args {
+                    let (SourceArgument::Term(Term::Source(SourceSymbol::Parameter(name, at)))
+                    | SourceArgument::Body(Expr::Source(SourceSymbol::Parameter(name, at)))) = argument
+                    else {
+                        unreachable!("a parameter-only head")
+                    };
                     if !self.parameters.borrow_mut().insert(name.clone()) {
-                        return Err(self.error(argument, format!("duplicate parameter @{name}")));
+                        return Err(Error::grammar(format!("duplicate parameter @{name}")).at(at.0, at.1));
                     }
                 }
                 source.params = Some(params);

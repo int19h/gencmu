@@ -380,9 +380,11 @@ class DomBuilder:
         if head:
             if all('param' in arg for arg in head['args']):
                 head_fields['params'] = [arg['param'] for arg in head['args']]
-                for name, argument in zip(head_fields['params'], self.some(head_node, "call-argument")):
+                for argument in head['args']:
+                    name = argument['param']
                     if name in self.parameter_scope:
-                        raise self.fail(argument, f"duplicate parameter @{name}")
+                        line, column = argument['at']
+                        raise GencmuError(f"duplicate parameter @{name}", document=self.document, line=line, column=column)
                     self.parameter_scope.add(name)
             else:
                 pending = [head_node]

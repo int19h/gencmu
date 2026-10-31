@@ -9618,7 +9618,19 @@
           const delimiter = /** @type {{string:string}} */ (this.evaluateClosed(path,part.args[0],at));
           if (delimiter.string === "") throw this.faultError(path,part.args[0],at,"split has an empty delimiter");
         }
-        for (const child of Object.values(part)) if (child && typeof child === "object") parts.push(child);
+        // A stack visits semantic operands in written order, regardless of member order.
+        const expressions = expressionChildren(part);
+        const children = Array.isArray(part) ? part
+          : part.alternatives ? [part.tags, part.value, part.image, part.alternatives, part.conditions, part.emit]
+          : part.expr ? [part.expr, part.requirements, part.tags, part.value, part.image]
+          : part.literal ? [part.literal]
+          : part.range ? part.range
+          : expressions.length ? expressions
+          : clauseChildren(part);
+        for (let index = children.length - 1; index >= 0; index--) {
+          const child = children[index];
+          if (child && typeof child === "object") parts.push(child);
+        }
       }
     }
 
@@ -18518,11 +18530,13 @@
   function treeToDom(tree, tokens, positionOf, path, unicode, decodeString, deferEmission = false) {
     /** @type {(node: ResultNode) => Position} */
     const at = (node) => positionOf(tokens[firstToken(node)]);
-    /** @type {(message: string, node: ResultNode) => never} */
-    const fail = (message, node) => {
-      const [line, column] = at(node);
+    /** @type {(message: string, position: Position) => never} */
+    const failAt = (message, [line, column]) => {
       throw new GencmuError("grammar", `${path}:${line}:${column}: ${message}`, { document: path, line, column });
     };
+
+    /** @type {(message: string, node: ResultNode) => never} */
+    const fail = (message, node) => failAt(message, at(node));
 
     // A rule node's children, with transparent rules read in their place,
     // in the order written, with an explicit stack.
@@ -18777,10 +18791,9 @@
       readingHead=false;
       if (head && headCall) {
         if (head.args.every((/** @type {any} */ arg) => arg.param)) {
-          const argumentsNodes = some(headCall, "call-argument");
           for (let index = 0; index < head.args.length; index++) {
             const name = head.args[index].param;
-            if (parameterScope.has(name)) fail(`duplicate parameter @${name}`, argumentsNodes[index]);
+            if (parameterScope.has(name)) failAt(`duplicate parameter @${name}`, head.args[index].at);
             parameterScope.add(name);
           }
         } else {
