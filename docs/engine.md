@@ -96,7 +96,21 @@ An overlap between category ranges with different values is a grammar error. Com
 
 These errors name `data/unicode/unicode.txt` and the line of the later record. A category record with the value `Cs` is a grammar error at that record.
 
-Core errors keep the resource path and line separate from their reason. Conflicting category ranges use `conflicting category ranges`. Conflicting combining ranges use `conflicting combining ranges`. A repeated decomposition uses `a second decompose record`. A `Cs` category uses `category Cs is not allowed`.
+Core errors keep the resource path and line separate from their reason. For each nonblank record, the loader inspects its shape first. It then parses code-point fields from left to right, checks range order, checks values, and checks conflicts. Parsing a code-point field includes its hexadecimal digits and numeric bound. Scalar-only restrictions belong to the later value checks. The first failed check gives the reason.
+
+The core loader uses these eleven reasons:
+
+- `the core record is invalid`: an unknown record name or wrong field count.
+- `an invalid code point`: a malformed hexadecimal field or a value above U+10FFFF.
+- `a reversed range`: the first endpoint exceeds the last endpoint.
+- `an invalid scalar`: a decomposition field names a surrogate.
+- `an invalid abbreviation`: an invalid abbreviation scalar, spelling, repetition, or pinned binding.
+- `an unknown category`: the category name is outside the category inventory.
+- `category Cs is not allowed`: a category record names Cs.
+- `an invalid combining class`: the class is not a decimal integer from 1 through 254.
+- `conflicting category ranges`: overlapping ranges have different category values.
+- `conflicting combining ranges`: overlapping ranges have different combining classes.
+- `a second decompose record`: the scalar already has a decomposition record.
 
 An `abbreviation` record has one scalar and one alias matching `[A-Z][A-Z0-9]*`. A scalar can have several aliases. Repeated records or an alias assigned to different scalars are grammar loading errors. These records supply neither tags nor property memberships.
 

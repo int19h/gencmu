@@ -182,10 +182,12 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 				if err != nil {
 					return nil, coreError(n+1, "an invalid code point")
 				}
+				scalars[i] = c
+			}
+			for _, c := range scalars {
 				if c >= 0xd800 && c <= 0xdfff {
 					return nil, coreError(n+1, "an invalid scalar")
 				}
-				scalars[i] = c
 			}
 			if _, duplicate := t.decompositions[scalars[0]]; duplicate {
 				return nil, coreError(n+1, "a second decompose record")
@@ -201,9 +203,12 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 		if len(f) != want {
 			return nil, coreError(n+1, "the core record is invalid")
 		}
-		a, err1 := hex(f[want-2])
-		b, err2 := hex(f[want-1])
-		if err1 != nil || err2 != nil {
+		a, err := hex(f[want-2])
+		if err != nil {
+			return nil, coreError(n+1, "an invalid code point")
+		}
+		b, err := hex(f[want-1])
+		if err != nil {
 			return nil, coreError(n+1, "an invalid code point")
 		}
 		if a > b {
