@@ -5,6 +5,7 @@
 pub(crate) mod partial;
 pub(crate) mod schema;
 pub(crate) mod source;
+pub(crate) mod writing;
 use source::{SourceHead, SourceSymbol};
 pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Unicode) -> Option<String> {
     let cleaned = known_dom_members(dom);
@@ -642,54 +643,98 @@ fn first_key(value: &Json) -> R<&str> {
 }
 
 fn expr_from_json(value: &Json) -> R<Expr> {
-    // A tested symbol is known by its comparator, whatever the order of its
-    // members.
-    if value.get("test").is_some() {
-        return Ok(Expr::Tested(
-            string(value, "test")?,
-            if string(value, "test")? == "tags" {
-                requirements_from_json(value)?
-            } else {
-                term_from_json(field(value, "value")?)?
-            },
-            Box::new(expr_from_json(field(value, "expr")?)?),
-        ));
+    enum Task<'a> {
+        Read(&'a Json),
+        List(&'a str, usize),
+        Tested(String, Term),
+        Optional(Mark),
+        Repeat(Option<Chain>, bool),
+        Capture(String),
     }
-    let list = |key: &str| -> R<Vec<Expr>> { array(value, key)?.iter().map(expr_from_json).collect() };
-    Ok(match first_key(value)? {
-        "seq" => Expr::Seq(list("seq")?),
-        "choice" => Expr::Choice(list("choice")?),
-        "ranked" => Expr::Ranked(list("ranked")?, None),
-        "and" => Expr::And(list("and")?),
-        "optional" => {
-            let mark = if is_true(value.get("elidable")) { Mark::Elidable } else { Mark::Plain };
-            Expr::Optional(Box::new(expr_from_json(field(value, "optional")?)?), mark)
-        }
-        "repeat" => {
-            let separator = value.get("separator").map(expr_from_json).transpose()?.map(Box::new);
-            let chain = match value.get("chain").and_then(Json::as_str) {
-                None => None,
-                Some("left") => Some(Chain::Left),
-                Some("right") => Some(Chain::Right),
-                Some(_) => return Err("a bad chain".to_string()),
-            };
-            Expr::Repeat(Box::new(expr_from_json(field(value, "repeat")?)?), separator, chain)
-        }
-        "ref" => Expr::Ref(string(value, "ref")?),
-        "literal" => Expr::Literal(term_from_json(field(value, "literal")?)?),
-        "wildcard" => Expr::Wildcard,
-        "range" => match array(value, "range")? {
-            [start, end] => Expr::ScalarRange(term_from_json(start)?, term_from_json(end)?),
-            _ => return Err("a range requires two string terms".into()),
-        },
-        "capture" => Expr::Capture(string(value, "capture")?, Box::new(expr_from_json(field(value, "expr")?)?)),
-        "param" | "call" => Expr::Source(SourceSymbol::from_json(value)?),
-        "empty" => Expr::Empty,
-        other => return Err(format!("an unknown expression {other:?}")),
-    })
+    let mut pending = vec![Task::Read(value)];
+    let mut values = Vec::new();
+    while let Some(task) = pending.pop() {
+        let expression = match task {
+            Task::Read(value) => {
+                // Tests take priority over the order of their object members.
+                if value.get("test").is_some() {
+                    let op = string(value, "test")?;
+                    let term = if op == "tags" {
+                        requirements_from_json(value)?
+                    } else {
+                        term_from_json(field(value, "value")?)?
+                    };
+                    pending.push(Task::Tested(op, term));
+                    pending.push(Task::Read(field(value, "expr")?));
+                    continue;
+                }
+                match first_key(value)? {
+                    key @ ("seq" | "choice" | "ranked" | "and") => {
+                        let items = array(value, key)?;
+                        pending.push(Task::List(key, items.len()));
+                        pending.extend(items.iter().rev().map(Task::Read));
+                        continue;
+                    }
+                    "optional" => {
+                        let mark = if is_true(value.get("elidable")) { Mark::Elidable } else { Mark::Plain };
+                        pending.push(Task::Optional(mark));
+                        pending.push(Task::Read(field(value, "optional")?));
+                        continue;
+                    }
+                    "repeat" => {
+                        let separator = value.get("separator");
+                        let chain = match value.get("chain").and_then(Json::as_str) {
+                            None => None,
+                            Some("left") => Some(Chain::Left),
+                            Some("right") => Some(Chain::Right),
+                            Some(_) => return Err("a bad chain".to_string()),
+                        };
+                        pending.push(Task::Repeat(chain, separator.is_some()));
+                        pending.push(Task::Read(field(value, "repeat")?));
+                        pending.extend(separator.map(Task::Read));
+                        continue;
+                    }
+                    "ref" => Expr::Ref(string(value, "ref")?),
+                    "literal" => Expr::Literal(term_from_json(field(value, "literal")?)?),
+                    "wildcard" => Expr::Wildcard,
+                    "range" => match array(value, "range")? {
+                        [start, end] => Expr::ScalarRange(term_from_json(start)?, term_from_json(end)?),
+                        _ => return Err("a range requires two string terms".into()),
+                    },
+                    "capture" => {
+                        pending.push(Task::Capture(string(value, "capture")?));
+                        pending.push(Task::Read(field(value, "expr")?));
+                        continue;
+                    }
+                    "param" | "call" => Expr::Source(SourceSymbol::from_json(value)?),
+                    "empty" => Expr::Empty,
+                    other => return Err(format!("an unknown expression {other:?}")),
+                }
+            }
+            Task::List(key, count) => {
+                let items = values.split_off(values.len() - count);
+                match key {
+                    "seq" => Expr::Seq(items),
+                    "choice" => Expr::Choice(items),
+                    "ranked" => Expr::Ranked(items, None),
+                    "and" => Expr::And(items),
+                    _ => unreachable!(),
+                }
+            }
+            Task::Tested(op, term) => Expr::Tested(op, term, Box::new(values.pop().unwrap())),
+            Task::Optional(mark) => Expr::Optional(Box::new(values.pop().unwrap()), mark),
+            Task::Repeat(chain, separated) => {
+                let item = Box::new(values.pop().unwrap());
+                let separator = separated.then(|| Box::new(values.pop().unwrap()));
+                Expr::Repeat(item, separator, chain)
+            }
+            Task::Capture(name) => Expr::Capture(name, Box::new(values.pop().unwrap())),
+        };
+        values.push(expression);
+    }
+    Ok(values.pop().unwrap())
 }
 
-/// Convert a schema-validated term from its DOM representation.
 pub(crate) fn term_from_json(value: &Json) -> R<Term> {
     match read_value(value, false)? {
         ReadValue::Term(term) => Ok(term),
@@ -1239,308 +1284,16 @@ fn write_guard(out: &mut String, guard: &Guard) {
     out.push_str(if guard.negated { ",\"negated\":true}" } else { ",\"negated\":false}" });
 }
 
-fn write_list<T>(out: &mut String, key: &str, items: &[T], write: fn(&mut String, &T)) {
-    out.push_str("{\"");
-    out.push_str(key);
-    out.push_str("\":[");
-    for (index, item) in items.iter().enumerate() {
-        if index > 0 {
-            out.push(',');
-        }
-        write(out, item);
-    }
-    out.push_str("]}");
-}
-
 pub(crate) fn write_expr(out: &mut String, expr: &Expr) {
-    match expr {
-        Expr::Source(symbol) => symbol.write(out),
-        Expr::Seq(items) => write_list(out, "seq", items, write_expr),
-        Expr::Choice(items) => write_list(out, "choice", items, write_expr),
-        Expr::Ranked(items, _) => write_list(out, "ranked", items, write_expr),
-        Expr::And(items) => write_list(out, "and", items, write_expr),
-        Expr::Optional(inner, mark) => {
-            out.push_str("{\"optional\":");
-            write_expr(out, inner);
-            out.push_str(match mark {
-                Mark::Plain => "}",
-                Mark::Elidable => ",\"elidable\":true}",
-            });
-        }
-        Expr::Repeat(item, separator, chain) => {
-            out.push_str("{\"repeat\":");
-            write_expr(out, item);
-            if let Some(separator) = separator {
-                out.push_str(",\"separator\":");
-                write_expr(out, separator);
-            }
-            out.push_str(match chain {
-                None => "}",
-                Some(Chain::Left) => ",\"chain\":\"left\"}",
-                Some(Chain::Right) => ",\"chain\":\"right\"}",
-            });
-        }
-        Expr::Ref(name) => {
-            out.push_str("{\"ref\":");
-            write_str(out, name);
-            out.push('}');
-        }
-        Expr::Terminal(name) => {
-            out.push_str("{\"terminal\":");
-            write_str(out, name);
-            out.push('}');
-        }
-        Expr::Literal(term) => {
-            out.push_str("{\"literal\":");
-            write_term(out, term);
-            out.push('}');
-        }
-        Expr::ScalarRange(start, end) => {
-            out.push_str("{\"range\":[");
-            write_term(out, start);
-            out.push(',');
-            write_term(out, end);
-            out.push_str("]}");
-        }
-        Expr::Range(start, end) => write_range(out, *start, *end),
-        Expr::Wildcard => out.push_str("{\"wildcard\":true}"),
-        Expr::Capture(name, inner) => {
-            out.push_str("{\"capture\":");
-            write_str(out, name);
-            out.push_str(",\"expr\":");
-            write_expr(out, inner);
-            out.push('}');
-        }
-        Expr::Tested(op, value, inner) => {
-            out.push_str("{\"test\":");
-            write_str(out, op);
-            if op == "tags" {
-                out.push_str(",\"requirements\":");
-                write_requirements(out, value);
-            } else {
-                out.push_str(",\"value\":");
-                write_term(out, value);
-            }
-            out.push_str(",\"expr\":");
-            write_expr(out, inner);
-            out.push('}');
-        }
-        Expr::Empty => out.push_str("{\"empty\":true}"),
-    }
-}
-
-fn write_range(out: &mut String, start: char, end: char) {
-    out.push_str("{\"range\":[");
-    write_term(out, &Term::Str(start.to_string()));
-    out.push(',');
-    write_term(out, &Term::Str(end.to_string()));
-    out.push_str("]}");
+    writing::write(out, writing::Part::Expr(expr));
 }
 
 pub(crate) fn write_term(out: &mut String, term: &Term) {
-    match term {
-        Term::Source(symbol) => symbol.write(out),
-        Term::Pattern(p) => {
-            out.push_str("{\"pattern\":");
-            p.write(out);
-            out.push('}');
-        }
-        Term::Str(text) => {
-            out.push_str("{\"string\":");
-            write_str(out, text);
-            out.push('}');
-        }
-        Term::Tag(tag) => {
-            out.push_str("{\"tag\":");
-            write_str(out, tag);
-            out.push('}');
-        }
-        Term::EmptySet => out.push_str("{\"emptySet\":true}"),
-        Term::Union(items) => write_list(out, "union", items, write_term),
-        Term::Intersection(items) => write_list(out, "intersection", items, write_term),
-        Term::Difference(left, right) => {
-            out.push_str("{\"difference\":[");
-            write_term(out, left);
-            out.push(',');
-            write_term(out, right);
-            out.push_str("]}");
-        }
-        Term::Capture(name) => {
-            out.push_str("{\"capture\":");
-            write_str(out, name);
-            out.push('}');
-        }
-        Term::Const(name, at) => {
-            out.push_str("{\"const\":");
-            write_str(out, name);
-            out.push_str(&format!(",\"at\":[{},{}]}}", at.0, at.1));
-        }
-        Term::If(cond, then) => {
-            out.push_str("{\"if\":");
-            write_cond(out, cond);
-            out.push_str(",\"then\":");
-            write_term(out, then);
-            out.push('}');
-        }
-        Term::Call(name, args) => {
-            if matches!(name.as_str(), "concat") {
-                write_list(out, name, args, write_argument);
-            } else {
-                out.push_str("{\"method\":");
-                write_str(out, name);
-                out.push_str(",\"receiver\":");
-                write_argument(out, &args[0]);
-                out.push_str(",\"args\":[");
-                for (index, arg) in args[1..].iter().enumerate() {
-                    if index > 0 {
-                        out.push(',');
-                    }
-                    write_argument(out, arg);
-                }
-                out.push_str("]}");
-            }
-        }
-    }
-}
-
-fn write_argument(out: &mut String, arg: &Arg) {
-    match arg {
-        Arg::Term(term) => write_term(out, term),
-        Arg::Integer(digits) => {
-            out.push_str("{\"integer\":");
-            write_str(out, digits);
-            out.push('}');
-        }
-        Arg::Rule(name) | Arg::Classifier(name) => {
-            out.push_str(if matches!(arg, Arg::Rule(_)) { "{\"rule\":" } else { "{\"classifier\":" });
-            write_str(out, name);
-            out.push('}');
-        }
-    }
-}
-
-pub(crate) fn write_requirements(out: &mut String, term: &Term) {
-    let Term::Call(_, args) = term else { unreachable!("a signed requirement list") };
-    out.push('[');
-    for (index, arg) in args.iter().enumerate() {
-        if index > 0 {
-            out.push(',');
-        }
-        let Arg::Term(term) = arg else { unreachable!() };
-        let (negative, value) = match term {
-            Term::Call(name, args) if name == "forbid" => {
-                let Arg::Term(value) = &args[0] else { unreachable!() };
-                (true, value)
-            }
-            _ => (false, term),
-        };
-        out.push_str(if negative { "{\"negated\":true,\"value\":" } else { "{\"negated\":false,\"value\":" });
-        write_term(out, value);
-        out.push('}');
-    }
-    out.push(']');
+    writing::write(out, writing::Part::Term(term));
 }
 
 pub(crate) fn write_cond(out: &mut String, cond: &Cond) {
-    match cond {
-        Cond::SourceQuery(name, args, _) => {
-            out.push_str("{\"method\":");
-            write_str(out, name);
-            out.push_str(",\"receiver\":");
-            write_argument(out, &args[0]);
-            out.push_str(",\"args\":[");
-            for (index, arg) in args[1..].iter().enumerate() {
-                if index > 0 {
-                    out.push(',');
-                }
-                if let Arg::Term(Term::Tag(tag)) = arg {
-                    out.push_str("{\"terminal\":");
-                    write_str(out, tag);
-                    out.push('}');
-                } else {
-                    write_argument(out, arg);
-                }
-            }
-            out.push_str("]}");
-        }
-        Cond::Compare(op, left, right) => {
-            out.push_str("{\"op\":");
-            write_str(out, op);
-            out.push_str(",\"left\":");
-            write_term(out, left);
-            out.push_str(",\"right\":");
-            write_term(out, right);
-            out.push('}');
-        }
-        Cond::Matches(span, rule) | Cond::Begins(span, rule) | Cond::Ends(span, rule) => {
-            let name = if matches!(cond, Cond::Matches(..)) {
-                "matches"
-            } else if matches!(cond, Cond::Ends(..)) {
-                "ends"
-            } else {
-                "begins"
-            };
-            out.push_str("{\"method\":");
-            write_str(out, name);
-            out.push_str(",\"receiver\":");
-            write_term(out, span);
-            out.push_str(",\"args\":[");
-            for (i, target) in rule.iter().enumerate() {
-                if i > 0 {
-                    out.push(',')
-                };
-                out.push_str(if target.starts_with(|c: char| c.is_ascii_uppercase()) {
-                    "{\"terminal\":"
-                } else {
-                    "{\"rule\":"
-                });
-                write_str(out, target);
-                out.push('}')
-            }
-            out.push_str("]}");
-        }
-        Cond::Initial(span) => write_term(out, &Term::Call("starts-input".into(), vec![Arg::Term(span.clone())])),
-        Cond::Final(span) => write_term(out, &Term::Call("ends-input".into(), vec![Arg::Term(span.clone())])),
-        Cond::Boundary(forward, receiver, targets, _) => {
-            out.push_str("{\"method\":");
-            write_str(out, if *forward { "followed-by" } else { "preceded-by" });
-            out.push_str(",\"receiver\":");
-            write_term(out, receiver);
-            out.push_str(",\"args\":[");
-            for (index, target) in targets.iter().enumerate() {
-                if index > 0 {
-                    out.push(',');
-                }
-                out.push_str(if target.starts_with(|c: char| c.is_ascii_uppercase()) {
-                    "{\"terminal\":"
-                } else {
-                    "{\"rule\":"
-                });
-                write_str(out, target);
-                out.push('}');
-            }
-            out.push_str("]}");
-        }
-        Cond::Not(inner) => {
-            out.push_str("{\"not\":");
-            write_cond(out, inner);
-            out.push('}');
-        }
-        Cond::Any(items) => write_list(out, "any", items, write_cond),
-        Cond::All(items) => write_list(out, "all", items, write_cond),
-        Cond::Captured(name) => {
-            out.push_str("{\"captured\":");
-            write_str(out, name);
-            out.push('}');
-        }
-        Cond::If(cond, then) => {
-            out.push_str("{\"if\":");
-            write_cond(out, cond);
-            out.push_str(",\"then\":");
-            write_cond(out, then);
-            out.push('}');
-        }
-    }
+    writing::write(out, writing::Part::Cond(cond));
 }
 
 // ---- types (engine §10)

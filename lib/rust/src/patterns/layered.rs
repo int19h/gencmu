@@ -10,7 +10,9 @@ impl Pattern {
                 || name.chars().count() == 1
                     && name.chars().next().is_some_and(|c| !c.is_ascii_uppercase() && !c.is_ascii_digit() && c != '#' && c != '@' && c != '_')
         };
-        let inspect = shapes::Inspection { name: Some(&name), ..Default::default() };
+        // Public admission checks depth before decoding. Source projections
+        // retain deeper patterns until the reader finishes every declaration.
+        let inspect = shapes::Inspection { name: Some(&name), defer_depth: true, ..Default::default() };
         if let Some(problem) = shapes::problem(root, &inspect) {
             return Err(problem);
         }
@@ -150,7 +152,7 @@ impl Pattern {
     }
 
     pub(crate) fn write_layered(&self, out: &mut String) {
-        write(out, Write::Pattern(self));
+        dom::writing::write(out, dom::writing::Part::Pattern(self));
     }
 }
 enum Write<'a> {
@@ -160,7 +162,7 @@ enum Write<'a> {
     Item(&'a Children),
     Raw(String),
 }
-fn write(out: &mut String, root: Write<'_>) {
+fn write_parts<'a>(out: &mut dom::writing::Pieces<'a>, root: Write<'a>) {
     let mut tasks = vec![root];
     while let Some(task) = tasks.pop() {
         match task {
@@ -169,7 +171,7 @@ fn write(out: &mut String, root: Write<'_>) {
                 Pattern::Node(node, exact, children) => tasks.push(Write::Atom(node, *exact, children.as_ref())),
                 Pattern::Path(path, inner) => {
                     out.push_str("{\"path\":");
-                    write_str(out, path);
+                    quote(out, path);
                     out.push_str(",\"pattern\":");
                     tasks.push(Write::Raw("}".into()));
                     tasks.push(Write::Pattern(inner));
@@ -201,11 +203,11 @@ fn write(out: &mut String, root: Write<'_>) {
                 out.push('{');
                 let at = match atom {
                     Pattern::Source(symbol) => {
-                        symbol.write_atom_fields(out);
+                        out.symbol_fields(symbol);
                         Some(symbol.at())
                     }
                     Pattern::Name(name, at) | Pattern::Terminal(name, at) | Pattern::Constant(name, at) => {
-                        write_str(
+                        quote(
                             out,
                             match atom {
                                 Pattern::Name(..) => "name",
@@ -214,19 +216,19 @@ fn write(out: &mut String, root: Write<'_>) {
                             },
                         );
                         out.push(':');
-                        write_str(out, name);
+                        quote(out, name);
                         Some(*at)
                     }
                     Pattern::Literal(value, at) => {
                         out.push_str("\"literal\":");
-                        dom::write_term(out, value);
+                        out.term(value);
                         Some(*at)
                     }
                     Pattern::Range(left, right, at) => {
                         out.push_str("\"range\":[");
-                        dom::write_term(out, left);
+                        out.term(left);
                         out.push(',');
-                        dom::write_term(out, right);
+                        out.term(right);
                         out.push(']');
                         Some(*at)
                     }
@@ -240,13 +242,13 @@ fn write(out: &mut String, root: Write<'_>) {
                     }
                     Pattern::Test(op, value, _) => {
                         out.push_str("\"test\":");
-                        write_str(out, op);
+                        quote(out, op);
                         if op == "tags" {
                             out.push_str(",\"requirements\":");
-                            dom::write_requirements(out, value)
+                            out.requirements(value)
                         } else {
                             out.push_str(",\"value\":");
-                            dom::write_term(out, value)
+                            out.term(value)
                         }
                         out.push_str(",\"expr\":");
                         None
@@ -319,4 +321,11 @@ fn write(out: &mut String, root: Write<'_>) {
             },
         }
     }
+}
+
+fn quote(out: &mut dom::writing::Pieces<'_>, text: &str) {
+    out.quote(text);
+}
+pub(crate) fn emit_pattern<'a>(out: &mut dom::writing::Pieces<'a>, pattern: &'a Pattern) {
+    write_parts(out, Write::Pattern(pattern));
 }

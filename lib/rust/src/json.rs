@@ -181,6 +181,11 @@ pub(crate) fn parse(text: &str) -> Result<Json, String> {
     parse_within(text, MAX_DEPTH)
 }
 
+/// Internal source projections precede the grammar's depth check.
+pub(crate) fn parse_unbounded(text: &str) -> Result<Json, String> {
+    parse_within(text, usize::MAX)
+}
+
 /// Parses the shared test cases, which nest as deep as a case makes them:
 /// the reader's stack is on the heap, so it needs no limit there.
 #[cfg(test)]

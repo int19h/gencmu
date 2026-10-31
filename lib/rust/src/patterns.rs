@@ -1,10 +1,11 @@
 //! Finite observations of structural trees (engine §4.1).
 mod dropping;
 mod layered;
+pub(crate) use layered::emit_pattern;
 pub(crate) mod shapes;
 
 use crate::dom::{self, Arg, Term};
-use crate::json::{write_str, Json};
+use crate::json::Json;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Pattern {
