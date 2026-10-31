@@ -6,7 +6,7 @@ The stage reads the words, spaces and brackets of the [forms stage](morphology.m
 
 ## The stream
 
-The stream is a sequence of units with gaps between them. A gap is one or more spaces or brackets. Two units can also stand side by side, as `mi` and `bjan` do in `mibjan`. A gap emits nothing. The stage is lazy. Where two parses differ, it takes the one that closes a constituent over the one that reads on. A constituent is the text that one rule matches.
+The stream is a sequence of units with gaps between them. A gap is one or more spaces or brackets. Two units can also stand side by side, as `mi` and `bjan` do in `mibjan`. A gap emits nothing. A space that holds `q`, `w`, `x` or `y` carries the warning `non-eberban-letter`, as in the PEG. Inside a foreign quote these letters are quoted text, and no warning marks them. The stage is lazy. Where two parses differ, it takes the one that closes a constituent over the one that reads on. A constituent is the text that one rule matches.
 
 ```jbogenbau
 %ambiguity-resolution lazy
@@ -15,16 +15,21 @@ The stream is a sequence of units with gaps between them. A gap is one or more s
   [gap] [{unit [gap]}]
 
 %rule gap
-  {Space | Open | Close}
+  {space-unit | Open | Close}
 %erased
+
+%rule space-unit
+  | Space<¬Foreign-Letter>
+  | non-eberban-letter! Space<Foreign-Letter>
 
 %rule unit
   plain-word | compound | foreign-quote | junk
 ```
 
-<details><summary>Railroad diagrams of <code>text</code>, <code>gap</code> and <code>unit</code></summary>
+<details><summary>Railroad diagrams of <code>text</code>, <code>gap</code>, <code>space-unit</code> and <code>unit</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/stream/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/stream/gap.svg" alt="Railroad diagram of the rule gap"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/space-unit.svg" alt="Railroad diagram of the rule space-unit"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/stream/unit.svg" alt="Railroad diagram of the rule unit"></p>
 </details>
 
@@ -39,7 +44,7 @@ A plain word is any word token except a compound prefix, which only a compound r
   $
 
 %rule quote-opening
-  CO [gap] Open | CO [Space] delimiter Open
+  CO [gap] Open | CO [space-unit] delimiter Open
 
 %rule junk
   $j:Junk :: $j.tags
@@ -146,7 +151,7 @@ The quote emits one token tagged `Word`, `Particle`, `CO` and `Quote`. Its image
 ```jbogenbau
 %rule foreign-quote :: Word ∪ Particle ∪ CO ∪ Quote :- $.source-text
   | CO [gap] Open [{_<¬Close>}] Close
-  | CO [Space] $open:delimiter Open [{_<¬Close> | $c:Close}] Close $close:delimiter
+  | CO [space-unit] $open:delimiter Open [{_<¬Close> | $c:Close}] Close $close:delimiter
 %conditions
   $open.value = $close.value,
   $c.following-tokens.first-token.value ≠ $open.value
