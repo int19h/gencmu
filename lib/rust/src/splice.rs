@@ -439,8 +439,13 @@ mod tests {
     /// and the features are checked by sets, not scans.
     #[test]
     fn a_long_include_chain_splices_in_linear_work() {
-        let directive =
-            |name: &str, args: Vec<String>| Directive { conditions: None, name: name.into(), args, at: (1, 1) };
+        let directive = |name: &str, args: Vec<String>| Directive {
+            conditions: None,
+            name: name.into(),
+            args,
+            steps: None,
+            at: (1, 1),
+        };
         let held = move |n: usize| {
             let mut documents: HashMap<String, Arc<Dom>> = (0..n - 1)
                 .map(|index| {
@@ -455,7 +460,7 @@ mod tests {
                 deferred_emission: None,
                 name: "text".into(),
                 op: Op::Define,
-                flags: Vec::new(),
+                categories: Vec::new(),
                 tags: None,
                 alternatives: vec![Alternative {
                     strings: Default::default(),

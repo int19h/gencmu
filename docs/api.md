@@ -101,7 +101,7 @@ A loaded pipeline parses a text with these configuration arguments. Each argumen
 | features | none | feature names to turn on for every stage, besides those the pipeline's `%features` turns on. Unknown names are legal and do not change grammar behavior. |
 | without features | none | feature names to turn off for every stage, including defaults. If a conditional declaration holds for a disabled feature, the result is `feature-conflict` with its feature and stage. Unknown names are legal and do not change grammar behavior. A name in both lists is a usage error. |
 | until | the last stage | the name of the last stage to run. An unknown name is an error, and so is an empty name. Go is the exception, as its section says. |
-| elision-only | the grammar's own | On or off for every stage that runs. This overrides `%ambiguity-resolution ... elision-only`. |
+| elision-only | the grammar's own | On or off for every stage that runs. This overrides the stage's `%elision-only` directive. |
 
 Usage errors follow this order: the original text, each caller token in input order, the feature lists, then `until`. The first invalid category ends the call. Within one token, the order of field errors is not defined. When several features occur in both lists, the first one in the caller's enabled list names the error.
 

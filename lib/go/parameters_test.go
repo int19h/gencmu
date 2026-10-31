@@ -122,11 +122,17 @@ func TestParameterPinnedPublicEdits(t *testing.T) {
 		parameterEqual(t, got, want)
 	}
 }
-func TestParameterFlags(t *testing.T) {
-	g := parameterGrammar(t, "%rule(fewest) atom(@X) @X\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"")
-	parameterEqual(t, g.byName["atom(\"a\")"].flags, []string{})
-	parameterEqual(t, g.byName["atom(\"b\")"].flags, []string{"fewest"})
-
+func TestParameterCategories(t *testing.T) {
+	g := parameterGrammar(t, "%rule atom(@X) @X\n%counts-as few\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"")
+	parameterEqual(t, g.byName["atom(\"a\")"].categories, []string{})
+	parameterEqual(t, g.byName["atom(\"b\")"].categories, []string{"few"})
+	instance := templateObj(templateList(templateAudit(g)["instances"])[0])
+	events := []any{}
+	for _, v := range templateList(instance["events"]) {
+		e := templateObj(v)
+		events = append(events, []any{e["scope"], e["op"], e["categoriesAfter"]})
+	}
+	parameterEqual(t, events, []any{[]any{"template", "define", []any{"few"}}, []any{"instance", "redefine", []any{}}, []any{"template", "extend", []any{}}})
 }
 func TestParameterNormalizationAndConstants(t *testing.T) {
 	g := parameterGrammar(t, "%const $A \"a\"\n%rule atom(@X) @X\n%rule text atom(\"a\") atom((\"a\")) atom($A)")
@@ -401,7 +407,7 @@ type parameterStructureCase struct {
 	Argument      json.RawMessage
 	Order         []string
 	Instances     *int
-	Flags         map[string][]string
+	Categories         map[string][]string
 }
 
 func (c *parameterStructureCase) checkExpectations(instances int, argument any) error {
@@ -507,10 +513,10 @@ func TestParameterSharedStructure(t *testing.T) {
 			if err := c.checkExpectations(len(x.instanceNames), argument); err != nil {
 				t.Fatal(err)
 			}
-			if c.Flags != nil {
+			if c.Categories != nil {
 				g := parameterGrammar(t, c.Grammar)
-				for name, flags := range c.Flags {
-					parameterEqual(t, g.byName[name].flags, flags)
+				for name, categories := range c.Categories {
+					parameterEqual(t, g.byName[name].categories, categories)
 				}
 			}
 		})

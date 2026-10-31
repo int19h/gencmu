@@ -1,16 +1,21 @@
 {
   "description": "Directives and their arguments (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%ambiguity-resolution greedy elision-only\n```\n",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%ambiguity-resolution greedy\n%elision-only\n```\n",
   "expect": {
     "dom": {
       "rules": [],
       "directives": [
         {
           "name": "ambiguity-resolution",
-          "args": [
-            "greedy",
-            "elision-only"
+          "steps": [
+            {
+              "step": "greedy"
+            }
           ]
+        },
+        {
+          "name": "elision-only",
+          "args": []
         }
       ]
     }

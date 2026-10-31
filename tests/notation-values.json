@@ -126,25 +126,25 @@
       }
     },
     {
-      "id": "canonical-value-rule-flag-ascii",
+      "id": "canonical-value-category-ascii",
       "description": "A supplied notation gives this semantic name its token value.",
       "aliases": [
         {
-          "spelling": "flagK",
-          "value": "leftmost-longest",
+          "spelling": "categoryK",
+          "value": "span",
           "tags": [
             "Identifier",
             "Lowercase-Name"
           ]
         }
       ],
-      "document": "```jbogenbau\n%rule (flagK) text \"a\"\n```",
+      "document": "```jbogenbau\n%rule text \"a\" %counts-as categoryK\n```",
       "expect": {
         "dom": {
           "rules": [
             {
-              "flags": [
-                "leftmost-longest"
+              "categories": [
+                "span"
               ]
             }
           ]
@@ -409,25 +409,25 @@
       }
     },
     {
-      "id": "canonical-value-rule-flag-kelvin",
+      "id": "canonical-value-category-kelvin",
       "description": "A supplied notation gives this semantic name its token value.",
       "aliases": [
         {
-          "spelling": "flagK",
-          "value": "leftmost-longest",
+          "spelling": "categoryK",
+          "value": "span",
           "tags": [
             "Identifier",
             "Lowercase-Name"
           ]
         }
       ],
-      "document": "```jbogenbau\n%rule (flagK) text \"a\"\n```",
+      "document": "```jbogenbau\n%rule text \"a\" %counts-as categoryK\n```",
       "expect": {
         "dom": {
           "rules": [
             {
-              "flags": [
-                "leftmost-longest"
+              "categories": [
+                "span"
               ]
             }
           ]

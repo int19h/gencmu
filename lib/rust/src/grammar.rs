@@ -17,19 +17,44 @@ use crate::patterns::Pattern;
 use crate::unicode::Unicode;
 use crate::work::{self, Mutant, Work};
 
-/// The rule by which a stage ranks its derivations (engine §6): the lean
-/// of rule 2, the counts of elided terminators, or, for the `elision-only`
-/// check (§7), no lean at all.
+/// The last step of a stage's `%ambiguity-resolution`, which compares the
+/// actions of the derivations with the greatest profile (engine §6).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Lean {
     Greedy,
     Lazy,
-    /// A derivation beats another when its elision vector is less.
-    LateElision,
-    /// Neither: any two derivations that differ are tied, as the
-    /// `elision-only` check ranks (§7). A directive cannot name it.
+    /// Neither: any two derivations with the greatest profile are tied, as
+    /// a directive with no lean and the `elision-only` check rank (§6, §7).
     Neither,
 }
+
+/// How a key step of `%ambiguity-resolution` compares its category's
+/// occurrences (engine §6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum StepKind {
+    /// Counts per nonempty span, by increasing start, then decreasing end,
+    /// then the greater count.
+    LeftmostLongest,
+    /// The total count, the smaller winning.
+    Fewest,
+    /// The total count, the greater winning.
+    Most,
+    /// Counts per start boundary, fewer winning at the first that differs.
+    Late,
+    /// Counts per start boundary, more winning at the first that differs.
+    Early,
+}
+
+/// A key step of `%ambiguity-resolution`: how it compares, and the
+/// category whose occurrences it counts (engine §6).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct KeyStep {
+    pub kind: StepKind,
+    pub category: String,
+}
+
+/// The category of elided terminators (engine §6).
+pub(crate) const ELISION: &str = "elision";
 
 /// The clauses of a rule, which each of its alternatives shares, so that
 /// they are stored, substituted and checked once for the rule.
@@ -58,18 +83,18 @@ pub(crate) struct StitchedAlternative {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StitchedRule {
-    pub flags: Vec<String>,
+    pub categories: Vec<String>,
     pub name: String,
     pub alternatives: Vec<StitchedAlternative>,
     pub document: Arc<str>,
 }
 
-/// The flags before and after a replacement that changes them.
+/// The categories before and after a replacement that changes them.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FlagChange {
-    /// The replaced rule's flags.
+pub struct CategoryChange {
+    /// The replaced rule's categories.
     pub from: Vec<String>,
-    /// The replacement rule's flags.
+    /// The replacement rule's categories.
     pub to: Vec<String>,
 }
 
@@ -85,8 +110,9 @@ pub struct Change {
     pub extension: bool,
     /// The document that made the change.
     pub document: String,
-    /// The flags before and after the replacement, only if they differ.
-    pub flag_change: Option<FlagChange>,
+    /// The categories before and after the replacement, only if they
+    /// differ.
+    pub category_change: Option<CategoryChange>,
 }
 
 #[derive(Debug, Clone)]
@@ -96,6 +122,8 @@ pub(crate) struct StageGrammar {
     pub name: String,
     pub rules: Vec<StitchedRule>,
     pub index: HashMap<String, usize>,
+    /// The key steps of `%ambiguity-resolution`, in order (engine §6).
+    pub steps: Vec<KeyStep>,
     pub lean: Lean,
     pub elision_only: bool,
     pub ranked: Arc<crate::ranked::RankedGroups>,
@@ -245,6 +273,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         name: stage.to_string(),
         rules: Vec::new(),
         index: HashMap::new(),
+        steps: Vec::new(),
         lean: Lean::Greedy,
         elision_only: false,
         ranked: Arc::new(crate::ranked::RankedGroups::default()),
@@ -263,6 +292,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     }
     let mut checks = Vec::new();
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
+    let mut elision_only = false;
     let mut constants =
         Constants { stage, unicode, values: HashMap::new(), versions: Vec::new(), latest: HashMap::new() };
     let mut deferred = Vec::new();
@@ -345,7 +375,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                     text_order += rule.alternatives.len();
                     let error = |message: String| Err(located(message, document, rule.at));
                     let stitched = || StitchedRule {
-                        flags: rule.flags.clone(),
+                        categories: rule.categories.clone(),
                         name: rule.name.clone(),
                         alternatives: alternatives.clone(),
                         document: document.clone(),
@@ -372,16 +402,16 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                             };
                             // The replacement keeps the place of the rule it
                             // replaces (§3, "Numbering").
-                            let previous_flags = &grammar.rules[index].flags;
-                            let flag_change = (previous_flags != &rule.flags)
-                                .then(|| FlagChange { from: previous_flags.clone(), to: rule.flags.clone() });
+                            let previous_categories = &grammar.rules[index].categories;
+                            let category_change = (previous_categories != &rule.categories)
+                                .then(|| CategoryChange { from: previous_categories.clone(), to: rule.categories.clone() });
                             grammar.rules[index] = stitched();
                             grammar.changes.push(Change {
                                 stage: stage.to_string(),
                                 rule: rule.name.clone(),
                                 extension: false,
                                 document: document.to_string(),
-                                flag_change,
+                                category_change,
                             });
                         }
                         Op::Extend => {
@@ -397,7 +427,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                                 rule: rule.name.clone(),
                                 extension: true,
                                 document: document.to_string(),
-                                flag_change: None,
+                                category_change: None,
                             });
                         }
                     }
@@ -409,31 +439,52 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                             checks.push((run, directive.at, 1, Check::Feature(grammar.features.len())));
                             grammar.features.push((document.clone(), directive.clone()));
                         }
-                        "ambiguity-resolution" => {
-                            if resolution.is_some() {
-                                return Err(here("has a second %ambiguity-resolution".into()));
-                            }
-                            let refused = || {
-                                here(
-                            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only"
+                "ambiguity-resolution" => {
+                    if resolution.is_some() {
+                        return Err(here(format!("stage {stage} has two %ambiguity-resolution directives")));
+                    }
+                    let refused = || {
+                        here(
+                            "%ambiguity-resolution takes leftmost-longest, fewest, most, late or early with a \
+                             category, then optionally greedy or lazy"
                                 .to_string(),
                         )
-                            };
-                            let mut args = directive.args.iter().map(String::as_str).peekable();
-                            grammar.lean = match args.next() {
-                                Some("greedy") => Lean::Greedy,
-                                Some("lazy") => Lean::Lazy,
-                                Some("late-elision") => Lean::LateElision,
-                                _ => return Err(refused()),
-                            };
-                            // Each optional word in its place, and nothing after
-                            // them (engine §2).
-                            grammar.elision_only = args.next_if_eq(&"elision-only").is_some();
-                            if args.next().is_some() {
-                                return Err(refused());
+                    };
+                    let steps = directive.steps.as_deref().unwrap_or_default();
+                    if !crate::dom::valid_steps(steps) {
+                        return Err(refused());
+                    }
+                    grammar.lean = Lean::Neither;
+                    grammar.steps.clear();
+                    for step in steps {
+                        let kind = match step.step.as_str() {
+                            "greedy" => {
+                                grammar.lean = Lean::Greedy;
+                                continue;
                             }
-                            resolution = Some((document.clone(), directive.at));
-                        }
+                            "lazy" => {
+                                grammar.lean = Lean::Lazy;
+                                continue;
+                            }
+                            "leftmost-longest" => StepKind::LeftmostLongest,
+                            "fewest" => StepKind::Fewest,
+                            "most" => StepKind::Most,
+                            "late" => StepKind::Late,
+                            "early" => StepKind::Early,
+                            _ => return Err(refused()),
+                        };
+                        let category = step.category.clone().ok_or_else(refused)?;
+                        grammar.steps.push(KeyStep { kind, category });
+                    }
+                    resolution = Some((document.clone(), directive.at));
+                }
+                "elision-only" => {
+                    if elision_only {
+                        return Err(here(format!("stage {stage} has two %elision-only directives")));
+                    }
+                    elision_only = true;
+                    grammar.elision_only = true;
+                }
                         other => return Err(here(format!("an unknown directive %{other}"))),
                     }
                 }
@@ -2390,7 +2441,7 @@ mod tests {
                 deferred_emission: None,
                 name: "text".into(),
                 op: Op::Define,
-                flags: Vec::new(),
+                categories: Vec::new(),
                 tags: None,
                 alternatives: (0..n)
                     .map(|_| Alternative {
@@ -2409,7 +2460,8 @@ mod tests {
             let directive = Directive {
                 conditions: None,
                 name: "ambiguity-resolution".into(),
-                args: vec!["greedy".into()],
+                args: Vec::new(),
+                steps: Some(vec![crate::dom::Step { step: "greedy".into(), category: None }]),
                 at: (0, 0),
             };
             let dom = Dom {
@@ -2462,6 +2514,7 @@ mod tests {
                 name: "s".into(),
                 rules: Vec::new(),
                 index: HashMap::new(),
+                steps: Vec::new(),
                 lean: Lean::Greedy,
                 elision_only: false,
                 ranked: Arc::new(crate::ranked::RankedGroups::default()),

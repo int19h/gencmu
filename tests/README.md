@@ -69,7 +69,7 @@ The cases in `parameter-structure.json` inspect parameter DOMs and expanded rule
 
 Parameter-structure readers also preserve every present `dom` value. A cache fallback case passes that value to the cache unchanged.
 
-Each case supplies `grammar` source or a complete `dom`. The optional `argument` matches the last source rule's first call argument. `order` lists the expanded rule names. `instances` gives the instance count. `flags` maps rule names to their final flags.
+Each case supplies `grammar` source or a complete `dom`. The optional `argument` matches the last source rule's first call argument. `order` lists the expanded rule names. `instances` gives the instance count. `categories` maps rule names to their final categories.
 
 A `cacheFallback` case supplies valid source and a malformed cached DOM. Each library uses matching cache fingerprints and must parse `input` from the source.
 
@@ -270,7 +270,7 @@ The JavaScript library also reads each cache case with the handwritten bootstrap
 
 Open names are names that grammar authors choose.
 
-The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin sign in each open name context. Their DOM patterns assert rule names, tags, constant names, features, classifier names, classes, and query arguments. Patterns and elidable terminators assert their own names. Captures require lowercase ASCII, and fixed keywords, methods, flags, and engine names have no Kelvin spelling.
+The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin sign in each open name context. Their DOM patterns assert rule names, tags, constant names, features, classifier names, classes, and query arguments. Patterns and elidable terminators assert their own names. Captures require lowercase ASCII, and fixed keywords, methods, step names, and engine names have no Kelvin spelling.
 
 ## Diagnostic notation: `diagnostic-notation.json`
 
@@ -286,7 +286,7 @@ The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin si
 
 ## Layered pattern conformance
 
-The `notation/layered-pattern-*.json` cases use the public reader and format-40 DOM. They cover node decorations, item arrays, operator binding, grouping, source spacing, parameters, and source error positions.
+The `notation/layered-pattern-*.json` cases use the public reader and format-41 DOM. They cover node decorations, item arrays, operator binding, grouping, source spacing, parameters, and source error positions.
 
 The `engine/layered-pattern-*.json` cases use the public loader. They cover exact matching, independent child searches, empty lists, seals, choices, constant binding, template families, and error positions.
 
@@ -298,7 +298,7 @@ Small native tests retain state-reuse bounds, walk order, and codec preservation
 
 ## Supplied notation values: `notation-values.json`
 
-Each case gives a document, lexical aliases, and a DOM pattern or an error expectation. Every library adds each alias as a rule in the lexical document of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. Its `leftmost-longest` flag selects it over ordinary lexical divisions. The library reads the document with this bootstrap and compares the DOM or error. A successful reading also exercises the cold, matching, and mismatched cache paths described above.
+Each case gives a document, lexical aliases, and a DOM pattern or an error expectation. Every library adds each alias as a rule in the lexical document of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. The rule counts as `alias`, and the library puts the step `leftmost-longest(alias)` first in the lexical directive, so the alias wins over ordinary lexical divisions. The library reads the document with this bootstrap and compares the DOM or error. A successful reading also exercises the cold, matching, and mismatched cache paths described above.
 
 An error expectation in this file requires both `line` and `column` under `expect.error`. Each coordinate is a positive integer. Other members under `expect.error` are invalid. An `expect.error.message` member invalidates the case. Only `expect.message` pins an agreed reason. The invalid pattern-name cases cover constants, nested patterns and rule conditions.
 
@@ -328,7 +328,7 @@ A caller can supply its own `data/preparsed/gencmu.json` (`docs/api.md`). Its no
 
 Both transformations include `ref` references and `rule` query arguments. A query argument follows the same renamed rule or wrapper as a direct reference.
 
-Each item of `extraParts` changes a rule of either notation stage. Its `find` stands once in the bundled bootstrap. The item's bootstrap has `replace` in that place ("Places in fixtures"). Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
+Each item of `extraParts` changes a rule of either notation stage. Its `find` stands once in the bundled bootstrap. The item's bootstrap has `replace` in that place ("Places in fixtures"). Where `find` and `replace` are arrays of the same length, the library applies each pair in order, and each `find` stands once in the text that the earlier pairs produced. Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
 
 An extra part holds text that the reader refuses if it reads it. An outcome other than `expect` then shows that the library read it. Other items change constructor shapes or supply tokens that the bundled lexical stage refuses. These tokens test reader validation, including guard errors and their priority (engine §9.3). An item whose `expect` is a load error can give `where`, `{"document": "g.md", "line": 3, "column": 21}`, the place of that error in its document. The load must then fail there, as `expect.where` says for an engine case.
 
@@ -354,7 +354,7 @@ The `loads` and `cached` fields state the expected behavior. A cache case can om
 
 No fixture names a line of a grammar document by its number. So an edit of a document never changes a fixture, unless it changes what the fixture is about. A fixture names a place by its content in two ways.
 
-- In the `find` and `replace` of `bootstrap-errors.json` and `notation-shapes.json`, `"at":[*]` stands for a source position, `"at":[LINE,COLUMN]`, of any value. A place of `find` is a place where the text matches it, each `"at":[*]` matching one position. In `replace`, each `"at":[*]` takes the position that the one in the same order in `find` matched. So in `bootstrap-errors.json`, the `find` `"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[*]}]` finds the lexical document's directives wherever the directive stands. The text of `find` is literal apart from `"at":[*]`.
+- In the `find` and `replace` of `bootstrap-errors.json` and `notation-shapes.json`, `"at":[*]` stands for a source position, `"at":[LINE,COLUMN]`, of any value. A place of `find` is a place where the text matches it, each `"at":[*]` matching one position. In `replace`, each `"at":[*]` takes the position that the one in the same order in `find` matched. So in `bootstrap-errors.json`, the `find` `"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[*]}]` finds the lexical document's directives wherever the directive stands. The text of `find` is literal apart from `"at":[*]`.
 - In `bootstrap-errors.json`, `at` is a text that stands exactly once in the grammar document `context`. The expected line and column of the error are those of the first character of that text. A line ends at CR LF, CR or LF, and a column counts code points.
 
 Each library's runner finds these places in the same way, and `places.json` holds cases for those helpers. Every runner makes sure that its helpers give the expected results. Each entry of its `positions` gives a text, a `needle`, a line and a column. The line and column are `null` where the needle is absent, repeated or empty.
@@ -368,7 +368,7 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 40. The library tests it as a preparsed DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 41. The library tests it as a preparsed DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 Instead, an item can supply `dom`, the complete DOM envelope. This form can test the envelope and interactions between declarations. An optional `message` requires that the problem contains that agreed text. An optional `code` requires the problem code before its first colon.
 

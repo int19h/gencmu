@@ -305,10 +305,10 @@ async function main() {
       cache.bundledNames["grammars/test/smoke-extra-names.txt"] = g.fnv1a64("unicode-names 15.1.0\nname E000 SMOKE LETTER\n");
       const dependencies = { "data/unicode/unicode-names.txt":cache.bundledNames["data/unicode/unicode-names.txt"], "grammars/test/smoke-extra-names.txt":cache.bundledNames["grammars/test/smoke-extra-names.txt"] };
       cache.documents = {};
-      cache.documents["grammars/test/smoke-names.md"] = { hash:g.fnv1a64(source), names:dependencies, dom:{ format:40,
-        rules:[{name:"text",op:"define",flags:[],alternatives:[{guards:[],expr:{literal:{string:"b"}}}],conditions:[],at:[4,1]}],
+      cache.documents["grammars/test/smoke-names.md"] = { hash:g.fnv1a64(source), names:dependencies, dom:{ format:41,
+        rules:[{name:"text",op:"define",categories:[],alternatives:[{guards:[],expr:{literal:{string:"b"}}}],conditions:[],at:[4,1]}],
         directives:[{name:"names",args:["smoke-extra-names.txt"],at:[1,1]},{name:"stage",args:["main"],at:[2,1]},
-          {name:"ambiguity-resolution",args:["greedy"],at:[3,1]}],constants:[],classifiers:[],implications:[] } };
+          {name:"ambiguity-resolution",steps:[{step:"greedy"}],at:[3,1]}],constants:[],classifiers:[],implications:[] } };
       const proof = (documents,text) => new Promise((resolve,reject) => {
         const client = new self.ParserWorker({...self.gencmuGrammars,...documents,"grammars/test/names/pipeline.md":block('%include "../smoke-names.md"')},message => {
           if (message.kind === "ready") client.run(1,{pipeline:"test/names",text,features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
@@ -395,8 +395,8 @@ async function main() {
       { label: "ME accepts a number (experimental)", output: /me-unit\n\s+ME "me"\n\s+mex[\s\S]*number-part · pa/,
         document: "grammars/lojban/experimental/syntax.md", rule: "%rule me-unit" },
       { label: "The earliest, longest tense wins (CLL)", output: /^\(mi \[viska \{\(pu va\) \(\[ca gi\] do gi \[la djan\]\)\}\]\)$/,
-        document: "grammars/lojban/cll/syntax.md", rule: "%rule(leftmost-longest) simple-tense-modal", summary: /syntax resolved/,
-        edit: ["%rule(leftmost-longest) simple-tense-modal", "%rule simple-tense-modal"], tie: true },
+        document: "grammars/lojban/cll/syntax.md", rule: "%rule simple-tense-modal", summary: /syntax resolved/,
+        edit: ["%counts-as\n  tense\n", ""], tie: true },
       { label: "A rule with preferred options (notation)", output: /choice › ranked-choice/,
         inputEdit: ["≻", "|"], editedOutput: /choice\n/, absent: /ranked-choice/ },
       { label: "A rule with tree tests (notation)", output: /tree-comparison/,
@@ -465,14 +465,14 @@ async function main() {
           : !/^accepted/.test(edited.verdict) || !check.editedOutput.test(edited.output))) {
           throw new Error(`${check.label}: the edit did not show its claimed effect: ${JSON.stringify(edited)}`);
         }
-        if (check.rule === "%rule(leftmost-longest) simple-tense-modal") {
+        if (check.rule === "%rule simple-tense-modal") {
           await page.locator("#examples").selectOption(preset.value);
           await answerFor(text);
           const line = await run(() => {
             const editor = document.getElementById("doc-text");
             return editor.value.slice(editor.selectionStart).split("\n")[0];
           });
-          if (line !== "%rule simple-tense-modal") throw new Error("changed rule flags prevented navigation to the definition");
+          if (line !== "%rule simple-tense-modal") throw new Error("a changed clause prevented navigation to the definition");
         }
         await page.locator("#doc-reset").click();
         const reset = await answerFor(text);

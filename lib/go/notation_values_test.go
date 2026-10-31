@@ -25,6 +25,13 @@ func valueNotation(t *testing.T, aliases []notationAlias) string {
 	if lexical == nil {
 		t.Fatal("the bootstrap has no lexical stage")
 	}
+	// The aliases win by leftmost-longest over their category (engine §6).
+	for _, directive := range lexical["directives"].([]any) {
+		d := directive.(map[string]any)
+		if d["name"] == "ambiguity-resolution" {
+			d["steps"] = append([]any{map[string]any{"step": "leftmost-longest", "category": "alias"}}, d["steps"].([]any)...)
+		}
+	}
 	rules := lexical["rules"].([]any)
 	var piece map[string]any
 	for _, rule := range rules {
@@ -53,7 +60,7 @@ func valueNotation(t *testing.T, aliases []notationAlias) string {
 			tagExpr = tags[0]
 		}
 		rules = append(rules, map[string]any{
-			"name": name, "op": "define", "flags": []string{"leftmost-longest"},
+			"name": name, "op": "define", "categories": []string{"alias"},
 			"at": []int{100000 + i, 1}, "conditions": []any{},
 			"alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"seq": seq}}},
 			"emit": map[string]any{"items": []any{map[string]any{

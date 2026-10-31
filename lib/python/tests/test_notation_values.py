@@ -19,12 +19,15 @@ def value_notation(aliases: list[dict[str, Any]]) -> str:
     bootstrap = json.loads(bundled_text("data/preparsed/gencmu.json") or "")
     lexical = bootstrap["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]
     piece = next(rule for rule in lexical["rules"] if rule["name"] == "piece")
+    # The aliases win as leftmost-longest occurrences of their own category.
+    directive = next(item for item in lexical["directives"] if item["name"] == "ambiguity-resolution")
+    directive["steps"].insert(0, {"step": "leftmost-longest", "category": "alias"})
     for index, alias in enumerate(aliases):
         name = f"value-alias-{index}"
         tags = [{"tag": tag} for tag in alias["tags"]]
         piece["alternatives"].append({"guards": [], "expr": {"ref": name}})
         lexical["rules"].append({
-            "name": name, "op": "define", "flags": ["leftmost-longest"],
+            "name": name, "op": "define", "categories": ["alias"],
             "at": [100000 + index, 1], "conditions": [],
             "alternatives": [{"guards": [], "expr": {"seq": [
                 {"literal": {"string": character}} for character in alias["spelling"]

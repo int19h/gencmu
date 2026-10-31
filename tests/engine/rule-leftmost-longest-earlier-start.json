@@ -1,6 +1,6 @@
 {
   "description": "A flagged occurrence at an earlier start beats one at a later start (engine §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text (r \"b\") | (\"a\" s)\n%rule (leftmost-longest) r \"a\"\n%rule (leftmost-longest) s \"b\"",
+  "grammar": "%ambiguity-resolution leftmost-longest(span), late(elision)\n%rule text (r \"b\") | (\"a\" s)\n%rule r \"a\"\n%counts-as span\n%rule s \"b\"\n%counts-as span",
   "input": "ab",
   "expect": {
     "result": {

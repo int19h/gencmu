@@ -22,7 +22,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 40
+FORMAT = 41
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -30,8 +30,39 @@ CLASSIFIER_NAME = re.compile(r"[a-z][A-Za-z0-9_-]*")
 CAPTURE_NAME = re.compile(r"[a-z][a-z0-9_-]*")
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
 _FEATURE = re.compile(r"[A-Za-z][A-Za-z0-9-]*")
-_DIRECTIVES = {"ambiguity-resolution", "stage", "extend-stage", "redefine-stage", "include", "names", "features"}
+_DIRECTIVES = {"ambiguity-resolution", "elision-only", "stage", "extend-stage", "redefine-stage", "include", "names", "features"}
 TEST_OPS = frozenset(("tags", "=", "≠"))
+KEY_STEPS = frozenset(("leftmost-longest", "fewest", "most", "late", "early"))
+"""The steps of ``%ambiguity-resolution`` that take a category (engine §6)."""
+LEANS = frozenset(("greedy", "lazy"))
+"""The steps of ``%ambiguity-resolution`` that compare actions (engine §6)."""
+CATEGORY_NAME = re.compile(r"[a-z][a-z0-9-]*")
+"""A category name of a ``%counts-as`` clause (engine §9.1)."""
+
+
+def valid_steps(steps: Any) -> bool:
+    """Whether ``steps`` is a well-formed list of ranking steps: one or more,
+    each a key step with a category or a lean, with a lean only last
+    (engine §9.3)."""
+    if not isinstance(steps, list) or not steps:
+        return False
+    for index, step in enumerate(steps):
+        if not isinstance(step, dict) or not isinstance(step.get("step"), str):
+            return False
+        if step["step"] in LEANS:
+            if index != len(steps) - 1 or "category" in step:
+                return False
+        elif step["step"] not in KEY_STEPS or not isinstance(step.get("category"), str) or CATEGORY_NAME.fullmatch(step["category"]) is None:
+            return False
+    return True
+
+
+def valid_categories(categories: Any) -> bool:
+    """Whether ``categories`` is a well-formed list of a rule's categories:
+    distinct category names other than ``elision`` (engine §9.3)."""
+    return (isinstance(categories, list)
+            and all(isinstance(name, str) and CATEGORY_NAME.fullmatch(name) is not None and name != "elision" for name in categories)
+            and len(set(categories)) == len(categories))
 
 
 def _is_position(value: Any) -> bool:
@@ -147,7 +178,7 @@ def _contains_engine(root: Any) -> bool:
 def known_dom_members(dom):
     if isinstance(dom, dict) and isinstance(dom.get("directives"), list):
         return {**dom, "directives": [
-            {key: value for key, value in directive.items() if key in ("name", "args", "conditions", "at")}
+            {key: value for key, value in directive.items() if key in ("name", "args", "steps", "conditions", "at")}
             if isinstance(directive, dict) else directive for directive in dom["directives"]
         ]}
     return dom
@@ -209,6 +240,10 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
                 return "malformed feature conditions"
             pending.extend(("condition", condition, 0, False, False) for condition in d["conditions"])
         name, args = d.get("name"), d.get("args")
+        if name == "ambiguity-resolution":
+            if "args" in d or not valid_steps(d.get("steps")):
+                return "a malformed directive"
+            continue
         if name not in _DIRECTIVES or not isinstance(args, list) or any(not isinstance(x, str) for x in args):
             return "a malformed directive"
         if name in ("stage", "extend-stage", "redefine-stage"):
@@ -218,14 +253,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
         elif name == "features":
             valid = bool(args) and all(_FEATURE.fullmatch(x) for x in args)
         else:
-            valid = args in (
-                ["greedy"],
-                ["lazy"],
-                ["late-elision"],
-                ["greedy", "elision-only"],
-                ["lazy", "elision-only"],
-                ["late-elision", "elision-only"],
-            )
+            valid = args == []
         if not valid:
             return "a directive has invalid operands"
     ordered = sorted(((item, key) for key in ("rules", "directives", "constants", "classifiers", "implications") for item in dom[key]), key=lambda pair: pair[0]["at"])
@@ -281,7 +309,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             if 'param' in node and (not {'param', 'at'} <= set(node) or not set(node) <= {'param', 'at', 'exact', 'children'} or not _is_position(node['at']) or node['param'] not in params):
                 return 'an undeclared or malformed parameter'
         if 'instance' in r:
-            if set(r) != {'name', 'op', 'flags', 'instance', 'conditions', 'at'} or not isinstance(r['name'], str) or not rule_name(r['name']) or r['op'] not in ('define', 'redefine') or r['flags'] != [] or r['conditions'] != []:
+            if set(r) != {'name', 'op', 'categories', 'instance', 'conditions', 'at'} or not isinstance(r['name'], str) or not rule_name(r['name']) or r['op'] not in ('define', 'redefine') or r['categories'] != [] or r['conditions'] != []:
                 return 'a malformed instance binding'
             pending.append(('call', r['instance'], 0, False, False))
             type_roots.append(r['instance'])
@@ -292,13 +320,13 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             pending.append(('call', dict(call=r['name'], args=r['args'], at=r['at']), 0, False, False))
             type_roots.append(pending[-1][1])
         if (
-            not set(r) <= {"name", "params", "args", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
+            not set(r) <= {"name", "params", "args", "op", "categories", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
             or not isinstance(r.get("name"), str)
             or not rule_name(r["name"])
             or r.get("op") not in ("define", "redefine", "extend")
-            or r.get("flags") not in ([], ["leftmost-longest"], ["fewest"])
+            or not valid_categories(r.get("categories"))
             or r["op"] == "extend"
-            and r["flags"]
+            and r["categories"]
             or not _items(r.get("alternatives"))
             or not isinstance(r.get("conditions"), list)
             or "erased" in r

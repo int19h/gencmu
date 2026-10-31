@@ -251,13 +251,13 @@ pub(crate) fn clean(root: &Json) -> Json {
 pub(crate) fn canonical_source(root: &Json) -> Json {
     map_nodes(root, |mut n| {
         remove(&mut n, SOURCE);
-        let order: &[&str] = if has(&n, "name") && has(&n, "flags") {
+        let order: &[&str] = if has(&n, "name") && has(&n, "categories") {
             &[
                 "name",
                 "params",
                 "args",
                 "op",
-                "flags",
+                "categories",
                 "instance",
                 "tags",
                 "value",

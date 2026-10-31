@@ -1,0 +1,16 @@
+{
+  "description": "A %counts-as clause gives the rule its categories in the DOM (engine §9).",
+  "document": "```jbogenbau\n%rule a A\n%counts-as few, link\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "categories": [
+            "few",
+            "link"
+          ]
+        }
+      ]
+    }
+  }
+}

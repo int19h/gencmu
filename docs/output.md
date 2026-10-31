@@ -137,7 +137,7 @@ A rejection can also name a failed boundary condition:
   - `tie`: The ranking of the stage has two or more best derivations (engine §6). The stage's verdict is `tie`, and it has no output. The readings are the first and the second reading of the tie, over the stage's input as the stage read it. They are two derivations, but they can be equal as `NODE` values.
 
     The engine counts derivations. It merges neither those that differ only at transparent closes nor those with equal trees (engine §6). The stage's witness then names the actions where they differ.
-  - `elision-only`: The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. Engine §7.10 defines this decision. The stage's verdict is `unique` or `resolved`, and it keeps its output. The first reading is W(D), the restored chosen derivation. The second is its deterministic competitor (engine §7.10). This order also applies without ranked groups or flagged rules.
+  - `elision-only`: The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. Engine §7.10 defines this decision. The stage's verdict is `unique` or `resolved`, and it keeps its output. The first reading is W(D), the restored chosen derivation. The second is its deterministic competitor (engine §7.10). This order also applies without ranked groups or categories.
 
     The readings hold the written-back terminators as elided nodes (engine §7.10). One can be a restored optional's terminator. One can also be a terminator that a reading reads on the written route of an optional, or as a bare terminal. So the two readings can be equal as `NODE` values, as a tie's can.
 
@@ -199,9 +199,9 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. The per-family preparsed files hold this data, including the entries that bootstrap the notation reader.
 
-Its envelope is `{"format":40,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
+Its envelope is `{"format":41,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
 
-`format` is the version of the DOM, 40. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
+`format` is the version of the DOM, 41. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
 
 An optional member is absent only when its key is absent. A present `null` does not replace an omitted member. Every present member must satisfy its stated form, including exclusive targets and optional clauses.
 
@@ -212,13 +212,13 @@ The cache identity follows engine §8.
 A rule has this form, in canonical member order:
 
 ```text
-{"name":"unit","op":"define","flags":[],"tags":TERM,"value":RECIPE,"image":RECIPE,
+{"name":"unit","op":"define","categories":[],"tags":TERM,"value":RECIPE,"image":RECIPE,
  "alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],"erased":true,"at":[line,column]}
 ```
 
 `op` is `define`, `redefine`, or `extend`. `tags`, `value`, `image`, `emit`, and `erased` are optional. `conditions` is an array, including when empty. `erased` is present only as `true`. `erased` and `emit` cannot coexist. An erased definition cannot carry a recipe.
 
-`flags` is `[]`, `["leftmost-longest"]` or `["fewest"]`. An extension always has `[]` in the document DOM, but inherits the stitched rule's flag (engine §2). Unknown values, duplicate flags and flags on extensions are errors. An item with `op: "define"` or `op: "redefine"` and `flags: []` gives the stitched rule no flags.
+`categories` is the array of the names in the rule's `%counts-as` clause, in order. Each is a category name (engine §9.1), the names are distinct, and `elision` is not among them. An extension always has `[]` in the document DOM, but inherits the stitched rule's categories (engine §2). Invalid names, repeated names and categories on extensions are errors. An item with `op: "define"` or `op: "redefine"` and `categories: []` gives the stitched rule no categories.
 
 Rules have no members beyond the forms shown here, including the template and instance forms below.
 
@@ -231,10 +231,10 @@ An exact instance edit uses `"name":"pair","args":[ARG,ARG...]` instead of `para
 A binding has exactly this shape:
 
 ```json
-{"name":"named-pair","op":"define","flags":[],"instance":{"call":"pair","args":[{"string":"a"},{"string":"b"}],"at":[1,20]},"conditions":[],"at":[1,1]}
+{"name":"named-pair","op":"define","categories":[],"instance":{"call":"pair","args":[{"string":"a"},{"string":"b"}],"at":[1,20]},"conditions":[],"at":[1,1]}
 ```
 
-Its `op` can also be `redefine`, under engine §2.3. It has no `alternatives`, clauses, emission, or `erased`. Its flags and conditions must be empty. The `instance` member follows `flags` in canonical order. This object records a binding, without adding a runtime wrapper node.
+Its `op` can also be `redefine`, under engine §2.3. It has no `alternatives`, clauses, emission, or `erased`. Its categories and conditions must be empty. The `instance` member follows `categories` in canonical order. This object records a binding, without adding a runtime wrapper node.
 
 A `redefine` binding can replace an ordinary rule or rebind a named instance to another call. After rebinding, the old instance keeps its edits and takes its canonical name.
 
@@ -477,7 +477,9 @@ A classifier and an implication have no member but those shown.
 
 A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`. A names directive is `{"name":"names","args":["extra-names.txt"],"at":[12,1]}`.
 
-Directive names are `stage`, `extend-stage`, `redefine-stage`, `include`, `names`, `features`, and `ambiguity-resolution`. Stage selectors take one lowercase name. Includes and names declarations take one decoded path each. Names declarations precede all other kinds of statement in their document (engine §1). Features take at least one feature name as engine §9.1 defines it. Ambiguity resolution takes `greedy`, `lazy`, or `late-elision`, optionally followed by `elision-only`.
+Directive names are `stage`, `extend-stage`, `redefine-stage`, `include`, `names`, `features`, `ambiguity-resolution` and `elision-only`. Stage selectors take one lowercase name. Includes and names declarations take one decoded path each. Names declarations precede all other kinds of statement in their document (engine §1). Features take at least one feature name as engine §9.1 defines it. `elision-only` takes no argument, so its `args` is `[]`.
+
+An ambiguity-resolution directive has `steps` in place of `args`: `{"name":"ambiguity-resolution","steps":[{"step":"fewest","category":"erasure"},{"step":"greedy"}],"at":[line,column]}`. A step is `{"step":S,"category":C}` for `leftmost-longest`, `fewest`, `most`, `late` and `early`, and `{"step":S}` for `greedy` and `lazy`. There is at least one step, and `greedy` or `lazy` can stand only last (engine §6, §9).
 
 A `features` directive can add `"conditions":[COND,COND...]`, with at least one condition. In canonical output, this member follows `at`. Other directives cannot have this member.
 
@@ -485,7 +487,7 @@ An absent `conditions` member denotes an unconditional declaration. A present em
 
 A directive of any other name is malformed (engine §9). An argument is a name or, for `include` or `names`, the decoded path: `{"name":"include","args":["../common/stream.md"],"at":[4,3]}`.
 
-A library ignores unknown members of a directive. Its known members, `name`, `args`, `conditions`, and `at`, keep their rules. An unknown member does not excuse a malformed known member.
+A library ignores unknown members of a directive. Its known members, `name`, `args`, `steps`, `conditions`, and `at`, keep their rules. An unknown member does not excuse a malformed known member.
 
 `rules`, `directives`, `constants`, `classifiers` and `implications` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
 
@@ -642,7 +644,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choice
 
 The names dependency of a cached document is a resource map. If source conversion loads no names data, the entry omits `names`.
 
-`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":40,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
+`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":41,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
 
 The required `gencmu.json` omits the `bootstrap` header member. The hash of its complete text supplies that fingerprint for every other family. The notation reader uses its required entries without checking their source text hashes. Ordinary cache lookups still compare all other applicable identity members. Each document key selects its own family's preparsed file (engine §8), besides the required `gencmu.json`. Missing or malformed optional files give cache misses.
 

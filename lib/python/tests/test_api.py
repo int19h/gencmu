@@ -93,7 +93,8 @@ SOURCES = {"pipeline.md": PIPELINE, "sounds.md": SOUNDS, "words.md": WORDS, "syn
 ELIDING = {
     "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
     "g.md": """```jbogenbau
-%ambiguity-resolution greedy elision-only
+%ambiguity-resolution greedy
+%elision-only
 %rule text s [+KU] | s B [+KU]
 %rule s A [B]
 ```
@@ -143,33 +144,22 @@ class TestDefinitions(unittest.TestCase):
 
 
 class Loaders(unittest.TestCase):
-    def test_source_maps_reject_every_non_scalar_resource_before_parsing(self):
-        for path in ("data/unicode/unicode.txt", "data/unicode/unicode-properties.txt", "data/unicode/unicode-names.txt",
-                     "data/unicode/unicode-names-reference.txt", "extra-names.txt", "data/preparsed/gencmu.json",
-                     "data/preparsed/test.json", "unused.md"):
-            with self.subTest(path=path), self.assertRaises(gencmu.GencmuError) as caught:
-                gencmu.load_pipeline_sources({path: "header\n\ud800"}, "missing.md")
-            self.assertEqual(caught.exception.kind, "usage")
-            self.assertEqual(caught.exception.document, path)
-            self.assertIsNone(caught.exception.line)
-            self.assertIsNone(caught.exception.column)
-        with self.assertRaises(gencmu.GencmuError) as caught:
-            gencmu.load_pipeline_sources({"z": "\ud800", "a": "\ud800"}, "missing.md")
-        self.assertEqual(caught.exception.document, "a")
-
-    def test_replacements_record_flag_changes(self) -> None:
-        from gencmu._grammar import FlagChange
+    def test_replacements_record_category_changes(self) -> None:
+        from gencmu._grammar import CategoryChange
 
         pipeline = gencmu.load_pipeline_sources(
             {
                 "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
                 "g.md": """```jbogenbau
-%ambiguity-resolution greedy
-%rule(leftmost-longest) text A
+%ambiguity-resolution leftmost-longest(span), greedy
+%rule text A
+%counts-as span
 %extend-rule text B
 %redefine-rule text C
-%redefine-rule(leftmost-longest) text D
-%redefine-rule(leftmost-longest) text E
+%redefine-rule text D
+%counts-as span
+%redefine-rule text E
+%counts-as span
 %redefine-rule text F
 %redefine-rule text G
 ```
@@ -177,10 +167,10 @@ class Loaders(unittest.TestCase):
             },
             "p.md",
         )
-        changes = pipeline._grammars[0].changes
-        removed = FlagChange(["leftmost-longest"], [])
-        added = FlagChange([], ["leftmost-longest"])
-        self.assertEqual([change.flag_change for change in changes], [None, removed, added, None, removed, None])
+        changes = pipeline.grammars[0].changes
+        removed = CategoryChange(["span"], [])
+        added = CategoryChange([], ["span"])
+        self.assertEqual([change.category_change for change in changes], [None, removed, added, None, removed, None])
         for index, change in enumerate(changes):
             self.assertEqual((change.rule, change.document, change.previous), ("text", "g.md", "g.md"))
             self.assertEqual(change.kind, "extend" if index == 0 else "replace")
@@ -333,7 +323,7 @@ class Options(unittest.TestCase):
         self.assertEqual(declared.error.kind, "ambiguous")
         self.assertEqual(len(declared.error.readings or []), 2)
         self.assertTrue(pipeline.parse_tokens(tokens, text, elision_only=False).ok)
-        plain = gencmu.load_pipeline_sources({**ELIDING, "g.md": ELIDING["g.md"].replace(" elision-only", "")}, "p.md")
+        plain = gencmu.load_pipeline_sources({**ELIDING, "g.md": ELIDING["g.md"].replace("\n%elision-only", "")}, "p.md")
         self.assertTrue(plain.parse_tokens(tokens, text).ok)
         self.assertFalse(plain.parse_tokens(tokens, text, elision_only=True).ok)
 

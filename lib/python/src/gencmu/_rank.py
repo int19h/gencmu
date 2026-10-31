@@ -14,7 +14,7 @@ earliest. Everything else is settled where it is found.
 from __future__ import annotations
 
 import math
-from typing import Any, Iterator, Optional
+from typing import Any, Iterator, Optional, Union
 
 from . import _testing
 from ._earley import RESTORE, Forest
@@ -488,15 +488,17 @@ class Summaries:
 
 class Ranker(Summaries):
     """Ranks a forest's derivations under ``greedy``, ``lazy`` or no lean,
-    and retains their counts up to two. The optional ``best`` summaries retain
-    the best rule profile under every directive. Under ``late-elision``,
-    they also compare elision vectors (engine §6)."""
+    or only counts them (up to two). ``best``, when given, is the
+    summaries of the key steps' profiles, and the ranker then sees only the
+    edges that attain their greatest profiles, the forest of the best
+    derivations (engine §6)."""
 
     def __init__(
         self,
         forest: Forest,
         lean: str,
-        best: ProfileSummaries | None = None,
+        entries: bool = True,
+        best: Profiled | None = None,
     ) -> None:
         super().__init__(forest)
         self.lean = lean
@@ -856,15 +858,23 @@ def compare_vectors(left: Vector, right: Vector) -> int:
             taken_a = taken_b = 0
 
 
-class Profile(tuple):
-    def __new__(cls, spans=(), fewest=0):
-        result = super().__new__(cls, spans)
-        result.fewest = fewest
-        return result
-"""Nonempty spans and exact occurrence counts, in profile order."""
+Spans = tuple
+"""The counts of a category over nonempty spans, as ``(start, end,
+count)`` triples in increasing start and then decreasing end order."""
+
+Component = Union[Spans, int, Vector]
+"""One component of a profile: the counts of one key step's category over
+the spans, the sum of the counts, or the sequence of the starting
+positions (engine §6)."""
+
+Profile = tuple
+"""A derivation's counts of every category that a key step names, one
+component per key step, in the order of the steps (engine §6)."""
 
 
-def compare_spans(a: Profile, b: Profile) -> int:
+def compare_spans(a: Spans, b: Spans) -> int:
+    """Compares span counts by increasing start, then decreasing end, then
+    greater count. -1 means that the left side wins."""
     for x, y in zip(a, b):
         left, right = (x[0], -x[1], -x[2]), (y[0], -y[1], -y[2])
         if left != right:
@@ -872,16 +882,12 @@ def compare_spans(a: Profile, b: Profile) -> int:
     return -1 if len(a) > len(b) else (1 if len(a) < len(b) else 0)
 
 
-def compare_profiles(a: Profile, b: Profile) -> int:
-    return compare_spans(a, b) or ((getattr(a, "fewest", 0) > getattr(b, "fewest", 0)) - (getattr(a, "fewest", 0) < getattr(b, "fewest", 0)))
-
-
-def sum_profiles(a: Profile, b: Profile) -> Profile:
-    fewest = getattr(a, "fewest", 0) + getattr(b, "fewest", 0)
+def sum_spans(a: Spans, b: Spans) -> Spans:
+    """Adds span counts without expanding repeated occurrences."""
     if not a:
-        return Profile(b, fewest)
+        return b
     if not b:
-        return Profile(a, fewest)
+        return a
     out: list[tuple[int, int, int]] = []
     i = j = 0
     while i < len(a) and j < len(b):
@@ -899,47 +905,148 @@ def sum_profiles(a: Profile, b: Profile) -> Profile:
             j += 1
     out.extend(a[i:])
     out.extend(b[j:])
-    return Profile(out, fewest)
+    return tuple(out)
+
+
+class Profiles:
+    """The profiles of one ranking: how the key steps of its directive count
+    occurrences, add profiles and compare them (engine §6)."""
+
+    def __init__(self, steps: tuple[tuple[str, str], ...]) -> None:
+        self.steps = tuple(steps)
+        self.kinds = tuple(step for step, _ in self.steps)
+        # The steps that name each category.
+        self.by_category: dict[str, list[int]] = {}
+        for index, (_, category) in enumerate(self.steps):
+            self.by_category.setdefault(category, []).append(index)
+        self.zero: Profile = tuple(() if kind == "leftmost-longest" else 0 if kind in ("fewest", "most") else None for kind in self.kinds)
+        # Whether a step counts elided terminators.
+        self.elision = "elision" in self.by_category
+        # The one sequence of a single occurrence at each position.
+        self.leaves: dict[int, Elided] = {}
+
+    def counts(self, categories: tuple[str, ...]) -> bool:
+        """Whether an occurrence of a rule with these categories counts."""
+        return any(category in self.by_category for category in categories)
+
+    def occurrence(self, categories: tuple[str, ...], p: int, q: int) -> Profile:
+        """The profile of one occurrence over ``[p, q)`` of a rule with these
+        categories. It counts once for each category that a step names."""
+        profile: list[Component] | None = None
+        for category in categories:
+            for index in self.by_category.get(category, ()):
+                if profile is None:
+                    profile = list(self.zero)
+                profile[index] = self.one(index, p, q)
+        return self.zero if profile is None else tuple(profile)
+
+    def elision_at(self, p: int) -> Profile:
+        """The profile of one elided terminator at ``p``, an occurrence of
+        ``elision`` with the empty span (engine §6)."""
+        return self.occurrence(("elision",), p, p)
+
+    def one(self, index: int, p: int, q: int) -> Component:
+        """One occurrence in the component of a step. An empty span counts
+        nothing under ``leftmost-longest``."""
+        kind = self.kinds[index]
+        if kind == "leftmost-longest":
+            return ((p, q, 1),) if p < q else ()
+        if kind in ("fewest", "most"):
+            return 1
+        leaf = self.leaves.get(p)
+        if leaf is None:
+            leaf = self.leaves[p] = Elided(1, p, p)
+        return leaf
+
+    def sum(self, left: Profile, right: Profile) -> Profile:
+        """Adds profiles component by component. The positions of ``left``
+        precede those of ``right``."""
+        if left is self.zero:
+            return right
+        if right is self.zero:
+            return left
+        out: list[Component] = []
+        for kind, a, b in zip(self.kinds, left, right):
+            if kind == "leftmost-longest":
+                out.append(sum_spans(a, b))
+            elif kind in ("fewest", "most"):
+                out.append(a + b)
+            else:
+                out.append(join(a, b))
+        return tuple(out)
+
+    def compare(self, left: Profile, right: Profile) -> int:
+        """Compares two profiles step by step. -1 means that the left profile
+        is the greater, so the left derivation wins (engine §6)."""
+        if left is right:
+            return 0
+        for kind, a, b in zip(self.kinds, left, right):
+            if kind == "leftmost-longest":
+                order = compare_spans(a, b)
+            elif kind == "fewest":
+                order = (a > b) - (a < b)
+            elif kind == "most":
+                order = (a < b) - (a > b)
+            elif kind == "late":
+                order = compare_vectors(a, b)
+            else:
+                order = -compare_vectors(a, b)
+            if order:
+                return order
+        return 0
+
+    def derivation_profile(self, root: Any) -> Profile:
+        """Counts every completed nonempty occurrence in a chosen
+        derivation, and no elision (engine §7). The derivation is walked in
+        text order, so that each occurrence's position follows those
+        before it."""
+        profile = self.zero
+        pending = [root]
+        while pending:
+            node = pending.pop()
+            production = getattr(node, "production", None)
+            if production is None:
+                continue
+            if node.start < node.end and self.counts(production.categories):
+                profile = self.sum(profile, self.occurrence(production.categories, node.start, node.end))
+            pending.extend(reversed(node.children))
+        return profile
 
 
 class Summary:
-    """A context's total and best score, with counts capped at two.
-
-    The score compares rule profiles first, then elision vectors.
-    The edges name the alternatives that attain that score (engine §6).
+    """A context's total and greatest profile, with counts capped at two.
+    The edges name the alternatives that attain that profile (engine §6).
     """
 
-    __slots__ = ("total", "vector", "count", "edges", "profile")
+    __slots__ = ("total", "profile", "count", "edges")
 
-    def __init__(self, total: int, vector: Vector, count: int, edges: frozenset[int], profile: Profile = ()) -> None:
-        self.profile = profile
+    def __init__(self, total: int, profile: Profile, count: int, edges: frozenset[int]) -> None:
         self.total = total
-        self.vector = vector
+        self.profile = profile
         self.count = count
         self.edges = edges
 
 
-class Least:
+class Best:
     """A summary being built over the edges of an item."""
 
-    __slots__ = ("total", "found", "vector", "count", "edges", "profile")
+    __slots__ = ("space", "total", "found", "profile", "count", "edges")
 
-    def __init__(self) -> None:
+    def __init__(self, space: Profiles) -> None:
+        self.space = space
         self.total = 0
         self.found = False
-        self.profile: Profile = ()
-        self.vector: Vector = None
+        self.profile: Profile = space.zero
         self.count = 0
         self.edges: list[int] = []
 
-    def offer(self, index: int, total: int, vector: Vector, count: int, profile: Profile = ()) -> None:
+    def offer(self, index: int, total: int, profile: Profile, count: int) -> None:
         # Every edge adds to the total, losing ones included.
         self.total += total
-        order = (compare_profiles(profile, self.profile) or compare_vectors(vector, self.vector)) if self.found else -1
+        order = self.space.compare(profile, self.profile) if self.found else -1
         if order < 0:
             self.found = True
-            self.profile = profile
-            self.vector, self.count, self.edges = vector, count, [index]
+            self.profile, self.count, self.edges = profile, count, [index]
         elif order == 0:
             self.count += count
             self.edges.append(index)
@@ -947,32 +1054,32 @@ class Least:
     def summary(self) -> Summary | None:
         if not self.found:
             return None
-        return Summary(min(self.total, 2), self.vector, min(self.count, 2), frozenset(self.edges), self.profile)
+        return Summary(min(self.total, 2), self.profile, min(self.count, 2), frozenset(self.edges))
 
 
 NO_EDGES: frozenset[int] = frozenset()
 
 
-class ProfileSummaries(Summaries):
-    """Filter a forest by rule profiles and optional elision vectors.
+class Profiled(Summaries):
+    """Filters a forest by the profiles of the key steps (engine §6).
 
-    Summaries add the scores of children in their own contexts.
-    The stage policy ranks the retained forest (engine §6).
-    Reconstruction uses projected spans and no stage policy (engine §7).
+    Summaries add the profiles of children in their own contexts.
+    The lean ranks the retained forest of the best derivations.
+    The check of engine §7 counts over projected spans with no lean.
     """
 
-    def __init__(self, forest: Forest, lean: str = "late-elision") -> None:
+    def __init__(self, forest: Forest, space: Profiles, lean: str) -> None:
         super().__init__(forest)
+        self.space = space
         self.lean = lean
         self.check = False
         self.marks: dict[int, set[int]] | None = None
         # The helpers of the elidable optionals: an empty production of one
-        # is an elided terminator (engine §3.8, §6).
+        # is an elided terminator, which a step of elision counts (engine
+        # §3.8, §6).
         self.elided = [
-            lean == "late-elision" and production.helper and production.elided is not None and not production.rhs for production in self.productions
+            space.elision and production.helper and production.elided is not None and not production.rhs for production in self.productions
         ]
-        # The one sequence of a single elision at each position.
-        self.leaves: dict[int, Elided] = {}
 
     def compute(self, key: Key) -> Any:
         """A full key's summary, or ``None`` with no derivation; a partial
@@ -980,54 +1087,50 @@ class ProfileSummaries(Summaries):
         kind, item, _ = key
         forest = self.forest
         memo = self.memo
+        space = self.space
         if kind == 0:
             inner = memo[self.inner_key(key)]
             if inner is None:
                 return None
-            profile, vector = inner.profile, inner.vector
+            profile = inner.profile
             production = self.productions[forest.prod[item]]
-            start, end = forest.origin[item], forest.end[item]
-            project = forest.project
-            if project is not None:
-                start, end = project[start], project[end]
-            if production.leftmost_longest and start < end:
-                profile = sum_profiles(profile, ((start, end, 1),))
-            if production.fewest and start < end:
-                profile = Profile(profile, getattr(profile, "fewest", 0) + 1)
+            # A completed nonempty occurrence of the production's rule
+            # counts as each of its categories, before its children.
+            if production.categories and space.counts(production.categories):
+                start, end = forest.origin[item], forest.end[item]
+                project = forest.project
+                if project is not None:
+                    start, end = project[start], project[end]
+                if start < end:
+                    profile = space.sum(space.occurrence(production.categories, start, end), profile)
             # A restoration elides nothing (engine §7.7).
             if self.elided[forest.prod[item]] and forest.edges[item][0][1] != RESTORE:
-                at = forest.origin[item]
-                unit = self.leaves.get(at)
-                if unit is None:
-                    unit = self.leaves[at] = Elided(1, at, at)
-                vector = join(vector, unit)
-            return Summary(inner.total, vector, inner.count, NO_EDGES, profile)
+                profile = space.sum(profile, space.elision_at(forest.origin[item]))
+            return Summary(inner.total, profile, inner.count, NO_EDGES)
         mask = self.admission.mask(key) if self.admission is not None else None
-        every = Least()
+        every = Best(space)
         for index, edge_kind, pred_key, child_key, a, _ in self.steps(key):
             if edge_kind == 0 or edge_kind == RESTORE:
-                total, vector, count, profile = 1, None, 1, ()
+                total, profile, count = 1, space.zero, 1
             else:
                 assert pred_key is not None
                 before: Summary | None = memo[pred_key]
                 if before is None:
                     continue
-                total, vector, count, profile = before.total, before.vector, before.count, before.profile
+                total, profile, count = before.total, before.profile, before.count
                 if edge_kind == 2:
                     child: Summary | None = memo[child_key]
                     if child is None:
                         continue
                     total = min(total * child.total, 2)
-                    vector = join(vector, child.vector)
-                    profile = sum_profiles(profile, child.profile)
+                    profile = space.sum(profile, child.profile)
                     count = min(count * child.count, 2)
             if mask is None or index in mask:
-                every.offer(index, total, vector, count, profile)
-        summary = every.summary()
-        return summary
+                every.offer(index, total, profile, count)
+        return every.summary()
 
     def edges(self, key: Key) -> frozenset[int]:
-        """The edges that attain the least score of a partial key."""
+        """The edges that attain the greatest profile of a partial key."""
         summary = self.memo[key]
         return summary.edges if summary is not None else NO_EDGES
 
@@ -1035,11 +1138,11 @@ class ProfileSummaries(Summaries):
         return self.edges(key)
 
     def rank(self, roots: list[int]) -> Ranking | None:
-        """The verdict from the totals and least counts, and the readings
-        from a ranking with no lean over the best derivations; ``None`` if
+        """The verdict from the totals and best counts, and the readings
+        from a ranking with the lean over the best derivations; ``None`` if
         the input has no derivation. The root combines its items as a
         summary combines its edges (engine §6)."""
-        roots_least = Least()
+        roots_best = Best(self.space)
         for root in roots:
             key = self.full_key(root, self.empty)
             if key is None:
@@ -1048,27 +1151,27 @@ class ProfileSummaries(Summaries):
             if summary is None:
                 continue
             # The root combines its items as a summary combines its edges.
-            roots_least.offer(root, summary.total, summary.vector, summary.count, summary.profile)
-        if not roots_least.found:
+            roots_best.offer(root, summary.total, summary.profile, summary.count)
+        if not roots_best.found:
             return None
-        total = roots_least.total
-        count = roots_least.count
-        best = roots_least.edges
-        lean = "none" if self.lean == "late-elision" else self.lean
+        total = roots_best.total
+        count = roots_best.count
+        best = roots_best.edges
+        lean = self.lean
         ranker = Ranker(self.forest, lean, best=self)
         ranker.admission = self.admission
         ranker.check = self.check
         readings = ranker.rank(best)
-        # The least count says whether the best forest holds a second
-        # derivation, and the ranking with no lean over it finds one exactly
+        # Without a lean, the best count says whether the best forest holds
+        # a second derivation, and the ranking over it finds one exactly
         # then. A disagreement is a defect of the library, never a verdict.
         if readings is None or (lean == "none" and (readings.verdict == "tie") != (count > 1)):
-            raise RuntimeError("internal error: the least count disagrees with its forest of best derivations")
+            raise RuntimeError("internal error: the best count disagrees with its forest of best derivations")
         if total == 1:
             readings.verdict = "unique"
         elif readings.verdict == "unique":
             readings.verdict = "resolved"
-        readings.profile = roots_least.profile
+        readings.profile = roots_best.profile
         if self.marks is not None:
             counter = Ranker(self.forest, "none")
             counter.admission = self.admission
@@ -1104,9 +1207,10 @@ class Ranking:
         self.witness_counted = witness_counted
 
 
-def rank(forest: Forest, lean: str, marks=None, check=False, unfiltered=False) -> Ranking | None:
-    if not forest.roots:
-        return None
+def rank(forest: Forest, steps: tuple[tuple[str, str], ...], lean: str, marks=None, check=False, unfiltered=False) -> Ranking | None:
+    """Rank a forest's derivations by the key steps ``steps`` and then by
+    the lean, ``greedy``, ``lazy`` or ``none`` (engine §6); ``None`` if the
+    input has no derivation that counts."""
     admission = None
     ranked_helpers = forest.lowered.ranked_helpers
     productions = forest.lowered.productions
@@ -1129,19 +1233,24 @@ def rank(forest: Forest, lean: str, marks=None, check=False, unfiltered=False) -
         admission = RankedAdmission(forest,check)
         admission.stats['chart_facts'] = raw_facts
         admission.prepare()
-    result = rank_original(forest,lean,marks,check,admission)
+    result = rank_original(forest,steps,lean,marks,check,admission)
     callback = _testing.slot_admission.get()
     if admission is not None and callback is not None:
         callback(admission.stats)
     return result
 
 
-def rank_original(forest: Forest, lean: str, marks=None, check=False, admission=None) -> Ranking | None:
-    """Rank a forest's derivations by a rule of the ranking, ``greedy``,
-    ``lazy`` or ``late-elision``, or by no lean, ``none``; ``None`` if the
-    input has no derivation that counts."""
-    if lean == "late-elision" or any(production.leftmost_longest or production.fewest for production in forest.lowered.productions):
-        ranker = ProfileSummaries(forest, lean)
+def rank_original(forest: Forest, steps: tuple[tuple[str, str], ...], lean: str, marks=None, check=False, admission=None) -> Ranking | None:
+    """Rank a forest's derivations by the key steps and then by the lean;
+    ``None`` if the input has no derivation that counts. The profiles
+    decide when a step counts elisions or a production counts as a
+    category that a step names (engine §6)."""
+    if not forest.roots:
+        return None
+    space = Profiles(steps)
+    ranker: Profiled | Ranker
+    if space.elision or any(space.counts(production.categories) for production in forest.lowered.productions):
+        ranker = Profiled(forest, space, lean)
     else:
         ranker = Ranker(forest, lean)
     ranker.marks, ranker.check = marks, check

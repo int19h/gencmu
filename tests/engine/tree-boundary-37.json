@@ -1,6 +1,6 @@
 {
   "description": "The document loads, and the fewest count ranks (engine §4.2 and §6, case 37).",
-  "grammar": "%rule text p | q\n%rule(fewest) p A\n%rule q A",
+  "grammar": "%ambiguity-resolution fewest(few), greedy\n%rule text p | q\n%rule p A\n%counts-as few\n%rule q A",
   "tokens": [
     {
       "text": "a",

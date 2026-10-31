@@ -1,6 +1,6 @@
 {
   "description": "A failing $ condition stops both the alternative and definition tag clauses. Their nested query never reaches the empty split delimiter, so reconstruction passes (engine §3.7, §4, §7.7).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a (A [+T])\n%rule b (A [+T] [+T])\n%rule c (A x)\n%rule x :: $.tokens-after-first.tags(migration-fault) | T %conditions $.source-text = \"q\"\n\n\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
+  "grammar": "%ambiguity-resolution late(elision)\n%elision-only\n%rule text a | b | c\n%rule a (A [+T])\n%rule b (A [+T] [+T])\n%rule c (A x)\n%rule x :: $.tokens-after-first.tags(migration-fault) | T %conditions $.source-text = \"q\"\n\n\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
   "tokens": [
     {
       "text": "a",

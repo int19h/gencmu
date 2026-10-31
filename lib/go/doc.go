@@ -94,9 +94,9 @@
 //
 // # Ambiguity
 //
-// Where a text has several parses, the rule of the stage, greedy, lazy or
-// late-elision, ranks them over the packed parse forest without enumerating
-// them (engine §6). A stage takes the one best parse. Where two or more are
+// Where a text has several parses, the steps of the stage's
+// %ambiguity-resolution rank them over the packed parse forest without
+// enumerating them (engine §6). A stage takes the one best parse. Where two or more are
 // best, they are tied, and the tie is an error: the result's Error has kind
 // ErrorAmbiguous, the reason ReasonTie, and two readings. The stage's
 // Verdict is VerdictTie, with the witness, and it has no output.

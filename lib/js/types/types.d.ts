@@ -311,7 +311,15 @@ export type Recipe = {
 export type DomDirective = {
     conditions?: Condition[];
     name: string;
+    /**
+     * the operands, which `ambiguity-resolution`
+     * lacks: it has `steps` instead
+     */
     args: string[];
+    /**
+     * the steps of `ambiguity-resolution`
+     */
+    steps?: RankingStep[];
     at: Position;
 };
 export type DomRule = BodyRule | InstanceBinding;
@@ -321,7 +329,10 @@ export type BodyRule = {
     instance?: never;
     name: string;
     op: "define" | "redefine" | "extend";
-    flags: string[];
+    /**
+     * the names of its `%counts-as` clause
+     */
+    categories: string[];
     tags?: Term;
     alternatives: DomAlternative[];
     emit?: Emission;
@@ -334,7 +345,7 @@ export type BodyRule = {
 export type InstanceBinding = {
     name: string;
     op: "define" | "redefine";
-    flags: [];
+    categories: [];
     instance: TemplateCall;
     conditions: [];
     at: Position;
@@ -668,7 +679,10 @@ export type Production = {
     rhs: GrammarSymbol[];
     logical?: import("./logical.js").LogicalSymbol[];
     helper: boolean;
-    flags: string[];
+    /**
+     * the categories of the stitched rule's occurrences (engine §6)
+     */
+    categories: string[];
     /**
      * the rule the production was lowered from
      */
@@ -710,12 +724,26 @@ export type Production = {
      */
     warnings: string[];
 };
+export type KeyStep = {
+    step: "leftmost-longest" | "fewest" | "most" | "late" | "early";
+    category: string;
+};
+export type RankingStep = KeyStep | {
+    step: "greedy" | "lazy";
+};
 export type Resolution = {
     /**
-     * the rule of the
-     * ranking (engine §6)
+     * the key steps of the stage's directive, in
+     * order (engine §6)
      */
-    lean: "greedy" | "lazy" | "late-elision";
+    steps: KeyStep[];
+    /**
+     * the directive's last step if it is a lean, or none
+     */
+    lean: Lean;
+    /**
+     * whether the stage declares `%elision-only`
+     */
     elisionOnly: boolean;
 };
 export type LoweredGrammar = {
@@ -751,7 +779,7 @@ export type LoweredGrammar = {
         then: TagSet;
     }[];
 };
-export type Lean = "greedy" | "lazy" | "late-elision" | "none";
+export type Lean = "greedy" | "lazy" | "none";
 export type Captured = {
     parent: Captured;
     jump: Captured;
@@ -1148,7 +1176,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} DomDirective
  * @property {Condition[]} [conditions]
  * @property {string} name
- * @property {string[]} args
+ * @property {string[]} args the operands, which `ambiguity-resolution`
+ *   lacks: it has `steps` instead
+ * @property {RankingStep[]} [steps] the steps of `ambiguity-resolution`
  * @property {Position} at
  */
 /**
@@ -1161,7 +1191,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {never} [instance]
  * @property {string} name
  * @property {"define" | "redefine" | "extend"} op
- * @property {string[]} flags
+ * @property {string[]} categories the names of its `%counts-as` clause
  * @property {Term} [tags]
  * @property {DomAlternative[]} alternatives
  * @property {Emission} [emit]
@@ -1176,7 +1206,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} InstanceBinding
  * @property {string} name
  * @property {"define" | "redefine"} op
- * @property {[]} flags
+ * @property {[]} categories
  * @property {TemplateCall} instance
  * @property {[]} conditions
  * @property {Position} at
@@ -1358,7 +1388,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {GrammarSymbol[]} rhs
  * @property {import("./logical.js").LogicalSymbol[]} [logical]
  * @property {boolean} helper
- * @property {string[]} flags
+ * @property {string[]} categories the categories of the stitched rule's occurrences (engine §6)
  * @property {string} owner the rule the production was lowered from
  * @property {string | null} elided the terminator an empty helper stands for
  * @property {SymbolTest | null} elidedTest the test of that terminator, an
@@ -1380,10 +1410,21 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   in the order they are written; none for a helper
  */
 /**
+ * A step of `%ambiguity-resolution` that compares the occurrences of one
+ * category (engine §6).
+ * @typedef {{step: "leftmost-longest" | "fewest" | "most" | "late" | "early", category: string}} KeyStep
+ */
+/**
+ * A step of `%ambiguity-resolution`: a key step, or a lean, which can stand
+ * only last (engine §6).
+ * @typedef {KeyStep | {step: "greedy" | "lazy"}} RankingStep
+ */
+/**
  * @typedef {object} Resolution
- * @property {"greedy" | "lazy" | "late-elision"} lean the rule of the
- *   ranking (engine §6)
- * @property {boolean} elisionOnly
+ * @property {KeyStep[]} steps the key steps of the stage's directive, in
+ *   order (engine §6)
+ * @property {Lean} lean the directive's last step if it is a lean, or none
+ * @property {boolean} elisionOnly whether the stage declares `%elision-only`
  */
 /**
  * A grammar lowered for one set of features.
@@ -1402,9 +1443,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   implications, which its emitted tokens take (engine §11)
  */
 /**
- * The rule the ranking uses: the grammar's, or none for elision-only's
- * check and for the readings of a late-elision tie (engine §6).
- * @typedef {"greedy" | "lazy" | "late-elision" | "none"} Lean
+ * The lean of a ranking: the directive's, or none for a directive without
+ * one and for elision-only's check (engine §6).
+ * @typedef {"greedy" | "lazy" | "none"} Lean
  */
 /**
  * The captured parts of a chart item, the last one first: each part's

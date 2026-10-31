@@ -317,7 +317,7 @@ func (run *stageRun) run(g *lowered, elisionOnly bool, features map[string]bool)
 	top := rec.accepted(start)
 	var res *rankResult
 	if len(top) > 0 {
-		res = newRanker(rec, g.lean).rank(top)
+		res = newRanker(rec, g.steps, g.lean).rank(top)
 	}
 	if res == nil {
 		if out.err == nil {

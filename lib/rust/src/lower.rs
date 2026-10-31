@@ -280,8 +280,9 @@ pub(crate) struct LRule {
     /// The rule's name, or for a helper the name of the rule that owns it.
     pub name: String,
     pub helper: bool,
-    pub leftmost_longest: bool,
-    pub fewest: bool,
+    /// The categories that a nonempty occurrence of the rule counts as
+    /// (engine §6), none for a helper.
+    pub categories: Vec<String>,
     pub prods: Vec<u32>,
     /// For the helper of an elidable optional, `[+T …]`: its
     /// terminator `T` (§3.8, §12).
@@ -1178,8 +1179,7 @@ pub(crate) fn lower(
             family: index as u32,
             name: rule.name.clone(),
             helper: false,
-            leftmost_longest: rule.flags.iter().any(|flag| flag == "leftmost-longest"),
-            fewest: rule.flags.iter().any(|flag| flag == "fewest"),
+            categories: rule.categories.clone(),
             prods: Vec::new(),
             elided: None,
             elided_test: None,
@@ -1193,8 +1193,7 @@ pub(crate) fn lower(
             family,
             name: grammar.rules[helper.owner as usize].name.clone(),
             helper: true,
-            leftmost_longest: false,
-            fewest: false,
+            categories: Vec::new(),
             prods: Vec::new(),
             elided: helper.elided.as_ref().map(|(name, _)| name.clone()),
             elided_test: helper.elided.as_ref().and_then(|(_, test)| *test),
@@ -1341,8 +1340,7 @@ pub(crate) fn lower(
             family: rule,
             name: format!("\0query:{terminal}"),
             helper: true,
-            leftmost_longest: false,
-            fewest: false,
+            categories: Vec::new(),
             prods: Vec::new(),
             elided: None,
             elided_test: None,
@@ -2397,7 +2395,7 @@ mod tests {
                 deferred_emission: None,
                 name,
                 op: Op::Define,
-                flags: Vec::new(),
+                categories: Vec::new(),
                 tags: None,
                 alternatives: alternatives
                     .into_iter()
@@ -2437,7 +2435,8 @@ mod tests {
             let directive = Directive {
                 conditions: None,
                 name: "ambiguity-resolution".into(),
-                args: vec!["greedy".into()],
+                args: Vec::new(),
+                steps: Some(vec![crate::dom::Step { step: "greedy".into(), category: None }]),
                 at: (0, 0),
             };
             let dom = Dom {
@@ -2487,7 +2486,7 @@ mod tests {
             deferred_emission: None,
             name: "text".into(),
             op: Op::Define,
-            flags: Vec::new(),
+            categories: Vec::new(),
             tags: Some(Term::Union(guards.collect())),
             alternatives: vec![Alternative {
                 strings: Default::default(),
@@ -2510,7 +2509,8 @@ mod tests {
         let directive = Directive {
             conditions: None,
             name: "ambiguity-resolution".into(),
-            args: vec!["greedy".into()],
+            args: Vec::new(),
+            steps: Some(vec![crate::dom::Step { step: "greedy".into(), category: None }]),
             at: (0, 0),
         };
         let dom = Dom {

@@ -110,7 +110,7 @@ export type StageAudit = {
         rule: string;
         document: string;
         previous: string;
-        flagChange?: {
+        categoryChange?: {
             from: string[];
             to: string[];
         };

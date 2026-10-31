@@ -389,7 +389,7 @@ mod tests {
     #[test]
     fn cycle_contexts_keep_only_the_rules_of_their_cycle() {
         let depth = 15;
-        let mut grammar = format!("%ambiguity-resolution late-elision\n%rule text ε | r{depth}\n%rule r0 [+T]\n");
+        let mut grammar = format!("%ambiguity-resolution late(elision)\n%rule text ε | r{depth}\n%rule r0 [+T]\n");
         for i in 1..=depth {
             let below = i - 1;
             grammar
@@ -465,7 +465,7 @@ mod tests {
                 let names: Vec<String> = (0..n).map(|index| format!("r{index}")).collect();
                 let rules: Vec<String> = (0..n).map(|index| format!("%rule r{index} A [+KU] [+KU] B{index}")).collect();
                 let grammar = format!(
-                    "%ambiguity-resolution late-elision elision-only\n%rule text {}\n{}",
+                    "%ambiguity-resolution late(elision)\n%elision-only\n%rule text {}\n{}",
                     names.join(" | "),
                     rules.join("\n")
                 );

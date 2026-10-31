@@ -22,7 +22,8 @@ CASE: dict[str, Any] = {
     "documents": {
         "p.md": """```jbogenbau
 %stage main
-%ambiguity-resolution late-elision elision-only
+%ambiguity-resolution late(elision)
+%elision-only
 %rule text a | b
 %rule a w! A [+T="ta"] [+U] %emits $ :: X
 %rule b A [+T="ta"] [+U] [+U]

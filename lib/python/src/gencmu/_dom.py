@@ -28,16 +28,18 @@ from ._types import (
 )
 from ._validate import (
     CAPTURE_NAME,
+    CATEGORY_NAME,
     CLASSIFIER_NAME,
     FORMAT,
     Marks,
     range_problem,
     term_reads_own_tags,
+    valid_steps,
 )
 
 Dom = dict[str, Any]
 
-_MAPPED = frozenset("""directive argument-word argument-string argument-tag argument-term rule definer rule-flags rule-flag rule-name body headed-body alternative ranked-alternative ranked-choice guard alternative-tags
+_MAPPED = frozenset("""directive argument-word argument-string argument-tag argument-term rule definer counts-as-clause category ranking-directive ranking-step rule-name body headed-body alternative ranked-alternative ranked-choice guard alternative-tags
 choice conjunction sequence primary repetition reference string-terminal string tag wildcard name tested tag-test tag-requirement value-test test test-operand capture
  group optional empty tags-clause value-clause image-clause recipe recipe-atom conditions-clause emits-clause erased-clause emit-item emit-target emit-tags emit-before
 emit-after implication any-of all-of condition comparison comparator tree-comparator negation presence method method-receiver method-selector method-name arguments argument term guarded-term
@@ -48,7 +50,7 @@ _PRIMARIES = frozenset(("reference", "tag", "string-terminal", "wildcard", "rang
 _CONDITIONS = frozenset(("tree-comparison", "comparison", "method", "negation", "presence", "implication"))
 _TERMS = frozenset(("union", "guarded-term"))
 _ATOMS = frozenset(("term-atom", "string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "union", "guarded-term", "method", "capture-reference", "constant-reference", "pattern-literal", "call", "parameter"))
-_ITEMS = frozenset(("directive", "rule", "constant-definition", "classifier", "implication-declaration"))
+_ITEMS = frozenset(("directive", "ranking-directive", "rule", "constant-definition", "classifier", "implication-declaration"))
 _SYMBOLS = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "constant-reference", "call", "parameter"))
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
 
@@ -207,6 +209,8 @@ class DomBuilder:
             statement_seen = statement_seen or not names
             if kid.kind == "rule" and kid.rule == "rule":
                 rules.append(self.rule(kid))
+            elif kid.kind == "rule" and kid.rule == "ranking-directive":
+                directives.append(self.ranking_directive(kid))
             elif kid.kind == "rule" and kid.rule == "directive":
                 directives.append(self.directive(kid))
             elif kid.kind == "rule" and kid.rule == "constant-definition":
@@ -306,8 +310,6 @@ class DomBuilder:
             raise self.fail(node, f"%{name} takes one lowercase name")
         if name == "features" and any(re.fullmatch(r"[A-Za-z][A-Za-z0-9-]*", arg) is None for arg in args):
             raise self.fail(node, "%features takes feature names")
-        if name == "ambiguity-resolution" and args not in (["greedy"], ["lazy"], ["late-elision"], ["greedy", "elision-only"], ["lazy", "elision-only"], ["late-elision", "elision-only"]):
-            raise self.fail(node, "%ambiguity-resolution takes a ranking name and optionally elision-only")
         directive = {"name": name, "args": args, "at": list(self.position(node))}
         clause = self.one(node, "conditions-clause")
         if clause is not None:
@@ -321,6 +323,17 @@ class DomBuilder:
             finally:
                 self.feature_context = False
         return directive
+
+    def ranking_directive(self, node: Node) -> Dom:
+        """``%ambiguity-resolution``: its steps, each a lean or a key step
+        with a category, with a lean only last (engine §9.3)."""
+        steps: list[Dom] = []
+        for step_node in self.some(node, "ranking-step"):
+            words = [self.token_value(kid) for kid in self.kids(step_node) if kid.kind == "token"]
+            steps.append({"step": words[0]} if len(words) == 1 else {"step": words[0], "category": words[2] if len(words) > 2 else ""})
+        if not valid_steps(steps):
+            raise self.fail(node, "%ambiguity-resolution takes leftmost-longest, fewest, most, late or early with a category, then optionally greedy or lazy")
+        return {"name": "ambiguity-resolution", "steps": steps, "at": list(self.position(node))}
 
     def operand_kind(self, node: Node) -> str:
         """The kind of a directive's operand: ``name`` or ``class`` for a
@@ -421,32 +434,33 @@ class DomBuilder:
         name = head['call'] if head else self.token_value(name_token)
         if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
             raise self.fail(name_token, "a rule name starts with a lowercase letter or uses one eligible emoji")
-        flags: list[str] = []
-        flag_list = self.one(node, "rule-flags")
-        if flag_list is not None:
-            if op == "extend":
-                raise self.fail(flag_list, "%extend-rule accepts no flags")
-            for flag in self.some(flag_list, "rule-flag"):
-                value = self.token_value(self.token(flag))
-                if value not in ("leftmost-longest", "fewest"):
-                    raise self.fail(flag, f"unknown rule flag {value}")
-                if value in flags:
-                    raise self.fail(flag, f"duplicate rule flag {value}")
-                if flags:
-                    raise self.fail(flag, "two different rule flags are not allowed")
-                flags.append(value)
+        categories: list[str] = []
         if any(self._token_value(kid) == '=' for kid in self.kids(node)):
             if head:
                 raise self.fail(node, 'a binding requires a plain rule name')
-            return dict(name=name, op=op, flags=flags, instance=run(self._call(self.only(node, 'call'))), conditions=[], at=list(self.position(node)))
+            return dict(name=name, op=op, categories=categories, instance=run(self._call(self.only(node, 'call'))), conditions=[], at=list(self.position(node)))
         header = self.clauses(node, "tags-clause", True)
         body = self.one(node, "body") or self.only(node, "headed-body")
         ranked = self.one(body, "ranked-alternative")
         alternatives = [self.alternative(kid) for kid in ([ranked] if ranked is not None else self.some(body, "alternative"))]
         conditions_node = self.one(node, "conditions-clause")
         conditions = [run(self._condition(item)) for item in self.some(conditions_node, "implication")] if conditions_node else []
+        # The categories of the rule's occurrences (engine §9.3).
+        counts_as = self.one(node, "counts-as-clause")
+        if counts_as is not None:
+            if op == "extend":
+                raise self.fail(counts_as, "%extend-rule accepts no %counts-as clause")
+            for category in self.some(counts_as, "category"):
+                value = self.token_value(self.token(category))
+                if CATEGORY_NAME.fullmatch(value) is None:
+                    raise self.fail(category, "a category name starts with a lowercase letter and continues with lowercase letters, digits and hyphens")
+                if value == "elision":
+                    raise self.fail(category, "elision is the category of elided terminators, which no rule can count as")
+                if value in categories:
+                    raise self.fail(category, f"duplicate category {value}")
+                categories.append(value)
         emits_node = self.one(node, "emits-clause")
-        dom = {"name": name, **head_fields, "op": op, "flags": flags, **header, "alternatives": alternatives}
+        dom = {"name": name, **head_fields, "op": op, "categories": categories, **header, "alternatives": alternatives}
         if emits_node is not None:
             dom["emit"] = self.emission(emits_node)
         dom["conditions"] = conditions
@@ -1393,8 +1407,8 @@ def operand_problem(name: str, kinds: list[str]) -> str | None:
         return None if kinds == ["string"] else f"%{name} takes one string"
     if name == "features":
         return None if kinds and names else "%features takes one or more names"
-    if name == "ambiguity-resolution" and not 1 <= len(kinds) <= 2:
-        return "%ambiguity-resolution takes one or two names"
+    if name == "elision-only":
+        return None if not kinds else "%elision-only takes no operand"
     return None if names else f"%{name} takes names only"
 
 

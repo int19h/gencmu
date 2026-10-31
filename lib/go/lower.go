@@ -94,14 +94,15 @@ type lcond struct {
 }
 
 type lrule struct {
-	leftmostLongest bool
-	fewest          bool
-	name            string
-	helper          bool
-	owner           string
-	prods           []*production
-	nullable        bool
-	scc             int // the index of its same-span cycle class, or -1 if it can never lie below itself
+	// categories are the categories of the stitched rule's occurrences; a
+	// helper has none (engine §6).
+	categories []string
+	name       string
+	helper     bool
+	owner      string
+	prods      []*production
+	nullable   bool
+	scc        int // the index of its same-span cycle class, or -1 if it can never lie below itself
 }
 
 type lowered struct {
@@ -123,7 +124,8 @@ type lowered struct {
 	// characters it matches; nil for a terminal that is a tag (§4).
 	classes    []*charClass
 	prods      []*production
-	lean       string // "greedy", "lazy", "late-elision", or "" for no lean (§6, §7)
+	steps      []keyStep // the key steps of the stage's directive (§6)
+	lean       string    // "greedy", "lazy", or "" for no lean (§6, §7)
 	sccMembers [][]int32
 	// fault is an error of the grammar that lowering for these features
 	// found (§3), or "": parsing with it is a result with that error.
@@ -239,7 +241,7 @@ type helperNode struct {
 // lower lowers a stage's grammar for a set of features. The check of
 // elision-only reads the same productions in a mode of its own (§3.8, §7.4).
 func lower(g *stageGrammar, features map[string]bool) *lowered {
-	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean}
+	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, steps: g.steps, lean: g.lean}
 	// The stage resolves its classifiers for the same features, before it
 	// lowers its rules; an error there ends the stage as an error of
 	// lowering does (§2, §3).
@@ -255,7 +257,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 	lw := &lowerer{helperNodes: map[int32]*helperNode{}, rankOptions: map[int32][]int{}, commonConds: map[*sAlt]map[string][]*domCond{}, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
-		l.rules = append(l.rules, &lrule{leftmostLongest: len(r.flags) > 0 && r.flags[0] == "leftmost-longest", fewest: len(r.flags) > 0 && r.flags[0] == "fewest", name: r.name, owner: r.name, scc: -1})
+		l.rules = append(l.rules, &lrule{categories: r.categories, name: r.name, owner: r.name, scc: -1})
 	}
 	for _, r := range g.rules {
 		if lw.lowerRule(r); l.fault != "" {

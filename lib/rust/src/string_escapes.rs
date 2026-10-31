@@ -12,7 +12,7 @@ pub(crate) struct DocumentStrings<'a> {
     pub names_paths: std::cell::RefCell<std::collections::BTreeSet<usize>>,
 }
 
-const STATEMENTS: [&str; 14] = [
+const STATEMENTS: [&str; 15] = [
     "%names",
     "%rule",
     "%redefine-rule",
@@ -23,6 +23,7 @@ const STATEMENTS: [&str; 14] = [
     "%include",
     "%features",
     "%ambiguity-resolution",
+    "%elision-only",
     "%const",
     "%redefine-const",
     "%classifier",

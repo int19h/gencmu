@@ -34,7 +34,7 @@ func rankEmpty(t *testing.T, grammar string) *rankResult {
 	lg := d.lower(0, map[string]bool{})
 	ps := newParseState(d.uni, nil)
 	rec := ps.newRun("main", d.stages[0], nil).recognize(lg, lg.byName["text"], 0, 0)
-	return newRanker(rec, lg.lean).rank(rec.accepted(lg.byName["text"]))
+	return newRanker(rec, lg.steps, lg.lean).rank(rec.accepted(lg.byName["text"]))
 }
 
 // The ranking stays exact and polynomial where a derivation of the empty
@@ -57,8 +57,8 @@ func TestRankExponential(t *testing.T) {
 			{"%rule text rN | qN [+T]", VerdictResolved},
 			{"%rule text qN [+T] | [+T] rN", VerdictTie},
 		} {
-			if res := rankEmpty(t, doublingGrammar("late-elision", n, true, tc.text)); res.verdict != tc.verdict {
-				t.Errorf("late-elision, n = %d, %s: %s, want %s", n, tc.text, res.verdict, tc.verdict)
+			if res := rankEmpty(t, doublingGrammar("late(elision)", n, true, tc.text)); res.verdict != tc.verdict {
+				t.Errorf("late(elision), n = %d, %s: %s, want %s", n, tc.text, res.verdict, tc.verdict)
 			}
 		}
 	}

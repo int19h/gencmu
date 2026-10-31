@@ -41,8 +41,8 @@ const LAYERED_SYMBOLS = new Set(["«", "»", "·"]);
 const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=",
   "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻"]);
 
-const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%conditions", "%emits", "%erased",
-  "%ambiguity-resolution", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
+const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%conditions", "%counts-as", "%emits", "%erased",
+  "%ambiguity-resolution", "%elision-only", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
 
 // A syntax error: the text cannot be read as the notation at all, which the
 // reader reports before any other error (engine §9).
@@ -256,7 +256,7 @@ function lex(text, originalPositions) {
   return tokens;
 }
 
-const DIRECTIVES = new Set(["%ambiguity-resolution", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features"]);
+const DIRECTIVES = new Set(["%ambiguity-resolution", "%elision-only", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features"]);
 const RULE_KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule"]);
 const CONSTANT_KEYWORDS = new Set(["%const", "%redefine-const"]);
 const COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
@@ -363,7 +363,24 @@ class Parser {
     return { kind: "rule", rule: "text", children, span: [0, this.index] };
   }
 
+  // `%ambiguity-resolution` and its steps: a name, or a name with one
+  // category in parentheses, separated by commas.
+  rankingDirective() {
+    const start = this.index;
+    const children = [this.tok(), this.rankingStep()];
+    while (this.is(",")) children.push(this.tok(), this.rankingStep());
+    return this.node("ranking-directive", start, children);
+  }
+
+  rankingStep() {
+    const start = this.index;
+    if (this.is("identifier")) return this.node("ranking-step", start, [this.tok()]);
+    if (!this.is("call-name")) this.fail("expected a ranking step");
+    return this.node("ranking-step", start, [this.tok(), this.expect("("), this.is("identifier") ? this.tok() : this.fail("expected a category"), this.expect(")")]);
+  }
+
   *directive() {
+    if (this.is("%ambiguity-resolution")) return this.rankingDirective();
     const start = this.index;
     const children = [this.tok()];
     while (this.peek() && !this.kindAt().startsWith("%") && this.kindAt() !== "keyword") {
@@ -433,14 +450,6 @@ class Parser {
   *rule() {
     const start = this.index;
     const children = [this.leaf("definer")];
-    if (this.is("(")) {
-      const at = this.index;
-      const flags = [this.tok()];
-      flags.push(this.is("identifier") ? this.leaf("rule-flag") : this.fail("expected a rule flag"));
-      while (this.is(",")) flags.push(this.tok(), this.is("identifier") ? this.leaf("rule-flag") : this.fail("expected a rule flag"));
-      flags.push(this.expect(")"));
-      children.push(this.node("rule-flags", at, flags));
-    }
     children.push(this.is("call-name") ? (yield this.call()) : this.is("identifier") || this.is("emoji") ? this.leaf("rule-name") : this.fail("expected a rule's name"));
     if (this.is("=")) {
       children.push(this.tok(), (yield this.call()));
@@ -462,6 +471,12 @@ class Parser {
       clause.push((yield this.implication()));
       while (this.is(",")) clause.push(this.tok(), (yield this.implication()));
       children.push(this.node("conditions-clause", at, clause));
+    }
+    if (this.is("%counts-as")) {
+      const at = this.index;
+      const clause = [this.tok(), this.is("identifier") ? this.leaf("category") : this.fail("expected a category")];
+      while (this.is(",")) clause.push(this.tok(), this.is("identifier") ? this.leaf("category") : this.fail("expected a category"));
+      children.push(this.node("counts-as-clause", at, clause));
     }
     if (this.is("%emits")) children.push((yield this.emitsClause()));
     else if (this.is("%erased")) children.push(this.leaf("erased-clause"));

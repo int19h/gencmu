@@ -75,7 +75,7 @@
       hint: "Here pa qualifies only as a mathematical expression. No sumti reads it with the same boundaries, so the condition permits mex." },
     { label: "The earliest, longest tense wins (CLL)", text: "mi viska pu va ca gi do gi la djan", pipeline: "lojban/cll",
       document: "grammars/lojban/cll/syntax.md", rule: "simple-tense-modal",
-      hint: "The leftmost-longest rule flag prefers the earlier tense pu va. Remove (leftmost-longest) from the open rule to see a tie." },
+      hint: "The rule counts as a tense, and the stage prefers the leftmost and longest tenses, so the earlier tense pu va wins. Remove the %counts-as clause from the open rule to see a tie." },
     { label: "A rule with preferred options (notation)", text: "%rule text (a ≻ b ≻ c)", pipeline: "gencmu/jbogenbau", tab: "tree",
       hint: "The notation pipeline reads grammar source as text. The Tree tab shows ranked-choice. Change ≻ to | to see ordinary alternatives." },
     { label: "A rule with tree tests (notation)", pipeline: "gencmu/jbogenbau", tab: "tree",

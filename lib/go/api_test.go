@@ -35,22 +35,22 @@ func oneStage(grammar string) map[string]string {
 	}
 }
 
-func TestReplacementsRecordFlagChanges(t *testing.T) {
+func TestReplacementsRecordCategoryChanges(t *testing.T) {
 	t.Parallel()
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule(leftmost-longest) text A\n%extend-rule text B\n%redefine-rule text C\n%redefine-rule(leftmost-longest) text D\n%redefine-rule(leftmost-longest) text E\n%redefine-rule text F\n%redefine-rule text G"))
+	d := mustLoad(t, oneStage("%ambiguity-resolution leftmost-longest(span), greedy\n%rule text A\n%counts-as span\n%extend-rule text B\n%redefine-rule text C\n%redefine-rule text D\n%counts-as span\n%redefine-rule text E\n%counts-as span\n%redefine-rule text F\n%redefine-rule text G"))
 	changes := d.stages[0].changes
 	if len(changes) != 6 {
 		t.Fatalf("got %d changes, want 6", len(changes))
 	}
-	flag := []string{"leftmost-longest"}
-	want := []*flagChange{nil, {from: flag}, {to: flag}, nil, {from: flag}, nil}
+	span := []string{"span"}
+	want := []*categoryChange{nil, {from: span, to: []string{}}, {from: []string{}, to: span}, nil, {from: span, to: []string{}}, nil}
 	for i, change := range changes {
 		if change.rule != "text" || change.document != "g.md" || (change.op == "extend") != (i == 0) {
 			t.Fatalf("change %d: %+v", i, change)
 		}
-		got := change.flagChange
+		got := change.categoryChange
 		if (got == nil) != (want[i] == nil) || got != nil && (!slices.Equal(got.from, want[i].from) || !slices.Equal(got.to, want[i].to)) {
-			t.Fatalf("flag change %d: got %+v, want %+v", i, got, want[i])
+			t.Fatalf("category change %d: got %+v, want %+v", i, got, want[i])
 		}
 	}
 }
@@ -692,17 +692,17 @@ func TestMalformedPreparsed(t *testing.T) {
 	format := strconv.Itoa(domFormat)
 	var doms []string
 	for _, expr := range bad {
-		doms = append(doms, `{"format":`+format+`,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":`+expr+`}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`)
+		doms = append(doms, `{"format":`+format+`,"rules":[{"name":"text","op":"define","categories":[],"alternatives":[{"guards":[],"expr":`+expr+`}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`)
 	}
 	// Null in the rest of the DOM, where the other libraries refuse it too.
-	good := doms[0][:strings.Index(doms[0], `"expr":`)] + `"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[{"name":"K","op":"define","value":{"tag":"X"},"at":[3,1]}],"classifiers":[],"implications":[]}`
+	good := doms[0][:strings.Index(doms[0], `"expr":`)] + `"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[{"name":"K","op":"define","value":{"tag":"X"},"at":[3,1]}],"classifiers":[],"implications":[]}`
 	if _, err := decodeDOM([]byte(good), bundled.uni); err != nil {
 		t.Fatalf("the DOM the null cases change is refused: %v", err)
 	}
 	for _, change := range [][2]string{
 		{`"name":"text"`, `"name":null`}, {`"op":"define"`, `"op":null`}, {`"conditions":[]`, `"conditions":null`},
-		{`"conditions":[],"at":[1,1]`, `"conditions":[],"at":[null,1]`}, {`"args":["greedy"]`, `"args":[null]`},
-		{`"args":["greedy"],"at":[2,1]`, `"args":["greedy"],"at":[2,null]`}, {`"directives":[{`, `"directives":null,"x":[{`},
+		{`"conditions":[],"at":[1,1]`, `"conditions":[],"at":[null,1]`}, {`"steps":[{"step":"greedy"}]`, `"steps":[{"step":null}]`},
+		{`"steps":[{"step":"greedy"}],"at":[2,1]`, `"steps":[{"step":"greedy"}],"at":[2,null]`}, {`"directives":[{`, `"directives":null,"x":[{`},
 		{`"rules":[{`, `"rules":null,"x":[{`}, {`"constants":[{`, `"constants":null,"x":[{`},
 		{`"name":"K"`, `"name":null`}, {`"op":"define","value"`, `"op":null,"value"`}, {`"value":{"tag":"X"}`, `"value":null`},
 		{`"value":{"tag":"X"},"at":[3,1]`, `"value":{"tag":"X"},"at":[3,null]`},
@@ -736,7 +736,7 @@ func TestMalformedPreparsed(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
+		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":41,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
 		_, err = LoadPipelineSources(src, "grammars/test/p.md")
 		var e *Error
 		if isGuardedCrash(err) || !errors.As(err, &e) || e.Kind != ErrorGrammar {
@@ -757,7 +757,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 	sources = map[string]string{"grammars/test/p.md": sources["p.md"], "grammars/test/g.md": gText}
 	format := strconv.Itoa(domFormat)
 	dom := func(expr string) string {
-		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
+		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","categories":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	preparsed := func(dom string) map[string]string {
 		src := map[string]string{}
@@ -772,7 +772,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
+		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":41,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
 		_, err := LoadPipelineSources(src, "grammars/test/p.md")
 		return err
 	}
@@ -1023,7 +1023,7 @@ func TestEmptyCharacterTag(t *testing.T) {
 		}
 	}
 	loadBundled()
-	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"literal":{"string":""}}}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
+	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","categories":[],"alternatives":[{"guards":[],"expr":{"literal":{"string":""}}}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	if _, err := decodeDOM([]byte(dom), bundled.uni); err != nil {
 		t.Fatal(err)
 	}

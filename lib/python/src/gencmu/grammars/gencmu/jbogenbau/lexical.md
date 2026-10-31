@@ -350,8 +350,8 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
 
 ```jbogenbau
 %const $KEYWORDS
-  "rule" "redefine-rule" "extend-rule" "conditions"
-  "emits" "erased" "ambiguity-resolution" "stage"
+  "rule" "redefine-rule" "extend-rule" "conditions" "counts-as"
+  "emits" "erased" "ambiguity-resolution" "elision-only" "stage"
   "extend-stage" "redefine-stage" "include" "features"
   "const" "redefine-const" "classifier" "implies" "names"
 
@@ -362,7 +362,9 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
   | "%" whole-name="conditions" :: KW-CONDITIONS
   | "%" whole-name="emits" :: KW-EMITS
   | "%" whole-name="erased" :: KW-ERASED
+  | "%" whole-name="counts-as" :: KW-COUNTS-AS
   | "%" whole-name="ambiguity-resolution" :: KW-AMBIGUITY-RESOLUTION
+  | "%" whole-name="elision-only" :: KW-ELISION-ONLY
   | "%" whole-name="stage" :: KW-STAGE
   | "%" whole-name="extend-stage" :: KW-EXTEND-STAGE
   | "%" whole-name="redefine-stage" :: KW-REDEFINE-STAGE

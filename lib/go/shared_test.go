@@ -814,7 +814,7 @@ func decodedResult(t testing.TB, data []byte) map[string]any {
 // The runner fails a case that does not finish in time.
 func TestEngineRunnerTimeout(t *testing.T) {
 	t.Parallel()
-	grammar := doublingGrammar("late-elision", 25, false, "%rule text ε | rN")
+	grammar := doublingGrammar("late(elision)", 25, false, "%rule text ε | rN")
 	c := &engineCase{Grammar: &grammar, Tokens: []caseToken{}, Expect: caseExpect{}}
 	if err := checkCaseWithin(c, time.Nanosecond); err == nil || !strings.Contains(err.Error(), "did not finish") {
 		t.Fatalf("the runner gave %v", err)

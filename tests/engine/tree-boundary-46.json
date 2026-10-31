@@ -1,6 +1,6 @@
 {
   "description": "The check compares fewest counts as part of the rule profile. With span vectors alone, it reports an `elision-only` ambiguity (engine §4.2 and §6, case 46).",
-  "grammar": "%ambiguity-resolution greedy elision-only\n%rule text p | q\n%rule(fewest) p A [T] B\n%rule q A [+T] B",
+  "grammar": "%ambiguity-resolution fewest(few), greedy\n%elision-only\n%rule text p | q\n%rule p A [T] B\n%counts-as few\n%rule q A [+T] B",
   "tokens": [
     {
       "text": "a",

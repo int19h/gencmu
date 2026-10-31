@@ -70,7 +70,7 @@ class Ranked(unittest.TestCase):
         self.assertTrue(same_json(error.option, 1))
 
     def test_independent_slots_keep_a_linear_forest(self):
-        case = {"grammar": "%ambiguity-resolution late-elision\n%rule text {unit}\n%rule unit a ≻ b\n%rule a X Y\n%rule b X Y"}
+        case = {"grammar": "%ambiguity-resolution late(elision)\n%rule text {unit}\n%rule unit a ≻ b\n%rule a X Y\n%rule b X Y"}
         pipeline, error = load_case_pipeline(case)
         self.assertIsNone(error)
         for length in (1, 2, 4, 8, 16):
@@ -88,7 +88,7 @@ class Ranked(unittest.TestCase):
             self.assertEqual(stats[0]["retained_edges"], length)
 
     def test_valid_cached_grammar_never_recovers_locations(self):
-        texts = sources("%ambiguity-resolution late-elision\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y")
+        texts = sources("%ambiguity-resolution late(elision)\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y")
         found = _resources()
         reader = _reader(found.bootstrap, found.unicode, found.properties)
         dom = reader.read(texts["grammars/test/g.md"], "grammars/test/g.md", True)
@@ -120,7 +120,7 @@ class Ranked(unittest.TestCase):
 
     def test_cached_dom_preserves_original_diagnostic(self):
         texts = sources("""%const $K K
-%ambiguity-resolution late-elision
+%ambiguity-resolution late(elision)
 %rule text :: $x ⟹ ($x.tags ∪ $K) | Q (($x:a ≻ b) ≻ c) Z
 %rule a X Y
 %rule b U V
@@ -143,7 +143,7 @@ class Ranked(unittest.TestCase):
         self.assertTrue(same_json(list(diagnostic), ["kind", "code", "message", "group", "option", "expression"]))
 
     def test_shortest_tag_witness(self):
-        texts = sources("""%ambiguity-resolution late-elision
+        texts = sources("""%ambiguity-resolution late(elision)
 %rule text a ≻ b
 %rule a u | v
 %rule u deeper

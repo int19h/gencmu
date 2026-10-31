@@ -5,7 +5,7 @@ import re
 from ._errors import GencmuError
 from ._markdown import resolve
 
-_STATEMENTS = {"%names", "%rule", "%redefine-rule", "%extend-rule", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features", "%ambiguity-resolution", "%const", "%redefine-const", "%classifier", "%implies"}
+_STATEMENTS = {"%names", "%rule", "%redefine-rule", "%extend-rule", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features", "%ambiguity-resolution", "%elision-only", "%const", "%redefine-const", "%classifier", "%implies"}
 
 
 class DocumentStrings:

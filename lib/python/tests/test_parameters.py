@@ -67,10 +67,12 @@ class Parameters(unittest.TestCase):
         self.assertTrue(same_json([a.expr['literal']['string'] for a in grammar.rules['atom("a")'].alternatives], ['a', 'b']))
         self.assertTrue(same_json([a.expr['literal']['string'] for a in grammar.rules['item'].alternatives], ['c', 'd']))
 
-    def test_flags_follow_source_order(self):
-        grammar = grammar_of('%rule(fewest) atom(@X) @X\n%rule text atom("a") atom("b")\n%redefine-rule atom("a") "c"\n%extend-rule atom(@Y) "d"')
-        self.assertEqual(grammar.rules['atom("a")'].flags, [])
-        self.assertEqual(grammar.rules['atom("b")'].flags, ['fewest'])
+    def test_categories_follow_source_order(self):
+        grammar = grammar_of('%ambiguity-resolution fewest(few), greedy\n%rule atom(@X) @X\n%counts-as few\n%rule text atom("a") atom("b")\n%redefine-rule atom("a") "c"\n%extend-rule atom(@Y) "d"')
+        self.assertEqual(grammar.rules['atom("a")'].categories, [])
+        self.assertEqual(grammar.rules['atom("b")'].categories, ['few'])
+        self.assertEqual([[e['scope'], e['op'], e['categoriesAfter']] for e in template_audit(grammar)['instances'][0]['events']],
+                         [['template', 'define', ['few']], ['instance', 'redefine', []], ['template', 'extend', []]])
 
     def test_symbol_normalization_and_nominal_constants(self):
         grammar = grammar_of('%const $A "a"\n%rule atom(@X) @X\n%rule text atom("a") atom(("a")) atom($A)')
@@ -273,11 +275,11 @@ class ParameterStructure(unittest.TestCase):
                         order = list(dict.fromkeys(rule['name'] for rule in dom['rules']))
                     self.assertTrue(same_json(order, case['order']))
                 if 'instances' in case:
-                    self.assertTrue(same_json(len(instances), case['instances']))
-                if 'flags' in case:
+                    self.assertEqual(len(instances), case['instances'])
+                if 'categories' in case:
                     grammar = grammar_of(case['grammar'])
-                    for name, flags in case['flags'].items():
-                        self.assertTrue(same_json(grammar.rules[name].flags, flags))
+                    for name, categories in case['categories'].items():
+                        self.assertEqual(grammar.rules[name].categories, categories)
 
     def test_over_deep_supplied_template(self):
         unicode = grammar_of('%rule text "a"').unicode

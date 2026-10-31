@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,9 +17,10 @@ import (
 // with several tags on a token, every derivation enumerated by brute force
 // (cyclic ones excluded as engine §4 defines them), and the verdict, the
 // chosen derivation, the tied one and the witness computed from the
-// definitions and compared with the library's. A share of the cases rank
-// under late-elision, with T elidable. Under another rule too, T is now and
-// then elidable. Rule
+// definitions and compared with the library's. Each directive has random
+// key steps over two categories that random rules count as, and a lean or
+// none. A share of the cases also rank by a step over elision, with T
+// elidable. Without such a step too, T is now and then elidable. Rule
 // references are now and then tested by their sound, often right before an
 // elidable optional. The input can be empty.
 //
@@ -33,7 +35,7 @@ type genGrammar struct {
 	r        *rand.Rand
 	rules    []string
 	terms    []string
-	late     bool // late-elision, with T elidable
+	late     bool // a step names elision, with T elidable
 	elidable bool // T is elidable
 }
 
@@ -119,22 +121,34 @@ func (g *genGrammar) seq(depth int) *domExpr {
 
 func (g *genGrammar) grammar() *domDoc {
 	d := &domDoc{}
-	lean := "greedy"
-	if g.r.Intn(2) == 0 {
-		lean = "lazy"
+	// Up to two key steps over x and y, a step over elision where the case
+	// counts elisions, and a lean, which a directive with a key step can
+	// leave out (engine §6).
+	kinds := []string{"leftmost-longest", "fewest", "most", "late", "early"}
+	var steps []domStep
+	for i := g.r.Intn(3); i > 0; i-- {
+		steps = append(steps, domStep{Step: kinds[g.r.Intn(len(kinds))], Category: []string{"x", "y"}[g.r.Intn(2)], HasCategory: true})
 	}
 	if g.late {
-		lean = "late-elision"
+		step := domStep{Step: kinds[g.r.Intn(len(kinds))], Category: "elision", HasCategory: true}
+		if g.r.Intn(2) == 0 {
+			step.Step = "late"
+		}
+		at := g.r.Intn(len(steps) + 1)
+		steps = append(steps[:at], append([]domStep{step}, steps[at:]...)...)
 	}
-	args := []string{lean}
-	d.Directives = []*domDirective{{Name: "ambiguity-resolution", Args: args}}
+	if len(steps) == 0 || g.r.Intn(3) > 0 {
+		steps = append(steps, domStep{Step: []string{"greedy", "lazy"}[g.r.Intn(2)]})
+	}
+	d.Directives = []*domDirective{{Name: "ambiguity-resolution", Steps: steps}}
 	for _, name := range g.rules {
-		r := &domRule{Name: name, Op: "define"}
-		if flag := g.r.Intn(100); flag < 35 {
-			if flag < 20 {
-				r.Flags = []string{"leftmost-longest"}
-			} else {
-				r.Flags = []string{"fewest"}
+		r := &domRule{Name: name, Op: "define", Categories: []string{}}
+		if k := g.r.Intn(100); k < 40 {
+			// z is a category that no step names, which counts nothing.
+			for _, category := range []string{"x", "y", "z"} {
+				if g.r.Intn(2) == 0 {
+					r.Categories = append(r.Categories, category)
+				}
 			}
 		}
 		// Now and then a rule is a chain, whose levels are its own nodes
@@ -229,7 +243,15 @@ func exprText(e *domExpr) string {
 
 func domText(d *domDoc) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%%ambiguity-resolution %s\n", strings.Join(d.Directives[0].Args, " "))
+	var steps []string
+	for _, step := range d.Directives[0].Steps {
+		if step.HasCategory {
+			steps = append(steps, step.Step+"("+step.Category+")")
+		} else {
+			steps = append(steps, step.Step)
+		}
+	}
+	fmt.Fprintf(&b, "%%ambiguity-resolution %s\n", strings.Join(steps, ", "))
 	for _, dir := range d.Directives[1:] {
 		fmt.Fprintf(&b, "%%%s %s\n", dir.Name, strings.Join(dir.Args, " "))
 	}
@@ -244,11 +266,11 @@ func domText(d *domDoc) string {
 			}
 			alts = append(alts, text)
 		}
-		flag := ""
-		if len(r.Flags) > 0 {
-			flag = "(" + r.Flags[0] + ")"
+		countsAs := ""
+		if len(r.Categories) > 0 {
+			countsAs = "\n  %counts-as " + strings.Join(r.Categories, ", ")
 		}
-		fmt.Fprintf(&b, "%%rule%s %s\n  %s\n", flag, r.Name, strings.Join(alts, " | "))
+		fmt.Fprintf(&b, "%%rule %s\n  %s%s\n", r.Name, strings.Join(alts, " | "), countsAs)
 	}
 	return b.String()
 }
@@ -370,46 +392,10 @@ func visibleOnly(as []action) []action {
 
 type bderiv struct {
 	whole, vis []action
-	profile    []int
-	// elisions is the elision vector (engine §6), as the positions of the
-	// derivation's elided terminators in text order.
-	elisions []int32
-}
-
-func elisionsOf(whole []action) []int32 {
-	var out []int32
-	for _, a := range whole {
-		if !a.read && a.prod.helper && a.prod.elided != "" && len(a.prod.rhs) == 0 {
-			out = append(out, a.start)
-		}
-	}
-	return out
-}
-
-// compareVectors compares two elision vectors as counts at each boundary,
-// from the first: -1 when x is less.
-func compareVectors(x, y []int32) int {
-	count := func(ps []int32, at int32) int {
-		n := 0
-		for _, p := range ps {
-			if p == at {
-				n++
-			}
-		}
-		return n
-	}
-	var bounds []int32
-	bounds = append(append(bounds, x...), y...)
-	sort.Slice(bounds, func(i, j int) bool { return bounds[i] < bounds[j] })
-	for _, at := range bounds {
-		if d := count(x, at) - count(y, at); d != 0 {
-			if d < 0 {
-				return -1
-			}
-			return 1
-		}
-	}
-	return 0
+	// profile is the derivation's profile (engine §6), each step's
+	// counts written so that the greater number wins at the first
+	// difference.
+	profile []int
 }
 
 // bruteCompare returns: whether the first difference is decided (and for
@@ -469,31 +455,57 @@ type bruteResult struct {
 	witness [2]action
 }
 
-// The oracle counts named closes in a dense span matrix.
-// It reads flag assignments from the generated source definitions.
-func bruteProfile(whole []action, n int, flags map[string]string) []int {
-	counts := make([][]int, n+1)
-	for i := range counts {
-		counts[i] = make([]int, n+1)
-	}
-	for _, a := range whole {
-		if !a.read && !a.prod.helper && flags[a.prod.ruleName] == "leftmost-longest" && a.start < a.end {
-			counts[a.start][a.end]++
-		}
-	}
+// bruteProfile is the profile of a derivation over n tokens (engine §6),
+// from the definitions alone: for each key step, the occurrences of its
+// category, as dense counts that compare greater first. A nonempty close
+// of a rule that counts as the category is an occurrence over its span,
+// and an elided terminator an occurrence of elision at its boundary.
+func bruteProfile(whole []action, n int, steps []keyStep, categories map[string][]string) []int {
 	var profile []int
-	for start := 0; start < n; start++ {
-		for end := n; end > start; end-- {
-			profile = append(profile, counts[start][end])
+	for _, step := range steps {
+		spans := make([][]int, n+1)
+		for i := range spans {
+			spans[i] = make([]int, n+1)
+		}
+		starts := make([]int, n+1)
+		total := 0
+		for _, a := range whole {
+			if a.read {
+				continue
+			}
+			if step.category == "elision" {
+				if a.prod.helper && a.prod.elided != "" && len(a.prod.rhs) == 0 {
+					starts[a.start]++
+					total++
+				}
+				continue
+			}
+			if !a.prod.helper && a.start < a.end && slices.Contains(categories[a.prod.ruleName], step.category) {
+				spans[a.start][a.end]++
+				starts[a.start]++
+				total++
+			}
+		}
+		switch step.step {
+		case "leftmost-longest":
+			for start := 0; start < n; start++ {
+				for end := n; end > start; end-- {
+					profile = append(profile, spans[start][end])
+				}
+			}
+		case "fewest":
+			profile = append(profile, -total)
+		case "most":
+			profile = append(profile, total)
+		case "late":
+			for _, k := range starts {
+				profile = append(profile, -k)
+			}
+		case "early":
+			profile = append(profile, starts...)
 		}
 	}
-	fewest := 0
-	for _, a := range whole {
-		if !a.read && !a.prod.helper && flags[a.prod.ruleName] == "fewest" && a.start < a.end {
-			fewest++
-		}
-	}
-	return append(profile, -fewest)
+	return profile
 }
 
 func compareBruteProfiles(left, right []int) int {
@@ -513,15 +525,9 @@ func bruteRank(rk *ranker, ds []bderiv) (*bruteResult, error) {
 	if len(ds) == 0 {
 		return nil, nil
 	}
-	late := rk.elisions
 	tFirst := func(x, y bderiv) bool {
 		if c := compareBruteProfiles(x.profile, y.profile); c != 0 {
 			return c < 0
-		}
-		if late {
-			if c := compareVectors(x.elisions, y.elisions); c != 0 {
-				return c < 0
-			}
 		}
 		return bruteCompare(rk, x, y).aFirst
 	}
@@ -539,9 +545,6 @@ func bruteRank(rk *ranker, ds []bderiv) (*bruteResult, error) {
 		}
 		if compareBruteProfiles(ds[m].profile, ds[i].profile) != 0 {
 			continue
-		}
-		if late && compareVectors(ds[m].elisions, ds[i].elisions) != 0 {
-			continue // m beats it
 		}
 		c := bruteCompare(rk, ds[m], ds[i])
 		if !c.aFirst {
@@ -706,21 +709,19 @@ func TestRankingProperty(t *testing.T) {
 		if r.Intn(100) < leanNone {
 			lean = "" // no lean, as elision-only ranks (engine §7)
 		}
-		rk := newRanker(rec, lean)
+		rk := newRanker(rec, lg.steps, lean)
 		var got *rankResult
 		if top := rec.accepted(lg.byName["text"]); len(top) > 0 {
 			got = rk.rank(top)
 		}
-		flags := map[string]string{}
+		categories := map[string][]string{}
 		for _, definition := range dom.Rules {
-			if len(definition.Flags) > 0 {
-				flags[definition.Name] = definition.Flags[0]
-			}
+			categories[definition.Name] = definition.Categories
 		}
 		var ds []bderiv
 		for _, tr := range trees {
 			w := bnodeActions(tr, nil)
-			ds = append(ds, bderiv{whole: w, vis: visibleOnly(w), elisions: elisionsOf(w), profile: bruteProfile(w, n, flags)})
+			ds = append(ds, bderiv{whole: w, vis: visibleOnly(w), profile: bruteProfile(w, n, lg.steps, categories)})
 		}
 		want, werr := bruteRank(rk, ds)
 		if printDerivations {
@@ -771,7 +772,7 @@ func TestRankingProperty(t *testing.T) {
 		if n == 0 {
 			empty++
 		}
-		if rk.elisions {
+		if rk.space.elision {
 			late++
 		}
 		if got.verdict != want.verdict {
@@ -797,12 +798,12 @@ func TestRankingProperty(t *testing.T) {
 			}
 		} else if want.count > 1 {
 			resolved++
-			if rk.elisions {
+			if rk.space.elision {
 				lateResolved++
 			}
 		}
 	}
-	t.Logf("%d accepted cases checked (%d ties, %d resolved, %d under late-elision, %d of them resolved, %d empty inputs), %d rejected by both, %d skipped, in %v", checked, ties, resolved, late, lateResolved, empty, rejected, skipped, time.Since(started))
+	t.Logf("%d accepted cases checked (%d ties, %d resolved, %d with a step over elision, %d of them resolved, %d empty inputs), %d rejected by both, %d skipped, in %v", checked, ties, resolved, late, lateResolved, empty, rejected, skipped, time.Since(started))
 	if checked < cases/10 {
 		t.Errorf("only %d of %d cases were checked", checked, cases)
 	}

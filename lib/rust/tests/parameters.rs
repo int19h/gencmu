@@ -13,7 +13,7 @@ fn parameter_source_round_trips() {
         "%rule tag(@R) A<@R>\n%rule text tag(<B ¬C>)",
         "%rule query(@R) A %conditions $.matches(@R)\n%rule text query(a | b)",
         "%rule tag(@T) [+@T]\n%rule text tag(KU)",
-        "%rule(fewest) atom(@X) @X\n%extend-rule atom(@Y) @Y\n%rule text atom(\"a\")",
+        "%rule atom(@X) @X %counts-as few\n%extend-rule atom(@Y) @Y\n%rule text atom(\"a\")",
     ] {
         let json = read(text).unwrap_or_else(|e| panic!("{text}: {e}"));
         assert_eq!(gencmu::tools::check_dom(&json).unwrap(), None, "{text}: {json}");

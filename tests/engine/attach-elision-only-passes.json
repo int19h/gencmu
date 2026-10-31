@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item $w:word | ($w:word $a:ii) %emits $w ($a)\n\n\n\n%rule word \"l\" :: LE | \"b\" :: BRIVLA | \"c\" :: BRIVLA | \"a\" :: A | \"d\" :: B | \"w\" :: W\n\n%rule ii \"i\" :: I %emits $\n\n\n\n```\n",
-    "b.md": "```jbogenbau\n%ambiguity-resolution greedy elision-only\n%rule text (d BRIVLA) | d\n%rule d ($l:LE $b:BRIVLA [BRIVLA] [+KU]) %emits $l, $b\n\n\n\n```\n"
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%elision-only\n%rule text (d BRIVLA) | d\n%rule d ($l:LE $b:BRIVLA [BRIVLA] [+KU]) %emits $l, $b\n\n\n\n```\n"
   },
   "pipelineDocument": "p.md",
   "input": "lbic",

@@ -3,6 +3,7 @@ package gencmu
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -295,7 +296,7 @@ var domRules = map[string]bool{
 	"call": true, "parameter": true, "call-argument": true, "requirement-argument": true, "target-argument": true, "body-argument": true, "symbol-argument": true,
 
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
-	"directive": true, "rule": true, "definer": true, "rule-flags": true, "rule-flag": true, "alternative": true, "choice": true, "ranked-alternative": true, "ranked-choice": true,
+	"directive": true, "ranking-directive": true, "ranking-step": true, "rule": true, "definer": true, "counts-as-clause": true, "category": true, "alternative": true, "choice": true, "ranked-alternative": true, "ranked-choice": true,
 	"conjunction": true, "sequence": true, "repetition": true, "reference": true,
 	"string": true, "tag": true, "name": true,
 	"tested": true, "test": true, "test-operand": true, "capture": true, "group": true, "optional": true,
@@ -520,7 +521,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			continue
 		}
 		switch c.Rule {
-		case "rule", "constant-definition", "classifier", "implication-declaration", "directive":
+		case "rule", "constant-definition", "classifier", "implication-declaration", "directive", "ranking-directive":
 		default:
 			b.fail(c, "the notation gives a %s where an item stands", c.Rule)
 		}
@@ -538,6 +539,8 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			implication := b.implicationDeclaration(c)
 
 			item.Implications = append(item.Implications, implication)
+		case "ranking-directive":
+			item.Directives = append(item.Directives, b.rankingDirective(c))
 		case "directive":
 			keyword := b.token(c)
 			ps := b.parts(c)
@@ -621,6 +624,66 @@ func (b *domBuilder) document(root *Node) *domDoc {
 		d.Implications = append(d.Implications, item.Implications...)
 	}
 	return d
+}
+
+// rankingDirective reads %ambiguity-resolution: its steps, each a lean or
+// a step with a category, with every wrong step reported at the directive
+// (engine §9.3).
+func (b *domBuilder) rankingDirective(n *Node) *domDirective {
+	dir := &domDirective{Name: "ambiguity-resolution", Steps: []domStep{}, At: b.at(n)}
+	wrong := false
+	steps := b.some(n, "ranking-step", 1)
+	for i, p := range steps {
+		var words []string
+		for _, c := range parts(p) {
+			if c.Kind == KindToken {
+				words = append(words, b.tokenValue(c))
+			}
+		}
+		step := domStep{Step: words[0]}
+		if len(words) > 1 {
+			step.HasCategory = true
+			if len(words) > 2 {
+				step.Category = words[2]
+			}
+			wrong = wrong || !keySteps[step.Step] || !categoryName.MatchString(step.Category)
+		} else {
+			wrong = wrong || !leans[step.Step] || i != len(steps)-1
+		}
+		dir.Steps = append(dir.Steps, step)
+	}
+	if wrong {
+		b.fail(n, "%%ambiguity-resolution takes leftmost-longest, fewest, most, late or early with a category, then optionally greedy or lazy")
+	}
+	return dir
+}
+
+// categories reads a rule's %counts-as clause: the categories its
+// occurrences count as (engine §9.3). An extension takes no clause. An
+// invalid name is reported before a repeated one.
+func (b *domBuilder) categories(n *Node, op string) []string {
+	out := []string{}
+	clause := one(n, "counts-as-clause")
+	if clause == nil {
+		return out
+	}
+	if op == "extend" {
+		b.fail(clause, "%%extend-rule accepts no %%counts-as clause")
+	}
+	for _, category := range b.some(clause, "category", 1) {
+		name := b.tokenValue(b.token(category))
+		if !categoryName.MatchString(name) {
+			b.fail(category, "a category name starts with a lowercase letter and continues with lowercase letters, digits and hyphens")
+		}
+		if name == "elision" {
+			b.fail(category, "elision is the category of elided terminators, which no rule can count as")
+		}
+		if slices.Contains(out, name) {
+			b.fail(category, "duplicate category %s", name)
+		}
+		out = append(out, name)
+	}
+	return out
 }
 
 // constant reads a constant's definition: its name without $, and its
@@ -737,7 +800,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	// The definer, the name, the alternatives and the clauses; the syntax
 	// allows at most one of each clause, in order.
 	definer := b.token(b.only(n, "definer"))
-	r := &domRule{At: b.at(definer), Conditions: []*domCond{}, Flags: []string{}}
+	r := &domRule{At: b.at(definer), Conditions: []*domCond{}, Categories: []string{}}
 	switch b.tokenValue(definer) {
 	case "%redefine-rule":
 		r.Op = "redefine"
@@ -829,6 +892,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 			r.Conditions = append(r.Conditions, b.implication(c))
 		}
 	}
+	r.Categories = b.categories(n, r.Op)
 	if p := b.one(n, "emits-clause"); p != nil {
 		r.Emit = b.emission(p)
 	}
@@ -1146,12 +1210,9 @@ func operandProblem(name string, kinds []string) string {
 		if len(kinds) == 0 || !names {
 			return "%features takes one or more names"
 		}
-	case "ambiguity-resolution":
-		if len(kinds) < 1 || len(kinds) > 2 {
-			return "%ambiguity-resolution takes one or two names"
-		}
-		if !names {
-			return "%ambiguity-resolution takes names only"
+	case "elision-only":
+		if len(kinds) != 0 {
+			return "%elision-only takes no operand"
 		}
 	default:
 		if !names {

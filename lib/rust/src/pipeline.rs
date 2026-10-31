@@ -7,9 +7,9 @@ use std::sync::{Arc, Mutex, OnceLock};
 use crate::dom::{FeatureKind, Guard};
 use crate::earley::{matchers, Chart, EngineError, Matcher, Recognizer, Recon, Shared, Tok};
 use crate::error::Error;
-use crate::grammar::{Change, ClassifierTables, Lean, StageGrammar};
+use crate::grammar::{Change, ClassifierTables, KeyStep, Lean, StageGrammar, ELISION};
 use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest, TestOp};
-use crate::rank::{compare_profiles, tree_profile, Act, Ranker, Verdict as RankVerdict};
+use crate::rank::{Act, Ranker, Verdict as RankVerdict};
 use crate::recent::Recent;
 use crate::result::{
     Action, AmbiguityReason, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Restoration,
@@ -640,9 +640,8 @@ impl Pipeline {
         };
         let n = input.len();
         let accepted = chart.accepts(lowered.start, n);
-        let lean = grammar.lean;
         let ranked = if accepted {
-            let mut ranker = Ranker::new(&lowered, &chart, &input, shared, lean);
+            let mut ranker = Ranker::new(&lowered, &chart, &input, shared, &grammar.steps, grammar.lean);
             ranker.rank().map(|ranking| {
                 let first = build(&ranker, ranking.first);
                 let second = ranking.second.map(|second| build(&ranker, second));
@@ -741,7 +740,7 @@ impl Pipeline {
         if check
             && (ranking.verdict == RankVerdict::Resolved || ranking.verdict == RankVerdict::Unique && has_elided(&tree))
         {
-            match self.elision_check(index, shared, &input, &sources, &chosen, &lowered, &matchers) {
+            match self.elision_check(index, shared, &input, &sources, &chosen, &lowered, &matchers, &grammar.steps) {
                 Ok(Check::Pass) => {}
                 Ok(Check::Ambiguous(error)) => ambiguous = Some(*error),
                 // The witness of the chosen derivation is lost: a defect of
@@ -879,7 +878,11 @@ impl Pipeline {
         chosen: &ITree,
         g: &Lowered,
         matchers: &[Matcher],
+        steps: &[KeyStep],
     ) -> Result<Check, EngineError> {
+        // The check ranks with the key steps without elision, and no lean
+        // (§7.7).
+        let steps: Vec<KeyStep> = steps.iter().filter(|step| step.category != ELISION).cloned().collect();
         // The restoration records (§7.2): the chosen tree's elided
         // terminators in the order of its leaves, each with its position,
         // the empty source of its elided node, and the string of its `=`
@@ -959,8 +962,6 @@ impl Pipeline {
         let rooted = chart.accepts(g.start, tokens.len()) && loss != Some(witness::Loss::Roots);
         // Runtime tracking marks W(D)'s links before the check ranks.
         // An optional test hook observes the witness (tests/README.md).
-        let flagged = g.rules.iter().any(|rule| rule.leftmost_longest || rule.fewest);
-        let chosen_profile = if flagged { tree_profile(g, chosen) } else { crate::rank::Profile::ZERO };
         let walk = {
             let forest = CheckForest {
                 g,
@@ -978,10 +979,11 @@ impl Pipeline {
         let ranking = if rooted {
             let marks = walk.as_ref().map(|walk| &walk.marks);
             let mut ranker =
-                Ranker::new(g, &chart, &tokens, shared, Lean::Neither).observing(input, &recon.project).checking(marks);
+                Ranker::new(g, &chart, &tokens, shared, &steps, Lean::Neither).observing(input, &recon.project).checking(marks);
+            let chosen_profile = ranker.tree_profile(chosen);
             let preferred = !g.ranked.slots.is_empty();
             let raw_counted = if preferred {
-                Ranker::new_unfiltered(g, &chart, &tokens, shared, Lean::Neither)
+                Ranker::new_unfiltered(g, &chart, &tokens, shared, &steps, Lean::Neither)
                     .observing(input, &recon.project)
                     .checking(marks)
                     .rank()
@@ -999,7 +1001,7 @@ impl Pipeline {
                 .map(|mut ranking| {
                     let excluded = ranking.witness_counted != Some(true);
                     let better =
-                        excluded || compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less;
+                        excluded || ranker.compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less;
                     let keeps = if !witness::watched() {
                         false
                     } else if preferred {

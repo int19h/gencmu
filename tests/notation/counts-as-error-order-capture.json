@@ -1,0 +1,10 @@
+{
+  "description": "The body precedes the categories, so a repeated capture precedes a duplicate category (engine §9.3).",
+  "document": "```jbogenbau\n%rule text $x:A$x:A %counts-as y, y\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 16
+    }
+  }
+}

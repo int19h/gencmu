@@ -6,7 +6,7 @@ This pipeline combines syntax from *The Complete Lojban Language* (CLL) with the
 
 The executable baseline is camxes-std, the standard grammar of the camxes parser: `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
 
-Outside the working morphology and the project choices below, this pipeline follows CLL 1.1. It uses the [Magic Words stream](../common/stream.md) and the shared CLL indicator stage. An elided terminator is a closing word left unwritten. The `lojban/cll` and `lojban/bpfk` pipelines use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this pipeline's erasure, elision, and connective policies.
+Outside the working morphology and the project choices below, this pipeline follows CLL 1.1. It uses the [Magic Words stream](../common/stream.md) and the shared CLL indicator stage. An elided terminator is a closing word left unwritten. The `lojban/cll` and `lojban/bpfk` pipelines use `late(elision)` with `%elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this pipeline's erasure, elision, and connective policies.
 
 A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../common/latin.md`](../common/latin.md). camxes-std's PEG reads some of them itself, such as digits and `h`. The [word-form document](morphology.md#differences-from-cll-and-the-reference-peg) compares them. The phoneme stage also reads gencmu's Cyrillic and zbalermorna.
 
@@ -109,10 +109,12 @@ A feature is a named switch that the grammars test. The pipeline turns on `su-bo
   %include "../cll/syntax.md"
   ```
 
-The stage uses the [lojban/cll ranking and check](../cll/pipeline.md#stage-5-syntax). The grammar's [simple tense-modals](../cll/syntax.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. `late-elision` ranks the remaining choices. The [`elision-only` check](../cll/pipeline.md#stage-5-syntax) follows that policy.
+The stage uses the [lojban/cll ranking and check](../cll/pipeline.md#stage-5-syntax). The grammar's [simple tense-modals](../cll/syntax.md#tenses-and-modals) are the forms of `simple-tense-modal`. They count as tenses, and the step `leftmost-longest(tense)` prefers the earliest group, then the longest one at that start. `late(elision)` ranks the remaining choices. The [`elision-only` check](../cll/pipeline.md#stage-5-syntax) follows that policy.
 
 ```jbogenbau
-%ambiguity-resolution late-elision elision-only
+%ambiguity-resolution
+  leftmost-longest(tense), late(elision)
+%elision-only
 ```
 
 An elided terminator can end its constituent at any point that a complete parse of the whole text allows. [The notation document](../../../docs/notation.md#elided-terminators) defines this search. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso".

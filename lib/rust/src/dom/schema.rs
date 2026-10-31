@@ -196,22 +196,27 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
             }
             match name {
                 "directives" => {
-                    let Some(args) = item.get("args").and_then(Json::as_array) else {
-                        return Some("a malformed directive".into());
-                    };
-                    let args: Option<Vec<_>> = args.iter().map(Json::as_str).collect();
-                    let Some(args) = args else { return Some("a malformed directive".into()) };
-                    let valid = match item.get("name").and_then(Json::as_str) {
-                        Some("stage" | "extend-stage" | "redefine-stage") => {
-                            matches!(&args[..], [name] if name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name))
+                    let name = item.get("name").and_then(Json::as_str);
+                    let valid = if name == Some("ambiguity-resolution") {
+                        item.get("args").is_none()
+                            && item.get("steps").is_some_and(|steps| {
+                                crate::dom::steps_from_json(steps).is_ok_and(|steps| crate::dom::valid_steps(&steps))
+                            })
+                    } else {
+                        let Some(args) = item.get("args").and_then(Json::as_array) else {
+                            return Some("a malformed directive".into());
+                        };
+                        let args: Option<Vec<_>> = args.iter().map(Json::as_str).collect();
+                        let Some(args) = args else { return Some("a malformed directive") };
+                        match name {
+                            Some("stage" | "extend-stage" | "redefine-stage") => {
+                                matches!(&args[..], [name] if name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name))
+                            }
+                            Some("include" | "names") => args.len() == 1,
+                            Some("features") => !args.is_empty() && args.iter().all(|name| feature(name)),
+                            Some("elision-only") => args.is_empty(),
+                            _ => false,
                         }
-                        Some("include" | "names") => args.len() == 1,
-                        Some("features") => !args.is_empty() && args.iter().all(|name| feature(name)),
-                        Some("ambiguity-resolution") => matches!(
-                            &args[..],
-                            ["greedy" | "lazy" | "late-elision"] | ["greedy" | "lazy" | "late-elision", "elision-only"]
-                        ),
-                        _ => false,
                     };
                     if !valid {
                         return Some("a malformed directive".into());
@@ -245,21 +250,21 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                     }
                     if !exact(
                         item,
-                        &["name", "op", "flags", "alternatives", "conditions", "at"],
+                        &["name", "op", "categories", "alternatives", "conditions", "at"],
                         &["tags", "value", "image", "emit", "erased", "params", "args"],
                     ) || !item.get("name").and_then(Json::as_str).is_some_and(rule)
                         || !matches!(item.get("op").and_then(Json::as_str), Some("define" | "extend" | "redefine"))
                     {
                         return Some("a malformed rule".into());
                     }
-                    let flags = item.get("flags").and_then(Json::as_array);
-                    if !flags.is_some_and(|flags| {
-                        flags.is_empty()
-                            || flags.len() == 1
-                                && matches!(flags[0].as_str(), Some("leftmost-longest" | "fewest"))
-                                && item.get("op").and_then(Json::as_str) != Some("extend")
+                    let categories = item.get("categories").and_then(Json::as_array);
+                    let names: Option<Vec<&str>> =
+                        categories.and_then(|items| items.iter().map(Json::as_str).collect());
+                    if !names.is_some_and(|names| {
+                        crate::dom::valid_categories(&names)
+                            && (names.is_empty() || item.get("op").and_then(Json::as_str) != Some("extend"))
                     }) {
-                        return Some("a malformed rule flag".into());
+                        return Some("a malformed rule category list".into());
                     }
                     if !matches!(item.get("erased"), None | Some(Json::Bool(true)))
                         || item.get("erased").is_some()

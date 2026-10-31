@@ -36,7 +36,7 @@ fn known_dom_members(dom: &Json) -> Option<Json> {
     if dom.get("directives").and_then(crate::json::Json::as_array).is_some_and(|items| {
         items.iter().any(|item| {
             item.as_object().is_some_and(|fields| {
-                fields.iter().any(|(key, _)| !["name", "args", "conditions", "at"].contains(&key.as_str()))
+                fields.iter().any(|(key, _)| !["name", "args", "steps", "conditions", "at"].contains(&key.as_str()))
             })
         })
     }) {
@@ -47,7 +47,9 @@ fn known_dom_members(dom: &Json) -> Option<Json> {
                     if let crate::json::Json::Arr(items) = value {
                         for item in items {
                             if let crate::json::Json::Obj(fields) = item {
-                                fields.retain(|(key, _)| ["name", "args", "conditions", "at"].contains(&key.as_str()));
+                                fields.retain(|(key, _)| {
+                                    ["name", "args", "steps", "conditions", "at"].contains(&key.as_str())
+                                });
                             }
                         }
                     }
@@ -66,7 +68,7 @@ use crate::tags::is_name;
 use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 40;
+pub const DOM_FORMAT: i64 = 41;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -149,7 +151,8 @@ pub(crate) struct RuleDef {
     pub deferred_emission: Option<crate::clauses::DefinitionIssue>,
     pub name: String,
     pub op: Op,
-    pub flags: Vec<String>,
+    /// The categories of the rule's occurrences (engine §2).
+    pub categories: Vec<String>,
     pub tags: Option<Term>,
     pub strings: Channels,
     pub alternatives: Vec<Alternative>,
@@ -336,8 +339,52 @@ impl Attachments {
 pub(crate) struct Directive {
     pub conditions: Option<Vec<Cond>>,
     pub name: String,
+    /// The operands of every directive but `%ambiguity-resolution`.
     pub args: Vec<String>,
+    /// The steps of `%ambiguity-resolution`, and None for every other
+    /// directive (engine §9.3).
+    pub steps: Option<Vec<Step>>,
     pub at: (usize, usize),
+}
+
+/// One step of `%ambiguity-resolution`: a key step with its category, or a
+/// lean with none (engine §6).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Step {
+    pub step: String,
+    pub category: Option<String>,
+}
+
+/// The steps of `%ambiguity-resolution` that take a category (engine §6).
+pub(crate) const KEY_STEPS: &[&str] = &["leftmost-longest", "fewest", "most", "late", "early"];
+/// The steps of `%ambiguity-resolution` that compare actions (engine §6).
+pub(crate) const LEANS: &[&str] = &["greedy", "lazy"];
+
+/// Whether a name is a category name of a `%counts-as` clause or a key
+/// step: a lowercase letter, then lowercase letters, digits and hyphens
+/// (engine §9.1).
+pub(crate) fn is_category_name(name: &str) -> bool {
+    name.starts_with(|c: char| c.is_ascii_lowercase())
+        && name.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-')
+}
+
+/// Whether steps are a well-formed list: one or more, each a key step with
+/// a category or a lean, with a lean only last (engine §9.3).
+pub(crate) fn valid_steps(steps: &[Step]) -> bool {
+    !steps.is_empty()
+        && steps.iter().enumerate().all(|(index, step)| match &step.category {
+            Some(category) => KEY_STEPS.contains(&step.step.as_str()) && is_category_name(category),
+            None => LEANS.contains(&step.step.as_str()) && index == steps.len() - 1,
+        })
+}
+
+/// Whether categories are a well-formed list of a rule's categories:
+/// distinct category names other than `elision` (engine §9.3).
+pub(crate) fn valid_categories(categories: &[&str]) -> bool {
+    categories
+        .iter()
+        .enumerate()
+        .all(|(index, name)| is_category_name(name) && *name != "elision" && !categories[..index].contains(name))
 }
 
 // ---- reading a DOM from JSON
@@ -393,10 +440,16 @@ fn decode_nodes(value: &Json) -> R<Dom> {
                     .map(|_| array(directive, "conditions")?.iter().map(cond_from_json).collect::<R<Vec<_>>>())
                     .transpose()?,
                 name: string(directive, "name")?,
-                args: array(directive, "args")?
-                    .iter()
-                    .map(|arg| arg.as_str().map(str::to_string).ok_or_else(|| "a bad directive argument".to_string()))
-                    .collect::<R<Vec<_>>>()?,
+                args: match directive.get("args") {
+                    Some(_) => array(directive, "args")?
+                        .iter()
+                        .map(|arg| {
+                            arg.as_str().map(str::to_string).ok_or_else(|| "a bad directive argument".to_string())
+                        })
+                        .collect::<R<Vec<_>>>()?,
+                    None => Vec::new(),
+                },
+                steps: directive.get("steps").map(steps_from_json).transpose()?,
                 at: position(directive)?,
             })
         })
@@ -539,6 +592,24 @@ fn guard_from_json(guard: &Json) -> R<Guard> {
     })
 }
 
+/// The steps of `%ambiguity-resolution`.
+pub(crate) fn steps_from_json(value: &Json) -> R<Vec<Step>> {
+    value
+        .as_array()
+        .ok_or("malformed ranking steps")?
+        .iter()
+        .map(|step| {
+            Ok(Step {
+                step: string(step, "step")?,
+                category: step
+                    .get("category")
+                    .map(|category| category.as_str().map(str::to_string).ok_or("a malformed ranking step"))
+                    .transpose()?,
+            })
+        })
+        .collect()
+}
+
 pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
     let op = match string(value, "op")?.as_str() {
         "define" => Op::Define,
@@ -551,9 +622,9 @@ pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
         deferred_emission: None,
         name: string(value, "name")?,
         op,
-        flags: array(value, "flags")?
+        categories: array(value, "categories")?
             .iter()
-            .map(|flag| flag.as_str().map(str::to_string).ok_or_else(|| "a malformed rule flag".to_string()))
+            .map(|name| name.as_str().map(str::to_string).ok_or_else(|| "a malformed rule category".to_string()))
             .collect::<R<Vec<_>>>()?,
         tags: value.get("tags").map(term_from_json).transpose()?,
         strings: channels_from_json(value)?,
@@ -1043,12 +1114,17 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
 
         out.push_str("{\"name\":");
         write_str(&mut out, &directive.name);
-        out.push_str(",\"args\":[");
-        for (index, arg) in directive.args.iter().enumerate() {
-            if index > 0 {
-                out.push(',');
+        if let Some(steps) = &directive.steps {
+            write_steps(&mut out, steps);
+        } else {
+            out.push_str(",\"args\":[");
+            for (index, arg) in directive.args.iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
+                }
+                write_str(&mut out, arg);
             }
-            write_str(&mut out, arg);
+            out.push(']');
         }
         out.push(']');
         out.push_str(&format!(",\"at\":[{},{}]", directive.at.0, directive.at.1));
@@ -1125,6 +1201,24 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
     out
 }
 
+/// The `steps` member of `%ambiguity-resolution`.
+pub(crate) fn write_steps(out: &mut String, steps: &[Step]) {
+    out.push_str(",\"steps\":[");
+    for (index, step) in steps.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        out.push_str("{\"step\":");
+        write_str(out, &step.step);
+        if let Some(category) = &step.category {
+            out.push_str(",\"category\":");
+            write_str(out, category);
+        }
+        out.push('}');
+    }
+    out.push(']');
+}
+
 pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
     out.push_str("{\"name\":");
     write_str(out, &rule.name);
@@ -1147,12 +1241,12 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
         Op::Redefine => ",\"op\":\"redefine\"",
         Op::Extend => ",\"op\":\"extend\"",
     });
-    out.push_str(",\"flags\":[");
-    for (index, flag) in rule.flags.iter().enumerate() {
+    out.push_str(",\"categories\":[");
+    for (index, category) in rule.categories.iter().enumerate() {
         if index > 0 {
             out.push(',');
         }
-        write_str(out, flag);
+        write_str(out, category);
     }
     out.push(']');
     if let Some(tags) = &rule.tags {

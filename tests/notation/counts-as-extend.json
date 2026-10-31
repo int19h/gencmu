@@ -1,0 +1,10 @@
+{
+  "description": "A %counts-as clause on %extend-rule is an error at the clause (engine §9.3).",
+  "document": "```jbogenbau\n%extend-rule text A %counts-as x\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 21
+    }
+  }
+}

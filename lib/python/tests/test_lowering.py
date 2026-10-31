@@ -148,7 +148,7 @@ class QueryHelpers(unittest.TestCase):
                 self.assertFalse(helper.contextual)
                 self.assertFalse(helper.private_names)
                 self.assertFalse(helper.captures)
-                self.assertIsNone(helper.rule_flag)
+                self.assertEqual(helper.categories, ())
                 self.assertIsNone(helper.tests)
                 self.assertFalse(helper.conds_predict)
                 self.assertFalse(helper.conds_at)

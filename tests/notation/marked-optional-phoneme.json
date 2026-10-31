@@ -3,12 +3,12 @@
   "document": "```jbogenbau\n%rule a [ + Sound-0061-s ]\n```\n",
   "expect": {
     "dom": {
-      "format": 40,
+      "format": 41,
       "rules": [
         {
           "name": "a",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],

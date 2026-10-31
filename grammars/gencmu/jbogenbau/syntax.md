@@ -10,7 +10,7 @@ A tag is a named mark on a token. Lexical tags distinguish names, strings, integ
 
 These rules implement the recognition productions of [engine §9.2](../../../docs/engine.md#92-syntax-forms). They admit forms that the reader rejects under [§9.3](../../../docs/engine.md#93-conversion-and-validation).
 
-The rule names identify reader constructors. Section 9.2 maps recognition names to these constructors: `document` becomes `text`, `captured` becomes `capture`, and `item` becomes `emit-item`. It also maps `flags` to `rule-flags`, `conditions` to `conditions-clause`, and `method-chain` to `method`. The same table specifies the remaining wrapper mappings.
+The rule names identify reader constructors. Section 9.2 maps recognition names to these constructors: `document` becomes `text`, `captured` becomes `capture`, and `item` becomes `emit-item`. It also maps `counts-as` to `counts-as-clause`, `conditions` to `conditions-clause`, and `method-chain` to `method`. The same table specifies the remaining wrapper mappings.
 
 ## Choosing among readings
 
@@ -33,7 +33,7 @@ The reader converts the recognized tree into a DOM, its document object model. C
   [{statement}]
 
 %rule statement
-  rule | directive | constant-definition | classifier | implication-declaration
+  rule | ranking-directive | directive | constant-definition | classifier | implication-declaration
 ```
 
 <details><summary>Railroad diagrams of <code>text</code> and <code>statement</code></summary>
@@ -43,7 +43,7 @@ The reader converts the recognized tree into a DOM, its document object model. C
 
 ## Rules and alternatives
 
-A rule defines, redefines, or extends a name. Optional flags precede the name, and the body precedes conditions and output.
+A rule defines, redefines, or extends a name. The body precedes the conditions, the categories and the output.
 
 Header tag and string clauses apply to every alternative. A header clause requires the leading `|`, which separates its operands from the body.
 
@@ -53,17 +53,11 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
 
 ```jbogenbau
 %rule rule
-  definer [rule-flags] (rule-name | call) ("=" call | (body | clauses headed-body)
-    [conditions-clause] [output])
+  definer (rule-name | call) ("=" call | (body | clauses headed-body)
+    [conditions-clause] [counts-as-clause] [output])
 
 %rule definer
   KW-RULE | KW-REDEFINE-RULE | KW-EXTEND-RULE
-
-%rule rule-flags
-  "(" {rule-flag / ","} ")"
-
-%rule rule-flag
-  Identifier
 
 %rule rule-name
   Identifier | Emoji-Name
@@ -96,11 +90,9 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
   "::" term
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>rule</code> to <code>alternative-tags</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>rule</code> to <code>alternative-tags</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/rule.svg" alt="Railroad diagram of the rule rule"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/definer.svg" alt="Railroad diagram of the rule definer"></p>
-<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/rule-flags.svg" alt="Railroad diagram of the rule rule-flags"></p>
-<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/rule-flag.svg" alt="Railroad diagram of the rule rule-flag"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/rule-name.svg" alt="Railroad diagram of the rule rule-name"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/clauses.svg" alt="Railroad diagram of the rule clauses"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/headed-body.svg" alt="Railroad diagram of the rule headed-body"></p>
@@ -303,11 +295,19 @@ A valid target is a capture or `ε`, which inserts a token. Recognition admits n
 
 Attachments are named captures in parentheses around a named carrier. The reader rejects attachments around the whole-rule capture or an inserted item.
 
+`%counts-as` names the categories that the rule's occurrences count as, separated by commas. The reader checks each name and refuses the clause on an extension.
+
 `%erased` discards the constituent during emission. It cannot share output with `%emits`.
 
 ```jbogenbau
 %rule conditions-clause
   KW-CONDITIONS [","] {implication / ","}
+
+%rule counts-as-clause
+  KW-COUNTS-AS {category / ","}
+
+%rule category
+  Identifier
 
 %rule output
   erased-clause | emits-clause
@@ -340,8 +340,10 @@ Attachments are named captures in parentheses around a named carrier. The reader
   "::" term
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>conditions-clause</code> to <code>emit-tags</code></summary>
+<details><summary>Railroad diagrams of the 13 rules from <code>conditions-clause</code> to <code>emit-tags</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/conditions-clause.svg" alt="Railroad diagram of the rule conditions-clause"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/counts-as-clause.svg" alt="Railroad diagram of the rule counts-as-clause"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/category.svg" alt="Railroad diagram of the rule category"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/output.svg" alt="Railroad diagram of the rule output"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/erased-clause.svg" alt="Railroad diagram of the rule erased-clause"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/emits-clause.svg" alt="Railroad diagram of the rule emits-clause"></p>
@@ -691,7 +693,7 @@ Recognition admits repeated or reversed tests on names, terminals, and constants
 
 ## Directives
 
-A directive starts a stage, includes a document, declares features, or chooses ambiguity resolution. Each written name is a separate operand.
+A directive starts a stage, includes a document, declares features, turns on the elision check, or lists the ranking steps. Each written name is a separate operand. The ranking directive has its own form: steps separated by commas, each a name alone or a name with one category in parentheses.
 
 Recognition accepts wider operands than each directive permits. The reader rejects wrong counts and types at the directive before converting those operands.
 
@@ -705,9 +707,15 @@ Recognition accepts wider operands than each directive permits. The reader rejec
 %rule directive
   directive-name [{directive-argument}] [conditions-clause]
 
+%rule ranking-directive
+  KW-AMBIGUITY-RESOLUTION {ranking-step / ","}
+
+%rule ranking-step
+  Call-Name "(" Identifier ")" | Identifier
+
 %rule directive-name
   | KW-STAGE | KW-EXTEND-STAGE | KW-REDEFINE-STAGE
-  | KW-INCLUDE | KW-NAMES | KW-FEATURES | KW-AMBIGUITY-RESOLUTION
+  | KW-INCLUDE | KW-NAMES | KW-FEATURES | KW-ELISION-ONLY
 
 %rule directive-argument
   argument-word | argument-string | argument-tag | argument-term
@@ -728,8 +736,10 @@ Recognition accepts wider operands than each directive permits. The reader rejec
   (tag | name | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")") {method-selector}
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>directive</code> to <code>directive-method</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>directive</code> to <code>directive-method</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/directive.svg" alt="Railroad diagram of the rule directive"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/ranking-directive.svg" alt="Railroad diagram of the rule ranking-directive"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/ranking-step.svg" alt="Railroad diagram of the rule ranking-step"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/directive-name.svg" alt="Railroad diagram of the rule directive-name"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/directive-argument.svg" alt="Railroad diagram of the rule directive-argument"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/argument-word.svg" alt="Railroad diagram of the rule argument-word"></p>

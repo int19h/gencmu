@@ -27,9 +27,9 @@ class DomMalformed(unittest.TestCase):
         variants = [fields for clause in (query, implication, comparison) for fields in permutations(clause.items())]
         for fields in variants:
             with self.subTest(fields=[name for name, _ in fields]):
-                dom = {"format": DOM_FORMAT, "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
+                dom = {"format": DOM_FORMAT, "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}],
                        "constants": [], "classifiers": [], "implications": [],
-                       "rules": [{"op": "define", "name": "text", "flags": [], "at": [2, 1],
+                       "rules": [{"op": "define", "name": "text", "categories": [], "at": [2, 1],
                                   "alternatives": [{"guards": [], "expr": {"capture": "x", "expr": {"ref": "X"}}}],
                                   "conditions": [dict(fields)]}]}
                 self.assertIsNone(dom_problem(dom, unicode))

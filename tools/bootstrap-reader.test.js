@@ -179,8 +179,9 @@ function notationLoader() {
 
 test("wrong directive names and operand counts retain the directive position", () => {
   const loader = notationLoader();
-  for (const source of ["%ambiguity-resolution", "%ambiguity-resolution unknown", "%ambiguity-resolution greedy lazy",
-    "%ambiguity-resolution greedy elision-only extra", "%stage First", "%extend-stage First",
+  for (const source of ["%ambiguity-resolution unknown", "%ambiguity-resolution greedy, lazy",
+    "%ambiguity-resolution fewest(x), greedy, late(elision)", "%ambiguity-resolution lazy(x)", "%ambiguity-resolution fewest(Bad)",
+    "%elision-only on", "%stage First", "%extend-stage First",
     "%redefine-stage First", "%features a_b"]) {
     const document = "```jbogenbau\n" + source + "\n```";
     for (const reader of [readDocument, loader.readDocument.bind(loader)]) {

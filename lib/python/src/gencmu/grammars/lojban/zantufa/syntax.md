@@ -49,17 +49,17 @@ The words stage emits each finished quote as one token of its opening class. The
 
 A ranked choice filters alternatives at one written position. An option qualifies when its complete reading passes the grammar's conditions. An earlier option can exclude a later option over the same span. The [notation document](../../../docs/notation.md#ranked-choices) defines when this occurs.
 
-A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. No rule carries a `leftmost-longest` flag.
+A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. No rule counts as a unit whose span the stage ranks.
 
-The stage first prefers fewer plain term links through `fewest`. It then ranks admitted derivations by `late-elision`. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
+The stage first prefers fewer plain term links through `fewest(link)`. It then ranks admitted derivations by `late(elision)`. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
-The stage does not declare `elision-only`. A PEG repetition reads as far as it can, and late elision usually selects the same reading. Each terminator marked `_elidible` in the reference is elidable here, with an optional such as `[+KU]`. The separators `cu` and `i'au` remain ordinary optionals.
+The stage does not declare `%elision-only`. A PEG repetition reads as far as it can, and late elision usually selects the same reading. Each terminator marked `_elidible` in the reference is elidable here, with an optional such as `[+KU]`. The separators `cu` and `i'au` remain ordinary optionals.
 
 `$x.without-elision` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. Strict aligned readings have the same ordered closes at shared boundaries.
 
 A witness is a reading that satisfies a query. A whole query uses `$x.without-elision.matches(r)`. An extended prefix uses `$x.without-elision.onward.begins(r)` and can read beyond the capture. Here `r` names a rule, while a capitalized identifier names a tag. Both forms keep following original words available to the witness's conditions.
 
-A query can elide terminators under written-terminator priority ([engine §4](../../../docs/engine.md#4-recognition)). It cannot omit a terminator where the same construction can read that terminator as written. The query does not select the final late-elision winner. Category conditions preserve the actual candidate's closes. Structural conditions inspect its actual children.
+A query can elide terminators under written-terminator priority ([engine §4](../../../docs/engine.md#4-recognition)). It cannot omit a terminator where the same construction can read that terminator as written. The query does not select the final `late(elision)` winner. Category conditions preserve the actual candidate's closes. Structural conditions inspect its actual children.
 
 `$x.without-elision-except(math)` also lets the witness omit KUhE inside the shared stretch. The rule `math` names the constructs that KUhE closes.
 
@@ -83,7 +83,8 @@ The grammar states these attachment conventions through patterns, aligned catego
 A following-input condition reserves words after a candidate for another construction. It does not shorten that candidate's selected modifiers. A structural condition removes a duplicate only when its actual tree matches the stated transformation.
 
 ```jbogenbau
-%ambiguity-resolution late-elision
+%ambiguity-resolution
+  fewest(link), late(elision)
 
 %rule 🆓
   [{free}]
@@ -382,10 +383,12 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   (* term <- term_1 (!(joik tag BO_clause? CU) joik_ek term_1)* *)
   term-1 [{term-link}]
 
-%rule(fewest) term-link
+%rule term-link
   $j:joik-ek term-1
 %conditions
   $j ≇ #joik ∨ ¬$j.following-tokens.begins(tag-bo-cu)
+%counts-as
+  link
 
 %rule tag-bo-cu
   tag [BO 🆓] CU
@@ -464,7 +467,7 @@ A connective before a sumti or relative clause remains available for sumti synta
 
 `$JOIK-EK-OP` covers a joik-ek and its SE-converted operator form. The operator rule lifts SE outside its connective, so the pattern needs both shapes. Thus `by se jo'u cy cu klama` keeps its connected sumti. SE applied to an arithmetic operator receives no exemption.
 
-The plain `term-link` rule carries `fewest`, so a sumti connection wins over a term connection when both complete. `sumti-1-run` is a node of each sumti tree. The BO-level `sumti-2` condition refuses a run before another BO link. Its helper `sumti-2-link` occurs only in that query.
+The plain `term-link` rule counts as a link, so a sumti connection wins over a term connection when both complete. `sumti-1-run` is a node of each sumti tree. The BO-level `sumti-2` condition refuses a run before another BO link. Its helper `sumti-2-link` occurs only in that query.
 
 ```jbogenbau
 

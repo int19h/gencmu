@@ -1,6 +1,6 @@
 {
-  "description": "An unknown ranking operand is a document error, regardless of operand order (engine §9).",
-  "grammar": "%ambiguity-resolution greedy extra elision-only\n%rule text x\n%rule x A [ + T ]",
+  "description": "A lean before the last step is a document error (engine §9).",
+  "grammar": "%ambiguity-resolution greedy, late(elision)\n%rule text x\n%rule x A [ + T ]",
   "tokens": [
     {
       "text": "a",

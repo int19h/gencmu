@@ -179,7 +179,7 @@ fn parsing_with_and_without_the_cache() {
         .expect("a cached load");
     for (text, accepted) in [
         ("%rule text [{piece}] {... A / B} [+KU 🆓] %rule piece word | \"x\" :: Sound-x %emits $", true),
-        ("%ambiguity-resolution greedy elision-only\n%rule a $x:b :: \"T\" ∪ ($x ⟹ $x.tags(c)) %conditions ¬$x.tokens-after-first.matches(d), $x", true),
+        ("%ambiguity-resolution greedy\n%elision-only\n%rule a $x:b :: \"T\" ∪ ($x ⟹ $x.tags(c)) %conditions ¬$x.tokens-after-first.matches(d), $x", true),
         ("%rule broken", false),
     ] {
         let options = gencmu::ParseOptions::default();
@@ -374,7 +374,7 @@ fn a_guard_after_an_empty_wrapper_reports_its_first_token() {
             }
         }
         if padding {
-            rules.push(parse_json(r#"{"name":"padding","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[1,1]}"#).unwrap());
+            rules.push(parse_json(r#"{"name":"padding","op":"define","categories":[],"alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[1,1]}"#).unwrap());
         }
     }
     let error = load_with_bootstrap(

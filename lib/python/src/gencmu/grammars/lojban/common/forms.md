@@ -41,10 +41,11 @@ A foreign run is not an error here. The words stage decides whether a foreign ru
 
 In `lojban/cll`, a syllable comma has an empty value, so `nonpause-phoneme` reads its `Syllable-Break` tag. The other Lojban pipelines drop commas in the phoneme stage.
 
-Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is the exception. Its `leftmost-longest` flag selects the longest rafsi or gismu form within a complete reading. The other word forms fix every boundary, so the stage's `lazy` choice decides nothing else.
+Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is the exception. It counts as a quote, and `leftmost-longest(quote)` selects the longest rafsi or gismu form within a complete reading. The other word forms fix every boundary, so the stage's `lazy` step decides nothing else.
 
 ```jbogenbau
-%ambiguity-resolution lazy
+%ambiguity-resolution
+  leftmost-longest(quote), lazy
 ```
 
 ```jbogenbau

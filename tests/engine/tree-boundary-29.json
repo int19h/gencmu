@@ -1,13 +1,13 @@
 {
-  "description": "One flag per rule (engine §4.2 and §6, case 29).",
-  "grammar": "%rule text a\n%rule(leftmost-longest, fewest) a A",
+  "description": "A rule names each category once, and a repeated name is an error at the repeated name (engine §2 and §9.3, case 29).",
+  "grammar": "%ambiguity-resolution leftmost-longest(x), greedy\n%rule text a\n%rule a A\n%counts-as x, x",
   "tokens": [],
   "expect": {
     "error": "grammar",
     "where": {
       "document": "main.md",
-      "line": 4,
-      "column": 25
+      "line": 5,
+      "column": 15
     }
   }
 }

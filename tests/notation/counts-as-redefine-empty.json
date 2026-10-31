@@ -1,0 +1,10 @@
+{
+  "description": "A %redefine-rule with an empty %counts-as clause fails the syntax stage at the token after it (engine §9.3).",
+  "document": "```jbogenbau\n%redefine-rule text A %counts-as\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 33
+    }
+  }
+}

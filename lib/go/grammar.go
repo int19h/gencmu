@@ -33,9 +33,14 @@ type stageGrammar struct {
 	constLatest       map[string]int
 	rules             []*sRule
 	byName            map[string]*sRule
-	lean              string // the rule of the ranking: "greedy", "lazy" or "late-elision" (engine §6)
-	elisionOnly       bool
-	changes           []stitchChange
+	// steps are the key steps of the stage's %ambiguity-resolution, in
+	// order, and lean its last step if that is greedy or lazy, or "" for no
+	// lean (engine §6). elisionOnly says whether the stage declares
+	// %elision-only (engine §7).
+	steps       []keyStep
+	lean        string
+	elisionOnly bool
+	changes     []stitchChange
 	// classifierSet holds the stage's classifiers, and implications its
 	// implications with their values (engine §2, §11).
 	classifierSet stageClassifiers
@@ -53,20 +58,23 @@ type stageGrammar struct {
 // extended.
 type stitchChange struct {
 	rule, document, op string
-	flagChange         *flagChange
+	categoryChange     *categoryChange
 }
 
-// flagChange holds the flags before and after a replacement that changes them.
-type flagChange struct {
+// categoryChange holds the categories before and after a replacement that
+// changes them.
+type categoryChange struct {
 	from, to []string
 }
 
 type sRule struct {
-	flags []string
-	name  string
-	alts  []*sAlt
-	doc   string
-	at    [2]int
+	// categories are those of the rule's %counts-as clause (engine §2). An
+	// extension keeps them.
+	categories []string
+	name       string
+	alts       []*sAlt
+	doc        string
+	at         [2]int
 }
 
 // sAlt is an alternative with the clauses of the rule statement that wrote
@@ -226,7 +234,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 					if existing != nil {
 						return nil, fail(d.path, r.At, "%%rule %s is already defined, in %s; %%redefine-rule replaces a rule", r.Name, existing.doc)
 					}
-					nr := &sRule{flags: r.Flags, name: r.Name, alts: alts, doc: d.path, at: r.At}
+					nr := &sRule{categories: r.Flags, name: r.Name, alts: alts, doc: d.path, at: r.At}
 					g.rules = append(g.rules, nr)
 					g.byName[r.Name] = nr
 				case "redefine":
@@ -237,11 +245,11 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 					}
 					// The replacement keeps the place of the rule it replaces.
 					change := stitchChange{rule: r.Name, document: d.path, op: "replace"}
-					if !slices.Equal(existing.flags, r.Flags) {
-						change.flagChange = &flagChange{from: slices.Clone(existing.flags), to: slices.Clone(r.Flags)}
+					if !slices.Equal(existing.categories, r.Flags) {
+						change.flagChange = &flagChange{from: slices.Clone(existing.categories), to: slices.Clone(r.Flags)}
 					}
 					g.changes = append(g.changes, change)
-					existing.alts, existing.doc, existing.at, existing.flags = alts, d.path, r.At, r.Flags
+					existing.alts, existing.doc, existing.at, existing.categories = alts, d.path, r.At, r.Flags
 				case "extend":
 					if existing == nil {
 						return nil, fail(d.path, r.At, "%%extend-rule %s extends a rule that is not defined before it", r.Name)
@@ -591,10 +599,4 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 		checked.emits[a.emit] = true
 	}
 	return nil
-}
-
-// isRankingRule says whether a word names the rule of a stage's ranking
-// (engine §2, §6). No lean, which the check of §7 uses, has no name.
-func isRankingRule(word string) bool {
-	return word == "greedy" || word == "lazy" || word == "late-elision"
 }

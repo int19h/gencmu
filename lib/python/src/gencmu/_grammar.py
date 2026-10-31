@@ -78,15 +78,15 @@ class Rule:
     alternatives: list[Alternative]
     document: str
     at: tuple[int, int]
-    flags: list[str] = field(default_factory=list)
+    categories: list[str] = field(default_factory=list)
 
 
 @dataclass
-class FlagChange:
-    """The flags before and after a replacement that changes them."""
+class CategoryChange:
+    """The categories before and after a replacement that changes them."""
 
-    from_flags: list[str]
-    to_flags: list[str]
+    from_categories: list[str]
+    to_categories: list[str]
 
 
 @dataclass
@@ -97,7 +97,7 @@ class Change:
     rule: str
     document: str
     previous: str
-    flag_change: FlagChange | None = None
+    category_change: CategoryChange | None = None
 
 
 @dataclass(frozen=True)
@@ -128,9 +128,9 @@ class SymbolTest:
         raise AssertionError(f"unknown symbol test {op}")
 
 
-RANKING_RULES = ("greedy", "lazy", "late-elision")
-"""The rules of the ranking that ``%ambiguity-resolution`` can name
-(engine §2, §6)."""
+KeyStep = tuple[str, str]
+"""A key step of ``%ambiguity-resolution``: its name and its category
+(engine §6)."""
 
 
 @dataclass
@@ -139,7 +139,9 @@ class Grammar:
 
     stage: str
     rules: dict[str, Rule]
-    # The rule of the ranking, one of RANKING_RULES (engine §6).
+    # The key steps of the stage's %ambiguity-resolution, in order, and its
+    # lean, greedy, lazy or none (engine §6).
+    steps: tuple[KeyStep, ...]
     lean: str
     elision_only: bool
     unicode: Any = field(default=None, repr=False, compare=False)
@@ -823,7 +825,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     for argument in arguments_to_check:
         constants.arguments.setdefault((argument['inspection_run'], argument['path'], tuple(argument['at'])), []).append(argument)
     changes: list[Change] = []
-    resolutions: list[tuple[list[str], str, Any]] = []
+    resolutions: list[tuple[list[Dom], str, Any]] = []
     checks: list[tuple[int, Any, str, str, Any]] = []
     elision_only = False
     for inspection_run, (path, dom) in zip(document_runs, documents):
@@ -882,11 +884,11 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 elif op == "redefine":
                     if previous is None:
                         raise _error(f"%redefine-rule {name} replaces no rule defined before it", path, at, stage)
-                    flags = list(rule["flags"])
-                    flag_change = FlagChange(previous.flags.copy(), flags.copy()) if previous.flags != flags else None
-                    changes.append(Change("replace", name, path, previous.document, flag_change))
+                    flags = list(rule["categories"])
+                    category_change = CategoryChange(previous.categories.copy(), flags.copy()) if previous.categories != flags else None
+                    changes.append(Change("replace", name, path, previous.document, category_change))
                     # The rule keeps its place (engine §3, "Numbering").
-                    rules[name] = Rule(name, alternatives, path, at, list(rule["flags"]))
+                    rules[name] = Rule(name, alternatives, path, at, list(rule["categories"]))
                 else:
                     if previous is not None:
                         raise _error(
@@ -895,7 +897,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                             at,
                             stage,
                         )
-                    rules[name] = Rule(name, alternatives, path, at, list(rule["flags"]))
+                    rules[name] = Rule(name, alternatives, path, at, list(rule["categories"]))
             elif kind == "directives":
                 directive = item
                 name = directive["name"]
@@ -906,20 +908,11 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 elif name == "ambiguity-resolution":
                     if resolutions:
                         raise _error("has a second %ambiguity-resolution", path, at, stage)
-                    resolutions.append((args, path, at))
-                    # The rule of the ranking (engine §6), then optionally elision-only,
-                    # each optional, in that order (engine §2).
-                    rest = args[1:]
-                    elision_only = rest[:1] == ["elision-only"]
+                    resolutions.append((directive["steps"], path, at))
+                elif name == "elision-only":
                     if elision_only:
-                        rest = rest[1:]
-                    if not args or args[0] not in RANKING_RULES or rest:
-                        raise _error(
-                            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only",
-                            path,
-                            at,
-                            stage,
-                        )
+                        raise _error("has a second %elision-only", path, at, stage)
+                    elision_only = True
 
                 else:
                     raise _error(f"an unknown directive %{name}", path, at, stage)
@@ -993,7 +986,9 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     _resolve_tests(rules, constants)
     if not resolutions:
         raise GencmuError("has no %ambiguity-resolution", stage=stage)
-    args, _, _ = resolutions[0]
+    ranking_steps, _, _ = resolutions[0]
+    lean = ranking_steps[-1]["step"] if ranking_steps[-1]["step"] in ("greedy", "lazy") else "none"
+    key_steps = tuple((step["step"], step["category"]) for step in (ranking_steps if lean == "none" else ranking_steps[:-1]))
     if "text" not in rules:
         raise GencmuError("has no rule text", stage=stage)
     from ._boundary import validate_targets
@@ -1055,7 +1050,8 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     grammar = Grammar(
         stage,
         rules,
-        args[0],
+        key_steps,
+        lean,
         elision_only,
         unicode=unicode,
         changes=changes,
@@ -1186,7 +1182,9 @@ class Production:
     terminal: tuple[bool, ...]
     rule_name: str
     helper: bool
-    rule_flag: str | None = None
+    # The categories of the production's rule; none for a helper
+    # (engine §3, §6).
+    categories: tuple[str, ...] = ()
     elided: str | None = None
     # The test of that terminator, if it is tested; a restored token
     # stores the string of its = test (engine §7).
@@ -1236,14 +1234,6 @@ class Production:
     parent_tags: Any = field(default=None,repr=False,compare=False)
 
     @property
-    def leftmost_longest(self) -> bool:
-        return self.rule_flag == "leftmost-longest"
-
-    @property
-    def fewest(self) -> bool:
-        return self.rule_flag == "fewest"
-
-    @property
     def real_id(self):
         return self.id if self.base_id is None else self.base_id
 
@@ -1270,6 +1260,7 @@ class Lowered:
     rule_ids: dict[str, int]
     rule_productions: list[list[int]]
     rule_display: list[str]
+    steps: tuple[KeyStep, ...]
     lean: str
     # The strings, ranges, and wildcard among terminals, by their canonical
     # form, which is their name (engine §4): what each one matches.
@@ -1631,7 +1622,7 @@ class _Lowerer:
             terminal=terminal,
             rule_name=self.rule_display[lhs],
             helper=alt is None,
-            rule_flag=next(iter(self.grammar.rules[self.rule_names[lhs]].flags), None) if alt is not None else None,
+            categories=tuple(self.grammar.rules[self.rule_names[lhs]].categories) if alt is not None else (),
             elided=elided[0] if elided is not None else None,
             elided_test=elided[1] if elided is not None else None,
             elided_owner=self.rule_display[lhs] if elided is not None else None,
@@ -1831,6 +1822,7 @@ class _Lowerer:
             rule_ids={name: index for index, name in enumerate(self.rule_names)},
             rule_productions=rule_productions,
             rule_display=self.rule_display,
+            steps=self.grammar.steps,
             lean=self.grammar.lean,
             characters=self.characters,
             contextual=self.contextual,

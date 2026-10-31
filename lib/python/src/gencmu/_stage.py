@@ -14,16 +14,15 @@ from ._markdown import line_column
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Restoration, Tags, Token
 from ._rank import (
     Act,
-    Profile,
+    Profiles,
+    Ranker,
     Ranking,
     Rope,
     actions,
-    compare_profiles,
     concat,
     first_difference,
     leaf,
     rank,
-    sum_profiles,
 )
 from ._trampoline import run
 from ._recipes import selected
@@ -601,7 +600,7 @@ class StageRunner:
         context = StageContext(lowered, self.tokens, self.text, self.unicode)
         start = lowered.rule_ids["text"]
         forest = Parser(context).parse(start)
-        ranking = rank(forest, lowered.lean)
+        ranking = rank(forest, lowered.steps, lowered.lean)
         if ranking is None:
             if forest.roots:
                 forest.furthest = len(self.tokens)
@@ -685,35 +684,30 @@ class StageRunner:
         # An optional test hook observes the witness (tests/README.md).
         hook = _testing.elision_check
         watch = hook(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at)) if hook is not None else None
-        # The reconstruction ranks with no stage policy, and
-        # they rank with no lean (engine §7.7).
-        chosen_profile = ()
-        from ._witness import walk_witness
+        # The check ranks with the key steps without elision and no lean
+        # (engine §7.7).
+        steps = check_steps(lowered)
+        space = Profiles(steps)
+        chosen_profile = space.zero
+        walk = None
+        protected = True
+        if protected:
+            from ._witness import walk_witness
 
-        if any(production.leftmost_longest or production.fewest for production in lowered.productions):
-            pending = [chosen]
-            while pending:
-                node = pending.pop()
-                if isinstance(node, DRead):
-                    continue
-                if node.production.leftmost_longest and node.start < node.end:
-                    chosen_profile = sum_profiles(chosen_profile, ((node.start, node.end, 1),))
-                if node.production.fewest and node.start < node.end:
-                    chosen_profile = Profile(chosen_profile, getattr(chosen_profile, "fewest", 0) + 1)
-                pending.extend(node.children)
-        walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
-        marks = walk.marks if walk is not None else None
+            chosen_profile = space.derivation_profile(chosen)
+            walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
+        marks = walk.marks if walk is not None else watch.marks if watch is not None else None
         preferred = bool(lowered.ranked_helpers)
         raw_counted = True
-        if preferred and walk is not None:
-            raw = rank(forest, "none", marks=marks, check=True, unfiltered=True)
+        if preferred:
+            raw = rank(forest, steps, "none", marks=marks, check=True, unfiltered=True)
             raw_counted = raw is not None and raw.witness_counted is True
         ranking = _rank_check(forest, marks) if walk is not None else None
         better = False
         watched_selection = False
         if ranking is not None:
             assert walk is not None
-            order = compare_profiles(ranking.profile, chosen_profile)
+            order = space.compare(ranking.profile, chosen_profile)
             if not raw_counted or not preferred and ranking.witness_counted is not True:
                 ranking = None
             else:
@@ -790,9 +784,16 @@ def _reconstruct(context: StageContext) -> Forest:
     return Parser(context).parse(context.lowered.rule_ids["text"])
 
 
+def check_steps(lowered: Lowered) -> tuple[tuple[str, str], ...]:
+    """The key steps of the check of engine §7: the stage's key steps
+    without every step of ``elision``."""
+    return tuple(step for step in lowered.steps if step[1] != "elision")
+
+
 def _rank_check(forest: Forest, marks: dict[int, set[int]] | None = None) -> Ranking | None:
-    """Rank reconstruction with no stage policy."""
-    return rank(forest, "none", marks=marks, check=True)
+    """Rank the reconstruction with the key steps without elision and no
+    lean (engine §7.7)."""
+    return rank(forest, check_steps(forest.lowered), "none", marks=marks, check=True)
 
 
 def _map_back(

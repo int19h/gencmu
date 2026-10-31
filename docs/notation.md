@@ -24,7 +24,7 @@ Stage zero has no grammar. It only supplies the character tokens. Each grammar s
 
 The examples in this document come mostly from the bundled Lojban grammars. Names such as `KOhA`, `sumti` and `🆓` are rules and tags that those grammars define. The notation gives them no meaning of its own. Where an example depends on Lojban, the text says so.
 
-An ordinary choice is unordered: its alternatives have no priority by position. A ranked choice filters alternatives at one written position before ranking. Rule flags and the stage directive then rank the remaining complete parses. The sections "Ranked choices" and "Ambiguity" describe filtering and ranking.
+An ordinary choice is unordered: its alternatives have no priority by position. A ranked choice filters alternatives at one written position before ranking. The steps of the stage directive then rank the remaining complete parses. The sections "Ranked choices" and "Ambiguity" describe filtering and ranking.
 
 ## Values and images
 
@@ -40,35 +40,32 @@ A string walk builds strings from constituent parts. The section "Two walks and 
 
 ## Rules
 
-A grammar is a sequence of rules, directives (see "Directives"), constants (see "Constants"), classifiers (see "Classifiers") and implications (see "Implications"). Each one begins with a keyword, which is a word after `%`, and ends where the next one begins. A rule is `%rule`, its optional flags, its name, and its body:
+A grammar is a sequence of rules, directives (see "Directives"), constants (see "Constants"), classifiers (see "Classifiers") and implications (see "Implications"). Each one begins with a keyword, which is a word after `%`, and ends where the next one begins. A rule is `%rule`, its name, its body, and its clauses:
 
 ```jbogenbau
 %rule sumti-tail
   [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1
 ```
 
-A rule can carry one flag, written in parentheses after the keyword. There are two flags. A flagged occurrence is a flagged rule's constituent.
-
-- `%rule(leftmost-longest) NAME` prefers earlier starts, then longer nonempty occurrences at one start. A parse with a nonempty occurrence beats one without any.
-- `%rule(fewest) NAME` prefers fewer nonempty occurrences. A parse with fewer nonempty occurrences of `fewest` rules beats one with more.
-
-"Ambiguity" gives the full comparison.
-
-For example:
+A rule can say what its occurrences count as. The clause `%counts-as` names one or more categories, separated by commas. Each nonempty occurrence of the rule, each constituent that it matches over at least one token, counts as one of each category. The stage directive compares parses by these categories (see "Ambiguity").
 
 ```jbogenbau
-%ambiguity-resolution greedy
-%rule text r | r "b"
-%rule(leftmost-longest) r "a" "b" | "a"
+%ambiguity-resolution leftmost-longest(tense), greedy
+
+%rule text
+  r | r "b"
+
+%rule r
+  "a" "b" | "a"
+%counts-as
+  tense
 ```
 
-On `ab`, the stage chooses the parse where `r` spans both tokens. Without the flag, the directive `greedy` leaves the two parses tied.
+On `ab`, the stage chooses the parse where `r` spans both tokens. Without the first step, `greedy` leaves the two parses tied.
 
-A Lojban example uses tense words in the syntax grammar of `lojban/cll`. Flagging only `simple-tense-modal` groups `pu va ca gi` as `pu va` then `ca gi`. The official Lojban parser gives that grouping. The flag ranks complete parses. The official parser's lexer instead groups tokens before syntax parsing.
+A Lojban example uses tense words in the syntax grammar of `lojban/cll`. Only `simple-tense-modal` counts as a tense, and the directive prefers the leftmost and longest tenses. So `pu va ca gi` groups as `pu va` then `ca gi`. The official Lojban parser gives that grouping. The step ranks complete parses. The official parser's lexer instead groups tokens before syntax parsing.
 
-Spaces around the parentheses and their content have no meaning. By convention, the opening parenthesis follows the keyword directly.
-
-Empty parentheses, two flags, unknown flags and arguments are errors.
+A category name starts with a lowercase letter and continues with lowercase letters, digits and hyphens. `elision` is a built-in category: each elided terminator counts as one. A rule cannot count as `elision`. A category that no step of the stage directive names counts nothing, and a step can name a category that no rule counts as.
 
 Line breaks and indentation mean nothing. So a long list of alternatives can put each alternative on a line of its own, and every `|` can also stand first. By convention, authors indent the body by two spaces under the keyword:
 
@@ -292,7 +289,7 @@ A chain cannot hold a capture (see "Captures"). So a clause can say nothing abou
 
 A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... / s}` read the same words. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. That makes three differences:
 
-- The suffix can be an elidable optional, `[+T s′ r]`, where `s` is `T s′`. Where that suffix is absent, it leaves an elided node, and `late-elision` counts it. The chain has no optional there, so it elides nothing. So a text can tie, or resolve otherwise, under `late-elision`, and `elision-only` sees a different terminator. A plain suffix, `[s r]`, elides nothing, as the chain does.
+- The suffix can be an elidable optional, `[+T s′ r]`, where `s` is `T s′`. Where that suffix is absent, it leaves an elided node, and `late(elision)` counts it. The chain has no optional there, so it elides nothing. So a text can tie, or resolve otherwise, under `late(elision)`, and `elision-only` sees a different terminator. A plain suffix, `[s r]`, elides nothing, as the chain does.
 - A single-symbol `x` gives that level its tags in the chain. The optional-suffix form inherits none unless the rule writes tags.
 - Where `s` starts with `[+T]`, the suffix and chain apply different rules for written-terminator priority (see [Conditions](#conditions)). In the suffix, the marked optional starts the optional's content. In the chain, it follows the item's last symbol, which a query can extend. Engine §4 gives the exact rule. An omission names no separate constituent that it ends.
 
@@ -362,7 +359,7 @@ The choice must discard its returned tags locally or return a provably empty set
 
 `begins`, `matches`, and `.tags` with a rule argument inspect the readings that recognition allows before ranked filtering ([engine §4](engine.md#4-recognition)). `span.tags(rule)` remains a union over those readings.
 
-After admission, rule flags take precedence over the stage directive. With no flagged rule, the stage directive alone ranks the admitted parses.
+After admission, the steps of the stage directive rank the admitted parses in order (see "Ambiguity").
 
 ## Feature guards
 
@@ -415,7 +412,7 @@ So `%rule` never quietly replaces a rule. A misspelled name in `%redefine-rule` 
 
 The alternatives that an extension adds carry the extension's own clauses, not those of the base rule. The clauses of the base rule do not apply to them. So an extension says everything about what it adds. The loader, the part of gencmu that reads the documents, reports every replacement and extension: which document changed which rule. So a reader can see the effect of a pipeline on its base in one place.
 
-`%extend-rule` accepts no flags and inherits the stitched rule's flag for every added alternative. `%redefine-rule(leftmost-longest)` and `%redefine-rule(fewest)` replace both the alternatives and the flag. A redefinition without parentheses removes the flag. The printed audit report names a flag change alongside the replacement. Unlike clauses, the flag belongs to the whole stitched rule.
+`%extend-rule` accepts no `%counts-as` clause and inherits the stitched rule's categories for every added alternative. `%redefine-rule` replaces both the alternatives and the categories. A redefinition without the clause removes them. The printed audit report names a change of categories alongside the replacement. Unlike the other clauses, the categories belong to the whole stitched rule.
 
 The notation has no way to remove a single alternative. A rule is small enough to restate, and a restated rule reads better than a list of deletions.
 
@@ -449,7 +446,7 @@ Each argument is one term. A parenthesized body expression or `ε` passes a sequ
 
 Substitution replaces parsed nodes, without reparsing or regrouping nearby syntax. A choice passed to a body position remains one grouped choice. A ranked choice retains its own priority and seal. Ordinary position restrictions still apply after expansion. For example, a choice cannot replace the symbol in `$x:@X`.
 
-Parameters can occupy body operands, pattern operands, query targets, filter requirements, and terms in conditions, tags, values, and images. A parameter cannot construct a name or occupy a declaration name, flag, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head after `[+` can be a user tag or a parameter whose argument becomes exactly one bare user-tag atom. A rule, sequence, tested argument, constant, or tag-set expression is invalid there.
+Parameters can occupy body operands, pattern operands, query targets, filter requirements, and terms in conditions, tags, values, and images. A parameter cannot construct a name or occupy a declaration name, category, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head after `[+` can be a user tag or a parameter whose argument becomes exactly one bare user-tag atom. A rule, sequence, tested argument, constant, or tag-set expression is invalid there.
 
 ### The two list substitutions
 
@@ -508,7 +505,7 @@ Ordinary rules and named instances keep their declaration slots. Unnamed instanc
 
 The example's expanded order is `text`, `item`, then `atom(A)`. The template `atom` has no runtime rule slot.
 
-A template's flag applies to its instances. Each instance contributes its actual constituents to the existing shared ranking profiles. A binding adds no flag or ranking occurrence.
+A template's categories apply to its instances. Each instance's constituents count as those categories. A binding adds no category or occurrence.
 
 ### Patterns, queries, and finite expansion
 
@@ -518,7 +515,7 @@ A recognition or neighbor query must name one instance or an ordinary rule. A ba
 
 The loader rejects unbounded expansion through a static parameter-flow analysis. Passing a parameter unchanged creates an unchanged edge. Placing it inside another wrapping form creates a growing edge. A parenthesized single parameter adds no growth. A cycle containing a growing edge is an error, even in an uncalled template. Unchanged recursion, parameter permutations, and self-passing rule names remain valid.
 
-Expansion precedes ordinary rule validation and lowering. Errors identify the template use and originating argument. Diagrams show each template once, with its parameters and call arguments. The audit records instances and their names, origins, edits, flags, unused parameters, and uncalled templates.
+Expansion precedes ordinary rule validation and lowering. Errors identify the template use and originating argument. Diagrams show each template once, with its parameters and call arguments. The audit records instances and their names, origins, edits, categories, unused parameters, and uncalled templates.
 
 ## Constants
 
@@ -1082,7 +1079,7 @@ The test reads the actual neighbor, which a lookahead cannot do. A Lojban exampl
 
 In `mi klama na to broda`, the parenthesis stands in the term's slot, and the text ends after it. In `na da`, the parse has a term node at `da`. A lookahead `$.following-tokens.begins(term)` can instead find a term in another reading.
 
-A test cannot see another parse. Where one reading must beat another, write a ranked choice or a flag instead (see "Ambiguity").
+A test cannot see another parse. Where one reading must beat another, write a ranked choice or a `%counts-as` clause instead (see "Ambiguity").
 
 A terminal target of `.begins`, `.ends`, or `.matches` makes its tag buildable, including inside another query. A `.followed-by` or `.preceded-by` target alone does not.
 
@@ -1317,7 +1314,8 @@ The constructor contract in [engine §9.3](engine.md#93-conversion-and-validatio
 
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
-- `%ambiguity-resolution` ranks the best parses under rule flags, as "Ambiguity" explains. Its first operand is the ranking rule: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. "Elided terminators" explains the elision test. Every stage must say it exactly once, in any of its documents.
+- `%ambiguity-resolution` lists the steps that rank the admitted parses, in order, as "Ambiguity" explains. Every stage must say it exactly once, in any of its documents.
+- `%elision-only` turns on the check of "Elided terminators" for the stage. A stage says it at most once.
 - No directive names the elidable terminators. Each elidable optional is marked in its place, as `[+KU]` (see "Elided terminators").
 - `%names "PATH"` adds a names resource for the current document and its nested includes. These directives precede every other statement.
 - `%stage NAME`, `%extend-stage NAME`, `%redefine-stage NAME`, `%include "PATH"` and `%features NAME…` build a pipeline, as the next section says.
@@ -1432,61 +1430,68 @@ Ranked choices supply seals as well as filtering. Adding or removing a seal chan
 
 A unique or resolved verdict reaches emission. The enabled elision-only check then runs for `resolved`, or for `unique` when the chosen tree holds an elided node. [Elided terminators](#elided-terminators) defines the check. A tied verdict reaches neither, has no chosen tree, output or warnings, and stops later stages.
 
-A grammar ranks every admitted parse. A rule profile has two parts. Its span vector counts the occurrences of `leftmost-longest` rules over each nonempty span. Its fewest count is the number of nonempty occurrences of `fewest` rules. A flagged span is the span of a `leftmost-longest` occurrence.
+A grammar ranks every admitted parse by the steps of its `%ambiguity-resolution` directive. The directive lists one or more steps, separated by commas. Of two parses, the first step that tells them apart decides which beats the other. A parse is best if no other admitted parse beats it. The stage takes a sole best parse. Several best parses give a tie.
 
-`leftmost-longest` compares complete parses by their span vectors, with earlier starts first, longer spans next, and larger counts preferred at the first difference. `fewest` then compares their fewest counts, and the smaller count wins.
+```jbogenbau
+%ambiguity-resolution
+  fewest(erasure), fewest(resumption), late(elision)
+```
 
-All `leftmost-longest` rules contribute to one span vector together, without priority by name or declaration order. All `fewest` rules contribute to one count in the same way. Equal spans count separately, including nested occurrences.
+Most steps compare the occurrences of one category, which rules declare with `%counts-as`. Each nonempty occurrence of such a rule counts as one of the category, with its span. Equal spans count separately, including nested occurrences, and each named chain level and each constituent with one symbol counts. Empty occurrences count nothing. The unnamed constituents of flat braces and of optionals count nothing, including elidable optionals. The built-in category `elision` has one occurrence for each elided terminator, at its boundary. Names give no priority: two rules that name one category pool their occurrences.
 
-Each nonempty occurrence of a flagged rule counts, including each named chain level and each constituent with one symbol. Empty occurrences contribute nothing. The unnamed constituents of flat braces and of optionals contribute nothing, including elidable optionals. Both flags rank before the stage directive.
+| Step | Prefers |
+| --- | --- |
+| `leftmost-longest(c)` | the earlier start, then the longer span, then more occurrences, among the occurrences of `c` |
+| `fewest(c)` | fewer occurrences of `c` |
+| `most(c)` | more occurrences of `c` |
+| `late(c)` | fewer occurrences of `c` at the first boundary where the counts differ |
+| `early(c)` | more occurrences of `c` at the first boundary where the counts differ |
+| `greedy` | the parse that reads on at the first differing visible action |
+| `lazy` | the parse that closes at the first differing visible action |
 
-Compare two rule profiles in this order:
+`leftmost-longest(c)` compares two parses in this order:
 
-1. List each `leftmost-longest` occurrence's nonempty span by increasing start, then decreasing end.
+1. List each occurrence's span by increasing start, then decreasing end.
 2. Keep duplicate spans, including those from nested occurrences.
 3. Compare the lists from the front.
 4. At the first different entry, prefer the earlier start, then the later end.
 5. After an equal prefix, prefer the longer list.
-6. If the lists are equal, prefer the smaller fewest count.
-7. If the counts are equal too, apply the stage directive.
 
-Two nested `leftmost-longest` occurrences over one span contribute twice, so two such occurrences beat one. This document defines the flag's comparison, rather than POSIX subexpression semantics. For example, the flag pools occurrences across all `leftmost-longest` rules, counts nested and repeated occurrences, and ignores empty occurrences.
+Two nested occurrences over one span contribute twice, so two such occurrences beat one. This document defines the comparison, rather than POSIX subexpression semantics. For example, the step pools occurrences across every rule of the category, counts nested and repeated occurrences, and ignores empty occurrences.
 
-A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, the stage directive applies. A parse is best if no other admitted parse beats it. The stage takes a sole best parse. Several best parses give a tie.
+`fewest(c)` and `most(c)` compare the numbers of occurrences alone, whatever their spans. A disfavored construct has no natural position to prefer, so `fewest` ignores spans. Zantufa's `term-link` counts as a link, and `fewest(link)` makes a sumti connection beat a term connection over the same words, whatever their omitted terminators. A term connection remains where no sumti connection completes.
 
-The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every span vector is zero and every fewest count is zero, so the stage directive alone ranks the admitted parses. Flags do not rank `matches`, `begins`, `ends`, or `tags` queries.
+`late(c)` and `early(c)` compare where occurrences begin. They count the occurrences of `c` that begin at each input boundary, from the start of the text. At the first boundary where the counts differ, `late` prefers the parse with fewer and `early` the parse with more. `late(elision)` is the step that the Lojban syntax grammars use. In plain words, at the first place where two parses differ in leaving out a terminator, it takes the parse that reads on. The name of an elided terminator, and the constituent that it ends, do not count.
 
-`fewest` states a preference between whole readings. In the Lojban Zantufa grammar, for example, `term-link` carries it. A sumti connection then beats a term connection over the same words, whatever their omitted terminators. A term connection remains where no sumti connection completes.
+The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. Steps do not rank `matches`, `begins`, `ends`, or `tags` queries.
+
+`greedy` and `lazy` compare actions rather than occurrences. Either can stand only as the last step, and a directive can end without one. Two parses that no step tells apart are tied. So a directive whose only step is `late(elision)` ties two parses that elide the same terminators at the same places, whatever else differs. Adding `greedy` after it would decide such a pair by its actions.
 
 A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. A witness pairs differing actions from two readings. The error shows two tied parses and their witness (engine §6).
 
 The engine's canonical order (engine §6) orders the ambiguity diagnostics. Among its keys are the numbers of the productions, which follow the order of a rule's alternatives. The canonical tie-break keys never turn a tie into an accepted reading.
 
-`greedy` and `lazy` treat each parse as the sequence of actions that a bottom-up reader takes. Some closes are transparent and do not participate in the comparison (below). All other actions are visible. The stage compares parses with the greatest rule profile at their first differing visible action:
+`greedy` and `lazy` treat each parse as the sequence of actions that a bottom-up reader takes. Some closes are transparent and do not participate in the comparison (below). All other actions are visible. The step compares two parses that the earlier steps leave equal at their first differing visible action:
 
 - If both read the same token under two tags, they are tied.
-- If one reads and the other closes, the directive decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
+- If one reads and the other closes, the step decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
 - If both close different constituents, they are tied.
 
 Some closes are transparent to action comparison. A named production with one logical symbol has a transparent close. The notation also creates a transparent helper for every optional, every flat `{ }` and every ranked group, including captured optionals. So two parses that differ only in such a relabeling do not differ yet. The levels of a chain are constituents of its rule, so a level with more than one symbol is not transparent. Where `greedy` or `lazy` must see where each step of a list ends, the grammar writes a chain or explicit recursion, not flat braces.
 
-Transparency does not merge parses, though. Two parses that differ only there are still two parses. `greedy` and `lazy` tie them when their rule profiles are equal. `late-elision` also requires equal counts of elided terminators at every position. For example, `[[X]]` matches the empty text in two ways, and `[A] & [B]` in three.
+Transparency does not merge parses, though. Two parses that differ only there are still two parses. `greedy` and `lazy` tie them when the earlier steps leave them equal. For example, `[[X]]` matches the empty text in two ways, and `[A] & [B]` in three.
 
-Greedy and lazy quantifiers suggest an analogy, not the same matching procedure. A quantifier controls repetition in a regular expression. These directives compare complete parses at the first differing visible action, without source-order priority or early commitment. A tie that the directive leaves is an error. The directive applies throughout the stage.
+Greedy and lazy quantifiers suggest an analogy, not the same matching procedure. A quantifier controls repetition in a regular expression. These steps compare complete parses at the first differing visible action, without source-order priority or early commitment. A tie that the directive leaves is an error. The directive applies throughout the stage.
 
-Among parses with the greatest rule profile, `late-elision` compares the terminators that each parse elides ("Elided terminators"). In plain words, at the first place where two parses differ in leaving out a terminator, it takes the parse that reads on. It counts the elided terminators of each parse at each input boundary, from the start of the text. At the first boundary where the counts differ, the parse with fewer elided terminators there wins.
+A Lojban example comes from the experimental grammar. For this example, ignore that its `free` rule counts as a free modifier. The grammar can then read `to mi klama` in two ways. One ends the parenthesis `to` after `mi`, with `vau` and `toi` elided there, and `klama` is the main predicate. The other puts `mi klama` inside the parenthesis and elides terminators only at the end. `late(elision)` takes the second, because the first leaves out a terminator earlier. `greedy` leaves the two readings tied, so the text is an error under `greedy` alone.
 
-Two parses with equal rule profiles and equal counts at every position tie, whatever else differs. Without flagged rules, several parses that elide nothing always tie. A token read under two tags does not decide anything, and neither do two different closes. The name of an elided terminator, and the constituent that it ends, do not count either.
+With `leftmost-longest(free)` as its first step, the bundled experimental pipeline resolves `to mi klama` as `(to [mi klama])` whatever step follows.
 
-A Lojban example comes from the experimental grammar. For this example, ignore its `free` rule's `leftmost-longest` flag. The grammar can then read `to mi klama` in two ways. One ends the parenthesis `to` after `mi`, with `vau` and `toi` elided there, and `klama` is the main predicate. The other puts `mi klama` inside the parenthesis and elides terminators only at the end. `late-elision` takes the second, because the first leaves out a terminator earlier. `greedy` leaves the two readings tied, so the text is an error under `greedy`.
-
-With that flag, the bundled experimental pipeline resolves `to mi klama` as `(to [mi klama])` under either directive. Rule flags rank before the directive.
-
-The syntax stages of the bundled Lojban grammars use `late-elision`. Each grammar settles with rules of its own the choices that `late-elision` leaves tied, such as where a free modifier attaches.
+The syntax stages of the bundled Lojban grammars end with `late(elision)`. Each grammar settles with rules of its own the choices that `late(elision)` leaves tied, such as where a free modifier attaches.
 
 In the bundled Lojban pipelines, the forms and words stages are lazy. Ordinary word forms divide a run in one way only, so `lazy` decides nothing in the forms stage outside the `ra'oi` exception below.
 
-A rafsi is a form used inside compounds. A gismu is a root word. Zantufa's `ra'oi` quote is the exception to unique word division. Its `leftmost-longest` flag selects the longest rafsi or gismu form within a complete reading.
+A rafsi is a form used inside compounds. A gismu is a root word. Zantufa's `ra'oi` quote is the exception to unique word division. It counts as a quote, and `leftmost-longest(quote)` selects the longest rafsi or gismu form within a complete reading.
 
 In the Lojban words stage, the lazy choice makes a magic word act on what exists when it is read. So `mi si si` erases `mi` and then nothing.
 
@@ -1523,7 +1528,7 @@ The argument for `@End` must be one bare user tag after argument conversion. A r
 
 A plain optional is never elidable, whatever it holds. So `[KU]`, `[KU | VAU]` and `[{KU}]` are ordinary optionals. Where one is absent, it counts for nothing and leaves no node, as an absent optional separator does. A grammar can read a terminator both ways: `[+KU]` in one rule and `[KU]` in another. Only the first one is elided.
 
-The marker decides everything that follows in this section, and in "Ambiguity". It decides which absent optionals show as elided terminators and what `late-elision` counts. It also decides what `elision-only` writes back. The terminator of an elided node is `T`.
+The marker decides everything that follows in this section, and in "Ambiguity". It decides which absent optionals show as elided terminators and what the category `elision` counts. It also decides what `elision-only` writes back. The terminator of an elided node is `T`.
 
 An elision records an omitted terminal at its input boundary, without naming a separate constituent that it ends. A query uses the preceding symbol of that reading when looking for a written terminator. In `LE sumti-tail [+KU 🆓]`, that symbol is sumti-tail. A prefix is input read before the marked optional. After a terminal, or at production start, the query tests the optional directly after that prefix.
 
@@ -1537,11 +1542,11 @@ A captured plain optional expands to bind captures, but retains one helper for q
 
 The constituent of an elided terminator can end wherever a parse of the whole text needs it to end. The ranking above chooses among the parses. In Lojban, for example, `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses. The `sumti-tail` of `le lojbo` ends before `se farvi`, which becomes the selbri (the main predicate). A parse with the longer `sumti-tail` `lojbo se farvi` leaves the sentence without a selbri.
 
-A language's own rule can be narrower: a terminator can be elided only if no ambiguity results. The `elision-only` check is one reading of such a rule. It examines only the parse that the ranking chose.
+A language's own rule can be narrower: a terminator can be elided only if no ambiguity results. The `elision-only` check is one reading of such a rule. The directive `%elision-only` turns it on for a stage. It examines only the parse that the ranking chose.
 
 The enabled check runs after emission for `resolved`. It also runs for `unique` if the chosen parse holds an elided node. It skips a unique parse with no elided node. Uniqueness on the original input cannot exclude another reading of the restored input.
 
-With `elision-only`, the stage restores the chosen parse's omitted terminators. An equality test saves its exact string as the restoration value. Other tests use empty value and singleton tags `{T}`. Synthetic images are empty. Omitted pattern leaves still observe empty strings, regardless of a saved equality value.
+With the check on, the stage restores the chosen parse's omitted terminators. An equality test saves its exact string as the restoration value. Other tests use empty value and singleton tags `{T}`. Synthetic images are empty. Omitted pattern leaves still observe empty strings, regardless of a saved equality value.
 
 An omission exists only when its test passes on this restoration value. Synthetic tokens are readable only by their terminator tag. Strings, ranges, and `_` never read them. A failed omission creates no marker or restoration record. Written tokens still use their own value and tags. All well-typed tests are legal, even when either route cannot succeed.
 
@@ -1567,17 +1572,17 @@ A reconstruction is a second parse with terminators restored. These are the omit
 
 Ranked choices compare spans in the reconstructed input, including restored terminators.
 
-The check retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. Failure gives an ambiguity error, never a replacement chosen parse.
+The check keeps every step of the directive but a final `greedy` or `lazy`, which it never applies. It counts occurrences over projected spans. A written-back terminator is no elision, so `elision` counts nothing in the check. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. Failure gives an ambiguity error, never a replacement chosen parse.
 
-Its rule profiles hold both parts. An occurrence with an empty projected span counts in neither part.
+An occurrence with an empty projected span counts nothing.
 
-With no flagged rule, the check requires the restored chosen parse as the only admitted reading. Recognition before filtering always keeps that parse. If a library loses it, the library has a defect and reports `elision-witness-lost` (engine §7.9). Filtering can exclude that present parse and cause ordinary ambiguity. A tie ends the stage before this check.
+With no category to compare, the check requires the restored chosen parse as the only admitted reading. Recognition before filtering always keeps that parse. If a library loses it, the library has a defect and reports `elision-witness-lost` (engine §7.9). Filtering can exclude that present parse and cause ordinary ambiguity. A tie ends the stage before this check.
 
 A grammar can also contain ambiguities unrelated to terminators. The experimental Lojban grammar is an example. A sumti is an argument of the selbri, the main predicate. A term includes sumti and other kinds of arguments. The experimental grammar gives sumti connections priority over term connections. It therefore reads `mi .e do` in `mi .e do klama` as two connected sumti.
 
-`late-elision` does not make `elision-only` redundant. Written-back terminators can let another alternative match, or let a test on a terminal match. So the check can find a second reading that the rule flags do not rank below the chosen parse.
+`late(elision)` does not make `elision-only` redundant. Written-back terminators can let another alternative match, or let a test on a terminal match. So the check can find a second reading that the steps do not rank below the chosen parse.
 
-The `lojban/experimental` and `lojban/zantufa` pipelines do not declare `elision-only`. A caller can switch `elision-only` on to require the restored chosen reading as the only best admitted reading of the written-back text. A condition can treat a written-back terminator differently from a written one. In those grammars, such a condition can produce a second reading in reconstruction. A caller can also switch it off, to loosen a grammar that declares it.
+The `lojban/experimental` and `lojban/zantufa` pipelines do not declare `%elision-only`. A caller can switch `elision-only` on to require the restored chosen reading as the only best admitted reading of the written-back text. A condition can treat a written-back terminator differently from a written one. In those grammars, such a condition can produce a second reading in reconstruction. A caller can also switch it off, to loosen a grammar that declares it.
 
 ## Layout of the bundled grammars
 
@@ -1603,7 +1608,7 @@ The diagrams draw the notation in this way:
 - `A & B & C` is the choice of the item where the subsequence begins, with every later item optional. So `A & B` is `A [B]` or `B`.
 - The guards of an alternative stand over the start of its track, such as `¬cbm?` or `y-cmavo!`. `ε` is a bare track.
 
-A diagram shows only what a rule reads. It leaves out the captures, the tag terms, the clauses and the rule's flag. A capture only names a part and changes no rule interpretation. Tags, recipes, emission, and erasure describe the parts' contributions, not which tokens the rule reads.
+A diagram shows only what a rule reads. It leaves out the captures, the tag terms and the clauses. A capture only names a part and changes no rule interpretation. Tags, recipes, emission, and erasure describe the parts' contributions, not which tokens the rule reads.
 
 A condition can reject a reading that the diagram shows. So a diagram shows what a rule reads before its conditions, and the diagram of a rule with conditions says "conditions apply" beside its name. The diagram of an `%extend-rule` shows only the alternatives that it adds. It says "conditions apply" when the extension adds conditions of its own.
 

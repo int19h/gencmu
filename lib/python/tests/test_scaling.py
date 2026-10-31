@@ -245,7 +245,7 @@ class Closures(Linear):
         # a pass over the list in order finds one new link at a time.
         def make(n: int) -> Callable[[], object]:
             chain = [(frozenset({f"T{index}"}), frozenset({f"T{index + 1}"})) for index in reversed(range(n))]
-            lowered = Lowered(None, [], [], {}, [], [], "", implications=chain)  # type: ignore[arg-type]
+            lowered = Lowered(None, [], [], {}, [], [], (), "", implications=chain)  # type: ignore[arg-type]
             start = frozenset({"T0"})
 
             def work() -> None:
@@ -264,7 +264,7 @@ class Closures(Linear):
             names = [f"r{index}" for index in range(n + 1)]
 
             def work() -> None:
-                lowered = Lowered(None, productions, names, {}, [], [], "")  # type: ignore[arg-type]
+                lowered = Lowered(None, productions, names, {}, [], [], (), "")  # type: ignore[arg-type]
                 assert reading_last(lowered)[0] == 0
 
             return work
@@ -406,7 +406,7 @@ def emitting_rule(n: int) -> dict[str, Any]:
     return {
         "name": "text",
         "op": "define",
-        "flags": [],
+        "categories": [],
         "alternatives": [{"guards": [], "expr": {"seq": [{"capture": f"c{index}", "expr": {"ref": "A"}} for index in range(n)]}}],
         "emit": {"items": items},
         "conditions": [],
@@ -470,7 +470,7 @@ class SharedClauses(Linear):
             rule = {
                 "name": "text",
                 "op": "define",
-                "flags": [],
+                "categories": [],
                 "tags": {"union": [*({"tag": f"Y{index}"} for index in range(n)), {"const": "K", "at": [2, 1]}]},
                 "alternatives": [{"guards": [], "expr": {"ref": "A"}} for _ in range(n)],
                 "conditions": [
@@ -486,7 +486,7 @@ class SharedClauses(Linear):
             dom = {
                 "format": DOM_FORMAT,
                 "rules": [rule],
-                "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
+                "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}],
                 "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
                 "classifiers": [],
                 "implications": [],
@@ -508,7 +508,7 @@ class SharedClauses(Linear):
             rule = {
                 "name": "text",
                 "op": "define",
-                "flags": [],
+                "categories": [],
                 "alternatives": [{"guards": [], "expr": expr}],
                 "conditions": [],
                 "at": [2, 1],
@@ -516,7 +516,7 @@ class SharedClauses(Linear):
             dom = {
                 "format": DOM_FORMAT,
                 "rules": [rule],
-                "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
+                "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}],
                 "constants": [],
                 "classifiers": [],
                 "implications": [],
@@ -597,7 +597,7 @@ class GuardedClauses(Linear):
         rule = {
             "name": "text",
             "op": "define",
-            "flags": [],
+            "categories": [],
             "alternatives": [{"guards": [], "expr": {"capture": f"c{index}", "expr": {"ref": "A"}}} for index in range(n)],
             "conditions": [],
             "at": [3, 1],
@@ -606,7 +606,7 @@ class GuardedClauses(Linear):
         dom = {
             "format": DOM_FORMAT,
             "rules": [rule],
-            "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
+            "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}],
             "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
             "classifiers": [],
             "implications": [],
@@ -721,7 +721,7 @@ def pipeline_dom(directives: list[dict[str, Any]], rules: int = 0) -> dict[str, 
     return {
         "format": DOM_FORMAT,
         "rules": [
-            {"name": "text", "op": "define", "flags": [], "alternatives": [], "conditions": [], "at": [line + 1, 9]}
+            {"name": "text", "op": "define", "categories": [], "alternatives": [], "conditions": [], "at": [line + 1, 9]}
             for line in range(len(directives), len(directives) + rules)
         ],
         "directives": [{**directive, "at": [line + 1, 1]} for line, directive in enumerate(directives)],

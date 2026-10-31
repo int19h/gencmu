@@ -233,14 +233,9 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	if private.elisionCheck != nil {
 		watch = private.elisionCheck(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
 	}
-	// The check ranks with no lean (§7.7).
-	var chosenProfile ruleProfile
-	flagged := false
-	for _, rule := range g.rules {
-		flagged = flagged || rule.leftmostLongest || rule.fewest
-	}
-	if flagged {
-		chosenProfile = derivationProfile(g, d)
+	steps := make([]keyStep, 0, len(g.steps))
+	for _, step := range g.steps {
+		if step.category != "elision" { steps = append(steps, step) }
 	}
 	marks, restored := walkWitness(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
 	if restored == nil {
@@ -249,15 +244,19 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	var res *rankResult
 	var rk *ranker
 	if len(top) > 0 {
-		rk = newRanker(r, "")
+		rk = newRanker(r, steps, "")
 	} else {
 		rk = newUnfilteredRanker(r, "")
 	}
 	rk.check, rk.marks = true, marks
+	var chosenProfile profile
+	if rk.profiles {
+		chosenProfile = rk.space.derivationProfile(g, d)
+	}
 	preferred := len(g.rankedHelpers) > 0
 	rawCounted := true
 	if preferred && len(top) > 0 {
-		raw := newUnfilteredRanker(r, "")
+		raw := newUnfilteredRanker(r, steps, "")
 		raw.check, raw.marks = true, marks
 		rawRes := raw.rank(top)
 		rawCounted = rawRes != nil && rawRes.witnessCounted
@@ -272,7 +271,8 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	better := false
 	var selected *rankResult
 	if res != nil {
-		profileOrder := compareProfiles(res.profile, chosenProfile)
+		chosenProfile := rk.space.derivationProfile(d)
+		profileOrder := rk.space.compare(res.profile, chosenProfile)
 		excluded := !res.witnessCounted
 		better = excluded || profileOrder < 0
 		if watch.ranked != nil && !better && !preferred {

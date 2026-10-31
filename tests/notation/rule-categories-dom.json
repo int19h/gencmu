@@ -1,0 +1,27 @@
+{
+  "description": "Definitions expose their categories in the DOM, and an extension has none (engine §2).",
+  "document": "```jbogenbau\n%rule text A\n%counts-as span\n%extend-rule text B\n%redefine-rule text C\n%counts-as span\n%redefine-rule text D\n```\n",
+  "expect": {
+    "dom": {
+      "format": 41,
+      "rules": [
+        {
+          "categories": [
+            "span"
+          ]
+        },
+        {
+          "categories": []
+        },
+        {
+          "categories": [
+            "span"
+          ]
+        },
+        {
+          "categories": []
+        }
+      ]
+    }
+  }
+}

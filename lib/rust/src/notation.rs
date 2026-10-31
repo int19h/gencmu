@@ -189,6 +189,7 @@ impl<'a> Reader<'a> {
             match rule_name(node) {
                 "rule" => item.rules.push(self.rule(node)?),
                 "directive" => item.directives.push(self.directive(node)?),
+                "ranking-directive" => item.directives.push(self.ranking_directive(node)?),
 
                 "constant-definition" => item.constants.push(self.constant(node)?),
                 "classifier" => item.classifiers.push(self.classifier(node)?),
@@ -352,10 +353,7 @@ impl<'a> Reader<'a> {
                 matches!(&args[..], [name] if crate::dom::is_classifier_name(name))
             }
             "features" => !args.is_empty() && args.iter().all(|name| feature(name)),
-            "ambiguity-resolution" => matches!(
-                args.iter().map(String::as_str).collect::<Vec<_>>().as_slice(),
-                ["greedy" | "lazy" | "late-elision"] | ["greedy" | "lazy" | "late-elision", "elision-only"]
-            ),
+            "elision-only" => args.is_empty(),
             _ => false,
         };
         if !valid {
@@ -391,30 +389,66 @@ impl<'a> Reader<'a> {
             }
             None => None,
         };
-        Ok(Directive { name: name.into(), args, conditions, at: self.at(token) })
+        Ok(Directive { name: name.into(), args, steps: None, conditions, at: self.at(token) })
     }
 
-    fn rule_flags(&self, node: &'a Node, op: Op) -> R<Vec<String>> {
-        let mut flags = Vec::new();
-        if let Some(list) = self.rules(node, "rule-flags").next() {
-            if op == Op::Extend {
-                return Err(self.error(list, "%extend-rule accepts no flags"));
-            }
-            for flag in self.some(list, "rule-flag", 1)? {
-                let name = self.value(self.token(flag)?);
-                if !matches!(name, "leftmost-longest" | "fewest") {
-                    return Err(self.error(flag, format!("unknown rule flag {name}")));
-                }
-                if flags.iter().any(|known| known == name) {
-                    return Err(self.error(flag, format!("duplicate rule flag {name}")));
-                }
-                if !flags.is_empty() {
-                    return Err(self.error(flag, "a rule accepts only one flag"));
-                }
-                flags.push(name.to_string());
-            }
+    /// `%ambiguity-resolution`: its steps, each a key step with a category
+    /// or a lean, with a lean only last (engine §9.3).
+    fn ranking_directive(&self, node: &'a Node) -> R<Directive> {
+        let token = self.token(node)?;
+        let mut steps = Vec::new();
+        for step in Self::rules(node, "ranking-step") {
+            let words: Vec<&str> = Self::tokens_of(step).map(|token| self.value(token)).collect();
+            steps.push(match words[..] {
+                [step] => crate::dom::Step { step: step.into(), category: None },
+                _ => crate::dom::Step {
+                    step: words.first().copied().unwrap_or_default().into(),
+                    category: Some(words.get(2).copied().unwrap_or_default().into()),
+                },
+            });
         }
-        Ok(flags)
+        if !crate::dom::valid_steps(&steps) {
+            return Err(self.error(
+                node,
+                "%ambiguity-resolution takes leftmost-longest, fewest, most, late or early with a category, \
+                 then optionally greedy or lazy",
+            ));
+        }
+        Ok(Directive {
+            name: "ambiguity-resolution".into(),
+            args: Vec::new(),
+            steps: Some(steps),
+            conditions: None,
+            at: self.at(token),
+        })
+    }
+
+    /// The categories of a rule's `%counts-as` clause (engine §9.3).
+    pub(crate) fn counts_as(&self, node: &'a Node, op: Op) -> R<Vec<String>> {
+        let mut categories: Vec<String> = Vec::new();
+        let Some(clause) = Self::rules(node, "counts-as-clause").next() else { return Ok(categories) };
+        if op == Op::Extend {
+            return Err(self.error(clause, "%extend-rule accepts no %counts-as clause"));
+        }
+        for category in self.some(clause, "category", 1)? {
+            let name = self.value(self.token(category)?);
+            if !crate::dom::is_category_name(name) {
+                return Err(self.error(
+                    category,
+                    "a category name starts with a lowercase letter and continues with lowercase letters, digits and hyphens",
+                ));
+            }
+            if name == "elision" {
+                return Err(
+                    self.error(category, "elision is the category of elided terminators, which no rule can count as")
+                );
+            }
+            if categories.iter().any(|known| known == name) {
+                return Err(self.error(category, format!("duplicate category {name}")));
+            }
+            categories.push(name.to_string());
+        }
+        Ok(categories)
     }
 
     fn rule(&self, node: &'a Node) -> R<RuleDef> {
@@ -474,7 +508,6 @@ impl<'a> Reader<'a> {
             "%rule" => Op::Define,
             _ => return Err(self.error(definer, "unknown rule definer")),
         };
-        let flags = self.rule_flags(node, op)?;
         if self.tokens_of(node).any(|token| self.value(token) == "=") {
             if source.params.is_some() || source.args.is_some() {
                 return Err(self.error(node, "a binding requires a plain rule name"));
@@ -485,7 +518,7 @@ impl<'a> Reader<'a> {
                 deferred_emission: None,
                 name,
                 op,
-                flags,
+                categories: Vec::new(),
                 tags: None,
                 strings: Default::default(),
                 alternatives: Vec::new(),
@@ -523,6 +556,7 @@ impl<'a> Reader<'a> {
                 conditions.push(self.implication(implication)?);
             }
         }
+        let categories = self.counts_as(node, op)?;
         let emit = match self.rules(node, "emits-clause").next() {
             Some(clause) => Some(self.emission(clause)?),
             None => None,
@@ -532,7 +566,7 @@ impl<'a> Reader<'a> {
             deferred_emission: None,
             name,
             op,
-            flags,
+            categories,
             tags,
             strings,
             alternatives,
@@ -2578,6 +2612,8 @@ const KNOWN: &[&str] = &[
     "pattern-repeat",
     "pattern-path",
     "directive",
+    "ranking-directive",
+    "ranking-step",
     "argument-word",
     "argument-string",
     "argument-tag",
@@ -2593,8 +2629,8 @@ const KNOWN: &[&str] = &[
     "constant-reference",
     "rule",
     "definer",
-    "rule-flags",
-    "rule-flag",
+    "counts-as-clause",
+    "category",
     "rule-name",
     "body",
     "alternative",

@@ -1,0 +1,10 @@
+{
+  "description": "The body precedes the categories, so a repeated capture precedes the clause on an extension (engine §9.3).",
+  "document": "```jbogenbau\n%extend-rule text $x:A$x:A %counts-as x\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 23
+    }
+  }
+}

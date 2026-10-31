@@ -62,10 +62,11 @@ The stage assembles compounds and foreign quotes into single tokens and drops th
   %include "syntax.md"
   ```
 
-The stage builds the tree of the text. An elided terminator is a closing word left unwritten. The stage ranks the parses of a text with `late-elision`, so an elided terminator falls as late as the text allows. [The notation document](../../../docs/notation.md#elided-terminators) defines this ranking.
+The stage builds the tree of the text. An elided terminator is a closing word left unwritten. The stage first prefers the reading that erases fewer words, then the one that passes fewer steps before a resumption, as [the grammar](syntax.md) explains. It then ranks the parses with `late(elision)`, so an elided terminator falls as late as the text allows. [The notation document](../../../docs/notation.md#elided-terminators) defines these steps.
 
 ```jbogenbau
-%ambiguity-resolution late-elision
+%ambiguity-resolution
+  fewest(erasure), fewest(resumption), late(elision)
 ```
 
 ## Differences from the reference grammar and the PEG

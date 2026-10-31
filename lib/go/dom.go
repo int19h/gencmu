@@ -3,11 +3,13 @@ package gencmu
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"slices"
 	"strings"
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 40
+const domFormat = 41
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what data/preparsed/gencmu.json and data/preparsed/FAMILY.json hold.
@@ -65,8 +67,8 @@ type domRule struct {
 	Instance         *domSourceCall
 	deferredEmission *definitionIssue
 	Name             string
-	Flags            []string
-	Op               string // "define", "redefine" or "extend"
+	Categories       []string // the names of its %counts-as clause (engine §2)
+	Op               string   // "define", "redefine" or "extend"
 	Tags             *domTerm
 	Value, Image     *domTerm
 	Alternatives     []*domAlt
@@ -255,10 +257,65 @@ func (it *domEmitItem) attachments() []string {
 }
 
 type domDirective struct {
-	Conditions []*domCond
-	Name       string
-	Args       []string
-	At         [2]int
+	Conditions  []*domCond
+	Name        string
+	// Args are the operands, which %ambiguity-resolution lacks: it has
+	// Steps instead (engine §9).
+	Args  []string
+	Steps []domStep
+	At    [2]int
+}
+
+// domStep is a step of %ambiguity-resolution: a key step, which compares
+// the occurrences of its category, or a lean, which has no category
+// (engine §6).
+type domStep struct {
+	Step        string
+	Category    string
+	HasCategory bool
+}
+
+// The steps of %ambiguity-resolution that take a category, and those that
+// compare actions (engine §6).
+var (
+	keySteps = map[string]bool{"leftmost-longest": true, "fewest": true, "most": true, "late": true, "early": true}
+	leans    = map[string]bool{"greedy": true, "lazy": true}
+)
+
+// categoryName is the form of a category name of a %counts-as clause
+// (engine §9.1).
+var categoryName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+
+// validSteps says whether steps is a well-formed list of ranking steps: one
+// or more, each a key step with a category or a lean, with a lean only last
+// (engine §9.3).
+func validSteps(steps []domStep) bool {
+	if len(steps) == 0 {
+		return false
+	}
+	for i, step := range steps {
+		if leans[step.Step] {
+			if i != len(steps)-1 || step.HasCategory {
+				return false
+			}
+			continue
+		}
+		if !keySteps[step.Step] || !step.HasCategory || !categoryName.MatchString(step.Category) {
+			return false
+		}
+	}
+	return true
+}
+
+// validCategories says whether categories is a well-formed list of a rule's
+// categories: distinct category names other than elision (engine §9.3).
+func validCategories(categories []string) bool {
+	for i, name := range categories {
+		if !categoryName.MatchString(name) || name == "elision" || slices.Contains(categories[:i], name) {
+			return false
+		}
+	}
+	return true
 }
 
 // ---- writing
@@ -280,14 +337,31 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 		}
 		w.raw(`{"name":`)
 		w.str(dir.Name)
-		w.raw(`,"args":[`)
-		for j, a := range dir.Args {
-			if j > 0 {
-				w.raw(",")
+		if dir.Name == "ambiguity-resolution" {
+			w.raw(`,"steps":[`)
+			for j, step := range dir.Steps {
+				if j > 0 {
+					w.raw(",")
+				}
+				w.raw(`{"step":`)
+				w.str(step.Step)
+				if step.HasCategory {
+					w.raw(`,"category":`)
+					w.str(step.Category)
+				}
+				w.raw("}")
 			}
-			w.str(a)
+			w.raw("]")
+		} else {
+			w.raw(`,"args":[`)
+			for j, a := range dir.Args {
+				if j > 0 {
+					w.raw(",")
+				}
+				w.str(a)
+			}
+			w.raw("]")
 		}
-		w.raw("]")
 		w.raw(`,"at":`)
 		w.pair(dir.At)
 		if dir.Conditions != nil {
@@ -404,12 +478,12 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 	}
 	w.raw(`,"op":`)
 	w.str(r.Op)
-	w.raw(`,"flags":[`)
-	for i, flag := range r.Flags {
+	w.raw(`,"categories":[`)
+	for i, category := range r.Categories {
 		if i > 0 {
 			w.raw(",")
 		}
-		w.str(flag)
+		w.str(category)
 	}
 	w.raw("]")
 	if r.Instance != nil {
@@ -738,7 +812,7 @@ func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domD
 		for _, directive := range templateList(templateObj(node)["directives"]) {
 			for key := range templateObj(directive) {
 				switch key {
-				case "name", "args", "conditions", "at":
+				case "name", "args", "steps", "conditions", "at":
 				default:
 					delete(templateObj(directive), key)
 				}
@@ -819,8 +893,17 @@ func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domD
 		if err != nil {
 			return nil, fmt.Errorf("a malformed directive")
 		}
-		args, err := domList(o["args"], domString)
-		if err != nil {
+		var args []string
+		var steps []domStep
+		if name == "ambiguity-resolution" {
+			// The ranking directive has steps and no operands (engine §9).
+			if _, ok := o["args"]; ok {
+				return nil, fmt.Errorf("a malformed directive")
+			}
+			if steps, err = domList(o["steps"], decodeStep); err != nil {
+				return nil, fmt.Errorf("a malformed directive")
+			}
+		} else if args, err = domList(o["args"], domString); err != nil {
 			return nil, fmt.Errorf("a malformed directive")
 		}
 		at, err := domPosition(o["at"])
@@ -834,7 +917,7 @@ func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domD
 				return nil, fmt.Errorf("malformed feature conditions: %w", err)
 			}
 		}
-		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, At: at, Conditions: conditions})
+		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, Steps: steps, At: at, Conditions: conditions})
 	}
 	if err := dc.run(); err != nil {
 		return nil, err
@@ -845,6 +928,32 @@ func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domD
 		}
 	}
 	return d, nil
+}
+
+// decodeStep reads a step of %ambiguity-resolution, an object with a
+// step and, for a key step, a category.
+func decodeStep(raw json.RawMessage) (domStep, error) {
+	o, err := decodeObj(raw)
+	if err != nil {
+		return domStep{}, err
+	}
+	var step domStep
+	for key, value := range o {
+		switch key {
+		case "step":
+			step.Step, err = decodeString(value)
+		case "category":
+			step.Category, err = decodeString(value)
+			step.HasCategory = true
+		}
+		if err != nil {
+			return domStep{}, err
+		}
+	}
+	if _, ok := o["step"]; !ok {
+		return domStep{}, fmt.Errorf("a malformed directive")
+	}
+	return step, nil
 }
 
 // decodeConst reads a constant's definition, which has exactly its name,
@@ -977,8 +1086,8 @@ func (dc *domDecoder) decodeRule(raw any) (*domRule, error) {
 	if r.Op, err = domString(o["op"]); err != nil {
 		return nil, err
 	}
-	if r.Flags, err = domList(o["flags"], domString); err != nil {
-		return nil, fmt.Errorf("a malformed rule flag list")
+	if r.Categories, err = domList(o["categories"], domString); err != nil {
+		return nil, fmt.Errorf("a malformed rule")
 	}
 	if r.At, err = domPosition(o["at"]); err != nil {
 		return nil, fmt.Errorf("a malformed rule")

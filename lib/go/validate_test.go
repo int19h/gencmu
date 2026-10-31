@@ -18,7 +18,7 @@ func TestDOMRules(t *testing.T) {
 	const good = `{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}`
 	format := `"format":` + strconv.Itoa(domFormat)
 	rule := func(fields string) string {
-		return `{` + format + `,"rules":[{"name":"text","op":"define","flags":[],` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
+		return `{` + format + `,"rules":[{"name":"text","op":"define","categories":[],` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	guarded := func(guard string) string {
 		return rule(`"alternatives":[{"guards":[` + guard + `],"expr":` + good + `}],"conditions":[]`)
@@ -297,8 +297,19 @@ func TestDOMRules(t *testing.T) {
 		{"initial has only its span", cond(`{"method":"starts-input","receiver":{"capture":"x"},"args":[],"rule":"text"}`)},
 		{"initial counts toward the nesting", cond(strings.Repeat(`{"not":`, 256) + `{"method":"starts-input","receiver":{"capture":"x"},"args":[]}` + strings.Repeat(`}`, 256))},
 		{"nesting at most 256", alt(nested(256))},
-		{"a directive has arguments", strings.Replace(alt(good), `"args":["greedy"],`, ``, 1)},
-		{"a directive has a position", strings.Replace(alt(good), `"args":["greedy"],"at":[2,1]`, `"args":["greedy"],"at":[2,1,1]`, 1)},
+		{"a ranking directive has steps", strings.Replace(alt(good), `"steps":[{"step":"greedy"}],`, ``, 1)},
+		{"a ranking directive has no operands", strings.Replace(alt(good), `"steps":[{"step":"greedy"}],`, `"args":["greedy"],`, 1)},
+		{"a lean stands only last", strings.Replace(alt(good), `"steps":[{"step":"greedy"}]`, `"steps":[{"step":"greedy"},{"step":"fewest","category":"x"}]`, 1)},
+		{"a key step has a category", strings.Replace(alt(good), `"steps":[{"step":"greedy"}]`, `"steps":[{"step":"fewest"}]`, 1)},
+		{"a lean has no category", strings.Replace(alt(good), `"steps":[{"step":"greedy"}]`, `"steps":[{"step":"greedy","category":"x"}]`, 1)},
+		{"a step is known", strings.Replace(alt(good), `"steps":[{"step":"greedy"}]`, `"steps":[{"step":"late-elision"}]`, 1)},
+		{"elision-only takes no operand", directive(`{"name":"elision-only","args":["on"],"at":[3,1]}`)},
+		// A rule's categories (engine §2, §9.3).
+		{"no rule counts as elision", strings.Replace(alt(good), `"categories":[]`, `"categories":["elision"]`, 1)},
+		{"a rule names each category once", strings.Replace(alt(good), `"categories":[]`, `"categories":["x","x"]`, 1)},
+		{"a category name is lower case", strings.Replace(alt(good), `"categories":[]`, `"categories":["X"]`, 1)},
+		{"a rule has a list of categories", strings.Replace(alt(good), `"categories":[]`, `"categories":"x"`, 1)},
+		{"a directive has a position", strings.Replace(alt(good), `"steps":[{"step":"greedy"}],"at":[2,1]`, `"steps":[{"step":"greedy"}],"at":[2,1,1]`, 1)},
 		// The pipeline directives' operands (engine §9).
 		{"a stage has a name", directive(`{"name":"stage","args":[],"at":[3,1]}`)},
 		{"a stage has one name", directive(`{"name":"stage","args":["a","b"],"at":[3,1]}`)},
@@ -395,6 +406,10 @@ func TestDOMRules(t *testing.T) {
 		directive(`{"name":"stage","args":["a-1"],"at":[3,1]}`), directive(`{"name":"include","args":["../a b\\\"c.md"],"at":[3,1]}`),
 		directive(`{"name":"features","args":["a","b-c"],"at":[3,1]}`),
 		directive(`{"name":"features","args":["f","g"],"at":[3,1]}`),
+		directive(`{"name":"elision-only","args":[],"at":[3,1]}`),
+		// Every key step, a final lean, and a rule's categories (engine §6).
+		strings.Replace(alt(good), `"steps":[{"step":"greedy"}]`, `"steps":[{"step":"leftmost-longest","category":"x"},{"step":"fewest","category":"y-2"},{"step":"most","category":"x"},{"step":"late","category":"elision"},{"step":"early","category":"z"},{"step":"lazy"}]`, 1),
+		strings.Replace(alt(good), `"categories":[]`, `"categories":["x","y-2"]`, 1),
 		// Braces, chains, marked optionals, and captures anywhere but in
 		// braces or an elidable optional, of any number (engine §3.5, §9).
 		alt(`{"repeat":{"literal":{"string":"a"}}}`), alt(`{"repeat":{"literal":{"string":"a"}},"separator":{"literal":{"string":"b"}}}`), alt(`{"optional":{"repeat":{"literal":{"string":"a"}}}}`),
@@ -605,7 +620,7 @@ func TestBootstrapMalformedClassifier(t *testing.T) {
 func TestBootstrapMisplacedClassifier(t *testing.T) {
 	t.Parallel()
 	rule := func(condition string) string {
-		return `{"name":"misplaced-classifier","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"conditions":[` + condition + `],"at":[9999,1]}`
+		return `{"name":"misplaced-classifier","op":"define","categories":[],"alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"conditions":[` + condition + `],"at":[9999,1]}`
 	}
 	if err := bootstrapError(t, "rules", rule(`{"op":"∈","left":{"string":"a"},"right":{"method":"split","receiver":{"string":"a.b"},"args":[{"string":"."}]}}`)); err != nil {
 		t.Fatalf("a well-formed rule: %v", err)
@@ -629,7 +644,7 @@ func TestDeepConstant(t *testing.T) {
 	k := `{"name":"K","op":"define","value":` + deep + `,"at":[9999,1]}`
 	src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 	src = map[string]string{"grammars/test/p.md": src["p.md"], "grammars/test/g.md": src["g.md"]}
-	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[` + k + `],"classifiers":[],"implications":[]}`
+	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","categories":[],"alternatives":[{"guards":[],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[3,1]}],"constants":[` + k + `],"classifiers":[],"implications":[]}`
 	if _, err := decodeDOM(json.RawMessage(dom), bundled.uni); err == nil || !strings.Contains(err.Error(), "nested more than 256 deep") {
 		t.Fatalf("a deep constant: expected the nesting error, got %v", err)
 	}
@@ -735,14 +750,14 @@ func TestGuardFeatureName(t *testing.T) {
 		return `{"name":"lex","entries":[{"guards":[` + guard + `],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[` + at + `,3]}],"at":[` + at + `,1]}`
 	}
 	rule := func(guard, name string, line int) string {
-		return `{"name":"` + name + `","op":"define","flags":[],"alternatives":[{"guards":[` + guard + `],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[` + strconv.Itoa(line) + `,1]}`
+		return `{"name":"` + name + `","op":"define","categories":[],"alternatives":[{"guards":[` + guard + `],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[` + strconv.Itoa(line) + `,1]}`
 	}
 	// features is the pipeline's features, each as name:kind, when its
 	// data/preparsed/test.json holds a DOM of the document with rules and classifiers.
 	features := func(rules, classifiers string) []string {
 		src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 		src = map[string]string{"grammars/test/p.md": src["p.md"], "grammars/test/g.md": src["g.md"]}
-		dom := `{` + format + `,"rules":[` + rules + `],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[],"classifiers":[` + classifiers + `],"implications":[]}`
+		dom := `{` + format + `,"rules":[` + rules + `],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[3,1]}],"constants":[],"classifiers":[` + classifiers + `],"implications":[]}`
 		src["data/preparsed/test.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/g.md":{"hash":"` + fnv1a64(src["grammars/test/g.md"]) + `","dom":` + dom + `}}}`
 		d, err := LoadPipelineSources(src, "grammars/test/p.md")
 		if err != nil {
@@ -810,7 +825,7 @@ func TestMixedForms(t *testing.T) {
 		if emit != "" {
 			emit = `,"emit":` + emit
 		}
-		return `{"name":"` + name + `","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + expr + `}]` + emit + `,"conditions":[` + condition + `],"at":[` + strconv.Itoa(line) + `,1]}`
+		return `{"name":"` + name + `","op":"define","categories":[],"alternatives":[{"guards":[],"expr":` + expr + `}]` + emit + `,"conditions":[` + condition + `],"at":[` + strconv.Itoa(line) + `,1]}`
 	}
 	seq := func(first, second string) string { return `{"seq":[` + first + `,` + second + `]}` }
 	parse := func(dom string) bool {
@@ -829,7 +844,7 @@ func TestMixedForms(t *testing.T) {
 		return err == nil && res.OK
 	}
 	document := func(expr, condition, emit string) string {
-		return `{` + format + `,"rules":[` + rule("text", expr, condition, emit, 4) + `],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[],"classifiers":[],"implications":[]}`
+		return `{` + format + `,"rules":[` + rule("text", expr, condition, emit, 4) + `],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[3,1]}],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	if !parse("") {
 		t.Fatal("the document does not accept the text")
@@ -893,7 +908,7 @@ func TestMixedForms(t *testing.T) {
 func TestBootstrapGuardMembers(t *testing.T) {
 	t.Parallel()
 	rule := func(guard string) string {
-		return `{"name":"guarded-rule","op":"define","flags":[],"alternatives":[{"guards":[` + guard + `],"expr":{"ref":"A"}}],"conditions":[],"at":[9999,1]}`
+		return `{"name":"guarded-rule","op":"define","categories":[],"alternatives":[{"guards":[` + guard + `],"expr":{"ref":"A"}}],"conditions":[],"at":[9999,1]}`
 	}
 	if err := bootstrapError(t, "rules", rule(`{"feature":"f","kind":"gate","negated":false}`)); err != nil {
 		t.Fatalf("a well-formed guard: %v", err)

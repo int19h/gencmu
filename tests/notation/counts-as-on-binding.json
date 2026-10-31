@@ -1,0 +1,10 @@
+{
+  "description": "A binding accepts no %counts-as clause, which fails the syntax stage (engine §9.3).",
+  "document": "```jbogenbau\n%rule use(@X) @X\n%rule text = use(\"a\") %counts-as x\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 23
+    }
+  }
+}

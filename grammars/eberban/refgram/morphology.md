@@ -25,7 +25,8 @@ The text is a sequence of items. An item is a space, a bracket, a digit, a hesit
 The numbers chapter says that a `-` before or after a digit is a hyphen that is not allowed there. The PEG reads such a hyphen with the digit and warns. So the hyphens that touch a digit, alone or in a row, belong to the digit. Only another hyphen joins a run, and `run-hyphen` reads it.
 
 ```jbogenbau
-%ambiguity-resolution lazy
+%ambiguity-resolution
+  leftmost-longest(word), lazy
 
 %rule text
   [{item}]
@@ -94,7 +95,7 @@ The numbers chapter says that a `-` before or after a digit is a hyphen that is 
 
 The morphology chapter says that a bracket is a space outside the syntax of foreign quotes. Most brackets pass to the words stage, which reads the quotes. But a borrowing, a freeform variable and a spelling quote can hold spaces inside one token. Such a space is a gap: a run of spaces, brackets and hesitations. A gap counts as one space in the value of the token.
 
-The rules `borrowing`, `freeform-variable` and `spelling-quote` carry the flag `leftmost-longest`. Where such a token can start, the parse that reads it wins. A parse that reads its first letters as junk or as a plain word loses. A parse where the token cannot form, as where its gap meets a closing bracket, keeps the other reading.
+The rules `borrowing`, `freeform-variable` and `spelling-quote` count as words, and the step `leftmost-longest(word)` ranks them. Where such a token can start, the parse that reads it wins. A parse that reads its first letters as junk or as a plain word loses. A parse where the token cannot form, as where its gap meets a closing bracket, keeps the other reading.
 
 The words stage reads a foreign quote from `co`, any spaces, hesitations and `]`, an optional delimiter, and a `[`. The rule `quote-start` reads the same shape up to that `[`. Its `n` is a hesitation only between spaces and closing brackets. Such a `[` opens a quote, so it is no space, and `free-open` refuses it. So `co ce[ba cei]ce` stays a quote with the delimiter `ce`, and no spelling quote takes its `[`.
 
@@ -602,13 +603,17 @@ A cluster before more vowels has its syllable boundary before it or inside it. A
 The PEG warns about a hyphen before or after the prefix, and about content that starts with the prefix letter after a hyphen. A hyphen after a cluster at the start of the content also warns. Each carries `hyphen-misplaced` here. The token's value is the prefix letter and the content, without the gap.
 
 ```jbogenbau
-%rule(leftmost-longest) borrowing
+%rule borrowing
   [misplaced-hyphen] Letter="u" prefix-gap $c:content [misplaced-hyphen] space-after :: Word ∪ Borrowing := "u" ++ $c.value
+%counts-as
+  word
 %emits
   $
 
-%rule(leftmost-longest) freeform-variable
+%rule freeform-variable
   [misplaced-hyphen] Letter="i" prefix-gap $c:content [misplaced-hyphen] space-after :: Word ∪ Freeform := "i" ++ $c.value
+%counts-as
+  word
 %emits
   $
 
@@ -724,9 +729,11 @@ The [quotes chapter](https://eberban.github.io/eberban/grammar/quotes.html) spel
 The quote is a word that starts with `c`, so a run of words can hold it, as in `mice bu cei`. A hyphen before `cei` carries `hyphen-misplaced`, as at the start of any word. A `ce` particle that no `cei` closes is an ordinary word. The syntax stage has no use for it, so such a text fails there.
 
 ```jbogenbau
-%rule(leftmost-longest) spelling-quote
+%rule spelling-quote
   ce-particle [misplaced-hyphen] units [gap] [misplaced-hyphen] cei-particle [misplaced-hyphen]
     :: Word ∪ Particle ∪ CE ∪ Quote :- $.source-text
+%counts-as
+  word
 %emits
   $
 

@@ -68,7 +68,7 @@ func keeps(res *rankResult, rk *ranker, w *dn) bool {
 
 func lostCase(t *testing.T) (*Pipeline, *engineCase) {
 	c := &engineCase{
-		Documents: map[string]string{"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n" +
+		Documents: map[string]string{"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late(elision)\n%elision-only\n" +
 			"%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ :: X\n%rule b A [+T=\"ta\"] [+U] [+U]\n" +
 			"%stage later\n%ambiguity-resolution greedy\n%rule text X\n```\n"},
 		PipelineDocument: "p.md",

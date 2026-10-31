@@ -1160,7 +1160,7 @@ mod ranked_location_tests {
         let bundled = Context::bundled().unwrap();
         let pipeline = "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n";
         let grammar =
-            "```jbogenbau\n%ambiguity-resolution late-elision\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y\n```\n";
+            "```jbogenbau\n%ambiguity-resolution late(elision)\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y\n```\n";
         let sources = MapSources { map: [("p.md".into(), pipeline.into()), ("g.md".into(), grammar.into())].into() };
         let mut preparsed = Preparsed::default();
         for (path, text) in &sources.map {
@@ -1319,6 +1319,15 @@ mod notation_cache_tests {
     fn value_notation(aliases: &[Json]) -> String {
         let mut bootstrap = json::parse(super::bundled("data/preparsed/gencmu.json").unwrap()).unwrap();
         let document = field(field(&mut bootstrap, "documents"), "grammars/gencmu/jbogenbau/lexical.md");
+        // The aliases count as `alias`, which a first step prefers.
+        let directive = array(field(field(document, "dom"), "directives"))
+            .iter_mut()
+            .find(|directive| directive.get("name").and_then(Json::as_str) == Some("ambiguity-resolution"))
+            .unwrap();
+        array(field(directive, "steps")).insert(
+            0,
+            object([("step", Json::Str("leftmost-longest".into())), ("category", Json::Str("alias".into()))]),
+        );
         let rules = array(field(field(document, "dom"), "rules"));
         for (index, alias) in aliases.iter().enumerate() {
             let name = format!("value-alias-{index}");
@@ -1356,7 +1365,7 @@ mod notation_cache_tests {
             rules.push(object([
                 ("name", Json::Str(name)),
                 ("op", Json::Str("define".into())),
-                ("flags", Json::Arr(vec![Json::Str("leftmost-longest".into())])),
+                ("categories", Json::Arr(vec![Json::Str("alias".into())])),
                 ("at", Json::Arr(vec![Json::Int(100000 + index as i64), Json::Int(1)])),
                 ("conditions", Json::Arr(vec![])),
                 ("alternatives", Json::Arr(vec![object([("guards", Json::Arr(vec![])), ("expr", expression)])])),

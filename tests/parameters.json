@@ -646,8 +646,8 @@
     }
   },
   {
-    "name": "binding flags",
-    "grammar": "%rule use(@X) @X\n%rule(fewest) text = use(\"a\")",
+    "name": "binding categories",
+    "grammar": "%rule use(@X) @X\n%rule text = use(\"a\")\n%counts-as few",
     "input": "",
     "expect": {
       "error": "grammar"

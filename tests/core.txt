@@ -6595,7 +6595,6 @@ eberban.morphology.a-glan
 eberban.morphology.a-bdan
 eberban.morphology.a-pban
 eberban.morphology.a-scan
-eberban.morphology.a-qat
 eberban.morphology.a-mih
 eberban.morphology.a-hmi
 eberban.morphology.a-miha
@@ -6613,7 +6612,6 @@ eberban.morphology.a-pakstra
 eberban.morphology.a-mibjan
 eberban.morphology.a-mianse-bjan
 eberban.morphology.a-donanu
-eberban.morphology.a-mian.32
 eberban.morphology.ahu-mi
 eberban.numbers.tu-ta
 eberban.numbers.tei-ti-tu

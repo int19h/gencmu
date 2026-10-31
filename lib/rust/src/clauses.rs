@@ -2402,7 +2402,7 @@ mod tests {
                 deferred_emission: None,
                 name: "r".into(),
                 op: Op::Define,
-                flags: Vec::new(),
+                categories: Vec::new(),
                 tags: Some(tags),
                 alternatives: vec![Alternative {
                     strings: Default::default(),

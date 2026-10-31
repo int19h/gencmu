@@ -55,7 +55,7 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem { return checkDOMMode(d,
 func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 	d.unresolved = false
 	for _, dir := range d.Directives {
-		if dir == nil || dir.Args == nil || !directiveOperandsOK(dir) {
+		if dir == nil || !directiveOperandsOK(dir) {
 			return &domProblem{message: "a malformed directive"}
 		}
 		if dir.Conditions != nil {
@@ -159,7 +159,7 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			return &domProblem{message: "a malformed rule"}
 		}
 		inspections = append(inspections, inspection{r.At, func() *domProblem {
-			if !(isRuleName(r.Name, uni) || expanded && strings.Contains(r.Name, "(") && strings.HasSuffix(r.Name, ")")) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || r.Instance == nil && len(r.Alternatives) == 0 {
+			if !validCategories(r.Categories) || r.Op == "extend" && len(r.Categories) > 0 || !(isRuleName(r.Name, uni) || expanded && strings.Contains(r.Name, "(") && strings.HasSuffix(r.Name, ")")) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || r.Instance == nil && len(r.Alternatives) == 0 {
 				return &domProblem{message: "a malformed rule"}
 			}
 			if len(r.Flags) > 1 || (len(r.Flags) == 1 && ((r.Flags[0] != "leftmost-longest" && r.Flags[0] != "fewest") || r.Op == "extend")) {
@@ -382,11 +382,18 @@ func implicationSideFault(side *domTerm, ct constTypes) *typeFault {
 	return nil
 }
 
-// directiveOperandsOK checks all seven directive names and the operands
-// that the notation's syntax allows the pipeline
-// directives (engine §9): stage selectors take one name, %include one string and
-// %features one or more names.
+// directiveOperandsOK checks a directive's name, one of the notation's
+// directives, and the operands the notation's syntax allows (engine §9):
+// stage selectors take one name, %include one string, %features one or more
+// names and %elision-only none. %ambiguity-resolution has well-formed steps
+// in place of operands.
 func directiveOperandsOK(dir *domDirective) bool {
+	if dir.Name == "ambiguity-resolution" {
+		return dir.Args == nil && validSteps(dir.Steps)
+	}
+	if dir.Args == nil || dir.Steps != nil {
+		return false
+	}
 	switch dir.Name {
 	case "stage", "extend-stage", "redefine-stage":
 		return len(dir.Args) == 1 && classifierName.MatchString(dir.Args[0])
@@ -401,8 +408,8 @@ func directiveOperandsOK(dir *domDirective) bool {
 				return false
 			}
 		}
-	case "ambiguity-resolution":
-		return len(dir.Args) >= 1 && len(dir.Args) <= 2 && isRankingRule(dir.Args[0]) && (len(dir.Args) == 1 || dir.Args[1] == "elision-only")
+	case "elision-only":
+		return len(dir.Args) == 0
 	default:
 		return false
 	}

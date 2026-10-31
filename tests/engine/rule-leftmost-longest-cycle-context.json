@@ -1,6 +1,6 @@
 {
   "description": "Profiles retain cycle contexts and count every original derivation before ranking (engine §4, §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text b | a\n%rule (leftmost-longest) a b\n%rule b a | \"a\"",
+  "grammar": "%ambiguity-resolution leftmost-longest(span), late(elision)\n%rule text b | a\n%rule a b\n%counts-as span\n%rule b a | \"a\"",
   "input": "a",
   "expect": {
     "result": {
