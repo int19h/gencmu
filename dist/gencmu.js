@@ -9618,7 +9618,19 @@
           const delimiter = /** @type {{string:string}} */ (this.evaluateClosed(path,part.args[0],at));
           if (delimiter.string === "") throw this.faultError(path,part.args[0],at,"split has an empty delimiter");
         }
-        for (const child of Object.values(part)) if (child && typeof child === "object") parts.push(child);
+        // A stack visits semantic operands in written order, regardless of member order.
+        const expressions = expressionChildren(part);
+        const children = Array.isArray(part) ? part
+          : part.alternatives ? [part.tags, part.value, part.image, part.alternatives, part.conditions, part.emit]
+          : part.expr ? [part.expr, part.requirements, part.tags, part.value, part.image]
+          : part.literal ? [part.literal]
+          : part.range ? part.range
+          : expressions.length ? expressions
+          : clauseChildren(part);
+        for (let index = children.length - 1; index >= 0; index--) {
+          const child = children[index];
+          if (child && typeof child === "object") parts.push(child);
+        }
       }
     }
 

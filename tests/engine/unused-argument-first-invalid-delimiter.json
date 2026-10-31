@@ -1,0 +1,13 @@
+{
+  "description": "Value inspection of an unused argument reports the first invalid delimiter.",
+  "grammar": "%const $E \"\"\n%const $F \"\"\n%rule f(@X) \"a\"\n%rule text f(\"a\".split($E) ∪ \"b\".split($F))",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 6,
+      "column": 24
+    }
+  }
+}
