@@ -1371,7 +1371,7 @@ Each structural machine reuses one seal state. Completing another ranked option 
 
 A node test evaluates its atom and attached child list together at the current node. Unless `exact:true` is present, it propagates that complete local answer through a sole child. A bare child list follows the same rule without an atom. Each child pattern computes its own complete answer, with its own exact prefix.
 
-A bare child list uses the ordinary node form with `any:true` and its `children` array. Internal empty patterns use this same form.
+A bare child list uses the ordinary node form with `any:true` and its `children` array. Internal empty patterns use this same form. A native child list uses one sequence wrapper, including a list with one sibling gap.
 
 Descendant paths combine local and child answers. First and last paths use only their respective child. Set operations combine complete predicate answers on one candidate. Difference complements the completed deterministic answer, never incomplete evidence or another unary layer.
 
@@ -1805,7 +1805,7 @@ A candidate must pass its tests and ready conditions in the requested recognitio
 
 The summaries compose over admitted edges. Their totals count admitted derivations, capped at two, before rule-profile selection. Rank by rule profile, its span vector first and its fewest count second, then by the stage directive. With no flagged rule, the stage directive alone ranks admitted derivations.
 
-Candidate construction visits only edges that admission and profile selection retain. Profile summaries run for flagged rules under every stage directive. Under late-elision, they also compare elision vectors. Admission needs existence counts. The separate ranking pass supplies witness membership where reconstruction requires it.
+Candidate construction visits only edges that admission and profile selection retain. Profile summaries run for flagged rules under every stage directive. Their internal names and failure messages identify profile summaries. Under late-elision, they also compare elision vectors. Admission needs existence counts. The separate ranking pass supplies witness membership where reconstruction requires it.
 
 Under late-elision, a least count of two agrees exactly with a second tied derivation. A disagreement is a library defect. Admission records each group that retains a lower proof beside a qualified higher proof at most once per ranking. Recording that fact takes constant expected time per group.
 

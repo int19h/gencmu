@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 
-from . import _testing
 
 Dom = dict[str, Any]
 

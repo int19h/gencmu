@@ -50,7 +50,7 @@ fn exact(j: &Json, keys: &[&str]) -> bool {
 /// Convert patterns and child expressions without a recursive call stack.
 impl Pattern {
     pub(crate) fn empty() -> Self {
-        let all = Self::Node(Box::new(Self::Any), false, Some(Children::Siblings));
+        let all = Self::Node(Box::new(Self::Any), false, Some(Children::Sequence(vec![Children::Siblings])));
         Self::Difference(Box::new(all.clone()), Box::new(all))
     }
 

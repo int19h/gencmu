@@ -62,9 +62,9 @@ type production struct {
 	ruleName          string   // the rule the author wrote (for a helper, the one it serves)
 	doc               string
 	at                [2]int
-	// warnings are the features of its alternative's warnings that are on,
-	// in the order written, each giving a warning for a node of the chosen
-	// tree built by the production (§12); a helper has none.
+	// warnings holds every written warning name of the alternative, in
+	// written order. Output selects enabled names for the chosen tree (§12).
+	// A helper has none.
 	warnings []string
 }
 

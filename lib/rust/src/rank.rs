@@ -716,7 +716,7 @@ impl Summary {
 }
 
 /// Profile summaries, with elision vectors when the directive requires them.
-struct Elisions {
+struct ProfileSummaries {
     count_elisions: bool,
     vectors: Vectors,
     summaries: FxMap<Key, Summary>,
@@ -756,7 +756,7 @@ pub(crate) struct Ranker<'c> {
     fsets: Vec<Vec<u32>>,
     fset_index: FxMap<Vec<u32>, u32>,
     /// Rule-profile summaries and optional elision vectors.
-    elisions: Option<Elisions>,
+    profile_summaries: Option<ProfileSummaries>,
     /// The runtime witness marks of W(D) (tests/README.md). With them, each
     /// count also says whether it includes a derivation made of marked links
     /// only. Every elision-only check supplies these marks, including without a test hook.
@@ -1151,7 +1151,7 @@ impl<'c> Ranker<'c> {
             results: Vec::new(),
             fsets: vec![Vec::new()],
             fset_index: FxMap::default(),
-            elisions: (late || g.rules.iter().any(|rule| rule.leftmost_longest || rule.fewest)).then(|| Elisions {
+            profile_summaries: (late || g.rules.iter().any(|rule| rule.leftmost_longest || rule.fewest)).then(|| ProfileSummaries {
                 count_elisions: late,
                 vectors: Vectors::new(),
                 summaries: FxMap::default(),
@@ -1521,7 +1521,7 @@ impl<'c> Ranker<'c> {
                 }
                 Pass::Summaries => {
                     let summary = self.summarize(key, &deps);
-                    self.elisions.as_mut().expect("late-elision").summaries.insert(key, summary);
+                    self.profile_summaries.as_mut().expect("profile summary").summaries.insert(key, summary);
                 }
                 Pass::Entries => {
                     let result = self.compute(key, deps);
@@ -1536,7 +1536,7 @@ impl<'c> Ranker<'c> {
     fn done(&self, pass: Pass, key: &Key) -> bool {
         match pass {
             Pass::Admission => self.admission.as_ref().is_some_and(|a| a.counts.contains_key(key)),
-            Pass::Summaries => self.elisions.as_ref().is_some_and(|elisions| elisions.summaries.contains_key(key)),
+            Pass::Summaries => self.profile_summaries.as_ref().is_some_and(|profile_summaries| profile_summaries.summaries.contains_key(key)),
             Pass::Entries => self.memo.contains_key(key),
         }
     }
@@ -1556,8 +1556,8 @@ impl<'c> Ranker<'c> {
             }
             return keys;
         }
-        let summary = match (pass, &self.elisions) {
-            (Pass::Entries, Some(elisions)) => &elisions.summaries[key],
+        let summary = match (pass, &self.profile_summaries) {
+            (Pass::Entries, Some(profile_summaries)) => &profile_summaries.summaries[key],
             _ => return Self::keys(deps),
         };
         match deps {
@@ -1592,15 +1592,15 @@ impl<'c> Ranker<'c> {
                 // The helper of an elidable optional that derives ε elides
                 // its terminator where it is empty.
                 let elides = production.syms.is_empty() && g.rules[production.rule as usize].elided.is_some();
-                let elisions = self.elisions.as_mut().expect("late-elision");
-                let body = &elisions.summaries[inner].all;
+                let profile_summaries = self.profile_summaries.as_mut().expect("profile summary");
+                let body = &profile_summaries.summaries[inner].all;
                 if body.total == 0 {
                     return plain(Least::NONE);
                 }
                 let (least, total, vector) = (body.least, body.total, body.vector);
-                let vector = if elides && elisions.count_elisions {
-                    let one = elisions.vectors.one(set);
-                    elisions.vectors.join(vector, one)
+                let vector = if elides && profile_summaries.count_elisions {
+                    let one = profile_summaries.vectors.one(set);
+                    profile_summaries.vectors.join(vector, one)
                 } else {
                     vector
                 };
@@ -1618,31 +1618,31 @@ impl<'c> Ranker<'c> {
                 plain(Least { vector, profile, least, total, kept: vec![0] })
             }
             Deps::Links(links) => {
-                let elisions = self.elisions.as_mut().expect("late-elision");
+                let profile_summaries = self.profile_summaries.as_mut().expect("profile summary");
                 let mut all = Least::NONE;
                 for (index, &(pred, child)) in (0..).zip(links) {
-                    let left = &elisions.summaries[&pred].all;
-                    let right = &elisions.summaries[&child].all;
+                    let left = &profile_summaries.summaries[&pred].all;
+                    let right = &profile_summaries.summaries[&child].all;
                     if left.total == 0 || right.total == 0 {
                         continue;
                     }
                     let (vector_left, vector_right) = (left.vector, right.vector);
                     let least = left.least.saturating_mul(right.least).min(2);
                     let total = left.total.saturating_mul(right.total).min(2);
-                    let vector = elisions.vectors.join(vector_left, vector_right);
+                    let vector = profile_summaries.vectors.join(vector_left, vector_right);
                     let profile = sum_profiles(&left.profile, &right.profile);
                     let edge = Least { vector, profile, least, total, kept: Vec::new() };
                     if masks.as_ref().map_or(true, |m| m[index as usize]) {
-                        all.add(&elisions.vectors, index, &edge);
+                        all.add(&profile_summaries.vectors, index, &edge);
                     }
                 }
                 Summary { all }
             }
             Deps::Group(members) => {
-                let elisions = self.elisions.as_ref().expect("late-elision");
+                let profile_summaries = self.profile_summaries.as_ref().expect("profile summary");
                 let mut all = Least::NONE;
                 for (index, member) in (0..).zip(members) {
-                    all.add(&elisions.vectors, index, &elisions.summaries[member].all);
+                    all.add(&profile_summaries.vectors, index, &profile_summaries.summaries[member].all);
                 }
                 plain(all)
             }
@@ -1654,7 +1654,7 @@ impl<'c> Ranker<'c> {
     /// Without summaries, admission alone selects the edges.
     fn kept(&self, key: &Key) -> Option<Vec<u32>> {
         let masks = self.admission.as_ref().and_then(|a| a.masks.get(key));
-        if let Some(summary) = self.elisions.as_ref().map(|e| &e.summaries[key]) {
+        if let Some(summary) = self.profile_summaries.as_ref().map(|e| &e.summaries[key]) {
             Some(summary.all.kept.iter().copied().filter(|i| masks.map_or(true, |m| m[*i as usize])).collect())
         } else {
             masks.map(|m| m.iter().enumerate().filter_map(|(i, yes)| yes.then_some(i as u32)).collect())
@@ -1811,9 +1811,9 @@ impl<'c> Ranker<'c> {
         }
         // Profile summaries count total and best derivations before the
         // entries pass reads the selected forest.
-        let counts = if self.elisions.is_some() {
+        let counts = if self.profile_summaries.is_some() {
             self.traverse(root, Pass::Summaries);
-            let root = &self.elisions.as_ref().expect("late-elision").summaries[&root].all;
+            let root = &self.profile_summaries.as_ref().expect("profile summary").summaries[&root].all;
             Some((root.total, root.least))
         } else {
             None
@@ -1826,16 +1826,16 @@ impl<'c> Ranker<'c> {
         }
         let result = result.clone();
         let witness_counted = self.marks.map(|_| {
-            if self.elisions.is_none() {
+            if self.profile_summaries.is_none() {
                 return result.w;
             }
             // The witness hook counts recognition before profile filtering.
-            let summaries = self.elisions.take();
+            let summaries = self.profile_summaries.take();
             let memo = std::mem::take(&mut self.memo);
             let results = std::mem::take(&mut self.results);
             self.traverse(root, Pass::Entries);
             let counted = self.results[self.memo[&root] as usize].w;
-            self.elisions = summaries;
+            self.profile_summaries = summaries;
             self.memo = memo;
             self.results = results;
             counted
@@ -1911,7 +1911,7 @@ impl<'c> Ranker<'c> {
             },
         });
         let profile = self
-            .elisions
+            .profile_summaries
             .as_ref()
             .map_or_else(|| Profile::ZERO, |summaries| summaries.summaries[&root].all.profile.clone());
         Some(Ranking { verdict, first: chosen, second, witness, witness_counted, profile })

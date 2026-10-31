@@ -497,7 +497,7 @@ class Ranker(Summaries):
         forest: Forest,
         lean: str,
         entries: bool = True,
-        best: Elisions | None = None,
+        best: ProfileSummaries | None = None,
     ) -> None:
         super().__init__(forest)
         self.lean = lean
@@ -973,7 +973,7 @@ class Least:
 NO_EDGES: frozenset[int] = frozenset()
 
 
-class Elisions(Summaries):
+class ProfileSummaries(Summaries):
     """Filter a forest by rule profiles and optional elision vectors.
 
     Summaries add the scores of children in their own contexts.
@@ -1161,7 +1161,7 @@ def rank_original(forest: Forest, lean: str, marks=None, check=False, admission=
     if not forest.roots:
         return None
     if lean == "late-elision" or any(production.leftmost_longest or production.fewest for production in forest.lowered.productions):
-        ranker = Elisions(forest, lean)
+        ranker = ProfileSummaries(forest, lean)
     else:
         ranker = Ranker(forest, lean)
     ranker.marks, ranker.check = marks, check

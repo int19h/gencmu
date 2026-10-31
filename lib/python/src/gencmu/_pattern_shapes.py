@@ -27,16 +27,6 @@ def _string_term(node):
     return False
 
 
-def pattern_item_parts(node):
-    if "sequence" in node:
-        return node["sequence"]
-    if "child" in node:
-        return [node["child"]]
-    if "choice" in node:
-        return [item for arm in node["choice"] for item in arm]
-    return node.get("optional", node.get("repeat", [])) + node.get("separator", [])
-
-
 def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=0, defer_depth=False, defer_groups=False):
     def rule_name(value):
         return isinstance(value, str) and (name(value) if name else bool(_RULE.fullmatch(value)) or len(value) == 1 and ord(value) > 127)

@@ -4376,30 +4376,6 @@
   // This walk keeps pattern and item positions distinct before substitution.
 
   /**
-   * @internal
-   * @param {any} node
-   * @returns {any[]}
-   */
-  function layeredPatternParts(node) {
-    if (node.union || node.intersection || node.difference) return node.union ?? node.intersection ?? node.difference;
-    if (node.path) return [node.pattern];
-    if (node.test) return [node.expr];
-    return node.children ?? [];
-  }
-
-  /**
-   * @internal
-   * @param {any} node
-   * @returns {any[]}
-   */
-  function patternItemParts(node) {
-    if (node.sequence) return node.sequence;
-    if (node.child) return [node.child];
-    if (node.choice) return node.choice.flat();
-    return [...(node.optional ?? node.repeat ?? []), ...(node.separator ?? [])];
-  }
-
-  /**
    * @param {any} root
    * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
    * @returns {string|null}
@@ -10456,9 +10432,6 @@
       }
       if ("capture" in expr) {
         const inner = this.expand(expr.expr, where);
-        if (inner.length !== 1 || inner[0].length !== 1) {
-          throw loweringError(where.alternative.at, `a capture in ${where.rule.name} must wrap one symbol`);
-        }
         return [[{ symbol: inner[0][0].symbol, capture: expr.capture }]];
       }
       throw loweringError(where.alternative.at, `an unknown expression in ${where.rule.name}`);
@@ -16117,7 +16090,7 @@
      */
     summaryAt(item, key) {
       const found = key === "" ? this.summaries.plain.get(item) : this.summaries.contextual.get(item)?.get(key);
-      if (found === undefined) throw new Error(`no elision summary for an item in context ${JSON.stringify(key)}`);
+      if (found === undefined) throw new Error(`no profile summary for an item in context ${JSON.stringify(key)}`);
       return found;
     }
 

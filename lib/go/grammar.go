@@ -41,9 +41,9 @@ type stageGrammar struct {
 	// impliedBy indexes the implications by each tag of their if side.
 	impliedBy map[string][]int
 	// guarded are the features that guard an alternative or an entry of a
-	// classifier, in code point order. Only these change a lowered grammar:
-	// a gate drops an alternative, and a production lists the warnings that
-	// are on. Any other name matches no guard (engine §13).
+	// classifier, in code point order. Only gates change a lowered grammar.
+	// Productions retain all written warnings. Output selects enabled names
+	// for each parse. Any other name matches no guard (engine §13).
 	guarded []string
 }
 

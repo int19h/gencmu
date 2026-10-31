@@ -14,7 +14,7 @@ from ._markdown import line_column
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Restoration, Tags, Token
 from ._rank import (
     Act,
-    Elisions,
+    ProfileSummaries,
     Ranker,
     Ranking,
     Rope,
