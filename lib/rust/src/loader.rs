@@ -169,7 +169,7 @@ fn grammar_error(message: String) -> Error {
 fn notation_pipeline(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Pipeline, Error> {
     build_notation_pipeline(bootstrap, unicode).map_err(|mut error| {
         if let Some(embedded) = &error.document {
-            if embedded != "data/preparsed/gencmu.json" && !error.message.contains(embedded) {
+            if embedded != "data/preparsed/gencmu.json" {
                 error.message.push_str(&format!(" (embedded document: {embedded})"));
             }
         }
@@ -225,7 +225,7 @@ fn build_notation_pipeline(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Pip
     let mut stages = Vec::new();
     for (name, documents) in &inputs {
         if !documents.iter().any(|(_, dom)| !dom.rules.is_empty()) {
-            return Err(Error::grammar(format!("stage {name} has no rules")).in_stage(name));
+            return Err(Error::grammar("has no rules").in_stage(name));
         }
     }
     for (name, documents) in inputs {

@@ -276,7 +276,7 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 			rules += len(d.dom.Rules)
 		}
 		if rules == 0 {
-			e := grammarError(s.doc, s.at, "the stage has no rules")
+			e := grammarError(s.doc, s.at, "has no rules")
 			e.Stage = s.name
 			return nil, e
 		}

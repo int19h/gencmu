@@ -841,7 +841,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                     checks.append((path,"features",directive))
                 elif name == "ambiguity-resolution":
                     if resolutions:
-                        raise _error(f"stage {stage} has a second %ambiguity-resolution", path, at, stage)
+                        raise _error("has a second %ambiguity-resolution", path, at, stage)
                     resolutions.append((args, path, at))
                     # The rule of the ranking (engine §6), then optionally elision-only,
                     # each optional, in that order (engine §2).
@@ -913,10 +913,10 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     constants.resolve(rules)
     _resolve_tests(rules, constants)
     if not resolutions:
-        raise GencmuError(f"stage {stage} has no %ambiguity-resolution", stage=stage)
+        raise GencmuError("has no %ambiguity-resolution", stage=stage)
     args, _, _ = resolutions[0]
     if "text" not in rules:
-        raise GencmuError(f"stage {stage} has no rule text", stage=stage)
+        raise GencmuError("has no rule text", stage=stage)
     from ._boundary import validate_targets
     validate_targets(rules, stage)
     classifier_names = {classifier["name"] for _, classifier in classifier_items}

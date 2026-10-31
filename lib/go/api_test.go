@@ -1542,8 +1542,8 @@ func TestStitchingMessagesAndCaptureOrder(t *testing.T) {
 	t.Parallel()
 	cases := [][2]string{
 		{"%rule text missing", "missing is not a rule of stage main"},
-		{"%rule other \"a\"", "stage main has no rule text"},
-		{"%ambiguity-resolution greedy\n%rule text \"a\"", "stage main has a second %ambiguity-resolution"},
+		{"%rule other \"a\"", "has no rule text"},
+		{"%ambiguity-resolution greedy\n%rule text \"a\"", "has a second %ambiguity-resolution"},
 		{"%rule text $x:A :: $x.value.classify(unknown)", "unknown is not a classifier of stage main"},
 		{"%extend-rule absent \"a\"\n%rule text \"a\"", "%extend-rule absent extends a rule that is not defined before it"},
 		{"%rule text \"a\"\n%rule text \"b\"", "%rule text is already defined, in g.md; %redefine-rule replaces a rule"},
@@ -1582,7 +1582,7 @@ func TestClassifierCanonicalKeyMessages(t *testing.T) {
 func TestMissingResolutionMessage(t *testing.T) {
 	_, err := LoadPipelineSources(oneStage("%rule text \"a\""), "p.md")
 	var fault *Error
-	if !errors.As(err, &fault) || fault.Message != "stage main has no %ambiguity-resolution" {
+	if !errors.As(err, &fault) || fault.Message != "has no %ambiguity-resolution" {
 		t.Fatalf("got %v", err)
 	}
 }
@@ -1592,12 +1592,12 @@ func TestStitchingStagesAndReferenceOrder(t *testing.T) {
 		source, message       string
 		resolution, unlocated bool
 	}{
-		{"%rule other missing", "stage main has no rule text", true, true},
-		{"%rule text A", "stage main has no %ambiguity-resolution", false, true},
+		{"%rule other missing", "has no rule text", true, true},
+		{"%rule text A", "has no %ambiguity-resolution", false, true},
 		{"%rule text A :: $.value.classify(nolex) ∪ $.tags(norule)", "nolex is not a classifier of stage main", true, false},
 		{"%rule text A :: $.tags(norule) ∪ $.value.classify(nolex)", "norule is not a rule of stage main", true, false},
 		{"%const $A $MISSING\n%rule text A", "$MISSING is not defined in stage main; dependency $A → $MISSING", true, false},
-		{"%ambiguity-resolution greedy\n%rule text A", "stage main has a second %ambiguity-resolution", true, false},
+		{"%ambiguity-resolution greedy\n%rule text A", "has a second %ambiguity-resolution", true, false},
 	}
 	for _, c := range cases {
 		source := c.source

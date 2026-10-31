@@ -1378,8 +1378,8 @@ fn stitching_messages_and_capture_order() {
     let cases = [
         ("%rule text := $zz.value | \"a\" :: $bb.tags", "$zz is captured by no alternative of text"),
         ("%rule text missing", "missing is not a rule of stage main"),
-        ("%rule other \"a\"", "stage main has no rule text"),
-        ("%ambiguity-resolution greedy\n%rule text \"a\"", "stage main has a second %ambiguity-resolution"),
+        ("%rule other \"a\"", "has no rule text"),
+        ("%ambiguity-resolution greedy\n%rule text \"a\"", "has a second %ambiguity-resolution"),
         ("%rule text $x:A :: $x.value.classify(unknown)", "unknown is not a classifier of stage main"),
         (
             "%extend-rule absent \"a\"\n%rule text \"a\"",
@@ -1424,14 +1424,14 @@ fn classifier_canonical_key_messages() {
 #[test]
 fn missing_resolution_message() {
     let error = gencmu::load_pipeline_sources(single("%rule text \"a\""), "p.md").expect_err("a missing resolution");
-    assert_eq!(error.message, "stage main has no %ambiguity-resolution");
+    assert_eq!(error.message, "has no %ambiguity-resolution");
 }
 
 #[test]
 fn stitching_stages_and_reference_order() {
     let cases = [
-        ("%rule other missing", "stage main has no rule text", true, true),
-        ("%rule text A", "stage main has no %ambiguity-resolution", false, true),
+        ("%rule other missing", "has no rule text", true, true),
+        ("%rule text A", "has no %ambiguity-resolution", false, true),
         (
             "%rule text A :: $.value.classify(nolex) ∪ $.tags(norule)",
             "nolex is not a classifier of stage main",
@@ -1445,7 +1445,7 @@ fn stitching_stages_and_reference_order() {
             true,
             false,
         ),
-        ("%ambiguity-resolution greedy\n%rule text A", "stage main has a second %ambiguity-resolution", true, false),
+        ("%ambiguity-resolution greedy\n%rule text A", "has a second %ambiguity-resolution", true, false),
     ];
     for (source, expected, resolution, unlocated) in cases {
         let prefix = if resolution { "%ambiguity-resolution greedy\n" } else { "" };

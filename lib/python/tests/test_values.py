@@ -12,8 +12,8 @@ class Values(unittest.TestCase):
     def test_stitching_diagnostics_use_common_messages_and_written_capture_order(self) -> None:
         cases = [
             ('%rule text missing', 'missing is not a rule of stage main'),
-            ('%rule other "a"', 'stage main has no rule text'),
-            ('%ambiguity-resolution greedy\n%rule text "a"', 'stage main has a second %ambiguity-resolution'),
+            ('%rule other "a"', 'has no rule text'),
+            ('%ambiguity-resolution greedy\n%rule text "a"', 'has a second %ambiguity-resolution'),
             ('%rule text $x:A :: $x.value.classify(unknown)', 'unknown is not a classifier of stage main'),
             ('%extend-rule absent "a"\n%rule text "a"', '%extend-rule absent extends a rule that is not defined before it'),
             ('%rule text "a"\n%rule text "b"', '%rule text is already defined, in g.md; %redefine-rule replaces a rule'),
@@ -34,12 +34,12 @@ class Values(unittest.TestCase):
     def test_stitching_errors_retain_stages_and_written_reference_order(self) -> None:
         import gencmu
         cases = [
-            ('%rule other missing', 'stage main has no rule text', True, True),
-            ('%rule text A', 'stage main has no %ambiguity-resolution', False, True),
+            ('%rule other missing', 'has no rule text', True, True),
+            ('%rule text A', 'has no %ambiguity-resolution', False, True),
             ('%rule text A :: $.value.classify(nolex) ∪ $.tags(norule)', 'nolex is not a classifier of stage main', True, False),
             ('%rule text A :: $.tags(norule) ∪ $.value.classify(nolex)', 'norule is not a rule of stage main', True, False),
             ('%const $A $MISSING\n%rule text A', '$MISSING is not defined in stage main; dependency $A → $MISSING', True, False),
-            ('%ambiguity-resolution greedy\n%rule text A', 'stage main has a second %ambiguity-resolution', True, False),
+            ('%ambiguity-resolution greedy\n%rule text A', 'has a second %ambiguity-resolution', True, False),
         ]
         for source, expected, resolution, unlocated in cases:
             with self.subTest(source=source):
@@ -59,7 +59,7 @@ class Values(unittest.TestCase):
                    "g.md": '```jbogenbau\n%rule text "a"\n```'}
         with self.assertRaises(gencmu.GencmuError) as found:
             gencmu.load_pipeline_sources(sources, "p.md")
-        self.assertEqual(found.exception.message, "stage main has no %ambiguity-resolution")
+        self.assertEqual(found.exception.message, "has no %ambiguity-resolution")
 
     def test_classifier_diagnostics_print_canonical_keys(self) -> None:
         for entries, ending in [
