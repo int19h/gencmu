@@ -1677,3 +1677,19 @@ fn requirement_type_fault_hides_private_container_names() {
         assert!(error.message.contains("tag set"), "{error}");
     }
 }
+
+#[test]
+fn substituted_condition_keeps_its_type_reason() {
+    for call in ["%rule text f(A)", "%rule named = f(A)\n%rule text named"] {
+        let sources = std::collections::BTreeMap::from([(
+            "main.md".to_string(),
+            format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule f(@X) $c:\"a\" %conditions $c.value ⊆ @X\n{call}\n```\n"),
+        )]);
+        let error = gencmu::load_pipeline_sources(&sources, "main.md").expect_err("incompatible set types");
+        assert!(error.message.contains("⊆ joins two sets of one kind"), "{error}");
+        assert!(!error.message.contains("a term or a condition whose types do not agree"), "{error}");
+        let name = if call.contains("named") { "named" } else { "f(A)" };
+        assert!(error.message.contains(&format!("rule {name}:")), "{error}");
+        assert!(error.message.contains("in f(A) called at"), "{error}");
+    }
+}
