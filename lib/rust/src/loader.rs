@@ -316,22 +316,13 @@ impl Context {
         let mut dom = if let Some(dom) = preparsed.lookup(path, &fnv1a64(text), &self.unicode, names)? {
             dom
         } else {
-            read_document_named(&self.notation, text, true, names).map_err(|error| error.in_document(path))?
+            return read_document_named(&self.notation, text, true, names).map_err(|error| error.in_document(path));
         };
-        if diagnostic && (text.contains("followed-by") || text.contains("preceded-by")) {
-            dom = read_document_named(&self.notation, text, true, names).map_err(|e| e.in_document(path))?;
-        }
         if diagnostic {
             #[cfg(test)]
             LOCATION_RECOVERIES.with(|count| count.set(count.get() + 1));
             if let Ok(source) = read_document_named(&self.notation, text, true, names) {
                 crate::ranked::restore_locations(&mut dom, &source);
-            }
-            let grammar = grammar_text(text, &self.unicode)?;
-            let options = ParseOptions { until: Some("lexical".into()), ..ParseOptions::default() };
-            let result = self.notation.parse_chars(grammar.chars.clone(), &options)?;
-            if let Some(tokens) = result.stages.last().and_then(|stage| stage.output.as_ref()) {
-                crate::notation::restore_recipe_locations(&mut dom, tokens, &|at| grammar.position(at));
             }
         }
         Ok(dom)

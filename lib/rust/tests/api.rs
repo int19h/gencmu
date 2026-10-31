@@ -1474,3 +1474,22 @@ fn projected_ranked_routes_keep_route_first_errors_and_nested_bindings() {
     assert_eq!(error.code(), Some("ranked-choice-continuation"));
     assert_eq!(error.option(), Some(1));
 }
+
+#[test]
+fn cached_recipe_cycle_survives_boundary_location_recovery() {
+    let text = "%ambiguity-resolution greedy\n%rule text $a:a b\n%conditions $a.followed-by(b)\n%rule a \"a\"\n%rule b \"b\"";
+    let with_cycle = text.replace("$a:a b", "$a:a b := $.emitted.value");
+    let dom = gencmu::tools::read_grammar_document(&grammar(&with_cycle), "").unwrap();
+    let sources = single(text)
+        .into_iter()
+        .map(|(path, text)| (format!("grammars/test/{path}"), text))
+        .collect::<BTreeMap<_, _>>();
+    let plain = gencmu::load_pipeline_sources(&sources, "grammars/test/p.md").unwrap();
+    assert!(plain.parse("ab", &ParseOptions::default()).unwrap().ok);
+    let mut cached = sources;
+    cached.insert("data/preparsed/test.json".into(), preparsed(text, &dom));
+    let error = gencmu::load_pipeline_sources(&cached, "grammars/test/p.md").unwrap_err();
+    assert!(error.message.contains("cycle"), "{error}");
+    assert_eq!(error.document.as_deref(), Some("grammars/test/g.md"));
+    assert_eq!((error.line, error.column), (None, None));
+}
