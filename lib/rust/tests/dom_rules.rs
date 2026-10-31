@@ -320,7 +320,7 @@ fn a_bootstrap_with_a_malformed_range_or_property_is_an_error() {
             .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
         error
-            .message
+            .to_string()
             .strip_prefix(
                 "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/gencmu/jbogenbau/lexical.md is malformed: ",
             )
@@ -840,7 +840,7 @@ fn a_refused_bootstrap_test_is_an_error() {
             .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
         error
-            .message
+            .to_string()
             .strip_prefix(
                 "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/gencmu/jbogenbau/lexical.md is malformed: ",
             )
@@ -877,7 +877,7 @@ fn a_bootstrap_term_of_two_forms_is_an_error() {
             .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
         error
-            .message
+            .to_string()
             .strip_prefix(
                 "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/gencmu/jbogenbau/lexical.md is malformed: ",
             )
@@ -1112,7 +1112,7 @@ fn a_bootstrap_with_a_malformed_constant_is_an_error() {
             .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
         error
-            .message
+            .to_string()
             .strip_prefix(
                 "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/gencmu/jbogenbau/lexical.md is malformed: ",
             )
@@ -1331,7 +1331,7 @@ fn bootstrap_refusal(dom: &str) -> Option<String> {
         .expect_err("a notation that cannot read grammars/test/g.md");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
     error
-        .message
+        .to_string()
         .strip_prefix(
             "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/gencmu/jbogenbau/lexical.md is malformed: ",
         )
