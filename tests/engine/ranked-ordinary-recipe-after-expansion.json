@@ -1,0 +1,13 @@
+{
+  "description": "Expansion retains an ordinary ranked definition problem before any retained template problem.",
+  "grammar": "%rule text late\n%rule pair(@X) @X\n%rule late [$c:B] (A ≻ C) :- $c.value",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 1
+    }
+  }
+}

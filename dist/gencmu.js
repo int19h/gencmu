@@ -9064,7 +9064,13 @@
         argumentUses.set(this,argumentsBySite);
         this.templates=expansion.templates;
         this.instances=expansion.instances;
-        for (const { path, dom } of expansion.documents) this.addDocument(path, dom);
+        for (const { path, dom } of expansion.documents) {
+          if (expansion.order) for (const rule of dom.rules) {
+            const problem = definitionProblem(rule,true);
+            if (problem) throw this.documentError(path,rule.at,problem);
+          }
+          this.addDocument(path, dom);
+        }
         if (expansion.order) this.rules = new Map(expansion.order.map((/** @type {string} */ name) => /** @type {[string,StitchedRule]} */ ([name,this.rules.get(name)])));
         for (const event of expansion.validation ?? []) if (constantsIn(event.rule).length || hasPattern(event.rule) || argumentsBySite.has(argumentSite(event.path,event.rule.at))) {
           this.constantUsers.push({path:event.path,rule:event.rule});
