@@ -440,14 +440,7 @@ func knownMethod(name string) bool { return sourceMethods[name] != 0 }
 
 func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, predicate bool) *domTerm {
 	fail := func() {
-		dependent := b.featureContext
-		pending := []*Node{n}
-		for len(pending) > 0 && !dependent {
-			node := pending[len(pending)-1]
-			pending = pending[:len(pending)-1]
-			dependent = node.Rule == "parameter" || node.Rule == "call"
-			pending = append(pending, parts(node)...)
-		}
+		dependent := b.featureContext || sourceSyntaxUnresolved(n)
 		if dependent {
 			b.fail(n, "a method has the wrong receiver or arguments")
 		}
