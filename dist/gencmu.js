@@ -1992,7 +1992,7 @@
   // the square of the input, so the tests that read these kinds fail on it.
   // Tools outside the library count through the same hook.
 
-  // The faults, one switch each (src/testing.js). F1 has two per observer,
+  // The faults, one switch each. F1 has two per observer,
   // one for the tokens of R behind its argument and one for positions, except
   // that from and after have only the second: applied before the projection
   // or after it, they give the same span. F7, F26, F27 and F32 have one
@@ -2010,7 +2010,7 @@
   const WITNESS = ["witness:project"];
   const VARIANTS = { F7: ["restoration", "capture", "union"], F26: ["lost", "relabel"], F27: ["order", "bare"], F32: ["queue", "predict"] };
 
-  // The sites of each fault that has several (src/testing.js): the named
+  // The sites of each fault that has several: the named
   // cases must enter every one while the fault is on. A fault not listed
   // has one site.
   const SITES = {
@@ -9098,9 +9098,9 @@
          */
         this.tests = new WeakMap();
         if (!this.resolution) {
-          throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
+          throw new GencmuError("grammar", "has no %ambiguity-resolution", { stage: stageName });
         }
-        if (!this.rules.has("text")) throw new GencmuError("grammar", `stage ${stageName} has no rule text`, {stage:stageName});
+        if (!this.rules.has("text")) throw new GencmuError("grammar", "has no rule text", {stage:stageName});
         /** @type {WeakMap<RuleClauses,WeakMap<object,{rule:string,condition:number,order:number}>>} */
         this.boundarySites = new WeakMap();
         let ruleOrder = 0;
@@ -9234,7 +9234,7 @@
               break;
             case "ambiguity-resolution": {
               if (this.resolution) {
-                throw new GencmuError("grammar", `stage ${this.stageName} has a second %ambiguity-resolution`, at);
+                throw new GencmuError("grammar", "has a second %ambiguity-resolution", {...at, stage:this.stageName});
               }
               const [lean, ...rest] = directive.args;
               const elisionOnly = rest[0] === "elision-only";
@@ -17616,7 +17616,7 @@
         roots = rootItems(chart, "text");
       } catch (error) {
         if (error instanceof GencmuError) {
-          report.error = { kind: "grammar", stage: this.name, message: error.message };
+          report.error = { kind: "grammar", stage: this.name, message: error.withLocation({stage:undefined}).message };
           return report;
         }
         throw error;
@@ -17667,7 +17667,7 @@
         report.output = emit(derivation, context);
       } catch (error) {
         if (error instanceof GencmuError) {
-          report.error = { kind: "grammar", stage: this.name, message: error.message };
+          report.error = { kind: "grammar", stage: this.name, message: error.withLocation({stage:undefined}).message };
           return report;
         }
         throw error;
@@ -17697,7 +17697,7 @@
                 chosen: report.tree,
                 completion: [],
               }
-              : { kind: "grammar", stage: this.name, message: error.message };
+              : { kind: "grammar", stage: this.name, message: error.withLocation({stage:undefined}).message };
             return report;
           }
           throw error;
@@ -20485,7 +20485,7 @@
     if (stages.length === 0) throw new GencmuError("grammar", `${path}: a pipeline needs at least one %stage`, { document: path });
     for (const stage of stages) {
       if (!stage.documents.some((document) => document.dom.rules.length > 0)) {
-        throw new GencmuError("grammar", `${stage.at.document}:${stage.at.line}:${stage.at.column}: stage ${stage.name} has no rules`, stage.at);
+        throw new GencmuError("grammar", "has no rules", {...stage.at, stage:stage.name});
       }
     }
     const surviving = new Set(stages.flatMap(stage => stage.documents));
@@ -21254,17 +21254,27 @@
     if (!data || data.format !== DOM_FORMAT || !data.documents || typeof data.documents !== "object" || Array.isArray(data.documents)) {
       throw new GencmuError("grammar", "the bootstrap requires a document map of the current format");
     }
-    const bootstrap = splicePipeline(NOTATION_PATH, path => {
-      const entry = Object.hasOwn(data.documents, path) ? data.documents[path] : undefined;
-      if (!entry) return undefined;
-      const problem = typeof entry.hash === "string" ? domProblem(entry.dom, unicode) : "a document entry requires a hash";
-      if (problem) throw new GencmuError("grammar", `the bootstrap's DOM of ${path} is malformed: ${problem}`,
-        { ...(problem.startsWith("ranked-choice-syntax:") ? {code:"ranked-choice-syntax"} : {}) });
-      return knownDomMembers(entry.dom);
-    });
+    let bootstrap;
+    try {
+      bootstrap = splicePipeline(NOTATION_PATH, path => {
+        const entry = Object.hasOwn(data.documents, path) ? data.documents[path] : undefined;
+        if (!entry) return undefined;
+        const problem = typeof entry.hash === "string" ? domProblem(entry.dom, unicode) : "a document entry requires a hash";
+        if (problem) throw new GencmuError("grammar", `the bootstrap's DOM of ${path} is malformed: ${problem}`,
+          { ...(problem.startsWith("ranked-choice-syntax:") ? {code:"ranked-choice-syntax"} : {}) });
+        return knownDomMembers(entry.dom);
+      });
+    } catch (error) {
+      if (error instanceof GencmuError) {
+        const splicing = error.withLocation({stage:undefined});
+        delete splicing.where.stage;
+        throw splicing;
+      }
+      throw error;
+    }
     for (const stage of bootstrap.stages) {
       if (!stage.documents.some(document => document.dom.rules.length > 0)) {
-        throw new GencmuError("grammar", `stage ${stage.name} has no rules`, { stage:stage.name });
+        throw new GencmuError("grammar", "has no rules", { stage:stage.name });
       }
     }
     return bootstrap;

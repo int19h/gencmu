@@ -255,7 +255,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 				case "ambiguity-resolution":
 					ambiguity = append(ambiguity, dir)
 					if len(ambiguity) > 1 {
-						return nil, fail(d.path, dir.At, "stage %s has a second %%ambiguity-resolution", stageName)
+						return nil, fail(d.path, dir.At, "has a second %%ambiguity-resolution")
 					}
 					// The rule of the ranking, greedy, lazy or late-elision, then
 					// optionally elision-only, in that
@@ -300,11 +300,11 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 		return nil, err
 	}
 	if len(ambiguity) == 0 {
-		e := &Error{Kind: "grammar", Stage: stageName, Message: "stage " + stageName + " has no %ambiguity-resolution"}
+		e := &Error{Kind: "grammar", Stage: stageName, Message: "has no %ambiguity-resolution"}
 		return nil, e
 	}
 	if g.byName["text"] == nil {
-		e := &Error{Kind: "grammar", Stage: stageName, Message: "stage " + stageName + " has no rule text"}
+		e := &Error{Kind: "grammar", Stage: stageName, Message: "has no rule text"}
 		return nil, e
 	}
 	if expanded.order != nil {

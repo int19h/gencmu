@@ -1895,6 +1895,34 @@
       "find": "\"format\":40",
       "replace": "\"form\\u+061t\":40",
       "cached": false
+    },
+    {
+      "description": "A cached recipe cycle survives location recovery with a boundary test.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"properties\":null,\"documents\":{\"grammars/test/g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"properties\":null,\"documents\":{\"grammars/test/g.md\":{\"hash\":\"aee98674a566d866\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"capture\":\"a\",\"expr\":{\"ref\":\"a\"}},{\"ref\":\"b\"}]}}],\"conditions\":[{\"method\":\"followed-by\",\"receiver\":{\"capture\":\"a\"},\"args\":[{\"rule\":\"b\"}]}],\"at\":[3,1],\"value\":{\"concat\":[{\"method\":\"value\",\"receiver\":{\"method\":\"emitted\",\"receiver\":{\"capture\":\"\"},\"args\":[]},\"args\":[]}]}},{\"name\":\"a\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"a\"}}}],\"conditions\":[],\"at\":[5,1]},{\"name\":\"b\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[6,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "sources": {
+        "grammars/test/g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text := \"safe\" | $a:a b\n%conditions $a.followed-by(b)\n%rule a \"a\"\n%rule b \"b\"\n```",
+        "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text := \"safe\" | $a:a b\n%conditions $a.followed-by(b)\n%rule a \"a\"\n%rule b \"b\"\n```"
+      },
+      "error": {
+        "document": "grammars/test/g.md",
+        "line": 3
+      },
+      "cached": true
+    },
+    {
+      "description": "A cached recipe cycle survives location recovery without a boundary test.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"properties\":null,\"documents\":{\"grammars/test/g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"properties\":null,\"documents\":{\"grammars/test/g.md\":{\"hash\":\"d6d8dc4a3f265bed\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"capture\":\"a\",\"expr\":{\"ref\":\"a\"}},{\"ref\":\"b\"}]}}],\"conditions\":[],\"at\":[3,1],\"value\":{\"concat\":[{\"method\":\"value\",\"receiver\":{\"method\":\"emitted\",\"receiver\":{\"capture\":\"\"},\"args\":[]},\"args\":[]}]}},{\"name\":\"a\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"a\"}}}],\"conditions\":[],\"at\":[5,1]},{\"name\":\"b\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[6,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "sources": {
+        "grammars/test/g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text := \"safe\" | $a:a b\n%rule a \"a\"\n%rule b \"b\"\n```",
+        "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text := \"safe\" | $a:a b\n%rule a \"a\"\n%rule b \"b\"\n```"
+      },
+      "error": {
+        "document": "grammars/test/g.md",
+        "line": 3
+      },
+      "cached": true
     }
   ],
   "grammar": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n",

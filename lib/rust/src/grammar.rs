@@ -414,7 +414,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                         }
                         "ambiguity-resolution" => {
                             if resolution.is_some() {
-                                return Err(here(format!("stage {stage} has a second %ambiguity-resolution")));
+                                return Err(here("has a second %ambiguity-resolution".into()));
                             }
                             let refused = || {
                                 here(
@@ -489,10 +489,10 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     constants.evaluate_tests(&mut grammar)?;
     grammar.implications = implications.into();
     if resolution.is_none() {
-        return Err(Error::grammar(format!("stage {stage} has no %ambiguity-resolution")).in_stage(stage));
+        return Err(Error::grammar("has no %ambiguity-resolution").in_stage(stage));
     }
     if !grammar.index.contains_key("text") {
-        return Err(Error::grammar(format!("stage {stage} has no rule text")).in_stage(stage));
+        return Err(Error::grammar("has no rule text").in_stage(stage));
     }
     // Shared clauses are checked once, with the first alternative that
     // holds them.

@@ -69,7 +69,7 @@ def _decode(data: bytes, document: str) -> str:
 
 def _bootstrap_error(error: GencmuError) -> GencmuError:
     embedded = error.document
-    if embedded and embedded != "data/preparsed/gencmu.json" and embedded not in error.message:
+    if embedded and embedded != "data/preparsed/gencmu.json":
         error.message += f" (embedded document: {embedded})"
     error.document = "data/preparsed/gencmu.json"
     error.args = (error.message,)
@@ -202,13 +202,17 @@ class NotationReader:
                                   code="ranked-choice-syntax" if problem.startswith("ranked-choice-syntax:") else None)
             return known_dom_members(entry["dom"])
 
-        pipeline = splice_pipeline("grammars/gencmu/jbogenbau/pipeline.md", dom_of)
+        try:
+            pipeline = splice_pipeline("grammars/gencmu/jbogenbau/pipeline.md", dom_of)
+        except GencmuError as error:
+            error.stage = None
+            raise
         self.bootstrap_features = pipeline.features
         stages: list[Grammar] = []
         inputs = [(stage.name, stage.documents) for stage in pipeline.stages]
         for name, pairs in inputs:
             if not any(dom["rules"] for _, dom in pairs):
-                raise GencmuError(f"stage {name} has no rules", stage=name)
+                raise GencmuError("has no rules", stage=name)
         for name, pairs in inputs:
             try:
                 stages.append(stitch(name, pairs, unicode))

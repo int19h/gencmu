@@ -328,7 +328,7 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
     }
     for stage in stages {
         if stage.documents.iter().all(|(_, dom)| dom.rules.is_empty()) {
-            return Err(Error::grammar(format!("stage {} has no rules", stage.name))
+            return Err(Error::grammar("has no rules")
                 .in_document(&stage.document)
                 .at(stage.at.0, stage.at.1)
                 .in_stage(&stage.name));

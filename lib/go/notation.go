@@ -22,7 +22,7 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 	defer func() {
 		if e, ok := err.(*Error); ok {
 			embedded := e.Document
-			if embedded != "" && embedded != "data/preparsed/gencmu.json" && !strings.Contains(e.Message, embedded) {
+			if embedded != "" && embedded != "data/preparsed/gencmu.json" {
 				e.Message += " (embedded document: " + embedded + ")"
 			}
 			e.Document = "data/preparsed/gencmu.json"
@@ -79,7 +79,7 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 			hasRules = hasRules || len(document.dom.Rules) > 0
 		}
 		if !hasRules {
-			return nil, &Error{Kind: ErrorGrammar, Stage: input.name, Message: "stage " + input.name + " has no rules"}
+			return nil, &Error{Kind: ErrorGrammar, Stage: input.name, Message: "has no rules"}
 		}
 	}
 	for _, input := range inputs {

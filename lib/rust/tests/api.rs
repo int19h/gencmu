@@ -1378,8 +1378,8 @@ fn stitching_messages_and_capture_order() {
     let cases = [
         ("%rule text := $zz.value | \"a\" :: $bb.tags", "$zz is captured by no alternative of text"),
         ("%rule text missing", "missing is not a rule of stage main"),
-        ("%rule other \"a\"", "stage main has no rule text"),
-        ("%ambiguity-resolution greedy\n%rule text \"a\"", "stage main has a second %ambiguity-resolution"),
+        ("%rule other \"a\"", "has no rule text"),
+        ("%ambiguity-resolution greedy\n%rule text \"a\"", "has a second %ambiguity-resolution"),
         ("%rule text $x:A :: $x.value.classify(unknown)", "unknown is not a classifier of stage main"),
         (
             "%extend-rule absent \"a\"\n%rule text \"a\"",
@@ -1424,14 +1424,14 @@ fn classifier_canonical_key_messages() {
 #[test]
 fn missing_resolution_message() {
     let error = gencmu::load_pipeline_sources(single("%rule text \"a\""), "p.md").expect_err("a missing resolution");
-    assert_eq!(error.message, "stage main has no %ambiguity-resolution");
+    assert_eq!(error.message, "has no %ambiguity-resolution");
 }
 
 #[test]
 fn stitching_stages_and_reference_order() {
     let cases = [
-        ("%rule other missing", "stage main has no rule text", true, true),
-        ("%rule text A", "stage main has no %ambiguity-resolution", false, true),
+        ("%rule other missing", "has no rule text", true, true),
+        ("%rule text A", "has no %ambiguity-resolution", false, true),
         (
             "%rule text A :: $.value.classify(nolex) ∪ $.tags(norule)",
             "nolex is not a classifier of stage main",
@@ -1445,7 +1445,7 @@ fn stitching_stages_and_reference_order() {
             true,
             false,
         ),
-        ("%ambiguity-resolution greedy\n%rule text A", "stage main has a second %ambiguity-resolution", true, false),
+        ("%ambiguity-resolution greedy\n%rule text A", "has a second %ambiguity-resolution", true, false),
     ];
     for (source, expected, resolution, unlocated) in cases {
         let prefix = if resolution { "%ambiguity-resolution greedy\n" } else { "" };
@@ -1473,4 +1473,23 @@ fn projected_ranked_routes_keep_route_first_errors_and_nested_bindings() {
     let error = gencmu::load_pipeline_sources(&single(text), "p.md").unwrap_err();
     assert_eq!(error.code(), Some("ranked-choice-continuation"));
     assert_eq!(error.option(), Some(1));
+}
+
+#[test]
+fn cached_recipe_cycle_survives_boundary_location_recovery() {
+    let text = "%ambiguity-resolution greedy\n%rule text $a:a b\n%conditions $a.followed-by(b)\n%rule a \"a\"\n%rule b \"b\"";
+    let with_cycle = text.replace("$a:a b", "$a:a b := $.emitted.value");
+    let dom = gencmu::tools::read_grammar_document(&grammar(&with_cycle), "").unwrap();
+    let sources = single(text)
+        .into_iter()
+        .map(|(path, text)| (format!("grammars/test/{path}"), text))
+        .collect::<BTreeMap<_, _>>();
+    let plain = gencmu::load_pipeline_sources(&sources, "grammars/test/p.md").unwrap();
+    assert!(plain.parse("ab", &ParseOptions::default()).unwrap().ok);
+    let mut cached = sources;
+    cached.insert("data/preparsed/test.json".into(), preparsed(text, &dom));
+    let error = gencmu::load_pipeline_sources(&cached, "grammars/test/p.md").unwrap_err();
+    assert!(error.message.contains("cycle"), "{error}");
+    assert_eq!(error.document.as_deref(), Some("grammars/test/g.md"));
+    assert_eq!((error.line, error.column), (None, None));
 }

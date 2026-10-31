@@ -772,7 +772,7 @@ class Pipelines(Linear):
                 try:
                     splice_pipeline("p.md", {"p.md": dom}.get)
                 except gencmu.GencmuError as error:
-                    assert "stage s0 has no rules" in str(error), error
+                    assert "stage s0: has no rules" in str(error), error
 
             return work
 
