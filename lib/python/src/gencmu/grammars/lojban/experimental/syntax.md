@@ -542,7 +542,7 @@ Before the main predicate, an omitted KUhEI lets that predicate continue the eve
 
 In `mi klama ca'ei do cadzu ti`, the following `ti` stays inside the event clause. In `mi klama ca'ei do cadzu ku'ei ti`, it belongs to the main bridi.
 
-These terms count as no unit or link. Their contained predicates use the `fewest(link)` and `late(elision)` steps.
+These terms count as neither a unit nor a link. Their contained predicates use the `fewest(link)` and `late(elision)` steps.
 
 ```jbogenbau
 %redefine-rule terms-1

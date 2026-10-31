@@ -479,7 +479,7 @@ A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`. A names 
 
 Directive names are `stage`, `extend-stage`, `redefine-stage`, `include`, `names`, `features`, `ambiguity-resolution` and `elision-only`. Stage selectors take one lowercase name. Includes and names declarations take one decoded path each. Names declarations precede all other kinds of statement in their document (engine §1). Features take at least one feature name as engine §9.1 defines it. `elision-only` takes no argument, so its `args` is `[]`.
 
-An ambiguity-resolution directive has `steps` in place of `args`: `{"name":"ambiguity-resolution","steps":[{"step":"fewest","category":"erasure"},{"step":"greedy"}],"at":[line,column]}`. A step is `{"step":S,"category":C}` for `leftmost-longest`, `fewest`, `most`, `late` and `early`, and `{"step":S}` for `greedy` and `lazy`. There is at least one step, and `greedy` or `lazy` can stand only last (engine §6, §9).
+An ambiguity-resolution directive has `steps` in place of `args`: `{"name":"ambiguity-resolution","steps":[{"step":"fewest","category":"erasure"},{"step":"greedy"}],"at":[line,column]}`. A step is `{"step":S,"category":C}` for `leftmost-longest`, `fewest`, `most`, `late` and `early`, and `{"step":S}` for `greedy` and `lazy`. C is a category name (engine §9.1), and `elision` is allowed there. There is at least one step, and `greedy` or `lazy` can stand only last (engine §6, §9).
 
 A `features` directive can add `"conditions":[COND,COND...]`, with at least one condition. In canonical output, this member follows `at`. Other directives cannot have this member.
 

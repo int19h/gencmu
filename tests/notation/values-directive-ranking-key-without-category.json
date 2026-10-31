@@ -1,0 +1,10 @@
+{
+  "description": "A key step without its category is an error at the directive (engine §9.3).",
+  "document": "```jbogenbau\n%ambiguity-resolution fewest\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

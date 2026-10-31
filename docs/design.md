@@ -199,7 +199,7 @@ A parameterized rule is a template with load-time arguments. `%rule pair(@Left, 
 
 The loader substitutes parsed nodes without changing grouping. `(BIhE 🆓)` and `ε` each pass one sequence argument. Only query-target choices and explicit requirement lists splice into their corresponding lists. Arguments cannot read captures.
 
-`%rule named-pair = pair("a", "b")` names one instance without adding a wrapper node. Other instances use canonical call spellings everywhere that a rule name appears. Templates and instance edits apply in source order. A later template redefinition replaces earlier local edits. Flags apply to actual instance constituents, without an extra ranking tier.
+`%rule named-pair = pair("a", "b")` names one instance without adding a wrapper node. Other instances use canonical call spellings everywhere that a rule name appears. Templates and instance edits apply in source order. A later template redefinition replaces earlier local edits. Categories apply to actual instance constituents, without an extra ranking tier.
 
 A later binding can move a public name to another instance with `%redefine-rule NAME = CALL`. The old instance keeps its edits and takes its canonical name. Ordinary rules and named instances keep declaration slots, followed by unnamed instances in discovery order. Numbering, reference checks, rule traversal for diagnostics, and audit lists use that expanded order.
 
@@ -693,7 +693,7 @@ The recognizer retains the strictness of its items only for reconstruction (engi
 
 `elision-only` parses again with the terminators written back. That can let another alternative match, or a test on a terminal read a written-back terminator. A ranking of the original parses sees neither.
 
-For example, take `text → A [+T] | A T`. On `A`, its only derivation elides `T`. After restoration, the optional and the bare `T` both read the synthetic token. Neither reading has a greater rule profile, so `elision-only` reports ambiguity despite the original `unique` verdict.
+For example, take `text → A [+T] | A T`. On `A`, its only derivation elides `T`. After restoration, the optional and the bare `T` both read the synthetic token. Neither reading has a greater profile, so `elision-only` reports ambiguity despite the original `unique` verdict.
 
 ### Nested queries and elided terminators
 
@@ -759,7 +759,7 @@ A pipeline that reads as the official parser does needs that preparser as a sepa
 
 Two connected sumti can also parse as connected terms in the experimental grammar. A sumti is an argument of a predicate. A term is a wider kind of argument that includes sumti. The experimental rule for sumti connections selects the sumti reading of `mi .e do klama` and `mi .e bo do klama`.
 
-A parse option overrides `elision-only` either way. A caller switches it on to require the restored chosen reading as the only best admitted reading, or off to loosen the CLL pipeline. The rule itself (`greedy`, `lazy` or `late-elision`) cannot be overridden, because each rule gives a different language, not a variation. A lazy syntax and a greedy word grammar are examples.
+A parse option overrides `elision-only` either way. A caller switches it on to require the restored chosen reading as the only best admitted reading, or off to loosen the CLL pipeline. The steps of `%ambiguity-resolution` cannot be overridden, because each list of steps gives a different language, not a variation. A lazy syntax and a greedy word grammar are examples.
 
 ### Syntax conventions
 
@@ -928,7 +928,7 @@ The product provides these diagnostics and debugging tools:
   A stage with input and no verdict reports that it failed, with its diagnostic. A later stage without input is not reached.
 
   The trace position must be a finite integer. The trace clamps it to the stage's token boundaries. Printed conditions preserve method receivers with parentheses around compound terms.
-- The audit reports unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` covers text that can never emit a token and that no token can cover. The audit names a replacement that adds or removes a rule flag, with the flags before and after. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
+- The audit reports unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` covers text that can never emit a token and that no token can cover. The audit names a replacement that changes the rule's categories, with the categories before and after. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
 
   Its data lists the family's members in closure order. That order starts with the family rule and reads the members breadth first. It reads each member's alternatives in written order, and each alternative's member edges in written order. The data also lists the optionals that the family permits, each with its terminal and owning definition. They follow the members in closure order, and each member's optionals come in written order.
 

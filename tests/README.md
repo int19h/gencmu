@@ -328,7 +328,7 @@ A caller can supply its own `data/preparsed/gencmu.json` (`docs/api.md`). Its no
 
 Both transformations include `ref` references and `rule` query arguments. A query argument follows the same renamed rule or wrapper as a direct reference.
 
-Each item of `extraParts` changes a rule of either notation stage. Its `find` stands once in the bundled bootstrap. The item's bootstrap has `replace` in that place ("Places in fixtures"). Where `find` and `replace` are arrays of the same length, the library applies each pair in order, and each `find` stands once in the text that the earlier pairs produced. Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
+Each item of `extraParts` changes a rule of either notation stage. Its `find` stands once in the bundled bootstrap. The item's bootstrap has `replace` in that place ("Places in fixtures"). `find` and `replace` can be arrays of the same length. The library then applies each pair in order. Each `find` stands once in the text that the earlier pairs produced. Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
 
 An extra part holds text that the reader refuses if it reads it. An outcome other than `expect` then shows that the library read it. Other items change constructor shapes or supply tokens that the bundled lexical stage refuses. These tokens test reader validation, including guard errors and their priority (engine §9.3). An item whose `expect` is a load error can give `where`, `{"document": "g.md", "line": 3, "column": 21}`, the place of that error in its document. The load must then fail there, as `expect.where` says for an engine case.
 

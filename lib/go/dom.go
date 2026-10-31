@@ -225,7 +225,7 @@ type domCond struct {
 	Items       []*domCond
 }
 
-// domEmit holds the items of a %emits clause. Erasure uses a separate rule flag.
+// domEmit holds the items of a %emits clause. Erasure uses the separate rule field erased.
 type domEmit struct {
 	Items []*domEmitItem
 }

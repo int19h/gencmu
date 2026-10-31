@@ -3,7 +3,11 @@
     "description": "A directive ignores an unknown member.",
     "directive": {
       "name": "ambiguity-resolution",
-      "steps":[{"step":"greedy"}],
+      "steps": [
+        {
+          "step": "greedy"
+        }
+      ],
       "extra": true,
       "at": [
         1,
@@ -31,7 +35,11 @@
     "description": "An unknown directive member does not permit a zero line.",
     "directive": {
       "name": "ambiguity-resolution",
-      "steps":[{"step":"greedy"}],
+      "steps": [
+        {
+          "step": "greedy"
+        }
+      ],
       "extra": true,
       "at": [
         0,
@@ -44,7 +52,11 @@
     "description": "An unknown directive member does not permit a zero column.",
     "directive": {
       "name": "ambiguity-resolution",
-      "steps":[{"step":"greedy"}],
+      "steps": [
+        {
+          "step": "greedy"
+        }
+      ],
       "extra": true,
       "at": [
         1,
@@ -57,7 +69,11 @@
     "description": "An unknown directive member does not permit a negative line.",
     "directive": {
       "name": "ambiguity-resolution",
-      "steps":[{"step":"greedy"}],
+      "steps": [
+        {
+          "step": "greedy"
+        }
+      ],
       "extra": true,
       "at": [
         -1,
@@ -70,7 +86,11 @@
     "description": "An unknown directive member does not permit a negative column.",
     "directive": {
       "name": "ambiguity-resolution",
-      "steps":[{"step":"greedy"}],
+      "steps": [
+        {
+          "step": "greedy"
+        }
+      ],
       "extra": true,
       "at": [
         1,
@@ -113,9 +133,16 @@
     "directive": {
       "name": "ambiguity-resolution",
       "steps": [
-        {"step": "late", "category": "elision"},
-        {"step": "greedy"},
-        {"step": "lazy"}
+        {
+          "step": "late",
+          "category": "elision"
+        },
+        {
+          "step": "greedy"
+        },
+        {
+          "step": "lazy"
+        }
       ],
       "at": [
         1,
@@ -155,7 +182,10 @@
     "directive": {
       "name": "ambiguity-resolution",
       "steps": [
-        {"step": "greedy", "category": "x"}
+        {
+          "step": "greedy",
+          "category": "x"
+        }
       ],
       "at": [
         1,
@@ -169,7 +199,9 @@
     "directive": {
       "name": "ambiguity-resolution",
       "steps": [
-        {"step": "fewest"}
+        {
+          "step": "fewest"
+        }
       ],
       "at": [
         1,
@@ -183,7 +215,10 @@
     "directive": {
       "name": "ambiguity-resolution",
       "steps": [
-        {"step": "late-elision", "category": "elision"}
+        {
+          "step": "late-elision",
+          "category": "elision"
+        }
       ],
       "at": [
         1,
@@ -197,12 +232,29 @@
     "directive": {
       "name": "ambiguity-resolution",
       "steps": [
-        {"step": "leftmost-longest", "category": "span"},
-        {"step": "fewest", "category": "few"},
-        {"step": "most", "category": "many"},
-        {"step": "early", "category": "e"},
-        {"step": "late", "category": "elision"},
-        {"step": "lazy"}
+        {
+          "step": "leftmost-longest",
+          "category": "span"
+        },
+        {
+          "step": "fewest",
+          "category": "few"
+        },
+        {
+          "step": "most",
+          "category": "many"
+        },
+        {
+          "step": "early",
+          "category": "e"
+        },
+        {
+          "step": "late",
+          "category": "elision"
+        },
+        {
+          "step": "lazy"
+        }
       ],
       "at": [
         1,
@@ -1135,6 +1187,117 @@
         }
       ],
       "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A rule cannot count as elision (output.md, engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "categories": [
+        "elision"
+      ],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A category name starts with a lowercase letter (output.md, engine §9.1).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "categories": [
+        "Foo"
+      ],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A rule's categories are an array (output.md).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "categories": "few",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "An extension has no categories in the document DOM (output.md).",
+    "rule": {
+      "name": "text",
+      "op": "extend",
+      "categories": [
+        "few"
+      ],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A key step's category is a category name (output.md, engine §9.1).",
+    "directive": {
+      "name": "ambiguity-resolution",
+      "steps": [
+        {
+          "step": "fewest",
+          "category": "Foo"
+        }
+      ],
       "at": [
         1,
         1

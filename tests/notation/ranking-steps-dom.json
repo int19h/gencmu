@@ -1,0 +1,38 @@
+{
+  "description": "A ranking directive gives its key steps and its lean in order (engine §9.2, output.md).",
+  "document": "```jbogenbau\n%ambiguity-resolution leftmost-longest(span), fewest(link), most(m), early(e), late(elision), lazy\n```\n",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "leftmost-longest",
+              "category": "span"
+            },
+            {
+              "step": "fewest",
+              "category": "link"
+            },
+            {
+              "step": "most",
+              "category": "m"
+            },
+            {
+              "step": "early",
+              "category": "e"
+            },
+            {
+              "step": "late",
+              "category": "elision"
+            },
+            {
+              "step": "lazy"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

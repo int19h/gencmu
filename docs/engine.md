@@ -838,7 +838,7 @@ A public name cannot equal a template name.
 
 An edit written with NAME applies to the key bound at that statement's source position. Earlier edits remain on the old key after rebinding. Later edits by NAME apply to the new key. Every reference to NAME, except the head of an edit, uses its final binding. Exact calls continue to name their own instance keys.
 
-A binding accepts no clauses, conditions, categories, or output directive. Categories on a recognized binding are validity errors. A `%conditions` or `%emits` clause after a binding is a syntax error. The validity ban also applies to supplied binding DOMs.
+A binding accepts no clauses, conditions, categories, or output directive. A `%conditions`, `%counts-as` or `%emits` clause after a binding is a syntax error. The validity ban applies to supplied binding DOMs.
 
 An instance receives these from its effective definition. Instance-specific edits use a later ordinary body statement.
 
@@ -1415,7 +1415,7 @@ For example, take `text → [X] body="y"`, `body → X Y | Y` and the input `X Y
 
 A tag test works in the same way. Take `text → [X] body<B>` and `body → X Y | Y`, where the second production of `body` has the tag term `B`. Only the `body` over `Y` carries `B`, so again `[X]` reads `X`.
 
-In a derivation, an empty elidable helper supplies one omission at its input boundary. Its record holds the terminal, boundary, source, and saved equality value. It does not record which constituent it closes. Late-elision reads omission counts. Aligned queries read their owned ordered close records.
+In a derivation, an empty elidable helper supplies one omission at its input boundary. Its record holds the terminal, boundary, source, and saved equality value. It does not record which constituent it closes. The step `late(elision)` reads omission counts. Aligned queries read their owned ordered close records.
 
 The query blocker relation uses the logical preceding symbol described above. Braces use their expanded logical productions. Production start, a preceding terminal, and an initial recursive self-reference retain their immediate-prefix treatment.
 
@@ -1702,7 +1702,7 @@ Each key step compares two derivations by the counts of its category:
 
 - `leftmost-longest(c)`: compare the components with `p < q` by increasing `p` and, within one `p`, decreasing `q`. At the first differing count, the greater count wins.
 - `fewest(c)`: the smaller sum of all components wins. `most(c)`: the greater sum wins.
-- `late(c)`: for each boundary `p` from 0 to N, take the sum of the components at `p`. At the first boundary where the sums differ, the smaller sum wins. `early(c)`: the greater sum wins.
+- `late(c)`: for each boundary `p` from 0 to N, take the sum of `G_D(c,p,q)` over every `q`. At the first boundary where the sums differ, the smaller sum wins. `early(c)`: the greater sum wins.
 
 The profile of a derivation is its counts of every category that a key step names. Of two derivations, the first key step whose comparison decides says which has the greater profile. Equal counts at every key step make equal profiles. Every passage of this document that compares profiles, or calls one greater, uses this order.
 
@@ -1802,7 +1802,7 @@ Only a rule that can complete again below the child over that span matters. Such
 
 A summary describes the derivations of one item in one context. So an implementation keeps one summary for each combination of item and cycle context that some edge needs. The cycle context is reduced as above. This reduction removes context differences caused by ancestors outside the child's cyclic group. Different ancestor sets within that group can still need different summaries. Two summaries of one item can differ, and a summary keyed by the item alone can lose a reading.
 
-For example, take `text → b | a`, `a → b` and `b → a | A`, over the token `A`. The input has two derivations that are not cyclic, through `text → b` and through `text → a`. With equal rule profiles, they tie under every stage rule. Beneath `b` over the same span, `a` has no derivation that counts, since `a → b` repeats `b`. Directly under `text`, `a` has one, so a summary of `a` that ignores its context loses a reading of the root.
+For example, take `text → b | a`, `a → b` and `b → a | A`, over the token `A`. The input has two derivations that are not cyclic, through `text → b` and through `text → a`. With equal profiles, they tie under every stage rule. Beneath `b` over the same span, `a` has no derivation that counts, since `a → b` repeats `b`. Directly under `text`, `a` has one, so a summary of `a` that ignores its context loses a reading of the root.
 
 The derivations of the input are those of every completed item of `text` that spans it (§4). The implementation combines the summaries of all these items as the edges of one root.
 
@@ -1893,7 +1893,7 @@ The check is on where the stage declares `%elision-only` or the caller asks for 
 
 A tie never reaches it, because a tie ends the stage first. It skips a unique tree with no elided node. An error of the grammar found while emitting ends the stage before it. A caller can switch the check off for a stage that declares it.
 
-Uniqueness concerns the original input. Restoration can create another derivation. For `text → "a" [+T] | "a" T`, input `a` has one derivation, with `T` elided. After restoration, the optional and the bare `T` both read the synthetic token. Their rule profiles are equal, so the check fails.
+Uniqueness concerns the original input. Restoration can create another derivation. For `text → "a" [+T] | "a" T`, input `a` has one derivation, with `T` elided. After restoration, the optional and the bare `T` both read the synthetic token. Their profiles are equal, so the check fails.
 
 The check follows the decision order of §7.10. It chooses no replacement derivation and examines no other restoration.
 
@@ -2276,7 +2276,7 @@ A literal `‹` requires an escape. Without an open escape, `›` is literal. An
 
 An include or names-resource path is the first and only operand of `%include` or `%names`, in straight double quotes. Its literal runs preserve the original text without decomposition. Its escapes use the ordinary string decoder. Path resolution uses the decoded result. Paths use separate tokens because loading selects resources before constant binding.
 
-A feature name matches `[A-Za-z][A-Za-z0-9-]*`. A guard token is a feature name followed by `?` or `!`, or `¬` immediately followed by a feature name and `?`. No whitespace or comment stands inside a guard token. A capital-initial feature such as `Cbm` is legal.
+A feature name matches `[A-Za-z][A-Za-z0-9-]*`. A category name matches `[a-z][a-z0-9-]*`. A guard token is a feature name followed by `?` or `!`, or `¬` immediately followed by a feature name and `?`. No whitespace or comment stands inside a guard token. A capital-initial feature such as `Cbm` is legal.
 
 The lexer reads `¬` separately only when no guard starts immediately after it. It has no negated-warning token. Thus `%rule r ¬cbm! A` fails lexically at `!`, column 13. `%rule r ¬ cbm? A` fails syntax recognition at `¬`, column 9. A supplied guard with an invalid feature or a negated warning fails at that guard.
 
@@ -2857,9 +2857,9 @@ Inline `++` in body terminals, value tests, pattern terminals, range endpoints, 
 
 The grammar does not state the restrictions below. Each of these is an error of the document. The reader reports it at the first token of the offending construct, unless the item names another place.
 
-- A `%counts-as` clause on `%extend-rule` is an error at the clause's keyword. A category name that does not start with a lowercase letter, or continues with anything but lowercase letters, digits and hyphens, is an error at the name. So is the name `elision`. A repeated name is an error at the repeated name. These examples start at column 1. So `%extend-rule r A %counts-as x` reports column 18, `%rule r A %counts-as Foo` reports column 22, and `%rule r A %counts-as x, x` reports column 25.
+- A `%counts-as` clause on `%extend-rule` is an error at the clause's keyword. A category name that is not of the form §9.1 gives is an error at the name. So is the name `elision`. A repeated name is an error at the repeated name. These examples start at column 1. So `%extend-rule r A %counts-as x` reports column 18, `%rule r A %counts-as Foo` reports column 22, and `%rule r A %counts-as x, x` reports column 25.
 
-  Parentheses after the definer fail the syntax stage at `(`, column 6 in `%rule(x) r A`, since no flag stands there. An empty clause, `%counts-as` with no name, fails the syntax stage at the token after it. A supplied notation tree with no `category` part reports its missing part at `counts-as-clause`, after the extension check.
+  Parentheses after the definer fail the syntax stage at `(`, column 6 in `%rule(x) r A`, since nothing stands between the definer and the name. An empty clause, `%counts-as` with no name, fails the syntax stage at the token after it. A supplied notation tree with no `category` part reports its missing part at `counts-as-clause`, after the extension check.
 - A rule name that is neither a valid emoji scalar nor a name beginning with `a` to `z` is an error at the name. Thus `%rule Foo A` fails at `Foo`, column 7.
 - A capture that wraps anything but one symbol is an error, `$x:(B)`, `$x:(A | B)` and `$x:[B]` included. A symbol is a rule reference, call, parameter, tag terminal, string terminal, range, wildcard, or a tested form of one. The capture check ignores the target's test count and order. The `tested` constructor reports any test-order error.
 
@@ -2979,7 +2979,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
 - A rule's or an alternative's tag term cannot read the tags that it defines. A read of `$.tags` or `$.classes` in that term is an error. `$.first-token.tags` and the like read the tokens' tags, not the constituent's, and are allowed, as is `$.tags(R)`. Bare `$` in a guard reads the constituent's input value.
 - An unknown directive or keyword is an error. The syntax grammar already refuses it.
-- A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` and `%names` take one path each, and `%features` takes one or more feature names as §9.1 defines them. `%elision-only` takes no operand. `%ambiguity-resolution` takes one or more steps: `leftmost-longest`, `fewest`, `most`, `late` or `early` with one category in parentheses, or `greedy` or `lazy` without. A lean, `greedy` or `lazy`, can stand only as the last step. A step with the wrong form, a lean elsewhere than last, or two leans is an error at the directive. A directive with no step fails the syntax stage at the token after it, as in `%ambiguity-resolution` alone.
+- A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` and `%names` take one path each, and `%features` takes one or more feature names as §9.1 defines them. `%elision-only` takes no operand. `%ambiguity-resolution` takes one or more steps: `leftmost-longest`, `fewest`, `most`, `late` or `early` with one category in parentheses, or `greedy` or `lazy` without. A lean, `greedy` or `lazy`, can stand only as the last step. A step with the wrong form, a category name not of the form §9.1 gives, a lean elsewhere than last, or two leans is an error at the directive. A directive with no step fails the syntax stage at the token after it, as in `%ambiguity-resolution` alone.
 
 Feature conditions receive syntax and DOM-shape analysis before stitching. Their semantic analysis applies only to surviving stage declarations (§13).
 

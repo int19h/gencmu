@@ -49,7 +49,7 @@ The words stage emits each finished quote as one token of its opening class. The
 
 A ranked choice filters alternatives at one written position. An option qualifies when its complete reading passes the grammar's conditions. An earlier option can exclude a later option over the same span. The [notation document](../../../docs/notation.md#ranked-choices) defines when this occurs.
 
-A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. No rule counts as a unit whose span the stage ranks.
+A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage has no `leftmost-longest` step.
 
 The stage first prefers fewer plain term links through `fewest(link)`. It then ranks admitted derivations by `late(elision)`. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 

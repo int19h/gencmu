@@ -1,0 +1,10 @@
+{
+  "description": "A step whose category is not a category name is an error at the directive (engine §9.3).",
+  "document": "```jbogenbau\n%ambiguity-resolution fewest(Foo)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}
