@@ -15,28 +15,28 @@ The prose uses these Eberban terms:
 
 ## Texts and paragraphs
 
-A text is language flags, then paragraphs. An empty text is valid. The [sentences chapter](https://eberban.github.io/eberban/logic/sentences.html) marks a new paragraph with `PO`. The first paragraph can lack it. A paragraph is a sentence and any number of further sentences. A further sentence starts with a sentence starter, a particle of family `A`, `O` or `NI`, or it is ungrammatical text that `ra` erases.
+A text is language flags, then paragraphs. An empty text is valid. The [sentences chapter](https://eberban.github.io/eberban/logic/sentences.html) marks a new paragraph with `PO`. The first paragraph can lack it. A paragraph is a sentence and any number of further sentences. A further sentence starts with a sentence starter, a particle of family `A`, `O` or `NI`, or it is ungrammatical text that `ra` erases. The text rules are templates. Their parameter names what blocks an erasure at the start of a paragraph, as "Sentences and erasure" explains. `text` and its rules serve the whole text, a parenthetical and a quote with a written `cai`. `open-quote-text` and its rules serve a quote whose `cai` is left out.
 
-The sentences chapter starts every sentence with a starter, and lets the first sentence of a paragraph leave it out. So a further sentence without a starter is always ungrammatical. `invalid-tail` reads it as erased text, even where it would be a sentence at the start of a paragraph. A further sentence cannot start with a paragraph mark or the end of a parenthesis, because those end the paragraph.
+The sentences chapter starts every sentence with a starter, and lets the first sentence of a paragraph leave it out. So a further sentence without a starter is always ungrammatical. `invalid-tail` reads it as erased text, even where it would be a sentence at the start of a paragraph. A further sentence cannot start with a paragraph mark or the end of a parenthesis, because those end the paragraph. Erased text after a complete sentence cannot start with a closer, `FI`, `VEI`, `PEI`, `BU`, `PA` or `cai`, unless a `ra` comes right before it. Such a closer belongs to the sentence before it, which is then ungrammatical, so the erasure starts at that sentence.
 
 ```jbogenbau
-%rule text
-  [{DO}] [paragraphs]
+%rule text-of(@Open)
+  [{DO}] [paragraphs-of(@Open)]
 
-%rule paragraphs
-  [po-head] sentences [{po-head sentences}]
+%rule paragraphs-of(@Open)
+  [po-head] sentences-of(@Open) [{po-head sentences-of(@Open)}]
 
 %rule po-head
   [{prefix}] PO [{postfix}]
 
-%rule sentences
-  sentence [{tail-sentence}]
+%rule sentences-of(@Open)
+  sentence-of(@Open) [{tail-sentence-of(@Open)}]
 
-%rule tail-sentence
-  starter-sentence | invalid-tail
+%rule tail-sentence-of(@Open)
+  starter-sentence-of(@Open) | invalid-tail
 
-%rule starter-sentence
-  $s:sentence
+%rule starter-sentence-of(@Open)
+  $s:sentence-of(@Open)
 %conditions
   $s.onward.begins(starter-head)
 
@@ -44,42 +44,73 @@ The sentences chapter starts every sentence with a starter, and lets the first s
   $s:erased-invalid
 %conditions
   ¬$s.onward.begins(starter-head),
-  ¬$s.onward.begins(po-or-dai)
+  ¬$s.onward.begins(po-or-dai),
+  ¬$s.onward.begins(closer) ∨ $s.preceding-tokens.ends(RA)
 
 %rule starter-head
   [{prefix}] (A | O | NI)
 
 %rule po-or-dai
   [{prefix}] PO | DAI
+
+%rule closer
+  elider-word | CAI
+
+%rule text = text-of(open-sentence)
+%rule paragraphs = paragraphs-of(open-sentence)
+%rule sentences = sentences-of(open-sentence)
+%rule tail-sentence = tail-sentence-of(open-sentence)
+%rule starter-sentence = starter-sentence-of(open-sentence)
+%rule sentence = sentence-of(open-sentence)
+
+%rule open-quote-text = text-of(sentence-choice)
+%rule open-quote-paragraphs = paragraphs-of(sentence-choice)
+%rule open-quote-sentences = sentences-of(sentence-choice)
+%rule open-quote-tail-sentence = tail-sentence-of(sentence-choice)
+%rule open-quote-starter-sentence = starter-sentence-of(sentence-choice)
+%rule open-quote-sentence = sentence-of(sentence-choice)
 ```
 
-<details><summary>Railroad diagrams of the 9 rules from <code>text</code> to <code>po-or-dai</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/text.svg" alt="Railroad diagram of the rule text"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/paragraphs.svg" alt="Railroad diagram of the rule paragraphs"></p>
+<details><summary>Railroad diagrams of the 22 rules from <code>text-of</code> to <code>open-quote-sentence</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/text-of.svg" alt="Railroad diagram of the rule text-of"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/paragraphs-of.svg" alt="Railroad diagram of the rule paragraphs-of"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/po-head.svg" alt="Railroad diagram of the rule po-head"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentences.svg" alt="Railroad diagram of the rule sentences"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/tail-sentence.svg" alt="Railroad diagram of the rule tail-sentence"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/starter-sentence.svg" alt="Railroad diagram of the rule starter-sentence"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentences-of.svg" alt="Railroad diagram of the rule sentences-of"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/tail-sentence-of.svg" alt="Railroad diagram of the rule tail-sentence-of"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/starter-sentence-of.svg" alt="Railroad diagram of the rule starter-sentence-of"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/invalid-tail.svg" alt="Railroad diagram of the rule invalid-tail"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/starter-head.svg" alt="Railroad diagram of the rule starter-head"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/po-or-dai.svg" alt="Railroad diagram of the rule po-or-dai"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/closer.svg" alt="Railroad diagram of the rule closer"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/text.svg" alt="Railroad diagram of the rule text"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/paragraphs.svg" alt="Railroad diagram of the rule paragraphs"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentences.svg" alt="Railroad diagram of the rule sentences"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/tail-sentence.svg" alt="Railroad diagram of the rule tail-sentence"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/starter-sentence.svg" alt="Railroad diagram of the rule starter-sentence"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/open-quote-text.svg" alt="Railroad diagram of the rule open-quote-text"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/open-quote-paragraphs.svg" alt="Railroad diagram of the rule open-quote-paragraphs"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/open-quote-sentences.svg" alt="Railroad diagram of the rule open-quote-sentences"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/open-quote-tail-sentence.svg" alt="Railroad diagram of the rule open-quote-tail-sentence"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/open-quote-starter-sentence.svg" alt="Railroad diagram of the rule open-quote-starter-sentence"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/open-quote-sentence.svg" alt="Railroad diagram of the rule open-quote-sentence"></p>
 </details>
 
 ## Sentences and erasure
 
 A sentence starts with `A`, `O` or `NI`. An `A` sentence is an inner predicate, which is a chain with an optional arguments list. An `O` sentence names a definable word, then an inner predicate. An `NI` sentence names a definable word alone. The first sentence of a paragraph can leave its `a` out.
 
-A sentence ends where the next sentence, paragraph, quote end, parenthesis end or eraser begins, or at the end of the text. A particle that closes an outer construct ends the sentence too: `FI`, `VEI`, `PEI`, `BU` or `PA`. Such a particle ends a quote whose `cai` is left out, together with its last sentence. The PEG ends a sentence before such a particle outside a quote too, and the particle then starts erased text. The rule `sentence-end` names these ends, and `sentence-choice` requires one after the sentence.
+A sentence ends where the next sentence, paragraph, quote end, parenthesis end or eraser begins, or at the end of the text. A particle that closes an outer construct ends the sentence too: `FI`, `VEI`, `PEI`, `BU` or `PA`. Such a particle ends a quote whose `cai` is left out, together with its last sentence. The rule `sentence-end` names these ends, and `sentence-choice` requires one after the sentence. An open sentence is one that ends at the next sentence, paragraph or eraser, or at the end of the text. No enclosing construct has to claim what follows it, so it is grammatical wherever it stands. `open-sentence` and `open-end` name it.
 
 The rule `sentence` also reads erasures. The chapter on sentences gives two erasers. `ra` erases everything since the start of the current sentence. It also erases ungrammatical text back to the start of the last grammatical sentence. `ri` erases the current chain, which must be grammatical.
 
-The first sentence of a paragraph is erased invalid text only where no grammatical sentence starts. The first condition of `sentence` states that. A paragraph mark at the start of a paragraph is always the paragraph's mark, so the second condition keeps it out of the erased text. A `ra` can also stand where a sentence starts, with nothing to erase. That is `empty-erasure`.
+The chapter erases back to the start of the last sentence that was still grammatical. So the first sentence of a paragraph is erased invalid text only where no grammatical sentence starts. The first condition of `sentence-of` states that, and its parameter says which sentence counts. A sentence that ends only before a closer or `dai` is grammatical only where an enclosing construct claims that word. In the whole text, a parenthetical or a quote with a written `cai`, the parameter is `open-sentence`. Such a sentence then does not block the erasure. In a quote whose `cai` is left out, a closer can end the quote, so any sentence blocks it. The parameter there is `sentence-choice`. A paragraph mark at the start of a paragraph is always the paragraph's mark, so the second condition keeps it out of the erased text. A `ra` can also stand where a sentence starts, with nothing to erase. That is `empty-erasure`.
 
 ```jbogenbau
-%rule sentence
+%rule sentence-of(@Open)
   erased-valid | sentence-choice | $i:erased-invalid | empty-erasure
 %conditions
-  ¬$i.onward.begins(sentence-choice),
+  ¬$i.onward.begins(@Open),
   ¬$i.onward.begins(po-head)
 
 %rule sentence-choice
@@ -91,7 +122,15 @@ The first sentence of a paragraph is erased invalid text only where no grammatic
   o-sentence | ni-sentence | a-sentence
 
 %rule sentence-end
-  | starter-head | [{prefix}] PO | CAI | DAI | RA | elider-word | end-of-text
+  open-end | CAI | DAI | elider-word
+
+%rule open-sentence
+  $s:sentence-body
+%conditions
+  $s.following-tokens.begins(open-end)
+
+%rule open-end
+  starter-head | [{prefix}] PO | RA | end-of-text
 
 %rule elider-word
   FI | VEI | PEI | BU | PA
@@ -112,11 +151,13 @@ The first sentence of a paragraph is erased invalid text only where no grammatic
   [{prefix}] NI definable
 ```
 
-<details><summary>Railroad diagrams of the 9 rules from <code>sentence</code> to <code>ni-sentence</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
+<details><summary>Railroad diagrams of the 11 rules from <code>sentence-of</code> to <code>ni-sentence</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentence-of.svg" alt="Railroad diagram of the rule sentence-of"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentence-choice.svg" alt="Railroad diagram of the rule sentence-choice"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentence-body.svg" alt="Railroad diagram of the rule sentence-body"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentence-end.svg" alt="Railroad diagram of the rule sentence-end"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/open-sentence.svg" alt="Railroad diagram of the rule open-sentence"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/open-end.svg" alt="Railroad diagram of the rule open-end"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/elider-word.svg" alt="Railroad diagram of the rule elider-word"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/end-of-text.svg" alt="Railroad diagram of the rule end-of-text"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/a-sentence.svg" alt="Railroad diagram of the rule a-sentence"></p>
@@ -124,7 +165,7 @@ The first sentence of a paragraph is erased invalid text only where no grammatic
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ni-sentence.svg" alt="Railroad diagram of the rule ni-sentence"></p>
 </details>
 
-An erased valid sentence is a sentence followed by one or more `ra`. Erased invalid text is one or more words up to the first `ra`. The words can be anything, so a stretch that the chapter calls one ungrammatical sentence can hold several sentences that look grammatical. `invalid-head` names its first word, so that the condition on a grammatical quote can test it. An empty erasure is a `ra` alone.
+An erased valid sentence is a sentence followed by one or more `ra`. Erased invalid text is one or more words up to the first `ra`. The words can be anything, so a stretch that the chapter calls one ungrammatical sentence can hold several sentences that look grammatical. `invalid-head` names its first word, so that the condition on a grammatical quote can test it. An empty erasure is a `ra` alone. Each word after the first is an `erased-word`, which carries the `fewest` flag. So of two readings, the one that erases fewer words wins, as the chapter's "last sentence that was still grammatical" asks. The flag shares its count with `passed-step`. An erased stretch always holds more words than the steps of a resumption it hides, so a reading cannot win by erasing a resumption.
 
 The chapter says that `ra` "must be surrounded by spaces or pauses". The start of a text counts as a pause, as it does for hesitation in the [word forms](morphology.md). So a text can start with `ra`.
 
@@ -137,7 +178,7 @@ The PEG requires a written starter after an erasure, and states this rule in an 
   $.following-tokens.begins(after-erasure)
 
 %rule erased-invalid
-  invalid-head [{_<¬RA>}] ra-run
+  invalid-head [{erased-word}] ra-run
 %conditions
   $.following-tokens.begins(after-erasure)
 
@@ -149,6 +190,9 @@ The PEG requires a written starter after an erasure, and states this rule in an 
 %rule invalid-head
   elider-word | _<¬RA ¬FI ¬VEI ¬PEI ¬BU ¬PA>
 
+%rule(fewest) erased-word
+  _<¬RA>
+
 %rule ra-run
   {RA}
 
@@ -157,11 +201,12 @@ The PEG requires a written starter after an erasure, and states this rule in an 
   | CAI | DAI | elider-word | end-of-text
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>erased-valid</code> to <code>after-erasure</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>erased-valid</code> to <code>after-erasure</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-valid.svg" alt="Railroad diagram of the rule erased-valid"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-invalid.svg" alt="Railroad diagram of the rule erased-invalid"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-erasure.svg" alt="Railroad diagram of the rule empty-erasure"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/invalid-head.svg" alt="Railroad diagram of the rule invalid-head"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-word.svg" alt="Railroad diagram of the rule erased-word"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ra-run.svg" alt="Railroad diagram of the rule ra-run"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/after-erasure.svg" alt="Railroad diagram of the rule after-erasure"></p>
 </details>
@@ -346,27 +391,27 @@ The [quotes chapter](https://eberban.github.io/eberban/grammar/quotes.html) give
 
 The chapter does not say that `cai` can be left out. The PEG lets the speaker leave it out where the quoted text can end, and this grammar follows the PEG.
 
-Inside a `ca` quote, a particle that closes an outer construct ends the quoted text instead of starting erasable text. The first two conditions on the quote state that: its text holds no erased invalid stretch that starts with such a particle.
+A quote with a written `cai` reads `text`, like the whole text, because no closer inside it can end it. In a quote whose `cai` is left out, a particle that closes an outer construct ends the quoted text instead of starting erasable text. The second and third alternatives read such a quote. Their first two conditions require that the `cai` is left out. The next two require that the text holds no erased invalid stretch that starts with such a particle.
 
-The PEG warns when a quote of several sentences leaves out its `cai` before the end of the text. The end of the quote is then hard to see. The second alternative carries that warning as `multi-sentence-cai-elided`. A quote holds several sentences when it has several paragraphs, or when its first paragraph has more than one sentence that is not erased. `$SEVERAL-SENTENCES` states that. The last two conditions send each quote to exactly one alternative.
+The PEG warns when a quote of several sentences leaves out its `cai` before the end of the text. The end of the quote is then hard to see. The third alternative carries that warning as `multi-sentence-cai-elided`. A quote holds several sentences when it has several paragraphs, or when its first paragraph has more than one sentence that is not erased. `$SEVERAL-SENTENCES` states that. The last three conditions send each such quote to exactly one of the two alternatives.
 
 ```jbogenbau
 %const $SEVERAL-SENTENCES
-  #« ⋯ paragraphs« ⋯ sentences po-head ⋯ » »
-  ∪ #« ⋯ paragraphs« [po-head] sentences« ⋯ sentence-choice ⋯ sentence-choice ⋯ » ⋯ » »
+  #« ⋯ open-quote-paragraphs« ⋯ open-quote-sentences po-head ⋯ » »
+  ∪ #« ⋯ open-quote-paragraphs« [po-head] open-quote-sentences« ⋯ sentence-choice ⋯ sentence-choice ⋯ » ⋯ » »
 
 %rule grammatical-quote
-  | [{prefix}] CA $t:text quote-end
-  | multi-sentence-cai-elided! [{prefix}] CA $l:text [+CAI]
+  | [{prefix}] CA text [{prefix}] CAI
+  | [{prefix}] CA $q:open-quote-text [+CAI]
+  | multi-sentence-cai-elided! [{prefix}] CA $l:open-quote-text [+CAI]
 %conditions
-  $t ≇ #(⋮ erased-invalid« elider-word ⋯ »),
+  $q ⟹ $ ≅ #(⋱ CAI=""),
+  $l ⟹ $ ≅ #(⋱ CAI=""),
+  $q ≇ #(⋮ erased-invalid« elider-word ⋯ »),
   $l ≇ #(⋮ erased-invalid« elider-word ⋯ »),
-  $t ≅ $SEVERAL-SENTENCES ∧ $ ≅ #(⋱ CAI="") ⟹ $.following-tokens.begins(end-of-text),
-  $l ≅ $SEVERAL-SENTENCES ∧ $ ≅ #(⋱ CAI="") ∧ ¬$.following-tokens.begins(end-of-text)
-
-%rule quote-end
-  | [+CAI]
-  | {prefix} CAI
+  $q ≅ $SEVERAL-SENTENCES ⟹ $.following-tokens.begins(end-of-text),
+  $l ≅ $SEVERAL-SENTENCES,
+  $l ⟹ ¬$.following-tokens.begins(end-of-text)
 
 %rule word-quote
   [{prefix}] CI (Word<Particle> | Root | Compound | Borrowing)
@@ -378,9 +423,8 @@ The PEG warns when a quote of several sentences leaves out its `cai` before the 
   [{prefix}] (CO<Quote> | COI)
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>grammatical-quote</code> to <code>foreign-quote</code></summary>
+<details><summary>Railroad diagrams of the 4 rules from <code>grammatical-quote</code> to <code>foreign-quote</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/grammatical-quote.svg" alt="Railroad diagram of the rule grammatical-quote"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/quote-end.svg" alt="Railroad diagram of the rule quote-end"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/word-quote.svg" alt="Railroad diagram of the rule word-quote"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/spelling-quote.svg" alt="Railroad diagram of the rule spelling-quote"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/foreign-quote.svg" alt="Railroad diagram of the rule foreign-quote"></p>
@@ -498,7 +542,7 @@ The PEG accepts any `JI` after any number. This grammar follows the numbers chap
 
 After an erasure, the PEG queues its message about the starter, unless a starter, a paragraph mark or the end of the whole text follows. It applies that rule inside a quote or a parenthesis too. A later `ra` that erases ungrammatical text discards the message. So erased text can follow an erasure in the PEG, as it can here. This grammar also accepts the end of an enclosing quote or parenthesis after an erasure. So `a mi da a mo ra dai` is a text here and not in the PEG.
 
-Outside a quote, both the PEG and this grammar end a sentence before `FI`, `VEI`, `PEI`, `BU` or `PA`, so that particle starts erased text. So in `a mo vei ra a ke`, the `ra` erases only `vei`, and `a mo` stays. The sentences chapter says that `ra` erases back to the start of the last sentence that was still grammatical, which would erase `a mo vei`. This grammar keeps the reading of the PEG, because a sentence cannot tell here whether a quote encloses it.
+Outside a quote, the PEG ends a sentence before `FI`, `VEI`, `PEI`, `BU` or `PA`, so that particle starts erased text. So in `a mo vei ra a ke`, its `ra` erases only `vei`, and `a mo` stays. The sentences chapter says that `ra` erases back to the start of the last sentence that was still grammatical. This grammar follows the chapter and erases `a mo vei`. The same holds for a stray `cai` or `dai`. The PEG reads a stray `dai` as an error. Inside a quote with a written `cai`, the PEG ends the quoted text before a closer and then fails, as in `a mi ca a mo vei ra a ke cai`. This grammar reads that quote like the whole text, so the erasure stays inside it. For the same reason, erased text can follow an erasure there, as in `a mi ca a mo ra vei ra a ke cai`. The PEG requires a starter after the erasure.
 
 The quotes chapter does not say that `cai` can be left out. The PEG lets the speaker leave `cai` out, and this grammar follows the PEG.
 
