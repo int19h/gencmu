@@ -1262,45 +1262,16 @@ impl Constants<'_> {
                 return Err(located(fault.problem, document, fault.at.unwrap_or(item)));
             }
             self.check_pattern_depth(term, document, item)?;
-            enum Part<'a> {
-                Pattern(&'a Pattern),
-                Children(&'a crate::patterns::Children),
-            }
-            use crate::patterns::Children;
-            let mut pending = vec![Part::Pattern(root)];
-            while let Some(part) = pending.pop() {
-                match part {
-                    Part::Pattern(pattern) => match pattern {
-                        Pattern::Range(a, b, at) => {
-                            self.scalar_endpoints(a, b, document, *at)?;
-                        }
-                        Pattern::Union(items) | Pattern::Intersection(items) => {
-                            pending.extend(items.iter().map(Part::Pattern))
-                        }
-                        Pattern::Difference(a, b) => {
-                            pending.push(Part::Pattern(a));
-                            pending.push(Part::Pattern(b));
-                        }
-                        Pattern::Test(_, _, inner) | Pattern::Path(_, inner) => pending.push(Part::Pattern(inner)),
-                        Pattern::Node(node, _, children) => {
-                            pending.push(Part::Pattern(node));
-                            pending.extend(children.as_ref().map(Part::Children));
-                        }
-                        _ => {}
-                    },
-                    Part::Children(children) => match children {
-                        Children::Node(pattern) => pending.push(Part::Pattern(pattern)),
-                        Children::Sequence(items) | Children::Choice(items) => {
-                            pending.extend(items.iter().map(Part::Children))
-                        }
-                        Children::Optional(inner) => pending.push(Part::Children(inner)),
-                        Children::Repeat(item, separator) => {
-                            pending.push(Part::Children(item));
-                            pending.extend(separator.as_deref().map(Part::Children));
-                        }
-                        Children::Siblings => {}
-                    },
-                }
+            // Preserve the endpoint scan's reverse written order.
+            let ranges: Vec<_> = root
+                .walk()
+                .filter_map(|part| match part {
+                    crate::patterns::Part::Pattern(Pattern::Range(a, b, at)) => Some((a, b, *at)),
+                    _ => None,
+                })
+                .collect();
+            for (a, b, at) in ranges.into_iter().rev() {
+                self.scalar_endpoints(a, b, document, at)?;
             }
         } else {
             self.check_pattern_depth(term, document, item)?;
