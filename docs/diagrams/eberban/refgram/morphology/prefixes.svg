@@ -1,16 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="389" height="88" viewBox="0 0 389 88" role="img" aria-label="Railroad diagram of the rule prefixes">
+<svg xmlns="http://www.w3.org/2000/svg" width="590" height="98" viewBox="0 0 590 98" role="img" aria-label="Railroad diagram of the rule prefixes">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="67.2" lengthAdjust="spacingAndGlyphs">prefixes</text>
-<path d="M10 48v16m4 -16v16M14 56h6"/>
-<g class="rule"><rect x="20" y="44" width="117" height="24" rx="0"/><text x="78.5" y="61" textLength="100.8" lengthAdjust="spacingAndGlyphs">first-prefix</text></g>
-<path d="M137 56h10"/>
-<path d="M147 56h20"/>
-<path d="M167 56h20"/>
-<g class="rule"><rect x="187" y="44" width="142" height="24" rx="0"/><text x="258" y="61" textLength="126" lengthAdjust="spacingAndGlyphs">attached-prefix</text></g>
-<path d="M329 56H349"/>
-<path d="M329 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H187a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M349 56H369"/>
-<path d="M147 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H349a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M369 56h6m0 -8v16m4 -16v16"/>
+<path d="M10 58v16m4 -16v16M14 66h6"/>
+<g class="rule"><rect x="20" y="54" width="117" height="24" rx="0"/><text x="78.5" y="71" textLength="100.8" lengthAdjust="spacingAndGlyphs">first-prefix</text></g>
+<path d="M137 66h10"/>
+<path d="M147 66h20"/>
+<path d="M167 66h20"/>
+<path d="M187 66h20"/>
+<g class="rule"><rect x="207" y="54" width="151" height="24" rx="0"/><text x="282.5" y="71" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<path d="M358 66H378"/>
+<path d="M187 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H358a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M378 66h10"/>
+<g class="rule"><rect x="388" y="54" width="142" height="24" rx="0"/><text x="459" y="71" textLength="126" lengthAdjust="spacingAndGlyphs">attached-prefix</text></g>
+<path d="M530 66H550"/>
+<path d="M530 66a10 10 0 0 1 10 10V78a10 10 0 0 1 -10 10H187a10 10 0 0 1 -10 -10V76a10 10 0 0 1 10 -10"/>
+<path d="M550 66H570"/>
+<path d="M147 66a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H550a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M570 66h6m0 -8v16m4 -16v16"/>
 </svg>

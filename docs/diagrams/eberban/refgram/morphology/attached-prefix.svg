@@ -1,24 +1,34 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="347" height="146" viewBox="0 0 347 146" role="img" aria-label="Railroad diagram of the rule attached-prefix">
+<svg xmlns="http://www.w3.org/2000/svg" width="548" height="166" viewBox="0 0 548 166" role="img" aria-label="Railroad diagram of the rule attached-prefix">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="126" lengthAdjust="spacingAndGlyphs">attached-prefix</text>
 <text class="label" x="156" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
-<path d="M10 48v16m4 -16v16M14 56h6"/>
-<path d="M20 56h20"/>
-<g class="terminal"><rect x="40" y="44" width="100" height="24" rx="12"/><text x="90" y="61" textLength="84" lengthAdjust="spacingAndGlyphs">Letter=&quot;e&quot;</text></g>
-<path d="M140 56h10"/>
-<path d="M150 56h20"/>
-<g class="rule"><rect x="170" y="44" width="117" height="24" rx="0"/><text x="228.5" y="61" textLength="100.8" lengthAdjust="spacingAndGlyphs">prefix-arity</text></g>
-<path d="M287 56H307"/>
-<path d="M150 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H287a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M307 56H327"/>
-<path d="M20 56a10 10 0 0 1 10 10V80a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="78" width="100" height="24" rx="12"/><text x="90" y="95" textLength="84" lengthAdjust="spacingAndGlyphs">Letter=&quot;i&quot;</text></g>
-<path d="M140 90H307a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M20 56a10 10 0 0 1 10 10V114a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="112" width="100" height="24" rx="12"/><text x="90" y="129" textLength="84" lengthAdjust="spacingAndGlyphs">Letter=&quot;i&quot;</text></g>
-<path d="M140 124h10"/>
-<g class="rule"><rect x="150" y="112" width="117" height="24" rx="0"/><text x="208.5" y="129" textLength="100.8" lengthAdjust="spacingAndGlyphs">prefix-arity</text></g>
-<path d="M267 124H307a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M327 56h6m0 -8v16m4 -16v16"/>
+<path d="M10 58v16m4 -16v16M14 66h6"/>
+<path d="M20 66h20"/>
+<g class="terminal"><rect x="40" y="54" width="100" height="24" rx="12"/><text x="90" y="71" textLength="84" lengthAdjust="spacingAndGlyphs">Letter=&quot;e&quot;</text></g>
+<path d="M140 66h10"/>
+<path d="M150 66h20"/>
+<path d="M170 66h20"/>
+<g class="rule"><rect x="190" y="54" width="151" height="24" rx="0"/><text x="265.5" y="71" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<path d="M341 66H361"/>
+<path d="M170 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H341a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M361 66h10"/>
+<g class="rule"><rect x="371" y="54" width="117" height="24" rx="0"/><text x="429.5" y="71" textLength="100.8" lengthAdjust="spacingAndGlyphs">prefix-arity</text></g>
+<path d="M488 66H508"/>
+<path d="M150 66a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H488a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M508 66H528"/>
+<path d="M20 66a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="88" width="100" height="24" rx="12"/><text x="90" y="105" textLength="84" lengthAdjust="spacingAndGlyphs">Letter=&quot;i&quot;</text></g>
+<path d="M140 100H508a10 10 0 0 0 10 -10V76a10 10 0 0 1 10 -10"/>
+<path d="M20 66a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="132" width="100" height="24" rx="12"/><text x="90" y="149" textLength="84" lengthAdjust="spacingAndGlyphs">Letter=&quot;i&quot;</text></g>
+<path d="M140 144h10"/>
+<path d="M150 144h20"/>
+<g class="rule"><rect x="170" y="132" width="151" height="24" rx="0"/><text x="245.5" y="149" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<path d="M321 144H341"/>
+<path d="M150 144a10 10 0 0 0 10 -10V132a10 10 0 0 1 10 -10H321a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<path d="M341 144h10"/>
+<g class="rule"><rect x="351" y="132" width="117" height="24" rx="0"/><text x="409.5" y="149" textLength="100.8" lengthAdjust="spacingAndGlyphs">prefix-arity</text></g>
+<path d="M468 144H508a10 10 0 0 0 10 -10V76a10 10 0 0 1 10 -10"/>
+<path d="M528 66h6m0 -8v16m4 -16v16"/>
 </svg>

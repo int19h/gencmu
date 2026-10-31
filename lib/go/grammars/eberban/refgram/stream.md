@@ -33,7 +33,7 @@ The stream is a sequence of units with gaps between them. A gap is one or more s
 <p><img src="../../../docs/diagrams/eberban/refgram/stream/unit.svg" alt="Railroad diagram of the rule unit"></p>
 </details>
 
-A plain word is any word token except a compound prefix, which only a compound reads. A `co` that no bracket follows stays a plain word, and the syntax stage has no use for it. A `co` that a bracket follows opens a quote, so it is never a plain word. If the quote never closes, the text has no parse. Junk is a run that the forms stage read as no word. It passes through for the syntax stage, where only erased text admits it.
+A plain word is any word token except a compound prefix, which only a compound reads. A `co` that opens a quote is never a plain word. The rule `quote-opening` reads such a `co` with the `[` that opens its quote, and the delimiter of the second form. If the quote never closes, the text has no parse. A `co` that no such bracket follows stays a plain word, and the syntax stage has no use for it. Junk is a run that the forms stage read as no word. It passes through for the syntax stage, where only erased text admits it.
 
 ```jbogenbau
 %rule plain-word
@@ -44,7 +44,7 @@ A plain word is any word token except a compound prefix, which only a compound r
   $
 
 %rule quote-opening
-  CO [gap] Open | CO [space-unit] delimiter Open
+  CO [opening-gap] Open | CO [opening-gap] delimiter Open
 
 %rule junk
   $j:Junk :: $j.tags
@@ -60,11 +60,11 @@ A plain word is any word token except a compound prefix, which only a compound r
 
 ## Compounds
 
-The [compounds chapter](https://eberban.github.io/eberban/grammar/compounds.html) makes one word from several. The prefix `e` takes two components, `en` three, and `er` any number up to a standalone `e`. A component is a particle, a root, a borrowing or a nested compound. Spaces can stand between the parts, so a component can follow its prefix in the same run or after a gap.
+The [compounds chapter](https://eberban.github.io/eberban/grammar/compounds.html) makes one word from several. The prefix `e` takes two components, `en` three, and `er` any number up to a standalone `e`. A component is a particle, a root, a borrowing or a nested compound. A `co` that opens a quote is no component, because the quote is one word. Spaces can stand between the parts, so a component can follow its prefix in the same run or after a gap.
 
 The forms stage tags a prefix written as a run of its own `Standalone`. An `er` compound ends at the first standalone `e`, so no component of an `er` compound can be a nested compound that starts with one. A nested compound with an attached prefix, as in `eberban`, can stand there.
 
-The PEG warns about an `er` compound of one, two or three components, because `e` and `en` spell those. The warning `compound-size` marks such a compound here. The rule `few-er-components` reads up to three components, and `er-components` reads four or more.
+The PEG warns about an `er` compound of one, two or three components. A single word needs no compound, and `e` and `en` spell two and three. The warning `compound-size` marks such a compound here. The rule `few-er-components` reads up to three components, and `er-components` reads four or more.
 
 A compound emits one token tagged `Word` and `Compound`. Its value is the compound in the shortest canonical form of the compounds chapter, which the dictionary uses. When a nested compound is the first component of another, their prefixes join into one unit. The joined prefix spells its vowel `i` after `e` and `e` after `n` or `r`. So `e e ber ban ban` and `ei ber ban ban` both have the value `ei ber ban ban`. Single spaces separate the other parts. The image is the same as the value.
 
@@ -102,6 +102,8 @@ The rule `compound-tail` reads a compound and gives its value without the vowel 
   | $w:Word<Particle ¬Quote ¬Digit-Symbol> :: $w.tags
   | $w:Word<Root> :: $w.tags
   | $w:Word<Borrowing> :: $w.tags
+%conditions
+  ¬$w.onward.begins(quote-opening)
 
 %rule component
   | $w:simple-component :: $w.tags
@@ -142,33 +144,57 @@ The rule `compound-tail` reads a compound and gives its value without the vowel 
 
 ## Foreign quotes
 
-The [quotes chapter](https://eberban.github.io/eberban/grammar/quotes.html) gives `co` two forms. With `[` after it, the quote holds everything up to the next `]`. With a delimiter word before the `[`, the quote holds everything up to the first `]` followed by that word. The delimiter is a particle or root form. Any spaces can stand between `co` and the bracket, but the delimiter stands directly before its bracket.
+The [quotes chapter](https://eberban.github.io/eberban/grammar/quotes.html) gives `co` two forms. If a `[` follows `co`, the quote holds everything up to the next `]`. Otherwise a delimiter and then a `[` follow `co`. That quote holds everything up to the first `]` that the delimiter follows. The delimiter is any particle or root form.
 
-The quote body is a repetition of tokens. A condition on each `]` inside the body requires that the word after it differs from the delimiter. The quote therefore ends at the first bracket-and-word that repeats the delimiter, as the chapter says.
+The chapter lets spaces stand before the `[` of the first form. The [phonology chapter](https://eberban.github.io/eberban/morphonology/phonology.html) allows hesitation wherever spaces are allowed. The [morphology chapter](https://eberban.github.io/eberban/morphonology/morphology.html) makes a bracket a space outside the syntax of foreign quotes. So the rule `opening-gap` reads spaces and closing brackets after `co`, in both forms. The forms stage drops a hesitation and keeps the spaces around it, so `opening-gap` reads those spaces too. It holds no `[`, because the first `[` after `co` opens the quote. The delimiter stands directly before its `[`, as in the PEG.
 
-The quote emits one token tagged `Word`, `Particle`, `CO` and `Quote`. Its image is the written text, brackets included.
+The rule `simple-text` reads the bracketed text of a quote in the first form. Only its last token is a `]`. The rule `delimited-text` reads the bracketed text of a quote in the second form. The token before its `[` is the delimiter. A condition on each `]` inside the text requires that the token after it differs from the delimiter. The quote therefore ends at the first `]` that the delimiter follows, as the chapter says.
+
+The quote emits one token tagged `Word`, `Particle`, `CO` and `Quote`. Its image is the written text from `co` to the end of the quote. Its value keeps the quoted text exactly as written, because the text is foreign. Case, spacing and any `n` stay as they are. The value of the first form is `co`, a space and the text in brackets. The value of the second form is `co`, a space, the delimiter, the text in brackets and the delimiter again. The delimiter is an Eberban word, so it keeps its word value. So `co [Mi Nu]` and `co n  [Mi Nu]` both have the value `co [Mi Nu]`, and `co Zao[x]zao` has the value `co zao[x]zao`. Two quotes have one value only when they have the same delimiter and the same text. A `pa` resumption compares verb values, so a quote as a verb resumes only a quote with that value.
+
+The earlier stages lowercase letters, join spaces and drop hesitation, so the value reads the bracketed text with `.source-text`. That method gives the original text from the `[` to the `]`, with every character between them. It reads nothing outside the brackets.
 
 ```jbogenbau
 %rule foreign-quote :: Word ∪ Particle ∪ CO ∪ Quote :- $.source-text
-  | CO [gap] Open [{_<¬Close>}] Close
-  | CO [space-unit] $open:delimiter Open [{_<¬Close> | $c:Close}] Close $close:delimiter
+  | CO [opening-gap] $t:simple-text := "co " ++ $t.source-text
+  | CO [opening-gap] $open:delimiter $t:delimited-text $close:delimiter
+      := "co " ++ $open.value ++ $t.source-text ++ $close.value
 %conditions
-  $open.value = $close.value,
-  $c.following-tokens.first-token.value ≠ $open.value
+  $open.value = $close.value
 %emits
   $
 
+%rule opening-gap
+  {space-unit | Close}
+
 %rule delimiter
   Word<Particle ¬Quote ¬Digit-Symbol> | Word<Root>
+
+%rule simple-text
+  Open [{_<¬Close>}] Close
+
+%rule delimited-text
+  $o:Open [{_<¬Close> | $c:Close}] Close
+%conditions
+  $c.following-tokens.first-token.value ≠ $o.preceding-tokens.last-token.value
 ```
 
-<details><summary>Railroad diagrams of <code>foreign-quote</code> and <code>delimiter</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>foreign-quote</code> to <code>delimited-text</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/stream/foreign-quote.svg" alt="Railroad diagram of the rule foreign-quote"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/opening-gap.svg" alt="Railroad diagram of the rule opening-gap"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/stream/delimiter.svg" alt="Railroad diagram of the rule delimiter"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/simple-text.svg" alt="Railroad diagram of the rule simple-text"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/delimited-text.svg" alt="Railroad diagram of the rule delimited-text"></p>
 </details>
 
 ## Differences from the reference grammar and the PEG
 
 The sentences chapter says that a `ra` inside a foreign quote erases a sentence that was already ungrammatical. It describes the PEG, which reads a foreign quote only where the syntax expects a verb. When a sentence is ungrammatical, the PEG reads its characters again as erasable text and ignores quotes. mia, who designed Eberban, considers this a limitation of the PEG. Her intent is that words and quotes are read first and parsed after. This stage does that. A closed quote is one word wherever it stands, so a `ra` inside it is quoted text. A `co` and bracket that no closer follows is an unclosed quote, and the text has no parse. The PEG reads such text again as erasable characters, so `a sune co [mi ra a sunu` is a text there.
 
-The PEG records each prefix as the text writes it, so `ei ber ban ban` has the inner prefix `i` and `e e ber ban ban` has `e`. Two spellings of one compound then differ, and a `pa` resumption that repeats the verb in the other spelling fails there. The compounds chapter calls the joined prefix a shorthand for the spaced one. This stage gives both spellings one value, in the shortest canonical form that the chapter says the dictionary uses.
+For the same reason, a `co` that opens a quote is never a compound component here. The PEG reads `co` in a compound as a particle and the bracket after it as a space. So `e co [x] mi` is a compound there and has no parse here.
+
+The PEG reads only space characters between `co` and the `[` of the first form. So `co n [abc]` fails there. The quotes chapter lets spaces stand there, and the phonology chapter allows hesitation wherever spaces are allowed. This stage accepts it.
+
+The PEG ends an `er` compound only at an `e` with spaces before it and spaces or the end of the text after it. So `a er mi bjan sa ta e1` fails there. The compounds chapter asks only for a space before the `e`. This stage ends the compound at any `e` that the forms stage reads as a run of its own, so a digit can follow it.
+
+The PEG records each prefix as the text writes it. So `ei ber ban ban` has the inner prefix `i`, and `e e ber ban ban` has `e`. Two spellings of one compound then differ, and a `pa` resumption that repeats the verb in the other spelling fails there. The compounds chapter calls the joined prefix a shorthand for the spaced one. This stage gives both spellings one value, in the shortest canonical form that the chapter says the dictionary uses.

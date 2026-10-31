@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="380" height="122" viewBox="0 0 380 122" role="img" aria-label="Railroad diagram of the rule delimited-text">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="117.6" lengthAdjust="spacingAndGlyphs">delimited-text</text>
+<text class="label" x="147.6" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<g class="terminal"><rect x="20" y="44" width="50" height="24" rx="12"/><text x="45" y="61" textLength="33.6" lengthAdjust="spacingAndGlyphs">Open</text></g>
+<path d="M70 56h10"/>
+<path d="M80 56h20"/>
+<path d="M100 56h20"/>
+<path d="M120 56h20"/>
+<g class="terminal"><rect x="140" y="44" width="92" height="24" rx="12"/><text x="186" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">_&lt;¬Close&gt;</text></g>
+<path d="M232 56H252"/>
+<path d="M120 56a10 10 0 0 1 10 10V80a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="140" y="78" width="58" height="24" rx="12"/><text x="169" y="95" textLength="42" lengthAdjust="spacingAndGlyphs">Close</text></g>
+<path d="M198 90H232a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M252 56H272"/>
+<path d="M252 56a10 10 0 0 1 10 10V102a10 10 0 0 1 -10 10H120a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M272 56H292"/>
+<path d="M80 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H272a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M292 56h10"/>
+<g class="terminal"><rect x="302" y="44" width="58" height="24" rx="12"/><text x="331" y="61" textLength="42" lengthAdjust="spacingAndGlyphs">Close</text></g>
+<path d="M360 56h6m0 -8v16m4 -16v16"/>
+</svg>
