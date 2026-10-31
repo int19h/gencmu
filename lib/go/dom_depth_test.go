@@ -98,3 +98,21 @@ func TestSourceDepth(t *testing.T) {
 		})
 	}
 }
+
+func TestDeepTemplateDepthMessage(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile("../../tests/notation/deep-template-depth-limit.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c struct{ Document string }
+	if err := json.Unmarshal(data, &c); err != nil {
+		t.Fatal(err)
+	}
+	_, readErr := bundled.reader.read(c.Document, "depth.md")
+	if readErr == nil || !strings.HasSuffix(readErr.Message, errTooDeep.Error()) {
+		t.Fatalf("expected the DOM depth reason, got %v", readErr)
+	}
+}

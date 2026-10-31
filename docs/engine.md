@@ -556,7 +556,9 @@ A predecessor remains an expression, not a snapshot of earlier values. Its other
 
 After the loader stitches the stage, it makes sure that each rule definition that holds a constant meets the requirements of this section. An undefined user constant is an error there. The types of the terms, conditions and tests that hold constants must agree (§9, §10).
 
-This inspection includes template arguments that no parameter uses. The loader retains their terms and expression fragments until constant inspection finishes. Value inspection also rejects direct empty delimiters and invalid range endpoints inside retained pattern arguments. Constants inside open arguments still require a definition. Kind-dependent argument requirements wait for substitution. These requirements also apply to replaced definitions and calls in patterns, bindings, and edit heads.
+This inspection includes template arguments that no parameter uses. The loader retains their terms and expression fragments until constant inspection finishes. Value inspection also rejects direct empty delimiters and invalid range endpoints inside retained pattern arguments. It visits value operands in written order and reports the first fault.
+
+Constants inside open arguments still require a definition. Kind-dependent argument requirements wait for substitution. These requirements also apply to replaced definitions and calls in patterns, bindings, and edit heads.
 
 A constant in a value test must resolve to a string (§9). The requirements of §9 that depend on the value of a constant apply there too. The loader applies these requirements to every definition of the stage. That includes a definition that a later `%redefine-rule` replaces, although its alternatives are then gone.
 
@@ -2118,7 +2120,7 @@ The grammar text is a text like any other, so stage zero decomposes it. Line and
 
 Calls, parameters, and patterns use the same reader constructors as ordinary declarations. Their presence never changes local checks or diagnostic precedence. Source positions stay on the nodes that produce them.
 
-Cached and supplied DOMs use the same node decoder and validity checks for ordinary syntax, calls, parameters, and patterns. Each expanded definition is decoded once. Validation and runtime output use that same decoded definition.
+Cached and supplied DOMs use the same node decoder and validity checks for ordinary syntax, calls, parameters, and patterns. Each rewritten definition is decoded once. Validation and runtime output use that same decoded definition. The inspection before rewriting in §2.3 is a separate step.
 
 Structural checks precede decoding. Later definition checks use the decoded nodes and their effective rule names.
 
@@ -2513,7 +2515,7 @@ A pattern argument is one term that the pattern grammar consumes. The argument r
 
 ### 9.3 Conversion and validation
 
-The reader completes argument-independent definition and boundary checks before reading the next declaration.
+The reader completes argument-independent definition and boundary checks before reading the next declaration. Internal projections impose no additional nesting limit or earlier depth error.
 
 A known non-string operand fails concatenation even if it contains a parameter. This local failure uses the concatenation's position.
 
@@ -2749,7 +2751,7 @@ A tree from a bootstrap of another notation can also lack a part that a construc
 
   A head whose arguments are all parameters declares a template. A head whose arguments are all concrete selects one instance for editing. A head that mixes parameters and concrete arguments is an error at the head call (§9.2).
 
-  A repeated parameter fails at its second occurrence. A closed head on `%rule` fails at the head call because only an edit can select an instance.
+  A repeated parameter fails at its second occurrence, even when parentheses surround that occurrence. A closed head on `%rule` fails at the head call because only an edit can select an instance.
 
   Next, read its optional `rule-flags`. If flags exist, first reject them on an extension. Then require one or more `rule-flag` parts. Read each flag's token in text order. Reject an unknown value before a repeated value.
 
