@@ -317,7 +317,7 @@ A recipe supplies one string channel. `:=` supplies a value and an implied image
 
 The emission walk determines which tokens reach the next stage. A constituent with `%emits` emits its items and stops that walk. `%erased` contributes nothing. Without either directive, the walk enters children.
 
-Emission boundary tests index only their requested rule and terminal identities in the chosen derivation. A stage without these tests needs no boundary index.
+If no emission term of a stage tests a boundary, the stage builds no boundary index.
 
 The string walk determines a covering token's value and image. It enters child constituents but skips their emission lists. Their alternative and definition recipes still apply. Erased children contribute nothing. Attachment ownership counts surviving input parts independently of either string.
 
@@ -396,7 +396,7 @@ An empty delimited body contributes empty concatenation to the quote value. The 
 
 The image extension does not enlarge `source` or `text`. This lets quote punctuation appear without changing source provenance. Different evaluated spans cannot claim the same uncovered text. The conflict rule avoids any hidden priority between touching quoted parts.
 
-Each emission indexes evaluated spans and claimed intervals. Source endpoints divide those intervals into cells, whose interiors contain no endpoint. A new span marks each claimed cell once. Repeated requests for that span reuse its claim. Coverage searches use sorted interval boundaries.
+Each emission indexes evaluated spans and claimed intervals. Source endpoints divide those intervals into cells, whose interiors contain no endpoint. A new span marks each claimed cell once. Repeated requests for that span reuse its claim. A coverage search costs no more than its gap, or a logarithm of the token count.
 
 In pipelines with punctuation pauses, a one-word foreign quote takes the next raw stretch between whitespace or period boundaries. A decimal point between digits stays inside its run. Punctuation and ignored characters belong to that body.
 
@@ -890,9 +890,9 @@ Each contains its grammar copy and nothing from outside its directory. CI makes 
 
 ## Diagnostics and debugging
 
-Audit work counts every expression node that it visits, including a sequence root inspected by an erasure scan.
-
 The audit is a JavaScript library and CLI tool outside the common API. Engine references to audit notes describe that tool.
+
+Audit work counts every expression node that it visits, including a sequence root inspected by an erasure scan.
 
 The product provides these diagnostics and debugging tools:
 

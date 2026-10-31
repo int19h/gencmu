@@ -477,14 +477,15 @@ The caller can supply engine tags to represent earlier stages. Each supplied pro
 
 ## 2. Grammars
 
-Corresponding stitching errors use common wording across libraries. A located message begins with `document:line:column: `. The message has no additional enclosing-rule prefix.
+Corresponding stitching errors use common wording across libraries. A located message begins with `document:line:column: `. The formatter adds the stage from its structured field. The description has no additional enclosing-rule prefix.
 
-| Error | Message after any location prefix |
+| Error | Description after location and stage prefixes |
 | --- | --- |
 | Undefined rule | `NAME is not a rule of stage STAGE` |
-| Missing start rule | `stage STAGE has no rule text` |
-| Missing resolution | `stage STAGE has no %ambiguity-resolution` |
-| Duplicate resolution | `stage STAGE has a second %ambiguity-resolution` |
+| Empty stage | `has no rules` |
+| Missing start rule | `has no rule text` |
+| Missing resolution | `has no %ambiguity-resolution` |
+| Duplicate resolution | `has a second %ambiguity-resolution` |
 | Unknown classifier | `NAME is not a classifier of stage STAGE` |
 | Invalid range endpoint | `a range endpoint is one scalar` |
 | Reversed range | `a range starts above its end` |
@@ -2082,13 +2083,13 @@ A caller can switch the check off, or on, for every stage that runs (`docs/api.m
 
 ## 8. Reading grammar documents
 
-A grammar document is Markdown. Its grammar text is the content of every fenced code block whose info string is `jbogenbau`, in order. A fence is a line of three or more backticks or tildes, indented by up to three spaces, followed by the info string. A backtick fence whose info string holds a backtick is not a fence, as in CommonMark. The reader knows no other Markdown container. So a block can stand under a list item indented by two spaces, as a pipeline's `%include` blocks do, but not deeper.
+A grammar document is Markdown. Its grammar text is the content of every fenced code block whose info string is `jbogenbau`, in order. A fence is a line of three or more backticks or tildes, indented by up to three spaces, followed by the info string. An opening backtick fence whose info string holds a backtick is not a fence, as in CommonMark. The reader knows no other Markdown container. So a block can stand under a list item indented by two spaces, as a pipeline's `%include` blocks do, but not deeper.
 
 The info string is `jbogenbau` after the reader removes leading and trailing White_Space from the configured Unicode table (§1). A block ends at a line that holds only a fence of the same character, at least as long. The fence is indented by up to three spaces, and only White_Space from that table follows it.
 
 An unclosed `jbogenbau` block is a document error. The reader reports it at the column of its opening fence character. Any other unclosed block runs to the end of the document, as in CommonMark.
 
-The reader joins each block's lines with `\n` and joins the blocks with one `\n` between them. Every line end inside a block reads as `\n`, whether the document uses LF, CRLF, or CR. Every character of the grammar text keeps its line and column in the document.
+The reader joins each block's lines with `\n` and joins the blocks with one `\n` between them. Every line end inside a block reads as `\n`, whether the document uses LF, CRLF, or CR. Every character of the grammar text keeps its line and column in the document. An end-of-text error stands after its last character. An empty final block does not move that position.
 
 The reader parses grammar text with the notation pipeline, `grammars/gencmu/jbogenbau/pipeline.md`. Its preparsed documents ship in `data/preparsed/gencmu.json`. The loader splices their DOMs under §13 to build the notation stages. Bootstrap entries need no source files or text hash comparison. Every required entry must exist and meet the DOM rules. An invalid format, malformed entry, missing include, or splice error is a bootstrap loading error.
 
@@ -2106,13 +2107,15 @@ Decoding retains every declaration and its children as typed nodes, including de
 
 One validator handles ordinary nodes and source nodes. Calls and parameters retain their scopes, argument categories, and local shape restrictions before expansion.
 
-The document retains one declaration representation. Cached diagnostic recovery copies private positions between typed nodes and preserves every public cached member.
+The document retains one declaration representation. Cached diagnostic recovery reads the source once. It copies private positions between typed nodes and preserves every public cached member.
 
 Each ranked-choice node retains the position of its first `≻`. Expansion carries that position with the node, including nodes inside call arguments.
 
 A tie in either stage of the notation pipeline, `lexical` or `syntax`, is an error of kind `grammar` of loading (§6). The error names the document. It has no line and no column, since an ambiguity has no single position. Its message names the notation stage and says that the grammar text is ambiguous. A library never puts such an error at the start of the document in place of a position.
 
-Every bootstrap failure names `data/preparsed/gencmu.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Stitching and lowering errors name the stage that failed. If the failure has a definition location, its structured line and column retain that location. The message also names the embedded document at that location. A failure without a definition location has no structured line or column.
+Every bootstrap failure names `data/preparsed/gencmu.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Splicing errors have no stage. Stitching and lowering errors name the stage that failed.
+
+If the failure has a definition location, its structured line and column retain that location. The message always appends the embedded document at that location. A failure without a definition location has no structured line or column.
 
 The standard error formatter adds the document, position, and stage from structured fields. Bootstrap errors use this same formatter. Their underlying message appends the embedded document without duplicating the location prefix.
 
