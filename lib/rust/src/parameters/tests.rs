@@ -172,6 +172,13 @@ fn instance_errors_keep_effective_names() {
     assert!(error.message.contains("use(\"a\")"), "{error}");
     assert!(!error.message.contains("expanded"), "{error}");
     assert!(!error.message.contains("instance-"), "{error}");
+    let document = read("%rule use(@X) $x:@X\n%rule named = use((\"a\" \"b\"))\n%rule text named");
+    let error = match expand(&[(Arc::from("names.md"), Arc::new(document))], &unicode()) {
+        Err(error) => error,
+        _ => panic!("an invalid expanded capture"),
+    };
+    assert!(error.message.starts_with("rule named: "), "{error}");
+    assert!(error.message.contains("in use((\"a\" \"b\")) called at names.md:3:"), "{error}");
 }
 #[test]
 fn ordinary_edit_history() {

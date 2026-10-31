@@ -1,0 +1,13 @@
+{
+  "description": "An expanded capture error keeps its definition and call context.",
+  "grammar": "%rule g(@Y) @Y\n%rule f(@X,@Y) $x:@X | g(@Y)\n%rule text f((\"a\" \"b\"), #A)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}
