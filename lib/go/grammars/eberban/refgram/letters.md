@@ -19,7 +19,7 @@ The text is a sequence of letters, spaces, hyphens, digits and brackets. The sta
   [{item}]
 
 %rule item
-  letter | foreign-letter | space | hyphen | digit | open-bracket | close-bracket
+  letter | space | hyphen | digit | open-bracket | close-bracket
 ```
 
 <details><summary>Railroad diagrams of <code>text</code> and <code>item</code></summary>
@@ -224,30 +224,26 @@ Every letter token also carries `Letter`. The template `letter-of` reads one let
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/g.svg" alt="Railroad diagram of the rule g"></p>
 </details>
 
-The Latin letters `q`, `w`, `x` and `y` are not Eberban letters. The stage emits a run of one of them as a `Foreign-Letter` token. The forms stage reads no word from a run that holds one. Such a run can stand only inside a foreign quote or in text that `ra` erases.
+The Latin letters `q`, `w`, `x` and `y` are not Eberban letters. Like every other character outside the alphabet, each is a space. The PEG warns about these four where no foreign quote holds them. So a space run that holds one carries the tag `Foreign-Letter`, and the words stage warns where no quote holds it.
 
 ```jbogenbau
-%rule foreign-letter
-  {foreign-char}
-%conditions
-  ¬$.following-tokens.begins(foreign-char)
-%emits
-  $ :: Foreign-Letter := $.decomposed-source-text :- $.source-text
+%rule foreign-run
+  [{space-char}] foreign-char [{space-char}]
 
 %rule foreign-char
   "q" | "Q" | "w" | "W" | "x" | "X" | "y" | "Y"
 ```
 
-<details><summary>Railroad diagrams of <code>foreign-letter</code> and <code>foreign-char</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/letters/foreign-letter.svg" alt="Railroad diagram of the rule foreign-letter"></p>
+<details><summary>Railroad diagrams of <code>foreign-run</code> and <code>foreign-char</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/letters/foreign-run.svg" alt="Railroad diagram of the rule foreign-run"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/foreign-char.svg" alt="Railroad diagram of the rule foreign-char"></p>
 </details>
 
 ## Spaces, hyphens, digits and brackets
 
-The book says that any character other than a letter, a hyphen or a quotation bracket is a space. A digit is a number word, so it is not a space either. A run of space characters is one `Space` token with the value of one space. The run keeps its source text, which a foreign quote shows verbatim.
+The book says that any character other than a letter, a hyphen, a digit or a quotation bracket is a space. The numbers chapter makes each digit a `TI` particle. A run of space characters is one `Space` token with the value of one space. The run keeps its source text, which a foreign quote shows verbatim.
 
-The book says that Eberban has no mathematical symbols. The PEG warns when `+`, `*` or `/` follows a number, and reads the symbol as a space. The tag `Math-Symbol` marks a space run that holds one of them, so the forms stage can warn in the same place.
+The numbers chapter says that `+`, `*` and `/` are spaces, and that verbs express mathematical operations. The PEG warns when one of them follows a number. The tag `Math-Symbol` marks a space run that holds one of them, so the forms stage can warn in the same place.
 
 ```jbogenbau
 %rule space
@@ -255,7 +251,7 @@ The book says that Eberban has no mathematical symbols. The PEG warns when `+`, 
 %conditions
   ¬$.following-tokens.begins(space-char)
 %emits
-  $ :: Space ∪ ($.matches(math-run) ⟹ Math-Symbol) := " "
+  $ :: Space ∪ ($.matches(math-run) ⟹ Math-Symbol) ∪ ($.matches(foreign-run) ⟹ Foreign-Letter) := " "
 
 %rule space-char
   $c:_
@@ -266,7 +262,7 @@ The book says that Eberban has no mathematical symbols. The PEG warns when `+`, 
   letter-char | digit-char | hyphen-char | "[" | "]"
 
 %rule letter-char
-  "a".."z" | "A".."Z"
+  "a".."p" | "r".."v" | "z" | "A".."P" | "R".."V" | "Z"
 
 %rule digit-char
   "0".."9"
@@ -284,7 +280,7 @@ The book says that Eberban has no mathematical symbols. The PEG warns when `+`, 
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/math-run.svg" alt="Railroad diagram of the rule math-run"></p>
 </details>
 
-A hyphen can stand at a syllable boundary to make the syllable stand out, and it lets a word continue on the next line. The book allows the hyphen-minus, the hyphen U+2010 and the em dash U+2014, as the PEG does. A hyphen token has an empty value, so it never changes the value of a word. Its image is `-`. The line breaks after a hyphen belong to its token.
+A hyphen can stand at a syllable boundary to make the syllable stand out, and it lets a word continue on the next line. The book names the hyphen-minus `-`. The PEG also reads U+2010, the hyphen of Unicode, and this stage does the same. An em dash is a space. A hyphen token has an empty value, so it never changes the value of a word. Its image is `-`. The line breaks after a hyphen belong to its token.
 
 ```jbogenbau
 %rule hyphen
@@ -293,7 +289,7 @@ A hyphen can stand at a syllable boundary to make the syllable stand out, and it
   $ :: Hyphen := "" :- "-"
 
 %rule hyphen-char
-  "-" | "‹U+2010›" | "‹U+2014›"
+  "-" | "‹U+2010›"
 ```
 
 <details><summary>Railroad diagrams of <code>hyphen</code> and <code>hyphen-char</code></summary>
@@ -301,7 +297,7 @@ A hyphen can stand at a syllable boundary to make the syllable stand out, and it
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/hyphen-char.svg" alt="Railroad diagram of the rule hyphen-char"></p>
 </details>
 
-A digit is a number word of family TI, as the [numbers chapter](https://eberban.github.io/eberban/grammar/numbers.html) allows. The stage emits each digit as a `Digit` token whose value is the digit. The brackets `[` and `]` delimit foreign quotes. Outside a quote they are spaces, which the forms stage decides.
+The [numbers chapter](https://eberban.github.io/eberban/grammar/numbers.html) accepts the digit characters `0` to `9` as `TI` particles, so `42` is `tu ta`. The stage emits each digit as a `Digit` token whose value is the digit. The brackets `[` and `]` delimit foreign quotes. Outside a quote they are spaces, which the forms stage decides.
 
 ```jbogenbau
 %rule digit
@@ -328,6 +324,6 @@ A digit is a number word of family TI, as the [numbers chapter](https://eberban.
 
 ## Differences from the reference grammar and the PEG
 
-The PEG reads a letter outside the alphabet as an error wherever it expects a letter. Inside a foreign quote or erased text it reads any character. This stage emits the letter as a foreign letter, and the forms stage keeps its run from becoming a word. The texts that the two accept are the same.
+The book names only the hyphen-minus `-`. The PEG also reads U+2010 as a hyphen, and this stage follows it, because U+2010 is the hyphen of Unicode.
 
 The PEG treats every non-ASCII letter as a space. This stage does the same, because the book says that any other character is a space.

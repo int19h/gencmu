@@ -1,6 +1,6 @@
 # The Eberban reference grammar
 
-Eberban is a logical constructed language by mia. This pipeline reads Eberban as [the reference grammar](https://eberban.github.io/eberban/) describes it. The reference grammar is a book with chapters on morphology, chaining, binding, sentences and the smaller constructs. The executable baseline is `eberban.peggy`, the parsing expression grammar (PEG) of the language at [commit `fd76a4e9`](https://github.com/eberban/eberban/blob/fd76a4e993f071747ef5484531c28a15773ffa74/web/src/grammar/eberban.peggy). The book decides. The PEG is supporting evidence, and the closing section of each document lists the departures from it.
+Eberban is a logical constructed language by mia. This pipeline reads Eberban as [the reference grammar](https://eberban.github.io/eberban/) describes it. The reference grammar is a book with chapters on morphology, chaining, binding, sentences and the smaller constructs. The executable baseline is `eberban.peggy`, the parsing expression grammar (PEG) of the language at [commit `7a3ec1ae`](https://github.com/eberban/eberban/blob/7a3ec1ae4f208d2994c42561b1cad0d23358206f/web/src/grammar/eberban.peggy). The book decides. The PEG is supporting evidence, and the closing section of each document lists the departures from it.
 
 A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. [The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars.
 
@@ -9,7 +9,7 @@ Eberban has no lexicon in its grammar. Every particle family is infinite, and th
 The pipeline turns on the warnings below by default. Each marks a spelling that the grammar accepts but the book does not recommend. A caller can turn a warning off.
 
 ```jbogenbau
-%features hyphen-misplaced prefix-i-after-sonorant minus-sign math-symbol compound-size
+%features hyphen-misplaced prefix-i-after-sonorant minus-sign math-symbol compound-size non-eberban-letter
 ```
 
 ## Stage 1: letters

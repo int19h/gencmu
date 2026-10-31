@@ -33,7 +33,7 @@ The text is a sequence of items. An item is a space, a bracket, a digit, a hesit
   | hesitation | eraser-run | borrowing | freeform-variable | word-run | spelling-quote | junk-run
 
 %rule letter-or-hyphen
-  Letter | Foreign-Letter | Hyphen
+  Letter | Hyphen
 
 %rule run-end
   ε
@@ -665,6 +665,4 @@ The book says that a particle can start with a sonorant or a vowel. The PEG read
 
 The PEG reads hesitation only after a space character, so a text that starts with `n` fails there. This grammar reads hesitation wherever it stands between spaces or at the edges of the text.
 
-The PEG warns about each misplaced hyphen with its own message. This grammar carries one warning, `hyphen-misplaced`, for every such hyphen, and the warning names the word.
-
-The PEG rejects a pair of consonants when their voicing differs or both are sibilants. It lets a pair of the same consonant through as a medial pair when a hyphen separates its letters. This grammar reads the chapter's lists of pairs, so a hyphenated pair of the same consonant forms no word.
+The PEG warns about each misplaced hyphen with its own message. This grammar carries one warning, `hyphen-misplaced`, at the position of each such hyphen.
