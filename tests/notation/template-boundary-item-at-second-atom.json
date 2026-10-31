@@ -1,0 +1,11 @@
+{
+  "description": "Independent definition checks finish before the next declaration or template expansion.",
+  "document": "```jbogenbau\n%rule f(@X) A %conditions $.followed-by(@X) ∧ $.preceded-by(B)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 47,
+      "message": "a condition item accepts only one boundary atom"
+    }
+  }
+}

@@ -90,5 +90,7 @@ pub(crate) fn rule(rule: &RuleDef) -> Result<RuleDef, String> {
     let mut projected = partial(&raw, "declaration");
     crate::parameters::remove(&mut projected, "params");
     crate::parameters::remove(&mut projected, "args");
-    rule_from_json(&projected)
+    let mut checked = rule_from_json(&projected)?;
+    source::restore_rule_locations(&mut checked, rule);
+    Ok(checked)
 }

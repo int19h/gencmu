@@ -415,9 +415,23 @@ impl<'a> Reader<'a> {
                 })
                 .collect();
             if let Some(params) = params {
-                self.parameters.borrow_mut().extend(params.iter().cloned());
+                for (name, argument) in params.iter().zip(self.some(head, "call-argument", 1)?) {
+                    if !self.parameters.borrow_mut().insert(name.clone()) {
+                        return Err(self.error(argument, format!("duplicate parameter @{name}")));
+                    }
+                }
                 source.params = Some(params);
             } else {
+                let mut pending = vec![head];
+                while let Some(part) = pending.pop() {
+                    if rule_name(part) == "parameter" {
+                        return Err(self.error(head, "a head cannot mix parameters and concrete arguments"));
+                    }
+                    pending.extend(Self::parts(part));
+                }
+                if self.value(definer) == "%rule" {
+                    return Err(self.error(head, "an instance head requires an edit"));
+                }
                 source.args = Some(call.args);
             }
             (call.name, self.token(head)?)
@@ -433,6 +447,9 @@ impl<'a> Reader<'a> {
         };
         let flags = self.rule_flags(node, op)?;
         if Self::tokens_of(node).any(|token| self.value(token) == "=") {
+            if source.params.is_some() || source.args.is_some() {
+                return Err(self.error(node, "a binding requires a plain rule name"));
+            }
             source.instance = Some(self.source_call(self.one(node, "call")?)?);
             return Ok(RuleDef {
                 source,
@@ -502,15 +519,19 @@ impl<'a> Reader<'a> {
         {
             return Err(self.error(definer, "an erased definition cannot have an emission or recipe"));
         }
-        if self.unresolved.get() {
-            return Ok(rule);
-        }
-        if let Some((message, at)) = crate::boundary::definition_problem(&rule) {
+        let projected;
+        let checked = if self.unresolved.get() {
+            projected = crate::dom::partial::rule(&rule).map_err(|problem| self.error(definer, problem))?;
+            &projected
+        } else {
+            &rule
+        };
+        if let Some((message, at)) = crate::boundary::definition_problem(checked) {
             let (line, column) = at.unwrap_or(rule.at);
             return Err(Error::grammar(message).at(line, column));
         }
         // The definition is checked as a whole once it is read (§9).
-        let result = crate::clauses::check_definition(&rule, self.defer_emission);
+        let result = crate::clauses::check_definition(checked, self.defer_emission);
         if let Some(issue) = result.problem {
             return Err(self.error(definer, issue.message));
         }

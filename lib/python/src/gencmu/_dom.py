@@ -373,14 +373,26 @@ class DomBuilder:
         self.parameter_scope = set()
         self.reading_head = True
         name_node = self.one(node, "rule-name")
-        head = run(self._call(self.only(node, "call"))) if name_node is None else None
+        head_node = self.only(node, "call") if name_node is None else None
+        head = run(self._call(head_node)) if head_node is not None else None
         self.reading_head = False
         head_fields = {}
         if head:
             if all('param' in arg for arg in head['args']):
                 head_fields['params'] = [arg['param'] for arg in head['args']]
-                self.parameter_scope = set(head_fields['params'])
+                for name, argument in zip(head_fields['params'], self.some(head_node, "call-argument")):
+                    if name in self.parameter_scope:
+                        raise self.fail(argument, f"duplicate parameter @{name}")
+                    self.parameter_scope.add(name)
             else:
+                pending = [head_node]
+                while pending:
+                    part = pending.pop()
+                    if part.rule == "parameter":
+                        raise self.fail(head_node, "a head cannot mix parameters and concrete arguments")
+                    pending.extend(self.kids(part))
+                if op == "define":
+                    raise self.fail(head_node, "an instance head requires an edit")
                 head_fields['args'] = head['args']
         name = head['call'] if head else self.token_value(self.token(name_node))
         if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:

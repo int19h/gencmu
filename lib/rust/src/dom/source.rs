@@ -5,7 +5,7 @@ use super::{
 };
 use crate::json::Json;
 mod locations;
-pub(crate) use locations::restore_locations;
+pub(crate) use locations::{restore_locations, restore_rule_locations};
 
 impl SourceSymbol {
     pub(crate) fn from_json(value: &Json) -> R<Self> {

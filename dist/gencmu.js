@@ -18766,7 +18766,25 @@
       const headCall = one(node,"rule-name") ? undefined : one(node, "call");
       const head = headCall ? yield readCall(headCall) : null;
       readingHead=false;
-      if(head?.args.every((/** @type {any} */ arg)=>arg.param)) parameterScope=new Set(head.args.map((/** @type {any} */ arg)=>arg.param));
+      if (head && headCall) {
+        if (head.args.every((/** @type {any} */ arg) => arg.param)) {
+          const argumentsNodes = some(headCall, "call-argument");
+          for (let index = 0; index < head.args.length; index++) {
+            const name = head.args[index].param;
+            if (parameterScope.has(name)) fail(`duplicate parameter @${name}`, argumentsNodes[index]);
+            parameterScope.add(name);
+          }
+        } else {
+          /** @type {ResultNode[]} */
+          const pending = [headCall];
+          while (pending.length) {
+            const part = /** @type {ResultNode} */ (pending.pop());
+            if (ruleOf(part) === "parameter") fail("a head cannot mix parameters and concrete arguments", headCall);
+            for (const child of parts(part)) pending.push(child);
+          }
+          if (keyword === "%rule") fail("an instance head requires an edit", headCall);
+        }
+      }
       /** @type {any} */
       const rule = { name: head ? head.call : valueOf(token(only(node, "rule-name"))), ...(head ? head.args.every((/** @type {any} */ arg) => arg.param) ? {params:head.args.map((/** @type {any} */ arg) => arg.param)} : {args:head.args} : {}), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
       if (!unicode.isEmojiName?.(rule.name || "") && !/^[a-z][A-Za-z0-9_-]*$/.test(rule.name || "")) fail("a rule name starts with a lowercase letter or uses one eligible emoji", only(node, "rule-name"));

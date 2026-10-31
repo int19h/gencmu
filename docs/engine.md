@@ -538,7 +538,7 @@ A predecessor remains an expression, not a snapshot of earlier values. Its other
 
 After the loader stitches the stage, it makes sure that each rule definition that holds a constant meets the requirements of this section. An undefined user constant is an error there. The types of the terms, conditions and tests that hold constants must agree (§9, §10).
 
-This inspection includes template arguments that no parameter uses. The loader retains their terms and expression fragments until constant inspection finishes. Constants inside open arguments still require a definition. Kind-dependent argument requirements wait for substitution. These requirements also apply to replaced definitions and calls in patterns, bindings, and edit heads.
+This inspection includes template arguments that no parameter uses. The loader retains their terms and expression fragments until constant inspection finishes. Value inspection also rejects direct empty delimiters and invalid range endpoints inside retained pattern arguments. Constants inside open arguments still require a definition. Kind-dependent argument requirements wait for substitution. These requirements also apply to replaced definitions and calls in patterns, bindings, and edit heads.
 
 A constant in a value test must resolve to a string (§9). The requirements of §9 that depend on the value of a constant apply there too. The loader applies these requirements to every definition of the stage. That includes a definition that a later `%redefine-rule` replaces, although its alternatives are then gone.
 
@@ -912,7 +912,7 @@ Every output event stream starts with its existing defining event. Expansion doe
 
 For each instance, the loader replays applicable events and substitutes arguments using each event's parameter names. Replaced bodies and clauses receive per-instance document validation, but their calls create no live instance. Validation-only expansion uses separate keys and contributes no entry to the discovery queue or audit. It follows closed calls from every replaced ordinary definition and every substituted instance definition. It validates every applicable template event and follows nested calls until its queue is empty. Repeated validation keys add nothing, including unchanged recursive calls. A key already expanded as a live instance needs no second expansion. A binding or exact-instance edit head still identifies its subject independently of its body's lifetime.
 
-Ordinary document rules apply to every expanded definition. Structural analysis, ranked safety, capture analysis, depth limits, and lowering then use ordinary rules. Unused parameters and uncalled templates are audit notes, not errors.
+Ordinary document rules apply to every expanded definition. The loader inspects each substituted definition before discovering its nested calls or rewriting calls into names. This order also applies to validation-only expansion. These definition errors precede errors from nested calls or rewriting. Structural analysis, ranked safety, capture analysis, depth limits, and lowering then use ordinary rules. Unused parameters and uncalled templates are audit notes, not errors.
 
 Expanded-definition diagnostics use the effective rule name, including its canonical instance spelling or public binding. Internal validation does not substitute placeholder names for rule definitions. Capture and test bases use the same effective-name predicate as other rule references.
 
@@ -2491,6 +2491,8 @@ A pattern argument is one term that the pattern grammar consumes. The argument r
 
 ### 9.3 Conversion and validation
 
+The reader completes argument-independent definition and boundary checks before reading the next declaration.
+
 A known non-string operand fails concatenation even if it contains a parameter. This local failure uses the concatenation's position.
 
 Readers use common diagnostic text for unclosed grammar fences, classifier warnings, capture restrictions, method signatures, and directive operands. A method with an invalid receiver or arguments reports `a method has the wrong receiver or arguments`. This text also applies when type inspection detects the signature error. Advice for restored spans and bare captures keeps its specific text. A diagnostic position remains separate from its text. A library can prefix the text with that position.
@@ -2721,7 +2723,11 @@ For `%rule r A="x"<B>`, the reversed order is an error at `<`, column 14. For `%
 
 A tree from a bootstrap of another notation can also lack a part that a construct requires (the table of parts above). The reader then reports the missing part at the construct, as soon as it looks the part up. So the order of the lookups decides between a missing part and another error of the same construct. Each construct looks up its parts, and makes its checks, in this order:
 
-- A `rule`: look up its `definer` and token first. If `rule-name` exists, read its token. Otherwise, look for a head `call` and read its name token and arguments in order. If neither head exists, report the missing `rule-name` at the rule. A head whose arguments are all parameters declares a template. A head whose arguments are all concrete selects one instance for editing. A head that mixes parameters and concrete arguments is an error (§9.2).
+- A `rule`: look up its `definer` and token first. If `rule-name` exists, read its token. Otherwise, look for a head `call` and read its name token and arguments in order. If neither head exists, report the missing `rule-name` at the rule.
+
+  A head whose arguments are all parameters declares a template. A head whose arguments are all concrete selects one instance for editing. A head that mixes parameters and concrete arguments is an error at the head call (§9.2).
+
+  A repeated parameter fails at its second occurrence. A closed head on `%rule` fails at the head call because only an edit can select an instance.
 
   Next, read its optional `rule-flags`. If flags exist, first reject them on an extension. Then require one or more `rule-flag` parts. Read each flag's token in text order. Reject an unknown value before a repeated value.
 

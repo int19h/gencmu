@@ -70,7 +70,12 @@ func partialSourceRule(r *domRule) (*domRule, error) {
 	projected := templateObj(templatePartial(raw, "declaration"))
 	delete(projected, "params")
 	delete(projected, "args")
-	return decodeRule(templateJSON(projected))
+	checked, err := decodeRule(templateJSON(projected))
+	if err != nil {
+		return nil, err
+	}
+	restoreSourceLocations(&domDoc{Rules: []*domRule{checked}}, &domDoc{Rules: []*domRule{r}})
+	return checked, nil
 }
 
 func partialQuery(name string) bool {

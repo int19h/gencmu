@@ -1,0 +1,11 @@
+{
+  "description": "An invalid head fails before a later declaration.",
+  "document": "```jbogenbau\n%redefine-rule f(g(@X)) A\n%rule s $xY:A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 16,
+      "message": "a head cannot mix parameters and concrete arguments"
+    }
+  }
+}

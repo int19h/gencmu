@@ -742,18 +742,33 @@ func (b *domBuilder) rule(n *Node) *domRule {
 			r.Params = []string{}
 			for _, arg := range call.Args {
 				if b.parameters[arg.Term.Str] {
-					b.fail(head, "duplicate parameter @%s", arg.Term.Str)
+					panic(grammarError(b.doc, arg.Term.At, "duplicate parameter @%s", arg.Term.Str))
 				}
 				b.parameters[arg.Term.Str] = true
 				r.Params = append(r.Params, arg.Term.Str)
 			}
 		} else {
+			pending := []*Node{head}
+			for len(pending) > 0 {
+				part := pending[len(pending)-1]
+				pending = pending[:len(pending)-1]
+				if part.Rule == "parameter" {
+					b.fail(head, "a head cannot mix parameters and concrete arguments")
+				}
+				pending = append(pending, parts(part)...)
+			}
+			if r.Op == "define" {
+				b.fail(head, "an instance head requires an edit")
+			}
 			r.Args = call.Args
 		}
 	}
 	r.Flags = b.ruleFlags(n, r.Op)
 	for _, p := range parts(n) {
 		if p.Kind == KindToken && b.tokenValue(p) == "=" {
+			if r.Params != nil || r.Args != nil {
+				b.fail(n, "a binding requires a plain rule name")
+			}
 			calls := ofRule(n, "call")
 			r.Instance = b.run(&sourceCallFrame{n: calls[len(calls)-1]}).(*domSourceCall)
 			return r
@@ -789,16 +804,21 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		r.Emit = b.emission(p)
 	}
 	r.Erased = one(n, "erased-clause") != nil
+	checked := r
 	if b.unresolved {
-		return r
+		var err error
+		checked, err = partialSourceRule(r)
+		if err != nil {
+			b.fail(definer, "%s", err.Error())
+		}
 	}
 	if b.hasBoundary {
-		if atom, msg := boundaryRuleProblem(r); msg != "" {
+		if atom, msg := boundaryRuleProblem(checked); msg != "" {
 			panic(grammarError(b.doc, atom.At, "%s", msg))
 		}
 	}
 	// The definition as a whole (§9), reported at the rule.
-	result := checkDefinition(r, b.deferEmission)
+	result := checkDefinition(checked, b.deferEmission)
 	if result.problem != nil {
 		b.fail(definer, "%s", result.problem.message)
 	}

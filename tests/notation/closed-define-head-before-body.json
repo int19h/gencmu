@@ -1,0 +1,11 @@
+{
+  "description": "An invalid head fails before a later declaration.",
+  "document": "```jbogenbau\n%rule f(\"a\") A\n%rule s $xY:A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 7,
+      "message": "an instance head requires an edit"
+    }
+  }
+}
