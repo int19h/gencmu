@@ -18,9 +18,10 @@ func decodeJSON(data []byte) (any, error) {
 }
 
 type jsonDecoder struct {
-	data  []byte
-	at    int
-	typed bool
+	data    []byte
+	at      int
+	typed   bool
+	numbers bool
 }
 
 // jsonOpen is an object or an array whose members are still being read.
@@ -162,7 +163,7 @@ func (d *jsonDecoder) document(schema reflect.Type) (any, error) {
 			if err != nil {
 				return nil, err
 			}
-			if !d.typed || valueSchema.Kind() == reflect.Interface {
+			if !d.numbers && (!d.typed || valueSchema.Kind() == reflect.Interface) {
 				value, err := strconv.ParseFloat(string(f), 64)
 				if err != nil {
 					return nil, d.fail(err.Error())
