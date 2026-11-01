@@ -6551,21 +6551,6 @@
           const problem = expectedProblem(found.type,"string");
           if (problem) yield {problem,node:operand};
         }
-        if (expr.range) {
-          const ends = expr.range.map((/** @type {any} */ end) => end.const ? end.value : end);
-          let wide = false;
-          for (let i=0;i<ends.length;i++) {
-            if (typeof ends[i]?.string === "string" && [...ends[i].string].length !== 1) {
-              wide = true;
-              yield {problem:"a range endpoint is one scalar",node:expr.range[i]};
-            }
-          }
-          // Width faults belong to their endpoint, not the enclosing range.
-          if (!wide) {
-            const problem = rangeProblem(ends);
-            if (problem) yield {problem,node:expr};
-          }
-        }
         for (const key of ["seq","choice","ranked","and"]) if (expr[key]) for (let i = expr[key].length - 1; i >= 0; i--) pending.push(expr[key][i]);
         for (const key of ["expr","separator","repeat","optional"]) if (expr[key]) pending.push(expr[key]);
       }
@@ -9603,15 +9588,22 @@
 
     /** @param {any} node @param {string} path @param {[number,number]} at @returns {any} */
     resolvePatterns(node, path, at) {
-      if (Array.isArray(node)) return node.map(n => this.resolvePatterns(n, path, at));
-      if (!node || typeof node !== "object" || node instanceof Set) return node;
-      if (node.op === "≅" || node.op === "≇") return { ...node,
-        right: this.evaluateClosed(path, node.right, at, undefined, "pattern") };
-      const copy = Object.fromEntries(Object.entries(node).map(([key, value]) => [key, this.resolvePatterns(value, path, at)]));
-      copyRankedLocation(node,copy);
-      copyRecipeLocation(node,copy);
-      copyBoundaryLocation(node,copy);
-      return copy;
+      const patterns = new Map();
+      for (const part of valueParts(node)) if (part.pattern) {
+        patterns.set(part.node, this.evaluateClosed(path,part.node,at,undefined,"pattern"));
+      }
+      /** @param {any} source @returns {any} */
+      const copy = source => {
+        if (patterns.has(source)) return patterns.get(source);
+        if (Array.isArray(source)) return source.map(copy);
+        if (!source || typeof source !== "object" || source instanceof Set) return source;
+        const result = Object.fromEntries(Object.entries(source).map(([key,value]) => [key,copy(value)]));
+        copyRankedLocation(source,result);
+        copyRecipeLocation(source,result);
+        copyBoundaryLocation(source,result);
+        return result;
+      };
+      return copy(node);
     }
 
     /** @param {string} path @param {DomRule} rule */
@@ -9643,30 +9635,21 @@
 
     }
 
-    /** @param {any} root @param {string} path @param {[number,number]} at @param {boolean} [patterns] */
-    checkValueUses(root, path, at, patterns = false) {
-      const parts = [root];
-      while (parts.length) {
-        const part = /** @type {any} */ (parts.pop());
-        if (!part || typeof part !== "object") continue;
-        if (patterns && part.pattern) { this.evaluateClosed(path,part,at); continue; }
-        if (part.method === "split" && ("string" in part.args[0] || "const" in part.args[0])) {
+    /** @param {any} root @param {string} path @param {[number,number]} at @param {boolean} [computed] */
+    checkValueUses(root, path, at, computed = false) {
+      for (const {node:part,pattern} of valueParts(root)) {
+        if (pattern || part.pattern) this.evaluateClosed(path,part,at,undefined,pattern ? "pattern" : undefined);
+        if (part.range) {
+          const values = part.range.map((/** @type {Term} */ end) => this.evaluateClosed(path,end,at));
+          const problem = rangeProblem(values);
+          if (problem) {
+            const wide = values.findIndex((/** @type {any} */ end) => [...end.string].length !== 1);
+            throw this.faultError(path,wide >= 0 ? part.range[wide] : part.range,at,problem);
+          }
+        }
+        if (part.method === "split" && (computed ? !openPart(part.args[0]) : "string" in part.args[0] || "const" in part.args[0])) {
           const delimiter = /** @type {{string:string}} */ (this.evaluateClosed(path,part.args[0],at));
           if (delimiter.string === "") throw this.faultError(path,part.args[0],at,"split has an empty delimiter");
-        }
-        // A stack visits semantic operands in written order, regardless of member order.
-        const expressions = expressionChildren(part);
-        const children = Array.isArray(part) ? part
-          : part.alternatives ? [part.tags, part.value, part.image, part.alternatives, part.conditions, part.emit]
-          : (typeof part.capture === "string" && !part.expr || part.insert) ? [part.tags, part.value, part.image]
-          : part.expr ? [part.expr, part.requirements, part.tags, part.value, part.image]
-          : part.literal ? [part.literal]
-          : part.range ? part.range
-          : expressions.length ? expressions
-          : clauseChildren(part);
-        for (let index = children.length - 1; index >= 0; index--) {
-          const child = children[index];
-          if (child && typeof child === "object") parts.push(child);
         }
       }
     }
@@ -9685,16 +9668,7 @@
           const fault = conditionTypeFault(condition,name => /** @type {StageConstant} */ (this.constants.get(name)).type);
           if (fault) throw this.documentError(path,directive.at,fault.problem);
         }
-        /** @type {unknown[]} */
-        const pending = [...conditions];
-        while (pending.length) {
-          const part = /** @type {any} */ (pending.pop());
-          if (part.method === "split" && !openPart(part.args[0])) {
-            const delimiter = /** @type {{string:string}} */ (this.evaluateClosed(path,part.args[0],directive.at));
-            if (delimiter.string === "") throw this.documentError(path,directive.at,"split has an empty delimiter");
-          }
-          for (const child of clauseChildren(part)) pending.push(child);
-        }
+        this.checkValueUses(conditions,path,directive.at,true);
         return {path,directive:{...directive,conditions}};
       } catch (error) {
         if (!(error instanceof GencmuError)) throw error;
@@ -9870,6 +9844,35 @@
     }
   }
 
+  /** The value-bearing parts of a definition, in written order.
+   * @param {any} root
+   * @returns {Generator<{node:any,pattern:boolean}>}
+   */
+  function* valueParts(root) {
+    const pending = [{node:root,pattern:false}];
+    while (pending.length) {
+      const part = /** @type {{node:any,pattern:boolean}} */ (pending.pop());
+      const node = part.node;
+      if (!node || typeof node !== "object" || node instanceof Set) continue;
+      yield part;
+      if (part.pattern || node.pattern) continue;
+      if (node.op === "≅" || node.op === "≇") {
+        pending.push({node:node.right,pattern:true},{node:node.left,pattern:false});
+        continue;
+      }
+      const expressions = expressionChildren(node);
+      const children = Array.isArray(node) ? node
+        : node.alternatives ? [node.tags,node.value,node.image,node.alternatives,node.conditions,node.emit]
+        : (typeof node.capture === "string" && !node.expr || node.insert) ? [node.tags,node.value,node.image]
+        : node.expr ? [node.expr,node.requirements,node.tags,node.value,node.image]
+        : node.literal ? [node.literal]
+        : node.range ? node.range
+        : expressions.length ? expressions
+        : clauseChildren(node);
+      for (let index=children.length-1; index>=0; index--) pending.push({node:children[index],pattern:false});
+    }
+  }
+
   /**
    * @param {Grammar} grammar
    * @param {{path:string,term:any,at:[number,number],tags:boolean}[]} argumentsToCheck
@@ -9887,7 +9890,7 @@
       if ("problem" in found) { faults.push(grammar.faultError(path,found.node,at,found.problem)); continue; }
       const problem=tags ? expectedProblem(found.type,"tags") : null;
       if (problem) { faults.push(grammar.faultError(path,term,at,problem)); continue; }
-      try { grammar.checkValueUses(term,path,at,true); }
+      try { grammar.checkValueUses(term,path,at); }
       catch (error) { if (!(error instanceof GencmuError)) throw error; faults.push(error); }
     }
     faults.sort((a,b) => (a.where.line ?? 0)-(b.where.line ?? 0) || (a.where.column ?? 0)-(b.where.column ?? 0));
