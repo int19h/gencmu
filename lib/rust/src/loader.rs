@@ -24,7 +24,8 @@ mod bundled {
 }
 
 pub(crate) fn bundled(path: &str) -> Option<&'static str> {
-    bundled::BUNDLED.iter().find(|(name, _)| *name == path).map(|(_, text)| *text)
+    static RESOURCES: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+    RESOURCES.get_or_init(|| bundled::BUNDLED.iter().copied().collect()).get(path).copied()
 }
 
 const BOOTSTRAP_PATH: &str = "data/preparsed/gencmu.json";

@@ -869,7 +869,7 @@ pipeline.features                              # each feature: name, gate or war
 to_json(result); to_brackets(result)
 ```
 
-The bundled grammars are embedded in each package, so a library works with no files beside it. A caller can also supply any grammar from disk or from memory.
+The bundled grammars are embedded in each package, so a library works with no files beside it. A caller can also supply any grammar from disk or from memory. Embedded resources use a path index built once for document lookup.
 
 In-memory sources are a map from path to text. The paths are `/`-separated and relative to the package root. Bundled source keys start with `grammars/`, and engine resource keys start with `data/`. The loader preserves caller-supplied keys and the pipeline path exactly.
 
