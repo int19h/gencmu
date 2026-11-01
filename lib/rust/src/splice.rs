@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use crate::dom::{ClassifierDef, ConstDef, Directive, Dom, ImplicationDef, RuleDef};
-use crate::error::Error;
+use crate::error::{Error, SpliceProblem};
 use crate::fxhash::{FxMap, FxSet};
 use crate::work::{self, Work};
 
@@ -328,10 +328,12 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
     }
     for stage in stages {
         if stage.documents.iter().all(|(_, dom)| dom.rules.is_empty()) {
-            return Err(Error::grammar("has no rules")
+            let mut error = Error::grammar("has no rules")
                 .in_document(&stage.document)
                 .at(stage.at.0, stage.at.1)
-                .in_stage(&stage.name));
+                .in_stage(&stage.name);
+            error.splice_problem = Some(SpliceProblem::EmptyStage);
+            return Err(error);
         }
     }
     let mut owners = FxMap::default();

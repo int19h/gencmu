@@ -14,6 +14,7 @@ import (
 // Line and Column say where, when known; Line and Column count from 1, in
 // code points.
 type Error struct {
+	spliceProblem    spliceProblem
 	boundaryLocation bool
 	recipeCycle      bool   // a failed cached cycle can recover its recipe position
 	Kind             string // "grammar" for a load error, "usage" for a caller's mistake
@@ -28,6 +29,10 @@ type Error struct {
 	Expression       json.RawMessage
 	Inheritance      []GroupSite
 }
+
+type spliceProblem uint8
+
+const emptyStageProblem spliceProblem = 1
 
 func (e *Error) Error() string {
 	var b strings.Builder

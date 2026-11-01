@@ -2136,6 +2136,8 @@ A tie in either stage of the notation pipeline, `lexical` or `syntax`, is an err
 
 Every bootstrap failure names `data/preparsed/gencmu.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Splicing errors have no stage field. For a stage without rules, the description is `stage NAME: has no rules`. Other splicing errors retain their descriptions without an added stage prefix.
 
+The splicer marks empty-stage errors with a private problem kind. Bootstrap handlers select that kind without inspecting message text.
+
 Stitching and lowering errors name the stage that failed.
 
 If the failure has a definition location, its structured line and column retain that location. The message always appends the embedded document at that location. A failure without a definition location has no structured line or column.

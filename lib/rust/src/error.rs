@@ -71,6 +71,12 @@ pub struct Error {
     /// The optional ranked loading details.
     pub diagnostic: Option<Box<RankedDiagnostic>>,
     pub(crate) location_recovery: Option<LocationRecovery>,
+    pub(crate) splice_problem: Option<SpliceProblem>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SpliceProblem {
+    EmptyStage,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -166,6 +172,7 @@ impl Error {
             stage: None,
             diagnostic: None,
             location_recovery: None,
+            splice_problem: None,
         }
     }
 

@@ -14,6 +14,10 @@ from ._names import selected_names
 Dom = dict[str, Any]
 
 
+class _EmptyStageError(GencmuError):
+    """The splicer found a declared stage without rules."""
+
+
 @dataclass
 class SplicedStage:
     """One stage of a spliced pipeline: its name, where its ``%stage``
@@ -181,7 +185,7 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None], scoped_dom_o
         raise GencmuError("a pipeline needs at least one %stage", document=path)
     for stage in stages:
         if not any(dom["rules"] for _, dom in stage.documents):
-            raise GencmuError("has no rules", document=stage.document, line=stage.at[0], column=stage.at[1], stage=stage.name)
+            raise _EmptyStageError("has no rules", document=stage.document, line=stage.at[0], column=stage.at[1], stage=stage.name)
     surviving = {id(dom) for stage in stages for _, dom in stage.documents}
     owners = {}
     for stage, dom, document, directive in declarations:

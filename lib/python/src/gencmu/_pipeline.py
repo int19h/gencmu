@@ -18,7 +18,7 @@ from ._grammar import MAX_LOWERED, Grammar, Lowered, lower, stitch
 from ._hash import fnv1a64
 from ._markdown import jbogenbau_text
 from ._model import Feature, Node, ParseError, ParseResult, ParseWarning, Stage, Token
-from ._splice import SplicedPipeline, splice_pipeline
+from ._splice import _EmptyStageError, SplicedPipeline, splice_pipeline
 from ._recent import Recent
 from ._stage import StageOutcome, StageRunner
 from ._tags import is_tag
@@ -205,7 +205,7 @@ class NotationReader:
         try:
             pipeline = splice_pipeline("grammars/gencmu/jbogenbau/pipeline.md", dom_of)
         except GencmuError as error:
-            if error.stage and error.message == "has no rules":
+            if isinstance(error, _EmptyStageError) and error.stage:
                 error.message = f"stage {error.stage}: {error.message}"
             error.stage = None
             raise

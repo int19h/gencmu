@@ -7,7 +7,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
 use crate::dom::{dom_from_json, dom_problem, dom_to_json, Dom, DOM_FORMAT};
-use crate::error::{Error, ErrorKind};
+use crate::error::{Error, ErrorKind, SpliceProblem};
 use crate::grammar::stitch;
 use crate::json::{self, fnv1a64, Json};
 use crate::markdown::{grammar_text, resolve};
@@ -213,7 +213,7 @@ fn build_notation_pipeline(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Pip
     let spliced =
         splice(NOTATION_PATH, &mut BootstrapDocuments { entries, unicode: &unicode }).map_err(|mut error| {
             if let Some(stage) = error.stage.take() {
-                if error.message == "has no rules" {
+                if error.splice_problem == Some(SpliceProblem::EmptyStage) {
                     error.message = format!("stage {stage}: {}", error.message);
                 }
             }
