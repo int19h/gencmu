@@ -24,6 +24,7 @@ type stageGrammar struct {
 	families          map[string]map[string]bool
 	ranked            *rankedGroups
 	deferredEmissions []*Error
+	templateDeferred  []*Error
 	name              string
 	uni               *unicodeTable // the loader's table, for the tags of a range in a constant's value
 	constants         map[string]*stageConst
@@ -119,18 +120,6 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 }
 
 func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, *Error) {
-	var pendingTemplates []*Error
-	for _, document := range docs {
-		for _, rule := range document.dom.Rules {
-			if rule.Params != nil {
-				if issue := rule.deferredEmission; issue != nil {
-					err := grammarError(document.path, rule.At, "%s", issue.message)
-					err.Stage = stageName
-					pendingTemplates = append(pendingTemplates, err)
-				}
-			}
-		}
-	}
 	expanded, expansionError := expandTemplates(docs, uni)
 	if expansionError != nil {
 		expansionError.Stage = stageName
@@ -294,7 +283,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 		}
 	}
 	for _, user := range expanded.validation {
-		if len(constRefs(user.rule)) > 0 || ruleHasPattern(user.rule) || len(g.arguments[argumentSite{user.doc, user.rule.At}]) > 0 {
+		if user.rule.Params != nil || len(constRefs(user.rule)) > 0 || ruleHasPattern(user.rule) || len(g.arguments[argumentSite{user.doc, user.rule.At}]) > 0 {
 			checks = append(checks, func() *Error { return g.checkConstantRule(user) })
 		}
 	}
@@ -362,8 +351,8 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 	if len(g.deferredEmissions) > 0 {
 		return nil, g.deferredEmissions[0]
 	}
-	if len(pendingTemplates) > 0 {
-		return nil, pendingTemplates[0]
+	if len(g.templateDeferred) > 0 {
+		return nil, g.templateDeferred[0]
 	}
 	if err := g.validateRecipeCycles(); err != nil {
 		return nil, err

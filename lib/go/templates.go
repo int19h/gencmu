@@ -336,7 +336,9 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 	}
 	validation := []*templateEvent{}
 	for _, e := range events {
-		if e.rule["params"] == nil && e.rule["args"] == nil && e.rule["instance"] == nil {
+		if e.rule["params"] != nil {
+			validation = append(validation, e)
+		} else if e.rule["args"] == nil && e.rule["instance"] == nil {
 			copy := *e
 			copy.definition = e
 			copy.rule = templateObj(x.rewrite(e.rule, e, "term"))

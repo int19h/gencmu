@@ -439,13 +439,7 @@ func (g *stageGrammar) checkValueUses(doc string, root valuePart, at [2]int, com
 		}
 		if t := part.term; t != nil {
 			if part.pattern || t.Kind == tmPattern {
-				var err *Error
-				if part.pattern {
-					_, err = g.evaluateClosed(doc, t, at, tyPattern)
-				} else {
-					_, err = g.evaluateClosed(doc, t, at)
-				}
-				if err != nil {
+				if err := g.checkPatternUses(doc, t, at); err != nil {
 					return err
 				}
 			}
@@ -467,6 +461,88 @@ func (g *stageGrammar) checkValueUses(doc string, root valuePart, at [2]int, com
 	})
 }
 
+// valueHasSource identifies values that still depend on template substitution.
+func valueHasSource(t *domTerm) bool {
+	pending := []clausePart{{t: t}}
+	for len(pending) > 0 {
+		part := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if unresolvedTerm(part.t) {
+			return true
+		}
+		if part.t != nil && part.t.Pattern != nil {
+			found := false
+			walkPattern(part.t.Pattern, func(p *domPattern) { found = found || p.Kind == "param" || p.Kind == "call" })
+			if found {
+				return true
+			}
+		}
+		pending = append(pending, part.children()...)
+	}
+	return false
+}
+
+// checkPatternUses inspects independent operands of an unresolved pattern.
+func (g *stageGrammar) checkPatternUses(doc string, t *domTerm, at [2]int) *Error {
+	if !valueHasSource(t) {
+		_, err := g.evaluateClosed(doc, t, at, tyPattern)
+		return err
+	}
+	if err := g.checkPatternDepth(doc, t, at); err != nil {
+		return err
+	}
+	if t.Call != nil {
+		return g.checkValueUses(doc, valuePart{call: t.Call}, at, false)
+	}
+	if t.Kind != tmPattern {
+		for _, child := range t.Items {
+			if err := g.checkPatternUses(doc, child, at); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	type part struct {
+		p *domPattern
+		t *domTerm
+	}
+	pending := []part{{p: t.Pattern}}
+	for len(pending) > 0 {
+		n := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if n.t != nil {
+			if err := g.checkValueUses(doc, valuePart{term: n.t}, at, false); err != nil {
+				return err
+			}
+			continue
+		}
+		p := n.p
+		if p.Call != nil {
+			if err := g.checkValueUses(doc, valuePart{call: p.Call}, at, false); err != nil {
+				return err
+			}
+		}
+		if p.Kind == "range" {
+			if err := g.validateStringRange(doc, p.Ends, p.At); err != nil {
+				return err
+			}
+		}
+		for i := len(p.Attached) - 1; i >= 0; i-- {
+			pending = append(pending, part{p: p.Attached[i]})
+		}
+		for i := len(p.Requirements) - 1; i >= 0; i-- {
+			pending = append(pending, part{t: p.Requirements[i].Value})
+		}
+		if p.Value != nil {
+			pending = append(pending, part{t: p.Value})
+		}
+		for i := len(p.Items) - 1; i >= 0; i-- {
+			pending = append(pending, part{p: p.Items[i]})
+		}
+	}
+	return nil
+}
+
 // valuePart keeps the roles of declarations, expressions and clauses separate.
 type valuePart struct {
 	rule    *domRule
@@ -475,6 +551,7 @@ type valuePart struct {
 	term    *domTerm
 	cond    *domCond
 	item    *domEmitItem
+	call    *domSourceCall
 	pattern bool
 }
 
@@ -502,6 +579,15 @@ func walkValues(root valuePart, visit func(valuePart) *Error) *Error {
 			}
 		}
 		switch {
+		case part.call != nil:
+			for _, arg := range part.call.Args {
+				expressions(arg.Expr)
+				terms(arg.Term)
+				for _, r := range arg.Requirements {
+					terms(r.Value)
+				}
+				terms(arg.Targets...)
+			}
 		case part.rule != nil:
 			r := part.rule
 			terms(r.Tags, r.Value, r.Image)
@@ -524,6 +610,9 @@ func walkValues(root valuePart, visit func(valuePart) *Error) *Error {
 			terms(part.item.Tags, part.item.Value, part.item.Image)
 		case part.expr != nil:
 			e := part.expr
+			if e.Call != nil {
+				children = append(children, valuePart{call: e.Call})
+			}
 			expressions(e.Items...)
 			expressions(e.Inner, e.Sep)
 			for _, requirement := range e.Requirements {
@@ -533,6 +622,9 @@ func walkValues(root valuePart, visit func(valuePart) *Error) *Error {
 		case part.term != nil:
 			if part.pattern || part.term.Kind == tmPattern {
 				continue
+			}
+			if part.term.Call != nil {
+				children = append(children, valuePart{call: part.term.Call})
 			}
 			if c := part.term.Cond; c != nil {
 				children = append(children, valuePart{cond: c})
@@ -547,6 +639,7 @@ func walkValues(root valuePart, visit func(valuePart) *Error) *Error {
 				for _, p := range (clausePart{c: c}).children() {
 					children = append(children, valuePart{term: p.t, cond: p.c})
 				}
+				terms(c.Targets...)
 			}
 		}
 		for i := len(children) - 1; i >= 0; i-- {
@@ -615,6 +708,9 @@ func (r *resolver) term(t *domTerm) *domTerm {
 		w.clauseSteps.add("clause steps")
 	}
 	if t.Kind == tmPattern || (t.Kind == tmUnion || t.Kind == tmIntersection || t.Kind == tmDifference) && resolverHasPattern(r, t) {
+		if valueHasSource(t) {
+			return t
+		}
 		v := r.patternValue(t)
 		copied := &domTerm{Kind: tmPattern, Pattern: v}
 		r.terms[t] = copied
@@ -661,7 +757,7 @@ func (r *resolver) cond(c *domCond) *domCond {
 		w.clauseSteps.add("clause steps")
 	}
 	left, right, span := r.term(c.Left), r.term(c.Right), r.term(c.Span)
-	if (c.Op == "≅" || c.Op == "≇") && right.Kind != tmPattern {
+	if (c.Op == "≅" || c.Op == "≇") && right.Kind != tmPattern && !valueHasSource(c.Right) {
 		right = &domTerm{Kind: tmPattern, Pattern: r.patternValue(c.Right)}
 	}
 	inner := r.cond(c.Inner)
@@ -836,12 +932,21 @@ func (g *stageGrammar) checkConstantRule(u constUser) *Error {
 
 	// The checks that simplification decides, which the reader left to
 	// the loader, now with the constants' values (§9).
-	result := checkDefinition(newResolver(g.constants, g.uni).rule(u.rule), true)
+	resolved := newResolver(g.constants, g.uni).rule(u.rule)
+	if u.rule.Params != nil {
+		resolved = partialSourceRule(resolved)
+	}
+	result := checkDefinition(resolved, true)
 	if result.problem != nil {
 		return g.constError(u.doc, u.rule.At, "%s", result.problem.message)
 	}
 	if result.deferred != nil {
-		g.deferredEmissions = append(g.deferredEmissions, g.constError(u.doc, u.rule.At, "%s", result.deferred.message))
+		err := g.constError(u.doc, u.rule.At, "%s", result.deferred.message)
+		if u.rule.Params != nil {
+			g.templateDeferred = append(g.templateDeferred, err)
+		} else {
+			g.deferredEmissions = append(g.deferredEmissions, err)
+		}
 	}
 	return nil
 }

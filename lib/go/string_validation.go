@@ -6,7 +6,12 @@ import "unicode/utf8"
 // definitions. The cached DOM retains its original unresolved terms.
 func (g *stageGrammar) validateStringRange(doc string, terms [2]*domTerm, at [2]int) *Error {
 	var ends [2]rune
+	complete := true
 	for i, t := range terms {
+		if valueHasSource(t) {
+			complete = false
+			continue
+		}
 		value, err := g.evaluateClosed(doc, t, at)
 		if err != nil {
 			return err
@@ -16,7 +21,7 @@ func (g *stageGrammar) validateStringRange(doc string, terms [2]*domTerm, at [2]
 		}
 		ends[i], _ = utf8.DecodeRuneInString(value.s)
 	}
-	if ends[0] > ends[1] {
+	if complete && ends[0] > ends[1] {
 		where := at
 		if references := constRefs(terms[0], terms[1]); len(references) > 0 {
 			where = references[0].At
