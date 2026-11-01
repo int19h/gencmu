@@ -136,9 +136,8 @@ export declare class ParseContext {
     /** Whether the check of engine §7 is running over this context's input. */
     checking: boolean;
     /**
-     * Each token's value in canonical form, for the value tests of
-     * symbols and for value(), computed when one first looks at the
-     * token (engine §4, §5).
+     * Each token's exact stored value, for symbol tests and value(),
+     * cached on its first observation (engine §4, §5).
      * @type {(string | undefined)[]}
      */
     storedValues: (string | undefined)[];

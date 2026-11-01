@@ -19,7 +19,6 @@ use crate::earley::{test_holds, Cap, Chart, Item, Tok};
 use crate::fxhash::FxMap;
 use crate::lower::{Lowered, OptionalBoundary, Sym};
 use crate::tags::Tags;
-use crate::unicode::Unicode;
 use crate::work::{self, Mutant, Work};
 
 /// A place in the chart: the set and the index of an item there.
@@ -65,7 +64,6 @@ pub(crate) struct Proofs<'a> {
     chart: &'a Chart,
     /// The tokens of the nested parse's span alone.
     tokens: &'a [Tok],
-    unicode: &'a Unicode,
     tags: &'a Tags,
     /// The completed items of the whole chart by rule and origin, built
     /// once, when the first search for a blocking path needs it.
@@ -74,14 +72,8 @@ pub(crate) struct Proofs<'a> {
 }
 
 impl<'a> Proofs<'a> {
-    pub(crate) fn new(
-        g: &'a Lowered,
-        chart: &'a Chart,
-        tokens: &'a [Tok],
-        unicode: &'a Unicode,
-        tags: &'a Tags,
-    ) -> Proofs<'a> {
-        Proofs { g, chart, tokens, unicode, tags, index: OnceCell::new(), optional_index: OnceCell::new() }
+    pub(crate) fn new(g: &'a Lowered, chart: &'a Chart, tokens: &'a [Tok], tags: &'a Tags) -> Proofs<'a> {
+        Proofs { g, chart, tokens, tags, index: OnceCell::new(), optional_index: OnceCell::new() }
     }
 
     /// Counts one entry of the chart or the index that a search examines,
@@ -106,7 +98,7 @@ impl<'a> Proofs<'a> {
         let dot = item.dot as usize;
         if let Some(test) = self.g.test(item.prod, dot) {
             let span = &self.tokens[cap.start as usize..cap.end as usize];
-            if !test_holds(test, span, self.unicode, self.tags, cap.tags) {
+            if !test_holds(test, span, self.tags, cap.tags) {
                 return None;
             }
         }
@@ -1086,7 +1078,7 @@ mod tests {
         if witnesses.is_empty() {
             return None;
         }
-        let proofs = Proofs::new(&g, &chart, &input, &pipeline.unicode, &shared.tags);
+        let proofs = Proofs::new(&g, &chart, &input, &shared.tags);
         let got = proofs.eligible(&witnesses);
         let mut oracle = Oracle::new(&g, &tokens, start);
         let mut truth = Vec::new();
@@ -1212,7 +1204,7 @@ mod tests {
             })
             .collect();
         assert!(!witnesses.is_empty(), "r completes");
-        let proofs = Proofs::new(&g, &chart, &input, &pipeline.unicode, &shared.tags);
+        let proofs = Proofs::new(&g, &chart, &input, &shared.tags);
         // The chart is made before the searches, so the budget of the
         // searches can depend on its items.
         let items = chart.sets.iter().map(|set| set.items.len() as u64).sum();

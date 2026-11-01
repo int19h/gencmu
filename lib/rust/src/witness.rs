@@ -12,7 +12,6 @@ use crate::lower::{Lowered, Sym};
 use crate::rank::restored_terminal;
 use crate::tags::{SetId, Tags};
 use crate::tree::{IKind, ITree};
-use crate::unicode::Unicode;
 
 /// A way to lose the witness of a check after recognition (engine §7.9).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -204,7 +203,6 @@ pub(crate) struct CheckForest<'a> {
     pub original_at: &'a [u32],
     /// For each restoration record, the index of its synthetic token in R.
     pub record_at: &'a [u32],
-    pub unicode: &'a Unicode,
     pub tags: &'a Tags,
 }
 
@@ -481,9 +479,8 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
             let own: Vec<SetId> = match (chosen.nodes[child as usize].kind.clone(), production.syms[position]) {
                 (IKind::Read { tok, terminal }, Sym::T(symbol)) if terminal == symbol => {
                     let token = &forest.tokens[forest.original_at[tok as usize] as usize];
-                    let passes = test.map_or(true, |test| {
-                        test_holds(test, std::slice::from_ref(token), forest.unicode, forest.tags, token.tags)
-                    });
+                    let passes = test
+                        .map_or(true, |test| test_holds(test, std::slice::from_ref(token), forest.tags, token.tags));
                     if passes {
                         vec![token.tags]
                     } else {
@@ -497,9 +494,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                     let mut sets: Vec<SetId> = found[child as usize]
                         .iter()
                         .map(|&item| set.tagset[item as usize])
-                        .filter(|&tags| {
-                            test.map_or(true, |test| test_holds(test, span, forest.unicode, forest.tags, tags))
-                        })
+                        .filter(|&tags| test.map_or(true, |test| test_holds(test, span, forest.tags, tags)))
                         .collect();
                     sets.sort_unstable();
                     sets.dedup();

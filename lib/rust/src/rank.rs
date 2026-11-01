@@ -24,7 +24,6 @@ use crate::grammar::Lean;
 use crate::lower::{Lowered, Sym, NO_TEST};
 use crate::nat::Nat;
 use crate::tags::{SetId, Tags};
-use crate::unicode::Unicode;
 use crate::witness::{self, Fault, Marks, WitnessAct};
 use crate::work::{self, Work};
 
@@ -734,8 +733,7 @@ pub(crate) struct Dag<'c> {
     g: &'c Lowered,
     chart: &'c Chart,
     tokens: &'c [Tok],
-    /// The Unicode table and the stored tag sets used by symbol tests (§4, §5).
-    unicode: &'c Unicode,
+    /// The stored tag sets used by symbol tests (§4, §5).
     tags: &'c Tags,
     /// In the check of `elision-only`, O and π: a test of a reference reads
     /// its projected span (§7.5); `None` elsewhere.
@@ -1135,7 +1133,6 @@ impl<'c> Ranker<'c> {
             g,
             chart,
             tokens,
-            unicode: shared.unicode,
             tags: &shared.tags,
             projection: None,
             lean,
@@ -1348,7 +1345,7 @@ impl<'c> Ranker<'c> {
                 // derivation is made only of advances the test allowed (§4).
                 let test_id = production.test(position).unwrap_or(NO_TEST);
                 let test = self.dag.g.test(item.prod, position);
-                let (tokens, unicode, tags) = (self.dag.tokens, self.dag.unicode, self.dag.tags);
+                let (tokens, tags) = (self.dag.tokens, self.dag.tags);
                 // A test of a terminal reads its token with its recognition
                 // values, and one of a reference its projected span (§7.5).
                 let terminal_test = matches!(production.syms[position], Sym::T(_));
@@ -1369,7 +1366,7 @@ impl<'c> Ranker<'c> {
                                 }
                                 _ => &tokens[m as usize..set as usize],
                             };
-                            test_holds(test, span, unicode, tags, own)
+                            test_holds(test, span, tags, own)
                         })
                 };
                 match production.syms[position] {
@@ -1449,7 +1446,7 @@ impl<'c> Ranker<'c> {
                 let no_tests = self.dag.projection.is_some() && witness::fault_at(Fault::RankerTests, "group");
                 let test = (test != NO_TEST && !no_tests).then(|| &self.dag.g.tests[test as usize]);
                 let span = self.reference_span(origin, set);
-                let (unicode, tag_table) = (self.dag.unicode, self.dag.tags);
+                let tag_table = self.dag.tags;
                 let members = eset
                     .completed
                     .get(&(rule, origin))
@@ -1467,9 +1464,7 @@ impl<'c> Ranker<'c> {
                                     && (boundary == ANY || eset.items[index as usize].boundary == boundary)
                             })
                             .filter(|&&index| {
-                                test.map_or(true, |test| {
-                                    test_holds(test, span, unicode, tag_table, eset.tagset[index as usize])
-                                })
+                                test.map_or(true, |test| test_holds(test, span, tag_table, eset.tagset[index as usize]))
                             })
                             .map(|&index| (Node::Close { set, index }, fset))
                             .collect()
