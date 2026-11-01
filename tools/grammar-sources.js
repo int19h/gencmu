@@ -27,7 +27,7 @@ export function sourceLoader(base, bootstrap) {
     return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
   });
   // The required file boots the reader but supplies no ordinary cached entries here.
-  loader.preparsedFiles.add("data/preparsed/gencmu.json");
+  loader.preparsedFiles.set("data/preparsed/gencmu.json",true,"data/preparsed/gencmu.json".length);
   return loader;
 }
 

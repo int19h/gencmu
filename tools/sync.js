@@ -105,7 +105,7 @@ const loaderWith = (bootstrap) => {
   const file = path.join(root, relative.split("/").join(path.sep));
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
   });
-  loader.preparsedFiles.add(BOOTSTRAP_PATH);
+  loader.preparsedFiles.set(BOOTSTRAP_PATH,true,BOOTSTRAP_PATH.length);
   return loader;
 };
 /**

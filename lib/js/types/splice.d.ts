@@ -62,6 +62,14 @@ export declare function splicePipeline(path: string, domOf: (path: string, names
     stages: SplicedStage[];
     features: string[];
 };
+export type IncludeFrame = {
+    path: string;
+    dom: GrammarDom;
+    items: Item[];
+    next: number;
+    names: string[];
+    inherited: string[];
+};
 /**
  * A pipeline's documents as one jbogenbau text: its features in one %features,
  * then every item of the spliced stream but %include, %names and global
