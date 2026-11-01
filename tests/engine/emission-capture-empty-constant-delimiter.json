@@ -1,0 +1,13 @@
+{
+  "description": "Emission carriers receive constant delimiter inspection at load in written order.",
+  "grammar": "%const $E \"\"\n%rule text $a:\"a\" %emits $a :: \"a\" ∈ $a.value.split($E) ⟹ T",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 53
+    }
+  }
+}
