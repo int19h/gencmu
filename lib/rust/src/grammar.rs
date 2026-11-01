@@ -1262,7 +1262,6 @@ impl Constants<'_> {
                 return Err(located(fault.problem, document, fault.at.unwrap_or(item)));
             }
             self.check_pattern_depth(term, document, item)?;
-            // Preserve the endpoint scan's reverse written order.
             let ranges: Vec<_> = root
                 .walk()
                 .filter_map(|part| match part {
@@ -1270,7 +1269,7 @@ impl Constants<'_> {
                     _ => None,
                 })
                 .collect();
-            for (a, b, at) in ranges.into_iter().rev() {
+            for (a, b, at) in ranges {
                 self.scalar_endpoints(a, b, document, at)?;
             }
         } else {
