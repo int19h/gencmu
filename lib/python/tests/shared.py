@@ -787,12 +787,11 @@ def validate_engine_expect(expect: Any) -> None:
         validate_result_pattern(expect["result"])
 
 
-def validate_case_options(options: Any, usage: bool = False) -> None:
+def validate_case_options(options: Any) -> None:
     case_object(options, "features withoutFeatures until elisionOnly", "options")
-    if not usage:
-        for field, value in options.items():
-            kind = "strings" if field in ("features", "withoutFeatures") else "string" if field == "until" else "boolean"
-            case_value(value, kind, "options." + field)
+    for field, value in options.items():
+        kind = "strings" if field in ("features", "withoutFeatures") else "string" if field == "until" else "boolean"
+        case_value(value, kind, "options." + field)
 
 
 def validate_case_tokens(tokens: Any, usage: bool = False) -> None:
@@ -813,9 +812,9 @@ def validate_case_tokens(tokens: Any, usage: bool = False) -> None:
 
 
 def validate_engine_case(case: Any, complete: bool = False) -> None:
-    """Validate case metadata, retaining malformed API fields in usage cases."""
+    """Validate case metadata, retaining malformed token fields in usage cases."""
     case_object(case, "description name grammar pipeline documents pipelineDocument input tokens options expect parses treeRendering", "case")
-    for field in ("description", "name", "grammar", "pipelineDocument"):
+    for field in ("description", "name", "grammar", "pipelineDocument", "pipeline", "input"):
         if field in case:
             case_value(case[field], "string", "case." + field)
     sources = sum(field in case for field in ("grammar", "pipeline", "documents"))
@@ -844,11 +843,7 @@ def validate_engine_case(case: Any, complete: bool = False) -> None:
         if "expect" in item:
             validate_engine_expect(item["expect"])
         usage = item.get("expect", {}).get("error") == "usage"
-        validate_case_options(item.get("options", {}), usage)
-        if "pipeline" in case and not usage:
-            case_value(case["pipeline"], "string", "case.pipeline")
-        if "input" in case and not usage:
-            case_value(case["input"], "string", "case.input")
+        validate_case_options(item.get("options", {}))
         if "tokens" in case:
             validate_case_tokens(case["tokens"], usage)
 
@@ -1223,7 +1218,7 @@ def parse_case(
     its ``parses`` (tests/README.md); or a mistake of the caller in their
     place, which is no result (engine §13)."""
     options = (case if run is None else run).get("options", {})
-    validate_case_options(options, (case if run is None else run).get("expect", {}).get("error") == "usage")
+    validate_case_options(options)
     kwargs: dict[str, Any] = {
         "features": options.get("features", []),
         "without_features": options.get("withoutFeatures", []),
