@@ -104,3 +104,15 @@ func TestInputBoundaryMethodMessage(t *testing.T) {
 		}
 	}
 }
+
+func TestSpanTagHintUsesSourceSpelling(t *testing.T) {
+	t.Parallel()
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	raw := `{"format":40,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"tags":{"union":[{"capture":"x"},{"tag":"B"}]},"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
+	_, err := decodeDOM(json.RawMessage(raw), bundled.uni)
+	if err == nil || !strings.Contains(err.Error(), "$x.tags") || strings.Contains(err.Error(), "tags($x)") {
+		t.Fatalf("tag-set hint: %v", err)
+	}
+}

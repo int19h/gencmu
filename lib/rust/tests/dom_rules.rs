@@ -1693,3 +1693,10 @@ fn substituted_condition_keeps_its_type_reason() {
         assert!(error.message.contains("in f(A) called at"), "{error}");
     }
 }
+
+#[test]
+fn span_tag_hint_uses_source_spelling() {
+    let raw = r#"{"format":40,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"tags":{"union":[{"capture":"x"},{"tag":"B"}]},"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}"#;
+    let problem = gencmu::tools::check_dom(raw).unwrap().unwrap();
+    assert!(problem.contains("$x.tags") && !problem.contains("tags($x)"), "{problem}");
+}

@@ -2057,37 +2057,22 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
     }
 }
 
-fn check_span(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
+// Admission checks span shapes and method arities before stitching.
+// Only references to rules of this stage remain to be checked.
+fn check_span_references(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
     match term {
-        Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
         Term::Capture(_) => Ok(()),
-        Term::Call(name, args) if name == "without-elision-except" => match &args[..] {
-            [Arg::Term(Term::Capture(_)), Arg::Rule(rule)] => check_rule(grammar, rule),
-            _ => Err(".without-elision-except takes a bare capture and one rule name".to_string()),
-        },
-        Term::Call(name, args)
-            if matches!(
-                name.as_str(),
-                "first-token"
-                    | "tokens-after-first"
-                    | "last-token"
-                    | "onward"
-                    | "following-tokens"
-                    | "preceding-tokens"
-                    | "without-elision"
-            ) =>
-        {
-            match &args[..] {
-                [Arg::Term(Term::Capture(_))] if name == "without-elision" => Ok(()),
-                _ if name == "without-elision" => {
-                    Err("without-elision() takes one bare capture: use from(without-elision($x)) for an extended query"
-                        .to_string())
+        Term::Call(_, args) => {
+            for arg in args {
+                match arg {
+                    Arg::Term(inner) => check_span_references(grammar, inner)?,
+                    Arg::Rule(rule) => check_rule(grammar, rule)?,
+                    _ => unreachable!("span method arguments were checked before stitching"),
                 }
-                [Arg::Term(inner)] => check_span(grammar, inner),
-                _ => Err(format!("{name}() takes one span")),
             }
+            Ok(())
         }
-        _ => Err("a span must be a capture, or head(), tail(), last(), from() or after() of one".to_string()),
+        _ => unreachable!("span shapes were checked before stitching"),
     }
 }
 
@@ -2113,10 +2098,10 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
         }
         Term::Call(name, args) => match (name.as_str(), &args[..]) {
             ("value" | "image" | "source-text" | "decomposed-source-text" | "classes" | "tags", [Arg::Term(span)]) => {
-                check_span(grammar, span)
+                check_span_references(grammar, span)
             }
             ("tags", [Arg::Term(span), Arg::Rule(rule)]) => {
-                check_span(grammar, span)?;
+                check_span_references(grammar, span)?;
                 check_rule(grammar, rule)
             }
             ("ngrams", [Arg::Term(string), Arg::Integer(n)]) if crate::dom::valid_integer(n) => {
@@ -2134,7 +2119,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 }
                 Ok(())
             }
-            ("verbatim-text" | "emitted", [Arg::Term(span)]) => check_span(grammar, span),
+            ("verbatim-text" | "emitted", [Arg::Term(span)]) => check_span_references(grammar, span),
             // A classifier that classify names belongs to the stage (§2).
             ("classify", [Arg::Term(string), Arg::Classifier(classifier)]) => {
                 check_term(grammar, string)?;
@@ -2154,7 +2139,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 | "without-elision"
                 | "without-elision-except",
                 _,
-            ) => check_span(grammar, term),
+            ) => check_span_references(grammar, term),
             (
                 "value"
                 | "source-text"
@@ -2190,7 +2175,7 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
             if matches!(cond, Cond::Ends(..)) && crate::dom::restored_span(span) {
                 return Err(".ends cannot read a restored span".into());
             }
-            check_span(grammar, span)?;
+            check_span_references(grammar, span)?;
             for target in rule {
                 if !is_terminal_name(target) {
                     check_rule(grammar, target)?
@@ -2198,7 +2183,7 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
             }
             Ok(())
         }
-        Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => check_span(grammar, span),
+        Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => check_span_references(grammar, span),
         Cond::Not(inner) => check_cond(grammar, inner),
         Cond::Captured(_) => Ok(()),
         Cond::If(antecedent, consequent) => {

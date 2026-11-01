@@ -1,0 +1,10 @@
+{
+  "description": "An admitted restoration span supports nested context and token selectors.",
+  "grammar": "%rule text $x:\"a\" %conditions $x.without-elision-except(fam).onward.first-token.value = \"a\"\n%rule fam ε",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

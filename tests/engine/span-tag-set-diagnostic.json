@@ -1,0 +1,13 @@
+{
+  "description": "A span used as a tag set points the author to the source spelling of the tags method.",
+  "grammar": "%rule text $x:A :: $x ∪ B",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 20
+    }
+  }
+}
