@@ -1065,7 +1065,14 @@ class DomBuilder:
                 result["at"] = atom["at"]
             return result
         if kind in ("pattern-union", "pattern-intersection", "child-set", "child-intersection"):
-            operands = [part for part in self.kids(node) if part.rule in ("pattern-intersection", "pattern-path", "child-intersection", "child-path")]
+            if kind == "pattern-union":
+                operands = self.some(node, "pattern-intersection")
+            elif kind == "pattern-intersection":
+                operands = self.some(node, "pattern-path")
+            elif kind == "child-intersection":
+                operands = self.some(node, "child-path")
+            else:
+                operands = [part for part in self.kids(node) if part.rule in ("child-intersection", "child-path")]
             if not operands:
                 raise self.lacks(node, "pattern operands")
             values = []

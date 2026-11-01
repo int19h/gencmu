@@ -2711,6 +2711,8 @@ This requirement also applies to `pattern-union` and `child-set`. Only their set
 
 A pattern constructor converts only the operand kinds listed in its row. A pattern where child items are required, or the reverse, causes a document error at that constructor.
 
+A named constructor from another pattern layer cannot supply a required operand. The reader ignores it and requires the operand kinds listed for the current constructor. A `child-set` accepts both `child-intersection` and `child-path` parts.
+
 An explicit `primary` wrapper supplies a tested node's base. Without that wrapper, the base is the first primary constructor other than `tested`. The reader ignores nested tested parts during that fallback search.
 
 A supplied ranked choice without a `≻` token retains its ranked operands without a separator position. Each wildcard pattern requires its token. An attachment requires a named capture, even after stray tokens.
