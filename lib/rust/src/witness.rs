@@ -7,7 +7,7 @@
 use std::cell::RefCell;
 
 use crate::earley::{Cap, Chart, Item, Tok};
-use crate::fxhash::FxSet;
+use crate::fxhash::{FxMap, FxSet};
 use crate::lower::{Lowered, Sym};
 use crate::rank::restored_terminal;
 use crate::tree::{IKind, ITree};
@@ -305,6 +305,8 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
     // reaches, by set and index.
     let mut found: Vec<Vec<u32>> = vec![Vec::new(); count];
     let mut marks = Marks::default();
+    type Seeds = FxMap<(u32, u32, u32), Vec<u32>>;
+    let mut seeds: FxMap<u32, Seeds> = FxMap::default();
     for &index in &order {
         let node = &chosen.nodes[index as usize];
         let IKind::Close { prod, .. } = node.kind else {
@@ -312,26 +314,30 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
         };
         let (start, end) = spans[index as usize];
         let at = |set: u32, item: Item| forest.chart.sets.get(set as usize).and_then(|set| set.find(&item));
+        let seed_set = if elided(&node.kind) { end } else { start };
+        let seed_items = seeds
+            .entry(seed_set)
+            .or_insert_with(|| {
+                let mut index = Seeds::default();
+                for (i, item) in forest.chart.sets[seed_set as usize].items.iter().enumerate() {
+                    if item.dot == 0 && item.caps == 0 {
+                        index.entry((item.prod, item.dot, item.origin)).or_default().push(i as u32);
+                    }
+                }
+                index
+            })
+            .get(&(prod, 0, start))
+            .map_or(&[][..], Vec::as_slice);
         if elided(&node.kind) {
             // The restoration: the empty production's item from `start`,
             // in the set after it.
-            found[index as usize] = forest.chart.sets[end as usize]
-                .items
-                .iter()
-                .enumerate()
-                .filter(|(_, item)| item.prod == prod && item.dot == 0 && item.origin == start && item.caps == 0)
-                .map(|(i, _)| i as u32)
-                .collect();
+            found[index as usize] = seed_items.to_vec();
             marks.items.extend(found[index as usize].iter().map(|&item| (end, item)));
             continue;
         }
         let production = &g.prods[prod as usize];
-        let mut current: Vec<Item> = forest.chart.sets[start as usize]
-            .items
-            .iter()
-            .filter(|item| item.prod == prod && item.dot == 0 && item.origin == start && item.caps == 0)
-            .copied()
-            .collect();
+        let mut current: Vec<Item> =
+            seed_items.iter().map(|&i| forest.chart.sets[start as usize].items[i as usize]).collect();
         for &item in &current {
             if let Some(i) = at(start, item) {
                 marks.items.insert((start, i));
