@@ -848,21 +848,32 @@ def validate_engine_case(case: Any, complete: bool = False) -> None:
             validate_case_tokens(case["tokens"], usage)
 
 
-def validate_notation_case(case: Any) -> None:
-    case_object(case, "description document expect cacheMisses", "case", "document expect")
-    for field in ("description", "document"):
+def validate_notation_case(case: Any, values: bool = False) -> None:
+    members = "id description aliases document expect" if values else "description document expect cacheMisses"
+    required = "id aliases document expect" if values else "document expect"
+    case_object(case, members, "case", required)
+    for field in ("id", "description", "document"):
         if field in case:
             case_value(case[field], "string", "case." + field)
+    if values:
+        assert isinstance(case["aliases"], list), "case.aliases: expected an array"
+        for alias in case["aliases"]:
+            case_object(alias, "spelling tags value", "alias", "spelling tags value")
+            for field, value in alias.items():
+                case_value(value, "strings" if field == "tags" else "string", "alias." + field)
     if "cacheMisses" in case:
         case_value(case["cacheMisses"], "boolean", "case.cacheMisses")
     expect = case["expect"]
-    case_object(expect, "dom error", "expect")
-    assert len(expect) == 1, "notation expect: expected exactly one of dom or error"
+    case_object(expect, "dom error message" if values else "dom error", "expect")
+    assert ("dom" in expect) != ("error" in expect), "notation expect: expected exactly one of dom or error"
+    if "message" in expect:
+        assert "error" in expect, "expect.message requires an error"
+        case_value(expect["message"], "string", "expect.message")
     if "dom" in expect:
         assert isinstance(expect["dom"], dict), "expect.dom: expected an object"
     else:
         assert not case.get("cacheMisses"), "cacheMisses requires a DOM expectation"
-        case_object(expect["error"], "line column message", "expect.error")
+        case_object(expect["error"], "line column" if values else "line column message", "expect.error", "line column" if values else "")
         for field, value in expect["error"].items():
             case_value(value, "string" if field == "message" else "position", "expect.error." + field)
 
