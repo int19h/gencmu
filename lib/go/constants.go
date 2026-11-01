@@ -459,7 +459,7 @@ func (g *stageGrammar) checkValueUses(doc string, root valuePart, at [2]int, com
 			}
 		}
 		return nil
-	})
+	}, false)
 }
 
 // valueHasSource identifies values that still depend on template substitution.
@@ -546,17 +546,18 @@ func (g *stageGrammar) checkPatternUses(doc string, t *domTerm, at [2]int) *Erro
 
 // valuePart keeps the roles of declarations, expressions and clauses separate.
 type valuePart struct {
-	rule    *domRule
-	alt     *domAlt
-	expr    *domExpr
-	term    *domTerm
-	cond    *domCond
-	item    *domEmitItem
-	call    *domSourceCall
-	pattern bool
+	rule        *domRule
+	alt         *domAlt
+	expr        *domExpr
+	term        *domTerm
+	cond        *domCond
+	item        *domEmitItem
+	call        *domSourceCall
+	pattern     bool
+	patternNode *domPattern
 }
 
-func walkValues(root valuePart, visit func(valuePart) *Error) *Error {
+func walkValues(root valuePart, visit func(valuePart) *Error, patterns bool) *Error {
 	pending := []valuePart{root}
 	for len(pending) > 0 {
 		part := pending[len(pending)-1]
@@ -588,6 +589,21 @@ func walkValues(root valuePart, visit func(valuePart) *Error) *Error {
 					terms(r.Value)
 				}
 				terms(arg.Targets...)
+			}
+		case part.patternNode != nil:
+			p := part.patternNode
+			if p.Call != nil {
+				children = append(children, valuePart{call: p.Call})
+			}
+			for _, item := range p.Items {
+				children = append(children, valuePart{patternNode: item})
+			}
+			terms(p.Ends[0], p.Ends[1], p.Value)
+			for _, r := range p.Requirements {
+				terms(r.Value)
+			}
+			for _, item := range p.Attached {
+				children = append(children, valuePart{patternNode: item})
 			}
 		case part.rule != nil:
 			r := part.rule
@@ -622,15 +638,18 @@ func walkValues(root valuePart, visit func(valuePart) *Error) *Error {
 			terms(e.Value, e.Ends[0], e.Ends[1])
 		case part.term != nil:
 			if part.pattern || part.term.Kind == tmPattern {
-				continue
+				if patterns && part.term.Pattern != nil {
+					children = append(children, valuePart{patternNode: part.term.Pattern})
+				}
+			} else {
+				if part.term.Call != nil {
+					children = append(children, valuePart{call: part.term.Call})
+				}
+				if c := part.term.Cond; c != nil {
+					children = append(children, valuePart{cond: c})
+				}
+				terms(part.term.Items...)
 			}
-			if part.term.Call != nil {
-				children = append(children, valuePart{call: part.term.Call})
-			}
-			if c := part.term.Cond; c != nil {
-				children = append(children, valuePart{cond: c})
-			}
-			terms(part.term.Items...)
 		case part.cond != nil:
 			c := part.cond
 			if c.Kind == cdCompare && (c.Op == "≅" || c.Op == "≇") {

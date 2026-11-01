@@ -106,27 +106,6 @@ impl Pattern {
         Walk { pending: vec![Part::Pattern(self)] }
     }
 
-    pub(crate) fn constants<'a>(&'a self, out: &mut Vec<(&'a str, (usize, usize))>) {
-        for part in self.walk() {
-            match part {
-                Part::Pattern(Self::Constant(name, at)) => out.push((name, *at)),
-                Part::Term(term, _) => dom::constants_in_term(term, out),
-                _ => {}
-            }
-        }
-    }
-    pub(crate) fn references<'a>(&'a self, out: &mut Vec<(&'a str, (usize, usize))>) {
-        for part in self.walk() {
-            match part {
-                Part::Pattern(Self::Constant(name, at)) => out.push((name, *at)),
-                Part::Term(term, _) => dom::references_in_term(term, out),
-                _ => {}
-            }
-        }
-        out.sort_by_key(|reference| reference.1);
-        out.dedup();
-    }
-
     pub(crate) fn type_fault(&self, constants: dom::ConstantTypes) -> Option<dom::Fault> {
         for part in self.walk() {
             match part {
