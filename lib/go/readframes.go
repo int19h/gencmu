@@ -442,7 +442,8 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 	if n.Rule == "concatenation" {
 		return give(&domTerm{Kind: tmConcat, Items: f.items})
 	}
-	if len(f.ops) < len(f.items)-1 {
+	// Only a union needs explicit operators (engine §9.3).
+	if n.Rule == "union" && len(f.ops) < len(f.items)-1 {
 		b.lacks(n, "operator")
 	}
 	op := f.ops[0]

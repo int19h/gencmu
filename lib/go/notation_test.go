@@ -116,6 +116,28 @@ func TestConstantNamePrecedesRequiredValue(t *testing.T) {
 	t.Fatal("the invalid name was accepted")
 }
 
+func TestSuppliedIntersectionsNeedNoOperatorTokens(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	node := func(name string, children ...*Node) *Node {
+		return &Node{Kind: KindRule, Rule: name, Children: children}
+	}
+	for count := 2; count <= 4; count++ {
+		parts := make([]*Node, count)
+		tokens := make([]Token, count)
+		for i := range parts {
+			tokens[i] = Token{Value: "A"}
+			parts[i] = node("concatenation", node("term-atom", node("tag", &Node{Kind: KindToken, Token: i})))
+		}
+		b := &domBuilder{doc: "g.md", uni: bundled.uni, gt: &grammarText{pos: [][2]int{{1, 1}}}, types: newTypeMemo(), toks: tokens}
+		term := b.term(node("union", node("intersection", parts...)))
+		if term.Kind != tmIntersection || len(term.Items) != count {
+			t.Fatalf("%d operands: got %v", count, term)
+		}
+	}
+}
+
 func TestMalformedSuppliedConstructorsGiveDocumentErrors(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
