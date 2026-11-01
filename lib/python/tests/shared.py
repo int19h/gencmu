@@ -18,7 +18,6 @@ import linecache
 import os
 import re
 from pathlib import Path
-import re
 import signal
 import sys
 import textwrap
@@ -31,7 +30,6 @@ import gencmu
 from gencmu import _testing
 from gencmu._model import Token
 from gencmu._trampoline import Walk, run
-from gencmu._tags import is_tag
 
 from .witness import checks
 

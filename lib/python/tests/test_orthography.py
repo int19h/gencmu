@@ -23,7 +23,7 @@ class StageZero(unittest.TestCase):
                 self.assertEqual([token.text for token in tokens], [text[i] for i in origins])
                 self.assertEqual([token.source for token in tokens], [(i, i + 1) for i in origins])
                 self.assertEqual([token.span for token in tokens], [(i, i + 1) for i in range(len(values))])
-        self.assertEqual(character_tokens("á", table)[1].tags, frozenset({"_General_Category_Nonspacing_Mark", "_General_Category_Mark"}))
+        self.assertEqual(character_tokens("á", table)[1].tags, frozenset({"_General_Category_Nonspacing_Mark", "_General_Category_Mark", "_Canonical_Combining_Class_Above"}))
 
     def test_scalar_validation_precedes_decomposition(self) -> None:
         class UnusedTable(UnicodeTable):
@@ -136,7 +136,7 @@ class DecomposedSource(unittest.TestCase):
         self.assertEqual(result.stages[0].output[0].value, "\u0301")
 
 
-class StageZero(unittest.TestCase):
+class StageZeroExecution(unittest.TestCase):
     def test_stage_zero_runs_once(self) -> None:
         from unittest.mock import patch
 
