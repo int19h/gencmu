@@ -18,7 +18,7 @@ from typing import Any, Callable, Optional, Union
 
 from ._trampoline import Walk, run
 from ._patterns import walk_pattern
-from ._template_nodes import has_unresolved
+from ._template_nodes import has_unresolved, nodes
 
 TermType = str
 """``"string"``, ``"strings"``, ``"tags"``, ``"span"``, ``"pattern"``, ``"set"`` or ``"any"``."""
@@ -305,7 +305,7 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
                 if kind == "pattern" and (node.get("exact") or "children" in node):
                     problem = "a pattern-valued constant cannot carry node decorations"
                 if problem is not None:
-                    return None, (problem, {"const": node["constant"], "at": node["at"]})
+                    return None, (problem, node)
             if "test" in node:
                 operands = [r["value"] for r in node["requirements"]] if node["test"] == "tags" else [node["value"]]
                 for operand in operands:
@@ -461,10 +461,37 @@ def tag_term_problem(term: Any, memo: Optional[Memo] = None) -> str | None:
 
 
 def rule_type_fault(rule: Any, constants: ConstantTypes = _unknown_constants) -> Optional[Fault]:
-    """Select the fault whose first constant occurs first in the rule."""
-    def position(fault: Fault) -> tuple[int, int]:
-        return min((tuple(reference["at"]) for reference in constants_in(fault[1])), default=(0, 0))
-    return min(_rule_type_faults(rule, constants), key=position, default=None)
+    """Use construct order for unpositioned faults and constant positions otherwise."""
+    faults = list(_rule_type_faults(rule, constants))
+    if len(faults) <= 1:
+        return faults[0] if faults else None
+    roots = [rule.get("tags"), rule.get("value"), rule.get("image")]
+    for alternative in rule["alternatives"]:
+        roots.extend(alternative.get(key) for key in ("expr", "tags", "value", "image"))
+    roots.extend(rule["conditions"])
+    for item in rule.get("emit", {}).get("items", []):
+        roots.extend(item.get(key) for key in ("tags", "value", "image"))
+    order = {}
+    for index, root in enumerate(roots):
+        for node in nodes(root):
+            order.setdefault(id(node), index)
+    faults.sort(key=lambda fault: order[id(fault[1])])
+    return select_type_fault(faults)
+
+
+def select_type_fault(faults: list[Fault]) -> Optional[Fault]:
+    """Select among written-order faults, retaining positioned constant priority."""
+    first = None
+    position = (float("inf"), float("inf"), 2)
+    next_position = position[:2]
+    for fault in reversed(faults):
+        at = min((tuple(reference["at"]) for reference in constants_in(fault[1])), default=None)
+        if at is not None:
+            next_position = at
+        key = (*next_position, 1 if at is not None else 0)
+        if key <= position:
+            first, position = fault, key
+    return first
 
 
 def _rule_type_faults(rule: Any, constants: ConstantTypes = _unknown_constants) -> Any:

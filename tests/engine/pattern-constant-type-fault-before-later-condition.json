@@ -1,0 +1,13 @@
+{
+  "description": "A pattern constant type fault retains its source position beside another faulty condition.",
+  "grammar": "%const $T A\n%rule text $x:A %conditions $x ≅ #$T, $x.value = $T",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 35
+    }
+  }
+}

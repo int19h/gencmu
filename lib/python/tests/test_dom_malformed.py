@@ -50,6 +50,16 @@ class DomMalformed(unittest.TestCase):
             self.assertIsNotNone(problem)
             self.assertEqual(problem.startswith("ranked-choice-syntax:"), coded, str(expr))
 
+    def test_rule_type_fault_keeps_construct_order(self) -> None:
+        from gencmu._types import rule_type_fault
+        for case in load_json(SHARED / "dom-malformed.json"):
+            if case["description"].startswith("A first "):
+                with self.subTest(case=case["description"]):
+                    rule = case["rule"]
+                    fault = rule_type_fault(rule)
+                    self.assertIsNotNone(fault)
+                    self.assertIs(fault[1], rule["conditions"][0])
+
     def test_cases(self) -> None:
         cases = load_json(SHARED / "dom-malformed.json")
         self.assertTrue(cases, "no cases found")
