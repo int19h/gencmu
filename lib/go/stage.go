@@ -489,6 +489,7 @@ func (run *stageRun) activateFeatures(items []stageFeature, features map[string]
 		off[name] = true
 	}
 	ev := run.evaluator(&lowered{stage: run.grammar}, func(name string) (spanVal, bool) { return spanVal{a: 0, b: len(run.toks)}, name == "" })
+	ev.stageInput = true
 	for _, item := range items {
 		directive := item.directive
 		held := true

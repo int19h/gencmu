@@ -1077,7 +1077,7 @@ Since the engine never evaluates a reduced part, the reduction is part of the or
 
 Recipe capture validation follows §11 after absent-item pruning. A rule-level recipe is checked only on channels where its production uses it. An alternative override can suppress one or both channels. An unknown or private capture remains an error before that pruning.
 
-Every presence test is decided before runtime evaluation. A surviving test is an internal grammar error: `a presence test outlived lowering`.
+Capture lowering decides every presence test attached to a production. A test that survives this lowering is an internal grammar error: `a presence test outlived lowering`. Stage-input feature conditions follow §13, where bare `$` is always present.
 
 ### 3.7 Tag inheritance
 

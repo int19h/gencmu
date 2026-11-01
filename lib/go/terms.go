@@ -46,6 +46,7 @@ type value struct {
 // evaluator is what an evaluation reads: the stage run, the grammar, and
 // the captures of the item or the constituent that it evaluates.
 type evaluator struct {
+	stageInput                      bool // conditional features read the whole stage input (§13)
 	hasBoundaryValue, boundaryValue bool
 	boundary                        func(*domCond) bool
 	run                             *stageRun
@@ -627,6 +628,10 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 		w.endCond(!w.b)
 		return nil
 	case cdCaptured:
+		if ev.stageInput && c.Capture == "" {
+			w.endCond(true)
+			return nil
+		}
 		panic(&parseFailure{message: "a presence test outlived lowering"})
 	case cdIf:
 		// The consequent only where the antecedent holds (§10).
