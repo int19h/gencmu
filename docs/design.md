@@ -1036,6 +1036,30 @@ Compact and display JSON share one iterative serializer. In JavaScript, both lay
 
 ## Documents
 
+### Positions for loading inspections
+
+An inspection record owns one source declaration and a position within it. Its key contains the document run, declaration position, and semantic position of the inspected part. Generated owners use the discovery order after source owners. Deferred ordinary and template problems retain separate later phases.
+
+The loader preserves these keys through argument retention, fragment conversion, substitution, and deferred error collection. Diagnostic locations remain distinct from ordering keys. A location can fall back to the declaration when a cached node lacks a written token position.
+
+The loading paths use the following positions. The table names the entry points in each library, including the helpers that inspect nested parts.
+
+| Path | JavaScript | Python | Go | Rust | Position source |
+| --- | --- | --- | --- | --- | --- |
+| Constant versions and dependencies | `bindConstants`, `constantsIn` | `_Constants.bind`, `constants_in` | `bindConstants`, `constRefs` | `Constants::bind`, `references_in_term` | Recorded declaration and dependency-reference positions, in version order. |
+| Closed constant values | `evaluateClosed`, `checkValueUses` | `_closed`, `check_value_uses` | `evaluateClosed`, `checkValueUses` | `evaluate`, `check_value_uses` | The version's declaration, then the term, operand, or first implicated constant position. |
+| Ordinary and retained template rules | `checkConstantRule` | `_Constants.check_rule` | `checkConstantRule` | `Constants::check_rule` | Original source run and declaration, then header, alternative, condition, and emission positions. |
+| Retained term and requirement arguments | `inspectArgumentConstants` | `_Constants.check_arguments` | `checkArguments` | `Constants::check_arguments` | The call's owning declaration and the argument's source position. |
+| Retained test and body fragments | `inspectArgument`, `argumentDefinitions` | `inspect_argument`, `argument_definitions` | `inspectArgument`, validation fragments | `inspect_arguments`, argument definitions | The same owner and argument position as the source fragment. |
+| Feature conditions | `resolveFeature` | The feature branch of `_stitch` | `resolveFeature` | `resolve_feature` | The directive's source slot, then condition and operand positions within its complete-list phases. |
+| Classifier keys | `resolveClassifierKeys` | `_Constants.string` | `resolveClassifierKeys` | `resolve_classifier` | Classifier declaration, entry position, then key and operand order. |
+| Implication sides | `resolveImplication` | `_Constants.implication` | `addImplications` | `Constants::implication` | Implication declaration, antecedent, then consequent, with each side's operand positions. |
+| Test and pattern parts | `constantsIn`, `checkPatternUses` | `constants_in`, `check_pattern_uses` | `constRefs`, `checkPatternUses` | `constants_in_rule`, `constants_in`, `check_pattern_uses` | The symbol precedes its test operand. A call's arguments precede attached pattern children. |
+| Bound types | `ruleTypeFault`, `termType`, `conditionTypeFault` | `rule_type_fault`, `term_type_fault`, `condition_type_fault` | `ruleTypeFault`, `termTypeIn`, `condTypeFault` | `rule_type_fault`, `term_type_in`, `cond_type_fault` | The inspected source part and its implicated constant position. |
+| Bound values | `checkValueUses`, `checkRangeUses`, `resolvePatterns` | `check_value_uses`, `check_range_uses`, `with_values` | `checkValueUses`, resolver walks | `check_value_uses`, `check_scalar_uses`, substitution | The declaration's ordered part records survive resolution and pattern evaluation. |
+| Final substitution | `resolveConstants` | `_Constants.resolve`, `_resolve_tests` | Resolver walks after `resolveConstants` | Substitution helpers after `check_rule` | Existing source ownership survives replacement by a bound value. This path creates no later inspection slot. |
+| Deferred ranked-definition problems | `emissionUsers`, pending templates | `deferred_emissions`, `template_deferred` | Deferred emission and template lists | Deferred ordinary and template lists | The original source key, within the separate ordinary or template phase. |
+
 Every paragraph, heading and table row of a Markdown document in the repository stands on one line. A list item can hold several paragraphs, each on its own line. Some renderers show a line break inside a paragraph as a break. A code span closes on the line where it opens. A paragraph can follow a heading directly. The content of a fenced block is not prose.
 
 The tools list the repository's documents in one way (`tools/documents.js`). In a git checkout whose top level is the repository, the documents are those that git tracks. In an exported tree, the tools list every Markdown file under the repository. They exclude hidden directories and the `node_modules` and `target` directories. `tools/sync.js` fails when git does not track a grammar file selected for bundling.
