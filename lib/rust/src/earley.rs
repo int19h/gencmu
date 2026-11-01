@@ -3,7 +3,7 @@
 //! evaluation of terms and conditions (§10) and nested parses.
 
 mod string_states;
-pub(crate) use string_states::validate_condition_strings;
+pub(crate) use string_states::{has_condition_reads, validate_condition_strings};
 mod suffix;
 use crate::patterns::{Machine, Pattern};
 use std::cell::{Cell, RefCell};
@@ -1547,6 +1547,7 @@ pub(crate) struct Preparation {
     roots: Vec<Pattern>,
     /// One channel mask for each physical production.
     strings: Vec<u8>,
+    reads_strings: bool,
     /// Whether a recognition needs a pattern machine.
     machine: bool,
     /// Whether a rule observes closes, so that the machine records
@@ -1635,9 +1636,11 @@ impl Preparation {
             }
         }
         let observes = !crate::restoration::demanded(g).is_empty();
-        let strings = string_states::demands(g);
+        let strings = if g.condition_strings { string_states::demands(g) } else { Vec::new() };
+        let reads_strings = g.condition_strings;
         Preparation {
-            machine: !(roots.is_empty() && g.ranked.slots.is_empty() && !observes) || strings.iter().any(|&d| d != 0),
+            machine: !(roots.is_empty() && g.ranked.slots.is_empty() && !observes) || reads_strings,
+            reads_strings,
             strings,
             roots,
             observes,
@@ -2339,8 +2342,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 .boundaries
                 .as_ref()
                 .map_or(0, |m| m.borrow_mut().leaf(&g.terminals[terminal as usize], synthetic));
-            let emitted = self.intern_strings([tokens[e].value.clone(), tokens[e].image.clone()]);
-            chart.token_strings.insert(e as u32, emitted);
+            let emitted = if g.prepared.get().unwrap().reads_strings {
+                let emitted = self.intern_strings([tokens[e].value.clone(), tokens[e].image.clone()]);
+                chart.token_strings.insert(e as u32, emitted);
+                emitted
+            } else {
+                0
+            };
             let cap =
                 Cap { emitted, boundary, close_requested: false, start: e as u32, end: e as u32 + 1, tags, structure };
             run.step = Step::Terminal { item, cap, into: e + 1, strict };

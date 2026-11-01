@@ -1600,7 +1600,7 @@ fn applies_with(cond: &Cond, has: &dyn Fn(&str) -> bool) -> bool {
 
 /// The capture sequences of the productions of a flat list's helper: each
 /// item, and each separator followed by an item (engine §3.2).
-fn brace_helper_sequences<'e>((item, separator): FlatBraces<'e>) -> Vec<Vec<&'e str>> {
+fn brace_helper_sequences((item, separator): FlatBraces<'_>) -> Vec<Vec<&str>> {
     let items = CaptureSequences::of(item).named();
     let Some(separator) = separator else { return items };
     let mut out = items.clone();

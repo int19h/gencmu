@@ -762,6 +762,10 @@ export type LoweredGrammar = {
     resolution: Resolution;
     ranked: import("./ranked.js").RankedGroups;
     /**
+     * whether a condition reads emitted strings
+     */
+    conditionStrings?: boolean;
+    /**
      * whether a production is contextual, so that recognition keeps frames (engine §4)
      */
     contextual?: boolean;
@@ -1442,6 +1446,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Map<string, Production[]>} byLhs
  * @property {Resolution} resolution
  * @property {import("./ranked.js").RankedGroups} ranked
+ * @property {boolean} [conditionStrings] whether a condition reads emitted strings
  * @property {boolean} [contextual] whether a production is contextual, so that recognition keeps frames (engine §4)
  * @property {Map<string,Set<string>>} families static members from written rules
  * @property {Map<string, Map<string, TagSet>>} classifiers each classifier

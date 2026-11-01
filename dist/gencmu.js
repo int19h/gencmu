@@ -7757,7 +7757,7 @@
       if (!node || typeof node !== "object") continue;
       if (node.default !== undefined) defaults.push(node.default);
       const children = [node.expr,node.optional,node.repeat,node.separator,...node.seq ?? [],...node.choice ?? [],...node.and ?? [],...node.ranked ?? []].filter(Boolean);
-      pending.push(...children.reverse());
+      for (const child of children.reverse()) pending.push(child);
     }
     if (markers.length === defaults.length) defaults.forEach((value,index)=>recipeLocations.set(value,positionOf(markers[index])));
 
@@ -8463,7 +8463,7 @@
           } else if (symbol && !symbol.terminal) child(symbol.name,part.method);
           else for (const target of bindings.get(production.logicalSource ?? production.owner)?.get(name) ?? []) child(target,part.method);
         }
-        for (const value of Object.values(part)) if (value && typeof value === "object") pending.push(...(Array.isArray(value) ? value : [value]));
+        for (const value of Object.values(part)) if (value && typeof value === "object") { for (const child of Array.isArray(value) ? value : [value]) pending.push(child); }
       }
     };
     for (const p of productions) {
@@ -8490,7 +8490,7 @@
       const part = pending.pop();
       if (!part || typeof part !== "object") continue;
       if (["value","image"].includes(part.method) && part.receiver?.method === "emitted") result.push(part);
-      else pending.push(...Object.values(part).reverse());
+      else { for (const child of Object.values(part).reverse()) pending.push(child); }
     }
     return result;
   }
@@ -8504,7 +8504,7 @@
       while (pending.length) {
         const part = pending.pop();
         if (rules.has(part.ref)) names.add(part.ref);
-        pending.push(...expressionChildren(part));
+        for (const child of expressionChildren(part)) pending.push(child);
       }
       return names;
     };
@@ -8519,7 +8519,7 @@
           if (!bindings.has(part.capture)) bindings.set(part.capture,new Set());
           for (const name of references(part.expr)) bindings.get(part.capture).add(name);
         }
-        pending.push(...expressionChildren(part));
+        for (const child of expressionChildren(part)) pending.push(child);
       }
     }
     const targets = (/** @type {any} */ rule, /** @type {any} */ alt, /** @type {any} */ read) => {
@@ -9373,7 +9373,7 @@
   /** @param {any} lowered @param {any} ranked */
   function prepareRankedFrames(lowered, ranked) {
     if (!ranked.groups.length) {
-      prepareRankedConditions(lowered);
+      if (lowered.contextual) prepareRankedConditions(lowered);
       return;
     }
     const helpers = new Map(lowered.productions.filter((/** @type {any} */ p) => p.helper).map((/** @type {any} */ p) => [p.lhs, p]));
@@ -9731,6 +9731,7 @@
      */
     constructor(stageName, documents, unicode) {
       try {
+        this.conditionStrings = false;
         this.stageName = stageName;
         this.unicode = unicode;
         /** @type {Map<string, StageConstant>} */
@@ -9867,17 +9868,13 @@
             throw error;
           }
         }
+        this.defaultValues = [];
         this.checkReferences();
         this.families = closeFamilies(this.rules);
         this.ranked = new RankedGroups(this.rules);
-        const defaults = new Lowering(this,new Set());
-        for (const rule of this.rules.values()) for (const alternative of rule.alternatives) {
-          const pending = [alternative.expr];
-          while (pending.length) {
-            const node = pending.pop();
-            if (node?.default !== undefined) defaults.elidedTerminal(node.optional,{rule,alternative,pending:[]},node.default);
-            for (const child of expressionChildren(node)) pending.push(child);
-          }
+        if (this.defaultValues.length) {
+          const defaults = new Lowering(this,new Set());
+          for (const [rule,alternative,node] of this.defaultValues) defaults.elidedTerminal(node.optional,{rule,alternative,pending:[]},node.default);
         }
         if (this.ranked.groups.length) this.ranked.validate();
         // Slot emission checks inspect written carriers before absent ones disappear.
@@ -9897,7 +9894,7 @@
           validateRecipeCycles(alternative.value ?? alternative.clauses.value,alternative.image ?? alternative.clauses.image,alternative.document);
         }
         validateEmissionOverlap(this.rules);
-        validateConditionStrings(this.rules);
+        if (this.conditionStrings) validateConditionStrings(this.rules);
         /**
          * The features that gate an alternative or an entry of a classifier.
          * Only these change a lowered grammar. A warning keeps its alternative
@@ -9939,6 +9936,7 @@
           if (deferredEmissionProblem(rule) || deferredRecipeProblem(rule)) this.emissionUsers.push({path, rule, run:inspectionRun});
           const at = { document: path, line: rule.at[0], column: rule.at[1] };
           const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], erased: rule.erased === true, value:rule.value, image:rule.image };
+          this.conditionStrings ||= emittedReads(clauses.conditions).length > 0;
           const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path, at, order:this.alternativeOrder++ }));
           const previous = this.rules.get(rule.name);
           if (rule.op === "define") {
@@ -10518,6 +10516,7 @@
       };
       /** @type {(expr: Expr, rule: StitchedRule, alternative: StitchedAlternative) => void} */
       const visit = (expr, rule, alternative) => {
+        if ("default" in expr) this.defaultValues.push([rule,alternative,expr]);
         if ("ref" in expr && !isTerminalName(expr.ref)) check(expr.ref, rule, alternative);
         for (const child of expressionChildren(expr)) visit(child, rule, alternative);
       };
@@ -10862,10 +10861,12 @@
         });
       }
       this.checkBraceItems();
+      this.contextual = this.productions.some((production) => production.contextual);
       prepareRankedFrames(this,this.grammar.ranked);
       return {
         productions: this.productions,
-        contextual: this.productions.some((production) => production.contextual),
+        contextual: this.contextual || this.grammar.ranked.groups.length > 0,
+        conditionStrings: this.grammar.conditionStrings,
         byLhs: this.byLhs,
         resolution: /** @type {Resolution} */ (this.grammar.resolution),
         ranked: this.grammar.ranked,
@@ -11664,6 +11665,7 @@
 
   /** @param {ParseContext} context @param {Production} production @param {number} dot @param {number} origin @param {number} end @param {Captured} slots @param {Item|null} previous @param {Item|null} child @param {Record<string,string>} [enclosingPrefix] @returns {{prefix:Record<string,string>,value:Record<string,string>}|null} */
   function stringStep(context, production, dot, origin, end, slots, previous, child, enclosingPrefix) {
+    if (!context.lowered.conditionStrings) return null;
     const channels = demandedStrings(context.lowered.productions).get(production.id);
     if (!channels) return null;
     const prefix = {...(enclosingPrefix ?? previous?.stringPrefix)};
@@ -23360,6 +23362,7 @@
    * @property {Map<string, Production[]>} byLhs
    * @property {Resolution} resolution
    * @property {import("./ranked.js").RankedGroups} ranked
+   * @property {boolean} [conditionStrings] whether a condition reads emitted strings
    * @property {boolean} [contextual] whether a production is contextual, so that recognition keeps frames (engine §4)
    * @property {Map<string,Set<string>>} families static members from written rules
    * @property {Map<string, Map<string, TagSet>>} classifiers each classifier

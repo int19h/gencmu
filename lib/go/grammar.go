@@ -20,6 +20,7 @@ type argumentSite struct {
 }
 
 type stageGrammar struct {
+	conditionStrings bool
 	arguments         map[argumentSite][]constArgument
 	features          []stageFeature
 	families          map[string]map[string]bool
@@ -406,8 +407,11 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 	if err := g.validateEmissionOverlap(); err != nil {
 		return nil, err
 	}
-	if err := g.validateConditionStrings(); err != nil {
-		return nil, err
+	g.conditionStrings = checked.conditionStrings
+	if checked.conditionStrings {
+		if err := g.validateConditionStrings(); err != nil {
+			return nil, err
+		}
 	}
 	g.prepareBoundarySites()
 	return g, nil
@@ -499,9 +503,10 @@ func (g *stageGrammar) makeTests() *Error {
 // identity. The clauses of a rule statement are shared by its
 // alternatives, so each is walked once, not once for each alternative.
 type checkedClauses struct {
-	terms map[*domTerm]bool
-	conds map[condListKey]bool
-	emits map[*domEmit]bool
+	conditionStrings bool
+	terms            map[*domTerm]bool
+	conds            map[condListKey]bool
+	emits            map[*domEmit]bool
 }
 
 // checkAlt checks what the notation's grammar cannot state: every rule named
@@ -538,6 +543,9 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 		}
 		if w := work.Load(); w != nil {
 			w.clauseSteps.add("clause steps")
+		}
+		if t.Kind == tmCall && t.Str == "emitted" {
+			checked.conditionStrings = true
 		}
 		if t.Kind == tmCall && t.Str == "without-elision-except" {
 			if g.families == nil {

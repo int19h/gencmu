@@ -331,6 +331,7 @@ impl Prod {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Lowered {
+    pub condition_strings: bool,
     pub unicode: Arc<crate::unicode::Unicode>,
     pub ranked: RankedRuntime,
     pub close_families: Arc<Vec<FxSet<u32>>>,
@@ -1723,6 +1724,7 @@ pub(crate) fn lower(
     let tests = std::mem::take(&mut lowerer.tests);
     let elides = rules.iter().any(|rule| rule.elided.is_some());
     let mut lowered = Lowered {
+        condition_strings: grammar.condition_strings,
         unicode: grammar.unicode.clone(),
         close_families: grammar.close_families.clone(),
         ranked: RankedRuntime::default(),

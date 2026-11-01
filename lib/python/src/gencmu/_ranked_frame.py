@@ -26,6 +26,8 @@ class Frame:
 
 
 def prepare_ranked(lowered):
+    if not lowered.contextual and (lowered.grammar.ranked is None or not lowered.grammar.ranked.groups):
+        return
     ranked = lowered.grammar.ranked
     if ranked is None or not ranked.groups:
         prepare_ranked_conditions(lowered)

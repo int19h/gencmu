@@ -228,7 +228,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         id
     }
     pub(super) fn advance_strings(&mut self, item: Item, cap: Cap) -> u32 {
-        let mask = self.g.prepared.get().unwrap().strings[item.prod as usize];
+        let mask = self.g.prepared.get().unwrap().strings.get(item.prod as usize).copied().unwrap_or(0);
         if mask == 0 {
             return 0;
         }
@@ -252,7 +252,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         base: usize,
     ) -> Result<(), EngineError> {
         let p = &self.g.prods[item.prod as usize];
-        let mask = self.g.prepared.get().unwrap().strings[item.prod as usize];
+        let mask = self.g.prepared.get().unwrap().strings.get(item.prod as usize).copied().unwrap_or(0);
         if mask == 0 || item.dot as usize != p.syms.len() {
             return Ok(());
         }
@@ -443,6 +443,10 @@ fn emitted_reads(conditions: &[crate::dom::Cond], recipe: Option<&Term>) -> Vec<
     }
     reads
 }
+pub(crate) fn has_condition_reads(conditions: &[crate::dom::Cond]) -> bool {
+    !emitted_reads(conditions, None).is_empty()
+}
+
 pub(crate) fn validate_condition_strings(grammar: &crate::grammar::StageGrammar) -> Result<(), crate::error::Error> {
     use crate::dom::Expr;
     use crate::grammar::StitchedAlternative;

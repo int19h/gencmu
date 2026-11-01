@@ -149,6 +149,7 @@ class Grammar:
     unicode: Any = field(default=None, repr=False, compare=False)
     changes: list[Change] = field(default_factory=list)
     ranked: RankedGroups | None = field(default=None, repr=False, compare=False)
+    condition_strings: bool = False
     # The stage's %classifier items in stitching order, each with its
     # document (engine §2).
     classifier_items: list[tuple[str, Dom]] = field(default_factory=list)
@@ -1006,6 +1007,8 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     # checked: an error in one would have stopped the first check, at the
     # same document and place.
     checked: set[int] = set()
+    default_nodes = []
+    has_emitted = False
     family_names: list[str] = []
     query_terminals: set[str] = set()
 
@@ -1021,6 +1024,8 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
             while stack:
                 value = stack.pop()
                 if isinstance(value, dict):
+                    if "default" in value:
+                        default_nodes.append((rule, alt, value))
                     if value.get("method") == "without-elision-except":
                         family = value["args"][0]["rule"]
                         if family not in family_names:
@@ -1041,6 +1046,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                             stage,
                         )
                     if "method" in value:
+                        has_emitted = has_emitted or value["method"] == "emitted"
                         if value["method"] in ("matches", "begins", "ends"):
                             query_terminals.update(arg["terminal"] for arg in value["args"] if "terminal" in arg)
                         # DOM object order does not change the written
@@ -1068,23 +1074,16 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         implications=implications,
         families=members(rules, family_names),
         query_terminals=frozenset(query_terminals),
+        condition_strings=has_emitted,
     )
 
     grammar.ranked = RankedGroups(stage, rules)
-    defaults = _Lowerer(grammar, frozenset())
-    for rule in rules.values():
-        defaults.current = rule
-        for alternative in rule.alternatives:
+    if default_nodes:
+        defaults = _Lowerer(grammar, frozenset())
+        for rule, alternative, node in default_nodes:
+            defaults.current = rule
             defaults.current_alt = alternative
-            pending = [alternative.expr]
-            while pending:
-                node = pending.pop()
-                if not isinstance(node, dict): continue
-                if "default" in node:
-                    defaults.elided_terminal(node["optional"], node["default"], getattr(node,"default_at",None))
-                for key in ("seq", "choice", "ranked", "and"): pending.extend(node.get(key, ()))
-                for key in ("expr", "optional", "repeat", "separator"):
-                    if key in node: pending.append(node[key])
+            defaults.elided_terminal(node["optional"], node["default"], getattr(node,"default_at",None))
 
     if grammar.ranked.groups:
         grammar.ranked.validate_tags()
@@ -1109,7 +1108,8 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 error._recipe_location = alternative.at, alternative.index, field
             raise error
     from ._string_states import validate_condition_strings
-    validate_condition_strings(grammar)
+    if has_emitted:
+        validate_condition_strings(grammar)
     from ._overlap import conflict
     faulty = conflict(grammar)
     if faulty is not None:

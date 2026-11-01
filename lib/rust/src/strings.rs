@@ -223,8 +223,8 @@ impl<'a> Strings<'a> {
                                             Channel::Value => p.strings.value.is_some(),
                                             Channel::Image => p.strings.image.is_some() || p.strings.value.is_some(),
                                         };
-                                        if !selected
-                                            && !(self.grammar.rules[p.rule as usize].elided.is_some()
+                                        if !(selected
+                                            || self.grammar.rules[p.rule as usize].elided.is_some()
                                                 && p.syms.is_empty())
                                         {
                                             pending.extend(child_node.children.iter().rev());

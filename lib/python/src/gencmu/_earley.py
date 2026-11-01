@@ -1347,7 +1347,7 @@ class Parser:
                         return None
             return record, notes
 
-        string_demands = demanded_strings(productions)
+        string_demands = demanded_strings(productions) if lowered.grammar.condition_strings else {}
         string_prefixes, string_values = [], []
 
         def string_state(p, position, start, at, captured, edge, enclosing_prefix=None, enclosing_bound=None):

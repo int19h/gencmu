@@ -422,7 +422,7 @@ func sameValue(a, b reflect.Value) bool {
 		for i := 0; i < a.NumField(); i++ {
 			field := kind.Field(i).Name
 			if kind == reflect.TypeOf(domAlt{}) && field == "rankedLocations" ||
-				kind == reflect.TypeOf(domExpr{}) && (field == "RankedAt" || field == "At" && a.FieldByName("Kind").String() != exParam) ||
+				kind == reflect.TypeOf(domExpr{}) && (field == "DefaultAt" || field == "RankedAt" || field == "At" && a.FieldByName("Kind").String() != exParam) ||
 				kind == reflect.TypeOf(domCond{}) && field == "At" ||
 				kind == reflect.TypeOf(domTerm{}) && field == "At" && a.FieldByName("Kind").String() != tmConst && a.FieldByName("Kind").String() != tmParam {
 				continue

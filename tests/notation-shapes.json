@@ -522,6 +522,13 @@
       "(q [t r])",
       "(q s)",
       "rejected"
+    ],
+    "default-value": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
     ]
   },
   "extraParts": [

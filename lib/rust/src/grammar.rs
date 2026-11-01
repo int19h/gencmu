@@ -118,6 +118,7 @@ pub struct Change {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StageGrammar {
+    pub condition_strings: bool,
     pub features: Vec<(Arc<str>, crate::dom::Directive)>,
     pub unicode: Arc<Unicode>,
     pub name: String,
@@ -270,6 +271,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         }
     }
     let mut grammar = StageGrammar {
+        condition_strings: false,
         unicode: Arc::new(unicode.clone()),
         name: stage.to_string(),
         rules: Vec::new(),
@@ -559,9 +561,13 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     // Shared clauses are checked once, with the first alternative that
     // holds them.
     let mut checked: FxSet<*const RuleClauses> = FxSet::default();
+    let mut condition_strings = false;
     for rule in &grammar.rules {
         for alternative in &rule.alternatives {
             let first = checked.insert(Arc::as_ptr(&alternative.clauses));
+            if first && !condition_strings {
+                condition_strings = crate::earley::has_condition_reads(&alternative.clauses.conditions);
+            }
             check_alternative(&grammar, alternative, first)
                 .map_err(|message| located(message, &alternative.document, alternative.at))?;
         }
@@ -583,7 +589,10 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         recipe_cycles(alternative)?;
     }
     emission_overlap(&grammar)?;
-    crate::earley::validate_condition_strings(&grammar)?;
+    grammar.condition_strings = condition_strings;
+    if condition_strings {
+        crate::earley::validate_condition_strings(&grammar)?;
+    }
     Ok(grammar)
 }
 
@@ -2590,6 +2599,7 @@ mod tests {
             let entries =
                 (0..n).map(|index| entry(index, true)).chain((0..n).map(|index| entry(index, false))).collect();
             StageGrammar {
+                condition_strings: false,
                 features: Vec::new(),
                 unicode: std::sync::Arc::new(
                     crate::unicode::Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").unwrap())

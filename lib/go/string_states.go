@@ -2,6 +2,9 @@ package gencmu
 
 // Only channels that conditions read enter completed states (engine §4.1).
 func (g *lowered) demandedStrings() map[int32]uint8 {
+	if !g.stage.conditionStrings {
+		return nil
+	}
 	g.stringsOnce.Do(func() { g.stringDemands = g.stringReach() })
 	return g.stringDemands
 }

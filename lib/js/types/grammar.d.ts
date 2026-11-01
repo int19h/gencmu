@@ -59,6 +59,7 @@ export type PendingHelper = {
     elidedTest: SymbolTest | null;
 };
 export declare class Grammar {
+    conditionStrings: boolean;
     stageName: string;
     unicode: import("./unicode.js").UnicodeTable;
     /** @type {Map<string, StageConstant>} */
@@ -167,6 +168,8 @@ export declare class Grammar {
             atom: any;
         }[];
     };
+    /** @type {any[]} */
+    defaultValues: any[];
     families: Map<string, Set<string>>;
     ranked: RankedGroups;
     /**
