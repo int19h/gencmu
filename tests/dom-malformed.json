@@ -23608,5 +23608,52 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "An emitted read in the guard of a tag term is malformed.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "categories": [],
+      "tags": {
+        "if": {
+          "op": "=",
+          "left": {
+            "method": "value",
+            "receiver": {
+              "method": "emitted",
+              "receiver": {
+                "capture": "x"
+              },
+              "args": []
+            },
+            "args": []
+          },
+          "right": {
+            "string": "ab"
+          }
+        },
+        "then": {
+          "tag": "T"
+        }
+      },
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "ref": "w"
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]

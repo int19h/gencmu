@@ -4066,7 +4066,7 @@
     } else if (name === "emitted") {
       if (args.length || typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) return "emitted requires a bare capture in a recipe or condition";
     } else if (name === "verbatim-text") {
-      if (!recipe || !span || args.length) return METHOD_SIGNATURE_PROBLEM;
+      if (!recipe || !span || args.length) return "verbatim-text requires a capture in a recipe";
     } else if (!span && !(type === "emitted" && (name === "value" || name === "image"))) {
       return METHOD_SIGNATURE_PROBLEM;
     } else if (args.length) return METHOD_SIGNATURE_PROBLEM;
@@ -4853,7 +4853,7 @@
       if (rule.value !== undefined) push("recipe", rule.value);
       if (rule.image !== undefined) push("recipe", rule.image);
       if (rule.emit !== undefined) push("emission", rule.emit, 0, { owner: rule });
-      for (const condition of rule.conditions) push("condition", condition);
+      for (const condition of rule.conditions) push("condition", condition, 0, {condition:true});
       for (const alternative of rule.alternatives) {
         if (!exact(alternative, ["guards", "expr", "tags", "value", "image"]) || !guards(alternative.guards)) return "a malformed alternative";
         push("expr", alternative.expr, 0, { whole: true });
@@ -4872,7 +4872,7 @@
       if (depth > DOM_MAX_DEPTH) return "nested too deeply";
       if (!object(value)) return `a malformed ${kind}`;
       /** @type {(kind: string, value: any, context?: any) => void} */
-      const child = (kind, value, context = {}) => push(kind, value, depth + 1, {params:task.params,...context});
+      const child = (kind, value, context = {}) => push(kind, value, depth + 1, {params:task.params,condition:task.condition,...context});
       const fields = Object.keys(value);
       if (kind === "pattern") {
         const problem = layeredPatternProblem(value, {depth, name:name=>ruleName(name) && !tag(name), terminal:tag});
@@ -5023,10 +5023,10 @@
         }
       } else if (kind === "condition") {
         if (!hasOneForm(value, [["method", "receiver", "args"], ["op", "left", "right"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"]])) return "a malformed condition";
-        if ("method" in value) { if (!QUERY_METHODS.has(value.method)) return "a malformed query"; push("term", value, depth, { query: true }); }
+        if ("method" in value) { if (!QUERY_METHODS.has(value.method)) return "a malformed query"; push("term", value, depth, { query: true, condition:task.condition }); }
         else if (value.op) {
           if (!DOM_COMPARATORS.has(value.op) || ["≅", "≇"].includes(value.op) && !(typeof value.left?.capture === "string" && Object.keys(value.left).length === 1)) return "a malformed comparison";
-          child("term", value.left, {condition:true}); child("term", value.right, {condition:true});
+          child("term", value.left); child("term", value.right);
         } else if ("captured" in value) { if (typeof value.captured !== "string" || value.captured !== "" && !CAPTURE_NAME.test(value.captured)) return "a malformed presence"; }
         else if (value.not) child("condition", value.not);
         else if (value.if) { child("condition", value.if); child("condition", value.then); }

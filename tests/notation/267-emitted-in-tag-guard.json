@@ -1,0 +1,10 @@
+{
+  "description": "An emitted read in the guard of a tag term is a document error.",
+  "document": "```jbogenbau\n%rule text $x:w :: ($x.emitted.value = \"ab\" ⟹ T)\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 21
+    }
+  }
+}
