@@ -1,0 +1,13 @@
+{
+  "description": "An unused term argument keeps type inspection at its binding.",
+  "grammar": "%ambiguity-resolution greedy\n%const $T K\n%rule f(@X) \"a\"\n%rule named = f(\"a\".split($T))\n%rule text $SECOND",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 27
+    }
+  }
+}

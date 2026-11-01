@@ -1,0 +1,14 @@
+{
+  "description": "An edit head retains its argument inspection position.",
+  "grammar": "%ambiguity-resolution greedy\n%rule f(@X) \"a\"\n%extend-rule f($FIRST) \"b\"\n%rule text $SECOND",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$FIRST is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 16
+    }
+  }
+}
