@@ -1186,6 +1186,147 @@
           "column": 27
         }
       }
+    },
+    {
+      "id": "call-head-name-requires-lowercase",
+      "description": "A call-shaped rule head reports an invalid name at its name token.",
+      "aliases": [
+        {
+          "spelling": "badhead",
+          "value": "Bad",
+          "tags": [
+            "Call-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule badhead(@X) @X\n```\n",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 7
+        }
+      }
+    },
+    {
+      "id": "constant-name-single-sigil",
+      "description": "Supplied token values retain exactly one sigil and a complete valid name.",
+      "aliases": [
+        {
+          "spelling": "$Double",
+          "value": "$$X",
+          "tags": [
+            "Constant"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $Double \"a\"\n```\n",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 8
+        }
+      }
+    },
+    {
+      "id": "directive-name-single-sigil",
+      "description": "Supplied token values retain exactly one sigil and a complete valid name.",
+      "aliases": [
+        {
+          "spelling": "%Double",
+          "value": "%%stage",
+          "tags": [
+            "KW-STAGE"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%Double main\n```\n",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 1
+        }
+      }
+    },
+    {
+      "id": "parameter-name-single-sigil",
+      "description": "Supplied token values retain exactly one sigil and a complete valid name.",
+      "aliases": [
+        {
+          "spelling": "@Double",
+          "value": "@@X",
+          "tags": [
+            "Parameter"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule t(@Double) @Double\n```\n",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 1
+        }
+      }
+    },
+    {
+      "id": "capture-name-single-sigil",
+      "description": "Supplied token values retain exactly one sigil and a complete valid name.",
+      "aliases": [
+        {
+          "spelling": "$Double",
+          "value": "$$x",
+          "tags": [
+            "Capture"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text $Double:A\n```\n",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 12
+        }
+      }
+    },
+    {
+      "id": "rule-name-full-spelling",
+      "description": "Supplied token values retain exactly one sigil and a complete valid name.",
+      "aliases": [
+        {
+          "spelling": "badname",
+          "value": "r!",
+          "tags": [
+            "Lowercase-Name",
+            "Identifier"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule badname \"a\"\n```\n",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 7
+        }
+      }
+    },
+    {
+      "id": "classifier-class-full-spelling",
+      "description": "Supplied token values retain exactly one sigil and a complete valid name.",
+      "aliases": [
+        {
+          "spelling": "Badclass",
+          "value": "A!A",
+          "tags": [
+            "Identifier"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%classifier lex\n \"a\" ∈ Badclass\n```\n",
+      "expect": {
+        "error": {
+          "line": 3,
+          "column": 8
+        }
+      }
     }
   ]
 }

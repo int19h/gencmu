@@ -2660,3 +2660,132 @@ enum Part<'t> {
     Term(&'t Term),
     Cond(&'t Cond),
 }
+
+#[cfg(test)]
+#[test]
+fn own_tags_are_found_inside_call_arguments() {
+    let read = Term::Call("tags".into(), vec![Arg::Term(Term::Capture(String::new()))]);
+    let outer = Term::Call("wrapper".into(), vec![Arg::Term(read.clone())]);
+    assert!(reads_own_tags(&outer));
+    let source = Term::Source(SourceSymbol::Call(SourceCall {
+        name: "wrapper".into(),
+        args: vec![SourceArgument::Term(read)],
+        at: (1, 1),
+    }));
+    assert!(reads_own_tags(&source));
+}
+
+#[cfg(test)]
+#[test]
+fn call_name_lookup_precedes_argument_lookup() {
+    let unicode = crate::unicode::Unicode::parse("").unwrap();
+    let names = crate::unicode_names::NamesScope::new(&|_| Ok(None), &unicode, []);
+    let position = |index| (1, index + 1);
+    let strings = crate::string_escapes::DocumentStrings {
+        unicode: &unicode,
+        names: &names,
+        position: &position,
+        names_paths: Default::default(),
+    };
+    let tokens: Vec<_> = ["$x", "≅", "A"]
+        .into_iter()
+        .enumerate()
+        .map(|(index, value)| Token {
+            text: value.into(),
+            value: value.into(),
+            image: value.into(),
+            tags: Default::default(),
+            span: index..index + 1,
+            source: index..index + 1,
+            inserted_by: None,
+            before: Vec::new(),
+            after: Vec::new(),
+        })
+        .collect();
+    let reader = Reader {
+        parameters: Default::default(),
+        reading_head: Default::default(),
+        unresolved: Default::default(),
+        unicode: &unicode,
+        defer_emission: false,
+        feature_context: Default::default(),
+        tokens: &tokens,
+        strings: &strings,
+        captures: Default::default(),
+        braces: Default::default(),
+        marked: Default::default(),
+        position: &position,
+        in_recipe: Default::default(),
+        closed_for: Default::default(),
+    };
+    let argument = Node {
+        kind: NodeKind::Rule,
+        rule: Some("call-argument".into()),
+        terminal: None,
+        token: None,
+        span: 0..0,
+        source: 1..1,
+        tags: Default::default(),
+        value: None,
+        children: Vec::new(),
+    };
+    let mut call = argument.clone();
+    call.rule = Some("call".into());
+    call.source = 0..0;
+    call.children.push(argument);
+    let error = reader.source_call(&call).unwrap_err();
+    assert_eq!(error.message, "the notation's call has no token");
+    let mut wildcard = call.clone();
+    wildcard.rule = Some("wildcard".into());
+    wildcard.children.clear();
+    let wildcard_error = reader.symbol(&wildcard).is_err();
+    let mut atom = wildcard.clone();
+    atom.rule = Some("recipe-atom".into());
+    atom.span = 999..1000;
+    let mut recipe = wildcard.clone();
+    recipe.rule = Some("recipe".into());
+    recipe.children.push(atom);
+    let mut clause = wildcard.clone();
+    clause.rule = Some("value-clause".into());
+    clause.children.push(recipe);
+    let mut rule = wildcard.clone();
+    rule.rule = Some("rule".into());
+    rule.children.push(clause);
+    let recipe_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| reader.channels(&rule)));
+    let mut token = wildcard.clone();
+    token.kind = NodeKind::Token;
+    token.rule = None;
+    token.token = Some(2);
+    let mut tag = wildcard.clone();
+    tag.rule = Some("tag".into());
+    tag.children.push(token);
+    let mut right = wildcard.clone();
+    right.rule = Some("union".into());
+    right.span.start = 1;
+    right.span.end = 0;
+    right.children.push(tag);
+    let mut comparison = wildcard.clone();
+    comparison.rule = Some("tree-comparison".into());
+    for (name, index) in [("capture-reference", 0), ("tree-comparator", 1)] {
+        let mut part = wildcard.clone();
+        part.rule = Some(name.into());
+        let mut token = wildcard.clone();
+        token.kind = NodeKind::Token;
+        token.rule = None;
+        token.token = Some(index);
+        part.children.push(token);
+        comparison.children.push(part);
+    }
+    comparison.children.push(right);
+    let mut condition = wildcard.clone();
+    condition.rule = Some("condition".into());
+    condition.children.push(comparison);
+    let span_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        reader.run(Frame::Condition(ConditionFrame::new(&condition)))
+    }));
+    assert!(recipe_result.is_ok(), "a recipe span caused a panic");
+    assert!(recipe_result.unwrap().is_err(), "an invalid recipe span was accepted");
+    assert!(span_result.is_ok(), "an inverted comparison span caused a panic");
+    assert!(span_result.unwrap().is_err(), "an inverted comparison span was accepted");
+    assert!(wildcard_error, "a tokenless wildcard was accepted");
+}
