@@ -1941,6 +1941,12 @@
         "document": "grammars/test/g.md",
         "line": 4
       }
+    },
+    {
+      "description": "A pattern constant without coordinates causes a cache miss",
+      "find": "\"conditions\":[]",
+      "replace": "\"conditions\":[{\"op\":\"≅\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"constant\":\"MISSING\"}}}]",
+      "cached": false
     }
   ],
   "grammar": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n",
