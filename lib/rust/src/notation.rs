@@ -2871,7 +2871,7 @@ fn call_name_lookup_precedes_argument_lookup() {
     let mut document = wildcard.clone();
     document.rule = Some("text".into());
     document.children = vec![prefix, directive];
-    let names_error = reader.document(&document).err().expect("the names declaration fails");
+    let names_error = reader.document(&document).expect_err("the names declaration fails");
     assert_eq!(names_error.message, "%names must precede every other statement");
     assert_eq!(empty_position, (1, 2));
 }
