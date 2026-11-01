@@ -2732,7 +2732,7 @@
     if (error.boundary !== undefined) result.boundary = {...error.boundary};
     if (error.readings !== undefined) result.readings = error.readings.map(nodeJson);
     // Only an error of elision-only has a witness (docs/output.md).
-    if (error.witness !== undefined && error.reason === "elision-only") result.witness = error.witness.map(actionJson);
+    if (error.kind === "ambiguous" && error.witness !== undefined && error.reason === "elision-only") result.witness = error.witness.map(actionJson);
     if (error.document !== undefined) result.document = error.document;
     result.message = error.message;
     // The members of elision-witness-lost follow its message (docs/output.md).
@@ -6764,6 +6764,8 @@
   const rankedLocations = new WeakMap();
   /** @type {WeakMap<object,object>} */
   const writtenOrigins = new WeakMap();
+  /** @type {WeakMap<GencmuError,object>} */
+  const rankedFailures = new WeakMap();
 
   /** @param {object} source @param {object} target */
   function copyRankedLocation(source,target) {
@@ -6867,7 +6869,7 @@
     fail(group, code, message, fields = {}) {
       const {document,at} = group.site;
       const location = document === undefined ? "" : at === undefined ? `${document}: ` : `${document}:${at[0]}:${at[1]}: `;
-      throw new GencmuError("grammar", `${location}${code}: ${message}`, {
+      const error = new GencmuError("grammar", `${location}${code}: ${message}`, {
         ...(document === undefined ? {} : {document}),
         ...(at === undefined ? {} : {line:at[0],column:at[1]}),
         code, group:group.site,
@@ -6875,6 +6877,8 @@
         ...(fields.expression === undefined ? {} : {expression:writtenOrigins.get(fields.expression) ?? fields.expression}),
         ...(fields.inheritance === undefined ? {} : {inheritance:fields.inheritance}),
       });
+      rankedFailures.set(error,writtenOrigins.get(group.expr) ?? group.expr);
+      throw error;
     }
 
     /** @param {RankedGroup} group */
@@ -15468,7 +15472,7 @@
     const report = result.stages[index];
     if (result.error && !report?.input) return `the ${name} stage is not reached: ${explainError(result)}`;
     if (report?.input && report.error && report.verdict === null && report.error.kind !== "rejected") {
-      return `the ${name} stage failed before recognition: ${explainError(result)}`;
+      return `the ${name} stage failed: ${explainError(result)}`;
     }
     return null;
   }
@@ -17977,11 +17981,15 @@
       const run = { chosen, chart, roots, synthetic, originalAt, recordAt };
       const walk = walkWitness(run);
       const watch = hooks.elisionCheck ? hooks.elisionCheck(run) : null;
+      if (!roots.length || !walk) {
+        if (watch) watch.ranked({ranking:null,counted:false});
+        return old ? {kind:"pass"} : {kind:"lost",completion:records};
+      }
       // The check's ranker: no lean, and cycles over spans of R (engine §7.7).
       const ranker = slotRanker(chart, restored, "none", fault("F19") ? project : null);
       ranker.profileProject = project;
       ranker.check = true;
-      ranker.marks = walk?.marks ?? null;
+      ranker.marks = walk.marks;
       // Raw witness membership and filtered admission are separate decisions.
       let raw = ranker;
       if (ranker.admission) {
@@ -17990,8 +17998,8 @@
         raw.check = true;
         raw.marks = ranker.marks;
       }
-      const rawRanking = roots.length === 0 ? null : raw.rank(roots);
-      let ranking = raw === ranker ? rawRanking : roots.length === 0 ? null : ranker.rank(roots);
+      const rawRanking = raw.rank(roots);
+      let ranking = raw === ranker ? rawRanking : ranker.rank(roots);
       if (fault("lost:count") || rawRanking?.witnessCounted !== true) ranking = null;
       if (fault("F23")) {
         // A fault leaves the main grammar in the mode of the check.
@@ -17999,7 +18007,7 @@
           lowered.byLhs.set(name, productions.filter((production) => !(production.rhs.length === 0 && production.helper && production.elided !== null)));
         }
       }
-      if (!walk || ranking === null) {
+      if (ranking === null) {
         if (watch) watch.ranked({ ranking: null, counted: false });
         return old ? { kind: "pass" } : { kind: "lost", completion: records };
       }
@@ -20888,8 +20896,6 @@
       this.cache = new Recent(256,4_000_000);
       /** @type {WeakMap<GrammarDom,Record<string,string>>} */
       this.namesDependencies = new WeakMap();
-      /** @type {Recent<string,string[]>} */
-      this.inheritedNames = new Recent(256,4_000_000);
       const metadata = parseDomJson(this.bootstrapText);
       if (metadata.unicode === this.unicodeHash && Object.hasOwn(metadata,"properties") && metadata.properties === this.propertiesHash) {
         this.bundledNames = namesRegistry(metadata.bundledNames);
@@ -20958,7 +20964,6 @@
      * @returns {GrammarDom}
      */
     documentDom(path, inherited = [], text = this.need(path)) {
-      this.inheritedNames.set(path,inherited,path.length + inherited.reduce((size,name) => size + name.length,0));
       this.loadPreparsed(path);
       // A document is a sequence of scalar values, as a text is (engine §1).
       const surrogate = loneSurrogate(text);
@@ -21056,7 +21061,7 @@
         if (!(error instanceof GencmuError)) throw error;
         // Location relabeling keeps the original diagnostic as its cause.
         let diagnostic = error;
-        while (!recipeFailures.has(diagnostic) && !boundaryDocumentErrors.has(diagnostic) && diagnostic.cause instanceof GencmuError) {
+        while (!recipeFailures.has(diagnostic) && !boundaryDocumentErrors.has(diagnostic) && !rankedFailures.has(diagnostic) && diagnostic.cause instanceof GencmuError) {
           diagnostic = diagnostic.cause;
         }
         const recipe = recipeFailures.get(diagnostic);
@@ -21065,10 +21070,11 @@
         if (!ranked && ((!recipe && !boundary) || error.where.line !== undefined)) throw error;
         // Only a diagnostic needs locations absent from a cached DOM.
         const document = /** @type {string} */ (boundary ? boundary.document : recipe ? recipe.document : error.group?.document);
-        const text = this.need(document);
-        const read = documents.get(document);
-        const inherited = read?.inherited ?? [];
-        const dom = read?.dom ?? this.documentDom(document,inherited,text);
+        const failed = recipe?.recipe ?? boundary?.node ?? rankedFailures.get(diagnostic);
+        const origin = failed && (writtenOrigins.get(failed) ?? failed);
+        const read = origin && [...documents.values()].find(record => record.path === document && containsDomNode(record.dom,origin));
+        if (!read) throw error;
+        const {text,inherited,dom} = read;
         if (boundary) restoreBoundaryLocations(dom,this.readDocument(text,document,true,inherited));
         else {
           const {text:body,positions} = extractGrammarText(text,document,this.unicode);
@@ -21090,7 +21096,7 @@
      * one document's items, and the features the pipeline turns on (engine
      * §13).
      * @param {string} path
-     * @param {Map<string,{dom:GrammarDom,inherited:string[]}>} [documents]
+     * @param {Map<string,{path:string,dom:GrammarDom,inherited:string[],text:string}>} [documents]
      * @returns {{stages: import("./splice.js").SplicedStage[], features: string[]}}
      */
     splice(path, documents) {
@@ -21099,13 +21105,34 @@
         const key = JSON.stringify([documentPath, inherited]);
         if (!doms.has(key)) {
           const text = this.read(documentPath);
-          doms.set(key,text === undefined ? undefined : this.documentDom(documentPath,inherited,text));
+          const dom = text === undefined ? undefined : this.documentDom(documentPath,inherited,text);
+          doms.set(key,dom);
+          if (dom && documents) documents.set(key,{path:documentPath,dom,inherited,text:/** @type {string} */ (text)});
         }
-        const dom = doms.get(key);
-        if (dom && documents) documents.set(documentPath,{dom,inherited});
-        return dom;
+        return doms.get(key);
       });
     }
+  }
+
+  /**
+   * Find the written node only while recovering a failed load.
+   * Copies retain their written origin through constant and template binding.
+   * @param {GrammarDom} dom
+   * @param {object} target
+   * @returns {boolean}
+   */
+  function containsDomNode(dom,target) {
+    /** @type {object[]} */
+    const pending = [dom];
+    const seen = new Set();
+    while (pending.length) {
+      const node = /** @type {object} */ (pending.pop());
+      if (node === target) return true;
+      if (seen.has(node)) continue;
+      seen.add(node);
+      for (const child of Object.values(node)) if (child && typeof child === "object") pending.push(child);
+    }
+    return false;
   }
 
   /**

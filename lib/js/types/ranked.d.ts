@@ -1,3 +1,4 @@
+import { GencmuError } from "./errors.js";
 export type GroupSite = {
     document?: string;
     at?: [number, number];
@@ -39,6 +40,10 @@ export type ProjectedPath = {
 /** @typedef {{length:number,span:Span,captures:Map<string,{owner:RankedGroup|null,at:number}>,ends:Map<RankedGroup,{start:Span,at:number,option:number}>,bindings:Map<string,RankedGroup>}} ProjectedPath */
 /** @type {WeakMap<object,[number,number]>} */
 export declare const rankedLocations: WeakMap<object, [number, number]>;
+/** @type {WeakMap<object,object>} */
+export declare const writtenOrigins: WeakMap<object, object>;
+/** @type {WeakMap<GencmuError,object>} */
+export declare const rankedFailures: WeakMap<GencmuError, object>;
 /** @param {object} source @param {object} target */
 export declare function copyRankedLocation(source: object, target: object): void;
 /** @param {import("./types.js").GrammarDom} dom @param {{text:string}[]} tokens @param {(token:any)=>[number,number]} positionOf */

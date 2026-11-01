@@ -1,0 +1,20 @@
+{
+  "description": "A recipe-cycle diagnostic retains its position when two includes inherit different names scopes.",
+  "documents": {
+    "p.md": "```jbogenbau\n%include \"grammars/demo/one.md\"\n%include \"grammars/demo/two.md\"\n```",
+    "grammars/demo/one.md": "```jbogenbau\n%names \"a.txt\"\n%stage one\n%include \"shared.md\"\n```",
+    "grammars/demo/two.md": "```jbogenbau\n%names \"b.txt\"\n%stage two\n%include \"shared.md\"\n```",
+    "grammars/demo/a.txt": "unicode-names 15.1.0\nname E000 LOCAL NAME\n",
+    "grammars/demo/b.txt": "unicode-names 15.1.0\nname E001 LOCAL NAME\n",
+    "grammars/demo/shared.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text := $.emitted.value\n | \"‹LOCAL NAME›\"\n```"
+  },
+  "pipelineDocument": "p.md",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "grammars/demo/shared.md",
+      "line": 3,
+      "column": 15
+    }
+  }
+}

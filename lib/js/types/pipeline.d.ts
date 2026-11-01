@@ -54,8 +54,6 @@ export declare class Loader {
     cache: Recent<string, GrammarDom>;
     /** @type {WeakMap<GrammarDom,Record<string,string>>} */
     namesDependencies: WeakMap<GrammarDom, Record<string, string>>;
-    /** @type {Recent<string,string[]>} */
-    inheritedNames: Recent<string, string[]>;
     /** @param {Resources} read @param {(path:string)=>boolean} [namesOverride] */
     constructor(read: Resources, namesOverride?: (path: string) => boolean);
     /**
@@ -106,12 +104,14 @@ export declare class Loader {
      * one document's items, and the features the pipeline turns on (engine
      * §13).
      * @param {string} path
-     * @param {Map<string,{dom:GrammarDom,inherited:string[]}>} [documents]
+     * @param {Map<string,{path:string,dom:GrammarDom,inherited:string[],text:string}>} [documents]
      * @returns {{stages: import("./splice.js").SplicedStage[], features: string[]}}
      */
     splice(path: string, documents?: Map<string, {
+        path: string;
         dom: GrammarDom;
         inherited: string[];
+        text: string;
     }>): {
         stages: import("./splice.js").SplicedStage[];
         features: string[];
