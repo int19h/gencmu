@@ -1727,8 +1727,8 @@ pub(crate) fn term_too_deep(term: &Term) -> bool {
     too_deep(vec![Nested::Term(term)])
 }
 
-/// The tested symbols of an expression, in the order written: each
-/// comparator, value and symbol.
+/// The tested symbols and default operands, in written order: each
+/// comparator, value and symbol. A default requires a string like `=`.
 pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
     let mut found = Vec::new();
     let mut stack = vec![expr];
@@ -1737,7 +1737,13 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.iter().rev())
             }
-            Expr::Optional(inner, _, _) | Expr::Capture(_, inner) => stack.push(inner),
+            Expr::Optional(inner, _, default) => {
+                if let Some(default) = default {
+                    found.push(("=", &default.term, inner.as_ref()));
+                }
+                stack.push(inner);
+            }
+            Expr::Capture(_, inner) => stack.push(inner),
             // The item before the separator.
             Expr::Repeat(item, separator, _) => {
                 stack.extend(separator.as_deref());
@@ -1781,10 +1787,14 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
                     references_in_term(value, &mut out);
                     pending.push(inner);
                 }
-                Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
-                    pending.extend(xs.iter().rev())
+                Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => pending.extend(xs.iter().rev()),
+                Expr::Capture(_, x) => pending.push(x),
+                Expr::Optional(x, _, default) => {
+                    if let Some(default) = default {
+                        references_in_term(&default.term, &mut out);
+                    }
+                    pending.push(x);
                 }
-                Expr::Capture(_, x) | Expr::Optional(x, _, _) => pending.push(x),
                 Expr::Repeat(x, s, _) => {
                     pending.extend(s.as_deref());
                     pending.push(x);
@@ -2293,9 +2303,13 @@ impl Expr {
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.drain(..).map(Dropping::Expr))
             }
-            Expr::Optional(inner, _, _) | Expr::Capture(_, inner) => {
-                stack.push(Dropping::Expr(std::mem::replace(&mut **inner, Expr::Empty)))
+            Expr::Optional(inner, _, default) => {
+                if let Some(default) = default.take() {
+                    stack.push(Dropping::Term(default.term));
+                }
+                stack.push(Dropping::Expr(std::mem::replace(&mut **inner, Expr::Empty)));
             }
+            Expr::Capture(_, inner) => stack.push(Dropping::Expr(std::mem::replace(&mut **inner, Expr::Empty))),
             Expr::Repeat(item, separator, _) => {
                 stack.push(Dropping::Expr(std::mem::replace(&mut **item, Expr::Empty)));
                 if let Some(separator) = separator {

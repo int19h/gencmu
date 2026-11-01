@@ -1,0 +1,20 @@
+{
+  "description": "A template default from a string argument contributes only to the emitted value.",
+  "grammar": "%rule pair(@Word)\n  \"t\" [+JI ≝ @Word]\n%emits $\n%rule text = pair(\"jie\")",
+  "input": "t",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "tjie",
+              "image": "t"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

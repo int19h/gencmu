@@ -1,0 +1,20 @@
+{
+  "description": "A template default from a head argument contributes only to the emitted value.",
+  "grammar": "%rule pair(@End)\n  \"t\" [+@End ≝ \"jie\"]\n%emits $\n%rule text = pair(JI)",
+  "input": "t",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "tjie",
+              "image": "t"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

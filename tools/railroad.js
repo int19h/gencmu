@@ -481,13 +481,13 @@ function holdsConstant(term) {
  * What the omission predicate of the engine gives for each elidable optional
  * whose terminator has a test (engine §3.8), in every stage of the given
  * pipelines that reads its document. The predicate tests the omitted
- * terminator: the sound of an `=` test, or no sound, and the tag set of the
- * terminator alone. So the answer depends only on the test's value. That
- * value is a closed term, which holds no classify, capture or guard
- * (docs/notation.md, "Constants"). Only a constant in it takes a value from
- * the stage, so only then does this load the pipeline: a constant can have
- * another value in each stage that reads the document. Any other value is
- * the same in every stage, and is evaluated once, with no stage. With no
+ * terminator with its default value and its own tag. The default is an
+ * explicit operand, an equality operand, or the empty string. These
+ * operands are closed terms with no classify, capture or guard
+ * (docs/notation.md, "Constants"). Only constants take values from a stage.
+ * When an operand holds a constant, this loads the pipeline. A constant
+ * can have another value in each stage that reads the document. Other
+ * operands have the same values in every stage and need no stage. With no
  * such optional in `documents`, this reads nothing at all.
  * @param {{unicode: any, splice: (path: string) => {stages: {documents: {path: string, dom: any}[]}[]}, pipeline: (path: string) => {stages: {grammar: any}[]}}} loader
  * @param {string[]} pipelines the pipeline documents' paths
@@ -518,8 +518,8 @@ export function elisionOutcomes(loader, pipelines, documents) {
           const ruleKey = rule.at.join(":");
           testedElisions(rule).forEach((optional, ordinal) => {
             const first = "seq" in optional.optional ? optional.optional.seq[0] : optional.optional;
-            if (hasUnresolved(first)) return;
-            const grammar = holdsConstant(first) ? (pipeline ??= loader.pipeline(documentPath)).stages[index].grammar : stageless;
+            if (hasUnresolved(first) || hasUnresolved(optional.default)) return;
+            const grammar = holdsConstant(first) || holdsConstant(optional.default) ? (pipeline ??= loader.pipeline(documentPath)).stages[index].grammar : stageless;
             const test = grammar.symbolTest(first, document, { document, line: rule.at[0], column: rule.at[1] });
             let base = first;
             while (base.test) base = base.expr;
@@ -527,6 +527,7 @@ export function elisionOutcomes(loader, pipelines, documents) {
             const tags = new Set([terminal]);
             let savedValue = "";
             for (let current = test; current; current = current.inner) if (current.op === "=") savedValue = current.value;
+            if (optional.default !== undefined) savedValue = grammar.evaluateClosed(document, optional.default, rule.at).string;
             let held = true;
             for (let current = test; current; current = current.inner) {
               const patternTest = current.op === "tags"

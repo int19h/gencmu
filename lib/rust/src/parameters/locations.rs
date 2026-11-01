@@ -107,6 +107,7 @@ pub(crate) fn restore_rule(rule: &mut dom::RuleDef, n: &Json) {
     channels(&mut rule.strings, n);
     for (alt, n) in rule.alternatives.iter_mut().zip(list(get(n, "alternatives"))) {
         expression(get(n, "expr"), String::new(), &mut alt.ranked_locations);
+        restore_defaults(&mut alt.expr, get(n, "expr"));
         channels(&mut alt.strings, n);
         if let Some(t) = &mut alt.tags {
             term(t, get(n, "tags"))
@@ -468,6 +469,41 @@ fn annotate_channels(c: &dom::Channels, n: &mut Json) {
     }
     if let Some(v) = slot(n, "image") {
         locate(v, c.image_at)
+    }
+}
+fn restore_defaults(expr: &mut dom::Expr, n: &Json) {
+    use dom::Expr;
+    match expr {
+        Expr::Optional(inner, _, default) => {
+            if let (Some(default), Some(value)) = (default, n.get("default")) {
+                default.at = source_at(value);
+            }
+            if let Some(n) = n.get("optional") {
+                restore_defaults(inner, n);
+            }
+        }
+        Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs) | Expr::And(xs) => {
+            let key = ["seq", "choice", "ranked", "and"].into_iter().find(|key| has(n, key)).unwrap();
+            if let Some(Json::Arr(ns)) = n.get(key) {
+                for (x, n) in xs.iter_mut().zip(ns) {
+                    restore_defaults(x, n);
+                }
+            }
+        }
+        Expr::Capture(_, x) | Expr::Tested(_, _, x) => {
+            if let Some(n) = n.get("expr") {
+                restore_defaults(x, n);
+            }
+        }
+        Expr::Repeat(x, separator, _) => {
+            if let Some(n) = n.get("repeat") {
+                restore_defaults(x, n);
+            }
+            if let (Some(x), Some(n)) = (separator, n.get("separator")) {
+                restore_defaults(x, n);
+            }
+        }
+        _ => {}
     }
 }
 fn annotate_defaults(expr: &dom::Expr, n: &mut Json) {

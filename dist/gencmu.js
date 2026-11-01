@@ -8190,12 +8190,16 @@
           }
         }
         let next=position;
-        if(['alternatives','conditions','emit','tags','value','image','requirements','range','literal','concat','union','intersection','difference','left','right','receiver','if','then','not','all','any'].includes(key) && !(position==='pattern' && ['union','intersection','difference'].includes(key))) next='term';
+        if(['alternatives','conditions','emit','tags','value','image','default','requirements','range','literal','concat','union','intersection','difference','left','right','receiver','if','then','not','all','any'].includes(key) && !(position==='pattern' && ['union','intersection','difference'].includes(key))) next='term';
         if(['seq','choice','ranked','and','optional','repeat','separator'].includes(key) && position!=='pattern') next='expr';
         if(key==='expr') next=position==='pattern'?'pattern':'expr';
         if(key==='pattern' || key==='child') next='pattern';
         if(key==='children' || position==='pattern-item' && ['choice','optional','repeat','separator'].includes(key)) next='pattern-item';
         result[key]=substitute(value,env,event,next);
+        if(key==='default') {
+          result[key]={...result[key]};
+          copyRecipeLocation(value,result[key]);
+        }
       }
       if(position==='pattern' && result.test && result.expr.exact) {
         if(result.exact) {let use=root.expr;while(use.expr) use=use.expr;fail(event,use,'an exact prefix conflicts with an argument prefix');}
@@ -8277,7 +8281,7 @@
     const result={};
       for(const [key,value] of Object.entries(root)) {
         let next=position;
-        if(['alternatives','conditions','emit','tags','value','image','left','right','receiver','range','literal','args'].includes(key)) next='term';
+        if(['alternatives','conditions','emit','tags','value','image','default','left','right','receiver','range','literal','args'].includes(key)) next='term';
         if(['seq','choice','ranked','and','optional','repeat','separator','expr'].includes(key) && position!=='pattern') next='expr';
         if(key==='pattern' || key==='child') next='pattern';
         if(key==='children' || position==='pattern-item' && ['choice','optional','repeat','separator'].includes(key)) next='pattern-item';

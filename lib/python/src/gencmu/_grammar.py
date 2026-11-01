@@ -6,6 +6,7 @@ from __future__ import annotations
 import itertools
 import threading
 from dataclasses import dataclass, field, replace
+from copy import copy as shallow_copy
 from typing import AbstractSet, Any, Union
 
 from ._clauses import WHOLE, Emission, Prepared, captures_in, check_definition, rule_has_ranked, prepare, prepare_conditions, simplify_term, item_captures, mentioned_in
@@ -1153,7 +1154,7 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
         done = copies.get(id(node))
         if done is not None:
             return done
-        copy: dict[str, Any] = {}
+        copy: dict[str, Any] = shallow_copy(node)
         for key, value in node.items():
             if isinstance(value, list):
                 items: list[Any] = []
@@ -1471,8 +1472,10 @@ class _Lowerer:
             if value is None:
                 raise self.fail("a default requires one string")
             if test is not None and not test.holds(value, frozenset((name,))):
-                error = self.fail("a default fails its head test")
-                error.line, error.column = at or (None,None)
+                document = self.current_alt.document if self.current_alt else self.current.document if self.current else None
+                error = GencmuError("a default fails its head test", document=document,
+                                    line=at[0] if at else None, column=at[1] if at else None,
+                                    stage=self.grammar.stage)
                 if at is None: error._default_document = error.document
                 raise error
         if value is not None:

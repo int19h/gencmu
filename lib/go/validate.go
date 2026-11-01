@@ -2249,6 +2249,24 @@ func ruleTypeFault(r *domRule, ct constTypes) *typeFault {
 				keep(&typeFault{problem, t.Value})
 			}
 		}
+		pending := []*domExpr{a.Expr}
+		for len(pending) > 0 {
+			e := pending[len(pending)-1]
+			pending = pending[:len(pending)-1]
+			if e == nil {
+				continue
+			}
+			if e.Default != nil {
+				ty, fault := termTypeIn(e.Default, ct)
+				if fault != nil {
+					return fault
+				}
+				if problem := expectedProblem(ty, tyString); problem != "" {
+					return &typeFault{problem, e.Default}
+				}
+			}
+			pending = append(pending, exprChildren(e)...)
+		}
 	}
 	if len(faults) == 0 {
 		return nil

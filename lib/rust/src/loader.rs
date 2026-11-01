@@ -299,6 +299,9 @@ impl Context {
         } else {
             return read_document_named(&self.notation, text, true, names).map_err(|error| error.in_document(path));
         };
+        if diagnostic && (text.contains("followed-by") || text.contains("preceded-by") || text.contains('≝')) {
+            return read_document_named(&self.notation, text, true, names).map_err(|e| e.in_document(path));
+        }
         if diagnostic {
             #[cfg(test)]
             LOCATION_RECOVERIES.with(|count| count.set(count.get() + 1));
@@ -700,6 +703,14 @@ fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result
             // Retry only a failed load, with locations for its diagnostic document.
             let document = error.group().and_then(|group| group.document.as_deref());
             load_mode(context, sources, pipeline_path, document)
+        }
+        Err(error)
+            if error.message.starts_with("boundary target ") && error.line.is_none() && error.document.is_some() =>
+        {
+            load_mode(context, sources, pipeline_path, error.document.as_deref())
+        }
+        Err(error) if error.message.starts_with("a default fails its head test") && error.document.is_some() => {
+            load_mode(context, sources, pipeline_path, error.document.as_deref())
         }
         Err(error) if error.location_recovery.is_some() && error.line.is_none() && error.document.is_some() => {
             load_mode(context, sources, pipeline_path, error.document.as_deref())

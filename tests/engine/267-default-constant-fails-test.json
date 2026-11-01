@@ -1,0 +1,16 @@
+{
+  "description": "A constant default must be one string that passes the head test.",
+  "documents": {
+    "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $BAD \"jei\"\n%rule text [+JI=\"jie\" ≝ $BAD]\n```"
+  },
+  "pipelineDocument": "main.md",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 23
+    }
+  }
+}

@@ -1031,7 +1031,13 @@ impl Expander<'_> {
                     }
                 }
             }
-            set(&mut result, k, self.substitute(v, env, event, child_position(k, position))?);
+            let mut substituted = self.substitute(v, env, event, child_position(k, position))?;
+            if k == "default" {
+                if let Some(source) = v.get(SOURCE) {
+                    set(&mut substituted, SOURCE, source.clone());
+                }
+            }
+            set(&mut result, k, substituted);
         }
         if position == "pattern" && has(&result, "test") && has(get(&result, "expr"), "exact") {
             if has(&result, "exact") {
