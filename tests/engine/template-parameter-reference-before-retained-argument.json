@@ -1,0 +1,13 @@
+{
+  "description": "Definition rewriting precedes retained-argument inspection.",
+  "grammar": "%const $A \"a\"\n%rule atom(@X) @X\n%rule holder(@Y) @Y\n%rule text holder(($A atom))",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 1
+    }
+  }
+}

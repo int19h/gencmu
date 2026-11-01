@@ -37,6 +37,10 @@ class Parameters(unittest.TestCase):
             self.assertIn(effective, message)
             self.assertNotIn('expanded', message)
             self.assertNotIn('instance-', message)
+        with self.assertRaises(GencmuError) as caught:
+            grammar_of('%const $A "a"\n%rule atom(@X) @X\n%rule holder(@Y) @Y\n%rule text holder(($A atom))')
+        self.assertEqual((caught.exception.line, caught.exception.column), (5, 1))
+        self.assertIn('in holder(($A atom)) called at main.md:6:12', caught.exception.message)
 
     def test_rule_order_and_rebinding(self):
         grammar = grammar_of('%rule atom(@X) @X\n%rule text atom("a") named\n%rule named = atom("b")\n%redefine-rule named = atom("c")')

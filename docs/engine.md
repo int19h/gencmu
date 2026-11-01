@@ -938,6 +938,8 @@ For each instance, the loader replays applicable events and substitutes argument
 
 Ordinary document rules apply to every expanded definition. The loader inspects each substituted definition before discovering its nested calls or rewriting calls into names. This order also applies to validation-only expansion. These definition errors precede errors from nested calls or rewriting. Structural analysis, ranked safety, capture analysis, depth limits, and lowering then use ordinary rules. Unused parameters and uncalled templates are audit notes, not errors.
 
+The loader rewrites expanded validation definitions before inspecting retained arguments. Argument definitions that require separate inspection join the validation list afterward. Each expanded definition receives one rewrite. Live output reuses that rewritten definition.
+
 Expanded-definition diagnostics use the effective rule name, including its canonical instance spelling or public binding. Internal validation does not substitute placeholder names for rule definitions. Capture and test bases use the same effective-name predicate as other rule references.
 
 An error at a parameter use names the template definition and the originating call and argument. An argument error names that argument. Source locations stay separate from the position-free key. A wrong arity, unknown template, duplicate parameter, or undeclared parameter is a load error. Binder and flow errors also apply to uncalled templates. Kind-dependent errors require an instance.
