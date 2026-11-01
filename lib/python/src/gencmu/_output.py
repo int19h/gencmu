@@ -127,7 +127,7 @@ def error_json(error: ParseError) -> dict[str, Any]:
     if error.readings is not None:
         value["readings"] = [node_json(reading) for reading in error.readings]
     # Only an error of elision-only has a witness (docs/output.md).
-    if error.witness is not None and error.reason == "elision-only":
+    if error.kind == "ambiguous" and error.witness is not None and error.reason == "elision-only":
         value["witness"] = [action_json(error.witness[0]), action_json(error.witness[1])]
     value["message"] = error.message
     # The members of elision-witness-lost follow its message

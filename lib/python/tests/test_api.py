@@ -1146,3 +1146,17 @@ class ResultRenderingGuards(unittest.TestCase):
                 gencmu.load_pipeline_sources({"p.md":'```jbogenbau\n%stage main\n'+source+'\n```\n'},"p.md")
             self.assertEqual(caught.exception.kind, "grammar")
             self.assertEqual(caught.exception.stage, "main")
+
+
+    def test_error_witness_requires_an_elision_only_ambiguity(self):
+        from gencmu._model import Action
+        witness = (Action("read",token=0,terminal="A"),Action("read",token=0,terminal="B"))
+        error = gencmu.ParseError("ambiguous","x",stage="main",reason="elision-only",witness=witness)
+        result = gencmu.ParseResult(False,[],None,error)
+        self.assertIn("witness",gencmu.result_json(result)["error"])
+        error.reason = "tie"
+        self.assertNotIn("witness",gencmu.result_json(result)["error"])
+        error.reason = "elision-only"
+        for kind in ["grammar","rejected","feature-conflict"]:
+            error.kind = kind
+            self.assertNotIn("witness",gencmu.result_json(result)["error"])
