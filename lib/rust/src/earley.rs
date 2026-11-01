@@ -3271,16 +3271,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             let observation = m.observation(self.span_structure(inner, frame));
             let family = family.map(|family| {
                 let Machine { observations, families, .. } = &mut *m;
-                (
-                    family,
-                    families.context(
-                        observations.as_ref().unwrap(),
-                        observation,
-                        base + start,
-                        base + fixed_end,
-                        family,
-                    ),
-                )
+                (family, families.context(observations.as_ref().unwrap(), observation, base + start, base + fixed_end))
             });
             Some(Alignment { observation, family, fixed_end: base + fixed_end, match_end: base + match_end })
         } else {

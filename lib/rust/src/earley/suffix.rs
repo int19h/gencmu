@@ -34,6 +34,7 @@ fn reads_end(g: &Lowered, root: u32) -> bool {
         Span(&'a Span),
         Query(&'a Span, u32),
     }
+    let plans = crate::restoration::plans_by_production(g);
     let mut pending = vec![(root, false)];
     let mut seen = FxSet::default();
     while let Some((rule, nested)) = pending.pop() {
@@ -49,11 +50,9 @@ fn reads_end(g: &Lowered, root: u32) -> bool {
             }
             let mut nodes: Vec<_> = p.conds.iter().map(|(c, _)| Node::Cond(c)).collect();
             nodes.extend(p.tags.iter().map(Node::Term));
-            for (key, plan) in &g.ranked.plans {
-                if key.0 == id {
-                    nodes.extend(plan.conditions.iter().flatten().map(|(c, _)| Node::Cond(c)));
-                    nodes.extend(plan.whole_tags.iter().map(Node::Term));
-                }
+            for plan in &plans[id as usize] {
+                nodes.extend(plan.conditions.iter().flatten().map(|(c, _)| Node::Cond(c)));
+                nodes.extend(plan.whole_tags.iter().map(Node::Term));
             }
             while let Some(node) = nodes.pop() {
                 match node {

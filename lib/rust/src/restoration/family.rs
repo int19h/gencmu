@@ -96,7 +96,7 @@ struct Summary {
 pub(crate) struct Families {
     oracle: Option<Sequence<(Aligned, bool)>>,
     contexts: Vec<Context>,
-    context_ids: FxMap<(u32, usize, usize, u32), u32>,
+    context_ids: FxMap<(u32, usize, usize), u32>,
     summaries: Vec<Summary>,
     ids: FxMap<Summary, u32>,
     #[cfg(test)]
@@ -167,16 +167,9 @@ impl Families {
         assert_eq!(actual, valid, "family summaries disagree with the whole-observation deletion test");
     }
 
-    pub(crate) fn context(
-        &mut self,
-        observations: &Observations,
-        candidate: u32,
-        start: usize,
-        end: usize,
-        family: u32,
-    ) -> u32 {
+    pub(crate) fn context(&mut self, observations: &Observations, candidate: u32, start: usize, end: usize) -> u32 {
         let aligned = observations.normalized(candidate);
-        let key = (aligned, start, end, family);
+        let key = (aligned, start, end);
         if let Some(&id) = self.context_ids.get(&key) {
             return id;
         }
@@ -467,7 +460,7 @@ mod tests {
         let candidate =
             observations.close(crate::result::Restoration { terminal: "T".into(), at: 1, source: 1..1, value: None });
         let mut f = Families::default();
-        let c = f.context(&observations, candidate, 0, 2, 0);
+        let c = f.context(&observations, candidate, 0, 2);
         let t = Aligned::Close("T".into(), 1);
         let u = Aligned::Close("U".into(), 1);
         work::reset();
@@ -490,7 +483,7 @@ mod tests {
         }
         // The structural transition cache must not bypass a family relation charge.
         let mut machine = crate::patterns::Machine::new(&[]);
-        let context = machine.families.context(&observations, candidate, 0, 2, 0);
+        let context = machine.families.context(&observations, candidate, 0, 2);
         let a = machine.families.record(context, Aligned::Close("T".into(), 1), true);
         let b = machine.families.record(context, Aligned::Close("U".into(), 1), true);
         let left = machine.with_family(machine.empty, a);
@@ -603,7 +596,7 @@ mod tests {
                     candidate = observations.join(candidate, record);
                 }
                 let mut families = Families::default();
-                let context = families.context(&observations, candidate, start, end, 0);
+                let context = families.context(&observations, candidate, start, end);
                 let candidate: Vec<_> = (0..candidate_len).map(|_| Aligned::Close("T".into(), at)).collect();
                 for length in 0..=4 {
                     for code in 0..4usize.pow(length) {
