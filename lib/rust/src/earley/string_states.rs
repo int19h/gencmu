@@ -4,89 +4,101 @@ use crate::dom::{Arg, Term};
 pub(super) fn demands(g: &Lowered) -> Vec<u8> {
     demands_from(g, None)
 }
+fn mark(out: &mut [u8], index: usize, image: bool) -> bool {
+    let old = out[index];
+    out[index] |= 1 << u8::from(image);
+    old != out[index]
+}
+fn named(out: &mut [u8], rule: u32, image: bool, g: &Lowered) -> bool {
+    let mut changed = false;
+    for &index in &g.rules[rule as usize].prods {
+        changed = mark(out, index as usize, image) || changed;
+    }
+    changed
+}
+fn own(out: &mut [u8], p: &crate::lower::Prod, image: bool, g: &Lowered) -> bool {
+    let index = g.prods.iter().position(|q| std::ptr::eq(p, q)).unwrap();
+    mark(out, index, image)
+}
+fn add(out: &mut [u8], p: &crate::lower::Prod, span: &Span, image: bool, g: &Lowered, recipe: bool) -> bool {
+    match span {
+        Span::Whole if recipe || !g.rules[p.rule as usize].helper => own(out, p, image, g),
+        Span::Whole => {
+            let mut changed = false;
+            for q in &g.prods {
+                if !g.rules[q.rule as usize].helper && q.owner == p.owner && q.at == p.at && q.document == p.document {
+                    changed = own(out, q, image, g) || changed;
+                }
+            }
+            changed
+        }
+        Span::Cap(slot) => match p.syms[p.cap_pos[*slot as usize]] {
+            Sym::N(rule) => named(out, rule, image, g),
+            _ => false,
+        },
+        Span::Lexical(name) => {
+            let mut changed = false;
+            for q in &g.prods {
+                if q.owner != p.owner || q.at != p.at || q.document != p.document {
+                    continue;
+                }
+                if let Some(&slot) = q.names.get(name) {
+                    changed = add(out, q, &Span::Cap(slot), image, g, recipe) || changed;
+                }
+            }
+            changed
+        }
+        _ => false,
+    }
+}
+fn term_reads(t: &LTerm, out: &mut Vec<(Span, bool)>) {
+    match t {
+        LTerm::Emitted(span, image) => out.push((span.clone(), *image)),
+        LTerm::Concat(xs) | LTerm::Union(xs) | LTerm::Inter(xs) => {
+            for t in xs {
+                term_reads(t, out);
+            }
+        }
+        LTerm::Diff(a, b) | LTerm::Split(a, b) => {
+            term_reads(a, out);
+            term_reads(b, out);
+        }
+        LTerm::Ngrams(a, _) | LTerm::Classify(a, _) => term_reads(a, out),
+        LTerm::If(c, t) => {
+            compiled_reads(c, out);
+            term_reads(t, out);
+        }
+        _ => {}
+    }
+}
+fn compiled_reads(c: &LCond, out: &mut Vec<(Span, bool)>) {
+    match c {
+        LCond::Cmp(_, a, b) => {
+            term_reads(a, out);
+            term_reads(b, out);
+        }
+        LCond::Not(c) => compiled_reads(c, out),
+        LCond::Any(xs) | LCond::All(xs) => {
+            for c in xs {
+                compiled_reads(c, out);
+            }
+        }
+        LCond::If(a, b) => {
+            compiled_reads(a, out);
+            compiled_reads(b, out);
+        }
+        _ => {}
+    }
+}
+fn effective_conditions(g: &Lowered) -> impl Iterator<Item = (&crate::lower::Prod, &LCond)> {
+    let ordinary = g.prods.iter().flat_map(|p| p.conds.iter().map(move |(c, _)| (p, c)));
+    let deferred = g.ranked.plans.iter().flat_map(|((production, _, _, _), plan)| {
+        let p = &g.prods[*production as usize];
+        plan.conditions.iter().flatten().map(move |(c, _)| (p, c))
+    });
+    ordinary.chain(deferred)
+}
 fn demands_from(g: &Lowered, seeds: Option<Vec<u8>>) -> Vec<u8> {
-    fn mark(out: &mut [u8], index: usize, image: bool) -> bool {
-        let old = out[index];
-        out[index] |= 1 << u8::from(image);
-        old != out[index]
-    }
-    fn named(out: &mut [u8], rule: u32, image: bool, g: &Lowered) -> bool {
-        let mut changed = false;
-        for &index in &g.rules[rule as usize].prods {
-            changed = mark(out, index as usize, image) || changed;
-        }
-        changed
-    }
-    fn own(out: &mut [u8], p: &crate::lower::Prod, image: bool, g: &Lowered) -> bool {
-        let index = g.prods.iter().position(|q| std::ptr::eq(p, q)).unwrap();
-        mark(out, index, image)
-    }
-    fn add(out: &mut [u8], p: &crate::lower::Prod, span: &Span, image: bool, g: &Lowered, recipe: bool) -> bool {
-        match span {
-            Span::Whole if recipe || !g.rules[p.rule as usize].helper => own(out, p, image, g),
-            Span::Whole => {
-                let mut changed = false;
-                for q in &g.prods {
-                    if !g.rules[q.rule as usize].helper
-                        && q.owner == p.owner
-                        && q.at == p.at
-                        && q.document == p.document
-                    {
-                        changed = own(out, q, image, g) || changed;
-                    }
-                }
-                changed
-            }
-            Span::Cap(slot) => match p.syms[p.cap_pos[*slot as usize]] {
-                Sym::N(rule) => named(out, rule, image, g),
-                _ => false,
-            },
-            Span::Lexical(name) => {
-                let mut changed = false;
-                for q in &g.prods {
-                    if q.owner != p.owner || q.at != p.at || q.document != p.document {
-                        continue;
-                    }
-                    if let Some(&slot) = q.names.get(name) {
-                        changed = add(out, q, &Span::Cap(slot), image, g, recipe) || changed;
-                    }
-                }
-                changed
-            }
-            _ => false,
-        }
-    }
-    fn term(t: &LTerm, p: &crate::lower::Prod, out: &mut [u8], g: &Lowered) -> bool {
-        match t {
-            LTerm::Emitted(s, i) => add(out, p, s, *i, g, false),
-            LTerm::Concat(xs) | LTerm::Union(xs) | LTerm::Inter(xs) => {
-                let mut changed = false;
-                for t in xs {
-                    changed = term(t, p, out, g) || changed;
-                }
-                changed
-            }
-            LTerm::Diff(a, b) | LTerm::Split(a, b) => term(a, p, out, g) | term(b, p, out, g),
-            LTerm::Ngrams(a, _) | LTerm::Classify(a, _) => term(a, p, out, g),
-            LTerm::If(c, t) => cond(c, p, out, g) | term(t, p, out, g),
-            _ => false,
-        }
-    }
-    fn cond(c: &LCond, p: &crate::lower::Prod, out: &mut [u8], g: &Lowered) -> bool {
-        match c {
-            LCond::Cmp(_, a, b) => term(a, p, out, g) | term(b, p, out, g),
-            LCond::Not(c) => cond(c, p, out, g),
-            LCond::Any(xs) | LCond::All(xs) => {
-                let mut changed = false;
-                for c in xs {
-                    changed = cond(c, p, out, g) || changed;
-                }
-                changed
-            }
-            LCond::If(a, b) => cond(a, p, out, g) | cond(b, p, out, g),
-            _ => false,
-        }
-    }
     fn recipe(t: &Term, p: &crate::lower::Prod, out: &mut [u8], g: &Lowered) -> bool {
         let mut changed = false;
         if let Term::Call(name, args) = t {
@@ -117,15 +129,11 @@ fn demands_from(g: &Lowered, seeds: Option<Vec<u8>>) -> Vec<u8> {
     let seeded = seeds.is_some();
     let mut out = seeds.unwrap_or_else(|| vec![0; g.prods.len()]);
     if !seeded {
-        for p in &g.prods {
-            for (c, _) in &p.conds {
-                cond(c, p, &mut out, g);
-            }
-        }
-        for ((production, _, _, _), plan) in &g.ranked.plans {
-            let p = &g.prods[*production as usize];
-            for (c, _) in plan.conditions.iter().flatten() {
-                cond(c, p, &mut out, g);
+        for (p, c) in effective_conditions(g) {
+            let mut reads = Vec::new();
+            compiled_reads(c, &mut reads);
+            for (span, image) in reads {
+                add(&mut out, p, &span, image, g, false);
             }
         }
     }
@@ -453,51 +461,43 @@ pub(crate) fn validate_condition_strings(
         matches!(t,Term::Call(name,_) if name=="verbatim-text")
             || matches!(t,Term::Call(_,args) if args.iter().any(|a|matches!(a,Arg::Term(t) if verbatim(t))))
     }
-    for (owner, rule) in grammar.rules.iter().enumerate() {
-        for alt in &rule.alternatives {
-            for (capture, image) in condition_reads(&alt.clauses.conditions) {
-                let mut seeds = vec![0; g.prods.len()];
-                let bit = 1 << u8::from(image);
-                for (index, p) in g.prods.iter().enumerate() {
-                    if p.owner as usize != owner
-                        || p.at != alt.at
-                        || p.document.as_deref() != Some(alt.document.as_ref())
-                    {
-                        continue;
-                    }
-                    if capture.is_empty() {
-                        if !g.rules[p.rule as usize].helper {
-                            seeds[index] |= bit;
-                        }
-                    } else if let Some(&slot) = p.names.get(&capture) {
-                        if let Sym::N(rule) = p.syms[p.cap_pos[slot as usize]] {
-                            for &child in &g.rules[rule as usize].prods {
-                                seeds[child as usize] |= bit;
-                            }
-                        }
-                    }
+    for (p, c) in effective_conditions(g) {
+        let mut surviving = Vec::new();
+        compiled_reads(c, &mut surviving);
+        for (span, image) in surviving {
+            let mut seeds = vec![0; g.prods.len()];
+            add(&mut seeds, p, &span, image, g, false);
+            let reached = demands_from(g, Some(seeds));
+            let bad = g.prods.iter().enumerate().any(|(index, p)| {
+                !p.erased
+                    && (0..2).any(|channel| {
+                        let selected = if channel == 0 {
+                            p.strings.value.as_ref()
+                        } else {
+                            p.strings.image.as_ref().or(p.strings.value.as_ref())
+                        };
+                        reached[index] & (1 << channel) != 0 && selected.is_some_and(verbatim)
+                    })
+            });
+            if bad {
+                let capture = match &span {
+                    Span::Whole => "",
+                    Span::Cap(slot) => p.names.iter().find(|(_, s)| *s == slot).map_or("", |(name, _)| name),
+                    Span::Lexical(name) => name,
+                    _ => unreachable!(),
+                };
+                let key = format!("{capture}:{}", if image { "image" } else { "value" });
+                let alt = grammar.rules[p.owner as usize]
+                    .alternatives
+                    .iter()
+                    .find(|alt| alt.at == p.at && p.document.as_deref() == Some(alt.document.as_ref()))
+                    .unwrap();
+                let mut error = crate::error::Error::grammar("a condition walk cannot reach verbatim-text")
+                    .in_document(&alt.document);
+                if let Some(&(line, column)) = alt.clauses.emitted_locations.get(&key) {
+                    error = error.at(line, column);
                 }
-                let reached = demands_from(g, Some(seeds));
-                let bad = g.prods.iter().enumerate().any(|(index, p)| {
-                    !p.erased
-                        && (0..2).any(|channel| {
-                            let selected = if channel == 0 {
-                                p.strings.value.as_ref()
-                            } else {
-                                p.strings.image.as_ref().or(p.strings.value.as_ref())
-                            };
-                            reached[index] & (1 << channel) != 0 && selected.is_some_and(verbatim)
-                        })
-                });
-                if bad {
-                    let key = format!("{capture}:{}", if image { "image" } else { "value" });
-                    let mut error = crate::error::Error::grammar("a condition walk cannot reach verbatim-text")
-                        .in_document(&alt.document);
-                    if let Some(&(line, column)) = alt.clauses.emitted_locations.get(&key) {
-                        error = error.at(line, column);
-                    }
-                    return Err(error);
-                }
+                return Err(error);
             }
         }
     }

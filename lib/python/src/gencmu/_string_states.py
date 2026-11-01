@@ -52,7 +52,7 @@ def demanded_strings(productions, seeds=None):
         for p, term in seeds: string_reads(term, p)
     else:
         for p in productions:
-            string_reads([p.conds_predict, *p.conds_at.values(), p.items.conditions if p.items else None, p.slot.ranked_conditions if p.slot else None], p)
+            string_reads([p.conds_predict, *p.conds_at.values(), p.string_conditions], p)
     changed = True
     while changed:
         changed = False
@@ -77,18 +77,18 @@ def reads(node):
 
 
 def validate_condition_strings(lowered):
-    for rule in lowered.grammar.rules.values():
-        for alternative in rule.alternatives:
-            productions = [p for p in lowered.productions if not p.helper and p.source is alternative]
-            for term in reads(alternative.conditions):
-                demands = demanded_strings(lowered.productions, [(p, term) for p in productions])
-                for p in lowered.productions:
-                    if p.erased: continue
-                    for channel in demands.get(p.real_id, ()):
-                        recipe = p.value if channel == "value" else p.image if p.image is not None else p.value
-                        if recipe is not None and any(atom.get("method") == "verbatim-text" for atom in recipe["concat"]):
-                            at = getattr(term["receiver"], "at", None)
-                            error = GencmuError("a condition walk cannot reach verbatim-text", document=alternative.document,
-                                                line=at[0] if at else None, column=at[1] if at else None)
-                            if at is None: error._boundary_document = alternative.document
-                            raise error
+    for production in lowered.productions:
+        conditions = [production.conds_predict, *production.conds_at.values(), production.string_conditions]
+        for term in reads(conditions):
+            demands = demanded_strings(lowered.productions, [(production, term)])
+            for p in lowered.productions:
+                if p.erased: continue
+                for channel in demands.get(p.real_id, ()):
+                    recipe = p.value if channel == "value" else p.image if p.image is not None else p.value
+                    if recipe is not None and any(atom.get("method") == "verbatim-text" for atom in recipe["concat"]):
+                        at = getattr(term["receiver"], "at", None)
+                        document = production.source.document
+                        error = GencmuError("a condition walk cannot reach verbatim-text", document=document,
+                                            line=at[0] if at else None, column=at[1] if at else None)
+                        if at is None: error._boundary_document = document
+                        raise error

@@ -100,9 +100,6 @@ func (g *lowered) stringReach(seed *stringSeed) map[int32]uint8 {
 			for _, c := range p.rankedConditions {
 				cond(c, p)
 			}
-			for _, c := range p.itemConds {
-				cond(c, p)
-			}
 			for _, c := range p.predictConds {
 				cond(c, p)
 			}
@@ -182,10 +179,15 @@ func (g *stageGrammar) validateConditionStrings() *Error {
 	}
 	lowered := lowerForSlots(g)
 	for _, p := range lowered.prods {
-		if p.helper || p.sourceAlternative == nil {
+		if p.sourceAlternative == nil {
 			continue
 		}
-		for _, read := range emittedStringReads(p.sourceAlternative.conds) {
+		conditions := append([]*domCond{}, p.predictConds...)
+		conditions = append(conditions, p.rankedConditions...)
+		for _, c := range p.conds {
+			conditions = append(conditions, c.cond)
+		}
+		for _, read := range emittedStringReads(conditions) {
 			reach := lowered.stringReach(&stringSeed{p, read})
 			for _, q := range lowered.prods {
 				if q.nothing {

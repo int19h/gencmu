@@ -552,8 +552,11 @@ pub(crate) fn names_problem(dom: &Json) -> Option<&'static str> {
 
 fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expanded: bool) -> Option<String> {
     let mut condition_nodes = FxSet::default();
-    let mut conditions: Vec<&Json> =
-        pending.iter().filter(|(kind, _, _)| matches!(kind, Part::Condition)).map(|(_, n, _)| *n).collect();
+    let mut conditions: Vec<&Json> = pending
+        .iter()
+        .filter(|(kind, _, _)| matches!(kind, Part::Condition))
+        .map(|(_, n, _)| *n)
+        .collect();
     while let Some(n) = conditions.pop() {
         condition_nodes.insert(n as *const Json as usize);
         match n {

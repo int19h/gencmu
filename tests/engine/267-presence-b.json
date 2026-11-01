@@ -1,0 +1,10 @@
+{
+  "description": "An absent capture removes the whole read of a verbatim recipe.",
+  "grammar": "%rule text\n  | $x:\"a\" := \"yes\"\n  | \"b\" := $.verbatim-text\n%conditions\n  $x ⟹ $.emitted.value = \"yes\"",
+  "input": "b",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

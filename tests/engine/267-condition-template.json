@@ -1,0 +1,10 @@
+{
+  "description": "An emitted condition keeps its clause context beside a template call.",
+  "grammar": "%rule part(@X) @X\n%rule text $x:part(\"a\")\n%conditions $x.emitted.value = \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "An emitted condition keeps its clause context beside a default.",
+  "grammar": "%rule text $x:r [+T ≝ \"t\"]\n%conditions $x.emitted.value = \"a\"\n%rule r \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

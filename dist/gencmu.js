@@ -8468,7 +8468,6 @@
     if (seeds) for (const [p,term] of seeds) reads(term,p);
     else for (const p of productions) {
       for (const c of [...p.conditions,...p.rankedConditions ?? []]) reads(c.condition,p);
-      reads(p.itemConditions,p);
     }
     do {
       changed = false;
@@ -8487,9 +8486,9 @@
   /** @param {Production[]} productions */
   function validateConditionStrings(productions) {
     for (const p of productions) {
-      if (p.helper || !p.logicalSource) continue;
+      if (!p.logicalSource) continue;
       /** @type {any[]} */
-      const pending = [p.logicalSource.clauses.conditions];
+      const pending = [...p.conditions,...p.rankedConditions ?? []].map(c => c.condition);
       while (pending.length) {
         const term = pending.pop();
         if (!term || typeof term !== "object") continue;
@@ -9326,7 +9325,10 @@
 
   /** @param {any} lowered @param {any} ranked */
   function prepareRankedFrames(lowered, ranked) {
-    if (!ranked.groups.length) return;
+    if (!ranked.groups.length) {
+      prepareRankedConditions(lowered);
+      return;
+    }
     const helpers = new Map(lowered.productions.filter((/** @type {any} */ p) => p.helper).map((/** @type {any} */ p) => [p.lhs, p]));
     const groups = new Map(ranked.groups.map((/** @type {any} */ g) => [g.helper, g]));
     const privateNames = new Map(ranked.groups.map((/** @type {any} */ group) => [group,group.captures]));
@@ -9385,7 +9387,7 @@
     const pending = [];
     const enter = (/** @type {any} */ p, /** @type {any} */ frame) => {
       const present = new Set([...frame.present, ...p.captures.map((/** @type {any} */ c) => c.name)]);
-      const knownPrivate = new Set([...frame.knownPrivate, ...p.rankedPrivate]);
+      const knownPrivate = new Set([...frame.knownPrivate, ...p.rankedPrivate ?? []]);
       p.rhs.forEach((/** @type {any} */ symbol, /** @type {number} */ index) => {
         if (symbol.terminal || !contextual.has(symbol.name)) return;
         const captures = new Map(frame.captures);
@@ -9403,7 +9405,10 @@
       for (const p of lowered.byLhs.get(frame.name) ?? []) {
         const present = new Set(['', ...frame.present, ...p.captures.map((/** @type {any} */ c) => c.name)]);
         const clauses = p.rankedGroup ? p.source.clauses.conditions : [];
-        const conditions = frameConditions(clauses, present, {...p,lexicalFrame:frame}, frame.captures, p.rankedGroup?.final ?? false);
+        const conditions = [
+          ...frameConditions(clauses, present, {...p,lexicalFrame:frame}, frame.captures, p.rankedGroup?.final ?? false),
+          ...itemFrameConditions(p.itemConditions ?? [], present, p, frame.captures),
+        ];
         p.rankedConditions ??= [];
         for (const condition of conditions) p.rankedConditions.push(condition);
         enter(p, frame);

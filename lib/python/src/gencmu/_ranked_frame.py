@@ -28,6 +28,7 @@ class Frame:
 def prepare_ranked(lowered):
     ranked = lowered.grammar.ranked
     if ranked is None or not ranked.groups:
+        prepare_ranked_conditions(lowered)
         return
     sources = {id(g.source) for g in ranked.groups}
     for p in lowered.productions:
@@ -92,7 +93,7 @@ def prepare_ranked_conditions(lowered):
     """Follow finite capture contexts through active lowered helpers."""
     from types import SimpleNamespace
     private = {}
-    for group in lowered.grammar.ranked.groups:
+    for group in lowered.grammar.ranked.groups if lowered.grammar.ranked else ():
         private.setdefault(id(group.source), set()).update(reads(group.expr))
     pending = []
 
@@ -118,7 +119,12 @@ def prepare_ranked_conditions(lowered):
         seen.add(key)
         for index in lowered.rule_productions[rule]:
             p = lowered.productions[index]
-            p.slot.ranked_conditions.extend(c for c, _, _ in frame_conditions(p, frame, private[id(p.slot.source)]))
+            conditions = [c for c, _, _ in frame_conditions(p, frame, private.get(id(p.source), set()))]
+            if p.items:
+                conditions.extend(c for c, _ in item_frame_conditions(p, frame, prepare_conditions(p.items.conditions)))
+            p.string_conditions.extend(conditions)
+            if p.slot is not None:
+                p.slot.ranked_conditions.extend(conditions)
             enter(p, frame)
 
 

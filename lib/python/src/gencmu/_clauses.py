@@ -11,6 +11,7 @@ way, so that a DOM the reader refuses is refused everywhere.
 from __future__ import annotations
 
 from typing import AbstractSet, Any, Union
+from copy import copy
 
 from ._trampoline import Walk, run
 

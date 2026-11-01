@@ -1,0 +1,10 @@
+{
+  "description": "Presence simplification removes reads from the other production.",
+  "grammar": "%rule text\n  | $x:\"a\" := \"yes\"\n  | \"b\" := $.verbatim-text\n%conditions\n  $x ⟹ $.emitted.value = \"yes\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

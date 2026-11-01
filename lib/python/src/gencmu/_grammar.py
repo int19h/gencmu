@@ -1222,6 +1222,8 @@ class Production:
     tests: tuple[SymbolTest | None, ...] | None = None
     captures: dict[str, int] = field(default_factory=dict)
     slots: tuple[int, ...] = ()
+    # Reduced conditions across static entry contexts of ranked and item helpers.
+    string_conditions: list[Dom] = field(default_factory=list, repr=False, compare=False)
     conds_predict: list[Dom] = field(default_factory=list)
     conds_at: dict[int, list[Dom]] = field(default_factory=dict)
     # Whether a condition at the last symbol reads ``$``, which then has the
