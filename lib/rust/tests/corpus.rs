@@ -121,7 +121,7 @@ fn outcome(pipeline: &gencmu::Pipeline, case: &Value) -> Result<BTreeMap<&'stati
     if let Some(output) =
         result.stages.iter().find(|stage| stage.name == "words").and_then(|stage| stage.output.as_ref())
     {
-        // Each word is written as its label (tests/README.md).
+        // Each word is written as its image (tests/README.md).
         let words = output.iter().map(|token| string(&token.image)).collect();
         got.insert("words", Value::Array(words));
     }

@@ -62,10 +62,9 @@ fn replacements_record_flag_changes() {
 #[test]
 fn a_bundled_pipeline_loads_by_name() {
     let pipeline = gencmu::load_pipeline("gencmu/jbogenbau").expect("the notation pipeline");
-    assert_eq!(pipeline.stage_names(), ["lexical", "syntax"]);
     let result = pipeline.parse("%rule text A", &ParseOptions::default()).expect("a parse");
     assert!(result.ok);
-    assert_eq!(result.stages.len(), 2);
+    assert_eq!(result.stages.iter().map(|stage| stage.name.as_str()).collect::<Vec<_>>(), ["lexical", "syntax"]);
     assert_eq!(result.tree.as_ref().and_then(|tree| tree.rule.as_deref()), Some("text"));
     let error = gencmu::load_pipeline("nonesuch").expect_err("no such pipeline");
     assert_eq!(error.kind, ErrorKind::Usage);
