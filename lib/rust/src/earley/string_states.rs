@@ -1,9 +1,6 @@
 use super::*;
 use crate::dom::{Arg, Term};
 
-pub(super) fn demands(g: &Lowered) -> Vec<u8> {
-    demands_from(g, None)
-}
 fn mark(out: &mut [u8], index: usize, image: bool) -> bool {
     let old = out[index];
     out[index] |= 1 << u8::from(image);
@@ -98,7 +95,7 @@ fn effective_conditions(g: &Lowered) -> impl Iterator<Item = (&crate::lower::Pro
     });
     ordinary.chain(deferred)
 }
-fn demands_from(g: &Lowered, seeds: Option<Vec<u8>>) -> Vec<u8> {
+pub(super) fn demands(g: &Lowered) -> Vec<u8> {
     fn recipe(t: &Term, p: &crate::lower::Prod, out: &mut [u8], g: &Lowered) -> bool {
         let mut changed = false;
         if let Term::Call(name, args) = t {
@@ -126,15 +123,12 @@ fn demands_from(g: &Lowered, seeds: Option<Vec<u8>>) -> Vec<u8> {
         }
         changed
     }
-    let seeded = seeds.is_some();
-    let mut out = seeds.unwrap_or_else(|| vec![0; g.prods.len()]);
-    if !seeded {
-        for (p, c) in effective_conditions(g) {
-            let mut reads = Vec::new();
-            compiled_reads(c, &mut reads);
-            for (span, image) in reads {
-                add(&mut out, p, &span, image, g, false);
-            }
+    let mut out = vec![0; g.prods.len()];
+    for (p, c) in effective_conditions(g) {
+        let mut reads = Vec::new();
+        compiled_reads(c, &mut reads);
+        for (span, image) in reads {
+            add(&mut out, p, &span, image, g, false);
         }
     }
     let mut changed = true;
@@ -388,7 +382,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     }
 }
 
-fn condition_reads(conditions: &[crate::dom::Cond]) -> Vec<(String, bool)> {
+fn emitted_reads(conditions: &[crate::dom::Cond], recipe: Option<&Term>) -> Vec<(String, bool)> {
     fn term(t: &Term, out: &mut Vec<(String, bool)>) {
         if let Term::Call(name, args) = t {
             if let ("value" | "image", [Arg::Term(Term::Call(method, args))]) = (name.as_str(), &args[..]) {
@@ -441,63 +435,109 @@ fn condition_reads(conditions: &[crate::dom::Cond]) -> Vec<(String, bool)> {
         }
     }
     let mut reads = Vec::new();
+    if let Some(recipe) = recipe {
+        term(recipe, &mut reads);
+    }
     for c in conditions {
         condition(c, &mut reads);
     }
     reads
 }
-pub(crate) fn has_condition_reads(grammar: &crate::grammar::StageGrammar) -> bool {
-    grammar
-        .rules
-        .iter()
-        .any(|rule| rule.alternatives.iter().any(|alt| !condition_reads(&alt.clauses.conditions).is_empty()))
-}
-
-pub(crate) fn validate_condition_strings(
-    g: &Lowered,
-    grammar: &crate::grammar::StageGrammar,
-) -> Result<(), crate::error::Error> {
+pub(crate) fn validate_condition_strings(grammar: &crate::grammar::StageGrammar) -> Result<(), crate::error::Error> {
+    use crate::dom::Expr;
+    use crate::grammar::StitchedAlternative;
+    use std::collections::{BTreeMap, BTreeSet};
+    fn children(expr: &Expr) -> Vec<&Expr> {
+        match expr {
+            Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs) | Expr::And(xs) => xs.iter().collect(),
+            Expr::Optional(e, _, _) | Expr::Capture(_, e) | Expr::Tested(_, _, e) => vec![e],
+            Expr::Repeat(e, separator, _) => std::iter::once(e.as_ref()).chain(separator.as_deref()).collect(),
+            _ => Vec::new(),
+        }
+    }
+    fn references(expr: &Expr, grammar: &crate::grammar::StageGrammar) -> BTreeSet<usize> {
+        let mut names = BTreeSet::new();
+        let mut pending = vec![expr];
+        while let Some(expr) = pending.pop() {
+            if let Expr::Ref(name) = expr {
+                if let Some(&rule) = grammar.index.get(name) {
+                    names.insert(rule);
+                }
+            }
+            pending.extend(children(expr));
+        }
+        names
+    }
     fn verbatim(t: &Term) -> bool {
         matches!(t,Term::Call(name,_) if name=="verbatim-text")
             || matches!(t,Term::Call(_,args) if args.iter().any(|a|matches!(a,Arg::Term(t) if verbatim(t))))
     }
-    for (p, c) in effective_conditions(g) {
-        let mut surviving = Vec::new();
-        compiled_reads(c, &mut surviving);
-        for (span, image) in surviving {
-            let mut seeds = vec![0; g.prods.len()];
-            add(&mut seeds, p, &span, image, g, false);
-            let reached = demands_from(g, Some(seeds));
-            let bad = g.prods.iter().enumerate().any(|(index, p)| {
-                !p.erased
-                    && (0..2).any(|channel| {
-                        let selected = if channel == 0 {
-                            p.strings.value.as_ref()
-                        } else {
-                            p.strings.image.as_ref().or(p.strings.value.as_ref())
-                        };
-                        reached[index] & (1 << channel) != 0 && selected.is_some_and(verbatim)
-                    })
-            });
-            if bad {
-                let capture = match &span {
-                    Span::Whole => "",
-                    Span::Cap(slot) => p.names.iter().find(|(_, s)| *s == slot).map_or("", |(name, _)| name),
-                    Span::Lexical(name) => name,
-                    _ => unreachable!(),
-                };
-                let key = format!("{capture}:{}", if image { "image" } else { "value" });
-                let alt = grammar.rules[p.owner as usize]
-                    .alternatives
-                    .iter()
-                    .find(|alt| alt.at == p.at && p.document.as_deref() == Some(alt.document.as_ref()))
-                    .unwrap();
-                let mut error = crate::error::Error::grammar("a condition walk cannot reach verbatim-text")
-                    .in_document(&alt.document);
-                if let Some(&(line, column)) = alt.clauses.emitted_locations.get(&key) {
-                    error = error.at(line, column);
+    type Definition = (usize, Arc<str>, (usize, usize));
+    let mut definitions: BTreeMap<Definition, BTreeMap<String, BTreeSet<usize>>> = BTreeMap::new();
+    let mut bodies = BTreeMap::new();
+    for (rule_id, rule) in grammar.rules.iter().enumerate() {
+        for alt in &rule.alternatives {
+            bodies.insert(alt as *const StitchedAlternative as usize, references(&alt.alternative.expr, grammar));
+            let bindings = definitions.entry((rule_id, alt.document.clone(), alt.at)).or_default();
+            let mut pending = vec![&alt.alternative.expr];
+            while let Some(expr) = pending.pop() {
+                if let Expr::Capture(name, inner) = expr {
+                    bindings.entry(name.clone()).or_default().extend(references(inner, grammar));
                 }
-                return Err(error);
+                pending.extend(children(expr));
+            }
+        }
+    }
+    let targets = |rule, alt: &StitchedAlternative, capture: &str| -> BTreeSet<usize> {
+        if capture.is_empty() {
+            BTreeSet::from([rule])
+        } else {
+            definitions[&(rule, alt.document.clone(), alt.at)].get(capture).cloned().unwrap_or_default()
+        }
+    };
+    let reaches_verbatim = |rule, alt: &StitchedAlternative, capture: &str, image| {
+        let mut pending: Vec<_> = targets(rule, alt, capture).into_iter().map(|r| (r, image)).collect();
+        let mut seen = BTreeSet::new();
+        while let Some((rule, image)) = pending.pop() {
+            if !seen.insert((rule, image)) {
+                continue;
+            }
+            for alt in &grammar.rules[rule].alternatives {
+                if alt.erased {
+                    continue;
+                }
+                let value = alt.alternative.strings.value.as_ref().or(alt.clauses.strings.value.as_ref());
+                let recipe = if image {
+                    alt.alternative.strings.image.as_ref().or(alt.clauses.strings.image.as_ref()).or(value)
+                } else {
+                    value
+                };
+                if let Some(recipe) = recipe {
+                    if verbatim(recipe) {
+                        return true;
+                    }
+                    for (capture, image) in emitted_reads(&[], Some(recipe)) {
+                        pending.extend(targets(rule, alt, &capture).into_iter().map(|r| (r, image)));
+                    }
+                } else {
+                    pending.extend(bodies[&(alt as *const StitchedAlternative as usize)].iter().map(|&r| (r, image)));
+                }
+            }
+        }
+        false
+    };
+    for (rule, definition) in grammar.rules.iter().enumerate() {
+        for alt in &definition.alternatives {
+            for (capture, image) in emitted_reads(&alt.clauses.conditions, None) {
+                if reaches_verbatim(rule, alt, &capture, image) {
+                    let key = format!("{capture}:{}", if image { "image" } else { "value" });
+                    let mut error = crate::error::Error::grammar("a condition walk cannot reach verbatim-text")
+                        .in_document(&alt.document);
+                    if let Some(&(line, column)) = alt.clauses.emitted_locations.get(&key) {
+                        error = error.at(line, column);
+                    }
+                    return Err(error);
+                }
             }
         }
     }

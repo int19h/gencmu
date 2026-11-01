@@ -167,7 +167,7 @@ func restoreBoundaryLocations(to, from *domDoc) {
 		if i >= len(from.Rules) {
 			break
 		}
-		reads, originals := emittedStringReads(rule.Conditions), emittedStringReads(from.Rules[i].Conditions)
+		reads, originals := emittedStringReads(rule.Conditions, nil), emittedStringReads(from.Rules[i].Conditions, nil)
 		if len(reads) == len(originals) {
 			for j, read := range reads {
 				read.Items[0].At = originals[j].Items[0].At

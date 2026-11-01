@@ -583,11 +583,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         recipe_cycles(alternative)?;
     }
     emission_overlap(&grammar)?;
-    if crate::earley::has_condition_reads(&grammar) {
-        let strings =
-            crate::lower::lower_for_slots(&grammar).map_err(|e| located(e.message, &e.document, (e.line, e.column)))?;
-        crate::earley::validate_condition_strings(&strings, &grammar)?;
-    }
+    crate::earley::validate_condition_strings(&grammar)?;
     Ok(grammar)
 }
 

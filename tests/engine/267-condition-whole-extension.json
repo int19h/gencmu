@@ -1,10 +1,16 @@
 {
-  "description": "A whole read follows only the productions of its own definition.",
-  "grammar": "%rule text \"a\" := \"yes\"\n%conditions $.emitted.value = \"yes\"\n%extend-rule text \"b\" := $.verbatim-text",
+  "description": "A whole read follows every alternative, including extensions.",
+  "documents": {
+    "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\" := \"yes\"\n%conditions $.emitted.value = \"yes\"\n%extend-rule text \"b\" := $.verbatim-text\n```"
+  },
+  "pipelineDocument": "main.md",
   "input": "a",
   "expect": {
-    "result": {
-      "ok": true
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 13
     }
   }
 }

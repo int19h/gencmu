@@ -3,7 +3,7 @@
 //! evaluation of terms and conditions (§10) and nested parses.
 
 mod string_states;
-pub(crate) use string_states::{has_condition_reads, validate_condition_strings};
+pub(crate) use string_states::validate_condition_strings;
 mod suffix;
 use crate::patterns::{Machine, Pattern};
 use std::cell::{Cell, RefCell};

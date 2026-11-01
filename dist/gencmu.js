@@ -8411,13 +8411,14 @@
   // ---- string-demands.js
 
 
+
   /** @import {Production} from "./types.js" */
 
   /** @type {WeakMap<Production[],Map<number,Set<string>>>} */
   const stringDemands = new WeakMap();
-  /** @param {Production[]} productions @param {any[]} [seeds] @returns {Map<number,Set<string>>} */
-  function demandedStrings(productions, seeds) {
-    const known = seeds ? null : stringDemands.get(productions);
+  /** @param {Production[]} productions @returns {Map<number,Set<string>>} */
+  function demandedStrings(productions) {
+    const known = stringDemands.get(productions);
     if (known) return known;
     const bindings = new Map();
     for (const p of productions) {
@@ -8465,8 +8466,7 @@
         for (const value of Object.values(part)) if (value && typeof value === "object") pending.push(...(Array.isArray(value) ? value : [value]));
       }
     };
-    if (seeds) for (const [p,term] of seeds) reads(term,p);
-    else for (const p of productions) {
+    for (const p of productions) {
       for (const c of [...p.conditions,...p.rankedConditions ?? []]) reads(c.condition,p);
     }
     do {
@@ -8478,34 +8478,81 @@
         else for (const symbol of p.rhs) if (!symbol.terminal) child(symbol.name,channel);
       }
     } while (changed);
-    if (!seeds) stringDemands.set(productions,demands);
+    stringDemands.set(productions,demands);
     return demands;
   }
 
 
-  /** @param {Production[]} productions */
-  function validateConditionStrings(productions) {
-    for (const p of productions) {
-      if (!p.logicalSource) continue;
-      /** @type {any[]} */
-      const pending = [...p.conditions,...p.rankedConditions ?? []].map(c => c.condition);
+  /** @param {any} node @returns {any[]} */
+  function emittedStrings(node) {
+    const result = [], pending = [node];
+    while (pending.length) {
+      const part = pending.pop();
+      if (!part || typeof part !== "object") continue;
+      if (["value","image"].includes(part.method) && part.receiver?.method === "emitted") result.push(part);
+      else pending.push(...Object.values(part).reverse());
+    }
+    return result;
+  }
+
+  /** @param {Map<string,any>} rules */
+  function validateConditionStrings(rules) {
+    const definitions = new Map(), bodies = new Map();
+    const definition = (/** @type {any} */ rule, /** @type {any} */ alt) => JSON.stringify([rule.name,alt.document,alt.at.line,alt.at.column]);
+    const references = (/** @type {any} */ expr) => {
+      const names = new Set(), pending = [expr];
       while (pending.length) {
-        const term = pending.pop();
-        if (!term || typeof term !== "object") continue;
-        if (["value","image"].includes(term.method) && term.receiver?.method === "emitted") {
-          const demands = demandedStrings(productions,[[p,term]]);
-          const bad = productions.some(q => !q.erased && [...demands.get(q.id) ?? []].some(channel => {
-            const selected = channel === "value" ? q.value : q.image ?? q.value;
-            return selected?.concat.some(atom => "method" in atom && atom.method === "verbatim-text");
-          }));
-          if (bad) {
-            const at = boundaryLocations.get(term.receiver)?.at;
-            const error = new GencmuError("grammar","a condition walk cannot reach verbatim-text",{document:p.logicalSource.document,...(at ? {line:at[0],column:at[1]} : {})});
-            boundaryDocumentErrors.set(error,{document:p.logicalSource.document,node:term.receiver});
-            throw error;
-          }
+        const part = pending.pop();
+        if (rules.has(part.ref)) names.add(part.ref);
+        pending.push(...expressionChildren(part));
+      }
+      return names;
+    };
+    for (const rule of rules.values()) for (const alt of rule.alternatives) {
+      bodies.set(alt,references(alt.expr));
+      const key = definition(rule,alt);
+      if (!definitions.has(key)) definitions.set(key,new Map());
+      const bindings = definitions.get(key), pending = [alt.expr];
+      while (pending.length) {
+        const part = pending.pop();
+        if (typeof part.capture === "string") {
+          if (!bindings.has(part.capture)) bindings.set(part.capture,new Set());
+          for (const name of references(part.expr)) bindings.get(part.capture).add(name);
         }
-        pending.push(...Object.values(term).reverse());
+        pending.push(...expressionChildren(part));
+      }
+    }
+    const targets = (/** @type {any} */ rule, /** @type {any} */ alt, /** @type {any} */ read) => {
+      const capture = read.receiver.receiver.capture;
+      return capture === "" ? [rule.name] : definitions.get(definition(rule,alt)).get(capture) ?? [];
+    };
+    const reachesVerbatim = (/** @type {any} */ rule, /** @type {any} */ alt, /** @type {any} */ read) => {
+      const pending = [...targets(rule,alt,read)].map(name => [name,read.method]);
+      const seen = new Set();
+      while (pending.length) {
+        const [name,channel] = /** @type {any[]} */ (pending.pop());
+        const key = JSON.stringify([name,channel]);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const current = rules.get(name);
+        for (const variant of current.alternatives) {
+          if (variant.clauses.erased) continue;
+          const value = variant.value ?? variant.clauses.value;
+          const recipe = channel === "value" ? value : variant.image ?? variant.clauses.image ?? value;
+          if (recipe) {
+            if (recipe.concat.some((/** @type {any} */ atom) => atom.method === "verbatim-text")) return true;
+            for (const atom of emittedStrings(recipe)) for (const target of targets(current,variant,atom)) pending.push([target,atom.method]);
+          } else for (const target of bodies.get(variant)) pending.push([target,channel]);
+        }
+      }
+      return false;
+    };
+    for (const rule of rules.values()) for (const alt of rule.alternatives) {
+      for (const read of emittedStrings(alt.clauses.conditions)) if (reachesVerbatim(rule,alt,read)) {
+        const at = boundaryLocations.get(read.receiver)?.at;
+        const error = new GencmuError("grammar","a condition walk cannot reach verbatim-text",{document:alt.document,...(at ? {line:at[0],column:at[1]} : {})});
+        boundaryDocumentErrors.set(error,{document:alt.document,node:read.receiver});
+        throw error;
       }
     }
   }
@@ -9850,13 +9897,7 @@
           validateRecipeCycles(alternative.value ?? alternative.clauses.value,alternative.image ?? alternative.clauses.image,alternative.document);
         }
         validateEmissionOverlap(this.rules);
-        if ([...this.rules.values()].some(rule=>rule.alternatives.some(alt=>emittedReads(alt.clauses.conditions).length))) {
-          const strings = new Lowering(this,new Set());
-          strings.validation = true;
-          for (const rule of this.rules.values()) for (const alternative of rule.alternatives) strings.lowerAlternative(rule,alternative);
-          prepareRankedFrames(strings,this.ranked);
-          validateConditionStrings(strings.productions);
-        }
+        validateConditionStrings(this.rules);
         /**
          * The features that gate an alternative or an entry of a classifier.
          * Only these change a lowered grammar. A warning keeps its alternative

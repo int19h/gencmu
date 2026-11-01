@@ -1108,9 +1108,8 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 field = next(name for name in ("value", "image", "rule_value", "rule_image") if getattr(alternative, name) is recipe)
                 error._recipe_location = alternative.at, alternative.index, field
             raise error
-    from ._string_states import validate_condition_strings, reads
-    if any(reads(alt.conditions) for rule in rules.values() for alt in rule.alternatives):
-        validate_condition_strings(_Lowerer(grammar, frozenset(), True).lower())
+    from ._string_states import validate_condition_strings
+    validate_condition_strings(grammar)
     from ._overlap import conflict
     faulty = conflict(grammar)
     if faulty is not None:

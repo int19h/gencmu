@@ -2,16 +2,11 @@ package gencmu
 
 // Only channels that conditions read enter completed states (engine §4.1).
 func (g *lowered) demandedStrings() map[int32]uint8 {
-	g.stringsOnce.Do(func() { g.stringDemands = g.stringReach(nil) })
+	g.stringsOnce.Do(func() { g.stringDemands = g.stringReach() })
 	return g.stringDemands
 }
 
-type stringSeed struct {
-	production *production
-	term       *domTerm
-}
-
-func (g *lowered) stringReach(seed *stringSeed) map[int32]uint8 {
+func (g *lowered) stringReach() map[int32]uint8 {
 	bindings := map[*sAlt]map[string][]int32{}
 	for _, p := range g.prods {
 		if bindings[p.sourceAlternative] == nil {
@@ -90,19 +85,15 @@ func (g *lowered) stringReach(seed *stringSeed) map[int32]uint8 {
 			cond(part, p)
 		}
 	}
-	if seed != nil {
-		read(seed.term, seed.production, false)
-	} else {
-		for _, p := range g.prods {
-			for _, c := range p.conds {
-				cond(c.cond, p)
-			}
-			for _, c := range p.rankedConditions {
-				cond(c, p)
-			}
-			for _, c := range p.predictConds {
-				cond(c, p)
-			}
+	for _, p := range g.prods {
+		for _, c := range p.conds {
+			cond(c.cond, p)
+		}
+		for _, c := range p.rankedConditions {
+			cond(c, p)
+		}
+		for _, c := range p.predictConds {
+			cond(c, p)
 		}
 	}
 	for changed = true; changed; {
@@ -131,7 +122,7 @@ func (g *lowered) stringReach(seed *stringSeed) map[int32]uint8 {
 	return demands
 }
 
-func emittedStringReads(conditions []*domCond) []*domTerm {
+func emittedStringReads(conditions []*domCond, recipe *domTerm) []*domTerm {
 	var out []*domTerm
 	var term func(*domTerm)
 	var cond func(*domCond)
@@ -160,56 +151,132 @@ func emittedStringReads(conditions []*domCond) []*domTerm {
 			cond(part)
 		}
 	}
+	term(recipe)
 	for _, c := range conditions {
 		cond(c)
 	}
 	return out
 }
 func (g *stageGrammar) validateConditionStrings() *Error {
-	hasReads := false
+	type definition struct {
+		rule     *sRule
+		document string
+		at       [2]int
+	}
+	definitions := map[definition]map[string]map[*sRule]bool{}
+	bodies := map[*sAlt]map[*sRule]bool{}
+	children := func(e *domExpr) []*domExpr {
+		out := append([]*domExpr{}, e.Items...)
+		if e.Inner != nil {
+			out = append(out, e.Inner)
+		}
+		if e.Sep != nil {
+			out = append(out, e.Sep)
+		}
+		return out
+	}
+	references := func(expr *domExpr) map[*sRule]bool {
+		out := map[*sRule]bool{}
+		pending := []*domExpr{expr}
+		for len(pending) > 0 {
+			e := pending[len(pending)-1]
+			pending = pending[:len(pending)-1]
+			if e.Kind == exRef && g.byName[e.Name] != nil {
+				out[g.byName[e.Name]] = true
+			}
+			pending = append(pending, children(e)...)
+		}
+		return out
+	}
 	for _, rule := range g.rules {
 		for _, alt := range rule.alts {
-			if len(emittedStringReads(alt.conds)) > 0 {
-				hasReads = true
+			bodies[alt] = references(alt.alt.Expr)
+			key := definition{rule, alt.doc, alt.at}
+			if definitions[key] == nil {
+				definitions[key] = map[string]map[*sRule]bool{}
+			}
+			bindings := definitions[key]
+			pending := []*domExpr{alt.alt.Expr}
+			for len(pending) > 0 {
+				e := pending[len(pending)-1]
+				pending = pending[:len(pending)-1]
+				if e.Kind == exCapture {
+					if bindings[e.Name] == nil {
+						bindings[e.Name] = map[*sRule]bool{}
+					}
+					for target := range references(e.Inner) {
+						bindings[e.Name][target] = true
+					}
+				}
+				pending = append(pending, children(e)...)
 			}
 		}
 	}
-	if !hasReads {
-		return nil
+	targets := func(rule *sRule, alt *sAlt, read *domTerm) map[*sRule]bool {
+		capture := read.Items[0].Items[0].Str
+		if capture == "" {
+			return map[*sRule]bool{rule: true}
+		}
+		return definitions[definition{rule, alt.doc, alt.at}][capture]
 	}
-	lowered := lowerForSlots(g)
-	for _, p := range lowered.prods {
-		if p.sourceAlternative == nil {
-			continue
+	type visit struct {
+		rule  *sRule
+		image bool
+	}
+	reachesVerbatim := func(rule *sRule, alt *sAlt, read *domTerm) bool {
+		var pending []visit
+		for target := range targets(rule, alt, read) {
+			pending = append(pending, visit{target, read.Str == "image"})
 		}
-		conditions := append([]*domCond{}, p.predictConds...)
-		conditions = append(conditions, p.rankedConditions...)
-		for _, c := range p.conds {
-			conditions = append(conditions, c.cond)
-		}
-		for _, read := range emittedStringReads(conditions) {
-			reach := lowered.stringReach(&stringSeed{p, read})
-			for _, q := range lowered.prods {
-				if q.nothing {
+		seen := map[visit]bool{}
+		for len(pending) > 0 {
+			next := pending[len(pending)-1]
+			pending = pending[:len(pending)-1]
+			if seen[next] {
+				continue
+			}
+			seen[next] = true
+			for _, variant := range next.rule.alts {
+				if variant.erased {
 					continue
 				}
-				for channel := 0; channel < 2; channel++ {
-					if reach[int32(q.num)]&(1<<channel) == 0 {
-						continue
-					}
-					selected := q.value
-					if channel == 1 && q.image != nil {
-						selected = q.image
-					}
-					if selected == nil {
-						continue
-					}
-					for _, atom := range selected.Items {
+				value, image := variant.alt.Value, variant.alt.Image
+				if value == nil {
+					value = variant.ruleValue
+				}
+				if image == nil {
+					image = variant.ruleImage
+				}
+				recipe := value
+				if next.image && image != nil {
+					recipe = image
+				}
+				if recipe != nil {
+					for _, atom := range recipe.Items {
 						if atom.Kind == tmCall && atom.Str == "verbatim-text" {
-							at := read.Items[0].At
-							return &Error{Kind: "grammar", Message: "a condition walk cannot reach verbatim-text", Document: p.doc, Line: at[0], Column: at[1], boundaryLocation: true}
+							return true
 						}
 					}
+					for _, atom := range emittedStringReads(nil, recipe) {
+						for target := range targets(next.rule, variant, atom) {
+							pending = append(pending, visit{target, atom.Str == "image"})
+						}
+					}
+				} else {
+					for target := range bodies[variant] {
+						pending = append(pending, visit{target, next.image})
+					}
+				}
+			}
+		}
+		return false
+	}
+	for _, rule := range g.rules {
+		for _, alt := range rule.alts {
+			for _, read := range emittedStringReads(alt.conds, nil) {
+				if reachesVerbatim(rule, alt, read) {
+					at := read.Items[0].At
+					return &Error{Kind: "grammar", Message: "a condition walk cannot reach verbatim-text", Document: alt.doc, Line: at[0], Column: at[1], boundaryLocation: true}
 				}
 			}
 		}

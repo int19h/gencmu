@@ -1,0 +1,16 @@
+{
+  "description": "A private ranked capture read rejects a reachable verbatim recipe during loading.",
+  "documents": {
+    "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text \"s\" ($x:r ≻ $x:r)\n%conditions $x.emitted.value = \"a\"\n%rule r \"a\" := $.verbatim-text\n```"
+  },
+  "pipelineDocument": "main.md",
+  "input": "sa",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 13
+    }
+  }
+}

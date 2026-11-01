@@ -2,7 +2,7 @@
 from ._errors import GencmuError
 
 
-def demanded_strings(productions, seeds=None):
+def demanded_strings(productions):
     string_bindings = {}
     for p in productions:
         names=string_bindings.setdefault(id(p.source),{})
@@ -48,11 +48,8 @@ def demanded_strings(productions, seeds=None):
                 pending.extend(node.values())
         return changed
 
-    if seeds is not None:
-        for p, term in seeds: string_reads(term, p)
-    else:
-        for p in productions:
-            string_reads([p.conds_predict, *p.conds_at.values(), p.string_conditions], p)
+    for p in productions:
+        string_reads([p.conds_predict, *p.conds_at.values(), p.string_conditions], p)
     changed = True
     while changed:
         changed = False
@@ -76,19 +73,65 @@ def reads(node):
     return [read for part in node.values() for read in reads(part)]
 
 
-def validate_condition_strings(lowered):
-    for production in lowered.productions:
-        conditions = [production.conds_predict, *production.conds_at.values(), production.string_conditions]
-        for term in reads(conditions):
-            demands = demanded_strings(lowered.productions, [(production, term)])
-            for p in lowered.productions:
-                if p.erased: continue
-                for channel in demands.get(p.real_id, ()):
-                    recipe = p.value if channel == "value" else p.image if p.image is not None else p.value
-                    if recipe is not None and any(atom.get("method") == "verbatim-text" for atom in recipe["concat"]):
-                        at = getattr(term["receiver"], "at", None)
-                        document = production.source.document
-                        error = GencmuError("a condition walk cannot reach verbatim-text", document=document,
-                                            line=at[0] if at else None, column=at[1] if at else None)
-                        if at is None: error._boundary_document = document
-                        raise error
+def validate_condition_strings(grammar):
+    def children(expr):
+        for key in ("seq", "choice", "ranked", "and"):
+            if key in expr: return expr[key]
+        for key in ("optional", "repeat", "expr"):
+            if key in expr: return [expr[key]] + ([expr["separator"]] if "separator" in expr else [])
+        return ()
+
+    def references(expr):
+        names, pending = set(), [expr]
+        while pending:
+            node = pending.pop()
+            if node.get("ref") in grammar.rules: names.add(node["ref"])
+            pending.extend(children(node))
+        return names
+
+    definitions, bodies = {}, {}
+    def definition(rule, alt): return rule.name, alt.document, alt.at
+    for rule in grammar.rules.values():
+        for alt in rule.alternatives:
+            bodies[id(alt)] = references(alt.expr)
+            bindings = definitions.setdefault(definition(rule, alt), {})
+            pending = [alt.expr]
+            while pending:
+                node = pending.pop()
+                if "capture" in node:
+                    bindings.setdefault(node["capture"], set()).update(references(node["expr"]))
+                pending.extend(children(node))
+
+    def targets(rule, alt, read):
+        name = read["receiver"]["receiver"]["capture"]
+        return (rule.name,) if not name else definitions[definition(rule, alt)].get(name, ())
+
+    def reaches_verbatim(rule, alt, read):
+        pending = [(name, read["method"]) for name in targets(rule, alt, read)]
+        seen = set()
+        while pending:
+            name, channel = pending.pop()
+            if (name, channel) in seen: continue
+            seen.add((name, channel))
+            current = grammar.rules[name]
+            for variant in current.alternatives:
+                if variant.erased: continue
+                value = variant.value if variant.value is not None else variant.rule_value
+                image = variant.image if variant.image is not None else variant.rule_image
+                recipe = value if channel == "value" or image is None else image
+                if recipe is not None:
+                    if any(atom.get("method") == "verbatim-text" for atom in recipe["concat"]): return True
+                    pending.extend((target, atom["method"]) for atom in reads(recipe) for target in targets(current, variant, atom))
+                else:
+                    pending.extend((target, channel) for target in bodies[id(variant)])
+        return False
+
+    for rule in grammar.rules.values():
+        for alt in rule.alternatives:
+            for read in reads(alt.conditions):
+                if not reaches_verbatim(rule, alt, read): continue
+                at = getattr(read["receiver"], "at", None)
+                error = GencmuError("a condition walk cannot reach verbatim-text", document=alt.document,
+                                    line=at[0] if at else None, column=at[1] if at else None)
+                if at is None: error._boundary_document = alt.document
+                raise error
