@@ -177,7 +177,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             })
             .map(|&k| (run.e as u32, k))
             .collect();
-        let holds = self.proofs(&run.chart, &run.tokens[..run.e]).eligible(&witnesses).into_iter().any(|yes| yes);
+        let holds = self.proofs(&run.chart).eligible(&witnesses).into_iter().any(|yes| yes);
         self.shared.suffixes[id].answers.insert(end, holds);
     }
 }
