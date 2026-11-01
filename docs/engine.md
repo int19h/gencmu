@@ -2611,7 +2611,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `string-terminal` | One `string` or `constant-reference` | Body: `literal` of the unresolved string term. |
 | `wildcard` | One `_` token | `wildcard:true` |
 | `range` | Two string operands in order | `range` of unresolved STRINGTERMs |
-| `tested` | Tag tests if present, value tests if present, then one base constructor or `primary` | Require at least one test. Check the target and written test order. Wrap the base with tags first, then value. |
+| `tested` | Tag tests if present, value tests if present, then `primary` or the first base constructor other than `tested` | Require at least one test. Check the target and written test order. Wrap the base with tags first, then value. |
 | `tag-test` | Zero or more `tag-requirement` parts | Ordered requirements, including an empty array |
 | `tag-requirement` | Optional `¬` token, then one operand | Require a tag, tag-set constant, or parameter. Produce `negated` and unresolved `value`. |
 | `value-test` | `test`, then `test-operand` | Comparator and string operand |
@@ -2669,11 +2669,11 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `pattern-bare` | One list and optional adjacent prefix | `any:true`, optional `exact:true`, and required `children` array |
 | `pattern-atom` | Name, call, parameter, terminal, or constant, with written tests | Require a terminal, string constant, or unresolved parameter for tests. Preserve tag then value order. |
 | `pattern-children` | Optional `child-choice` | Item array, including empty or singleton |
-| `child-choice` | One or more alternative arrays | Sole array, or one choice item. Flatten singleton choice alternatives. |
-| `child-alternative` | One sequence or whole-pattern set | Item array, with a set wrapped as one `child` |
-| `child-set` | Whole patterns and at least one set operator | Ordinary pattern set inside one child item |
+| `child-choice` | One or more `child-alternative` parts | Sole array, or one choice item. Flatten singleton choice alternatives. |
+| `child-alternative` | First `child-sequence`, otherwise required `child-set` | Item array, with a set wrapped as one `child` |
+| `child-set` | `child-intersection` or `child-path` parts, with at least one set operator | Ordinary pattern set inside one child item |
 | `child-intersection` | One or more `child-path` parts | Require whole-pattern operands, then flatten intersection operands or retain the sole pattern |
-| `child-sequence` | One or more child items | Concatenate plain groups into one item array |
+| `child-sequence` | One or more `child-item` parts | Concatenate plain groups into one item array |
 | `child-item` | Child path, optional, repeat, or gap | Converted path items, corresponding wrapper, or `siblings:true` |
 | `child-primary` | Node, bare list, or grouped child choice | Node or bare list becomes one `child`. A group contributes its item array. |
 | `child-path` | One child primary and optional path token | Without a path, retain its item array. With a path, require one whole pattern and wrap that path in `child`. |
@@ -2684,6 +2684,14 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 The reader maps `=` U+0338 to `≠`, `∈` U+0338 to `∉`, `⊆` U+0338 to `⊈`, and `≅` U+0338 to `≇`. It does not normalize decoded strings. An include or names-resource path decodes escapes within the token's original literal runs.
 
 After converting a union's operands, the reader requires enough operators to join them. A missing operator is a document error at the union.
+
+This requirement also applies to `pattern-union` and `child-set`. Only their set operators count. A `child-set` requires at least one operator, including when it has one operand. Operand conversion errors precede missing-operator errors.
+
+A pattern constructor converts only the operand kinds listed in its row. A pattern where child items are required, or the reverse, causes a document error at that constructor.
+
+An explicit `primary` wrapper supplies a tested node's base. Without that wrapper, the base is the first primary constructor other than `tested`. The reader ignores nested tested parts during that fallback search.
+
+A supplied ranked choice without a `≻` token retains its ranked operands without a separator position. Each wildcard pattern requires its token. An attachment requires a named capture, even after stray tokens.
 
 For a string token, the reader removes its quotes and decodes every escape. Literal runs retain their decomposed token values. Escape results remain exact, and the result is always `string`. Include paths use the original literal runs with the same escape decoding. Neither form receives further normalization.
 
