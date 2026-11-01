@@ -213,7 +213,9 @@ fn build_notation_pipeline(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Pip
     let spliced =
         splice(NOTATION_PATH, &mut BootstrapDocuments { entries, unicode: &unicode }).map_err(|mut error| {
             if let Some(stage) = error.stage.take() {
-                error.message = format!("stage {stage}: {}", error.message);
+                if error.message == "has no rules" {
+                    error.message = format!("stage {stage}: {}", error.message);
+                }
             }
             error
         })?;

@@ -61,7 +61,7 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 		return dom, nil
 	})
 	if failure != nil {
-		if failure.Stage != "" {
+		if failure.Stage != "" && failure.Message == "has no rules" {
 			failure.Message = "stage " + failure.Stage + ": " + failure.Message
 		}
 		failure.Stage = ""

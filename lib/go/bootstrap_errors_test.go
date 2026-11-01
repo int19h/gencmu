@@ -78,6 +78,9 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 			if item.Message != "" && !strings.Contains(e.Message, item.Message) {
 				t.Fatalf("expected %q, got %s", item.Message, e)
 			}
+			if item.Stage == nil && !strings.HasPrefix(item.Message, "stage ") && strings.HasPrefix(e.Message, "stage ") {
+				t.Fatalf("a splice description gained a stage prefix: %s", e)
+			}
 			line, column, stage := 0, 0, ""
 			if item.Line != nil {
 				line = *item.Line

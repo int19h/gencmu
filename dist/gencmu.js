@@ -21319,9 +21319,11 @@
       });
     } catch (error) {
       if (error instanceof GencmuError) {
+        const description = error.withLocation({document:undefined, line:undefined, column:undefined, stage:undefined}).message;
         const where = {...error.where};
         delete where.stage;
-        throw new GencmuError(error.kind, error.message, where, {cause:error});
+        const message = error.where.stage && description === "has no rules" ? `stage ${error.where.stage}: ${description}` : description;
+        throw new GencmuError(error.kind, message, where, {cause:error});
       }
       throw error;
     }

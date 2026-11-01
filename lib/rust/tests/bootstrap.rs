@@ -316,6 +316,11 @@ fn bootstrap_errors_name_the_bootstrap_document() {
         if let Some(message) = item.get("message").and_then(Value::str) {
             assert!(error.message.contains(message), "{description}: {error}");
         }
+        if item.get("stage").and_then(Value::str).is_none()
+            && !item.get("message").and_then(Value::str).unwrap_or("").starts_with("stage ")
+        {
+            assert!(!error.message.starts_with("stage "), "{description}: {error}");
+        }
         assert_eq!(error.stage.as_deref(), item.get("stage").and_then(Value::str), "{description}: {error}");
         // The place of the error, by the text that stands there in its
         // grammar document, or as the case gives it.

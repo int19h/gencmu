@@ -38,6 +38,8 @@ class BootstrapErrors(unittest.TestCase):
                     self.assertIn(item["context"], raised.exception.message)
                 if "message" in item:
                     self.assertIn(item["message"], raised.exception.message)
+                if item["stage"] is None and not item.get("message", "").startswith("stage "):
+                    self.assertFalse(raised.exception.message.startswith("stage "), str(raised.exception))
                 # The place of the error, by the text that stands there in
                 # its grammar document, or as the case gives it.
                 if "at" in item:

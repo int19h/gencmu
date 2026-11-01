@@ -205,7 +205,7 @@ class NotationReader:
         try:
             pipeline = splice_pipeline("grammars/gencmu/jbogenbau/pipeline.md", dom_of)
         except GencmuError as error:
-            if error.stage:
+            if error.stage and error.message == "has no rules":
                 error.message = f"stage {error.stage}: {error.message}"
             error.stage = None
             raise
