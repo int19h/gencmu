@@ -1766,6 +1766,11 @@ func ruleTypeFault(r *domRule, ct constTypes) *typeFault {
 		return faults[0]
 	}
 	order := map[any]int{}
+	type reference struct {
+		name string
+		at   [2]int
+	}
+	references := map[reference]int{}
 	index := 0
 	add := func(part clausePart) {
 		walkClause(part, func(p clausePart) bool {
@@ -1775,6 +1780,12 @@ func ruleTypeFault(r *domRule, ct constTypes) *typeFault {
 			}
 			if _, ok := order[node]; !ok {
 				order[node] = index
+			}
+			if p.t != nil && p.t.Kind == tmConst {
+				key := reference{p.t.Str, p.t.At}
+				if _, ok := references[key]; !ok {
+					references[key] = index
+				}
 			}
 			return true
 		})
@@ -1820,6 +1831,15 @@ func ruleTypeFault(r *domRule, ct constTypes) *typeFault {
 			term(item.Tags)
 			term(item.Value)
 			term(item.Image)
+		}
+	}
+	// Pattern atoms expose their references through temporary terms.
+	for _, fault := range faults {
+		if _, ok := order[fault.node]; ok {
+			continue
+		}
+		if term, ok := fault.node.(*domTerm); ok && term.Kind == tmConst {
+			order[fault.node] = references[reference{term.Str, term.At}]
 		}
 	}
 	slices.SortStableFunc(faults, func(a, b *typeFault) int { return order[a.node] - order[b.node] })
