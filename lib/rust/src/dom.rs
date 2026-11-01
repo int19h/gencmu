@@ -2017,16 +2017,6 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
                 }
             }
         }
-        if let Expr::ScalarRange(Term::Str(a), Term::Str(b)) = expr {
-            let mut a_chars = a.chars();
-            let mut b_chars = b.chars();
-            let endpoints = (a_chars.next(), b_chars.next());
-            if !matches!(endpoints, (Some(_), Some(_))) || a_chars.next().is_some() || b_chars.next().is_some() {
-                faults.push(Fault { problem: "a range endpoint is one scalar".into(), at: None });
-            } else if matches!(endpoints, (Some(a), Some(b)) if a > b) {
-                faults.push(Fault { problem: "a range starts above its end".into(), at: None });
-            }
-        }
     }
     faults.into_iter().min_by_key(|fault| fault.at.unwrap_or((0, 0)))
 }

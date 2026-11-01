@@ -102,15 +102,16 @@ fn string_atom(value: &Json) -> bool {
         || value.get("param").is_some()
 }
 
-/// Literal endpoints must already form an ordered scalar interval.
-pub(crate) fn literal_range(left: &Json, right: &Json) -> bool {
-    let text = |value: &Json| value.get("string").and_then(Json::as_str).map(str::to_string);
-    let ends = [text(left), text(right)];
-    ends.iter().all(|end| end.as_ref().map_or(true, |s| s.chars().count() == 1))
-        && match (&ends[0], &ends[1]) {
-            (Some(a), Some(b)) => a <= b,
-            _ => true,
-        }
+/// Why known literal endpoints do not form an ordered scalar interval.
+pub(crate) fn literal_range_problem(left: &Json, right: &Json) -> Option<&'static str> {
+    let ends = [left.get("string").and_then(Json::as_str), right.get("string").and_then(Json::as_str)];
+    if ends.iter().flatten().any(|end| end.chars().count() != 1) {
+        return Some("a range endpoint is one scalar");
+    }
+    if matches!(ends, [Some(a), Some(b)] if a > b) {
+        return Some("a range starts above its end");
+    }
+    None
 }
 
 fn base(value: &Json, unicode: &Unicode, expanded: bool) -> bool {
@@ -558,8 +559,8 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                         let Some([left, right]) = range.as_array() else {
                             return Some("a malformed scalar range".into());
                         };
-                        if !literal_range(left, right) {
-                            return Some("a malformed scalar range".into());
+                        if let Some(problem) = literal_range_problem(left, right) {
+                            return Some(problem.into());
                         }
                         pending.push((Part::String, left, depth));
                         pending.push((Part::String, right, depth));
@@ -864,8 +865,8 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                 }
                 if let Some(range) = value.get("range") {
                     let [a, b] = range.as_array().unwrap() else { unreachable!() };
-                    if !literal_range(a, b) {
-                        return Some("a malformed pattern range".into());
+                    if let Some(problem) = literal_range_problem(a, b) {
+                        return Some(problem.into());
                     }
                     pending.extend([(Part::String, a, depth), (Part::String, b, depth)]);
                 }

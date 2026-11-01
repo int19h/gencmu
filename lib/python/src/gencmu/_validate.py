@@ -539,8 +539,11 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
                     pending.append(("string", node["value"], below, False, False))
             # Literal and range wrappers add no compound ancestor.
             elif "range" in node:
-                if keys != {"range"} or not _items(node["range"], 2, 2) or not dependent and range_problem(node["range"]):
+                if keys != {"range"} or not _items(node["range"], 2, 2):
                     return "a malformed range"
+                problem = None if dependent else range_problem(node["range"])
+                if problem:
+                    return problem
                 pending.extend(("string", x, depth, False, False) for x in node["range"])
             elif "literal" in node:
                 if keys != {"literal"}:
