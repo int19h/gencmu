@@ -1,0 +1,10 @@
+{
+  "description": "Engine §9.3 defers parameter-dependent pattern-constant values in a uncalled template.",
+  "grammar": "%const $P #_\n%rule use(@P) $x:_ %conditions $x ≅ #@P\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

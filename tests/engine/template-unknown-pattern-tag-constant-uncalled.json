@@ -1,0 +1,18 @@
+{
+  "description": "Engine §9.3 defers parameter-dependent pattern-tag-constant values in a uncalled template.",
+  "grammar": "%const $T A\n%rule use(@T) $x:_ %conditions $x ≅ #_<@T>\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ]
+}

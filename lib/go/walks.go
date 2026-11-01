@@ -29,6 +29,9 @@ func (p clausePart) children() []clausePart {
 				if n.Value != nil {
 					out = append(out, clausePart{t: n.Value})
 				}
+				for _, requirement := range n.Requirements {
+					out = append(out, clausePart{t: requirement.Value})
+				}
 			})
 		}
 		if p.t.Cond != nil {

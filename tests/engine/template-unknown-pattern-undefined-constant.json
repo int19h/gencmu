@@ -1,0 +1,9 @@
+{
+  "description": "Engine §9.3 inspects independent constants beside unresolved pattern requirements.",
+  "grammar": "%rule use(@T) $x:_ %conditions $x ≅ #_<@T $MISSING>\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "$MISSING is not defined in stage main"
+  }
+}
