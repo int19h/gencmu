@@ -438,7 +438,7 @@ mod tests {
         assert_eq!(table.category(0), "Cn");
         assert_eq!(table.category(0xD800), "Cs");
         assert!(!table.is_white_space(0x20) && !table.is_white_space(0x9));
-        // The engine no longer accepts a comparison normalization table (engine §1).
+        // No table supplies comparison normalization, so a lower record is invalid (engine §1).
         assert!(Unicode::parse("unicode 0.0.0\nlower 0041 0061\n").is_err());
         assert!(!table.is_mark(0x301));
     }
