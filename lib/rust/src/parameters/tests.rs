@@ -501,7 +501,7 @@ fn pattern_closedness_leaves_tests_to_schema() {
             set(&mut raw, kind, Json::Arr(vec![r]));
             assert_eq!(
                 dom::dom_problem(&raw, &unicode()).as_deref(),
-                Some("a malformed pattern"),
+                Some("a malformed pattern value test"),
                 "{kind}, missing={missing}"
             );
         }

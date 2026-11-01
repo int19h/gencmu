@@ -1340,7 +1340,7 @@ class Constants(unittest.TestCase):
         self.assertEqual(dom_problem({"format": DOM_FORMAT, "rules": [], "directives": []}), f"not a DOM of format {DOM_FORMAT}")
         for extra in ({"name": "k"}, {"op": "extend"}, {"at": None}, {"extra": True}):
             with self.subTest(extra=extra):
-                expected = "a declaration requires a position" if "at" in extra else "a malformed constant"
+                expected = "a malformed declaration position" if "at" in extra else "a malformed constant"
                 self.assertEqual(dom_problem(text([constant({"tag": "A"}, **extra)])), expected)
         for value in (
             {"capture": "x"},
@@ -1536,7 +1536,7 @@ class Classifiers(unittest.TestCase):
             dom_problem({"format": DOM_FORMAT, "rules": [], "directives": [], "constants": []}), f"not a DOM of format {DOM_FORMAT}"
         )
         for bad in [classifier([], name="Lex"), classifier([], at=None), classifier([], extra=True)]:
-            expected = "a declaration requires a position" if bad["at"] is None else "a malformed classifier"
+            expected = "a malformed declaration position" if bad["at"] is None else "a malformed classifier"
             self.assertEqual(dom_problem(dom([bad])), expected, json.dumps(bad))
         for bad_entry in [
             entry(guards=[{"feature": "f", "kind": "warning", "negated": False}]),
@@ -1558,7 +1558,7 @@ class Classifiers(unittest.TestCase):
     def test_a_preparsed_implication_is_checked(self) -> None:
         dom, implication = self.dom, self.implication
         self.assertIsNone(dom_problem(dom([], [implication(**{"if": {"union": [{"tag": "UI"}, {"const": "K", "at": [5, 15]}]}})])))
-        self.assertEqual(dom_problem(dom([], [implication(at=None)])), "a declaration requires a position")
+        self.assertEqual(dom_problem(dom([], [implication(at=None)])), "a malformed declaration position")
         self.assertEqual(dom_problem(dom([], [implication(extra=True)])), "a malformed implication")
         self.assertEqual(
             dom_problem(dom([], [implication(then={"capture": "x"})])), "an implication requires closed terms without engine-tag literals"
@@ -1586,7 +1586,7 @@ class Classifiers(unittest.TestCase):
 
         sound = {"method": "value", "args": [], "receiver": {"capture": "w"}}
         self.assertIsNone(dom_problem(call([sound, {"classifier": "lex"}])))
-        self.assertEqual(dom_problem(call([sound, {"rule": "lex"}])), "invalid receiver or arguments for .classify")
+        self.assertEqual(dom_problem(call([sound, {"rule": "lex"}])), "a method has the wrong receiver or arguments")
         self.assertEqual(dom_problem(call([sound, {"classifier": "Lex"}])), "a malformed method name argument")
         self.assertIsNone(dom_problem(call([{"capture": "w"}, {"classifier": "lex"}])))
 
@@ -1621,8 +1621,9 @@ class Classifiers(unittest.TestCase):
             "left": {"string": "a"},
             "right": {"method": "split", "args": [{"string": "."}], "receiver": {"string": "a.b"}},
         }
-        self.assert_refused(well_formed, misplaced[:1], "a malformed term")
-        self.assert_refused(well_formed, misplaced[1:], "a malformed term")
+        self.assert_refused(well_formed, misplaced[:1], "unknown method name")
+        self.assert_refused(well_formed, misplaced[1:2], "a malformed term")
+        self.assert_refused(well_formed, misplaced[2:], "a method has the wrong receiver or arguments")
 
     def test_a_gate_of_an_entry_names_a_feature(self) -> None:
         """A gate of a classifier's entry follows the notation's name syntax
