@@ -63,6 +63,8 @@ Source-map loaders inspect supplied strings in code point order of their keys be
 
 A library reads a grammar document from disk as strict UTF-8. Bytes that are not valid UTF-8 are a `grammar` error of loading, not a usage error, because the caller supplied no string. The error names the document and says that its bytes do not decode. It has no line and no column. The library finds this before it hashes the document or looks in `data/preparsed/FAMILY.json` (§8). A byte order mark stays in the text as the character U+FEFF.
 
+The error description is `the document is not valid UTF-8: an invalid byte sequence at byte N`. Here `N` is the zero-based offset of the invalid sequence's first byte. This rule also covers Unicode resources, including extra names files.
+
 `tools/unicode-table.py` generates `data/unicode/unicode.txt` from one version of the Unicode Character Database. Every library uses this file, not the Unicode data of its platform, so that the four libraries agree on every character. The file holds one entry on each line, with code points in hexadecimal:
 
 - `unicode 15.1.0` gives the version of the data.
@@ -428,6 +430,8 @@ Normalized resolved paths identify resources. Repeated declarations of one path 
 Extras contain only `name` records for unnamed scalars, without aliases or algorithms. Duplicate equal records across files are harmless. All other duplicate and conflict rules still apply.
 
 The first noncore name escape loads the base file, followed by extras in code-point order of resolved paths. The loader inspects the complete combined namespace before lookup. Each added record uses combined indexes for spellings and formal names. A conflict is a resource error naming the later file. Core abbreviation lookup still comes first. A missing extra file names its resolved path. A declared file that remains unused is not loaded.
+
+A required names file that is absent gives `PATH was not found`, where `PATH` is its resolved path. The grammar error names that path as its document and has no line or column.
 
 The DOM retains each `%names` directive and its decoded path. Its declaration order follows source positions across all five declaration arrays. Distinct names declarations require distinct positions. Every statement of another kind must follow all names declarations.
 

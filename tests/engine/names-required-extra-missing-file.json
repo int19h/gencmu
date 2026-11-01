@@ -1,0 +1,15 @@
+{
+  "description": "A required missing names file reports its resolved path and the shared missing-file sentence.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%names \"bad.names\"\n%ambiguity-resolution greedy\n%rule text \"‹LATIN SMALL LETTER A›\"\n```"
+  },
+  "pipelineDocument": "p.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "bad.names"
+    }
+  }
+}

@@ -60,20 +60,40 @@ class StrictUtf8(unittest.TestCase):
                 lambda b: {"p.md": PIPELINE, "g.md": with_bytes(grammar('%rule text "a" (* @ *)'), b)},
                 "g.md",
             ),
+            ("an extra names file", lambda b: {"p.md": PIPELINE.replace("%stage main", '%names "bad.names"\n%stage main'), "g.md": grammar('%rule text "‹LATIN SMALL LETTER A›"'), "bad.names": with_bytes("unicode-names 15.1.0\n@", b)}, "bad.names"),
         ]
         for place, files, bad in places:
             for data in INVALID:
                 for use_cache in (True, False):
                     with self.subTest(place=place, data=data.hex(), use_cache=use_cache):
-                        root = self.directory(files(data))
+                        documents = files(data)
+                        encoded = documents[bad]
+                        encoded = encoded.encode("utf-8") if isinstance(encoded, str) else encoded
+                        offset = encoded.index(data)
+                        root = self.directory(documents)
                         with self.assertRaises(gencmu.GencmuError) as caught:
                             gencmu.load_pipeline_file(os.path.join(root, "p.md"), use_cache=use_cache)
                         error = caught.exception
                         self.assertEqual(error.kind, "grammar")
                         self.assertEqual(error.document, os.path.abspath(os.path.join(root, bad)).replace(os.sep, "/"))
-                        self.assertIn("not valid UTF-8", str(error))
+                        self.assertEqual(error.message, f"the document is not valid UTF-8: an invalid byte sequence at byte {offset}")
                         self.assertIsNone(error.line)
                         self.assertIsNone(error.column)
+
+    def test_missing_names_file_uses_its_resolved_path(self) -> None:
+        root = self.directory({
+            "p.md": PIPELINE.replace("%stage main", '%names "bad.names"\n%stage main'),
+            "g.md": grammar('%rule text "‹LATIN SMALL LETTER A›"'),
+        })
+        document = os.path.join(root, "bad.names").replace(os.sep, "/")
+        with self.assertRaises(gencmu.GencmuError) as caught:
+            gencmu.load_pipeline_file(os.path.join(root, "p.md"))
+        error = caught.exception
+        self.assertEqual(error.kind, "grammar")
+        self.assertEqual(error.document, document)
+        self.assertEqual(error.message, f"{document} was not found")
+        self.assertIsNone(error.line)
+        self.assertIsNone(error.column)
 
     def test_fffd_supplementary_characters_and_a_byte_order_mark_decode_as_themselves(self) -> None:
         root = self.directory(

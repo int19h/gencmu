@@ -713,8 +713,8 @@ type QualificationKey = (Place, Vec<Place>, Option<(u32, u32)>);
 /// The longest span whose nested answers are remembered by content, so that
 /// a word repeated at many places is parsed once; a longer span is
 /// remembered by its place, since a key of content costs as much as the
-/// span is long, and the span of `from` or `after` runs to the end of the
-/// input (§4).
+/// span is long, and the span of `.onward` or `.following-tokens` runs to
+/// the context end (§4).
 const CONTENT_KEY_LIMIT: usize = 64;
 
 /// What a nested parse can observe of one token of its span.
@@ -1018,7 +1018,7 @@ enum Whose {
 type Bounds = (usize, usize, Whose);
 
 /// A span's bounds; `input` is where the input of the parse that evaluates
-/// it ends, which `from` and `after` run to (§10).
+/// it ends, which `.onward` and `.following-tokens` run to (§10).
 /// In the check of `elision-only`, the projection comes first, then the
 /// function (§7.5): a capture and `$` are projected to O, and the functions
 /// of a span work on the projected span.

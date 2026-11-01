@@ -961,14 +961,19 @@ func TestFileUTF8(t *testing.T) {
 		{"a comment of an included document", func(b string) map[string]string {
 			return map[string]string{"p.md": pipeline, "g.md": grammar("%rule text \"a\" (* " + b + " *)")}
 		}, "g.md"},
+		{"an extra names file", func(b string) map[string]string {
+			return map[string]string{"p.md": strings.Replace(pipeline, "%stage main", "%names \"bad.names\"\n%stage main", 1), "g.md": grammar("%rule text \"‹LATIN SMALL LETTER A›\""), "bad.names": "unicode-names 15.1.0\n" + b}
+		}, "bad.names"},
 	}
 	for _, p := range places {
 		for _, b := range invalid {
-			root := dir(p.files(b))
+			documents := p.files(b)
+			offset := strings.Index(documents[p.bad], b)
+			root := dir(documents)
 			_, err := LoadPipelineFile(filepath.Join(root, "p.md"))
 			var e *Error
 			if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.HasSuffix(e.Document, "/"+p.bad) ||
-				!strings.Contains(e.Message, "not valid UTF-8") || e.Line != 0 || e.Column != 0 {
+				e.Message != "the document is not valid UTF-8: an invalid byte sequence at byte "+strconv.Itoa(offset) || e.Line != 0 || e.Column != 0 {
 				t.Errorf("%s, %q: expected a grammar error of %s, got %#v", p.place, b, p.bad, err)
 			}
 		}
@@ -1682,5 +1687,24 @@ func TestSelectedStageOnEverySpliceError(t *testing.T) {
 		if !errors.As(err, &fault) || fault.Kind != ErrorGrammar || fault.Stage != "main" {
 			t.Errorf("%s: %v", source, err)
 		}
+	}
+}
+
+func TestMissingNamesFileUsesResolvedPath(t *testing.T) {
+	root := t.TempDir()
+	files := map[string]string{
+		"p.md": "```jbogenbau\n%names \"bad.names\"\n%stage main\n%include \"g.md\"\n```",
+		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹LATIN SMALL LETTER A›\"\n```",
+	}
+	for name, text := range files {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := LoadPipelineFile(filepath.Join(root, "p.md"))
+	var e *Error
+	want := filepath.ToSlash(filepath.Join(root, "bad.names"))
+	if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != want || e.Message != want+" was not found" || e.Line != 0 || e.Column != 0 {
+		t.Fatalf("unexpected missing names diagnostic: %#v", err)
 	}
 }
