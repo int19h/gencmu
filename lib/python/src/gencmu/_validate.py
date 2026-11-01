@@ -367,7 +367,9 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             feature_nodes.extend(node.values())
         elif isinstance(node, list):
             feature_nodes.extend(node)
-    problem = _walk(pending, unicode, deferred, rule_name, type_roots)
+    # Shape inspection collects type faults for selection after closedness.
+    type_faults = []
+    problem = _walk(pending, unicode, deferred, rule_name, type_roots, type_faults)
     if problem:
         return problem
     for c in dom["constants"]:
@@ -376,6 +378,9 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
     for i in dom["implications"]:
         if any(open_part(term) is not None or _contains_engine(term) for term in (i["if"], i["then"])):
             return "an implication requires closed terms without engine-tag literals"
+    fault = select_type_fault(type_faults)
+    if fault is not None:
+        return fault[0]
     for term, constituent in tag_clauses:
         if constituent and (term_reads_own_tags(term) or lit(term)):
             return "a constituent tag clause introduces engine tags or reads its own tags"
@@ -404,9 +409,8 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
     return None
 
 
-def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: list) -> str | None:
+def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: list, type_faults: list) -> str | None:
     types = {}
-    type_faults = []
     root_order = {}
     root_nodes = {id(task[1]) for task in pending}
     decided = set()
@@ -711,8 +715,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
         elif not (keys == {"emptySet"} and node["emptySet"] is True):
             return "a malformed term"
     type_faults.sort(key=lambda fault: root_order[id(fault[1])])
-    fault = select_type_fault(type_faults)
-    return fault[0] if fault is not None else None
+    return None
 
 
 def input_conditions_problem(conditions):
