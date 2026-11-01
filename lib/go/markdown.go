@@ -9,10 +9,10 @@ import (
 	"unicode/utf8"
 )
 
-// Error is a pipeline that cannot be loaded: a document is missing, does not
-// parse as the notation, or does not stitch into a valid grammar. Document,
-// Line and Column say where, when known; Line and Column count from 1, in
-// code points.
+// Error reports a loading failure or a caller's mistake. Kind is grammar
+// for a document that cannot be read, parsed or stitched, and usage for
+// invalid input or configuration. Document, Line and Column give the known
+// location. Line and Column count from 1, in code points.
 type Error struct {
 	spliceProblem    spliceProblem
 	boundaryLocation bool

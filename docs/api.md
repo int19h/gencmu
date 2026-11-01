@@ -62,9 +62,9 @@ An existing document that cannot be read causes a `grammar` error: “the docume
 
 An unreadable optional `data/preparsed/FAMILY.json` gives a cache miss. A tie while the notation reads a document is a load error too (engine §8).
 
-The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known. A tie has no line or column.
+The same error type reports loading failures and caller mistakes. The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known. A tie has no line or column.
 
-A diagnostic copies its location fields. For the same input and configuration, repeated parsing preserves the formatted diagnostic.
+A diagnostic copies its location fields, including independent copies of `group`, `expression`, and `inheritance`. Editing a caught diagnostic cannot change cached documents or later diagnostics. For the same input and configuration, repeated parsing preserves the formatted diagnostic.
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
