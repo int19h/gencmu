@@ -1,0 +1,11 @@
+{
+  "description": "A classifier method separator fails before its parameter signature.",
+  "document": "```jbogenbau\n%rule r(@P) $x:A %conditions $x.classify(@P|@P) = \"a\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 42,
+      "message": "invalid method argument separator"
+    }
+  }
+}

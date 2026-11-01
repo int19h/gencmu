@@ -227,3 +227,40 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 }
+
+func TestSuppliedNodePositionsUseTokenBoundaries(t *testing.T) {
+	b := &domBuilder{gt: &grammarText{pos: [][2]int{{1, 1}, {1, 2}, {1, 3}, {1, 4}}}, toks: []Token{{Source: [2]int{0, 1}}, {Source: [2]int{2, 3}}}}
+	for _, item := range []struct {
+		name   string
+		node   *Node
+		column int
+	}{
+		{"empty leading wrapper", &Node{Kind: KindRule, Children: []*Node{{Kind: KindRule}, {Kind: KindToken, Token: 1}}}, 3},
+		{"empty interior constructor", &Node{Kind: KindRule, Span: [2]int{1, 1}}, 3},
+		{"empty final constructor", &Node{Kind: KindRule, Span: [2]int{2, 2}}, 4},
+		{"missing token index", &Node{Kind: KindToken, Token: 999}, 4},
+	} {
+		t.Run(item.name, func(t *testing.T) {
+			defer func() {
+				if problem := recover(); problem != nil {
+					t.Fatalf("position lookup panicked: %v", problem)
+				}
+			}()
+			if got := b.at(item.node); got != [2]int{1, item.column} {
+				t.Fatalf("position %v, expected column %d", got, item.column)
+			}
+		})
+	}
+}
+
+func TestRootTokensPrecedeNamesDeclarations(t *testing.T) {
+	b := &domBuilder{doc: "g.md", gt: &grammarText{pos: [][2]int{{1, 1}}}, toks: []Token{{Value: "ignored"}, {Value: "%names"}}}
+	root := &Node{Kind: KindRule, Rule: "text", Children: []*Node{{Kind: KindToken, Token: 0}, {Kind: KindRule, Rule: "directive", Children: []*Node{{Kind: KindToken, Token: 1}}}}}
+	defer func() {
+		problem, ok := recover().(*Error)
+		if !ok || !strings.Contains(problem.Error(), "%names must precede every other statement") {
+			t.Fatalf("expected the names-order error, got %v", problem)
+		}
+	}()
+	b.document(root)
+}

@@ -2555,6 +2555,8 @@ A reader refuses an invalid token span before using that span to select tokens. 
 
 Each declaration's `at` records its first token's line and column, counted from 1. A constant reference instead records its own token position. Token forms follow §9.1. Semantic types and arities follow §10 and `docs/output.md`.
 
+A position uses the first token in the whole subtree, ignoring elided nodes. Without a token, it uses the node's start boundary or the input end. Flattening drops elided nodes. Every other root part counts as a statement before `%names`, even when conversion ignores that part.
+
 A public document reader reports the document name on every error. A run-placement diagnostic names the actual tag or string run.
 
 Conversion errors from supplied notation trees carry no `ranked-choice-syntax` code. Recognition and malformed DOM inspection assign that code.

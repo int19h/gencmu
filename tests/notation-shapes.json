@@ -1628,6 +1628,19 @@
       "expect": [
         "a"
       ]
+    },
+    {
+      "description": "A tokenless constructor at the input end uses the final token boundary.",
+      "find": "{\"name\":\"classifier-class\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"Identifier\"}},{\"guards\":[],\"expr\":{\"test\":\"≠\",\"value\":{\"string\":\"_\"},\"expr\":{\"ref\":\"Engine-Tag\"}}}],\"conditions\":[],\"at\":[772,1]}",
+      "replace": "{\"name\":\"classifier-class\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[772,1]}",
+      "document": "```jbogenbau\n%classifier c \"a\" ∈   \n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 20
+      }
     }
   ]
 }

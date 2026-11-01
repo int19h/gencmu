@@ -1,0 +1,10 @@
+{
+  "description": "An emitted signature follows local argument errors.",
+  "document": "```jbogenbau\n%rule r $x:A %conditions $x.emitted(_Nope)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 37
+    }
+  }
+}
