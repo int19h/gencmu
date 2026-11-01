@@ -627,11 +627,7 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 		w.endCond(!w.b)
 		return nil
 	case cdCaptured:
-		// Simplification decides every presence test (§3.6); one left here
-		// asks the production.
-		_, ok := ev.capture(c.Capture)
-		w.endCond(ok)
-		return nil
+		panic(&parseFailure{message: "a presence test outlived lowering"})
 	case cdIf:
 		// The consequent only where the antecedent holds (§10).
 		switch f.at {

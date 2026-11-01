@@ -941,12 +941,9 @@ impl Pipeline {
                 chart: &chart,
                 rooted,
                 tokens: &tokens,
-                observed: input,
-                project: &recon.project,
                 synthetic: &recon.synthetic,
                 original_at: &original_at,
                 record_at: &record_at,
-                tags: &shared.tags,
             };
             witness::walk(&forest, chosen)
         };

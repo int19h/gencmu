@@ -1077,6 +1077,8 @@ Since the engine never evaluates a reduced part, the reduction is part of the or
 
 Recipe capture validation follows §11 after absent-item pruning. A rule-level recipe is checked only on channels where its production uses it. An alternative override can suppress one or both channels. An unknown or private capture remains an error before that pruning.
 
+Every presence test is decided before runtime evaluation. A surviving test is an internal grammar error: `a presence test outlived lowering`.
+
 ### 3.7 Tag inheritance
 
 Explicit alternative and definition tag terms union. If neither exists, inheritance uses logical helper structure, not the physical expansion's symbol count.
@@ -1140,6 +1142,8 @@ Query helpers follow every production from the written grammar, including its he
 The parser is an Earley recognizer, a parser for any context-free grammar, over the lowered grammar. The set of items that it produces specifies it, and any algorithm that produces that set is correct. The recognizer builds one set of items for each position in the input.
 
 An item has a production, dot position, origin, structural prefix state, and demanded restoration observations (§4.1). Each capture before the dot retains its span, tags, structural state, and demanded close observation. Completed items retain the corresponding observations of their constituent. Two items merge only when all these values agree. Their proof edges remain distinct.
+
+Eligibility and witness reconstruction walk the advances that recognition records. They do not repeat symbol tests or synthesize missing chart items. Charts retain these links when either consumer needs them.
 
 Fix a production, dot position, origin, input position and structural prefix state. Fix every captured part's tag set and structural state. Fix every demanded restoration observation too.
 
@@ -1476,6 +1480,8 @@ A pending literal counts as holding for the rest of its step. So the step evalua
 Two literals are equal when their directions, targets and signs are equal. Each literal also carries an annotation, the set of rule and condition index pairs whose items produced it. The annotation is not part of the record. When two items merge, or a literal joins an equal one, their annotations join. The annotation serves only the `boundary` member of a rejection. A target is equal to another when it holds the same names.
 
 An item carries a boundary record, which is part of its identity. Two items merge only when their records are equal. Proof edges stay within one record. Records hold literals, and offers of targets only.
+
+Boundary records store target offers and pending literals as bitsets. A bitset stores integer identifiers as bits in words. Names receive stable identifiers within one boundary machine. An advance constructs each result field from the fields that it uses.
 
 The record of an item that has read no nonempty symbol is one set, its pending literals, which stand at its origin. The record of any other item has four parts:
 

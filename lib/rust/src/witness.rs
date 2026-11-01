@@ -6,11 +6,10 @@
 
 use std::cell::RefCell;
 
-use crate::earley::{test_holds, Cap, Chart, Item, Tok};
+use crate::earley::{Cap, Chart, Item, Tok};
 use crate::fxhash::FxSet;
 use crate::lower::{Lowered, Sym};
 use crate::rank::restored_terminal;
-use crate::tags::{SetId, Tags};
 use crate::tree::{IKind, ITree};
 
 /// A way to lose the witness of a check after recognition (engine §7.9).
@@ -194,16 +193,13 @@ pub(crate) struct CheckForest<'a> {
     /// Whether the chart has completed items of `text` over R that count
     /// as its roots.
     pub rooted: bool,
-    /// R, the reconstructed input, and O, the stage's input.
+    /// R, the reconstructed input.
     pub tokens: &'a [Tok],
-    pub observed: &'a [Tok],
-    pub project: &'a [u32],
     pub synthetic: &'a [bool],
     /// For each token of O, its index in R.
     pub original_at: &'a [u32],
     /// For each restoration record, the index of its synthetic token in R.
     pub record_at: &'a [u32],
-    pub tags: &'a Tags,
 }
 
 /// The marks of W(D) that the check's ranker takes (tests/README.md): the
@@ -319,242 +315,74 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
         if elided(&node.kind) {
             // The restoration: the empty production's item from `start`,
             // in the set after it.
-            found[index as usize] = if forest.chart.machine.is_some() || forest.chart.boundaries.is_some() {
-                forest.chart.sets[end as usize]
-                    .items
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, item)| item.prod == prod && item.dot == 0 && item.origin == start && item.caps == 0)
-                    .map(|(i, _)| i as u32)
-                    .collect()
-            } else {
-                at(
-                    end,
-                    Item {
-                        boundary: 0,
-                        close_requested: false,
-                        lexical: 0,
-                        prod,
-                        dot: 0,
-                        origin: start,
-                        caps: 0,
-                        prefix: 0,
-                        structure: u32::MAX,
-                    },
-                )
-                .into_iter()
-                .collect()
-            };
+            found[index as usize] = forest.chart.sets[end as usize]
+                .items
+                .iter()
+                .enumerate()
+                .filter(|(_, item)| item.prod == prod && item.dot == 0 && item.origin == start && item.caps == 0)
+                .map(|(i, _)| i as u32)
+                .collect();
             marks.items.extend(found[index as usize].iter().map(|&item| (end, item)));
             continue;
         }
         let production = &g.prods[prod as usize];
-        if forest.chart.machine.is_some() || forest.chart.boundaries.is_some() {
-            let mut current: Vec<Item> = forest.chart.sets[start as usize]
-                .items
-                .iter()
-                .filter(|item| item.prod == prod && item.dot == 0 && item.origin == start && item.caps == 0)
-                .copied()
-                .collect();
-            for &item in &current {
-                if let Some(i) = at(start, item) {
-                    marks.items.insert((start, i));
-                }
+        let mut current: Vec<Item> = forest.chart.sets[start as usize]
+            .items
+            .iter()
+            .filter(|item| item.prod == prod && item.dot == 0 && item.origin == start && item.caps == 0)
+            .copied()
+            .collect();
+        for &item in &current {
+            if let Some(i) = at(start, item) {
+                marks.items.insert((start, i));
             }
-            for (position, &child) in node.children.iter().enumerate() {
-                let (from, to) = spans[child as usize];
-                let mut next = Vec::new();
-                for &item in &current {
-                    let mut caps = Vec::new();
-                    match (&chosen.nodes[child as usize].kind, production.syms[position]) {
-                        (IKind::Read { tok, terminal }, Sym::T(symbol)) if *terminal == symbol => {
-                            if let Some(structure) = forest
-                                .chart
-                                .terminal_states
-                                .get(&(from, symbol, false))
-                                .copied()
-                                .or_else(|| forest.chart.boundaries.as_ref().map(|_| u32::MAX))
-                            {
-                                let token = &forest.tokens[forest.original_at[*tok as usize] as usize];
-                                let tags = token.tags;
-                                let boundary = forest
-                                    .chart
-                                    .boundaries
-                                    .as_ref()
-                                    .map_or(0, |m| m.borrow_mut().leaf(&g.terminals[symbol as usize], false));
-                                caps.push(Cap {
-                                    boundary,
-                                    close_requested: false,
-                                    start: from,
-                                    end: to,
-                                    tags,
-                                    structure,
-                                });
-                            }
-                        }
-                        (IKind::Close { .. }, Sym::N(_)) => {
-                            for &i in &found[child as usize] {
-                                let set = &forest.chart.sets[to as usize];
-                                if set.items[i as usize].lexical != forest.chart.expected_lexical(item, from) {
-                                    continue;
-                                }
-                                caps.push(Cap {
-                                    boundary: set.items[i as usize].boundary,
-                                    close_requested: set.items[i as usize].close_requested,
-                                    start: from,
-                                    end: to,
-                                    tags: set.tagset[i as usize],
-                                    structure: set.items[i as usize].structure,
-                                });
-                            }
-                        }
-                        _ => {}
-                    }
-                    for cap in caps {
-                        if let Some(&advanced) = forest.chart.advances.get(&(item, cap)) {
-                            if let Some(i) = at(to, advanced) {
-                                if !next.contains(&advanced) {
-                                    next.push(advanced);
-                                }
-                                marks.items.insert((to, i));
-                                marks.links.insert((to, i, from));
-                            }
-                        }
-                    }
-                }
-                current = next;
-            }
-            found[index as usize] = current.into_iter().filter_map(|item| at(end, item)).collect();
-            continue;
         }
-        let mut current: Vec<Item> = at(
-            start,
-            Item {
-                boundary: 0,
-                close_requested: false,
-                lexical: 0,
-                prod,
-                dot: 0,
-                origin: start,
-                caps: 0,
-                prefix: 0,
-                structure: u32::MAX,
-            },
-        )
-        .map(|_| Item {
-            boundary: 0,
-            close_requested: false,
-            lexical: 0,
-            prod,
-            dot: 0,
-            origin: start,
-            caps: 0,
-            prefix: 0,
-            structure: u32::MAX,
-        })
-        .into_iter()
-        .collect();
-        marks.items.extend(
-            at(
-                start,
-                Item {
-                    boundary: 0,
-                    close_requested: false,
-                    lexical: 0,
-                    prod,
-                    dot: 0,
-                    origin: start,
-                    caps: 0,
-                    prefix: 0,
-                    structure: u32::MAX,
-                },
-            )
-            .map(|item| (start, item)),
-        );
         for (position, &child) in node.children.iter().enumerate() {
             let (from, to) = spans[child as usize];
-            let test = g.test(prod, position);
-            // A read supplies its original token tags. A rule supplies the
-            // derived items' tags. Each must pass the symbol test.
-            let own: Vec<SetId> = match (chosen.nodes[child as usize].kind.clone(), production.syms[position]) {
-                (IKind::Read { tok, terminal }, Sym::T(symbol)) if terminal == symbol => {
-                    let token = &forest.tokens[forest.original_at[tok as usize] as usize];
-                    let passes = test
-                        .map_or(true, |test| test_holds(test, std::slice::from_ref(token), forest.tags, token.tags));
-                    if passes {
-                        vec![token.tags]
-                    } else {
-                        Vec::new()
+            let mut next = Vec::new();
+            for &item in &current {
+                let mut caps = Vec::new();
+                match (&chosen.nodes[child as usize].kind, production.syms[position]) {
+                    (IKind::Read { tok, terminal }, Sym::T(symbol)) if *terminal == symbol => {
+                        let structure =
+                            forest.chart.terminal_states.get(&(from, symbol, false)).copied().unwrap_or(u32::MAX);
+                        let token = &forest.tokens[forest.original_at[*tok as usize] as usize];
+                        let tags = token.tags;
+                        let boundary = forest
+                            .chart
+                            .boundaries
+                            .as_ref()
+                            .map_or(0, |m| m.borrow_mut().leaf(&g.terminals[symbol as usize], false));
+                        caps.push(Cap { boundary, close_requested: false, start: from, end: to, tags, structure });
                     }
-                }
-                (IKind::Close { .. }, Sym::N(_)) => {
-                    let set = &forest.chart.sets[to as usize];
-                    let span =
-                        &forest.observed[forest.project[from as usize] as usize..forest.project[to as usize] as usize];
-                    let mut sets: Vec<SetId> = found[child as usize]
-                        .iter()
-                        .map(|&item| set.tagset[item as usize])
-                        .filter(|&tags| test.map_or(true, |test| test_holds(test, span, forest.tags, tags)))
-                        .collect();
-                    sets.sort_unstable();
-                    sets.dedup();
-                    sets
-                }
-                _ => Vec::new(),
-            };
-            let mut next: Vec<Item> = Vec::new();
-            for item in &current {
-                if production.cap_at[position].is_some() {
-                    for &tags in &own {
-                        let Some(caps) = forest.chart.lookup_caps(
-                            item.caps,
-                            Cap {
-                                boundary: 0,
-                                close_requested: false,
+                    (IKind::Close { .. }, Sym::N(_)) => {
+                        for &i in &found[child as usize] {
+                            let set = &forest.chart.sets[to as usize];
+                            if set.items[i as usize].lexical != forest.chart.expected_lexical(item, from) {
+                                continue;
+                            }
+                            caps.push(Cap {
+                                boundary: set.items[i as usize].boundary,
+                                close_requested: set.items[i as usize].close_requested,
                                 start: from,
                                 end: to,
-                                tags,
-                                structure: u32::MAX,
-                            },
-                        ) else {
-                            continue;
-                        };
-                        let advanced = Item {
-                            boundary: 0,
-                            close_requested: item.close_requested,
-                            lexical: 0,
-                            prod,
-                            dot: item.dot + 1,
-                            origin: start,
-                            caps,
-                            prefix: 0,
-                            structure: u32::MAX,
-                        };
-                        if at(to, advanced).is_some() && !next.contains(&advanced) {
-                            next.push(advanced);
+                                tags: set.tagset[i as usize],
+                                structure: set.items[i as usize].structure,
+                            });
                         }
                     }
-                } else if !own.is_empty() {
-                    let advanced = Item {
-                        boundary: 0,
-                        close_requested: item.close_requested,
-                        lexical: item.lexical,
-                        prod,
-                        dot: item.dot + 1,
-                        origin: start,
-                        caps: item.caps,
-                        prefix: 0,
-                        structure: u32::MAX,
-                    };
-                    if at(to, advanced).is_some() && !next.contains(&advanced) {
-                        next.push(advanced);
-                    }
+                    _ => {}
                 }
-            }
-            for &item in &next {
-                if let Some(index) = at(to, item) {
-                    marks.items.insert((to, index));
-                    marks.links.insert((to, index, from));
+                for cap in caps {
+                    if let Some(&advanced) = forest.chart.advances.get(&(item, cap)) {
+                        if let Some(i) = at(to, advanced) {
+                            if !next.contains(&advanced) {
+                                next.push(advanced);
+                            }
+                            marks.items.insert((to, i));
+                            marks.links.insert((to, i, from));
+                        }
+                    }
                 }
             }
             current = next;

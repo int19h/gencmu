@@ -340,6 +340,8 @@ pub(crate) struct Chart {
     pub helper_entries: FxMap<(u32, Item), u32>,
     pub machine: Option<Rc<RefCell<Machine>>>,
     pub terminal_states: FxMap<(u32, u32, bool), u32>,
+    /// Reconstruction and eligibility retain their actual recognition advances.
+    record_links: bool,
     pub links: FxMap<(u32, Item), Vec<(Item, Cap)>>,
     pub advances: FxMap<(Item, Cap), Item>,
     /// The sets the parse reached, and at most one empty set after them.
@@ -380,6 +382,20 @@ fn lexical_rule(rule: u32, lexical: u32, requested: bool) -> u64 {
 }
 
 impl Chart {
+    fn record_advance(&mut self, set: usize, item: Item, previous: Option<(Item, Cap)>) {
+        if !(self.record_links || self.machine.is_some() || self.boundaries.is_some()) {
+            return;
+        }
+        if let Some((before, cap)) = previous {
+            let edges = self.links.entry((set as u32, item)).or_default();
+            if !edges.contains(&(before, cap)) {
+                work::count(Work::PackedEdges, 1);
+                edges.push((before, cap));
+            }
+            self.advances.insert((before, cap), item);
+        }
+    }
+
     pub(crate) fn lexical_frame(&self, id: u32) -> Option<&LexicalFrame> {
         id.checked_sub(1).map(|id| &self.lexical[id as usize])
     }
@@ -671,12 +687,6 @@ impl Chart {
         };
         self.caps.push(CapEntry { parent, jump, depth: before.depth + 1, cap });
         id
-    }
-
-    /// The sequence that extends a sequence by one part, if an item has it.
-    pub(crate) fn lookup_caps(&self, parent: u32, mut cap: Cap) -> Option<u32> {
-        cap.boundary = 0;
-        self.caps_index.get(&(parent, cap)).copied()
     }
 
     /// Whether a completed item of `rule` spans the tokens to `end`. The
@@ -1432,7 +1442,7 @@ struct Run<'t, 'g> {
 impl<'t, 'g> Run<'t, 'g> {
     /// A run that starts with `first`, an empty set, as its set 0.
     fn new(tokens: &'t [Tok], base: usize, start: u32, recon: Option<&'g Recon<'g>>, first: ESet) -> Run<'t, 'g> {
-        let mut chart = Chart { boundary_root: Some(start), ..Default::default() };
+        let mut chart = Chart { boundary_root: Some(start), record_links: recon.is_some(), ..Default::default() };
         chart.caps.push(CapEntry {
             parent: 0,
             jump: 0,
@@ -1475,6 +1485,7 @@ impl<'t, 'g> Run<'t, 'g> {
         let tokens = &request.tokens[request.start..request.end];
         let mut run = Run::new(tokens, request.base + request.start, request.rule, None, first);
         run.chart.boundary_root = None;
+        run.chart.record_links = true;
         run.chart.suffix = request.suffix.is_some();
         if run.chart.suffix {
             run.chart.positions.set(FxMap::default()).expect("an empty positions cache");
@@ -1824,6 +1835,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         self.prepare_patterns();
         let first = self.shared.fresh_set();
         let mut run = Run::new(tokens, base, start, self.recon, first);
+        // A non-stage root is a query whose completed items need eligibility.
+        run.chart.record_links |= start != self.g.start;
         run.chart.machine = self.shared.machine.clone();
         run.chart.boundaries = self.shared.boundaries.clone();
         Ok(self.drive(run)?.0)
@@ -1994,7 +2007,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .map(move |&index| (set as u32, index))
             })
             .collect();
-        let eligible = self.proofs(chart, tokens).eligible(&witnesses);
+        let eligible = self.proofs(chart).eligible(&witnesses);
         if request.aligned.is_some() {
             let qualified: Vec<_> = witnesses
                 .into_iter()
@@ -2334,6 +2347,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     target.queue.push(index as u32 | AGAIN);
                 }
             }
+            chart.record_advance(set, item, previous);
             return Ok(());
         }
         if self.shared.boundaries.is_none() && target.failed.contains(&item) {
@@ -2349,6 +2363,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             production.conds_at(item.dot as usize)
         };
         if conds.is_empty() && self.shared.boundaries.is_none() {
+            chart.record_advance(set, item, previous);
             Self::insert(chart, item, set, strict, u32::MAX, self.recon.is_some());
             return Ok(());
         }
@@ -2576,14 +2591,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 chart.sources.merge(target, &annotations);
             }
         }
-        if let Some((previous, cap)) = state.previous.filter(|_| chart.boundaries.is_some()) {
-            let edges = chart.links.entry((set as u32, item)).or_default();
-            if !edges.contains(&(previous, cap)) {
-                work::count(Work::PackedEdges, 1);
-                edges.push((previous, cap));
-            }
-            chart.advances.insert((previous, cap), item);
-        }
+        chart.record_advance(set, item, state.previous);
         evals.spare = state.eval.tasks;
         if let Some(index) = chart.sets[set].find(&item) {
             if chart.sets[set].is_strict(index as usize) && !state.strict {
@@ -2966,14 +2974,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             structure: u32::MAX,
         };
         self.finish_structure(chart.family, &mut next, into, base, tokens);
-        if chart.machine.is_some() && self.shared.boundaries.is_none() {
-            let edges = chart.links.entry((into as u32, next)).or_default();
-            if !edges.contains(&(item, cap)) {
-                work::count(Work::PackedEdges, 1);
-                edges.push((item, cap));
-            }
-            chart.advances.insert((item, cap), next);
-        }
         self.add(chart, evals, tokens, base, next, into, strict, Some((item, cap)))
     }
 
@@ -3114,9 +3114,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         NestedKey::Content(rule, shared.contents.number(&shared.text[low..high], span, low))
     }
 
-    /// The proof trees of a nested parse's chart over `tokens`, its span.
-    fn proofs<'c>(&'c self, chart: &'c Chart, tokens: &'c [Tok]) -> Proofs<'c> {
-        Proofs::new(self.g, chart, tokens, &self.shared.tags)
+    /// The proof trees of a nested parse's chart, using its recorded advances.
+    fn proofs<'c>(&'c self, chart: &'c Chart) -> Proofs<'c> {
+        Proofs::new(self.g, chart)
     }
 
     // ---- terms and conditions

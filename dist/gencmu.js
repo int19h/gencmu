@@ -8306,48 +8306,6 @@
     return tokens;
   }
 
-  // ---- restoration.js
-  // Tokens and source projection shared by elision-only and restored spans.
-
-
-
-  /** @typedef {{terminal: string, at: number, source: [number, number], value?: string}} RestorationRecord */
-
-  /**
-   * @param {import("./tokens.js").Token[]} tokens
-   * @param {RestorationRecord[]} records
-   * @param {number[]} [order]
-   * @param {boolean} [emptySourceIsSynthetic]
-   */
-  function restoreTokens(tokens, records, order = records.map((_, index) => index), emptySourceIsSynthetic = false) {
-    /** @type {import("./tokens.js").Token[]} */ const restored = [];
-    /** @type {boolean[]} */ const synthetic = [];
-    /** @type {number[]} */ const originalAt = [];
-    /** @type {number[]} */ const recordAt = new Array(records.length);
-    /** @type {(number|undefined)[]} */ const recordOf = [];
-    let next = 0;
-    for (let at = 0; at <= tokens.length; at++) {
-      while (next < order.length && records[order[next]].at === at) {
-        const index = order[next++];
-        const record = records[index];
-        recordAt[index] = restored.length;
-        recordOf.push(index);
-        synthetic.push(true);
-        restored.push(new Token(tagSet([record.terminal]), [restored.length, restored.length], record.source, "", record.value ?? "", undefined));
-      }
-      if (at < tokens.length) {
-        originalAt.push(restored.length);
-        recordOf.push(undefined);
-        const token = tokens[at];
-        synthetic.push(emptySourceIsSynthetic && token.source[0] === token.source[1]);
-        restored.push(token);
-      }
-    }
-    const project = [0];
-    for (const flag of synthetic) project.push(project[project.length - 1] + (flag ? 0 : 1));
-    return { restored, synthetic, originalAt, recordAt, recordOf, project };
-  }
-
   // ---- eligible.js
   // Written-terminator priority for nested queries (engine §4): which
   // completed items of a queried rule have an eligible proof tree.
@@ -10805,7 +10763,6 @@
 
 
 
-
   /**
    * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, ReadyCondition, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
    * @import { CloseEvent, CloseObservation } from "./close-observations.js"
@@ -11233,8 +11190,6 @@
       this.closeRules = closeDemands(lowered);
       /** @type {CloseObservations|null} */
       this.closes = this.closeRules.size ? new CloseObservations() : null;
-      /** @type {Map<number,ReturnType<typeof restoreTokens>>} */
-      this.restoredViews = new Map();
       this.tokens = tokens;
       /** Where each run of the tokens lies in the text (engine §1). */
       this.sources = new Sources(tokens);
@@ -13138,27 +13093,7 @@
   // A span value: [start, end) of the stage's tokens, and the tags of the
   // captured constituent if it is a whole capture.
   /**
-   * Materializes a restored token view only when an observer requests it.
-   * Aligned recognition uses the close observation directly.
-   * @param {ParseContext} context
-   * @param {CloseObservation} observation
-   * @returns {ReturnType<typeof restoreTokens>}
-   */
-  function restoredView(context, observation) {
-    const cached = context.restoredViews.get(observation.sequence);
-    if (cached) return cached;
-    const machine = /** @type {CloseObservations} */ (context.closes);
-    const records = machine.list(observation.sequence).flatMap(event => event.kind === "close"
-      ? [{ terminal: event.terminal, at: event.at, source: event.source,
-        ...(event.value === undefined ? {} : { value: event.value }) }] : []);
-    const view = restoreTokens(context.tokens, records);
-    context.restoredViews.set(observation.sequence, view);
-    return view;
-  }
-
-  /**
-   * Keeps query bounds and lazy token provenance in one shared span value.
-   * @param {ParseContext} context
+   * Keeps query bounds and the candidate observation in one shared span value.
    * @param {CloseObservation} observation
    * @param {number} candidateEnd
    * @param {number} contextEnd
@@ -13166,14 +13101,13 @@
    * @param {string|null} [family]
    * @returns {import("./types.js").AlignedSpan}
    */
-  function alignedSpan(context, observation, candidateEnd, contextEnd, matchEnd = candidateEnd, family = null) {
+  function alignedSpan(observation, candidateEnd, contextEnd, matchEnd = candidateEnd, family = null) {
     return {
       observation,
       candidateEnd,
       contextEnd,
       matchEnd,
       family,
-      get view() { return restoredView(context, observation); },
     };
   }
 
@@ -13199,7 +13133,7 @@
       const r = reconstructionOf(scope);
       const contextEnd = r ? originalPosition(r,r.inputEnd) : context.inputEnd;
       return { start: inner.start, end: inner.end,
-        aligned: alignedSpan(context, observation, inner.end, contextEnd, inner.end,
+        aligned: alignedSpan(observation, inner.end, contextEnd, inner.end,
           span.method === "without-elision-except" ? /** @type {{rule:string}} */ (span.args[0]).rule : null) };
     }
     if ("method" in span && (span.method === "first-token" || span.method === "tokens-after-first" || span.method === "last-token")) {
@@ -13232,7 +13166,7 @@
         const aligned = argument.aligned;
         return span.method === "onward"
           ? { start: argument.start, end: aligned.contextEnd,
-            aligned: alignedSpan(context, aligned.observation, aligned.candidateEnd, aligned.contextEnd, aligned.contextEnd, aligned.family) }
+            aligned: alignedSpan(aligned.observation, aligned.candidateEnd, aligned.contextEnd, aligned.contextEnd, aligned.family) }
           : {start:argument.end,end:aligned.contextEnd};
       }
       const first = functionFirst(argument, scope, span.method);
@@ -15694,6 +15628,48 @@
     return validSegment(family) ? `data/preparsed/${family}.json` : undefined;
   }
 
+  // ---- restoration.js
+  // Tokens and source projection shared by elision-only and restored spans.
+
+
+
+  /** @typedef {{terminal: string, at: number, source: [number, number], value?: string}} RestorationRecord */
+
+  /**
+   * @param {import("./tokens.js").Token[]} tokens
+   * @param {RestorationRecord[]} records
+   * @param {number[]} [order]
+   * @param {boolean} [emptySourceIsSynthetic]
+   */
+  function restoreTokens(tokens, records, order = records.map((_, index) => index), emptySourceIsSynthetic = false) {
+    /** @type {import("./tokens.js").Token[]} */ const restored = [];
+    /** @type {boolean[]} */ const synthetic = [];
+    /** @type {number[]} */ const originalAt = [];
+    /** @type {number[]} */ const recordAt = new Array(records.length);
+    /** @type {(number|undefined)[]} */ const recordOf = [];
+    let next = 0;
+    for (let at = 0; at <= tokens.length; at++) {
+      while (next < order.length && records[order[next]].at === at) {
+        const index = order[next++];
+        const record = records[index];
+        recordAt[index] = restored.length;
+        recordOf.push(index);
+        synthetic.push(true);
+        restored.push(new Token(tagSet([record.terminal]), [restored.length, restored.length], record.source, "", record.value ?? "", undefined));
+      }
+      if (at < tokens.length) {
+        originalAt.push(restored.length);
+        recordOf.push(undefined);
+        const token = tokens[at];
+        synthetic.push(emptySourceIsSynthetic && token.source[0] === token.source[1]);
+        restored.push(token);
+      }
+    }
+    const project = [0];
+    for (const flag of synthetic) project.push(project[project.length - 1] + (flag ? 0 : 1));
+    return { restored, synthetic, originalAt, recordAt, recordOf, project };
+  }
+
   // ---- rank.js
   // Choosing a parse (engine §6): the first-difference order over bottom-up
   // action sequences under greedy and lazy, and the order of elision vectors
@@ -17480,14 +17456,14 @@
     /** @type {import("./types.js").Action[]} */
     const sequence = [];
     for (const node of order) {
-      const [start, end] = spanOf(node);
+      const [start] = spanOf(node);
       if ("read" in node) {
         sequence.push({ kind: "read", token: start, terminal: node.read.terminal });
         continue;
       }
       if (witnessElided(node)) sequence.push({ kind: "read", token: start, terminal: /** @type {string} */ (node.production.elided) });
       const item = /** @type {import("./types.js").Item} */ (bound.get(node));
-      sequence.push({ kind: "close", item: item ?? /** @type {any} */ ({ production: node.production, origin: start, end }) });
+      sequence.push({ kind: "close", item });
     }
     return { marks, sequence };
   }
@@ -22208,7 +22184,6 @@
    * @property {number} matchEnd
    * @property {number} contextEnd
    * @property {string|null} family
-   * @property {ReturnType<typeof import("./restoration.js").restoreTokens>} view
    */
 
   /**
