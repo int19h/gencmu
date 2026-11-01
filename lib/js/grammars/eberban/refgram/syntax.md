@@ -100,7 +100,7 @@ The sentences chapter starts every sentence with a starter, and lets the first s
 
 A sentence starts with `A`, `O` or `NI`. An `A` sentence is an inner predicate, which is a chain with an optional arguments list. An `O` sentence names a definable word, then an inner predicate. An `NI` sentence names a definable word alone. The first sentence of a paragraph can leave its `a` out.
 
-A sentence ends where the next sentence, paragraph, quote end, parenthesis end or eraser begins, or at the end of the text. A particle that closes an outer construct ends the sentence too: `FI`, `VEI`, `PEI`, `BU` or `PA`. Such a particle ends a quote whose `cai` is left out, together with its last sentence. The rule `sentence-end` names these ends, and `sentence-choice` requires one after the sentence. An open sentence is one that ends at the next sentence, paragraph or eraser, or at the end of the text. No enclosing construct has to claim what follows it, so it is grammatical wherever it stands. `open-sentence` and `open-end` name it.
+A sentence ends where the next sentence, paragraph, quote end, parenthesis end or eraser begins, or at the end of the text. A particle that closes an outer construct ends the sentence too: `FI`, `VEI`, `PEI`, `BU` or `PA`. Such a particle ends a quote whose `cai` is left out, together with its last sentence. The rule `sentence-end` names these ends, and `sentence-choice` requires one after the sentence. `sentence-closer` names the closing particles. A free prefix can stand before `cai`, `fi` or `bu`, as in `ca mo di cai`, because the rules that read those particles allow one. An open sentence is one that ends at the next sentence, paragraph or eraser, or at the end of the text. No enclosing construct has to claim what follows it, so it is grammatical wherever it stands. `open-sentence` and `open-end` name it.
 
 The rule `sentence` also reads erasures. The chapter on sentences gives two erasers. `ra` erases everything since the start of the current sentence. It also erases ungrammatical text back to the start of the last grammatical sentence. `ri` erases the current chain, which must be grammatical.
 
@@ -122,7 +122,10 @@ The chapter erases back to the start of the last sentence that was still grammat
   o-sentence | ni-sentence | a-sentence
 
 %rule sentence-end
-  open-end | CAI | DAI | elider-word
+  open-end | sentence-closer
+
+%rule sentence-closer
+  [{prefix}] (CAI | FI | BU) | DAI | VEI | PEI | PA
 
 %rule open-sentence
   $s:sentence-body
@@ -151,11 +154,12 @@ The chapter erases back to the start of the last sentence that was still grammat
   [{prefix}] NI definable
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>sentence-of</code> to <code>ni-sentence</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>sentence-of</code> to <code>ni-sentence</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentence-of.svg" alt="Railroad diagram of the rule sentence-of"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentence-choice.svg" alt="Railroad diagram of the rule sentence-choice"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentence-body.svg" alt="Railroad diagram of the rule sentence-body"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentence-end.svg" alt="Railroad diagram of the rule sentence-end"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentence-closer.svg" alt="Railroad diagram of the rule sentence-closer"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/open-sentence.svg" alt="Railroad diagram of the rule open-sentence"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/open-end.svg" alt="Railroad diagram of the rule open-end"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/elider-word.svg" alt="Railroad diagram of the rule elider-word"></p>
@@ -200,7 +204,7 @@ The PEG requires a written starter after an erasure, and states this rule in an 
 
 %rule after-erasure
   | starter-head | [{prefix}] PO | erased-invalid
-  | CAI | DAI | elider-word | end-of-text
+  | sentence-closer | end-of-text
 ```
 
 <details><summary>Railroad diagrams of the 7 rules from <code>erased-valid</code> to <code>after-erasure</code></summary>
@@ -399,7 +403,7 @@ The chapter does not say that `cai` can be left out. The PEG lets the speaker le
 
 A quote with a written `cai` reads `text`, like the whole text, because no closer inside it can end it. In a quote whose `cai` is left out, a particle that closes an outer construct ends the quoted text instead of starting erasable text. The second and third alternatives read such a quote. Their first two conditions require that the `cai` is left out. The next two require that the text holds no erased invalid stretch that starts with such a particle.
 
-A quote repeats words, so a resumed verb that is a quote compares the quoted text as written. Each alternative's value recipe reads the input value of the quote. So the free prefixes and elided terminators inside the quote count as written. A `cai` left out still counts as `cai`, because it closes the quote and is no part of the quoted text.
+A quote repeats words, so a resumed verb that is a quote compares the quoted text as written. Each alternative's value recipe joins the opener, the input value of the quoted text and `cai`. So the free prefixes and elided terminators inside the quoted text count as written. The prefixes before `CA` and before `cai` annotate the quote itself, so the recipe leaves them out. A `cai` left out still counts as `cai`, because it closes the quote and is no part of the quoted text.
 
 The PEG warns when a quote of several sentences leaves out its `cai` before the end of the text. The end of the quote is then hard to see. The third alternative carries that warning as `multi-sentence-cai-elided`. A quote holds several sentences when it has several paragraphs, or when its first paragraph has more than one sentence that is not erased. `$SEVERAL-SENTENCES` states that. The last three conditions send each such quote to exactly one of the two alternatives.
 
@@ -409,9 +413,9 @@ The PEG warns when a quote of several sentences leaves out its `cai` before the 
   ∪ #« ⋯ open-quote-paragraphs« [po-head] open-quote-sentences« ⋯ sentence-choice ⋯ sentence-choice ⋯ » ⋯ » »
 
 %rule grammatical-quote
-  | [{prefix}] CA text [{prefix}] CAI := $.value
-  | [{prefix}] CA $q:open-quote-text [+CAI] := $.value ++ "cai"
-  | multi-sentence-cai-elided! [{prefix}] CA $l:open-quote-text [+CAI] := $.value ++ "cai"
+  | [{prefix}] $o:CA $t:text [{prefix}] CAI := $o.value ++ $t.value ++ "cai"
+  | [{prefix}] $o:CA $q:open-quote-text [+CAI] := $o.value ++ $q.value ++ "cai"
+  | multi-sentence-cai-elided! [{prefix}] $o:CA $l:open-quote-text [+CAI] := $o.value ++ $l.value ++ "cai"
 %conditions
   $q ⟹ $ ≅ #(⋱ CAI=""),
   $l ⟹ $ ≅ #(⋱ CAI=""),
