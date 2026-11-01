@@ -957,8 +957,8 @@ impl<'a> EmitIndex<'a> {
 /// in different items of one sequence or one `&`, since each item is read in
 /// any of its expansions. So no production is listed. A choice's branches
 /// never meet, and braces and an elidable optional hold no capture. Each
-/// capture is its index in the order written, and the list is increasing.
-pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
+/// capture retains its identity, and the list follows the written order.
+pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<&Expr> {
     // Each part gives its captures, by name, each a list of indices, and
     // counts them. An item of a sequence or an `&` meets the items before
     // it: the side with fewer captures is looked up in the other, and the
@@ -967,6 +967,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
     // their count, not with the depth of the expression.
     type Found<'e> = (HashMap<&'e str, Vec<usize>>, usize);
     let mut duplicate: Vec<bool> = Vec::new();
+    let mut captures = Vec::new();
     let mut stack: Vec<(&Expr, bool)> = vec![(expr, false)];
     let mut done: Vec<Found> = Vec::new();
     let empty = || (HashMap::new(), 0);
@@ -976,6 +977,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
             match expr {
                 Expr::Capture(name, _) => {
                     duplicate.push(false);
+                    captures.push(expr);
                     done.push((HashMap::from([(name.as_str(), vec![duplicate.len() - 1])]), 1));
                 }
                 Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) | Expr::Ranked(items, _) => {
@@ -993,7 +995,10 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
                     while let Some(current) = inside.pop() {
                         work::count(Work::Walked, 1);
                         match current {
-                            Expr::Capture(..) => duplicate.push(false),
+                            Expr::Capture(..) => {
+                                duplicate.push(false);
+                                captures.push(current);
+                            }
                             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                                 inside.extend(items.iter().rev())
                             }
@@ -1066,7 +1071,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
         }
         done.push(joined);
     }
-    (0..duplicate.len()).filter(|&index| duplicate[index]).collect()
+    (0..duplicate.len()).filter(|&index| duplicate[index]).map(|index| captures[index]).collect()
 }
 
 /// Marks each capture of a list as repeated and empties the list, so that

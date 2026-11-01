@@ -1,0 +1,10 @@
+{
+  "description": "The duplicate capture follows captures inside call arguments.",
+  "document": "```jbogenbau\n%rule r f(($x:A)) $x:B $x:C\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 24
+    }
+  }
+}

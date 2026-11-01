@@ -6,7 +6,7 @@ use crate::dom::{
     Directive, Dom, EmitItem, Entry, Expr, FeatureKind, Guard, ImplicationDef, Mark, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
-use crate::fxhash::FxSet;
+use crate::fxhash::{FxMap, FxSet};
 use crate::result::{Node, NodeKind, Token};
 use crate::work::{self, Work};
 mod calls;
@@ -24,9 +24,8 @@ pub(crate) struct Reader<'a> {
     pub feature_context: std::cell::Cell<bool>,
     pub tokens: &'a [Token],
     pub strings: &'a crate::string_escapes::DocumentStrings<'a>,
-    /// The captures of the alternative being read, in the order written,
-    /// where an error about one is reported.
-    pub captures: std::cell::RefCell<Vec<&'a Node>>,
+    /// Each capture's boxed target identifies its source node.
+    pub captures: std::cell::RefCell<FxMap<usize, &'a Node>>,
     /// How many braces, and how many elidable optionals, the reader is
     /// inside, where no capture stands (engine §9).
     pub braces: std::cell::Cell<usize>,
@@ -596,8 +595,8 @@ impl<'a> Reader<'a> {
         // A name stands at most once in each production, gates aside: the
         // error stands at the second capture that such a production reads,
         // the first in the text where there are several (§3.5, §9).
-        if let Some(&twice) = crate::clauses::duplicate_captures(&expr).first() {
-            let capture = self.captures.borrow()[twice];
+        if let Some(Expr::Capture(_, target)) = crate::clauses::duplicate_captures(&expr).first() {
+            let capture = self.captures.borrow()[&(target.as_ref() as *const Expr as usize)];
             let name = self.value(self.token(capture)?).trim_start_matches('$').to_string();
             return Err(
                 self.error(capture, format!("the capture ${name} is read twice by one production of the alternative"))
@@ -812,7 +811,11 @@ impl<'a> Reader<'a> {
                 value => value,
             };
             return Ok(Step::Done(match (frame.capture.take(), value) {
-                (Some(name), Val::Expr(expr)) => Val::Expr(Expr::Capture(name, Box::new(expr))),
+                (Some((name, node)), Val::Expr(expr)) => {
+                    let target = Box::new(expr);
+                    self.captures.borrow_mut().insert(target.as_ref() as *const Expr as usize, node);
+                    Val::Expr(Expr::Capture(name, target))
+                }
                 (_, value) => value,
             }));
         }
@@ -890,8 +893,7 @@ impl<'a> Reader<'a> {
                 ) {
                     return Err(self.error(capture, "a capture wraps one symbol"));
                 }
-                self.captures.borrow_mut().push(inner);
-                frame.capture = Some(name);
+                frame.capture = Some((name, inner));
                 Step::Call(Frame::Primary(PrimaryFrame::new(primary, false)))
             }
             "group" => Step::Call(Frame::Choice(Choice::new(self.one(inner, "choice")?))),
@@ -2237,7 +2239,7 @@ struct PrimaryFrame<'a> {
     node: &'a Node,
     whole: bool,
     /// The name of the capture that wraps what it asked for, if it is one.
-    capture: Option<String>,
+    capture: Option<(String, &'a Node)>,
 }
 
 impl<'a> PrimaryFrame<'a> {
