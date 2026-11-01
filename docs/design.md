@@ -568,6 +568,8 @@ A library reads each document into its DOM on its own, as it reads any grammar. 
 
 The result is what textual inclusion gives. Stitching looks only at the order of a stage's rules, never at the documents that hold them (engine §2). A later rule can redefine or extend an earlier one wherever each was written. Stages run in the order they start, and every stage's start rule is `text`. Paths resolve against the including document, in the same way on disk, in memory and on GitHub.
 
+The textual export and normal loading use the same include walk. Both report include cycles and missing documents as grammar errors.
+
 A document can be included in several stages. An included document can hold stage selectors and `%features` too. So several pipelines can share a stage by including one document that holds it. A second `%stage` of one name is an error.
 
 `%extend-stage` selects an earlier stage and appends subsequent items. `%redefine-stage` clears that stage's accumulated items and selects it for replacement. Both keep the stage's original execution position. Selection continues across includes, and replacement leaves global features and other stages intact. The loader evaluates only the final stage definitions, but it still reads every source document.

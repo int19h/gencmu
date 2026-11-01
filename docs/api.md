@@ -50,6 +50,8 @@ Names-file inspection also requires the complete pinned standard reference, inde
 
 A DOM (document object model) is the parsed form of a grammar document, as `docs/output.md` describes. Each `data/preparsed/FAMILY.json` holds the preparsed DOMs for one family. The required `gencmu.json` supplies the notation bootstrap.
 
+Within one load, a document read serves every include with the same path and inherited names. Separate loads read the current text again.
+
 Each document under `grammars/FAMILY/` uses only `data/preparsed/FAMILY.json`, besides the bootstrap. A bundled pipeline therefore reads only its own family's file. A missing or malformed optional file gives cache misses. If no matching cache entry exists, the library reads the document through the notation grammar.
 
 An ordinary entry requires matching text hash, bootstrap fingerprint, core-table hash, properties fingerprint, and DOM format. Bootstrap entries bypass source text hash checks, as engine §8 defines. The properties fingerprint is mandatory, with `null` for a custom core without a companion. A document that loads names data requires matching paths and fingerprints for its standard file and selected extras.
@@ -75,6 +77,8 @@ Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`,
 Rust exposes these optional fields through `code()`, `group()`, `option()`, `expression()`, and `inheritance()` on `Error`. These accessors borrow stored data without creating a diagnostic.
 
 [Output formats](output.md) defines the grammar DOM, cache, and parse-result schemas. The compatibility boundary is the schema version and the notation contract. Callers supply DOMs of that version or grammar text in the specified notation.
+
+Each JavaScript loader cache keeps at most 256 entries and 4,000,000 UTF-16 code units. Eviction removes the least recently used entries. The DOM cache counts source text. The preparsed cache counts DOM JSON. The inherited-names cache counts paths and names. The preparsed-file cache counts paths.
 
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
