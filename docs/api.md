@@ -16,6 +16,8 @@ A pipeline runs grammar stages in sequence. A stage is one step with its own gra
   The working directory never replaces these resources. A source map can supply replacement names data. The library loads properties and abbreviations with the core data. Core abbreviation escapes use the core map, and other source names require names data. Absolute paths identify documents in errors.
 - It loads documents held in memory through a map of `/`-separated paths to text. The caller gives the pipeline document's path in that map. Resource keys are relative to the package root, which holds sibling `grammars/` and `data/` directories. The map can replace Unicode resources and any `data/preparsed/FAMILY.json`. Libraries fill missing entries from bundled resources except a properties companion for an overridden core.
 
+Every pipeline path must be valid UTF-8. A loader refuses an invalid path with a `usage` error before it reads that path.
+
 A bundled name has two or more segments separated by `/`. Each segment matches `[a-z0-9][a-z0-9-]*`. Names are case-sensitive and have no short aliases. Invalid names and missing bundled pipelines cause a `usage` error before grammar loading.
 
 `bundledPipelines()` lists the package's bundled names in code-point order. Python and Rust call it `bundled_pipelines()`, and Go calls it `BundledPipelines()`. A directory defines a bundled pipeline exactly when it holds `pipeline.md`. Discovery removes the `grammars/` prefix and `/pipeline.md` suffix from each matching resource path. Enumeration includes only valid pipeline names. No separate catalog file defines the list.
@@ -64,6 +66,8 @@ An unreadable optional `data/preparsed/FAMILY.json` gives a cache miss. A tie wh
 
 The same error type reports loading failures and caller mistakes. The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known. A tie has no line or column.
 
+A feature-role conflict stores a bare description. The formatter adds its document, position, and stage once.
+
 A diagnostic copies its location fields, including independent copies of `group`, `expression`, and `inheritance`. Editing a caught diagnostic cannot change cached documents or later diagnostics. For the same input and configuration, repeated parsing preserves the formatted diagnostic.
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
@@ -93,7 +97,7 @@ A loaded pipeline parses a text with these configuration arguments. Each argumen
 | until | the last stage | the name of the last stage to run. An unknown name is an error, and so is an empty name. Go is the exception, as its section says. |
 | elision-only | the grammar's own | On or off for every stage that runs. This overrides `%ambiguity-resolution ... elision-only`. |
 
-Usage errors follow this order: the original text, each caller token in input order, the feature lists, then `until`. The first invalid category ends the call. Within one token, the order of field errors is not defined.
+Usage errors follow this order: the original text, each caller token in input order, the feature lists, then `until`. The first invalid category ends the call. Within one token, the order of field errors is not defined. When several features occur in both lists, the first one in the caller's enabled list names the error.
 
 A text must be a sequence of Unicode scalar values, or it is a usage error (engine §1). So a JavaScript or Python string with a lone surrogate is a usage error. So is a Go string that is not valid UTF-8. The same holds for every source-map string, including Unicode resources and cached JSON. The loader inspects supplied strings in code point order of their keys before hashing or parsing any entry. A non-scalar string gives a `usage` error with its key and no line or column.
 
@@ -131,7 +135,7 @@ A failed result retains features enabled before the failure, including earlier d
 
 The [pipeline guide](pipelines.md#phoneme-values-and-stress) describes the bundled stages and comparison values. The `until` argument must name a stage in the selected pipeline.
 
-A stage exposes its name, input and output tokens, verdict, and any tie witness. Find stages by name because their order differs by pipeline. A tied stage emits nothing and places both readings in the result error. A token stores text, value, image, tags, span, and source. Both strings always exist.
+A stage exposes its name, input and output tokens, verdict, and any tie witness. If ranking chose a tree, the stage keeps that tree after an emission or elision-check error. Find stages by name because their order differs by pipeline. A tied stage emits nothing and places both readings in the result error. A token stores text, value, image, tags, span, and source. Both strings always exist.
 
 An `ε` item records its inserting rule and has empty source text. A token can carry before- and after-attachments, which remain token lists. Attached tokens have no stage span. An image can include neighboring text outside its source without changing its text field.
 
@@ -316,3 +320,5 @@ gencmu::to_brackets(&result, true);
 - `to_brackets(&ParseResult, show_elided: bool) -> String` renders the tree as brackets.
 - A result owns its data (`String`, `Vec`) and borrows neither the text nor the pipeline. So it outlives both.
 - The crate has no dependencies. It states its minimum supported Rust version.
+
+The Rust `GrammarValue::to_json` writer uses an explicit stack for nested arrays and objects. Object members keep their stored order.

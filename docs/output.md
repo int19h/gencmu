@@ -8,7 +8,7 @@ JSON member names are case-sensitive. Names that differ in case are distinct mem
 
 ## Canonical JSON
 
-Canonical JSON is UTF-8 JSON with integers only. An integer member has no fraction or exponent in its JSON spelling. A library leaves out an optional member that is absent. It never writes `null` for it, unless this document says otherwise. Every library writes canonical JSON with its own code, because the Rust standard library has no JSON writer.
+Canonical JSON is UTF-8 JSON with integers only. Serialization applies the witness gates even to caller-built results. An integer member has no fraction or exponent in its JSON spelling. A library leaves out an optional member that is absent. It never writes `null` for it, unless this document says otherwise. Every library writes canonical JSON with its own code, because the Rust standard library has no JSON writer.
 
 Single-guillemet escapes belong to notation strings printed in names and diagnostics. JSON serialization still preserves the actual member values with ordinary JSON quoting. A notation string inside a JSON member therefore has both its notation spelling and the surrounding JSON string encoding.
 
@@ -81,6 +81,8 @@ A rule name is an output string, rather than an ASCII identifier. It can contain
 The [pipeline guide](pipelines.md#phoneme-values-and-stress) describes the bundled stage list and phoneme mappings.
 
 A list that flat braces read has no node of its own. Each level of a chain is a `rule` node of the chain's rule (engine §12). So braces add no kind of node.
+
+The JSON value returned by a formatter owns its arrays independently of the input result.
 
 A token node's `token` indexes the stage-input token it reads. `terminal` records canonical terminal identity, such as `KOhA`, `"a"`, `"a".."z"`, or `_`. Tests do not change that identity. Constants expand to their string identity. Read witnesses and expected lists use the same spelling.
 
@@ -165,7 +167,7 @@ Examples are `KOhA<UI Word>`, `KOhA<¬UI>`, `LE≠"lo"`, `X<¬A B>`, and `X<A>="
 
 A grammar that fails to load produces an error alone, outside any parse result. Its kind is `grammar`. The error has `document`, `line`, and `column` where known. A tie in a notation stage has `document`, with no `line` or `column` (engine §8).
 
-Every stitching error carries `stage`. Missing resolution and start rule errors have no document or position.
+Every error raised while splicing a selected stage carries that stage, including include and stage-selector errors. Every stitching error carries `stage`. Missing resolution and start rule errors have no document or position.
 
 Engine §2 specifies common stitching and classifier messages. Existing unit tests pin those messages. Other wording stays library-specific unless this specification states otherwise.
 
@@ -666,7 +668,7 @@ A hollow rule node, such as an empty slot for a free modifier, has no token and 
 
 Tree patterns do not change bracket grouping. The renderer applies the rules below after it decides whether to show elided terminators. Brackets write the tree of the final stage as nested groups:
 
-1. The image of a token node is the image of its token (engine §5). Grammar image recipes supply pause spaces and verbatim quote spelling. An image can itself be empty, and the renderer keeps it. The image of an elided node is empty, unless elided terminators are shown. In that case, the image is the terminal in lower case between `⟨` and `⟩`.
+1. The image of a token node is the image of its token (engine §5). Grammar image recipes supply pause spaces and verbatim quote spelling. An image can itself be empty, and the renderer keeps it. A token index outside the stage input renders an empty leaf. The image of an elided node is empty, unless elided terminators are shown. In that case, the image is the terminal in ASCII lower case between `⟨` and `⟩`.
 2. A token node whose token has attachments renders as a group. Its members are the token's before-attachments, the token's image, and its after-attachments, in that order. Each attachment renders in the same way: as its image, or as a group if it has attachments of its own.
 3. The renderer renders the children of a rule node and drops the empty ones. An empty child is an elided node that is not shown, or a rule node that renders nothing. A token node is never empty.
 

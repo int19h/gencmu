@@ -906,6 +906,8 @@ The product provides these diagnostics and debugging tools:
 - Stage inspection shows the tokens that every stage emitted, with their tags.
 - The trace shows, for one position, which items the recognizer predicted, advanced, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this". A trace uses the parse's features and `elisionOnly` choice. Its declared `elisionOnly` option accepts `true`, `false`, or `null`. An omitted or `null` choice keeps the grammar's own rule.
 
+  A stage with input that fails before recognition reports that failure and its diagnostic. A later stage without input is not reached.
+
   The trace position must be a finite integer. The trace clamps it to the stage's token boundaries. Printed conditions preserve method receivers with parentheses around compound terms.
 - The audit reports unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` covers text that can never emit a token and that no token can cover. The audit names a replacement that adds or removes a rule flag, with the flags before and after. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
 
@@ -959,6 +961,8 @@ Only `parse` and `test` accept bare arguments. `test` requires exactly one case 
 `--trace` selects trace output, so it cannot combine with `--format` or `--show-elided`. Without tracing, `--show-elided` requires the brackets format.
 
 The `test` command reports invalid JSON or case fields as a `usage` error with the file, physical line number, and exit status 2. Each case has a string `text`, an optional bundled `pipeline`, and optional string arrays `features` and `withoutFeatures`. The `parse` standard input and `test` case files use strict UTF-8. Invalid bytes cause a `usage` error before pipeline loading.
+
+When `parse` reads standard input, it removes one final LF and an immediately preceding CR. Arguments keep their final line endings.
 
 `parse` prints any warning on standard error, as it prints an error, a tie included. The CLI needs Node and nothing else.
 
