@@ -547,7 +547,6 @@ class _Constants:
                 continue
             try:
                 self.check_value_uses(path, term, at)
-                self.check_delimiters(path, term, at)
             except GencmuError as error:
                 faults.append(error)
         if faults:
@@ -575,38 +574,25 @@ class _Constants:
             raise _error(result.problem.message, path, rule["at"], self.stage)
         if result.deferred is not None:
             self.deferred_emissions.append(_error(result.deferred.message, path, rule["at"], self.stage))
-        self.check_delimiters(path, rule, rule["at"])
 
-    def check_value_uses(self, path: str, root: Any, at: Any) -> None:
-        """Inspect range endpoints and pattern values after constant binding."""
-        pending = [root]
-        while pending:
-            node = pending.pop()
-            if isinstance(node, list):
-                pending.extend(node)
-            elif isinstance(node, dict):
-                if node.get("op") in ("≅", "≇"):
-                    run(self._closed(path, node["right"], at, "pattern"))
-                if "pattern" in node:
-                    run(self._closed(path, node, at))
-                else:
-                    if "range" in node:
-                        ends = [run(self._closed(path, end, at)) for end in node["range"]]
-                        for i, end in enumerate(ends):
-                            if len(end) != 1:
-                                raise self.fault_error(path, node["range"][i], at, "a range endpoint is one scalar")
-                        if ends[0] > ends[1]:
-                            raise self.fault_error(path, node["range"], at, "a range starts above its end")
-                    pending.extend(node.values())
-
-    def check_delimiters(self, path: str, clauses: Any, at: Any, *, computed: bool = False) -> None:
-        """Reject direct empty delimiters, or all closed feature delimiters."""
-        for call in _calls_in(clauses):
-            delimiter = call["args"][0]
-            if not computed and "string" not in delimiter and "const" not in delimiter:
-                continue
-            if open_part(delimiter) is None and run(self._closed(path, delimiter, at)) == "":
-                raise self.fault_error(path, delimiter, at, "split has an empty delimiter")
+    def check_value_uses(self, path: str, root: Any, at: Any, *, computed: bool = False) -> None:
+        """Inspect bound values through one written-order clause walk."""
+        for node, pattern in _value_parts(root):
+            if pattern or "pattern" in node:
+                run(self._closed(path, node, at, "pattern" if pattern else "any"))
+            if "range" in node:
+                ends = [run(self._closed(path, end, at)) for end in node["range"]]
+                for index, end in enumerate(ends):
+                    if len(end) != 1:
+                        raise self.fault_error(path, node["range"][index], at, "a range endpoint is one scalar")
+                if ends[0] > ends[1]:
+                    raise self.fault_error(path, node["range"], at, "a range starts above its end")
+            if node.get("method") == "split":
+                delimiter = node["args"][0]
+                if not computed and "string" not in delimiter and "const" not in delimiter:
+                    continue
+                if open_part(delimiter) is None and run(self._closed(path, delimiter, at)) == "":
+                    raise self.fault_error(path, delimiter, at, "split has an empty delimiter")
 
     def test(self, path: str, test: Dom, at: Any) -> SymbolTest:
         """A test of a body with its value, from the constants' final
@@ -726,19 +712,36 @@ def _string(value: Any) -> str:
     return value if isinstance(value, str) else ""
 
 
-def _calls_in(node: Any) -> list[Dom]:
-    """The split methods in a rule's clauses."""
-    found: list[Dom] = []
-    stack: list[Any] = [node]
-    while stack:
-        current = stack.pop()
-        if isinstance(current, list):
-            stack.extend(reversed(current))
-        elif isinstance(current, dict):
-            if current.get("method") == "split" and isinstance(current.get("args"), list):
-                found.append(current)
-            stack.extend(reversed(list(current.values())))
-    return found
+def _value_parts(root: Any):
+    """Yield value-bearing nodes in written order, with pattern contexts."""
+    pending = [(root, False)]
+    while pending:
+        node, pattern = pending.pop()
+        if isinstance(node, list):
+            pending.extend((child, False) for child in reversed(node))
+            continue
+        if not isinstance(node, dict):
+            continue
+        yield node, pattern
+        if pattern or "pattern" in node:
+            continue
+        if node.get("op") in ("≅", "≇"):
+            pending.extend(((node["right"], True), (node["left"], False)))
+            continue
+        if "alternatives" in node:
+            keys = ("tags", "value", "image", "alternatives", "conditions", "emit")
+        elif "expr" in node:
+            keys = ("expr", "requirements", "tags", "value", "image")
+        elif "method" in node:
+            keys = ("receiver", "args")
+        elif "if" in node:
+            keys = ("if", "then")
+        elif "op" in node:
+            keys = ("left", "right")
+        else:
+            keys = ("seq", "choice", "ranked", "and", "optional", "repeat", "separator", "literal", "range",
+                    "not", "any", "all", "union", "intersection", "difference", "concat", "items", "tags", "value", "image", "conditions", "emit")
+        pending.extend((node[key], False) for key in reversed(keys) if key in node)
 
 
 def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Grammar:
@@ -909,7 +912,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                     fault = condition_type_fault(condition, lambda name: constants.values[name].type)
                     if fault:
                         raise _error(fault[0], path, directive["at"], stage)
-                constants.check_delimiters(path, directive["conditions"], directive["at"], computed=True)
+                constants.check_value_uses(path, directive["conditions"], directive["at"], computed=True)
                 resolved_features.append((path, {**directive, "conditions": conditions}))
             except GencmuError as error:
                 raise _error(error.message, path, directive["at"], stage) from error
