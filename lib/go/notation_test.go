@@ -881,3 +881,14 @@ func TestCanonicalDOMMemberOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestAttachmentRejectsBareCaptureAfterStrayToken(t *testing.T) {
+	b := &domBuilder{doc: "g.md", gt: &grammarText{pos: [][2]int{{1, 1}}}, toks: []Token{{Value: "A"}, {Value: "$"}}}
+	n := &Node{Kind: KindRule, Rule: "capture-reference", Children: []*Node{{Kind: KindToken, Token: 0}, {Kind: KindToken, Token: 1}}}
+	defer func() {
+		if e, ok := recover().(*Error); !ok || e.Kind != ErrorGrammar {
+			t.Fatalf("expected a document error, got %v", e)
+		}
+	}()
+	b.attachment(n, n)
+}

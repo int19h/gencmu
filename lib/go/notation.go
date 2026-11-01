@@ -237,14 +237,15 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 }
 
 type domBuilder struct {
-	parameters     map[string]bool
-	partsCache     map[*Node][]*Node
-	readingHead    bool
-	unresolved     bool
-	strings        *documentStrings
-	hasBoundary    bool
-	deferEmission  bool
-	featureContext bool
+	parameters      map[string]bool
+	partsCache      map[*Node][]*Node
+	unresolvedNodes map[*Node]bool
+	readingHead     bool
+	unresolved      bool
+	strings         *documentStrings
+	hasBoundary     bool
+	deferEmission   bool
+	featureContext  bool
 	// captureNodes holds the notation node of each capture of the
 	// alternative being read, where an error about it is reported.
 	captureNodes map[*domExpr]*Node
@@ -1039,10 +1040,7 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 		}{{"emit-before", &it.Before}, {"emit-after", &it.After}} {
 			for _, attachment := range b.ofRule(item, side.name) {
 				for _, capture := range b.some(attachment, "capture-reference", 1) {
-					if b.tokenValue(b.token(capture)) == "$" {
-						b.fail(attachment, "an attachment requires a named capture")
-					}
-					*side.into = append(*side.into, b.attachment(capture))
+					*side.into = append(*side.into, b.attachment(capture, attachment))
 				}
 			}
 		}
@@ -1072,15 +1070,18 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 
 // attachment is an attachment's capture, by its name without $: never $
 // itself (engine §9).
-func (b *domBuilder) attachment(n *Node) string {
+func (b *domBuilder) attachment(n, location *Node) string {
 	for _, p := range b.parts(n) {
 		if p.Kind == KindToken {
 			if text := b.tokenValue(p); strings.HasPrefix(text, "$") {
+				if text == "$" {
+					b.fail(location, "an attachment requires a named capture")
+				}
 				return text[1:]
 			}
 		}
 	}
-	b.fail(n, "an attachment holds a named capture, not $")
+	b.fail(location, "an attachment holds a named capture, not $")
 	return ""
 }
 
