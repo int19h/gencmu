@@ -6,7 +6,8 @@ import (
 	"unicode/utf8"
 )
 
-// Decode a layered pattern only after its complete shape and depth pass.
+// Decode a layered pattern after its complete shape pass.
+// Declaration validation applies the depth bound after conversion.
 func (dc *domDecoder) decodeLayeredPattern(raw any, depth int) (*domPattern, error) {
 	var err error
 	root := templateObj(raw)

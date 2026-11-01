@@ -166,6 +166,7 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
     let rule = |name: &str| rule_name(name, unicode, expanded);
     let mut pending = Vec::new();
     let mut positions = FxSet::default();
+    let mut value_problem = None;
     for name in ["rules", "directives", "constants", "classifiers", "implications"] {
         let Some(items) = dom.get(name).and_then(Json::as_array) else {
             return Some("missing declaration array".into());
@@ -192,7 +193,7 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                         .and_then(Json::as_str)
                         == Some("")
                 {
-                    return Some("split has an empty delimiter".into());
+                    value_problem.get_or_insert("split has an empty delimiter");
                 }
             }
             match name {
@@ -398,7 +399,7 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
             }
         }
     }
-    parts_problem(pending, unicode, expanded)
+    parts_problem(pending, unicode, expanded).or_else(|| value_problem.map(str::to_string))
 }
 
 pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
