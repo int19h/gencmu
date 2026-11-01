@@ -3,6 +3,17 @@ package gencmu
 // Only channels that conditions read enter completed states (engine §4.1).
 func (g *lowered) demandedStrings() map[int32]uint8 {
 	g.stringsOnce.Do(func() {
+		bindings := map[string]map[string][]int32{}
+		for _, p := range g.prods {
+			if bindings[p.ruleName] == nil {
+				bindings[p.ruleName] = map[string][]int32{}
+			}
+			for name, position := range p.posOf {
+				if !p.rhs[position].term {
+					bindings[p.ruleName][name] = append(bindings[p.ruleName][name], p.rhs[position].id)
+				}
+			}
+		}
 		demands := map[int32]uint8{}
 		changed := false
 		add := func(rule int32, channel int) {
@@ -25,8 +36,15 @@ func (g *lowered) demandedStrings() map[int32]uint8 {
 				}
 				if name == "" {
 					add(p.lhs, channel)
+					if root, ok := g.byName[p.ruleName]; ok {
+						add(root, channel)
+					}
 				} else if position, ok := p.posOf[name]; ok && !p.rhs[position].term {
 					add(p.rhs[position].id, channel)
+				} else {
+					for _, target := range bindings[p.ruleName][name] {
+						add(target, channel)
+					}
 				}
 			}
 			for _, part := range t.Items {
@@ -49,6 +67,12 @@ func (g *lowered) demandedStrings() map[int32]uint8 {
 		for _, p := range g.prods {
 			for _, c := range p.conds {
 				cond(c.cond, p)
+			}
+			for _, c := range p.rankedConditions {
+				cond(c, p)
+			}
+			for _, c := range p.itemConds {
+				cond(c, p)
 			}
 			for _, c := range p.predictConds {
 				cond(c, p)
@@ -106,6 +130,9 @@ func (r *recognizer) tokenStrings(at int) [2]string {
 }
 
 func (r *recognizer) finishStrings(key *itemKey, end int32) {
+	r.finishStringsIn(key, end, nil)
+}
+func (r *recognizer) finishStringsIn(key *itemKey, end int32, enclosing func(string) (spanVal, bool)) {
 	p := key.prod
 	channels := r.g.demandedStrings()[p.lhs]
 	if channels == 0 || int(key.dot) != len(p.rhs) {
@@ -140,7 +167,11 @@ func (r *recognizer) finishStrings(key *itemKey, end int32) {
 			if recipe == nil {
 				text = prefix[channel]
 			} else {
-				capture := withStringCapture(r.captureFunc(p, r.caps(key), key.origin, end, nil), get)
+				capture := enclosing
+				if capture == nil {
+					capture = r.captureFunc(p, r.caps(key), key.origin, end, nil)
+				}
+				capture = withStringCapture(capture, get)
 				ev := r.run.evaluator(r.g, capture)
 				for _, atom := range recipe.Items {
 					if atom.Kind == tmCall && atom.Str == "verbatim-text" {
@@ -163,4 +194,22 @@ func (r *recognizer) finishStrings(key *itemKey, end int32) {
 		}
 	}
 	key.emitted = values
+}
+
+func (r *recognizer) conditionStrings(key itemKey, end int32) [2]string {
+	p := key.prod
+	if p.lexical == nil {
+		return key.emitted
+	}
+	frame := p.lexical
+	root := *frame.root
+	root.lexical = nil
+	values := frame.stringPrefix
+	for channel := range values {
+		values[channel] += key.emitted[channel]
+	}
+	parent := itemKey{prod: &root, dot: int32(len(root.rhs)), origin: frame.origin, emitted: values}
+	capture := r.captureFunc(p, r.caps(&key), key.origin, end, nil)
+	r.finishStringsIn(&parent, end, capture)
+	return parent.emitted
 }

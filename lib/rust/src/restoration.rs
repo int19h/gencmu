@@ -25,6 +25,7 @@ pub(crate) struct Entry {
     pub dot: u32,
     pub control: u32,
     pub prefix: u32,
+    pub emitted: u32,
     pub structure: u32,
     pub captures: Vec<CapturedEntry>,
 }

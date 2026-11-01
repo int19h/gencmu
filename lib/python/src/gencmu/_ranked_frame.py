@@ -20,6 +20,7 @@ class Frame:
     seal_close_prefix: int = 0
     seal_group: object = None
     seal_start: int = 0
+    string_prefix: tuple = ()
     close_entry: tuple = ()
     seal_entry: tuple = ()
 
@@ -166,14 +167,14 @@ class Frames:
         # frames, by its number.
         self.prepared_items = {}
 
-    def entry(self, p, dot, origin, prefix, caps, rule, restores=False, close_prefix=0, at=0, boundary=None):
+    def entry(self, p, dot, origin, prefix, caps, rule, restores=False, close_prefix=0, at=0, boundary=None, strings=()):
         own = self.lowered.rule_productions[rule]
         if not own or not self.lowered.productions[own[0]].contextual:
             return None
         outer = p.lexical
         if outer is not None and p.lhs==rule:
             return outer
-        key = (written_prefix(self.lowered,p,dot,origin,prefix,caps,restores), boundary.id if boundary is not None else None)
+        key = (written_prefix(self.lowered,p,dot,origin,prefix,caps,restores), boundary.id if boundary is not None else None,strings)
         if self.closes is not None:
             key = key, close_prefix
         if key in self.frames:
@@ -189,10 +190,14 @@ class Frames:
         inside = bool(p.ranked or outer and outer.inside)
         seal_prefix = outer.seal_prefix if inside and outer else prefix
         frame = Frame(len(self.frames)+1,key,captures,present,root,named_origin,prefix,seal_prefix,inside,(outer.known_private if outer else set()) | p.private_names)
+        values = dict(outer.string_prefix) if outer else {}
+        for channel, value in strings:
+            values[channel] = values.get(channel, "") + value
+        frame.string_prefix = tuple(sorted(values.items()))
         if self.closes is not None and p.lhs in self.lowered.close_rules:
             frame.close_prefix = self.closes.concat(outer.close_prefix, close_prefix) if outer else close_prefix
             frame.seal_close_prefix = outer.seal_close_prefix if inside and outer else frame.close_prefix
-            frame.close_entry = self.common_entry(p, dot, origin, prefix, caps, outer, frame.close_prefix)
+            frame.close_entry = self.common_entry(p, dot, origin, prefix, caps, outer, frame.close_prefix, frame.string_prefix)
             own_group = self.lowered.ranked_helpers.get(rule)
             frame.seal_group = outer.seal_group if inside and outer else own_group
             frame.seal_start = outer.seal_start if inside and outer else at
@@ -200,7 +205,7 @@ class Frames:
         self.frames[key] = frame
         return frame
 
-    def common_entry(self, p, dot, origin, prefix, caps, outer, close_prefix):
+    def common_entry(self, p, dot, origin, prefix, caps, outer, close_prefix, strings):
         """Use written control and public observations, without proof IDs."""
         lowered = self.lowered
         def symbol(value, terminal):
@@ -222,7 +227,7 @@ class Frames:
                                  part[5] if len(part)>5 else ()))
         source = p.rule_name, p.slot.source.document, p.slot.source.at, lowered.written_helpers.get(p.lhs)
         return (outer.close_entry if outer else None, source, route, self.project(origin), prefix,
-                tuple(observations), self.closes.semantic(close_prefix))
+                strings, tuple(observations), self.closes.semantic(close_prefix))
 
     def production(self,p,frame):
         if frame is None:

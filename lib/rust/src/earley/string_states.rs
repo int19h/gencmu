@@ -2,55 +2,75 @@ use super::*;
 use crate::dom::{Arg, Term};
 
 pub(super) fn demands(g: &Lowered) -> Vec<u8> {
-    fn add(out: &mut [u8], p: &crate::lower::Prod, span: &Span, image: bool) -> bool {
+    fn add(out: &mut [u8], p: &crate::lower::Prod, span: &Span, image: bool, g: &Lowered) -> bool {
         let rule = match span {
             Span::Whole => Some(p.rule),
             Span::Cap(slot) => match p.syms[p.cap_pos[*slot as usize]] {
                 Sym::N(r) => Some(r),
                 _ => None,
             },
+            Span::Lexical(name) => {
+                let mut changed = false;
+                for other in &g.prods {
+                    if other.slot.as_ref().map(|s| s.source) != p.slot.as_ref().map(|s| s.source) {
+                        continue;
+                    }
+                    if let Some(&slot) = other.names.get(name) {
+                        changed = add(out, other, &Span::Cap(slot), image, g) || changed;
+                    }
+                }
+                return changed;
+            }
             _ => None,
         };
+        let mut changed = false;
+        if matches!(span, Span::Whole) {
+            if let Some(slot) = &p.slot {
+                let old = out[slot.source.0];
+                out[slot.source.0] |= 1 << u8::from(image);
+                changed = old != out[slot.source.0];
+            }
+        }
         if let Some(rule) = rule {
             let bit = 1 << u8::from(image);
             let old = out[rule as usize];
             out[rule as usize] |= bit;
-            return old != out[rule as usize];
+            return changed || old != out[rule as usize];
         }
-        false
+        changed
     }
-    fn term(t: &LTerm, p: &crate::lower::Prod, out: &mut [u8]) -> bool {
+    fn term(t: &LTerm, p: &crate::lower::Prod, out: &mut [u8], g: &Lowered) -> bool {
         match t {
-            LTerm::Emitted(s, i) => add(out, p, s, *i),
+            LTerm::Emitted(s, i) => add(out, p, s, *i, g),
             LTerm::Concat(xs) | LTerm::Union(xs) | LTerm::Inter(xs) => {
                 let mut changed = false;
                 for t in xs {
-                    changed = term(t, p, out) || changed;
+                    changed = term(t, p, out, g) || changed;
                 }
                 changed
             }
-            LTerm::Diff(a, b) | LTerm::Split(a, b) => term(a, p, out) | term(b, p, out),
-            LTerm::Ngrams(a, _) | LTerm::Classify(a, _) => term(a, p, out),
-            LTerm::If(c, t) => cond(c, p, out) | term(t, p, out),
+            LTerm::Diff(a, b) | LTerm::Split(a, b) => term(a, p, out, g) | term(b, p, out, g),
+            LTerm::Ngrams(a, _) | LTerm::Classify(a, _) => term(a, p, out, g),
+            LTerm::If(c, t) => cond(c, p, out, g) | term(t, p, out, g),
             _ => false,
         }
     }
-    fn cond(c: &LCond, p: &crate::lower::Prod, out: &mut [u8]) -> bool {
+    fn cond(c: &LCond, p: &crate::lower::Prod, out: &mut [u8], g: &Lowered) -> bool {
         match c {
-            LCond::Cmp(_, a, b) => term(a, p, out) | term(b, p, out),
-            LCond::Not(c) => cond(c, p, out),
+            LCond::Cmp(_, a, b) => term(a, p, out, g) | term(b, p, out, g),
+            LCond::Not(c) => cond(c, p, out, g),
             LCond::Any(xs) | LCond::All(xs) => {
                 let mut changed = false;
                 for c in xs {
-                    changed = cond(c, p, out) || changed;
+                    changed = cond(c, p, out, g) || changed;
                 }
                 changed
             }
-            LCond::If(a, b) => cond(a, p, out) | cond(b, p, out),
+            LCond::If(a, b) => cond(a, p, out, g) | cond(b, p, out, g),
             _ => false,
         }
     }
-    fn recipe(t: &Term, p: &crate::lower::Prod, out: &mut [u8]) -> bool {
+    fn recipe(t: &Term, p: &crate::lower::Prod, out: &mut [u8], g: &Lowered) -> bool {
         let mut changed = false;
         if let Term::Call(name, args) = t {
             if let ("value" | "image", [Arg::Term(Term::Call(method, args))]) = (name.as_str(), &args[..]) {
@@ -61,13 +81,13 @@ pub(super) fn demands(g: &Lowered) -> Vec<u8> {
                         p.names.get(capture).map(|&slot| Span::Cap(slot))
                     };
                     if let Some(span) = span {
-                        changed = add(out, p, &span, name == "image")
+                        changed = add(out, p, &span, name == "image", g)
                     }
                 }
             }
             for arg in args {
                 if let Arg::Term(t) = arg {
-                    changed = recipe(t, p, out) || changed
+                    changed = recipe(t, p, out, g) || changed
                 }
             }
         }
@@ -76,7 +96,13 @@ pub(super) fn demands(g: &Lowered) -> Vec<u8> {
     let mut out = vec![0; g.rules.len()];
     for p in &g.prods {
         for (c, _) in &p.conds {
-            cond(c, p, &mut out);
+            cond(c, p, &mut out, g);
+        }
+    }
+    for ((production, _, _, _), plan) in &g.ranked.plans {
+        let p = &g.prods[*production as usize];
+        for (c, _) in plan.conditions.iter().flatten() {
+            cond(c, p, &mut out, g);
         }
     }
     let mut changed = true;
@@ -93,7 +119,7 @@ pub(super) fn demands(g: &Lowered) -> Vec<u8> {
                     p.strings.image.as_ref().or(p.strings.value.as_ref())
                 };
                 if let Some(t) = selected {
-                    changed = recipe(t, p, &mut out) || changed
+                    changed = recipe(t, p, &mut out, g) || changed
                 } else {
                     for s in &p.syms {
                         if let Sym::N(r) = s {
@@ -110,6 +136,61 @@ pub(super) fn demands(g: &Lowered) -> Vec<u8> {
 }
 
 impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
+    pub(super) fn enclosing_strings(
+        &mut self,
+        frame: &Frame<'_>,
+        tokens: &[Tok],
+        base: usize,
+    ) -> Result<u32, EngineError> {
+        let Some(enclosing) = frame.lexical else { return Ok(frame.emitted) };
+        let root = &self.g.prods[enclosing.root as usize];
+        let mut captured = enclosing.captures.clone();
+        let current = &self.g.prods[frame.prod as usize];
+        for (name, &slot) in &current.names {
+            captured.insert(name.clone(), frame.caps.get(slot));
+        }
+        let mut chart = Chart::default();
+        let mut bound = enclosing.clone();
+        bound.captures = captured.clone();
+        chart.lexical.push(bound);
+        let empty = Cap {
+            emitted: 0,
+            boundary: 0,
+            close_requested: false,
+            start: frame.origin,
+            end: frame.origin,
+            tags: 0,
+            structure: u32::MAX,
+        };
+        let mut parts = vec![empty; root.cap_pos.len()];
+        for (name, &slot) in &root.names {
+            if let Some(&part) = captured.get(name) {
+                parts[slot as usize] = part;
+            }
+        }
+        let mut caps = 0;
+        for part in parts {
+            caps = chart.extend_caps(caps, part);
+        }
+        let mut values = self.shared.string_states[enclosing.emitted as usize].clone();
+        for (channel, text) in values.iter_mut().enumerate() {
+            text.push_str(&self.shared.string_states[frame.emitted as usize][channel]);
+        }
+        let mut item = Item {
+            emitted: self.intern_strings(values),
+            boundary: 0,
+            close_requested: false,
+            lexical: 1,
+            prod: enclosing.root,
+            dot: root.syms.len() as u32,
+            origin: enclosing.origin,
+            caps,
+            prefix: 0,
+            structure: u32::MAX,
+        };
+        self.finish_strings(&chart, &mut item, frame.end as usize, tokens, base)?;
+        Ok(item.emitted)
+    }
     pub(super) fn intern_strings(&mut self, values: [String; 2]) -> u32 {
         if values.iter().all(String::is_empty) {
             return 0;

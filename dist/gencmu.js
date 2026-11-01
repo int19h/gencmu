@@ -9395,9 +9395,9 @@
       const captures = [];
       for (let part = item.slots; part; part = part.parent) {
         const name = item.production.captures[part.index].name;
-        if (!name.startsWith('\u0000')) captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id]);
+        if (!name.startsWith('\u0000')) captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id,part.emitted]);
       }
-      return [written(item.production),item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,captures.reverse(),item.restores,item.production.rankedBindings,item.observationPrefix?.id];
+      return [written(item.production),item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,item.stringPrefix,captures.reverse(),item.restores,item.production.rankedBindings,item.observationPrefix?.id];
     };
     return {
       contextual,
@@ -9429,7 +9429,9 @@
         const sealGroup = inside && outer ? outer.sealGroup : context.lowered.ranked?.groups.find((/** @type {any} */ group) => group.helper === name) ?? null;
         const sealEntry = inside && outer ? outer.sealEntry : item;
         const knownPrivate = new Set([...outer?.knownPrivate ?? [],...item.production.rankedPrivate ?? []]);
-        const frame = {id:next++,key,captures,root,namedOrigin,prefix,inside,sealPrefix,present,knownPrivate,
+        const stringPrefix = {...outer?.stringPrefix};
+        for (const [channel,value] of Object.entries(item.stringPrefix ?? {})) stringPrefix[channel] = (stringPrefix[channel] ?? "") + value;
+        const frame = {id:next++,key,captures,root,namedOrigin,prefix,stringPrefix,inside,sealPrefix,present,knownPrivate,
           observationPrefix,sealObservationPrefix,sealGroup,sealEntry};
         frames.set(key,frame);
         return frame;
@@ -11554,6 +11556,18 @@
   function demandedStrings(productions) {
     const known = stringDemands.get(productions);
     if (known) return known;
+    const bindings = new Map();
+    for (const p of productions) {
+      let names = bindings.get(p.owner);
+      if (!names) bindings.set(p.owner,names=new Map());
+      for (const capture of p.captures) {
+        const symbol = p.rhs[capture.index];
+        if (symbol.terminal) continue;
+        let targets = names.get(capture.name);
+        if (!targets) names.set(capture.name,targets=new Set());
+        targets.add(symbol.name);
+      }
+    }
     const demands = new Map();
     let changed = false;
     const add = (/** @type {string} */ name, /** @type {string} */ channel) => {
@@ -11570,13 +11584,17 @@
           const name = part.receiver.receiver.capture;
           const slot = production.captureSlot.get(name);
           const symbol = slot === undefined ? null : production.rhs[production.captures[slot].index];
-          if (name === "") add(production.lhs,part.method);
+          if (name === "") { add(production.lhs,part.method); add(production.owner,part.method); }
           else if (symbol && !symbol.terminal) add(symbol.name,part.method);
+          else for (const target of bindings.get(production.owner)?.get(name) ?? []) add(target,part.method);
         }
         for (const value of Object.values(part)) if (value && typeof value === "object") pending.push(...(Array.isArray(value) ? value : [value]));
       }
     };
-    for (const p of productions) for (const c of p.conditions) reads(c.condition,p);
+    for (const p of productions) {
+      for (const c of [...p.conditions,...p.rankedConditions ?? []]) reads(c.condition,p);
+      reads(p.itemConditions,p);
+    }
     do {
       changed = false;
       for (const p of productions) for (const channel of demands.get(p.lhs) ?? []) {
@@ -11590,12 +11608,12 @@
     return demands;
   }
 
-  /** @param {ParseContext} context @param {Production} production @param {number} dot @param {number} origin @param {number} end @param {Captured} slots @param {Item|null} previous @param {Item|null} child @returns {{prefix:Record<string,string>,value:Record<string,string>}|null} */
-  function stringStep(context, production, dot, origin, end, slots, previous, child) {
+  /** @param {ParseContext} context @param {Production} production @param {number} dot @param {number} origin @param {number} end @param {Captured} slots @param {Item|null} previous @param {Item|null} child @param {Record<string,string>} [enclosingPrefix] @returns {{prefix:Record<string,string>,value:Record<string,string>}|null} */
+  function stringStep(context, production, dot, origin, end, slots, previous, child, enclosingPrefix) {
     const channels = demandedStrings(context.lowered.productions).get(production.lhs);
     if (!channels) return null;
-    const prefix = {...previous?.stringPrefix};
-    for (const channel of channels) {
+    const prefix = {...(enclosingPrefix ?? previous?.stringPrefix)};
+    for (const channel of enclosingPrefix ? [] : channels) {
       const recipe = channel === "value" ? production.value : production.image ?? production.value;
       if (production.erased || recipe) continue;
       const contribution = previous ? child ? child.emitted?.[channel] ?? "" : context.tokens[end-1][/** @type {"value"|"image"} */ (channel)] : "";
@@ -11832,7 +11850,7 @@
     return JSON.stringify([group.site, originalPosition(context, child.origin), originalPosition(context, child.end),
       originalPosition(context, frame?.namedOrigin ?? before.origin), writtenPrefixKey(context, before.production),
       before.production.rhs.slice(0, before.dot).map(symbol => prefixSymbolKey(context, symbol)),
-      structuralKey(context, prefix), captures, closePrefix && context.closes ? context.closes.identity(closePrefix) : null]);
+      structuralKey(context, prefix), frame?.stringPrefix, before.stringPrefix, captures, closePrefix && context.closes ? context.closes.identity(closePrefix) : null]);
   }
 
   /**
@@ -13807,8 +13825,14 @@
           observation = closes.closeRule(observation,frame.root.lhs,
             originalPosition(this.context,frame.namedOrigin),originalPosition(this.context,this.end));
         }
-        const parent = new ChartScope(this.context,{...frame.root,tags:this.production.parentTags,lexicalFrame:{...frame,parentWhole:true}},null,frame.namedOrigin,this.end,structure,observation);
-        return {observation,structure,patterns:machine,start:frame.namedOrigin,end:this.end,space:this.space,
+        const captures = new Map(frame.captures);
+        for (let part = this.slots; part; part = part.parent) captures.set(this.production.captures[part.index].name,part);
+        const production = {...frame.root,tags:this.production.parentTags,lexicalFrame:{...frame,captures,parentWhole:true}};
+        const parent = new ChartScope(this.context,production,null,frame.namedOrigin,this.end,structure,observation);
+        const strings = {...frame.stringPrefix};
+        for (const [channel,value] of Object.entries(this.emitted ?? {})) strings[channel] = (strings[channel] ?? "") + value;
+        const emitted = stringStep(this.context,production,production.rhs.length,frame.namedOrigin,this.end,null,null,null,strings)?.value;
+        return {emitted,observation,structure,patterns:machine,start:frame.namedOrigin,end:this.end,space:this.space,
           get tags() {return /** @type {TagSet} */ (parent.constituent());}};
       }
       if (name === "") {

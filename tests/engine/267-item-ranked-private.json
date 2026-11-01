@@ -1,0 +1,11 @@
+{
+  "description": "A condition reads an emitted value from a private ranked capture.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text ($e:w ≻ $e:w)\n%conditions $e.emitted.value ≠ \"cd\"\n%rule w \"c\" \"d\"",
+  "input": "cd",
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}

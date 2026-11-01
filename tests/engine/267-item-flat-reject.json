@@ -1,0 +1,11 @@
+{
+  "description": "An item condition rejects different emitted values in a flat list.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $v:w {\" \" $e:w}\n%conditions\n  $v.emitted.value = $e.emitted.value\n%rule w\n  {\"a\"..\"z\"}",
+  "input": "ab cd",
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}

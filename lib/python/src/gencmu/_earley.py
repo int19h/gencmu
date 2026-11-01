@@ -1347,6 +1347,11 @@ class Parser:
                         return None
             return record, notes
 
+        string_bindings = {}
+        for p in productions:
+            names=string_bindings.setdefault(p.rule_name,{})
+            for name,index in p.captures.items():
+                if not p.terminal[index]: names.setdefault(name,set()).add(p.rhs[index])
         string_demands = {}
         def demand(rule, channel):
             channels = string_demands.setdefault(rule, set())
@@ -1359,20 +1364,27 @@ class Parser:
             pending = [term]
             while pending:
                 node = pending.pop()
-                if isinstance(node, list): pending.extend(node)
+                if isinstance(node, (list,tuple)): pending.extend(node)
                 elif isinstance(node, dict):
                     receiver = node.get("receiver", {})
                     if node.get("method") in ("value", "image") and receiver.get("method") == "emitted":
                         name = receiver["receiver"]["capture"]
                         index = production.captures.get(name)
-                        if not name: changed = demand(production.lhs, node["method"]) or changed
+                        if not name:
+                            changed = demand(production.lhs, node["method"]) or changed
+                            for p in productions:
+                                if not p.helper and p.rule_name==production.rule_name:
+                                    changed=demand(p.lhs,node["method"]) or changed
                         elif index is not None and not production.terminal[index]:
                             changed = demand(production.rhs[index], node["method"]) or changed
+                        else:
+                            for target in string_bindings.get(production.rule_name,{}).get(name,()):
+                                changed=demand(target,node["method"]) or changed
                     pending.extend(node.values())
             return changed
 
         for p in productions:
-            string_reads([p.conds_predict, *p.conds_at.values()], p)
+            string_reads([p.conds_predict, *p.conds_at.values(), p.items.conditions if p.items else None, p.slot.ranked_conditions if p.slot else None], p)
         changed = True
         while changed:
             changed = False
@@ -1386,12 +1398,12 @@ class Parser:
                             if not p.terminal[index]: changed = demand(symbol, channel) or changed
         string_prefixes, string_values = [], []
 
-        def string_state(p, position, start, at, captured, edge):
+        def string_state(p, position, start, at, captured, edge, enclosing_prefix=None, enclosing_bound=None):
             channels = string_demands.get(p.lhs)
             if not channels: return (), ()
             previous = edge[0]
-            prefix = dict(string_prefixes[previous]) if previous >= 0 else {}
-            for channel in channels:
+            prefix = dict(enclosing_prefix) if enclosing_prefix is not None else dict(string_prefixes[previous]) if previous >= 0 else {}
+            for channel in (() if enclosing_prefix is not None else channels):
                 recipe = p.value if channel == "value" else p.image if p.image is not None else p.value
                 if p.erased or recipe is not None: continue
                 contribution = ""
@@ -1401,7 +1413,7 @@ class Parser:
             values, active = {}, set()
             gaps = None
             if position == len(p.rhs):
-                bound = evaluator.bind(p, captured, (start, at, None))
+                bound = enclosing_bound or evaluator.bind(p, captured, (start, at, None))
                 def get(channel):
                     nonlocal gaps
                     if channel in values: return values[channel]
@@ -1428,9 +1440,18 @@ class Parser:
                 for channel in channels: get(channel)
             return tuple(sorted(prefix.items())), tuple(sorted(values.items()))
 
+        def condition_strings(p, captured, at, values):
+            frame=p.lexical
+            if frame is None:return dict(values)
+            prefix=dict(frame.string_prefix)
+            for channel,value in values:prefix[channel]=prefix.get(channel,"")+value
+            bound=evaluator.bind(p,captured,(frame.origin,at,None))
+            return dict(string_state(frame.root,len(frame.root.rhs),frame.origin,at,captured,SEED,prefix,bound)[1])
+
         def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False, prefix: int = 0, close_prefix: int = 0, family_prefix: Summary = IDENTITY, obligations=None, known_tag=None) -> None:
             if position == 0 and not productions[production].rhs:
                 known_tag = prediction_tags.pop((production, at), known_tag)
+            string_prefix, strings = string_state(productions[production], position, start, at, captured, edge)
             bounded = None
             if boundaries is not None:
                 obligations = prediction_obligations.pop((production, at), []) if obligations is None else obligations
@@ -1513,7 +1534,7 @@ class Parser:
             if frames is None:
                 return None
             p = productions[prod[item]]
-            return frames.entry(p, dot[item], origin[item], prefixes[item], caps[item], rule, any(edge[1] == RESTORE for edge in edges[item]), close_prefixes[item] if closes is not None else 0, end[item], records[item] if boundaries is not None else None)
+            return frames.entry(p, dot[item], origin[item], prefixes[item], caps[item], rule, any(edge[1] == RESTORE for edge in edges[item]), close_prefixes[item] if closes is not None else 0, end[item], records[item] if boundaries is not None else None,string_prefixes[item])
 
         def candidate(p, frame, requested=False):
             p = frames.production(p, frame) if frames is not None else p
@@ -1694,8 +1715,8 @@ class Parser:
                 bound = bound_for(production, captured, (start, at, known_tag), structure, close_structure)
             else:
                 bound = bound_for(production, captured)
-            strings = dict(string_state(production, position+1, start, at, captured, edge)[1])
-            bound.string_reader = lambda channel: strings.get(channel, "")
+            strings = string_state(production, position+1, start, at, captured, edge)[1]
+            bound.string_reader = lambda channel: condition_strings(production,captured,at,strings).get(channel, "")
             obligations = []
             try:
                 for condition in conditions or ():
@@ -1727,8 +1748,8 @@ class Parser:
             known_tag = lazy_tag(production, NO_CAPS, j, j, structure, close_structure) if not production.rhs else None
             whole = (j, j, known_tag) if known_tag is not None else None
             bound = bound_for(production, NO_CAPS, whole, structure, close_structure)
-            strings = dict(string_state(production, 0, j, j, NO_CAPS, SEED)[1])
-            bound.string_reader = lambda channel: strings.get(channel, "")
+            strings = string_state(production, 0, j, j, NO_CAPS, SEED)[1]
+            bound.string_reader = lambda channel: condition_strings(production,NO_CAPS,j,strings).get(channel, "")
             obligations = []
             try:
                 for condition in production.conds_predict:

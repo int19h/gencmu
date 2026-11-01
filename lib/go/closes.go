@@ -345,7 +345,7 @@ func (r *recognizer) blockEvent(c *symNode) closeEvent {
 		sort.Strings(names)
 		var key strings.Builder
 		origin, _ := r.observed(f.origin, f.origin)
-		fmt.Fprintf(&key, "%q:%d:%d:%d:%q/", f.root.ruleName, origin, f.prefix, r.closes.semantic(f.closes), f.closeRoute)
+		fmt.Fprintf(&key, "%q:%d:%d:%d:%q:%q:%q/", f.root.ruleName, origin, f.prefix, r.closes.semantic(f.closes), f.closeRoute, f.stringPrefix[0], f.stringPrefix[1])
 		for _, n := range names {
 			cv := f.captures[n]
 			x, y := r.observed(cv.start, cv.end)

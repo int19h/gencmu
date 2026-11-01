@@ -730,7 +730,7 @@ func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 		}
 		r.predictTags = tags
 		r.finishStrings(&key, int32(k))
-		r.ev = r.run.evaluator(r.g, withStringCapture(r.captureFunc(p, caps, int32(k), int32(k), tags, key.structure, key.closes), func(c int) string { return key.emitted[c] }))
+		r.ev = r.run.evaluator(r.g, withStringCapture(r.captureFunc(p, caps, int32(k), int32(k), tags, key.structure, key.closes), func(c int) string { return r.conditionStrings(key, int32(k))[c] }))
 		r.pending, r.condAt = true, 0
 		countCondition()
 		r.startCondition(r.ev, p.predictConds[0], p)
@@ -1108,7 +1108,7 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			if c.whole && whole == nil {
 				whole = r.lazyTags(p, caps, key.origin, int32(k), key.structure, key.closes)
 			}
-			r.startCondition(r.run.evaluator(r.g, withStringCapture(r.captureFunc(p, caps, key.origin, int32(k), whole, key.structure, key.closes), func(c int) string { return key.emitted[c] })), c.cond, p)
+			r.startCondition(r.run.evaluator(r.g, withStringCapture(r.captureFunc(p, caps, key.origin, int32(k), whole, key.structure, key.closes), func(c int) string { return r.conditionStrings(key, int32(k))[c] })), c.cond, p)
 		}
 		resuming = false
 		if q := r.resumeCondition(); q != nil {

@@ -8,6 +8,7 @@ import (
 
 // A frame retains written prefix values across generated helper boundaries.
 type rankedFrame struct {
+	stringPrefix       [2]string
 	id                 int32
 	captures           map[string]capVal
 	present            map[string]bool
@@ -316,7 +317,7 @@ func (r *recognizer) rankedPrefix(it *item) string {
 			if r.closes != nil {
 				sequence = r.closes.semantic(cv.closes)
 			}
-			captures = append(captures, fmt.Sprintf("%q/%d/%d/%d/%d/%d", n, cv.start, cv.end, cv.tags, cv.structure, sequence))
+			captures = append(captures, fmt.Sprintf("%q/%d/%d/%d/%d/%d/%q/%q", n, cv.start, cv.end, cv.tags, cv.structure, sequence, cv.emitted[0], cv.emitted[1]))
 		}
 	}
 	lexical := int32(0)
@@ -364,7 +365,7 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 	if outer != nil && p.lhs == rule {
 		return outer
 	}
-	key := fmt.Sprintf("%s/%d/%d/%d", r.rankedPrefix(it), it.closes, it.cap0.closes, it.more)
+	key := fmt.Sprintf("%s/%d/%d/%d/%q", r.rankedPrefix(it), it.closes, it.cap0.closes, it.more, it.emitted)
 	if r.rankedFrames == nil {
 		r.rankedFrames = map[string]*rankedFrame{}
 	}
@@ -372,6 +373,7 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 		return old
 	}
 	f := &rankedFrame{id: int32(len(r.rankedFrames) + 1), captures: map[string]capVal{}, present: map[string]bool{}, knownPrivate: map[string]bool{}, root: p, origin: it.origin, prefix: it.prefix, sealPrefix: it.prefix, closes: it.closes}
+	f.stringPrefix = it.emitted
 	f.closeRoute = r.closeEntryRoute(it)
 	if outer != nil {
 		for n, c := range outer.captures {
@@ -384,6 +386,9 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 			f.present[n] = true
 		}
 		f.root, f.origin = outer.root, outer.origin
+		for channel := range f.stringPrefix {
+			f.stringPrefix[channel] = outer.stringPrefix[channel] + f.stringPrefix[channel]
+		}
 		f.closeRoute = outer.closeRoute + f.closeRoute
 		// The pattern machine exists where a pattern or a ranked group
 		// needs it; without it, a prefix is the item's own.

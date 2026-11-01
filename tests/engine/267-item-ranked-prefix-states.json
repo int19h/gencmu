@@ -1,0 +1,10 @@
+{
+  "description": "A ranked item condition distinguishes captured prefixes with different emitted values.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $v:w (\" \" $e:q ≻ \" \" $e:q)\n%conditions\n  $v.emitted.value ≠ \"unused\" ∧\n  $v.emitted.value = $e.emitted.value\n%rule w \"a\" := \"no\" | \"a\" := \"yes\"\n%rule q \"a\" := \"yes\"",
+  "input": "a a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

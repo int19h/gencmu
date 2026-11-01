@@ -368,6 +368,7 @@ pub(crate) struct Chart {
 
 #[derive(Debug, Clone)]
 pub(crate) struct LexicalFrame {
+    pub emitted: u32,
     family: Option<(u32, u32)>,
     pub observes_closes: bool,
     pub captures: std::collections::BTreeMap<String, Cap>,
@@ -412,6 +413,7 @@ impl Chart {
     pub(crate) fn expected_lexical(&self, before: Item, at: u32) -> u32 {
         self.helper_entries.get(&(at, before)).copied().unwrap_or(0)
     }
+    #[allow(clippy::too_many_arguments)]
     fn enter_helper(
         &mut self,
         g: &Lowered,
@@ -420,6 +422,7 @@ impl Chart {
         base: usize,
         project: Option<&[u32]>,
         observing: bool,
+        string_prefix: u32,
     ) -> u32 {
         let p = &g.prods[before.prod as usize];
         let Sym::N(rule) = p.syms[before.dot as usize] else { return 0 };
@@ -465,7 +468,7 @@ impl Chart {
             .cloned()
             .unwrap_or_else(|| format!("parent{:?}", p.slot.as_ref().expect("a written source").source));
         let key = format!(
-            "{:?}/{written:?}/{symbols:?}/{}/{}/{own:?}/{}/{:?}/{observing}/{}",
+            "{string_prefix}/{:?}/{written:?}/{symbols:?}/{}/{}/{own:?}/{}/{:?}/{observing}/{}",
             before.lexical,
             before.dot,
             before.origin,
@@ -524,6 +527,7 @@ impl Chart {
                 dot: before.dot,
                 control,
                 prefix: m.normalized_observation(prefix),
+                emitted: string_prefix,
                 structure,
                 captures,
             };
@@ -542,6 +546,7 @@ impl Chart {
         let observes_closes = outer.map_or(observing, |f| f.observes_closes);
         let id = self.lexical.len() as u32 + 1;
         self.lexical.push(LexicalFrame {
+            emitted: string_prefix,
             family: self.family,
             observes_closes,
             available: captures.keys().cloned().collect(),
@@ -2261,6 +2266,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     }
                 }
                 Sym::N(rule) => {
+                    let outer = run.chart.lexical_frame(item.lexical).map_or(0, |f| f.emitted);
+                    let mut prefix = self.shared.string_states[outer as usize].clone();
+                    for (channel, text) in prefix.iter_mut().enumerate() {
+                        text.push_str(&self.shared.string_states[item.emitted as usize][channel]);
+                    }
+                    let string_prefix = self.intern_strings(prefix);
                     let lexical = run.chart.enter_helper(
                         g,
                         item,
@@ -2268,6 +2279,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         run.base,
                         self.recon.map(|r| &r.project[..]),
                         self.observes_closes(item),
+                        string_prefix,
                     );
                     let requested = self.requests_child(item, run.tokens, e);
                     let key = lexical_rule(rule, lexical, requested);
@@ -3561,7 +3573,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         LTerm::Str(text) => Value::Str(text.clone()),
                         LTerm::Emitted(span, image) => {
                             let state = match span {
-                                Span::Whole => frame.emitted,
+                                Span::Whole => self.enclosing_strings(frame, tokens, base)?,
                                 Span::Cap(slot) => frame.caps.get(*slot).emitted,
                                 Span::Lexical(name) => {
                                     frame.lexical.and_then(|f| f.captures.get(name)).map_or(0, |c| c.emitted)
