@@ -77,6 +77,7 @@ class DomBuilder:
         # by the identity of its DOM, and how many braces and elidable
         # optionals the reader is inside, where no capture stands.
         self.capture_nodes: dict[int, Node] = {}
+        self.parts_cache: dict[int, tuple[Node, list[Node]]] = {}
         self.braces = 0
         self.marked = 0
         # The types found of the terms and conditions read, each found once
@@ -97,14 +98,15 @@ class DomBuilder:
             current = pending.pop()
             if current.kind == "token":
                 return current.token
-            pending.extend(reversed(current.children))
+            if current.kind != "elided":
+                pending.extend(reversed(current.children))
         return None
 
     def position(self, node: Node) -> tuple[int, int]:
         index = self.first_token(node)
         if index is None:
             index = node.span[0]
-        if index >= len(self.tokens):
+        if index < 0 or index >= len(self.tokens):
             return self.grammar_text.position(self.tokens[-1].source[1] if self.tokens else 0)
         return self.grammar_text.position(self.tokens[index].source[0])
 
@@ -122,7 +124,11 @@ class DomBuilder:
 
     def kids(self, node: Node) -> list[Node]:
         """A node's children, reading every unmapped rule in its place."""
+        cached = self.parts_cache.get(id(node))
+        if cached is not None:
+            return cached[1]
         result: list[Node] = []
+        self.parts_cache[id(node)] = (node, result)
         stack = list(reversed(node.children))
         while stack:
             child = stack.pop()
@@ -464,7 +470,7 @@ class DomBuilder:
         for argument in self.some(node, 'call-argument'):
             part = self.known_of(argument, frozenset(('requirement-argument', 'target-argument', 'body-argument', 'symbol-argument', 'term')))
             if part.rule == 'requirement-argument':
-                value = dict(requirements=self.wrap_tests({}, [part])['requirements'])
+                value = dict(requirements=(yield self._wrap_tests({}, [part]))['requirements'])
             elif part.rule == 'target-argument':
                 targets = []
                 for target in (k for k in self.kids(part) if k.kind == 'rule'):
@@ -556,12 +562,12 @@ class DomBuilder:
             return {"ref": self.tag_of(self.token(node))}
         if rule == "string-terminal":
             value = self.known_of(node, frozenset(("string", "constant-reference")))
-            return {"literal": self.value(value)}
+            return {"literal": (yield self._term(value))}
         if rule == "wildcard":
             self.token(node)
             return {"wildcard": True}
         if rule == "range":
-            return {"range": self.range_of(node)}
+            return {"range": (yield self._range(node))}
         if rule == "tested":
             tests = [kid for kid in self.kids(node) if kid.rule in ("tag-test", "value-test")]
             if not tests:
@@ -569,7 +575,7 @@ class DomBuilder:
             symbol = self.test_base(node)
             self.test_order(tests, symbol.rule in _SYMBOLS)
             expr = yield self._expr(symbol)
-            return self.wrap_tests(expr, tests)
+            return (yield self._wrap_tests(expr, tests))
         if rule == "capture":
             # Its place, its name and its symbol, in that order, before what
             # it wraps (engine §9).
@@ -593,7 +599,7 @@ class DomBuilder:
             self.capture_nodes[id(capture)] = node
             return capture
         if rule == "constant-reference":
-            return {"literal": self.value(node)}
+            return {"literal": (yield self._term(node))}
         if rule == "group":
             return (yield self._expr(self.only(node, "choice")))
         if rule == "optional":
@@ -703,11 +709,13 @@ class DomBuilder:
             raise self.fail(token, "invalid tag name")
         return name
 
-    def range_of(self, node: Node) -> list[Dom]:
+    def _range(self, node: Node) -> Walk:
         parts = [kid for kid in self.kids(node) if kid.rule in ("string", "constant-reference", "parameter")]
         if len(parts) < 2:
             raise self.lacks(node, "two string operands")
-        ends = [self.value(end) for end in parts[:2]]
+        ends = []
+        for end in parts[:2]:
+            ends.append((yield self._term(end)))
         problem = range_problem(ends)
         if problem:
             raise self.fail(node, problem)
@@ -732,7 +740,7 @@ class DomBuilder:
                 raise self.fail(test, "invalid test target or test order")
             seen.add(test.rule)
 
-    def wrap_tests(self, expr: Dom, tests: list[Node]) -> Dom:
+    def _wrap_tests(self, expr: Dom, tests: list[Node]) -> Walk:
         for test in tests:
             if test.rule in ("tag-test", "requirement-argument"):
                 requirements = []
@@ -742,7 +750,7 @@ class DomBuilder:
                     base = self.known_of(operand, _ATOMS)
                     if base.rule not in ("tag", "name", "constant-reference", "parameter"):
                         raise self.fail(operand, "a tag test requires a tag or tag-set constant")
-                    value = self.value(base)
+                    value = yield self._term(base)
                     if "tag" not in value and "const" not in value and "param" not in value:
                         raise self.fail(operand, "a tag test requires a tag or tag-set constant")
                     problem = expected_problem(term_type(value, memo=self.types)[0], "tags")
@@ -756,7 +764,7 @@ class DomBuilder:
                 base = self.known_of(operand, _ATOMS)
                 if base.rule not in ("string", "constant-reference", "parameter"):
                     raise self.fail(operand, "a value test requires a string or string constant")
-                expr = {"test": op, "value": self.value(base), "expr": expr}
+                expr = {"test": op, "value": (yield self._term(base)), "expr": expr}
         return expr
 
     def emission(self, node: Node) -> Dom:
@@ -888,11 +896,10 @@ class DomBuilder:
                 raise self.fail(node, 'unknown method ' + name)
             if self.closed_for and name not in ("split", "ngrams"):
                 raise self.fail(node, f"{self.closed_for} cannot read an input method")
-            if not self.recipe_context and name in ("verbatim-text", "emitted"):
-                raise self.fail(node, "a method has the wrong receiver or arguments")
             arguments = self.one(selector, "arguments")
             args = []
-            for part in self.some(arguments, "argument") if arguments else []:
+            argument_nodes = self.some(arguments, "argument") if arguments else []
+            for part in argument_nodes:
                 integer = self.one(part, "integer")
                 if integer is not None:
                     digits = self.token_value(self.token(integer))
@@ -901,21 +908,22 @@ class DomBuilder:
                     arg = {"integer": digits}
                 else:
                     arg = yield self._term(self.only(part, "term"), True)
-                if name == "classify" and "rule" in arg:
-                    if CLASSIFIER_NAME.fullmatch(arg["rule"]) is None:
-                        raise self.fail(node, "a method has the wrong receiver or arguments")
-                    arg = {"classifier": arg["rule"]}
                 if name in ("matches", "begins", "ends", "followed-by", "preceded-by") and "tag" in arg and not arg["tag"].startswith("_"):
                     arg = {"terminal": arg["tag"]}
                 from ._boundary import Located
                 arg = Located(arg, self.position(part))
                 args.append(arg)
             if arguments is not None:
-                separators = [self.token_value(child) for child in arguments.children if child.kind == "token"]
+                separators = [self.token_value(child) for child in self.kids(arguments) if child.kind == "token"]
                 if any(separator != ("|" if name in ("matches", "begins", "ends", "followed-by", "preceded-by") else ",") for separator in separators):
                     raise self.fail(arguments, "invalid method argument separator")
             if name in ('classify', 'ngrams') and has_unresolved(args):
                 raise self.fail(node, 'a parameter cannot replace a classifier name or integer argument')
+            if name == "classify" and len(args) == 1 and "rule" in args[0]:
+                if CLASSIFIER_NAME.fullmatch(args[0]["rule"]) is None:
+                    raise self.fail(node, "a method has the wrong receiver or arguments")
+                from ._boundary import Located
+                args[0] = Located({"classifier": args[0]["rule"]}, self.position(argument_nodes[0]))
             dependent = has_unresolved([receiver, args])
             if self.feature_context or dependent:
                 problem = method_shape_problem(name, receiver, args, self.recipe_context)
@@ -978,7 +986,7 @@ class DomBuilder:
         self.test_order(tests, valid or first.rule == "parameter")
         if first.rule in ("call", "parameter"):
             expr = (yield self._call(first)) if first.rule == "call" else self.parameter(first)
-            return {"node": self.wrap_tests(expr, tests)}
+            return {"node": (yield self._wrap_tests(expr, tests))}
         if named:
             name_token = first if first.kind == "token" else self.token(first)
             name = self.token_value(name_token)
@@ -989,13 +997,13 @@ class DomBuilder:
         name = self.token_value(token) if token is not None else ""
         at = list(self.position(first))
         if first.rule == "constant-reference":
-            value = self.value(first)
+            value = yield self._term(first)
             pattern = {"constant": value["const"], "at": at}
         elif first.rule in ("string-terminal", "string"):
-            value = self.value(first if first.rule == "string" else self.known_of(first, frozenset(("string", "constant-reference"))))
+            value = yield self._term(first if first.rule == "string" else self.known_of(first, frozenset(("string", "constant-reference"))))
             pattern = {"literal": value, "at": at}
         elif first.rule == "range":
-            pattern = {"range": self.range_of(first), "at": at}
+            pattern = {"range": (yield self._range(first)), "at": at}
         elif first.rule == "wildcard" or name == "_":
             pattern = {"wildcard": True, "at": at}
         elif first.rule == "tag" or USER_NAME.fullmatch(name) or name.startswith("_"):
@@ -1006,7 +1014,7 @@ class DomBuilder:
             pattern = {"name": name, "at": at}
         if isinstance(pattern.get('literal'), dict) and 'const' in pattern['literal']:
             pattern = {**{key: value for key, value in pattern.items() if key != 'literal'}, 'constant': pattern['literal']['const']}
-        return {"node": self.wrap_tests(pattern, tests)}
+        return {"node": (yield self._wrap_tests(pattern, tests))}
 
     def _child_predicate(self, items: list[Dom], node: Node) -> Dom:
         while len(items) == 1 and "sequence" in items[0]:
@@ -1226,7 +1234,10 @@ class DomBuilder:
             if self.recipe_context and rule == "string-run":
                 raise self.fail(node, "juxtaposed recipe strings require ++, use ++ between string atoms")
             self.tag_run_placement(node)
-            return {"union": [self.value(tag) for tag in self.some(node, "string" if rule == "string-run" else "tag", 2)]}
+            items = []
+            for tag in self.some(node, "string" if rule == "string-run" else "tag", 2):
+                items.append((yield self._term(tag)))
+            return {"union": items}
         if rule == "empty-set":
             return {"emptySet": True}
         if rule == "capture-reference":

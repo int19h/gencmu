@@ -26,7 +26,7 @@ impl<'a> SourceArgumentFrame<'a> {
 }
 
 impl<'a> Reader<'a> {
-    pub(super) fn source_parameter(&self, node: &Node) -> R<SourceSymbol> {
+    pub(super) fn source_parameter(&self, node: &'a Node) -> R<SourceSymbol> {
         let name = self.value(self.token(node)?).strip_prefix('@').unwrap_or("");
         if !self.reading_head.get() && !self.parameters.borrow().contains(name) {
             return Err(self.error(node, format!("undeclared parameter @{name}")));
@@ -61,18 +61,18 @@ impl<'a> Reader<'a> {
         })))
     }
 
-    pub(super) fn source_requirements(&self, node: &'a Node) -> R<Term> {
+    pub(super) fn source_requirements(&self, node: &'a Node, invalid_operand: &str) -> R<Term> {
         let mut args = Vec::new();
-        for requirement in Self::rules(node, "tag-requirement") {
+        for requirement in self.rules(node, "tag-requirement") {
             let operand = self.one(requirement, "test-operand")?;
             let part = self.inner(operand, ATOMS)?;
             let value = match rule_name(part) {
                 "tag" => Term::Tag(self.tag_of(self.token(part)?)?),
                 "constant-reference" => self.constant_reference(self.token(part)?)?,
                 "parameter" => Term::Source(self.source_parameter(part)?),
-                _ => return Err(self.error(operand, "a tag requirement requires a tag or tag-set constant")),
+                _ => return Err(self.error(operand, invalid_operand)),
             };
-            let negated = Self::tokens_of(requirement).any(|token| self.value(token) == "¬");
+            let negated = self.tokens_of(requirement).any(|token| self.value(token) == "¬");
             args.push(Arg::Term(if negated { Term::Call("forbid".into(), vec![Arg::Term(value)]) } else { value }));
         }
         Ok(Term::Call("requirements".into(), args))
@@ -100,18 +100,18 @@ impl<'a> Reader<'a> {
             match rule_name(inner) {
                 "requirement-argument" => {
                     return Ok(Step::Done(Val::SourceArgument(SourceArgument::Requirements(
-                        self.source_requirements(inner)?,
+                        self.source_requirements(inner, "a tag requirement requires a tag or tag-set constant")?,
                     ))));
                 }
                 "target-argument" => {
-                    frame.targets = Some(Self::parts(inner).into_iter().filter(|n| n.kind == NodeKind::Rule).collect());
+                    frame.targets = Some(self.parts(inner).into_iter().filter(|n| n.kind == NodeKind::Rule).collect());
                 }
                 "body-argument" | "symbol-argument" => {
                     let primary = self.inner(inner, PRIMARIES)?;
                     return Ok(Step::Call(Frame::Primary(PrimaryFrame::new(primary, true))));
                 }
                 _ => {
-                    if let Some(union) = Self::rules(inner, "union").next() {
+                    if let Some(union) = self.rules(inner, "union").next() {
                         if let Some(name) = self.rule_name_in(union) {
                             return Ok(Step::Done(Val::SourceArgument(SourceArgument::Body(Expr::Ref(name)))));
                         }

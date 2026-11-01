@@ -143,7 +143,7 @@ func (f *exprFrame) next(b *domBuilder) readStep {
 	}
 	expr := &domExpr{Kind: f.kind, Items: f.items, At: b.at(f.n)}
 	if f.kind == exRanked {
-		for _, part := range parts(f.n) {
+		for _, part := range b.parts(f.n) {
 			if part.Kind == KindToken && b.tokenValue(part) == "≻" {
 				expr.RankedAt = b.at(part)
 				break
@@ -164,17 +164,27 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 		return ask(&sourceCallFrame{n: n})
 	case "choice", "ranked-choice", "conjunction", "sequence":
 		if n.Rule == "choice" {
-			if ranked := one(n, "ranked-choice"); ranked != nil {
+			if ranked := b.one(n, "ranked-choice"); ranked != nil {
 				f.pass = true
 				return ask(&exprFrame{n: ranked})
 			}
 		}
-		f.kind = map[string]string{"choice": exChoice, "ranked-choice": exRanked, "conjunction": exAnd, "sequence": exSeq}[n.Rule]
+		child := "conjunction"
+		switch n.Rule {
+		case "choice":
+			f.kind = exChoice
+		case "ranked-choice":
+			f.kind = exRanked
+		case "conjunction":
+			f.kind, child = exAnd, "sequence"
+		case "sequence":
+			f.kind, child = exSeq, "primary"
+		}
 		minimum := 1
 		if f.kind == exRanked {
 			minimum = 2
 		}
-		f.parts = b.some(n, map[string]string{"choice": "conjunction", "ranked-choice": "conjunction", "conjunction": "sequence", "sequence": "primary"}[n.Rule], minimum)
+		f.parts = b.some(n, child, minimum)
 		// Only the one conjunction of an alternative, and its one sequence
 		// of one primary, are its whole expression.
 		f.inWhole = f.whole && f.kind != exChoice && f.kind != exRanked && len(f.parts) == 1
@@ -251,7 +261,7 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 	n := f.n
 	choice := b.only(n, "choice")
 	var markers []*Node
-	for _, p := range parts(n) {
+	for _, p := range b.parts(n) {
 		if p.Kind == KindToken && b.tokenValue(p) == "+" {
 			markers = append(markers, p)
 		}
@@ -265,19 +275,19 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 	}
 	const form = "an elidable optional begins with a user tag or parameter directly after +, without | or &"
 	hasToken := func(node *Node, text string) bool {
-		for _, p := range parts(node) {
+		for _, p := range b.parts(node) {
 			if p.Kind == KindToken && b.tokenValue(p) == text {
 				return true
 			}
 		}
 		return false
 	}
-	conjunctions := ofRule(choice, "conjunction")
+	conjunctions := b.ofRule(choice, "conjunction")
 	leading := hasToken(choice, "|") || (len(conjunctions) == 1 && hasToken(conjunctions[0], "&"))
 	var head *Node
 	if len(conjunctions) == 1 && !leading {
-		if sequences := ofRule(conjunctions[0], "sequence"); len(sequences) == 1 {
-			if primaries := ofRule(sequences[0], "primary"); len(primaries) > 0 {
+		if sequences := b.ofRule(conjunctions[0], "sequence"); len(sequences) == 1 {
+			if primaries := b.ofRule(sequences[0], "primary"); len(primaries) > 0 {
 				head = b.knownOf(primaries[0], primaryRules)
 			}
 		}
@@ -306,7 +316,7 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 // (engine §9).
 func (f *exprFrame) startRepetition(b *domBuilder) readStep {
 	n := f.n
-	found := parts(n)
+	found := b.parts(n)
 	choices := b.some(n, "choice", 1)
 	index := func(node *Node) int {
 		for i, p := range found {
@@ -389,7 +399,7 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 			if len(f.conds) < len(f.guards) {
 				return ask(&anyOfFrame{n: f.guards[len(f.conds)]})
 			}
-			last := one(n, "union")
+			last := b.one(n, "union")
 			if last == nil {
 				last = b.only(n, "term")
 			}
@@ -499,7 +509,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 			return ask(&termFrame{n: ps[0], argument: f.argument})
 		}
 		var ops []string
-		for _, p := range parts(n) {
+		for _, p := range b.parts(n) {
 			if p.Kind == KindToken {
 				if t := b.tokenValue(p); t == "∪" || t == "∖" {
 					ops = append(ops, t)
@@ -597,7 +607,7 @@ func (f *implicationFrame) resume(b *domBuilder, in any) readStep {
 		return ask(&anyOfFrame{n: f.anyOfs[len(f.items)]})
 	}
 	if len(f.items) == len(f.anyOfs) {
-		if consequent := one(f.n, "implication"); consequent != nil {
+		if consequent := b.one(f.n, "implication"); consequent != nil {
 			return ask(&implicationFrame{n: consequent})
 		}
 	}
@@ -742,9 +752,9 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 }
 
 func (b *domBuilder) patternOperand(right *Node) {
-	name := firstOfRule(right, "name")
+	name := b.firstOfRule(right, "name")
 	if name == nil {
-		name = firstOfRule(right, "tag")
+		name = b.firstOfRule(right, "tag")
 	}
 	if name != nil && right.Span[1]-right.Span[0] == 1 {
 		text := b.tokenValue(b.token(name))

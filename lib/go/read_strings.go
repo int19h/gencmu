@@ -53,7 +53,7 @@ func patternLeafMatches(p *domPattern, terminal, value string, tags *tagset) boo
 
 func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 	var tests []*Node
-	for _, p := range ruleParts(n) {
+	for _, p := range b.ruleParts(n) {
 		if p.Rule == "tag-test" || p.Rule == "value-test" {
 			tests = append(tests, p)
 		}
@@ -183,7 +183,7 @@ func (b *domBuilder) stringTerm(n *Node) *domTerm {
 
 func (b *domBuilder) stringRange(n *Node) [2]*domTerm {
 	var ends []*domTerm
-	for _, p := range ruleParts(n) {
+	for _, p := range b.ruleParts(n) {
 		if p.Rule == "string" || p.Rule == "constant-reference" || p.Rule == "parameter" {
 			ends = append(ends, b.term(p))
 			if len(ends) == 2 {
@@ -215,10 +215,10 @@ func (b *domBuilder) stringRange(n *Node) [2]*domTerm {
 }
 
 func (b *domBuilder) findTestBase(n *Node) *Node {
-	if p := one(n, "primary"); p != nil {
+	if p := b.one(n, "primary"); p != nil {
 		return b.knownOf(p, primaryRules)
 	}
-	for _, p := range ruleParts(n) {
+	for _, p := range b.ruleParts(n) {
 		for _, kind := range primaryRules {
 			if p.Rule == kind && kind != "tested" {
 				return p
@@ -238,7 +238,7 @@ func (b *domBuilder) testBase(n *Node) *Node {
 
 func (b *domBuilder) tested(n *Node) *domExpr {
 	var tests []*Node
-	for _, p := range ruleParts(n) {
+	for _, p := range b.ruleParts(n) {
 		if p.Rule == "tag-test" || p.Rule == "value-test" {
 			tests = append(tests, p)
 		}
@@ -281,7 +281,7 @@ func (b *domBuilder) tested(n *Node) *domExpr {
 
 func (b *domBuilder) requirements(n *Node) []tagRequirement {
 	out := []tagRequirement{}
-	for _, p := range ofRule(n, "tag-requirement") {
+	for _, p := range b.ofRule(n, "tag-requirement") {
 		operand := b.only(p, "test-operand")
 		part := b.knownOf(operand, atomRules)
 		if part.Rule != "tag" && part.Rule != "constant-reference" && part.Rule != "name" && part.Rule != "parameter" {
@@ -291,7 +291,7 @@ func (b *domBuilder) requirements(n *Node) []tagRequirement {
 			b.fail(operand, "a tag requirement requires a tag")
 		}
 		r := tagRequirement{Value: b.term(part)}
-		for _, token := range parts(p) {
+		for _, token := range b.parts(p) {
 			if token.Kind == KindToken && b.tokenValue(token) == "¬" {
 				r.Negated = true
 			}
@@ -302,10 +302,10 @@ func (b *domBuilder) requirements(n *Node) []tagRequirement {
 }
 
 func (b *domBuilder) recipes(n *Node) (value, image *domTerm) {
-	if clause := one(n, "value-clause"); clause != nil {
+	if clause := b.one(n, "value-clause"); clause != nil {
 		value = b.recipe(b.only(clause, "recipe"))
 	}
-	if clause := one(n, "image-clause"); clause != nil {
+	if clause := b.one(n, "image-clause"); clause != nil {
 		image = b.recipe(b.only(clause, "recipe"))
 	}
 	return
@@ -363,6 +363,7 @@ type methodFrame struct {
 	selectors   []*Node
 	index       int
 	receiver    *domTerm
+	dependent   bool
 	args        []*domTerm
 	arguments   []*Node
 }
@@ -370,7 +371,9 @@ type methodFrame struct {
 func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 	if !f.started {
 		f.started = true
-		return ask(&termFrame{n: b.only(b.only(f.n, "method-receiver"), "term-atom"), argument: true})
+		receiver := b.only(b.only(f.n, "method-receiver"), "term-atom")
+		f.dependent = b.sourceSyntaxUnresolved(receiver)
+		return ask(&termFrame{n: receiver, argument: true})
 	}
 	if f.receiver == nil {
 		f.receiver = in.(*domTerm)
@@ -380,53 +383,70 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 	if f.selectors == nil {
 		f.selectors = b.some(f.n, "method-selector", 1)
 	}
-	selector := f.selectors[f.index]
-	name := b.tokenValue(b.token(b.only(selector, "method-name")))
-	if f.arguments == nil {
-		if !knownMethod(name) {
-			b.fail(f.n, "unknown method %s", name)
+	for {
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
 		}
-		if b.closedFor != "" && name != "split" && name != "ngrams" {
-			b.fail(f.n, "%s cannot read an input method", b.closedFor)
-		}
-		f.arguments = []*Node{}
-		if arguments := one(selector, "arguments"); arguments != nil {
-			f.arguments = b.some(arguments, "argument", 1)
-		}
-	}
-	if len(f.args) < len(f.arguments) {
-		arg := f.arguments[len(f.args)]
-		if integer := one(arg, "integer"); integer != nil {
-			digits := b.tokenValue(b.token(integer))
-			if !validInteger(digits) {
-				b.fail(integer, "an integer argument is positive and has no leading zeros")
+		selector := f.selectors[f.index]
+		name := b.tokenValue(b.token(b.only(selector, "method-name")))
+		arguments := b.one(selector, "arguments")
+		if f.arguments == nil {
+			if !knownMethod(name) {
+				b.fail(f.n, "unknown method %s", name)
 			}
-			f.args = append(f.args, &domTerm{Kind: tmInteger, Str: digits})
-			return f.resume(b, nil)
-		}
-		return ask(&termFrame{n: b.only(arg, "term"), argument: true})
-	}
-	if arguments := one(selector, "arguments"); arguments != nil {
-		for _, p := range parts(arguments) {
-			if p.Kind == KindToken && b.tokenValue(p) != map[bool]string{true: "|", false: ","}[boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends"] {
-				b.fail(arguments, "invalid method argument separator")
+			if b.closedFor != "" && name != "split" && name != "ngrams" {
+				b.fail(f.n, "%s cannot read an input method", b.closedFor)
+			}
+			f.arguments = []*Node{}
+			if arguments != nil {
+				f.arguments = b.some(arguments, "argument", 1)
 			}
 		}
-		for i, a := range f.args {
-
-			a.At = b.at(f.arguments[i])
+		if len(f.args) < len(f.arguments) {
+			arg := f.arguments[len(f.args)]
+			if integer := b.one(arg, "integer"); integer != nil {
+				digits := b.tokenValue(b.token(integer))
+				if !validInteger(digits) {
+					b.fail(integer, "an integer argument is positive and has no leading zeros")
+				}
+				f.args = append(f.args, &domTerm{Kind: tmInteger, Str: digits})
+				continue
+			}
+			return ask(&termFrame{n: b.only(arg, "term"), argument: true})
 		}
+		if arguments != nil {
+			expected := ","
+			if boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends" {
+				expected = "|"
+			}
+			for _, p := range b.parts(arguments) {
+				if p.Kind == KindToken && b.tokenValue(p) != expected {
+					b.fail(arguments, "invalid method argument separator")
+				}
+			}
+			for i, a := range f.args {
+				a.At = b.at(f.arguments[i])
+			}
+		}
+		argumentUnresolved := arguments != nil && b.sourceSyntaxUnresolved(arguments)
+		if (name == "classify" || name == "ngrams") && argumentUnresolved {
+			b.fail(f.n, "a parameter cannot replace a classifier name or integer argument")
+		}
+		f.dependent = f.dependent || argumentUnresolved
+		f.receiver = b.finishMethod(f.n, name, f.receiver, f.args, f.dependent)
+		f.index++
+		if f.index == len(f.selectors) {
+			isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends"
+			if isPredicate != f.inCondition {
+				if isPredicate {
+					b.fail(f.n, "a query method is a condition, not a term")
+				}
+				b.fail(f.n, "a condition requires a query method")
+			}
+			return give(f.receiver)
+		}
+		f.args, f.arguments = nil, nil
 	}
-	if (name == "classify" || name == "ngrams") && one(selector, "arguments") != nil && sourceSyntaxUnresolved(one(selector, "arguments")) {
-		b.fail(f.n, "a parameter cannot replace a classifier name or integer argument")
-	}
-	f.receiver = b.finishMethod(f.n, name, f.receiver, f.args, f.inCondition && f.index == len(f.selectors)-1)
-	f.index++
-	if f.index == len(f.selectors) {
-		return give(f.receiver)
-	}
-	f.args, f.arguments = nil, nil
-	return f.resume(b, nil)
 }
 
 type sourceMethodKind int
@@ -457,10 +477,9 @@ var sourceMethods = map[string]sourceMethodKind{
 
 func knownMethod(name string) bool { return sourceMethods[name] != 0 }
 
-func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, predicate bool) *domTerm {
+func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, dependent bool) *domTerm {
 	fail := func() {
-		dependent := b.featureContext || sourceSyntaxUnresolved(n)
-		if dependent {
+		if b.featureContext || dependent {
 			b.fail(n, "a method has the wrong receiver or arguments")
 		}
 		if name == "without-elision" {
@@ -524,13 +543,6 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	if !valid {
 		fail()
 	}
-	isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends"
-	if isPredicate != predicate {
-		if isPredicate {
-			b.fail(n, "a query method is a condition, not a term")
-		}
-		b.fail(n, "a condition requires a query method")
-	}
 	items := append([]*domTerm{receiver}, args...)
 	if msg := literalCallProblem(name, items); msg != "" && !b.featureContext {
 		b.fail(n, "%s", msg)
@@ -538,7 +550,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	return &domTerm{Kind: tmCall, Str: name, Items: items, At: b.at(n)}
 }
 
-func sourceSyntaxUnresolved(n *Node) bool {
+func (b *domBuilder) sourceSyntaxUnresolved(n *Node) bool {
 	pending := []*Node{n}
 	for len(pending) > 0 {
 		node := pending[len(pending)-1]
@@ -546,7 +558,7 @@ func sourceSyntaxUnresolved(n *Node) bool {
 		if node.Rule == "parameter" || node.Rule == "call" {
 			return true
 		}
-		pending = append(pending, parts(node)...)
+		pending = append(pending, b.parts(node)...)
 	}
 	return false
 }

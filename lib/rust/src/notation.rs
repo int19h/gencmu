@@ -16,6 +16,7 @@ mod normalize;
 mod patterns;
 
 pub(crate) struct Reader<'a> {
+    pub parts_cache: std::cell::RefCell<FxMap<usize, Vec<&'a Node>>>,
     pub parameters: std::cell::RefCell<FxSet<String>>,
     pub reading_head: std::cell::Cell<bool>,
     pub unresolved: std::cell::Cell<bool>,
@@ -60,7 +61,13 @@ impl<'a> Reader<'a> {
     }
 
     fn at(&self, node: &Node) -> (usize, usize) {
-        (self.position)(node.source.start)
+        let index = if node.kind == NodeKind::Token { node.token.unwrap_or(node.span.start) } else { node.span.start };
+        let source = self
+            .tokens
+            .get(index)
+            .map(|t| t.source.start)
+            .unwrap_or_else(|| self.tokens.last().map_or(0, |t| t.source.end));
+        (self.position)(source)
     }
 
     /// The first token of a construct.
@@ -70,7 +77,9 @@ impl<'a> Reader<'a> {
             if current.kind == NodeKind::Token {
                 return self.at(current);
             }
-            pending.extend(current.children.iter().rev());
+            if current.kind != NodeKind::Elided {
+                pending.extend(current.children.iter().rev());
+            }
         }
         self.at(node)
     }
@@ -82,27 +91,38 @@ impl<'a> Reader<'a> {
 
     /// The parts of a node: its children, with each wrapper, a rule that
     /// the reader does not know, replaced by its own parts (engine §9).
-    fn parts(node: &Node) -> Vec<&Node> {
+    fn parts(&self, node: &'a Node) -> Vec<&'a Node> {
+        let key = node as *const Node as usize;
+        if let Some(parts) = self.parts_cache.borrow().get(&key) {
+            return parts.clone();
+        }
         let mut parts = Vec::new();
         let mut stack: Vec<&Node> = node.children.iter().rev().collect();
         while let Some(child) = stack.pop() {
             work::count(Work::Walked, 1);
+            if child.kind == NodeKind::Elided {
+                continue;
+            }
             if child.kind == NodeKind::Rule && !KNOWN.contains(&rule_name(child)) {
                 stack.extend(child.children.iter().rev());
             } else {
                 parts.push(child);
             }
         }
+        self.parts_cache.borrow_mut().insert(key, parts.clone());
         parts
     }
 
-    fn rules<'n>(node: &'n Node, name: &'n str) -> impl Iterator<Item = &'n Node> + 'n {
-        Self::parts(node).into_iter().filter(move |child| child.kind == NodeKind::Rule && rule_name(child) == name)
+    fn rules<'n>(&self, node: &'a Node, name: &'n str) -> impl Iterator<Item = &'a Node> + 'n
+    where
+        'a: 'n,
+    {
+        self.parts(node).into_iter().filter(move |child| child.kind == NodeKind::Rule && rule_name(child) == name)
     }
 
     /// The parts of a rule, at least `least` of them.
-    fn some<'n>(&self, node: &'n Node, name: &'n str, least: usize) -> R<Vec<&'n Node>> {
-        let found: Vec<&Node> = Self::rules(node, name).collect();
+    fn some(&self, node: &'a Node, name: &str, least: usize) -> R<Vec<&'a Node>> {
+        let found: Vec<&Node> = self.rules(node, name).collect();
         if found.len() < least {
             let what = if least == 1 { name.to_string() } else { format!("{least} of {name}") };
             return Err(self.shape_error(node, what));
@@ -123,22 +143,22 @@ impl<'a> Reader<'a> {
         self.error(node, format!("the notation's {} holds a {child}, which the reader does not know", rule_name(node)))
     }
 
-    fn one<'n>(&self, node: &'n Node, name: &'n str) -> R<&'n Node> {
-        Self::rules(node, name).next().ok_or_else(|| self.shape_error(node, name))
+    fn one(&self, node: &'a Node, name: &str) -> R<&'a Node> {
+        self.rules(node, name).next().ok_or_else(|| self.shape_error(node, name))
     }
 
-    fn tokens_of(node: &Node) -> impl Iterator<Item = &Node> + '_ {
-        Self::parts(node).into_iter().filter(|child| child.kind == NodeKind::Token)
+    fn tokens_of(&self, node: &'a Node) -> impl Iterator<Item = &'a Node> + 'a {
+        self.parts(node).into_iter().filter(|child| child.kind == NodeKind::Token)
     }
 
     /// The first token of a node.
-    fn token<'n>(&self, node: &'n Node) -> R<&'n Node> {
-        Self::tokens_of(node).next().ok_or_else(|| self.shape_error(node, "token"))
+    fn token(&self, node: &'a Node) -> R<&'a Node> {
+        self.tokens_of(node).next().ok_or_else(|| self.shape_error(node, "token"))
     }
 
     /// The one rule among a node's parts, which must be one of `kinds`.
-    fn inner<'n>(&self, node: &'n Node, kinds: &[&str]) -> R<&'n Node> {
-        match Self::parts(node).into_iter().filter(|child| child.kind == NodeKind::Rule).collect::<Vec<_>>()[..] {
+    fn inner(&self, node: &'a Node, kinds: &[&str]) -> R<&'a Node> {
+        match self.parts(node).into_iter().filter(|child| child.kind == NodeKind::Rule).collect::<Vec<_>>()[..] {
             [found] if kinds.contains(&rule_name(found)) => Ok(found),
             _ => Err(self.shape_error(node, format!("single part of these: {}", kinds.join(", ")))),
         }
@@ -147,15 +167,15 @@ impl<'a> Reader<'a> {
     pub(crate) fn document(&self, root: &'a Node) -> R<Dom> {
         let mut dom = Dom::default();
         let mut statement_seen = false;
-        for node in Self::parts(root) {
-            if node.kind != NodeKind::Rule {
-                continue;
-            }
+        for node in self.parts(root) {
             let names = rule_name(node) == "directive" && self.value(self.token(node)?) == "%names";
             if names && statement_seen {
                 return Err(self.error(node, "%names must precede every other statement"));
             }
             statement_seen |= !names;
+            if node.kind != NodeKind::Rule {
+                continue;
+            }
             self.unresolved.set(false);
             self.parameters.borrow_mut().clear();
             let mut item = Dom::default();
@@ -197,7 +217,7 @@ impl<'a> Reader<'a> {
             ));
         }
         let mut entries = Vec::new();
-        for entry in Self::rules(node, "classifier-entry") {
+        for entry in self.rules(node, "classifier-entry") {
             entries.push(self.entry(entry)?);
         }
         Ok(ClassifierDef { name, entries, at: self.first(node) })
@@ -206,7 +226,7 @@ impl<'a> Reader<'a> {
     /// An entry of a classifier: gates, canonical keys, `∈` or `∉`, and a
     /// class (engine §2, §9).
     fn entry(&self, node: &'a Node) -> R<Entry> {
-        let guards = Self::rules(node, "guard").map(|guard| self.guard(guard, true)).collect::<R<_>>()?;
+        let guards = self.rules(node, "guard").map(|guard| self.guard(guard, true)).collect::<R<_>>()?;
         let mut keys = Vec::new();
         for key_node in self.some(node, "classifier-key", 1)? {
             let key = self.string_operand(self.inner(key_node, &["string", "constant-reference"])?)?;
@@ -276,7 +296,8 @@ impl<'a> Reader<'a> {
     fn directive(&self, node: &'a Node) -> R<Directive> {
         let token = self.token(node)?;
         let name = self.value(token).strip_prefix('%').unwrap_or("");
-        let parts: Vec<_> = Self::parts(node)
+        let parts: Vec<_> = self
+            .parts(node)
             .into_iter()
             .filter(|part| {
                 matches!(rule_name(part), "argument-word" | "argument-string" | "argument-tag" | "argument-term")
@@ -341,7 +362,7 @@ impl<'a> Reader<'a> {
             };
             return Err(self.error(node, problem));
         }
-        let conditions = match Self::rules(node, "conditions-clause").next() {
+        let conditions = match self.rules(node, "conditions-clause").next() {
             Some(clause) => {
                 if name != "features" {
                     return Err(self.error(node, "only %features accepts conditions"));
@@ -368,7 +389,7 @@ impl<'a> Reader<'a> {
 
     fn rule_flags(&self, node: &'a Node, op: Op) -> R<Vec<String>> {
         let mut flags = Vec::new();
-        if let Some(list) = Self::rules(node, "rule-flags").next() {
+        if let Some(list) = self.rules(node, "rule-flags").next() {
             if op == Op::Extend {
                 return Err(self.error(list, "%extend-rule accepts no flags"));
             }
@@ -392,7 +413,7 @@ impl<'a> Reader<'a> {
     fn rule(&self, node: &'a Node) -> R<RuleDef> {
         let definer = self.token(self.one(node, "definer")?)?;
         let mut source = crate::dom::source::SourceHead::default();
-        let (name, name_token) = if let Some(name) = Self::rules(node, "rule-name").next() {
+        let (name, name_token) = if let Some(name) = self.rules(node, "rule-name").next() {
             let token = self.token(name)?;
             (self.value(token).to_string(), token)
         } else {
@@ -428,7 +449,7 @@ impl<'a> Reader<'a> {
                     if rule_name(part) == "parameter" {
                         return Err(self.error(head, "a head cannot mix parameters and concrete arguments"));
                     }
-                    pending.extend(Self::parts(part));
+                    pending.extend(self.parts(part));
                 }
                 if self.value(definer) == "%rule" {
                     return Err(self.error(head, "an instance head requires an edit"));
@@ -447,7 +468,7 @@ impl<'a> Reader<'a> {
             _ => return Err(self.error(definer, "unknown rule definer")),
         };
         let flags = self.rule_flags(node, op)?;
-        if Self::tokens_of(node).any(|token| self.value(token) == "=") {
+        if self.tokens_of(node).any(|token| self.value(token) == "=") {
             if source.params.is_some() || source.args.is_some() {
                 return Err(self.error(node, "a binding requires a plain rule name"));
             }
@@ -470,17 +491,18 @@ impl<'a> Reader<'a> {
         // The parts of a definition are read in the order written: the
         // body, then its clauses in their fixed order, and the checks of the
         // whole definition last (§9).
-        let tags = match Self::rules(node, "tags-clause").next() {
+        let tags = match self.rules(node, "tags-clause").next() {
             Some(clause) => Some(self.constituent_tags(clause)?),
             None => None,
         };
         let strings = self.channels(node)?;
         let mut alternatives = Vec::new();
-        let body = Self::rules(node, "body")
+        let body = self
+            .rules(node, "body")
             .next()
-            .or_else(|| Self::rules(node, "headed-body").next())
+            .or_else(|| self.rules(node, "headed-body").next())
             .ok_or_else(|| self.shape_error(node, "body"))?;
-        let alternatives_nodes = match Self::rules(body, "ranked-alternative").next() {
+        let alternatives_nodes = match self.rules(body, "ranked-alternative").next() {
             Some(ranked) => vec![ranked],
             None => self.some(body, "alternative", 1)?,
         };
@@ -489,12 +511,12 @@ impl<'a> Reader<'a> {
         }
         // Each condition of the list is one condition (§9).
         let mut conditions = Vec::new();
-        if let Some(clause) = Self::rules(node, "conditions-clause").next() {
+        if let Some(clause) = self.rules(node, "conditions-clause").next() {
             for implication in self.some(clause, "implication", 1)? {
                 conditions.push(self.implication(implication)?);
             }
         }
-        let emit = match Self::rules(node, "emits-clause").next() {
+        let emit = match self.rules(node, "emits-clause").next() {
             Some(clause) => Some(self.emission(clause)?),
             None => None,
         };
@@ -509,7 +531,7 @@ impl<'a> Reader<'a> {
             alternatives,
             emit,
             conditions,
-            erased: Self::rules(node, "erased-clause").next().is_some(),
+            erased: self.rules(node, "erased-clause").next().is_some(),
             at: self.at(definer),
         };
         Ok(rule)
@@ -567,7 +589,7 @@ impl<'a> Reader<'a> {
     fn alternative(&self, node: &'a Node) -> R<Alternative> {
         // A guard's token is its text: `f?` or `¬f?` for a gate, `f!`
         // for a warning (§9).
-        let guards = Self::rules(node, "guard").map(|guard| self.guard(guard, false)).collect::<R<_>>()?;
+        let guards = self.rules(node, "guard").map(|guard| self.guard(guard, false)).collect::<R<_>>()?;
         self.captures.borrow_mut().clear();
         let expr = if rule_name(node) == "ranked-alternative" {
             match self.run(Frame::Choice(Choice::new(self.one(node, "ranked-choice")?)))? {
@@ -587,7 +609,7 @@ impl<'a> Reader<'a> {
                 self.error(capture, format!("the capture ${name} is read twice by one production of the alternative"))
             );
         }
-        let tags = match Self::rules(node, "alternative-tags").next() {
+        let tags = match self.rules(node, "alternative-tags").next() {
             Some(tags) => Some(self.constituent_tags(tags)?),
             None => None,
         };
@@ -763,7 +785,7 @@ impl<'a> Reader<'a> {
 
     fn resume_choice(&self, frame: &mut Choice<'a>, input: Option<Val>) -> R<Step<'a>> {
         if frame.conjunctions.is_none() {
-            if let Some(ranked) = Self::rules(frame.node, "ranked-choice").next() {
+            if let Some(ranked) = self.rules(frame.node, "ranked-choice").next() {
                 frame.node = ranked;
                 frame.ranked = true;
             }
@@ -776,7 +798,8 @@ impl<'a> Reader<'a> {
         match conjunctions.get(frame.parts.len()) {
             Some(&conjunction) => Ok(Step::Call(Frame::Conjunction(Conjunction::new(conjunction, false)))),
             None => Ok(Step::Done(Val::Expr(if frame.ranked {
-                let separator = Self::tokens_of(frame.node)
+                let separator = self
+                    .tokens_of(frame.node)
                     .find(|token| self.value(token) == "≻")
                     .ok_or_else(|| self.shape_error(frame.node, "≻"))?;
                 Expr::Ranked(std::mem::take(&mut frame.parts), Some(self.first(separator)))
@@ -843,11 +866,12 @@ impl<'a> Reader<'a> {
                 }
                 let wrapped = self.inner(primary, PRIMARIES)?;
                 if rule_name(wrapped) == "tested" {
-                    let base = Self::rules(wrapped, "primary")
+                    let base = self
+                        .rules(wrapped, "primary")
                         .next()
                         .map(|primary| self.inner(primary, PRIMARIES))
                         .transpose()?
-                        .or_else(|| Self::parts(wrapped).into_iter().find(|part| PRIMARIES.contains(&rule_name(part))))
+                        .or_else(|| self.parts(wrapped).into_iter().find(|part| PRIMARIES.contains(&rule_name(part))))
                         .ok_or_else(|| self.shape_error(wrapped, "primary"))?;
                     if !matches!(
                         rule_name(base),
@@ -902,7 +926,7 @@ impl<'a> Reader<'a> {
         let node = frame.node;
         // Its required part first, then its markers (§9).
         let choice = self.one(node, "choice")?;
-        let markers: Vec<&Node> = Self::tokens_of(node).filter(|token| self.value(token) == "+").collect();
+        let markers: Vec<&Node> = self.tokens_of(node).filter(|token| self.value(token) == "+").collect();
         if let Some(second) = markers.get(1) {
             return Err(self.error(second, "an optional has one marker + at most"));
         }
@@ -917,35 +941,36 @@ impl<'a> Reader<'a> {
         };
         // One conjunction of one sequence, with no leading | or & either:
         // the terminator stands directly after the marker (§9).
-        let conjunctions: Vec<&Node> = Self::rules(choice, "conjunction").collect();
-        let leading = Self::tokens_of(choice).any(|token| self.value(token) == "|")
-            || (conjunctions.len() == 1 && Self::tokens_of(conjunctions[0]).any(|token| self.value(token) == "&"));
+        let conjunctions: Vec<&Node> = self.rules(choice, "conjunction").collect();
+        let leading = self.tokens_of(choice).any(|token| self.value(token) == "|")
+            || (conjunctions.len() == 1 && self.tokens_of(conjunctions[0]).any(|token| self.value(token) == "&"));
         let sequences: Vec<&Node> = if conjunctions.len() == 1 && !leading {
-            Self::rules(conjunctions[0], "sequence").collect()
+            self.rules(conjunctions[0], "sequence").collect()
         } else {
             Vec::new()
         };
         let primary = match sequences[..] {
-            [sequence] => Self::rules(sequence, "primary").next(),
+            [sequence] => self.rules(sequence, "primary").next(),
             _ => None,
         };
         let Some(primary) = primary else {
             return Err(form());
         };
         let head = self.inner(primary, PRIMARIES)?;
-        let is_terminal = |symbol: &Node| {
+        let is_terminal = |symbol: &'a Node| {
             rule_name(symbol) == "parameter"
                 || rule_name(symbol) == "tag"
-                    && Self::tokens_of(symbol).next().is_some_and(|token| is_capital(self.value(token)))
+                    && self.tokens_of(symbol).next().is_some_and(|token| is_capital(self.value(token)))
                 || (rule_name(symbol) == "reference"
-                    && Self::tokens_of(symbol).next().is_some_and(|token| is_capital(self.value(token))))
+                    && self.tokens_of(symbol).next().is_some_and(|token| is_capital(self.value(token))))
         };
         if rule_name(head) == "tested" {
-            let base = Self::rules(head, "primary")
+            let base = self
+                .rules(head, "primary")
                 .next()
                 .map(|primary| self.inner(primary, PRIMARIES))
                 .transpose()?
-                .or_else(|| Self::parts(head).into_iter().find(|part| PRIMARIES.contains(&rule_name(part))));
+                .or_else(|| self.parts(head).into_iter().find(|part| PRIMARIES.contains(&rule_name(part))));
             if !base.is_some_and(is_terminal) {
                 return Err(form());
             }
@@ -977,7 +1002,7 @@ impl<'a> Reader<'a> {
             return Ok(Step::Done(Val::Expr(Expr::Repeat(Box::new(item), separator, frame.chain))));
         }
         let node = frame.node;
-        let found = Self::parts(node);
+        let found = self.parts(node);
         let choices = self.some(node, "choice", 1)?;
         let place = |part: &Node| found.iter().position(|other| std::ptr::eq(*other, part)).unwrap_or(found.len());
         let markers: Vec<usize> = (0..found.len())
@@ -1016,13 +1041,13 @@ impl<'a> Reader<'a> {
         let (mut expr, tests) = if let Some(Val::SourceCall(call)) = input {
             (Expr::Source(SourceSymbol::Call(call)), frame.tests.take().unwrap())
         } else {
-            let parts = Self::parts(node);
+            let parts = self.parts(node);
             let tests: Vec<_> =
                 parts.iter().copied().filter(|part| matches!(rule_name(part), "tag-test" | "value-test")).collect();
             if tests.is_empty() {
                 return Err(self.shape_error(node, "test"));
             }
-            let base = if let Some(primary) = Self::rules(node, "primary").next() {
+            let base = if let Some(primary) = self.rules(node, "primary").next() {
                 self.inner(primary, PRIMARIES)?
             } else {
                 parts
@@ -1063,24 +1088,7 @@ impl<'a> Reader<'a> {
         };
         for test in tests {
             let (op, operand) = if rule_name(test) == "tag-test" {
-                let mut requirements = Vec::new();
-                for requirement in Self::rules(test, "tag-requirement") {
-                    let operand = self.one(requirement, "test-operand")?;
-                    let part = self.inner(operand, ATOMS)?;
-                    let value = match rule_name(part) {
-                        "tag" => Term::Tag(self.tag_of(self.token(part)?)?),
-                        "constant-reference" => self.constant_reference(self.token(part)?)?,
-                        "parameter" => Term::Source(self.source_parameter(part)?),
-                        _ => return Err(self.error(operand, "a tag requirement requires a tag or tag-set constant")),
-                    };
-                    let negated = Self::tokens_of(requirement).any(|token| self.value(token) == "¬");
-                    requirements.push(Arg::Term(if negated {
-                        Term::Call("forbid".into(), vec![Arg::Term(value)])
-                    } else {
-                        value
-                    }));
-                }
-                ("tags".into(), Term::Call("requirements".into(), requirements))
+                ("tags".into(), self.source_requirements(test, "a tag requirement requires a tag or tag-set constant")?)
             } else {
                 let comparator = self.operator(self.token(self.one(test, "test")?)?).to_string();
                 let operand = self.one(test, "test-operand")?;
@@ -1129,7 +1137,7 @@ impl<'a> Reader<'a> {
                 let inner = frame.inner.expect("the guarded term");
                 // The term guarded last: a union, or a term of a notation
                 // that writes one.
-                Ok(Step::Call(match Self::rules(inner, "union").next() {
+                Ok(Step::Call(match self.rules(inner, "union").next() {
                     Some(union) => Frame::Union(Joined::new(union, false)),
                     None => Frame::Term(TermFrame::new(self.one(inner, "term")?, false)),
                 }))
@@ -1161,7 +1169,7 @@ impl<'a> Reader<'a> {
     /// by `∪` is one union, and each `∖` takes what stands before it (§9).
     fn resume_union(&self, frame: &mut Joined<'a>, input: Option<Val>) -> R<Step<'a>> {
         if frame.parts.is_none() {
-            let parts: Vec<&Node> = Self::rules(frame.node, "intersection").collect();
+            let parts: Vec<&Node> = self.rules(frame.node, "intersection").collect();
             match parts[..] {
                 [] => return Err(self.shape_error(frame.node, "intersection")),
                 [part] => {
@@ -1184,7 +1192,8 @@ impl<'a> Reader<'a> {
         if let Some(&part) = parts.get(frame.items.len()) {
             return Ok(Step::Call(Frame::Intersection(Joined::new(part, false))));
         }
-        let mut operators: Vec<&str> = Self::tokens_of(frame.node)
+        let mut operators: Vec<&str> = self
+            .tokens_of(frame.node)
             .map(|token| self.value(token))
             .filter(|text| matches!(*text, "∪" | "∖"))
             .collect();
@@ -1220,7 +1229,7 @@ impl<'a> Reader<'a> {
 
     fn resume_intersection(&self, frame: &mut Joined<'a>, input: Option<Val>) -> R<Step<'a>> {
         if frame.parts.is_none() {
-            let atoms: Vec<&Node> = Self::rules(frame.node, "concatenation").collect();
+            let atoms: Vec<&Node> = self.rules(frame.node, "concatenation").collect();
             match atoms[..] {
                 [] => return Err(self.shape_error(frame.node, "concatenation")),
                 [atom] => {
@@ -1253,7 +1262,7 @@ impl<'a> Reader<'a> {
 
     fn resume_concatenation(&self, frame: &mut Joined<'a>, input: Option<Val>) -> R<Step<'a>> {
         if frame.parts.is_none() {
-            let atoms: Vec<&Node> = Self::rules(frame.node, "term-atom").collect();
+            let atoms: Vec<&Node> = self.rules(frame.node, "term-atom").collect();
             match atoms[..] {
                 [] => return Err(self.shape_error(frame.node, "term-atom")),
                 [atom] => {
@@ -1380,7 +1389,7 @@ impl<'a> Reader<'a> {
 
     /// Constructor parts determine the base, independently of delimiters.
     fn pattern_atom_base(&self, node: &'a Node) -> R<&'a Node> {
-        Self::parts(node)
+        self.parts(node)
             .into_iter()
             .find(|part| {
                 matches!(
@@ -1470,7 +1479,7 @@ impl<'a> Reader<'a> {
     /// Inspect the target and complete test sequence before any base conversion.
     fn pattern_test_nodes(&self, node: &'a Node, testable: bool) -> R<Vec<&'a Node>> {
         let tests: Vec<_> =
-            Self::parts(node).into_iter().filter(|part| matches!(rule_name(part), "tag-test" | "value-test")).collect();
+            self.parts(node).into_iter().filter(|part| matches!(rule_name(part), "tag-test" | "value-test")).collect();
         let mut tags = false;
         let mut value = false;
         for test in &tests {
@@ -1496,24 +1505,7 @@ impl<'a> Reader<'a> {
         let tests = self.pattern_test_nodes(node, testable)?;
         for test in tests {
             let (op, operand) = if rule_name(test) == "tag-test" {
-                let mut requirements = Vec::new();
-                for requirement in Self::rules(test, "tag-requirement") {
-                    let operand = self.one(requirement, "test-operand")?;
-                    let part = self.inner(operand, ATOMS)?;
-                    let term = match rule_name(part) {
-                        "tag" => Term::Tag(self.tag_of(self.token(part)?)?),
-                        "constant-reference" => self.constant_reference(self.token(part)?)?,
-                        "parameter" => Term::Source(self.source_parameter(part)?),
-                        _ => return Err(self.error(operand, "invalid tag requirement")),
-                    };
-                    let negative = Self::tokens_of(requirement).any(|token| self.value(token) == "¬");
-                    requirements.push(Arg::Term(if negative {
-                        Term::Call("forbid".into(), vec![Arg::Term(term)])
-                    } else {
-                        term
-                    }));
-                }
-                ("tags".into(), Term::Call("requirements".into(), requirements))
+                ("tags".into(), self.source_requirements(test, "invalid tag requirement")?)
             } else {
                 let op = self.operator(self.token(self.one(test, "test")?)?).into();
                 let operand = self.one(test, "test-operand")?;
@@ -1524,10 +1516,22 @@ impl<'a> Reader<'a> {
         Ok(pattern)
     }
 
+    fn source_unresolved(&self, node: &'a Node) -> bool {
+        let mut pending = vec![node];
+        while let Some(node) = pending.pop() {
+            if matches!(rule_name(node), "parameter" | "call") {
+                return true;
+            }
+            pending.extend(self.parts(node));
+        }
+        false
+    }
+
     fn resume_method(&self, frame: &mut MethodFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
         if frame.receiver.is_none() && input.is_none() {
             let receiver = self.one(frame.node, "method-receiver")?;
             let atom = self.one(receiver, "term-atom")?;
+            frame.dependent = self.source_unresolved(atom);
             return Ok(Step::Call(Frame::Atom(Atom::new(atom, true))));
         }
         if let Some(value) = input {
@@ -1551,7 +1555,7 @@ impl<'a> Reader<'a> {
             if let Some(closed) = self.closed_for.get().filter(|_| name != "split" && name != "ngrams") {
                 return Err(self.error(frame.node, format!("{closed} cannot read an input method")));
             }
-            frame.arguments = Some(match Self::rules(selector, "arguments").next() {
+            frame.arguments = Some(match self.rules(selector, "arguments").next() {
                 Some(arguments) => self.some(arguments, "argument", 1)?,
                 None => Vec::new(),
             });
@@ -1559,28 +1563,23 @@ impl<'a> Reader<'a> {
         if let Some(&argument) = frame.arguments.as_ref().unwrap().get(frame.args.len()) {
             return Ok(Step::Call(Frame::Argument(ArgumentFrame { node: argument })));
         }
-        if let Some(arguments) = Self::rules(selector, "arguments").next() {
+        if let Some(arguments) = self.rules(selector, "arguments").next() {
             let expected =
                 if matches!(name, "matches" | "begins" | "ends" | "followed-by" | "preceded-by") { "|" } else { "," };
-            if Self::parts(arguments).iter().any(|part| part.kind == NodeKind::Token && self.value(part) != expected) {
+            if self.parts(arguments).iter().any(|part| part.kind == NodeKind::Token && self.value(part) != expected) {
                 return Err(self.error(arguments, "invalid method argument separator"));
             }
         }
-        if matches!(name, "classify" | "ngrams") {
-            let mut pending = frame.arguments.clone().unwrap_or_default();
-            while let Some(node) = pending.pop() {
-                if matches!(rule_name(node), "parameter" | "call") {
-                    return Err(
-                        self.error(frame.node, "a parameter cannot replace a classifier name or integer argument")
-                    );
-                }
-                pending.extend(Self::parts(node));
-            }
+        let argument_unresolved = frame.arguments.as_ref().unwrap().iter().any(|node| self.source_unresolved(node));
+        if matches!(name, "classify" | "ngrams") && argument_unresolved {
+            return Err(self.error(frame.node, "a parameter cannot replace a classifier name or integer argument"));
         }
+        frame.dependent |= argument_unresolved;
         let (receiver, ty) = frame.receiver.take().unwrap();
         let unresolved = matches!(&receiver, Term::Source(_));
-        let span = self.feature_context.get() || unresolved || ty == Type::Span;
-        let string = self.feature_context.get() || matches!(ty, Type::Span | Type::String | Type::Any);
+        let span = self.feature_context.get() || !frame.receiver_query && (unresolved || ty == Type::Span);
+        let string =
+            self.feature_context.get() || !frame.receiver_query && matches!(ty, Type::Span | Type::String | Type::Any);
         let bare = self.feature_context.get() || matches!(&receiver, Term::Capture(_) | Term::Source(_));
         let arguments = &frame.args[..];
         let emitted_receiver = matches!(&receiver, Term::Call(name, _) if name == "emitted");
@@ -1626,14 +1625,8 @@ impl<'a> Reader<'a> {
             return Err(self.error(frame.node, "ends requires an ordinary span, not a restored span"));
         }
         if !valid {
-            let mut dependent = self.feature_context.get();
-            let mut pending = vec![frame.node];
-            while let Some(node) = pending.pop().filter(|_| !dependent) {
-                dependent = matches!(rule_name(node), "parameter" | "call");
-                pending.extend(Self::parts(node));
-            }
             let problem = match name {
-                _ if dependent => "a method has the wrong receiver or arguments",
+                _ if self.feature_context.get() || frame.dependent => "a method has the wrong receiver or arguments",
                 "without-elision" => "without-elision requires a bare capture: write $x.without-elision.onward",
                 "without-elision-except" if !bare => {
                     "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward"
@@ -1656,11 +1649,14 @@ impl<'a> Reader<'a> {
             return Err(self.error(frame.node, problem));
         }
         let last = frame.index + 1 == selectors.len();
-        let value = if matches!(
+        let query = matches!(
             name,
             "starts-input" | "ends-input" | "followed-by" | "preceded-by" | "matches" | "begins" | "ends"
-        ) {
-            if !frame.condition || !last {
+        );
+        let value = if query && !last {
+            Val::Term(Term::Call(name.into(), args), Type::Any)
+        } else if query {
+            if !frame.condition {
                 return Err(self.error(frame.node, "a query method is a condition, not a term"));
             }
             if args.iter().any(|arg| matches!(arg, Arg::Term(Term::Source(_)))) {
@@ -1718,6 +1714,7 @@ impl<'a> Reader<'a> {
         }
         let Val::Term(term, ty) = value else { unreachable!() };
         frame.receiver = Some((term, ty));
+        frame.receiver_query = query;
         frame.index += 1;
         frame.arguments = None;
         frame.types.clear();
@@ -1731,7 +1728,7 @@ impl<'a> Reader<'a> {
         if let Some(Val::Term(term, ty)) = input {
             return Ok(Step::Done(Val::Arg(Arg::Term(term), Some(ty))));
         }
-        if let Some(integer) = Self::rules(frame.node, "integer").next() {
+        if let Some(integer) = self.rules(frame.node, "integer").next() {
             let digits = self.value(self.token(integer)?);
             if !crate::dom::valid_integer(digits) {
                 return Err(self.error(integer, "an integer argument is positive and has no leading zeros"));
@@ -1739,7 +1736,7 @@ impl<'a> Reader<'a> {
             return Ok(Step::Done(Val::Arg(Arg::Integer(digits.into()), None)));
         }
         let term = self.one(frame.node, "term")?;
-        if let Some(union) = Self::rules(term, "union").next() {
+        if let Some(union) = self.rules(term, "union").next() {
             if let Some(rule) = self.rule_name_in(union) {
                 return Ok(Step::Done(Val::Arg(Arg::Rule(rule), None)));
             }
@@ -1762,7 +1759,7 @@ impl<'a> Reader<'a> {
             return Ok(Step::Call(Frame::AnyOf(Conditions::new(any_of))));
         }
         if frame.items.len() == parts.len() {
-            if let Some(consequent) = Self::rules(frame.node, "implication").next() {
+            if let Some(consequent) = self.rules(frame.node, "implication").next() {
                 return Ok(Step::Call(Frame::Implication(Conditions::new(consequent))));
             }
         }
@@ -1894,7 +1891,8 @@ impl<'a> Reader<'a> {
                 Ok(Expr::Literal(self.string_operand(part)?))
             }
             "range" => {
-                let parts: Vec<_> = Self::parts(node)
+                let parts: Vec<_> = self
+                    .parts(node)
                     .into_iter()
                     .filter(|p| matches!(rule_name(p), "string" | "constant-reference" | "parameter"))
                     .collect();
@@ -1972,7 +1970,7 @@ impl<'a> Reader<'a> {
             ("value-clause", &mut channels.value, &mut channels.value_at),
             ("image-clause", &mut channels.image, &mut channels.image_at),
         ] {
-            if let Some(clause) = Self::rules(node, name).next() {
+            if let Some(clause) = self.rules(node, name).next() {
                 let recipe = self.one(clause, "recipe")?;
                 *at = Some(self.first(recipe));
                 let mut atoms = Vec::new();
@@ -2057,11 +2055,12 @@ impl<'a> Reader<'a> {
     }
 
     fn emission(&self, node: &'a Node) -> R<Vec<EmitItem>> {
-        let nodes: Vec<_> = Self::rules(node, "emit-item").collect();
+        let nodes: Vec<_> = self.rules(node, "emit-item").collect();
         if nodes.is_empty() {
-            let tags = Self::rules(node, "emit-tags")
+            let tags = self
+                .rules(node, "emit-tags")
                 .next()
-                .or_else(|| Self::rules(node, "tags-clause").next())
+                .or_else(|| self.rules(node, "tags-clause").next())
                 .map(|clause| self.tag_term(self.one(clause, "term")?))
                 .transpose()?;
             return Ok(vec![EmitItem::Capture(
@@ -2073,7 +2072,8 @@ impl<'a> Reader<'a> {
         let mut items = Vec::new();
         for item in nodes {
             let target = self.one(item, "emit-target")?;
-            let token = Self::tokens_of(target)
+            let token = self
+                .tokens_of(target)
                 .next()
                 .ok_or_else(|| self.error(target, "an emission requires a capture or epsilon target"))?;
             let text = self.value(token);
@@ -2083,7 +2083,7 @@ impl<'a> Reader<'a> {
             let mut before = Vec::new();
             let mut after = Vec::new();
             for (name, list) in [("emit-before", &mut before), ("emit-after", &mut after)] {
-                for side in Self::rules(item, name) {
+                for side in self.rules(item, name) {
                     for capture in self.some(side, "capture-reference", 1)? {
                         let token = self.token(capture)?;
                         let name = self.value(token).strip_prefix('$').unwrap_or("");
@@ -2098,7 +2098,8 @@ impl<'a> Reader<'a> {
             if (!before.is_empty() || !after.is_empty()) && (capture.is_none() || capture == Some("")) {
                 return Err(self.error(item, "attachments require a named carrier"));
             }
-            let tags = Self::rules(item, "emit-tags")
+            let tags = self
+                .rules(item, "emit-tags")
                 .next()
                 .map(|clause| self.tag_term(self.one(clause, "term")?))
                 .transpose()?;
@@ -2125,15 +2126,15 @@ impl<'a> Reader<'a> {
     fn rule_name_in(&self, union: &'a Node) -> Option<String> {
         let mut union = union;
         loop {
-            let [intersection] = Self::rules(union, "intersection").collect::<Vec<_>>()[..] else { return None };
-            let [concatenation] = Self::rules(intersection, "concatenation").collect::<Vec<_>>()[..] else {
+            let [intersection] = self.rules(union, "intersection").collect::<Vec<_>>()[..] else { return None };
+            let [concatenation] = self.rules(intersection, "concatenation").collect::<Vec<_>>()[..] else {
                 return None;
             };
-            let [atom] = Self::rules(concatenation, "term-atom").collect::<Vec<_>>()[..] else { return None };
+            let [atom] = self.rules(concatenation, "term-atom").collect::<Vec<_>>()[..] else { return None };
             let inner = self.inner(atom, ATOMS).ok()?;
             match rule_name(inner) {
                 "name" => {
-                    let name = self.value(Self::tokens_of(inner).next()?);
+                    let name = self.value(self.tokens_of(inner).next()?);
                     return (!is_capital(name)).then(|| name.to_string());
                 }
                 "term" => {
@@ -2335,6 +2336,8 @@ struct ArgumentFrame<'a> {
 struct MethodFrame<'a> {
     node: &'a Node,
     condition: bool,
+    dependent: bool,
+    receiver_query: bool,
     receiver: Option<(Term, Type)>,
     selectors: Option<Vec<&'a Node>>,
     index: usize,
@@ -2348,6 +2351,8 @@ impl<'a> MethodFrame<'a> {
         Self {
             node,
             condition,
+            dependent: false,
+            receiver_query: false,
             receiver: None,
             selectors: None,
             index: 0,
@@ -2749,7 +2754,7 @@ fn call_name_lookup_precedes_argument_lookup() {
         position: &position,
         names_paths: Default::default(),
     };
-    let tokens: Vec<_> = ["$x", "≅", "A"]
+    let tokens: Vec<_> = ["$x", "≅", "A", "%names"]
         .into_iter()
         .enumerate()
         .map(|(index, value)| Token {
@@ -2765,6 +2770,7 @@ fn call_name_lookup_precedes_argument_lookup() {
         })
         .collect();
     let reader = Reader {
+        parts_cache: Default::default(),
         parameters: Default::default(),
         reading_head: Default::default(),
         unresolved: Default::default(),
@@ -2850,4 +2856,22 @@ fn call_name_lookup_precedes_argument_lookup() {
     assert!(span_result.is_ok(), "an inverted comparison span caused a panic");
     assert!(span_result.unwrap().is_err(), "an inverted comparison span was accepted");
     assert!(wildcard_error, "a tokenless wildcard was accepted");
+    let mut empty = wildcard.clone();
+    empty.span = 1..1;
+    let empty_position = reader.first(&empty);
+    let mut prefix = wildcard.clone();
+    prefix.kind = NodeKind::Token;
+    prefix.rule = None;
+    prefix.token = Some(0);
+    let mut names_token = prefix.clone();
+    names_token.token = Some(3);
+    let mut directive = wildcard.clone();
+    directive.rule = Some("directive".into());
+    directive.children.push(names_token);
+    let mut document = wildcard.clone();
+    document.rule = Some("text".into());
+    document.children = vec![prefix, directive];
+    let names_error = reader.document(&document).err().expect("the names declaration fails");
+    assert_eq!(names_error.message, "%names must precede every other statement");
+    assert_eq!(empty_position, (1, 2));
 }

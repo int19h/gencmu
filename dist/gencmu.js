@@ -18644,10 +18644,15 @@
 
     // A rule node's children, with transparent rules read in their place,
     // in the order written, with an explicit stack.
+    /** @type {WeakMap<ResultNode, ResultNode[]>} */
+    const partsCache = new WeakMap();
     /** @type {(node: ResultNode) => ResultNode[]} */
     const parts = (node) => {
+      const cached = partsCache.get(node);
+      if (cached) return cached;
       /** @type {ResultNode[]} */
       const result = [];
+      partsCache.set(node, result);
       if (node.kind !== "rule") return result;
       /** @type {ResultNode[]} */
       const stack = node.children.slice().reverse();
@@ -18655,7 +18660,7 @@
         if (hooks.work) countWork(hooks.work, "walkSteps");
         const child = /** @type {ResultNode} */ (stack.pop());
         if (child.kind === "rule" && !NAMED.has(child.rule)) for (let index = child.children.length - 1; index >= 0; index--) stack.push(child.children[index]);
-        else result.push(child);
+        else if (child.kind !== "elided") result.push(child);
       }
       return result;
     };
@@ -18702,6 +18707,13 @@
     };
     /** @type {(node: ResultNode) => string} */
     const ruleOf = (node) => (node.kind === "rule" ? node.rule : "");
+    /** @type {(node: ResultNode) => RuleNode | undefined} */
+    const testBase = (node) => {
+      const wrapper = one(node, "primary");
+      if (wrapper) return knownOf(wrapper, PRIMARIES);
+      for (const child of parts(node)) if (child.kind === "rule" && PRIMARIES.has(child.rule)) return child;
+      return undefined;
+    };
     // The first node of a rule at or below a node, in the order written.
     /** @type {(node: ResultNode, name: string) => ResultNode | null} */
     const firstOfRule = (node, name) => {
@@ -19106,8 +19118,7 @@
       if (!head) fail(form, node);
       const symbol = /** @type {RuleNode} */ (head);
       if (ruleOf(symbol) === "tested") {
-        const wrapper = one(symbol, "primary");
-        const base = wrapper ? knownOf(wrapper, PRIMARIES) : parts(symbol).find(child => child.kind === "rule" && PRIMARIES.has(child.rule));
+        const base = testBase(symbol);
         if (!base || !isTerminal(/** @type {RuleNode} */ (base))) fail(form, node);
 
       } else if (!isTerminal(symbol)) {
@@ -19167,8 +19178,7 @@
         case "tested": {
           const tests = parts(node).filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
           if (!tests.length) lacks(node, "test");
-          const wrapper = one(node, "primary");
-          const symbol = wrapper ? knownOf(wrapper, PRIMARIES) : parts(node).find(child => child.kind === "rule" && PRIMARIES.has(child.rule)) || lacks(node, "primary");
+          const symbol = testBase(node) || lacks(node, "primary");
           checkTestOrder(tests, ["constant-reference", "reference", "call", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)));
           // Convert the base before test operands (engine §9.3).
           let expr = yield readPrimary(symbol);
@@ -19183,8 +19193,7 @@
           if (valueOf(captureToken) === "$") fail("$ is the whole constituent and wraps nothing", node);
           if (!CAPTURE_NAME.test(valueOf(captureToken).slice(1))) fail("a capture's name is all lower case", node);
           const wrapped = knownOf(inner, PRIMARIES);
-          const target = one(wrapped, "primary");
-          const base = ruleOf(wrapped) === "tested" ? target ? knownOf(target, PRIMARIES) : parts(wrapped).find(child => child.kind === "rule" && PRIMARIES.has(child.rule)) || lacks(wrapped, "primary") : wrapped;
+          const base = ruleOf(wrapped) === "tested" ? testBase(wrapped) || lacks(wrapped, "primary") : wrapped;
           if (!["constant-reference", "reference", "call", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(base))) fail("a capture wraps one symbol", node);
           const name = valueOf(captureToken).slice(1);
           const expr = /** @type {Expr} */ (yield readPrimary(wrapped));
@@ -19770,14 +19779,14 @@
             args.push({integer:digits});
           } else args.push(yield readTerm(only(argument, "term"), true));
         }
+        if (argumentsNode) {
+          const separators = parts(argumentsNode).filter(child => child.kind === "token").map(valueOf);
+          if (separators.some(separator => separator !== (TARGET_METHODS.has(name) ? "|" : ","))) fail("invalid method argument separator", argumentsNode);
+        }
         if (["classify","ngrams"].includes(name) && args.some(arg => hasUnresolved(arg))) fail("a parameter cannot replace a classifier name or integer argument",node);
         if (name === "classify" && args.length === 1 && args[0].rule && CLASSIFIER_NAME.test(args[0].rule)) args[0] = { classifier: args[0].rule };
         if (TARGET_METHODS.has(name)) {
           for (let index = 0; index < args.length; index++) if (args[index].tag && !args[index].tag.startsWith("_")) args[index] = {terminal:args[index].tag};
-        }
-        if (argumentsNode) {
-          const separators = parts(argumentsNode).filter(child => child.kind === "token").map(valueOf);
-          if (separators.some(separator => separator !== (TARGET_METHODS.has(name) ? "|" : ","))) fail("invalid method argument separator", argumentsNode);
         }
         if (featureContext || hasUnresolved(receiver) || args.some(hasUnresolved)) {
           const problem = methodShapeProblem(name, receiver, args, recipeContext);
@@ -19976,17 +19985,14 @@
    * @returns {number}
    */
   function firstToken(node) {
-    // Down the first child that is a token or a rule, in a loop: a deep
-    // nesting cannot exhaust the call stack.
-    let current = node;
-    for (;;) {
+    const pending = [node];
+    while (pending.length) {
       if (hooks.work) countWork(hooks.work, "walkSteps");
+      const current = /** @type {ResultNode} */ (pending.pop());
       if (current.kind === "token") return current.token;
-      if (current.kind === "elided") return current.span[0];
-      const child = current.children.find((candidate) => candidate.kind === "token" || candidate.kind === "rule");
-      if (!child) return current.span[0];
-      current = child;
+      if (current.kind === "rule") for (let index = current.children.length - 1; index >= 0; index--) pending.push(current.children[index]);
     }
+    return node.span[0];
   }
 
   // ---- markdown.js
