@@ -15,7 +15,7 @@ use crate::result::{
     Action, AmbiguityReason, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Restoration,
     Stage, Tags, Token, Verdict, Warning,
 };
-use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, ReadingMap, TreeContext};
+use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, ReadingMap, Sources, TreeContext};
 use crate::unicode::Unicode;
 use crate::witness::{self, CheckForest};
 
@@ -644,7 +644,8 @@ impl Pipeline {
             return Err(Box::new(error));
         };
         let tag_set = |set: u32| shared.tags.to_set(set);
-        let context = TreeContext { g: &lowered, tokens: &input, tag_map: &tag_set, reading: None };
+        let sources = Sources::new(&input);
+        let context = TreeContext { g: &lowered, sources: &sources, tag_map: &tag_set, reading: None };
         stage.verdict = Some(match ranking.verdict {
             RankVerdict::Unique => Verdict::Unique,
             RankVerdict::Resolved => Verdict::Resolved,
@@ -668,10 +669,10 @@ impl Pipeline {
         let tree = public_tree(&chosen, &context);
         // The chosen tree's warnings, which stand even if the emission or
         // the `elision-only` check then fails (§12).
-        run.warnings.extend(warnings_of(&chosen, &lowered, &input, features, &grammar.name));
+        run.warnings.extend(warnings_of(&chosen, &lowered, &sources, features, &grammar.name));
         let emitted = {
             let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared, recon: None };
-            emit(&mut recognizer, &chosen, &input)
+            emit(&mut recognizer, &chosen, &input, &sources)
         };
         let emitted = match emitted {
             Ok(emitted) => emitted,
@@ -715,7 +716,7 @@ impl Pipeline {
         if check
             && (ranking.verdict == RankVerdict::Resolved || ranking.verdict == RankVerdict::Unique && has_elided(&tree))
         {
-            match self.elision_check(index, shared, &input, &chosen, &lowered, &matchers) {
+            match self.elision_check(index, shared, &input, &sources, &chosen, &lowered, &matchers) {
                 Ok(Check::Pass) => {}
                 Ok(Check::Ambiguous(error)) => ambiguous = Some(*error),
                 // The witness of the chosen derivation is lost: a defect of
@@ -849,6 +850,7 @@ impl Pipeline {
         index: usize,
         shared: &mut Shared,
         input: &[Tok],
+        sources: &Sources,
         chosen: &ITree,
         g: &Lowered,
         matchers: &[Matcher],
@@ -1056,7 +1058,7 @@ impl Pipeline {
         // The readings, mapped to the stage's input (§7.10).
         let tag_set = |set: u32| shared.tags.to_set(set);
         let map = ReadingMap { project: &recon.project, record_of: &record_of, records: &records };
-        let context = TreeContext { g, tokens: input, tag_map: &tag_set, reading: Some(&map) };
+        let context = TreeContext { g, sources, tag_map: &tag_set, reading: Some(&map) };
         let readings = trees.iter().map(|t| public_tree(t, &context)).collect();
         let stage = &self.stages[index].name;
         Ok(Check::Ambiguous(Box::new(ParseError {

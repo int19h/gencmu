@@ -398,6 +398,10 @@ The image extension does not enlarge `source` or `text`. This lets quote punctua
 
 Each emission indexes evaluated spans and claimed intervals. Source endpoints divide those intervals into cells, whose interiors contain no endpoint. A new span marks each claimed cell once. Repeated requests for that span reuse its claim. A coverage search costs no more than its gap, or a logarithm of the token count.
 
+Each emission builds its coverage index on the first nonempty `.verbatim-text` request. Runs without this request do not build the index.
+
+The stage shares one source index between its tree, warnings, emission, and recipe evaluation. Each tree node receives its source when the tree walk creates it. Emission inspects attachment ownership only when its input has attachments.
+
 In pipelines with punctuation pauses, a one-word foreign quote takes the next raw stretch between whitespace or period boundaries. A decimal point between digits stays inside its run. Punctuation and ignored characters belong to that body.
 
 The Latin conventions expose punctuation as pause tokens tagged `Quote-Material`. Each token keeps the punctuation's source spelling as its image. Its phoneme-stage value keeps the decomposed punctuation. The [pause rules](#pauses-and-spacing) define its later normalized value.
@@ -606,6 +610,8 @@ Ranked choices filter the parses that recognition allows before ranking. The par
 
 One admitted derivation gives `unique`. Several admitted derivations with exactly one best give `resolved`. Several best derivations give a tie with two readings and an action witness.
 
+Ranking stops before admission preparation when the forest has no roots.
+
 An index into the visible actions counts only visible actions, even when its comparison includes transparent closes. Sharing a prefix does not change that index.
 
 The [Ambiguity](notation.md#ambiguity) section defines verdict transitions and their effects on emission and the elision-only check.
@@ -648,7 +654,9 @@ An error is better than a hidden choice. A reader of the error sees the two read
 
 CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` is one reading of that rule, for the stage whose grammar declares it. CLL does not say which parse to test, so the check tests the one that the ranking chose.
 
-The check runs after `resolved`, even when the chosen tree elides nothing. It also runs after `unique` when the chosen tree holds an elided node. It follows these steps:
+The check runs after `resolved`, even when the chosen tree elides nothing. It also runs after `unique` when the chosen tree holds an elided node.
+
+The initial search stops at the first elided node. The check walks the chosen derivation for a rule profile only when some production has a rule flag. It follows these steps:
 
 1. Take the chosen tree's `elided` nodes in leaf order, from left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries the tag of that terminator and, for a terminator with an `=` test, the test's string as its recognition value. The engine marks it synthetic.
 2. Parse the token sequence with the same grammar. Use a mode where each elidable optional is restored or written. Every condition, tag and test of a rule reads the original input through a projection that leaves the synthetic tokens out. A test on a terminal reads the written-back terminator's tag and recognition value. A query parses the original input with the grammar as it is.

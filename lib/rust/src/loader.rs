@@ -238,11 +238,7 @@ impl Context {
         Ok(context)
     }
 
-    fn with_properties(
-        unicode: &str,
-        properties: Option<&str>,
-        bootstrap: &str,
-    ) -> Result<Context, Error> {
+    fn with_properties(unicode: &str, properties: Option<&str>, bootstrap: &str) -> Result<Context, Error> {
         let unicode_hash = fnv1a64(unicode);
         let mut unicode = Unicode::parse(unicode)?;
         if let Some(properties) = properties {

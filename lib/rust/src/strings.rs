@@ -23,7 +23,7 @@ pub(crate) struct Strings<'a> {
     grammar: &'a Lowered,
     tree: &'a ITree,
     tokens: &'a [Tok],
-    sources: Sources,
+    sources: &'a Sources,
     text: &'a [char],
     unicode: &'a crate::unicode::Unicode,
     covered: Vec<bool>,
@@ -39,30 +39,18 @@ impl<'a> Strings<'a> {
         grammar: &'a Lowered,
         tree: &'a ITree,
         tokens: &'a [Tok],
+        sources: &'a Sources,
         text: &'a [char],
         unicode: &'a crate::unicode::Unicode,
     ) -> Self {
-        let mut changes = vec![0isize; text.len() + 1];
-        for token in tokens {
-            changes[token.source.0] += 1;
-            changes[token.source.1] -= 1;
-        }
-        let mut depth = 0;
-        let covered = changes[..text.len()]
-            .iter()
-            .map(|change| {
-                depth += change;
-                depth > 0
-            })
-            .collect();
         Self {
             grammar,
             tree,
             tokens,
-            sources: Sources::new(tokens),
+            sources,
             text,
             unicode,
-            covered,
+            covered: Vec::new(),
             claims: FxSet::default(),
             claim_points: Vec::new(),
             claimed_cells: Vec::new(),
@@ -100,6 +88,19 @@ impl<'a> Strings<'a> {
             return Ok(String::new());
         }
         if self.claim_points.is_empty() {
+            let mut changes = vec![0isize; self.text.len() + 1];
+            for token in self.tokens {
+                changes[token.source.0] += 1;
+                changes[token.source.1] -= 1;
+            }
+            let mut depth = 0;
+            self.covered = changes[..self.text.len()]
+                .iter()
+                .map(|change| {
+                    depth += change;
+                    depth > 0
+                })
+                .collect();
             self.claim_points.extend([0, self.text.len()]);
             self.claim_points.extend(self.tokens.iter().flat_map(|token| [token.source.0, token.source.1]));
             self.claim_points.sort_unstable();

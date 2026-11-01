@@ -14,6 +14,7 @@ from ._markdown import line_column
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Restoration, Tags, Token
 from ._rank import (
     Act,
+    Profile,
     Ranking,
     Rope,
     actions,
@@ -110,7 +111,7 @@ class Tree:
 
     def build(self, root: DNode, tagtab: Any) -> Node:
         tokens = self.tokens
-        top = Node("rule", (root.start, root.end), (0, 0), rule=root.production.rule_name, tags=tagtab.get(root.tag))
+        top = Node("rule", (root.start, root.end), self.source_of(root), rule=root.production.rule_name, tags=tagtab.get(root.tag))
         builders: list[Node] = [top]
         # The engine splices out helpers, those of [ ] and of flat braces;
         # a chain's levels are rule nodes, and stay (engine §12).
@@ -135,7 +136,7 @@ class Tree:
                             Node(
                                 "elided",
                                 (child.start, child.start),
-                                (0, 0),
+                                self.source_of(child),
                                 terminal=child.production.elided,
                                 # An equality-tested elided node keeps the
                                 # restored token's string. Canonical JSON writes
@@ -149,7 +150,7 @@ class Tree:
                     node = Node(
                         "rule",
                         (child.start, child.end),
-                        (0, 0),
+                        self.source_of(child),
                         rule=child.production.rule_name,
                         tags=tagtab.get(child.tag),
                     )
@@ -159,14 +160,6 @@ class Tree:
                     work.append(("kids", child))
             else:
                 builders.pop()
-        # Sources: an empty node stands at the source end of the token
-        # before it, or at position 0 at the start of the first (engine §12).
-        stack = [top]
-        while stack:
-            node = stack.pop()
-            if node.kind != "token":
-                node.source = _range_source(self.sources, node.span[0], node.span[1])
-            stack.extend(node.children)
         return top
 
     def source_of(self, node: DNode) -> Range:
@@ -194,6 +187,17 @@ def warnings_of(root: DNode, tree: Tree, features: frozenset[str], stage: str) -
         children = node.children
         stack.extend(reversed(children))
     return warnings
+
+
+def has_elided(tree: Node) -> bool:
+    """Stop at the first elided node of the tree."""
+    stack = [tree]
+    while stack:
+        node = stack.pop()
+        if node.kind == "elided":
+            return True
+        stack.extend(reversed(node.children))
+    return False
 
 
 def elided_nodes(tree: Node) -> list[Node]:
@@ -251,15 +255,6 @@ class Emitter:
         self.claimed_cells = set()
         self.inherited = set()
         self.forwards = any(token.before or token.after for token in self.tokens)
-        self.coverage = []
-        for start, end in sorted(token.source for token in self.tokens if token.source[0] < token.source[1]):
-            if self.coverage and start <= self.coverage[-1][1]:
-                self.coverage[-1] = (self.coverage[-1][0], max(end, self.coverage[-1][1]))
-            else:
-                self.coverage.append((start, end))
-
-        self.coverage_starts = [interval[0] for interval in self.coverage]
-        self.coverage_ends = [interval[1] for interval in self.coverage]
 
     def boundary_index(self):
         self.boundary_first, self.boundary_last = {}, {}
@@ -289,6 +284,15 @@ class Emitter:
             return ""
         if self.claim_points is None:
             self.claim_points = sorted({0, len(self.context.text)} | {point for token in self.tokens for point in token.source})
+            self.coverage = []
+            for start, end in sorted(token.source for token in self.tokens if token.source[0] < token.source[1]):
+                if self.coverage and start <= self.coverage[-1][1]:
+                    self.coverage[-1] = (self.coverage[-1][0], max(end, self.coverage[-1][1]))
+                else:
+                    self.coverage.append((start, end))
+
+            self.coverage_starts = [interval[0] for interval in self.coverage]
+            self.coverage_ends = [interval[1] for interval in self.coverage]
         left, right = self.part_source(part)
         before = self.tokens[part.start - 1].source[1] if part.start else 0
         after = self.tokens[part.end].source[0] if part.end < len(self.tokens) else len(self.context.text)
@@ -612,7 +616,7 @@ class StageRunner:
         try:
             outcome.output = emitter.emit()
             if elision_only and (ranking.verdict == "resolved" or
-                                 ranking.verdict == "unique" and elided_nodes(tree.root)):
+                                 ranking.verdict == "unique" and has_elided(tree.root)):
                 # The stage accepted its input, so it has its output; the
                 # check makes the parse fail, and the result has no tree.
                 error = self.check_elision(context, root, tree.root)
@@ -688,17 +692,17 @@ class StageRunner:
         chosen_profile = ()
         from ._witness import walk_witness
 
-        pending = [chosen]
-        while pending:
-            node = pending.pop()
-            if isinstance(node, DRead):
-                continue
-            if node.production.leftmost_longest and node.start < node.end:
-                chosen_profile = sum_profiles(chosen_profile, ((node.start, node.end, 1),))
-            if node.production.fewest and node.start < node.end:
-                from ._rank import Profile
-                chosen_profile = Profile(chosen_profile, getattr(chosen_profile, "fewest", 0) + 1)
-            pending.extend(node.children)
+        if any(production.leftmost_longest or production.fewest for production in lowered.productions):
+            pending = [chosen]
+            while pending:
+                node = pending.pop()
+                if isinstance(node, DRead):
+                    continue
+                if node.production.leftmost_longest and node.start < node.end:
+                    chosen_profile = sum_profiles(chosen_profile, ((node.start, node.end, 1),))
+                if node.production.fewest and node.start < node.end:
+                    chosen_profile = Profile(chosen_profile, getattr(chosen_profile, "fewest", 0) + 1)
+                pending.extend(node.children)
         walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
         marks = walk.marks if walk is not None else None
         preferred = bool(lowered.ranked_helpers)

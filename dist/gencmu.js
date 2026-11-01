@@ -17521,19 +17521,8 @@
       this.claimPoints = null;
       /** @type {Set<number>} */
       this.claimedCells = new Set();
-      // Every input source participates, including tokens outside a capture.
-      /** @type {Span[]} */
-      this.covered = context.tokens.map(token => token.source).filter(([a,b]) => a < b).sort((a,b) => a[0]-b[0]);
-      /** @type {Span[]} */
-      const merged = [];
-      for (const [a,b] of this.covered) {
-        const previous = merged[merged.length-1];
-        if (previous && a <= previous[1]) previous[1] = Math.max(previous[1], b);
-        else merged.push([a,b]);
-      }
-      this.covered = merged;
-      this.coveredStarts = merged.map(span => span[0]);
-      this.coveredEnds = merged.map(span => span[1]);
+      /** @type {{ranges: Span[], starts: number[], ends: number[]} | null} */
+      this.coverage = null;
       /** @type {WeakMap<object,Map<object,object>>} */
       this.itemKeys = new WeakMap();
     }
@@ -17628,18 +17617,31 @@
     verbatim(a,b) {
       if (a === b) return "";
       const {tokens, sources, sourceText} = this.context;
+      if (this.coverage === null) {
+        // Every input source participates, including tokens outside a capture.
+        /** @type {Span[]} */
+        const ranges = [];
+        const covered = tokens.map(token => token.source).filter(([a,b]) => a < b).sort((a,b) => a[0]-b[0]);
+        for (const [a,b] of covered) {
+          const previous = ranges[ranges.length-1];
+          if (previous && a <= previous[1]) previous[1] = Math.max(previous[1], b);
+          else ranges.push([a,b]);
+        }
+        this.coverage = {ranges, starts:ranges.map(span => span[0]), ends:ranges.map(span => span[1])};
+      }
+      const {ranges, starts, ends} = this.coverage;
       const claimPoints = this.claimPoints ??= [...new Set([0, sourceText.length, ...tokens.flatMap(token => token.source)])].sort((a,b) => a-b);
       const [l,r] = sources.of(a,b);
       const p = a > 0 ? tokens[a-1].source[1] : 0;
       const q = b < tokens.length ? tokens[b].source[0] : sourceText.length;
       let left = l, right = r;
       if (p < l) {
-        const previous = lowerBound(this.coveredStarts, l)-1;
-        left = Math.max(p, previous < 0 ? 0 : Math.min(l,this.covered[previous][1]));
+        const previous = lowerBound(starts, l)-1;
+        left = Math.max(p, previous < 0 ? 0 : Math.min(l,ranges[previous][1]));
       }
       if (r < q) {
-        const following = lowerBound(this.coveredEnds, r+1);
-        right = Math.max(r, following === this.covered.length ? q : Math.min(q,this.covered[following][0]));
+        const following = lowerBound(ends, r+1);
+        right = Math.max(r, following === ranges.length ? q : Math.min(q,ranges[following][0]));
       }
       /** @type {Span[]} */
       const intervals = [];

@@ -28,10 +28,12 @@ export declare class StringWalk {
     claimPoints: number[] | null;
     /** @type {Set<number>} */
     claimedCells: Set<number>;
-    /** @type {Span[]} */
-    covered: Span[];
-    coveredStarts: number[];
-    coveredEnds: number[];
+    /** @type {{ranges: Span[], starts: number[], ends: number[]} | null} */
+    coverage: {
+        ranges: Span[];
+        starts: number[];
+        ends: number[];
+    } | null;
     /** @type {WeakMap<object,Map<object,object>>} */
     itemKeys: WeakMap<object, Map<object, object>>;
     /** @param {ParseContext} context @param {(node:DerivationRule)=>Scope} scope */

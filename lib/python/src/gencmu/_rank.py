@@ -1105,6 +1105,8 @@ class Ranking:
 
 
 def rank(forest: Forest, lean: str, marks=None, check=False, unfiltered=False) -> Ranking | None:
+    if not forest.roots:
+        return None
     admission = None
     ranked_helpers = forest.lowered.ranked_helpers
     productions = forest.lowered.productions
