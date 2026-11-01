@@ -886,7 +886,7 @@ A condition can also read `$x.emitted.value` and `$x.emitted.image` of a capture
 
 ```jbogenbau
 %rule prefix := ""
-  [DU] DI
+  | [DU] DI
 
 %rule resumed-step
   [si-free] $v:verb step-tail {resume-head $e:verb step-tail}

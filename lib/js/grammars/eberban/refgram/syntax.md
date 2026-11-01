@@ -298,7 +298,9 @@ A step is a verb with its binds, then the rest of the chain. The verb can take a
 
 A step takes any number of resumptions in a row. The repeated verb can carry its own binds and continue the chain. The condition compares each repeated verb with the verb of the step.
 
-The comparison reads values. A value joins the values of the words. So it covers the free prefixes inside the verb, its `ZI` modifiers and the `SI` after each modifier. The `SI` before the verb stands outside it, so that `SI` may differ. Free suffixes stand in `step-tail`, after the verb, so the comparison leaves them out.
+The condition compares the string walks of the two verbs. A walk joins the values of the words, and recipes can change it. The empty recipe on `prefix` leaves out every free prefix, because the annotations chapter gives annotations no logical effect. The walk still covers the verb's `ZI` modifiers and the `SI` after each modifier. The `SI` before the verb stands outside it, so that `SI` can differ. Free suffixes stand in `step-tail`, after the verb, so the comparison leaves them out too.
+
+An elided terminator adds its default value to the walk. The numbers chapter infers `jie` where a number leaves out its `JI`, so an elided `JI` has the default value `jie`. An elided `pei` and an elided `be` have their own spellings as default values. So a written closer and an elided one give the same walk. A quote keeps its text as written, as "Quotes" explains.
 
 ```jbogenbau
 %rule step
@@ -319,7 +321,7 @@ The comparison reads values. A value joins the values of the words. So it covers
 %rule resumed-step
   [si-free] $v:verb step-tail {resume-head $e:verb step-tail}
 %conditions
-  $v.value = $e.value
+  $v.emitted.value = $e.emitted.value
 
 %rule step-tail
   [{postfix}] [{bind-group}] [chain-inner]
@@ -397,6 +399,8 @@ The chapter does not say that `cai` can be left out. The PEG lets the speaker le
 
 A quote with a written `cai` reads `text`, like the whole text, because no closer inside it can end it. In a quote whose `cai` is left out, a particle that closes an outer construct ends the quoted text instead of starting erasable text. The second and third alternatives read such a quote. Their first two conditions require that the `cai` is left out. The next two require that the text holds no erased invalid stretch that starts with such a particle.
 
+A quote repeats words, so a resumed verb that is a quote compares the quoted text as written. Each alternative's value recipe reads the input value of the quote. So the free prefixes and elided terminators inside the quote count as written. A `cai` left out still counts as `cai`, because it closes the quote and is no part of the quoted text.
+
 The PEG warns when a quote of several sentences leaves out its `cai` before the end of the text. The end of the quote is then hard to see. The third alternative carries that warning as `multi-sentence-cai-elided`. A quote holds several sentences when it has several paragraphs, or when its first paragraph has more than one sentence that is not erased. `$SEVERAL-SENTENCES` states that. The last three conditions send each such quote to exactly one of the two alternatives.
 
 ```jbogenbau
@@ -405,9 +409,9 @@ The PEG warns when a quote of several sentences leaves out its `cai` before the 
   ∪ #« ⋯ open-quote-paragraphs« [po-head] open-quote-sentences« ⋯ sentence-choice ⋯ sentence-choice ⋯ » ⋯ » »
 
 %rule grammatical-quote
-  | [{prefix}] CA text [{prefix}] CAI
-  | [{prefix}] CA $q:open-quote-text [+CAI]
-  | multi-sentence-cai-elided! [{prefix}] CA $l:open-quote-text [+CAI]
+  | [{prefix}] CA text [{prefix}] CAI := $.value
+  | [{prefix}] CA $q:open-quote-text [+CAI] := $.value ++ "cai"
+  | multi-sentence-cai-elided! [{prefix}] CA $l:open-quote-text [+CAI] := $.value ++ "cai"
 %conditions
   $q ⟹ $ ≅ #(⋱ CAI=""),
   $l ⟹ $ ≅ #(⋱ CAI=""),
@@ -440,7 +444,7 @@ The [enumeration chapter](https://eberban.github.io/eberban/grammar/enum.html) g
 
 ```jbogenbau
 %rule enumeration
-  [{prefix}] PE [{postfix}] (prefix-form | separator-form) [+PEI]
+  [{prefix}] PE [{postfix}] (prefix-form | separator-form) [+PEI ≝ "pei"]
 
 %rule prefix-form
   bu-free [{[bi-free] enumerated-verb}]
@@ -473,10 +477,10 @@ The chapter says that `jie` "is inferred if omitted", and that a `JI` other than
 
 ```jbogenbau
 %rule borrowing-group
-  {Borrowing} [+BE]
+  {Borrowing} [+BE ≝ "be"]
 
 %rule number
-  | [TI JU] integer-body [+JI]
+  | [TI JU] integer-body [+JI ≝ "jie"]
   | [TI JU] fraction-body [+JI="jie"]
 %conditions
   $ ≅ #« ⋯ JI≠"" » ∨ ¬$.following-tokens.begins(number-start)
@@ -513,9 +517,11 @@ The chapter says that `jie` "is inferred if omitted", and that a `JI` other than
 
 The [annotations chapter](https://eberban.github.io/eberban/grammar/annotations.html) gives free prefixes and suffixes. A prefix is a `DI` particle, with an optional `DU` scope before it. A suffix is `DE` with one verb, or a parenthetical text between `da` and `dai`. The chapter allows any valid text in a parenthetical, and an empty text is valid. So `da dai` is a parenthetical.
 
+A prefix has the empty value recipe, so the string walk leaves it out. Only a resumption reads that walk ("Resuming a verb").
+
 ```jbogenbau
-%rule prefix
-  [DU] DI
+%rule prefix := ""
+  | [DU] DI
 
 %rule postfix
   interjection | parenthetical
@@ -536,9 +542,9 @@ The [annotations chapter](https://eberban.github.io/eberban/grammar/annotations.
 
 ## Differences from the reference grammar and the PEG
 
-The PEG compares the repeated verb of a resumption with the earlier verb as written. Its comparison covers the free prefixes and suffixes of the verb, and the spelling of each word except the hyphens that its word forms drop. This grammar compares values, so it leaves out the free suffixes after the verb. The annotations chapter says that an annotation has no logical effect, so free prefixes should be free too. This grammar still compares them, because no condition of the notation can compare a value that leaves out some words of a constituent. So `a mi di duna meon pa duna vo mo` has no parse in either grammar.
+The PEG compares the repeated verb of a resumption with the earlier verb as written. Its comparison covers the free prefixes and suffixes of the verb, and the spelling of each word except the hyphens that its word forms drop. This grammar compares the string walks of the two verbs. The walk leaves out free prefixes, because the annotations chapter says that an annotation has no logical effect. Free suffixes stand after the verb. So `a mi di duna meon pa duna vo mo` is a text here and not in the PEG.
 
-The numbers chapter infers `jie` where a number leaves out its `JI`, so `to` and `to jie` are the same number. Both the PEG and this grammar still compare the two spellings as different verbs. So neither parses `a mi to jie meon pa to vo mo`. Neither parses `a mi pe to pei meon pa pe to jie pei vo mo` either. A value joins only the written words, and a restored terminator adds no string to a value. A notation change could state the inference. An elided `JI` would restore as `jie`, while a written `JI` stays free to be any `JI`. Then `$x.without-elision.value` would join the restored strings too. The condition would compare `$v.without-elision.value` with `$e.without-elision.value`.
+The numbers chapter infers `jie` where a number leaves out its `JI`, so `to` and `to jie` are the same number. The PEG compares the two spellings as different verbs. This grammar gives an elided `JI` the default value `jie`. So `a mi to jie meon pa to vo mo` and `a mi pe to pei meon pa pe to jie pei vo mo` are texts here and not in the PEG. An elided `pei` or `be` also counts as its written form.
 
 A resumption also matches a nested compound that repeats the verb in its other spelling. An example is `pa e e ber ban ban` after `ei ber ban ban`. Both spellings have one value here, and the PEG fails to resume. [The word stream](stream.md#differences-from-the-reference-grammar-and-the-peg) explains the choice.
 

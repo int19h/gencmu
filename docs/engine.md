@@ -1139,7 +1139,7 @@ The default value d of an elidable optional is the string of its head's `≝`. W
 
 Before predicting an empty elidable production, the recognizer requires its omission predicate to hold. The predicate tests `(d,{T})` against the head's tests. Without a test, it is true. A default whose predicate is false is a document error at its `≝` (§9.3). This condition applies in main recognition, nested queries and reconstruction.
 
-A false predicate creates no omitted node, elision count or restoration record. It causes no declaration error or warning. Written productions remain available.
+A false predicate creates no omitted node, elision count or restoration record. Without `≝`, it causes no declaration error or warning. Written productions remain available.
 
 ### 3.9 Numbering
 
