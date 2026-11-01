@@ -8,8 +8,8 @@ use std::sync::Arc;
 use crate::clauses::check_definition;
 use crate::dom::{
     constant_value_type, constants_in_rule, constants_in_term, expected_problem, rule_type_fault, term_type_in,
-    tests_in, Alternative, Arg, Channels, ClassifierDef, Cond, ConstDef, Directive, Dom, EmitItem, Expr, Fault,
-    FeatureKind, ImplicationDef, Op, RuleDef, Term, Type,
+    Alternative, Arg, Channels, ClassifierDef, Cond, ConstDef, Directive, Dom, EmitItem, Expr, Fault, FeatureKind,
+    ImplicationDef, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
 use crate::fxhash::{FxMap, FxSet};
@@ -1475,14 +1475,9 @@ impl Constants<'_> {
                     continue;
                 }
             }
-            let values = self.check_pattern_values(vec![&argument.term], Vec::new(), &argument.path, argument.at);
-            if let Err(error) = values {
-                faults.push(error);
-                continue;
-            }
-            let mut calls = Vec::new();
-            calls_in_term(&argument.term, &mut calls);
-            if let Err(error) = self.check_delimiters(calls, &argument.path, argument.at) {
+            if let Err(error) =
+                self.check_value_uses(ValuePart::Term(&argument.term), &argument.path, argument.at, false)
+            {
                 faults.push(error);
             }
         }
@@ -1517,19 +1512,7 @@ impl Constants<'_> {
         {
             return Err(error);
         }
-        for alternative in &rule.alternatives {
-            self.check_body_strings(&alternative.expr, document, rule.at)?;
-        }
-        let conditions: Vec<&Cond> = rule.conditions.iter().collect();
-        let mut terms: Vec<&Term> = Vec::new();
-        terms.extend(rule.tags.iter());
-        terms.extend(rule.alternatives.iter().filter_map(|a| a.tags.as_ref()));
-        for item in rule.emit.iter().flatten() {
-            if let EmitItem::Capture(_, Some(t), ..) | EmitItem::Insert(Some(t), _) = item {
-                terms.push(t);
-            }
-        }
-        self.check_pattern_values(terms, conditions, document, rule.at)?;
+        self.check_value_uses(ValuePart::Rule(rule), document, rule.at, false)?;
         // The checks that simplification decides, which the reader left
         // to the loader, now with the constants' values (§9).
         let result = check_definition(&self.substitute_rule(rule), true);
@@ -1539,83 +1522,42 @@ impl Constants<'_> {
         if let Some(issue) = result.deferred {
             deferred.push(located(issue.message, document, rule.at));
         }
-        let mut calls = Vec::new();
-        calls_in_rule(rule, &mut calls);
-        self.check_delimiters(calls, document, rule.at)
-    }
-
-    fn check_delimiters(&self, calls: Vec<(&str, &[Arg])>, document: &str, at: (usize, usize)) -> Result<(), Error> {
-        for (call, args) in calls {
-            if let ("split", [_, Arg::Term(delimiter)]) = (call, args) {
-                if matches!(delimiter, Term::Str(_) | Term::Const(..))
-                    && self.evaluate(delimiter, document, at)?.string().is_empty()
-                {
-                    return Err(located(
-                        "split has an empty delimiter".into(),
-                        document,
-                        first_constant(delimiter).unwrap_or(at),
-                    ));
-                }
-            }
-        }
         Ok(())
     }
 
-    fn check_pattern_values(
+    fn check_value_uses(
         &self,
-        terms: Vec<&Term>,
-        conditions: Vec<&Cond>,
+        root: ValuePart<'_>,
         document: &str,
         at: (usize, usize),
+        computed: bool,
     ) -> Result<(), Error> {
-        enum Part<'a> {
-            Term(&'a Term),
-            Cond(&'a Cond),
-        }
-        let mut todo: Vec<_> = conditions.into_iter().map(Part::Cond).collect();
-        todo.extend(terms.into_iter().map(Part::Term));
-        while let Some(part) = todo.pop() {
+        for part in value_parts(root) {
             match part {
-                Part::Term(t) => {
-                    match t {
-                        Term::Pattern(_) => {
-                            self.evaluate_pattern(t, document, at)?;
+                ValuePart::Pattern(term) => {
+                    self.evaluate_pattern(term, document, at)?;
+                }
+                ValuePart::Expr(Expr::ScalarRange(a, b)) => {
+                    self.scalar_endpoints(a, b, document, at)?;
+                }
+                ValuePart::Term(term @ Term::Pattern(_)) => {
+                    self.evaluate_pattern(term, document, at)?;
+                }
+                ValuePart::Term(Term::Call(name, args)) if name == "split" => {
+                    if let [_, Arg::Term(delimiter)] = &args[..] {
+                        if ((computed && closed_string(delimiter))
+                            || matches!(delimiter, Term::Str(_) | Term::Const(..)))
+                            && self.evaluate(delimiter, document, at)?.string().is_empty()
+                        {
+                            return Err(located(
+                                "split has an empty delimiter".into(),
+                                document,
+                                if computed { at } else { first_constant(delimiter).unwrap_or(at) },
+                            ));
                         }
-                        Term::Union(xs) | Term::Intersection(xs) => todo.extend(xs.iter().map(Part::Term)),
-                        Term::Difference(a, b) => {
-                            todo.push(Part::Term(a));
-                            todo.push(Part::Term(b));
-                        }
-                        Term::If(c, t) => {
-                            todo.push(Part::Cond(c));
-                            todo.push(Part::Term(t));
-                        }
-                        Term::Call(_, xs) => todo.extend(xs.iter().filter_map(|x| {
-                            if let Arg::Term(t) = x {
-                                Some(Part::Term(t))
-                            } else {
-                                None
-                            }
-                        })),
-                        _ => {}
                     }
                 }
-                Part::Cond(c) => match c {
-                    Cond::Compare(op, a, b) => {
-                        if matches!(op.as_str(), "≅" | "≇") {
-                            self.evaluate_pattern(b, document, at)?;
-                        }
-                        todo.push(Part::Term(a));
-                        todo.push(Part::Term(b));
-                    }
-                    Cond::Any(xs) | Cond::All(xs) => todo.extend(xs.iter().map(Part::Cond)),
-                    Cond::Not(c) => todo.push(Part::Cond(c)),
-                    Cond::If(a, b) => {
-                        todo.push(Part::Cond(a));
-                        todo.push(Part::Cond(b));
-                    }
-                    _ => {}
-                },
+                _ => (),
             }
         }
         Ok(())
@@ -1639,17 +1581,7 @@ impl Constants<'_> {
                 if let Some(fault) = crate::dom::cond_type_fault(condition, &|name| self.ty(name)) {
                     return Err(located(fault.problem, document, directive.at));
                 }
-                let mut calls = Vec::new();
-                calls_in_condition(condition, &mut calls);
-                for (call, args) in calls {
-                    if let ("split", [_, Arg::Term(delimiter)]) = (call, args) {
-                        if closed_string(delimiter)
-                            && self.evaluate(delimiter, document, directive.at)?.string().is_empty()
-                        {
-                            return Err(located("split has an empty delimiter".into(), document, directive.at));
-                        }
-                    }
-                }
+                self.check_value_uses(ValuePart::Cond(condition), document, directive.at, true)?;
                 self.substitute_cond(condition);
             }
         }
@@ -1756,27 +1688,6 @@ impl Constants<'_> {
             ));
         }
         Ok((a, b))
-    }
-
-    fn check_body_strings(&self, root: &Expr, document: &str, at: (usize, usize)) -> Result<(), Error> {
-        let mut pending = vec![root];
-        while let Some(expr) = pending.pop() {
-            match expr {
-                Expr::ScalarRange(a, b) => {
-                    self.scalar_endpoints(a, b, document, at)?;
-                }
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
-                    pending.extend(items.iter().rev())
-                }
-                Expr::Optional(inner, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
-                Expr::Repeat(item, separator, _) => {
-                    pending.extend(separator.as_deref());
-                    pending.push(item);
-                }
-                _ => {}
-            }
-        }
-        Ok(())
     }
 
     /// Gives every test of a body its value, a string or a tag set, from
@@ -1929,66 +1840,110 @@ fn closed_string(term: &Term) -> bool {
     true
 }
 
-fn calls_in_term<'r>(term: &'r Term, out: &mut Vec<(&'r str, &'r [Arg])>) {
-    match term {
-        Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
-        Term::Call(name, args) => {
-            out.push((name, args));
-            for arg in args {
-                if let Arg::Term(inner) = arg {
-                    calls_in_term(inner, out);
-                }
+#[derive(Clone, Copy)]
+enum ValuePart<'a> {
+    Rule(&'a RuleDef),
+    Alternative(&'a Alternative),
+    Expr(&'a Expr),
+    Term(&'a Term),
+    Cond(&'a Cond),
+    Item(&'a EmitItem),
+    Pattern(&'a Term),
+}
+
+struct ValueParts<'a> {
+    pending: Vec<ValuePart<'a>>,
+}
+
+fn value_parts(root: ValuePart<'_>) -> ValueParts<'_> {
+    ValueParts { pending: vec![root] }
+}
+
+fn value_channels<'a>(parts: &mut Vec<ValuePart<'a>>, channels: &'a Channels) {
+    parts.extend(channels.value.iter().chain(channels.image.iter()).map(ValuePart::Term));
+}
+
+impl<'a> Iterator for ValueParts<'a> {
+    type Item = ValuePart<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        let part = self.pending.pop()?;
+        let mut children = Vec::new();
+        match part {
+            ValuePart::Rule(rule) => {
+                children.extend(rule.tags.iter().map(ValuePart::Term));
+                value_channels(&mut children, &rule.strings);
+                children.extend(rule.alternatives.iter().map(ValuePart::Alternative));
+                children.extend(rule.conditions.iter().map(ValuePart::Cond));
+                children.extend(rule.emit.iter().flatten().map(ValuePart::Item));
             }
+            ValuePart::Alternative(alt) => {
+                children.push(ValuePart::Expr(&alt.expr));
+                children.extend(alt.tags.iter().map(ValuePart::Term));
+                value_channels(&mut children, &alt.strings);
+            }
+            ValuePart::Item(item) => {
+                let (tags, strings) = match item {
+                    EmitItem::Capture(_, tags, attachments) => (tags, &attachments.strings),
+                    EmitItem::Insert(tags, strings) => (tags, strings),
+                };
+                children.extend(tags.iter().map(ValuePart::Term));
+                value_channels(&mut children, strings);
+            }
+            ValuePart::Expr(expr) => match expr {
+                Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
+                    children.extend(xs.iter().map(ValuePart::Expr))
+                }
+                Expr::Capture(_, e) | Expr::Optional(e, _) => children.push(ValuePart::Expr(e)),
+                Expr::Repeat(e, separator, _) => {
+                    children.push(ValuePart::Expr(e));
+                    children.extend(separator.iter().map(|e| ValuePart::Expr(e)));
+                }
+                Expr::Tested(_, value, inner) => {
+                    children.push(ValuePart::Expr(inner));
+                    children.push(ValuePart::Term(value));
+                }
+                Expr::Literal(value) => children.push(ValuePart::Term(value)),
+                Expr::ScalarRange(a, b) => children.extend([ValuePart::Term(a), ValuePart::Term(b)]),
+                _ => (),
+            },
+            ValuePart::Term(term) => match term {
+                Term::Union(xs) | Term::Intersection(xs) => children.extend(xs.iter().map(ValuePart::Term)),
+                Term::Difference(a, b) => children.extend([ValuePart::Term(a), ValuePart::Term(b)]),
+                Term::If(c, t) => children.extend([ValuePart::Cond(c), ValuePart::Term(t)]),
+                Term::Call(_, args) => children.extend(args.iter().filter_map(|a| {
+                    if let Arg::Term(t) = a {
+                        Some(ValuePart::Term(t))
+                    } else {
+                        None
+                    }
+                })),
+                _ => (),
+            },
+            ValuePart::Cond(cond) => match cond {
+                Cond::Compare(op, a, b) => {
+                    children.push(ValuePart::Term(a));
+                    children.push(if matches!(op.as_str(), "≅" | "≇") {
+                        ValuePart::Pattern(b)
+                    } else {
+                        ValuePart::Term(b)
+                    });
+                }
+                Cond::All(xs) | Cond::Any(xs) => children.extend(xs.iter().map(ValuePart::Cond)),
+                Cond::If(a, b) => children.extend([ValuePart::Cond(a), ValuePart::Cond(b)]),
+                Cond::Not(c) => children.push(ValuePart::Cond(c)),
+                Cond::Initial(t)
+                | Cond::Final(t)
+                | Cond::Matches(t, _)
+                | Cond::Begins(t, _)
+                | Cond::Ends(t, _)
+                | Cond::Boundary(_, t, _, _) => children.push(ValuePart::Term(t)),
+                _ => (),
+            },
+            ValuePart::Pattern(_) => (),
         }
-        Term::Union(items) | Term::Intersection(items) => items.iter().for_each(|item| calls_in_term(item, out)),
-        Term::Difference(left, right) => {
-            calls_in_term(left, out);
-            calls_in_term(right, out);
-        }
-        Term::If(condition, then) => {
-            calls_in_condition(condition, out);
-            calls_in_term(then, out);
-        }
-        Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {}
+        self.pending.extend(children.into_iter().rev());
+        Some(part)
     }
-}
-
-fn calls_in_condition<'r>(condition: &'r Cond, out: &mut Vec<(&'r str, &'r [Arg])>) {
-    match condition {
-        Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
-        Cond::Compare(_, left, right) => {
-            calls_in_term(left, out);
-            calls_in_term(right, out);
-        }
-        Cond::Not(inner) => calls_in_condition(inner, out),
-        Cond::Any(items) | Cond::All(items) => items.iter().for_each(|item| calls_in_condition(item, out)),
-        Cond::If(antecedent, consequent) => {
-            calls_in_condition(antecedent, out);
-            calls_in_condition(consequent, out);
-        }
-        Cond::Matches(..)
-        | Cond::Begins(..)
-        | Cond::Ends(..)
-        | Cond::Initial(_)
-        | Cond::Final(_)
-        | Cond::Boundary(_, _, _, _)
-        | Cond::Captured(_) => {}
-    }
-}
-
-/// The calls of a rule's terms and conditions, each before its argument calls.
-fn calls_in_rule<'r>(rule: &'r RuleDef, out: &mut Vec<(&'r str, &'r [Arg])>) {
-    rule.tags.iter().for_each(|term| calls_in_term(term, out));
-    for alternative in &rule.alternatives {
-        tests_in(&alternative.expr).into_iter().for_each(|(_, term, _)| calls_in_term(term, out));
-        alternative.tags.iter().for_each(|term| calls_in_term(term, out));
-    }
-    for item in rule.emit.iter().flatten() {
-        if let EmitItem::Capture(_, Some(term), ..) | EmitItem::Insert(Some(term), _) = item {
-            calls_in_term(term, out);
-        }
-    }
-    rule.conditions.iter().for_each(|condition| calls_in_condition(condition, out));
 }
 
 /// Checks an alternative, and its rule's clauses where `clauses` says that
