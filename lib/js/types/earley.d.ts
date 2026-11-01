@@ -2,7 +2,6 @@ import { BoundaryAnnotations } from "./boundary-annotations.js";
 import { PatternMachine } from "./patterns.js";
 import { CloseObservations } from "./close-observations.js";
 import { FamilySummaries } from "./family-summaries.js";
-import { restoreTokens } from "./restoration.js";
 import { Sources } from "./tokens.js";
 import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Captured, SpanValue, SymbolTest, TagSet, TermValue } from "./types.js";
 import type { CloseEvent, CloseObservation } from "./close-observations.js";
@@ -104,8 +103,6 @@ export declare class ParseContext {
     closeRules: Set<string>;
     /** @type {CloseObservations|null} */
     closes: CloseObservations | null;
-    /** @type {Map<number,ReturnType<typeof restoreTokens>>} */
-    restoredViews: Map<number, ReturnType<typeof restoreTokens>>;
     tokens: Token[];
     /** Where each run of the tokens lies in the text (engine §1). */
     sources: Sources;

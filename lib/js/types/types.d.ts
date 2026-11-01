@@ -805,7 +805,6 @@ export type AlignedSpan = {
     matchEnd: number;
     contextEnd: number;
     family: string | null;
-    view: ReturnType<typeof import("./restoration.js").restoreTokens>;
 };
 export type Scope = {
     boundaryValue?: boolean;
@@ -1436,7 +1435,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} matchEnd
  * @property {number} contextEnd
  * @property {string|null} family
- * @property {ReturnType<typeof import("./restoration.js").restoreTokens>} view
  */
 /**
  * Where a term looks up its captures.
