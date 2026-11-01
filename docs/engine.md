@@ -556,7 +556,7 @@ A predecessor remains an expression, not a snapshot of earlier values. Its other
 
 After the loader stitches the stage, it makes sure that each rule definition that holds a constant meets the requirements of this section. An undefined user constant is an error there. The types of the terms, conditions and tests that hold constants must agree (§9, §10).
 
-Emission items contribute their tags, value, and image clauses, in that order. Named carriers, the whole-constituent carrier, and inserted items receive the same inspection.
+Value inspection uses one written-order walk for delimiter checks, range endpoints, and pattern values. The walk visits header tags, value, and image first. Each alternative follows with its body tests, tags, value, and image. Conditions precede emission items. Each item contributes tags, value, and image, in that order. Named carriers, the whole-constituent carrier, and inserted items receive the same inspection.
 
 This inspection includes template arguments that no parameter uses. The loader retains their terms and expression fragments until constant inspection finishes. Value inspection also rejects direct empty delimiters and invalid range endpoints inside retained pattern arguments. It visits value operands in written order and reports the first fault.
 

@@ -1,0 +1,13 @@
+{
+  "description": "Bound value faults follow written clause order, regardless of their kind.",
+  "grammar": "%const $E \"\"\n%const $F \"\"\n%const $W \"ab\"\n%const $V \"cd\"\n%rule text $W..\"z\"\n%conditions \"x\" ∈ $.value.split($E)",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 7,
+      "column": 12
+    }
+  }
+}
