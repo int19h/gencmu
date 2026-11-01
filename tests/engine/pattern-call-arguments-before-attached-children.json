@@ -1,0 +1,14 @@
+{
+  "description": "Pattern-call arguments precede attached child constants during inspection.",
+  "grammar": "%ambiguity-resolution greedy\n%rule g(@X) @X\n%rule unused(@X) \"a\" %conditions $ ≅ #g($FIRST)« $SECOND »\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$FIRST is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 41
+    }
+  }
+}

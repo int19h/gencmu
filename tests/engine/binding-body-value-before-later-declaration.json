@@ -1,0 +1,13 @@
+{
+  "description": "An unused body argument keeps bound-value inspection at its binding.",
+  "grammar": "%ambiguity-resolution greedy\n%const $WIDE \"ab\"\n%rule f(@X) \"a\"\n%rule named = f(($WIDE..\"z\"))\n%rule text $SECOND",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 18
+    }
+  }
+}

@@ -176,7 +176,8 @@ def expand_templates(documents, unicode):
     for inspection_run, (path, dom) in enumerate(documents):
         declarations = sorted([(key, r) for key in ('rules', 'constants', 'directives', 'classifiers', 'implications') for r in dom[key]], key=lambda item: item[1]['at'])
         for kind, rule in declarations:
-            event = dict(path=path, rule=rule, index=serial, inspection_run=inspection_run)
+            event = dict(path=path, rule=rule, index=serial, inspection_run=inspection_run,
+                         kind={"rules": 0, "directives": 1, "constants": 2, "classifiers": 3, "implications": 4}[kind])
             serial += 1
             source_events.append(event)
             if kind != 'rules':
@@ -573,7 +574,7 @@ def expand_templates(documents, unicode):
                     result[key] = [part for value in result[key] for part in value.get(key, [value])]
         return result
 
-    arguments_to_check, argument_definitions = [], []
+    arguments_to_check = []
 
     def inspect_argument(argument, event):
         parts = list(nodes(argument, source=True))
@@ -581,8 +582,11 @@ def expand_templates(documents, unicode):
         if not references:
             return
 
+        owner = dict(path=event['path'], kind=event.get('kind', 0), at=event['rule']['at'], position=references[0]['at'],
+                     inspection_run=rewritten_definitions.get(id(event), event)['inspection_run'])
+
         def add(term, tags=False):
-            arguments_to_check.append(dict(path=event['path'], term=rewrite(term, event), at=event['rule']['at'], tags=tags))
+            arguments_to_check.append(dict(owner, term=rewrite(term, event), tags=tags))
 
         if any('param' in n for n in parts):
             for reference in references:
@@ -592,7 +596,7 @@ def expand_templates(documents, unicode):
         if any(k in arg for k in ('body', 'test', 'range', 'wildcard')):
             rule = dict(name='text' if event['index'] in extra_indexes else event['rule']['name'], op='define', flags=[], conditions=[],
                         alternatives=[dict(guards=[], expr=rewrite(arg.get('body', arg), event, 'expr'))], at=event['rule']['at'])
-            argument_definitions.append({**event, 'rule': rule})
+            arguments_to_check.append(dict(owner, rule=rule, fragment=True))
         elif 'requirements' in arg:
             for requirement in arg['requirements']:
                 add(requirement['value'], True)
@@ -628,10 +632,7 @@ def expand_templates(documents, unicode):
             inspect_arguments(event)
     for event in validation_definitions:
         inspect_arguments(event)
-    for event in argument_definitions:
-        validation.append({**event, "inspection_run": next_inspection_run})
-        next_inspection_run += 1
-    for event in validation:
+    for event in [*validation, *(argument for argument in arguments_to_check if 'rule' in argument)]:
         if 'params' in event['rule']:
             continue
         problem = dom_problem(empty_dom(documents[0][1]['format'], [event['rule']]), unicode, True, True)

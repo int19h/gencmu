@@ -1,0 +1,13 @@
+{
+  "description": "Feature shape inspection precedes retained argument type inspection.",
+  "grammar": "%ambiguity-resolution greedy\n%features f\n%conditions $.matches(t(\"a\".split($T)))\n%const $T K\n%rule t(@X) \"a\"\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

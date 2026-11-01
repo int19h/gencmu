@@ -1,0 +1,13 @@
+{
+  "description": "A retained condition argument precedes a later emission in type inspection.",
+  "grammar": "%ambiguity-resolution greedy\n%const $T K\n%const $STRING \"s\"\n%rule t(@X) \"a\"\n%rule early \"b\" %conditions $.matches(t(\"a\".split($T)))\n%emits $ :: $STRING\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 6,
+      "column": 51
+    }
+  }
+}

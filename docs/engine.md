@@ -528,7 +528,15 @@ An uncalled template retains its declaration position for immediate inspection. 
 
 Inspection positions identify document runs, not just paths and coordinates. An include's declarations precede the including document's later declarations.
 
+Every inspection record retains its source run, owning declaration, and position within that declaration. This includes retained arguments of bindings, edits, ordinary rules, and templates. Argument fragments retain the argument's source position. They enter a generated phase only when substitution generates their owner.
+
+Within each binding phase, constant, type, and bound-value inspection use those positions. Constant references from a rewritten declaration and its retained arguments form one ordered list. Types and values retain the same source ownership. A separate argument queue cannot place an earlier argument after a later clause or declaration.
+
+A rule resolves every retained and rewritten constant reference before type inspection. Its type inspection precedes bound-value inspection.
+
 Constant-reference inspection follows source clause order, including inside retained templates. Conditions precede emission items. A test visits its symbol before its value operand or tag requirements, then continues to the next body symbol. Serialized DOM member order does not change this inspection order.
+
+A pattern call visits its arguments before its attached children. Arguments include terms, requirements, body fragments, target lists, and nested patterns. Every term and condition container uses its semantic child order, regardless of JSON member order.
 
 Feature-shape and bound-type inspection use the original condition list. Pattern evaluation and value substitution follow both inspections.
 

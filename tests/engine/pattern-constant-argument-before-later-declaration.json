@@ -1,0 +1,14 @@
+{
+  "description": "A constant retains its pattern-call argument at the source declaration.",
+  "grammar": "%ambiguity-resolution greedy\n%rule t(@X) \"a\"\n%const $P #t($FIRST)\n%rule text $SECOND",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$FIRST is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 14
+    }
+  }
+}

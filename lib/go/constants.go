@@ -27,10 +27,15 @@ type constUser struct {
 
 // constArgument retains an unused argument term until the stage binds constants.
 type constArgument struct {
-	doc  string
-	term *domTerm
-	at   [2]int
-	tags bool
+	kind          int
+	inspectionRun int
+	position      [2]int
+	rule          *domRule
+	fragment      bool
+	doc           string
+	term          *domTerm
+	at            [2]int
+	tags          bool
 }
 
 // constantTypes gives the type of each constant of the stage now.
@@ -375,7 +380,7 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 // the types agree, and that a constant that split or tag reads directly is
 // a delimiter that is not empty, or a name (engine §2, §9, §10). Then it
 // gives every reference its final value.
-func (g *stageGrammar) resolveConstants(checks []func() *Error, arguments []constArgument) *Error {
+func (g *stageGrammar) resolveConstants(checks []func() *Error) *Error {
 	if err := g.bindConstants(); err != nil {
 		return err
 	}
@@ -385,15 +390,6 @@ func (g *stageGrammar) resolveConstants(checks []func() *Error, arguments []cons
 		}
 	}
 
-	for _, argument := range arguments {
-		key := argumentSite{argument.doc, argument.at}
-		if uses, ok := g.arguments[key]; ok {
-			if err := g.checkArguments(uses); err != nil {
-				return err
-			}
-			delete(g.arguments, key)
-		}
-	}
 	g.arguments = nil
 
 	// Each reference holds the final value. The DOM is shared by every
@@ -459,7 +455,7 @@ func (g *stageGrammar) checkValueUses(doc string, root valuePart, at [2]int, com
 			}
 		}
 		return nil
-	})
+	}, false)
 }
 
 // valueHasSource identifies values that still depend on template substitution.
@@ -546,17 +542,18 @@ func (g *stageGrammar) checkPatternUses(doc string, t *domTerm, at [2]int) *Erro
 
 // valuePart keeps the roles of declarations, expressions and clauses separate.
 type valuePart struct {
-	rule    *domRule
-	alt     *domAlt
-	expr    *domExpr
-	term    *domTerm
-	cond    *domCond
-	item    *domEmitItem
-	call    *domSourceCall
-	pattern bool
+	rule        *domRule
+	alt         *domAlt
+	expr        *domExpr
+	term        *domTerm
+	cond        *domCond
+	item        *domEmitItem
+	call        *domSourceCall
+	pattern     bool
+	patternNode *domPattern
 }
 
-func walkValues(root valuePart, visit func(valuePart) *Error) *Error {
+func walkValues(root valuePart, visit func(valuePart) *Error, patterns bool) *Error {
 	pending := []valuePart{root}
 	for len(pending) > 0 {
 		part := pending[len(pending)-1]
@@ -588,6 +585,21 @@ func walkValues(root valuePart, visit func(valuePart) *Error) *Error {
 					terms(r.Value)
 				}
 				terms(arg.Targets...)
+			}
+		case part.patternNode != nil:
+			p := part.patternNode
+			if p.Call != nil {
+				children = append(children, valuePart{call: p.Call})
+			}
+			for _, item := range p.Items {
+				children = append(children, valuePart{patternNode: item})
+			}
+			terms(p.Ends[0], p.Ends[1], p.Value)
+			for _, r := range p.Requirements {
+				terms(r.Value)
+			}
+			for _, item := range p.Attached {
+				children = append(children, valuePart{patternNode: item})
 			}
 		case part.rule != nil:
 			r := part.rule
@@ -622,15 +634,18 @@ func walkValues(root valuePart, visit func(valuePart) *Error) *Error {
 			terms(e.Value, e.Ends[0], e.Ends[1])
 		case part.term != nil:
 			if part.pattern || part.term.Kind == tmPattern {
-				continue
+				if patterns && part.term.Pattern != nil {
+					children = append(children, valuePart{patternNode: part.term.Pattern})
+				}
+			} else {
+				if part.term.Call != nil {
+					children = append(children, valuePart{call: part.term.Call})
+				}
+				if c := part.term.Cond; c != nil {
+					children = append(children, valuePart{cond: c})
+				}
+				terms(part.term.Items...)
 			}
-			if part.term.Call != nil {
-				children = append(children, valuePart{call: part.term.Call})
-			}
-			if c := part.term.Cond; c != nil {
-				children = append(children, valuePart{cond: c})
-			}
-			terms(part.term.Items...)
 		case part.cond != nil:
 			c := part.cond
 			if c.Kind == cdCompare && (c.Op == "≅" || c.Op == "≇") {
@@ -844,7 +859,7 @@ func (r *resolver) emit(e *domEmit) *domEmit {
 }
 
 // resolveFeature checks one directive at its declaration slot.
-func (g *stageGrammar) resolveFeature(index int) *Error {
+func (g *stageGrammar) resolveFeature(index, run int) *Error {
 	item := g.features[index]
 	types := g.constantTypes()
 	resolvedFeatures := newResolver(g.constants, g.uni)
@@ -852,7 +867,22 @@ func (g *stageGrammar) resolveFeature(index int) *Error {
 	if directive.Conditions == nil {
 		return nil
 	}
-	for _, ref := range constRefs(directive.Conditions) {
+	references := constRefs(directive.Conditions)
+	uses := g.arguments[argumentSite{run, item.doc, directive.At}]
+	for _, use := range uses {
+		if use.rule != nil {
+			references = append(references, constRefs(use.rule)...)
+		} else {
+			references = append(references, constRefs(use.term)...)
+		}
+	}
+	if len(uses) > 0 {
+		sort.SliceStable(references, func(i, j int) bool {
+			a, b := references[i].At, references[j].At
+			return a[0] < b[0] || a[0] == b[0] && a[1] < b[1]
+		})
+	}
+	for _, ref := range references {
 		if g.constants[ref.Str] == nil {
 			return g.constError(item.doc, directive.At, "$%s is not defined in stage %s", ref.Str, g.name)
 		}
@@ -875,60 +905,102 @@ func (g *stageGrammar) resolveFeature(index int) *Error {
 	return nil
 }
 
-func earlierConstantError(a, b *Error) *Error {
-	if a == nil {
-		return b
-	}
-	if b != nil && (b.Line < a.Line || b.Line == a.Line && b.Column < a.Column) {
-		return b
-	}
-	return a
-}
 func (g *stageGrammar) checkArguments(arguments []constArgument) *Error {
-	types := g.constantTypes()
-	var selected *Error
-	for _, argument := range arguments {
-		for _, ref := range constRefs(argument.term) {
-			if g.constants[ref.Str] == nil {
-				return g.constError(argument.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
-			}
-		}
-		ty, fault := termTypeIn(argument.term, types)
-		var err *Error
-		if fault != nil {
-			err = g.faultError(argument.doc, fault.node, argument.at, fault.problem)
-		} else if argument.tags {
-			if problem := expectedProblem(ty, tyTags); problem != "" {
-				err = g.faultError(argument.doc, argument.term, argument.at, problem)
-			}
-		}
-		if err == nil {
-			err = g.checkValueUses(argument.doc, valuePart{term: argument.term}, argument.at, false)
-		}
-		selected = earlierConstantError(selected, err)
+	type reference struct {
+		term *domTerm
+		doc  string
 	}
-	return selected
+	var references []reference
+	for _, argument := range arguments {
+		var refs []*domTerm
+		if argument.rule != nil {
+			refs = constRefs(argument.rule)
+		} else {
+			refs = constRefs(argument.term)
+		}
+		for _, ref := range refs {
+			references = append(references, reference{ref, argument.doc})
+		}
+	}
+	sort.SliceStable(references, func(i, j int) bool {
+		a, b := references[i].term.At, references[j].term.At
+		return a[0] < b[0] || a[0] == b[0] && a[1] < b[1]
+	})
+	for _, ref := range references {
+		if g.constants[ref.term.Str] == nil {
+			return g.constError(ref.doc, ref.term.At, "$%s is not defined in stage %s", ref.term.Str, g.name)
+		}
+	}
+	types := g.constantTypes()
+	for phase := 0; phase < 2; phase++ {
+		var selected *Error
+		var selectedAt [2]int
+		for _, argument := range arguments {
+			var err *Error
+			if phase == 0 {
+				if argument.rule != nil {
+					if fault := ruleTypeFault(argument.rule, types); fault != nil {
+						err = g.faultError(argument.doc, fault.node, argument.at, fault.problem)
+					}
+				} else {
+					ty, fault := termTypeIn(argument.term, types)
+					if fault != nil {
+						err = g.faultError(argument.doc, fault.node, argument.at, fault.problem)
+					} else if argument.tags {
+						if problem := expectedProblem(ty, tyTags); problem != "" {
+							err = g.faultError(argument.doc, argument.term, argument.at, problem)
+						}
+					}
+				}
+			} else {
+				root := valuePart{term: argument.term, rule: argument.rule}
+				err = g.checkValueUses(argument.doc, root, argument.at, false)
+				if err == nil && argument.fragment {
+					resolved := newResolver(g.constants, g.uni).rule(argument.rule)
+					if result := checkDefinition(resolved, true); result.problem != nil {
+						err = g.constError(argument.doc, argument.at, "%s", result.problem.message)
+					}
+				}
+			}
+			if err != nil {
+				at := [2]int{err.Line, err.Column}
+				if at == argument.at && argument.position != [2]int{} {
+					at = argument.position
+				}
+				if selected == nil || at[0] < selectedAt[0] || at[0] == selectedAt[0] && at[1] < selectedAt[1] {
+					selected, selectedAt = err, at
+				}
+			}
+		}
+		if selected != nil {
+			return selected
+		}
+	}
+	return nil
 }
 
 // checkConstantRule checks one definition after constant binding.
 func (g *stageGrammar) checkConstantRule(u constUser) *Error {
-	types := g.constantTypes()
-	for _, ref := range constRefs(u.rule) {
-		if g.constants[ref.Str] == nil {
-			return g.constError(u.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
-		}
-	}
-	key := argumentSite{u.doc, u.rule.At}
-	selected := g.checkArguments(g.arguments[key])
+	key := argumentSite{u.inspectionRun, u.doc, u.rule.At}
+	uses := g.arguments[key]
 	delete(g.arguments, key)
-	if f := ruleTypeFault(u.rule, types); f != nil {
-		selected = earlierConstantError(selected, g.faultError(u.doc, f.node, u.rule.At, f.problem))
-	}
-	if selected != nil {
-		return selected
-	}
-	if err := g.checkValueUses(u.doc, valuePart{rule: u.rule}, u.rule.At, false); err != nil {
-		return err
+	if len(uses) > 0 {
+		records := append([]constArgument{{doc: u.doc, at: u.rule.At, rule: u.rule}}, uses...)
+		if err := g.checkArguments(records); err != nil {
+			return err
+		}
+	} else {
+		for _, ref := range constRefs(u.rule) {
+			if g.constants[ref.Str] == nil {
+				return g.constError(u.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
+			}
+		}
+		if f := ruleTypeFault(u.rule, g.constantTypes()); f != nil {
+			return g.faultError(u.doc, f.node, u.rule.At, f.problem)
+		}
+		if err := g.checkValueUses(u.doc, valuePart{rule: u.rule}, u.rule.At, false); err != nil {
+			return err
+		}
 	}
 
 	// The checks that simplification decides, which the reader left to

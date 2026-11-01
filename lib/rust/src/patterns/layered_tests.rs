@@ -25,10 +25,11 @@ fn deep_source_reference_and_type_walks_use_explicit_stacks() {
         };
     }
     let mut references = Vec::new();
-    pattern.references(&mut references);
+    let term = dom::Term::Pattern(Box::new(pattern));
+    dom::references_in_term(&term, &mut references);
     assert_eq!(references, vec![("P", (2, 7))]);
+    let dom::Term::Pattern(pattern) = &term else { unreachable!() };
     assert!(pattern.type_fault(&|_| dom::Type::String).is_none());
     let fault = pattern.type_fault(&|_| dom::Type::Tags).unwrap();
     assert_eq!(fault.at, Some((2, 7)));
-    crate::dom::drop_pattern(pattern);
 }

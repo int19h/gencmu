@@ -234,7 +234,10 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     let mut arguments_by_site: HashMap<_, Vec<_>> = HashMap::new();
     if let Some(expanded) = &expansion {
         for argument in &expanded.arguments {
-            arguments_by_site.entry((argument.path.clone(), argument.at)).or_default().push(argument);
+            arguments_by_site
+                .entry((argument.inspection_run, argument.path.clone(), argument.at))
+                .or_default()
+                .push(argument);
         }
     }
     let mut grammar = StageGrammar {
@@ -253,6 +256,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     };
     enum Check<'a> {
         Rule(&'a Arc<str>, &'a RuleDef),
+        Arguments(&'a crate::parameters::expand::ArgumentUse),
         Feature(usize),
         Classifier(usize),
         Implication(&'a Arc<str>, &'a ImplicationDef),
@@ -292,7 +296,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                         deferred.push(located(problem.message.clone(), document, rule.at));
                     }
                     if !constants_in_rule(rule).is_empty()
-                        || arguments_by_site.contains_key(&(document.clone(), rule.at))
+                        || arguments_by_site.contains_key(&(run, document.clone(), rule.at))
                     {
                         checks.push((run, rule.at, 0, Check::Rule(document, rule)));
                     }
@@ -454,17 +458,31 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         grammar.index = grammar.rules.iter().enumerate().map(|(i, r)| (r.name.clone(), i)).collect();
     }
     let mut implications = Vec::new();
+    if let Some(expanded) = &expansion {
+        for argument in &expanded.arguments {
+            checks.push((argument.inspection_run, argument.at, argument.kind, Check::Arguments(argument)));
+        }
+    }
     checks.sort_by_key(|(run, at, kind, _)| (*run, *at, *kind));
-    for (_, _, _, check) in checks {
+    for (run, _, _, check) in checks {
         match check {
             Check::Rule(document, rule) => {
-                let arguments = arguments_by_site.remove(&(document.clone(), rule.at)).unwrap_or_default();
+                let arguments = arguments_by_site.remove(&(run, document.clone(), rule.at)).unwrap_or_default();
                 let errors = if rule.source.params.is_some() { &mut pending_templates } else { &mut deferred };
                 constants.check_rule(document, rule, &arguments, errors)?;
             }
+            Check::Arguments(argument) => {
+                if let Some(arguments) =
+                    arguments_by_site.remove(&(argument.inspection_run, argument.path.clone(), argument.at))
+                {
+                    constants.check_arguments(&arguments, None)?;
+                }
+            }
             Check::Feature(index) => {
                 let (document, directive) = &mut grammar.features[index];
-                constants.resolve_feature(document, directive)?;
+                let arguments =
+                    arguments_by_site.get(&(run, document.clone(), directive.at)).map_or(&[][..], Vec::as_slice);
+                constants.resolve_feature(document, directive, arguments)?;
             }
             Check::Classifier(index) => {
                 let (document, classifier) = &mut grammar.classifiers[index];
@@ -472,13 +490,6 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
             }
             Check::Implication(document, implication) => {
                 implications.push(constants.implication(document, implication)?)
-            }
-        }
-    }
-    if let Some(expanded) = &expansion {
-        for argument in &expanded.arguments {
-            if let Some(arguments) = arguments_by_site.remove(&(argument.path.clone(), argument.at)) {
-                constants.check_arguments(&arguments)?;
             }
         }
     }
@@ -1445,42 +1456,104 @@ impl Constants<'_> {
         Ok(Implication { antecedent, consequent })
     }
 
-    fn check_arguments(&self, arguments: &[&crate::parameters::expand::ArgumentUse]) -> Result<(), Error> {
-        let mut faults = Vec::new();
+    fn check_arguments(
+        &self,
+        arguments: &[&crate::parameters::expand::ArgumentUse],
+        owner: Option<(&Arc<str>, &RuleDef)>,
+    ) -> Result<(), Error> {
+        use crate::parameters::expand::RetainedPart;
+        struct Inspection<'a> {
+            path: &'a str,
+            root: ValuePart<'a>,
+            at: (usize, usize),
+            position: (usize, usize),
+            tags: bool,
+            fragment: bool,
+        }
+        let mut records = Vec::new();
+        if let Some((path, rule)) = owner {
+            records.push(Inspection {
+                path,
+                root: ValuePart::Rule(rule),
+                at: rule.at,
+                position: rule.at,
+                tags: false,
+                fragment: false,
+            });
+        }
         for argument in arguments {
-            let mut references = Vec::new();
-            constants_in_term(&argument.term, &mut references);
-            for (name, at) in references {
-                if !self.values.contains_key(name) {
-                    return Err(located(format!("${name} is not defined in stage {}", self.stage), &argument.path, at));
-                }
-            }
-            let ty = match term_type_in(&argument.term, &|name| self.ty(name)) {
-                Ok(ty) => ty,
-                Err(fault) => {
-                    faults.push(fault_error(fault, &argument.path, argument.at));
-                    continue;
-                }
+            let (root, fragment) = match &argument.part {
+                RetainedPart::Term(term) => (ValuePart::Term(term), false),
+                RetainedPart::Fragment(rule) => (ValuePart::Rule(rule), true),
             };
-            if argument.tags {
-                if let Some(problem) = expected_problem(ty, Type::Tags) {
-                    faults.push(located(
-                        problem,
-                        &argument.path,
-                        first_constant(&argument.term).unwrap_or(argument.at),
-                    ));
-                    continue;
-                }
+            records.push(Inspection {
+                path: &argument.path,
+                root,
+                at: argument.at,
+                position: argument.position,
+                tags: argument.tags,
+                fragment,
+            });
+        }
+        let mut references = Vec::new();
+        for record in &records {
+            let mut found = Vec::new();
+            match record.root {
+                ValuePart::Rule(rule) => found = constants_in_rule(rule),
+                ValuePart::Term(term) => crate::dom::references_in_term(term, &mut found),
+                _ => unreachable!(),
             }
-            if let Err(error) =
-                self.check_value_uses(ValuePart::Term(&argument.term), &argument.path, argument.at, false)
-            {
-                faults.push(error);
+            references.extend(found.into_iter().map(|(name, at)| (name, at, record.path)));
+        }
+        references.sort_by_key(|(_, at, _)| *at);
+        for (name, at, path) in references {
+            if !self.values.contains_key(name) {
+                return Err(located(format!("${name} is not defined in stage {}", self.stage), path, at));
             }
         }
-        if let Some(error) = faults.into_iter().min_by_key(|error| (error.line.unwrap_or(0), error.column.unwrap_or(0)))
-        {
-            return Err(error);
+        for phase in 0..2 {
+            let mut faults = Vec::new();
+            for record in &records {
+                let result = (|| {
+                    if phase == 0 {
+                        let fault = match record.root {
+                            ValuePart::Rule(rule) => rule_type_fault(rule, &|name| self.ty(name)),
+                            ValuePart::Term(term) => match term_type_in(term, &|name| self.ty(name)) {
+                                Err(fault) => Some(fault),
+                                Ok(ty) => {
+                                    if record.tags {
+                                        expected_problem(ty, Type::Tags)
+                                            .map(|problem| Fault { problem, at: first_constant(term) })
+                                    } else {
+                                        None
+                                    }
+                                }
+                            },
+                            _ => unreachable!(),
+                        };
+                        if let Some(fault) = fault {
+                            return Err(fault_error(fault, record.path, record.at));
+                        }
+                    } else {
+                        self.check_value_uses(record.root, record.path, record.at, false)?;
+                        if record.fragment {
+                            let ValuePart::Rule(rule) = record.root else { unreachable!() };
+                            let resolved = self.substitute_rule(rule);
+                            if let Some(issue) = check_definition(&resolved, true).problem {
+                                return Err(located(issue.message, record.path, record.at));
+                            }
+                        }
+                    }
+                    Ok(())
+                })();
+                if let Err(error) = result {
+                    let at = (error.line.unwrap_or(record.at.0), error.column.unwrap_or(record.at.1));
+                    faults.push((if at == record.at { record.position } else { at }, error));
+                }
+            }
+            if let Some((_, error)) = faults.into_iter().min_by_key(|(position, _)| *position) {
+                return Err(error);
+            }
         }
         Ok(())
     }
@@ -1493,23 +1566,19 @@ impl Constants<'_> {
         arguments: &[&crate::parameters::expand::ArgumentUse],
         deferred: &mut Vec<Error>,
     ) -> Result<(), Error> {
-        for (name, at) in constants_in_rule(rule) {
-            if !self.values.contains_key(name) {
-                return Err(located(format!("${name} is not defined in stage {}", self.stage), document, at));
+        if arguments.is_empty() {
+            for (name, at) in constants_in_rule(rule) {
+                if !self.values.contains_key(name) {
+                    return Err(located(format!("${name} is not defined in stage {}", self.stage), document, at));
+                }
             }
+            if let Some(fault) = rule_type_fault(rule, &|name| self.ty(name)) {
+                return Err(fault_error(fault, document, rule.at));
+            }
+            self.check_value_uses(ValuePart::Rule(rule), document, rule.at, false)?;
+        } else {
+            self.check_arguments(arguments, Some((document, rule)))?;
         }
-        let mut faults: Vec<_> = rule_type_fault(rule, &|name| self.ty(name))
-            .map(|fault| fault_error(fault, document, rule.at))
-            .into_iter()
-            .collect();
-        if let Err(error) = self.check_arguments(arguments) {
-            faults.push(error);
-        }
-        if let Some(error) = faults.into_iter().min_by_key(|error| (error.line.unwrap_or(0), error.column.unwrap_or(0)))
-        {
-            return Err(error);
-        }
-        self.check_value_uses(ValuePart::Rule(rule), document, rule.at, false)?;
         // The checks that simplification decides, which the reader left
         // to the loader, now with the constants' values (§9).
         let resolved = self.substitute_rule(rule);
@@ -1617,19 +1686,34 @@ impl Constants<'_> {
         Ok(())
     }
 
-    fn resolve_feature(&self, document: &str, directive: &mut Directive) -> Result<(), Error> {
+    fn resolve_feature(
+        &self,
+        document: &str,
+        directive: &mut Directive,
+        arguments: &[&crate::parameters::expand::ArgumentUse],
+    ) -> Result<(), Error> {
         if let Some(conditions) = &mut directive.conditions {
+            let mut references = Vec::new();
             for condition in conditions.iter() {
-                let mut references = Vec::new();
                 crate::dom::constants_in_cond(condition, &mut references);
-                for (name, _) in references {
-                    if !self.values.contains_key(name) {
-                        return Err(located(
-                            format!("${name} is not defined in stage {}", self.stage),
-                            document,
-                            directive.at,
-                        ));
-                    }
+            }
+            for argument in arguments {
+                use crate::parameters::expand::RetainedPart;
+                match &argument.part {
+                    RetainedPart::Term(term) => crate::dom::references_in_term(term, &mut references),
+                    RetainedPart::Fragment(rule) => references.extend(constants_in_rule(rule)),
+                }
+            }
+            if !arguments.is_empty() {
+                references.sort_by_key(|(_, at)| *at);
+            }
+            for (name, _) in references {
+                if !self.values.contains_key(name) {
+                    return Err(located(
+                        format!("${name} is not defined in stage {}", self.stage),
+                        document,
+                        directive.at,
+                    ));
                 }
             }
             crate::features::problem(conditions).map_err(|message| located(message, document, directive.at))?;

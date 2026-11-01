@@ -5,17 +5,31 @@ from __future__ import annotations
 from copy import copy
 
 
+_SOURCE_KEYS = ('if', 'then', 'left', 'right', 'not', 'any', 'all', 'receiver', 'args', 'expr', 'body', 'targets', 'requirements', 'negated', 'tags', 'value', 'image', 'pattern', 'child', 'children', 'repeat', 'separator', 'optional', 'seq', 'choice', 'ranked', 'and', 'union', 'intersection', 'difference', 'concat', 'items', 'before', 'after')
+
+
+def _source_order(prefix):
+    return {key: index for index, key in reversed(list(enumerate((*prefix, *_SOURCE_KEYS))))}
+
+
+_SOURCE_ORDERS = (
+    _source_order(('instance', 'args', 'tags', 'value', 'image', 'alternatives', 'conditions', 'emit')),
+    _source_order(('expr', 'tags', 'value', 'image')),
+    _source_order(('tags', 'value', 'image')),
+    _source_order(()),
+)
+
+
 def source_keys(node):
     if node.get('name') and node.get('op'):
-        prefix = ('instance', 'args', 'tags', 'value', 'image', 'alternatives', 'conditions', 'emit')
+        order = _SOURCE_ORDERS[0]
     elif node.get('expr') and not node.get('test'):
-        prefix = ('expr', 'tags', 'value', 'image')
+        order = _SOURCE_ORDERS[1]
     elif 'capture' in node or node.get('insert'):
-        prefix = ('tags', 'value', 'image')
+        order = _SOURCE_ORDERS[2]
     else:
-        prefix = ()
-    order = (*prefix, 'if', 'then', 'left', 'right', 'not', 'any', 'all', 'receiver', 'args', 'expr', 'body', 'targets', 'requirements', 'negated', 'tags', 'value', 'image', 'pattern', 'child', 'children', 'repeat', 'separator', 'optional', 'seq', 'choice', 'ranked', 'and', 'union', 'intersection', 'difference', 'concat', 'items', 'before', 'after')
-    return [key for key in dict.fromkeys(order) if key in node] + sorted(key for key in node if key not in order)
+        order = _SOURCE_ORDERS[3]
+    return sorted(node, key=lambda key: (order.get(key, 100), key))
 
 
 def nodes(root, *, source=False):

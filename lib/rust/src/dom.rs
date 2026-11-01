@@ -1347,13 +1347,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
             Nested::Source(symbol) => stack.extend(source_children(symbol).into_iter().rev()),
             Nested::Term(term) => match term {
                 Term::Source(symbol) => stack.push(Nested::Source(symbol)),
-                Term::Pattern(p) => {
-                    if engine {
-                        p.references(out)
-                    } else {
-                        p.constants(out)
-                    }
-                }
+                Term::Pattern(p) => stack.push(Nested::Pattern(p)),
                 Term::Const(name, at) if engine || !name.starts_with('_') => out.push((name, *at)),
                 Term::Const(..) => {}
                 Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().rev().map(Nested::Term)),
@@ -1397,8 +1391,41 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 }
                 _ => {}
             },
-            // Pattern references are handled through Term::Pattern above.
-            Nested::Pattern(_) | Nested::PatternItems(_) => {}
+            Nested::Pattern(pattern) => {
+                use crate::patterns::Pattern;
+                match pattern {
+                    Pattern::Source(symbol) => stack.push(Nested::Source(symbol)),
+                    Pattern::Constant(name, at) => out.push((name, *at)),
+                    Pattern::Literal(term, _) => stack.push(Nested::Term(term)),
+                    Pattern::Range(left, right, _) => stack.extend([Nested::Term(right), Nested::Term(left)]),
+                    Pattern::Test(_, value, inner) => stack.extend([Nested::Term(value), Nested::Pattern(inner)]),
+                    Pattern::Node(node, _, children) => {
+                        stack.extend(children.as_ref().map(Nested::PatternItems));
+                        stack.push(Nested::Pattern(node));
+                    }
+                    Pattern::Path(_, inner) => stack.push(Nested::Pattern(inner)),
+                    Pattern::Union(items) | Pattern::Intersection(items) => {
+                        stack.extend(items.iter().rev().map(Nested::Pattern))
+                    }
+                    Pattern::Difference(left, right) => stack.extend([Nested::Pattern(right), Nested::Pattern(left)]),
+                    Pattern::Name(..) | Pattern::Terminal(..) | Pattern::Wildcard(..) | Pattern::Any => {}
+                }
+            }
+            Nested::PatternItems(children) => {
+                use crate::patterns::Children;
+                match children {
+                    Children::Node(pattern) => stack.push(Nested::Pattern(pattern)),
+                    Children::Sequence(items) | Children::Choice(items) => {
+                        stack.extend(items.iter().rev().map(Nested::PatternItems))
+                    }
+                    Children::Optional(inner) => stack.push(Nested::PatternItems(inner)),
+                    Children::Repeat(item, separator) => {
+                        stack.extend(separator.as_deref().map(Nested::PatternItems));
+                        stack.push(Nested::PatternItems(item));
+                    }
+                    Children::Siblings => {}
+                }
+            }
         }
     }
 }

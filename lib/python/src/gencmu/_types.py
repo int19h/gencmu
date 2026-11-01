@@ -639,15 +639,14 @@ def constants_in(node: Any) -> list[dict[str, Any]]:
         if isinstance(current, list):
             stack.extend(reversed(current))
         elif isinstance(current, dict):
-            if isinstance(current.get("constant"), str):
+            if len(current) == 1:
+                stack.extend(current.values())
+            elif isinstance(current.get("constant"), str):
                 found.append({"const": current["constant"], "at": current["at"]})
             elif isinstance(current.get("const"), str):
                 found.append(current)
             else:
-                if "alternatives" in current or "expr" in current or "receiver" in current:
-                    stack.extend(current[key] for key in reversed(source_keys(current)) if key != "at")
-                else:
-                    stack.extend(reversed(list(current.values())))
+                stack.extend(current[key] for key in reversed(source_keys(current)) if key != "at")
     return found
 
 

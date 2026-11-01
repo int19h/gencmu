@@ -1940,21 +1940,14 @@ func constRefs(nodes ...any) []*domTerm {
 	var found []*domTerm
 	collect := func(root valuePart) {
 		walkValues(root, func(part valuePart) *Error {
-			if t := part.term; t != nil {
-				if t.Kind == tmConst {
-					found = append(found, t)
-				} else if part.pattern || t.Kind == tmPattern {
-					walkClause(clausePart{t: t}, func(p clausePart) bool {
-						if p.t != nil && p.t.Kind == tmConst {
-							found = append(found, p.t)
-							return false
-						}
-						return true
-					})
-				}
+			if t := part.term; t != nil && t.Kind == tmConst {
+				found = append(found, t)
+			}
+			if p := part.patternNode; p != nil && p.Kind == "constant" {
+				found = append(found, &domTerm{Kind: tmConst, Str: p.Name, At: p.At})
 			}
 			return nil
-		})
+		}, true)
 	}
 	for _, n := range nodes {
 		switch x := n.(type) {
