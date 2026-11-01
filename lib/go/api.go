@@ -727,15 +727,6 @@ type ParseOptions struct {
 	private *privateOptions
 }
 
-// StageNames lists the pipeline's stages in order.
-func (d *Pipeline) StageNames() []string {
-	out := make([]string, len(d.stages))
-	for i, s := range d.stages {
-		out[i] = s.name
-	}
-	return out
-}
-
 // Features lists the pipeline's features in code point order of their names
 // (engine §13): each a gate or a warning, and on by default when the
 // pipeline declares it unconditionally, globally or locally.

@@ -22,7 +22,7 @@ func TestGrowth(t *testing.T) {
 	}
 	var cases []struct {
 		Description string `json:"description"`
-		Pipeline     string `json:"pipeline"`
+		Pipeline    string `json:"pipeline"`
 		Text        string `json:"text"`
 		Link        string `json:"link"`
 		Small       int    `json:"small"`
@@ -459,8 +459,8 @@ func TestIncludeChainDeep(t *testing.T) {
 	sources[fmt.Sprintf("d%d.md", n)] = block("%ambiguity-resolution greedy", "%rule text A")
 	defer debug.SetMaxStack(debug.SetMaxStack(1 << 20))
 	d := mustLoad(t, sources)
-	if got := strings.Join(d.StageNames(), " "); got != "main" {
-		t.Fatalf("stages %q", got)
+	if len(d.stages) != 1 || d.stages[0].name != "main" {
+		t.Fatalf("stages %+v", d.stages)
 	}
 }
 

@@ -61,8 +61,8 @@ func TestLoadPipelineBundled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Join(d.StageNames(), " "); got != "lexical syntax" {
-		t.Fatalf("stages %q", got)
+	if len(d.stages) != 2 || d.stages[0].name != "lexical" || d.stages[1].name != "syntax" {
+		t.Fatalf("stages %+v", d.stages)
 	}
 	res, err := d.Parse("%rule text A [{B}]", ParseOptions{})
 	if err != nil || !res.OK {
@@ -1706,5 +1706,11 @@ func TestMissingNamesFileUsesResolvedPath(t *testing.T) {
 	want := filepath.ToSlash(filepath.Join(root, "bad.names"))
 	if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != want || e.Message != want+" was not found" || e.Line != 0 || e.Column != 0 {
 		t.Fatalf("unexpected missing names diagnostic: %#v", err)
+	}
+}
+
+func TestPipelinePublicMethodsExcludeStageNames(t *testing.T) {
+	if _, exported := reflect.TypeOf((*Pipeline)(nil)).MethodByName("StageNames"); exported {
+		t.Fatal("the pipeline exports StageNames outside the documented API")
 	}
 }
