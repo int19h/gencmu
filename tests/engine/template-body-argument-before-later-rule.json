@@ -1,0 +1,14 @@
+{
+  "description": "An uncalled template inspects a body argument before a later ordinary rule.",
+  "grammar": "%ambiguity-resolution greedy\n%rule t(@X) @X\n%rule unused(@Y) t(($FIRST \"a\"))\n%rule text $SECOND",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$FIRST is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 21
+    }
+  }
+}

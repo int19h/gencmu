@@ -7,12 +7,13 @@ import (
 )
 
 type templateEvent struct {
-	definition *templateEvent // the source definition shared by validation and output
-	path       string
-	rule       templateObject
-	index      int
-	origin     templateObject
-	instance   string
+	definition    *templateEvent // the source definition shared by validation and output
+	path          string
+	rule          templateObject
+	index         int
+	inspectionRun int
+	origin        templateObject
+	instance      string
 }
 type ruleTemplate struct {
 	name   string
@@ -34,11 +35,12 @@ func (i *ruleInstance) effective() string {
 }
 
 type templateExpansion struct {
-	docs          []docDOM
-	order         []string
-	instanceNames []string
-	validation    []constUser
-	arguments     []constArgument
+	docs           []docDOM
+	inspectionRuns []int
+	order          []string
+	instanceNames  []string
+	validation     []constUser
+	arguments      []constArgument
 }
 type templateExpander struct {
 	uni           *unicodeTable
@@ -106,7 +108,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 	events, extra, sourceEvents := []*templateEvent{}, []*templateEvent{}, []*templateEvent{}
 	rawDocs := []templateObject{}
 	serial := 0
-	for _, d := range docs {
+	for docIndex, d := range docs {
 		raw, e := templateFromJSON(d.dom.json())
 		if e != nil {
 			panic(e)
@@ -126,7 +128,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		sort.SliceStable(items, func(i, j int) bool { return before(templateAt(items[i].rule), templateAt(items[j].rule)) })
 		for _, it := range items {
 			r := it.rule
-			e := &templateEvent{path: d.path, rule: r, index: serial}
+			e := &templateEvent{path: d.path, rule: r, index: serial, inspectionRun: docIndex}
 			serial++
 			sourceEvents = append(sourceEvents, e)
 			if it.kind != "rules" {
@@ -436,7 +438,12 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 	}
 	users := []constUser{}
 	decoded := map[*templateEvent]*domDoc{}
-	for _, e := range validation {
+	decodedRuns := map[*templateEvent]int{}
+	for index, e := range validation {
+		run := e.inspectionRun
+		if e.origin != nil || e.definition == nil && e.rule["params"] == nil {
+			run = len(docs) + index
+		}
 		dom, decodeErr := decodeDOMMode(templateJSON(templateDocument([]any{e.rule})), uni, true)
 		if decodeErr != nil {
 			x.fail(e, e.rule, decodeErr.Error())
@@ -447,8 +454,9 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		restoreTemplateRuleLocations(dom.Rules[0], e.rule)
 		if e.definition != nil {
 			decoded[e.definition] = dom
+			decodedRuns[e.definition] = run
 		}
-		users = append(users, constUser{doc: e.path, rule: dom.Rules[0]})
+		users = append(users, constUser{doc: e.path, rule: dom.Rules[0], inspectionRun: run})
 	}
 	output := []*templateEvent{}
 	for _, name := range slots {
@@ -458,6 +466,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		output = append(output, i.definitions...)
 	}
 	expandedDocs := []docDOM{}
+	inspectionRuns := []int{}
 	for index, d := range docs {
 		dom := templateCopy(rawDocs[index])
 		dom["rules"] = []any{}
@@ -474,6 +483,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			x.fail(&templateEvent{path: d.path, rule: templateObject{}}, templateObject{}, decodeErr.Error())
 		}
 		expandedDocs = append(expandedDocs, docDOM{d.path, written})
+		inspectionRuns = append(inspectionRuns, index)
 	}
 	for _, e := range output {
 		dom := decoded[e]
@@ -481,6 +491,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			panic("an expanded output definition was not validated")
 		}
 		expandedDocs = append(expandedDocs, docDOM{e.path, dom})
+		inspectionRuns = append(inspectionRuns, decodedRuns[e])
 	}
 	order := []string{}
 	for _, name := range slots {
@@ -503,7 +514,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			instanceNames = append(instanceNames, name)
 		}
 	}
-	return &templateExpansion{docs: expandedDocs, order: order, instanceNames: instanceNames, validation: users, arguments: arguments}, nil
+	return &templateExpansion{docs: expandedDocs, inspectionRuns: inspectionRuns, order: order, instanceNames: instanceNames, validation: users, arguments: arguments}, nil
 }
 func templateClone(v any) any {
 	switch n := v.(type) {

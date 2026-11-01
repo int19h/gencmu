@@ -11,6 +11,7 @@ pub(crate) struct Event {
     pub path: Arc<str>,
     pub rule: Json,
     pub index: usize,
+    pub inspection_run: usize,
     pub origin: Option<Json>,
     pub instance: String,
 }
@@ -66,10 +67,11 @@ pub(crate) struct ArgumentUse {
 }
 pub(crate) struct Expansion {
     pub documents: Documents,
+    pub inspection_runs: Vec<usize>,
     pub order: Vec<String>,
     #[cfg(test)]
     pub instance_names: Vec<String>,
-    pub validation: Documents,
+    pub validation: Vec<(usize, Arc<str>, Arc<Dom>)>,
     pub arguments: Vec<ArgumentUse>,
 }
 struct Expander<'a> {
@@ -172,14 +174,21 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
     let mut extra = Vec::new();
     let mut raw_docs = Vec::new();
     let mut serial = 0;
-    for (path, d) in documents {
+    for (inspection_run, (path, d)) in documents.iter().enumerate() {
         let mut raw = crate::json::parse(&dom::dom_to_json(d)).expect("a DOM writer produces JSON");
         super::locations::annotate_document(&mut raw, d);
         let mut items: Vec<_> =
             KINDS.into_iter().flat_map(|k| list(get(&raw, k)).iter().map(move |r| (k, r))).collect();
         items.sort_by_key(|(_, r)| at(r));
         for (kind, r) in items {
-            let e = Event { path: path.clone(), rule: r.clone(), index: serial, origin: None, instance: String::new() };
+            let e = Event {
+                path: path.clone(),
+                rule: r.clone(),
+                index: serial,
+                inspection_run,
+                origin: None,
+                instance: String::new(),
+            };
             serial += 1;
             if kind != "rules" {
                 extra.push(e);
@@ -390,13 +399,18 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
     }
     let mut users = Vec::new();
     let mut decoded = BTreeMap::new();
-    for e in validation {
+    for (index, e) in validation.into_iter().enumerate() {
+        let run = if e.origin.is_some() { documents.len() + index } else { e.inspection_run };
         let d = Arc::new(x.decode(&empty(vec![e.rule.clone()]), &e)?);
-        decoded.insert((e.index, text(get(&e.rule, "name")).to_string()), d.clone());
-        users.push((e.path, d));
+        decoded.insert((e.index, text(get(&e.rule, "name")).to_string()), (run, d.clone()));
+        users.push((run, e.path, d));
     }
     for e in argument_definitions {
-        users.push((e.path.clone(), Arc::new(x.decode(&empty(vec![e.rule.clone()]), &e)?)));
+        users.push((
+            documents.len() + users.len(),
+            e.path.clone(),
+            Arc::new(x.decode(&empty(vec![e.rule.clone()]), &e)?),
+        ));
     }
     let mut ordinary_events: Vec<_> = ordinary.values().flatten().collect();
     ordinary_events.sort_by_key(|e| e.index);
@@ -410,7 +424,8 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
         }
     }
     let mut expanded = Vec::new();
-    for ((path, _), raw) in documents.iter().zip(raw_docs) {
+    let mut inspection_runs = Vec::new();
+    for (index, ((path, _), raw)) in documents.iter().zip(raw_docs).enumerate() {
         let mut raw = raw;
         set(&mut raw, "rules", Json::Arr(Vec::new()));
         for k in KINDS.into_iter().filter(|k| *k != "rules") {
@@ -419,19 +434,36 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
                 .map(|r| {
                     x.rewrite(
                         r,
-                        &Event { path: path.clone(), rule: r.clone(), index: 0, origin: None, instance: String::new() },
+                        &Event {
+                            path: path.clone(),
+                            rule: r.clone(),
+                            index: 0,
+                            inspection_run: 0,
+                            origin: None,
+                            instance: String::new(),
+                        },
                         "term",
                     )
                 })
                 .collect::<R<Vec<_>>>()?;
             set(&mut raw, k, Json::Arr(items));
         }
-        let e = Event { path: path.clone(), rule: raw.clone(), index: 0, origin: None, instance: String::new() };
+        let e = Event {
+            path: path.clone(),
+            rule: raw.clone(),
+            index: 0,
+            inspection_run: 0,
+            origin: None,
+            instance: String::new(),
+        };
         expanded.push((path.clone(), Arc::new(x.decode(&raw, &e)?)));
+        inspection_runs.push(index);
     }
     for (path, index, name) in output {
         // Output events are a subset of the checked ordinary and instance definitions.
-        expanded.push((path, decoded.get(&(index, name)).expect("a checked output definition").clone()));
+        let (run, dom) = decoded.get(&(index, name)).expect("a checked output definition");
+        expanded.push((path, dom.clone()));
+        inspection_runs.push(*run);
     }
     let mut order: Vec<_> = slots.into_iter().filter(|n| current.contains_key(n) || ordinary.contains_key(n)).collect();
     order.extend(
@@ -444,6 +476,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
     };
     Ok(Some(Expansion {
         documents: expanded,
+        inspection_runs,
         order,
         #[cfg(test)]
         instance_names,

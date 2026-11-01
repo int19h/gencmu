@@ -155,7 +155,7 @@ fn expansion_reuses_decoded_definitions() {
             assert!(x
                 .validation
                 .iter()
-                .any(|(checked_path, checked)| path == checked_path && Arc::ptr_eq(output, checked)));
+                .any(|(_, checked_path, checked)| path == checked_path && Arc::ptr_eq(output, checked)));
             count += 1;
         }
     }

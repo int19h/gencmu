@@ -158,7 +158,7 @@ def _print_body(n, unicode, parent=''):
 def expand_templates(documents, unicode):
     from ._validate import dom_problem
     if not any(has_unresolved(dom) for _, dom in documents):
-        return documents, None, [], [], []
+        return documents, None, [], [], [], list(range(len(documents)))
     patterns = pattern_constant_names(c for _, dom in documents for c in dom["constants"])
     normalize = lambda value: normalize_argument(value, patterns)
     templates, names, instances = {}, {}, {}
@@ -173,10 +173,10 @@ def expand_templates(documents, unicode):
                           code='unbounded-instantiation' if message.startswith('unbounded-instantiation:') else None)
 
     serial = 0
-    for path, dom in documents:
+    for inspection_run, (path, dom) in enumerate(documents):
         declarations = sorted([(key, r) for key in ('rules', 'constants', 'directives', 'classifiers', 'implications') for r in dom[key]], key=lambda item: item[1]['at'])
         for kind, rule in declarations:
-            event = dict(path=path, rule=rule, index=serial)
+            event = dict(path=path, rule=rule, index=serial, inspection_run=inspection_run)
             serial += 1
             source_events.append(event)
             if kind != 'rules':
@@ -606,9 +606,14 @@ def expand_templates(documents, unicode):
                     inspect_argument(argument, event)
 
     rewritten_definitions = {}
+    next_inspection_run = len(documents)
 
     def rewrite_definition(event, rule=None):
+        nonlocal next_inspection_run
         rewritten = {**event, 'rule': rewrite(event['rule'] if rule is None else rule, event)}
+        if "origin" in event:
+            rewritten["inspection_run"] = next_inspection_run
+            next_inspection_run += 1
         rewritten_definitions[id(event)] = rewritten
         return rewritten
 
@@ -623,7 +628,9 @@ def expand_templates(documents, unicode):
             inspect_arguments(event)
     for event in validation_definitions:
         inspect_arguments(event)
-    validation.extend(argument_definitions)
+    for event in argument_definitions:
+        validation.append({**event, "inspection_run": next_inspection_run})
+        next_inspection_run += 1
     for event in validation:
         if 'params' in event['rule']:
             continue
@@ -636,7 +643,8 @@ def expand_templates(documents, unicode):
     expanded_docs.extend((e['path'], empty_dom(documents[0][1]['format'], [e['rule']])) for e in output)
     order = [n for n in slots if n in current or n in ordinary] + [effective(i) for i in queue if not i['name']]
     instance_names = {effective(i) for i in queue}
-    return expanded_docs, order, [name for name in order if name in instance_names], validation, arguments_to_check
+    document_runs = [*range(len(documents)), *(e["inspection_run"] for e in output)]
+    return expanded_docs, order, [name for name in order if name in instance_names], validation, arguments_to_check, document_runs
 
 
 def effective(instance):

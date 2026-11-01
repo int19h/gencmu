@@ -1,0 +1,14 @@
+{
+  "description": "An earlier ordinary definition keeps its position before an uncalled template.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $FIRST\n%rule unused(@X) $SECOND",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$FIRST is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 12
+    }
+  }
+}

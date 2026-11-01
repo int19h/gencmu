@@ -1938,88 +1938,36 @@ func openPart(t *domTerm) *domTerm {
 // and lists of them, in the order written.
 func constRefs(nodes ...any) []*domTerm {
 	var found []*domTerm
-	collect := func(start clausePart) {
-		walkClause(start, func(p clausePart) bool {
-			if p.t != nil && p.t.Kind == tmConst {
-				found = append(found, p.t)
-				return false
+	collect := func(root valuePart) {
+		walkValues(root, func(part valuePart) *Error {
+			if t := part.term; t != nil {
+				if t.Kind == tmConst {
+					found = append(found, t)
+				} else if part.pattern || t.Kind == tmPattern {
+					walkClause(clausePart{t: t}, func(p clausePart) bool {
+						if p.t != nil && p.t.Kind == tmConst {
+							found = append(found, p.t)
+							return false
+						}
+						return true
+					})
+				}
 			}
-			return true
+			return nil
 		})
-	}
-	term := func(t *domTerm) {
-		if t != nil {
-			collect(clausePart{t: t})
-		}
-	}
-	cond := func(c *domCond) {
-		if c != nil {
-			collect(clausePart{c: c})
-		}
 	}
 	for _, n := range nodes {
 		switch x := n.(type) {
 		case *domTerm:
-			term(x)
+			collect(valuePart{term: x})
 		case *domCond:
-			cond(x)
+			collect(valuePart{cond: x})
 		case []*domCond:
 			for _, c := range x {
-				cond(c)
+				collect(valuePart{cond: c})
 			}
 		case *domRule:
-			// Header clauses, alternatives, conditions, then emission items.
-			term(x.Tags)
-			term(x.Value)
-			term(x.Image)
-			for _, a := range x.Alternatives {
-				type part struct {
-					expr *domExpr
-					term *domTerm
-				}
-				stack := []part{{expr: a.Expr}}
-				for len(stack) > 0 {
-					p := stack[len(stack)-1]
-					stack = stack[:len(stack)-1]
-					if p.term != nil {
-						term(p.term)
-						continue
-					}
-					e := p.expr
-					if e == nil {
-						continue
-					}
-					if e.Kind == exLiteral {
-						term(e.Value)
-					}
-					if e.Kind == exTest {
-						stack = append(stack, part{term: e.Value})
-					}
-					for i := len(e.Requirements) - 1; i >= 0; i-- {
-						stack = append(stack, part{term: e.Requirements[i].Value})
-					}
-					for i := len(e.Ends) - 1; i >= 0; i-- {
-						stack = append(stack, part{term: e.Ends[i]})
-					}
-					stack = append(stack, part{expr: e.Sep}, part{expr: e.Inner})
-					for i := len(e.Items) - 1; i >= 0; i-- {
-						stack = append(stack, part{expr: e.Items[i]})
-					}
-				}
-				term(a.Tags)
-				term(a.Value)
-				term(a.Image)
-			}
-			for _, c := range x.Conditions {
-				cond(c)
-			}
-			if x.Emit != nil {
-				for _, it := range x.Emit.Items {
-					term(it.Tags)
-					term(it.Value)
-					term(it.Image)
-				}
-			}
+			collect(valuePart{rule: x})
 		}
 	}
 	return found

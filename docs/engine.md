@@ -526,6 +526,8 @@ After recording declarations, the loader binds constant versions. It then checks
 
 An uncalled template retains its declaration position for immediate inspection. Only the explicitly deferred ranked-definition problems use the later template queue of §9.
 
+Inspection positions identify document runs, not just paths and coordinates. An include's declarations precede the including document's later declarations.
+
 Constant-reference inspection follows source clause order, including inside retained templates. Conditions precede emission items. A test visits its symbol before its value operand or tag requirements, then continues to the next body symbol. Serialized DOM member order does not change this inspection order.
 
 Feature-shape and bound-type inspection use the original condition list. Pattern evaluation and value substitution follow both inspections.

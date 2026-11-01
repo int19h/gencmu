@@ -806,7 +806,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     controls canonical terminal spellings in diagnostics."""
     from ._templates import expand_templates
     from ._ranked import expression_locations
-    documents, template_order, _, validation, arguments_to_check = expand_templates(documents, unicode)
+    documents, template_order, _, validation, arguments_to_check, document_runs = expand_templates(documents, unicode)
     rules: dict[str, Rule] = {}
     written_alternatives: list[Alternative] = []
     constants = _Constants(stage, unicode)
@@ -814,9 +814,9 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         constants.arguments.setdefault((argument['path'], tuple(argument['at'])), []).append(argument)
     changes: list[Change] = []
     resolutions: list[tuple[list[str], str, Any]] = []
-    checks: list[tuple[str, str, Any]] = []
+    checks: list[tuple[int, Any, str, str, Any]] = []
     elision_only = False
-    for path, dom in documents:
+    for inspection_run, (path, dom) in zip(document_runs, documents):
         declarations = sorted(((kind, item) for kind in ("rules", "directives", "constants", "classifiers", "implications")
                                for item in dom.get(kind, [])), key=lambda entry: entry[1]["at"])
         for kind, item in declarations:
@@ -824,7 +824,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 rule = item
                 if constants_in(rule) or _rule_has_pattern(rule) or (path, tuple(rule["at"])) in constants.arguments:
                     constants.users.append((path, rule))
-                    checks.append((path,"rule",rule))
+                    checks.append((inspection_run, rule["at"], path, "rule", rule))
                 elif rule_has_ranked(rule):
                     # Readers and DOM admission cover ordinary definitions.
                     # Ranked definitions can retain deferred problems.
@@ -832,7 +832,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                     if result.problem is not None:
                         raise _error(result.problem.message, path, rule["at"], stage)
                     if result.deferred is not None:
-                        checks.append((path, "deferred", _error(result.deferred.message, path, rule["at"], stage)))
+                        checks.append((inspection_run, rule["at"], path, "deferred", _error(result.deferred.message, path, rule["at"], stage)))
                 name = rule["name"]
                 at: tuple[int, int] = (int(rule.get("at", (0, 0))[0]), int(rule.get("at", (0, 0))[1]))
                 # One list that the alternatives share, as they share the other
@@ -892,7 +892,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 args = list(directive.get("args", []))
                 at = directive.get("at")
                 if name == "features":
-                    checks.append((path,"features",directive))
+                    checks.append((inspection_run, directive["at"], path, "features", directive))
                 elif name == "ambiguity-resolution":
                     if resolutions:
                         raise _error("has a second %ambiguity-resolution", path, at, stage)
@@ -916,22 +916,24 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
             elif kind == "constants":
                 constants.add(path, item)
             elif kind == "classifiers":
-                checks.append((path,"classifier",item))
+                checks.append((inspection_run, item["at"], path, "classifier", item))
             else:
-                checks.append((path,"implication",item))
+                checks.append((inspection_run, item["at"], path, "implication", item))
     if template_order is not None:
         rules = {name: rules[name] for name in template_order}
     for event in validation:
         if event["rule"].get("params") or constants_in(event["rule"]) or _rule_has_pattern(event["rule"]) or (event["path"], tuple(event["rule"]["at"])) in constants.arguments:
             constants.users.append((event["path"],event["rule"]))
-            checks.append((event["path"],"rule",event["rule"]))
+            checks.append((event["inspection_run"], event["rule"]["at"], event["path"], "rule", event["rule"]))
     constants.bind()
     from ._validate import input_conditions_problem
     from ._types import condition_type_fault
     resolved_features = []
     resolved_classifiers = []
     implications = []
-    for path, kind, item in checks:
+    kinds = {"rule": 0, "deferred": 0, "features": 1, "classifier": 3, "implication": 4}
+    checks.sort(key=lambda item: (item[0], tuple(item[1]), kinds[item[3]]))
+    for _, _, path, kind, item in checks:
         if kind == "rule":
             constants.check_rule(path,item)
         elif kind == "deferred":

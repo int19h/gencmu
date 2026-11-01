@@ -104,8 +104,13 @@ export declare class Grammar {
         path: string;
         directive: import("./types.js").DomDirective;
     }[];
-    /** @type {(() => void)[]} */
-    validationItems: (() => void)[];
+    /** @type {{run:number,at:number[],kind:number,check:()=>void}[]} */
+    validationItems: {
+        run: number;
+        at: number[];
+        kind: number;
+        check: () => void;
+    }[];
     templates: any;
     instances: any;
     /** @type {WeakMap<DomEntry,string[]>} */
@@ -187,8 +192,9 @@ export declare class Grammar {
     /**
      * @param {string} path
      * @param {GrammarDom} dom
+     * @param {number} inspectionRun
      */
-    addDocument(path: string, dom: GrammarDom): void;
+    addDocument(path: string, dom: GrammarDom, inspectionRun: number): void;
     /**
      * An implication's two sides, with the constants' final values: closed
      * terms whose type is a tag set (engine §2, §9).

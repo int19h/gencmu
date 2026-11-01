@@ -7472,10 +7472,10 @@
       throw new GencmuError('grammar',`${event.path}:${at[0]}:${at[1]}: ${message}${context}`,{document:event.path,line:at[0],column:at[1],...(message.startsWith('unbounded-instantiation:')?{code:'unbounded-instantiation'}:{})});
     };
     let serial=0;
-    for(const document of documents) {
+    for(const [inspectionRun, document] of documents.entries()) {
       const declarations=['rules','constants','directives','classifiers','implications'].flatMap(kind=>document.dom[kind].map((/** @type {any} */ rule)=>({kind,rule}))).sort((a,b)=>a.rule.at[0]-b.rule.at[0]||a.rule.at[1]-b.rule.at[1]);
       for(const {kind,rule} of declarations) {
-      const event={path:document.path,rule,index:serial++};
+      const event={path:document.path,rule,index:serial++,inspectionRun};
       sourceEvents.push(event);
       if(kind!=='rules') {extraEvents.push(event);continue;}
       events.push(event);
@@ -7840,9 +7840,10 @@
       }
     };
     const validation=[],rewrittenDefinitions=new Map();
+    let nextInspectionRun=documents.length;
     /** @param {any} event @param {any} [rule] */
     const rewriteDefinition=(event,rule=event.rule)=>{
-      const rewritten={...event,rule:rewrite(rule,event)};
+      const rewritten={...event,rule:rewrite(rule,event),inspectionRun:event.origin ? nextInspectionRun++ : event.inspectionRun};
       validation.push(rewritten);
       rewrittenDefinitions.set(event,rewritten);
     };
@@ -7855,7 +7856,7 @@
     for(const event of sourceEvents) inspectArguments(event);
     for(const instance of queue) for(const event of instance.definitions) inspectArguments(event);
     for(const event of validationDefinitions) inspectArguments(event);
-    for(const event of argumentDefinitions) validation.push(event);
+    for(const event of argumentDefinitions) validation.push({...event,inspectionRun:nextInspectionRun++});
     for(const event of validation) {
       if(event.rule.params) continue;
       const problem=expandedDomProblem({format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
@@ -7864,8 +7865,8 @@
     const output=[];
     for(const list of ordinary.values()) for(const event of list) output.push(rewrittenDefinitions.get(event));
     for(const instance of queue) for(const event of instance.definitions) output.push(rewrittenDefinitions.get(event));
-    const expandedDocs=documents.map((/** @type {any} */ d)=>({...d,dom:{...d.dom,rules:[],...Object.fromEntries(['constants','directives','classifiers','implications'].map(key=>[key,d.dom[key].map((/** @type {any} */ item)=>rewrite(item,{path:d.path,rule:item}))]))}}));
-    for(const event of output) expandedDocs.push({path:event.path,dom:{format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]}});
+    const expandedDocs=documents.map((/** @type {any} */ d,inspectionRun)=>({...d,inspectionRun,dom:{...d.dom,rules:[],...Object.fromEntries(['constants','directives','classifiers','implications'].map(key=>[key,d.dom[key].map((/** @type {any} */ item)=>rewrite(item,{path:d.path,rule:item}))]))}}));
+    for(const event of output) expandedDocs.push({path:event.path,inspectionRun:event.inspectionRun,dom:{format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]}});
     return {documents:expandedDocs,validation,argumentsToCheck,order:[...slots.filter((/** @type {any} */ n)=>current.has(n)||ordinary.has(n)),...queue.filter((/** @type {any} */ x)=>!x.name).map(effective)],templates:[...templates.values()],instances:queue};
   }
 
@@ -9083,7 +9084,7 @@
         this.implicationItems = [];
         /** @type {{path:string,directive:import("./types.js").DomDirective}[]} */
         this.featureItems = [];
-        /** @type {(() => void)[]} */
+        /** @type {{run:number,at:number[],kind:number,check:()=>void}[]} */
         this.validationItems = [];
         /** @type {{path:string,rule:DomRule}[]} */
         const pendingTemplates = [];
@@ -9101,27 +9102,28 @@
         argumentUses.set(this,argumentsBySite);
         this.templates=expansion.templates;
         this.instances=expansion.instances;
-        for (const { path, dom } of expansion.documents) {
+        for (const [index, {path, dom, inspectionRun = index}] of expansion.documents.entries()) {
           if (expansion.order) for (const rule of dom.rules) {
             const problem = definitionProblem(rule,true);
             if (problem) throw this.documentError(path,rule.at,problem);
           }
-          this.addDocument(path, dom);
+          this.addDocument(path, dom, inspectionRun);
         }
         if (expansion.order) this.rules = new Map(expansion.order.map((/** @type {string} */ name) => /** @type {[string,StitchedRule]} */ ([name,this.rules.get(name)])));
         for (const event of expansion.validation ?? []) if (event.rule.params || constantsIn(event.rule).length || hasPattern(event.rule) || argumentsBySite.has(argumentSite(event.path,event.rule.at))) {
           this.constantUsers.push({path:event.path,rule:event.rule});
-          this.validationItems.push(() => {
+          this.validationItems.push({run:event.inspectionRun,at:event.rule.at,kind:0,check:() => {
             const checked = this.checkConstantRule(event.path,event.rule);
             if (event.rule.params) pendingTemplates.push({path:event.path,rule:checked});
-          });
+          }});
         }
         this.bindConstants();
         /** @type {WeakMap<DomEntry,string[]>} */
         this.classifierKeys = new WeakMap();
         /** @type {StageImplication[]} */
         this.implications = [];
-        for (const check of this.validationItems) check();
+        this.validationItems.sort((a,b) => a.run-b.run || a.at[0]-b.at[0] || a.at[1]-b.at[1] || a.kind-b.kind);
+        for (const item of this.validationItems) item.check();
         this.validationItems.length = 0;
         for (const uses of argumentsBySite.values()) inspectArgumentConstants(this,uses);
         argumentUses.delete(this);
@@ -9222,8 +9224,9 @@
     /**
      * @param {string} path
      * @param {GrammarDom} dom
+     * @param {number} inspectionRun
      */
-    addDocument(path, dom) {
+    addDocument(path, dom, inspectionRun) {
       const declarations = ["rules","directives","constants","classifiers","implications"]
         .flatMap(kind => /** @type {any[]} */ (/** @type {any} */ (dom)[kind]).map(node => ({kind,node})))
         .sort((a,b) => a.node.at[0]-b.node.at[0] || a.node.at[1]-b.node.at[1]);
@@ -9233,7 +9236,7 @@
           if (rule.instance) throw new Error("an instance binding survived expansion");
           if (constantsIn(rule).length > 0 || hasPattern(rule) || argumentUses.get(this)?.has(argumentSite(path,rule.at))) {
             this.constantUsers.push({path,rule});
-            this.validationItems.push(() => this.checkConstantRule(path,rule));
+            this.validationItems.push({run:inspectionRun,at:rule.at,kind:0,check:() => this.checkConstantRule(path,rule)});
           }
           if (deferredEmissionProblem(rule) || deferredRecipeProblem(rule)) this.emissionUsers.push({path, rule});
           const at = { document: path, line: rule.at[0], column: rule.at[1] };
@@ -9276,7 +9279,7 @@
             case "features":
               const item = {path,directive};
               this.featureItems.push(item);
-              this.validationItems.push(() => Object.assign(item,this.resolveFeature(path,directive)));
+              this.validationItems.push({run:inspectionRun,at:directive.at,kind:1,check:() => Object.assign(item,this.resolveFeature(path,directive))});
               break;
             case "ambiguity-resolution": {
               if (this.resolution) {
@@ -9297,10 +9300,10 @@
         } else if (kind === "constants") this.addConstant(path,node);
         else if (kind === "classifiers") {
           this.classifierItems.push({path,classifier:node});
-          this.validationItems.push(() => this.resolveClassifierKeys(path,node));
+          this.validationItems.push({run:inspectionRun,at:node.at,kind:3,check:() => this.resolveClassifierKeys(path,node)});
         } else {
           this.implicationItems.push({path,implication:node});
-          this.validationItems.push(() => this.implications.push(this.resolveImplication(path,node)));
+          this.validationItems.push({run:inspectionRun,at:node.at,kind:4,check:() => this.implications.push(this.resolveImplication(path,node))});
         }
       }
     }

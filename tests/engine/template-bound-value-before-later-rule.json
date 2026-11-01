@@ -1,0 +1,14 @@
+{
+  "description": "An uncalled template reports an earlier bound-value fault before a later rule.",
+  "grammar": "%ambiguity-resolution greedy\n%const $E \"\"\n%const $W \"ab\"\n%rule unused(@X) \"a\"\n%conditions $.value.split($E) = ∅\n%rule text $W..\"z\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "split has an empty delimiter",
+    "where": {
+      "document": "main.md",
+      "line": 6,
+      "column": 27
+    }
+  }
+}
