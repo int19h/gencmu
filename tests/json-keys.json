@@ -1923,6 +1923,24 @@
         "line": 3
       },
       "cached": true
+    },
+    {
+      "description": "Comparison constant inspection ignores JSON member order",
+      "find": "\"conditions\":[]",
+      "replace": "\"conditions\":[{\"op\":\"=\",\"right\":{\"const\":\"SECOND\",\"at\":[5,33]},\"left\":{\"const\":\"FIRST\",\"at\":[4,20]}}]",
+      "error": {
+        "document": "grammars/test/g.md",
+        "line": 4
+      }
+    },
+    {
+      "description": "Guarded term constant inspection ignores JSON member order",
+      "find": "\"conditions\":[]",
+      "replace": "\"conditions\":[{\"op\":\"=\",\"left\":{\"then\":{\"const\":\"SECOND\",\"at\":[5,33]},\"if\":{\"op\":\"=\",\"left\":{\"const\":\"FIRST\",\"at\":[4,20]},\"right\":{\"string\":\"x\"}}},\"right\":{\"string\":\"x\"}}]",
+      "error": {
+        "document": "grammars/test/g.md",
+        "line": 4
+      }
     }
   ],
   "grammar": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n",
