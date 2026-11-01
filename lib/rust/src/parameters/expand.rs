@@ -712,9 +712,11 @@ impl Expander<'_> {
         arguments: &mut Vec<ArgumentUse>,
         definitions: &mut Vec<Event>,
     ) -> R<()> {
-        for call in nodes(&event.rule).filter(|n| has(n, "call") || has(n, "name") && has(n, "args") && has(n, "op")) {
+        for call in
+            source_nodes(&event.rule).filter(|n| has(n, "call") || has(n, "name") && has(n, "args") && has(n, "op"))
+        {
             for argument in list(get(call, "args")) {
-                let parts: Vec<_> = nodes(argument).collect();
+                let parts: Vec<_> = source_nodes(argument).collect();
                 let references: Vec<_> = parts.iter().filter(|n| has(n, "const") || has(n, "constant")).collect();
                 if references.is_empty() {
                     continue;

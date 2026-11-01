@@ -306,6 +306,13 @@ func (em *stringEmitter) ownership(o *occurrence) int {
 
 func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 	em := &stringEmitter{run: run, rec: rec, claims: map[[2]int]bool{}, inherited: map[int]bool{}}
+	forwards := false
+	for i := range run.toks {
+		if hasAttachments(&run.toks[i]) {
+			forwards = true
+			break
+		}
+	}
 	root := occurrenceTree(d)
 	demands := map[string]bool{}
 	for _, p := range rec.g.prods {
@@ -350,7 +357,6 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 	type frame struct {
 		o             *occurrence
 		next          int
-		items         []*domEmitItem
 		item          int
 		phase         int
 		token         Token
@@ -502,7 +508,7 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 			} else if !it.IsInsert {
 				token.Image = em.channel(part, 1)
 			}
-			if !it.IsInsert {
+			if forwards && !it.IsInsert {
 				if index := em.ownership(part); index >= 0 {
 					if em.inherited[index] {
 						panic(&parseFailure{message: "two emitted tokens inherit the same attachments"})

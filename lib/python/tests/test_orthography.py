@@ -57,11 +57,11 @@ class GrammarReading(unittest.TestCase):
         cache = {"format": DOM_FORMAT, "bootstrap": first.reader.hash, "unicode": fnv1a64(table), "properties": None,
                  "documents": {"g.md": {"hash": fnv1a64(grammar), "dom": dom}}}
         preparsed = json.dumps(cache)
-        self.assertTrue(_preparsed_index(preparsed, first.reader.hash, table))
-        self.assertFalse(_preparsed_index(preparsed, first.reader.hash, sparse))
+        self.assertTrue(_preparsed_index(preparsed, first.reader.hash, table)[0])
+        self.assertFalse(_preparsed_index(preparsed, first.reader.hash, sparse)[0])
         for fingerprint in (None, "0000000000000000"):
             cache["unicode"] = fingerprint
-            self.assertFalse(_preparsed_index(json.dumps(cache), first.reader.hash, table))
+            self.assertFalse(_preparsed_index(json.dumps(cache), first.reader.hash, table)[0])
         cache["unicode"] = fnv1a64(table)
         second = _Loader(texts.get, type(resources)(sparse, resources.bootstrap, preparsed))
         sparse_dom = second.dom("g.md")

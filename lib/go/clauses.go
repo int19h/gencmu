@@ -811,7 +811,8 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 		}
 		for _, it := range present {
 			for _, recipe := range []*domTerm{it.Value, it.Image} {
-				if msg := recipeCapturesProblem(recipe, has); msg != "" {
+				if missing, found := firstAbsentRecipeCapture(recipe, has); found {
+					msg := fmt.Sprintf("an item recipe of %s uses absent capture $%s", r.Name, missing)
 					if !deferIssue(definitionRecipeCapture, msg) {
 						return &definitionIssue{definitionRecipeCapture, msg}
 					}

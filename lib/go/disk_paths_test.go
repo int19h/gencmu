@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -114,6 +115,42 @@ func TestSelectedDiskNames(t *testing.T) {
 				t.Fatal(e)
 			}
 		})
+	}
+}
+
+func TestIncludeErrorRelocationUsesItsKind(t *testing.T) {
+	t.Parallel()
+	top := &domDoc{Directives: []*domDirective{
+		{Name: "stage", Args: []string{"main"}, At: [2]int{1, 1}},
+		{Name: "include", Args: []string{"g.md"}, At: [2]int{2, 1}},
+	}}
+	for _, c := range []struct {
+		line    int
+		problem spliceProblem
+		message string
+	}{
+		{0, 0, "the document could not be read: a grammar diagnostic"},
+		{7, 0, "the document could not be read: a grammar diagnostic"},
+		{0, unreadableDocumentProblem, "an unreadable document"},
+		{7, unreadableDocumentProblem, "an unreadable document"},
+	} {
+		fault := &Error{Kind: ErrorGrammar, Document: "g.md", Line: c.line,
+			Message: c.message, Code: "sentinel", spliceProblem: c.problem}
+		want := *fault
+		want.Stage = "main"
+		if c.problem == unreadableDocumentProblem && c.line == 0 {
+			want.Message = "g.md: " + c.message
+			want.Document, want.Line, want.Column = "p.md", 2, 1
+		}
+		_, got := splicePipeline("p.md", func(path string) (*domDoc, *Error) {
+			if path == "p.md" {
+				return top, nil
+			}
+			return nil, fault
+		})
+		if !reflect.DeepEqual(got, &want) {
+			t.Fatalf("%#v: got %#v, wanted %#v", c, got, &want)
+		}
 	}
 }
 

@@ -922,6 +922,8 @@ The loader first records declaration order, bindings, template signatures, and e
 
 Flow inspection and substitution report the first error in source order. They visit declarations by source position. Within a rule, they visit header tags, value, and image before alternatives. Each alternative contributes its expression, tags, value, and image, in that order. Conditions follow all alternatives, then emission items. An exact-instance edit visits its head arguments before its clauses.
 
+The retained argument inspection uses this same order, including within each argument. It reports a condition's argument fault before an emission argument fault.
+
 The source pass visits declarations in source order. Every binding visits its instance call, including a binding that a later rebinding replaces. An exact-instance edit visits its head call before its body. A template head declares parameters and creates no instance.
 
 Within each retained definition, the pass uses the reference traversal of §2.2. It visits a call's arguments from left to right and finishes each argument before recording the enclosing call. Inner closed calls therefore precede outer closed calls.
@@ -2920,6 +2922,10 @@ Constant binding, applicable type inspection, and bound-value inspection include
 Definition errors retain their specific reason, including capture names, in every validation path. Type faults discovered after argument substitution retain their specific reason too. A call argument that reads or declares a capture reports "an argument cannot read or declare captures". When a diagnostic names a method, it uses the method's source spelling. A tag-set diagnostic directs the author to `$x.tags`.
 
 Once the reader reads an ordinary definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the reader can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.
+
+Definition analysis visits productions in expansion order after capture-name and condition-applicability analysis. For each production, it inspects rule tags, alternative tags, selected recipes, empty emission, stray attachments, capture order, then emission items. Selected recipes use value before image. Each item contributes its value recipe, image recipe, then tags. Insertion anchors follow all productions.
+
+A tag term that reads an absent capture reports `a tag term of RULE uses $NAME, which a production lacks; guard it with $NAME ⟹`. An item recipe that reads an absent capture reports `an item recipe of RULE uses absent capture $NAME`.
 
 A definition that contains a ranked choice defers two problem kinds until ranked validation completes: recipe-capture absence and empty emission. Recipe-capture absence means a production lacks a recipe's capture. A selected rule, alternative, or item recipe can report this problem. Empty emission means a production retains no items. These checks use explicit problem kinds, never message text.
 

@@ -176,8 +176,15 @@ func effectiveRecipes(r *domRule, a *domAlt) []*domTerm {
 }
 
 func recipeCapturesProblem(recipe *domTerm, has func(string) bool) string {
+	if missing, found := firstAbsentRecipeCapture(recipe, has); found {
+		return "a selected recipe reads an absent capture $" + missing
+	}
+	return ""
+}
+
+func firstAbsentRecipeCapture(recipe *domTerm, has func(string) bool) (string, bool) {
 	if recipe == nil {
-		return ""
+		return "", false
 	}
 	missing, found := "", false
 	walkClause(clausePart{t: recipe}, func(p clausePart) bool {
@@ -186,11 +193,7 @@ func recipeCapturesProblem(recipe *domTerm, has func(string) bool) string {
 		}
 		return !found
 	})
-	if found {
-		return "a selected recipe reads an absent capture $" + missing
-	}
-
-	return ""
+	return missing, found
 }
 
 // literalEngineTags retains literal occurrences through filters (§1).

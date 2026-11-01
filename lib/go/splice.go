@@ -162,8 +162,11 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 				}
 				included, err := domOf(target, f.names)
 				if err != nil {
-					if strings.HasPrefix(err.Message, "the document could not be read:") {
-						err = grammarError(docPath, at, "%s: %s", err.Document, err.Message)
+					if err.spliceProblem == unreadableDocumentProblem && err.Line == 0 {
+						relocated := *err
+						relocated.Message = err.Document + ": " + err.Message
+						relocated.Document, relocated.Line, relocated.Column = docPath, at[0], at[1]
+						err = &relocated
 					}
 					if s := selected; s != nil && err.Stage == "" {
 						err.Stage = s.name

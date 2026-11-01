@@ -30,6 +30,7 @@ from ._string_escapes import DocumentStrings
 DOM_FORMAT = FORMAT
 
 Dom = dict[str, Any]
+Preparsed = tuple[dict[tuple[str, str], Dom], dict[str, str] | None]
 
 
 # ---------------------------------------------------------------------------
@@ -109,7 +110,7 @@ _MAX_TEXTS = 4
 _MAX_TEXT_SIZE = 4_000_000
 _unicode_tables: Recent[tuple[str, str | None], UnicodeTable] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
 _readers: Recent[tuple[str, str, str | None], NotationReader] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
-_preparsed_indexes: Recent[tuple[str, str, str, str | None, bool], dict[tuple[str, str], Dom]] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
+_preparsed_indexes: Recent[tuple[str, str, str, str | None, bool], Preparsed] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
 # The DOMs that a reader read, each keyed by the hash of its document, and
 # sized by the length of that document.
 _MAX_DOMS = 256
@@ -203,7 +204,7 @@ class NotationReader:
             return known_dom_members(entry["dom"])
 
         try:
-            pipeline = splice_pipeline("grammars/gencmu/jbogenbau/pipeline.md", dom_of)
+            pipeline = splice_pipeline("grammars/gencmu/jbogenbau/pipeline.md", lambda path, inherited: dom_of(path))
         except GencmuError as error:
             if isinstance(error, _EmptyStageError) and error.stage:
                 error.message = f"stage {error.stage}: {error.message}"
@@ -360,21 +361,26 @@ def _preparsed_identity(data: Any, bootstrap_hash: str, unicode: UnicodeTable, i
             and "properties" in data and data["properties"] == unicode.properties_fingerprint)
 
 
-def _preparsed_index(preparsed: str | None, bootstrap_hash: str, unicode_text: str, properties: str | None = None, implicit: bool = False) -> dict[tuple[str, str], Dom]:
-    """The preparsed DOMs usable with this bootstrap, by document path and text hash.
+def _preparsed_index(preparsed: str | None, bootstrap_hash: str, unicode_text: str, properties: str | None = None, implicit: bool = False) -> Preparsed:
+    """The usable DOMs by path and text hash, and their names registry.
     Their schema and exact string values follow engine §9."""
     if not preparsed:
-        return {}
+        return {}, None
     key = (preparsed, bootstrap_hash, unicode_text, properties, implicit)
     with _lock:
         found = _preparsed_indexes.get(key)
     if found is not None:
         return found
     index: dict[tuple[str, str], Dom] = {}
+    registry = None
     unicode = _unicode_table(unicode_text, properties)
     try:
         data = json.loads(preparsed)
         if _preparsed_identity(data, bootstrap_hash, unicode, implicit):
+            try:
+                registry = names_registry(data.get("bundledNames"))
+            except (ValueError, AttributeError, TypeError, RecursionError):
+                pass
             for path, entry in data.get("documents", {}).items():
                 # A malformed entry is a miss: its document is read afresh.
                 if isinstance(path, str) and isinstance(entry, dict) and isinstance(entry.get("hash"), str) and dom_problem(entry.get("dom"), unicode) is None:
@@ -385,8 +391,8 @@ def _preparsed_index(preparsed: str | None, bootstrap_hash: str, unicode_text: s
         # follow included, is no cache: every document is read afresh.
         index = {}
     with _lock:
-        _preparsed_indexes.put(key, index, len(preparsed) + len(unicode_text) + len(properties or ""))
-    return index
+        _preparsed_indexes.put(key, (index, registry), len(preparsed) + len(unicode_text) + len(properties or ""))
+    return index, registry
 
 
 # ---------------------------------------------------------------------------
@@ -424,17 +430,9 @@ class _Loader:
         if key not in self.preparsed_families:
             text = source(key) if callable(source) else source
             implicit = key == "data/preparsed/gencmu.json"
-            index = _preparsed_index(text, self.reader.hash, self.resources.unicode, self.resources.properties, implicit)
+            index, registry = _preparsed_index(text, self.reader.hash, self.resources.unicode, self.resources.properties, implicit)
             if callable(source):
                 index = {entry: dom for entry, dom in index.items() if _preparsed_path(entry[0]) == key}
-            registry = None
-            if text:
-                try:
-                    envelope = json.loads(text)
-                    if _preparsed_identity(envelope, self.reader.hash, self.unicode, implicit):
-                        registry = names_registry(envelope.get("bundledNames"))
-                except (ValueError, AttributeError, TypeError, RecursionError):
-                    pass
             self.preparsed_families[key] = index, registry
         self.preparsed, self.bundled_names = self.preparsed_families[key]
 
@@ -492,7 +490,7 @@ class _Loader:
                 dom = self.dom(path, inherited, text)
                 doms[key] = self.reader.located(dom, text, path, NamesScope(self.names_text, self.unicode, inherited)) if path == diagnostic_document else dom
             return doms[key]
-        return splice_pipeline(pipeline_path, document, document)
+        return splice_pipeline(pipeline_path, document)
 
     def load(self, pipeline_path: str) -> Pipeline:
         try:
@@ -639,11 +637,10 @@ def load_pipeline_sources(sources: Mapping[str, str], pipeline: str, *, use_cach
 
 
 def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tuple[Feature, ...]:
-    """A pipeline's features (engine §13): every name a guard of a stage's
-    stitched rules or a gate of its classifiers' entries uses, and every
-    name the pipeline's ``%features`` declares, in code point order. Each is
-    a gate or a warning as its guards use it, and a gate if only declared; a
-    name used both ways is an error of the pipeline."""
+    """A pipeline's features (engine §13): names from guards and pipeline or
+    stage-local ``%features`` declarations, in code point order.
+    Unconditional declarations also supply defaults. A name that
+    only declarations use is a gate. A name used as both gate and warning is an error."""
     kinds: dict[str, str] = {}
     for grammar in grammars:
         guards = [(guard, alternative.document, alternative.at) for rule in grammar.rules.values() for alternative in rule.alternatives for guard in alternative.guards]

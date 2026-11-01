@@ -4,9 +4,8 @@ import (
 	"math/bits"
 )
 
-// The tree (engine §12) and emission (engine §11), both walks of a chosen
-// derivation. Derivations nest as deep as a text is long, so the walks keep
-// their own stacks.
+// The tree (engine §12) and source tables. The tree walk keeps its own
+// stack because derivations nest as deep as a text is long.
 
 // flattenKids lists a close's children in order.
 func flattenKids(kids *dn) []*dn {
@@ -183,6 +182,22 @@ func (run *stageRun) warnings(rec *recognizer, d *dn, features map[string]bool) 
 		pending = pushKids(pending, n)
 	}
 	return out
+}
+
+// hasElided stops at the first elided node of the tree.
+func hasElided(root *Node) bool {
+	stack := []*Node{root}
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if n.Kind == KindElided {
+			return true
+		}
+		for i := len(n.Children) - 1; i >= 0; i-- {
+			stack = append(stack, n.Children[i])
+		}
+	}
+	return false
 }
 
 // elidedNodes lists a tree's elided nodes in text order.

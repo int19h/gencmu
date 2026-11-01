@@ -30,7 +30,7 @@ from gencmu._earley import Forest, Parser, StageContext
 from gencmu._grammar import lower, stitch
 from gencmu import _rank
 from gencmu._model import Token
-from gencmu._rank import Elided, Least, Vector, actions, compare_vectors, count_roots, join, rank
+from gencmu._rank import Elided, Least, Vector, actions, compare_vectors, join, rank
 from gencmu._stage import StageRunner
 
 from .shared import SHARED, OverBudget, Watch, calls, case_tokens, count_work, load_case, load_case_pipeline
@@ -340,7 +340,6 @@ def library(lowered: Any, tokens: list[frozenset[str]], lean: str) -> dict[str, 
     text = " ".join("x" for _ in tokens)
     token_list = [Token("x", tags, (index, index + 1), (2 * index, 2 * index + 1)) for index, tags in enumerate(tokens)]
     context = StageContext(lowered, token_list, text, _unicode_table(_resources().unicode))
-    context.count = count_roots
     forest = Parser(context).parse(lowered.rule_ids["text"])
     return library_ranking(forest, lean)
 
@@ -614,7 +613,6 @@ class RankingProperty(unittest.TestCase):
         lowered = pipeline.lowered(0, frozenset())
         tokens, text = case_tokens(case)
         context = StageContext(lowered, tokens, text, pipeline.unicode)
-        context.count = count_roots
         forest = Parser(context).parse(lowered.rule_ids["text"])
         derivations = forest_derivations(forest, context, 20000)
         expected = ranked(derivations, lowered.lean, frozenset(), len(tokens))
@@ -637,7 +635,6 @@ class RankingProperty(unittest.TestCase):
                 assert pipeline is not None, error
                 lowered = pipeline.lowered(0, frozenset())
                 context = StageContext(lowered, [Token("a", frozenset(["A"]), (0, 1), (0, 1))], "a", pipeline.unicode)
-                context.count = count_roots
                 forest = Parser(context).parse(lowered.rule_ids["text"])
                 # The ranking alone: the chosen tree has 2^n nodes, so the
                 # stage cannot build it.
@@ -667,7 +664,6 @@ class RankingProperty(unittest.TestCase):
         unicode = _unicode_table(_resources().unicode)
         lowered = lower(stitch("main", [("g.md", dom)], unicode), frozenset())
         context = StageContext(lowered, [Token("a", frozenset(["A"]), (0, 1), (0, 1))], "a", unicode)
-        context.count = count_roots
         forest = Parser(context).parse(lowered.rule_ids["text"])
         self.assertEqual(library_ranking(forest, "late-elision")["verdict"], "tie")
         summary = Least.summary
@@ -706,7 +702,6 @@ class RankingProperty(unittest.TestCase):
             tokens = [Token("x", tags, (index, index + 1), (2 * index, 2 * index + 1), sound) for index, (tags, sound) in enumerate(specs)]
             text = " ".join("x" for _ in tokens)
             context = StageContext(lowered, tokens, text, unicode)
-            context.count = count_roots
             forest = Parser(context).parse(lowered.rule_ids["text"])
             try:
                 derivations = forest_derivations(forest, context, 20000)
@@ -932,7 +927,6 @@ class LongInputs(unittest.TestCase):
         def peak(length: int, budget: int | None) -> int:
             tokens = [Token("a", frozenset(["A"]), (index, index + 1), (index, index + 1)) for index in range(length)]
             context = StageContext(lowered, tokens, "a" * length, unicode)
-            context.count = count_roots
             forest = Parser(context).parse(lowered.rule_ids["text"])
 
             def over(frame: Any) -> int:

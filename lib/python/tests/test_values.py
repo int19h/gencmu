@@ -41,6 +41,7 @@ class Values(unittest.TestCase):
             ('%rule text "a"\n%conditions $zz ∧ $.value = $bb.value', '$zz is captured by no alternative of text'),
             ('%rule text "a" :: ($zz ⟹ $bb.tags)', '$zz is captured by no alternative of text'),
             ('%rule text := $zz.value | "a" :: $bb.tags', '$zz is captured by no alternative of text'),
+            ('%rule r :: $a.tags := $b.value\n | $a:"a"\n | $b:"b"\n%rule text r', 'a selected recipe reads an absent capture $b'),
         ]
         for grammar, expected in cases:
             with self.subTest(grammar=grammar):

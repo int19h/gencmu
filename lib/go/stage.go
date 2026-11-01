@@ -345,7 +345,7 @@ func (run *stageRun) run(g *lowered, elisionOnly bool, features map[string]bool)
 	// The stage emits its tokens before the check of §7. An error found
 	// while emitting ends the stage before the check (§6).
 	out.stage.Output = run.emit(rec, res.first)
-	if elisionOnly && (res.verdict == VerdictResolved || res.verdict == VerdictUnique && len(elidedNodes(out.tree)) > 0) {
+	if elisionOnly && (res.verdict == VerdictResolved || res.verdict == VerdictUnique && hasElided(out.tree)) {
 		if err := run.checkElision(rec, res.first, out.tree); err != nil {
 			// The stage accepted its input and chose its derivation: it keeps
 			// its verdict, output and warnings, and the result has no tree

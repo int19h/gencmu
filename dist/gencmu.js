@@ -3113,6 +3113,11 @@
    * @returns {string}
    */
   function prettyJson(value, indent = 0) {
+    return jsonText(value, true, indent);
+  }
+
+  /** @param {unknown} value @param {boolean} pretty @param {number} indent @returns {string} */
+  function jsonText(value, pretty, indent) {
     /** @type {(n: number) => string} */
     const pad = (n) => " ".repeat(n);
     /** @type {string[]} */
@@ -3139,20 +3144,28 @@
           out.push("[]");
           continue;
         }
-        layout.push("[\n");
+        layout.push(pretty ? "[\n" : "[");
         current.forEach((item, index) => {
-          if (index > 0) layout.push(",\n");
-          layout.push(pad(at + 2), { value: item, indent: at + 2 });
+          if (index > 0) layout.push(pretty ? ",\n" : ",");
+          if (pretty) layout.push(pad(at + 2));
+          layout.push({ value: item, indent: pretty ? at + 2 : at });
         });
-        layout.push("\n" + pad(at) + "]");
+        layout.push(pretty ? "\n" + pad(at) + "]" : "]");
       } else {
         const object = /** @type {Record<string, unknown>} */ (current);
-        const keys = Object.keys(object);
+        const keys = Object.keys(object).filter(key => object[key] !== undefined);
         if (keys.length === 0) {
           out.push("{}");
           continue;
         }
-        if (keys.length === 1) {
+        if (!pretty) {
+          layout.push("{");
+          keys.forEach((key, index) => {
+            if (index > 0) layout.push(",");
+            layout.push(JSON.stringify(key) + ":", { value: object[key], indent: at });
+          });
+          layout.push("}");
+        } else if (keys.length === 1) {
           layout.push(`{${JSON.stringify(keys[0])}: `, { value: object[keys[0]], indent: at }, "}");
         } else {
           layout.push("{\n");
@@ -3176,44 +3189,7 @@
    * @returns {string}
    */
   function compactJson(value) {
-    /** @type {string[]} */
-    const out = [];
-    /** @type {(string | {value: unknown})[]} */
-    const tasks = [{ value }];
-    for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
-      if (typeof task === "string") {
-        out.push(task);
-        continue;
-      }
-      const current = task.value;
-      if (current === null || typeof current !== "object") {
-        out.push(JSON.stringify(current));
-        continue;
-      }
-      /** @type {(string | {value: unknown})[]} */
-      const layout = [];
-      if (Array.isArray(current)) {
-        layout.push("[");
-        current.forEach((item, index) => {
-          if (index > 0) layout.push(",");
-          layout.push({ value: item });
-        });
-        layout.push("]");
-      } else {
-        const object = /** @type {Record<string, unknown>} */ (current);
-        layout.push("{");
-        let first = true;
-        for (const key of Object.keys(object)) {
-          if (object[key] === undefined) continue;
-          if (!first) layout.push(",");
-          first = false;
-          layout.push(JSON.stringify(key) + ":", { value: object[key] });
-        }
-        layout.push("}");
-      }
-      for (let index = layout.length - 1; index >= 0; index--) tasks.push(layout[index]);
-    }
-    return out.join("");
+    return jsonText(value, false, 0);
   }
 
   /**
@@ -6167,7 +6143,7 @@
           if (recipe === undefined) continue;
           const missing = capturesUsed(recipe).find((name) => !has(name));
           if (missing !== undefined) {
-            const problem = `a recipe of ${rule.name} uses $${missing}, which a production lacks`;
+            const problem = `an item recipe of ${rule.name} uses absent capture $${missing}`;
             yield {kind:"recipe-capture", problem};
           }
         }
@@ -17573,19 +17549,8 @@
       this.claimPoints = null;
       /** @type {Set<number>} */
       this.claimedCells = new Set();
-      // Every input source participates, including tokens outside a capture.
-      /** @type {Span[]} */
-      this.covered = context.tokens.map(token => token.source).filter(([a,b]) => a < b).sort((a,b) => a[0]-b[0]);
-      /** @type {Span[]} */
-      const merged = [];
-      for (const [a,b] of this.covered) {
-        const previous = merged[merged.length-1];
-        if (previous && a <= previous[1]) previous[1] = Math.max(previous[1], b);
-        else merged.push([a,b]);
-      }
-      this.covered = merged;
-      this.coveredStarts = merged.map(span => span[0]);
-      this.coveredEnds = merged.map(span => span[1]);
+      /** @type {{ranges: Span[], starts: number[], ends: number[]} | null} */
+      this.coverage = null;
       /** @type {WeakMap<object,Map<object,object>>} */
       this.itemKeys = new WeakMap();
     }
@@ -17680,18 +17645,31 @@
     verbatim(a,b) {
       if (a === b) return "";
       const {tokens, sources, sourceText} = this.context;
+      if (this.coverage === null) {
+        // Every input source participates, including tokens outside a capture.
+        /** @type {Span[]} */
+        const ranges = [];
+        const covered = tokens.map(token => token.source).filter(([a,b]) => a < b).sort((a,b) => a[0]-b[0]);
+        for (const [a,b] of covered) {
+          const previous = ranges[ranges.length-1];
+          if (previous && a <= previous[1]) previous[1] = Math.max(previous[1], b);
+          else ranges.push([a,b]);
+        }
+        this.coverage = {ranges, starts:ranges.map(span => span[0]), ends:ranges.map(span => span[1])};
+      }
+      const {ranges, starts, ends} = this.coverage;
       const claimPoints = this.claimPoints ??= [...new Set([0, sourceText.length, ...tokens.flatMap(token => token.source)])].sort((a,b) => a-b);
       const [l,r] = sources.of(a,b);
       const p = a > 0 ? tokens[a-1].source[1] : 0;
       const q = b < tokens.length ? tokens[b].source[0] : sourceText.length;
       let left = l, right = r;
       if (p < l) {
-        const previous = lowerBound(this.coveredStarts, l)-1;
-        left = Math.max(p, previous < 0 ? 0 : Math.min(l,this.covered[previous][1]));
+        const previous = lowerBound(starts, l)-1;
+        left = Math.max(p, previous < 0 ? 0 : Math.min(l,ranges[previous][1]));
       }
       if (r < q) {
-        const following = lowerBound(this.coveredEnds, r+1);
-        right = Math.max(r, following === this.covered.length ? q : Math.min(q,this.covered[following][0]));
+        const following = lowerBound(ends, r+1);
+        right = Math.max(r, following === ranges.length ? q : Math.min(q,ranges[following][0]));
       }
       /** @type {Span[]} */
       const intervals = [];
@@ -18151,48 +18129,6 @@
     return context.interner.get(node.item.tagId);
   }
 
-  // The nodes of a left-recursive spine, from the top down: a node whose first
-  // child is a node of the same production's left side, as `r ≔ r x` and the
-  // helper of `{x}` make. Walking them in a loop keeps the walks of a long
-  // text from nesting as deep as the text is long.
-  /**
-   * @param {DerivationRule} node
-   * @returns {DerivationRule[]}
-   */
-  function spine(node) {
-    const chain = [node];
-    let current = node;
-    while (current.children.length > 0) {
-      const first = current.children[0];
-      if ("read" in first || first.production.lhs !== current.production.lhs) break;
-      chain.push(first);
-      current = first;
-    }
-    return chain;
-  }
-
-  // The result tree of a derivation (engine §12), as a list: a spliced node
-  // yields its children.
-  /**
-   * The children a node's result is built from, in order: a node's own, or,
-   * for a helper, those of its whole left-recursive spine, the bottom node's
-   * first. A chain's levels are rule nodes, and stay (engine §12).
-   * @param {DerivationRule} node
-   * @returns {Derivation[]}
-   */
-  function orderedChildren(node) {
-    const production = node.production;
-    if (!production.helper) return node.children;
-    const chain = spine(node);
-    /** @type {Derivation[]} */
-    const result = [];
-    for (let index = chain.length - 1; index >= 0; index--) {
-      const own = chain[index].children;
-      for (let at = index === chain.length - 1 ? 0 : 1; at < own.length; at++) result.push(own[at]);
-    }
-    return result;
-  }
-
   /**
    * The warnings of a chosen derivation (engine §12): each rule node of its
    * tree gives one for each warning of its alternative whose feature is on, in
@@ -18220,7 +18156,7 @@
           }
         }
       }
-      const children = orderedChildren(node);
+      const children = node.children;
       for (let index = children.length - 1; index >= 0; index--) stack.push(children[index]);
     }
     return warnings;
@@ -18236,59 +18172,44 @@
    * @returns {ResultNode[]}
    */
   function resultTree(root, context) {
-    const tokens = context.tokens;
-    /** @typedef {{node: Derivation, children: Derivation[] | null, next: number, out: ResultNode[]}} TreeFrame */
-    /** @type {TreeFrame[]} */
-    const stack = [{ node: root, children: null, next: 0, out: [] }];
     /** @type {ResultNode[]} */
-    let result = [];
-    /** @param {ResultNode[]} list */
-    const finish = (list) => {
-      stack.pop();
-      if (stack.length === 0) {
-        result = list;
-        return;
-      }
-      const out = stack[stack.length - 1].out;
-      for (const item of list) out.push(item);
-    };
-    while (stack.length > 0) {
-      const frame = stack[stack.length - 1];
-      const node = frame.node;
+    const result = [];
+    /** @type {{node: Derivation, into: ResultNode[]}[]} */
+    const stack = [{node:root, into:result}];
+    for (let frame = stack.pop(); frame !== undefined; frame = stack.pop()) {
+      const {node} = frame;
+      let {into} = frame;
       if ("read" in node) {
-        finish([{ kind: "token", terminal: node.read.terminal, token: node.read.token, span: [node.start, node.end], source: sourceOf(context.sources, node.start, node.end) }]);
+        into.push({ kind: "token", terminal: node.read.terminal, token: node.read.token, span: [node.start, node.end], source: sourceOf(context.sources, node.start, node.end) });
         continue;
       }
       const production = node.production;
-      if (frame.children === null) {
-        if (production.helper && production.elided && node.children.length === 0) {
-          const position = emptySource(tokens, node.start);
-          /** @type {ElidedNode} */
-          const elided = { kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] };
-          // An equality-tested elided node keeps the restored token's string.
-          // Canonical JSON writes it as value, including an empty string.
-          if (production.elidedTest && production.elidedTest.op === "=" && production.elidedTest.value !== undefined) elided.value = production.elidedTest.value;
-          finish([elided]);
-          continue;
-        }
-        frame.children = orderedChildren(node);
-      }
-      if (frame.next < frame.children.length) {
-        stack.push({ node: frame.children[frame.next++], children: null, next: 0, out: [] });
+      if (production.helper && production.elided && node.children.length === 0) {
+        const position = emptySource(context.tokens, node.start);
+        /** @type {ElidedNode} */
+        const elided = { kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] };
+        // An equality-tested elided node keeps the restored token's string.
+        // Canonical JSON writes it as value, including an empty string.
+        if (production.elidedTest && production.elidedTest.op === "=" && production.elidedTest.value !== undefined) elided.value = production.elidedTest.value;
+        into.push(elided);
         continue;
       }
-      if (production.helper) {
-        finish(frame.out);
-        continue;
+      if (!production.helper) {
+        /** @type {import("./types.js").RuleNode} */
+        const made = {
+          kind: "rule",
+          rule: production.lhs,
+          span: [node.start, node.end],
+          source: sourceOf(context.sources, node.start, node.end),
+          tags: nodeTags(node, context),
+          children: [],
+        };
+        into.push(made);
+        into = made.children;
       }
-      finish([{
-        kind: "rule",
-        rule: production.lhs,
-        span: [node.start, node.end],
-        source: sourceOf(context.sources, node.start, node.end),
-        tags: nodeTags(node, context),
-        children: frame.out,
-      }]);
+      for (let index = node.children.length - 1; index >= 0; index--) {
+        stack.push({node:node.children[index], into});
+      }
     }
     return result;
   }
@@ -20498,7 +20419,6 @@
 
 
 
-
   /** @import { DomClassifier, DomConstant, DomDirective, DomImplication, DomRule, GrammarDom } from "./types.js" */
 
   /**
@@ -20561,9 +20481,8 @@
         const { path: documentPath, dom } = frame;
         const where = itemAt(item);
         const at = { document: documentPath, line: where[0], column: where[1] };
-        const place = `${documentPath}:${at.line}:${at.column}`;
         if ("directive" in item && item.directive.name === "features" && !selected) {
-          if (item.directive.conditions) throw new GencmuError("grammar", `${place}: global features cannot have conditions`, at);
+          if (item.directive.conditions) throw new GencmuError("grammar", `global features cannot have conditions`, at);
           for (const name of item.directive.args) {
             if (hooks.work) countWork(hooks.work, "splice");
             if (featureNames.has(name)) continue;
@@ -20574,7 +20493,7 @@
           const name = item.directive.args[0];
           const earlier = stageNames.get(name);
           if (earlier) {
-            throw new GencmuError("grammar", `${place}: a second stage named ${name}; the first is at ${earlier.at.document}:${earlier.at.line}:${earlier.at.column}`, at);
+            throw new GencmuError("grammar", `a second stage named ${name}; the first is at ${earlier.at.document}:${earlier.at.line}:${earlier.at.column}`, at);
           }
           /** @type {SplicedStage} */
           const stage = { name, at, documents: [], changes: [] };
@@ -20585,7 +20504,7 @@
         } else if ("directive" in item && ["extend-stage", "redefine-stage"].includes(item.directive.name)) {
           const name = item.directive.args[0];
           const next = stageNames.get(name);
-          if (!next) throw new GencmuError("grammar", `${place}: %${item.directive.name} names an unknown stage ${name}`, at);
+          if (!next) throw new GencmuError("grammar", `%${item.directive.name} names an unknown stage ${name}`, at);
           selected = next;
           const replaced = item.directive.name === "redefine-stage";
           if (replaced) selected.documents = [];
@@ -20596,7 +20515,7 @@
           if (!stage) {
             const what = "rule" in item ? `the rule ${item.rule.name}` : "constant" in item ? `the constant $${item.constant.name}`
               : "classifier" in item ? `the classifier ${item.classifier.name}` : "implication" in item ? "%implies" : `%${item.directive.name}`;
-            throw new GencmuError("grammar", `${place}: ${what} stands before the first %stage`, at);
+            throw new GencmuError("grammar", `${what} stands before the first %stage`, at);
           }
           if (run === null || run.path !== documentPath) {
             run = { path: documentPath, dom: { format: dom.format, rules: [], directives: [], constants: [], classifiers: [], implications: [] } };
@@ -20613,10 +20532,12 @@
         }
       }
     } catch (error) {
-      if (error instanceof GencmuError && selected) throw error.withLocation({stage:selected.name});
+      if (error instanceof GencmuError && selected) {
+        throw new GencmuError(error.kind, error.description, {...error.where, stage:selected.name}, {cause:error.cause ?? error});
+      }
       throw error;
     }
-    if (stages.length === 0) throw new GencmuError("grammar", `${path}: a pipeline needs at least one %stage`, { document: path });
+    if (stages.length === 0) throw new GencmuError("grammar", "a pipeline needs at least one %stage", { document: path });
     for (const stage of stages) {
       if (!stage.documents.some((document) => document.dom.rules.length > 0)) {
         throw new EmptyStageError("grammar", "has no rules", {...stage.at, stage:stage.name});
@@ -20630,7 +20551,7 @@
         const owner = owners.get(name);
         if (owner !== undefined && owner !== stage.name) {
           const [line,column] = directive.at;
-          throw new GencmuError("grammar", `${run.path}:${line}:${column}: feature ${name} is local to both ${owner} and ${stage.name}`,
+          throw new GencmuError("grammar", `feature ${name} is local to both ${owner} and ${stage.name}`,
             {document:run.path,line,column,stage:stage.name});
         }
         owners.set(name,stage.name);
@@ -20674,7 +20595,6 @@
       }
       const [line,column] = itemAt(item);
       const at = {document:frame.path,line,column};
-      const place = `${frame.path}:${line}:${column}`;
       let target;
       try { target = resolvePath(frame.path, item.directive.args[0]); }
       catch (error) {
@@ -20682,16 +20602,16 @@
         throw error;
       }
       const through = () => frames.map(open => open.path).join(" → ");
-      if (including.has(target)) throw new GencmuError("grammar", `${place}: ${target} includes itself (${through()} → ${target})`, at);
+      if (including.has(target)) throw new GencmuError("grammar", `${target} includes itself (${through()} → ${target})`, at);
       let included;
       try { included = domOf(target, frame.names); }
       catch (error) {
         if (error instanceof GencmuError && error.where.line === undefined && error.cause instanceof Error) {
-          throw new GencmuError("grammar", error.message, at, {cause:error.cause});
+          throw new GencmuError(error.kind, `${error.where.document ?? target}: ${error.description}`, {...error.where, ...at}, {cause:error.cause});
         }
         throw error;
       }
-      if (included === undefined) throw new GencmuError("grammar", `${place}: ${target} was not found (${through()} → ${target})`, at);
+      if (included === undefined) throw new GencmuError("grammar", `${target} was not found (${through()} → ${target})`, at);
       yield {frame, item:null, index};
       frames.push({path:target, dom:included, items:itemsInOrder(included), next:0, names:selectedNames(target,included,frame.names), inherited:frame.names});
       including.add(target);
@@ -20745,7 +20665,7 @@
       });
       if (hasStrings) {
         const lexical = loader.notation.parse(text, {until:"lexical"});
-        if (!lexical.ok) throw new GencmuError("grammar", `${documentPath}: cannot read strings for textual stitching`, {document:documentPath});
+        if (!lexical.ok) throw new GencmuError("grammar", "cannot read strings for textual stitching", {document:documentPath});
         const names = new NamesScope(key => loader.needNames(key), loader.unicode, inherited);
         const decoder = new DocumentStrings(documentPath, loader.unicode, names, offset => positions[offset] ?? [1,1]);
         const tokens = /** @type {import("./tokens.js").Token[]} */ (lexical.stages[0].output);
@@ -21147,10 +21067,10 @@
   }
 
   /**
-   * A pipeline's features (engine §13): every name a guard of any stage uses,
-   * and every name the pipeline's `%features` declares, in code point
-   * order. A name used both as a gate and as a warning is an error of the
-   * pipeline.
+   * A pipeline's features (engine §13): names from guards and pipeline or
+   * stage-local `%features` declarations, in code point order.
+   * Unconditional declarations also supply defaults. A name that
+   * only declarations use is a gate. A name used as both gate and warning is an error.
    * @param {Stage[]} stages
    * @param {string[]} declared
    * @returns {Feature[]}
@@ -21434,7 +21354,6 @@
     throw new GencmuError("grammar", `${path}:${line}:${column}: ${item.problem}`, { document: path, line, column, ...(item.problem?.startsWith("ranked-choice-syntax:") ? {code:"ranked-choice-syntax"} : {}) });
   }
 
-  // Adds the line and column of an error's source position.
   /**
    * Each declaration alone in a DOM of its own, including directives and
    * classifiers, in the order of the document.
@@ -21497,6 +21416,7 @@
    * @param {string} text
    * @returns {ParseError}
    */
+  // Adds the line and column of an error's source position.
   function locate(error, text) {
     if (!error.source) return error;
     const characters = [...text];

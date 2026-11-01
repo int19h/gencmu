@@ -488,7 +488,7 @@ class Summaries:
 
 class Ranker(Summaries):
     """Ranks a forest's derivations under ``greedy``, ``lazy`` or no lean,
-    or only counts them up to two. The optional ``best`` summaries retain
+    and retains their counts up to two. The optional ``best`` summaries retain
     the best rule profile under every directive. Under ``late-elision``,
     they also compare elision vectors (engine §6)."""
 
@@ -496,12 +496,10 @@ class Ranker(Summaries):
         self,
         forest: Forest,
         lean: str,
-        entries: bool = True,
         best: ProfileSummaries | None = None,
     ) -> None:
         super().__init__(forest)
         self.lean = lean
-        self.entries = entries
         self.best = best
         self.read_leaves: dict[tuple[int, str], Rope] = {}
         self.close_leaves: dict[int, Rope] = {}
@@ -552,8 +550,8 @@ class Ranker(Summaries):
         return found
 
     def compute(self, key: Key) -> Any:
-        """A key's value: the candidates and the number of derivations, or
-        the number alone when only counting. Each partial key holds its item's derivations."""
+        """A key's candidates and derivation count. Each partial key holds
+        its item's derivations."""
         kind, item, _ = key
         memo = self.memo
         marks = self.marks
@@ -562,8 +560,6 @@ class Ranker(Summaries):
                 inner_w = self.witnessed[self.inner_key(key)]
                 self.witnessed[key] = inner_w
             inner = memo[self.inner_key(key)]
-            if not self.entries:
-                return inner
             entries, count = inner
             close = self.close_leaf(item)
             kept: list[Entry] = []
@@ -589,20 +585,16 @@ class Ranker(Summaries):
             produced: list[Entry] = []
             if edge_kind == 0:
                 ways = 1
-                if self.entries:
-                    produced.append(Entry(None, [], INF))
+                produced.append(Entry(None, [], INF))
             elif edge_kind == RESTORE:
                 # A restoration reads its synthetic token, and its own close
                 # follows (engine §7.4, §7.7).
                 ways = 1
-                if self.entries:
-                    produced.append(Entry(self.read_leaf(a, b), [], INF))
+                produced.append(Entry(self.read_leaf(a, b), [], INF))
             else:
                 assert pred_key is not None
                 earlier = memo[pred_key]
-                if not self.entries:
-                    ways = earlier * (memo[child_key] if edge_kind == 2 else 1)
-                elif edge_kind == 1:
+                if edge_kind == 1:
                     pred_entries, ways = earlier
                     read = self.read_leaf(a, b)
                     for entry in pred_entries:
@@ -631,7 +623,7 @@ class Ranker(Summaries):
             for entry in produced:
                 self.keep(kept, entry)
         total = min(total, 2)
-        value = (kept, total) if self.entries else total
+        value = (kept, total)
         if marks is not None:
             witnessed[key] = w_all
         return value
@@ -715,18 +707,6 @@ class Ranker(Summaries):
                 self.offer(winner, alt, loser.at)
 
     # -- the whole input
-
-    def count(self, roots: list[int]) -> list[int]:
-        """The number of derivations of each root, up to two."""
-        results: list[int] = []
-        for root in roots:
-            key = self.full_key(root, self.empty)
-            if key is None:
-                results.append(0)
-                continue
-            value = self.solve(key)
-            results.append(value[1] if self.entries else value)
-        return results
 
     def rank(self, roots: list[int]) -> Ranking | None:
         """The first reading, the verdict, the second reading and the
@@ -1125,6 +1105,8 @@ class Ranking:
 
 
 def rank(forest: Forest, lean: str, marks=None, check=False, unfiltered=False) -> Ranking | None:
+    if not forest.roots:
+        return None
     admission = None
     ranked_helpers = forest.lowered.ranked_helpers
     productions = forest.lowered.productions
@@ -1167,8 +1149,3 @@ def rank_original(forest: Forest, lean: str, marks=None, check=False, admission=
     ranker.marks, ranker.check = marks, check
     ranker.admission = admission
     return ranker.rank(forest.roots)
-
-
-def count_roots(forest: Forest, roots: list[int]) -> list[int]:
-    """The number of derivations, up to two, of each of a forest's roots."""
-    return Ranker(forest, "greedy", entries=False).count(roots)

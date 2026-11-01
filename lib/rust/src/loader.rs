@@ -232,18 +232,13 @@ fn build_notation_pipeline(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Pip
 
 impl Context {
     #[cfg(test)]
-    fn new(unicode: &str, bootstrap: &str, preparsed: &str) -> Result<Context, Error> {
-        let mut context = Self::with_properties(unicode, None, bootstrap, preparsed)?;
+    fn new(unicode: &str, bootstrap: &str) -> Result<Context, Error> {
+        let mut context = Self::with_properties(unicode, None, bootstrap)?;
         context.allow_families = false;
         Ok(context)
     }
 
-    fn with_properties(
-        unicode: &str,
-        properties: Option<&str>,
-        bootstrap: &str,
-        preparsed: &str,
-    ) -> Result<Context, Error> {
+    fn with_properties(unicode: &str, properties: Option<&str>, bootstrap: &str) -> Result<Context, Error> {
         let unicode_hash = fnv1a64(unicode);
         let mut unicode = Unicode::parse(unicode)?;
         if let Some(properties) = properties {
@@ -252,17 +247,10 @@ impl Context {
         }
         let unicode = Arc::new(unicode);
         let notation = Arc::new(notation_pipeline(bootstrap, unicode.clone())?);
-        let preparsed = Preparsed::parse_implicit(
-            preparsed,
-            &fnv1a64(bootstrap),
-            &unicode_hash,
-            unicode.properties_fingerprint.as_deref(),
-            preparsed == bootstrap,
-        )?;
         Ok(Context {
             unicode,
             notation,
-            preparsed,
+            preparsed: Preparsed::default(),
             bootstrap_hash: fnv1a64(bootstrap),
             unicode_hash,
             allow_families: true,
@@ -281,7 +269,6 @@ impl Context {
                     file("data/unicode/unicode.txt")?,
                     Some(file("data/unicode/unicode-properties.txt")?),
                     file("data/preparsed/gencmu.json")?,
-                    "",
                 )
                 .map(Arc::new)
             })
@@ -604,7 +591,9 @@ impl Sources for DiskSources {
             Ok(bytes) => bytes,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(error) => {
-                return Err(Error::grammar(format!("the document could not be read: {error}")).in_document(path));
+                let mut error = Error::grammar(format!("the document could not be read: {error}")).in_document(path);
+                error.splice_problem = Some(SpliceProblem::UnreadableDocument);
+                return Err(error);
             }
         };
         match String::from_utf8(bytes) {
@@ -826,7 +815,6 @@ where
             &pick("data/unicode/unicode.txt")?,
             properties.as_deref(),
             &pick("data/preparsed/gencmu.json")?,
-            "",
         )?)
     };
     load(&context, &MapSources { map }, pipeline)
@@ -1359,8 +1347,7 @@ mod notation_cache_tests {
             let id = case.get("id").and_then(Json::as_str).unwrap();
             assert!(ids.insert(id), "duplicate case ID: {id}");
             let bootstrap = value_notation(case.get("aliases").and_then(Json::as_array).unwrap());
-            let context =
-                Context::new(super::bundled("data/unicode/unicode.txt").unwrap(), &bootstrap, "null").unwrap();
+            let context = Context::new(super::bundled("data/unicode/unicode.txt").unwrap(), &bootstrap).unwrap();
             let text = case.get("document").and_then(Json::as_str).unwrap();
             if let Some(expected) = case.get("expect").and_then(|value| value.get("error")) {
                 let error = read_document(&context.notation, text, "").expect_err("a bad name must fail");

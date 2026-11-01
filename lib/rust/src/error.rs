@@ -77,6 +77,7 @@ pub struct Error {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SpliceProblem {
     EmptyStage,
+    UnreadableDocument,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

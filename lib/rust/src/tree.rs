@@ -80,8 +80,8 @@ pub(crate) fn build(ranker: &Ranker, root: u32) -> ITree {
 /// What the public tree needs to know of a stage: its tokens and tag names.
 pub(crate) struct TreeContext<'a> {
     pub g: &'a Lowered,
-    /// The stage's input.
-    pub tokens: &'a [Tok],
+    /// The source index of the stage's input.
+    pub sources: &'a Sources,
     pub tag_map: &'a dyn Fn(SetId) -> crate::result::Tags,
     /// For a reading of the check of `elision-only`, how the reconstructed
     /// input maps to the stage's input (§7.10).
@@ -189,7 +189,7 @@ pub(crate) fn source_of(sources: &Sources, start: usize, end: usize) -> std::ops
 /// Builds the result's tree (§12): helpers spliced out, a chain's levels
 /// as nested rule nodes, absent elidable optionals as elided nodes.
 pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
-    let originals = Sources::new(context.tokens);
+    let originals = context.sources;
     let mut fragments: Vec<Vec<Node>> = (0..tree.nodes.len()).map(|_| Vec::new()).collect();
     for index in (0..tree.nodes.len()).rev() {
         let node = &tree.nodes[index];
@@ -220,7 +220,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                         terminal: Some(context.g.terminals[terminal as usize].clone()),
                         token: Some(at),
                         span: at..at + 1,
-                        source: source_of(&originals, at, at + 1),
+                        source: source_of(originals, at, at + 1),
                         tags: crate::result::Tags::new(),
                         value: None,
                         children: Vec::new(),
@@ -254,7 +254,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                             terminal: Some(terminal.clone()),
                             token: None,
                             span: start..start,
-                            source: source_of(&originals, start, start),
+                            source: source_of(originals, start, start),
                             tags: crate::result::Tags::new(),
                             value: rule.elided_test.and_then(|id| {
                                 let test = &context.g.tests[id as usize];
@@ -271,7 +271,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                         terminal: None,
                         token: None,
                         span: start..end,
-                        source: source_of(&originals, start, end),
+                        source: source_of(originals, start, end),
                         tags: (context.tag_map)(tags),
                         value: None,
                         children,
@@ -294,11 +294,10 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
 pub(crate) fn warnings_of(
     tree: &ITree,
     g: &Lowered,
-    tokens: &[Tok],
+    sources: &Sources,
     features: &BTreeSet<String>,
     stage: &str,
 ) -> Vec<Warning> {
-    let sources = Sources::new(tokens);
     let mut warnings = Vec::new();
     let mut stack = vec![0u32];
     while let Some(index) = stack.pop() {
@@ -314,7 +313,7 @@ pub(crate) fn warnings_of(
                 feature: feature.clone(),
                 rule: g.rules[production.rule as usize].name.clone(),
                 span: start as usize..end as usize,
-                source: source_of(&sources, start as usize, end as usize),
+                source: source_of(sources, start as usize, end as usize),
             });
         }
         stack.extend(node.children.iter().rev());
@@ -625,7 +624,12 @@ fn emission_targets(g: &Lowered) -> FxMap<String, Sym> {
 
 /// Walks the chosen tree from the left and emits the next stage's tokens
 /// (§11).
-pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) -> Result<Vec<Emitted>, EngineError> {
+pub(crate) fn emit(
+    recognizer: &mut Recognizer,
+    tree: &ITree,
+    tokens: &[Tok],
+    sources: &Sources,
+) -> Result<Vec<Emitted>, EngineError> {
     let g = recognizer.g;
     recognizer.shared.emission_boundaries.clear();
     recognizer.shared.emission_targets = emission_targets(g);
@@ -648,11 +652,11 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
             }
         }
     }
-    let sources = Sources::new(tokens);
     // The stage's implications, as tag sets of this parse (§11).
     let mut implications = Implications::new(&mut recognizer.shared.tags, &g.implications);
     let mut out: Vec<Emitted> = Vec::new();
-    let mut strings = crate::strings::Strings::new(g, tree, tokens, recognizer.shared.text, recognizer.shared.unicode);
+    let mut strings =
+        crate::strings::Strings::new(g, tree, tokens, sources, recognizer.shared.text, recognizer.shared.unicode);
     let mut forwarding = Forwarding { on: tokens.iter().any(Tok::has_attachments), inherited: FxSet::default() };
     // The output positions of the marks of the items being emitted.
     let mut marks: Vec<usize> = Vec::new();
@@ -766,7 +770,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     None => tags,
                 };
                 let tags = implications.implied(&mut recognizer.shared.tags, tags);
-                let mut token = cover(recognizer, tree, tokens, &sources, &mut forwarding, node, tags)?;
+                let mut token = cover(recognizer, tree, tokens, sources, &mut forwarding, node, tags)?;
                 (token.value, token.image) = strings.item(owner, Some(node), channels)?;
                 out.push(token);
             }
