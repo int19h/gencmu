@@ -10,7 +10,11 @@ func (b *domBuilder) tagRun(n *Node) *domTerm {
 		if index >= 0 && index < len(b.toks) {
 			t := b.toks[index].Value
 			if t == "∩" || t == "∖" {
-				b.fail(n, "a tag run beside intersection or difference requires parentheses")
+				kind := "tag"
+				if n.Rule == "string-run" {
+					kind = "string"
+				}
+				b.fail(n, "a %s run beside intersection or difference requires parentheses", kind)
 			}
 		}
 	}
@@ -314,8 +318,11 @@ func (b *domBuilder) recipe(n *Node) *domTerm {
 			b.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
 		}
 		for i := atom.Span[0]; i < atom.Span[1]; i++ {
-			if b.toks[i].Value == "(" || b.toks[i].Value == ")" || b.toks[i].Value == "∪" || b.toks[i].Value == "∩" || b.toks[i].Value == "∖" || b.toks[i].Value == "⟹" {
+			if b.toks[i].Value == "(" || b.toks[i].Value == ")" {
 				b.fail(atom, "a recipe uses no grouping or arguments")
+			}
+			if b.toks[i].Value == "∪" || b.toks[i].Value == "∩" || b.toks[i].Value == "∖" || b.toks[i].Value == "⟹" {
+				b.fail(atom, "a recipe atom has no set operator")
 			}
 		}
 		b.inRecipe = true

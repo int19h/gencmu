@@ -322,8 +322,8 @@ func (f *exprFrame) startRepetition(b *domBuilder) readStep {
 			markers = append(markers, i)
 		}
 	}
-	// Two markers are an error at the second, and a marker after the
-	// separator is an error at that marker, whichever a reader meets first.
+	// Repeated markers fail before separator placement is inspected.
+	// A sole marker after the separator fails at that marker (engine §9).
 	if len(markers) >= 2 {
 		b.fail(found[markers[1]], "braces have one chain marker ... at most")
 	}

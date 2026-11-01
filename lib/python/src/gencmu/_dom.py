@@ -164,6 +164,12 @@ class DomBuilder:
             raise self.lacks(node, "token")
         return found
 
+    def symbol_part(self, node: Node) -> Node:
+        parts = self.kids(node)
+        if parts and (parts[0].kind == "token" or parts[0].rule == "range"):
+            return parts[0]
+        raise self.lacks(node, "token or range")
+
     def known_of(self, node: Node, kinds: frozenset[str]) -> Node:
         """The one rule among the parts, which must be one of ``kinds``."""
         found = [kid for kid in self.kids(node) if kid.kind == "rule"]
@@ -645,9 +651,8 @@ class DomBuilder:
         kids = self.kids(node)
         choices = self.some(node, "choice")
         markers = [index for index, kid in enumerate(kids) if self._token_value(kid) == "..."]
-        # Two markers are an error at the second, and a marker after the
-        # separator is an error at that marker, whichever a reader meets
-        # first.
+        # Repeated markers fail before separator placement is inspected.
+        # A sole marker after the separator fails at that marker (engine §9).
         if len(markers) >= 2:
             raise self.fail(kids[markers[1]], "braces have one chain marker ... at most")
         place = {id(kid): index for index, kid in enumerate(kids)}
@@ -753,7 +758,9 @@ class DomBuilder:
         items = []
         for item in self.rules(node, "emit-item"):
             target = self.only(item, "emit-target")
-            token = self.token(target)
+            token = self.symbol_part(target)
+            if token.kind != "token":
+                raise self.fail(target, "an emission target requires a capture or ε")
             text = self.token_value(token)
             if text == "ε":
                 entry = {"insert": True}
@@ -1090,7 +1097,8 @@ class DomBuilder:
             before = self.tokens[first - 1].value if first else None
             after = self.tokens[last + 1].value if last + 1 < len(self.tokens) else None
             if before in ("∩", "∖") or after in ("∩", "∖"):
-                raise self.fail(node, "a tag run next to intersection or difference requires parentheses")
+                kind = "string" if node.rule == "string-run" else "tag"
+                raise self.fail(node, f"a {kind} run beside intersection or difference requires parentheses")
 
     def _term(self, node: Node, argument: bool = False) -> Walk:
         """A term; ``argument`` says it is a function's argument, where a

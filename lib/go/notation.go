@@ -995,10 +995,11 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 	for _, item := range items {
 		it := &domEmitItem{}
 		target := b.only(item, "emit-target")
-		text := b.tokenValue(target)
-		if text == "" {
-			text = b.tokenValue(b.token(target))
+		first := b.symbolPart(target)
+		if first.Kind != KindToken {
+			b.fail(target, "an emission target requires a capture or ε")
 		}
+		text := b.tokenValue(first)
 		switch {
 		case strings.HasPrefix(text, "$"):
 			it.Capture = strings.TrimPrefix(text, "$")

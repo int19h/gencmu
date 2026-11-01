@@ -81,6 +81,26 @@ func TestNotationCases(t *testing.T) {
 	}
 }
 
+func TestRecipeSetOperatorsDescribeOperators(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	_, err := bundled.reader.read("```jbogenbau\n%rule r A := ∪ \"a\"\n```\n", "grammar.md")
+	if err == nil || !strings.Contains(err.Error(), "set operator") {
+		t.Fatalf("expected a set-operator error, got %v", err)
+	}
+}
+
+func TestRangeEmissionTargetReportsContentError(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	_, err := bundled.reader.read("```jbogenbau\n%rule r A %emits \"a\"..\"z\"\n```\n", "grammar.md")
+	if err == nil || !strings.Contains(err.Error(), "an emission target requires a capture or ε") {
+		t.Fatalf("expected an emission-target error, got %v", err)
+	}
+}
+
 // TestFixpoint loads the notation's pipeline, grammars/gencmu/jbogenbau/pipeline.md, with
 // the bootstrap, splices it, and compares the stages with the bootstrap
 // itself (engine §8): the same names, and the same runs of documents with

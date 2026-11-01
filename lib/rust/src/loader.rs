@@ -326,7 +326,7 @@ impl Context {
 /// Reads a grammar document through the notation pipeline (engine §8, §9).
 pub(crate) fn read_document(notation: &Pipeline, text: &str, path: &str) -> Result<Dom, Error> {
     let names = NamesScope::new(&bundled_names, &notation.unicode, []).in_document(path, &crate::markdown::resolve);
-    read_document_named(notation, text, false, &names)
+    read_document_named(notation, text, false, &names).map_err(|error| error.in_document(path))
 }
 
 fn bundled_names(path: &str) -> Result<Option<String>, Error> {

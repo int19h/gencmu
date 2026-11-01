@@ -983,9 +983,8 @@ impl<'a> Reader<'a> {
         let markers: Vec<usize> = (0..found.len())
             .filter(|&index| found[index].kind == NodeKind::Token && self.value(found[index]) == "...")
             .collect();
-        // Two markers are an error at the second, and a marker after the
-        // separator is an error at that marker, whichever a reader meets
-        // first.
+        // Repeated markers fail before separator placement is inspected.
+        // A sole marker after the separator fails at that marker (engine §9).
         if let Some(&second) = markers.get(1) {
             return Err(self.error(found[second], "braces have one chain marker ... at most"));
         }
@@ -1322,7 +1321,9 @@ impl<'a> Reader<'a> {
                 let before = node.span.start.checked_sub(1).and_then(|i| self.tokens.get(i));
                 let after = self.tokens.get(node.span.end);
                 if before.into_iter().chain(after).any(|t| matches!(t.value.as_str(), "∩" | "∖")) {
-                    return Err(self.error(inner, "a tag run beside intersection or difference requires parentheses"));
+                    let kind = if rule_name(inner) == "string-run" { "string" } else { "tag" };
+                    return Err(self
+                        .error(inner, format!("a {kind} run beside intersection or difference requires parentheses")));
                 }
                 let mut items = Vec::new();
                 let strings = inner.rule.as_deref() == Some("string-run");
@@ -1967,11 +1968,12 @@ impl<'a> Reader<'a> {
                             self.error(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
                         );
                     }
-                    if self.tokens[atom.span.clone()]
-                        .iter()
-                        .any(|t| matches!(t.value.as_str(), "(" | ")" | "∪" | "∩" | "∖" | "⟹"))
-                    {
+                    if self.tokens[atom.span.clone()].iter().any(|t| matches!(t.value.as_str(), "(" | ")")) {
                         return Err(self.error(atom, "a recipe atom has no grouping or arguments"));
+                    }
+                    if self.tokens[atom.span.clone()].iter().any(|t| matches!(t.value.as_str(), "∪" | "∩" | "∖" | "⟹"))
+                    {
+                        return Err(self.error(atom, "a recipe atom has no set operator"));
                     }
                     let (mut term, _) = self.term(self.one(atom, "term")?, true)?;
                     let terms = if let Term::Call(name, args) = &mut term {
