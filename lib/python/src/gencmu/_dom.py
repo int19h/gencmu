@@ -66,7 +66,7 @@ class DefaultOptional(dict):
 
     def __init__(self, value, at):
         super().__init__(value)
-        self.default_at = at
+        self.default_at = self.at = at
 
 
 class DomBuilder:

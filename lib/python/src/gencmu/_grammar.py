@@ -695,9 +695,6 @@ class _Constants:
         if node.get("op") in ("≅", "≇") and not has_unresolved(node["right"]):
             return {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
         copy: dict[str, Any] = {}
-        if hasattr(node,"default_at"):
-            from ._dom import DefaultOptional
-            copy = DefaultOptional(copy,node.default_at)
         for key, value in node.items():
             copy[key] = yield self.with_values(value)
         return copy
@@ -738,12 +735,9 @@ class _Constants:
                 for key, value in node.items():
                     values[key] = yield resolve(value)
                 copy = node if all(values[key] is value for key, value in node.items()) else values
-                if copy is not node and hasattr(node,"default_at"):
-                    from ._dom import DefaultOptional
-                    copy = DefaultOptional(copy,node.default_at)
-                if copy is not node and hasattr(node, "at") and "concat" in node:
-                    from ._recipes import Recipe
-                    copy = Recipe(values["concat"], node.at)
+                if copy is not node and hasattr(node, "at") and ("concat" in node or "default" in node):
+                    copy = shallow_copy(node)
+                    copy.update(values)
             copies[id(node)] = copy
             return copy
 
@@ -992,7 +986,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
             implications.append(constants.implication(path,item))
     classifier_items = resolved_classifiers
     constants.resolve(rules)
-    _resolve_tests(rules, constants)
+    default_nodes = _resolve_tests(rules, constants)
     if not resolutions:
         raise GencmuError("has no %ambiguity-resolution", stage=stage)
     ranking_steps, _, _ = resolutions[0]
@@ -1007,7 +1001,6 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     # checked: an error in one would have stopped the first check, at the
     # same document and place.
     checked: set[int] = set()
-    default_nodes = []
     has_emitted = False
     family_names: list[str] = []
     query_terminals: set[str] = set()
@@ -1024,8 +1017,6 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
             while stack:
                 value = stack.pop()
                 if isinstance(value, dict):
-                    if "default" in value:
-                        default_nodes.append((rule, alt, value))
                     if value.get("method") == "without-elision-except":
                         family = value["args"][0]["rule"]
                         if family not in family_names:
@@ -1122,16 +1113,18 @@ RESOLVED = "resolved"
 expression, that holds its test with its value (engine §2, §4)."""
 
 
-def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
+def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> list[tuple[Rule, Alternative, Dom]]:
     """Gives every test of a body in the stitched rules its value, from the
     constants' final values, made once for every lowering. The documents'
     DOMs are shared by every stage and pipeline that includes them, so the
-    tests go into copies of the expressions that hold them."""
+    tests go into copies of the expressions that hold them. The same walk
+    collects default optionals for omission validation."""
     copies: dict[int, Any] = {}
     # Whether each node holds a test, by identity, found once: a walk of a
     # node's whole subtree at each level of its nesting would cost a deep
     # expression its depth times its size.
     tested: dict[int, bool] = {}
+    defaults: list[tuple[Rule, Alternative, Dom]] = []
 
     # An explicit stack keeps expression depth independent of the
     # caller's recursion limit.
@@ -1146,6 +1139,8 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
                     for item in child:
                         found = (yield holds_test(item)) or found
                 elif key in ("expr", "separator", "repeat", "optional"):
+                    if "default" in node:
+                        defaults.append((rule, alt, node))
                     found = (yield holds_test(child)) or found
             tested[id(node)] = found
         return found
@@ -1175,6 +1170,7 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
     for rule in rules.values():
         for alt in rule.alternatives:
             alt.expr = run(resolve(alt.expr, alt))
+    return [(rule, alt, copies.get(id(node), node)) for rule, alt, node in defaults]
 
 
 # ---------------------------------------------------------------------------
@@ -1221,8 +1217,8 @@ class Production:
     tests: tuple[SymbolTest | None, ...] | None = None
     captures: dict[str, int] = field(default_factory=dict)
     slots: tuple[int, ...] = ()
-    # Reduced conditions across static entry contexts of ranked and item helpers.
-    string_conditions: list[Dom] = field(default_factory=list, repr=False, compare=False)
+    # Only contextual helpers allocate reduced string conditions.
+    string_conditions: list[Dom] | None = field(default=None, init=False, repr=False, compare=False)
     conds_predict: list[Dom] = field(default_factory=list)
     conds_at: dict[int, list[Dom]] = field(default_factory=dict)
     # Whether a condition at the last symbol reads ``$``, which then has the

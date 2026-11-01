@@ -124,7 +124,10 @@ def prepare_ranked_conditions(lowered):
             conditions = [c for c, _, _ in frame_conditions(p, frame, private.get(id(p.source), set()))]
             if p.items:
                 conditions.extend(c for c, _ in item_frame_conditions(p, frame, prepare_conditions(p.items.conditions)))
-            p.string_conditions.extend(conditions)
+            if conditions:
+                if p.string_conditions is None:
+                    p.string_conditions = []
+                p.string_conditions.extend(conditions)
             if p.slot is not None:
                 p.slot.ranked_conditions.extend(conditions)
             enter(p, frame)

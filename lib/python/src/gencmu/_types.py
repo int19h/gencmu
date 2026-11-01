@@ -559,8 +559,6 @@ def tests_in(expr: Any) -> list[dict[str, Any]]:
         current = stack.pop()
         if not isinstance(current, dict):
             continue
-        if "default" in current:
-            found.append({"test":"=", "value":current["default"], "expr":current["optional"]})
         if isinstance(current.get("test"), str):
             found.append(current)
         for key in ("choice", "ranked", "and", "seq"):
@@ -568,9 +566,13 @@ def tests_in(expr: Any) -> list[dict[str, Any]]:
             if isinstance(items, list):
                 stack.extend(reversed(items))
         # In reverse, so that a repeat's item comes before its separator.
-        for key in ("expr", "separator", "repeat", "optional"):
+        for key in ("expr", "separator", "repeat"):
             if key in current:
                 stack.append(current[key])
+        if "optional" in current:
+            if "default" in current:
+                found.append({"test":"=", "value":current["default"], "expr":current["optional"]})
+            stack.append(current["optional"])
     return found
 
 
