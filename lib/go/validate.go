@@ -1260,9 +1260,6 @@ type typeFault struct {
 
 func isSetType(t termType) bool { return t == tyStrings || t == tyTags || t == tySet }
 
-// callStrings says what the functions that take strings take.
-var callStrings = map[string]string{"split": "two strings", "classify": "a string and a classifier's name", "ngrams": "a string and a positive integer"}
-
 // callType is the type of the value a function gives.
 func callType(name string) termType {
 	switch name {
@@ -1602,7 +1599,7 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 			}
 			if t.Str == "split" || t.Str == "classify" || t.Str == "ngrams" {
 				if problem := expectedProblem(ty, tyString); problem != "" {
-					return 0, &typeFault{t.Str + " takes " + callStrings[t.Str] + ": " + problem, t}
+					return 0, &typeFault{"a method has the wrong receiver or arguments", t}
 				}
 			}
 		}

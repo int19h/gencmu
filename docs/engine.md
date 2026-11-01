@@ -2575,6 +2575,8 @@ A known non-string operand fails concatenation even if it contains a parameter. 
 
 Readers use common diagnostic text for unclosed grammar fences, classifier warnings, capture restrictions, method signatures, and directive operands. A method with an invalid receiver or arguments reports `a method has the wrong receiver or arguments`. This text also applies when type inspection detects the signature error. Advice for restored spans and bare captures keeps its specific text. A diagnostic position remains separate from its text. A library can prefix the text with that position.
 
+Binding a constant does not change method-signature text. A fault inside a receiver or argument retains that operand's own diagnostic.
+
 The following table is the complete constructor contract, including the template forms of §2.3. A constructor is a recognized syntax-tree part. Its row specifies required parts, lookup order, and DOM conversion. Names outside this table are wrappers, never constructors. Each wrapper contributes its children recursively in written order.
 
 The reader reads only a constructor's parts, after wrapper flattening. A missing required part causes a document error at that constructor when its lookup occurs. Unused parts are ignored. Repeated operand lists preserve written order. Unless a row says otherwise, a named lookup selects its first matching part.

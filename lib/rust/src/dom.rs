@@ -1891,7 +1891,7 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
                         return Err(if matches!(call.as_str(), "requirements" | "forbid") {
                             Fault::in_term(problem, arg)
                         } else {
-                            Fault::in_term(format!(".{}: {problem}", call), term)
+                            Fault::in_term("a method has the wrong receiver or arguments".into(), term)
                         });
                     }
                 }

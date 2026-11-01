@@ -157,7 +157,7 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
     else:
         return None, f"unknown method .{name}"
     if not valid or arity is not None and len(args) != arity:
-        return None, f"invalid receiver or arguments for .{name}"
+        return None, "a method has the wrong receiver or arguments"
     return result, None
 
 
@@ -378,7 +378,7 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
                 return None, fault
             problem = expected_problem(argument, "string")
             if problem:
-                return None, (problem, term)
+                return None, ("a method has the wrong receiver or arguments", term)
         return result, None
     if "param" in term or "call" in term:
         return "any", None
