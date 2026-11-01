@@ -180,6 +180,7 @@ class DomBuilder:
         implications: list[Dom] = []
         statement_seen = False
         for kid in self.kids(root):
+            self.parameter_scope = set()
             if kid.kind == "rule" and kid.rule not in _ITEMS:
                 raise self.fail(kid, f"the notation gives a {kid.rule} where an item stands")
             names = kid.rule == "directive" and self.token_value(self.token(kid)) == "%names"

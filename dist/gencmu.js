@@ -18739,6 +18739,7 @@
     const tagSources = new Map();
     let statementSeen = false;
     for (const item of parts(tree)) {
+      parameterScope = new Set();
       if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
       const namesDirective = ruleOf(item) === "directive" && valueOf(token(item)) === "%names";
       if (namesDirective && statementSeen) fail("%names must precede every other statement", item);
