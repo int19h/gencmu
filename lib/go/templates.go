@@ -7,6 +7,7 @@ import (
 )
 
 type templateEvent struct {
+	kind          int
 	definition    *templateEvent // the source definition shared by validation and output
 	path          string
 	rule          templateObject
@@ -128,7 +129,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		sort.SliceStable(items, func(i, j int) bool { return before(templateAt(items[i].rule), templateAt(items[j].rule)) })
 		for _, it := range items {
 			r := it.rule
-			e := &templateEvent{path: d.path, rule: r, index: serial, inspectionRun: docIndex}
+			e := &templateEvent{path: d.path, rule: r, index: serial, inspectionRun: docIndex, kind: map[string]int{"rules": 0, "directives": 1, "constants": 2, "classifiers": 3, "implications": 4}[it.kind]}
 			serial++
 			sourceEvents = append(sourceEvents, e)
 			if it.kind != "rules" {
@@ -362,6 +363,35 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		copy.rule = templateObj(x.rewrite(e.rule, e, "term"))
 		validation = append(validation, &copy)
 	}
+	ownerRuns := map[*templateEvent]int{}
+	for index, event := range validation {
+		run := event.inspectionRun
+		if event.origin != nil {
+			run = len(docs) + index
+		}
+		event.inspectionRun = run
+		owner := event.definition
+		if owner == nil {
+			owner = event
+		}
+		ownerRuns[owner] = run
+	}
+	decodeInspection := func(event *templateEvent) *domDoc {
+		dom, err := decodeDOMMode(templateJSON(templateDocument([]any{event.rule})), uni, true)
+		if err != nil {
+			x.fail(event, event.rule, err.Error())
+		}
+		if problem := checkDOMMode(dom, uni, true); problem != nil {
+			x.fail(event, event.rule, problem.message)
+		}
+		restoreTemplateRuleLocations(dom.Rules[0], event.rule)
+		return dom
+	}
+	type fragmentInspection struct {
+		index int
+		event *templateEvent
+	}
+	var fragments []fragmentInspection
 	arguments := []constArgument{}
 	inspectArgument := func(argument templateObject, event *templateEvent) {
 		parts := templateNodes(argument)
@@ -376,12 +406,19 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		if len(references) == 0 {
 			return
 		}
+		run, ok := ownerRuns[event]
+		if !ok {
+			run = event.inspectionRun
+		}
+		owner := constArgument{kind: event.kind, doc: event.path, at: templateAt(event.rule), position: templateAt(references[0]), inspectionRun: run}
 		add := func(raw templateObject, tags bool) {
 			term, err := decodeTerm(templateJSON(x.rewrite(raw, event, "term")))
 			if err != nil {
 				x.fail(event, raw, err.Error())
 			}
-			arguments = append(arguments, constArgument{event.path, term, templateAt(event.rule), tags})
+			record := owner
+			record.term, record.tags = term, tags
+			arguments = append(arguments, record)
 		}
 		if open {
 			for _, reference := range references {
@@ -405,9 +442,11 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			}
 			rule := templateObject{"name": name, "op": "define", "flags": []any{}, "conditions": []any{}, "alternatives": []any{templateObject{"guards": []any{}, "expr": x.rewrite(body, event, "expr")}}, "at": event.rule["at"]}
 			copy := *event
-			copy.definition = nil
 			copy.rule = rule
-			validation = append(validation, &copy)
+			record := owner
+			record.fragment = true
+			fragments = append(fragments, fragmentInspection{len(arguments), &copy})
+			arguments = append(arguments, record)
 		} else if arg["requirements"] != nil {
 			for _, requirement := range templateList(arg["requirements"]) {
 				add(templateObj(templateObj(requirement)["value"]), true)
@@ -439,25 +478,19 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 	users := []constUser{}
 	decoded := map[*templateEvent]*domDoc{}
 	decodedRuns := map[*templateEvent]int{}
-	for index, e := range validation {
+	for _, e := range validation {
 		run := e.inspectionRun
-		if e.origin != nil || e.definition == nil && e.rule["params"] == nil {
-			run = len(docs) + index
-		}
-		dom, decodeErr := decodeDOMMode(templateJSON(templateDocument([]any{e.rule})), uni, true)
-		if decodeErr != nil {
-			x.fail(e, e.rule, decodeErr.Error())
-		}
-		if problem := checkDOMMode(dom, uni, true); problem != nil {
-			x.fail(e, e.rule, problem.message)
-		}
-		restoreTemplateRuleLocations(dom.Rules[0], e.rule)
+		dom := decodeInspection(e)
 		if e.definition != nil {
 			decoded[e.definition] = dom
 			decodedRuns[e.definition] = run
 		}
 		users = append(users, constUser{doc: e.path, rule: dom.Rules[0], inspectionRun: run})
 	}
+	for _, fragment := range fragments {
+		arguments[fragment.index].rule = decodeInspection(fragment.event).Rules[0]
+	}
+
 	output := []*templateEvent{}
 	for _, name := range slots {
 		output = append(output, ordinary[name]...)

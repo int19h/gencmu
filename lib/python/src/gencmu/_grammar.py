@@ -533,50 +533,60 @@ class _Constants:
         return sides[0], sides[1]
 
     def check_arguments(self, arguments):
-        faults = []
-        for argument in arguments:
-            path, term, at = argument['path'], argument['term'], argument['at']
-            for reference in constants_in(term):
+        references = [(reference, argument['path']) for argument in arguments
+                      for reference in constants_in(argument.get('rule', argument.get('term')))]
+        references.sort(key=lambda item: tuple(item[0]['at']))
+        for reference, path in references:
+            if reference['const'] not in self.values:
+                raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference['at'], self.stage)
+        for phase in ('type', 'value'):
+            faults = []
+            for argument in arguments:
+                path, at = argument['path'], argument['at']
+                rule, term = argument.get('rule'), argument.get('term')
+                try:
+                    if phase == 'type':
+                        if rule is not None:
+                            fault = rule_type_fault(rule, self.type_of)
+                        else:
+                            kind, fault = term_type_fault(term, self.type_of)
+                            if fault is None and argument['tags']:
+                                problem = expected_problem(kind, 'tags')
+                                if problem is not None:
+                                    fault = problem, term
+                        if fault is not None:
+                            raise self.fault_error(path, fault[1], at, fault[0])
+                    else:
+                        self.check_value_uses(path, rule if rule is not None else term, at)
+                        if argument.get('fragment'):
+                            result = check_definition(run(self.with_values(rule)), True)
+                            if result.problem is not None:
+                                raise _error(result.problem.message, path, at, self.stage)
+                except GencmuError as error:
+                    position = argument.get('position', at) if (error.line, error.column) == tuple(at) else (error.line or at[0], error.column or at[1])
+                    faults.append((position, error))
+            if faults:
+                raise min(faults, key=lambda item: tuple(item[0]))[1]
+
+    def check_rule(self, path: str, rule: Dom, inspection_run: int) -> None:
+        """Check one definition after constant binding (engine §2)."""
+        uses = self.arguments.pop((inspection_run, path, tuple(rule['at'])), [])
+        if uses:
+            self.check_arguments([dict(path=path, at=rule['at'], rule=rule), *uses])
+        else:
+            for reference in constants_in(rule):
                 if reference['const'] not in self.values:
                     raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference['at'], self.stage)
-            kind, fault = term_type_fault(term, self.type_of)
-            if fault is None and argument['tags']:
-                problem = expected_problem(kind, 'tags')
-                if problem is not None:
-                    fault = problem, term
+            fault = rule_type_fault(rule, self.type_of)
             if fault is not None:
-                faults.append(self.fault_error(path, fault[1], at, fault[0]))
-                continue
-            try:
-                self.check_value_uses(path, term, at)
-            except GencmuError as error:
-                faults.append(error)
-        if faults:
-            raise min(faults, key=lambda error: (error.line or 0, error.column or 0))
-
-    def check_rule(self, path: str, rule: Dom) -> None:
-        """Check one definition after constant binding (engine §2)."""
-        for reference in constants_in(rule):
-            if reference["const"] not in self.values:
-                raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference["at"], self.stage)
-        fault = rule_type_fault(rule, self.type_of)
-        faults = [self.fault_error(path, fault[1], rule["at"], fault[0])] if fault is not None else []
-        uses = self.arguments.pop((path, tuple(rule["at"])), [])
-        try:
-            self.check_arguments(uses)
-        except GencmuError as error:
-            faults.append(error)
-        if faults:
-            raise min(faults, key=lambda error: (error.line or 0, error.column or 0))
-        self.check_value_uses(path, rule, rule["at"])
-        # The checks that simplification decides, which the reader left
-        # to the loader, now with the constants' values (engine §9).
+                raise self.fault_error(path, fault[1], rule['at'], fault[0])
+            self.check_value_uses(path, rule, rule['at'])
         result = check_definition(run(self.with_values(rule)), True)
         if result.problem is not None:
-            raise _error(result.problem.message, path, rule["at"], self.stage)
+            raise _error(result.problem.message, path, rule['at'], self.stage)
         if result.deferred is not None:
-            deferred = self.template_deferred if rule.get("params") else self.deferred_emissions
-            deferred.append(_error(result.deferred.message, path, rule["at"], self.stage))
+            deferred = self.template_deferred if rule.get('params') else self.deferred_emissions
+            deferred.append(_error(result.deferred.message, path, rule['at'], self.stage))
 
     def check_value_uses(self, path: str, root: Any, at: Any, *, computed: bool = False) -> None:
         """Inspect bound values through one written-order clause walk."""
@@ -811,7 +821,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     written_alternatives: list[Alternative] = []
     constants = _Constants(stage, unicode)
     for argument in arguments_to_check:
-        constants.arguments.setdefault((argument['path'], tuple(argument['at'])), []).append(argument)
+        constants.arguments.setdefault((argument['inspection_run'], argument['path'], tuple(argument['at'])), []).append(argument)
     changes: list[Change] = []
     resolutions: list[tuple[list[str], str, Any]] = []
     checks: list[tuple[int, Any, str, str, Any]] = []
@@ -822,7 +832,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         for kind, item in declarations:
             if kind == "rules":
                 rule = item
-                if constants_in(rule) or _rule_has_pattern(rule) or (path, tuple(rule["at"])) in constants.arguments:
+                if constants_in(rule) or _rule_has_pattern(rule) or (inspection_run, path, tuple(rule["at"])) in constants.arguments:
                     constants.users.append((path, rule))
                     checks.append((inspection_run, rule["at"], path, "rule", rule))
                 elif rule_has_ranked(rule):
@@ -922,20 +932,27 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     if template_order is not None:
         rules = {name: rules[name] for name in template_order}
     for event in validation:
-        if event["rule"].get("params") or constants_in(event["rule"]) or _rule_has_pattern(event["rule"]) or (event["path"], tuple(event["rule"]["at"])) in constants.arguments:
+        if event["rule"].get("params") or constants_in(event["rule"]) or _rule_has_pattern(event["rule"]) or (event["inspection_run"], event["path"], tuple(event["rule"]["at"])) in constants.arguments:
             constants.users.append((event["path"],event["rule"]))
             checks.append((event["inspection_run"], event["rule"]["at"], event["path"], "rule", event["rule"]))
+    for key, uses in constants.arguments.items():
+        owner = uses[0]
+        checks.append((owner['inspection_run'], owner['at'], owner['path'], 'arguments', key))
     constants.bind()
     from ._validate import input_conditions_problem
     from ._types import condition_type_fault
     resolved_features = []
     resolved_classifiers = []
     implications = []
-    kinds = {"rule": 0, "deferred": 0, "features": 1, "classifier": 3, "implication": 4}
-    checks.sort(key=lambda item: (item[0], tuple(item[1]), kinds[item[3]]))
-    for _, _, path, kind, item in checks:
+    kinds = {"rule": 0, "arguments": 0, "deferred": 0, "features": 1, "classifier": 3, "implication": 4}
+    checks.sort(key=lambda item: (item[0], tuple(item[1]), kinds[item[3]] if item[3] != 'arguments' else constants.arguments[item[4]][0]['kind']))
+    for inspection_run, _, path, kind, item in checks:
         if kind == "rule":
-            constants.check_rule(path,item)
+            constants.check_rule(path,item,inspection_run)
+        elif kind == "arguments":
+            uses = constants.arguments.pop(item, [])
+            if uses:
+                constants.check_arguments(uses)
         elif kind == "deferred":
             constants.deferred_emissions.append(item)
         elif kind == "features":
@@ -944,7 +961,13 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 if "conditions" not in directive:
                     resolved_features.append((path, directive))
                     continue
-                for reference in constants_in(directive["conditions"]):
+                uses = constants.arguments.get((inspection_run, path, tuple(directive['at'])), [])
+                references = constants_in(directive['conditions'])
+                for use in uses:
+                    references.extend(constants_in(use.get('rule', use.get('term'))))
+                if uses:
+                    references.sort(key=lambda reference: tuple(reference['at']))
+                for reference in references:
                     if reference["const"] not in constants.values:
                         raise _error(f"${reference['const']} is not defined in stage {stage}", path, directive["at"], stage)
                 problem = input_conditions_problem(directive["conditions"])
@@ -966,8 +989,6 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         else:
             implications.append(constants.implication(path,item))
     classifier_items = resolved_classifiers
-    for uses in constants.arguments.values():
-        constants.check_arguments(uses)
     constants.resolve(rules)
     _resolve_tests(rules, constants)
     if not resolutions:

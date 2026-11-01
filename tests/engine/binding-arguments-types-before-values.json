@@ -1,0 +1,13 @@
+{
+  "description": "Retained arguments complete type inspection before bound-value inspection.",
+  "grammar": "%ambiguity-resolution greedy\n%const $WIDE \"ab\"\n%const $T K\n%rule f(@A,@B) \"a\"\n%rule named = f(($WIDE..\"z\"), \"a\".split($T))\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 6,
+      "column": 41
+    }
+  }
+}

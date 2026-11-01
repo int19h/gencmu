@@ -261,8 +261,8 @@ export declare class Grammar {
     checkRangeUses(ends: any[], path: string, at: [number, number]): void;
     /** @param {any} root @param {string} path @param {[number,number]} at */
     checkPatternUses(root: any, path: string, at: [number, number]): void;
-    /** @param {string} path @param {import("./types.js").DomDirective} directive */
-    resolveFeature(path: string, directive: import("./types.js").DomDirective): {
+    /** @param {string} path @param {import("./types.js").DomDirective} directive @param {number} inspectionRun */
+    resolveFeature(path: string, directive: import("./types.js").DomDirective, inspectionRun: number): {
         path: string;
         directive: import("./types.js").DomDirective;
     };

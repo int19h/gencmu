@@ -8,6 +8,7 @@ type R<T> = Result<T, Error>;
 type Documents = Vec<(Arc<str>, Arc<Dom>)>;
 #[derive(Debug, Clone)]
 pub(crate) struct Event {
+    pub kind: usize,
     pub path: Arc<str>,
     pub rule: Json,
     pub index: usize,
@@ -59,11 +60,25 @@ impl Instance {
         self.name.as_deref().unwrap_or(&self.canonical)
     }
 }
+pub(crate) enum RetainedPart {
+    Term(dom::Term),
+    Fragment(Box<dom::RuleDef>),
+}
 pub(crate) struct ArgumentUse {
+    order: usize,
+    pub kind: usize,
     pub path: Arc<str>,
-    pub term: dom::Term,
+    pub inspection_run: usize,
+    pub position: (usize, usize),
+    pub part: RetainedPart,
     pub at: (usize, usize),
     pub tags: bool,
+}
+struct FragmentInspection {
+    order: usize,
+    inspection_run: usize,
+    position: (usize, usize),
+    event: Event,
 }
 pub(crate) struct Expansion {
     pub documents: Documents,
@@ -185,6 +200,13 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
                 path: path.clone(),
                 rule: r.clone(),
                 index: serial,
+                kind: match kind {
+                    "rules" => 0,
+                    "directives" => 1,
+                    "constants" => 2,
+                    "classifiers" => 3,
+                    _ => 4,
+                },
                 inspection_run,
                 origin: None,
                 instance: String::new(),
@@ -388,14 +410,23 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
         validation.push(Event { rule: x.rewrite(&e.rule, e, "term")?, ..e.clone() });
     }
     let mut arguments = Vec::new();
-    let mut argument_definitions = Vec::new();
+    let mut fragments = Vec::new();
+    let owner_runs: BTreeMap<_, _> = validation
+        .iter()
+        .enumerate()
+        .map(|(index, event)| {
+            let run = if event.origin.is_some() { documents.len() + index } else { event.inspection_run };
+            ((event.index, event.instance.clone()), run)
+        })
+        .collect();
     for e in source_events
         .iter()
         .copied()
         .chain(x.queue.iter().flat_map(|id| x.instances[*id].definitions.iter()))
         .chain(&validation_definitions)
     {
-        x.inspect_arguments(e, extra_indexes.contains(&e.index), &mut arguments, &mut argument_definitions)?;
+        let run = owner_runs.get(&(e.index, e.instance.clone())).copied().unwrap_or(e.inspection_run);
+        x.inspect_arguments(e, run, extra_indexes.contains(&e.index), &mut arguments, &mut fragments)?;
     }
     let mut users = Vec::new();
     let mut decoded = BTreeMap::new();
@@ -405,13 +436,21 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
         decoded.insert((e.index, text(get(&e.rule, "name")).to_string()), (run, d.clone()));
         users.push((run, e.path, d));
     }
-    for e in argument_definitions {
-        users.push((
-            documents.len() + users.len(),
-            e.path.clone(),
-            Arc::new(x.decode(&empty(vec![e.rule.clone()]), &e)?),
-        ));
+    for fragment in fragments {
+        let event = fragment.event;
+        let mut decoded = x.decode(&empty(vec![event.rule.clone()]), &event)?;
+        arguments.push(ArgumentUse {
+            order: fragment.order,
+            kind: event.kind,
+            path: event.path.clone(),
+            inspection_run: fragment.inspection_run,
+            position: fragment.position,
+            at: at(&event.rule).unwrap(),
+            tags: false,
+            part: RetainedPart::Fragment(Box::new(decoded.rules.remove(0))),
+        });
     }
+    arguments.sort_by_key(|argument| argument.order);
     let mut ordinary_events: Vec<_> = ordinary.values().flatten().collect();
     ordinary_events.sort_by_key(|e| e.index);
     for e in ordinary_events {
@@ -438,6 +477,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
                             path: path.clone(),
                             rule: r.clone(),
                             index: 0,
+                            kind: 0,
                             inspection_run: 0,
                             origin: None,
                             instance: String::new(),
@@ -452,6 +492,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             path: path.clone(),
             rule: raw.clone(),
             index: 0,
+            kind: 0,
             inspection_run: 0,
             origin: None,
             instance: String::new(),
@@ -741,9 +782,10 @@ impl Expander<'_> {
     fn inspect_arguments(
         &self,
         event: &Event,
+        inspection_run: usize,
         extra: bool,
         arguments: &mut Vec<ArgumentUse>,
-        definitions: &mut Vec<Event>,
+        fragments: &mut Vec<FragmentInspection>,
     ) -> R<()> {
         for call in
             source_nodes(&event.rule).filter(|n| has(n, "call") || has(n, "name") && has(n, "args") && has(n, "op"))
@@ -754,12 +796,17 @@ impl Expander<'_> {
                 if references.is_empty() {
                     continue;
                 }
+                let position = at(references[0]).unwrap();
                 let mut add = |term: &Json, tags| -> R<()> {
                     let term = self.rewrite(term, event, "term")?;
                     let decoded = dom::term_from_json(&term).map_err(|p| event.fail(&term, p))?;
                     arguments.push(ArgumentUse {
+                        order: arguments.len() + fragments.len(),
                         path: event.path.clone(),
-                        term: decoded,
+                        kind: event.kind,
+                        part: RetainedPart::Term(decoded),
+                        inspection_run,
+                        position,
                         at: at(&event.rule).unwrap(),
                         tags,
                     });
@@ -789,7 +836,13 @@ impl Expander<'_> {
                         ),
                         ("at", get(&event.rule, "at").clone()),
                     ]);
-                    definitions.push(Event { rule, ..event.clone() });
+                    let fragment = Event { rule, ..event.clone() };
+                    fragments.push(FragmentInspection {
+                        order: arguments.len() + fragments.len(),
+                        inspection_run,
+                        position,
+                        event: fragment,
+                    });
                 } else if has(&arg, "requirements") {
                     for requirement in list(get(&arg, "requirements")) {
                         add(get(requirement, "value"), true)?;

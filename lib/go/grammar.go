@@ -14,6 +14,7 @@ type stageFeature struct {
 }
 
 type argumentSite struct {
+	run int
 	doc string
 	at  [2]int
 }
@@ -129,7 +130,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}}
 	g.arguments = map[argumentSite][]constArgument{}
 	for _, argument := range expanded.arguments {
-		key := argumentSite{argument.doc, argument.at}
+		key := argumentSite{argument.inspectionRun, argument.doc, argument.at}
 		g.arguments[key] = append(g.arguments[key], argument)
 	}
 	g.classifierSet.names = map[string]bool{}
@@ -187,8 +188,8 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 		})
 		for _, it := range items {
 			if r := it.rule; r != nil {
-				if len(constRefs(r)) > 0 || ruleHasPattern(r) || len(g.arguments[argumentSite{d.path, r.At}]) > 0 {
-					user := constUser{doc: d.path, rule: r}
+				if len(constRefs(r)) > 0 || ruleHasPattern(r) || len(g.arguments[argumentSite{run, d.path, r.At}]) > 0 {
+					user := constUser{inspectionRun: run, doc: d.path, rule: r}
 					schedule(run, r.At, 0, func() *Error { return g.checkConstantRule(user) })
 				} else if r.deferredEmission != nil {
 					schedule(run, r.At, 0, func() *Error {
@@ -255,7 +256,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 				case "features":
 					index := len(g.features)
 					g.features = append(g.features, stageFeature{d.path, dir})
-					schedule(run, dir.At, 1, func() *Error { return g.resolveFeature(index) })
+					schedule(run, dir.At, 1, func() *Error { return g.resolveFeature(index, run) })
 				case "ambiguity-resolution":
 					ambiguity = append(ambiguity, dir)
 					if len(ambiguity) > 1 {
@@ -296,10 +297,22 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 		}
 	}
 	for _, user := range expanded.validation {
-		if user.rule.Params != nil || len(constRefs(user.rule)) > 0 || ruleHasPattern(user.rule) || len(g.arguments[argumentSite{user.doc, user.rule.At}]) > 0 {
+		if user.rule.Params != nil || len(constRefs(user.rule)) > 0 || ruleHasPattern(user.rule) || len(g.arguments[argumentSite{user.inspectionRun, user.doc, user.rule.At}]) > 0 {
 			schedule(user.inspectionRun, user.rule.At, 0, func() *Error { return g.checkConstantRule(user) })
 		}
 	}
+	for _, argument := range expanded.arguments {
+		key := argumentSite{argument.inspectionRun, argument.doc, argument.at}
+		schedule(key.run, key.at, argument.kind, func() *Error {
+			uses := g.arguments[key]
+			delete(g.arguments, key)
+			if len(uses) > 0 {
+				return g.checkArguments(uses)
+			}
+			return nil
+		})
+	}
+
 	slices.SortStableFunc(checks, func(a, b inspection) int {
 		if a.run != b.run {
 			return a.run - b.run
@@ -316,7 +329,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 	for index, item := range checks {
 		functions[index] = item.check
 	}
-	if err := g.resolveConstants(functions, expanded.arguments); err != nil {
+	if err := g.resolveConstants(functions); err != nil {
 		return nil, err
 	}
 	g.indexImplications()
