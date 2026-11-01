@@ -1,0 +1,32 @@
+{
+  "description": "An offered target beyond the first word makes a negative boundary literal fail (engine §4.2).",
+  "grammar": "%rule text a r0\n%rule a A\n%conditions $.followed-by(r0), $.followed-by(r1), $.followed-by(r2), $.followed-by(r3), $.followed-by(r4), $.followed-by(r5), $.followed-by(r6), $.followed-by(r7), $.followed-by(r8), $.followed-by(r9), $.followed-by(r10), $.followed-by(r11), $.followed-by(r12), $.followed-by(r13), $.followed-by(r14), $.followed-by(r15), $.followed-by(r16), $.followed-by(r17), $.followed-by(r18), $.followed-by(r19), $.followed-by(r20), $.followed-by(r21), $.followed-by(r22), $.followed-by(r23), $.followed-by(r24), $.followed-by(r25), $.followed-by(r26), $.followed-by(r27), $.followed-by(r28), $.followed-by(r29), $.followed-by(r30), $.followed-by(r31), $.followed-by(r32), $.followed-by(r33), $.followed-by(r34), $.followed-by(r35), $.followed-by(r36), $.followed-by(r37), $.followed-by(r38), $.followed-by(r39), $.followed-by(r40), $.followed-by(r41), $.followed-by(r42), $.followed-by(r43), $.followed-by(r44), $.followed-by(r45), $.followed-by(r46), $.followed-by(r47), $.followed-by(r48), $.followed-by(r49), $.followed-by(r50), $.followed-by(r51), $.followed-by(r52), $.followed-by(r53), $.followed-by(r54), $.followed-by(r55), $.followed-by(r56), $.followed-by(r57), $.followed-by(r58), $.followed-by(r59), $.followed-by(r60), $.followed-by(r61), $.followed-by(r62), $.followed-by(r63), $.followed-by(r64), $.followed-by(r65), $.followed-by(r66), $.followed-by(r67), $.followed-by(r68), ¬$.followed-by(r69)\n%rule r0 r1\n%rule r1 r2\n%rule r2 r3\n%rule r3 r4\n%rule r4 r5\n%rule r5 r6\n%rule r6 r7\n%rule r7 r8\n%rule r8 r9\n%rule r9 r10\n%rule r10 r11\n%rule r11 r12\n%rule r12 r13\n%rule r13 r14\n%rule r14 r15\n%rule r15 r16\n%rule r16 r17\n%rule r17 r18\n%rule r18 r19\n%rule r19 r20\n%rule r20 r21\n%rule r21 r22\n%rule r22 r23\n%rule r23 r24\n%rule r24 r25\n%rule r25 r26\n%rule r26 r27\n%rule r27 r28\n%rule r28 r29\n%rule r29 r30\n%rule r30 r31\n%rule r31 r32\n%rule r32 r33\n%rule r33 r34\n%rule r34 r35\n%rule r35 r36\n%rule r36 r37\n%rule r37 r38\n%rule r38 r39\n%rule r39 r40\n%rule r40 r41\n%rule r41 r42\n%rule r42 r43\n%rule r43 r44\n%rule r44 r45\n%rule r45 r46\n%rule r46 r47\n%rule r47 r48\n%rule r48 r49\n%rule r49 r50\n%rule r50 r51\n%rule r51 r52\n%rule r52 r53\n%rule r53 r54\n%rule r54 r55\n%rule r55 r56\n%rule r56 r57\n%rule r57 r58\n%rule r58 r59\n%rule r59 r60\n%rule r60 r61\n%rule r61 r62\n%rule r62 r63\n%rule r63 r64\n%rule r64 r65\n%rule r65 r66\n%rule r66 r67\n%rule r67 r68\n%rule r68 r69\n%rule r69 B\n",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "boundary": {
+          "rule": "a",
+          "condition": 69,
+          "at": 1
+        }
+      }
+    },
+    "error": "rejected"
+  }
+}
