@@ -225,7 +225,7 @@ Small native tests retain state-reuse bounds, walk order, and codec preservation
 
 Each case gives a document, lexical aliases, and a DOM pattern or an error expectation. Every library adds each alias as a rule in the lexical document of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. Its `leftmost-longest` flag selects it over ordinary lexical divisions. The library reads the document with this bootstrap and compares the DOM or error. A successful reading also exercises the cold, matching, and mismatched cache paths described above.
 
-An error expectation pins its line and column through `expect.error`. Only `expect.message` pins an agreed reason. The invalid pattern-name cases cover constants, nested patterns and rule conditions.
+An error expectation in this file accepts only `line` and `column` under `expect.error`. An `expect.error.message` member invalidates the case. Only `expect.message` pins an agreed reason. The invalid pattern-name cases cover constants, nested patterns and rule conditions.
 
 The canonical-name cases use canonically equivalent ASCII and Kelvin spellings. These aliases test captures and fixed names through a supplied notation. The invalid-name cases supply semantic values that the bundled notation cannot produce. These cases add no spelling to the bundled notation. The handwritten reader implements the bundled notation, so these cases apply to library readers.
 
