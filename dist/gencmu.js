@@ -6194,7 +6194,7 @@
    * @returns {{type: TermType} | {problem: string}}
    */
   function joinedType(types, operator) {
-    if (types.includes("span")) return { problem: "a span is not a value: tags($x) is the tag set of $x" };
+    if (types.includes("span")) return { problem: "a span is not a value: $x.tags is the tag set of $x" };
     const known = types.filter((type) => type !== "any").map(type => type === "string" ? "strings" : type);
     const bad = known.find((type) => !SET_KINDS.has(type));
     if (bad) return { problem: `${operator} joins sets, not ${TYPE_NAMES[bad]}` };

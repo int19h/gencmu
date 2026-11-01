@@ -1718,7 +1718,7 @@ fn first_constant_in_cond(cond: &Cond) -> Option<(usize, usize)> {
     out.first().map(|&(_, at)| at)
 }
 
-const SPAN_NOT_VALUE: &str = "a span is not a value: tags($x) is the tag set of $x";
+const SPAN_NOT_VALUE: &str = "a span is not a value: $x.tags is the tag set of $x";
 
 /// The type of the value a function gives (engine §10).
 pub(crate) fn call_type(call: &str) -> Type {

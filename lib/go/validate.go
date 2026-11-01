@@ -1227,7 +1227,7 @@ const (
 
 var typeNames = map[termType]string{tyPattern: "a tree pattern", tyString: "a string", tyStrings: "a set of strings", tyTags: "a tag set", tySpan: "a span", tySet: "a set", tyAny: "a value"}
 
-const spanNotValue = "a span is not a value: tags($x) is the tag set of $x"
+const spanNotValue = "a span is not a value: $x.tags is the tag set of $x"
 
 // constTypes gives the type of each constant, where the loader knows it
 // (engine §2). The reader knows none: a nil constTypes gives every
