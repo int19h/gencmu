@@ -1938,79 +1938,36 @@ func openPart(t *domTerm) *domTerm {
 // and lists of them, in the order written.
 func constRefs(nodes ...any) []*domTerm {
 	var found []*domTerm
-	collect := func(start clausePart) {
-		walkClause(start, func(p clausePart) bool {
-			if p.t != nil && p.t.Kind == tmConst {
-				found = append(found, p.t)
-				return false
+	collect := func(root valuePart) {
+		walkValues(root, func(part valuePart) *Error {
+			if t := part.term; t != nil {
+				if t.Kind == tmConst {
+					found = append(found, t)
+				} else if part.pattern || t.Kind == tmPattern {
+					walkClause(clausePart{t: t}, func(p clausePart) bool {
+						if p.t != nil && p.t.Kind == tmConst {
+							found = append(found, p.t)
+							return false
+						}
+						return true
+					})
+				}
 			}
-			return true
+			return nil
 		})
-	}
-	term := func(t *domTerm) {
-		if t != nil {
-			collect(clausePart{t: t})
-		}
-	}
-	cond := func(c *domCond) {
-		if c != nil {
-			collect(clausePart{c: c})
-		}
 	}
 	for _, n := range nodes {
 		switch x := n.(type) {
 		case *domTerm:
-			term(x)
+			collect(valuePart{term: x})
 		case *domCond:
-			cond(x)
+			collect(valuePart{cond: x})
 		case []*domCond:
 			for _, c := range x {
-				cond(c)
+				collect(valuePart{cond: c})
 			}
 		case *domRule:
-			// In the order the DOM writes them: the rule's tags, each
-			// alternative's tests and tags, the emission and the
-			// conditions.
-			term(x.Tags)
-			term(x.Value)
-			term(x.Image)
-			for _, a := range x.Alternatives {
-				stack := []*domExpr{a.Expr}
-				for len(stack) > 0 {
-					e := stack[len(stack)-1]
-					stack = stack[:len(stack)-1]
-					if e == nil {
-						continue
-					}
-					if e.Kind == exLiteral {
-						term(e.Value)
-					}
-					for _, end := range e.Ends {
-						term(end)
-					}
-					for _, r := range e.Requirements {
-						term(r.Value)
-					}
-					stack = append(stack, e.Inner, e.Sep)
-					stack = append(stack, e.Items...)
-				}
-				for _, t := range testsIn(a.Expr) {
-					term(t.Value)
-				}
-				term(a.Tags)
-				term(a.Value)
-				term(a.Image)
-			}
-			if x.Emit != nil {
-				for _, it := range x.Emit.Items {
-					term(it.Tags)
-					term(it.Value)
-					term(it.Image)
-				}
-			}
-			for _, c := range x.Conditions {
-				cond(c)
-			}
+			collect(valuePart{rule: x})
 		}
 	}
 	return found

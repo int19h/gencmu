@@ -1,0 +1,14 @@
+{
+  "description": "Boundary reachability keeps undefined rule references for final reference inspection.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $x:missing %conditions $x.followed-by(missing)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "missing is not a rule of stage main",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

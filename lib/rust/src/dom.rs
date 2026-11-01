@@ -1382,8 +1382,23 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 | Cond::Boundary(_, span, _, _) => stack.push(Nested::Term(span)),
                 Cond::Captured(_) => {}
             },
+            Nested::Expr(expr) => match expr {
+                Expr::Source(symbol) => stack.push(Nested::Source(symbol)),
+                Expr::Literal(term) => stack.push(Nested::Term(term)),
+                Expr::ScalarRange(left, right) => stack.extend([Nested::Term(right), Nested::Term(left)]),
+                Expr::Tested(_, value, inner) => stack.extend([Nested::Term(value), Nested::Expr(inner)]),
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                    stack.extend(items.iter().rev().map(Nested::Expr))
+                }
+                Expr::Capture(_, inner) | Expr::Optional(inner, _) => stack.push(Nested::Expr(inner)),
+                Expr::Repeat(item, separator, _) => {
+                    stack.extend(separator.as_deref().map(Nested::Expr));
+                    stack.push(Nested::Expr(item));
+                }
+                _ => {}
+            },
             // Pattern references are handled through Term::Pattern above.
-            Nested::Expr(_) | Nested::Pattern(_) | Nested::PatternItems(_) => {}
+            Nested::Pattern(_) | Nested::PatternItems(_) => {}
         }
     }
 }
@@ -1627,8 +1642,8 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
     found
 }
 
-/// The references to constants in a rule, in the order of its DOM: its
-/// tags, its alternatives' tests and tags, its emission and its conditions.
+/// The references to constants in source clause order: header clauses,
+/// alternatives, conditions, then emission items.
 pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
     let mut out = Vec::new();
     for term in rule.tags.iter().chain(rule.strings.value.iter()).chain(&rule.strings.image) {
@@ -1638,6 +1653,7 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
         let mut pending = vec![&alternative.expr];
         while let Some(expr) = pending.pop() {
             match expr {
+                Expr::Source(symbol) => constants_in(Nested::Source(symbol), &mut out, true),
                 Expr::Literal(term) => references_in_term(term, &mut out),
                 Expr::ScalarRange(a, b) => {
                     references_in_term(a, &mut out);
@@ -1662,6 +1678,7 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
             references_in_term(term, &mut out);
         }
     }
+    rule.conditions.iter().for_each(|cond| constants_in(Nested::Cond(cond), &mut out, true));
     for item in rule.emit.iter().flatten() {
         let (tags, strings) = match item {
             EmitItem::Capture(_, tags, a) => (tags, &a.strings),
@@ -1671,7 +1688,6 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
             references_in_term(term, &mut out);
         }
     }
-    rule.conditions.iter().for_each(|cond| constants_in(Nested::Cond(cond), &mut out, true));
     out
 }
 

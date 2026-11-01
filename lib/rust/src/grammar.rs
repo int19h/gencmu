@@ -263,7 +263,8 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         Constants { stage, unicode, values: HashMap::new(), versions: Vec::new(), latest: HashMap::new() };
     let mut deferred = Vec::new();
     let mut text_order = 0;
-    for (document, dom) in documents {
+    for (index, (document, dom)) in documents.iter().enumerate() {
+        let run = expansion.as_ref().map_or(index, |expanded| expanded.inspection_runs[index]);
         enum Declaration<'a> {
             Rule(&'a RuleDef),
             Directive(&'a Directive),
@@ -293,7 +294,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                     if !constants_in_rule(rule).is_empty()
                         || arguments_by_site.contains_key(&(document.clone(), rule.at))
                     {
-                        checks.push(Check::Rule(document, rule));
+                        checks.push((run, rule.at, 0, Check::Rule(document, rule)));
                     }
                     // The clauses are copied once for the rule, not for each
                     // alternative. Each condition counts as it is copied.
@@ -401,7 +402,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                     let here = |message: String| located(message, document, directive.at);
                     match directive.name.as_str() {
                         "features" => {
-                            checks.push(Check::Feature(grammar.features.len()));
+                            checks.push((run, directive.at, 1, Check::Feature(grammar.features.len())));
                             grammar.features.push((document.clone(), directive.clone()));
                         }
                         "ambiguity-resolution" => {
@@ -434,24 +435,27 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                 }
                 Declaration::Constant(constant) => constants.add(document, constant)?,
                 Declaration::Classifier(classifier) => {
-                    checks.push(Check::Classifier(grammar.classifiers.len()));
+                    checks.push((run, classifier.at, 3, Check::Classifier(grammar.classifiers.len())));
                     grammar.classifiers.push((document.clone(), classifier.clone()));
                 }
-                Declaration::Implication(implication) => checks.push(Check::Implication(document, implication)),
+                Declaration::Implication(implication) => {
+                    checks.push((run, implication.at, 4, Check::Implication(document, implication)))
+                }
             }
         }
     }
     constants.bind()?;
     if let Some(expanded) = &expansion {
-        for (path, dom) in &expanded.validation {
-            checks.extend(dom.rules.iter().map(|rule| Check::Rule(path, rule)));
+        for (run, path, dom) in &expanded.validation {
+            checks.extend(dom.rules.iter().map(|rule| (*run, rule.at, 0, Check::Rule(path, rule))));
         }
         let positions: HashMap<_, _> = expanded.order.iter().enumerate().map(|(i, n)| (n.as_str(), i)).collect();
         grammar.rules.sort_by_key(|r| positions.get(r.name.as_str()).copied().unwrap_or(usize::MAX));
         grammar.index = grammar.rules.iter().enumerate().map(|(i, r)| (r.name.clone(), i)).collect();
     }
     let mut implications = Vec::new();
-    for check in checks {
+    checks.sort_by_key(|(run, at, kind, _)| (*run, *at, *kind));
+    for (_, _, _, check) in checks {
         match check {
             Check::Rule(document, rule) => {
                 let arguments = arguments_by_site.remove(&(document.clone(), rule.at)).unwrap_or_default();

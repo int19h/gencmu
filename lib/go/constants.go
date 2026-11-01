@@ -20,8 +20,9 @@ type stageConst struct {
 // constUser is a rule statement that holds references to constants, which
 // the loader checks once the constants have their final values.
 type constUser struct {
-	doc  string
-	rule *domRule
+	inspectionRun int
+	doc           string
+	rule          *domRule
 }
 
 // constArgument retains an unused argument term until the stage binds constants.

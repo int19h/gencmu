@@ -1,0 +1,18 @@
+{
+  "description": "An included uncalled template retains its slot before the parent's later rule.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"z.md\"\n%rule text $SECOND\n```\n",
+    "z.md": "```jbogenbau\n%rule unused(@X) $FIRST\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$FIRST is not defined in stage main",
+    "where": {
+      "document": "z.md",
+      "line": 2,
+      "column": 18
+    }
+  }
+}

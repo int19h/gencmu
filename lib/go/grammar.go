@@ -133,7 +133,16 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 		g.arguments[key] = append(g.arguments[key], argument)
 	}
 	g.classifierSet.names = map[string]bool{}
-	var checks []func() *Error
+	type inspection struct {
+		run   int
+		at    [2]int
+		kind  int
+		check func() *Error
+	}
+	var checks []inspection
+	schedule := func(run int, at [2]int, kind int, check func() *Error) {
+		checks = append(checks, inspection{run, at, kind, check})
+	}
 	fail := func(doc string, at [2]int, format string, args ...any) *Error {
 		e := grammarError(doc, at, format, args...)
 		e.Stage = stageName
@@ -141,7 +150,11 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 	}
 	var ambiguity []*domDirective
 	textOrder := 0
-	for _, d := range docs {
+	for index, d := range docs {
+		run := index
+		if len(expanded.inspectionRuns) > 0 {
+			run = expanded.inspectionRuns[index]
+		}
 		type item struct {
 			at          [2]int
 			rule        *domRule
@@ -176,9 +189,9 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 			if r := it.rule; r != nil {
 				if len(constRefs(r)) > 0 || ruleHasPattern(r) || len(g.arguments[argumentSite{d.path, r.At}]) > 0 {
 					user := constUser{doc: d.path, rule: r}
-					checks = append(checks, func() *Error { return g.checkConstantRule(user) })
+					schedule(run, r.At, 0, func() *Error { return g.checkConstantRule(user) })
 				} else if r.deferredEmission != nil {
-					checks = append(checks, func() *Error {
+					schedule(run, r.At, 0, func() *Error {
 						g.deferredEmissions = append(g.deferredEmissions, fail(d.path, r.At, "%s", r.deferredEmission.message))
 						return nil
 					})
@@ -242,7 +255,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 				case "features":
 					index := len(g.features)
 					g.features = append(g.features, stageFeature{d.path, dir})
-					checks = append(checks, func() *Error { return g.resolveFeature(index) })
+					schedule(run, dir.At, 1, func() *Error { return g.resolveFeature(index) })
 				case "ambiguity-resolution":
 					ambiguity = append(ambiguity, dir)
 					if len(ambiguity) > 1 {
@@ -275,19 +288,35 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 				index := len(g.classifierSet.items)
 				g.classifierSet.items = append(g.classifierSet.items, classifierItem{doc: d.path, classifier: c})
 				g.classifierSet.names[c.Name] = true
-				checks = append(checks, func() *Error { return g.resolveClassifierKeys(index) })
+				schedule(run, c.At, 3, func() *Error { return g.resolveClassifierKeys(index) })
 			} else {
 				implication := implicationItem{doc: d.path, implication: it.implication}
-				checks = append(checks, func() *Error { return g.addImplications([]implicationItem{implication}) })
+				schedule(run, it.implication.At, 4, func() *Error { return g.addImplications([]implicationItem{implication}) })
 			}
 		}
 	}
 	for _, user := range expanded.validation {
 		if user.rule.Params != nil || len(constRefs(user.rule)) > 0 || ruleHasPattern(user.rule) || len(g.arguments[argumentSite{user.doc, user.rule.At}]) > 0 {
-			checks = append(checks, func() *Error { return g.checkConstantRule(user) })
+			schedule(user.inspectionRun, user.rule.At, 0, func() *Error { return g.checkConstantRule(user) })
 		}
 	}
-	if err := g.resolveConstants(checks, expanded.arguments); err != nil {
+	slices.SortStableFunc(checks, func(a, b inspection) int {
+		if a.run != b.run {
+			return a.run - b.run
+		}
+		if a.at[0] != b.at[0] {
+			return a.at[0] - b.at[0]
+		}
+		if a.at[1] != b.at[1] {
+			return a.at[1] - b.at[1]
+		}
+		return a.kind - b.kind
+	})
+	functions := make([]func() *Error, len(checks))
+	for index, item := range checks {
+		functions[index] = item.check
+	}
+	if err := g.resolveConstants(functions, expanded.arguments); err != nil {
 		return nil, err
 	}
 	g.indexImplications()

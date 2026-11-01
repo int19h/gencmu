@@ -1,0 +1,14 @@
+{
+  "description": "Rule constants follow condition-before-emission clause order.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text \"a\"\n%conditions $.value = $COND\n%emits $ :: $EMIT",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$COND is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 23
+    }
+  }
+}
