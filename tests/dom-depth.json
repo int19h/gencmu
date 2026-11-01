@@ -3332,7 +3332,7 @@
   {
     "description": "Template expression parameter",
     "dom": {
-      "format": 41,
+      "format": 42,
       "rules": [
         {
           "name": "use",
@@ -3392,7 +3392,7 @@
   {
     "description": "Call with transparent body argument",
     "dom": {
-      "format": 41,
+      "format": 42,
       "rules": [
         {
           "name": "use",
@@ -3461,7 +3461,7 @@
   {
     "description": "Call with transparent target choice",
     "dom": {
-      "format": 41,
+      "format": 42,
       "rules": [
         {
           "name": "use",
@@ -3535,7 +3535,7 @@
   {
     "description": "Call with transparent requirements argument",
     "dom": {
-      "format": 41,
+      "format": 42,
       "rules": [
         {
           "name": "use",
@@ -3611,7 +3611,7 @@
   {
     "description": "Call with tested symbol argument",
     "dom": {
-      "format": 41,
+      "format": 42,
       "rules": [
         {
           "name": "use",
@@ -3691,7 +3691,7 @@
   {
     "description": "Template literal keeps the string depth",
     "dom": {
-      "format": 41,
+      "format": 42,
       "rules": [
         {
           "name": "use",
@@ -3753,7 +3753,7 @@
   {
     "description": "Template range keeps the string depth",
     "dom": {
-      "format": 41,
+      "format": 42,
       "rules": [
         {
           "name": "use",

@@ -10,9 +10,11 @@ import (
 // Terms and conditions (engine §10).
 
 type spanVal struct {
-	a, b  int // absolute token range in the stage input
-	whole bool
-	tags  *tagset // for a whole capture: the captured part's tags
+	emitted      [2]string
+	stringReader func(int) string
+	a, b         int // absolute token range in the stage input
+	whole        bool
+	tags         *tagset // for a whole capture: the captured part's tags
 	// lazy, for $ of a completing item, gives its tags on first use: the
 	// tag term runs only where a condition reads them (§4).
 	lazy      *lazyTags
@@ -415,6 +417,22 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 		}
 		return nil
 	case tmCall:
+		if (t.Str == "value" || t.Str == "image") && len(t.Items) == 1 && t.Items[0].Kind == tmCall && t.Items[0].Str == "emitted" {
+			span, ok := ev.capture(t.Items[0].Items[0].Str)
+			if !ok {
+				panic(&parseFailure{message: "an emitted read requires a present capture"})
+			}
+			channel := 0
+			if t.Str == "image" {
+				channel = 1
+			}
+			text := span.emitted[channel]
+			if span.stringReader != nil {
+				text = span.stringReader(channel)
+			}
+			w.endTerm(value{kind: vString, s: text})
+			return nil
+		}
 		if isSpanFunction(t.Str) {
 			w.endTerm(value{kind: vString, s: ev.run.spanValue(w.span(ev, t))})
 			return nil

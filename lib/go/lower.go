@@ -106,10 +106,12 @@ type lrule struct {
 }
 
 type lowered struct {
-	boundaryOnce sync.Once
-	boundary     *boundaryMachine
-	prepareOnce  sync.Once
-	preparation  *preparation
+	stringsOnce   sync.Once
+	stringDemands map[int32]uint8
+	boundaryOnce  sync.Once
+	boundary      *boundaryMachine
+	prepareOnce   sync.Once
+	preparation   *preparation
 	// memo keeps the answers of ordinary nested queries across parses
 	// (engine §4.3).
 	memo           sharedMemo
@@ -158,6 +160,7 @@ type slot struct {
 // symTest is a test of a symbol in a body (engine §2, §4) with its value:
 // an exact string for = or ≠, or signed stored-tag requirements.
 type symTest struct {
+	defaultValue *string
 	op           string
 	other        *symTest
 	requirements []resolvedRequirement
@@ -1024,16 +1027,7 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		// Any other optional is a helper, and a marked one is elidable,
 		// with the terminal that its marker names
 		// (§3.8).
-		elide := ""
-		var elideT *symTest
-		if e.Elidable {
-			if t, tested := elidableTerminal(inner); t != "" {
-				elide = t
-				if tested != nil {
-					elideT = lw.boundTest(tested)
-				}
-			}
-		}
+		elide, elideT := lw.elision(e, a)
 		out := lw.helper(a, ruleName, elide, elideT, func(int32) [][]slot {
 			return append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
 		})
@@ -1343,4 +1337,46 @@ func (l *lowered) computeCycles() {
 			}
 		}
 	}
+}
+
+func (lw *lowerer) elision(e *domExpr, a *sAlt) (string, *symTest) {
+	elide := ""
+	var elideT *symTest
+	if e.Elidable {
+		if t, tested := elidableTerminal(e.Inner); t != "" {
+			elide = t
+			if tested != nil {
+				elideT = lw.boundTest(tested)
+			}
+		}
+	}
+	if e.Elidable {
+		var value *string
+		if e.Default != nil {
+			resolved, err := lw.g.evaluateClosed(a.doc, e.Default, a.at)
+			if err != nil || resolved.ty != tyString {
+				lw.loweringFault(a, "a default requires one string")
+				return "", nil
+			}
+			d := resolved.s
+			value = &d
+		} else if elideT != nil && elideT.op == "=" {
+			d := elideT.sound
+			value = &d
+		}
+		if value != nil {
+			if e.Default != nil && elideT != nil && !testHoldsOf(elideT, func(s string) bool { return s == *value }, newInterner().single(elide)) {
+				lw.loweringFault(a, "a default fails its head test")
+				lw.l.faultLocation.Line = e.DefaultAt[0]
+				lw.l.faultLocation.Column = e.DefaultAt[1]
+				lw.l.faultLocation.defaultLocation = true
+			}
+			if elideT == nil {
+				elideT = &symTest{op: "tags"}
+			}
+			elideT.defaultValue = value
+		}
+	}
+
+	return elide, elideT
 }

@@ -269,8 +269,12 @@ type domBuilder struct {
 	uni    *unicodeTable // configured Unicode data for input and diagnostics
 	// closedFor is what the reader is reading as a closed term, a
 	// constant's value or a test's operand, or "" (§9, §10).
-	closedFor string
-	inRecipe  bool
+	closedFor   string
+	inRecipe    bool
+	inCondition bool
+	defaultHead *Node
+	headDefault templateObject
+	defaultNode *Node
 	// types keeps the types found of the terms and conditions read, each
 	// found once (§10).
 	types *typeMemo
@@ -311,7 +315,7 @@ var domRules = map[string]bool{
 	"constant-definition": true, "constant-definer": true, "constant-reference": true,
 	"classifier": true, "classifier-name": true, "classifier-entry": true, "classifier-key": true,
 	"classifier-operator": true, "classifier-class": true, "implication-declaration": true,
-	"headed-body": true, "string-terminal": true, "wildcard": true, "tag-test": true, "tag-requirement": true, "value-test": true,
+	"headed-body": true, "string-terminal": true, "wildcard": true, "tag-test": true, "tag-requirement": true, "value-test": true, "default-value": true,
 	"value-clause": true, "image-clause": true, "erased-clause": true, "recipe": true, "recipe-atom": true,
 	"method": true, "method-receiver": true, "method-selector": true, "method-name": true, "arguments": true,
 	"argument-term": true, "tag-run": true, "string-run": true, "integer": true, "tree-comparator": true,
@@ -887,10 +891,12 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		r.Alternatives = append(r.Alternatives, b.alternative(p))
 	}
 	if p := b.one(n, "conditions-clause"); p != nil {
+		b.inCondition = true
 		// Each item of the list is one condition (§9).
 		for _, c := range b.some(p, "implication", 1) {
 			r.Conditions = append(r.Conditions, b.implication(c))
 		}
+		b.inCondition = false
 	}
 	r.Categories = b.categories(n, r.Op)
 	if p := b.one(n, "emits-clause"); p != nil {

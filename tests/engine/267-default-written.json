@@ -1,0 +1,23 @@
+{
+  "description": "default written.",
+  "grammar": "%rule text $x:r\n%conditions $x.emitted.value = \"tojie\"\n%rule r TO [+JI ≝ \"jie\"]",
+  "tokens": [
+    {
+      "text": "to",
+      "tags": [
+        "TO"
+      ]
+    },
+    {
+      "text": "jie",
+      "tags": [
+        "JI"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

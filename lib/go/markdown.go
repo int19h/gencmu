@@ -16,6 +16,7 @@ import (
 type Error struct {
 	spliceProblem    spliceProblem
 	boundaryLocation bool
+	defaultLocation  bool
 	recipeCycle      bool   // a failed cached cycle can recover its recipe position
 	Kind             string // "grammar" for a load error, "usage" for a caller's mistake
 	Document         string

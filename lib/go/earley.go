@@ -12,6 +12,7 @@ import (
 // forest the ranking (rank.go) reads.
 
 type capVal struct {
+	emitted    [2]string
 	start, end int32
 	tags       int32
 	structure  int
@@ -24,6 +25,7 @@ type capVal struct {
 // by the recognizer, 0 for none. The common case of one slot, the implicit
 // capture of a production with one symbol, needs no interning.
 type itemKey struct {
+	emitted           [2]string
 	boundary          *boundaryRecord
 	prod              *production
 	dot               int32
@@ -183,6 +185,7 @@ type link struct {
 
 // symNode is every completed item of one rule over one span with one tag set.
 type symNode struct {
+	emitted             [2]string
 	boundary            *boundaryRecord
 	boundaryAnnotations *boundaryAnnotations
 	closeRequested      bool
@@ -198,6 +201,7 @@ type symNode struct {
 }
 
 type symKey struct {
+	emitted            [2]string
 	boundary           *boundaryRecord
 	requested          bool
 	lexical            *rankedFrame
@@ -452,7 +456,7 @@ func (r *recognizer) resume() *nestedQuery {
 		case stepEmpties:
 			for ; st.next < len(st.list); st.next++ {
 				c := st.list[st.next]
-				if q := r.advance(st.it, st.k, capVal{c.start, c.end, c.tags.id, c.structure, c.closes}, link{prev: st.it, sym: c}, st.it.strict); q != nil {
+				if q := r.advance(st.it, st.k, capVal{c.emitted, c.start, c.end, c.tags.id, c.structure, c.closes}, link{prev: st.it, sym: c}, st.it.strict); q != nil {
 					return q
 				}
 			}
@@ -470,7 +474,7 @@ func (r *recognizer) resume() *nestedQuery {
 				if st.empty && r.heldBack(w) {
 					continue
 				}
-				if q := r.advance(w, st.k, capVal{st.c.start, st.c.end, st.ts.id, st.c.structure, st.c.closes}, link{prev: w, sym: st.c}, st.empty && w.strict); q != nil {
+				if q := r.advance(w, st.k, capVal{st.c.emitted, st.c.start, st.c.end, st.ts.id, st.c.structure, st.c.closes}, link{prev: w, sym: st.c}, st.empty && w.strict); q != nil {
 					return q
 				}
 			}
@@ -652,6 +656,7 @@ func (r *recognizer) restore(k int, p *production) {
 		return
 	}
 	key := itemKey{prod: p, origin: int32(k)}
+	r.finishStrings(&key, int32(k+1))
 	r.finishStructure(&key)
 	r.finishCloses(&key, int32(k+1))
 	s := r.set(k + 1)
@@ -724,7 +729,8 @@ func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 			tags = r.lazyTags(p, caps, int32(k), int32(k), key.structure, key.closes)
 		}
 		r.predictTags = tags
-		r.ev = r.run.evaluator(r.g, r.captureFunc(p, caps, int32(k), int32(k), tags, key.structure, key.closes))
+		r.finishStrings(&key, int32(k))
+		r.ev = r.run.evaluator(r.g, withStringCapture(r.captureFunc(p, caps, int32(k), int32(k), tags, key.structure, key.closes), func(c int) string { return key.emitted[c] }))
 		r.pending, r.condAt = true, 0
 		countCondition()
 		r.startCondition(r.ev, p.predictConds[0], p)
@@ -756,6 +762,9 @@ func countCondition() {
 // and one ordinary step makes an item ordinary, which is then processed
 // again for what its strictness held back.
 func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
+	if !hasLink {
+		r.finishStrings(&key, int32(k))
+	}
 	if strict && int(key.dot) == len(key.prod.rhs) {
 		return
 	}
@@ -955,7 +964,7 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	if p.ranked != nil {
 		option = p.option
 	}
-	key := symKey{boundary: it.boundary, requested: p.closeRequested, lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: it.closes, familySummary: it.familySummary}
+	key := symKey{emitted: it.emitted, boundary: it.boundary, requested: p.closeRequested, lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: it.closes, familySummary: it.familySummary}
 	c := s.syms[key]
 	if c != nil {
 		c.items = append(c.items, it)
@@ -965,7 +974,7 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 		r.step.kind = stepNext
 		return nil
 	}
-	c = &symNode{boundary: it.boundary, boundaryAnnotations: it.boundaryAnnotations, closeRequested: p.closeRequested, lexical: p.lexical, option: option, structure: it.structure, closes: it.closes, familySummary: it.familySummary, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
+	c = &symNode{emitted: it.emitted, boundary: it.boundary, boundaryAnnotations: it.boundaryAnnotations, closeRequested: p.closeRequested, lexical: p.lexical, option: option, structure: it.structure, closes: it.closes, familySummary: it.familySummary, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
 	if s.syms == nil {
 		s.syms = map[symKey]*symNode{}
 	}
@@ -1017,8 +1026,27 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		if r.observesCloses(p) && l.sym != nil && r.g.rankedHelpers[l.sym.rule] != nil {
 			cv.closes = r.closes.seal(cv.closes, r.blockEvent(l.sym))
 		}
+		if l.sym != nil {
+			cv.emitted = l.sym.emitted
+		} else {
+			cv.emitted = r.tokenStrings(int(l.tok))
+		}
 		if slot := p.capSlot[pos]; slot >= 0 {
 			r.setCap(&key, slot, cv)
+		}
+		if channels := r.g.demandedStrings()[p.lhs]; channels != 0 {
+			for channel := 0; channel < 2; channel++ {
+				recipe := p.value
+				if channel == 1 && p.image != nil {
+					recipe = p.image
+				}
+				if recipe != nil || p.nothing {
+					continue
+				}
+				if channels&(1<<channel) != 0 {
+					key.emitted[channel] += cv.emitted[channel]
+				}
+			}
 		}
 		key.dot++
 		if r.observesCloses(p) {
@@ -1052,6 +1080,7 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			key.prefix = r.machine.concat(it.prefix, structure)
 		}
 		r.finishStructure(&key)
+		r.finishStrings(&key, int32(k))
 	}
 	// Each condition the walk examines counts before it is looked at, so
 	// a walk wider than the dot's own conditions passes the budget at once.
@@ -1079,7 +1108,7 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			if c.whole && whole == nil {
 				whole = r.lazyTags(p, caps, key.origin, int32(k), key.structure, key.closes)
 			}
-			r.startCondition(r.run.evaluator(r.g, r.captureFunc(p, caps, key.origin, int32(k), whole, key.structure, key.closes)), c.cond, p)
+			r.startCondition(r.run.evaluator(r.g, withStringCapture(r.captureFunc(p, caps, key.origin, int32(k), whole, key.structure, key.closes), func(c int) string { return key.emitted[c] })), c.cond, p)
 		}
 		resuming = false
 		if q := r.resumeCondition(); q != nil {
@@ -1221,7 +1250,7 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 			if p.lexical != nil {
 				if cv, found := p.lexical.captures[name]; found {
 					a, b := r.observed(cv.start, cv.end)
-					return spanVal{a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags], machine: r.machine, structure: cv.structure, arena: r.closes, closes: cv.closes}, true
+					return spanVal{emitted: cv.emitted, a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags], machine: r.machine, structure: cv.structure, arena: r.closes, closes: cv.closes}, true
 				}
 			}
 			return spanVal{}, false
@@ -1238,7 +1267,7 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 			searched += steps + 1
 		}
 		a, b := r.observed(cv.start, cv.end)
-		return spanVal{a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags], machine: r.machine, structure: cv.structure, arena: r.closes, closes: cv.closes}, true
+		return spanVal{emitted: cv.emitted, a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags], machine: r.machine, structure: cv.structure, arena: r.closes, closes: cv.closes}, true
 	}
 }
 

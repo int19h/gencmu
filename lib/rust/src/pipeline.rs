@@ -8,7 +8,7 @@ use crate::dom::{FeatureKind, Guard};
 use crate::earley::{matchers, Chart, EngineError, Matcher, Recognizer, Recon, Shared, Tok};
 use crate::error::Error;
 use crate::grammar::{Change, ClassifierTables, KeyStep, Lean, StageGrammar, ELISION};
-use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest, TestOp};
+use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest};
 use crate::rank::{Act, Ranker, Verdict as RankVerdict};
 use crate::recent::Recent;
 use crate::result::{
@@ -895,13 +895,11 @@ impl Pipeline {
                 let production = &g.prods[prod as usize];
                 let rule = &g.rules[production.rule as usize];
                 if let (true, Some(terminal), true) = (rule.helper, &rule.elided, production.syms.is_empty()) {
-                    let test =
-                        rule.elided_test.map(|test| &g.tests[test as usize]).filter(|test| test.op == TestOp::Is);
                     records.push(crate::restoration::record(
                         terminal.clone(),
                         start as usize,
                         input,
-                        test.and_then(|test| test.sound.clone()),
+                        rule.elided_value.clone(),
                     ));
                 }
             }

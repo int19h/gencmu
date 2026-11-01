@@ -823,10 +823,7 @@ func (r *recognizer) omissionAllowed(p *production) bool {
 		return true
 	}
 	t := p.elidedTest
-	sound := ""
-	if t.op == "=" {
-		sound = t.sound
-	}
+	sound := elidedValue(t)
 	return testHoldsOf(t, func(s string) bool { return s == sound }, r.run.ps.in.single(p.elided))
 }
 func (r *recognizer) derivationStructure(d *dn) int {

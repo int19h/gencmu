@@ -134,7 +134,7 @@ fn routes(
             }
             unique(states.into_iter().filter(|state| state.mask != 0).map(|state| state.route))
         }
-        Expr::Optional(inner, _) => unique(std::iter::once(Route::default()).chain(visit(inner))),
+        Expr::Optional(inner, _, _) => unique(std::iter::once(Route::default()).chain(visit(inner))),
         Expr::Repeat(inner, separator, _) => {
             let items = visit(inner);
             if let Some(separator) = separator {
@@ -464,7 +464,9 @@ impl RankedGroups {
                     );
                 }
             }
-            Expr::Optional(inner, _) => self.visit(inner, &format!("{path}/optional"), final_position, owner, source),
+            Expr::Optional(inner, _, _) => {
+                self.visit(inner, &format!("{path}/optional"), final_position, owner, source)
+            }
             Expr::Repeat(inner, separator, _) => {
                 self.visit(inner, &format!("{path}/repeat"), false, owner, source);
                 if let Some(separator) = separator {
@@ -612,7 +614,7 @@ pub(crate) fn capture_names(expr: &Expr) -> BTreeSet<String> {
                 pending.push(child);
             }
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => pending.extend(items),
-            Expr::Optional(child, _) | Expr::Tested(_, _, child) => pending.push(child),
+            Expr::Optional(child, _, _) | Expr::Tested(_, _, child) => pending.push(child),
             Expr::Repeat(child, separator, _) => {
                 pending.push(child);
                 if let Some(s) = separator {
@@ -646,7 +648,7 @@ fn expression_children(expr: &Expr) -> Vec<(&Expr, String)> {
             };
             items.iter().enumerate().map(|(i, child)| (child, format!("/{key}/{i}"))).collect()
         }
-        Expr::Optional(child, _) => vec![(child, "/optional".into())],
+        Expr::Optional(child, _, _) => vec![(child, "/optional".into())],
         Expr::Repeat(child, separator, _) => {
             let mut out = vec![(child.as_ref(), "/repeat".into())];
             if let Some(separator) = separator {

@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%const $P #$Q\n```",
   "expect": {
     "dom": {
-      "format": 41,
+      "format": 42,
       "rules": [],
       "directives": [],
       "constants": [

@@ -9,7 +9,7 @@ from typing import Any, Union
 
 from ._earley import RESTORE, Evaluator, Forest, Parser, Sources, StageContext
 from ._errors import _GrammarFault
-from ._grammar import Lowered, Production, SymbolTest
+from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._markdown import line_column
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Restoration, Tags, Token
 from ._rank import (
@@ -83,7 +83,7 @@ def derivation(forest: Forest, rope: Rope | None) -> DNode:
 def _restored_value(test: SymbolTest | None) -> str | None:
     """A restored terminator's value: the string of its = test,
     or nothing (engine §7)."""
-    return test.value if test is not None and test.op == "=" else None
+    return test.default_value if test is not None else None
 
 
 def _range_source(sources: Sources, start: int, end: int) -> Range:
@@ -320,6 +320,8 @@ class Emitter:
             return self.channels[key]
         if isinstance(part, DRead):
             return getattr(self.tokens[part.token], channel)
+        if part.production.elided is not None and not part.children:
+            return (_restored_value(part.production.elided_test) or "") if channel == "value" else ""
         if part.production.erased:
             return ""
         if key in self.active:

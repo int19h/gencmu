@@ -4,7 +4,7 @@ import "fmt"
 
 const templateSourceKey = "\x00source"
 
-type templateSource struct{ at, ranked [2]int }
+type templateSource struct{ at, ranked, defaultAt [2]int }
 
 func templateLen(n templateObject) int {
 	size := len(n)
@@ -91,6 +91,11 @@ func templateAnnotateExpr(n templateObject, e *domExpr) {
 	if e.RankedAt != [2]int{} {
 		n[templateSourceKey].(*templateSource).ranked = e.RankedAt
 	}
+	if e.DefaultAt != [2]int{} {
+		templateLocate(n, [2]int{})
+		n[templateSourceKey].(*templateSource).defaultAt = e.DefaultAt
+	}
+	templateAnnotateTerm(templateObj(n["default"]), e.Default)
 	for i, v := range templateList(n[e.Kind]) {
 		if i < len(e.Items) {
 			templateAnnotateExpr(templateObj(v), e.Items[i])
@@ -227,6 +232,9 @@ func restoreTemplateRuleLocations(r *domRule, raw templateObject) {
 		if e == nil || n == nil {
 			return
 		}
+		if s, ok := n[templateSourceKey].(*templateSource); ok {
+			e.DefaultAt = s.defaultAt
+		}
 		if s, ok := n[templateSourceKey].(*templateSource); ok && s.ranked != [2]int{} {
 			locations[path] = s.ranked
 		}
@@ -241,6 +249,7 @@ func restoreTemplateRuleLocations(r *domRule, raw templateObject) {
 		}
 		expr(e.Inner, templateObj(n[innerKey]), path+"/"+innerKey, locations)
 		expr(e.Sep, templateObj(n["separator"]), path+"/separator", locations)
+		term(e.Default, templateObj(n["default"]))
 		term(e.Value, templateObj(n["value"]))
 		if e.Kind == exLiteral {
 			term(e.Value, templateObj(n["literal"]))

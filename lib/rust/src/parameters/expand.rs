@@ -129,6 +129,7 @@ fn child_position<'a>(key: &str, position: &'a str) -> &'a str {
         "tags",
         "value",
         "image",
+        "default",
         "requirements",
         "range",
         "literal",

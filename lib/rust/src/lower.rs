@@ -56,6 +56,7 @@ pub(crate) enum LTerm {
     /// The members of the first set that are not in the second.
     Diff(Box<LTerm>, Box<LTerm>),
     Value(Span),
+    Emitted(Span, bool),
     Image(Span),
     Text(Span),
     DecomposedText(Span),
@@ -149,7 +150,7 @@ pub(crate) struct SymbolTest {
 pub(crate) const NO_TEST: u32 = u32::MAX;
 
 impl SymbolTest {
-    fn new(op: &str, value: &Term, unicode: &crate::unicode::Unicode) -> Self {
+    pub(crate) fn new(op: &str, value: &Term, unicode: &crate::unicode::Unicode) -> Self {
         let mut test = Self {
             op: TestOp::Superset,
             sound: None,
@@ -290,6 +291,7 @@ pub(crate) struct LRule {
     /// The complete symbol predicate on the terminator, if present.
     /// An equality test also supplies its restored value (engine §7).
     pub elided_test: Option<u32>,
+    pub elided_value: Option<String>,
     pub elided_owner: Option<u32>,
 }
 
@@ -471,7 +473,7 @@ struct HelperDef {
     alternative: usize,
     expr: usize,
     prods: Vec<Sequence>,
-    elided: Option<(String, Option<u32>)>,
+    elided: Option<(String, Option<u32>, Option<String>)>,
 
     /// The helpers of the places written inside this one, in order.
     children: Vec<usize>,
@@ -555,7 +557,11 @@ impl<'a> Lowerer<'a> {
     /// The terminator of an elidable optional, the first item of its
     /// content, and the id of its `=` test, if it has one (§3.8). The
     /// reader, or the check of a DOM, has made sure that it is one.
-    fn elided_terminal(&mut self, expr: &Expr) -> (String, Option<u32>) {
+    fn elided_terminal(
+        &mut self,
+        expr: &Expr,
+        default: &Option<crate::dom::DefaultValue>,
+    ) -> (String, Option<u32>, Option<String>) {
         let first = match expr {
             Expr::Seq(items) => &items[0],
             other => other,
@@ -565,7 +571,16 @@ impl<'a> Lowerer<'a> {
             base = inner;
         }
         let Expr::Ref(name) = base else { unreachable!("an elision begins with an ordinary tag") };
-        (name.clone(), self.symbol_test(first))
+        let test = self.symbol_test(first);
+        let value = if let Some(crate::dom::DefaultValue { term: Term::Str(value), .. }) = default {
+            Some(value.clone())
+        } else {
+            test.and_then(|id| {
+                let t = &self.tests[id as usize];
+                (t.op == TestOp::Is).then(|| t.sound.clone()).flatten()
+            })
+        };
+        (name.clone(), test, value)
     }
 
     fn symbol_test(&mut self, expr: &Expr) -> Option<u32> {
@@ -602,7 +617,12 @@ impl<'a> Lowerer<'a> {
     }
 
     /// Makes the helper of a place whose inside `enter` began.
-    fn helper(&mut self, prods: Vec<Sequence>, elided: Option<(String, Option<u32>)>, expr: &Expr) -> Sym {
+    fn helper(
+        &mut self,
+        prods: Vec<Sequence>,
+        elided: Option<(String, Option<u32>, Option<String>)>,
+        expr: &Expr,
+    ) -> Sym {
         let id = (self.grammar.rules.len() + self.helpers.len()) as u32;
         let children = self.places.pop().expect("a place entered");
         self.places.last_mut().expect("an alternative").push(self.helpers.len());
@@ -716,7 +736,7 @@ impl<'a> Lowerer<'a> {
             // A plain optional that holds a capture expands in place, as
             // `(ε | x)` would: first the empty sequence, then each expansion
             // of `x` (§3.2).
-            Expr::Optional(inner, Mark::Plain) if holds_capture(inner, false) => {
+            Expr::Optional(inner, Mark::Plain, _) if holds_capture(inner, false) => {
                 let mut out = vec![Sequence::new()];
                 out.extend(self.expand(inner));
                 for sequence in &mut out {
@@ -728,7 +748,7 @@ impl<'a> Lowerer<'a> {
                 }
                 out
             }
-            Expr::Optional(inner, Mark::Plain)
+            Expr::Optional(inner, Mark::Plain, _)
                 if !self.grammar.ranked.groups.is_empty() && holds_capture(inner, true) =>
             {
                 // Preserve tag arity, but select one complete route per helper.
@@ -758,12 +778,12 @@ impl<'a> Lowerer<'a> {
                     })
                     .collect()
             }
-            Expr::Optional(inner, mark) => {
+            Expr::Optional(inner, mark, default) => {
                 self.enter();
                 let body = self.expand(inner);
                 // A marked optional is elidable, with the terminal that its
                 // marker names (§3.8).
-                let elided = (*mark != Mark::Plain).then(|| self.elided_terminal(inner));
+                let elided = (*mark != Mark::Plain).then(|| self.elided_terminal(inner, default));
                 let mut prods = vec![Sequence::new()];
                 prods.extend(body);
                 let sym = self.helper(prods, elided, expr);
@@ -836,7 +856,7 @@ fn holds_capture(expr: &Expr, include_ranked: bool) -> bool {
         Expr::Ranked(items, _) | Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
             items.iter().any(|item| holds_capture(item, include_ranked))
         }
-        Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => holds_capture(inner, include_ranked),
+        Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => holds_capture(inner, include_ranked),
         Expr::Repeat(..) => false,
         Expr::Source(_)
         | Expr::Ref(_)
@@ -946,6 +966,10 @@ impl<'a> Scope<'a> {
                         })
                         .collect::<Result<Vec<_>, _>>()?,
                 ),
+                ("value" | "image", [Arg::Term(Term::Call(method, args))]) if method == "emitted" => {
+                    let [Arg::Term(receiver)] = &args[..] else { return Err(Missing) };
+                    LTerm::Emitted(self.span(receiver)?, name == "image")
+                }
                 ("value", [Arg::Term(span)]) => LTerm::Value(self.span(span)?),
                 ("image", [Arg::Term(span)]) => LTerm::Image(self.span(span)?),
                 ("source-text", [Arg::Term(span)]) => LTerm::Text(self.span(span)?),
@@ -1183,6 +1207,7 @@ pub(crate) fn lower(
             prods: Vec::new(),
             elided: None,
             elided_test: None,
+            elided_value: None,
             elided_owner: None,
         })
         .collect();
@@ -1195,8 +1220,9 @@ pub(crate) fn lower(
             helper: true,
             categories: Vec::new(),
             prods: Vec::new(),
-            elided: helper.elided.as_ref().map(|(name, _)| name.clone()),
-            elided_test: helper.elided.as_ref().and_then(|(_, test)| *test),
+            elided: helper.elided.as_ref().map(|(name, _, _)| name.clone()),
+            elided_test: helper.elided.as_ref().and_then(|(_, test, _)| *test),
+            elided_value: helper.elided.as_ref().and_then(|(_, _, value)| value.clone()),
             elided_owner: helper.elided.as_ref().map(|_| helper.owner),
         });
     }
@@ -1344,6 +1370,7 @@ pub(crate) fn lower(
             prods: Vec::new(),
             elided: None,
             elided_test: None,
+            elided_value: None,
             elided_owner: None,
         });
     }

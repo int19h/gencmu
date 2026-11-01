@@ -1,0 +1,17 @@
+{
+  "description": "distinct walks.",
+  "grammar": "%rule text $x:r\n%conditions $x.emitted.value = \"yes\"\n%rule r A := \"no\" | A := \"yes\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

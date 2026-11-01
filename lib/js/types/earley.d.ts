@@ -83,8 +83,8 @@ export declare class TagInterner {
      */
     get(id: number): TagSet;
 }
-/** @param {Pick<Production,"elided"|"elidedTest">} production @returns {boolean} */
-export declare function omissionAllowed(production: Pick<Production, "elided" | "elidedTest">): boolean;
+/** @param {Pick<Production,"elided"|"elidedTest"|"elidedValue">} production @returns {boolean} */
+export declare function omissionAllowed(production: Pick<Production, "elided" | "elidedTest" | "elidedValue">): boolean;
 /** @param {ParseContext} context @param {string} terminal @param {number} at @returns {number} */
 export declare function structuralRead(context: ParseContext, terminal: string, at: number): number;
 /**
@@ -253,6 +253,10 @@ export declare class Item {
     boundaryAnnotations: BoundaryAnnotations | null;
     prefix: number;
     structure: number;
+    /** @type {Record<string,string>|undefined} */
+    emitted: Record<string, string> | undefined;
+    /** @type {Record<string,string>|undefined} */
+    stringPrefix: Record<string, string> | undefined;
     /** @type {CloseObservation|null} */
     observationPrefix: CloseObservation | null;
     /** @type {CloseObservation|null} */
@@ -469,6 +473,7 @@ export declare function testHolds(context: ParseContext, test: SymbolTest, from:
 export declare function rootItems(chart: Chart, rule: string): Item[];
 export type StepScope = {
     scope: ChartScope | null;
+    emitted?: Record<string, string>;
     structure: number;
     observation: CloseObservation | null;
     obligations?: any[];
@@ -478,6 +483,8 @@ declare class ChartScope implements Scope {
     context: ParseContext;
     production: Production;
     structure: number;
+    /** @type {Record<string,string>|undefined} */
+    emitted: Record<string, string> | undefined;
     observation: CloseObservation | null;
     invalidRestoration: boolean;
     slots: Captured;

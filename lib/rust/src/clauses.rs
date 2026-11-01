@@ -982,7 +982,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<&Expr> {
                     stack.push((expr, true));
                     stack.extend(items.iter().rev().map(|item| (item, false)));
                 }
-                Expr::Optional(inner, Mark::Plain) => {
+                Expr::Optional(inner, Mark::Plain, _) => {
                     stack.push((expr, true));
                     stack.push((inner, false));
                 }
@@ -1000,7 +1000,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<&Expr> {
                             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                                 inside.extend(items.iter().rev())
                             }
-                            Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => inside.push(inner),
+                            Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => inside.push(inner),
                             Expr::Repeat(item, separator, _) => {
                                 inside.extend(separator.as_deref());
                                 inside.push(item);
@@ -1191,7 +1191,7 @@ impl<'e> CaptureSequences<'e> {
                 Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
                     stack.extend(items.iter().rev())
                 }
-                Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => stack.push(inner),
+                Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push(inner),
                 Expr::Repeat(item, separator, _) => {
                     stack.extend(separator.as_deref());
                     stack.push(item);
@@ -1226,7 +1226,7 @@ impl<'e> CaptureSequences<'e> {
                         stack.push((expr, true));
                         stack.extend(items.iter().rev().map(|item| (item, false)));
                     }
-                    Expr::Optional(inner, Mark::Plain) => {
+                    Expr::Optional(inner, Mark::Plain, _) => {
                         stack.push((expr, true));
                         stack.push((inner, false));
                     }
@@ -1340,7 +1340,7 @@ fn item_captures_and_braces(expr: &Expr) -> ItemsAndBraces<'_> {
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
                 stack.extend(items.iter().rev().map(|item| (item, place)));
             }
-            Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => stack.push((inner, place)),
+            Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push((inner, place)),
             Expr::Ref(_)
             | Expr::Terminal(_)
             | Expr::Literal(_)
@@ -1386,7 +1386,7 @@ pub(crate) fn repeats_item_capture(expr: &Expr) -> bool {
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
                 stack.extend(items.iter())
             }
-            Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => stack.push(inner),
+            Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push(inner),
             Expr::Ref(_)
             | Expr::Terminal(_)
             | Expr::Literal(_)
@@ -1414,7 +1414,7 @@ fn flat_braces_in(expr: &Expr) -> usize {
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
                 stack.extend(items.iter().rev());
             }
-            Expr::Optional(inner, _) | Expr::Tested(_, _, inner) | Expr::Capture(_, inner) => stack.push(inner),
+            Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) | Expr::Capture(_, inner) => stack.push(inner),
             Expr::Ref(_)
             | Expr::Terminal(_)
             | Expr::Literal(_)
@@ -1461,7 +1461,7 @@ pub(crate) fn braces_sequences(expr: &Expr) -> Vec<Vec<Read<'_>>> {
                     stack.push((current, true));
                     stack.extend(items.iter().rev().map(|item| (item, false)));
                 }
-                Expr::Optional(inner, Mark::Plain) => {
+                Expr::Optional(inner, Mark::Plain, _) => {
                     stack.push((current, true));
                     stack.push((inner, false));
                 }

@@ -4013,8 +4013,9 @@
     else if (name === "followed-by" || name === "preceded-by") valid = bare && args.length > 0 && args.every(arg => rule(arg) || named(arg, "terminal"));
     else if (name === "without-elision-except") valid = bare && args.length === 1 && rule(args[0]);
     else if (name === "without-elision") valid = bare && args.length === 0;
-    else if (name === "verbatim-text" || name === "emitted") valid = recipe && bare && args.length === 0;
-    else valid = args.length === 0 && (span || recipe && receiver.method === "emitted" && (name === "value" || name === "image"));
+    else if (name === "verbatim-text") valid = recipe && bare && args.length === 0;
+    else if (name === "emitted") valid = bare && args.length === 0;
+    else valid = args.length === 0 && (span || receiver.method === "emitted" && (name === "value" || name === "image"));
     return valid ? null : METHOD_SIGNATURE_PROBLEM;
   }
 
@@ -4063,10 +4064,10 @@
     } else if (name === "classify") {
       if (!string || args.length !== 1 || typeof args[0].classifier !== "string") return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "emitted") {
-      if (!recipe || args.length || typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) return METHOD_SIGNATURE_PROBLEM;
+      if (args.length || typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) return "emitted requires a bare capture in a recipe or condition";
     } else if (name === "verbatim-text") {
       if (!recipe || !span || args.length) return METHOD_SIGNATURE_PROBLEM;
-    } else if (!span && !(recipe && type === "emitted" && (name === "value" || name === "image"))) {
+    } else if (!span && !(type === "emitted" && (name === "value" || name === "image"))) {
       return METHOD_SIGNATURE_PROBLEM;
     } else if (args.length) return METHOD_SIGNATURE_PROBLEM;
     return null;
@@ -4661,7 +4662,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 41;
+  const DOM_FORMAT = 42;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
   // A classifier name starts with a lowercase letter. A class name starts
@@ -4970,7 +4971,11 @@
           if (!Array.isArray(value[key]) || value[key].length < 2 || key === "and" && value[key].length > 16) return key === "ranked" ? "ranked-choice-syntax: a ranked expression requires two options" : "a malformed expression";
           for (const item of value[key]) child("expr", item, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked || key === "ranked" });
         } else if ("optional" in value) {
-          if (!exact(value, ["optional", "elidable"]) || "elidable" in value && (value.elidable !== true || !elidableHead(value.optional))) return "a malformed optional";
+          if (!exact(value, ["optional", "elidable", "default"]) || "elidable" in value && (value.elidable !== true || !elidableHead(value.optional))) return "a malformed optional";
+          if ("default" in value) {
+            if (value.elidable !== true || !stringTerm(value.default)) return "a malformed default";
+            child("term", value.default);
+          }
           child("expr", value.optional, { sealed: task.sealed || value.elidable, chain: task.chain, item: task.item, ranked: task.ranked });
         } else if ("repeat" in value) {
           if (!exact(value, ["repeat", "separator", "chain"]) || "chain" in value && (!task.whole || !["left", "right"].includes(value.chain))) return "a malformed repetition";
@@ -5021,7 +5026,7 @@
         if ("method" in value) { if (!QUERY_METHODS.has(value.method)) return "a malformed query"; push("term", value, depth, { query: true }); }
         else if (value.op) {
           if (!DOM_COMPARATORS.has(value.op) || ["≅", "≇"].includes(value.op) && !(typeof value.left?.capture === "string" && Object.keys(value.left).length === 1)) return "a malformed comparison";
-          child("term", value.left); child("term", value.right);
+          child("term", value.left, {condition:true}); child("term", value.right, {condition:true});
         } else if ("captured" in value) { if (typeof value.captured !== "string" || value.captured !== "" && !CAPTURE_NAME.test(value.captured)) return "a malformed presence"; }
         else if (value.not) child("condition", value.not);
         else if (value.if) { child("condition", value.if); child("condition", value.then); }
@@ -5039,9 +5044,9 @@
         else if ("capture" in value) { if (typeof value.capture !== "string" || value.capture !== "" && !CAPTURE_NAME.test(value.capture)) return "a malformed capture reference"; }
         else if ("method" in value) {
           if (["classify","ngrams"].includes(value.method) && Array.isArray(value.args) && value.args.some(hasUnresolved)) return "a parameter cannot replace a classifier name or integer argument";
-          if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && ["emitted", "verbatim-text"].includes(value.method)) || (!task.query && QUERY_METHODS.has(value.method))) return "a malformed method";
+          if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && (value.method === "verbatim-text" || value.method === "emitted" && !task.condition)) || (!task.query && QUERY_METHODS.has(value.method))) return "a malformed method";
           push("method-shape", value, depth, { recipe: task.recipe });
-          child("term", value.receiver, { recipe: task.recipe });
+          child("term", value.receiver, { recipe: task.recipe, condition:task.condition });
           for (const arg of value.args) {
             if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "ends", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return "a malformed rule argument"; }
             else if (object(arg) && typeof arg.terminal === "string") { if (Object.keys(arg).length !== 1 || !TARGET_METHODS.has(value.method) || !/^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return "a malformed boundary target"; }
@@ -5051,13 +5056,13 @@
           }
         } else if (value.concat) {
           if (!Array.isArray(value.concat) || value.concat.length < 2) return "a malformed concatenation";
-          for (const segment of value.concat) child("term", segment);
+          for (const segment of value.concat) child("term", segment, {condition:task.condition});
         } else if (value.pattern) child("pattern", value.pattern);
         else if (value.if) { child("condition", value.if); child("term", value.then); }
         else {
           const items = value.union ?? value.intersection ?? value.difference;
           if (!Array.isArray(items) || items.length < 2 || value.difference && items.length !== 2) return "a malformed set operation";
-          for (const item of items) child("term", item);
+          for (const item of items) child("term", item, {condition:task.condition});
         }
       }
     }
@@ -7080,6 +7085,7 @@
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
       if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!isDomObject(current)) continue;
+      if (current.default !== undefined) found.push({test:"=",value:current.default,expr:current.optional});
       if (typeof current.test === "string") found.push(/** @type {any} */ (current));
       for (const key of ["choice", "ranked", "and", "seq"]) {
         const items = current[key];
@@ -7733,6 +7739,18 @@
       for (const item of rule.emit?.items ?? []) for (const recipe of [item.value,item.image]) if (recipe) recipes.push(recipe);
     }
     if (starts.length === recipes.length) recipes.forEach((recipe,index) => recipeLocations.set(recipe,positionOf(starts[index])));
+    const markers = tokens.filter(token=>token.text === "≝");
+    const defaults = [];
+    const pending = dom.rules.flatMap(rule => rule.alternatives?.map(alternative=>alternative.expr) ?? []).reverse();
+    while (pending.length) {
+      const node = /** @type {any} */ (pending.pop());
+      if (!node || typeof node !== "object") continue;
+      if (node.default !== undefined) defaults.push(node.default);
+      const children = [node.expr,node.optional,node.repeat,node.separator,...node.seq ?? [],...node.choice ?? [],...node.and ?? [],...node.ranked ?? []].filter(Boolean);
+      pending.push(...children.reverse());
+    }
+    if (markers.length === defaults.length) defaults.forEach((value,index)=>recipeLocations.set(value,positionOf(markers[index])));
+
   }
 
   /**
@@ -7904,7 +7922,11 @@
       const text=n[key].map((/** @type {any} */ x)=>templateBodyText(x,unicode,key)).join({seq:' ',and:' & ',choice:' | ',ranked:' ≻ '}[key]);
       return parent && priority[key]<=priority[parent]?'('+text+')':text;
     }
-    if(n.optional) return '['+(n.elidable?'+':'')+templateBodyText(n.optional,unicode)+']';
+    if(n.optional) {
+      const parts = n.optional.seq ?? [n.optional];
+      const head = templateBodyText(parts[0],unicode) + (n.default === undefined ? '' : ' ≝ ' + canonicalArgument(n.default,unicode));
+      return '['+(n.elidable?'+':'')+[head,...parts.slice(1).map((/** @type {any} */ part)=>templateBodyText(part,unicode))].join(' ')+']';
+    }
     if(n.repeat) return '{'+(n.chain==='left'?'... ':'')+templateBodyText(n.repeat,unicode)+(n.chain==='right'?' ...':'')+(n.separator?' / '+templateBodyText(n.separator,unicode):'')+'}';
     return canonicalArgument(n,unicode);
   }
@@ -8370,6 +8392,65 @@
         return {template:instance.call.call,arguments:templateIdentity(instance.call.args),name:instance.name??instance.canonical,binding:instance.binding??null,firstCall:{document:instance.origin.document,line:instance.origin.at[0],column:instance.origin.at[1]},categories,events,notes:twins.length?[{kind:'argument-alias-twin',instances:twins}]:[]};
       })
     };
+  }
+
+  // ---- string-gaps.js
+
+  /** @import {Span} from "./types.js" */
+  class GapClaims {
+    /** @param {import("./earley.js").ParseContext} context */
+    constructor(context) {
+      this.context = context;
+      /** @type {{span:Span, intervals:Span[]}[]} */
+      this.claims = [];
+      // Every input source participates, including tokens outside a capture.
+      /** @type {Span[]} */
+      this.covered = context.tokens.map(token => token.source).filter(([a,b]) => a < b).sort((a,b) => a[0]-b[0]);
+      /** @type {Span[]} */
+      const merged = [];
+      for (const [a,b] of this.covered) {
+        const previous = merged[merged.length-1];
+        if (previous && a <= previous[1]) previous[1] = Math.max(previous[1], b);
+        else merged.push([a,b]);
+      }
+      this.covered = merged;
+    }
+    /** @param {number} a @param {number} b @returns {string} */
+    verbatim(a,b) {
+      if (a === b) return "";
+      const {tokens, sources, sourceText} = this.context;
+      const [l,r] = sources.of(a,b);
+      const p = a > 0 ? tokens[a-1].source[1] : 0;
+      const q = b < tokens.length ? tokens[b].source[0] : sourceText.length;
+      let left = l, right = r;
+      if (p < l) {
+        left = p;
+        for (const [start,end] of this.covered) {
+          if (start >= l) break;
+          if (end > left) left = Math.min(l,end);
+        }
+      }
+      if (r < q) {
+        right = q;
+        for (const [start,end] of this.covered) {
+          if (end <= r) continue;
+          right = Math.max(r,Math.min(right,start));
+          break;
+        }
+      }
+      /** @type {Span[]} */
+      const intervals = [];
+      if (left < l) intervals.push([left,l]);
+      if (r < right) intervals.push([r,right]);
+      for (const claim of this.claims) {
+        if (claim.span[0] === a && claim.span[1] === b) continue;
+        for (const [x,y] of intervals) for (const [u,v] of claim.intervals) {
+          if (Math.max(x,u) < Math.min(y,v)) throw new GencmuError("grammar", "different verbatim spans claim the same uncovered source text");
+        }
+      }
+      if (intervals.length) this.claims.push({span:[a,b], intervals});
+      return sourceText.slice(left,right).join("");
+    }
   }
 
   // ---- family-summaries.js
@@ -9512,6 +9593,7 @@
    * @property {string} name
    * @property {(where: Where) => SequenceItem[][]} build
    * @property {string | null} elided
+   * @property {string} [elidedValue]
    * @property {SymbolTest | null} elidedTest
    */
 
@@ -9675,6 +9757,15 @@
         this.checkReferences();
         this.families = closeFamilies(this.rules);
         this.ranked = new RankedGroups(this.rules);
+        const defaults = new Lowering(this,new Set());
+        for (const rule of this.rules.values()) for (const alternative of rule.alternatives) {
+          const pending = [alternative.expr];
+          while (pending.length) {
+            const node = pending.pop();
+            if (node?.default !== undefined) defaults.elidedTerminal(node.optional,{rule,alternative,pending:[]},node.default);
+            for (const child of expressionChildren(node)) pending.push(child);
+          }
+        }
         if (this.ranked.groups.length) this.ranked.validate();
         // Slot emission checks inspect written carriers before absent ones disappear.
         this.emissionUsers.sort((a,b) => a.run-b.run || a.rule.at[0]-b.rule.at[0] || a.rule.at[1]-b.rule.at[1]);
@@ -10546,6 +10637,7 @@
       /** @type {ConstantTerm} */
       const reference = { const: record.const, at: /** @type {[number, number]} */ (record.at), value: /** @type {StageConstant} */ (constants.get(record.const)).value };
       copyRankedLocation(record,reference);
+      copyRecipeLocation(record,reference);
       return reference;
     }
     /** @type {Record<string, unknown>} */
@@ -10863,6 +10955,7 @@
             owner: rule.name,
             elided: helper.elided,
             elidedTest: helper.elidedTest,
+            elidedValue: helper.elidedValue,
             captures,
             conditions: [],
             tags: single ? { method: "tags", receiver: { capture: captures[0].name }, args: [] } : null,
@@ -11070,7 +11163,7 @@
         // Any other optional is a helper, and a marked one is elidable, with
         // the terminal that its marker names
         // (engine §3.8).
-        const elided = expr.elidable === true ? this.elidedTerminal(inner, where) : null;
+        const elided = expr.elidable === true ? this.elidedTerminal(inner, where, expr.default) : null;
         this.helperExpression = expr;
         const name = this.helper(where, (context) => [/** @type {SequenceItem[]} */ ([]), ...this.expand(inner, context)], elided);
         return [[{ symbol: { name, terminal: false } }]];
@@ -11138,13 +11231,13 @@
      * Names a helper rule, to be lowered when the alternative is done.
      * @param {Where} where
      * @param {(where: Where) => SequenceItem[][]} build
-     * @param {{terminal: string, test: SymbolTest | null} | null} elided
+     * @param {{terminal: string, test: SymbolTest | null, value?:string} | null} elided
      * @returns {string}
      */
     helper(where, build, elided) {
       const name = `${where.rule.name}·${this.helperCount++}`;
       if (this.grammar.ranked.groups.length && this.helperExpression) this.helperExpressions.set(name, this.helperExpression);
-      where.pending.push({ name, build, elided: elided ? elided.terminal : null, elidedTest: elided ? elided.test : null });
+      where.pending.push({ name, build, elided: elided ? elided.terminal : null, elidedTest: elided ? elided.test : null, elidedValue:elided?.value });
       return name;
     }
 
@@ -11153,13 +11246,27 @@
      * and its complete symbol predicate (engine §3.8, §12).
      * @param {Expr} expr
      * @param {Where} where
-     * @returns {{terminal: string, test: SymbolTest | null}}
+     * @param {import("./types.js").Term} [defaultValue]
+     * @returns {{terminal: string, test: SymbolTest | null, value?:string}}
      */
-    elidedTerminal(expr, where) {
+    elidedTerminal(expr, where, defaultValue) {
       const first = "seq" in expr ? expr.seq[0] : expr;
       const tested = "test" in first ? first : null;
       const name = tagName(tested ? tested.expr : first);
-      return { terminal: /** @type {string} */ (name), test: tested ? this.grammar.symbolTest(tested, where.rule.document, where.rule.at) : null };
+      if (name === undefined) throw loweringError(where.alternative.at, `an elidable optional in ${where.rule.name} does not begin with its terminator`);
+      const test = tested ? this.grammar.symbolTest(tested, where.rule.document, where.rule.at) : null;
+      const resolved = defaultValue === undefined ? undefined : this.grammar.evaluateClosed(where.rule.document, defaultValue, recipeLocations.get(defaultValue) ?? [0,0]);
+      if (resolved !== undefined && !("string" in resolved)) throw loweringError(where.rule.at, "a default requires one string");
+      const value = resolved && "string" in resolved ? resolved.string : test?.op === "=" ? test.value : undefined;
+      if (defaultValue !== undefined) {
+        /** @type {(t:SymbolTest|null)=>boolean} */
+        const holds = (t) => !t || (!t.inner || holds(t.inner)) && (t.op === "tags" ? [...t.positive ?? []].every(tag => tag === name) && !t.negative?.has(name) : (value === t.value) === (t.op === "="));
+        if (!holds(test)) {
+          const at = recipeLocations.get(defaultValue);
+          throw new GencmuError("grammar", "a default fails its head test", {document:where.rule.document,...(at ? {line:at[0],column:at[1]} : {})});
+        }
+      }
+      return { terminal: name, test, value };
     }
   }
 
@@ -11313,6 +11420,7 @@
 
 
 
+
   /**
    * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, ReadyCondition, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
    * @import { CloseEvent, CloseObservation } from "./close-observations.js"
@@ -11440,11 +11548,99 @@
     return found;
   }
 
-  /** @param {Pick<Production,"elided"|"elidedTest">} production @returns {boolean} */
+  /** @type {WeakMap<Production[],Map<string,Set<string>>>} */
+  const stringDemands = new WeakMap();
+  /** @param {Production[]} productions @returns {Map<string,Set<string>>} */
+  function demandedStrings(productions) {
+    const known = stringDemands.get(productions);
+    if (known) return known;
+    const demands = new Map();
+    let changed = false;
+    const add = (/** @type {string} */ name, /** @type {string} */ channel) => {
+      let channels = demands.get(name);
+      if (!channels) demands.set(name, channels = new Set());
+      if (!channels.has(channel)) { channels.add(channel); changed = true; }
+    };
+    const reads = (/** @type {any} */ term, /** @type {Production} */ production) => {
+      const pending = [term];
+      while (pending.length) {
+        const part = pending.pop();
+        if (!part || typeof part !== "object") continue;
+        if (["value","image"].includes(part.method) && part.receiver?.method === "emitted") {
+          const name = part.receiver.receiver.capture;
+          const slot = production.captureSlot.get(name);
+          const symbol = slot === undefined ? null : production.rhs[production.captures[slot].index];
+          if (name === "") add(production.lhs,part.method);
+          else if (symbol && !symbol.terminal) add(symbol.name,part.method);
+        }
+        for (const value of Object.values(part)) if (value && typeof value === "object") pending.push(...(Array.isArray(value) ? value : [value]));
+      }
+    };
+    for (const p of productions) for (const c of p.conditions) reads(c.condition,p);
+    do {
+      changed = false;
+      for (const p of productions) for (const channel of demands.get(p.lhs) ?? []) {
+        if (p.erased) continue;
+        const recipe = channel === "value" ? p.value : p.image ?? p.value;
+        if (recipe) reads(recipe,p);
+        else for (const symbol of p.rhs) if (!symbol.terminal) add(symbol.name,channel);
+      }
+    } while (changed);
+    stringDemands.set(productions,demands);
+    return demands;
+  }
+
+  /** @param {ParseContext} context @param {Production} production @param {number} dot @param {number} origin @param {number} end @param {Captured} slots @param {Item|null} previous @param {Item|null} child @returns {{prefix:Record<string,string>,value:Record<string,string>}|null} */
+  function stringStep(context, production, dot, origin, end, slots, previous, child) {
+    const channels = demandedStrings(context.lowered.productions).get(production.lhs);
+    if (!channels) return null;
+    const prefix = {...previous?.stringPrefix};
+    for (const channel of channels) {
+      const recipe = channel === "value" ? production.value : production.image ?? production.value;
+      if (production.erased || recipe) continue;
+      const contribution = previous ? child ? child.emitted?.[channel] ?? "" : context.tokens[end-1][/** @type {"value"|"image"} */ (channel)] : "";
+      prefix[channel] = (prefix[channel] ?? "") + contribution;
+    }
+    /** @type {Record<string,string>} */
+    const value = {};
+    if (dot === production.rhs.length) {
+      const scope = new ChartScope(context,production,slots,origin,end,-1);
+      const active = new Set();
+      /** @type {GapClaims|undefined} */
+      let gaps;
+      const get = (/** @type {string} */ channel) => {
+        if (Object.prototype.hasOwnProperty.call(value,channel)) return value[channel];
+        if (active.has(channel)) throw new GencmuError("grammar","a selected string recipe has a dependency cycle");
+        active.add(channel);
+        const recipe = channel === "value" ? production.value : production.image ?? production.value;
+        let result = "";
+        if (production.elided !== null && production.rhs.length === 0) result = channel === "value" ? context.synthetic?.[origin] && end > origin ? context.tokens[origin].value : production.elidedValue ?? "" : "";
+        else if (!production.erased) {
+          if (recipe) for (const atom of recipe.concat) {
+            if ("method" in atom && atom.method === "verbatim-text") {
+              const span = scope.capture(/** @type {{capture:string}} */ (atom.receiver).capture);
+              result += (gaps ??= new GapClaims(context.recon?.observed ?? context)).verbatim(span.start,span.end);
+            } else {
+              const found = settled(()=>evaluate(context,atom,scope));
+              result += "string" in found ? found.string : "";
+            }
+          }
+          else result = prefix[channel] ?? "";
+        }
+        active.delete(channel);
+        return value[channel] = result;
+      };
+      scope.emitted = new Proxy({}, {get:(_,key)=>get(String(key))});
+      for (const channel of channels) get(channel);
+    }
+    return {prefix,value};
+  }
+
+  /** @param {Pick<Production,"elided"|"elidedTest"|"elidedValue">} production @returns {boolean} */
   function omissionAllowed(production) {
     const test = production.elidedTest;
     if (!test) return true;
-    const value = test.op === "=" ? test.value : "";
+    const value = production.elidedValue ?? "";
     const tags = new Set([/** @type {string} */ (production.elided)]);
     /** @param {SymbolTest} current @returns {boolean} */
     const holds = current => {
@@ -11528,8 +11724,8 @@
       at,
       source: [sourceAt, sourceAt],
     };
-    if (production.elidedTest?.op === "=" && production.elidedTest.value !== undefined) {
-      event.value = production.elidedTest.value;
+    if (production.elidedValue !== undefined) {
+      event.value = production.elidedValue;
     }
     return machine.event(event);
   }
@@ -11624,7 +11820,7 @@
       const closes = part.observation && context.closes
         ? context.closes.identity(part.observation) : null;
       captures.push([name, originalPosition(context, part.start), originalPosition(context, part.end),
-        tagKey(context.interner.get(part.tags)), structuralKey(context, part.structure), closes]);
+        tagKey(context.interner.get(part.tags)), structuralKey(context, part.structure), closes, part.emitted]);
     }
     const frame = before.production.lexicalFrame;
     const prefix = frame && context.patterns ? context.patterns.concat(frame.prefix, before.prefix) : before.prefix;
@@ -11861,6 +12057,10 @@
       this.boundaryAnnotations = null;
       this.prefix = -1;
       this.structure = -1;
+      /** @type {Record<string,string>|undefined} */
+      this.emitted = undefined;
+      /** @type {Record<string,string>|undefined} */
+      this.stringPrefix = undefined;
       /** @type {CloseObservation|null} */
       this.observationPrefix = null;
       /** @type {CloseObservation|null} */
@@ -12439,10 +12639,12 @@
             const edge = boundary.start & literal.bit ? "start" : "end";
             fail(literal,edge === "start" ? origin : set.position,bounded?.annotations[edge].get(literal.bit));
           })) return;
+      const strings = stringStep(context,production,dot,origin,set.position,slots,previous,child);
       const projected = structuralStep(context, production, dot, previous, child, set.position);
       const close = closeStep(context,production,dot,origin,previous,child,set.position);
       const summary = familyStep(context, family, members, production, dot, origin, previous, child, set.position, close);
       let key = itemKey((production.id * dots + dot) * width + origin - start, slots);
+      if (strings) key = `${key}/s${JSON.stringify(dot === production.rhs.length ? strings.value : strings.prefix)}`;
       if (production.closeRequested) key = `${key}/observed`;
       if (production.lexicalFrame) key = `${key}/f${production.lexicalFrame.id}`;
       if (context.patterns) key = `${key}/${projected.prefix}/${projected.structure}`;
@@ -12505,6 +12707,8 @@
       }
       item.boundary = boundary;
       if (bounded) item.boundaryAnnotations = bounded.annotations;
+      item.emitted = strings?.value;
+      item.stringPrefix = strings?.prefix;
       item.prefix = projected.prefix;
       item.structure = projected.structure;
       item.observationPrefix = close?.prefix ?? null;
@@ -12582,6 +12786,7 @@
       item.observationPrefix = context.closes?.empty ?? null;
       item.observation = observation;
       item.restores = true;
+      item.emitted = stringStep(context,production,0,position,position+1,null,null,null)?.value;
       if (hooks.work) { countWork(hooks.work, "items"); countWork(hooks.work, "packedEdges"); }
       item.end = position + 1;
       // It has the tags of the empty production, none, unless a fault gives
@@ -12662,7 +12867,7 @@
         // One scope for the step, which evaluates the tag term at most once
         // (engine §4).
         /** @type {StepScope} */
-        const step = { scope: null, structure: structuralStep(context, production, 0, null, null, set.position).structure, observation: closeStep(context,production,0,set.position,null,null,set.position)?.observation ?? null };
+        const step = { scope: null, emitted:stringStep(context,production,0,set.position,set.position,null,null,null)?.value, structure: structuralStep(context, production, 0, null, null, set.position).structure, observation: closeStep(context,production,0,set.position,null,null,set.position)?.observation ?? null };
         // The tag term comes after the conditions (engine §4), unless a
         // fault evaluates it first (order:tags).
         if (production.rhs.length === 0 && fault("order:tags", "predict")) {
@@ -12738,11 +12943,11 @@
         // production that inherits from the terminal (F7:capture).
         const tags = child ? child.tagId
           : context.interner.intern(synthetic !== null && synthetic[from] && !rawObservations(context) && !fault("F7:capture") ? tagSet() : tokens[from].tags);
-        slots = captureAfter(context, slots, captureIndex, from, to, tags, child ? child.structure : terminalState(context, production, item.dot, from), child ? closeChild(context,item,child) : terminalObservation(context,production.rhs[item.dot].name,from));
+        slots = captureAfter(context, slots, captureIndex, from, to, tags, child ? child.structure : terminalState(context, production, item.dot, from), child ? closeChild(context,item,child) : terminalObservation(context,production.rhs[item.dot].name,from), child ? child.emitted : {value:tokens[from].value,image:tokens[from].image});
       }
       if (hooks.work) countWork(hooks.work, "captureLookups");
       /** @type {StepScope} */
-      const step = { scope: null, structure: structuralStep(context, production, item.dot + 1, item, child, to).structure, observation: closeStep(context,production,item.dot+1,item.origin,item,child,to)?.observation ?? null };
+      const step = { scope: null, emitted:stringStep(context,production,item.dot+1,item.origin,to,slots,item,child)?.value, structure: structuralStep(context, production, item.dot + 1, item, child, to).structure, observation: closeStep(context,production,item.dot+1,item.origin,item,child,to)?.observation ?? null };
       if (item.dot + 1 === production.rhs.length && fault("order:tags", "advance")) {
         if (completeTags(context, production, slots, item.origin, to, step) === HALT) {
           return pause(() => advanceFrom(item, to, slots, step, PART_CONDITIONS, null));
@@ -13362,10 +13567,11 @@
    * @param {number} tags
    * @param {number} structure
    * @param {CloseObservation|null} observation
+   * @param {Record<string,string>} [emitted]
    * @returns {Captured}
    */
-  function captureAfter(context, parent, index, start, end, tags, structure, observation) {
-    const key = (parent === null ? "" : parent.id) + ":" + index + ":" + start + ":" + end + ":" + tags + ":" + structure + ":" + (observation?.id ?? "");
+  function captureAfter(context, parent, index, start, end, tags, structure, observation, emitted) {
+    const key = (parent === null ? "" : parent.id) + ":" + index + ":" + start + ":" + end + ":" + tags + ":" + structure + ":" + (observation?.id ?? "") + JSON.stringify(emitted ?? null);
     let found = context.captured.get(key);
     if (!found) {
       // The jumps of a skew-binary list: a sequence jumps to its parent's
@@ -13376,7 +13582,7 @@
       const skip = parent !== null && parent.jump !== null &&
         parent.depth - parent.jump.depth === parent.jump.depth - (parent.jump.jump === null ? 0 : parent.jump.jump.depth);
       const jump = skip ? /** @type {NonNullable<Captured>} */ (/** @type {NonNullable<Captured>} */ (parent).jump).jump : parent;
-      found = { parent, jump, depth, index, start, end, tags, structure, observation, id: context.captured.size };
+      found = { parent, jump, depth, index, start, end, tags, structure, observation, emitted, id: context.captured.size };
       context.captured.set(key, found);
       if (hooks.work) countWork(hooks.work, "captures");
     }
@@ -13474,6 +13680,7 @@
       const { condition, readyAt: at } = conditions[index];
       if (at !== readyAt) continue;
       const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure,step.observation);
+      scope.emitted = step.emitted;
       const atom = firstBoundaryAtom(condition);
       const held = atom ? boundaryCondition(scope.observing,condition,scope,atom,step,conditions[index].wholeBoundary !== false) : restorationStep(() => holds(scope.observing, condition, scope), () => false);
       if (held === HALT) return pause((/** @type {boolean} */ value) => value && !scope.invalidRestoration ? failedFrom(context, production, conditions, index + 1, readyAt, slots, origin, end, step) : condition);
@@ -13504,7 +13711,7 @@
    * between its conditions and its tag term, so that the tag term runs at
    * most once in the step. This saves time only: how many times a step
    * evaluates its tag term is not observable (engine §4).
-   * @typedef {{scope: ChartScope | null, structure: number, observation: CloseObservation|null, obligations?:any[]}} StepScope
+   * @typedef {{scope: ChartScope | null, emitted?:Record<string,string>, structure: number, observation: CloseObservation|null, obligations?:any[]}} StepScope
    */
 
   /** @type {WeakMap<Production, Map<string, number>>} */
@@ -13541,6 +13748,8 @@
       this.context = context;
       this.production = production;
       this.structure = structure;
+      /** @type {Record<string,string>|undefined} */
+      this.emitted = undefined;
       this.observation = observation;
       this.invalidRestoration = false;
       this.slots = slots;
@@ -13605,6 +13814,7 @@
       if (name === "") {
         const scope = this;
         return {
+          emitted:this.emitted,
           observation: this.observation,
           structure: this.structure,
           patterns: this.context.patterns,
@@ -13622,7 +13832,7 @@
       // about twice at most.
       if ((!this.production.captureSlot.has(name) || this.production.lexicalFrame?.parentWhole) && this.production.lexicalFrame?.captures.has(name)) {
         const found = this.production.lexicalFrame.captures.get(name);
-        return {observation:found.observation,structure:found.structure,patterns:this.context.patterns,start:found.start,end:found.end,tags:this.context.interner.get(found.tags),space:this.space};
+        return {emitted:found.emitted,observation:found.observation,structure:found.structure,patterns:this.context.patterns,start:found.start,end:found.end,tags:this.context.interner.get(found.tags),space:this.space};
       }
       const last = /** @type {NonNullable<Captured>} */ (this.slots);
       const index = captureIndex(this.production, name);
@@ -13636,7 +13846,7 @@
       let found;
       if (this.parts !== null) found = this.parts[index];
       else found = capturedPart(last, index, this);
-      return { observation:found.observation, structure: found.structure, patterns: this.context.patterns, start: found.start, end: found.end, tags: this.context.interner.get(found.tags), space: this.space };
+      return { emitted:found.emitted, observation:found.observation, structure: found.structure, patterns: this.context.patterns, start: found.start, end: found.end, tags: this.context.interner.get(found.tags), space: this.space };
     }
   }
 
@@ -14021,6 +14231,7 @@
       const args = term.args;
       switch (term.method) {
         case "value": case "image": {
+          if ("method" in receiver && receiver.method === "emitted") return {string:scope.capture(/** @type {{capture:string}} */ (receiver.receiver).capture).emitted?.[term.method] ?? ""};
           const where = observe(context, spanOf(context, receiver, scope), scope, term.method);
           return { string: where.context.tokens.slice(where.start, where.end).map(token => token[/** @type {"value" | "image"} */ (term.method)]).join("") };
         }
@@ -18211,6 +18422,7 @@
   }
 
   // ---- strings.js
+
   // The occurrence-based string walk and verbatim gap claims (engine §11).
 
 
@@ -18241,7 +18453,7 @@
   class StringWalk {
     /** @param {ParseContext} context @param {(node:DerivationRule)=>Scope} scope */
     constructor(context, scope) {
-      this.context = context;
+      super(context);
       this.scope = scope;
       /** @type {WeakMap<Derivation,Map<object|string,string>>} */
       this.values = new WeakMap();
@@ -18320,6 +18532,7 @@
       if ("channel" in request) {
         if ("read" in node) return this.context.tokens[node.read.token][request.channel];
         const production = node.production;
+        if (production.elided !== null && node.children.length === 0) return request.channel === "value" ? production.elidedValue ?? "" : "";
         if (production.erased) return "";
         const recipe = request.channel === "value" ? production.value : production.image ?? production.value;
         if (recipe) return yield {node, recipe};
@@ -18902,9 +19115,7 @@
         const position = emptySource(context.tokens, node.start);
         /** @type {ElidedNode} */
         const elided = { kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] };
-        // An equality-tested elided node keeps the restored token's string.
-        // Canonical JSON writes it as value, including an empty string.
-        if (production.elidedTest && production.elidedTest.op === "=" && production.elidedTest.value !== undefined) elided.value = production.elidedTest.value;
+        if (production.elidedValue !== undefined) elided.value = production.elidedValue;
         into.push(elided);
         continue;
       }
@@ -19466,6 +19677,11 @@
     const braces = [];
     let marked = 0;
     let recipeContext = false;
+    let conditionContext = false;
+    /** @type {RuleNode|undefined} */
+    let defaultHead;
+    /** @type {Term|undefined} */
+    let headDefault;
     let featureContext = false;
     let readingHead=false;
     /** @type {Set<string>} */
@@ -19670,7 +19886,11 @@
       const conditionsClause = one(node, "conditions-clause");
       /** @type {Condition[]} */
       const conditions = [];
-      if (conditionsClause) for (const condition of some(conditionsClause, "implication")) conditions.push(yield readImplication(condition));
+      if (conditionsClause) {
+        conditionContext = true;
+        for (const condition of some(conditionsClause, "implication")) conditions.push(yield readImplication(condition));
+        conditionContext = false;
+      }
       // The categories of the rule's occurrences (engine §9.3).
       const countsAs = one(node, "counts-as-clause");
       if (countsAs) {
@@ -19865,10 +20085,28 @@
       } else if (!isTerminal(symbol)) {
         fail(form, node);
       }
+      const previousHead = defaultHead;
+      const previousDefault = headDefault;
+      defaultHead = symbol;
+      headDefault = undefined;
       marked++;
       const expr = /** @type {Expr} */ (yield readExpression(choice));
       marked--;
-      return { optional: expr, elidable: true };
+      const selectedDefault = /** @type {Term|undefined} */ (headDefault);
+      if (selectedDefault && "string" in selectedDefault) {
+        let head = "seq" in expr ? expr.seq[0] : expr;
+        while ("test" in head) {
+          if (head.test !== "tags" && "string" in head.value && (selectedDefault.string === head.value.string) !== (head.test === "=")) {
+            const position = recipeLocations.get(selectedDefault);
+            throw new GencmuError("grammar", "a default fails its head test", {document:path,line:position?.[0],column:position?.[1]});
+          }
+          head = head.expr;
+        }
+      }
+      const result = { optional: expr, elidable: /** @type {true} */ (true), ...(headDefault === undefined ? {} : {default:headDefault}) };
+      defaultHead = previousHead;
+      headDefault = previousDefault;
+      return result;
     }
 
     /**
@@ -19917,13 +20155,23 @@
         case "wildcard": token(node); return { wildcard: true };
         case "range": return { range: yield readRange(node) };
         case "tested": {
-          const tests = parts(node).filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
+          const tests = parts(node).filter(child => ["tag-test", "value-test", "default-value"].includes(ruleOf(child)));
           if (!tests.length) lacks(node, "test");
           const symbol = testBase(node) || lacks(node, "primary");
-          checkTestOrder(tests, ["constant-reference", "reference", "call", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)));
+          checkTestOrder(tests.filter(test => ruleOf(test) !== "default-value"), ["constant-reference", "reference", "call", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)));
           // Convert the base before test operands (engine §9.3).
           let expr = yield readPrimary(symbol);
-          for (const test of tests) expr = { ...(yield readTest(test)), expr };
+          for (const test of tests) {
+            if (ruleOf(test) === "default-value") {
+              if (node !== defaultHead) fail("a default stands only on an elidable optional head", test);
+              if (headDefault !== undefined) fail("an elidable head has one default at most", test);
+              const operand = only(test, "test-operand");
+              const inner = knownOf(operand, ATOMS);
+              if (!["string", "constant-reference", "parameter"].includes(ruleOf(inner))) fail("a default requires one string", operand);
+              headDefault = yield readTerm(inner);
+              recipeLocations.set(/** @type {Term} */ (headDefault), at(test));
+            } else expr = { ...(yield readTest(test)), expr };
+          }
           return expr;
         }
         case "capture": {
@@ -20466,6 +20714,8 @@
       const kind=ruleOf(node);
       if (kind === "pattern-atom") {
         const inner = parts(node);
+        const defaultNode = inner.find(child=>ruleOf(child)==="default-value");
+        if (defaultNode) fail("a default stands only on an elidable optional head",defaultNode);
         const first = inner[0];
         if (!first) return lacks(node, "pattern atom");
         const named = ["name", "reference"].includes(ruleOf(first)) ||
@@ -20473,7 +20723,7 @@
         const tests = inner.filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
         const testable = !named && (first.kind === "token" ? isCapital(valueOf(first)) || valueOf(first).startsWith("_")
           : ["tag", "string", "string-terminal", "range", "wildcard", "constant-reference"].includes(ruleOf(first)));
-        checkTestOrder(tests, testable || ruleOf(first) === "parameter");
+        checkTestOrder(tests.filter(test => ruleOf(test) !== "default-value"), testable || ruleOf(first) === "parameter");
         if (["call", "parameter"].includes(ruleOf(first))) {
           let expr = ruleOf(first) === "call" ? yield readCall(first) : readParameter(first);
           for (const test of tests) expr = {...(yield readTest(test)),expr};
@@ -20517,6 +20767,7 @@
       let receiver = yield readTerm(only(only(node, "method-receiver"), "term-atom"), true);
       for (const selector of some(node, "method-selector")) {
         const name = valueOf(token(only(selector, "method-name")));
+        if (name === "emitted" && !recipeContext && !conditionContext) fail("emitted requires a recipe or condition", node);
         if(!METHODS.has(name)) fail(`unknown method ${name}`,node);
         if (closedFor && !["split", "ngrams"].includes(name)) fail(`${closedFor} cannot read an input method`, node);
         /** @type {any[]} */
@@ -20742,7 +20993,7 @@
     ...ITEMS, ...PRIMARIES, ...CONDITIONS, ...TERMS, ...ATOMS,
     "argument-word", "argument-string", "argument-tag", "argument-term", "classifier-name", "classifier-class", "classifier-key", "classifier-operator", "classifier-entry",
     "constant-definer", "definer", "rule-name", "counts-as-clause", "category", "ranking-directive", "ranking-step", "body", "headed-body", "alternative", "ranked-alternative", "guard", "ranked-choice", "choice", "conjunction", "sequence", "primary",
-    "tag-test", "tag-requirement", "value-test", "test", "test-operand", "tags-clause", "alternative-tags", "emit-tags", "value-clause", "image-clause", "conditions-clause", "emits-clause", "erased-clause",
+    "tag-test", "tag-requirement", "value-test", "default-value", "test", "test-operand", "tags-clause", "alternative-tags", "emit-tags", "value-clause", "image-clause", "conditions-clause", "emits-clause", "erased-clause",
     "emit-item", "emit-target", "emit-before", "emit-after", "recipe", "recipe-atom", "method-receiver", "method-selector", "method-name", "arguments", "argument", "integer", "intersection", "concatenation", "any-of", "all-of", "condition", "comparator", "tree-comparator",
     "pattern-primary", "pattern-node", "pattern-bare", "pattern-children", "child-choice", "child-alternative", "child-set", "child-intersection", "child-sequence", "child-item", "child-path", "child-primary",
     "pattern-literal", "pattern-union", "pattern-intersection", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
@@ -22782,7 +23033,7 @@
    * A rule body expression.
    * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
    *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
-   *   | {optional: Expr, elidable?: true} | {capture: string, expr: Expr} | {ref: string}
+   *   | {optional: Expr, elidable?: true, default?: Term} | {capture: string, expr: Expr} | {ref: string}
    *   | {range: [Term, Term]} | {literal: Term} | {wildcard: true}
    *   | {test: "="|"≠", value: Term, expr: TestedSymbol} | {test: "tags", requirements: Requirement[], expr: TestedSymbol} | {empty: true} | TemplateCall | Parameter} Expr
    */
@@ -22933,6 +23184,7 @@
    * @property {string | null} elided the terminator an empty helper stands for
    * @property {SymbolTest | null} elidedTest the test of that terminator, an
    *   `=` test whose value a restored token stores, or null (engine §7)
+   * @property {string} [elidedValue] the explicit or equality default
    * @property {Capture[]} captures
    * @property {number[]} captureAt for each position of `rhs`, the index in
    *   `captures` of the capture there, or -1
@@ -22999,7 +23251,7 @@
    * tag set, after the parts before it. A context makes each sequence once,
    * with its number (engine §4). `depth` counts the parts, and `jump` is an
    * earlier sequence that a search for a part can skip to.
-   * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, id: number} | null} Captured
+   * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, emitted?: Record<string,string>, id: number} | null} Captured
    */
 
   /**
@@ -23019,6 +23271,7 @@
    * A span a term denotes, with the tags of the captured part when it is a
    * whole capture.
    * @typedef {object} SpanValue
+   * @property {Record<string,string>} [emitted]
    * @property {import("./close-observations.js").CloseObservation|null} [observation]
    * @property {AlignedSpan} [aligned]
    * @property {number} [structure]

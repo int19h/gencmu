@@ -273,7 +273,7 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
   string | constant-reference | parameter
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>tested</code> to <code>string-operand</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>tested</code> to <code>string-operand</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/tested.svg" alt="Railroad diagram of the rule tested"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/symbol-test.svg" alt="Railroad diagram of the rule symbol-test"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/tag-test.svg" alt="Railroad diagram of the rule tag-test"></p>

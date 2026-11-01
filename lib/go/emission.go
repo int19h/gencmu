@@ -118,6 +118,14 @@ func (em *stringEmitter) strings(root *occurrence, channel int, recipe *domTerm)
 					finish(literalParts(value))
 					continue
 				}
+				if d.kind == dClose && d.prod.restoration() {
+					value := ""
+					if f.channel == 0 {
+						value = elidedValue(d.prod.elidedTest)
+					}
+					finish(literalParts(value))
+					continue
+				}
 				if d.kind != dClose || d.prod.nothing {
 					finish(literalParts(""))
 					continue

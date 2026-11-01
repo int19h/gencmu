@@ -1,0 +1,27 @@
+{
+  "description": "An elidable optional stores its default operand.",
+  "document": "```jbogenbau\n%rule text [+JI ≝ \"jie\"]\n```",
+  "expect": {
+    "dom": {
+      "format": 42,
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "optional": {
+                  "ref": "JI"
+                },
+                "elidable": true,
+                "default": {
+                  "string": "jie"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "cacheMisses": true
+}

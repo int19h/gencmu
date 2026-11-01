@@ -124,7 +124,7 @@ def prepare_ranked_conditions(lowered):
 def written_prefix(lowered, p, dot, origin, prefix, caps, restores=False, closes=None, close_prefix=0):
     symbols = tuple((terminal, lowered.written_helpers.get(symbol,symbol),p.tests[i] if p.tests else None) for i,(terminal,symbol) in enumerate(zip(p.terminal,p.rhs)))
     def observation(part):
-        return (*part[:4], closes.semantic(part[4])) if closes is not None and len(part) > 4 else part
+        return (*part[:4], closes.semantic(part[4]), *part[5:]) if closes is not None and len(part) > 4 else part
     captures = tuple((name, observation(caps[p.slots[position]])) for name, position in sorted(p.captures.items(), key=lambda part: part[1]) if not name.startswith('\u0000') and position < dot)
     source = (p.rule_name, *written_source(p), lowered.written_helpers.get(p.lhs))
     parent = p.lexical.close_entry if closes is not None and p.lexical else p.lexical.key if p.lexical else None
@@ -218,7 +218,8 @@ class Frames:
             start, end, tags = part[:3]
             observations.append((name, self.project(start), self.project(end), tags,
                                  part[3] if len(part) > 3 else 0,
-                                 self.closes.semantic(part[4]) if len(part) > 4 else 0))
+                                 self.closes.semantic(part[4]) if len(part) > 4 else 0,
+                                 part[5] if len(part)>5 else ()))
         source = p.rule_name, p.slot.source.document, p.slot.source.at, lowered.written_helpers.get(p.lhs)
         return (outer.close_entry if outer else None, source, route, self.project(origin), prefix,
                 tuple(observations), self.closes.semantic(close_prefix))

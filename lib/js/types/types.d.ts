@@ -486,6 +486,7 @@ export type Expr = {
 } | {
     optional: Expr;
     elidable?: true;
+    default?: Term;
 } | {
     capture: string;
     expr: Expr;
@@ -696,6 +697,10 @@ export type Production = {
      * `=` test whose value a restored token stores, or null (engine §7)
      */
     elidedTest: SymbolTest | null;
+    /**
+     * the explicit or equality default
+     */
+    elidedValue?: string;
     captures: Capture[];
     /**
      * for each position of `rhs`, the index in
@@ -790,6 +795,7 @@ export type Captured = {
     tags: number;
     structure: number;
     observation: import("./close-observations.js").CloseObservation | null;
+    emitted?: Record<string, string>;
     id: number;
 } | null;
 export type Edge = {
@@ -816,6 +822,7 @@ export type TermValue = {
     set: Set<string>;
 };
 export type SpanValue = {
+    emitted?: Record<string, string>;
     observation?: import("./close-observations.js").CloseObservation | null;
     aligned?: AlignedSpan;
     structure?: number;
@@ -1260,7 +1267,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A rule body expression.
  * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
  *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
- *   | {optional: Expr, elidable?: true} | {capture: string, expr: Expr} | {ref: string}
+ *   | {optional: Expr, elidable?: true, default?: Term} | {capture: string, expr: Expr} | {ref: string}
  *   | {range: [Term, Term]} | {literal: Term} | {wildcard: true}
  *   | {test: "="|"≠", value: Term, expr: TestedSymbol} | {test: "tags", requirements: Requirement[], expr: TestedSymbol} | {empty: true} | TemplateCall | Parameter} Expr
  */
@@ -1393,6 +1400,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string | null} elided the terminator an empty helper stands for
  * @property {SymbolTest | null} elidedTest the test of that terminator, an
  *   `=` test whose value a restored token stores, or null (engine §7)
+ * @property {string} [elidedValue] the explicit or equality default
  * @property {Capture[]} captures
  * @property {number[]} captureAt for each position of `rhs`, the index in
  *   `captures` of the capture there, or -1
@@ -1453,7 +1461,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * tag set, after the parts before it. A context makes each sequence once,
  * with its number (engine §4). `depth` counts the parts, and `jump` is an
  * earlier sequence that a search for a part can skip to.
- * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, id: number} | null} Captured
+ * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, emitted?: Record<string,string>, id: number} | null} Captured
  */
 /**
  * How an item was built.
@@ -1470,6 +1478,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A span a term denotes, with the tags of the captured part when it is a
  * whole capture.
  * @typedef {object} SpanValue
+ * @property {Record<string,string>} [emitted]
  * @property {import("./close-observations.js").CloseObservation|null} [observation]
  * @property {AlignedSpan} [aligned]
  * @property {number} [structure]

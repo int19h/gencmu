@@ -1,0 +1,27 @@
+{
+  "description": "default emission.",
+  "grammar": "%rule text TO [+JI ≝ \"jie\"]\n%emits $",
+  "tokens": [
+    {
+      "text": "to",
+      "tags": [
+        "TO"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "tojie",
+              "image": "to"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

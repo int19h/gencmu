@@ -496,7 +496,7 @@ class _Loader:
         try:
             return self._load(pipeline_path)
         except GencmuError as error:
-            boundary_document = getattr(error, "_boundary_document", None)
+            boundary_document = getattr(error, "_boundary_document", None) or getattr(error,"_default_document",None)
             if boundary_document is not None and error.line is None:
                 # Read the exact document again only for a failed cache load.
                 return self._load(pipeline_path, boundary_document)

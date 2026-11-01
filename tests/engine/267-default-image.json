@@ -1,0 +1,17 @@
+{
+  "description": "default image.",
+  "grammar": "%rule text $x:r\n%conditions $x.emitted.image = \"to\"\n%rule r TO [+JI ≝ \"jie\"]",
+  "tokens": [
+    {
+      "text": "to",
+      "tags": [
+        "TO"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

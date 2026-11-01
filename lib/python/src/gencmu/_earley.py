@@ -14,6 +14,7 @@ from ._boundary import METHODS, Records, Annotations, atoms
 from ._clauses import WHOLE
 from ._eligible import eligible
 from ._errors import _GrammarFault
+from ._string_gaps import GapClaims
 from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._model import Range, Tags, Token
 from ._tags import EMPTY, Gathered, TagTable, difference, intersection, is_class, split_string, ngrams
@@ -101,7 +102,7 @@ class Bound:
     part comes from one walk, so a term that reads them all walks them
     about twice at most. ``$`` is the whole constituent where it is known."""
 
-    __slots__ = ("production", "caps", "base", "project", "whole", "found", "all", "searched", "machine", "structure", "close_structure", "boundary_value", "boundary_test")
+    __slots__ = ("production", "caps", "base", "project", "whole", "found", "all", "searched", "machine", "structure", "close_structure", "boundary_value", "boundary_test", "string_reader")
 
     def __init__(
         self,
@@ -114,6 +115,7 @@ class Bound:
         structure: int = 0,
         close_structure: int = 0,
     ) -> None:
+        self.string_reader = None
         self.boundary_value = None
         self.boundary_test = None
         self.production = production
@@ -177,6 +179,19 @@ class Bound:
             return 0
         part = self.caps[slot]
         return part[3] if len(part) > 3 else 0
+
+    def emitted(self, name, channel):
+        if name == WHOLE:
+            return self.string_reader(channel) if self.string_reader else ""
+        position = self.production.captures.get(name)
+        if position is None:
+            frame = self.production.lexical
+            part = frame.captures.get(name) if frame else None
+        else:
+            slot = self.production.slots[position]
+            part = self.caps[slot] if 0 <= slot < len(self.caps) else None
+        values = part[5] if part and len(part) > 5 else ()
+        return dict(values).get(channel, "")
 
     def close_observation(self, name: str) -> int:
         if name == WHOLE:
@@ -939,6 +954,8 @@ class Evaluator:
                     return split_string(text, delimiter)
                 table = self.context.lowered.classifiers[args[0]["classifier"]]
                 return table.get(text, EMPTY)
+            if name in ("value", "image") and receiver.get("method") == "emitted":
+                return bound.emitted(receiver["receiver"]["capture"], name)
             span = yield self._span(receiver, bound)
             if name == "tags" and args:
                 if isinstance(span, RestoredSpan):
@@ -1219,7 +1236,7 @@ class Parser:
             if _testing.fault("omission") or production.elided_test is None:
                 return True
             test = production.elided_test
-            value = test.value if test.op == "=" else ""
+            value = test.default_value or ""
             return test.holds(value, frozenset((production.elided,)))
 
         def close_record(terminal, position, value=None):
@@ -1232,7 +1249,7 @@ class Parser:
                 return 0
             if production.elided is not None:
                 test = production.elided_test
-                return close_record(production.elided, start, test.value if test is not None and test.op == '=' else None)
+                return close_record(production.elided, start, test.default_value if test is not None else None)
             if production.helper:
                 return prefix
             return closes.complete(prefix, production.lhs, original(start), original(at))
@@ -1330,6 +1347,87 @@ class Parser:
                         return None
             return record, notes
 
+        string_demands = {}
+        def demand(rule, channel):
+            channels = string_demands.setdefault(rule, set())
+            before = len(channels)
+            channels.add(channel)
+            return before != len(channels)
+
+        def string_reads(term, production):
+            changed = False
+            pending = [term]
+            while pending:
+                node = pending.pop()
+                if isinstance(node, list): pending.extend(node)
+                elif isinstance(node, dict):
+                    receiver = node.get("receiver", {})
+                    if node.get("method") in ("value", "image") and receiver.get("method") == "emitted":
+                        name = receiver["receiver"]["capture"]
+                        index = production.captures.get(name)
+                        if not name: changed = demand(production.lhs, node["method"]) or changed
+                        elif index is not None and not production.terminal[index]:
+                            changed = demand(production.rhs[index], node["method"]) or changed
+                    pending.extend(node.values())
+            return changed
+
+        for p in productions:
+            string_reads([p.conds_predict, *p.conds_at.values()], p)
+        changed = True
+        while changed:
+            changed = False
+            for p in productions:
+                for channel in tuple(string_demands.get(p.lhs, ())):
+                    if p.erased: continue
+                    recipe = p.value if channel == "value" else p.image if p.image is not None else p.value
+                    if recipe is not None: changed = string_reads(recipe, p) or changed
+                    else:
+                        for index, symbol in enumerate(p.rhs):
+                            if not p.terminal[index]: changed = demand(symbol, channel) or changed
+        string_prefixes, string_values = [], []
+
+        def string_state(p, position, start, at, captured, edge):
+            channels = string_demands.get(p.lhs)
+            if not channels: return (), ()
+            previous = edge[0]
+            prefix = dict(string_prefixes[previous]) if previous >= 0 else {}
+            for channel in channels:
+                recipe = p.value if channel == "value" else p.image if p.image is not None else p.value
+                if p.erased or recipe is not None: continue
+                contribution = ""
+                if previous >= 0:
+                    contribution = dict(string_values[edge[2]]).get(channel, "") if edge[1] == 2 else getattr(tokens[edge[2]], channel)
+                prefix[channel] = prefix.get(channel, "") + contribution
+            values, active = {}, set()
+            gaps = None
+            if position == len(p.rhs):
+                bound = evaluator.bind(p, captured, (start, at, None))
+                def get(channel):
+                    nonlocal gaps
+                    if channel in values: return values[channel]
+                    if channel in active: raise _GrammarFault("a constituent recipe has a channel dependency cycle")
+                    active.add(channel)
+                    recipe = p.value if channel == "value" else p.image if p.image is not None else p.value
+                    result = ""
+                    if p.elided is not None and not p.rhs:
+                        result = ((tokens[edge[2]].value if edge[1] == RESTORE else p.elided_test.default_value or "") if p.elided_test else (tokens[edge[2]].value if edge[1] == RESTORE else "")) if channel == "value" else ""
+                    elif not p.erased:
+                        if recipe is None: result = prefix.get(channel, "")
+                        else:
+                            for atom in recipe["concat"]:
+                                if atom.get("method") == "verbatim-text":
+                                    span = bound.get(atom["receiver"]["capture"])
+                                    if gaps is None: gaps = GapClaims(observed if observed is not None else context)
+                                    result += gaps.string(span[0], span[1])
+                                else:
+                                    result += run(evaluator.walk_value(atom, bound))
+                    active.remove(channel)
+                    values[channel] = result
+                    return result
+                bound.string_reader = get
+                for channel in channels: get(channel)
+            return tuple(sorted(prefix.items())), tuple(sorted(values.items()))
+
         def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False, prefix: int = 0, close_prefix: int = 0, family_prefix: Summary = IDENTITY, obligations=None, known_tag=None) -> None:
             if position == 0 and not productions[production].rhs:
                 known_tag = prediction_tags.pop((production, at), known_tag)
@@ -1341,6 +1439,8 @@ class Parser:
                     return
             structure = completed_structure(productions[production], position, prefix)
             key = (production, position, start, captured) + ((prefix, structure) if machine is not None else ())
+            if productions[production].lhs in string_demands:
+                key += (strings if position == len(productions[production].rhs) else string_prefix,)
             if closes is not None:
                 close_prefix = closes.trim(close_prefix, original(start), original(at))
                 close_structure = completed_closes(productions[production], position, start, at, close_prefix)
@@ -1366,6 +1466,8 @@ class Parser:
                     annotations.append(bounded[1])
                 if known_tag is not None:
                     item_tags[found] = known_tag
+                string_prefixes.append(string_prefix)
+                string_values.append(strings)
                 prod.append(production)
                 dot.append(position)
                 origin.append(start)
@@ -1550,6 +1652,8 @@ class Parser:
                 else:
                     part_summary = family.token(original(edge[2]))
                 family_prefix = family.join(family_prefixes[item], part_summary)
+            child_strings = string_values[edge[2]] if edge[1] == 2 else (("image", tokens[edge[2]].image), ("value", tokens[edge[2]].value))
+            part = (*part[:3], part_structure, part_closes, child_strings)
             captured = caps[item]
             if production.slots[position] >= 0:
                 step = (captured, part)
@@ -1590,6 +1694,8 @@ class Parser:
                 bound = bound_for(production, captured, (start, at, known_tag), structure, close_structure)
             else:
                 bound = bound_for(production, captured)
+            strings = dict(string_state(production, position+1, start, at, captured, edge)[1])
+            bound.string_reader = lambda channel: strings.get(channel, "")
             obligations = []
             try:
                 for condition in conditions or ():
@@ -1621,6 +1727,8 @@ class Parser:
             known_tag = lazy_tag(production, NO_CAPS, j, j, structure, close_structure) if not production.rhs else None
             whole = (j, j, known_tag) if known_tag is not None else None
             bound = bound_for(production, NO_CAPS, whole, structure, close_structure)
+            strings = dict(string_state(production, 0, j, j, NO_CAPS, SEED)[1])
+            bound.string_reader = lambda channel: strings.get(channel, "")
             obligations = []
             try:
                 for condition in production.conds_predict:

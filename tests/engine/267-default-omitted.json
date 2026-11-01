@@ -1,0 +1,31 @@
+{
+  "description": "default omitted.",
+  "grammar": "%rule text $x:r\n%conditions $x.emitted.value = \"tojie\"\n%rule r TO [+JI ≝ \"jie\"]",
+  "tokens": [
+    {
+      "text": "to",
+      "tags": [
+        "TO"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "children": [
+              {},
+              {
+                "kind": "elided",
+                "terminal": "JI",
+                "value": "jie"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

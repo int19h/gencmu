@@ -551,6 +551,18 @@ pub(crate) fn names_problem(dom: &Json) -> Option<&'static str> {
 }
 
 fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expanded: bool) -> Option<String> {
+    let mut condition_nodes = FxSet::default();
+    let mut conditions: Vec<&Json> =
+        pending.iter().filter(|(kind, _, _)| matches!(kind, Part::Condition)).map(|(_, n, _)| *n).collect();
+    while let Some(n) = conditions.pop() {
+        condition_nodes.insert(n as *const Json as usize);
+        match n {
+            Json::Arr(items) => conditions.extend(items),
+            Json::Obj(items) => conditions.extend(items.iter().map(|(_, v)| v)),
+            _ => {}
+        }
+    }
+
     let rule = |name: &str| rule_name(name, unicode, expanded);
     while let Some((kind, value, depth)) = pending.pop() {
         if depth > DOM_MAX_DEPTH {
@@ -640,13 +652,21 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     }
                     pending.push(expression(value.get("expr").unwrap(), flags));
                 } else if let Some(inner) = value.get("optional") {
-                    if !exact(value, &["optional"], &["elidable"])
+                    if !exact(value, &["optional"], &["elidable", "default"])
                         || !matches!(value.get("elidable"), None | Some(Json::Bool(true)))
                     {
                         return Some("a malformed optional".into());
                     }
                     if value.get("elidable").is_some() && !source::elidable(inner) {
                         return Some("a malformed elidable optional".into());
+                    }
+                    if let Some(default) = value.get("default") {
+                        if value.get("elidable") != Some(&Json::Bool(true))
+                            || !(default.get("string").is_some() || default.get("const").is_some())
+                        {
+                            return Some("a malformed default");
+                        }
+                        pending.push((Part::Term, default, depth + 1));
                     }
                     let sealed = flags.sealed || value.get("elidable").is_some();
                     pending.push(expression(inner, ExprFlags { sealed, ..flags }));
@@ -766,11 +786,10 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     let valid = match (name, args) {
                         ("without-elision", []) => capture,
                         ("without-elision-except", [arg]) => capture && rule_arg(arg),
-                        ("verbatim-text" | "emitted", []) => matches!(kind, Part::RecipeAtom) && capture,
+                        ("verbatim-text", []) => matches!(kind, Part::RecipeAtom) && capture,
+                        ("emitted", []) => (matches!(kind, Part::RecipeAtom) || condition_nodes.contains(&(value as *const Json as usize))) && capture,
                         ("value" | "image", []) => {
-                            span(receiver)
-                                || matches!(kind, Part::RecipeAtom)
-                                    && receiver.get("method").and_then(Json::as_str) == Some("emitted")
+                            span(receiver) || receiver.get("method").and_then(Json::as_str) == Some("emitted")
                         }
                         (
                             "source-text"

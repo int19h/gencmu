@@ -390,6 +390,8 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
         position: &position,
         closed_for: Default::default(),
         in_recipe: Default::default(),
+        in_condition: Default::default(),
+        default_head: Default::default(),
     };
     let mut dom = reader.document(tree)?;
     check_read(&dom, &notation.unicode)?;

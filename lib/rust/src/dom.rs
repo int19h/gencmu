@@ -68,7 +68,7 @@ use crate::tags::is_name;
 use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 41;
+pub const DOM_FORMAT: i64 = 42;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -201,7 +201,7 @@ pub(crate) enum Expr {
     Ranked(Vec<Expr>, Option<(usize, usize)>),
     And(Vec<Expr>),
     /// An optional `[x]`, or an elidable optional `[+T x]` (§3.8).
-    Optional(Box<Expr>, Mark),
+    Optional(Box<Expr>, Mark, Option<DefaultValue>),
     /// Braces: the item, the separator after `/` if any, and a chain's
     /// direction, from its marker `...` (engine §3.2, §3.3).
     Repeat(Box<Expr>, Option<Box<Expr>>, Option<Chain>),
@@ -218,6 +218,12 @@ pub(crate) enum Expr {
     /// The closed operand precedes the wrapped symbol in this representation.
     Tested(String, Term, Box<Expr>),
     Empty,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct DefaultValue {
+    pub term: Term,
+    pub at: Option<(usize, usize)>,
 }
 
 /// The marker of an optional (engine §3.8): none, `+` for an elidable
@@ -694,7 +700,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
         Read(&'a Json),
         List(&'a str, usize),
         Tested(String, Term),
-        Optional(Mark),
+        Optional(Mark, Option<DefaultValue>),
         Repeat(Option<Chain>, bool),
         Capture(String),
     }
@@ -724,7 +730,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
                     }
                     "optional" => {
                         let mark = if is_true(value.get("elidable")) { Mark::Elidable } else { Mark::Plain };
-                        pending.push(Task::Optional(mark));
+                        pending.push(Task::Optional(mark, value.get("default").map(|d| -> R<DefaultValue> { Ok(DefaultValue {term:term_from_json(d)?, at:crate::parameters::locations::source_at(d)}) }).transpose()?));
                         pending.push(Task::Read(field(value, "optional")?));
                         continue;
                     }
@@ -769,7 +775,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
                 }
             }
             Task::Tested(op, term) => Expr::Tested(op, term, Box::new(values.pop().unwrap())),
-            Task::Optional(mark) => Expr::Optional(Box::new(values.pop().unwrap()), mark),
+            Task::Optional(mark, default) => Expr::Optional(Box::new(values.pop().unwrap()), mark, default),
             Task::Repeat(chain, separated) => {
                 let item = Box::new(values.pop().unwrap());
                 let separator = separated.then(|| Box::new(values.pop().unwrap()));
@@ -1563,7 +1569,13 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                 Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     stack.extend(items.iter().map(|item| (Nested::Expr(item), below)))
                 }
-                Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push((Nested::Expr(inner), below)),
+                Expr::Optional(inner, _, default) => {
+                    stack.push((Nested::Expr(inner), below));
+                    if let Some(default) = default {
+                        stack.push((Nested::Term(&default.term), below));
+                    }
+                }
+                Expr::Capture(_, inner) => stack.push((Nested::Expr(inner), below)),
                 Expr::Repeat(item, separator, _) => {
                     stack.push((Nested::Expr(item), below));
                     stack.extend(separator.as_deref().map(|separator| (Nested::Expr(separator), below)));
@@ -1725,7 +1737,7 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.iter().rev())
             }
-            Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
+            Expr::Optional(inner, _, _) | Expr::Capture(_, inner) => stack.push(inner),
             // The item before the separator.
             Expr::Repeat(item, separator, _) => {
                 stack.extend(separator.as_deref());
@@ -1772,7 +1784,7 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
                 Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
                     pending.extend(xs.iter().rev())
                 }
-                Expr::Capture(_, x) | Expr::Optional(x, _) => pending.push(x),
+                Expr::Capture(_, x) | Expr::Optional(x, _, _) => pending.push(x),
                 Expr::Repeat(x, s, _) => {
                     pending.extend(s.as_deref());
                     pending.push(x);
@@ -2085,7 +2097,8 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
                 Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     pending.extend(items.iter().rev())
                 }
-                Expr::Optional(inner, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
+                Expr::Optional(inner, _, default) => { pending.push(inner); if let Some(default) = default { uses.push(Use::String(&default.term)); } },
+                Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
                 Expr::Repeat(item, separator, _) => {
                     pending.extend(separator.as_deref());
                     pending.push(item);
@@ -2280,7 +2293,7 @@ impl Expr {
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.drain(..).map(Dropping::Expr))
             }
-            Expr::Optional(inner, _) | Expr::Capture(_, inner) => {
+            Expr::Optional(inner, _, _) | Expr::Capture(_, inner) => {
                 stack.push(Dropping::Expr(std::mem::replace(&mut **inner, Expr::Empty)))
             }
             Expr::Repeat(item, separator, _) => {

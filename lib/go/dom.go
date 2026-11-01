@@ -9,7 +9,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 41
+const domFormat = 42
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what data/preparsed/gencmu.json and data/preparsed/FAMILY.json hold.
@@ -125,6 +125,8 @@ type domExpr struct {
 	Sep          *domExpr
 	Chain        string
 	Elidable     bool
+	Default      *domTerm
+	DefaultAt    [2]int
 	Name         string   // ref or capture name
 	Op           string   // test: its comparator, one of testOps
 	Value        *domTerm // test: its value, a closed term
@@ -558,6 +560,10 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 		e.Inner.writeJSON(w)
 		if e.Elidable {
 			w.raw(`,"elidable":true`)
+		}
+		if e.Default != nil {
+			w.raw(`,"default":`)
+			e.Default.writeJSON(w)
 		}
 		w.raw("}")
 	case exRepeat:
@@ -1244,6 +1250,18 @@ func (dc *domDecoder) decodeExprObj(raw any, o domObject, depth int) (*domExpr, 
 			}
 			e.Elidable = true
 		}
+		if raw, ok := o["default"]; ok {
+			if !e.Elidable {
+				return nil, fmt.Errorf("a default requires an elidable optional")
+			}
+			e.Default, err = decodeTerm(raw)
+			if err != nil {
+				return nil, err
+			}
+			if e.Default.Kind != tmString && e.Default.Kind != tmConst {
+				return nil, fmt.Errorf("a default requires one string")
+			}
+		}
 		return e, nil
 	}
 	if v, ok := o["repeat"]; ok {
@@ -1322,7 +1340,7 @@ func (dc *domDecoder) decodeExprObj(raw any, o domObject, depth int) (*domExpr, 
 // member names the form. A rule argument and a classifier argument are
 // forms of a term too.
 var exprForms = [][]string{
-	{exSeq}, {exChoice}, {exRanked}, {exAnd}, {exOptional, "elidable?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exCapture, "expr"},
+	{exSeq}, {exChoice}, {exRanked}, {exAnd}, {exOptional, "elidable?", "default?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exCapture, "expr"},
 	{"param", "at"}, {"call", "args", "at"},
 	{exRange}, {exLiteral}, {exWildcard}, {exTest, "value?", "requirements?", "expr"}, {exEmpty},
 }

@@ -40,7 +40,7 @@ from ._validate import (
 Dom = dict[str, Any]
 
 _MAPPED = frozenset("""directive argument-word argument-string argument-tag argument-term rule definer counts-as-clause category ranking-directive ranking-step rule-name body headed-body alternative ranked-alternative ranked-choice guard alternative-tags
-choice conjunction sequence primary repetition reference string-terminal string tag wildcard name tested tag-test tag-requirement value-test test test-operand capture
+choice conjunction sequence primary repetition reference string-terminal string tag wildcard name tested tag-test tag-requirement value-test default-value test test-operand capture
  group optional empty tags-clause value-clause image-clause recipe recipe-atom conditions-clause emits-clause erased-clause emit-item emit-target emit-tags emit-before
 emit-after implication any-of all-of condition comparison comparator tree-comparator negation presence method method-receiver method-selector method-name arguments argument term guarded-term
 union intersection concatenation term-atom tag-run string-run integer empty-set capture-reference range constant-definition constant-definer
@@ -59,6 +59,14 @@ def _is_capital(name: str) -> bool:
     """Whether a name begins with a capital, and so is a terminal and a tag
     literal (engine §2)."""
     return "A" <= name[:1] <= "Z"
+
+
+class DefaultOptional(dict):
+    """Keep the default marker position outside canonical DOM members."""
+
+    def __init__(self, value, at):
+        super().__init__(value)
+        self.default_at = at
 
 
 class DomBuilder:
@@ -91,6 +99,10 @@ class DomBuilder:
         # (engine §10).
         self.types: TypeMemo = {}
         self.recipe_context = False
+        self.condition_context = False
+        self.default_head = None
+        self.head_default = None
+        self.default_node = None
         self.feature_context = False
         self.engine_nodes = {}
         self.boundary_nodes = {}
@@ -444,7 +456,9 @@ class DomBuilder:
         ranked = self.one(body, "ranked-alternative")
         alternatives = [self.alternative(kid) for kid in ([ranked] if ranked is not None else self.some(body, "alternative"))]
         conditions_node = self.one(node, "conditions-clause")
+        self.condition_context = True
         conditions = [run(self._condition(item)) for item in self.some(conditions_node, "implication")] if conditions_node else []
+        self.condition_context = False
         # The categories of the rule's occurrences (engine §9.3).
         counts_as = self.one(node, "counts-as-clause")
         if counts_as is not None:
@@ -608,13 +622,27 @@ class DomBuilder:
         if rule == "range":
             return {"range": (yield self._range(node))}
         if rule == "tested":
-            tests = [kid for kid in self.kids(node) if kid.rule in ("tag-test", "value-test")]
+            tests = [kid for kid in self.kids(node) if kid.rule in ("tag-test", "value-test", "default-value")]
             if not tests:
                 raise self.lacks(node, "tag-test or value-test")
             symbol = self.test_base(node)
-            self.test_order(tests, symbol.rule in _SYMBOLS)
+            self.test_order([test for test in tests if test.rule != "default-value"], symbol.rule in _SYMBOLS)
             expr = yield self._expr(symbol)
-            return (yield self._wrap_tests(expr, tests))
+            for test in tests:
+                if test.rule == "default-value":
+                    if node is not self.default_head:
+                        raise self.fail(test, "a default stands only on an elidable optional head")
+                    if self.head_default is not None:
+                        raise self.fail(test, "an elidable head has one default at most")
+                    operand = self.only(test, "test-operand")
+                    inner = self.known_of(operand, _ATOMS)
+                    if inner.rule not in ("string", "constant-reference", "parameter"):
+                        raise self.fail(operand, "a default requires one string")
+                    self.head_default = self.value(inner)
+                    self.default_node = test
+                else:
+                    expr = yield self._wrap_tests(expr, [test])
+            return expr
         if rule == "capture":
             # Its place, its name and its symbol, in that order, before what
             # it wraps (engine §9).
@@ -690,10 +718,23 @@ class DomBuilder:
 
         elif not is_terminal(head):
             raise self.fail(node, form)
+        previous_head, previous_default, previous_node = self.default_head, self.head_default, self.default_node
+        self.default_head, self.head_default = head, None
         self.marked += 1
         expr = yield self._expr(choice)
         self.marked -= 1
-        return {"optional": expr, "elidable": True}
+        result = {"optional": expr, "elidable": True}
+        if self.head_default is not None:
+            result["default"] = self.head_default
+            result = DefaultOptional(result, self.position(self.default_node))
+            tested = expr["seq"][0] if "seq" in expr else expr
+            while "test" in tested:
+                if tested["test"] != "tags" and "string" in tested["value"] and "string" in self.head_default:
+                    if (self.head_default["string"] == tested["value"]["string"]) != (tested["test"] == "="):
+                        raise self.fail(self.default_node, "a default fails its head test")
+                tested = tested["expr"]
+        self.default_head, self.head_default, self.default_node = previous_head, previous_default, previous_node
+        return result
 
     def _repetition(self, node: Node, whole: bool) -> Walk:
         """Braces: the item, its separator if a `/` has one, and a
@@ -961,6 +1002,8 @@ class DomBuilder:
                 raise self.fail(node, 'unknown method ' + name)
             if self.closed_for and name not in ("split", "ngrams"):
                 raise self.fail(node, f"{self.closed_for} cannot read an input method")
+            if not self.recipe_context and (name == "verbatim-text" or name == "emitted" and not self.condition_context):
+                raise self.fail(node, "this method is legal only in recipes")
             arguments = self.one(selector, "arguments")
             args = []
             argument_nodes = self.some(arguments, "argument") if arguments else []
@@ -1040,6 +1083,8 @@ class DomBuilder:
             raise self.lacks(node, "pattern atom")
         first = kids[0]
         named = first.rule in ("name", "reference") or first.kind == "token" and first.terminal in ("Lowercase-Name", "Emoji-Name")
+        for kid in kids:
+            if kid.rule == "default-value": raise self.fail(kid,"a default stands only on an elidable optional head")
         tests = [kid for kid in kids if kid.rule in ("tag-test", "value-test")]
         valid = first.rule in ("tag", "string-terminal", "string", "range", "wildcard", "constant-reference")
         if first.kind == "token":

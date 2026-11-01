@@ -286,7 +286,7 @@ pub(crate) fn canonical_source(root: &Json) -> Json {
         } else if has(&n, "repeat") {
             &["repeat", "separator", "chain"]
         } else if has(&n, "optional") {
-            &["optional", "elidable"]
+            &["optional", "elidable", "default"]
         } else if has(&n, "if") {
             &["if", "then"]
         } else if has(&n, "op") {

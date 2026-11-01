@@ -178,9 +178,11 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			c.recipe(r.Value)
 			c.recipe(r.Image)
 			c.emission(r.Emit)
+			c.inConditions = true
 			for _, cond := range r.Conditions {
 				c.condition(cond, 0)
 			}
+			c.inConditions = false
 			for _, a := range r.Alternatives {
 				if a == nil || a.Guards == nil {
 					c.fail("a malformed alternative")
@@ -214,11 +216,13 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			d.unresolved = d.unresolved || c.unresolved
 			// A capture name stands at most once in each production (engine
 			// §3.5).
+			c.inConditions = false
 			for _, a := range r.Alternatives {
 				if twice := duplicateCaptures(a.Expr); len(twice) > 0 {
 					return &domProblem{message: fmt.Sprintf("rule %s: a capture name used twice in one production", r.Name), rule: r}
 				}
 			}
+			c.inConditions = false
 			for _, a := range r.Alternatives {
 				if repeatsItemCapture(a.Expr) { return &domProblem{message: "the name of an item capture used twice in one alternative", rule: r} }
 			}
@@ -417,6 +421,7 @@ func directiveOperandsOK(dir *domDirective) bool {
 }
 
 type domChecker struct {
+	inConditions bool
 	expanded        bool
 	parameters      map[string]bool
 	unresolved      bool
@@ -496,6 +501,13 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed, chain, item, ran
 			c.expr(it, depth+1, false, sealed, chain, item, ranked || e.Kind == exRanked)
 		}
 	case exOptional:
+		if e.Default != nil {
+			if !e.Elidable || !stringTermShape(e.Default) {
+				c.fail("a malformed default")
+				return
+			}
+			c.term(e.Default, depth+1, false)
+		}
 		// An elidable optional begins with its terminal (engine §3.8, §9).
 		if e.Elidable && elidableHead(e.Inner) == nil {
 			c.fail("a malformed elidable optional")
@@ -1435,12 +1447,16 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		}
 		var ok bool
 		switch t.Str {
+		case "emitted":
+			ok = c.inConditions && len(args) == 1 && args[0] != nil && args[0].Kind == tmCapture
+		case "verbatim-text":
+			ok = len(args) == 1 && args[0] != nil && args[0].Kind == tmCapture
 		case "without-elision-except":
 			ok = len(args) == 2 && args[0] != nil && (args[0].Kind == tmCapture || unresolvedTerm(args[0])) && isRule(args[1])
 		case "without-elision":
 			ok = len(args) == 1 && args[0] != nil && (args[0].Kind == tmCapture || unresolvedTerm(args[0]))
 		case "value", "image", "source-text", "decomposed-source-text", "classes", "first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens":
-			ok = len(args) == 1 && isSpanShape(args[0])
+			ok = len(args) == 1 && (isSpanShape(args[0]) || (t.Str == "value" || t.Str == "image") && args[0] != nil && args[0].Kind == tmCall && args[0].Str == "emitted")
 		case "tags":
 			ok = (len(args) == 1 && isSpanShape(args[0])) || (len(args) == 2 && isSpanShape(args[0]) && isRule(args[1]))
 		case "ngrams":

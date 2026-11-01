@@ -108,10 +108,12 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
         valid = bare and len(args) == 1 and rule(args[0])
     elif name == "without-elision":
         valid = bare and not args
-    elif name in ("verbatim-text", "emitted"):
+    elif name == "emitted":
+        valid = bare and not args
+    elif name == "verbatim-text":
         valid = recipe and bare and not args
     else:
-        valid = not args and (span or recipe and receiver_method == "emitted" and name in ("value", "image"))
+        valid = not args and (span or receiver_method == "emitted" and name in ("value", "image"))
     return None if valid else "a method has the wrong receiver or arguments"
 
 
@@ -121,12 +123,12 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
         return None, "ends requires an ordinary span, not a restored span"
     spans = {"capture", "span", "restored"}
     if name in _STRING_METHODS:
-        valid = receiver in spans or (recipe and receiver == "emitted" and name in ("value", "image"))
+        valid = receiver in spans or (receiver == "emitted" and name in ("value", "image"))
         if name == "verbatim-text":
             valid = recipe and bare
         result, arity = "string", 0
     elif name == "emitted":
-        valid, result, arity = recipe and bare, "emitted", 0
+        valid, result, arity = bare, "emitted", 0
     elif name in ("without-elision", "without-elision-except"):
         valid, result, arity = bare, "restored", 0 if name == "without-elision" else 1
         if arity and (len(args) != 1 or set(args[0]) != {"rule"}):
@@ -557,6 +559,8 @@ def tests_in(expr: Any) -> list[dict[str, Any]]:
         current = stack.pop()
         if not isinstance(current, dict):
             continue
+        if "default" in current:
+            found.append({"test":"=", "value":current["default"], "expr":current["optional"]})
         if isinstance(current.get("test"), str):
             found.append(current)
         for key in ("choice", "ranked", "and", "seq"):

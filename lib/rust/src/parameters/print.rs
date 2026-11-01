@@ -209,11 +209,18 @@ fn body(n: &Json, u: &Unicode, parent: &str) -> String {
         }
     }
     if has(n, "optional") {
-        return format!(
-            "[{}{}]",
-            if get(n, "elidable") == &Json::Bool(true) { "+" } else { "" },
-            body(get(n, "optional"), u, "")
-        );
+        let inner = get(n, "optional");
+        let parts = if has(inner, "seq") { list(get(inner, "seq")) } else { std::slice::from_ref(inner) };
+        let mut head = body(&parts[0], u, "");
+        if has(n, "default") {
+            head.push_str(" ≝ ");
+            head.push_str(&canonical(get(n, "default"), u));
+        }
+        for part in &parts[1..] {
+            head.push(' ');
+            head.push_str(&body(part, u, ""));
+        }
+        return format!("[{}{}]", if get(n, "elidable") == &Json::Bool(true) { "+" } else { "" }, head);
     }
     if has(n, "repeat") {
         return format!(

@@ -185,6 +185,16 @@ impl<'a> Strings<'a> {
                         }),
                         IKind::Close { prod, .. } => {
                             let production = &self.grammar.prods[prod as usize];
+                            let rule = &self.grammar.rules[production.rule as usize];
+                            if rule.elided.is_some() && production.syms.is_empty() {
+                                values.push(if matches!(channel, Channel::Value) {
+                                    rule.elided_value.clone().unwrap_or_default()
+                                } else {
+                                    String::new()
+                                });
+                                continue;
+                            }
+                            let production = &self.grammar.prods[prod as usize];
                             if production.erased {
                                 values.push(String::new());
                                 continue;
@@ -213,7 +223,10 @@ impl<'a> Strings<'a> {
                                             Channel::Value => p.strings.value.is_some(),
                                             Channel::Image => p.strings.image.is_some() || p.strings.value.is_some(),
                                         };
-                                        if !selected {
+                                        if !selected
+                                            && !(self.grammar.rules[p.rule as usize].elided.is_some()
+                                                && p.syms.is_empty())
+                                        {
                                             pending.extend(child_node.children.iter().rev());
                                             continue;
                                         }
@@ -311,5 +324,59 @@ impl<'a> Strings<'a> {
             },
         };
         Ok((value, image))
+    }
+}
+
+pub(crate) struct GapClaims {
+    sources: Vec<(usize, usize)>,
+    covered: Vec<bool>,
+    claims: Vec<GapClaim>,
+}
+impl GapClaims {
+    pub(crate) fn new(tokens: &[Tok], length: usize) -> Self {
+        Self::with_sources(&tokens.iter().map(|t| t.source).collect::<Vec<_>>(), length)
+    }
+    pub(crate) fn with_sources(sources: &[(usize, usize)], length: usize) -> Self {
+        let mut covered = vec![false; length];
+        for &(a, b) in sources {
+            covered[a..b].fill(true);
+        }
+        Self { sources: sources.to_vec(), covered, claims: Vec::new() }
+    }
+    pub(crate) fn string(&mut self, span: (usize, usize), text: &[char]) -> Result<String, EngineError> {
+        if span.0 == span.1 {
+            return Ok(String::new());
+        }
+        let left = self.sources[span.0..span.1].iter().map(|t| t.0).min().unwrap();
+        let right = self.sources[span.0..span.1].iter().map(|t| t.1).max().unwrap();
+        let previous = span.0.checked_sub(1).map_or(0, |i| self.sources[i].1);
+        let following = self.sources.get(span.1).map_or(text.len(), |t| t.0);
+        let mut start = left;
+        let mut end = right;
+        while start > previous && !self.covered[start - 1] {
+            start -= 1;
+        }
+        while end < following && !self.covered[end] {
+            end += 1;
+        }
+        let mut extensions = Vec::new();
+        if start < left {
+            extensions.push((start, left));
+        }
+        if right < end {
+            extensions.push((right, end));
+        }
+        if !self.claims.iter().any(|claim| claim.span == span) {
+            for claim in &self.claims {
+                if extensions.iter().any(|a| claim.intervals.iter().any(|b| a.0 < b.1 && b.0 < a.1)) {
+                    return Err(EngineError {
+                        message: "different verbatim spans claim the same uncovered source text".into(),
+                        rule: None,
+                    });
+                }
+            }
+            self.claims.push(GapClaim { span, intervals: extensions });
+        }
+        Ok(text[start..end].iter().collect())
     }
 }

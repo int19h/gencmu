@@ -1,0 +1,17 @@
+{
+  "description": "whole recipe.",
+  "grammar": "%rule text A := \"kept\"\n%conditions $.emitted.value = \"kept\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

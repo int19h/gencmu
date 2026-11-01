@@ -23499,5 +23499,114 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "A default requires an elidable optional and one string operand.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "categories": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "optional": {
+              "ref": "JI"
+            },
+            "default": null,
+            "elidable": true
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A default requires an elidable optional and one string operand.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "categories": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "optional": {
+              "ref": "JI"
+            },
+            "default": {
+              "tag": "T"
+            },
+            "elidable": true
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A default requires an elidable optional and one string operand.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "categories": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "optional": {
+              "ref": "JI"
+            },
+            "default": {
+              "string": 2
+            },
+            "elidable": true
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A default requires an elidable optional and one string operand.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "categories": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "optional": {
+              "ref": "JI"
+            },
+            "default": {
+              "string": "jie"
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]

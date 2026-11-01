@@ -174,6 +174,7 @@ type loader struct {
 	noCache            bool
 	diagnosticDocument string
 	recipeDocument     string
+	defaultDocument    string
 	boundaryDocument   string
 	// fromDisk is set when read decodes files, not strings the caller
 	// supplies: bytes that are not valid UTF-8 are then a grammar error of
@@ -208,6 +209,9 @@ func (l *loader) documentText(p, text string, inherited []string) (*domDoc, *Err
 		return nil, &Error{Kind: ErrorUsage, Document: p, Message: "the document is not a sequence of Unicode scalar values: " + problem}
 	}
 	names := newNamesScope(l.namesText, l.uni, inherited)
+	if p == l.defaultDocument {
+		return l.readSource(p, text, names)
+	}
 	if !l.noCache {
 		key := domCacheKey{p, fnv1a64(text), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, domFormat}
 		if raw, ok := l.preparsed[key]; ok {
@@ -310,6 +314,8 @@ func (l *loader) load(pipelinePath string) (*Pipeline, error) {
 			diagnostic.diagnosticDocument = failure.Group.Document
 		case failure.boundaryLocation && failure.Line == 0 && failure.Document != "":
 			diagnostic.boundaryDocument = failure.Document
+		case failure.defaultLocation && failure.Line == 0 && failure.Document != "":
+			diagnostic.defaultDocument = failure.Document
 		case failure.recipeCycle && failure.Line == 0 && failure.Document != "":
 			diagnostic.recipeDocument = failure.Document
 		default:

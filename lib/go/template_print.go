@@ -229,7 +229,19 @@ func templateBodyText(n templateObject, uni *unicodeTable, parent string) string
 		if n["elidable"] == true {
 			marker = "+"
 		}
-		return "[" + marker + templateBodyText(templateObj(n["optional"]), uni, "") + "]"
+		body := templateObj(n["optional"])
+		parts := []any{body}
+		if body["seq"] != nil {
+			parts = templateList(body["seq"])
+		}
+		head := templateBodyText(templateObj(parts[0]), uni, "")
+		if n["default"] != nil {
+			head += " ≝ " + templateCanonical(templateObj(n["default"]), uni)
+		}
+		for _, part := range parts[1:] {
+			head += " " + templateBodyText(templateObj(part), uni, "")
+		}
+		return "[" + marker + head + "]"
 	}
 	if n["repeat"] != nil {
 		before, after, sep := "", "", ""

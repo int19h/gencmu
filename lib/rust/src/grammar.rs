@@ -699,7 +699,7 @@ fn consuming(expr: &Expr, rules: &FxSet<String>) -> bool {
                 return true
             }
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => pending.extend(items),
-            Expr::Capture(_, inner) | Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => pending.push(inner),
+            Expr::Capture(_, inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => pending.push(inner),
             Expr::Repeat(item, separator, _) => {
                 pending.push(item);
                 pending.extend(separator.as_deref());
@@ -1889,6 +1889,65 @@ impl Constants<'_> {
         Ok((a, b))
     }
 
+    fn check_body_strings(&self, root: &Expr, document: &str, at: (usize, usize)) -> Result<(), Error> {
+        let mut pending = vec![root];
+        while let Some(expr) = pending.pop() {
+            match expr {
+                Expr::ScalarRange(a, b) => {
+                    self.scalar_endpoints(a, b, document, at)?;
+                }
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                    pending.extend(items.iter().rev())
+                }
+                Expr::Optional(inner, _, default) => {
+                    if let Some(default) = default {
+                        let value = self.evaluate(&default.term, document, default.at.unwrap_or(at))?;
+                        let Value::Str(value) = value else {
+                            return Err(located(
+                                "a default requires one string".into(),
+                                document,
+                                default.at.unwrap_or(at),
+                            ));
+                        };
+                        let head = if let Expr::Seq(xs) = inner.as_ref() { &xs[0] } else { inner.as_ref() };
+                        let mut base = head;
+                        while let Expr::Tested(_, _, next) = base {
+                            base = next;
+                        }
+                        let Expr::Ref(name) = base else { unreachable!("an elidable head names a tag") };
+                        let mut tested = head;
+                        while let Expr::Tested(op, operand, next) = tested {
+                            let operand = self.evaluate_test(operand, op, document, at)?;
+                            let test = crate::lower::SymbolTest::new(op, &operand, self.unicode);
+                            if test.tags.iter().any(|t| t != name)
+                                || test.negative.contains(name)
+                                || test
+                                    .sound
+                                    .as_ref()
+                                    .is_some_and(|s| (s == &value) != (test.op == crate::lower::TestOp::Is))
+                            {
+                                return Err(located(
+                                    "a default fails its head test".into(),
+                                    document,
+                                    default.at.unwrap_or(at),
+                                ));
+                            }
+                            tested = next;
+                        }
+                    }
+                    pending.push(inner)
+                }
+                Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
+                Expr::Repeat(item, separator, _) => {
+                    pending.extend(separator.as_deref());
+                    pending.push(item);
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
     /// Gives every test of a body its value, a string or a tag set, from
     /// the constants' final values (§2, §4). Each value is then a string,
     /// `∅`, a tag or a union of tags, in code point order.
@@ -1901,7 +1960,21 @@ impl Constants<'_> {
                         Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                             stack.extend(items.iter_mut())
                         }
-                        Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
+                        Expr::Optional(inner, _, default) => {
+                            if let Some(value) = default {
+                                *value = crate::dom::DefaultValue {
+                                    term: self.evaluate_test(
+                                        &value.term,
+                                        "=",
+                                        &alternative.document,
+                                        value.at.unwrap_or(alternative.at),
+                                    )?,
+                                    at: value.at,
+                                };
+                            }
+                            stack.push(inner);
+                        }
+                        Expr::Capture(_, inner) => stack.push(inner),
                         Expr::Repeat(item, separator, _) => {
                             stack.push(item);
                             stack.extend(separator.as_deref_mut());
@@ -2254,7 +2327,7 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
             check_expr(grammar, item)?;
             separator.as_deref().map_or(Ok(()), |separator| check_expr(grammar, separator))
         }
-        Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => check_expr(grammar, inner),
+        Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => check_expr(grammar, inner),
         Expr::Ref(name) => {
             if is_terminal_name(name) {
                 Ok(())
@@ -2314,6 +2387,13 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             check_term(grammar, then)
         }
         Term::Call(name, args) => match (name.as_str(), &args[..]) {
+            ("value" | "image", [Arg::Term(Term::Call(method, args))]) if method == "emitted" => {
+                if let [Arg::Term(Term::Capture(_))] = &args[..] {
+                    Ok(())
+                } else {
+                    Err("emitted requires a bare capture".into())
+                }
+            }
             ("value" | "image" | "source-text" | "decomposed-source-text" | "classes" | "tags", [Arg::Term(span)]) => {
                 check_span_references(grammar, span)
             }

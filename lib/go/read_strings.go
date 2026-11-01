@@ -54,6 +54,9 @@ func patternLeafMatches(p *domPattern, terminal, value string, tags *tagset) boo
 func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 	var tests []*Node
 	for _, p := range b.ruleParts(n) {
+		if p.Rule == "default-value" {
+			b.fail(p, "a default stands only on an elidable optional head")
+		}
 		if p.Rule == "tag-test" || p.Rule == "value-test" {
 			tests = append(tests, p)
 		}
@@ -503,7 +506,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	switch sourceMethods[name] {
 	case methodSpan:
 		valid = len(args) == 0 && span
-		if b.inRecipe && receiver.Kind == tmCall && receiver.Str == "emitted" {
+		if receiver.Kind == tmCall && receiver.Str == "emitted" {
 			valid = len(args) == 0 && (name == "value" || name == "image")
 		}
 	case methodRestored:
@@ -511,7 +514,10 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 			fail()
 		}
 		valid = name == "without-elision" && len(args) == 0 || name == "without-elision-except" && len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0]))
-	case methodRecipe:
+	case "emitted":
+		valid = (b.inRecipe || b.inCondition) && len(args) == 0 && receiver.Kind == tmCapture
+	case "verbatim-text":
+
 		valid = b.inRecipe && len(args) == 0 && receiver.Kind == tmCapture
 	case methodTags:
 		valid = span && (len(args) == 0 || len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0])))

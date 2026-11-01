@@ -1,0 +1,29 @@
+{
+  "description": "capture recipe.",
+  "grammar": "%rule text $a:r $b:r\n%conditions $a.emitted.value = $b.emitted.value\n%rule r [prefix] A\n%rule prefix P := \"\" :- \"\"",
+  "tokens": [
+    {
+      "text": "p",
+      "tags": [
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

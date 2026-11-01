@@ -275,7 +275,7 @@ func templateChildPosition(key, position string) string {
 	if position == "pattern" && (key == "union" || key == "intersection" || key == "difference") {
 		return "pattern"
 	}
-	if strings.Contains("|alternatives|conditions|emit|tags|value|image|requirements|range|literal|concat|union|intersection|difference|left|right|receiver|if|then|not|all|any|args|", "|"+key+"|") {
+	if strings.Contains("|alternatives|conditions|emit|tags|value|image|default|requirements|range|literal|concat|union|intersection|difference|left|right|receiver|if|then|not|all|any|args|", "|"+key+"|") {
 		return "term"
 	}
 	if position != "pattern" && strings.Contains("|seq|choice|ranked|and|optional|repeat|separator|expr|", "|"+key+"|") {

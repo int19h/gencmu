@@ -21,7 +21,7 @@ export declare function validSteps(steps: unknown): boolean;
 export declare function validCategories(categories: unknown): boolean;
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 41;
+export declare const DOM_FORMAT = 42;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
 export declare const TEST_OPS: Set<string>;

@@ -256,10 +256,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                             span: start..start,
                             source: source_of(originals, start, start),
                             tags: crate::result::Tags::new(),
-                            value: rule.elided_test.and_then(|id| {
-                                let test = &context.g.tests[id as usize];
-                                (test.op == crate::lower::TestOp::Is).then(|| test.sound.clone()).flatten()
-                            }),
+                            value: rule.elided_value.clone(),
                             children: Vec::new(),
                         }],
                         _ => children,
@@ -754,6 +751,7 @@ pub(crate) fn emit(
                             unreachable!("an emission's constituent")
                         };
                         let frame = Frame {
+                            emitted: 0,
                             lexical: None,
                             parent_structure: u32::MAX,
                             parent_tags: Cell::new(None),
@@ -813,6 +811,7 @@ pub(crate) fn emit(
                     unreachable!()
                 };
                 let frame = Frame {
+                    emitted: 0,
                     lexical: None,
                     parent_structure: u32::MAX,
                     parent_tags: Cell::new(None),

@@ -537,7 +537,7 @@ fn reach(g: &crate::grammar::StageGrammar, roots: Vec<String>) -> (FxSet<String>
                     terminals.insert(n.clone());
                 }
                 Expr::Seq(es) | Expr::Choice(es) | Expr::Ranked(es, _) | Expr::And(es) => stack.extend(es),
-                Expr::Capture(_, e) | Expr::Optional(e, _) | Expr::Tested(_, _, e) => stack.push(e),
+                Expr::Capture(_, e) | Expr::Optional(e, _, _) | Expr::Tested(_, _, e) => stack.push(e),
                 Expr::Repeat(e, s, _) => {
                     stack.push(e);
                     stack.extend(s.as_deref());

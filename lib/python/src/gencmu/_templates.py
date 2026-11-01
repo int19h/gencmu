@@ -145,7 +145,12 @@ def _print_body(n, unicode, parent=''):
             text = yield _print_join(n[key], unicode, _print_body, op, key)
             return '(' + text + ')' if parent and priority[key] <= priority[parent] else text
     if 'optional' in n:
-        return '[' + ('+' if n.get('elidable') else '') + (yield _print_body(n['optional'], unicode)) + ']'
+        parts = n['optional'].get('seq', [n['optional']])
+        head = yield _print_body(parts[0], unicode)
+        if 'default' in n: head += ' ≝ ' + (yield _print_argument(n['default'], unicode))
+        texts = [head]
+        for part in parts[1:]: texts.append((yield _print_body(part, unicode)))
+        return '[' + ('+' if n.get('elidable') else '') + ' '.join(texts) + ']'
     if 'repeat' in n:
         text = yield _print_body(n['repeat'], unicode)
         separator = ' / ' + (yield _print_body(n['separator'], unicode)) if 'separator' in n else ''
@@ -659,7 +664,7 @@ def child_position(key, position):
         return 'pattern-item'
     if position == 'pattern' and key in ('union', 'intersection', 'difference'):
         return 'pattern'
-    if key in ('alternatives', 'conditions', 'emit', 'tags', 'value', 'image', 'requirements', 'range', 'literal', 'concat', 'union', 'intersection', 'difference', 'left', 'right', 'receiver', 'if', 'then', 'not', 'all', 'any', 'args'):
+    if key in ('alternatives', 'conditions', 'emit', 'tags', 'value', 'image', 'default', 'requirements', 'range', 'literal', 'concat', 'union', 'intersection', 'difference', 'left', 'right', 'receiver', 'if', 'then', 'not', 'all', 'any', 'args'):
         return 'term'
     if key in ('seq', 'choice', 'ranked', 'and', 'optional', 'repeat', 'separator', 'expr') and position != 'pattern':
         return 'expr'

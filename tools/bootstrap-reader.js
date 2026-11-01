@@ -39,7 +39,7 @@ export function readResource(key) {
 // their own in the lexer.
 const LAYERED_SYMBOLS = new Set(["«", "»", "·"]);
 const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=",
-  "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻"]);
+  "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻", "≝"]);
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%conditions", "%counts-as", "%emits", "%erased",
   "%ambiguity-resolution", "%elision-only", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
@@ -574,7 +574,12 @@ class Parser {
     if (this.is("capture") || this.is("constant") && this.is(":", 1)) return this.node("primary", start, [this.node("capture", start, [this.tok(), this.expect(":"), (yield this.primary())])]);
     const base = this.node("primary", start, [(yield this.symbol())]);
     const tests = [];
-    while (TEST_COMPARATORS.has(this.kindAt())) tests.push((yield this.test()));
+    while (TEST_COMPARATORS.has(this.kindAt()) || this.is("≝")) {
+      if (this.is("≝")) {
+        const at = this.index;
+        tests.push(this.node("default-value", at, [this.tok(), (yield this.testOperand())]));
+      } else tests.push((yield this.test()));
+    }
     return tests.length ? this.node("primary", start, [this.node("tested", start, [base.children[0], ...tests])]) : base;
   }
 

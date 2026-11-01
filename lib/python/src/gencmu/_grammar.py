@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import itertools
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import AbstractSet, Any, Union
 
 from ._clauses import WHOLE, Emission, Prepared, captures_in, check_definition, rule_has_ranked, prepare, prepare_conditions, simplify_term, item_captures, mentioned_in
@@ -112,6 +112,7 @@ class SymbolTest:
     written: str
     requirements: tuple[tuple[bool, frozenset[str]], ...] = ()
     prior: SymbolTest | None = None
+    default_value: str | None = None
 
     def holds(self, value: str, tags: frozenset[str]) -> bool:
         """Whether the test holds of a span whose stored values join to ``value`` and
@@ -692,6 +693,9 @@ class _Constants:
         if node.get("op") in ("≅", "≇") and not has_unresolved(node["right"]):
             return {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
         copy: dict[str, Any] = {}
+        if hasattr(node,"default_at"):
+            from ._dom import DefaultOptional
+            copy = DefaultOptional(copy,node.default_at)
         for key, value in node.items():
             copy[key] = yield self.with_values(value)
         return copy
@@ -732,6 +736,9 @@ class _Constants:
                 for key, value in node.items():
                     values[key] = yield resolve(value)
                 copy = node if all(values[key] is value for key, value in node.items()) else values
+                if copy is not node and hasattr(node,"default_at"):
+                    from ._dom import DefaultOptional
+                    copy = DefaultOptional(copy,node.default_at)
                 if copy is not node and hasattr(node, "at") and "concat" in node:
                     from ._recipes import Recipe
                     copy = Recipe(values["concat"], node.at)
@@ -1063,6 +1070,21 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     )
 
     grammar.ranked = RankedGroups(stage, rules)
+    defaults = _Lowerer(grammar, frozenset())
+    for rule in rules.values():
+        defaults.current = rule
+        for alternative in rule.alternatives:
+            defaults.current_alt = alternative
+            pending = [alternative.expr]
+            while pending:
+                node = pending.pop()
+                if not isinstance(node, dict): continue
+                if "default" in node:
+                    defaults.elided_terminal(node["optional"], node["default"], getattr(node,"default_at",None))
+                for key in ("seq", "choice", "ranked", "and"): pending.extend(node.get(key, ()))
+                for key in ("expr", "optional", "repeat", "separator"):
+                    if key in node: pending.append(node[key])
+
     if grammar.ranked.groups:
         grammar.ranked.validate_tags()
     if constants.deferred_emissions:
@@ -1430,7 +1452,7 @@ class _Lowerer:
             self.helper_elided[number] = elided
         return number
 
-    def elided_terminal(self, expr: Dom) -> tuple[str, SymbolTest | None]:
+    def elided_terminal(self, expr: Dom, default=None, at=None) -> tuple[str, SymbolTest | None]:
         """The terminal of an elidable optional, the first item of its
         content, and its complete symbol predicate (engine §3.8, §12)."""
         first = expr["seq"][0] if "seq" in expr and expr["seq"] else expr
@@ -1439,6 +1461,22 @@ class _Lowerer:
         while "test" in symbol:
             symbol = symbol["expr"]
         name = symbol.get("ref")
+        if not is_terminal_name(name or ""):
+            name = None
+        if not isinstance(name, str):
+            raise self.fail(f"an elidable optional in {self.current.name if self.current else '?'} does not begin with its terminator")
+        value = test.value if test is not None and test.op == "=" else None
+        if default is not None:
+            value = literal_string(default)
+            if value is None:
+                raise self.fail("a default requires one string")
+            if test is not None and not test.holds(value, frozenset((name,))):
+                error = self.fail("a default fails its head test")
+                error.line, error.column = at or (None,None)
+                if at is None: error._default_document = error.document
+                raise error
+        if value is not None:
+            test = replace(test, default_value=value) if test is not None else SymbolTest("tags", None, "", default_value=value)
         return (name, test)
 
     def character_class(self, expr: Dom) -> tuple[str, Any] | None:
@@ -1529,7 +1567,7 @@ class _Lowerer:
             # Any other optional is a helper, and a marked one is elidable,
             # with the terminal that its marker names
             # (engine §3.8).
-            helper = self.new_helper([[]] + body, self.elided_terminal(inner) if elidable else None)
+            helper = self.new_helper([[]] + body, self.elided_terminal(inner, expr.get("default"), getattr(expr,"default_at",None)) if elidable else None)
             return [Expansion([(("n", helper), None)])]
         if "repeat" in expr:
             # Flat braces are a helper, h → x | h s x, its base productions

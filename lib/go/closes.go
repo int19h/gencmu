@@ -277,8 +277,8 @@ func (run *stageRun) closeArena(g *lowered) *closeArena {
 
 func (r *recognizer) closeRecord(terminal string, at int, test *symTest) Restoration {
 	record := Restoration{Terminal: terminal, At: at, Source: r.run.emptySource(at)}
-	if test != nil && test.op == "=" {
-		record.Value, record.Tested = test.sound, true
+	if test != nil && test.defaultValue != nil {
+		record.Value, record.Tested = *test.defaultValue, true
 	}
 	return record
 }
@@ -350,7 +350,7 @@ func (r *recognizer) blockEvent(c *symNode) closeEvent {
 			cv := f.captures[n]
 			x, y := r.observed(cv.start, cv.end)
 			sequence := r.closes.semantic(cv.closes)
-			fmt.Fprintf(&key, "%q:%d:%d:%q:%d:%d/", n, x, y, r.run.ps.in.all[cv.tags].key, cv.structure, sequence)
+			fmt.Fprintf(&key, "%q:%d:%d:%q:%d:%d:%q:%q/", n, x, y, r.run.ps.in.all[cv.tags].key, cv.structure, sequence, cv.emitted[0], cv.emitted[1])
 		}
 		entry = key.String()
 	}

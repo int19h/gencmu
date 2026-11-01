@@ -466,6 +466,29 @@ func (g *stageGrammar) makeTests() *Error {
 			}
 		}
 	}
+	for _, r := range g.rules {
+		for _, a := range r.alts {
+			lw := &lowerer{g: g, l: &lowered{}, tests: map[*domExpr]*symTest{}}
+			for i, t := range testsIn(a.alt.Expr) {
+				lw.tests[t] = a.tests[i]
+			}
+			pending := []*domExpr{a.alt.Expr}
+			for len(pending) > 0 {
+				e := pending[len(pending)-1]
+				pending = pending[:len(pending)-1]
+				if e == nil {
+					continue
+				}
+				if e.Default != nil {
+					lw.elision(e, a)
+					if lw.l.fault != "" {
+						return lw.l.faultLocation
+					}
+				}
+				pending = append(pending, exprChildren(e)...)
+			}
+		}
+	}
 	return nil
 }
 

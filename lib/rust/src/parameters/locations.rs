@@ -470,6 +470,46 @@ fn annotate_channels(c: &dom::Channels, n: &mut Json) {
         locate(v, c.image_at)
     }
 }
+fn annotate_defaults(expr: &dom::Expr, n: &mut Json) {
+    use dom::Expr;
+    match expr {
+        Expr::Optional(inner, _, default) => {
+            if let (Some(default), Some(value)) = (default, slot(n, "default")) {
+                locate(value, default.at);
+            }
+            if let Some(n) = slot(n, "optional") {
+                annotate_defaults(inner, n);
+            }
+        }
+        Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs) | Expr::And(xs) => {
+            let key = match expr {
+                Expr::Seq(_) => "seq",
+                Expr::Choice(_) => "choice",
+                Expr::Ranked(_) => "ranked",
+                _ => "and",
+            };
+            if let Some(Json::Arr(ns)) = slot(n, key) {
+                for (x, n) in xs.iter().zip(ns) {
+                    annotate_defaults(x, n);
+                }
+            }
+        }
+        Expr::Capture(_, x) | Expr::Tested(_, _, x) => {
+            if let Some(n) = slot(n, "expr") {
+                annotate_defaults(x, n);
+            }
+        }
+        Expr::Repeat(x, separator, _) => {
+            if let Some(n) = slot(n, "repeat") {
+                annotate_defaults(x, n);
+            }
+            if let (Some(x), Some(n)) = (separator, slot(n, "separator")) {
+                annotate_defaults(x, n);
+            }
+        }
+        _ => {}
+    }
+}
 fn annotate_rule(rule: &dom::RuleDef, n: &mut Json) {
     if let Some(args) = &rule.source.args {
         annotate_arguments(args, n);
@@ -487,6 +527,7 @@ fn annotate_rule(rule: &dom::RuleDef, n: &mut Json) {
         for (alt, n) in rule.alternatives.iter().zip(alts) {
             if let Some(n) = slot(n, "expr") {
                 annotate_expr(&alt.expr, n);
+                annotate_defaults(&alt.expr, n);
             }
             annotate_channels(&alt.strings, n);
             if let Some(t) = &alt.tags {

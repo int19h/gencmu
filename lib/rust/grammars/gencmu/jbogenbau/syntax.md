@@ -236,14 +236,14 @@ A `tested` primary holds its base and all following tests in written order. Test
 
 Valid symbols accept a tag test followed by a value test. Recognition admits extra tests, reversed tests, and wider operands so that the reader can name their errors.
 
-Each tag requirement has an optional `¬`. An empty requirement list holds vacuously. A value test uses `=` or `≠` and requires a string literal or string constant.
+Each tag requirement has an optional `¬`. An empty requirement list holds vacuously. A value test uses `=` or `≠` and requires a string literal or string constant. A default value, `≝` and a string, has the form of a value test. Recognition admits it after any symbol, and the reader accepts it only on the head of an elidable optional.
 
 ```jbogenbau
 %rule tested
   untested-primary {symbol-test}
 
 %rule symbol-test
-  tag-test | value-test
+  tag-test | value-test | default-value
 
 %rule tag-test
   "<" [{tag-requirement}] ">"
@@ -256,6 +256,9 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
 
 %rule test
   "=" | "≠"
+
+%rule default-value
+  "≝" test-operand
 
 %rule operand-atom
   call | parameter | string | constant-reference | name | tag | range | capture-reference | empty-set | pattern-literal | "(" term ")"
@@ -270,13 +273,14 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
   string | constant-reference | parameter
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>tested</code> to <code>string-operand</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>tested</code> to <code>string-operand</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/tested.svg" alt="Railroad diagram of the rule tested"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/symbol-test.svg" alt="Railroad diagram of the rule symbol-test"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/tag-test.svg" alt="Railroad diagram of the rule tag-test"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/tag-requirement.svg" alt="Railroad diagram of the rule tag-requirement"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/value-test.svg" alt="Railroad diagram of the rule value-test"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/test.svg" alt="Railroad diagram of the rule test"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/default-value.svg" alt="Railroad diagram of the rule default-value"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/operand-atom.svg" alt="Railroad diagram of the rule operand-atom"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/test-operand.svg" alt="Railroad diagram of the rule test-operand"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/range.svg" alt="Railroad diagram of the rule range"></p>

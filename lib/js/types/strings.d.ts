@@ -1,4 +1,5 @@
-import type { Derivation, DerivationRule, Recipe, Scope, Span } from "./types.js";
+import { GapClaims } from "./string-gaps.js";
+import type { Derivation, DerivationRule, Recipe, Scope } from "./types.js";
 import type { ParseContext } from "./earley.js";
 export type Channel = "value" | "image";
 export type Request = {
@@ -15,8 +16,7 @@ export type Request = {
 /** @typedef {{node:Derivation, channel:Channel} | {node:DerivationRule, recipe:Recipe, item?:object}} Request */
 /** @param {DerivationRule} node @param {string} name @returns {Derivation} */
 export declare function capturedNode(node: DerivationRule, name: string): Derivation;
-export declare class StringWalk {
-    context: ParseContext;
+export declare class StringWalk extends GapClaims {
     scope: (node: DerivationRule) => Scope;
     /** @type {WeakMap<Derivation,Map<object|string,string>>} */
     values: WeakMap<Derivation, Map<object | string, string>>;
@@ -48,6 +48,4 @@ export declare class StringWalk {
     run(root: Request): string;
     /** @param {Request} request @returns {Generator<Request,string,string>} */
     build(request: Request): Generator<Request, string, string>;
-    /** @param {number} a @param {number} b @returns {string} */
-    verbatim(a: number, b: number): string;
 }

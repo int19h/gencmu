@@ -22,7 +22,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 41
+FORMAT = 42
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -220,6 +220,14 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
         or any(not isinstance(dom.get(k), list) for k in arrays)
     ):
         return f"not a DOM of format {FORMAT}"
+    condition_nodes = set()
+    condition_stack = [rule.get("conditions", []) for rule in dom["rules"] if isinstance(rule, dict)]
+    while condition_stack:
+        part = condition_stack.pop()
+        if isinstance(part, list): condition_stack.extend(part)
+        elif isinstance(part, dict):
+            condition_nodes.add(id(part))
+            condition_stack.extend(part.values())
     positions = set()
     for key in arrays:
         for item in dom[key]:
@@ -398,7 +406,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             feature_nodes.extend(node)
     # Shape inspection collects type faults for each declaration.
     type_faults = []
-    problem = _walk(pending, unicode, deferred, rule_name, type_roots, type_faults)
+    problem = _walk(pending, unicode, deferred, rule_name, type_roots, type_faults, condition_nodes)
     if problem:
         return problem
     # Fault ownership keeps each declaration's semantic phases together.
@@ -449,7 +457,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
     return None
 
 
-def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: list, type_faults: list) -> str | None:
+def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: list, type_faults: list, condition_nodes: set[int]) -> str | None:
     types = {}
     root_order = {}
     root_nodes = {id(task[1]) for task in pending}
@@ -566,11 +574,15 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                 pending.extend(("expr", x, below, False, sealed | (8 if key == "ranked" else 0)) for x in node[key])
             elif "optional" in node:
                 if (
-                    not keys <= {"optional", "elidable"}
+                    not keys <= {"optional", "elidable", "default"}
                     or "elidable" in node
                     and (node["elidable"] is not True or elidable_head(node["optional"]) is None)
                 ):
                     return "a malformed optional"
+                if "default" in node:
+                    if node.get("elidable") is not True:
+                        return "a default requires an elidable optional"
+                    pending.append(("string", node["default"], below, False, False))
                 pending.append(("expr", node["optional"], below, False, sealed | (1 if "elidable" in node else 0)))
             elif "repeat" in node:
                 if (
@@ -699,9 +711,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
             if kind != "condition" and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by"):
                 return "a predicate method cannot supply a value"
             if not recipe and (
-                node["method"] in ("verbatim-text", "emitted")
-                or isinstance(node["receiver"], dict)
-                and node["receiver"].get("method") == "emitted"
+                node["method"] == "verbatim-text" or node["method"] == "emitted" and id(node) not in condition_nodes
             ):
                 return "a recipe-only method outside a recipe"
             keep_type(None if id(node) in deferred else term_type_fault(node, memo=types)[1], node)

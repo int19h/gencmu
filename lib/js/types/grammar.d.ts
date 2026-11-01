@@ -55,6 +55,7 @@ export type PendingHelper = {
     name: string;
     build: (where: Where) => SequenceItem[][];
     elided: string | null;
+    elidedValue?: string;
     elidedTest: SymbolTest | null;
 };
 export declare class Grammar {

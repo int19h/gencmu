@@ -42,6 +42,8 @@ pub(crate) struct Reader<'a> {
     pub position: &'a dyn Fn(usize) -> (usize, usize),
     /// What the reader is reading as a closed term, a constant's value or a
     /// test's operand, if it is reading one (engine §9, §10).
+    pub default_head: std::cell::Cell<usize>,
+    pub in_condition: std::cell::Cell<bool>,
     pub in_recipe: std::cell::Cell<bool>,
     pub closed_for: std::cell::Cell<Option<&'static str>>,
 }
@@ -552,9 +554,11 @@ impl<'a> Reader<'a> {
         // Each condition of the list is one condition (§9).
         let mut conditions = Vec::new();
         if let Some(clause) = self.rules(node, "conditions-clause").next() {
+            self.in_condition.set(true);
             for implication in self.some(clause, "implication", 1)? {
                 conditions.push(self.implication(implication)?);
             }
+            self.in_condition.set(false);
         }
         let categories = self.counts_as(node, op)?;
         let emit = match self.rules(node, "emits-clause").next() {
@@ -998,7 +1002,7 @@ impl<'a> Reader<'a> {
             if frame.mark != Mark::Plain {
                 self.marked.set(self.marked.get() - 1);
             }
-            return Ok(Step::Done(Val::Expr(Expr::Optional(Box::new(expr), frame.mark))));
+            return Ok(Step::Done(Val::Expr(Expr::Optional(Box::new(expr), frame.mark, None))));
         }
         let node = frame.node;
         // Its required part first, then its markers (§9).
@@ -1558,6 +1562,9 @@ impl<'a> Reader<'a> {
 
     /// Inspect the target and complete test sequence before any base conversion.
     fn pattern_test_nodes(&self, node: &'a Node, testable: bool) -> R<Vec<&'a Node>> {
+        if let Some(default) = Self::parts(node).into_iter().find(|p| rule_name(p) == "default-value") {
+            return Err(self.error(default, "a default stands only on an elidable optional head"));
+        }
         let tests: Vec<_> =
             self.parts(node).into_iter().filter(|part| matches!(rule_name(part), "tag-test" | "value-test")).collect();
         let mut tags = false;
@@ -1736,7 +1743,7 @@ impl<'a> Reader<'a> {
             };
             return Err(self.error(frame.node, problem));
         }
-        if !self.in_recipe.get() && matches!(name, "verbatim-text" | "emitted") {
+        if !self.in_recipe.get() && (name == "verbatim-text" || name == "emitted" && !self.in_condition.get()) {
             return Err(self.error(frame.node, "a method has the wrong receiver or arguments"));
         }
         let mut args = vec![Arg::Term(receiver)];
@@ -2371,7 +2378,7 @@ fn capture_names(expr: &Expr) -> Vec<&str> {
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
                 stack.extend(items.iter().rev());
             }
-            Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => stack.push(inner),
+            Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push(inner),
             Expr::Repeat(item, separator, _) => {
                 stack.extend(separator.as_deref());
                 stack.push(item);
@@ -2576,6 +2583,7 @@ const KNOWN: &[&str] = &[
     "tag-test",
     "tag-requirement",
     "value-test",
+    "default-value",
     "value-clause",
     "image-clause",
     "erased-clause",
@@ -2887,6 +2895,170 @@ fn own_tags_are_found_inside_call_arguments() {
     assert!(reads_own_tags(&source));
 }
 
+/// Folds each `any` that stands directly in an `any`, and each `all` in an
+/// `all`, into the one around it: a group in parentheses of the same
+/// connective is part of the one around it (§9). One walk, with an explicit
+/// stack, that gathers each folded list once.
+fn flatten_term(root: &mut Term) {
+    let mut pending = vec![root];
+    while let Some(term) = pending.pop() {
+        match term {
+            Term::Union(items) => {
+                let mut stack: Vec<_> = std::mem::take(items).into_iter().rev().collect();
+                while let Some(mut term) = stack.pop() {
+                    match &mut term {
+                        Term::Union(inner) => stack.extend(std::mem::take(inner).into_iter().rev()),
+                        _ => items.push(term),
+                    }
+                }
+                pending.extend(items.iter_mut());
+            }
+            Term::Intersection(items) => pending.extend(items.iter_mut()),
+            Term::Difference(left, right) => {
+                pending.push(right);
+                pending.push(left);
+            }
+            Term::If(_, then) => pending.push(then),
+            Term::Call(_, args) => {
+                pending
+                    .extend(args.iter_mut().filter_map(|arg| if let Arg::Term(term) = arg { Some(term) } else { None }))
+            }
+            _ => {}
+        }
+    }
+}
+
+fn flatten_groups(rule: &mut RuleDef) {
+    let mut stack: Vec<PartMut> = Vec::new();
+    stack.extend(rule.conditions.iter_mut().map(PartMut::Cond));
+    stack.extend(rule.tags.iter_mut().map(PartMut::Term));
+    stack.extend(rule.alternatives.iter_mut().filter_map(|alternative| alternative.tags.as_mut()).map(PartMut::Term));
+    for item in rule.emit.iter_mut().flatten() {
+        if let EmitItem::Capture(_, Some(tags), _) = item {
+            stack.push(PartMut::Term(tags));
+        }
+    }
+    while let Some(part) = stack.pop() {
+        work::count(Work::Walked, 1);
+        match part {
+            PartMut::Term(term) => match term {
+                Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter_mut().map(PartMut::Term)),
+                Term::Difference(left, right) => stack.extend([PartMut::Term(left), PartMut::Term(right)]),
+                Term::If(cond, then) => stack.extend([PartMut::Cond(cond), PartMut::Term(then)]),
+                Term::Call(_, args) => stack.extend(args.iter_mut().filter_map(|arg| match arg {
+                    Arg::Term(term) => Some(PartMut::Term(term)),
+                    _ => None,
+                })),
+                _ => {}
+            },
+            PartMut::Cond(cond) => match cond {
+                Cond::Any(items) => {
+                    fold(items, |cond| if let Cond::Any(inner) = cond { Some(std::mem::take(inner)) } else { None });
+                    stack.extend(items.iter_mut().map(PartMut::Cond));
+                }
+                Cond::All(items) => {
+                    fold(items, |cond| if let Cond::All(inner) = cond { Some(std::mem::take(inner)) } else { None });
+                    stack.extend(items.iter_mut().map(PartMut::Cond));
+                }
+                Cond::Compare(_, left, right) => stack.extend([PartMut::Term(left), PartMut::Term(right)]),
+                Cond::Not(inner) => stack.push(PartMut::Cond(inner)),
+                Cond::If(antecedent, consequent) => {
+                    stack.extend([PartMut::Cond(antecedent), PartMut::Cond(consequent)])
+                }
+                Cond::Matches(span, _)
+                | Cond::Begins(span, _)
+                | Cond::Ends(span, _)
+                | Cond::Initial(span)
+                | Cond::Final(span)
+                | Cond::Boundary(_, span, _, _) => stack.push(PartMut::Term(span)),
+                Cond::Captured(_) => {}
+            },
+        }
+    }
+}
+
+/// Replaces each item of a list that `inner` opens, a group of the list's
+/// own connective, with that group's items, at any depth, in order.
+fn fold(items: &mut Vec<Cond>, inner: impl Fn(&mut Cond) -> Option<Vec<Cond>>) {
+    let mut joined = Vec::with_capacity(items.len());
+    let mut pending: Vec<Cond> = std::mem::take(items);
+    pending.reverse();
+    while let Some(mut item) = pending.pop() {
+        work::count(Work::Walked, 1);
+        match inner(&mut item) {
+            Some(mut parts) => {
+                parts.reverse();
+                pending.append(&mut parts);
+            }
+            None => joined.push(item),
+        }
+    }
+    *items = joined;
+}
+
+/// Cached DOMs omit source annotations. Recover recipe positions only for a failed load.
+pub(crate) fn restore_recipe_locations(
+    dom: &mut Dom,
+    tokens: &[crate::result::Token],
+    position: &dyn Fn(usize) -> (usize, usize),
+) {
+    for rule in &mut dom.rules {
+        let Some(start) = tokens.iter().position(|token| {
+            matches!(token.value.as_str(), "%rule" | "%extend-rule" | "%redefine-rule")
+                && position(token.source.start) == rule.at
+        }) else {
+            continue;
+        };
+        let mut values = Vec::new();
+        let mut images = Vec::new();
+        let mut defaults = Vec::new();
+        for index in start + 1..tokens.len() {
+            let token = &tokens[index];
+            if token.value.starts_with('%') {
+                break;
+            }
+            if let Some(next) = tokens.get(index + 1) {
+                match token.value.as_str() {
+                    ":=" => values.push(position(next.source.start)),
+                    ":-" => images.push(position(next.source.start)),
+                    "≝" => defaults.push(position(token.source.start)),
+                    _ => {}
+                }
+            }
+        }
+        let mut markers = defaults.into_iter();
+        for alternative in &mut rule.alternatives {
+            let mut pending = vec![&mut alternative.expr];
+            while let Some(expr) = pending.pop() {
+                match expr {
+                    Expr::Optional(inner, _, default) => {
+                        if let Some(default) = default {
+                            default.at = markers.next();
+                        }
+                        pending.push(inner);
+                    }
+                    Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs) | Expr::And(xs) => {
+                        pending.extend(xs.iter_mut().rev())
+                    }
+                    Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
+                    Expr::Repeat(inner, separator, _) => {
+                        pending.extend(separator.as_deref_mut());
+                        pending.push(inner);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        let mut values = values.into_iter();
+        let mut images = images.into_iter();
+        for channels in std::iter::once(&mut rule.strings).chain(rule.alternatives.iter_mut().map(|a| &mut a.strings)) {
+            if channels.value.is_some() {
+                channels.value_at = values.next();
+            }
+            if channels.image.is_some() {
+                channels.image_at = images.next();
+            }
+        }
 #[cfg(test)]
 #[test]
 fn call_name_lookup_precedes_argument_lookup() {
