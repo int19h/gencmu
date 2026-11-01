@@ -1108,6 +1108,9 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 field = next(name for name in ("value", "image", "rule_value", "rule_image") if getattr(alternative, name) is recipe)
                 error._recipe_location = alternative.at, alternative.index, field
             raise error
+    from ._string_states import validate_condition_strings, reads
+    if any(reads(alt.conditions) for rule in rules.values() for alt in rule.alternatives):
+        validate_condition_strings(_Lowerer(grammar, frozenset(), True).lower())
     from ._overlap import conflict
     faulty = conflict(grammar)
     if faulty is not None:
@@ -1710,7 +1713,14 @@ class _Lowerer:
             # The union of the alternative's own tags and the definition's
             # (engine §3.7); the reader has made sure neither uses a capture
             # the alternative lacks.
-            terms = [self.prepare(term, False).simplified(present) for term in (alt.tags, alt.rule_tags) if term is not None]
+            if self.validation:
+                tag_clauses = tuple(None if clause is None else self.prepare(clause, False).simplified(present) for clause in (alt.tags, alt.rule_tags))
+                terms = [term for term in tag_clauses if term is not None]
+                if production.slot is not None:
+                    production.slot.tags = terms
+                    production.slot.tag_clauses = tag_clauses
+            else:
+                terms = [self.prepare(term, False).simplified(present) for term in (alt.tags, alt.rule_tags) if term is not None]
             if terms:
                 production.tags_term = terms[0] if len(terms) == 1 else {"union": terms}
             production.emit = self.lower_emit(alt.emit, captures, self.emission(alt.emit))

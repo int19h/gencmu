@@ -14,7 +14,7 @@ from ._boundary import METHODS, Records, Annotations, atoms
 from ._clauses import WHOLE
 from ._eligible import eligible
 from ._errors import _GrammarFault
-from ._string_gaps import GapClaims
+from ._string_states import demanded_strings
 from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._model import Range, Tags, Token
 from ._tags import EMPTY, Gathered, TagTable, difference, intersection, is_class, split_string, ngrams
@@ -1347,55 +1347,7 @@ class Parser:
                         return None
             return record, notes
 
-        string_bindings = {}
-        for p in productions:
-            names=string_bindings.setdefault(p.rule_name,{})
-            for name,index in p.captures.items():
-                if not p.terminal[index]: names.setdefault(name,set()).add(p.rhs[index])
-        string_demands = {}
-        def demand(rule, channel):
-            channels = string_demands.setdefault(rule, set())
-            before = len(channels)
-            channels.add(channel)
-            return before != len(channels)
-
-        def string_reads(term, production):
-            changed = False
-            pending = [term]
-            while pending:
-                node = pending.pop()
-                if isinstance(node, (list,tuple)): pending.extend(node)
-                elif isinstance(node, dict):
-                    receiver = node.get("receiver", {})
-                    if node.get("method") in ("value", "image") and receiver.get("method") == "emitted":
-                        name = receiver["receiver"]["capture"]
-                        index = production.captures.get(name)
-                        if not name:
-                            changed = demand(production.lhs, node["method"]) or changed
-                            for p in productions:
-                                if not p.helper and p.rule_name==production.rule_name:
-                                    changed=demand(p.lhs,node["method"]) or changed
-                        elif index is not None and not production.terminal[index]:
-                            changed = demand(production.rhs[index], node["method"]) or changed
-                        else:
-                            for target in string_bindings.get(production.rule_name,{}).get(name,()):
-                                changed=demand(target,node["method"]) or changed
-                    pending.extend(node.values())
-            return changed
-
-        for p in productions:
-            string_reads([p.conds_predict, *p.conds_at.values(), p.items.conditions if p.items else None, p.slot.ranked_conditions if p.slot else None], p)
-        changed = True
-        while changed:
-            changed = False
-            for p in productions:
-                for channel in tuple(string_demands.get(p.lhs, ())):
-                    if p.erased: continue
-                    recipe = p.value if channel == "value" else p.image if p.image is not None else p.value
-                    if recipe is not None: changed = string_reads(recipe, p) or changed
-                    else:
-                        for index, symbol in enumerate(p.rhs):
-                            if not p.terminal[index]: changed = demand(symbol, channel) or changed
+        string_demands = demanded_strings(productions)
         string_prefixes, string_values = [], []
 
         def string_state(p, position, start, at, captured, edge, enclosing_prefix=None, enclosing_bound=None):
@@ -1411,11 +1363,9 @@ class Parser:
                     contribution = dict(string_values[edge[2]]).get(channel, "") if edge[1] == 2 else getattr(tokens[edge[2]], channel)
                 prefix[channel] = prefix.get(channel, "") + contribution
             values, active = {}, set()
-            gaps = None
             if position == len(p.rhs):
                 bound = enclosing_bound or evaluator.bind(p, captured, (start, at, None))
                 def get(channel):
-                    nonlocal gaps
                     if channel in values: return values[channel]
                     if channel in active: raise _GrammarFault("a constituent recipe has a channel dependency cycle")
                     active.add(channel)
@@ -1427,12 +1377,7 @@ class Parser:
                         if recipe is None: result = prefix.get(channel, "")
                         else:
                             for atom in recipe["concat"]:
-                                if atom.get("method") == "verbatim-text":
-                                    span = bound.get(atom["receiver"]["capture"])
-                                    if gaps is None: gaps = GapClaims(observed if observed is not None else context)
-                                    result += gaps.string(span[0], span[1])
-                                else:
-                                    result += run(evaluator.walk_value(atom, bound))
+                                result += run(evaluator.walk_value(atom, bound))
                     active.remove(channel)
                     values[channel] = result
                     return result

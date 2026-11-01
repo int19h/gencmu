@@ -23655,5 +23655,43 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "A verbatim-text read in a condition is malformed.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "categories": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "literal": {
+              "string": "a"
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "verbatim-text",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "string": "a"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]

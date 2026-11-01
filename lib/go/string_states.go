@@ -2,68 +2,81 @@ package gencmu
 
 // Only channels that conditions read enter completed states (engine §4.1).
 func (g *lowered) demandedStrings() map[int32]uint8 {
-	g.stringsOnce.Do(func() {
-		bindings := map[string]map[string][]int32{}
-		for _, p := range g.prods {
-			if bindings[p.ruleName] == nil {
-				bindings[p.ruleName] = map[string][]int32{}
+	g.stringsOnce.Do(func() { g.stringDemands = g.stringReach(nil) })
+	return g.stringDemands
+}
+
+type stringSeed struct {
+	production *production
+	term       *domTerm
+}
+
+func (g *lowered) stringReach(seed *stringSeed) map[int32]uint8 {
+	bindings := map[*sAlt]map[string][]int32{}
+	for _, p := range g.prods {
+		if bindings[p.sourceAlternative] == nil {
+			bindings[p.sourceAlternative] = map[string][]int32{}
+		}
+		for name, position := range p.posOf {
+			if !p.rhs[position].term {
+				bindings[p.sourceAlternative][name] = append(bindings[p.sourceAlternative][name], p.rhs[position].id)
 			}
-			for name, position := range p.posOf {
-				if !p.rhs[position].term {
-					bindings[p.ruleName][name] = append(bindings[p.ruleName][name], p.rhs[position].id)
+		}
+	}
+	demands := map[int32]uint8{}
+	changed := false
+	add := func(rule int32, channel int) {
+		bit := uint8(1 << channel)
+		if demands[rule]&bit == 0 {
+			demands[rule] |= bit
+			changed = true
+		}
+	}
+	var cond func(*domCond, *production)
+	var read func(*domTerm, *production)
+	read = func(t *domTerm, p *production) {
+		if t == nil {
+			return
+		}
+		if t.Kind == tmCall && (t.Str == "value" || t.Str == "image") && len(t.Items) == 1 && t.Items[0].Kind == tmCall && t.Items[0].Str == "emitted" {
+			name := t.Items[0].Items[0].Str
+			channel := 0
+			if t.Str == "image" {
+				channel = 1
+			}
+			if name == "" {
+				add(p.lhs, channel)
+				if root, ok := g.byName[p.ruleName]; ok {
+					add(root, channel)
+				}
+			} else if position, ok := p.posOf[name]; ok && !p.rhs[position].term {
+				add(p.rhs[position].id, channel)
+			} else {
+				for _, target := range bindings[p.sourceAlternative][name] {
+					add(target, channel)
 				}
 			}
 		}
-		demands := map[int32]uint8{}
-		changed := false
-		add := func(rule int32, channel int) {
-			bit := uint8(1 << channel)
-			if demands[rule]&bit == 0 {
-				demands[rule] |= bit
-				changed = true
-			}
+		cond(t.Cond, p)
+		for _, part := range t.Items {
+			read(part, p)
 		}
-		var read func(*domTerm, *production)
-		read = func(t *domTerm, p *production) {
-			if t == nil {
-				return
-			}
-			if t.Kind == tmCall && (t.Str == "value" || t.Str == "image") && len(t.Items) == 1 && t.Items[0].Kind == tmCall && t.Items[0].Str == "emitted" {
-				name := t.Items[0].Items[0].Str
-				channel := 0
-				if t.Str == "image" {
-					channel = 1
-				}
-				if name == "" {
-					add(p.lhs, channel)
-					if root, ok := g.byName[p.ruleName]; ok {
-						add(root, channel)
-					}
-				} else if position, ok := p.posOf[name]; ok && !p.rhs[position].term {
-					add(p.rhs[position].id, channel)
-				} else {
-					for _, target := range bindings[p.ruleName][name] {
-						add(target, channel)
-					}
-				}
-			}
-			for _, part := range t.Items {
-				read(part, p)
-			}
+	}
+	cond = func(c *domCond, p *production) {
+		if c == nil {
+			return
 		}
-		var cond func(*domCond, *production)
-		cond = func(c *domCond, p *production) {
-			if c == nil {
-				return
-			}
-			read(c.Left, p)
-			read(c.Right, p)
-			read(c.Span, p)
-			cond(c.Inner, p)
-			for _, part := range c.Items {
-				cond(part, p)
-			}
+		read(c.Left, p)
+		read(c.Right, p)
+		read(c.Span, p)
+		cond(c.Inner, p)
+		for _, part := range c.Items {
+			cond(part, p)
 		}
+	}
+	if seed != nil {
+		read(seed.term, seed.production)
+	} else {
 		for _, p := range g.prods {
 			for _, c := range p.conds {
 				cond(c.cond, p)
@@ -78,32 +91,112 @@ func (g *lowered) demandedStrings() map[int32]uint8 {
 				cond(c, p)
 			}
 		}
-		for changed = true; changed; {
-			changed = false
-			for _, p := range g.prods {
-				for channel := 0; channel < 2; channel++ {
-					if demands[p.lhs]&(1<<channel) == 0 || p.nothing {
-						continue
-					}
-					recipe := p.value
-					if channel == 1 && p.image != nil {
-						recipe = p.image
-					}
-					if recipe != nil {
-						read(recipe, p)
-					} else {
-						for _, s := range p.rhs {
-							if !s.term {
-								add(s.id, channel)
-							}
+	}
+	for changed = true; changed; {
+		changed = false
+		for _, p := range g.prods {
+			for channel := 0; channel < 2; channel++ {
+				if demands[p.lhs]&(1<<channel) == 0 || p.nothing {
+					continue
+				}
+				recipe := p.value
+				if channel == 1 && p.image != nil {
+					recipe = p.image
+				}
+				if recipe != nil {
+					read(recipe, p)
+				} else {
+					for _, s := range p.rhs {
+						if !s.term {
+							add(s.id, channel)
 						}
 					}
 				}
 			}
 		}
-		g.stringDemands = demands
-	})
-	return g.stringDemands
+	}
+	return demands
+}
+
+func emittedStringReads(conditions []*domCond) []*domTerm {
+	var out []*domTerm
+	var term func(*domTerm)
+	var cond func(*domCond)
+	term = func(t *domTerm) {
+		if t == nil {
+			return
+		}
+		if t.Kind == tmCall && (t.Str == "value" || t.Str == "image") && len(t.Items) == 1 && t.Items[0].Kind == tmCall && t.Items[0].Str == "emitted" {
+			out = append(out, t)
+			return
+		}
+		cond(t.Cond)
+		for _, part := range t.Items {
+			term(part)
+		}
+	}
+	cond = func(c *domCond) {
+		if c == nil {
+			return
+		}
+		term(c.Left)
+		term(c.Right)
+		term(c.Span)
+		cond(c.Inner)
+		for _, part := range c.Items {
+			cond(part)
+		}
+	}
+	for _, c := range conditions {
+		cond(c)
+	}
+	return out
+}
+func (g *stageGrammar) validateConditionStrings() *Error {
+	hasReads := false
+	for _, rule := range g.rules {
+		for _, alt := range rule.alts {
+			if len(emittedStringReads(alt.conds)) > 0 {
+				hasReads = true
+			}
+		}
+	}
+	if !hasReads {
+		return nil
+	}
+	lowered := lowerForSlots(g)
+	for _, p := range lowered.prods {
+		if p.helper || p.sourceAlternative == nil {
+			continue
+		}
+		for _, read := range emittedStringReads(p.sourceAlternative.conds) {
+			reach := lowered.stringReach(&stringSeed{p, read})
+			for _, q := range lowered.prods {
+				if q.nothing {
+					continue
+				}
+				for channel := 0; channel < 2; channel++ {
+					if reach[q.lhs]&(1<<channel) == 0 {
+						continue
+					}
+					selected := q.value
+					if channel == 1 && q.image != nil {
+						selected = q.image
+					}
+					if selected == nil {
+						continue
+					}
+					for _, atom := range selected.Items {
+						if atom.Kind == tmCall && atom.Str == "verbatim-text" {
+							at := read.Items[0].At
+							return &Error{Kind: "grammar", Message: "a condition walk cannot reach verbatim-text", Document: p.doc, Line: at[0], Column: at[1], boundaryLocation: true}
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func withStringCapture(capture func(string) (spanVal, bool), read func(int) string) func(string) (spanVal, bool) {
@@ -141,7 +234,6 @@ func (r *recognizer) finishStringsIn(key *itemKey, end int32, enclosing func(str
 	prefix := key.emitted
 	var values [2]string
 	var ready, active [2]bool
-	emitter := &stringEmitter{run: r.run, rec: r, claims: map[[2]int][][2]int{}}
 	var get func(int) string
 	get = func(channel int) string {
 		if ready[channel] {
@@ -174,12 +266,7 @@ func (r *recognizer) finishStringsIn(key *itemKey, end int32, enclosing func(str
 				capture = withStringCapture(capture, get)
 				ev := r.run.evaluator(r.g, capture)
 				for _, atom := range recipe.Items {
-					if atom.Kind == tmCall && atom.Str == "verbatim-text" {
-						span, _ := capture(atom.Items[0].Str)
-						text += emitter.verbatim(span.a, span.b)
-					} else {
-						text += toStr(r.run.evaluate(ev, atom))
-					}
+					text += toStr(r.run.evaluate(ev, atom))
 				}
 			}
 		}

@@ -104,6 +104,16 @@ fn cond(c: &mut dom::Cond, n: &Json) {
     }
 }
 pub(crate) fn restore_rule(rule: &mut dom::RuleDef, n: &Json) {
+    for node in nodes(get(n, "conditions")) {
+        if matches!(text(get(node, "method")), "value" | "image")
+            && text(get(get(node, "receiver"), "method")) == "emitted"
+        {
+            let capture = text(get(get(get(node, "receiver"), "receiver"), "capture"));
+            if let Some(at) = source_at(get(node, "receiver")) {
+                rule.emitted_locations.entry(format!("{capture}:{}", text(get(node, "method")))).or_insert(at);
+            }
+        }
+    }
     channels(&mut rule.strings, n);
     for (alt, n) in rule.alternatives.iter_mut().zip(list(get(n, "alternatives"))) {
         expression(get(n, "expr"), String::new(), &mut alt.ranked_locations);
@@ -546,12 +556,38 @@ fn annotate_defaults(expr: &dom::Expr, n: &mut Json) {
         _ => {}
     }
 }
+pub(crate) fn annotate_emitted(n: &mut Json, locations: &std::collections::BTreeMap<String, (usize, usize)>) {
+    if let Json::Arr(xs) = n {
+        for x in xs {
+            annotate_emitted(x, locations);
+        }
+        return;
+    }
+    if matches!(text(get(n, "method")), "value" | "image") && text(get(get(n, "receiver"), "method")) == "emitted" {
+        let key = format!("{}:{}", text(get(get(get(n, "receiver"), "receiver"), "capture")), text(get(n, "method")));
+        if let Some(at) = locations.get(&key) {
+            if let Some(receiver) = slot(n, "receiver") {
+                locate(receiver, Some(*at));
+            }
+        }
+    }
+    if let Json::Obj(fields) = n {
+        for (key, value) in fields {
+            if key != SOURCE {
+                annotate_emitted(value, locations);
+            }
+        }
+    }
+}
 fn annotate_rule(rule: &dom::RuleDef, n: &mut Json) {
     if let Some(args) = &rule.source.args {
         annotate_arguments(args, n);
     }
     if let (Some(call), Some(n)) = (&rule.source.instance, slot(n, "instance")) {
         annotate_arguments(&call.args, n);
+    }
+    if let Some(conditions) = slot(n, "conditions") {
+        annotate_emitted(conditions, &rule.emitted_locations);
     }
     annotate_channels(&rule.strings, n);
     if let Some(t) = &rule.tags {

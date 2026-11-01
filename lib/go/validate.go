@@ -1450,7 +1450,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		case "emitted":
 			ok = c.inConditions && len(args) == 1 && args[0] != nil && args[0].Kind == tmCapture
 		case "verbatim-text":
-			ok = len(args) == 1 && args[0] != nil && args[0].Kind == tmCapture
+			ok = false
 		case "without-elision-except":
 			ok = len(args) == 2 && args[0] != nil && (args[0].Kind == tmCapture || unresolvedTerm(args[0])) && isRule(args[1])
 		case "without-elision":

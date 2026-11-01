@@ -230,6 +230,15 @@ class NotationReader:
 
     def located(self, dom, text, path, names=None):
         from ._ranked import has_ranked, restore_locations
+        from ._string_states import reads
+        emitted = reads([rule.get("conditions", []) for rule in dom["rules"]])
+        if any(not hasattr(read["receiver"], "at") for read in emitted):
+            fresh = self.read(text, path, True, names)
+            originals = reads([rule.get("conditions", []) for rule in fresh["rules"]])
+            if len(emitted) == len(originals):
+                from ._boundary import Located
+                for read, original in zip(emitted, originals):
+                    read["receiver"] = Located(read["receiver"], original["receiver"].at)
         from ._boundary import atoms, Located
         found = atoms([rule for rule in dom['rules']])
         if any(not hasattr(arg, 'at') for atom in found for arg in atom['args']):

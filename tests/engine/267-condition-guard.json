@@ -1,0 +1,10 @@
+{
+  "description": "A guarded term inside a condition reads the captured emitted value.",
+  "grammar": "%rule text $x:r\n%conditions ($x.emitted.value = \"yes\" ⟹ T) = T\n%rule r \"a\" := \"yes\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

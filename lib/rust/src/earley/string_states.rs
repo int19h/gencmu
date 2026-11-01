@@ -2,6 +2,9 @@ use super::*;
 use crate::dom::{Arg, Term};
 
 pub(super) fn demands(g: &Lowered) -> Vec<u8> {
+    demands_from(g, None)
+}
+fn demands_from(g: &Lowered, seeds: Option<Vec<u8>>) -> Vec<u8> {
     fn add(out: &mut [u8], p: &crate::lower::Prod, span: &Span, image: bool, g: &Lowered) -> bool {
         let rule = match span {
             Span::Whole => Some(p.rule),
@@ -78,7 +81,11 @@ pub(super) fn demands(g: &Lowered) -> Vec<u8> {
                     let span = if capture.is_empty() {
                         Some(Span::Whole)
                     } else {
-                        p.names.get(capture).map(|&slot| Span::Cap(slot))
+                        Some(
+                            p.names
+                                .get(capture)
+                                .map_or_else(|| Span::Lexical(capture.clone()), |&slot| Span::Cap(slot)),
+                        )
                     };
                     if let Some(span) = span {
                         changed = add(out, p, &span, name == "image", g)
@@ -93,16 +100,19 @@ pub(super) fn demands(g: &Lowered) -> Vec<u8> {
         }
         changed
     }
-    let mut out = vec![0; g.rules.len()];
-    for p in &g.prods {
-        for (c, _) in &p.conds {
-            cond(c, p, &mut out, g);
+    let seeded = seeds.is_some();
+    let mut out = seeds.unwrap_or_else(|| vec![0; g.rules.len()]);
+    if !seeded {
+        for p in &g.prods {
+            for (c, _) in &p.conds {
+                cond(c, p, &mut out, g);
+            }
         }
-    }
-    for ((production, _, _, _), plan) in &g.ranked.plans {
-        let p = &g.prods[*production as usize];
-        for (c, _) in plan.conditions.iter().flatten() {
-            cond(c, p, &mut out, g);
+        for ((production, _, _, _), plan) in &g.ranked.plans {
+            let p = &g.prods[*production as usize];
+            for (c, _) in plan.conditions.iter().flatten() {
+                cond(c, p, &mut out, g);
+            }
         }
     }
     let mut changed = true;
@@ -234,15 +244,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
         let mut saved: [Option<String>; 2] = [None, None];
         let mut active = [false; 2];
-        let mut gaps = None;
         let values = [
             if mask & 1 != 0 {
-                self.completed_string(chart, *item, end, tokens, base, 0, &mut saved, &mut active, &mut gaps)?
+                self.completed_string(chart, *item, end, tokens, base, 0, &mut saved, &mut active)?
             } else {
                 String::new()
             },
             if mask & 2 != 0 {
-                self.completed_string(chart, *item, end, tokens, base, 1, &mut saved, &mut active, &mut gaps)?
+                self.completed_string(chart, *item, end, tokens, base, 1, &mut saved, &mut active)?
             } else {
                 String::new()
             },
@@ -261,7 +270,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         channel: usize,
         saved: &mut [Option<String>; 2],
         active: &mut [bool; 2],
-        gaps: &mut Option<crate::strings::GapClaims>,
     ) -> Result<String, EngineError> {
         if let Some(value) = &saved[channel] {
             return Ok(value.clone());
@@ -287,7 +295,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         } else if p.erased {
             String::new()
         } else if let Some(recipe) = selected {
-            self.recipe_string(chart, item, end, tokens, base, recipe, saved, active, gaps)?
+            self.recipe_string(chart, item, end, tokens, base, recipe, saved, active)?
         } else {
             self.shared.string_states[item.emitted as usize][channel].clone()
         };
@@ -306,7 +314,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         term: &Term,
         saved: &mut [Option<String>; 2],
         active: &mut [bool; 2],
-        gaps: &mut Option<crate::strings::GapClaims>,
     ) -> Result<String, EngineError> {
         let p = &self.g.prods[item.prod as usize];
         let Term::Call(method, args) = term else {
@@ -316,7 +323,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             let mut value = String::new();
             for arg in args {
                 if let Arg::Term(t) = arg {
-                    value.push_str(&self.recipe_string(chart, item, end, tokens, base, t, saved, active, gaps)?);
+                    value.push_str(&self.recipe_string(chart, item, end, tokens, base, t, saved, active)?);
                 }
             }
             return Ok(value);
@@ -332,7 +339,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         };
         let channel = usize::from(method == "image");
         if emitted && capture.is_empty() {
-            return self.completed_string(chart, item, end, tokens, base, channel, saved, active, gaps);
+            return self.completed_string(chart, item, end, tokens, base, channel, saved, active);
         }
         let cap = if capture.is_empty() {
             None
@@ -356,18 +363,129 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             "decomposed-source-text" => {
                 self.shared.unicode.decompose(&self.text(observed, start, end).chars().collect::<Vec<_>>())
             }
-            "verbatim-text" => gaps
-                .get_or_insert_with(|| {
-                    crate::strings::GapClaims::with_sources(&self.shared.string_sources, self.shared.text.len())
-                })
-                .string(
-                    (
-                        start + if self.recon.is_some() { 0 } else { base },
-                        end + if self.recon.is_some() { 0 } else { base },
-                    ),
-                    self.shared.text,
-                )?,
             _ => unreachable!("a recipe uses a string method"),
         })
     }
+}
+
+fn condition_reads(conditions: &[crate::dom::Cond]) -> Vec<(String, bool)> {
+    fn term(t: &Term, out: &mut Vec<(String, bool)>) {
+        if let Term::Call(name, args) = t {
+            if let ("value" | "image", [Arg::Term(Term::Call(method, args))]) = (name.as_str(), &args[..]) {
+                if let ("emitted", [Arg::Term(Term::Capture(capture))]) = (method.as_str(), &args[..]) {
+                    out.push((capture.clone(), name == "image"));
+                    return;
+                }
+            }
+            for a in args {
+                if let Arg::Term(t) = a {
+                    term(t, out);
+                }
+            }
+        }
+        match t {
+            Term::If(c, t) => {
+                condition(c, out);
+                term(t, out);
+            }
+            Term::Union(xs) | Term::Intersection(xs) => {
+                for t in xs {
+                    term(t, out);
+                }
+            }
+            Term::Difference(a, b) => {
+                term(a, out);
+                term(b, out);
+            }
+            _ => {}
+        }
+    }
+    fn condition(c: &crate::dom::Cond, out: &mut Vec<(String, bool)>) {
+        use crate::dom::Cond;
+        match c {
+            Cond::Compare(_, a, b) => {
+                term(a, out);
+                term(b, out);
+            }
+            Cond::Not(c) => condition(c, out),
+            Cond::Any(xs) | Cond::All(xs) => {
+                for c in xs {
+                    condition(c, out);
+                }
+            }
+            Cond::If(a, b) => {
+                condition(a, out);
+                condition(b, out);
+            }
+            _ => {}
+        }
+    }
+    let mut reads = Vec::new();
+    for c in conditions {
+        condition(c, &mut reads);
+    }
+    reads
+}
+pub(crate) fn has_condition_reads(grammar: &crate::grammar::StageGrammar) -> bool {
+    grammar
+        .rules
+        .iter()
+        .any(|rule| rule.alternatives.iter().any(|alt| !condition_reads(&alt.clauses.conditions).is_empty()))
+}
+
+pub(crate) fn validate_condition_strings(
+    g: &Lowered,
+    grammar: &crate::grammar::StageGrammar,
+) -> Result<(), crate::error::Error> {
+    fn verbatim(t: &Term) -> bool {
+        matches!(t,Term::Call(name,_) if name=="verbatim-text")
+            || matches!(t,Term::Call(_,args) if args.iter().any(|a|matches!(a,Arg::Term(t) if verbatim(t))))
+    }
+    for (owner, rule) in grammar.rules.iter().enumerate() {
+        for alt in &rule.alternatives {
+            for (capture, image) in condition_reads(&alt.clauses.conditions) {
+                let mut seeds = vec![0; g.rules.len()];
+                let bit = 1 << u8::from(image);
+                if capture.is_empty() {
+                    seeds[owner] |= bit;
+                } else {
+                    for p in &g.prods {
+                        if p.owner as usize != owner
+                            || p.at != alt.at
+                            || p.document.as_deref() != Some(alt.document.as_ref())
+                        {
+                            continue;
+                        }
+                        if let Some(&slot) = p.names.get(&capture) {
+                            if let Sym::N(rule) = p.syms[p.cap_pos[slot as usize]] {
+                                seeds[rule as usize] |= bit;
+                            }
+                        }
+                    }
+                }
+                let reached = demands_from(g, Some(seeds));
+                let bad = g.prods.iter().any(|p| {
+                    !p.erased
+                        && (0..2).any(|channel| {
+                            let selected = if channel == 0 {
+                                p.strings.value.as_ref()
+                            } else {
+                                p.strings.image.as_ref().or(p.strings.value.as_ref())
+                            };
+                            reached[p.rule as usize] & (1 << channel) != 0 && selected.is_some_and(verbatim)
+                        })
+                });
+                if bad {
+                    let key = format!("{capture}:{}", if image { "image" } else { "value" });
+                    let mut error = crate::error::Error::grammar("a condition walk cannot reach verbatim-text")
+                        .in_document(&alt.document);
+                    if let Some(&(line, column)) = alt.clauses.emitted_locations.get(&key) {
+                        error = error.at(line, column);
+                    }
+                    return Err(error);
+                }
+            }
+        }
+    }
+    Ok(())
 }

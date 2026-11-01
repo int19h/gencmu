@@ -427,6 +427,9 @@
   /** Recover positions through the same reader as an uncached document.
    * @param {any} dom @param {any} source */
   function restoreBoundaryLocations(dom,source) {
+    const reads = dom.rules.flatMap((/** @type {any} */ rule)=>emittedReads(rule.conditions));
+    const sources = source.rules.flatMap((/** @type {any} */ rule)=>emittedReads(rule.conditions));
+    if (reads.length === sources.length) reads.forEach((/** @type {any} */ read,/** @type {number} */ index)=>copyBoundaryLocation(sources[index],read));
     const atoms = dom.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([rule.conditions,rule.emit]));
     const originals = source.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([rule.conditions,rule.emit]));
     if (atoms.length !== originals.length) return;
@@ -447,6 +450,13 @@
       emissionDemands.set(productions,names);
     }
     return names;
+  }
+
+  /** @param {any} node @returns {any[]} */
+  function emittedReads(node) {
+    if (!node || typeof node !== "object") return [];
+    const found = node.method === "emitted" ? [node] : [];
+    return found.concat(Object.values(node).flatMap(emittedReads));
   }
 
   // ---- result-context.js
@@ -8398,62 +8408,95 @@
     };
   }
 
-  // ---- string-gaps.js
+  // ---- string-demands.js
 
-  /** @import {Span} from "./types.js" */
-  class GapClaims {
-    /** @param {import("./earley.js").ParseContext} context */
-    constructor(context) {
-      this.context = context;
-      /** @type {{span:Span, intervals:Span[]}[]} */
-      this.claims = [];
-      // Every input source participates, including tokens outside a capture.
-      /** @type {Span[]} */
-      this.covered = context.tokens.map(token => token.source).filter(([a,b]) => a < b).sort((a,b) => a[0]-b[0]);
-      /** @type {Span[]} */
-      const merged = [];
-      for (const [a,b] of this.covered) {
-        const previous = merged[merged.length-1];
-        if (previous && a <= previous[1]) previous[1] = Math.max(previous[1], b);
-        else merged.push([a,b]);
+
+  /** @import {Production} from "./types.js" */
+
+  /** @type {WeakMap<Production[],Map<string,Set<string>>>} */
+  const stringDemands = new WeakMap();
+  /** @param {Production[]} productions @param {any[]} [seeds] @returns {Map<string,Set<string>>} */
+  function demandedStrings(productions, seeds) {
+    const known = seeds ? null : stringDemands.get(productions);
+    if (known) return known;
+    const bindings = new Map();
+    for (const p of productions) {
+      let names = bindings.get(p.source ?? p.owner);
+      if (!names) bindings.set(p.source ?? p.owner,names=new Map());
+      for (const capture of p.captures) {
+        const symbol = p.rhs[capture.index];
+        if (symbol.terminal) continue;
+        let targets = names.get(capture.name);
+        if (!targets) names.set(capture.name,targets=new Set());
+        targets.add(symbol.name);
       }
-      this.covered = merged;
     }
-    /** @param {number} a @param {number} b @returns {string} */
-    verbatim(a,b) {
-      if (a === b) return "";
-      const {tokens, sources, sourceText} = this.context;
-      const [l,r] = sources.of(a,b);
-      const p = a > 0 ? tokens[a-1].source[1] : 0;
-      const q = b < tokens.length ? tokens[b].source[0] : sourceText.length;
-      let left = l, right = r;
-      if (p < l) {
-        left = p;
-        for (const [start,end] of this.covered) {
-          if (start >= l) break;
-          if (end > left) left = Math.min(l,end);
+    const demands = new Map();
+    let changed = false;
+    const add = (/** @type {string} */ name, /** @type {string} */ channel) => {
+      let channels = demands.get(name);
+      if (!channels) demands.set(name, channels = new Set());
+      if (!channels.has(channel)) { channels.add(channel); changed = true; }
+    };
+    const reads = (/** @type {any} */ term, /** @type {Production} */ production) => {
+      const pending = [term];
+      while (pending.length) {
+        const part = pending.pop();
+        if (!part || typeof part !== "object") continue;
+        if (["value","image"].includes(part.method) && part.receiver?.method === "emitted") {
+          const name = part.receiver.receiver.capture;
+          const slot = production.captureSlot.get(name);
+          const symbol = slot === undefined ? null : production.rhs[production.captures[slot].index];
+          if (name === "") { add(production.lhs,part.method); add(production.owner,part.method); }
+          else if (symbol && !symbol.terminal) add(symbol.name,part.method);
+          else for (const target of bindings.get(production.source ?? production.owner)?.get(name) ?? []) add(target,part.method);
         }
+        for (const value of Object.values(part)) if (value && typeof value === "object") pending.push(...(Array.isArray(value) ? value : [value]));
       }
-      if (r < q) {
-        right = q;
-        for (const [start,end] of this.covered) {
-          if (end <= r) continue;
-          right = Math.max(r,Math.min(right,start));
-          break;
+    };
+    if (seeds) for (const [p,term] of seeds) reads(term,p);
+    else for (const p of productions) {
+      for (const c of [...p.conditions,...p.rankedConditions ?? []]) reads(c.condition,p);
+      reads(p.itemConditions,p);
+    }
+    do {
+      changed = false;
+      for (const p of productions) for (const channel of demands.get(p.lhs) ?? []) {
+        if (p.erased) continue;
+        const recipe = channel === "value" ? p.value : p.image ?? p.value;
+        if (recipe) reads(recipe,p);
+        else for (const symbol of p.rhs) if (!symbol.terminal) add(symbol.name,channel);
+      }
+    } while (changed);
+    if (!seeds) stringDemands.set(productions,demands);
+    return demands;
+  }
+
+
+  /** @param {Production[]} productions */
+  function validateConditionStrings(productions) {
+    for (const p of productions) {
+      if (p.helper || !p.source) continue;
+      /** @type {any[]} */
+      const pending = [p.source.clauses.conditions];
+      while (pending.length) {
+        const term = pending.pop();
+        if (!term || typeof term !== "object") continue;
+        if (["value","image"].includes(term.method) && term.receiver?.method === "emitted") {
+          const demands = demandedStrings(productions,[[p,term]]);
+          const bad = productions.some(q => !q.erased && [...demands.get(q.lhs) ?? []].some(channel => {
+            const selected = channel === "value" ? q.value : q.image ?? q.value;
+            return selected?.concat.some(atom => "method" in atom && atom.method === "verbatim-text");
+          }));
+          if (bad) {
+            const at = boundaryLocations.get(term.receiver)?.at;
+            const error = new GencmuError("grammar","a condition walk cannot reach verbatim-text",{document:p.source.document,...(at ? {line:at[0],column:at[1]} : {})});
+            boundaryDocumentErrors.set(error,{document:p.source.document,node:term.receiver});
+            throw error;
+          }
         }
+        pending.push(...Object.values(term).reverse());
       }
-      /** @type {Span[]} */
-      const intervals = [];
-      if (left < l) intervals.push([left,l]);
-      if (r < right) intervals.push([r,right]);
-      for (const claim of this.claims) {
-        if (claim.span[0] === a && claim.span[1] === b) continue;
-        for (const [x,y] of intervals) for (const [u,v] of claim.intervals) {
-          if (Math.max(x,u) < Math.min(y,v)) throw new GencmuError("grammar", "different verbatim spans claim the same uncovered source text");
-        }
-      }
-      if (intervals.length) this.claims.push({span:[a,b], intervals});
-      return sourceText.slice(left,right).join("");
     }
   }
 
@@ -9513,6 +9556,7 @@
 
 
 
+
   // A stage's grammar: its documents stitched together (engine §2) and
   // lowered to productions for one set of features (engine §3).
 
@@ -9790,6 +9834,13 @@
           validateRecipeCycles(alternative.value ?? alternative.clauses.value,alternative.image ?? alternative.clauses.image,alternative.document);
         }
         validateEmissionOverlap(this.rules);
+        if ([...this.rules.values()].some(rule=>rule.alternatives.some(alt=>emittedReads(alt.clauses.conditions).length))) {
+          const strings = new Lowering(this,new Set());
+          strings.validation = true;
+          for (const rule of this.rules.values()) for (const alternative of rule.alternatives) strings.lowerAlternative(rule,alternative);
+          prepareRankedFrames(strings,this.ranked);
+          validateConditionStrings(strings.productions);
+        }
         /**
          * The features that gate an alternative or an entry of a classifier.
          * Only these change a lowered grammar. A warning keeps its alternative
@@ -11554,64 +11605,6 @@
     return found;
   }
 
-  /** @type {WeakMap<Production[],Map<string,Set<string>>>} */
-  const stringDemands = new WeakMap();
-  /** @param {Production[]} productions @returns {Map<string,Set<string>>} */
-  function demandedStrings(productions) {
-    const known = stringDemands.get(productions);
-    if (known) return known;
-    const bindings = new Map();
-    for (const p of productions) {
-      let names = bindings.get(p.owner);
-      if (!names) bindings.set(p.owner,names=new Map());
-      for (const capture of p.captures) {
-        const symbol = p.rhs[capture.index];
-        if (symbol.terminal) continue;
-        let targets = names.get(capture.name);
-        if (!targets) names.set(capture.name,targets=new Set());
-        targets.add(symbol.name);
-      }
-    }
-    const demands = new Map();
-    let changed = false;
-    const add = (/** @type {string} */ name, /** @type {string} */ channel) => {
-      let channels = demands.get(name);
-      if (!channels) demands.set(name, channels = new Set());
-      if (!channels.has(channel)) { channels.add(channel); changed = true; }
-    };
-    const reads = (/** @type {any} */ term, /** @type {Production} */ production) => {
-      const pending = [term];
-      while (pending.length) {
-        const part = pending.pop();
-        if (!part || typeof part !== "object") continue;
-        if (["value","image"].includes(part.method) && part.receiver?.method === "emitted") {
-          const name = part.receiver.receiver.capture;
-          const slot = production.captureSlot.get(name);
-          const symbol = slot === undefined ? null : production.rhs[production.captures[slot].index];
-          if (name === "") { add(production.lhs,part.method); add(production.owner,part.method); }
-          else if (symbol && !symbol.terminal) add(symbol.name,part.method);
-          else for (const target of bindings.get(production.owner)?.get(name) ?? []) add(target,part.method);
-        }
-        for (const value of Object.values(part)) if (value && typeof value === "object") pending.push(...(Array.isArray(value) ? value : [value]));
-      }
-    };
-    for (const p of productions) {
-      for (const c of [...p.conditions,...p.rankedConditions ?? []]) reads(c.condition,p);
-      reads(p.itemConditions,p);
-    }
-    do {
-      changed = false;
-      for (const p of productions) for (const channel of demands.get(p.lhs) ?? []) {
-        if (p.erased) continue;
-        const recipe = channel === "value" ? p.value : p.image ?? p.value;
-        if (recipe) reads(recipe,p);
-        else for (const symbol of p.rhs) if (!symbol.terminal) add(symbol.name,channel);
-      }
-    } while (changed);
-    stringDemands.set(productions,demands);
-    return demands;
-  }
-
   /** @param {ParseContext} context @param {Production} production @param {number} dot @param {number} origin @param {number} end @param {Captured} slots @param {Item|null} previous @param {Item|null} child @param {Record<string,string>} [enclosingPrefix] @returns {{prefix:Record<string,string>,value:Record<string,string>}|null} */
   function stringStep(context, production, dot, origin, end, slots, previous, child, enclosingPrefix) {
     const channels = demandedStrings(context.lowered.productions).get(production.lhs);
@@ -11628,8 +11621,6 @@
     if (dot === production.rhs.length) {
       const scope = new ChartScope(context,production,slots,origin,end,-1);
       const active = new Set();
-      /** @type {GapClaims|undefined} */
-      let gaps;
       const get = (/** @type {string} */ channel) => {
         if (Object.prototype.hasOwnProperty.call(value,channel)) return value[channel];
         if (active.has(channel)) throw new GencmuError("grammar","a selected string recipe has a dependency cycle");
@@ -11639,13 +11630,8 @@
         if (production.elided !== null && production.rhs.length === 0) result = channel === "value" ? context.synthetic?.[origin] && end > origin ? context.tokens[origin].value : production.elidedValue ?? "" : "";
         else if (!production.erased) {
           if (recipe) for (const atom of recipe.concat) {
-            if ("method" in atom && atom.method === "verbatim-text") {
-              const span = scope.capture(/** @type {{capture:string}} */ (atom.receiver).capture);
-              result += (gaps ??= new GapClaims(context.recon?.observed ?? context)).verbatim(span.start,span.end);
-            } else {
-              const found = settled(()=>evaluate(context,atom,scope));
-              result += "string" in found ? found.string : "";
-            }
+            const found = settled(()=>evaluate(context,atom,scope));
+            result += "string" in found ? found.string : "";
           }
           else result = prefix[channel] ?? "";
         }
@@ -18447,6 +18433,65 @@
    */
   function witnessElided(node) {
     return !("read" in node) && node.production.helper && node.production.elided !== null && node.production.rhs.length === 0 && node.children.length === 0;
+  }
+
+  // ---- string-gaps.js
+
+  /** @import {Span} from "./types.js" */
+  class GapClaims {
+    /** @param {import("./earley.js").ParseContext} context */
+    constructor(context) {
+      this.context = context;
+      /** @type {{span:Span, intervals:Span[]}[]} */
+      this.claims = [];
+      // Every input source participates, including tokens outside a capture.
+      /** @type {Span[]} */
+      this.covered = context.tokens.map(token => token.source).filter(([a,b]) => a < b).sort((a,b) => a[0]-b[0]);
+      /** @type {Span[]} */
+      const merged = [];
+      for (const [a,b] of this.covered) {
+        const previous = merged[merged.length-1];
+        if (previous && a <= previous[1]) previous[1] = Math.max(previous[1], b);
+        else merged.push([a,b]);
+      }
+      this.covered = merged;
+    }
+    /** @param {number} a @param {number} b @returns {string} */
+    verbatim(a,b) {
+      if (a === b) return "";
+      const {tokens, sources, sourceText} = this.context;
+      const [l,r] = sources.of(a,b);
+      const p = a > 0 ? tokens[a-1].source[1] : 0;
+      const q = b < tokens.length ? tokens[b].source[0] : sourceText.length;
+      let left = l, right = r;
+      if (p < l) {
+        left = p;
+        for (const [start,end] of this.covered) {
+          if (start >= l) break;
+          if (end > left) left = Math.min(l,end);
+        }
+      }
+      if (r < q) {
+        right = q;
+        for (const [start,end] of this.covered) {
+          if (end <= r) continue;
+          right = Math.max(r,Math.min(right,start));
+          break;
+        }
+      }
+      /** @type {Span[]} */
+      const intervals = [];
+      if (left < l) intervals.push([left,l]);
+      if (r < right) intervals.push([r,right]);
+      for (const claim of this.claims) {
+        if (claim.span[0] === a && claim.span[1] === b) continue;
+        for (const [x,y] of intervals) for (const [u,v] of claim.intervals) {
+          if (Math.max(x,u) < Math.min(y,v)) throw new GencmuError("grammar", "different verbatim spans claim the same uncovered source text");
+        }
+      }
+      if (intervals.length) this.claims.push({span:[a,b], intervals});
+      return sourceText.slice(left,right).join("");
+    }
   }
 
   // ---- strings.js

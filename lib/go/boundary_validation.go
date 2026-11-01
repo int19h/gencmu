@@ -163,6 +163,17 @@ func (g *stageGrammar) validateBoundaryTargets() *Error {
 }
 
 func restoreBoundaryLocations(to, from *domDoc) {
+	for i, rule := range to.Rules {
+		if i >= len(from.Rules) {
+			break
+		}
+		reads, originals := emittedStringReads(rule.Conditions), emittedStringReads(from.Rules[i].Conditions)
+		if len(reads) == len(originals) {
+			for j, read := range reads {
+				read.Items[0].At = originals[j].Items[0].At
+			}
+		}
+	}
 	collect := func(d *domDoc) []*domCond {
 		var out []*domCond
 		for _, r := range d.Rules {

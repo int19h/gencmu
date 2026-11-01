@@ -16,6 +16,7 @@ mod normalize;
 mod patterns;
 
 pub(crate) struct Reader<'a> {
+    pub emitted_locations: std::cell::RefCell<std::collections::BTreeMap<String, (usize, usize)>>,
     pub unresolved_nodes: std::cell::RefCell<FxMap<usize, bool>>,
     pub parts_cache: std::cell::RefCell<FxMap<usize, Vec<&'a Node>>>,
     pub parameters: std::cell::RefCell<FxSet<String>>,
@@ -182,6 +183,7 @@ impl<'a> Reader<'a> {
                 return Err(self.error(node, "%names must precede every other statement"));
             }
             statement_seen |= !names;
+            if rule_name(node) == "rule" { self.emitted_locations.borrow_mut().clear(); }
             if node.kind != NodeKind::Rule {
                 continue;
             }
@@ -568,6 +570,7 @@ impl<'a> Reader<'a> {
         let rule = RuleDef {
             source,
             deferred_emission: None,
+            emitted_locations: std::mem::take(&mut *self.emitted_locations.borrow_mut()),
             name,
             op,
             categories,
@@ -1745,6 +1748,16 @@ impl<'a> Reader<'a> {
         }
         if !self.in_recipe.get() && (name == "verbatim-text" || name == "emitted" && !self.in_condition.get()) {
             return Err(self.error(frame.node, "a method has the wrong receiver or arguments"));
+        }
+        if self.in_condition.get() && matches!(name, "value" | "image") {
+            if let Term::Call(method, args) = &receiver {
+                if let ("emitted", [Arg::Term(Term::Capture(capture))]) = (method.as_str(), &args[..]) {
+                    self.emitted_locations
+                        .borrow_mut()
+                        .entry(format!("{capture}:{name}"))
+                        .or_insert(self.first(frame.node));
+                }
+            }
         }
         let mut args = vec![Arg::Term(receiver)];
         args.append(&mut frame.args);

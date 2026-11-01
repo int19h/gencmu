@@ -1,0 +1,10 @@
+{
+  "description": "A value walk ignores a child image recipe that reads verbatim text.",
+  "grammar": "%rule text $x:r\n%conditions $x.emitted.value = \"b\"\n%rule r child\n%rule child \"b\" :- $.verbatim-text",
+  "input": "b",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

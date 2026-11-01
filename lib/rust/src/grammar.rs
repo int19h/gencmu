@@ -60,6 +60,7 @@ pub(crate) const ELISION: &str = "elision";
 /// they are stored, substituted and checked once for the rule.
 #[derive(Debug, Clone)]
 pub(crate) struct RuleClauses {
+    pub emitted_locations: std::collections::BTreeMap<String, (usize, usize)>,
     pub tags: Option<Term>,
     pub strings: Channels,
     pub emit: Option<Vec<EmitItem>>,
@@ -334,6 +335,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                     // alternative. Each condition counts as it is copied.
                     let copy_clauses = || {
                         Arc::new(RuleClauses {
+                            emitted_locations: rule.emitted_locations.clone(),
                             tags: rule.tags.clone(),
                             strings: rule.strings.clone(),
                             emit: rule.emit.clone(),
@@ -581,6 +583,11 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         recipe_cycles(alternative)?;
     }
     emission_overlap(&grammar)?;
+    if crate::earley::has_condition_reads(&grammar) {
+        let strings =
+            crate::lower::lower_for_slots(&grammar).map_err(|e| located(e.message, &e.document, (e.line, e.column)))?;
+        crate::earley::validate_condition_strings(&strings, &grammar)?;
+    }
     Ok(grammar)
 }
 
@@ -2519,6 +2526,7 @@ mod tests {
                 source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
+                emitted_locations: Default::default(),
                 name: "text".into(),
                 op: Op::Define,
                 categories: Vec::new(),
