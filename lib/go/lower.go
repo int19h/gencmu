@@ -107,7 +107,7 @@ type lrule struct {
 
 type lowered struct {
 	stringsOnce   sync.Once
-	stringDemands map[int32]uint8
+	stringDemands map[int32]uint8 // Original production number to channel mask.
 	boundaryOnce  sync.Once
 	boundary      *boundaryMachine
 	prepareOnce   sync.Once

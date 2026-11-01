@@ -305,7 +305,7 @@ impl Context {
                 || text.contains('≝')
                 || text.contains(".emitted"))
         {
-            return read_document_named(&self.notation, text, true, names).map_err(|e| e.in_document(path));
+            dom = read_document_named(&self.notation, text, true, names).map_err(|e| e.in_document(path))?;
         }
         if diagnostic {
             #[cfg(test)]

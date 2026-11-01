@@ -963,6 +963,10 @@ fn runtime_reason<'a>(message: &'a str, diagnostics: &[gencmu::Error]) -> &'a st
 /// Parses a case's input with the options of `run`, the case itself or one
 /// item of its `parses`, and holds the result to `expect`.
 fn check_parse(pipeline: &gencmu::Pipeline, case: &Value, run: &Value, expect: &Value) -> Result<(), String> {
+    if expect.get("where").is_some() {
+        return Err("expect.where requires a load failure".into());
+    }
+
     if let Some(expected) = expect.get("bundledPipelines").filter(|_| CHECKS.with(std::cell::Cell::get) != Checks::Hook)
     {
         let names = Value::Array(gencmu::bundled_pipelines().into_iter().map(Value::String).collect());

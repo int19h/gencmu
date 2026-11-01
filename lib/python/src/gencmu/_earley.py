@@ -1351,7 +1351,7 @@ class Parser:
         string_prefixes, string_values = [], []
 
         def string_state(p, position, start, at, captured, edge, enclosing_prefix=None, enclosing_bound=None):
-            channels = string_demands.get(p.lhs)
+            channels = string_demands.get(p.real_id)
             if not channels: return (), ()
             previous = edge[0]
             prefix = dict(enclosing_prefix) if enclosing_prefix is not None else dict(string_prefixes[previous]) if previous >= 0 else {}
@@ -1405,7 +1405,7 @@ class Parser:
                     return
             structure = completed_structure(productions[production], position, prefix)
             key = (production, position, start, captured) + ((prefix, structure) if machine is not None else ())
-            if productions[production].lhs in string_demands:
+            if productions[production].real_id in string_demands:
                 key += (strings if position == len(productions[production].rhs) else string_prefix,)
             if closes is not None:
                 close_prefix = closes.trim(close_prefix, original(start), original(at))

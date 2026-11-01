@@ -9,13 +9,20 @@ def demanded_strings(productions, seeds=None):
         for name,index in p.captures.items():
             if not p.terminal[index]: names.setdefault(name,set()).add(p.rhs[index])
     string_demands = {}
-    def demand(rule, channel):
-        channels = string_demands.setdefault(rule, set())
+    def demand(production, channel):
+        channels = string_demands.setdefault(production.real_id, set())
         before = len(channels)
         channels.add(channel)
         return before != len(channels)
 
-    def string_reads(term, production):
+    by_rule = {}
+    for p in productions: by_rule.setdefault(p.lhs, []).append(p)
+    def child(rule, channel):
+        changed = False
+        for p in by_rule.get(rule, ()): changed = demand(p, channel) or changed
+        return changed
+
+    def string_reads(term, production, own=False):
         changed = False
         pending = [term]
         while pending:
@@ -27,15 +34,17 @@ def demanded_strings(productions, seeds=None):
                     name = receiver["receiver"]["capture"]
                     index = production.captures.get(name)
                     if not name:
-                        changed = demand(production.lhs, node["method"]) or changed
-                        for p in productions:
-                            if not p.helper and p.rule_name==production.rule_name:
-                                changed=demand(p.lhs,node["method"]) or changed
+                        if own or not production.helper:
+                            changed = demand(production, node["method"]) or changed
+                        else:
+                            for p in productions:
+                                if not p.helper and p.source is production.source:
+                                    changed = demand(p, node["method"]) or changed
                     elif index is not None and not production.terminal[index]:
-                        changed = demand(production.rhs[index], node["method"]) or changed
+                        changed = child(production.rhs[index], node["method"]) or changed
                     else:
                         for target in string_bindings.get(id(production.source),{}).get(name,()):
-                            changed=demand(target,node["method"]) or changed
+                            changed = child(target,node["method"]) or changed
                 pending.extend(node.values())
         return changed
 
@@ -48,13 +57,13 @@ def demanded_strings(productions, seeds=None):
     while changed:
         changed = False
         for p in productions:
-            for channel in tuple(string_demands.get(p.lhs, ())):
+            for channel in tuple(string_demands.get(p.real_id, ())):
                 if p.erased: continue
                 recipe = p.value if channel == "value" else p.image if p.image is not None else p.value
-                if recipe is not None: changed = string_reads(recipe, p) or changed
+                if recipe is not None: changed = string_reads(recipe, p, True) or changed
                 else:
                     for index, symbol in enumerate(p.rhs):
-                        if not p.terminal[index]: changed = demand(symbol, channel) or changed
+                        if not p.terminal[index]: changed = child(symbol, channel) or changed
     return string_demands
 
 
@@ -70,13 +79,12 @@ def reads(node):
 def validate_condition_strings(lowered):
     for rule in lowered.grammar.rules.values():
         for alternative in rule.alternatives:
-            production = next((p for p in lowered.productions if not p.helper and p.rule_name == rule.name and p.source is alternative), None)
-            if production is None: continue
+            productions = [p for p in lowered.productions if not p.helper and p.source is alternative]
             for term in reads(alternative.conditions):
-                demands = demanded_strings(lowered.productions, [(production, term)])
+                demands = demanded_strings(lowered.productions, [(p, term) for p in productions])
                 for p in lowered.productions:
                     if p.erased: continue
-                    for channel in demands.get(p.lhs, ()):
+                    for channel in demands.get(p.real_id, ()):
                         recipe = p.value if channel == "value" else p.image if p.image is not None else p.value
                         if recipe is not None and any(atom.get("method") == "verbatim-text" for atom in recipe["concat"]):
                             at = getattr(term["receiver"], "at", None)

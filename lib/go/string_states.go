@@ -25,16 +25,26 @@ func (g *lowered) stringReach(seed *stringSeed) map[int32]uint8 {
 	}
 	demands := map[int32]uint8{}
 	changed := false
-	add := func(rule int32, channel int) {
+	add := func(p *production, channel int) {
+		id := int32(p.num)
 		bit := uint8(1 << channel)
-		if demands[rule]&bit == 0 {
-			demands[rule] |= bit
+		if demands[id]&bit == 0 {
+			demands[id] |= bit
 			changed = true
 		}
 	}
+	byRule := map[int32][]*production{}
+	for _, p := range g.prods {
+		byRule[p.lhs] = append(byRule[p.lhs], p)
+	}
+	child := func(rule int32, channel int) {
+		for _, p := range byRule[rule] {
+			add(p, channel)
+		}
+	}
 	var cond func(*domCond, *production)
-	var read func(*domTerm, *production)
-	read = func(t *domTerm, p *production) {
+	var read func(*domTerm, *production, bool)
+	read = func(t *domTerm, p *production, own bool) {
 		if t == nil {
 			return
 		}
@@ -45,37 +55,43 @@ func (g *lowered) stringReach(seed *stringSeed) map[int32]uint8 {
 				channel = 1
 			}
 			if name == "" {
-				add(p.lhs, channel)
-				if root, ok := g.byName[p.ruleName]; ok {
-					add(root, channel)
+				if own || !p.helper {
+					add(p, channel)
+				} else {
+					for _, root := range g.prods {
+						if !root.helper && root.sourceAlternative == p.sourceAlternative {
+							add(root, channel)
+						}
+					}
 				}
 			} else if position, ok := p.posOf[name]; ok && !p.rhs[position].term {
-				add(p.rhs[position].id, channel)
+				child(p.rhs[position].id, channel)
 			} else {
 				for _, target := range bindings[p.sourceAlternative][name] {
-					add(target, channel)
+					child(target, channel)
 				}
 			}
+
 		}
 		cond(t.Cond, p)
 		for _, part := range t.Items {
-			read(part, p)
+			read(part, p, own)
 		}
 	}
 	cond = func(c *domCond, p *production) {
 		if c == nil {
 			return
 		}
-		read(c.Left, p)
-		read(c.Right, p)
-		read(c.Span, p)
+		read(c.Left, p, false)
+		read(c.Right, p, false)
+		read(c.Span, p, false)
 		cond(c.Inner, p)
 		for _, part := range c.Items {
 			cond(part, p)
 		}
 	}
 	if seed != nil {
-		read(seed.term, seed.production)
+		read(seed.term, seed.production, false)
 	} else {
 		for _, p := range g.prods {
 			for _, c := range p.conds {
@@ -96,7 +112,7 @@ func (g *lowered) stringReach(seed *stringSeed) map[int32]uint8 {
 		changed = false
 		for _, p := range g.prods {
 			for channel := 0; channel < 2; channel++ {
-				if demands[p.lhs]&(1<<channel) == 0 || p.nothing {
+				if demands[int32(p.num)]&(1<<channel) == 0 || p.nothing {
 					continue
 				}
 				recipe := p.value
@@ -104,11 +120,11 @@ func (g *lowered) stringReach(seed *stringSeed) map[int32]uint8 {
 					recipe = p.image
 				}
 				if recipe != nil {
-					read(recipe, p)
+					read(recipe, p, true)
 				} else {
 					for _, s := range p.rhs {
 						if !s.term {
-							add(s.id, channel)
+							child(s.id, channel)
 						}
 					}
 				}
@@ -176,7 +192,7 @@ func (g *stageGrammar) validateConditionStrings() *Error {
 					continue
 				}
 				for channel := 0; channel < 2; channel++ {
-					if reach[q.lhs]&(1<<channel) == 0 {
+					if reach[int32(q.num)]&(1<<channel) == 0 {
 						continue
 					}
 					selected := q.value
@@ -227,7 +243,7 @@ func (r *recognizer) finishStrings(key *itemKey, end int32) {
 }
 func (r *recognizer) finishStringsIn(key *itemKey, end int32, enclosing func(string) (spanVal, bool)) {
 	p := key.prod
-	channels := r.g.demandedStrings()[p.lhs]
+	channels := r.g.demandedStrings()[int32(p.num)]
 	if channels == 0 || int(key.dot) != len(p.rhs) {
 		return
 	}

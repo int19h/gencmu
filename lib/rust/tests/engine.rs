@@ -156,6 +156,14 @@ fn harness_detects_a_wrong_expectation() {
     assert!(placed(r#"{"document": "main.md", "line": 4, "column": 1}"#).is_ok());
     assert!(placed(r#"{"document": "main.md", "line": 3, "column": 1}"#).is_err());
     assert!(placed(r#"{"document": "pipeline.md", "line": 4, "column": 1}"#).is_err());
+    let (documents, path) = common::case_documents(&parse_json(r#"{"grammar":"%rule text {ε}","input":""}"#).unwrap());
+    gencmu::load_pipeline_sources(documents, &path).expect("the runtime fixture loads");
+    let runtime = |expect: &str| {
+        let case = format!(r#"{{"grammar":"%rule text {{ε}}","input":"","expect":{expect}}}"#);
+        run_engine_case(&parse_json(&case).unwrap())
+    };
+    assert!(runtime(r#"{"error":"grammar"}"#).is_ok());
+    assert!(runtime(r#"{"error":"grammar","where":{"document":"main.md"}}"#).is_err());
     // A load error meets only an expectation of that kind of error, with
     // nothing that only a loaded pipeline gives.
     let unloaded = |expect: &str| {

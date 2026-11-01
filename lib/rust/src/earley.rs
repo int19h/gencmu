@@ -1545,6 +1545,7 @@ impl<'t, 'g> Run<'t, 'g> {
 #[derive(Debug)]
 pub(crate) struct Preparation {
     roots: Vec<Pattern>,
+    /// One channel mask for each physical production.
     strings: Vec<u8>,
     /// Whether a recognition needs a pattern machine.
     machine: bool,

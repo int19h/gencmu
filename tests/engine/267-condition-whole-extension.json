@@ -1,0 +1,10 @@
+{
+  "description": "A whole read follows only the productions of its own definition.",
+  "grammar": "%rule text \"a\" := \"yes\"\n%conditions $.emitted.value = \"yes\"\n%extend-rule text \"b\" := $.verbatim-text",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

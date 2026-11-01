@@ -1034,7 +1034,7 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		if slot := p.capSlot[pos]; slot >= 0 {
 			r.setCap(&key, slot, cv)
 		}
-		if channels := r.g.demandedStrings()[p.lhs]; channels != 0 {
+		if channels := r.g.demandedStrings()[int32(p.num)]; channels != 0 {
 			for channel := 0; channel < 2; channel++ {
 				recipe := p.value
 				if channel == 1 && p.image != nil {

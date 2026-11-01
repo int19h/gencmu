@@ -8413,16 +8413,16 @@
 
   /** @import {Production} from "./types.js" */
 
-  /** @type {WeakMap<Production[],Map<string,Set<string>>>} */
+  /** @type {WeakMap<Production[],Map<number,Set<string>>>} */
   const stringDemands = new WeakMap();
-  /** @param {Production[]} productions @param {any[]} [seeds] @returns {Map<string,Set<string>>} */
+  /** @param {Production[]} productions @param {any[]} [seeds] @returns {Map<number,Set<string>>} */
   function demandedStrings(productions, seeds) {
     const known = seeds ? null : stringDemands.get(productions);
     if (known) return known;
     const bindings = new Map();
     for (const p of productions) {
-      let names = bindings.get(p.source ?? p.owner);
-      if (!names) bindings.set(p.source ?? p.owner,names=new Map());
+      let names = bindings.get(p.logicalSource ?? p.owner);
+      if (!names) bindings.set(p.logicalSource ?? p.owner,names=new Map());
       for (const capture of p.captures) {
         const symbol = p.rhs[capture.index];
         if (symbol.terminal) continue;
@@ -8432,13 +8432,22 @@
       }
     }
     const demands = new Map();
+    const byRule = new Map();
+    for (const p of productions) {
+      let entries = byRule.get(p.lhs);
+      if (!entries) byRule.set(p.lhs,entries=[]);
+      entries.push(p);
+    }
     let changed = false;
-    const add = (/** @type {string} */ name, /** @type {string} */ channel) => {
-      let channels = demands.get(name);
-      if (!channels) demands.set(name, channels = new Set());
+    const add = (/** @type {Production} */ production, /** @type {string} */ channel) => {
+      let channels = demands.get(production.id);
+      if (!channels) demands.set(production.id, channels = new Set());
       if (!channels.has(channel)) { channels.add(channel); changed = true; }
     };
-    const reads = (/** @type {any} */ term, /** @type {Production} */ production) => {
+    const child = (/** @type {string} */ name, /** @type {string} */ channel) => {
+      for (const p of byRule.get(name) ?? []) add(p,channel);
+    };
+    const reads = (/** @type {any} */ term, /** @type {Production} */ production, own = false) => {
       const pending = [term];
       while (pending.length) {
         const part = pending.pop();
@@ -8447,9 +8456,11 @@
           const name = part.receiver.receiver.capture;
           const slot = production.captureSlot.get(name);
           const symbol = slot === undefined ? null : production.rhs[production.captures[slot].index];
-          if (name === "") { add(production.lhs,part.method); add(production.owner,part.method); }
-          else if (symbol && !symbol.terminal) add(symbol.name,part.method);
-          else for (const target of bindings.get(production.source ?? production.owner)?.get(name) ?? []) add(target,part.method);
+          if (name === "") {
+            if (own || !production.helper) add(production,part.method);
+            else for (const p of productions) if (!p.helper && p.logicalSource === production.logicalSource) add(p,part.method);
+          } else if (symbol && !symbol.terminal) child(symbol.name,part.method);
+          else for (const target of bindings.get(production.logicalSource ?? production.owner)?.get(name) ?? []) child(target,part.method);
         }
         for (const value of Object.values(part)) if (value && typeof value === "object") pending.push(...(Array.isArray(value) ? value : [value]));
       }
@@ -8461,11 +8472,11 @@
     }
     do {
       changed = false;
-      for (const p of productions) for (const channel of demands.get(p.lhs) ?? []) {
+      for (const p of productions) for (const channel of demands.get(p.id) ?? []) {
         if (p.erased) continue;
         const recipe = channel === "value" ? p.value : p.image ?? p.value;
-        if (recipe) reads(recipe,p);
-        else for (const symbol of p.rhs) if (!symbol.terminal) add(symbol.name,channel);
+        if (recipe) reads(recipe,p,true);
+        else for (const symbol of p.rhs) if (!symbol.terminal) child(symbol.name,channel);
       }
     } while (changed);
     if (!seeds) stringDemands.set(productions,demands);
@@ -8476,22 +8487,22 @@
   /** @param {Production[]} productions */
   function validateConditionStrings(productions) {
     for (const p of productions) {
-      if (p.helper || !p.source) continue;
+      if (p.helper || !p.logicalSource) continue;
       /** @type {any[]} */
-      const pending = [p.source.clauses.conditions];
+      const pending = [p.logicalSource.clauses.conditions];
       while (pending.length) {
         const term = pending.pop();
         if (!term || typeof term !== "object") continue;
         if (["value","image"].includes(term.method) && term.receiver?.method === "emitted") {
           const demands = demandedStrings(productions,[[p,term]]);
-          const bad = productions.some(q => !q.erased && [...demands.get(q.lhs) ?? []].some(channel => {
+          const bad = productions.some(q => !q.erased && [...demands.get(q.id) ?? []].some(channel => {
             const selected = channel === "value" ? q.value : q.image ?? q.value;
             return selected?.concat.some(atom => "method" in atom && atom.method === "verbatim-text");
           }));
           if (bad) {
             const at = boundaryLocations.get(term.receiver)?.at;
-            const error = new GencmuError("grammar","a condition walk cannot reach verbatim-text",{document:p.source.document,...(at ? {line:at[0],column:at[1]} : {})});
-            boundaryDocumentErrors.set(error,{document:p.source.document,node:term.receiver});
+            const error = new GencmuError("grammar","a condition walk cannot reach verbatim-text",{document:p.logicalSource.document,...(at ? {line:at[0],column:at[1]} : {})});
+            boundaryDocumentErrors.set(error,{document:p.logicalSource.document,node:term.receiver});
             throw error;
           }
         }
@@ -11607,7 +11618,7 @@
 
   /** @param {ParseContext} context @param {Production} production @param {number} dot @param {number} origin @param {number} end @param {Captured} slots @param {Item|null} previous @param {Item|null} child @param {Record<string,string>} [enclosingPrefix] @returns {{prefix:Record<string,string>,value:Record<string,string>}|null} */
   function stringStep(context, production, dot, origin, end, slots, previous, child, enclosingPrefix) {
-    const channels = demandedStrings(context.lowered.productions).get(production.lhs);
+    const channels = demandedStrings(context.lowered.productions).get(production.id);
     if (!channels) return null;
     const prefix = {...(enclosingPrefix ?? previous?.stringPrefix)};
     for (const channel of enclosingPrefix ? [] : channels) {

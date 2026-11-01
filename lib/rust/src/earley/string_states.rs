@@ -5,46 +5,60 @@ pub(super) fn demands(g: &Lowered) -> Vec<u8> {
     demands_from(g, None)
 }
 fn demands_from(g: &Lowered, seeds: Option<Vec<u8>>) -> Vec<u8> {
-    fn add(out: &mut [u8], p: &crate::lower::Prod, span: &Span, image: bool, g: &Lowered) -> bool {
-        let rule = match span {
-            Span::Whole => Some(p.rule),
-            Span::Cap(slot) => match p.syms[p.cap_pos[*slot as usize]] {
-                Sym::N(r) => Some(r),
-                _ => None,
-            },
-            Span::Lexical(name) => {
-                let mut changed = false;
-                for other in &g.prods {
-                    if other.slot.as_ref().map(|s| s.source) != p.slot.as_ref().map(|s| s.source) {
-                        continue;
-                    }
-                    if let Some(&slot) = other.names.get(name) {
-                        changed = add(out, other, &Span::Cap(slot), image, g) || changed;
-                    }
-                }
-                return changed;
-            }
-            _ => None,
-        };
+    fn mark(out: &mut [u8], index: usize, image: bool) -> bool {
+        let old = out[index];
+        out[index] |= 1 << u8::from(image);
+        old != out[index]
+    }
+    fn named(out: &mut [u8], rule: u32, image: bool, g: &Lowered) -> bool {
         let mut changed = false;
-        if matches!(span, Span::Whole) {
-            if let Some(slot) = &p.slot {
-                let old = out[slot.source.0];
-                out[slot.source.0] |= 1 << u8::from(image);
-                changed = old != out[slot.source.0];
-            }
-        }
-        if let Some(rule) = rule {
-            let bit = 1 << u8::from(image);
-            let old = out[rule as usize];
-            out[rule as usize] |= bit;
-            return changed || old != out[rule as usize];
+        for &index in &g.rules[rule as usize].prods {
+            changed = mark(out, index as usize, image) || changed;
         }
         changed
     }
+    fn own(out: &mut [u8], p: &crate::lower::Prod, image: bool, g: &Lowered) -> bool {
+        let index = g.prods.iter().position(|q| std::ptr::eq(p, q)).unwrap();
+        mark(out, index, image)
+    }
+    fn add(out: &mut [u8], p: &crate::lower::Prod, span: &Span, image: bool, g: &Lowered, recipe: bool) -> bool {
+        match span {
+            Span::Whole if recipe || !g.rules[p.rule as usize].helper => own(out, p, image, g),
+            Span::Whole => {
+                let mut changed = false;
+                for q in &g.prods {
+                    if !g.rules[q.rule as usize].helper
+                        && q.owner == p.owner
+                        && q.at == p.at
+                        && q.document == p.document
+                    {
+                        changed = own(out, q, image, g) || changed;
+                    }
+                }
+                changed
+            }
+            Span::Cap(slot) => match p.syms[p.cap_pos[*slot as usize]] {
+                Sym::N(rule) => named(out, rule, image, g),
+                _ => false,
+            },
+            Span::Lexical(name) => {
+                let mut changed = false;
+                for q in &g.prods {
+                    if q.owner != p.owner || q.at != p.at || q.document != p.document {
+                        continue;
+                    }
+                    if let Some(&slot) = q.names.get(name) {
+                        changed = add(out, q, &Span::Cap(slot), image, g, recipe) || changed;
+                    }
+                }
+                changed
+            }
+            _ => false,
+        }
+    }
     fn term(t: &LTerm, p: &crate::lower::Prod, out: &mut [u8], g: &Lowered) -> bool {
         match t {
-            LTerm::Emitted(s, i) => add(out, p, s, *i, g),
+            LTerm::Emitted(s, i) => add(out, p, s, *i, g, false),
             LTerm::Concat(xs) | LTerm::Union(xs) | LTerm::Inter(xs) => {
                 let mut changed = false;
                 for t in xs {
@@ -88,7 +102,7 @@ fn demands_from(g: &Lowered, seeds: Option<Vec<u8>>) -> Vec<u8> {
                         )
                     };
                     if let Some(span) = span {
-                        changed = add(out, p, &span, name == "image", g)
+                        changed = add(out, p, &span, name == "image", g, true)
                     }
                 }
             }
@@ -101,7 +115,7 @@ fn demands_from(g: &Lowered, seeds: Option<Vec<u8>>) -> Vec<u8> {
         changed
     }
     let seeded = seeds.is_some();
-    let mut out = seeds.unwrap_or_else(|| vec![0; g.rules.len()]);
+    let mut out = seeds.unwrap_or_else(|| vec![0; g.prods.len()]);
     if !seeded {
         for p in &g.prods {
             for (c, _) in &p.conds {
@@ -118,9 +132,9 @@ fn demands_from(g: &Lowered, seeds: Option<Vec<u8>>) -> Vec<u8> {
     let mut changed = true;
     while changed {
         changed = false;
-        for p in &g.prods {
+        for (index, p) in g.prods.iter().enumerate() {
             for channel in 0..2 {
-                if out[p.rule as usize] & (1 << channel) == 0 || p.erased {
+                if out[index] & (1 << channel) == 0 || p.erased {
                     continue;
                 }
                 let selected = if channel == 0 {
@@ -133,9 +147,7 @@ fn demands_from(g: &Lowered, seeds: Option<Vec<u8>>) -> Vec<u8> {
                 } else {
                     for s in &p.syms {
                         if let Sym::N(r) = s {
-                            let old = out[*r as usize];
-                            out[*r as usize] |= 1 << channel;
-                            changed |= old != out[*r as usize]
+                            changed = named(&mut out, *r, channel == 1, g) || changed;
                         }
                     }
                 }
@@ -214,7 +226,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         id
     }
     pub(super) fn advance_strings(&mut self, item: Item, cap: Cap) -> u32 {
-        let mask = self.g.prepared.get().unwrap().strings[self.g.prods[item.prod as usize].rule as usize];
+        let mask = self.g.prepared.get().unwrap().strings[item.prod as usize];
         if mask == 0 {
             return 0;
         }
@@ -238,7 +250,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         base: usize,
     ) -> Result<(), EngineError> {
         let p = &self.g.prods[item.prod as usize];
-        let mask = self.g.prepared.get().unwrap().strings[p.rule as usize];
+        let mask = self.g.prepared.get().unwrap().strings[item.prod as usize];
         if mask == 0 || item.dot as usize != p.syms.len() {
             return Ok(());
         }
@@ -444,27 +456,29 @@ pub(crate) fn validate_condition_strings(
     for (owner, rule) in grammar.rules.iter().enumerate() {
         for alt in &rule.alternatives {
             for (capture, image) in condition_reads(&alt.clauses.conditions) {
-                let mut seeds = vec![0; g.rules.len()];
+                let mut seeds = vec![0; g.prods.len()];
                 let bit = 1 << u8::from(image);
-                if capture.is_empty() {
-                    seeds[owner] |= bit;
-                } else {
-                    for p in &g.prods {
-                        if p.owner as usize != owner
-                            || p.at != alt.at
-                            || p.document.as_deref() != Some(alt.document.as_ref())
-                        {
-                            continue;
+                for (index, p) in g.prods.iter().enumerate() {
+                    if p.owner as usize != owner
+                        || p.at != alt.at
+                        || p.document.as_deref() != Some(alt.document.as_ref())
+                    {
+                        continue;
+                    }
+                    if capture.is_empty() {
+                        if !g.rules[p.rule as usize].helper {
+                            seeds[index] |= bit;
                         }
-                        if let Some(&slot) = p.names.get(&capture) {
-                            if let Sym::N(rule) = p.syms[p.cap_pos[slot as usize]] {
-                                seeds[rule as usize] |= bit;
+                    } else if let Some(&slot) = p.names.get(&capture) {
+                        if let Sym::N(rule) = p.syms[p.cap_pos[slot as usize]] {
+                            for &child in &g.rules[rule as usize].prods {
+                                seeds[child as usize] |= bit;
                             }
                         }
                     }
                 }
                 let reached = demands_from(g, Some(seeds));
-                let bad = g.prods.iter().any(|p| {
+                let bad = g.prods.iter().enumerate().any(|(index, p)| {
                     !p.erased
                         && (0..2).any(|channel| {
                             let selected = if channel == 0 {
@@ -472,7 +486,7 @@ pub(crate) fn validate_condition_strings(
                             } else {
                                 p.strings.image.as_ref().or(p.strings.value.as_ref())
                             };
-                            reached[p.rule as usize] & (1 << channel) != 0 && selected.is_some_and(verbatim)
+                            reached[index] & (1 << channel) != 0 && selected.is_some_and(verbatim)
                         })
                 });
                 if bad {
