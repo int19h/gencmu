@@ -280,8 +280,8 @@
       this.names = new Map();
       this.forward = 0n;
       this.backward = 0n;
-      /** @type {BoundaryLiteral[]} */
-      this.literals = [];
+      /** @type {Map<bigint,BoundaryLiteral>} */
+      this.literals = new Map();
       /** @type {Map<string,BoundaryLiteral>} */
       this.literalKeys = new Map();
       /** @type {Map<string,BoundaryRecord>} */
@@ -313,9 +313,9 @@
       const key = `${direction}/${target}/${positive}`;
       let literal = this.literalKeys.get(key);
       if (!literal) {
-        literal = {bit:1n << BigInt(this.literals.length),direction,target,positive};
+        literal = {bit:1n << BigInt(this.literals.size),direction,target,positive};
         this.literalKeys.set(key,literal);
-        this.literals.push(literal);
+        this.literals.set(literal.bit,literal);
       }
       return literal;
     }
@@ -329,8 +329,9 @@
     /** @param {bigint} literals @param {bigint} offers @param {string} direction @param {boolean} final @param {(literal:any)=>void} fail */
     meet(literals,offers,direction,final,fail) {
       let remaining = literals, failed = false;
-      for (const literal of this.literals) {
-        if (!(literals & literal.bit) || literal.direction !== direction) continue;
+      for (let pending = literals; pending; pending &= pending-1n) {
+        const literal = /** @type {BoundaryLiteral} */ (this.literals.get(pending & -pending));
+        if (literal.direction !== direction) continue;
         const hit = !!(literal.target & offers);
         if (!hit && !final) continue;
         if (hit !== literal.positive) { fail(literal); failed = true; }
@@ -375,9 +376,11 @@
     }
     /** @param {BoundaryRecord} record @param {(literal:any)=>void} fail */
     accepts(record,fail = () => {}) {
-      const pending = record.start|record.end;
       let accepted = true;
-      for (const literal of this.literals) if (pending & literal.bit && literal.positive) { fail(literal); accepted = false; }
+      for (let pending = record.start|record.end; pending; pending &= pending-1n) {
+        const literal = /** @type {BoundaryLiteral} */ (this.literals.get(pending & -pending));
+        if (literal.positive) { fail(literal); accepted = false; }
+      }
       return accepted;
     }
     /** The option's facts after qualification, without the prefix's facts.
@@ -11258,9 +11261,8 @@
       /** Whether the check of engine §7 is running over this context's input. */
       this.checking = false;
       /**
-       * Each token's value in canonical form, for the value tests of
-       * symbols and for value(), computed when one first looks at the
-       * token (engine §4, §5).
+       * Each token's exact stored value, for symbol tests and value(),
+       * cached on its first observation (engine §4, §5).
        * @type {(string | undefined)[]}
        */
       this.storedValues = new Array(tokens.length);
@@ -13421,26 +13423,26 @@
    * @param {ParseContext} context
    * @param {SpanValue} span
    * @param {Scope} scope
-   * @returns {{context: ParseContext, start: number, end: number, key: [number, number] | null, fromCheck: boolean, aligned?: import("./types.js").AlignedSpan}}
+   * @returns {{context: ParseContext, start: number, end: number, key: [number, number] | null, aligned?: import("./types.js").AlignedSpan}}
    */
   function queryTarget(context, span, scope) {
-    if (span.aligned) return {context,start:span.start,end:span.aligned.contextEnd,key:null,fromCheck:reconstructionOf(scope) !== null,aligned:span.aligned};
+    if (span.aligned) return {context,start:span.start,end:span.aligned.contextEnd,key:null,aligned:span.aligned};
     const r = reconstructionOf(scope);
-    if (r === null) return { context, start: span.start, end: span.end, key: null, fromCheck: false };
+    if (r === null) return { context, start: span.start, end: span.end, key: null };
     const recon = /** @type {Reconstruction} */ (r.recon);
-    if (span.space === "raw") return { context: faultyContext(r, recon.raw ? "F13" : "F3"), start: span.start, end: span.end, key: null, fromCheck: true };
+    if (span.space === "raw") return { context: faultyContext(r, recon.raw ? "F13" : "F3"), start: span.start, end: span.end, key: null };
     // The span in R and its projection.
     const rspan = span.space === "R" ? [span.start, span.end] : span.reconstructed || [span.start, span.end];
     const [start, end] = span.space === "R" ? [recon.project[span.start], recon.project[span.end]] : [span.start, span.end];
-    if (fault("F3")) return { context: faultyContext(r, "F3"), start: rspan[0], end: rspan[1], key: null, fromCheck: true };
+    if (fault("F3")) return { context: faultyContext(r, "F3"), start: rspan[0], end: rspan[1], key: null };
     for (const name of ["F2"]) {
-      if (fault(name)) return { context: faultyContext(r, name), start, end, key: null, fromCheck: true };
+      if (fault(name)) return { context: faultyContext(r, name), start, end, key: null };
     }
     if (fault("F4")) {
       const length = context.tokens.length;
-      return { context, start: Math.min(rspan[0], length), end: Math.min(rspan[1], length), key: null, fromCheck: true };
+      return { context, start: Math.min(rspan[0], length), end: Math.min(rspan[1], length), key: null };
     }
-    return { context, start, end, key: fault("F21") ? [rspan[0], rspan[1]] : null, fromCheck: true };
+    return { context, start, end, key: fault("F21") ? [rspan[0], rspan[1]] : null };
   }
 
   /**
@@ -13935,7 +13937,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, fromCheck: boolean, aligned?: import("./types.js").AlignedSpan} | null} target
+   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan} | null} target
    *   where a query of the check came from
    * @returns {boolean | TagSet | Halt}
    */
@@ -14193,7 +14195,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, fromCheck: boolean, aligned?: import("./types.js").AlignedSpan} | null} [target]
+   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan} | null} [target]
    * @returns {boolean | Halt}
    */
   function nestedMatches(context, rule, start, end, target = null) {
@@ -14208,7 +14210,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, fromCheck: boolean, aligned?: import("./types.js").AlignedSpan} | null} [target]
+   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan} | null} [target]
    * @returns {boolean | Halt}
    */
   function nestedBegins(context, rule, start, end, target = null) {
@@ -14220,7 +14222,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, fromCheck: boolean, aligned?: import("./types.js").AlignedSpan} | null} [target]
+   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan} | null} [target]
    * @returns {TagSet | Halt}
    */
   function nestedTags(context, rule, start, end, target = null) {

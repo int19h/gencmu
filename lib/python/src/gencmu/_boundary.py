@@ -106,8 +106,12 @@ class Records:
 
     def meet(self, literals, offers, direction, final, fail):
         remaining, failed = literals, False
-        for literal in self.literals:
-            if not literals & literal.bit or literal.direction != direction:
+        pending = literals
+        while pending:
+            bit = pending & -pending
+            pending &= pending - 1
+            literal = self.literals[bit.bit_length() - 1]
+            if literal.direction != direction:
                 continue
             hit = bool(literal.target & offers)
             if not hit and not final:
@@ -152,8 +156,12 @@ class Records:
 
     def accepts(self, record, fail=lambda literal: None):
         accepted = True
-        for literal in self.literals:
-            if (record.start | record.end) & literal.bit and literal.positive:
+        pending = record.start | record.end
+        while pending:
+            bit = pending & -pending
+            pending &= pending - 1
+            literal = self.literals[bit.bit_length() - 1]
+            if literal.positive:
                 fail(literal)
                 accepted = False
         return accepted

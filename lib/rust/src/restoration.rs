@@ -362,7 +362,7 @@ impl Observations {
     }
 }
 
-fn plans_by_production(g: &crate::lower::Lowered) -> Vec<Vec<&crate::lower::RankedPlan>> {
+pub(crate) fn plans_by_production(g: &crate::lower::Lowered) -> Vec<Vec<&crate::lower::RankedPlan>> {
     let mut plans = vec![Vec::new(); g.prods.len()];
     for ((production, ..), plan) in &g.ranked.plans {
         plans[*production as usize].push(plan);

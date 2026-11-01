@@ -458,7 +458,7 @@ impl Pipeline {
         };
         let mut shared = Shared::new(&self.unicode, &chars);
         let (mut input, public_input) = first(&mut shared.tags, &chars);
-        crate::earley::mark_quiet(&mut input, &self.unicode);
+        crate::earley::mark_quiet(&mut input);
         let fresh = Run { stages: Vec::new(), input, public_input, tree: None, error: None, warnings: Vec::new() };
         let mut run = fresh;
         self.stages_between(&mut shared, &mut run, &mut features, (off, last, options.elision_only), &mut inspect)?;
@@ -709,7 +709,7 @@ impl Pipeline {
                 after: token.after,
             });
         }
-        crate::earley::mark_quiet(&mut next, &self.unicode);
+        crate::earley::mark_quiet(&mut next);
         // The check of `elision-only` runs after emission.
         let check = elision.unwrap_or(grammar.elision_only);
         let mut ambiguous = None;
@@ -920,7 +920,7 @@ impl Pipeline {
         for (index, &flag) in synthetic.iter().enumerate() {
             project.push(project[index] + u32::from(!flag));
         }
-        crate::earley::mark_quiet(&mut tokens, &self.unicode);
+        crate::earley::mark_quiet(&mut tokens);
         let mut saved_values = vec![None; tokens.len()];
         for (index, &position) in record_at.iter().enumerate() {
             saved_values[position as usize] = records[index].value.clone();
@@ -946,7 +946,6 @@ impl Pipeline {
                 synthetic: &recon.synthetic,
                 original_at: &original_at,
                 record_at: &record_at,
-                unicode: shared.unicode,
                 tags: &shared.tags,
             };
             witness::walk(&forest, chosen)

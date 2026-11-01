@@ -1417,6 +1417,8 @@ Restoration observations retain proof-sensitive close groups and opaque blocks b
 
 The deletion test of §4 is the rule for a family witness. At each boundary through `min(b,c)`, the witness's group must reduce to the candidate's group by that test. A recognizer can compute the test as the witness grows. A family query fixes its candidate for the whole witness chart, so the candidate's group at each boundary is known.
 
+A family-summary context depends on the candidate's normalized observations and interval. Witness records supply family-specific permission separately.
+
 Let the candidate's group at a boundary `p` hold `n` records. The test at `p` is an automaton whose states are pairs `(i, t)`. `i` counts the candidate records matched, and `t` says whether a deletion follows the last match. A witness record that equals the next candidate record moves `(i, t)` to `(i+1, 0)`. A permitted close moves `(i, t)` to `(i, 1)`. At `i = 0`, that move needs `p > a`.
 
 At a boundary `p < min(b,c)`, `(n, 0)` and `(n, 1)` accept. At `min(b,c)`, only `(m, 0)` accepts, where `m` leaves out a candidate block that starts there and ends after it. Beyond `b`, every group passes. A run can make several deletions in a row. So other extra closes can stand between a deleted close and the kept element on each side.
@@ -1485,6 +1487,8 @@ A forward literal is a literal of a `followed-by` atom, and a backward literal o
 To meet a set of literals with a set of offers, take each literal that has a name of its target among the offers. A forward literal looks among the first offers, and a backward literal among the last offers. Such a literal leaves the record. A positive one is satisfied. A negative one fails, and the step drops its resulting item.
 
 To settle a set of literals, decide each literal that remains. A positive one fails, and the step drops its resulting item. A negative one is satisfied.
+
+Meeting and settlement inspect only the literals in the supplied set. An empty set needs no literal inspections.
 
 Each step applies these rules after the order of §4, which they extend. A token read is an advance over a nonempty constituent whose record has no literals. Its first offers hold its terminal if the terminal is a forward target. Its last offers hold its terminal if the terminal is a backward target.
 
@@ -1599,6 +1603,8 @@ Query answer keys distinguish suffix mode from whole and prefix modes. They incl
 Requests outside active suffix queries share recognition when they have one lowered target and window start, and that target reads no window end. The shared recognition starts the target at every position from that window start. It retains one answer for each requested end boundary. The total cost is that recognition, including its nested queries, plus constant work per request. Complex targets can cost more than linear time even with sharing.
 
 A target reads the window end when its recognition evaluates `.onward`, `.following-tokens`, `.ends-input`, or `.followed-by`. This includes conditions and tag terms of rules reached through body references. A target also counts as reading the window end if its recognition contains a nested query with a restored receiver. This rule includes restored queries at any nesting depth. An ordinary nested query target uses its own window end. Its end-reading methods alone do not create this outer dependency.
+
+Dependency analysis groups ranked plans by production before visiting reachable productions. Each production supplies only its own plans.
 
 Written-terminator priority uses only blockers that complete within the requested window. Shared recognition therefore decides eligibility separately for each end boundary. A later blocker cannot change an earlier retained answer. Errors retain the boundary scope defined above.
 
