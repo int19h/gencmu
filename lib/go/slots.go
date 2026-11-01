@@ -305,7 +305,7 @@ func (a *slotAdmission) compute(key slotCountKey) slotCount {
 		}
 		var out slotCount
 		for i, it := range s.items {
-			if rk.skips("lost:context", "members", i, len(s.items)) {
+			if rk.skips("lost:context", "admission-members", i, len(s.items)) {
 				continue
 			}
 			v := a.value(a.key(it, nil, f))
@@ -317,7 +317,7 @@ func (a *slotAdmission) compute(key slotCountKey) slotCount {
 	if it.dot == 0 && !it.restores {
 		return slotCount{all: 1}
 	}
-	if it.restores && rk.rec.run.ps.fault("rank-restoration") {
+	if it.restores && rk.rec.run.ps.faultAt("rank-restoration", "admission") {
 		return slotCount{}
 	}
 	a.admit(key)
@@ -325,7 +325,7 @@ func (a *slotAdmission) compute(key slotCountKey) slotCount {
 	var out slotCount
 	f := a.contexts[key.context]
 	for index, edge := range it.links {
-		if rk.skips("lost:context", "links", index, len(it.links)) {
+		if rk.skips("lost:context", "admission-links", index, len(it.links)) {
 			continue
 		}
 		l, r := a.edgeCount(it, edge, f)
