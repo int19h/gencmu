@@ -946,7 +946,13 @@ The CLI is `node lib/js/cli.js`. A published package exposes it as `npx gencmu`.
 - `test`, to compare a grammar author's own file of corpus-format cases with the expected results under a pipeline. It compares each case as the library's corpus runner does, with the same code. It runs no engine self-tests, such as the witness hook of `elision-only`
 - `help`, to list the commands and every option
 
-`--pipeline NAME` selects a bundled full name and defaults to `lojban/cll`. `--pipeline-file FILE` loads a local pipeline document instead. The file selector takes precedence when both selectors are supplied.
+`--pipeline NAME` selects a bundled full name and defaults to `lojban/cll`. `--pipeline-file FILE` loads a local pipeline document instead. The file selector takes precedence when both selectors are supplied. An explicitly supplied empty filename still selects the file loader.
+
+Only `parse` and `test` accept bare arguments. `test` requires exactly one case file. Other commands reject bare arguments with a `usage` error.
+
+`parse` accepts every listed option. `test` accepts the pipeline selectors, `--feature`, and `--no-feature`. `audit`, `stitch`, and `features` accept only the pipeline selectors. `pipelines` and `help` accept no options. Each command rejects options that it does not read.
+
+`--trace` selects trace output, so it cannot combine with `--format` or `--show-elided`. Without tracing, `--show-elided` requires the brackets format.
 
 The `test` command reports invalid JSON or case fields as a `usage` error with the file, physical line number, and exit status 2. Each case has a string `text`, an optional bundled `pipeline`, and optional string arrays `features` and `withoutFeatures`. The `parse` standard input and `test` case files use strict UTF-8. Invalid bytes cause a `usage` error before pipeline loading.
 
