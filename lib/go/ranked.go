@@ -45,6 +45,7 @@ type rankedEnd struct {
 	at, option int
 	start      rankedSpan
 }
+
 // Route positions count relevant capture closes, independently of other symbols.
 type rankedRoute struct {
 	span     rankedSpan
@@ -278,7 +279,7 @@ func rankedCondReads(cond *domCond, out map[string]bool) {
 		rankedCondReads(child, out)
 	}
 }
-func newRankedGroups(g *stageGrammar) (*rankedGroups, *Error) {
+func newRankedGroups(g *stageGrammar) *rankedGroups {
 	r := &rankedGroups{expressions: map[*domExpr]*rankedGroup{}, owners: map[*domExpr]*rankedGroup{}, paths: map[*domExpr]string{}, sourceSites: map[*sAlt]GroupSite{}, analyses: map[*sAlt]*rankedClauseAnalysis{}}
 	for _, rule := range g.rules {
 		for alternative, source := range rule.alts {
@@ -318,7 +319,7 @@ func newRankedGroups(g *stageGrammar) (*rankedGroups, *Error) {
 			visit(source.alt.Expr, "", true, nil)
 		}
 	}
-	return r, nil
+	return r
 }
 func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup) *Error {
 	analysis := r.analyses[group.source]
