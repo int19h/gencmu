@@ -359,7 +359,7 @@ func checkLoadError(expect *caseExpect, err error) error {
 		return fmt.Errorf("the load error stands at %s:%d:%d, not at %s:%d:%d: %v", e.Document, e.Line, e.Column, w.Document, w.Line, w.Column, err)
 	}
 	if expect.Diagnostic != "" && e.Code != expect.Diagnostic {
-		return fmt.Errorf("the load diagnostic is %s, not %s", e.Message, expect.Diagnostic)
+		return fmt.Errorf("the load diagnostic is %s, not %s", e.Code, expect.Diagnostic)
 	}
 	return nil
 }
@@ -856,4 +856,12 @@ func (d *Pipeline) parseStoredTokens(text string, tokens []Token, options ParseO
 	inputs := inputTokensOf(tokens)
 
 	return d.ParseTokens(text, inputs, options)
+}
+
+func TestLoadDiagnosticMismatchNamesCode(t *testing.T) {
+	err := checkLoadError(&caseExpect{Error: ErrorGrammar, Diagnostic: "wanted-code"},
+		&Error{Kind: ErrorGrammar, Code: "actual-code", Message: "human reason"})
+	if err == nil || !strings.Contains(err.Error(), "actual-code") || strings.Contains(err.Error(), "human reason") {
+		t.Fatalf("diagnostic mismatch does not identify its code: %v", err)
+	}
 }
