@@ -236,6 +236,39 @@ func notationCaseSchema(value any) error {
 	return nil
 }
 
+func notationValuesSchema(value any) error {
+	expectSchema := func(value any, path string) error {
+		schema := caseObject(map[string]caseSchema{
+			"dom": caseAny, "message": caseString,
+			"error": caseObject(map[string]caseSchema{"line": caseInteger, "column": caseInteger}, "line", "column"),
+		})
+		if err := schema(value, path); err != nil {
+			return err
+		}
+		expect := value.(map[string]any)
+		_, hasDOM := expect["dom"]
+		_, hasError := expect["error"]
+		if hasDOM == hasError {
+			return fmt.Errorf("%s: expected exactly one of dom and error", path)
+		}
+		if _, message := expect["message"]; message && !hasError {
+			return fmt.Errorf("%s.message requires an error expectation", path)
+		}
+		return nil
+	}
+	aliasSchema := caseObject(map[string]caseSchema{
+		"spelling": caseString, "value": caseString, "tags": caseArray(caseString),
+	}, "spelling", "value", "tags")
+	schema := caseObject(map[string]caseSchema{
+		"description": caseString,
+		"cases": caseArray(caseObject(map[string]caseSchema{
+			"id": caseString, "description": caseString, "document": caseString,
+			"aliases": caseArray(aliasSchema), "expect": expectSchema,
+		}, "id", "document", "aliases", "expect")),
+	}, "cases")
+	return schema(value, "notation values")
+}
+
 func resultPatternProblem(pattern any) error {
 	type entry struct {
 		value   any
