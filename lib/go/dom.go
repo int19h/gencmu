@@ -695,6 +695,8 @@ func (d *domDoc) json() []byte {
 // errTooDeep is the shared depth diagnostic after constructor inspection.
 var errTooDeep = fmt.Errorf("an expression, term or condition is nested more than %d deep", maxDOMDepth)
 
+const maxDOMPosition = 9007199254740991
+
 type jobj map[string]json.RawMessage
 
 func decodeObj(raw json.RawMessage) (jobj, error) {
@@ -760,6 +762,9 @@ func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domD
 	o, err := domObjectOf(node)
 	if err != nil {
 		return nil, err
+	}
+	if !hasOneForm(o, [][]string{{"format", "rules", "directives", "constants", "classifiers", "implications"}}) {
+		return nil, fmt.Errorf("a malformed DOM envelope")
 	}
 	var format int
 	if err := domScalar(o["format"], &format); err != nil || format != domFormat {

@@ -10,7 +10,7 @@ from typing import Any, Protocol
 
 from ._clauses import check_definition, duplicate_captures
 from ._patterns import walk_pattern
-from ._pattern_shapes import layered_pattern_problem
+from ._pattern_shapes import layered_pattern_problem, MAX_POSITION
 from ._strings import ENGINE_TAGS, USER_NAME, is_constant, literal_string, lit
 from ._types import constant_value_problem, open_part, rule_type_problem, term_type, tag_term_problem, condition_type_problem, method_shape_problem
 
@@ -35,7 +35,7 @@ TEST_OPS = frozenset(("tags", "=", "≠"))
 
 
 def _is_position(value: Any) -> bool:
-    return isinstance(value, list) and len(value) == 2 and all(type(x) is int and x >= 1 for x in value)
+    return isinstance(value, list) and len(value) == 2 and all(type(x) is int and 1 <= x <= MAX_POSITION for x in value)
 
 
 def _items(value: Any, least: int = 1, most: float = float("inf")) -> bool:
@@ -183,6 +183,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
     arrays = ("rules", "directives", "constants", "classifiers", "implications")
     if (
         not isinstance(dom, dict)
+        or set(dom) != {"format", *arrays}
         or type(dom.get("format")) is not int
         or dom["format"] != FORMAT
         or any(not isinstance(dom.get(k), list) for k in arrays)
@@ -192,7 +193,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
     for key in arrays:
         for item in dom[key]:
             if not isinstance(item, dict) or not _is_position(item.get("at")):
-                return "a declaration requires a position"
+                return "a malformed declaration position"
             at = tuple(item["at"])
             if at in positions:
                 return "two items at one position"
@@ -396,6 +397,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
 
 def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str | None:
     types = {}
+    type_problem = None
     while pending:
         kind, node, depth, whole, sealed = pending.pop()
         if depth > MAX_DEPTH:
@@ -598,14 +600,12 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
             ):
                 return "a malformed condition"
             problem = None if id(node) in deferred or dependent else condition_type_problem(node, memo=types)
-            if problem:
-                return problem
+            type_problem = type_problem or problem
             if "method" not in node:
                 continue
         elif kind == "tags":
             problem = None if id(node) in deferred or dependent else tag_term_problem(node, memo=types)
-            if problem:
-                return problem
+            type_problem = type_problem or problem
         if "method" in node:
             if keys != {"method", "receiver", "args"} or not isinstance(node["method"], str) or not isinstance(node["args"], list):
                 return "a malformed method"
@@ -626,8 +626,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
             ):
                 return "a recipe-only method outside a recipe"
             result, problem = ("any", None) if id(node) in deferred or dependent else term_type(node, memo=types)
-            if problem:
-                return problem
+            type_problem = type_problem or problem
             if kind == "string":
                 return "a string operand requires a literal or constant"
             if id(node) not in deferred and node["method"] == "split" and literal_string(node["args"][0]) == "":
@@ -678,8 +677,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
             if keys != {key} or not _items(node[key], 2, 2 if key == "difference" else float("inf")):
                 return "a malformed set expression"
             problem = None if id(node) in deferred else term_type(node, memo=types)[1]
-            if problem:
-                return problem
+            type_problem = type_problem or problem
             pending.extend(("term", x, below, False, False) for x in node[key])
         elif "if" in node:
             if keys != {"if", "then"}:
@@ -688,7 +686,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
             pending.append(("term", node["then"], below, False, False))
         elif not (keys == {"emptySet"} and node["emptySet"] is True):
             return "a malformed term"
-    return None
+    return type_problem
 
 
 def input_conditions_problem(conditions):

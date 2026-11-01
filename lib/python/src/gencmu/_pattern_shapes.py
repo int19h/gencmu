@@ -12,8 +12,11 @@ _RULE = re.compile(r"[a-z][A-Za-z0-9_-]*\Z", re.ASCII)
 _SETS = ("union", "intersection", "difference")
 
 
+MAX_POSITION = 9007199254740991
+
+
 def _position(value):
-    return isinstance(value, list) and len(value) == 2 and all(type(x) is int and x > 0 for x in value)
+    return isinstance(value, list) and len(value) == 2 and all(type(x) is int and 1 <= x <= MAX_POSITION for x in value)
 
 
 def _string_term(node):

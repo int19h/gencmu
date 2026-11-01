@@ -11,19 +11,19 @@ pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Uni
     let cleaned = known_dom_members(dom);
     let dom = cleaned.as_ref().unwrap_or(dom);
     if let Some(problem) = shape_problem(dom, unicode) {
-        return Some(problem.into());
+        return Some(problem);
     }
     let Ok(mut decoded) = decode_nodes(dom) else { return Some("a malformed DOM node".into()) };
     schema::decoded_problem(dom, &mut decoded)
 }
 
-fn shape_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
+fn shape_problem(dom: &Json, unicode: &Unicode) -> Option<String> {
     let roots = ["rules", "directives", "constants", "classifiers", "implications"];
     for part in roots.iter().filter_map(|key| dom.get(key)).flat_map(crate::parameters::nodes) {
         for field in ["ref", "tag", "terminal"] {
             if let Some(name) = part.get(field).and_then(crate::json::Json::as_str) {
                 if name.starts_with('_') && unicode.canonical_tag(name) != Some(name) {
-                    return Some("unknown, unavailable, or noncanonical engine tag");
+                    return Some("unknown, unavailable, or noncanonical engine tag".into());
                 }
             }
         }
@@ -367,41 +367,17 @@ fn position(value: &Json) -> R<(usize, usize)> {
 }
 
 pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
-    dom_from_json_mode(value, unicode, true)
-}
-pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -> R<Dom> {
     let cleaned = known_dom_members(value);
     let value = cleaned.as_ref().unwrap_or(value);
     if let Some(problem) = shape_problem(value, unicode) {
-        return Err(problem.to_string());
+        return Err(problem);
     }
-    decode_checked(value, unicode, defer)
+    decode_checked(value, unicode)
 }
-pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode, defer: bool) -> R<Dom> {
+pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode) -> R<Dom> {
     let mut dom = decode_nodes(value)?;
     if let Some(problem) = schema::decoded_problem(value, &mut dom) {
         return Err(problem);
-    }
-    // Boundary checks and strict conversion use the same partial projection.
-    for (rule, raw) in dom.rules.iter_mut().zip(array(value, "rules")?) {
-        if rule.source.instance.is_some() {
-            continue;
-        }
-        let projected;
-        let checked = if crate::parameters::unresolved(raw) {
-            projected = partial::rule(rule)?;
-            &projected
-        } else {
-            &*rule
-        };
-        if let Some((problem, _)) = crate::boundary::definition_problem(checked) {
-            return Err(problem);
-        }
-        if !defer && rule.deferred_emission.is_some() {
-            if let Some(issue) = crate::clauses::check_definition(checked, false).problem {
-                return Err(issue.message);
-            }
-        }
     }
     Ok(dom)
 }
@@ -962,6 +938,7 @@ fn emit_from_json(value: &Json) -> R<Vec<EmitItem>> {
 /// above any node of it (engine §9): the depth a node is checked at is the
 /// number of such ancestors, counted from the root at 0.
 pub(crate) const DOM_MAX_DEPTH: usize = 256;
+pub(crate) const DOM_MAX_POSITION: i64 = 9007199254740991;
 
 fn is_str(value: Option<&Json>) -> bool {
     matches!(value, Some(Json::Str(_)))
@@ -972,7 +949,7 @@ fn is_true(value: Option<&Json>) -> bool {
 }
 
 fn is_position(value: Option<&Json>) -> bool {
-    matches!(value.and_then(Json::as_array), Some([Json::Int(line), Json::Int(column)]) if *line > 0 && *column > 0)
+    matches!(value.and_then(Json::as_array), Some([Json::Int(line), Json::Int(column)]) if (1..=DOM_MAX_POSITION).contains(line) && (1..=DOM_MAX_POSITION).contains(column))
 }
 
 /// A capture name starts with a lowercase ASCII letter and contains no capitals.
@@ -1454,11 +1431,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
     let mut stack: Vec<(Nested<'d>, usize)> = roots.into_iter().map(|root| (root, 0)).collect();
     while let Some((node, depth)) = stack.pop() {
         crate::work::count(crate::work::Work::Walked, 1);
-        if let Nested::PatternItems(crate::patterns::Children::Sequence(items)) = node {
-            stack.extend(items.iter().map(|item| (Nested::PatternItems(item), depth)));
-            continue;
-        }
-        if depth > MAX_NESTING {
+        if depth > MAX_NESTING && !matches!(node, Nested::PatternItems(crate::patterns::Children::Sequence(_))) {
             return true;
         }
         let below = depth + 1;

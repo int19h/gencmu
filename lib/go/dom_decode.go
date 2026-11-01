@@ -71,7 +71,7 @@ func domPosition(value any) ([2]int, error) {
 		err := domScalar(value, &number)
 		return number, err
 	})
-	if err != nil || len(pair) != 2 || pair[0] < 1 || pair[1] < 1 {
+	if err != nil || len(pair) != 2 || pair[0] < 1 || pair[1] < 1 || int64(pair[0]) > maxDOMPosition || int64(pair[1]) > maxDOMPosition {
 		return [2]int{}, fmt.Errorf("a malformed position")
 	}
 	return [2]int{pair[0], pair[1]}, nil

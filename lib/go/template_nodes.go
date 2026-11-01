@@ -25,9 +25,9 @@ func templateAt(n templateObject) [2]int {
 		switch n := v.(type) {
 		case json.Number:
 			value, err := strconv.ParseInt(string(n), 10, 64)
-			return int(value), err == nil && value >= 1
+			return int(value), err == nil && value >= 1 && value <= maxDOMPosition
 		case float64:
-			return int(n), n >= 1 && n == float64(int(n))
+			return int(n), n >= 1 && n <= maxDOMPosition && n == float64(int(n))
 		}
 		return 0, false
 	}

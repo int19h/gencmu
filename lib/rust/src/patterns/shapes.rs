@@ -28,7 +28,9 @@ fn only(n: &Json, keys: &[&str]) -> bool {
     n.as_object().is_some_and(|fields| fields.len() == keys.len() && keys.iter().all(|k| has(n, k)))
 }
 fn position(n: &Json) -> bool {
-    n.as_array().is_some_and(|a| a.len() == 2 && a.iter().all(|v| v.as_int().is_some_and(|x| x > 0)))
+    n.as_array().is_some_and(|a| {
+        a.len() == 2 && a.iter().all(|v| v.as_int().is_some_and(|x| (1..=dom::DOM_MAX_POSITION).contains(&x)))
+    })
 }
 fn string_term(n: &Json) -> bool {
     if only(n, &["string"]) {

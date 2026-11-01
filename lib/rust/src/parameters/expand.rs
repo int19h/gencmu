@@ -1073,9 +1073,9 @@ impl Expander<'_> {
             event.fail(&event.rule, message)
         };
         if let Some(problem) = dom::schema::structure_problem(&checked, self.uni, true) {
-            return Err(failure(problem.into()));
+            return Err(failure(problem));
         }
-        let mut d = dom::decode_checked(&checked, self.uni, true).map_err(failure)?;
+        let mut d = dom::decode_checked(&checked, self.uni).map_err(failure)?;
         super::locations::restore_document(&mut d, root);
         Ok(d)
     }
