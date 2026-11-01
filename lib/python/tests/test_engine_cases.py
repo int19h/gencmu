@@ -33,6 +33,8 @@ from .shared import (
     result_problems,
     run_case,
     same_json,
+    validate_engine_case,
+    validate_engine_expect,
     witness_lost,
     write_json,
 )
@@ -43,9 +45,68 @@ AFTER_LOAD = ("result", "brackets", "warnings", "features", "enabledFeatures")
 
 
 class EngineCases(unittest.TestCase):
+    def test_case_schema_refuses_unknown_members_and_wrong_metadata_types(self) -> None:
+        base = {"grammar": '%rule text "a"', "input": "a", "expect": {}}
+        changes = (
+            {"typo": True}, {"description": []}, {"name": 3}, {"grammar": []}, {"input": 7},
+            {"options": {"typo": True}}, {"options": []}, {"options": {"features": "f"}},
+            {"options": {"withoutFeatures": [False]}}, {"options": {"until": False}}, {"options": {"elisionOnly": 1}},
+            {"expect": {"typo": True}}, {"expect": []}, {"expect": {"brackets": False}},
+            {"expect": {"warnings": {}}}, {"expect": {"features": {}}}, {"expect": {"error": False}},
+            {"expect": {"enabledFeatures": "f"}}, {"expect": {"bundledPipelines": [3]}},
+            {"expect": {"diagnostic": 1}}, {"expect": {"message": None}},
+            {"expect": {"where": {"document": "main.md", "typo": 1}}},
+            {"expect": {"where": {"document": "main.md", "line": True}}},
+            {"expect": {"features": [{"name": "f", "kind": "gate", "default": 1}]}},
+            {"expect": {"warnings": [{"feature": "f", "typo": True}]}},
+            {"tokens": [{"text": "a", "tags": [], "typo": True}]},
+            {"tokens": [{"text": "a", "tags": "A"}]},
+            {"tokens": [{"text": "a", "tags": [], "source": [False, 1]}]},
+            {"tokens": [{"text": "a", "tags": [], "before": [{"text": "b", "tags": [], "typo": True}]}]},
+            {"tokens": [{"text": "a", "tags": [], "before": 1}]},
+            {"parses": []}, {"parses": {}}, {"documents": [], "pipelineDocument": "p.md"},
+            {"treeRendering": {"aliases": "LF", "text": "x", "decodedError": "usage"}},
+        )
+        for change in changes:
+            with self.subTest(change=change), self.assertRaises(AssertionError):
+                run_case({**base, **change})
+        for item in ({"options": {}, "expect": {}, "typo": True}, {"expect": []}, {"options": {}}):
+            with self.subTest(run=item), self.assertRaises(AssertionError):
+                validate_engine_case({"grammar": base["grammar"], "parses": [item]}, complete=True)
+        for case in ({"grammar": base["grammar"]}, {"expect": {}},
+                     {"documents": {"p.md": ""}, "expect": {}},
+                     {"grammar": base["grammar"], "pipeline": "lojban/cll", "expect": {}}):
+            with self.subTest(case=case), self.assertRaises(AssertionError):
+                validate_engine_case(case, complete=True)
+        # An invalid API value remains expressible in a usage case.
+        usage = {**base, "tokens": [{"text": 7, "tags": None}], "options": {"features": 3}, "expect": {"error": "usage"}}
+        validate_engine_case(usage, complete=True)
+        for change in ({"expect": {"error": "usage", "typo": True}}, {"options": {"typo": 3}},
+                       {"tokens": [{"text": 7, "typo": True}]}):
+            with self.subTest(usage=change), self.assertRaises(AssertionError):
+                validate_engine_case({**usage, **change}, complete=True)
+
+    def test_expectations_must_apply_to_the_actual_outcome(self) -> None:
+        base = {"grammar": '%rule text "a"', "input": "a"}
+        successful = run_case(base)
+        for expect in ({"where": {"document": "main.md"}}, {"diagnostic": "code"}, {"message": "reason"}, {"typo": True}):
+            with self.subTest(expect=expect), self.assertRaises(AssertionError):
+                self.check("successful parse", expect, *successful)
+        usage = run_case({**base, "options": {"until": "missing"}, "expect": {"error": "usage"}})
+        self.check("usage", {"error": "usage", "features": []}, *usage)
+        for field, value in (("result", {}), ("brackets", ""), ("warnings", []), ("enabledFeatures", []),
+                             ("where", {"document": "main.md"}), ("message", "reason"), ("diagnostic", "code")):
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                self.check("usage", {"error": "usage", field: value}, *usage)
+        load_usage = run_case({"grammar": '%rule text "\ud800"'})
+        for field, value in (("where", {"document": "main.md"}), ("message", load_usage[2].message), ("diagnostic", "code")):
+            with self.subTest(load_field=field), self.assertRaises(AssertionError):
+                self.check("load usage", {"error": "usage", field: value}, *load_usage)
+
     def test_malformed_token_fields_reach_library_usage_validation(self) -> None:
         for token in ({"text": 7, "tags": []}, {"tags": []}, {"text": "a"},
-                      {"text": "a", "tags": [], "before": 3}, {"text": "a", "tags": [], "after": "bad"}):
+                      {"text": "a", "tags": [], "before": 3}, {"text": "a", "tags": [], "after": "bad"},
+                      {"text": "a", "tags": [], "before": [None]}, {"text": "a", "tags": [], "after": ["bad"]}):
             for source in ({}, {"input": "a"}):
                 case = {"grammar": '%rule text "a"', "tokens": [token], "expect": {"error": "usage"}, **source}
                 with self.subTest(token=token, source=source):
@@ -62,6 +123,8 @@ class EngineCases(unittest.TestCase):
                 tokens, text = case_tokens({"tokens": [spec], "input": "original"})
                 self.assertIsNone(getattr(tokens[0], field))
                 self.assertEqual(text, "original")
+        tokens, _ = case_tokens({"tokens": [{"text": "a", "tags": [], "before": [{"text": "b", "tags": [], "span": [3, 4]}]}]})
+        self.assertEqual(tokens[0].before[0].span, [3, 4])
         tokens, text = case_tokens({"tokens": [{"text": "ab", "tags": []}, {"text": "c", "tags": []}]})
         self.assertEqual(text, "ab c")
         self.assertEqual([(t.value, t.image, t.span, t.source, t.before, t.after) for t in tokens],
@@ -154,6 +217,7 @@ class EngineCases(unittest.TestCase):
         features: list[dict[str, Any]] | None,
     ) -> None:
         """Whether an outcome meets a case's expectation (tests/README.md)."""
+        validate_engine_expect(expect)
         if "bundledPipelines" in expect:
             self.assertEqual(gencmu.bundled_pipelines(), expect["bundledPipelines"], label)
         if features is None:
@@ -164,6 +228,9 @@ class EngineCases(unittest.TestCase):
             self.assertEqual(error.kind, expect.get("error"), f"{label}: unexpected load error: {error}")
             loaded_only = [name for name in AFTER_LOAD if name in expect]
             self.assertEqual(loaded_only, [], f"{label}: the pipeline did not load: {error}")
+            if error.kind != "grammar":
+                for field in ("message", "where", "diagnostic"):
+                    self.assertNotIn(field, expect, f"{label}: expect.{field} requires a grammar error")
             if "message" in expect:
                 self.assertEqual(error.message, expect["message"], label)
             if "diagnostic" in expect:
@@ -178,11 +245,15 @@ class EngineCases(unittest.TestCase):
                     f"{label}: {error.message}",
                 )
             return
+        for field in ("where", "diagnostic"):
+            self.assertNotIn(field, expect, f"{label}: expect.{field} requires a load error")
         if "features" in expect:
             self.assertEqual(features, expect["features"], label)
         if error is not None:
             # A mistake of the caller is an error, not a result (engine §13).
             self.assertEqual(expect.get("error"), "usage", f"{label}: unexpected usage error: {error}")
+            for field in ("result", "brackets", "warnings", "enabledFeatures", "message"):
+                self.assertNotIn(field, expect, f"{label}: expect.{field} requires a parse result")
             return
         assert value is not None and result is not None
         self.assertNotIn("features", value)
@@ -208,6 +279,8 @@ class EngineCases(unittest.TestCase):
         if "brackets" in expect:
             self.assertEqual(gencmu.to_brackets(result), expect["brackets"], label)
         if "message" in expect:
+            self.assertIsNotNone(value["error"], f"{label}: expect.message requires a grammar error")
+            self.assertEqual(value["error"]["kind"], "grammar", f"{label}: expect.message requires a grammar error")
             self.assertEqual(value["error"]["message"], expect["message"], label)
         if "error" in expect:
             self.assertIsNotNone(value["error"], f"{label}: expected an error\n{text[:2000]}")

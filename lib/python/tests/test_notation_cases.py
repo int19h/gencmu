@@ -12,10 +12,25 @@ import gencmu
 from gencmu._pipeline import DOM_FORMAT, _Loader, _Resources, _resources, _reader, read_document
 from gencmu._hash import fnv1a64
 
-from .shared import REPOSITORY, add_case_tests, cases, load_case, mismatch, read_json, write_json
+from .shared import REPOSITORY, add_case_tests, cases, load_case, mismatch, read_json, validate_notation_case, write_json
 
 
 class NotationCases(unittest.TestCase):
+    def test_notation_schema_refuses_unknown_members_and_conflicting_outcomes(self) -> None:
+        base = {"document": "", "expect": {"dom": {}}}
+        for change in (
+            {"typo": True}, {"document": []}, {"description": 3}, {"cacheMisses": 1},
+            {"expect": {"dom": {}, "typo": True}}, {"expect": {}}, {"expect": []},
+            {"expect": {"dom": []}}, {"expect": {"dom": {}, "error": {}}},
+            {"expect": {"error": {"typo": True}}}, {"expect": {"error": "grammar"}},
+            {"expect": {"error": {"line": True}}}, {"expect": {"error": {"column": "2"}}},
+            {"expect": {"error": {"message": []}}}, {"expect": {"error": {}}, "cacheMisses": True},
+        ):
+            with self.subTest(change=change), self.assertRaises(AssertionError):
+                validate_notation_case({**base, **change})
+        validate_notation_case(base)
+        validate_notation_case({**base, "expect": {"error": {}}})
+
     def test_range_emission_target_reports_a_content_error(self) -> None:
         with self.assertRaisesRegex(gencmu.GencmuError, "an emission target requires a capture or ε"):
             read_document('```jbogenbau\n%rule r A %emits "a".."z"\n```\n', "grammar.md")

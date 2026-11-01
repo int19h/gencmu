@@ -16,7 +16,7 @@ from unittest.mock import patch
 import gencmu
 from gencmu import _testing
 
-from .shared import SHARED, case_tokens, load_case_pipeline, load_json
+from .shared import SHARED, case_tokens, load_case_pipeline, load_json, validate_case_options
 
 RUNS = load_json(SHARED / "shared-memo.json")["runs"]
 
@@ -35,6 +35,7 @@ def parses_of(run: dict[str, Any]) -> list[tuple[dict[str, Any], dict[str, Any]]
 
 
 def parse(pipeline: gencmu.Pipeline, item: dict[str, Any], options: dict[str, Any]) -> str:
+    validate_case_options(options)
     kwargs: dict[str, Any] = {
         "features": options.get("features", []),
         "without_features": options.get("withoutFeatures", []),
@@ -61,6 +62,14 @@ def shared_rules(pipeline: gencmu.Pipeline) -> list[str]:
 
 
 class SharedMemo(unittest.TestCase):
+    def test_shared_memo_runner_refuses_malformed_options_and_token_members(self):
+        pipeline = pipeline_of({"grammar": '%rule text "a"'})
+        for options in ({"typo": True}, {"features": "f"}, {"until": 3}, {"elisionOnly": []}):
+            with self.subTest(options=options), self.assertRaises(AssertionError):
+                parse(pipeline, {"input": "a"}, options)
+        with self.assertRaises(AssertionError):
+            parse(pipeline, {"tokens": [{"text": "a", "tags": [], "typo": True}]}, {})
+
     def test_ready_conditions_keep_computed_tags(self):
         from gencmu._earley import Evaluator
 
