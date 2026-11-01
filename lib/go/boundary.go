@@ -1,6 +1,9 @@
 package gencmu
 
-import "strings"
+import (
+	"math/bits"
+	"strings"
+)
 
 func boundaryMethod(name string) bool { return name == "followed-by" || name == "preceded-by" }
 
@@ -13,6 +16,13 @@ func boundaryBit(i int) boundaryBits {
 	return boundaryBits(b)
 }
 func (a boundaryBits) has(i int) bool { return i/8 < len(a) && a[i/8]&(1<<uint(i%8)) != 0 }
+func (a boundaryBits) each(visit func(int)) {
+	for i := 0; i < len(a); i++ {
+		for b := a[i]; b != 0; b &= b - 1 {
+			visit(i*8 + bits.TrailingZeros8(b))
+		}
+	}
+}
 func (a boundaryBits) union(b boundaryBits) boundaryBits {
 	if a == "" {
 		return b
@@ -193,20 +203,21 @@ func (m *boundaryMachine) literal(a *domCond, positive bool) *boundaryLiteral {
 func (m *boundaryMachine) meet(bits, offers boundaryBits, forward, final bool, fail func(*boundaryLiteral)) (boundaryBits, bool) {
 	remaining := bits
 	ok := true
-	for _, l := range m.literals {
-		if !bits.has(l.id) || l.forward != forward {
-			continue
+	bits.each(func(id int) {
+		l := m.literals[id]
+		if l.forward != forward {
+			return
 		}
 		hit := l.target.intersect(offers) != ""
 		if !hit && !final {
-			continue
+			return
 		}
 		if hit != l.positive {
 			fail(l)
 			ok = false
 		}
 		remaining = remaining.without(l.bit)
-	}
+	})
 	return remaining, ok
 }
 func (m *boundaryMachine) append(r *boundaryRecord, b boundaryBits) *boundaryRecord {
@@ -265,12 +276,13 @@ func (m *boundaryMachine) complete(r *boundaryRecord, name string, back, forward
 }
 func (m *boundaryMachine) accepts(r *boundaryRecord, fail func(*boundaryLiteral)) bool {
 	ok := true
-	for _, l := range m.literals {
-		if l.positive && r.start.union(r.end).has(l.id) {
+	r.start.union(r.end).each(func(id int) {
+		l := m.literals[id]
+		if l.positive {
 			fail(l)
 			ok = false
 		}
-	}
+	})
 	return ok
 }
 func boundaryDominates(a, b *boundaryRecord) bool {

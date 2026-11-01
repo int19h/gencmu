@@ -280,8 +280,8 @@
       this.names = new Map();
       this.forward = 0n;
       this.backward = 0n;
-      /** @type {BoundaryLiteral[]} */
-      this.literals = [];
+      /** @type {Map<bigint,BoundaryLiteral>} */
+      this.literals = new Map();
       /** @type {Map<string,BoundaryLiteral>} */
       this.literalKeys = new Map();
       /** @type {Map<string,BoundaryRecord>} */
@@ -313,9 +313,9 @@
       const key = `${direction}/${target}/${positive}`;
       let literal = this.literalKeys.get(key);
       if (!literal) {
-        literal = {bit:1n << BigInt(this.literals.length),direction,target,positive};
+        literal = {bit:1n << BigInt(this.literals.size),direction,target,positive};
         this.literalKeys.set(key,literal);
-        this.literals.push(literal);
+        this.literals.set(literal.bit,literal);
       }
       return literal;
     }
@@ -329,8 +329,9 @@
     /** @param {bigint} literals @param {bigint} offers @param {string} direction @param {boolean} final @param {(literal:any)=>void} fail */
     meet(literals,offers,direction,final,fail) {
       let remaining = literals, failed = false;
-      for (const literal of this.literals) {
-        if (!(literals & literal.bit) || literal.direction !== direction) continue;
+      for (let pending = literals; pending; pending &= pending-1n) {
+        const literal = /** @type {BoundaryLiteral} */ (this.literals.get(pending & -pending));
+        if (literal.direction !== direction) continue;
         const hit = !!(literal.target & offers);
         if (!hit && !final) continue;
         if (hit !== literal.positive) { fail(literal); failed = true; }
@@ -375,9 +376,11 @@
     }
     /** @param {BoundaryRecord} record @param {(literal:any)=>void} fail */
     accepts(record,fail = () => {}) {
-      const pending = record.start|record.end;
       let accepted = true;
-      for (const literal of this.literals) if (pending & literal.bit && literal.positive) { fail(literal); accepted = false; }
+      for (let pending = record.start|record.end; pending; pending &= pending-1n) {
+        const literal = /** @type {BoundaryLiteral} */ (this.literals.get(pending & -pending));
+        if (literal.positive) { fail(literal); accepted = false; }
+      }
       return accepted;
     }
     /** The option's facts after qualification, without the prefix's facts.
