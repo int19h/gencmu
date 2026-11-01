@@ -478,6 +478,7 @@ fn skipped_source_cases_have_stage_equivalents() {
         "values-verbatim-out-of-order",
         "values-verbatim-overridden",
         "values-verbatim-source",
+        "verbatim-disjoint-empty-sources",
         "rejection-empty-supplied-slice",
         "rejection-supplied-slice-before-text-end",
         "rejection-supplied-slice-last-source",
@@ -497,7 +498,11 @@ fn skipped_source_cases_have_stage_equivalents() {
         let input = case.get("input").and_then(Value::str).unwrap();
         let supplied = case.get("tokens").unwrap().array();
         let nonmonotonic = name.starts_with("source-out-of-order") || name == "memo-source-enclosing";
-        let bodies = if name == "rejection-empty-supplied-slice" {
+        let bodies = if name == "verbatim-disjoint-empty-sources" {
+            // Empty captures preserve the six source points. Their values
+            // carry the supplied digits, while their texts are empty.
+            vec!["%rule text $a:anchor \"a\" $b:anchor \"b\" $c:anchor \"c\" $d:anchor \"d\" $e:anchor \"e\" $f:anchor \"f\"\n%emits $a :: A := \"0\", $b :: B := \"1\", $c :: A := \"2\", $d :: B := \"3\", $e :: A := \"4\", $f :: B := \"5\"\n%rule anchor ε".to_string()]
+        } else if name == "rejection-empty-supplied-slice" {
             vec!["%rule text _ %erased".to_string()]
         } else if name == "rejection-supplied-slice-before-text-end" {
             vec!["%rule text $a:part \"c\" %emits $a :: A\n%rule part \"a\" \"‹U+000A›\" \"b\"".to_string()]
@@ -582,7 +587,12 @@ fn skipped_source_cases_have_stage_equivalents() {
                     range[0].number().unwrap() as usize..range[1].number().unwrap() as usize,
                     "{name}"
                 );
-                assert_eq!(generated.text, supplied.get("text").and_then(Value::str).unwrap(), "{name}");
+                if name == "verbatim-disjoint-empty-sources" {
+                    assert_eq!(generated.text, "", "{name}");
+                    assert_eq!(generated.value, supplied.get("text").and_then(Value::str).unwrap(), "{name}");
+                } else {
+                    assert_eq!(generated.text, supplied.get("text").and_then(Value::str).unwrap(), "{name}");
+                }
                 assert_eq!(
                     generated.tags,
                     supplied
