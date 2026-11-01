@@ -361,7 +361,9 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
     let mut validation = Vec::new();
     let mut output = Vec::new();
     for e in &events {
-        if !["params", "args", "instance"].iter().any(|k| has(&e.rule, k)) {
+        if has(&e.rule, "params") {
+            validation.push(e.clone());
+        } else if !["args", "instance"].iter().any(|k| has(&e.rule, k)) {
             validation.push(Event { rule: x.rewrite(&e.rule, e, "term")?, ..e.clone() })
         }
     }
