@@ -515,6 +515,8 @@ The local tag closure prevents hidden option tags from changing the common conti
 
 An open literal records an unsettled boundary condition. An offer records a boundary target that a derivation can satisfy.
 
+Ranked-group construction records groups and source references. Separate validation reports grammar errors. An admission candidate's label identifies its option and open facts.
+
 A higher option excludes a lower proof when its open literals are a subset at each edge and its offers are equal. Error annotations do not affect this comparison. Every proof that the filter excludes has a qualifying replacement in its admission group. Sealing and the tag rule preserve that replacement's continuation. Induction preserves recognition with sealing fixed. A seal hides option structure from outside observations.
 
 The exact group key, tag closure, and algorithm belong to engine §2.1 and §6.1. [Ambiguity](notation.md#ambiguity) defines verdict changes and their effects on later stages. The ranker compares flagged profiles before the stage directive.
@@ -603,6 +605,8 @@ The words stage declares `sa-su` with conditions on its input classes. It enable
 Ranked choices filter the parses that recognition allows before ranking. The parses that survive are admitted. The engine ranks admitted parses by rule profile, first by `leftmost-longest` and then by `fewest`, and then by the stage directive. A parse is best if no other admitted parse beats it.
 
 One admitted derivation gives `unique`. Several admitted derivations with exactly one best give `resolved`. Several best derivations give a tie with two readings and an action witness.
+
+An index into the visible actions counts only visible actions, even when its comparison includes transparent closes. Sharing a prefix does not change that index.
 
 The [Ambiguity](notation.md#ambiguity) section defines verdict transitions and their effects on emission and the elision-only check.
 
