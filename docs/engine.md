@@ -1161,6 +1161,8 @@ An item has a production, dot position, origin, structural prefix state, and dem
 
 Eligibility and witness reconstruction walk the advances that recognition records. They do not repeat symbol tests or synthesize missing chart items. Charts retain these links when either consumer needs them.
 
+Duplicate detection uses an index after any fixed-size initial scan. Distinct recorded advances retain their first insertion order. Witness reconstruction indexes each needed chart set at most once for seed and restoration lookup. The index retains all observation and lexical states.
+
 Fix a production, dot position, origin, input position and structural prefix state. Fix every captured part's tag set and structural state. Fix every demanded restoration observation too.
 
 Captures then add items only where their spans can vary. For example, with `t → $l:t $r:t | A`, a completed item over one span exists once for each position where `$l` can end. Without the captures, it exists once.

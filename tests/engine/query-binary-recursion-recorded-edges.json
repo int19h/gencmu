@@ -1,0 +1,10 @@
+{
+  "description": "A binary-recursive query retains each incoming split edge without changing its answer.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $x:body\n%conditions $x.matches(probe)\n%rule body {\"a\"}\n%rule probe probe probe | \"a\"",
+  "input": "aaaaaa",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
