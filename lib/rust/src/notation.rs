@@ -519,14 +519,6 @@ impl<'a> Reader<'a> {
             erased: Self::rules(node, "erased-clause").next().is_some(),
             at: self.at(definer),
         };
-        if rule.erased
-            && (rule.emit.is_some()
-                || rule.strings.value.is_some()
-                || rule.strings.image.is_some()
-                || rule.alternatives.iter().any(|a| a.strings.value.is_some() || a.strings.image.is_some()))
-        {
-            return Err(self.error(definer, "an erased definition cannot have an emission or recipe"));
-        }
         Ok(rule)
     }
 
@@ -1195,9 +1187,6 @@ impl<'a> Reader<'a> {
         if let Some(Val::Term(term, ty)) = input {
             frame.items.push(term);
             frame.types.push(ty);
-            if matches!(ty, Type::Span) && !self.feature_context.get() {
-                return Err(self.error(frame.node, "set operators require sets or patterns"));
-            }
         }
         let parts = frame.parts.as_ref().expect("the parts");
         if let Some(&part) = parts.get(frame.items.len()) {
@@ -1256,9 +1245,6 @@ impl<'a> Reader<'a> {
         if let Some(Val::Term(term, ty)) = input {
             frame.items.push(term);
             frame.types.push(ty);
-            if matches!(ty, Type::Span) && !self.feature_context.get() {
-                return Err(self.error(frame.node, "set operators require sets or patterns"));
-            }
         }
         let atoms = frame.parts.as_ref().expect("the atoms");
         if let Some(&atom) = atoms.get(frame.items.len()) {
