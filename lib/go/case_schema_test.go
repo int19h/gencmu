@@ -269,6 +269,17 @@ func notationValuesSchema(value any) error {
 	return schema(value, "notation values")
 }
 
+func memoRunsSchema(value any) error {
+	runSchema := caseObject(map[string]caseSchema{
+		"pipeline": caseString, "grammar": caseString, "texts": caseArray(caseString),
+		"inputs": caseArray(tokenSchema(false)), "options": caseArray(optionsSchema),
+	}, "options")
+	schema := caseObject(map[string]caseSchema{
+		"description": caseString, "runs": caseArray(runSchema),
+	}, "runs")
+	return schema(value, "memo runs")
+}
+
 func resultPatternProblem(pattern any) error {
 	type entry struct {
 		value   any
