@@ -7824,13 +7824,9 @@
       if(!references.length) return;
       const owner={path:event.path,kind:event.kind??0,origin:event.origin,instance:event.instance,inspectionRun:rewrittenDefinitions.get(event)?.inspectionRun??event.inspectionRun,at:event.rule.at,position:references[0].at};
       const add=(/** @type {any} */ term,tags=false)=>argumentsToCheck.push({...owner,term:rewrite(term,event),tags});
-      if(parts.some(n=>n.param)) {
-        for(const reference of references) add({const:reference.const??reference.constant,at:reference.at});
-        return;
-      }
       const arg=normalize(argument);
       if(arg.body || arg.test || arg.range || arg.wildcard) {
-        const rule={name:extraIndexes.has(event.index)?'text':event.rule.name,op:'define',flags:[],conditions:[],alternatives:[{guards:[],expr:rewrite(arg.body??arg,event,'expr')}],at:event.rule.at};
+        const rule={...(parts.some(n=>n.param)?{params:event.rule.params}:{}),name:extraIndexes.has(event.index)?'text':event.rule.name,op:'define',flags:[],conditions:[],alternatives:[{guards:[],expr:rewrite(arg.body??arg,event,'expr')}],at:event.rule.at};
         argumentsToCheck.push({...owner,rule,fragment:true});
       } else if(arg.requirements) {
         for(const requirement of arg.requirements) add(requirement.value,true);

@@ -1,0 +1,13 @@
+{
+  "description": "An open retained argument still rejects a known empty delimiter.",
+  "grammar": "%ambiguity-resolution greedy\n%const $EMPTY \"\"\n%rule g(@Q) \"a\"\n%rule unused(@P) g(@P.split($EMPTY))\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 29
+    }
+  }
+}

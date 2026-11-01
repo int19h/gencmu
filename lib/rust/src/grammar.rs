@@ -1538,7 +1538,11 @@ impl Constants<'_> {
                         self.check_value_uses(record.root, record.path, record.at, false)?;
                         if record.fragment {
                             let ValuePart::Rule(rule) = record.root else { unreachable!() };
-                            let resolved = self.substitute_rule(rule);
+                            let mut resolved = self.substitute_rule(rule);
+                            if rule.source.params.is_some() {
+                                resolved = crate::dom::partial::rule(&resolved)
+                                    .map_err(|message| located(message, record.path, record.at))?;
+                            }
                             if let Some(issue) = check_definition(&resolved, true).problem {
                                 return Err(located(issue.message, record.path, record.at));
                             }

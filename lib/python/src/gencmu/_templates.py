@@ -588,14 +588,12 @@ def expand_templates(documents, unicode):
         def add(term, tags=False):
             arguments_to_check.append(dict(owner, term=rewrite(term, event), tags=tags))
 
-        if any('param' in n for n in parts):
-            for reference in references:
-                add(dict(const=reference.get('const', reference.get('constant')), at=reference['at']))
-            return
         arg = normalize(argument)
         if any(k in arg for k in ('body', 'test', 'range', 'wildcard')):
             rule = dict(name='text' if event['index'] in extra_indexes else event['rule']['name'], op='define', flags=[], conditions=[],
                         alternatives=[dict(guards=[], expr=rewrite(arg.get('body', arg), event, 'expr'))], at=event['rule']['at'])
+            if any('param' in n for n in parts):
+                rule['params'] = event['rule']['params']
             arguments_to_check.append(dict(owner, rule=rule, fragment=True))
         elif 'requirements' in arg:
             for requirement in arg['requirements']:

@@ -812,17 +812,10 @@ impl Expander<'_> {
                     });
                     Ok(())
                 };
-                if parts.iter().any(|n| has(n, "param")) {
-                    for reference in references {
-                        let name = reference.get("const").unwrap_or_else(|| get(reference, "constant"));
-                        add(&obj([("const", name.clone()), ("at", get(reference, "at").clone())]), false)?;
-                    }
-                    continue;
-                }
                 let arg = self.normalize(argument);
                 if ["body", "test", "range", "wildcard"].iter().any(|k| has(&arg, k)) {
                     let body = arg.get("body").unwrap_or(&arg);
-                    let rule = obj([
+                    let mut rule = obj([
                         ("name", if extra { string("text") } else { get(&event.rule, "name").clone() }),
                         ("op", string("define")),
                         ("flags", Json::Arr(Vec::new())),
@@ -836,6 +829,9 @@ impl Expander<'_> {
                         ),
                         ("at", get(&event.rule, "at").clone()),
                     ]);
+                    if parts.iter().any(|node| has(node, "param")) {
+                        set(&mut rule, "params", get(&event.rule, "params").clone());
+                    }
                     let fragment = Event { rule, ..event.clone() };
                     fragments.push(FragmentInspection {
                         order: arguments.len() + fragments.len(),

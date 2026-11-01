@@ -957,6 +957,9 @@ func (g *stageGrammar) checkArguments(arguments []constArgument) *Error {
 				err = g.checkValueUses(argument.doc, root, argument.at, false)
 				if err == nil && argument.fragment {
 					resolved := newResolver(g.constants, g.uni).rule(argument.rule)
+					if argument.rule.Params != nil {
+						resolved = partialSourceRule(resolved)
+					}
 					if result := checkDefinition(resolved, true); result.problem != nil {
 						err = g.constError(argument.doc, argument.at, "%s", result.problem.message)
 					}

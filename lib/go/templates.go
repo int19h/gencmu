@@ -420,16 +420,6 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			record.term, record.tags = term, tags
 			arguments = append(arguments, record)
 		}
-		if open {
-			for _, reference := range references {
-				name := reference["const"]
-				if name == nil {
-					name = reference["constant"]
-				}
-				add(templateObject{"const": name, "at": reference["at"]}, false)
-			}
-			return
-		}
 		arg := templateObj(x.normalize(argument))
 		if arg["body"] != nil || arg["test"] != nil || arg["range"] != nil || arg["wildcard"] != nil {
 			body := arg["body"]
@@ -441,6 +431,9 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 				name = "text"
 			}
 			rule := templateObject{"name": name, "op": "define", "flags": []any{}, "conditions": []any{}, "alternatives": []any{templateObject{"guards": []any{}, "expr": x.rewrite(body, event, "expr")}}, "at": event.rule["at"]}
+			if open {
+				rule["params"] = event.rule["params"]
+			}
 			copy := *event
 			copy.rule = rule
 			record := owner
