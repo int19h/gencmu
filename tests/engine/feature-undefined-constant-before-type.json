@@ -1,0 +1,14 @@
+{
+  "description": "Constant references precede feature semantics.",
+  "grammar": "%features f\n%conditions $.value = $T, $MISSING = \"x\"\n%const $T A\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "$MISSING is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

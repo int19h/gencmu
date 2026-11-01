@@ -518,7 +518,9 @@ A grammar is the stitching of the items of one stage of a pipeline (§13) into a
 
 The loader records declarations in written order within each expanded document run. Equal DOM positions retain the category order of rules, directives, constants, classifiers, then implications. It rejects a duplicate resolution directive as soon as it records that directive.
 
-After recording declarations, the loader binds constant versions. It then checks rule uses, feature conditions, classifier keys, and implication sides in the same declaration order. Final rule references follow the expanded rule order of §2.3. The loader checks for a resolution directive and the start rule `text` before those references.
+After recording declarations, the loader binds constant versions. It then checks rule uses, feature conditions, classifier keys, and implication sides in the same declaration order. Feature conditions first require every constant reference in their complete list to resolve. Feature-shape, type, and value inspection follow in that order. Final rule references follow the expanded rule order of §2.3. The loader checks for a resolution directive and the start rule `text` before those references.
+
+Boundary-target inspection precedes the final rule-reference traversal. Both follow the requirements for a resolution directive and the start rule `text`.
 
 A clause uses one written-order walk for rule and classifier names together. A method's receiver precedes its arguments. A loading error from stitching always carries the stage name. A missing resolution or start rule has no document, line, or column.
 
@@ -2896,6 +2898,8 @@ The grammar does not state the restrictions below. Each of these is an error of 
 Feature conditions receive syntax and DOM-shape analysis before stitching. Their semantic analysis applies only to surviving stage declarations (§13).
 
 A template first undergoes binder and syntax analysis (§2.3). Every source, cached, or supplied template receives all checks that do not depend on an argument. Uncalled templates receive the same checks. Unresolved symbols introduce no caller-visible captures. Unresolved terms have an unknown type during these checks. Argument-dependent requirements apply after substitution to every expanded definition.
+
+Constant binding, applicable type inspection, and bound-value inspection include every template definition, even when no call uses it. A value that depends on a parameter waits for substitution. Independent operands still receive inspection. This inspection creates no instance and no audit entry.
 
 Definition errors retain their specific reason, including capture names, in every validation path. Type faults discovered after argument substitution retain their specific reason too. A call argument that reads or declares a capture reports "an argument cannot read or declare captures". When a diagnostic names a method, it uses the method's source spelling. A tag-set diagnostic directs the author to `$x.tags`.
 
