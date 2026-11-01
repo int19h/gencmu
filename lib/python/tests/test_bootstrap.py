@@ -91,7 +91,7 @@ class Preparsed(unittest.TestCase):
                 path = f"grammars/{name}/pipeline.md"
                 cached = _Loader(bundled_text, _resources())
                 uncached = _Loader(bundled_text, _resources(), use_cache=False)
-                uncached.dom = fresh_dom  # type: ignore[method-assign]
+                uncached.dom = lambda path, inherited=(), text=None: fresh_dom(path)  # type: ignore[method-assign]
                 with (
                     patch.object(cached.reader, "read", side_effect=AssertionError("preparsed grammar cache was bypassed")),
                     patch.object(cached.reader.doms, "get", side_effect=AssertionError("preparsed grammar cache was bypassed")),

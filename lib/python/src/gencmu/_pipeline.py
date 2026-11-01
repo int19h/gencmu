@@ -450,10 +450,11 @@ class _Loader:
         text = self.lookup(path)
         return text if text is not None else bundled_text(path)
 
-    def dom(self, path: str, inherited=()) -> Dom:
+    def dom(self, path: str, inherited=(), text: str | None = None) -> Dom:
         self._activate_preparsed(path)
         self.inherited_names[path] = list(inherited)
-        text = self.text(path)
+        if text is None:
+            text = self.text(path)
         # A document is a sequence of scalar values, as a text is (engine §1).
         problem = scalar_problem(text)
         if problem is not None:
@@ -481,11 +482,16 @@ class _Loader:
         """The stages of the pipeline document at ``pipeline_path``, each a
         list of runs of one document's items, and the features the pipeline
         turns on (engine §13)."""
+        doms = {}
         def document(path, inherited=()):
-            if self.lookup(path) is None:
-                return None
-            dom = self.dom(path, inherited) if inherited else self.dom(path)
-            return self.reader.located(dom, self.text(path), path, NamesScope(self.names_text, self.unicode, inherited)) if path == diagnostic_document else dom
+            key = (path, tuple(inherited))
+            if key not in doms:
+                text = self.lookup(path)
+                if text is None:
+                    return None
+                dom = self.dom(path, inherited, text)
+                doms[key] = self.reader.located(dom, text, path, NamesScope(self.names_text, self.unicode, inherited)) if path == diagnostic_document else dom
+            return doms[key]
         return splice_pipeline(pipeline_path, document, document)
 
     def load(self, pipeline_path: str) -> Pipeline:

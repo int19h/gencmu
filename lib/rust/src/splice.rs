@@ -321,7 +321,12 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
         open_run: false,
         selected: None,
     };
-    splicer.splice(Arc::from(path), top)?;
+    if let Err(mut error) = splicer.splice(Arc::from(path), top) {
+        if let Some(selected) = splicer.selected {
+            error = error.in_stage(&splicer.stages[selected].name);
+        }
+        return Err(error);
+    }
     let stages = &splicer.stages;
     if stages.is_empty() {
         return Err(Error::grammar("a pipeline needs at least one %stage").in_document(path));

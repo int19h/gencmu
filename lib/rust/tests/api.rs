@@ -1565,3 +1565,20 @@ fn caller_brackets_ascii_lower_case_and_invalid_indices() {
     leaf.token = Some(5);
     assert_eq!(gencmu::to_brackets(&result, true), "");
 }
+
+#[test]
+fn selected_stage_on_every_splice_error() {
+    for source in [
+        r#"%include "missing.md""#,
+        r#"%include "/absolute.md""#,
+        r#"%include "p.md""#,
+        "%extend-stage missing",
+        "%redefine-stage missing",
+        "%stage main",
+    ] {
+        let sources = [("p.md", format!("```jbogenbau\n%stage main\n{source}\n```\n"))];
+        let error = gencmu::load_pipeline_sources(sources, "p.md").unwrap_err();
+        assert_eq!(error.kind, ErrorKind::Grammar);
+        assert_eq!(error.stage.as_deref(), Some("main"), "{error}");
+    }
+}

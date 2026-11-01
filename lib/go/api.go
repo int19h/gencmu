@@ -182,7 +182,6 @@ type loader struct {
 }
 
 func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
-	l.activatePreparsed(p)
 	var inherited []string
 	if len(selected) > 0 {
 		inherited = selected[0]
@@ -194,6 +193,11 @@ func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
 	if !ok {
 		return nil, &Error{Kind: ErrorGrammar, Document: p, Message: "the document is missing"}
 	}
+	return l.documentText(p, text, inherited)
+}
+
+func (l *loader) documentText(p, text string, inherited []string) (*domDoc, *Error) {
+	l.activatePreparsed(p)
 	// A document is a sequence of scalar values, as a text is. A file on
 	// disk is strict UTF-8, checked before its hash finds a preparsed DOM
 	// (engine §1). A byte order mark stays U+FEFF.
@@ -348,10 +352,11 @@ func (l *loader) splice(pipelinePath string) (*splicedPipeline, *Error) {
 		if dom, ok := doms[key]; ok {
 			return dom, nil
 		}
-		if _, ok, err := l.read(p); err != nil || !ok {
+		text, ok, err := l.read(p)
+		if err != nil || !ok {
 			return nil, err
 		}
-		dom, err := l.document(p, names)
+		dom, err := l.documentText(p, text, names)
 		if err != nil {
 			return nil, err
 		}

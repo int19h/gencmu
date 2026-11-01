@@ -149,9 +149,10 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None], scoped_dom_o
                 run = None
             elif name in ("extend-stage", "redefine-stage"):
                 stage_name = item["args"][0]
-                selected = named.get(stage_name)
-                if selected is None:
+                next_stage = named.get(stage_name)
+                if next_stage is None:
                     raise fail(f"%{name} names an unknown stage {stage_name}")
+                selected = next_stage
                 if name == "redefine-stage":
                     selected.documents.clear()
                 run = None
@@ -180,7 +181,12 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None], scoped_dom_o
     if top is None:
         raise GencmuError(f"{path} was not found", document=path)
     enter(path, top)
-    splice()
+    try:
+        splice()
+    except GencmuError as error:
+        if selected is not None:
+            error.stage = selected.name
+        raise
     if not stages:
         raise GencmuError("a pipeline needs at least one %stage", document=path)
     for stage in stages:

@@ -204,10 +204,11 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 				if w := work.Load(); w != nil {
 					w.spliceSteps.add("splice steps")
 				}
-				selected = stageNamed[name]
-				if selected == nil {
+				nextStage := stageNamed[name]
+				if nextStage == nil {
 					return grammarError(docPath, at, "%%%s names an unknown stage %s", item.dir.Name, name)
 				}
+				selected = nextStage
 				if item.dir.Name == "redefine-stage" {
 					selected.documents = nil
 				}
@@ -265,6 +266,9 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 		return nil, err
 	}
 	if err := splice(); err != nil {
+		if selected != nil {
+			err.Stage = selected.name
+		}
 		return nil, err
 	}
 	if len(p.stages) == 0 {

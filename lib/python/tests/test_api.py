@@ -1120,3 +1120,29 @@ class ResultRenderingGuards(unittest.TestCase):
             with self.assertRaises(gencmu.GencmuError) as caught:
                 load()
             self.assertEqual(caught.exception.kind, "usage")
+
+
+    def test_splice_reads_each_document_once(self):
+        from collections import Counter
+        from gencmu._pipeline import _Loader, _resources
+        sources = {"p.md":'```jbogenbau\n%stage first\n%include "g.md"\n%stage second\n%include "g.md"\n```\n', "g.md":'```jbogenbau\n%ambiguity-resolution greedy\n%rule text "a"\n```\n'}
+        reads = Counter()
+        def read(path):
+            if path in sources:
+                reads[path] += 1
+            return sources.get(path)
+        loader = _Loader(read, _resources())
+        first = loader.splice("p.md")
+        self.assertEqual(reads, {"p.md":1,"g.md":1})
+        sources["g.md"] = sources["g.md"].replace('"a"', '"b"')
+        second = loader.splice("p.md")
+        self.assertEqual(reads, {"p.md":2,"g.md":2})
+        self.assertNotEqual(first.stages[0].documents, second.stages[0].documents)
+
+
+    def test_selected_stage_on_every_splice_error(self):
+        for source in ['%include "missing.md"', '%include "/absolute.md"', '%include "p.md"', '%extend-stage missing', '%redefine-stage missing', '%stage main']:
+            with self.subTest(source=source), self.assertRaises(gencmu.GencmuError) as caught:
+                gencmu.load_pipeline_sources({"p.md":'```jbogenbau\n%stage main\n'+source+'\n```\n'},"p.md")
+            self.assertEqual(caught.exception.kind, "grammar")
+            self.assertEqual(caught.exception.stage, "main")

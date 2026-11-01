@@ -1650,3 +1650,37 @@ func TestInvalidPipelinePathIsUsage(t *testing.T) {
 		}
 	}
 }
+
+func TestSpliceReadsEachDocumentOnce(t *testing.T) {
+	l, err := bundledLoader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources := oneStage("%ambiguity-resolution greedy\n%rule text A")
+	reads := map[string]int{}
+	l.read = func(path string) (string, bool, *Error) {
+		text, ok := sources[path]
+		if ok {
+			reads[path]++
+		}
+		return text, ok, nil
+	}
+	if _, err := l.pipeline("p.md"); err != nil {
+		t.Fatal(err)
+	}
+	for path, count := range reads {
+		if count != 1 {
+			t.Errorf("%s read %d times", path, count)
+		}
+	}
+}
+
+func TestSelectedStageOnEverySpliceError(t *testing.T) {
+	for _, source := range []string{`%include "missing.md"`, `%include "/absolute.md"`, `%include "p.md"`, `%extend-stage missing`, `%redefine-stage missing`, `%stage main`} {
+		_, err := LoadPipelineSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n" + source + "\n```\n"}, "p.md")
+		var fault *Error
+		if !errors.As(err, &fault) || fault.Kind != ErrorGrammar || fault.Stage != "main" {
+			t.Errorf("%s: %v", source, err)
+		}
+	}
+}
