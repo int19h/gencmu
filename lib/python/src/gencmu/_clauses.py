@@ -1029,70 +1029,81 @@ def _definition_issues(rule: Dom):
     # checks below ask again for each production.
     prepared_terms: dict[int, tuple[bool, Prepared]] = {}
 
-    def lacks(term: Dom, present: set[str]) -> bool:
+    def missing(term: Dom, present: set[str]) -> str | None:
         known = prepared_terms.get(id(term))
         if known is None:
             known = prepared_terms[id(term)] = (waits(term), prepare(term, False))
-        return not known[0] and not captures_in(known[1].simplified(present)) <= present
+        if known[0]:
+            return None
+        simple = known[1].simplified(present)
+        used = captures_in(simple)
+        if used <= present:
+            return None
+        return next(name for name in mentions_in_order(simple) if name in used and name not in present)
 
-    rule_lacks: dict[tuple[str, ...], bool] = {}
-    for (alternative, _), names, present in zip(productions, captured, presents):
-        if "tags" in alternative and lacks(alternative["tags"], present):
-            yield DefinitionIssue("independent", "an alternative's tags use a capture that one of its productions lacks; guard the use with ⟹")
-        if "tags" in rule:
-            key = tuple(names)
-            if key not in rule_lacks:
-                rule_lacks[key] = lacks(rule["tags"], present)
-            if rule_lacks[key]:
-                yield DefinitionIssue("independent", f"the %tags of {rule['name']} use a capture a production lacks; guard the use with ⟹")
-    for (alternative, _), present in zip(productions, presents):
-        value = alternative.get("value", rule.get("value"))
-        image = alternative.get("image", rule.get("image", value))
-        for recipe in (value, image):
-            if recipe is None:
-                continue
-            missing = first_absent_recipe_capture(recipe, present)
-            if missing is not None:
-                yield DefinitionIssue("recipe-capture", f"a selected recipe reads an absent capture ${missing}")
-    if not items:
-        return
-    # The anchor of each inserted tag, the capture of the next capture
-    # item, found for every item in one backward pass.
+    def tag_issue(name: str) -> DefinitionIssue:
+        return DefinitionIssue("independent", f"a tag term of {rule['name']} uses ${name}, which a production lacks; guard it with ${name} ⟹")
+
+    rule_missing: dict[tuple[str, ...], str | None] = {}
+    # The anchor of each inserted tag is its next covering capture item.
     anchors: list[str | None] = [None] * len(items)
     following: str | None = None
     for index in range(len(items) - 1, -1, -1):
         anchors[index] = following
         if "capture" in items[index]:
             following = items[index]["capture"]
-    emission = Emission(items)
-    for names, present in distinct.values():
+    emission = Emission(items) if items else None
+    checked_emissions: set[tuple[str, ...]] = set()
+    for (alternative, _), names, present in zip(productions, captured, presents):
+        key = tuple(names)
+        if "tags" in rule:
+            if key not in rule_missing:
+                rule_missing[key] = missing(rule["tags"], present)
+            absent = rule_missing[key]
+            if absent is not None:
+                yield tag_issue(absent)
+        if "tags" in alternative:
+            absent = missing(alternative["tags"], present)
+            if absent is not None:
+                yield tag_issue(absent)
+        value = alternative.get("value", rule.get("value"))
+        image = alternative.get("image", rule.get("image", value))
+        for recipe in (value, image):
+            if recipe is None:
+                continue
+            absent = first_absent_recipe_capture(recipe, present)
+            if absent is not None:
+                yield DefinitionIssue("recipe-capture", f"a selected recipe reads an absent capture ${absent}")
+        if emission is None or key in checked_emissions:
+            continue
+        checked_emissions.add(key)
         kept = [items[index] for index in emission.kept(present)]
-        if items and not kept:
+        if not kept:
             yield DefinitionIssue("empty-emission", f"%emits of {rule['name']} leaves a production nothing to emit")
-        for item in kept:
-            for channel in ("value", "image"):
-                if channel not in item:
-                    continue
-                missing = first_absent_recipe_capture(item[channel], present)
-                if missing is not None:
-                    yield DefinitionIssue("recipe-capture", f"an item recipe reads an absent capture ${missing}")
-            if "tags" in item and lacks(item["tags"], present):
-                yield DefinitionIssue("independent", "the tags of an item of %emits use a capture a production lacks; guard the use with ⟹")
-        # A production without an item's carrier lacks its attachments too
-        # (engine §9).
+        # A production without an item's carrier lacks its attachments too.
         stray = emission.stray(present)
         if stray is not None:
             yield DefinitionIssue("independent", f"%emits of {rule['name']} attaches ${stray[1]} in a production without its carrier ${items[stray[0]]['capture']}")
-        # The written order of the captures, attachments included, is the
-        # order they stand in (engine §9).
         written = [name for item in kept if item.get("capture") for name in attachment_order(item)]
         place = {name: index for index, name in enumerate(names)}
         order = [place[name] for name in written if name in place]
         if order != sorted(order):
             yield DefinitionIssue("independent", f"%emits of {rule['name']} lists captures out of the order they stand in the text")
+        for item in kept:
+            for channel in ("value", "image"):
+                if channel not in item:
+                    continue
+                absent = first_absent_recipe_capture(item[channel], present)
+                if absent is not None:
+                    yield DefinitionIssue("recipe-capture", f"an item recipe of {rule['name']} uses absent capture ${absent}")
+            if "tags" in item:
+                absent = missing(item["tags"], present)
+                if absent is not None:
+                    yield tag_issue(absent)
+    if emission is not None:
         for index in emission.inserts:
             anchor = anchors[index]
-            if anchor is not None and anchor not in present:
+            if anchor is not None and any(anchor not in present for _, present in distinct.values()):
                 yield DefinitionIssue("independent", f"an inserted tag of {rule['name']} stands before ${anchor}, which a production lacks")
     return
 

@@ -656,7 +656,7 @@ class GuardedClauses(Linear):
         clause = GUARDED["a union of guarded tags"]
         for owner, function, change in (
             (_Lowerer, "add", ("self.prepare(term, False).simplified(present)", "simplify_term(term, present)")),
-            (_clauses, "_definition_issues", ("captures_in(known[1].simplified(present))", "captures_in(simplify_term(term, present))")),
+            (_clauses, "_definition_issues", ("simple = known[1].simplified(present)", "simple = simplify_term(term, present)")),
         ):
             with self.subTest(function=function):
                 budget = self.budget(1000, clause)

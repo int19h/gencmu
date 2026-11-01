@@ -6166,7 +6166,7 @@
           if (recipe === undefined) continue;
           const missing = capturesUsed(recipe).find((name) => !has(name));
           if (missing !== undefined) {
-            const problem = `a recipe of ${rule.name} uses $${missing}, which a production lacks`;
+            const problem = `an item recipe of ${rule.name} uses absent capture $${missing}`;
             yield {kind:"recipe-capture", problem};
           }
         }

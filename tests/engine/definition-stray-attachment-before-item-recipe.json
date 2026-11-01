@@ -1,0 +1,9 @@
+{
+  "description": "Definition diagnostics follow production order and name each absent capture.",
+  "grammar": "%rule text $d:\"d\" $c:\"c\" [$a:\"a\"] [$b:\"b\"]\n%emits $d := $b.value, ($c) $a",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "%emits of text attaches $c in a production without its carrier $a"
+  }
+}

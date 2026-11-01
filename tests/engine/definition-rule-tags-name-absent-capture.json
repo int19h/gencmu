@@ -1,0 +1,9 @@
+{
+  "description": "Definition diagnostics follow production order and name each absent capture.",
+  "grammar": "%rule text :: $b.tags\n | $a:\"a\"\n | $b:\"b\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "a tag term of text uses $b, which a production lacks; guard it with $b ⟹"
+  }
+}

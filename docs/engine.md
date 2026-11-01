@@ -2921,6 +2921,10 @@ Definition errors retain their specific reason, including capture names, in ever
 
 Once the reader reads an ordinary definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the reader can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.
 
+Definition analysis visits productions in expansion order after capture-name and condition-applicability analysis. For each production, it inspects rule tags, alternative tags, selected recipes, empty emission, stray attachments, capture order, then emission items. Selected recipes use value before image. Each item contributes its value recipe, image recipe, then tags. Insertion anchors follow all productions.
+
+A tag-term absence says `a tag term of RULE uses $NAME, which a production lacks; guard it with $NAME ⟹`. An item-recipe absence says `an item recipe of RULE uses absent capture $NAME`.
+
 A definition that contains a ranked choice defers two problem kinds until ranked validation completes: recipe-capture absence and empty emission. Recipe-capture absence means a production lacks a recipe's capture. A selected rule, alternative, or item recipe can report this problem. Empty emission means a production retains no items. These checks use explicit problem kinds, never message text.
 
 All other definition checks remain immediate, including capture guards, condition applicability, stray attachments, capture order, and insertion anchors. A deferred problem never hides a later immediate problem.
