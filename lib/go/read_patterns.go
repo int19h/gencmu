@@ -26,6 +26,37 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 	if !f.started {
 		f.started = true
 		f.parts = b.ruleParts(n)
+		switch n.Rule {
+		case "pattern-union":
+			f.parts = b.some(n, "pattern-intersection", 1)
+		case "pattern-intersection":
+			f.parts = b.some(n, "pattern-path", 1)
+		case "child-intersection":
+			f.parts = b.some(n, "child-path", 1)
+		case "child-set":
+			f.parts = nil
+			for _, p := range b.ruleParts(n) {
+				if p.Rule == "child-intersection" || p.Rule == "child-path" {
+					f.parts = append(f.parts, p)
+				}
+			}
+		case "child-choice":
+			f.parts = b.some(n, "child-alternative", 1)
+		case "child-sequence":
+			f.parts = b.some(n, "child-item", 1)
+		case "child-alternative":
+			part := b.one(n, "child-sequence")
+			if part == nil {
+				part = b.only(n, "child-set")
+			}
+			f.parts = []*Node{part}
+		case "child-primary":
+			f.parts = []*Node{b.knownOf(n, []string{"pattern-node", "pattern-bare", "child-choice"})}
+		case "pattern-path":
+			f.parts = []*Node{b.only(n, "pattern-primary")}
+		case "child-path":
+			f.parts = []*Node{b.only(n, "child-primary")}
+		}
 		if n.Rule == "pattern-children" {
 			f.parts = nil
 			if child := b.one(n, "child-choice"); child != nil {
@@ -107,7 +138,19 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 		var ops []string
 		for _, p := range b.parts(n) {
 			if p.Kind == KindToken {
-				ops = append(ops, b.tokenValue(p))
+				op := b.tokenValue(p)
+				if op == "∪" || op == "∖" || n.Rule != "pattern-union" && op == "∩" {
+					ops = append(ops, op)
+				}
+			}
+		}
+		if n.Rule == "pattern-union" || n.Rule == "child-set" {
+			required := len(values) - 1
+			if n.Rule == "child-set" && required < 1 {
+				required = 1
+			}
+			if len(ops) < required {
+				b.lacks(n, "operator")
 			}
 		}
 		result := values[0]
@@ -135,8 +178,15 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 		if axis == "" {
 			return give(values[0])
 		}
-		path := map[string]string{"⋮": "descendant", "⋱": "last", "⋰": "first"}[axis]
-		if path == "" {
+		path := ""
+		switch axis {
+		case "⋮":
+			path = "descendant"
+		case "⋱":
+			path = "last"
+		case "⋰":
+			path = "first"
+		default:
 			b.fail(n, "a malformed pattern path")
 		}
 		pattern := values[0]

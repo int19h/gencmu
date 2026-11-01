@@ -12,7 +12,7 @@ from ._model import Node, Token
 from ._strings import USER_NAME, lit_occurrences, literal_string
 from ._trampoline import Walk, run
 from ._pattern_shapes import layered_pattern_problem
-from ._template_nodes import argument_of_expression, has_unresolved
+from ._template_nodes import argument_of_expression
 from ._types import (
     _METHODS,
     _PREDICATES,
@@ -77,6 +77,7 @@ class DomBuilder:
         # by the identity of its DOM, and how many braces and elidable
         # optionals the reader is inside, where no capture stands.
         self.capture_nodes: dict[int, Node] = {}
+        self.unresolved_terms: dict[int, tuple[Any, bool]] = {}
         self.parts_cache: dict[int, tuple[Node, list[Node]]] = {}
         self.braces = 0
         self.marked = 0
@@ -888,6 +889,29 @@ class DomBuilder:
     def value(self, node: Node) -> Dom:
         return run(self._term(node))  # type: ignore[no-any-return]
 
+    def has_unresolved(self, root: Any) -> bool:
+        if not isinstance(root, (dict, list)):
+            return False
+        pending = [(root, False)]
+        while pending:
+            node, complete = pending.pop()
+            key = id(node)
+            if key in self.unresolved_terms:
+                continue
+            values = node.values() if isinstance(node, dict) else node
+            children = [value for value in values if isinstance(value, (dict, list))]
+            if complete:
+                self.unresolved_terms[key] = (node, any(self.unresolved_terms[id(child)][1] for child in children))
+            elif isinstance(node, dict) and (
+                node.get("param") or node.get("call") or node.get("params") or node.get("instance")
+                or "args" in node and node.get("name") and node.get("op")
+            ):
+                self.unresolved_terms[key] = (node, True)
+            else:
+                pending.append((node, True))
+                pending.extend((child, False) for child in children if id(child) not in self.unresolved_terms)
+        return self.unresolved_terms[id(root)][1]
+
     def _method(self, node: Node) -> Walk:
         receiver = yield self._term(self.only(self.only(node, "method-receiver"), "term-atom"))
         for selector in self.some(node, "method-selector"):
@@ -917,14 +941,14 @@ class DomBuilder:
                 separators = [self.token_value(child) for child in self.kids(arguments) if child.kind == "token"]
                 if any(separator != ("|" if name in ("matches", "begins", "ends", "followed-by", "preceded-by") else ",") for separator in separators):
                     raise self.fail(arguments, "invalid method argument separator")
-            if name in ('classify', 'ngrams') and has_unresolved(args):
+            if name in ('classify', 'ngrams') and self.has_unresolved(args):
                 raise self.fail(node, 'a parameter cannot replace a classifier name or integer argument')
             if name == "classify" and len(args) == 1 and "rule" in args[0]:
                 if CLASSIFIER_NAME.fullmatch(args[0]["rule"]) is None:
                     raise self.fail(node, "a method has the wrong receiver or arguments")
                 from ._boundary import Located
                 args[0] = Located({"classifier": args[0]["rule"]}, self.position(argument_nodes[0]))
-            dependent = has_unresolved([receiver, args])
+            dependent = self.has_unresolved(receiver) or self.has_unresolved(args)
             if self.feature_context or dependent:
                 problem = method_shape_problem(name, receiver, args, self.recipe_context)
                 if problem:
@@ -1049,6 +1073,10 @@ class DomBuilder:
                 value = yield self._layered_pattern(operand)
                 values.append(self._child_predicate(value, operand) if operand.rule == "child-path" else value)
             operators = [self.token_value(part) for part in self.kids(node) if part.kind == "token"]
+            operators = [op for op in operators if op in ("∪", "∖") or kind != "pattern-union" and op == "∩"]
+            if kind in ("pattern-union", "child-set"):
+                if len(operators) < max(1 if kind == "child-set" else 0, len(values) - 1):
+                    raise self.lacks(node, "operator")
             result = values[0]
             for index, value in enumerate(values[1:]):
                 operator = operators[index] if index < len(operators) else None
@@ -1065,7 +1093,8 @@ class DomBuilder:
             if op not in ("⋮", "⋱", "⋰"):
                 raise self.fail(axis, "a malformed pattern path")
             pattern = self._child_predicate(value, primary) if kind == "child-path" else value
-            result = {"path": {"⋮": "descendant", "⋱": "last", "⋰": "first"}[op], "pattern": pattern}
+            path = "descendant" if op == "⋮" else "last" if op == "⋱" else "first"
+            result = {"path": path, "pattern": pattern}
             return [{"child": result}] if kind == "child-path" else result
         if kind == "pattern-children":
             choice = self.one(node, "child-choice")

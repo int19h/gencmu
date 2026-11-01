@@ -95,6 +95,7 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 	case "string":
 		p.Kind, p.Value = "literal", b.term(first)
 	case "wildcard":
+		b.token(first)
 		p.Kind = "wildcard"
 	case "range":
 		p.Kind, p.Ends = "range", b.stringRange(first)
@@ -551,14 +552,41 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 }
 
 func (b *domBuilder) sourceSyntaxUnresolved(n *Node) bool {
-	pending := []*Node{n}
-	for len(pending) > 0 {
-		node := pending[len(pending)-1]
-		pending = pending[:len(pending)-1]
-		if node.Rule == "parameter" || node.Rule == "call" {
-			return true
-		}
-		pending = append(pending, b.parts(node)...)
+	if b.unresolvedNodes == nil {
+		b.unresolvedNodes = make(map[*Node]bool)
 	}
-	return false
+	type visit struct {
+		node     *Node
+		complete bool
+	}
+	pending := []visit{{n, false}}
+	for len(pending) > 0 {
+		part := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if _, ok := b.unresolvedNodes[part.node]; ok {
+			continue
+		}
+		if part.complete {
+			dependent := false
+			for _, child := range b.parts(part.node) {
+				dependent = dependent || b.unresolvedNodes[child]
+			}
+			b.unresolvedNodes[part.node] = dependent
+			continue
+		}
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
+		if part.node.Rule == "parameter" || part.node.Rule == "call" {
+			b.unresolvedNodes[part.node] = true
+			continue
+		}
+		pending = append(pending, visit{part.node, true})
+		for _, child := range b.parts(part.node) {
+			if _, ok := b.unresolvedNodes[child]; !ok {
+				pending = append(pending, visit{child, false})
+			}
+		}
+	}
+	return b.unresolvedNodes[n]
 }

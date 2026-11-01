@@ -16,6 +16,7 @@ mod normalize;
 mod patterns;
 
 pub(crate) struct Reader<'a> {
+    pub unresolved_nodes: std::cell::RefCell<FxMap<usize, bool>>,
     pub parts_cache: std::cell::RefCell<FxMap<usize, Vec<&'a Node>>>,
     pub parameters: std::cell::RefCell<FxSet<String>>,
     pub reading_head: std::cell::Cell<bool>,
@@ -798,11 +799,9 @@ impl<'a> Reader<'a> {
         match conjunctions.get(frame.parts.len()) {
             Some(&conjunction) => Ok(Step::Call(Frame::Conjunction(Conjunction::new(conjunction, false)))),
             None => Ok(Step::Done(Val::Expr(if frame.ranked {
-                let separator = self
-                    .tokens_of(frame.node)
-                    .find(|token| self.value(token) == "≻")
-                    .ok_or_else(|| self.shape_error(frame.node, "≻"))?;
-                Expr::Ranked(std::mem::take(&mut frame.parts), Some(self.first(separator)))
+                let separator =
+                    self.tokens_of(frame.node).find(|token| self.value(token) == "≻").map(|token| self.first(token));
+                Expr::Ranked(std::mem::take(&mut frame.parts), separator)
             } else {
                 single_or(std::mem::take(&mut frame.parts), Expr::Choice)
             }))),
@@ -866,13 +865,7 @@ impl<'a> Reader<'a> {
                 }
                 let wrapped = self.inner(primary, PRIMARIES)?;
                 if rule_name(wrapped) == "tested" {
-                    let base = self
-                        .rules(wrapped, "primary")
-                        .next()
-                        .map(|primary| self.inner(primary, PRIMARIES))
-                        .transpose()?
-                        .or_else(|| self.parts(wrapped).into_iter().find(|part| PRIMARIES.contains(&rule_name(part))))
-                        .ok_or_else(|| self.shape_error(wrapped, "primary"))?;
+                    let base = self.test_base(wrapped)?.ok_or_else(|| self.shape_error(wrapped, "primary"))?;
                     if !matches!(
                         rule_name(base),
                         "reference"
@@ -965,12 +958,7 @@ impl<'a> Reader<'a> {
                     && self.tokens_of(symbol).next().is_some_and(|token| is_capital(self.value(token))))
         };
         if rule_name(head) == "tested" {
-            let base = self
-                .rules(head, "primary")
-                .next()
-                .map(|primary| self.inner(primary, PRIMARIES))
-                .transpose()?
-                .or_else(|| self.parts(head).into_iter().find(|part| PRIMARIES.contains(&rule_name(part))));
+            let base = self.test_base(head)?;
             if !base.is_some_and(is_terminal) {
                 return Err(form());
             }
@@ -1033,6 +1021,17 @@ impl<'a> Reader<'a> {
         Ok(Step::Call(Frame::Choice(Choice::new(item))))
     }
 
+    /// The primary wrapper or first unwrapped base, excluding tested nodes.
+    fn test_base(&self, node: &'a Node) -> R<Option<&'a Node>> {
+        if let Some(primary) = self.rules(node, "primary").next() {
+            return self.inner(primary, PRIMARIES).map(Some);
+        }
+        Ok(self
+            .parts(node)
+            .into_iter()
+            .find(|part| rule_name(part) != "tested" && PRIMARIES.contains(&rule_name(part))))
+    }
+
     /// A reference, terminal, range or property, and one test on its own
     /// span (engine §2, §9). The syntax grammar reads a test after any
     /// primary, so that the reader can name the reason.
@@ -1047,15 +1046,7 @@ impl<'a> Reader<'a> {
             if tests.is_empty() {
                 return Err(self.shape_error(node, "test"));
             }
-            let base = if let Some(primary) = self.rules(node, "primary").next() {
-                self.inner(primary, PRIMARIES)?
-            } else {
-                parts
-                    .iter()
-                    .copied()
-                    .find(|part| PRIMARIES.contains(&rule_name(part)))
-                    .ok_or_else(|| self.shape_error(node, "primary"))?
-            };
+            let base = self.test_base(node)?.ok_or_else(|| self.shape_error(node, "primary"))?;
             let valid = matches!(
                 rule_name(base),
                 "reference"
@@ -1299,7 +1290,7 @@ impl<'a> Reader<'a> {
             return Ok(Step::Done(match value {
                 Val::Pattern(value) => {
                     self.closed_for.set(frame.pattern_closed.take().unwrap());
-                    let mut pattern = value.pattern();
+                    let mut pattern = value.pattern(self, frame.node)?;
                     if let Some(problem) = patterns::source_pattern_problem(&pattern) {
                         pattern.clear();
                         return Err(self.error(frame.node, problem));
@@ -1516,15 +1507,35 @@ impl<'a> Reader<'a> {
         Ok(pattern)
     }
 
-    fn source_unresolved(&self, node: &'a Node) -> bool {
-        let mut pending = vec![node];
-        while let Some(node) = pending.pop() {
-            if matches!(rule_name(node), "parameter" | "call") {
-                return true;
+    fn source_unresolved(&self, root: &'a Node) -> bool {
+        let mut pending = vec![(root, false)];
+        while let Some((node, complete)) = pending.pop() {
+            let key = node as *const Node as usize;
+            if self.unresolved_nodes.borrow().contains_key(&key) {
+                continue;
             }
-            pending.extend(self.parts(node));
+            if complete {
+                let dependent = self
+                    .parts(node)
+                    .iter()
+                    .any(|child| self.unresolved_nodes.borrow()[&(*child as *const Node as usize)]);
+                self.unresolved_nodes.borrow_mut().insert(key, dependent);
+            } else {
+                work::count(Work::Walked, 1);
+                if matches!(rule_name(node), "parameter" | "call") {
+                    self.unresolved_nodes.borrow_mut().insert(key, true);
+                    continue;
+                }
+                pending.push((node, true));
+                pending.extend(
+                    self.parts(node)
+                        .into_iter()
+                        .filter(|child| !self.unresolved_nodes.borrow().contains_key(&(*child as *const Node as usize)))
+                        .map(|child| (child, false)),
+                );
+            }
         }
-        false
+        self.unresolved_nodes.borrow()[&(root as *const Node as usize)]
     }
 
     fn resume_method(&self, frame: &mut MethodFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
@@ -2770,6 +2781,7 @@ fn call_name_lookup_precedes_argument_lookup() {
         })
         .collect();
     let reader = Reader {
+        unresolved_nodes: Default::default(),
         parts_cache: Default::default(),
         parameters: Default::default(),
         reading_head: Default::default(),

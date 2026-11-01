@@ -294,7 +294,7 @@ def reader_steps() -> list[Watch]:
     copy of a stack or a list."""
     # The check of repeated captures is named as the reader calls it, so
     # that a mutant put in its place is the one watched.
-    return [steps(target, weight=reads) for target in (_trampoline.run, _dom.flatten_groups, _dom.duplicate_captures)]
+    return [steps(target, weight=reads) for target in (_trampoline.run, _dom.flatten_groups, _dom.duplicate_captures, _dom.DomBuilder.has_unresolved)]
 
 
 class NotationGrowth(unittest.TestCase):
