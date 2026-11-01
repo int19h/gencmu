@@ -13835,7 +13835,7 @@
   // The longest span whose answers are remembered by content, so that a word
   // repeated at many places is looked up once; a longer span is remembered by
   // position, since a key of content costs as much as the span is long, and the
-  // span of `from` or `after` runs to the end of the input (engine §4).
+  // span of `.onward` or `.following-tokens` runs to the context end (engine §4).
   const CONTENT_KEY_LIMIT = 64;
 
   // The key under which a nested parse's answer is remembered: everything the

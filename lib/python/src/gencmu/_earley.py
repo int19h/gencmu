@@ -521,9 +521,9 @@ class StageContext:
         parse can observe (engine §4): a short span's content, so that equal
         spans at other positions share the answer, or a longer span's
         position, which within one parse fixes its tokens. A key of content
-        costs as much as the span is long, and the span of from() or after()
-        runs to the end of the input. The two kinds of key never meet: one
-        holds numbers where the other holds text."""
+        costs as much as the span is long. The span of .onward or
+        .following-tokens runs to the context end. The two kinds of key
+        never meet: one holds numbers where the other holds text."""
         if end - start > CONTENT_KEY_LIMIT:
             return (rule, start, end)
         # The text over the span's source (engine §1), each token's tags,
@@ -806,9 +806,9 @@ class Evaluator:
     def __init__(self, context: StageContext, base: int, end: int, project: list[int] | None = None) -> None:
         self.context = context
         # Where the parse's input begins, in the stage's tokens: the captures
-        # count from here, and initial() holds here (engine §10).
+        # count from here, and .starts-input holds here (engine §10).
         self.base = base
-        # Where it ends: from() and after() run to here.
+        # Where it ends: .onward and .following-tokens run to here.
         self.end = end
         # In the check of engine §7, π: the captures are spans of the
         # reconstructed input R, and every observation reads their
@@ -1058,9 +1058,9 @@ class Parser:
         else:
             # The recognition of R in the check of engine §7: its conditions,
             # tag terms and tests of references read the stage's input
-            # through π, and the input that initial(), from() and after()
-            # see is the stage's. Its queries run in the context of the
-            # stage's input, with the main grammar in its ordinary mode, so
+            # through π, and the input that .starts-input, .onward and
+            # .following-tokens see is the stage's. Its queries run in the
+            # context of the stage's input, with the main grammar in its ordinary mode, so
             # they name their spans in positions of that input and share
             # the main parse's memo and the nested parses running (engine
             # §4, §7.6).
