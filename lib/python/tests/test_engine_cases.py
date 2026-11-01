@@ -43,6 +43,55 @@ AFTER_LOAD = ("result", "brackets", "warnings", "features", "enabledFeatures")
 
 
 class EngineCases(unittest.TestCase):
+    def test_malformed_token_fields_reach_library_usage_validation(self) -> None:
+        for token in ({"text": 7, "tags": []}, {"tags": []}, {"text": "a"},
+                      {"text": "a", "tags": [], "before": 3}, {"text": "a", "tags": [], "after": "bad"}):
+            for source in ({}, {"input": "a"}):
+                case = {"grammar": '%rule text "a"', "tokens": [token], "expect": {"error": "usage"}, **source}
+                with self.subTest(token=token, source=source):
+                    value, result, error, features = run_case(case)
+                    self.assertIsNone(value)
+                    self.assertIsNone(result)
+                    self.assertIsNotNone(features)
+                    self.assertEqual(error.kind, "usage")
+
+    def test_token_defaults_replace_only_absent_fields(self) -> None:
+        for field in ("text", "tags", "value", "image", "source", "span", "before", "after"):
+            spec = {"text": "a", "tags": [], field: None}
+            with self.subTest(field=field):
+                tokens, text = case_tokens({"tokens": [spec], "input": "original"})
+                self.assertIsNone(getattr(tokens[0], field))
+                self.assertEqual(text, "original")
+        tokens, text = case_tokens({"tokens": [{"text": "ab", "tags": []}, {"text": "c", "tags": []}]})
+        self.assertEqual(text, "ab c")
+        self.assertEqual([(t.value, t.image, t.span, t.source, t.before, t.after) for t in tokens],
+                         [("ab", "ab", (0, 1), (0, 2), [], []), ("c", "c", (1, 2), (3, 4), [], [])])
+
+    def test_json_comparisons_distinguish_booleans_from_numbers(self) -> None:
+        for left, right in ((True, 1), (False, 0), ({"a": [True]}, {"a": [1]})):
+            with self.subTest(left=left, right=right):
+                self.assertFalse(same_json(left, right))
+                self.assertFalse(same_json(right, left))
+                self.assertIsNotNone(mismatch(left, right))
+                self.assertIsNotNone(mismatch(right, left))
+        for left, right in ((1.0, 1), (0, -0.0), ({"a": [1.0]}, {"a": [1]})):
+            with self.subTest(left=left, right=right):
+                self.assertTrue(same_json(left, right))
+                self.assertTrue(same_json(right, left))
+                self.assertIsNone(mismatch(left, right))
+                self.assertIsNone(mismatch(right, left))
+
+    def test_result_patterns_refuse_error_messages_before_matching(self) -> None:
+        for pattern in (
+            {"error": {"message": "same"}},
+            {"ok": False, "error": {"message": "same"}},
+            {"stages": [{"error": {"details": [{"message": "same"}]}}]},
+        ):
+            for value in ({}, pattern):
+                with self.subTest(pattern=pattern, value=value), self.assertRaisesRegex(AssertionError, "error message"):
+                    mismatch(pattern, value)
+        self.assertIsNone(mismatch({"message": "ordinary"}, {"message": "ordinary"}))
+
     def test_whole_pipeline_cases_share_sources_but_load_fresh_pipelines(self) -> None:
         documents = {
             "memo-a.md": '```jbogenbau\n%include "../grammars/gencmu/jbogenbau/pipeline.md"\n```\n',
