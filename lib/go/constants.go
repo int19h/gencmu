@@ -429,74 +429,131 @@ func (g *stageGrammar) resolveConstants(checks []func() *Error, arguments []cons
 	return nil
 }
 
-// checkDelimiters checks direct delimiters, or every closed feature delimiter.
-func (g *stageGrammar) checkDelimiters(doc string, rule *domRule, computed bool) *Error {
-	for _, call := range closedCalls(rule) {
-		delimiter := call.Items[1]
-		if !computed && delimiter.Kind != tmString && delimiter.Kind != tmConst {
-			continue
+// checkValueUses applies all bound-value checks through one clause walk.
+func (g *stageGrammar) checkValueUses(doc string, root valuePart, at [2]int, computed bool) *Error {
+	return walkValues(root, func(part valuePart) *Error {
+		if part.expr != nil && part.expr.Kind == exRange {
+			if err := g.validateStringRange(doc, part.expr.Ends, at); err != nil {
+				return err
+			}
 		}
-		if openPart(delimiter) != nil {
-			continue
+		if t := part.term; t != nil {
+			if part.pattern || t.Kind == tmPattern {
+				var err *Error
+				if part.pattern {
+					_, err = g.evaluateClosed(doc, t, at, tyPattern)
+				} else {
+					_, err = g.evaluateClosed(doc, t, at)
+				}
+				if err != nil {
+					return err
+				}
+			}
+			if t.Kind == tmCall && t.Str == "split" {
+				delimiter := t.Items[1]
+				if (!computed && delimiter.Kind != tmString && delimiter.Kind != tmConst) || openPart(delimiter) != nil {
+					return nil
+				}
+				value, err := g.evaluateClosed(doc, delimiter, at)
+				if err != nil {
+					return err
+				}
+				if value.s == "" {
+					return g.faultError(doc, delimiter, at, "split has an empty delimiter")
+				}
+			}
 		}
-		value, err := g.evaluateClosed(doc, delimiter, rule.At)
-		if err != nil {
+		return nil
+	})
+}
+
+// valuePart keeps the roles of declarations, expressions and clauses separate.
+type valuePart struct {
+	rule    *domRule
+	alt     *domAlt
+	expr    *domExpr
+	term    *domTerm
+	cond    *domCond
+	item    *domEmitItem
+	pattern bool
+}
+
+func walkValues(root valuePart, visit func(valuePart) *Error) *Error {
+	pending := []valuePart{root}
+	for len(pending) > 0 {
+		part := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if err := visit(part); err != nil {
 			return err
 		}
-		if value.s == "" {
-			return g.faultError(doc, delimiter, rule.At, "split has an empty delimiter")
+		var children []valuePart
+		terms := func(values ...*domTerm) {
+			for _, t := range values {
+				if t != nil {
+					children = append(children, valuePart{term: t})
+				}
+			}
+		}
+		expressions := func(values ...*domExpr) {
+			for _, e := range values {
+				if e != nil {
+					children = append(children, valuePart{expr: e})
+				}
+			}
+		}
+		switch {
+		case part.rule != nil:
+			r := part.rule
+			terms(r.Tags, r.Value, r.Image)
+			for _, a := range r.Alternatives {
+				children = append(children, valuePart{alt: a})
+			}
+			for _, c := range r.Conditions {
+				children = append(children, valuePart{cond: c})
+			}
+			if r.Emit != nil {
+				for _, item := range r.Emit.Items {
+					children = append(children, valuePart{item: item})
+				}
+			}
+		case part.alt != nil:
+			a := part.alt
+			expressions(a.Expr)
+			terms(a.Tags, a.Value, a.Image)
+		case part.item != nil:
+			terms(part.item.Tags, part.item.Value, part.item.Image)
+		case part.expr != nil:
+			e := part.expr
+			expressions(e.Items...)
+			expressions(e.Inner, e.Sep)
+			for _, requirement := range e.Requirements {
+				terms(requirement.Value)
+			}
+			terms(e.Value, e.Ends[0], e.Ends[1])
+		case part.term != nil:
+			if part.pattern || part.term.Kind == tmPattern {
+				continue
+			}
+			if c := part.term.Cond; c != nil {
+				children = append(children, valuePart{cond: c})
+			}
+			terms(part.term.Items...)
+		case part.cond != nil:
+			c := part.cond
+			if c.Kind == cdCompare && (c.Op == "≅" || c.Op == "≇") {
+				terms(c.Left)
+				children = append(children, valuePart{term: c.Right, pattern: true})
+			} else {
+				for _, p := range (clausePart{c: c}).children() {
+					children = append(children, valuePart{term: p.t, cond: p.c})
+				}
+			}
+		}
+		for i := len(children) - 1; i >= 0; i-- {
+			pending = append(pending, children[i])
 		}
 	}
 	return nil
-}
-
-// closedCalls lists split calls in a rule's clauses.
-func closedCalls(rule *domRule) []*domTerm {
-	var found []*domTerm
-	var term func(t *domTerm)
-	var cond func(c *domCond)
-	term = func(t *domTerm) {
-		if t == nil {
-			return
-		}
-		if t.Kind == tmCall && t.Str == "split" {
-			found = append(found, t)
-		}
-		if t.Cond != nil {
-			cond(t.Cond)
-		}
-		for _, it := range t.Items {
-			term(it)
-		}
-	}
-	cond = func(c *domCond) {
-		if c == nil {
-			return
-		}
-		term(c.Left)
-		term(c.Right)
-		term(c.Span)
-		cond(c.Inner)
-		for _, it := range c.Items {
-			cond(it)
-		}
-	}
-	term(rule.Tags)
-	for _, a := range rule.Alternatives {
-		for _, t := range testsIn(a.Expr) {
-			term(t.Value)
-		}
-		term(a.Tags)
-	}
-	if rule.Emit != nil {
-		for _, it := range rule.Emit.Items {
-			term(it.Tags)
-		}
-	}
-	for _, c := range rule.Conditions {
-		cond(c)
-	}
-	return found
 }
 
 // resolver copies clauses with each reference to a constant holding its
@@ -711,7 +768,7 @@ func (g *stageGrammar) resolveFeature(index int) *Error {
 			return g.constError(item.doc, directive.At, "%s", fault.problem)
 		}
 	}
-	if err := g.checkDelimiters(item.doc, &domRule{Conditions: directive.Conditions, At: directive.At}, true); err != nil {
+	if err := g.checkValueUses(item.doc, valuePart{rule: &domRule{Conditions: directive.Conditions}}, directive.At, true); err != nil {
 		err.Document, err.Line, err.Column = item.doc, directive.At[0], directive.At[1]
 		return err
 	}
@@ -749,11 +806,7 @@ func (g *stageGrammar) checkArguments(arguments []constArgument) *Error {
 			}
 		}
 		if err == nil {
-			root := &domRule{Tags: argument.term, At: argument.at}
-			err = g.checkPatternValues(argument.doc, root)
-			if err == nil {
-				err = g.checkDelimiters(argument.doc, root, false)
-			}
+			err = g.checkValueUses(argument.doc, valuePart{term: argument.term}, argument.at, false)
 		}
 		selected = earlierConstantError(selected, err)
 	}
@@ -777,10 +830,7 @@ func (g *stageGrammar) checkConstantRule(u constUser) *Error {
 	if selected != nil {
 		return selected
 	}
-	if err := g.validateStringUses(u.doc, u.rule); err != nil {
-		return err
-	}
-	if err := g.checkPatternValues(u.doc, u.rule); err != nil {
+	if err := g.checkValueUses(u.doc, valuePart{rule: u.rule}, u.rule.At, false); err != nil {
 		return err
 	}
 
@@ -793,39 +843,5 @@ func (g *stageGrammar) checkConstantRule(u constUser) *Error {
 	if result.deferred != nil {
 		g.deferredEmissions = append(g.deferredEmissions, g.constError(u.doc, u.rule.At, "%s", result.deferred.message))
 	}
-	if err := g.checkDelimiters(u.doc, u.rule, false); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (g *stageGrammar) checkPatternValues(doc string, rule *domRule) *Error {
-	var patternErr *Error
-	scan := func(p clausePart) bool {
-		if patternErr != nil {
-			return false
-		}
-		if p.c != nil && (p.c.Op == "≅" || p.c.Op == "≇") {
-			_, patternErr = g.evaluateClosed(doc, p.c.Right, rule.At, tyPattern)
-			if patternErr != nil {
-				return false
-			}
-		}
-		if p.t != nil && p.t.Kind == tmPattern {
-			_, patternErr = g.evaluateClosed(doc, p.t, rule.At)
-			return false
-		}
-		return true
-	}
-	for _, c := range rule.Conditions {
-		walkClause(clausePart{c: c}, scan)
-	}
-	for _, t := range ruleTagTerms(rule) {
-		walkClause(clausePart{t: t}, scan)
-	}
-	if patternErr != nil {
-		return patternErr
-	}
-
 	return nil
 }
