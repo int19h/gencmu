@@ -71,7 +71,7 @@ type caseOptions struct {
 type caseExpect struct {
 	Message          *string `json:"message"`
 	BundledPipelines *any    `json:"bundledPipelines"`
-	Diagnostic       string  `json:"diagnostic"`
+	Diagnostic       *string `json:"diagnostic"`
 	Result           *any    `json:"result"`
 	Brackets         *string `json:"brackets"`
 	Warnings         *any    `json:"warnings"`
@@ -136,32 +136,76 @@ func match(pattern, value any, path string) error {
 }
 
 func loadCase(t testing.TB, file string) *engineCase {
+	t.Helper()
 	data, err := os.ReadFile(file)
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := &engineCase{}
+	c, err := decodeEngineCase(data)
+	if err != nil {
+		t.Fatalf("%s: %v", file, err)
+	}
+	return c
+}
+
+func decodeEngineCase(data []byte) (*engineCase, error) {
 	raw, decodeErr := decodeJSON(data)
 	if decodeErr != nil {
-		t.Fatalf("%s: %v", file, decodeErr)
+		return nil, decodeErr
 	}
-	usage := false
-	if object, ok := raw.(map[string]any); ok {
-		if expect, ok := object["expect"].(map[string]any); ok {
-			usage = expect["error"] == ErrorUsage
-		}
-		if usage {
-			c.skipReason = unrepresentableTokenField(object["tokens"])
-		}
+	return decodeEngineCaseFields(data, raw)
+}
+
+func decodeParameterCase(data []byte) (string, *engineCase, error) {
+	raw, err := decodeJSON(data)
+	if err != nil {
+		return "", nil, err
+	}
+	object, ok := raw.(map[string]any)
+	if !ok {
+		return "", nil, fmt.Errorf("parameter case: expected an object")
+	}
+	name, ok := object["name"].(string)
+	if !ok {
+		return "", nil, fmt.Errorf("parameter case: expected a string name")
+	}
+	delete(object, "name")
+	c, err := decodeEngineCaseFields(data, object)
+	return name, c, err
+}
+
+func decodeEngineCaseFields(data []byte, raw any) (*engineCase, error) {
+	c := &engineCase{}
+	if err := engineCaseSchema(raw); err != nil {
+		return nil, err
+	}
+	object := raw.(map[string]any)
+	usage := caseExpectsUsage(object)
+	if usage {
+		c.skipReason = unrepresentableTokenField(object["tokens"])
 	}
 	if err := unmarshalJSON(data, c); err != nil {
 		if usage {
 			c.skipReason = "Go input records cannot express this field: " + err.Error()
-			return c
+			return c, nil
 		}
-		t.Fatalf("%s: %v", file, err)
+		return nil, err
 	}
-	return c
+	if expect, ok := object["expect"].(map[string]any); ok {
+		if result, present := expect["result"]; present {
+			c.Expect.Result = &result
+		}
+	}
+	if parses, ok := object["parses"].([]any); ok {
+		for i, raw := range parses {
+			expect := raw.(map[string]any)["expect"].(map[string]any)
+			if result, present := expect["result"]; present {
+				c.Parses[i].Expect.Result = &result
+			}
+		}
+	}
+
+	return c, nil
 }
 
 func casePipeline(c *engineCase, noCache bool) (*Pipeline, error) {
@@ -301,6 +345,18 @@ func caseTokens(specs []caseToken) ([]Token, string, error) {
 }
 
 func checkCase(c *engineCase, noCache bool) error {
+	if c.Expect.Result != nil {
+		if err := resultPatternProblem(*c.Expect.Result); err != nil {
+			return err
+		}
+	}
+	for _, parse := range c.Parses {
+		if parse.Expect.Result != nil {
+			if err := resultPatternProblem(*parse.Expect.Result); err != nil {
+				return err
+			}
+		}
+	}
 	d, err := casePipeline(c, noCache)
 	if c.Parses != nil {
 		// One loaded pipeline parses the input with each item's options in
@@ -342,6 +398,9 @@ func checkLoadError(expect *caseExpect, err error) error {
 	if !ok {
 		return fmt.Errorf("load: %v", err)
 	}
+	if (expect.Message != nil || expect.Diagnostic != nil) && e.Kind != ErrorGrammar {
+		return fmt.Errorf("message and diagnostic apply only to grammar load errors")
+	}
 	if expect.Message != nil && e.Message != *expect.Message {
 		return fmt.Errorf("load message: got %q, expected %q", e.Message, *expect.Message)
 	}
@@ -358,8 +417,8 @@ func checkLoadError(expect *caseExpect, err error) error {
 	} else if w != nil && (e.Document != w.Document || e.Line != w.Line || e.Column != w.Column) {
 		return fmt.Errorf("the load error stands at %s:%d:%d, not at %s:%d:%d: %v", e.Document, e.Line, e.Column, w.Document, w.Line, w.Column, err)
 	}
-	if expect.Diagnostic != "" && e.Code != expect.Diagnostic {
-		return fmt.Errorf("the load diagnostic is %s, not %s", e.Code, expect.Diagnostic)
+	if expect.Diagnostic != nil && e.Code != *expect.Diagnostic {
+		return fmt.Errorf("the load diagnostic is %s, not %s", e.Code, *expect.Diagnostic)
 	}
 	return nil
 }
@@ -367,6 +426,9 @@ func checkLoadError(expect *caseExpect, err error) error {
 // checkParse parses a case's input with a loaded pipeline and matches the
 // result against an expectation.
 func checkParse(d *Pipeline, c *engineCase, options *caseOptions, expect *caseExpect) error {
+	if expect.Where != nil || expect.Diagnostic != nil {
+		return fmt.Errorf("where and diagnostic apply only to load errors")
+	}
 	if expect.BundledPipelines != nil {
 		have := []any{}
 		for _, name := range BundledPipelines() {
@@ -399,6 +461,9 @@ func checkParse(d *Pipeline, c *engineCase, options *caseOptions, expect *caseEx
 		// A mistake of the caller is an error, and there is no result
 		// (engine §13).
 		if e, ok := err.(*Error); ok && e.Kind == ErrorUsage && expect.Error == ErrorUsage {
+			if expect.Result != nil || expect.Brackets != nil || expect.Warnings != nil || expect.EnabledFeatures != nil || expect.Message != nil {
+				return fmt.Errorf("a usage error has no parse result or grammar message")
+			}
 			return nil
 		}
 		return err
@@ -492,6 +557,17 @@ func resultProblems(got any) []string {
 // checkResult matches a result, and its canonical JSON as got and as data,
 // against an expectation. The invariants of the result come first.
 func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect) error {
+	if expect.Where != nil || expect.Diagnostic != nil {
+		return fmt.Errorf("where and diagnostic apply only to load errors")
+	}
+	if expect.Result != nil {
+		if err := resultPatternProblem(*expect.Result); err != nil {
+			return err
+		}
+	}
+	if expect.Message != nil && (res.Error == nil || res.Error.Kind != ErrorGrammar) {
+		return fmt.Errorf("expect.message applies only to grammar errors")
+	}
 	if expect.Message != nil && (res.Error == nil || res.Error.Message != *expect.Message) {
 		return fmt.Errorf("runtime message: expected %q, got %s", *expect.Message, data)
 	}
@@ -837,6 +913,11 @@ func unrepresentableTokenField(raw any) string {
 		if !ok {
 			return "Go []InputToken cannot express a non-record token"
 		}
+		for _, field := range []string{"text", "tags"} {
+			if _, exists := token[field]; !exists {
+				return "Go InputToken cannot express an absent " + field + " member"
+			}
+		}
 		for _, field := range []string{"text", "value", "image", "tags", "span", "source", "before", "after"} {
 			if value, exists := token[field]; exists && value == nil {
 				return "Go InputToken cannot distinguish explicit null " + field + " from its default"
@@ -859,9 +940,108 @@ func (d *Pipeline) parseStoredTokens(text string, tokens []Token, options ParseO
 }
 
 func TestLoadDiagnosticMismatchNamesCode(t *testing.T) {
-	err := checkLoadError(&caseExpect{Error: ErrorGrammar, Diagnostic: "wanted-code"},
+	wanted := "wanted-code"
+	err := checkLoadError(&caseExpect{Error: ErrorGrammar, Diagnostic: &wanted},
 		&Error{Kind: ErrorGrammar, Code: "actual-code", Message: "human reason"})
 	if err == nil || !strings.Contains(err.Error(), "actual-code") || strings.Contains(err.Error(), "human reason") {
 		t.Fatalf("diagnostic mismatch does not identify its code: %v", err)
+	}
+}
+
+func TestEngineCaseSchemaRejectsInvalidMembers(t *testing.T) {
+	for _, raw := range []string{
+		`{"grammar":"%rule text A","unknown":1}`,
+		`{"grammar":"%rule text A","options":{"unknown":true}}`,
+		`{"grammar":"%rule text A","expect":{"unknown":true}}`,
+		`{"grammar":"%rule text A","options":{"features":null}}`,
+		`{"grammar":"%rule text A","options":{"until":null}}`,
+		`{"grammar":"%rule text A","options":{"elisionOnly":null}}`,
+		`{"grammar":"%rule text A","parses":null}`,
+		`{"grammar":"%rule text A","expect":{"diagnostic":null}}`,
+		`{"grammar":"%rule text A","expect":{"where":{"line":true}}}`,
+		`{"grammar":"%rule text A","tokens":[{"text":"a","tags":["A"],"unknown":true}],"expect":{"error":"usage"}}`,
+	} {
+		if _, err := decodeEngineCase([]byte(raw)); err == nil {
+			t.Errorf("accepted invalid case %s", raw)
+		}
+	}
+}
+
+func TestEngineRunnerRejectsInapplicableExpectations(t *testing.T) {
+	grammar, input := `%rule text "a"`, "a"
+	for _, raw := range []string{
+		`{"where":{"document":"main.md","line":99,"column":1}}`,
+		`{"diagnostic":"no-such-code"}`,
+	} {
+		var expect caseExpect
+		if err := unmarshalJSON([]byte(raw), &expect); err != nil {
+			t.Fatal(err)
+		}
+		if err := checkCase(&engineCase{Grammar: &grammar, Input: &input, Expect: expect}, true); err == nil {
+			t.Errorf("accepted %s on a successful parse", raw)
+		}
+	}
+	for _, raw := range []string{
+		`{"error":"usage","result":{}}`, `{"error":"usage","brackets":""}`,
+		`{"error":"usage","warnings":[]}`, `{"error":"usage","message":"wrong"}`,
+		`{"error":"usage","where":{"document":"main.md"}}`, `{"error":"usage","diagnostic":"wrong"}`,
+		`{"error":"usage","enabledFeatures":[]}`,
+	} {
+		var expect caseExpect
+		if err := unmarshalJSON([]byte(raw), &expect); err != nil {
+			t.Fatal(err)
+		}
+		if err := checkCase(&engineCase{Grammar: &grammar, Input: &input, Options: caseOptions{Until: "missing"}, Expect: expect}, true); err == nil {
+			t.Errorf("accepted %s on a usage error", raw)
+		}
+	}
+}
+
+func TestResultPatternsRejectErrorMessages(t *testing.T) {
+	for _, pattern := range []any{
+		map[string]any{"error": map[string]any{"message": "reason"}},
+		map[string]any{"stages": []any{map[string]any{"error": map[string]any{"message": "reason"}}}},
+	} {
+		expect := &caseExpect{Error: ErrorGrammar, Result: &pattern}
+		if err := checkResult(&ParseResult{Error: &ParseError{Kind: ErrorGrammar, Message: "reason"}}, pattern, nil, expect); err == nil {
+			t.Errorf("accepted error message pattern %+v", pattern)
+		}
+	}
+}
+
+func TestEngineCaseKeepsScalarResultPatterns(t *testing.T) {
+	for _, scalar := range []string{"null", "false", "0", `""`} {
+		c, err := decodeEngineCase([]byte(`{"grammar":"%rule text A","expect":{"result":` + scalar + `}}`))
+		if err != nil || c.Expect.Result == nil {
+			t.Fatalf("lost result pattern %s: %v", scalar, err)
+		}
+	}
+}
+
+func TestEngineCaseRejectsIgnoredParseExpectations(t *testing.T) {
+	_, err := decodeEngineCase([]byte(`{"grammar":"%rule text A","expect":{"result":{}},"parses":[{"expect":{}}]}`))
+	if err == nil {
+		t.Fatal("accepted an ignored outer expectation")
+	}
+}
+
+func TestTokenCaseSchemaInspectsDeepAttachments(t *testing.T) {
+	var token any = map[string]any{"text": "x", "tags": []any{}, "unknown": true}
+	for i := 0; i < 20000; i++ {
+		token = map[string]any{"text": "x", "tags": []any{}, "before": []any{token}}
+	}
+	if err := tokenSchema(true)([]any{token}, "tokens"); err == nil {
+		t.Fatal("accepted an unknown member in deep attachments")
+	}
+}
+
+func TestParameterCaseSchemaRejectsInvalidMembers(t *testing.T) {
+	for _, raw := range []string{
+		`{"name":"bad","grammar":"%rule text A","unknown":true}`,
+		`{"name":"bad","grammar":"%rule text A","expect":{"unknown":true}}`,
+	} {
+		if _, _, err := decodeParameterCase([]byte(raw)); err == nil {
+			t.Errorf("accepted %s", raw)
+		}
 	}
 }

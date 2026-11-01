@@ -36,19 +36,23 @@ func TestParameters(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var cases []struct {
-		Name string `json:"name"`
-		engineCase
-	}
+	var cases []json.RawMessage
 	if err = json.Unmarshal(raw, &cases); err != nil {
 		t.Fatal(err)
 	}
 	if len(cases) != 274 {
 		t.Fatalf("got %d shared cases", len(cases))
 	}
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			if err := checkCase(&c.engineCase, false); err != nil {
+	for _, raw := range cases {
+		name, c, err := decodeParameterCase(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Run(name, func(t *testing.T) {
+			if c.skipReason != "" {
+				t.Skip(c.skipReason)
+			}
+			if err := checkCase(c, false); err != nil {
 				t.Fatal(err)
 			}
 		})

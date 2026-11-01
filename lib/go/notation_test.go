@@ -20,6 +20,33 @@ func domValue(t testing.TB, d *domDoc) any {
 	return v
 }
 
+type notationCase struct {
+	Description string `json:"description"`
+	CacheMisses bool   `json:"cacheMisses"`
+	Document    string `json:"document"`
+	Expect      struct {
+		Dom   *any `json:"dom"`
+		Error *struct {
+			Line    int     `json:"line"`
+			Column  int     `json:"column"`
+			Message *string `json:"message"`
+		} `json:"error"`
+	} `json:"expect"`
+}
+
+func decodeNotationCase(data []byte) (*notationCase, error) {
+	c := &notationCase{}
+	raw, err := decodeJSON(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := notationCaseSchema(raw); err != nil {
+		return nil, err
+	}
+	err = unmarshalJSON(data, c)
+	return c, err
+}
+
 func TestNotationCases(t *testing.T) {
 	t.Parallel()
 	if err := loadBundled(); err != nil {
@@ -34,20 +61,8 @@ func TestNotationCases(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var c struct {
-			Description string `json:"description"`
-			CacheMisses bool   `json:"cacheMisses"`
-			Document    string `json:"document"`
-			Expect      struct {
-				Dom   *any `json:"dom"`
-				Error *struct {
-					Line    int     `json:"line"`
-					Column  int     `json:"column"`
-					Message *string `json:"message"`
-				} `json:"error"`
-			} `json:"expect"`
-		}
-		if err := unmarshalJSON(data, &c); err != nil {
+		c, err := decodeNotationCase(data)
+		if err != nil {
 			t.Fatal(err)
 		}
 		t.Run(strings.TrimSuffix(filepath.Base(f), ".json"), func(t *testing.T) {
@@ -1042,4 +1057,19 @@ func preparsedCacheForSources(t *testing.T, sources map[string]string) string {
 		t.Fatal(err)
 	}
 	return string(raw)
+}
+
+func TestNotationCaseSchemaRejectsInvalidMembers(t *testing.T) {
+	for _, raw := range []string{
+		`{"document":"","unknown":true,"expect":{"dom":{}}}`,
+		`{"document":"","expect":{"unknown":true}}`,
+		`{"document":"","expect":{"error":{"unknown":true}}}`,
+		`{"document":"","expect":{"dom":{},"error":{}}}`,
+		`{"document":"","expect":{"error":null}}`,
+		`{"document":"","expect":{"error":{"line":null}}}`,
+	} {
+		if _, err := decodeNotationCase([]byte(raw)); err == nil {
+			t.Errorf("accepted invalid case %s", raw)
+		}
+	}
 }
