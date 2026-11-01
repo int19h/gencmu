@@ -372,6 +372,7 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
     // and the DOM with explicit stacks, so a document of any depth reads
     // on the caller's thread (engine §9).
     let reader = Reader {
+        unresolved_nodes: Default::default(),
         parts_cache: Default::default(),
         parameters: Default::default(),
         reading_head: Default::default(),
@@ -992,6 +993,23 @@ mod tests {
                 "{name}: {small:?} for 250 levels, {large:?} for 1000"
             );
         }
+    }
+
+    #[test]
+    fn nested_method_arguments_read_in_linear_work() {
+        let text = |n: usize| {
+            format!(
+                "```jbogenbau\n%features f %conditions {}\"a\"{} = \"a\"\n```\n",
+                "\"a\".split(".repeat(n),
+                ")".repeat(n)
+            )
+        };
+        let small = reading(&text(250), None);
+        let large = reading(&text(1000), Some(five_times(small)));
+        assert!(
+            large.iter().zip(five_times(small)).all(|(&large, most)| large <= most),
+            "{small:?} at 250, {large:?} at 1000"
+        );
     }
 
     /// A call of many arguments reads in work that grows with its

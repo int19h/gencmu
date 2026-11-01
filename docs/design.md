@@ -291,6 +291,10 @@ A maintainer changes the notation in its documents, and `tools/sync.js` regenera
 
 Each document conversion caches the flattened parts of each syntax node. The cache lasts only for that conversion. Repeated lookups reuse those parts. Reader walks use explicit stacks, and method selectors fold in a loop.
 
+Method conversion also caches whether each completed subtree contains unresolved parameters or calls. Each dependency walk visits a node once per conversion and counts that work.
+
+Ranking rejects a forest without roots before it builds admission. The later ranking step receives only forests with roots.
+
 Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The bundled Markdown grammar documents include prose and diagram links. A character-level stage reads these documents quickly in Rust and JavaScript but slowly in pure Python.
 
 Each package ships those DOMs in `data/preparsed/FAMILY.json`. Each document under `grammars/FAMILY/` uses only `data/preparsed/FAMILY.json`, besides the required `gencmu.json`. Other document keys select no optional file. A bundled pipeline therefore reads only its own family's file.

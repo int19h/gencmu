@@ -1140,8 +1140,6 @@ def rank_original(forest: Forest, lean: str, marks=None, check=False, admission=
     """Rank a forest's derivations by a rule of the ranking, ``greedy``,
     ``lazy`` or ``late-elision``, or by no lean, ``none``; ``None`` if the
     input has no derivation that counts."""
-    if not forest.roots:
-        return None
     if lean == "late-elision" or any(production.leftmost_longest or production.fewest for production in forest.lowered.productions):
         ranker = ProfileSummaries(forest, lean)
     else:

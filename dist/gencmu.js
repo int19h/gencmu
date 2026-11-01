@@ -18636,6 +18636,31 @@
    * @returns {GrammarDom}
    */
   function treeToDom(tree, tokens, positionOf, path, unicode, decodeString, deferEmission = false) {
+    /** @type {WeakMap<object, boolean>} */
+    const unresolvedTerms = new WeakMap();
+    /** @param {any} root @returns {boolean} */
+    function hasUnresolved(root) {
+      if (!root || typeof root !== "object") return false;
+      /** @type {[any, boolean][]} */
+      const pending = [[root, false]];
+      while (pending.length) {
+        const [node, complete] = /** @type {[any, boolean]} */ (pending.pop());
+        if (unresolvedTerms.has(node)) continue;
+        const children = Object.values(node).filter(value => value && typeof value === "object");
+        if (complete) {
+          unresolvedTerms.set(node, children.some(child => unresolvedTerms.get(child)));
+        } else {
+          if (hooks.work) countWork(hooks.work, "walkSteps");
+          if (node.param || node.call || node.params || node.instance || node.args && node.name && node.op) {
+            unresolvedTerms.set(node, true);
+            continue;
+          }
+          pending.push([node, true]);
+          for (const child of children) if (!unresolvedTerms.has(child)) pending.push([child, false]);
+        }
+      }
+      return unresolvedTerms.get(root) === true;
+    }
     /** @type {(node: ResultNode) => Position} */
     const at = (node) => {
       const index = firstToken(node);
@@ -18722,7 +18747,7 @@
     const testBase = (node) => {
       const wrapper = one(node, "primary");
       if (wrapper) return knownOf(wrapper, PRIMARIES);
-      for (const child of parts(node)) if (child.kind === "rule" && PRIMARIES.has(child.rule)) return child;
+      for (const child of parts(node)) if (child.kind === "rule" && child.rule !== "tested" && PRIMARIES.has(child.rule)) return child;
       return undefined;
     };
     // The first node of a rule at or below a node, in the order written.
@@ -19663,7 +19688,10 @@
           const value=yield readLayeredPattern(operand);
           values.push(ruleOf(operand) === 'child-path' ? childPredicate(value,operand) : value);
         }
-        const operators=parts(node).filter(part => part.kind === 'token').map(valueOf);
+        const operators=parts(node).filter(part => part.kind === 'token').map(valueOf).filter(op => op === '∪' || op === '∖' || kind !== 'pattern-union' && op === '∩');
+        if (['pattern-union','child-set'].includes(kind)) {
+          if (operators.length < Math.max(kind === 'child-set' ? 1 : 0, values.length-1)) return lacks(node,'operator');
+        }
         let result=values[0];
         for (let index=1;index<values.length;index++) {
           const key=kind.endsWith('intersection') || operators[index-1] === '∩' ? 'intersection' : operators[index-1] === '∖' ? 'difference' : 'union';
