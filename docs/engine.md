@@ -2549,6 +2549,10 @@ The following table is the complete constructor contract, including the template
 
 The reader reads only a constructor's parts, after wrapper flattening. A missing required part causes a document error at that constructor when its lookup occurs. Unused parts are ignored. Repeated operand lists preserve written order. Unless a row says otherwise, a named lookup selects its first matching part.
 
+A call reads its name token before looking up its arguments. A method converts its receiver before looking up its selectors.
+
+A reader refuses an invalid token span before using that span to select tokens. It reports this document error at the affected constructor.
+
 Each declaration's `at` records its first token's line and column, counted from 1. A constant reference instead records its own token position. Token forms follow §9.1. Semantic types and arities follow §10 and `docs/output.md`.
 
 A public document reader reports the document name on every error. A run-placement diagnostic names the actual tag or string run.
@@ -2624,7 +2628,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `concatenation` | One or more `term-atom` parts separated by `++` | Sole child, or ordered `concat` of string operands. Require each known operand to be a string before reading the next. Defer unresolved constant types until binding. Flatten grouped concatenation operands into the outer array in written order. |
 | `method` | `method-receiver`, then one or more `method-selector` parts | Fold selectors left into receiver-first method nodes |
 | `method-receiver` | One `term-atom` | Initial receiver, retaining its actual type |
-| `method-selector` | `method-name`, then optional `arguments` | Check the method name and its permission in a closed term before reading arguments. Then apply the signature to the receiver and arguments. |
+| `method-selector` | `method-name`, then optional `arguments` | Check the name, closed-term permission, arguments in order, separators, then the signature. |
 | `method-name` | One method-name token | Exact method identifier |
 | `arguments` | One or more `argument` parts | Ordered argument array. Absent arguments gives `args:[]`. |
 | `argument` | One `term` or `integer` | Convert the complete immediate term, including its guard. Only a complete bare name can become a rule or classifier argument. |
@@ -2670,6 +2674,8 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `pattern-path` | One primary, optionally with one path token | Primary alone, or descendant, first, or last path |
 
 The reader maps `=` U+0338 to `≠`, `∈` U+0338 to `∉`, `⊆` U+0338 to `⊈`, and `≅` U+0338 to `≇`. It does not normalize decoded strings. An include or names-resource path decodes escapes within the token's original literal runs.
+
+After converting a union's operands, the reader requires enough operators to join them. A missing operator is a document error at the union.
 
 For a string token, the reader removes its quotes and decodes every escape. Literal runs retain their decomposed token values. Escape results remain exact, and the result is always `string`. Include paths use the original literal runs with the same escape decoding. Neither form receives further normalization.
 
