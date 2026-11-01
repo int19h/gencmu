@@ -14512,7 +14512,8 @@
     } else if (error.kind === "feature-conflict") {
       lines.push(error.message);
     } else {
-      const where = error.document ? `${error.document}${error.line ? `:${error.line}:${error.column}` : ""}: ` : "";
+      const location = [error.document, error.line, error.column].filter(part => part !== undefined).join(":");
+      const where = location ? `${location}: ` : "";
       lines.push(`A grammar error${error.stage ? ` in the ${error.stage} stage` : ""}: ${where}${error.message}`);
     }
     return lines.join("\n");

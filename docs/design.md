@@ -897,7 +897,7 @@ Audit work counts every expression node that it visits, including a sequence roo
 The product provides these diagnostics and debugging tools:
 
 - A rejection names the stage, and shows the source line with a caret under the failing character or word. It lists what can continue at that point as grammar terms, grouped by rule, not as a set of tag names.
-- A grammar error carries file, line and column, and names the rule.
+- A grammar error carries file, line and column, and names the rule. Explanations omit unknown location components.
 - A tie shows the two derivations side by side from the first difference.
 - Stage inspection shows the tokens that every stage emitted, with their tags.
 - The trace shows, for one position, which items the recognizer predicted, advanced, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this". A trace uses the parse's features and `elisionOnly` choice. Its declared `elisionOnly` option accepts `true`, `false`, or `null`. An omitted or `null` choice keeps the grammar's own rule.
