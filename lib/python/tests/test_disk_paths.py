@@ -11,9 +11,33 @@ import tempfile
 import unittest
 
 import gencmu
+from gencmu._splice import splice_pipeline
 
 
 class DiskPaths(unittest.TestCase):
+    def test_include_relocation_keeps_structured_error_fields(self):
+        top = {"format": 40, "rules": [], "constants": [], "classifiers": [], "implications": [], "directives": [
+            {"name": "stage", "args": ["main"], "at": [1, 1]},
+            {"name": "include", "args": ["g.md"], "at": [2, 1]},
+        ]}
+        for line in (None, 7):
+            original = gencmu.GencmuError("read failure", document="g.md", line=line, code="sentinel")
+            cause = OSError("disk")
+
+            def dom(path, inherited):
+                if path == "p.md":
+                    return top
+                raise original from cause
+
+            with self.assertRaises(gencmu.GencmuError) as caught:
+                splice_pipeline("p.md", dom)
+            error = caught.exception
+            self.assertEqual(error.code, "sentinel")
+            self.assertIs(error.__cause__, cause)
+            self.assertEqual(error.document, "p.md" if line is None else "g.md")
+            self.assertEqual(error.line, 2 if line is None else 7)
+            self.assertEqual(original.document, "g.md")
+
     def test_unreadable_documents(self):
         for depth in (0, 1, 2):
             for exists in (False, True):

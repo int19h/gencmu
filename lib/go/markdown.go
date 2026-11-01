@@ -32,7 +32,10 @@ type Error struct {
 
 type spliceProblem uint8
 
-const emptyStageProblem spliceProblem = 1
+const (
+	emptyStageProblem spliceProblem = iota + 1
+	unreadableDocumentProblem
+)
 
 func (e *Error) Error() string {
 	var b strings.Builder

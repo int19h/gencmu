@@ -4,10 +4,10 @@ stage (engine §13)."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Callable
 
-from ._errors import GencmuError
+from ._errors import ErrorData, GencmuError
 from ._markdown import resolve
 from ._names import selected_names
 
@@ -122,7 +122,9 @@ def splice_pipeline(path: str, dom_of: Callable[[str, list[str]], Dom | None]) -
                     included = dom_of(target, names)
                 except GencmuError as error:
                     if error.line is None and isinstance(error.__cause__, OSError):
-                        raise fail(str(error)) from error.__cause__
+                        relocated = replace(ErrorData.of(error), message=f"{error.document or target}: {error.message}",
+                                            document=document, line=line, column=column).error()
+                        raise relocated from error.__cause__
                     raise
                 if included is None:
                     raise fail(f"{target} was not found ({chain_to(target)})")

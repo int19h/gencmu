@@ -583,7 +583,7 @@ func LoadPipelineFile(file string) (*Pipeline, error) {
 		if os.IsNotExist(err) || strings.HasPrefix(p, "data/preparsed/") && p != "data/preparsed/gencmu.json" {
 			return "", false, nil
 		}
-		return "", false, &Error{Kind: ErrorGrammar, Document: p, Message: "the document could not be read: " + err.Error()}
+		return "", false, &Error{Kind: ErrorGrammar, Document: p, Message: "the document could not be read: " + err.Error(), spliceProblem: unreadableDocumentProblem}
 	}
 	l.fromDisk = true
 	l.namesOverride = func(p string) bool {

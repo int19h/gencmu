@@ -402,6 +402,8 @@ Each emission builds its coverage index on the first nonempty `.verbatim-text` r
 
 The stage shares one source index between its tree, warnings, emission, and recipe evaluation. Each tree node receives its source when the tree walk creates it. Emission inspects attachment ownership only when its input has attachments.
 
+The tree walk appends each visible node directly to its parent's child list. A helper forwards its children to that same list.
+
 In pipelines with punctuation pauses, a one-word foreign quote takes the next raw stretch between whitespace or period boundaries. A decimal point between digits stays inside its run. Punctuation and ignored characters belong to that body.
 
 The Latin conventions expose punctuation as pause tokens tagged `Quote-Material`. Each token keeps the punctuation's source spelling as its image. Its phoneme-stage value keeps the decomposed punctuation. The [pause rules](#pauses-and-spacing) define its later normalized value.
@@ -1010,6 +1012,8 @@ The editor lists a pipeline's documents stage by stage. A forgiving scan of stag
 An absolute target gives a grammar error at its directive. The editor keeps that error and continues through valid targets. It never lists a relative alias for the absolute target.
 
 ## Output formats
+
+Compact and display JSON share one iterative serializer. In JavaScript, both layouts omit object members whose values are `undefined`.
 
 `docs/output.md` defines the output formats exactly. JavaScript implements them for the CLI and the playground, and every library implements the bracket form for the tests:
 

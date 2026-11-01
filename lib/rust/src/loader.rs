@@ -591,7 +591,9 @@ impl Sources for DiskSources {
             Ok(bytes) => bytes,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(error) => {
-                return Err(Error::grammar(format!("the document could not be read: {error}")).in_document(path));
+                let mut error = Error::grammar(format!("the document could not be read: {error}")).in_document(path);
+                error.splice_problem = Some(SpliceProblem::UnreadableDocument);
+                return Err(error);
             }
         };
         match String::from_utf8(bytes) {

@@ -3112,6 +3112,11 @@
    * @returns {string}
    */
   function prettyJson(value, indent = 0) {
+    return jsonText(value, true, indent);
+  }
+
+  /** @param {unknown} value @param {boolean} pretty @param {number} indent @returns {string} */
+  function jsonText(value, pretty, indent) {
     /** @type {(n: number) => string} */
     const pad = (n) => " ".repeat(n);
     /** @type {string[]} */
@@ -3138,20 +3143,28 @@
           out.push("[]");
           continue;
         }
-        layout.push("[\n");
+        layout.push(pretty ? "[\n" : "[");
         current.forEach((item, index) => {
-          if (index > 0) layout.push(",\n");
-          layout.push(pad(at + 2), { value: item, indent: at + 2 });
+          if (index > 0) layout.push(pretty ? ",\n" : ",");
+          if (pretty) layout.push(pad(at + 2));
+          layout.push({ value: item, indent: pretty ? at + 2 : at });
         });
-        layout.push("\n" + pad(at) + "]");
+        layout.push(pretty ? "\n" + pad(at) + "]" : "]");
       } else {
         const object = /** @type {Record<string, unknown>} */ (current);
-        const keys = Object.keys(object);
+        const keys = Object.keys(object).filter(key => object[key] !== undefined);
         if (keys.length === 0) {
           out.push("{}");
           continue;
         }
-        if (keys.length === 1) {
+        if (!pretty) {
+          layout.push("{");
+          keys.forEach((key, index) => {
+            if (index > 0) layout.push(",");
+            layout.push(JSON.stringify(key) + ":", { value: object[key], indent: at });
+          });
+          layout.push("}");
+        } else if (keys.length === 1) {
           layout.push(`{${JSON.stringify(keys[0])}: `, { value: object[keys[0]], indent: at }, "}");
         } else {
           layout.push("{\n");
@@ -3175,44 +3188,7 @@
    * @returns {string}
    */
   function compactJson(value) {
-    /** @type {string[]} */
-    const out = [];
-    /** @type {(string | {value: unknown})[]} */
-    const tasks = [{ value }];
-    for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
-      if (typeof task === "string") {
-        out.push(task);
-        continue;
-      }
-      const current = task.value;
-      if (current === null || typeof current !== "object") {
-        out.push(JSON.stringify(current));
-        continue;
-      }
-      /** @type {(string | {value: unknown})[]} */
-      const layout = [];
-      if (Array.isArray(current)) {
-        layout.push("[");
-        current.forEach((item, index) => {
-          if (index > 0) layout.push(",");
-          layout.push({ value: item });
-        });
-        layout.push("]");
-      } else {
-        const object = /** @type {Record<string, unknown>} */ (current);
-        layout.push("{");
-        let first = true;
-        for (const key of Object.keys(object)) {
-          if (object[key] === undefined) continue;
-          if (!first) layout.push(",");
-          first = false;
-          layout.push(JSON.stringify(key) + ":", { value: object[key] });
-        }
-        layout.push("}");
-      }
-      for (let index = layout.length - 1; index >= 0; index--) tasks.push(layout[index]);
-    }
-    return out.join("");
+    return jsonText(value, false, 0);
   }
 
   /**
@@ -18101,48 +18077,6 @@
     return context.interner.get(node.item.tagId);
   }
 
-  // The nodes of a left-recursive spine, from the top down: a node whose first
-  // child is a node of the same production's left side, as `r ≔ r x` and the
-  // helper of `{x}` make. Walking them in a loop keeps the walks of a long
-  // text from nesting as deep as the text is long.
-  /**
-   * @param {DerivationRule} node
-   * @returns {DerivationRule[]}
-   */
-  function spine(node) {
-    const chain = [node];
-    let current = node;
-    while (current.children.length > 0) {
-      const first = current.children[0];
-      if ("read" in first || first.production.lhs !== current.production.lhs) break;
-      chain.push(first);
-      current = first;
-    }
-    return chain;
-  }
-
-  // The result tree of a derivation (engine §12), as a list: a spliced node
-  // yields its children.
-  /**
-   * The children a node's result is built from, in order: a node's own, or,
-   * for a helper, those of its whole left-recursive spine, the bottom node's
-   * first. A chain's levels are rule nodes, and stay (engine §12).
-   * @param {DerivationRule} node
-   * @returns {Derivation[]}
-   */
-  function orderedChildren(node) {
-    const production = node.production;
-    if (!production.helper) return node.children;
-    const chain = spine(node);
-    /** @type {Derivation[]} */
-    const result = [];
-    for (let index = chain.length - 1; index >= 0; index--) {
-      const own = chain[index].children;
-      for (let at = index === chain.length - 1 ? 0 : 1; at < own.length; at++) result.push(own[at]);
-    }
-    return result;
-  }
-
   /**
    * The warnings of a chosen derivation (engine §12): each rule node of its
    * tree gives one for each warning of its alternative whose feature is on, in
@@ -18170,7 +18104,7 @@
           }
         }
       }
-      const children = orderedChildren(node);
+      const children = node.children;
       for (let index = children.length - 1; index >= 0; index--) stack.push(children[index]);
     }
     return warnings;
@@ -18186,59 +18120,44 @@
    * @returns {ResultNode[]}
    */
   function resultTree(root, context) {
-    const tokens = context.tokens;
-    /** @typedef {{node: Derivation, children: Derivation[] | null, next: number, out: ResultNode[]}} TreeFrame */
-    /** @type {TreeFrame[]} */
-    const stack = [{ node: root, children: null, next: 0, out: [] }];
     /** @type {ResultNode[]} */
-    let result = [];
-    /** @param {ResultNode[]} list */
-    const finish = (list) => {
-      stack.pop();
-      if (stack.length === 0) {
-        result = list;
-        return;
-      }
-      const out = stack[stack.length - 1].out;
-      for (const item of list) out.push(item);
-    };
-    while (stack.length > 0) {
-      const frame = stack[stack.length - 1];
-      const node = frame.node;
+    const result = [];
+    /** @type {{node: Derivation, into: ResultNode[]}[]} */
+    const stack = [{node:root, into:result}];
+    for (let frame = stack.pop(); frame !== undefined; frame = stack.pop()) {
+      const {node} = frame;
+      let {into} = frame;
       if ("read" in node) {
-        finish([{ kind: "token", terminal: node.read.terminal, token: node.read.token, span: [node.start, node.end], source: sourceOf(context.sources, node.start, node.end) }]);
+        into.push({ kind: "token", terminal: node.read.terminal, token: node.read.token, span: [node.start, node.end], source: sourceOf(context.sources, node.start, node.end) });
         continue;
       }
       const production = node.production;
-      if (frame.children === null) {
-        if (production.helper && production.elided && node.children.length === 0) {
-          const position = emptySource(tokens, node.start);
-          /** @type {ElidedNode} */
-          const elided = { kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] };
-          // An equality-tested elided node keeps the restored token's string.
-          // Canonical JSON writes it as value, including an empty string.
-          if (production.elidedTest && production.elidedTest.op === "=" && production.elidedTest.value !== undefined) elided.value = production.elidedTest.value;
-          finish([elided]);
-          continue;
-        }
-        frame.children = orderedChildren(node);
-      }
-      if (frame.next < frame.children.length) {
-        stack.push({ node: frame.children[frame.next++], children: null, next: 0, out: [] });
+      if (production.helper && production.elided && node.children.length === 0) {
+        const position = emptySource(context.tokens, node.start);
+        /** @type {ElidedNode} */
+        const elided = { kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] };
+        // An equality-tested elided node keeps the restored token's string.
+        // Canonical JSON writes it as value, including an empty string.
+        if (production.elidedTest && production.elidedTest.op === "=" && production.elidedTest.value !== undefined) elided.value = production.elidedTest.value;
+        into.push(elided);
         continue;
       }
-      if (production.helper) {
-        finish(frame.out);
-        continue;
+      if (!production.helper) {
+        /** @type {import("./types.js").RuleNode} */
+        const made = {
+          kind: "rule",
+          rule: production.lhs,
+          span: [node.start, node.end],
+          source: sourceOf(context.sources, node.start, node.end),
+          tags: nodeTags(node, context),
+          children: [],
+        };
+        into.push(made);
+        into = made.children;
       }
-      finish([{
-        kind: "rule",
-        rule: production.lhs,
-        span: [node.start, node.end],
-        source: sourceOf(context.sources, node.start, node.end),
-        tags: nodeTags(node, context),
-        children: frame.out,
-      }]);
+      for (let index = node.children.length - 1; index >= 0; index--) {
+        stack.push({node:node.children[index], into});
+      }
     }
     return result;
   }
@@ -20545,7 +20464,7 @@
         try { included = domOf(target, frame.names); }
         catch (error) {
           if (error instanceof GencmuError && error.where.line === undefined && error.cause instanceof Error) {
-            throw new GencmuError("grammar", error.message, at, {cause:error.cause});
+            throw new GencmuError(error.kind, `${error.where.document ?? target}: ${error.description}`, {...error.where, ...at}, {cause:error.cause});
           }
           throw error;
         }
@@ -20665,7 +20584,7 @@
       });
       if (hasStrings) {
         const lexical = loader.notation.parse(text, {until:"lexical"});
-        if (!lexical.ok) throw new GencmuError("grammar", `${documentPath}: cannot read strings for textual stitching`, {document:documentPath});
+        if (!lexical.ok) throw new GencmuError("grammar", "cannot read strings for textual stitching", {document:documentPath});
         const names = new NamesScope(key => loader.needNames(key), loader.unicode, inherited);
         const decoder = new DocumentStrings(documentPath, loader.unicode, names, offset => positions[offset] ?? [1,1]);
         const tokens = /** @type {import("./tokens.js").Token[]} */ (lexical.stages[0].output);

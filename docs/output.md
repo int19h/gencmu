@@ -167,6 +167,8 @@ A grammar that fails to load produces an error alone, outside any parse result. 
 
 Every stitching error carries `stage`. Missing resolution and start rule errors have no document or position.
 
+An unreadable include with no source line reports the include directive's position. A positioned error keeps its location. Relocation preserves the other diagnostic fields.
+
 Engine §2 specifies common stitching and classifier messages. Existing unit tests pin those messages. Other wording stays library-specific unless this specification states otherwise.
 
 Ranked loading errors have these members, in this order:
