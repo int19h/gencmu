@@ -2914,7 +2914,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   A method's receiver and arguments must meet §10's signature after method selection. The reader reports a wrong receiver or arity at the method. A classifier or rule name is legal only in its corresponding argument position. A string constant can resolve a string argument after stitching.
 - A `split` whose delimiter is the string literal `""` is an error, reported at the call.
-- A `.verbatim-text` read outside a recipe is a document error. An `.emitted` read outside a recipe or a `%conditions` clause is a document error too. A recipe accepts only the seven string methods and string atoms of §11.
+- A `.verbatim-text` read outside a recipe is a document error. An `.emitted` read outside a recipe or a `%conditions` clause is a document error too. So is a condition's `.emitted` read whose walk can reach a selected recipe that calls `.verbatim-text`. The error stands at the `.emitted` read. Verbatim text claims uncovered source gaps for emission (§11.1), and a condition reads no claims. A recipe accepts only the seven string methods and string atoms of §11.
 - A `default-value` that does not stand on the head of an elidable optional is an error at its `≝`. So is a second one on the same head. Its operand follows the value-test rules, and must resolve to one string. A default value whose omission predicate (§3.8) is false is an error at its `≝`, after template substitution.
 - A constant declaration requires a capitalized constant name. A string in that position is a document error.
 - A constant's value that is not a closed term (§10) is an error, reported at the first part that is not closed. Captures, `$`, guarded terms, and input methods such as `.value`, `.source-text`, `.tags`, `.classes`, or `.classify` are errors there.
@@ -3409,7 +3409,7 @@ Input methods read the original projected span. `.emitted` reads the string walk
 
 Evaluation identity includes the selected constituent occurrence and requested channel. Item evaluation also identifies its item position and override context. Equal productions or equal spans in different tree occurrences do not merge these identities. A value dependency and an image dependency remain separate unless they select the same recipe expression.
 
-A selected recipe runs only when an emitted string, a condition or another evaluated recipe needs it. A condition reads the walk of the derivation that it tests, during recognition (§4.1). That walk uses the same recipes, defaults and erasure as emission. An unused weaker recipe runs neither its methods nor its descendant walks. An explicit image recipe can therefore suppress all recursive descendant image recipes while value concatenation still enters those children.
+A selected recipe runs only when an emitted string, a condition or another evaluated recipe needs it. A condition reads the walk of the derivation that it tests, during recognition (§4.1). That walk uses the same recipes, defaults and erasure as emission. It never reaches `.verbatim-text`, because the loader refuses such a read (§9.3). An unused weaker recipe runs neither its methods nor its descendant walks. An explicit image recipe can therefore suppress all recursive descendant image recipes while value concatenation still enters those children.
 
 ```jbogenbau
 %rule r := $.emitted.image :- "x"

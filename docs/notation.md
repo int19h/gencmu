@@ -894,7 +894,7 @@ A condition can also read `$x.emitted.value` and `$x.emitted.image` of a capture
   $v.emitted.value = $e.emitted.value
 ```
 
-The empty recipe drops each free prefix from the walk, so `di duna` and `duna` give the same string. Two parses of one span whose walks differ are different constituents to a condition. A condition can keep one and refuse the other.
+The empty recipe drops each free prefix from the walk, so `di duna` and `duna` give the same string. Two parses of one span whose walks differ are different constituents to a condition. A condition can keep one and refuse the other. A condition cannot read a walk that reaches `.verbatim-text`, because verbatim text serves emitted images only (see "Verbatim text").
 
 `span.source-text` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's value with a literal, as in `$l.value = "la"`, a test says it in the body: `LA="la"`.
 
