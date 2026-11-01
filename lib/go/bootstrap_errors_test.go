@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"strings"
@@ -107,5 +108,34 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func bootstrapWithDOMChange(t *testing.T, change func(string, map[string]any)) string {
+	t.Helper()
+	raw, err := bundledFS.ReadFile("data/preparsed/gencmu.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var bootstrap map[string]any
+	if err := json.Unmarshal(raw, &bootstrap); err != nil {
+		t.Fatal(err)
+	}
+	for path, item := range bootstrap["documents"].(map[string]any) {
+		document := item.(map[string]any)
+		change(path, document["dom"].(map[string]any))
+	}
+	encoded, err := json.Marshal(bootstrap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(encoded)
+}
+
+func sourcesWithBootstrap(grammar, bootstrap string) map[string]string {
+	return map[string]string{
+		"grammars/test/p.md":         block("%stage main", `%include "main.md"`),
+		"grammars/test/main.md":      block("%ambiguity-resolution greedy", grammar),
+		"data/preparsed/gencmu.json": bootstrap,
 	}
 }

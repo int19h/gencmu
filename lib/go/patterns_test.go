@@ -58,7 +58,7 @@ func TestPatternResolutionCachedStages(t *testing.T) {
 					"data/preparsed/gencmu.json": bundled.sources["data/preparsed/gencmu.json"],
 				}
 				fresh := mustLoad(t, sources)
-				sources["data/preparsed/lojban.json"] = reviewCache(t, sources)
+				sources["data/preparsed/lojban.json"] = preparsedCacheForSources(t, sources)
 				cached := mustLoad(t, sources)
 				var canonical string
 				for _, pipeline := range []*Pipeline{fresh, cached} {

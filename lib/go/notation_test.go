@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -891,4 +892,154 @@ func TestAttachmentRejectsBareCaptureAfterStrayToken(t *testing.T) {
 		}
 	}()
 	b.attachment(n, n)
+}
+
+func TestGuardValidationFromSuppliedBootstrap(t *testing.T) {
+	t.Parallel()
+	bootstrap := bootstrapWithDOMChange(t, func(path string, dom map[string]any) {
+		if path != "grammars/gencmu/jbogenbau/lexical.md" {
+			return
+		}
+		for _, value := range dom["rules"].([]any) {
+			rule := value.(map[string]any)
+			var expr any
+			switch rule["name"] {
+			case "feature-character":
+				expr = map[string]any{"literal": map[string]any{"string": "_"}}
+			case "guard":
+				expr = map[string]any{"seq": []any{
+					map[string]any{"literal": map[string]any{"string": "¬"}},
+					map[string]any{"ref": "feature-name"},
+					map[string]any{"literal": map[string]any{"string": "!"}},
+				}}
+			default:
+				continue
+			}
+			rule["alternatives"] = append(rule["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": expr})
+		}
+	})
+	for _, c := range []struct {
+		grammar string
+		column  int
+	}{
+		{`%rule text bad_name? A`, 12},
+		{`%rule text bad_name? [A]="x"`, 12},
+		{"%classifier c bad_name? \"a\" ∈ A\n%rule text _", 15},
+		{`%rule text ¬fine! A`, 12},
+		{`%rule text ¬fine! [A]="x"`, 12},
+		{"%classifier c ¬fine! \"a\" ∈ A\n%rule text _", 15},
+	} {
+		t.Run(c.grammar, func(t *testing.T) {
+			_, err := LoadPipelineSources(sourcesWithBootstrap(c.grammar, bootstrap), "grammars/test/p.md")
+			var e *Error
+			if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/test/main.md" || e.Line != 3 || e.Column != c.column {
+				t.Fatalf("expected the guard at 3:%d, got %v", c.column, err)
+			}
+		})
+	}
+	// Capital-initial features, gates and ordinary warnings remain valid.
+	for _, grammar := range []string{`%rule text Cbm? A | ¬Cbm? B | fine! C`, "%classifier c Cbm? \"a\" ∈ A\n%rule text _"} {
+		if _, err := LoadPipelineSources(sourcesWithBootstrap(grammar, bootstrap), "grammars/test/p.md"); err != nil {
+			t.Fatalf("valid guards: %v", err)
+		}
+	}
+}
+
+func TestPropertyWrapperFromSuppliedBootstrap(t *testing.T) {
+	t.Parallel()
+	bootstrap := bootstrapWithDOMChange(t, func(path string, dom map[string]any) {
+		if path != "grammars/gencmu/jbogenbau/syntax.md" {
+			return
+		}
+		for _, value := range dom["rules"].([]any) {
+			rule := value.(map[string]any)
+			if rule["name"] != "untested-primary" {
+				continue
+			}
+			for _, alternative := range rule["alternatives"].([]any) {
+				expr := alternative.(map[string]any)["expr"].(map[string]any)
+				if expr["ref"] == "string-terminal" {
+					expr["ref"] = "property"
+				}
+			}
+		}
+		dom["rules"] = append(dom["rules"].([]any), map[string]any{
+			"name": "property", "op": "define", "flags": []any{},
+			"alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"ref": "string-terminal"}}},
+			"conditions":   []any{}, "at": []any{1, 1},
+		})
+	})
+	pipeline, err := LoadPipelineSources(sourcesWithBootstrap(`%rule text "a" %emits $`, bootstrap), "grammars/test/p.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := pipeline.Parse("a", ParseOptions{})
+	if err != nil || !result.OK {
+		t.Fatalf("wrapped string terminal: %v %+v", err, result)
+	}
+}
+
+func TestEmptyGuardWrapperValidation(t *testing.T) {
+	t.Parallel()
+	bootstrap := bootstrapWithDOMChange(t, func(path string, dom map[string]any) {
+		for _, value := range dom["rules"].([]any) {
+			rule := value.(map[string]any)
+			if path == "grammars/gencmu/jbogenbau/lexical.md" && rule["name"] == "feature-character" {
+				rule["alternatives"] = append(rule["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "_"}}})
+			}
+			if path == "grammars/gencmu/jbogenbau/syntax.md" && rule["name"] == "guard" {
+				rule["alternatives"].([]any)[0].(map[string]any)["expr"] = map[string]any{"seq": []any{map[string]any{"ref": "padding"}, map[string]any{"ref": "Guard"}}}
+			}
+		}
+		if path == "grammars/gencmu/jbogenbau/syntax.md" {
+			dom["rules"] = append(dom["rules"].([]any), map[string]any{"name": "padding", "op": "define", "flags": []any{}, "alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"empty": true}}}, "conditions": []any{}, "at": []any{1, 1}})
+		}
+	})
+	for _, c := range []struct {
+		grammar string
+		column  int
+	}{
+		{`%rule text bad_name? A`, 12},
+		{`%rule text bad_name? [A]="x"`, 12},
+		{"%classifier c bad_name? \"a\" ∈ A\n%rule text _", 15},
+	} {
+		t.Run(c.grammar, func(t *testing.T) {
+			_, err := LoadPipelineSources(sourcesWithBootstrap(c.grammar, bootstrap), "grammars/test/p.md")
+			var e *Error
+			if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/test/main.md" || e.Line != 3 || e.Column != c.column {
+				t.Fatalf("guard at 3:%d: %v", c.column, err)
+			}
+		})
+	}
+}
+
+func TestEmptyConstructorAnchorAtDocumentEnd(t *testing.T) {
+	t.Parallel()
+	gt := extractGrammarText(block("A"), &unicodeTable{})
+	end := len(gt.text)
+	b := &domBuilder{gt: gt, toks: []Token{{Source: [2]int{0, end}}}}
+	node := &Node{Kind: KindRule, Span: [2]int{1, 1}, Children: []*Node{{Kind: KindRule, Source: [2]int{0, 0}}}}
+	if got := b.at(node); got != gt.at(end) {
+		t.Fatalf("empty constructor anchor %v, want %v", got, gt.at(end))
+	}
+}
+
+func preparsedCacheForSources(t *testing.T, sources map[string]string) string {
+	t.Helper()
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	documents := map[string]any{}
+	for path, text := range sources {
+		dom, err := bundled.reader.readMode(text, path, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		documents[path] = map[string]any{"hash": fnv1a64(text), "dom": json.RawMessage(dom.json())}
+	}
+	raw, err := json.Marshal(map[string]any{"format": domFormat, "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]), "documents": documents})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
 }

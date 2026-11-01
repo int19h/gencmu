@@ -3,6 +3,7 @@ package gencmu
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -897,4 +898,173 @@ func TestAbsentRecipeCaptureOrder(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestRecipeDependencyCyclePaths(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		grammar string
+		path    string
+	}{
+		{`%rule text := $.emitted.value | "a" %emits`, "text.value -> text.value"},
+		{`%rule text := $.emitted.image :- $.emitted.value | "a" %emits`, "text.value -> text.image -> text.value"},
+		{`%rule text := "x" :- $.emitted.image | "a" %emits`, "text.image -> text.image"},
+		// Engine §11.3 identifies an implied image with the value recipe it reuses.
+		{`%rule text := $.emitted.image | "a" %emits`, "text.value -> text.value"},
+	} {
+		t.Run(c.path, func(t *testing.T) {
+			_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+c.grammar), "p.md")
+			var e *Error
+			if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, c.path) {
+				t.Fatalf("expected a recipe cycle with path %q, got %v", c.path, err)
+			}
+		})
+	}
+	// Cross-channel dependencies remain valid when the other channel is independent.
+	for _, grammar := range []string{
+		`%rule text := $.emitted.image :- "x" | "a" %emits $`,
+		`%rule text := "x" :- $.emitted.value | "a" %emits $`,
+	} {
+		pipeline := mustLoad(t, oneStage("%ambiguity-resolution greedy\n"+grammar))
+		result, err := pipeline.Parse("a", ParseOptions{})
+		if err != nil || !result.OK || len(result.Stages[0].Output) != 1 || result.Stages[0].Output[0].Value != "x" || result.Stages[0].Output[0].Image != "x" {
+			t.Fatalf("acyclic recipe: %v %+v", err, result)
+		}
+	}
+}
+
+func TestCachedRecipeCyclePositions(t *testing.T) {
+	t.Parallel()
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		grammar, receiver string
+		line              int
+	}{
+		{`%rule text := $.emitted.value | "a" %emits`, "$.emitted.value", 3},
+		{`%rule text := $.emitted.image | "a" %emits`, "$.emitted.image", 3},
+		// The image recipe closes the cycle, so §11.3 now selects its first atom.
+		{`%rule text := $.emitted.image :- $.emitted.value | "a" %emits`, "$.emitted.value", 3},
+		{`%rule text := "independent" :- $.emitted.image | "a" %emits`, "$.emitted.image", 3},
+		{`%rule text := $.emitted.image :- "prefix" ++ $.emitted.value | "a" %emits`, `"prefix"`, 3},
+		{`%rule text := $.emitted.image ++ $.emitted.value :- "image first" ++ $.emitted.image | "a" %emits`, `"image first"`, 3},
+		{`%rule text := $.emitted.value ++ $.emitted.image :- $.emitted.value | "a" %emits`, "$.emitted.value", 3},
+		{`%rule text := $.emitted.image :- "header"
+  | "a" :- $.emitted.value %emits`, "$.emitted.value", 4},
+		{`%rule text "a" := $.emitted.value %emits`, "$.emitted.value", 3},
+		{`%rule text := $.emitted.value | "a" := "override" :- $.emitted.image %emits`, "$.emitted.image", 3},
+		{`%rule text := "unused" | "a" := $.emitted.image :- $.emitted.value %emits`, "$.emitted.value", 3},
+		{`%rule text := "header" | "a"
+%extend-rule text "b" := $.emitted.value`, "$.emitted.value", 4},
+	} {
+		t.Run(c.grammar, func(t *testing.T) {
+			grammar := c.grammar
+			sources := sourcesWithBootstrap(grammar, bundled.sources["data/preparsed/gencmu.json"])
+			_, fresh := LoadPipelineSources(sources, "grammars/test/p.md")
+			var e *Error
+			sourceLine := strings.Split(grammar, "\n")[c.line-3]
+			column := strings.Index(sourceLine, c.receiver) + 1
+			if !errors.As(fresh, &e) || e.Document != "grammars/test/main.md" || e.Line != c.line || e.Column != column || !strings.Contains(e.Message, "recipe dependency cycle") {
+				t.Fatalf("fresh recipe position: %v", fresh)
+			}
+			sources["data/preparsed/test.json"] = preparsedCacheForSources(t, sources)
+			_, cached := LoadPipelineSources(sources, "grammars/test/p.md")
+			if !reflect.DeepEqual(fresh, cached) {
+				t.Fatalf("fresh/cache cycle diagnostics differ:\n%+v\n%+v", fresh, cached)
+			}
+		})
+	}
+}
+
+func TestRecipeLocationRecoveryPreservesCache(t *testing.T) {
+	t.Parallel()
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	// A matching cache still owns the recipe, even when the source spells another value.
+	original := sourcesWithBootstrap(`%rule text := $.emitted.value | "a" %emits`, bundled.sources["data/preparsed/gencmu.json"])
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	dom, err := bundled.reader.readMode(original["grammars/test/main.md"], "grammars/test/main.md", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources := sourcesWithBootstrap(`%rule text := "source is independent" | "a" %emits`, bundled.sources["data/preparsed/gencmu.json"])
+	sources["data/preparsed/test.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/main.md":{"hash":"` + fnv1a64(sources["grammars/test/main.md"]) + `","dom":` + string(dom.json()) + `}}}`
+	_, failure := LoadPipelineSources(sources, "grammars/test/p.md")
+	var e *Error
+	if !errors.As(failure, &e) || e.Line != 3 || e.Column != 15 || !strings.Contains(e.Message, "text.value -> text.value") {
+		t.Fatalf("cache semantics or location changed: %v", failure)
+	}
+	// A valid cached recipe needs no source reader for location recovery.
+	valid := sourcesWithBootstrap(`%rule text := "a" | "a" %emits $`, bundled.sources["data/preparsed/gencmu.json"])
+	cache, _, _ := readPreparsedCache(preparsedCacheForSources(t, valid), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]))
+	configured, loadErr := bundledLoader()
+	if loadErr != nil {
+		t.Fatal(loadErr)
+	}
+	l := &loader{uni: configured.uni, bootstrapHash: bundled.reader.hash, preparsed: cache, read: func(path string) (string, bool, *Error) { s, ok := valid[path]; return s, ok, nil }}
+	if _, err := l.pipeline("grammars/test/p.md"); err != nil {
+		t.Fatalf("valid cache reparsed: %v", err)
+	}
+}
+
+func TestRecipeCycleProductionOrder(t *testing.T) {
+	t.Parallel()
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name, grammar string
+		line          int
+	}{
+		{"extension", `%rule text "a"
+%rule other := $.emitted.value | "b"
+%extend-rule text := $.emitted.image | "c"`, 4},
+		{"replacement", `%rule text "a"
+%rule other := $.emitted.value | "b"
+%redefine-rule text := $.emitted.image | "c"`, 4},
+		{"removed cycle", `%rule text := $.emitted.value | "a"
+%rule other := $.emitted.value | "b"
+%redefine-rule text "a"`, 4},
+		{"resolved constant", `%const $K "k"
+%rule text "a"
+%rule other := $K ++ $.emitted.value | "b"
+%extend-rule text := $.emitted.image | "c"`, 5},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			sources := sourcesWithBootstrap(c.grammar, bundled.sources["data/preparsed/gencmu.json"])
+			_, fresh := LoadPipelineSources(sources, "grammars/test/p.md")
+			var e *Error
+			if !errors.As(fresh, &e) || e.Document != "grammars/test/main.md" || e.Line != c.line || e.Column != 16 || !strings.Contains(e.Message, "other.value -> other.value") {
+				t.Fatalf("production order: %v", fresh)
+			}
+			sources["data/preparsed/test.json"] = preparsedCacheForSources(t, sources)
+			_, cached := LoadPipelineSources(sources, "grammars/test/p.md")
+			if !reflect.DeepEqual(fresh, cached) {
+				t.Fatalf("fresh/cache production order differs:\n%+v\n%+v", fresh, cached)
+			}
+		})
+	}
+	t.Run("document order", func(t *testing.T) {
+		sources := map[string]string{
+			"grammars/test/p.md":         block("%stage main", "%ambiguity-resolution greedy", `%include "base.md"`, `%include "earlier.md"`, `%include "later.md"`),
+			"grammars/test/base.md":      block(`%rule text "a"`),
+			"grammars/test/earlier.md":   block(`%rule other := $.emitted.value | "b"`),
+			"grammars/test/later.md":     block(`%extend-rule text := $.emitted.image | "c"`),
+			"data/preparsed/gencmu.json": bundled.sources["data/preparsed/gencmu.json"],
+		}
+		_, fresh := LoadPipelineSources(sources, "grammars/test/p.md")
+		var e *Error
+		if !errors.As(fresh, &e) || e.Document != "grammars/test/earlier.md" || e.Line != 2 || e.Column != 16 {
+			t.Fatalf("document order: %v", fresh)
+		}
+		sources["data/preparsed/test.json"] = preparsedCacheForSources(t, sources)
+		_, cached := LoadPipelineSources(sources, "grammars/test/p.md")
+		if !reflect.DeepEqual(fresh, cached) {
+			t.Fatalf("fresh/cache document order differs:\n%+v\n%+v", fresh, cached)
+		}
+	})
 }
