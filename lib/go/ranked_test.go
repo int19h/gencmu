@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"encoding/json"
+	"errors"
 	"reflect"
 	"strconv"
 	"strings"
@@ -183,5 +184,47 @@ func TestProjectedRankedRoutePriorityAndBindings(t *testing.T) {
 	err := failure.(*Error)
 	if err.Code != "ranked-choice-continuation" || err.Option == nil || *err.Option != 1 {
 		t.Fatal(err)
+	}
+}
+
+func TestRankedPrivateRecipeExports(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ grammar, expression string }{
+		{`%rule text :: ∅ := $x.value | ($x:A ≻ $x:B) %emits`, "concat"},
+		{`%rule text :: ∅ :- $x.image | ($x:A ≻ $x:B) %emits`, "concat"},
+		{`%rule text :: ∅ | ($x:A ≻ $x:B) := $x.value %emits`, "concat"},
+		{`%rule text :: ∅ | ($x:A ≻ $x:B) :- $x.emitted.image %emits`, "concat"},
+		{`%rule text :: ∅ | ($x:A ≻ $x:B) %emits $ := $x.value`, "items"},
+		{`%rule text :: ∅ | ($x:A ≻ $x:B) %emits $ :- $x.emitted.image`, "items"},
+		{`%rule text :: ∅ | ($x:A ≻ $x:B) %emits ε := $x.value`, "items"},
+		{`%rule text :: ∅ | ($x:A ≻ $x:B) %emits ε :- $x.image`, "items"},
+		{`%rule text :: ∅ | ($x:A ≻ $x:B) %emits ε :: $x ⟹ $x.tags`, "items"},
+		{`%rule text ($x:A ≻ $x:B) := $.emitted.value ++ $x.value %emits`, "concat"},
+		{`%rule text ($x:A ≻ B) := $x.value %emits`, "concat"},
+		{`%rule text :: ∅ := $x.value | ($x:A ≻ B) := "overridden" %emits`, "concat"},
+		{`%rule text :: ∅ | ($x:A ≻ B) [$carrier:C] %emits $carrier := $x.value`, "items"},
+	} {
+		t.Run(c.grammar, func(t *testing.T) {
+			_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+c.grammar), "p.md")
+			var e *Error
+			if !errors.As(err, &e) || e.Code != "ranked-choice-export" || e.Group == nil || e.Group.Path != "" && e.Group.Path != "/seq/0" || e.Option == nil || *e.Option != 0 || !strings.Contains(string(e.Expression), `"`+c.expression+`"`) {
+				t.Fatalf("private recipe load diagnostic: %v %+v", err, e)
+			}
+		})
+	}
+	// Common captures and the whole parent remain legal in recipes.
+	for _, grammar := range []string{
+		`%rule text :: ∅ | $before:C (A ≻ B) := $before.value %emits $`,
+		`%rule text :: ∅ | (A ≻ B) $after:C := $after.image %emits ε := $.value`,
+	} {
+		if _, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+grammar), "p.md"); err != nil {
+			t.Fatalf("common recipe capture: %v", err)
+		}
+	}
+	// Earlier local constructors still reject invalid recipe methods.
+	_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+`%rule text ($x:A ≻ B) := $x.tags %emits`), "p.md")
+	var e *Error
+	if !errors.As(err, &e) || e.Code != "" || !strings.Contains(e.Message, "recipe") {
+		t.Fatalf("local recipe constructor: %v", err)
 	}
 }

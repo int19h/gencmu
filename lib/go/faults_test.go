@@ -1,8 +1,13 @@
 package gencmu
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -24,8 +29,9 @@ const (
 var faults = []string{"omission", "reprocess", "route3", "restore", "rank-restoration", "lost:context", "lost:select"}
 
 var faultSites = map[string][]string{
-	"lost:context": {"lost:context@links", "lost:context@items"},
-	"lost:select":  {"lost:select@links", "lost:select@items"},
+	"lost:context":     {"lost:context@links", "lost:context@items", "lost:context@admission-members", "lost:context@admission-links"},
+	"rank-restoration": {"rank-restoration@ranker", "rank-restoration@admission"},
+	"lost:select":      {"lost:select@links", "lost:select@items"},
 }
 
 func sitesOf(fault string) []string {
@@ -42,9 +48,9 @@ var faultCatches = map[string]map[string]string{
 	"route3":    {"reparse-strict-nested-route.json": catchResult, "reparse-synthetic-suffix-empty.json": catchResult},
 	"restore":   {"reparse-incompatible-optional-sound.json": catchResult},
 	"rank-restoration": {"reparse-witness-hook-only.json": catchBoth, "elision-only-passes.json": catchBoth,
-		"reparse-witness-sibling-last.json": catchBoth},
+		"reparse-witness-sibling-last.json": catchBoth, "ranked-reconstruction-newly-resolved.json": catchBoth, "ranked-reconstruction-physical-spans.json": catchBoth},
 	"lost:context": {"reparse-witness-sibling-first.json": catchBoth, "reparse-witness-sibling-last.json": catchBoth,
-		"reparse-strict-later-reading-symbol.json": catchResult},
+		"reparse-strict-later-reading-symbol.json": catchResult, "ranked-reconstruction-physical-spans.json": catchBoth, "ranked-reconstruction-displaced.json": catchBoth, "ranked-reconstruction-empty-flag.json": catchBoth},
 	"lost:select": {"reparse-witness-sibling-first.json": catchHook, "reparse-strict-later-reading-symbol.json": catchResult},
 }
 
@@ -125,5 +131,70 @@ func TestListFaultCatches(t *testing.T) {
 				t.Logf("%s %s %s", fault, filepath.Base(f), how)
 			}
 		}
+	}
+}
+
+// Every static fault call has one declared key and one source location.
+func TestFaultSiteDeclarationsCoverSource(t *testing.T) {
+	found := map[string]string{}
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range files {
+		if strings.HasSuffix(file, "_test.go") {
+			continue
+		}
+		positions := token.NewFileSet()
+		tree, err := parser.ParseFile(positions, file, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ast.Inspect(tree, func(node ast.Node) bool {
+			call, ok := node.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			selector, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok || (selector.Sel.Name != "fault" && selector.Sel.Name != "faultAt" && selector.Sel.Name != "skips") || len(call.Args) == 0 {
+				return true
+			}
+			literal, ok := call.Args[0].(*ast.BasicLit)
+			if !ok || literal.Kind != token.STRING {
+				return true
+			}
+			name, err := strconv.Unquote(literal.Value)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if selector.Sel.Name != "fault" {
+				site, ok := call.Args[1].(*ast.BasicLit)
+				if !ok || site.Kind != token.STRING {
+					t.Fatalf("%s has no literal fault site", positions.Position(call.Pos()))
+				}
+				value, err := strconv.Unquote(site.Value)
+				if err != nil {
+					t.Fatal(err)
+				}
+				name += "@" + value
+			}
+			at := positions.Position(call.Pos()).String()
+			if previous, duplicate := found[name]; duplicate {
+				t.Errorf("%s shares its fault key between %s and %s", name, previous, at)
+			}
+			found[name] = at
+			return true
+		})
+	}
+	for _, fault := range faults {
+		for _, site := range sitesOf(fault) {
+			if _, ok := found[site]; !ok {
+				t.Errorf("declared site %s has no source call", site)
+			}
+			delete(found, site)
+		}
+	}
+	for site, at := range found {
+		t.Errorf("undeclared site %s at %s", site, at)
 	}
 }

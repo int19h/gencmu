@@ -820,7 +820,7 @@ func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 		}
 		return nil, unitEntry
 	}
-	if it.restores && rk.rec.run.ps.fault("rank-restoration") {
+	if it.restores && rk.rec.run.ps.faultAt("rank-restoration", "ranker") {
 		return nil, nil
 	}
 	var scope *slotScope

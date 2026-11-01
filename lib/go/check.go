@@ -121,6 +121,7 @@ type privateOptions struct {
 	// fault turns on a fault of the library's own paths in the check, to
 	// show that the shared cases catch it (tests/README.md,
 	// faults_test.go):
+	//   - "omission" bypasses the test of an omitted elidable;
 	//   - "reprocess" leaves an item that an ordinary step reaches as it
 	//     was processed while strict (§7.4);
 	//   - "route3" makes the item after the T of route 3 ordinary (§7.4);
