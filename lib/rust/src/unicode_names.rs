@@ -333,7 +333,7 @@ impl<'a> NamesScope<'a> {
     }
 
     fn need(&self, path: &str) -> Result<String, Error> {
-        (self.read)(path)?.ok_or_else(|| failure(path, None, "the names resource is missing"))
+        (self.read)(path)?.ok_or_else(|| failure(path, None, &format!("{path} was not found")))
     }
 
     fn load(&self) -> Result<(), Error> {

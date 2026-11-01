@@ -63,7 +63,7 @@ def _decode(data: bytes, document: str) -> str:
         return data.decode("utf-8")
     except UnicodeDecodeError as error:
         raise GencmuError(
-            f"the document is not valid UTF-8: {error.reason} at byte {error.start}", document=document
+            f"the document is not valid UTF-8: an invalid byte sequence at byte {error.start}", document=document
         ) from None
 
 

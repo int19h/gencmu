@@ -267,9 +267,8 @@ func (l *loader) namesText(p string) (string, bool, *Error) {
 	return text, ok, nil
 }
 
-// utf8Problem says why a string is not valid UTF-8, which engine §1 makes
-// a usage error, or is "" when it is valid. A string that encodes a
-// surrogate is not valid either.
+// utf8Problem returns the shared reason and byte offset for invalid UTF-8,
+// or "" for valid text. A surrogate encoding is invalid too (engine §1).
 func utf8Problem(s string) string {
 	if utf8.ValidString(s) {
 		return ""
@@ -277,11 +276,11 @@ func utf8Problem(s string) string {
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
 		if r == utf8.RuneError && size <= 1 {
-			return fmt.Sprintf("invalid UTF-8 at byte %d", i)
+			return fmt.Sprintf("an invalid byte sequence at byte %d", i)
 		}
 		i += size
 	}
-	return "invalid UTF-8"
+	return ""
 }
 
 // guard turns a panic, which a defect of this library or of data it trusted

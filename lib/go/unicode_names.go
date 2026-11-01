@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 )
 
 type unicodeNameRecord struct {
@@ -286,10 +285,10 @@ func (n *namesScope) need(path string) (string, *Error) {
 		return "", err
 	}
 	if !ok {
-		return "", namesError(path, 0, "the names resource is missing")
+		return "", namesError(path, 0, path+" was not found")
 	}
-	if !utf8.ValidString(text) {
-		return "", namesError(path, 0, "the names resource is not valid UTF-8")
+	if problem := utf8Problem(text); problem != "" {
+		return "", namesError(path, 0, "the document is not valid UTF-8: "+problem)
 	}
 	return text, nil
 }

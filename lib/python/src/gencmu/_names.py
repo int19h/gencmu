@@ -196,7 +196,7 @@ class NamesScope:
     def need(self, path):
         text = self.read(path)
         if text is None:
-            _fail(path, "the names resource is missing")
+            _fail(path, f"{path} was not found")
         if re.search("[\ud800-\udfff]", text):
             _fail(path, "the names resource is not a sequence of Unicode scalar values")
         return text
