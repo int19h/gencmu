@@ -7805,11 +7805,15 @@
     for(const instance of queue) for(const event of instance.definitions) inspectArguments(event);
     for(const event of validationDefinitions) inspectArguments(event);
     const validation=[];
-    for(const event of events) if(!event.rule.params && !event.rule.args && !event.rule.instance) validation.push({...event,rule:rewrite(event.rule,event)});
+    for(const event of events) {
+      if(event.rule.params) validation.push(event);
+      else if(!event.rule.args && !event.rule.instance) validation.push({...event,rule:rewrite(event.rule,event)});
+    }
     for(const instance of queue) for(const event of instance.definitions) validation.push({...event,rule:rewrite({...event.rule,name:effective(instance)},event)});
     for(const event of validationDefinitions) validation.push({...event,rule:rewrite(event.rule,event)});
     for(const event of argumentDefinitions) validation.push(event);
     for(const event of validation) {
+      if(event.rule.params) continue;
       const problem=expandedDomProblem({format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
       if(problem) fail(event,event.rule,problem);
     }
@@ -8934,6 +8938,7 @@
 
 
 
+
   // A stage's grammar: its documents stitched together (engine §2) and
   // lowered to productions for one set of features (engine §3).
 
@@ -9078,11 +9083,11 @@
         this.featureItems = [];
         /** @type {(() => void)[]} */
         this.validationItems = [];
+        /** @type {{path:string,rule:DomRule}[]} */
         const pendingTemplates = [];
         for (const {path,dom} of documents) for (const rule of dom.rules) if (rule.params) {
           const problem = definitionProblem(rule,true);
           if (problem) throw this.documentError(path,rule.at,problem);
-          if (deferredRecipeProblem(rule) || deferredEmissionProblem(rule)) pendingTemplates.push({path,rule});
         }
         const expansion = expandTemplates(documents,unicode);
         const argumentsBySite = new Map();
@@ -9102,9 +9107,12 @@
           this.addDocument(path, dom);
         }
         if (expansion.order) this.rules = new Map(expansion.order.map((/** @type {string} */ name) => /** @type {[string,StitchedRule]} */ ([name,this.rules.get(name)])));
-        for (const event of expansion.validation ?? []) if (constantsIn(event.rule).length || hasPattern(event.rule) || argumentsBySite.has(argumentSite(event.path,event.rule.at))) {
+        for (const event of expansion.validation ?? []) if (event.rule.params || constantsIn(event.rule).length || hasPattern(event.rule) || argumentsBySite.has(argumentSite(event.path,event.rule.at))) {
           this.constantUsers.push({path:event.path,rule:event.rule});
-          this.validationItems.push(() => this.checkConstantRule(event.path,event.rule));
+          this.validationItems.push(() => {
+            const checked = this.checkConstantRule(event.path,event.rule);
+            if (event.rule.params) pendingTemplates.push({path:event.path,rule:checked});
+          });
         }
         this.bindConstants();
         /** @type {WeakMap<DomEntry,string[]>} */
@@ -9589,7 +9597,7 @@
     /** @param {any} node @param {string} path @param {[number,number]} at @returns {any} */
     resolvePatterns(node, path, at) {
       const patterns = new Map();
-      for (const part of valueParts(node)) if (part.pattern) {
+      for (const part of valueParts(node)) if (part.pattern && !hasUnresolved(part.node)) {
         patterns.set(part.node, this.evaluateClosed(path,part.node,at,undefined,"pattern"));
       }
       /** @param {any} source @returns {any} */
@@ -9606,7 +9614,7 @@
       return copy(node);
     }
 
-    /** @param {string} path @param {DomRule} rule */
+    /** @param {string} path @param {DomRule} rule @returns {DomRule} */
     checkConstantRule(path, rule) {
       /** @type {(name:string) => TermType} */
       const types = name => /** @type {StageConstant} */ (this.constants.get(name)).type;
@@ -9630,26 +9638,55 @@
       this.checkValueUses(rule,path,rule.at);
       const checked = this.resolvePatterns(resolvedRule,path,rule.at);
       const problem = definitionProblem(checked, true);
-      if (deferredEmissionProblem(checked) || deferredRecipeProblem(checked)) this.emissionUsers.push({path, rule:checked});
+      if (!rule.params && (deferredEmissionProblem(checked) || deferredRecipeProblem(checked))) this.emissionUsers.push({path, rule:checked});
       if (problem) throw this.documentError(path, rule.at, problem);
-
+      return checked;
     }
 
     /** @param {any} root @param {string} path @param {[number,number]} at @param {boolean} [computed] */
     checkValueUses(root, path, at, computed = false) {
       for (const {node:part,pattern} of valueParts(root)) {
-        if (pattern || part.pattern) this.evaluateClosed(path,part,at,undefined,pattern ? "pattern" : undefined);
-        if (part.range) {
-          const values = part.range.map((/** @type {Term} */ end) => this.evaluateClosed(path,end,at));
-          const problem = rangeProblem(values);
-          if (problem) {
-            const wide = values.findIndex((/** @type {any} */ end) => [...end.string].length !== 1);
-            throw this.faultError(path,wide >= 0 ? part.range[wide] : part.range,at,problem);
-          }
-        }
+        if (pattern || part.pattern) this.checkPatternUses(part,path,at);
+        if (part.range) this.checkRangeUses(part.range,path,at);
         if (part.method === "split" && (computed ? !openPart(part.args[0]) : "string" in part.args[0] || "const" in part.args[0])) {
           const delimiter = /** @type {{string:string}} */ (this.evaluateClosed(path,part.args[0],at));
           if (delimiter.string === "") throw this.faultError(path,part.args[0],at,"split has an empty delimiter");
+        }
+      }
+    }
+
+    /** @param {any[]} ends @param {string} path @param {[number,number]} at */
+    checkRangeUses(ends,path,at) {
+      const values = ends.map(end => hasUnresolved(end) ? {} : this.evaluateClosed(path,end,at));
+      const problem = rangeProblem(values);
+      if (problem) {
+        const wide = values.findIndex((/** @type {any} */ end) => typeof end.string === "string" && [...end.string].length !== 1);
+        throw this.faultError(path,wide >= 0 ? ends[wide] : ends,at,problem);
+      }
+    }
+
+    /** @param {any} root @param {string} path @param {[number,number]} at */
+    checkPatternUses(root,path,at) {
+      if (!hasUnresolved(root)) { this.evaluateClosed(path,root,at,undefined,"pattern"); return; }
+      const depth = patternDepthProblem(root,name => /** @type {StageConstant} */ (this.constants.get(name)).value);
+      if (depth) throw this.documentError(path,depth.at ?? at,"nested too deeply");
+      const pending = [{node:root,kind:"term"}];
+      while (pending.length) {
+        const {node,kind} = /** @type {{node:any,kind:string}} */ (pending.pop());
+        if (kind === "value") { this.checkValueUses(node,path,at); continue; }
+        if (!hasUnresolved(node)) {
+          this.evaluateClosed(path,kind === "pattern" ? {pattern:node} : node,at,undefined,"pattern");
+          continue;
+        }
+        if (node.param) continue;
+        if (node.call) { this.checkValueUses(node.args,path,at); continue; }
+        if (kind === "term") {
+          if (node.pattern) pending.push({node:node.pattern,kind:"pattern"});
+          else for (const child of clauseChildren(node).slice().reverse()) pending.push({node:child,kind:"term"});
+        } else {
+          if (node.range) this.checkRangeUses(node.range,path,at);
+          if (node.test) pending.push({node:node.test === "tags" ? node.requirements.map((/** @type {any} */ r) => r.value) : node.value,kind:"value"});
+          for (const child of patternParts(node).slice().reverse()) pending.push({node:child,kind:"pattern"});
         }
       }
     }
@@ -9863,6 +9900,10 @@
       const expressions = expressionChildren(node);
       const children = Array.isArray(node) ? node
         : node.alternatives ? [node.tags,node.value,node.image,node.alternatives,node.conditions,node.emit]
+        : node.call ? node.args
+        : node.body ? [node.body]
+        : node.targets ? node.targets
+        : node.requirements && !node.expr ? node.requirements
         : (typeof node.capture === "string" && !node.expr || node.insert) ? [node.tags,node.value,node.image]
         : node.expr ? [node.expr,node.requirements,node.tags,node.value,node.image]
         : node.literal ? [node.literal]
