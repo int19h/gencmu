@@ -9068,7 +9068,7 @@
          * @type {{path: string, rule: DomRule}[]}
          */
         this.constantUsers = [];
-        /** @type {{path:string, rule:DomRule}[]} */
+        /** @type {{path:string, rule:DomRule, run:number}[]} */
         this.emissionUsers = [];
         /** @type {Map<string, StitchedRule>} */
         this.rules = new Map();
@@ -9117,7 +9117,7 @@
         for (const event of expansion.validation ?? []) if (event.rule.params || constantsIn(event.rule).length || hasPattern(event.rule) || argumentsBySite.has(argumentSite(event.path,event.rule.at))) {
           this.constantUsers.push({path:event.path,rule:event.rule});
           this.validationItems.push({run:event.inspectionRun,at:event.rule.at,kind:0,check:() => {
-            const checked = this.checkConstantRule(event.path,event.rule);
+            const checked = this.checkConstantRule(event.path,event.rule,event.inspectionRun);
             if (event.rule.params) pendingTemplates.push({path:event.path,rule:checked});
           }});
         }
@@ -9189,6 +9189,7 @@
         this.ranked = new RankedGroups(this.rules);
         if (this.ranked.groups.length) this.ranked.validate();
         // Slot emission checks inspect written carriers before absent ones disappear.
+        this.emissionUsers.sort((a,b) => a.run-b.run || a.rule.at[0]-b.rule.at[0] || a.rule.at[1]-b.rule.at[1]);
         for (const { path, rule } of this.emissionUsers) {
           const problem = deferredRecipeProblem(rule) ?? deferredEmissionProblem(rule);
           if (problem) throw this.documentError(path, rule.at, problem);
@@ -9240,9 +9241,9 @@
           if (rule.instance) throw new Error("an instance binding survived expansion");
           if (constantsIn(rule).length > 0 || hasPattern(rule) || argumentUses.get(this)?.has(argumentSite(path,rule.at))) {
             this.constantUsers.push({path,rule});
-            this.validationItems.push({run:inspectionRun,at:rule.at,kind:0,check:() => this.checkConstantRule(path,rule)});
+            this.validationItems.push({run:inspectionRun,at:rule.at,kind:0,check:() => this.checkConstantRule(path,rule,inspectionRun)});
           }
-          if (deferredEmissionProblem(rule) || deferredRecipeProblem(rule)) this.emissionUsers.push({path, rule});
+          if (deferredEmissionProblem(rule) || deferredRecipeProblem(rule)) this.emissionUsers.push({path, rule, run:inspectionRun});
           const at = { document: path, line: rule.at[0], column: rule.at[1] };
           const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], erased: rule.erased === true, value:rule.value, image:rule.image };
           const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path, at, order:this.alternativeOrder++ }));
@@ -9623,8 +9624,8 @@
       return copy(node);
     }
 
-    /** @param {string} path @param {DomRule} rule @returns {DomRule} */
-    checkConstantRule(path, rule) {
+    /** @param {string} path @param {DomRule} rule @param {number} inspectionRun @returns {DomRule} */
+    checkConstantRule(path, rule, inspectionRun) {
       /** @type {(name:string) => TermType} */
       const types = name => /** @type {StageConstant} */ (this.constants.get(name)).type;
       for (const reference of constantsIn(rule)) {
@@ -9647,7 +9648,7 @@
       this.checkValueUses(rule,path,rule.at);
       const checked = this.resolvePatterns(resolvedRule,path,rule.at);
       const problem = definitionProblem(checked, true);
-      if (!rule.params && (deferredEmissionProblem(checked) || deferredRecipeProblem(checked))) this.emissionUsers.push({path, rule:checked});
+      if (!rule.params && (deferredEmissionProblem(checked) || deferredRecipeProblem(checked))) this.emissionUsers.push({path, rule:checked, run:inspectionRun});
       if (problem) throw this.documentError(path, rule.at, problem);
       return checked;
     }

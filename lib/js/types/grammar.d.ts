@@ -73,10 +73,11 @@ export declare class Grammar {
         path: string;
         rule: DomRule;
     }[];
-    /** @type {{path:string, rule:DomRule}[]} */
+    /** @type {{path:string, rule:DomRule, run:number}[]} */
     emissionUsers: {
         path: string;
         rule: DomRule;
+        run: number;
     }[];
     /** @type {Map<string, StitchedRule>} */
     rules: Map<string, StitchedRule>;
@@ -252,8 +253,8 @@ export declare class Grammar {
     evaluateClosed(path: string, term: Term, item: [number, number], lookup?: (name: string) => TermValue, expected?: TermType): TermValue;
     /** @param {any} node @param {string} path @param {[number,number]} at @returns {any} */
     resolvePatterns(node: any, path: string, at: [number, number]): any;
-    /** @param {string} path @param {DomRule} rule @returns {DomRule} */
-    checkConstantRule(path: string, rule: DomRule): DomRule;
+    /** @param {string} path @param {DomRule} rule @param {number} inspectionRun @returns {DomRule} */
+    checkConstantRule(path: string, rule: DomRule, inspectionRun: number): DomRule;
     /** @param {any} root @param {string} path @param {[number,number]} at @param {boolean} [computed] */
     checkValueUses(root: any, path: string, at: [number, number], computed?: boolean): void;
     /** @param {any[]} ends @param {string} path @param {[number,number]} at */
