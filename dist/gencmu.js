@@ -7835,16 +7835,22 @@
         for(const argument of node.args) inspectArgument(argument,event);
       }
     };
+    const validation=[],rewrittenDefinitions=new Map();
+    /** @param {any} event @param {any} [rule] */
+    const rewriteDefinition=(event,rule=event.rule)=>{
+      const rewritten={...event,rule:rewrite(rule,event)};
+      validation.push(rewritten);
+      rewrittenDefinitions.set(event,rewritten);
+    };
+    for(const event of events) {
+      if(event.rule.params) validation.push(event);
+      else if(!event.rule.args && !event.rule.instance) rewriteDefinition(event);
+    }
+    for(const instance of queue) for(const event of instance.definitions) rewriteDefinition(event,{...event.rule,name:effective(instance)});
+    for(const event of validationDefinitions) rewriteDefinition(event);
     for(const event of sourceEvents) inspectArguments(event);
     for(const instance of queue) for(const event of instance.definitions) inspectArguments(event);
     for(const event of validationDefinitions) inspectArguments(event);
-    const validation=[];
-    for(const event of events) {
-      if(event.rule.params) validation.push(event);
-      else if(!event.rule.args && !event.rule.instance) validation.push({...event,rule:rewrite(event.rule,event)});
-    }
-    for(const instance of queue) for(const event of instance.definitions) validation.push({...event,rule:rewrite({...event.rule,name:effective(instance)},event)});
-    for(const event of validationDefinitions) validation.push({...event,rule:rewrite(event.rule,event)});
     for(const event of argumentDefinitions) validation.push(event);
     for(const event of validation) {
       if(event.rule.params) continue;
@@ -7852,8 +7858,8 @@
       if(problem) fail(event,event.rule,problem);
     }
     const output=[];
-    for(const list of ordinary.values()) for(const event of list) output.push({...event,rule:rewrite(event.rule,event)});
-    for(const instance of queue) for(const event of instance.definitions) output.push({...event,rule:rewrite({...event.rule,name:effective(instance)},event)});
+    for(const list of ordinary.values()) for(const event of list) output.push(rewrittenDefinitions.get(event));
+    for(const instance of queue) for(const event of instance.definitions) output.push(rewrittenDefinitions.get(event));
     const expandedDocs=documents.map((/** @type {any} */ d)=>({...d,dom:{...d.dom,rules:[],...Object.fromEntries(['constants','directives','classifiers','implications'].map(key=>[key,d.dom[key].map((/** @type {any} */ item)=>rewrite(item,{path:d.path,rule:item}))]))}}));
     for(const event of output) expandedDocs.push({path:event.path,dom:{format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]}});
     return {documents:expandedDocs,validation,argumentsToCheck,order:[...slots.filter((/** @type {any} */ n)=>current.has(n)||ordinary.has(n)),...queue.filter((/** @type {any} */ x)=>!x.name).map(effective)],templates:[...templates.values()],instances:queue};

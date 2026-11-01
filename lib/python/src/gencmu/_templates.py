@@ -605,6 +605,17 @@ def expand_templates(documents, unicode):
                 for argument in node['args']:
                     inspect_argument(argument, event)
 
+    rewritten_definitions = {}
+
+    def rewrite_definition(event, rule=None):
+        rewritten = {**event, 'rule': rewrite(event['rule'] if rule is None else rule, event)}
+        rewritten_definitions[id(event)] = rewritten
+        return rewritten
+
+    validation = [e if 'params' in e['rule'] else rewrite_definition(e)
+                  for e in events if 'params' in e['rule'] or not any(k in e['rule'] for k in ('args', 'instance'))]
+    validation.extend(rewrite_definition(e, {**e['rule'], 'name': effective(i)}) for i in queue for e in i['definitions'])
+    validation.extend(rewrite_definition(e) for e in validation_definitions)
     for event in source_events:
         inspect_arguments(event)
     for instance in queue:
@@ -612,10 +623,6 @@ def expand_templates(documents, unicode):
             inspect_arguments(event)
     for event in validation_definitions:
         inspect_arguments(event)
-    validation = [e if 'params' in e['rule'] else {**e, 'rule': rewrite(e['rule'], e)}
-                  for e in events if 'params' in e['rule'] or not any(k in e['rule'] for k in ('args', 'instance'))]
-    validation.extend({**e, 'rule': rewrite({**e['rule'], 'name': effective(i)}, e)} for i in queue for e in i['definitions'])
-    validation.extend({**e, 'rule': rewrite(e['rule'], e)} for e in validation_definitions)
     validation.extend(argument_definitions)
     for event in validation:
         if 'params' in event['rule']:
@@ -623,8 +630,8 @@ def expand_templates(documents, unicode):
         problem = dom_problem(empty_dom(documents[0][1]['format'], [event['rule']]), unicode, True, True)
         if problem:
             fail(event, event['rule'], problem)
-    output = [{**e, 'rule': rewrite(e['rule'], e)} for items in ordinary.values() for e in items]
-    output.extend({**e, 'rule': rewrite({**e['rule'], 'name': effective(i)}, e)} for i in queue for e in i['definitions'])
+    output = [rewritten_definitions[id(e)] for items in ordinary.values() for e in items]
+    output.extend(rewritten_definitions[id(e)] for i in queue for e in i['definitions'])
     expanded_docs = [(path, {**dom, 'rules': [], **{k: [rewrite(item, dict(path=path, rule=item)) for item in dom[k]] for k in ('constants', 'directives', 'classifiers', 'implications')}}) for path, dom in documents]
     expanded_docs.extend((e['path'], empty_dom(documents[0][1]['format'], [e['rule']])) for e in output)
     order = [n for n in slots if n in current or n in ordinary] + [effective(i) for i in queue if not i['name']]

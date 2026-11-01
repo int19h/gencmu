@@ -401,14 +401,12 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
     let mut ordinary_events: Vec<_> = ordinary.values().flatten().collect();
     ordinary_events.sort_by_key(|e| e.index);
     for e in ordinary_events {
-        output.push(Event { rule: x.rewrite(&e.rule, e, "term")?, ..e.clone() })
+        output.push((e.path.clone(), e.index, text(get(&e.rule, "name")).to_string()));
     }
     for id in &x.queue {
         let i = &x.instances[*id];
         for e in &i.definitions {
-            let mut r = e.rule.clone();
-            set(&mut r, "name", string(i.effective()));
-            output.push(Event { rule: x.rewrite(&r, e, "term")?, ..e.clone() })
+            output.push((e.path.clone(), e.index, i.effective().to_string()));
         }
     }
     let mut expanded = Vec::new();
@@ -431,10 +429,9 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
         let e = Event { path: path.clone(), rule: raw.clone(), index: 0, origin: None, instance: String::new() };
         expanded.push((path.clone(), Arc::new(x.decode(&raw, &e)?)));
     }
-    for e in output {
+    for (path, index, name) in output {
         // Output events are a subset of the checked ordinary and instance definitions.
-        let key = (e.index, text(get(&e.rule, "name")).to_string());
-        expanded.push((e.path, decoded.get(&key).expect("a checked output definition").clone()));
+        expanded.push((path, decoded.get(&(index, name)).expect("a checked output definition").clone()));
     }
     let mut order: Vec<_> = slots.into_iter().filter(|n| current.contains_key(n) || ordinary.contains_key(n)).collect();
     order.extend(

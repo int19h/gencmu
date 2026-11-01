@@ -452,22 +452,10 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 	}
 	output := []*templateEvent{}
 	for _, name := range slots {
-		for _, e := range ordinary[name] {
-			copy := *e
-			copy.definition = e
-			copy.rule = templateObj(x.rewrite(e.rule, e, "term"))
-			output = append(output, &copy)
-		}
+		output = append(output, ordinary[name]...)
 	}
 	for _, i := range x.queue {
-		for _, e := range i.definitions {
-			copy := *e
-			copy.definition = e
-			body := templateCopy(e.rule)
-			body["name"] = i.effective()
-			copy.rule = templateObj(x.rewrite(body, e, "term"))
-			output = append(output, &copy)
-		}
+		output = append(output, i.definitions...)
 	}
 	expandedDocs := []docDOM{}
 	for index, d := range docs {
@@ -488,7 +476,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		expandedDocs = append(expandedDocs, docDOM{d.path, written})
 	}
 	for _, e := range output {
-		dom := decoded[e.definition]
+		dom := decoded[e]
 		if dom == nil {
 			panic("an expanded output definition was not validated")
 		}
