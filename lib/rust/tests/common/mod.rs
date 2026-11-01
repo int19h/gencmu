@@ -4,6 +4,8 @@
 
 #![allow(dead_code)]
 
+pub mod case;
+
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -426,6 +428,9 @@ fn parse_scalar(chars: &[char], at: &mut usize) -> Result<Value, String> {
 /// anything else when it is equal. The error names the path, and is the
 /// first difference in the order of the pattern.
 pub fn matches(pattern: &Value, actual: &Value, path: &str) -> Result<(), String> {
+    if path == "result" {
+        case::result_pattern(pattern)?;
+    }
     // A check still to make: a pattern against a value, or a member that
     // is missing. They are pushed last first, so that they pop in order.
     enum Check<'a> {
@@ -441,12 +446,6 @@ pub fn matches(pattern: &Value, actual: &Value, path: &str) -> Result<(), String
         match (pattern, actual) {
             (Value::Object(members), Value::Object(_)) => {
                 for (name, expected) in members.iter().rev() {
-                    // An error's message is the description for people, and
-                    // the shared tests do not compare its wording
-                    // (docs/output.md).
-                    if name == "message" && path.ends_with(".error") {
-                        continue;
-                    }
                     let here = format!("{path}.{name}");
                     checks.push(match actual.get(name) {
                         Some(found) => Check::Match(expected, found, here),
@@ -540,11 +539,16 @@ pub fn case_documents(case: &Value) -> (BTreeMap<String, String>, String) {
 /// The names of a list of features, `features` or `withoutFeatures`, in an
 /// engine case's options or a corpus case.
 pub fn feature_names(list: Option<&Value>) -> Vec<String> {
-    list.map(Value::array).unwrap_or(&[]).iter().map(|v| v.str().unwrap().to_string()).collect()
+    let Some(list) = list else { return Vec::new() };
+    let Value::Array(items) = list else { panic!("a feature list must be an array") };
+    items.iter().map(|v| v.str().expect("a feature name").to_string()).collect()
 }
 
 pub fn case_options(case: &Value) -> gencmu::ParseOptions {
     let options = case.get("options");
+    if let Some(options) = options {
+        self::case::options(options).expect("valid case options");
+    }
     let get = |key: &str| options.and_then(|options| options.get(key));
     gencmu::ParseOptions {
         features: feature_names(get("features")),
@@ -578,6 +582,14 @@ pub fn unexpressible_tokens(case: &Value) -> Option<&'static str> {
     }
     let mut offset = 0;
     for (index, token) in tokens.iter().enumerate() {
+        if !matches!(token.get("text"), Some(Value::String(_))) {
+            return Some("unavailable caller fields: Rust InputToken requires a text string");
+        }
+        if token.object().iter().any(|(name, _)| {
+            !matches!(name.as_str(), "text" | "tags" | "value" | "image" | "source" | "span" | "before" | "after")
+        }) {
+            return Some("unavailable caller fields: Rust InputToken has no such member");
+        }
         let length = token.get("text").and_then(Value::str).unwrap_or("").chars().count();
         for (field, range) in [("source", [offset, offset + length]), ("span", [index, index + 1])] {
             if let Some(supplied) = token.get(field) {
@@ -694,6 +706,7 @@ pub fn within<T: Send + 'static>(limit: std::time::Duration, work: impl FnOnce()
 /// A case with `parses` loads its pipeline once and parses its input with
 /// each item's options in order, each result held to the item's `expect`.
 pub fn run_engine_case(case: &Value) -> Result<(), String> {
+    self::case::engine(case)?;
     let (result, (accepted, rejected)) = gencmu::tools::with_family_conformance(|| run_engine_case_inner(case));
     if accepted + rejected > 0 {
         eprintln!("family alignment: {accepted} accepted, {rejected} rejected comparisons");
@@ -732,6 +745,7 @@ const AFTER_LOAD: [&str; 5] = ["result", "brackets", "warnings", "features", "en
 /// the whole outcome, so a case that expects anything that only a loaded
 /// pipeline gives fails (tests/README.md).
 pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), String> {
+    case::expect(expect)?;
     if let Some(expected) = expect.get("bundledPipelines") {
         let names = Value::Array(gencmu::bundled_pipelines().into_iter().map(Value::String).collect());
         same(expected, &names, "bundledPipelines")?;
@@ -876,6 +890,7 @@ pub fn witness_problem(result: &gencmu::ParseResult, checks: &[gencmu::tools::El
 /// invariants come first, and a result that breaks them is an error and is
 /// compared no further.
 pub fn check_json(expect: &Value, actual: &Value) -> Result<String, String> {
+    case::expect(expect)?;
     let mut problems = String::new();
     let broken = result_problems(actual);
     if !broken.is_empty() {
@@ -899,7 +914,8 @@ pub fn check_json(expect: &Value, actual: &Value) -> Result<String, String> {
 /// Parses a case's input with the options of `run`, the case itself or one
 /// item of its `parses`, and holds the result to `expect`.
 fn check_parse(pipeline: &gencmu::Pipeline, case: &Value, run: &Value, expect: &Value) -> Result<(), String> {
-    if let Some(expected) = expect.get("bundledPipelines") {
+    if let Some(expected) = expect.get("bundledPipelines").filter(|_| CHECKS.with(std::cell::Cell::get) != Checks::Hook)
+    {
         let names = Value::Array(gencmu::bundled_pipelines().into_iter().map(Value::String).collect());
         same(expected, &names, "bundledPipelines")?;
     }
@@ -925,6 +941,11 @@ fn check_parse(pipeline: &gencmu::Pipeline, case: &Value, run: &Value, expect: &
         // and there is nothing more to compare.
         Err(_) if CHECKS.with(std::cell::Cell::get) == Checks::Hook => return Ok(()),
         Err(error) => {
+            for member in ["result", "brackets", "warnings", "enabledFeatures", "message"] {
+                if expect.get(member).is_some() {
+                    return Err(format!("expect.{member} does not apply to a caller usage error"));
+                }
+            }
             if error.kind != gencmu::ErrorKind::Usage || expect.get("error").and_then(Value::str) != Some("usage") {
                 let _ = writeln!(problems, "the parse failed: {error}");
             }
@@ -946,8 +967,16 @@ fn check_parse(pipeline: &gencmu::Pipeline, case: &Value, run: &Value, expect: &
     if CHECKS.with(std::cell::Cell::get) == Checks::Hook {
         return Ok(());
     }
+    for member in ["where", "diagnostic"] {
+        if expect.get(member).is_some() {
+            return Err(format!("expect.{member} applies only to a load error"));
+        }
+    }
     let actual = parse_json(&json).map_err(|error| format!("the result is not JSON ({error}): {json}"))?;
     if let Some(message) = expect.get("message").and_then(Value::str) {
+        if result.error.as_ref().map_or(true, |error| error.kind != gencmu::ParseErrorKind::Grammar) {
+            return Err("expect.message applies only to a grammar error".into());
+        }
         if actual.get("error").and_then(|error| error.get("message")).and_then(Value::str) != Some(message) {
             let _ = writeln!(problems, "expected runtime error reason {message:?}");
         }

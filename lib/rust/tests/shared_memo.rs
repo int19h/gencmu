@@ -22,10 +22,6 @@ fn pipeline(run: &Value) -> gencmu::Pipeline {
     }
 }
 
-fn names(list: Option<&Value>) -> Vec<String> {
-    list.map(Value::array).unwrap_or(&[]).iter().map(|v| v.str().expect("a name").to_string()).collect()
-}
-
 /// One parse of a run: a text or tokens, under one option set.
 struct Parse {
     text: Option<String>,
@@ -34,6 +30,7 @@ struct Parse {
 }
 
 fn parses(run: &Value) -> Vec<Parse> {
+    common::case::memo(run).expect("a valid shared memo run");
     let mut out = Vec::new();
     let inputs: Vec<(Option<String>, Option<Vec<gencmu::InputToken>>)> = match run.get("texts") {
         Some(texts) => texts.array().iter().map(|text| (Some(text.str().expect("a text").to_string()), None)).collect(),
@@ -42,23 +39,25 @@ fn parses(run: &Value) -> Vec<Parse> {
             .map(Value::array)
             .expect("inputs")
             .iter()
-            .map(|tokens| {
+            .enumerate()
+            .filter_map(|(index, tokens)| {
                 let case = Value::Object(vec![("tokens".to_string(), tokens.clone())]);
-                (None, case_tokens(&case))
+                let reason = common::unexpressible_tokens(&case).or_else(|| {
+                    common::has_caller_attachments(&case)
+                        .then_some("unavailable caller fields: Rust InputToken has no attachment fields")
+                });
+                if let Some(reason) = reason {
+                    eprintln!("skip shared memo input {index}: {reason}");
+                    None
+                } else {
+                    Some((None, case_tokens(&case)))
+                }
             })
             .collect(),
     };
     for (text, tokens) in inputs {
         for set in run.get("options").map(Value::array).expect("options") {
-            let options = gencmu::ParseOptions {
-                features: names(set.get("features")),
-                without_features: names(set.get("withoutFeatures")),
-                until: set.get("until").and_then(Value::str).map(str::to_string),
-                elision_only: match set.get("elisionOnly") {
-                    Some(Value::Bool(value)) => Some(*value),
-                    _ => None,
-                },
-            };
+            let options = common::case_options(&Value::Object(vec![("options".into(), set.clone())]));
             out.push(Parse { text: text.clone(), tokens: tokens.clone(), options });
         }
     }
@@ -81,8 +80,13 @@ fn parse(pipeline: &gencmu::Pipeline, parse: &Parse) -> String {
 fn shared_memo_runs() {
     let path = repository().join("tests/shared-memo.json");
     let file = parse_json(&std::fs::read_to_string(path).expect("the runs")).expect("the runs are JSON");
+    common::case::memo_file(&file).expect("a valid shared memo file");
     for run in file.get("runs").map(Value::array).expect("runs") {
         let parses = parses(run);
+        if parses.is_empty() {
+            eprintln!("skip shared memo run: no input is expressible by Rust InputToken");
+            continue;
+        }
         // Each reference parse has a pipeline of its own.
         let reference: Vec<String> = parses.iter().map(|p| parse(&pipeline(run), p)).collect();
         let shared = pipeline(run);
@@ -111,4 +115,13 @@ fn shared_memo_runs() {
             }
         });
     }
+}
+
+#[test]
+fn unavailable_sources_are_not_replaced() {
+    let run = parse_json(
+        r#"{"grammar":"%rule text A","inputs":[[{"text":"a","tags":["A"],"source":[4,5]}]],"options":[{}]}"#,
+    )
+    .unwrap();
+    assert!(parses(&run).is_empty(), "an unavailable source became a generated range");
 }

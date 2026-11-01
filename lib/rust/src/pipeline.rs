@@ -280,7 +280,7 @@ impl Pipeline {
     }
 
     /// The names of the pipeline's stages, in order.
-    pub fn stage_names(&self) -> Vec<&str> {
+    fn stage_names(&self) -> Vec<&str> {
         self.stages.iter().map(|stage| stage.name.as_str()).collect()
     }
 
