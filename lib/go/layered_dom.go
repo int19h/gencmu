@@ -1,29 +1,22 @@
 package gencmu
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"unicode/utf8"
 )
 
 // Decode a layered pattern only after its complete shape and depth pass.
-func decodeLayeredPattern(raw json.RawMessage, depth int) (*domPattern, error) {
-	value, err := decodeJSON(raw)
-	if err != nil {
-		return nil, err
-	}
-	root := templateObj(value)
-	problem := layeredPatternProblem(root, layeredPatternInspection{depth: depth, name: func(name string) bool {
+func (dc *domDecoder) decodeLayeredPattern(raw any, depth int) (*domPattern, error) {
+	var err error
+	root := templateObj(raw)
+	problem := layeredPatternProblem(root, layeredPatternInspection{depth: depth, deferDepth: true, name: func(name string) bool {
 		r, size := utf8.DecodeRuneInString(name)
 		// The public schema checks eligibility against the configured core.
 		return layeredRuleName(name) || strings.Contains(name, "(") && strings.HasSuffix(name, ")") ||
 			utf8.ValidString(name) && size > 0 && size == len(name) && r != '#' && r != '@' && r != '_' && !(r >= 'A' && r <= 'Z') && !(r >= '0' && r <= '9')
 	}})
 	if problem != "" {
-		if problem == "nested too deeply" {
-			return nil, errTooDeep
-		}
 		return nil, fmt.Errorf("%s", problem)
 	}
 	type task struct {
@@ -92,12 +85,12 @@ func decodeLayeredPattern(raw json.RawMessage, depth int) (*domPattern, error) {
 		case n["call"] != nil:
 			p.Kind, p.Name, p.At = "call", templateText(n["call"]), templateAt(n)
 			// Decorations belong to the pattern node, not to the call itself.
-			raw := templateJSON(templateObject{"call": n["call"], "args": n["args"], "at": n["at"]})
-			call, problem := decodeObj(raw)
+			raw := templateObject{"call": n["call"], "args": n["args"], "at": n["at"]}
+			call, problem := domObjectOf(raw)
 			if problem != nil {
 				return nil, problem
 			}
-			p.Call, err = decodeSourceCall(call, d)
+			p.Call, err = dc.decodeSourceCall(call, d)
 		case n["name"] != nil:
 			p.Kind, p.Name, p.At = "name", templateText(n["name"]), templateAt(n)
 		case n["terminal"] != nil:
@@ -106,10 +99,10 @@ func decodeLayeredPattern(raw json.RawMessage, depth int) (*domPattern, error) {
 			p.Kind, p.Name, p.At = "constant", templateText(n["constant"]), templateAt(n)
 		case n["literal"] != nil:
 			p.Kind, p.At = "literal", templateAt(n)
-			p.Value, err = decodeTermAt(templateJSON(n["literal"]), d)
+			p.Value, err = dc.decodeTermAt(n["literal"], d)
 		case n["range"] != nil:
 			p.Kind, p.At = "range", templateAt(n)
-			p.Ends, err = decodeStringRange(templateJSON(n["range"]), d)
+			p.Ends, err = dc.decodeStringRange(n["range"], d)
 		case n["wildcard"] != nil:
 			p.Kind, p.At = "wildcard", templateAt(n)
 		case n["any"] != nil:
@@ -117,9 +110,9 @@ func decodeLayeredPattern(raw json.RawMessage, depth int) (*domPattern, error) {
 		case n["test"] != nil:
 			p.Kind, p.Op = "test", templateText(n["test"])
 			if p.Op == "tags" {
-				p.Requirements, err = decodeRequirements(templateJSON(n["requirements"]), d+1)
+				p.Requirements, err = dc.decodeRequirements(n["requirements"], d+1)
 			} else {
-				p.Value, err = decodeTermAt(templateJSON(n["value"]), d+1)
+				p.Value, err = dc.decodeTermAt(n["value"], d+1)
 			}
 			p.Items = []*domPattern{{}}
 			pending = append(pending, task{templateObj(n["expr"]), p.Items[0], false, d + 1})

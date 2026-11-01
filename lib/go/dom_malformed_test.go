@@ -23,6 +23,9 @@ func TestDOMMalformed(t *testing.T) {
 	var cases []struct {
 		Description string          `json:"description"`
 		Directive   json.RawMessage `json:"directive"`
+		DOM         json.RawMessage `json:"dom"`
+		Message     string          `json:"message"`
+		Code        string          `json:"code"`
 		Rule        json.RawMessage `json:"rule"`
 		Malformed   bool            `json:"malformed"`
 		Unicode     *string         `json:"unicode"`
@@ -41,6 +44,9 @@ func TestDOMMalformed(t *testing.T) {
 			rules, directives = "["+string(c.Rule)+"]", "[]"
 		}
 		dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":` + rules + `,"directives":` + directives + `,"constants":[],"classifiers":[],"implications":[]}`
+		if c.DOM != nil {
+			dom = string(c.DOM)
+		}
 		table := bundled.uni
 		if c.Unicode != nil {
 			table, err = parseUnicodeTable(*c.Unicode)
@@ -49,6 +55,12 @@ func TestDOMMalformed(t *testing.T) {
 			}
 		}
 		_, err := decodeDOM(json.RawMessage(dom), table)
+		if c.Message != "" && (err == nil || !strings.Contains(err.Error(), c.Message)) {
+			t.Errorf("%s: expected message %q, got %v", c.Description, c.Message, err)
+		}
+		if c.Code != "" && (err == nil || !strings.HasPrefix(err.Error(), c.Code+":")) {
+			t.Errorf("%s: expected code %q, got %v", c.Description, c.Code, err)
+		}
 		if (err != nil) != c.Malformed {
 			t.Errorf("%s\n%s: refused %v", c.Description, c.Directive, err)
 		}

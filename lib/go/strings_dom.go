@@ -97,20 +97,20 @@ func writeRequirements(w *jsonWriter, requirements []tagRequirement) {
 	w.raw("]")
 }
 
-func decodeRequirements(raw json.RawMessage, depth int) ([]tagRequirement, error) {
-	return decodeList(raw, func(raw json.RawMessage) (tagRequirement, error) {
-		o, err := decodeObj(raw)
+func (dc *domDecoder) decodeRequirements(raw any, depth int) ([]tagRequirement, error) {
+	return domList(raw, func(raw any) (tagRequirement, error) {
+		o, err := domObjectOf(raw)
 		var r tagRequirement
-		if err != nil || len(o) != 2 || unmarshal(o["negated"], &r.Negated) != nil {
+		if err != nil || len(o) != 2 || domScalar(o["negated"], &r.Negated) != nil {
 			return r, fmt.Errorf("a malformed tag requirement")
 		}
-		r.Value, err = decodeTermAt(o["value"], depth)
+		r.Value, err = dc.decodeTermAt(o["value"], depth)
 		return r, err
 	})
 }
 
-func decodeStringRange(raw json.RawMessage, depth int) ([2]*domTerm, error) {
-	ends, err := decodeList(raw, func(raw json.RawMessage) (*domTerm, error) { return decodeTermAt(raw, depth) })
+func (dc *domDecoder) decodeStringRange(raw any, depth int) ([2]*domTerm, error) {
+	ends, err := domList(raw, func(raw any) (*domTerm, error) { return dc.decodeTermAt(raw, depth) })
 	if err != nil {
 		return [2]*domTerm{}, err
 	}
@@ -120,17 +120,17 @@ func decodeStringRange(raw json.RawMessage, depth int) ([2]*domTerm, error) {
 	return [2]*domTerm{ends[0], ends[1]}, nil
 }
 
-func decodeRecipes(o jobj) (value, image *domTerm, err error) {
+func (dc *domDecoder) decodeRecipes(o domObject) (value, image *domTerm, err error) {
 	for _, c := range []struct {
 		name string
 		into **domTerm
 	}{{"value", &value}, {"image", &image}} {
 		if raw, ok := o[c.name]; ok {
-			obj, e := decodeObj(raw)
+			obj, e := domObjectOf(raw)
 			if e != nil || len(obj) != 1 || obj[tmConcat] == nil {
 				return nil, nil, fmt.Errorf("a malformed recipe")
 			}
-			parts, e := decodeList(obj[tmConcat], decodeTerm)
+			parts, e := domList(obj[tmConcat], dc.decodeTerm)
 			if e != nil || len(parts) == 0 {
 				return nil, nil, fmt.Errorf("a recipe requires atoms")
 			}

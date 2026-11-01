@@ -154,29 +154,33 @@ fn recipe_atom(value: &Json) -> bool {
     }
 }
 
-pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -> Option<&'static str> {
+pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -> Option<String> {
     if crate::parameters::nodes(dom).any(|node| node.get(crate::parameters::SOURCE).is_some()) {
-        return Some("a private source annotation in a supplied DOM");
+        return Some("a private source annotation in a supplied DOM".into());
     }
-    if dom.get("format").and_then(Json::as_int) != Some(DOM_FORMAT) {
-        return Some("not a DOM of this format");
+    if !exact(dom, &["format", "rules", "directives", "constants", "classifiers", "implications"], &[])
+        || dom.get("format").and_then(Json::as_int) != Some(DOM_FORMAT)
+    {
+        return Some("not a DOM of this format".into());
     }
     let rule = |name: &str| rule_name(name, unicode, expanded);
     let mut pending = Vec::new();
     let mut positions = FxSet::default();
     for name in ["rules", "directives", "constants", "classifiers", "implications"] {
-        let Some(items) = dom.get(name).and_then(Json::as_array) else { return Some("missing declaration array") };
+        let Some(items) = dom.get(name).and_then(Json::as_array) else {
+            return Some("missing declaration array".into());
+        };
         for item in items {
             if !is_position(item.get("at")) {
-                return Some("a malformed declaration position");
+                return Some("a malformed declaration position".into());
             }
             let at = position(item).ok()?;
             if !positions.insert(at) {
-                return Some("two items at one position");
+                return Some("two items at one position".into());
             }
             for node in crate::parameters::nodes(item) {
                 if name != "rules" && node.get("param").is_some() {
-                    return Some("an undeclared or malformed parameter");
+                    return Some("an undeclared or malformed parameter".into());
                 }
                 if name != "directives"
                     && node.get("method").and_then(Json::as_str) == Some("split")
@@ -188,16 +192,16 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                         .and_then(Json::as_str)
                         == Some("")
                 {
-                    return Some("split has an empty delimiter");
+                    return Some("split has an empty delimiter".into());
                 }
             }
             match name {
                 "directives" => {
                     let Some(args) = item.get("args").and_then(Json::as_array) else {
-                        return Some("a malformed directive");
+                        return Some("a malformed directive".into());
                     };
                     let args: Option<Vec<_>> = args.iter().map(Json::as_str).collect();
-                    let Some(args) = args else { return Some("a malformed directive") };
+                    let Some(args) = args else { return Some("a malformed directive".into()) };
                     let valid = match item.get("name").and_then(Json::as_str) {
                         Some("stage" | "extend-stage" | "redefine-stage") => {
                             matches!(&args[..], [name] if name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name))
@@ -211,14 +215,14 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                         _ => false,
                     };
                     if !valid {
-                        return Some("a malformed directive");
+                        return Some("a malformed directive".into());
                     }
                     if let Some(value) = item.get("conditions") {
                         let Some(conditions) = value.as_array().filter(|items| !items.is_empty()) else {
-                            return Some("malformed feature conditions");
+                            return Some("malformed feature conditions".into());
                         };
                         if item.get("name").and_then(Json::as_str) != Some("features") {
-                            return Some("conditions on another directive");
+                            return Some("conditions on another directive".into());
                         }
                         pending.extend(conditions.iter().map(|value| (Part::Condition, value, 0)));
                     }
@@ -226,17 +230,17 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                 "rules" => {
                     if !crate::parameters::unresolved(item) {
                         if let Some(problem) = boundary_problem(item) {
-                            return Some(problem);
+                            return Some(problem.into());
                         }
                     }
                     if let Some(problem) = source::head(item, &mut pending) {
-                        return Some(problem);
+                        return Some(problem.into());
                     }
                     if item.get("instance").is_some() {
                         if !item.get("name").and_then(Json::as_str).is_some_and(rule)
                             || !matches!(item.get("op").and_then(Json::as_str), Some("define" | "redefine"))
                         {
-                            return Some("a malformed instance binding");
+                            return Some("a malformed instance binding".into());
                         }
                         continue;
                     }
@@ -247,7 +251,7 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                     ) || !item.get("name").and_then(Json::as_str).is_some_and(rule)
                         || !matches!(item.get("op").and_then(Json::as_str), Some("define" | "extend" | "redefine"))
                     {
-                        return Some("a malformed rule");
+                        return Some("a malformed rule".into());
                     }
                     let flags = item.get("flags").and_then(Json::as_array);
                     if !flags.is_some_and(|flags| {
@@ -256,13 +260,13 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                                 && matches!(flags[0].as_str(), Some("leftmost-longest" | "fewest"))
                                 && item.get("op").and_then(Json::as_str) != Some("extend")
                     }) {
-                        return Some("a malformed rule flag");
+                        return Some("a malformed rule flag".into());
                     }
                     if !matches!(item.get("erased"), None | Some(Json::Bool(true)))
                         || item.get("erased").is_some()
                             && ["emit", "value", "image"].iter().any(|name| item.get(name).is_some())
                     {
-                        return Some("an erased rule with an emission or recipe");
+                        return Some("an erased rule with an emission or recipe".into());
                     }
                     for key in ["tags", "value", "image"] {
                         if let Some(value) = item.get(key) {
@@ -270,22 +274,22 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                         }
                     }
                     let Some(conditions) = item.get("conditions").and_then(Json::as_array) else {
-                        return Some("a malformed condition list");
+                        return Some("a malformed condition list".into());
                     };
                     pending.extend(conditions.iter().map(|value| (Part::Condition, value, 0)));
                     let Some(alts) =
                         item.get("alternatives").and_then(Json::as_array).filter(|items| !items.is_empty())
                     else {
-                        return Some("an empty alternative list");
+                        return Some("an empty alternative list".into());
                     };
                     for alt in alts {
                         if !exact(alt, &["guards", "expr"], &["tags", "value", "image"])
                             || !guards(alt.get("guards"), false)
                         {
-                            return Some("a malformed alternative");
+                            return Some("a malformed alternative".into());
                         }
                         if item.get("erased").is_some() && ["value", "image"].iter().any(|key| alt.get(key).is_some()) {
-                            return Some("an erased rule has a recipe");
+                            return Some("an erased rule has a recipe".into());
                         }
                         pending.push((Part::Expr { whole: true, sealed: false }, alt.get("expr").unwrap(), 0));
                         for key in ["tags", "value", "image"] {
@@ -296,11 +300,11 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                     }
                     if let Some(emit) = item.get("emit") {
                         if !exact(emit, &["items"], &[]) {
-                            return Some("a malformed emission");
+                            return Some("a malformed emission".into());
                         }
                         let Some(items) = emit.get("items").and_then(Json::as_array).filter(|items| !items.is_empty())
                         else {
-                            return Some("an empty emission list");
+                            return Some("an empty emission list".into());
                         };
                         let mut names = FxSet::default();
                         for output in items {
@@ -313,27 +317,27 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                                     &["tags", "value", "image", "before", "after"],
                                 )
                             {
-                                return Some("a malformed emission item");
+                                return Some("a malformed emission item".into());
                             }
                             if let Some(name) = capture.filter(|name| !name.is_empty()) {
                                 if !is_capture_name(name) || !names.insert(name) {
-                                    return Some("a malformed carrier");
+                                    return Some("a malformed carrier".into());
                                 }
                             }
                             for side in ["before", "after"] {
                                 if let Some(list) = output.get(side) {
                                     let Some(list) = list.as_array().filter(|items| !items.is_empty()) else {
-                                        return Some("a malformed attachment list");
+                                        return Some("a malformed attachment list".into());
                                     };
                                     if capture.is_none() || capture == Some("") {
-                                        return Some("attachments require a named carrier");
+                                        return Some("attachments require a named carrier".into());
                                     }
                                     for name in list {
                                         let Some(name) = name.as_str().filter(|name| is_capture_name(name)) else {
-                                            return Some("a malformed attachment");
+                                            return Some("a malformed attachment".into());
                                         };
                                         if !names.insert(name) {
-                                            return Some("a repeated emission capture");
+                                            return Some("a repeated emission capture".into());
                                         }
                                     }
                                 }
@@ -351,7 +355,7 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                         || !item.get("name").and_then(Json::as_str).is_some_and(is_constant_name)
                         || !matches!(item.get("op").and_then(Json::as_str), Some("define" | "redefine"))
                     {
-                        return Some("a malformed constant");
+                        return Some("a malformed constant".into());
                     }
                     pending.push((Part::Term, item.get("value").unwrap(), 0));
                 }
@@ -359,10 +363,10 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                     if !exact(item, &["name", "entries", "at"], &[])
                         || !item.get("name").and_then(Json::as_str).is_some_and(is_classifier_name)
                     {
-                        return Some("a malformed classifier");
+                        return Some("a malformed classifier".into());
                     }
                     let Some(entries) = item.get("entries").and_then(Json::as_array) else {
-                        return Some("a malformed entry list");
+                        return Some("a malformed entry list".into());
                     };
                     for entry in entries {
                         let class = entry.get("class").and_then(Json::as_str);
@@ -374,18 +378,18 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                                 tag(name) && !engine_tag(name) && name.ends_with(|c: char| c.is_ascii_uppercase())
                             })
                         {
-                            return Some("a malformed classifier entry");
+                            return Some("a malformed classifier entry".into());
                         }
                         let Some(keys) = entry.get("keys").and_then(Json::as_array).filter(|keys| !keys.is_empty())
                         else {
-                            return Some("an empty classifier key list");
+                            return Some("an empty classifier key list".into());
                         };
                         pending.extend(keys.iter().map(|key| (Part::String, key, 0)));
                     }
                 }
                 "implications" => {
                     if !exact(item, &["if", "then", "at"], &[]) {
-                        return Some("a malformed implication");
+                        return Some("a malformed implication".into());
                     }
                     pending.push((Part::Term, item.get("if").unwrap(), 0));
                     pending.push((Part::Term, item.get("then").unwrap(), 0));
@@ -415,6 +419,9 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
         } else {
             &*rule
         };
+        if let Some((problem, _)) = crate::boundary::definition_problem(checked) {
+            return Some(problem);
+        }
         if let Some(problem) = rule_type_problem(checked) {
             return Some(problem);
         }
@@ -483,36 +490,36 @@ pub(crate) fn names_problem(dom: &Json) -> Option<&'static str> {
     None
 }
 
-fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expanded: bool) -> Option<&'static str> {
+fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expanded: bool) -> Option<String> {
     let rule = |name: &str| rule_name(name, unicode, expanded);
     while let Some((kind, value, depth)) = pending.pop() {
         if depth > DOM_MAX_DEPTH {
-            return Some("nested too deeply");
+            return Some("nested too deeply".into());
         }
         let next = depth + 1;
         if value.get("param").is_some() && !matches!(kind, Part::Pattern | Part::PatternNode | Part::Argument) {
             if !matches!(kind, Part::Expr { .. } | Part::Term | Part::RecipeAtom | Part::String | Part::Target) {
-                return Some("a parameter in the wrong source category");
+                return Some("a parameter in the wrong source category".into());
             }
             if let Some(problem) = source::parameter_problem(value) {
-                return Some(problem);
+                return Some(problem.into());
             }
             continue;
         }
         if value.get("call").is_some() && !matches!(kind, Part::Pattern | Part::PatternNode | Part::Argument) {
             if !matches!(kind, Part::Expr { .. } | Part::Term | Part::Target | Part::Call) {
-                return Some("a call in the wrong source category");
+                return Some("a call in the wrong source category".into());
             }
             if let Some(problem) = source::call(value, depth, &mut pending, &rule, false) {
-                return Some(problem);
+                return Some(problem.into());
             }
             continue;
         }
         match kind {
-            Part::Call => return Some("a malformed call"),
+            Part::Call => return Some("a malformed call".into()),
             Part::Argument => {
                 if let Some(problem) = source::argument(value, depth, &mut pending, &rule) {
-                    return Some(problem);
+                    return Some(problem.into());
                 }
             }
             Part::Target => {
@@ -520,18 +527,18 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     || exact(value, &["terminal"], &[])
                         && value.get("terminal").and_then(Json::as_str).is_some_and(|s| tag(s) && !engine_tag(s)))
                 {
-                    return Some("a malformed query target");
+                    return Some("a malformed query target".into());
                 }
             }
             Part::Requirements => {
-                let Some(items) = value.as_array() else { return Some("a malformed requirement list") };
+                let Some(items) = value.as_array() else { return Some("a malformed requirement list".into()) };
                 for item in items {
-                    let Some(term) = item.get("value") else { return Some("a missing requirement value") };
+                    let Some(term) = item.get("value") else { return Some("a missing requirement value".into()) };
                     if !exact(item, &["negated", "value"], &[])
                         || !matches!(item.get("negated"), Some(Json::Bool(_)))
                         || !["tag", "const", "param"].iter().any(|key| term.get(key).is_some())
                     {
-                        return Some("a malformed requirement");
+                        return Some("a malformed requirement".into());
                     }
                     // The requirement record adds no depth to its value.
                     pending.push((Part::Term, term, depth));
@@ -541,15 +548,17 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                 let expression = |value, sealed| (Part::Expr { whole: false, sealed }, value, next);
                 if base(value, unicode, expanded) {
                     if value.get("ref").and_then(Json::as_str).is_some_and(|name| !rule(name) && !tag(name)) {
-                        return Some("a malformed reference");
+                        return Some("a malformed reference".into());
                     }
                     if let Some(term) = value.get("literal") {
                         pending.push((Part::String, term, depth));
                     }
                     if let Some(range) = value.get("range") {
-                        let Some([left, right]) = range.as_array() else { return Some("a malformed scalar range") };
+                        let Some([left, right]) = range.as_array() else {
+                            return Some("a malformed scalar range".into());
+                        };
                         if !literal_range(left, right) {
-                            return Some("a malformed scalar range");
+                            return Some("a malformed scalar range".into());
                         }
                         pending.push((Part::String, left, depth));
                         pending.push((Part::String, right, depth));
@@ -561,17 +570,17 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                         || !inner.as_str().is_some_and(is_capture_name)
                         || !value.get("expr").is_some_and(|value| tested_base(value, unicode, expanded))
                     {
-                        return Some("a malformed capture");
+                        return Some("a malformed capture".into());
                     }
                     pending.push(expression(value.get("expr").unwrap(), sealed));
                 } else if let Some(inner) = value.get("optional") {
                     if !exact(value, &["optional"], &["elidable"])
                         || !matches!(value.get("elidable"), None | Some(Json::Bool(true)))
                     {
-                        return Some("a malformed optional");
+                        return Some("a malformed optional".into());
                     }
                     if value.get("elidable").is_some() && !source::elidable(inner) {
-                        return Some("a malformed elidable optional");
+                        return Some("a malformed elidable optional".into());
                     }
                     pending.push(expression(inner, sealed || value.get("elidable").is_some()));
                 } else if let Some(inner) = value.get("repeat") {
@@ -580,7 +589,7 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                             .get("chain")
                             .is_some_and(|chain| !whole || !matches!(chain.as_str(), Some("left" | "right")))
                     {
-                        return Some("a malformed repeat");
+                        return Some("a malformed repeat".into());
                     }
                     pending.push(expression(inner, true));
                     if let Some(separator) = value.get("separator") {
@@ -588,7 +597,7 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     }
                 } else if value.get("test").is_some() {
                     if !tested_base(value, unicode, expanded) {
-                        return Some("a malformed test target or order");
+                        return Some("a malformed test target or order".into());
                     }
                     pending.push(expression(value.get("expr").unwrap(), sealed));
                     match value.get("test").and_then(Json::as_str) {
@@ -598,47 +607,50 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                         Some("tags") if exact(value, &["test", "requirements", "expr"], &[]) => {
                             pending.push((Part::Requirements, value.get("requirements").unwrap(), next));
                         }
-                        _ => return Some("a malformed test"),
+                        _ => return Some("a malformed test".into()),
                     }
                 } else {
                     let Some(key) = ["seq", "choice", "ranked", "and"].into_iter().find(|key| value.get(key).is_some())
                     else {
-                        return Some("a malformed expression");
+                        return Some("a malformed expression".into());
                     };
                     if !exact(value, &[key], &[]) {
-                        return Some("a malformed expression");
+                        return Some("a malformed expression".into());
                     }
                     let Some(items) = value
                         .get(key)
                         .and_then(Json::as_array)
                         .filter(|items| items.len() >= 2 && (key != "and" || items.len() <= crate::grammar::MAX_AND))
                     else {
-                        return Some(if key == "ranked" {
-                            "ranked-choice-syntax: a ranked expression requires two options"
-                        } else {
-                            "a malformed expression list"
-                        });
+                        return Some(
+                            (if key == "ranked" {
+                                "ranked-choice-syntax: a ranked expression requires two options"
+                            } else {
+                                "a malformed expression list"
+                            })
+                            .into(),
+                        );
                     };
                     pending.extend(items.iter().map(|item| expression(item, sealed)));
                 }
             }
             Part::Recipe => {
                 if !exact(value, &["concat"], &[]) {
-                    return Some("a malformed recipe");
+                    return Some("a malformed recipe".into());
                 }
                 let Some(atoms) = value.get("concat").and_then(Json::as_array).filter(|atoms| !atoms.is_empty()) else {
-                    return Some("an empty recipe");
+                    return Some("an empty recipe".into());
                 };
                 for atom in atoms {
                     if !recipe_atom(atom) {
-                        return Some("a recipe contains a non-string atom");
+                        return Some("a recipe contains a non-string atom".into());
                     }
                     pending.push((Part::RecipeAtom, atom, next));
                 }
             }
             Part::String => {
                 if !string_atom(value) {
-                    return Some("a string term is required");
+                    return Some("a string term is required".into());
                 }
                 pending.push((Part::Term, value, depth));
             }
@@ -652,12 +664,12 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     if !is_position(value.get("at"))
                         || !value.get("const").and_then(Json::as_str).is_some_and(is_constant_name)
                     {
-                        return Some("a malformed constant reference");
+                        return Some("a malformed constant reference".into());
                     }
                 } else if exact(value, &["concat"], &[]) {
                     let Some(items) = value.get("concat").and_then(Json::as_array).filter(|items| items.len() >= 2)
                     else {
-                        return Some("a malformed concatenation");
+                        return Some("a malformed concatenation".into());
                     };
                     for item in items {
                         pending.push((Part::Term, item, next));
@@ -669,10 +681,10 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     pending.push((Part::Term, value.get("then").unwrap(), next));
                 } else if value.get("method").is_some() {
                     if !exact(value, &["method", "receiver", "args"], &[]) {
-                        return Some("a malformed method");
+                        return Some("a malformed method".into());
                     }
                     let Some(args) = value.get("args").and_then(Json::as_array) else {
-                        return Some("a malformed method argument list");
+                        return Some("a malformed method argument list".into());
                     };
                     let receiver = value.get("receiver").unwrap();
                     let name = value.get("method").and_then(Json::as_str).unwrap_or("");
@@ -718,7 +730,7 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                         _ => false,
                     };
                     if !valid {
-                        return Some("a method has the wrong receiver or arguments");
+                        return Some("a method has the wrong receiver or arguments".into());
                     }
                     pending.push((kind, receiver, next));
                     for arg in args {
@@ -731,17 +743,17 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     let Some(key) =
                         ["union", "intersection", "difference"].into_iter().find(|key| value.get(key).is_some())
                     else {
-                        return Some("a malformed term");
+                        return Some("a malformed term".into());
                     };
                     let Some(items) = value
                         .get(key)
                         .and_then(Json::as_array)
                         .filter(|items| items.len() >= 2 && (key != "difference" || items.len() == 2))
                     else {
-                        return Some("a malformed set operation");
+                        return Some("a malformed set operation".into());
                     };
                     if !exact(value, &[key], &[]) {
-                        return Some("a malformed term");
+                        return Some("a malformed term".into());
                     }
                     pending.extend(items.iter().map(|item| (Part::Term, item, next)));
                 }
@@ -763,12 +775,12 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                         value.get("op").and_then(Json::as_str),
                         Some("=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "≅" | "≇")
                     ) {
-                        return Some("a malformed comparator");
+                        return Some("a malformed comparator".into());
                     }
                     if matches!(value.get("op").and_then(Json::as_str), Some("≅" | "≇"))
                         && !bare_capture(value.get("left").unwrap())
                     {
-                        return Some("a tree comparison requires a bare capture");
+                        return Some("a tree comparison requires a bare capture".into());
                     }
                     pending.push((Part::Term, value.get("left").unwrap(), next));
                     pending.push((Part::Term, value.get("right").unwrap(), next));
@@ -776,7 +788,7 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     let receiver = value.get("receiver").unwrap();
                     let args = value.get("args").and_then(Json::as_array);
                     if value.get("method").and_then(Json::as_str) == Some("ends") && restored_span(receiver) {
-                        return Some("ends requires an ordinary span, not a restored span");
+                        return Some("ends requires an ordinary span, not a restored span".into());
                     }
                     if !span(receiver)
                         || !match (value.get("method").and_then(Json::as_str), args) {
@@ -810,19 +822,19 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                             _ => false,
                         }
                     {
-                        return Some("a malformed query predicate");
+                        return Some("a malformed query predicate".into());
                     }
                     pending.push((Part::Term, receiver, next));
                     pending.extend(args.unwrap().iter().map(|arg| (Part::Target, arg, next)));
                 } else {
                     let Some(key) = ["any", "all"].into_iter().find(|key| value.get(key).is_some()) else {
-                        return Some("a malformed condition");
+                        return Some("a malformed condition".into());
                     };
                     let Some(items) = value.get(key).and_then(Json::as_array).filter(|items| items.len() >= 2) else {
-                        return Some("a malformed condition list");
+                        return Some("a malformed condition list".into());
                     };
                     if !exact(value, &[key], &[]) {
-                        return Some("a malformed condition");
+                        return Some("a malformed condition".into());
                     }
                     pending.extend(items.iter().map(|item| (Part::Condition, item, next)));
                 }
@@ -836,18 +848,14 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     ..Default::default()
                 };
                 if let Some(problem) = crate::patterns::shapes::problem(value, &inspect) {
-                    return Some(if problem == "nested too deeply" {
-                        "nested too deeply"
-                    } else {
-                        "a malformed pattern"
-                    });
+                    return Some(problem);
                 }
                 pending.push((Part::PatternNode, value, depth));
             }
             Part::PatternNode => {
                 if value.get("call").is_some() {
                     if let Some(problem) = source::call(value, depth, &mut pending, &rule, true) {
-                        return Some(problem);
+                        return Some(problem.into());
                     }
                 }
                 if let Some(term) = value.get("literal") {
@@ -856,7 +864,7 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                 if let Some(range) = value.get("range") {
                     let [a, b] = range.as_array().unwrap() else { unreachable!() };
                     if !literal_range(a, b) {
-                        return Some("a malformed pattern range");
+                        return Some("a malformed pattern range".into());
                     }
                     pending.extend([(Part::String, a, depth), (Part::String, b, depth)]);
                 }

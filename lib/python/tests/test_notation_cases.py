@@ -16,6 +16,12 @@ from .shared import REPOSITORY, add_case_tests, cases, load_case, mismatch, read
 
 
 class NotationCases(unittest.TestCase):
+    def test_canonical_dom_member_order(self) -> None:
+        dom = read_document('```jbogenbau\n%rule f(@X) @X\n%extend-rule f("a") A\n%features f %conditions $\n```\n', "order.md")
+        text = write_json(dom)
+        for want in ('"name":"f","params":["X"],"op":"define"', '"name":"f","args":[{"string":"a"}],"op":"extend"', '"name":"features","args":["f"],"at":[4,1],"conditions":[{"captured":""}]'):
+            self.assertIn(want, text)
+
     def test_decorated_pattern_member_order(self) -> None:
         document = '```jbogenbau\n%const $P #·pair("a")«»\n%rule f(@X) A %conditions $ ≅ #·@X«»\n```\n'
         dom = read_document(document, "order.md")

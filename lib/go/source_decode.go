@@ -1,35 +1,28 @@
 package gencmu
 
 import (
-	"encoding/json"
 	"fmt"
 )
 
-func decodeSourceCall(o jobj, depth int) (*domSourceCall, error) {
-	if depth > maxDOMDepth {
-		return nil, errTooDeep
-	}
+func (dc *domDecoder) decodeSourceCall(o domObject, depth int) (*domSourceCall, error) {
 	if !hasOneForm(o, [][]string{{"call", "args", "at"}}) {
 		return nil, fmt.Errorf("a malformed call")
 	}
-	name, err := decodeString(o["call"])
+	name, err := domString(o["call"])
 	if err != nil {
 		return nil, err
 	}
-	at, err := decodePosition(o["at"])
+	at, err := domPosition(o["at"])
 	if err != nil {
 		return nil, err
 	}
-	args, err := decodeSourceArguments(o["args"], depth+1)
+	args, err := dc.decodeSourceArguments(o["args"], depth+1)
 	return &domSourceCall{Name: name, At: at, Args: args}, err
 }
 
-func decodeSourceArguments(raw json.RawMessage, depth int) ([]*domArgument, error) {
-	return decodeList(raw, func(raw json.RawMessage) (*domArgument, error) {
-		if depth > maxDOMDepth {
-			return nil, errTooDeep
-		}
-		o, err := decodeObj(raw)
+func (dc *domDecoder) decodeSourceArguments(raw any, depth int) ([]*domArgument, error) {
+	return domList(raw, func(raw any) (*domArgument, error) {
+		o, err := domObjectOf(raw)
 		if err != nil {
 			return nil, err
 		}
@@ -40,36 +33,36 @@ func decodeSourceArguments(raw json.RawMessage, depth int) ([]*domArgument, erro
 				return nil, fmt.Errorf("a malformed body argument")
 			}
 			a.Body = true
-			a.Expr, err = decodeExprAt(o["body"], depth)
+			a.Expr, err = dc.decodeExprAt(o["body"], depth)
 		case o["targets"] != nil:
 			if len(o) != 1 {
 				return nil, fmt.Errorf("a malformed target choice")
 			}
-			a.Targets, err = decodeList(o["targets"], func(raw json.RawMessage) (*domTerm, error) { return decodeTermAt(raw, depth) })
+			a.Targets, err = domList(o["targets"], func(raw any) (*domTerm, error) { return dc.decodeTermAt(raw, depth) })
 		case o["requirements"] != nil && o["test"] == nil:
 			if len(o) != 1 {
 				return nil, fmt.Errorf("a malformed requirement list")
 			}
-			a.Requirements, err = decodeRequirements(o["requirements"], depth)
+			a.Requirements, err = dc.decodeRequirements(o["requirements"], depth)
 		case o["test"] != nil || o["range"] != nil || o["wildcard"] != nil:
-			a.Expr, err = decodeExprObj(raw, o, depth)
+			a.Expr, err = dc.decodeExprObj(raw, o, depth)
 		default:
-			a.Term, err = decodeTermAt(raw, depth)
+			a.Term, err = dc.decodeTermAt(raw, depth)
 		}
 		return a, err
 	})
 }
 
-func decodeParameter(o jobj) (string, [2]int, error) {
-	name, err := decodeString(o["param"])
+func domParameter(o domObject) (string, [2]int, error) {
+	name, err := domString(o["param"])
 	if err != nil {
 		return "", [2]int{}, err
 	}
-	at, err := decodePosition(o["at"])
+	at, err := domPosition(o["at"])
 	return name, at, err
 }
 
-func onlyMembers(o jobj, members ...string) bool {
+func onlyMembers[V any](o map[string]V, members ...string) bool {
 	for key := range o {
 		found := false
 		for _, member := range members {

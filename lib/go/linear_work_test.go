@@ -392,22 +392,18 @@ func TestImpliedLinear(t *testing.T) {
 	}
 }
 
-// TestDeepDOMRefusedEarly: a preparsed DOM nested far deeper than its
-// limit is refused once decoding passes the limit, so its cost grows with
-// its size, not with its size times its depth (engine §9).
-func TestDeepDOMRefusedEarly(t *testing.T) {
-	// Each capture is one level of JSON, and encoding/json refuses more
-	// than 10,000.
+// DOM conversion reads each input byte once, independent of constructor depth.
+func TestDOMDecodeReadsInputOnce(t *testing.T) {
 	for _, n := range []int{1000, 4000} {
-		expr := strings.Repeat(`{"capture":"x","expr":`, n) + `{"ref":"A"}` + strings.Repeat(`}`, n)
+		expr := strings.Repeat(`{"optional":`, n) + `{"ref":"A"}` + strings.Repeat(`}`, n)
 		dom := json.RawMessage(seqDOM([]string{expr}))
-		// Each level down to the limit reads what lies below it, and a few
-		// levels above the expression read it all too. Decoding every level
-		// would read the DOM as many times as it is deep.
 		w := &workCounts{}
-		w.decodeSteps.most = int64(maxDOMDepth+32) * int64(len(dom))
+		w.decodeSteps.most = int64(len(dom))
 		var err error
 		countWorkIn(w, func() { _, err = decodeDOM(dom, nil) })
+		if w.decodeSteps.Load() != int64(len(dom)) {
+			t.Fatalf("decoded %d bytes for an input of %d", w.decodeSteps.Load(), len(dom))
+		}
 		if err == nil {
 			t.Fatalf("a DOM %d deep is not refused", n)
 		}

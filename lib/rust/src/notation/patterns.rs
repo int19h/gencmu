@@ -224,7 +224,6 @@ pub(super) fn source_pattern_problem(root: &Pattern) -> Option<&'static str> {
         Children(&'p Children, bool),
     }
     let mut pending = vec![Part::Pattern(root)];
-    let mut repeats = Vec::new();
     while let Some(part) = pending.pop() {
         match part {
             Part::Pattern(pattern) => match pattern {
@@ -249,41 +248,11 @@ pub(super) fn source_pattern_problem(root: &Pattern) -> Option<&'static str> {
                 }
                 Children::Optional(inner) => pending.push(Part::Children(inner, repeated)),
                 Children::Repeat(item, separator) => {
-                    repeats.push(item.as_ref());
                     pending.push(Part::Children(item, true));
                     pending.extend(separator.as_deref().map(|separator| Part::Children(separator, true)));
                 }
                 Children::Siblings => {}
             },
-        }
-    }
-    let mut known = crate::fxhash::FxMap::<*const Children, bool>::default();
-    for root in repeats {
-        let mut stack = vec![(root, false)];
-        while let Some((children, ready)) = stack.pop() {
-            let key = children as *const Children;
-            if known.contains_key(&key) {
-                continue;
-            }
-            let parts: Vec<_> = match children {
-                Children::Sequence(items) | Children::Choice(items) => items.iter().collect(),
-                Children::Optional(inner) => vec![inner.as_ref()],
-                Children::Repeat(item, separator) => {
-                    std::iter::once(item.as_ref()).chain(separator.as_deref()).collect()
-                }
-                _ => Vec::new(),
-            };
-            if !ready && !parts.is_empty() {
-                stack.push((children, true));
-                stack.extend(parts.into_iter().map(|child| (child, false)));
-            } else {
-                let consumes = matches!(children, Children::Node(_))
-                    || parts.iter().any(|child| known[&(*child as *const Children)]);
-                known.insert(key, consumes);
-            }
-        }
-        if !known[&(root as *const Children)] {
-            return Some("a pattern repeat cannot match only empty sequences");
         }
     }
     None

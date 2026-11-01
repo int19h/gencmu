@@ -279,6 +279,8 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
 
 Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 40. The library tests it as a preparsed DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
+Instead, an item can supply `dom`, the complete DOM envelope. This form can test the envelope and interactions between declarations. An optional `message` requires that the problem contains that agreed text. An optional `code` requires the problem code before its first colon.
+
 An optional `unicode` member supplies the contents of `data/unicode/unicode.txt` for that case. Without it, the case uses the bundled table.
 
 A library that refuses a malformed preparsed DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.

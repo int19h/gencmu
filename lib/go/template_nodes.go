@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -20,9 +21,19 @@ func templateAt(n templateObject) [2]int {
 	if len(a) != 2 {
 		return [2]int{}
 	}
-	x, xok := a[0].(float64)
-	y, yok := a[1].(float64)
-	if !xok || !yok || x < 1 || y < 1 || x != float64(int(x)) || y != float64(int(y)) {
+	coordinate := func(v any) (int, bool) {
+		switch n := v.(type) {
+		case json.Number:
+			value, err := strconv.ParseInt(string(n), 10, 64)
+			return int(value), err == nil && value >= 1 && value <= maxDOMPosition
+		case float64:
+			return int(n), n >= 1 && n <= maxDOMPosition && n == float64(int(n))
+		}
+		return 0, false
+	}
+	x, xok := coordinate(a[0])
+	y, yok := coordinate(a[1])
+	if !xok || !yok {
 		return [2]int{}
 	}
 	return [2]int{int(x), int(y)}
@@ -173,6 +184,8 @@ func writeTemplateJSON(w *jsonWriter, v any) {
 		keys := templateKeys(n)
 		order := []string{"name", "params", "args", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
 		switch {
+		case n["name"] != nil && n["args"] != nil && n["op"] == nil:
+			order = []string{"name", "args", "at", "conditions"}
 		case n["call"] != nil:
 			order = []string{"call", "args", "at"}
 		case n["param"] != nil:

@@ -4442,7 +4442,7 @@
   function inspectPattern(root, inspect, deferGroups) {
     const stack = [{node:root,item:false,repeated:false,depth:inspect.depth ?? 0,inner:false}];
     const object = (/** @type {any} */ n) => n && typeof n === 'object' && !Array.isArray(n);
-    const position = (/** @type {any} */ n) => Array.isArray(n) && n.length === 2 && n.every((/** @type {any} */ x) => Number.isInteger(x) && x > 0);
+    const position = (/** @type {any} */ n) => Array.isArray(n) && n.length === 2 && n.every((/** @type {any} */ x) => Number.isSafeInteger(x) && x > 0);
     const stringTerm = (/** @type {any} */ n) => object(n) && (
       Object.keys(n).length === 1 && typeof n.string === 'string' && [...n.string].every(c => c.codePointAt(0) < 0xd800 || c.codePointAt(0) > 0xdfff)
       || Object.keys(n).length === 2 && position(n.at) && (typeof n.const === 'string' && /^[A-Z][A-Za-z0-9_-]*$/.test(n.const) || typeof n.param === 'string' && /^[A-Za-z][A-Za-z0-9_-]*$/.test(n.param))
@@ -4674,7 +4674,7 @@
    * @returns {boolean}
    */
   function isDomPosition(value) {
-    return Array.isArray(value) && value.length === 2 && value.every((n) => Number.isInteger(n));
+    return Array.isArray(value) && value.length === 2 && value.every((n) => Number.isSafeInteger(n));
   }
 
 
@@ -4729,7 +4729,7 @@
   function inspectDom(dom, unicode, deferEmission, expanded) {
     /** @type {(value: unknown) => value is Record<string, any>} */
     const object = isDomObject;
-    if (!object(dom) || dom.format !== DOM_FORMAT || !["rules", "directives", "constants", "classifiers", "implications"].every(key => Array.isArray(dom[key]))) return `not a DOM of format ${DOM_FORMAT}`;
+    if (!object(dom) || !Object.keys(dom).every(key => ["format", "rules", "directives", "constants", "classifiers", "implications"].includes(key)) || dom.format !== DOM_FORMAT || !["rules", "directives", "constants", "classifiers", "implications"].every(key => Array.isArray(dom[key]))) return `not a DOM of format ${DOM_FORMAT}`;
     /** @type {(value: any) => boolean} */
     const position = value => isDomPosition(value) && value.every((/** @type {number} */ n) => n >= 1);
     /** @type {(value: any, fields: string[]) => boolean} */
@@ -18794,10 +18794,10 @@
           featureContext = false;
         }
         directives.push({
-          ...(conditions ? { conditions } : {}),
           name,
           args,
           at: at(item),
+          ...(conditions ? { conditions } : {}),
         });
       } else if (ruleOf(item) === "rule") {
         rules.push(run(readRule(item)));
@@ -20792,7 +20792,7 @@
     // A fractional sentinel keeps these numbers invalid in integer positions.
     let changed = false;
     const integers = text.replace(/"(?:\\.|[^"\\])*"|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/g, token => {
-      if (token[0] !== '"' && /[.eE]/.test(token)) { changed = true; return "0.5"; }
+      if (token[0] !== '"' && (/[.eE]/.test(token) || !Number.isSafeInteger(Number(token)))) { changed = true; return "0.5"; }
       return token;
     });
     return changed ? JSON.parse(integers) : data;
