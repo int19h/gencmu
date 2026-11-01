@@ -5,7 +5,7 @@ from __future__ import annotations
 import __future__
 import ast
 from contextlib import contextmanager
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 import bisect
 from collections import deque
 from collections.abc import ItemsView, KeysView, ValuesView
@@ -18,7 +18,6 @@ import linecache
 import os
 import re
 from pathlib import Path
-import re
 import signal
 import sys
 import textwrap
@@ -31,7 +30,6 @@ import gencmu
 from gencmu import _testing
 from gencmu._model import Token
 from gencmu._trampoline import Walk, run
-from gencmu._tags import is_tag
 
 from .witness import checks
 
@@ -728,7 +726,150 @@ def load_json(path: Path) -> Any:
 
 
 def load_case(path: Path) -> dict[str, Any]:
-    return load_json(path)  # type: ignore[no-any-return]
+    case = load_json(path)
+    if path.parent.name == "engine":
+        validate_engine_case(case, complete=True)
+    elif path.parent.name == "notation":
+        validate_notation_case(case)
+    return case  # type: ignore[no-any-return]
+
+
+def case_object(value: Any, members: str, where: str, required: str = "") -> None:
+    """Refuse unknown members and missing required members of a case object."""
+    assert isinstance(value, dict), f"{where}: expected an object"
+    unknown = value.keys() - set(members.split())
+    assert not unknown, f"{where}: unknown members {sorted(unknown)}"
+    missing = set(required.split()) - value.keys()
+    assert not missing, f"{where}: missing members {sorted(missing)}"
+
+
+def case_value(value: Any, kind: str, where: str) -> None:
+    """Check the type of a case member without converting its value."""
+    valid = False
+    if kind == "string":
+        valid = isinstance(value, str)
+    elif kind == "boolean":
+        valid = type(value) is bool
+    elif kind == "strings":
+        valid = isinstance(value, list) and all(isinstance(item, str) for item in value)
+    elif kind == "position":
+        valid = type(value) is int and value > 0
+    elif kind == "range":
+        valid = isinstance(value, list) and len(value) == 2 and all(type(item) is int for item in value)
+    assert valid, f"{where}: expected {kind}"
+
+
+def validate_engine_expect(expect: Any) -> None:
+    case_object(expect, "result brackets warnings features enabledFeatures error where message diagnostic bundledPipelines", "expect")
+    for field in ("brackets", "error", "message", "diagnostic"):
+        if field in expect:
+            case_value(expect[field], "string", "expect." + field)
+    for field in ("enabledFeatures", "bundledPipelines"):
+        if field in expect:
+            case_value(expect[field], "strings", "expect." + field)
+    if "where" in expect:
+        case_object(expect["where"], "document line column", "expect.where", "document")
+        for field, value in expect["where"].items():
+            case_value(value, "string" if field == "document" else "position", "expect.where." + field)
+    if "features" in expect:
+        assert isinstance(expect["features"], list), "expect.features: expected an array"
+        for feature in expect["features"]:
+            case_object(feature, "name kind default", "expect.features[]", "name kind default")
+            for field, value in feature.items():
+                case_value(value, "boolean" if field == "default" else "string", "expect.features[]." + field)
+    if "warnings" in expect:
+        assert isinstance(expect["warnings"], list), "expect.warnings: expected an array"
+        for warning in expect["warnings"]:
+            case_object(warning, "stage feature rule span source", "expect.warnings[]", "stage feature rule span source")
+            for field, value in warning.items():
+                case_value(value, "range" if field in ("span", "source") else "string", "expect.warnings[]." + field)
+    if "result" in expect:
+        validate_result_pattern(expect["result"])
+
+
+def validate_case_options(options: Any, usage: bool = False) -> None:
+    case_object(options, "features withoutFeatures until elisionOnly", "options")
+    if not usage:
+        for field, value in options.items():
+            kind = "strings" if field in ("features", "withoutFeatures") else "string" if field == "until" else "boolean"
+            case_value(value, kind, "options." + field)
+
+
+def validate_case_tokens(tokens: Any, usage: bool = False) -> None:
+    assert isinstance(tokens, list), "tokens: expected an array"
+    stack = list(tokens)
+    while stack:
+        token = stack.pop()
+        case_object(token, "text tags value image span source before after", "token", "" if usage else "text tags")
+        for field, value in token.items():
+            if field in ("before", "after"):
+                if not usage:
+                    assert isinstance(value, list), f"token.{field}: expected an array"
+                if isinstance(value, list):
+                    stack.extend(item for item in value if not usage or isinstance(item, dict))
+            elif not usage:
+                kind = "strings" if field == "tags" else "range" if field in ("span", "source") else "string"
+                case_value(value, kind, "token." + field)
+
+
+def validate_engine_case(case: Any, complete: bool = False) -> None:
+    """Validate case metadata, retaining malformed API fields in usage cases."""
+    case_object(case, "description name grammar pipeline documents pipelineDocument input tokens options expect parses treeRendering", "case")
+    for field in ("description", "name", "grammar", "pipelineDocument"):
+        if field in case:
+            case_value(case[field], "string", "case." + field)
+    sources = sum(field in case for field in ("grammar", "pipeline", "documents"))
+    assert sources == 1, "case: expected exactly one of grammar, pipeline, or documents"
+    assert ("documents" in case) == ("pipelineDocument" in case), "case: documents requires pipelineDocument"
+    if "documents" in case:
+        assert isinstance(case["documents"], dict), "case.documents: expected an object"
+        for name, text in case["documents"].items():
+            case_value(name, "string", "case.documents key")
+            case_value(text, "string", "case.documents[]")
+    if "treeRendering" in case:
+        tree = case["treeRendering"]
+        case_object(tree, "aliases text decodedError", "case.treeRendering", "aliases text decodedError")
+        for field, value in tree.items():
+            case_value(value, "strings" if field == "aliases" else "string", "case.treeRendering." + field)
+    if "parses" in case:
+        assert "expect" not in case and "options" not in case, "case.parses replaces case.expect and case.options"
+        assert isinstance(case["parses"], list) and case["parses"], "case.parses: expected a nonempty array"
+        runs = case["parses"]
+        for item in runs:
+            case_object(item, "options expect", "case.parses[]", "expect")
+    else:
+        assert not complete or "expect" in case, "case: missing expect"
+        runs = [case]
+    for item in runs:
+        if "expect" in item:
+            validate_engine_expect(item["expect"])
+        usage = item.get("expect", {}).get("error") == "usage"
+        validate_case_options(item.get("options", {}), usage)
+        if "pipeline" in case and not usage:
+            case_value(case["pipeline"], "string", "case.pipeline")
+        if "input" in case and not usage:
+            case_value(case["input"], "string", "case.input")
+        if "tokens" in case:
+            validate_case_tokens(case["tokens"], usage)
+
+
+def validate_notation_case(case: Any) -> None:
+    case_object(case, "description document expect cacheMisses", "case", "document expect")
+    for field in ("description", "document"):
+        if field in case:
+            case_value(case[field], "string", "case." + field)
+    if "cacheMisses" in case:
+        case_value(case["cacheMisses"], "boolean", "case.cacheMisses")
+    expect = case["expect"]
+    case_object(expect, "dom error", "expect")
+    assert len(expect) == 1, "notation expect: expected exactly one of dom or error"
+    if "dom" in expect:
+        assert isinstance(expect["dom"], dict), "expect.dom: expected an object"
+    else:
+        assert not case.get("cacheMisses"), "cacheMisses requires a DOM expectation"
+        case_object(expect["error"], "line column message", "expect.error")
+        for field, value in expect["error"].items():
+            case_value(value, "string" if field == "message" else "position", "expect.error." + field)
 
 
 def read_json(text: str) -> Any:
@@ -833,6 +974,15 @@ def write_json(value: Any) -> str:
     return "".join(out)
 
 
+def same_scalar(left: Any, right: Any) -> bool:
+    """Compare JSON scalars, with one number type distinct from booleans."""
+    if type(left) is bool or type(right) is bool:
+        return type(left) is type(right) and left == right
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return left == right
+    return type(left) is type(right) and left == right
+
+
 def same_json(left: Any, right: Any) -> bool:
     """Whether two JSON values are equal, as == says of their lists, objects
     and scalars, compared with a list for a stack."""
@@ -847,15 +997,28 @@ def same_json(left: Any, right: Any) -> bool:
             if not isinstance(other, list) or len(one) != len(other):
                 return False
             stack.extend(zip(one, other))
-        elif isinstance(other, (dict, list)) or one != other:
+        elif not same_scalar(one, other):
             return False
     return True
+
+
+def validate_result_pattern(pattern: Any) -> None:
+    """Refuse error-message assertions before comparing any result member."""
+    stack = [(pattern, False)]
+    while stack:
+        item, in_error = stack.pop()
+        if isinstance(item, dict):
+            assert not (in_error and "message" in item), "a result pattern cannot assert an error message"
+            stack.extend((child, in_error or key == "error") for key, child in item.items())
+        elif isinstance(item, list):
+            stack.extend((child, in_error) for child in item)
 
 
 def mismatch(pattern: Any, value: Any, where: str = "$") -> str | None:
     """Where a value fails to match a pattern (tests/README.md), or None.
     The first in document order, found with a list for a stack, since a
     pattern can follow a result as deep as it nests."""
+    validate_result_pattern(pattern)
     # Each entry is a pattern, its value and where it stands, and for a
     # member of an object, its key, which is checked when the entry is
     # reached, as a walk in order would.
@@ -874,7 +1037,7 @@ def mismatch(pattern: Any, value: Any, where: str = "$") -> str | None:
             if not isinstance(value, list) or len(value) != len(pattern):
                 return f"{where}: expected {len(pattern)} elements, found {write_json(value)[:200]}"
             stack.extend((expected, found, f"{where}[{index}]", None) for index, (expected, found) in reversed(list(enumerate(zip(pattern, value)))))
-        elif pattern != value or type(pattern) is not type(value):
+        elif not same_scalar(pattern, value):
             return f"{where}: expected {write_json(pattern)}, found {write_json(value)}"
     return None
 
@@ -993,7 +1156,12 @@ def case_sources(case: dict[str, Any]) -> tuple[dict[str, str], str]:
 
 def case_tokens(case: dict[str, Any]) -> tuple[list[Token], str]:
     # A walk, since attachments nest as deep as a case writes them.
-    return run(_case_tokens(case["tokens"])), case.get("input", " ".join(spec["text"] for spec in case["tokens"]))  # type: ignore[no-any-return]
+    validate_case_tokens(case["tokens"], usage=True)
+    tokens = run(_case_tokens(case["tokens"]))
+    # Invalid fields belong to the library's usage validation. They supply
+    # no characters for the runner's default source text.
+    text = case["input"] if "input" in case else " ".join(token.text if isinstance(token.text, str) else "" for token in tokens)
+    return tokens, text
 
 
 def _case_tokens(specs: list[dict[str, Any]]) -> Walk:
@@ -1003,20 +1171,24 @@ def _case_tokens(specs: list[dict[str, Any]]) -> Walk:
         # Attachments, which a caller cannot supply, go to the library as
         # they stand, so that it refuses them or drops empty ones
         # (tests/README.md).
-        before = [replace(token, span=None) for token in (yield _case_tokens(spec["before"]))] if "before" in spec else []
-        after = [replace(token, span=None) for token in (yield _case_tokens(spec["after"]))] if "after" in spec else []
+        attachments = {}
+        for field in ("before", "after"):
+            value = spec.get(field, [])
+            attachments[field] = ((yield _case_tokens(value))
+                                  if isinstance(value, list) and all(isinstance(item, dict) for item in value) else value)
         # Pass invalid tags to the library for usage cases.
-        tags = spec["tags"]
-        text = spec["text"]
+        tags = spec.get("tags")
+        text = spec.get("text")
+        length = len(text) if isinstance(text, str) else 0
         tokens.append(
-            Token(text, tags, spec.get("span", (index, index + 1)), spec.get("source", (position, position + len(text))), spec.get("value"), image=spec.get("image"), before=before, after=after)
+            Token(text, tags, spec.get("span", (index, index + 1)), spec.get("source", (position, position + length)), spec.get("value"), image=spec.get("image"), **attachments)
         )
         # None selects the constructor default. Set explicit JSON null on
         # the stored field so that malformed-token cases reach validation.
-        for field in ("value", "image"):
+        for field in ("value", "image", "before", "after"):
             if field in spec and spec[field] is None:
                 setattr(tokens[-1], field, None)
-        position += len(text) + 1
+        position += length + 1
     return tokens
 
 
@@ -1051,6 +1223,7 @@ def parse_case(
     its ``parses`` (tests/README.md); or a mistake of the caller in their
     place, which is no result (engine §13)."""
     options = (case if run is None else run).get("options", {})
+    validate_case_options(options, (case if run is None else run).get("expect", {}).get("error") == "usage")
     kwargs: dict[str, Any] = {
         "features": options.get("features", []),
         "without_features": options.get("withoutFeatures", []),
@@ -1084,6 +1257,7 @@ def run_case(
     place: the load's, or the parse's for a mistake of the caller, which is
     no result (engine §13). Last, the pipeline's features as a case writes
     them, or None if it did not load."""
+    validate_engine_case(case)
     pipeline, error = load_case_pipeline(case, use_cache)
     if pipeline is None:
         return None, None, error, None
