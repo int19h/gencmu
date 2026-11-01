@@ -78,13 +78,40 @@ class EngineCases(unittest.TestCase):
                      {"grammar": base["grammar"], "pipeline": "lojban/cll", "expect": {}}):
             with self.subTest(case=case), self.assertRaises(AssertionError):
                 validate_engine_case(case, complete=True)
-        # An invalid API value remains expressible in a usage case.
-        usage = {**base, "tokens": [{"text": 7, "tags": None}], "options": {"features": 3}, "expect": {"error": "usage"}}
+        # An invalid token value remains expressible in a usage case.
+        usage = {**base, "tokens": [{"text": 7, "tags": None}], "expect": {"error": "usage"}}
         validate_engine_case(usage, complete=True)
         for change in ({"expect": {"error": "usage", "typo": True}}, {"options": {"typo": 3}},
                        {"tokens": [{"text": 7, "typo": True}]}):
             with self.subTest(usage=change), self.assertRaises(AssertionError):
                 validate_engine_case({**usage, **change}, complete=True)
+
+    def test_usage_cases_refuse_malformed_control_members(self) -> None:
+        base = {"grammar": '%rule text "a"', "input": "a", "expect": {"error": "usage"}}
+        for options in ({"features": "f"}, {"features": 3}, {"features": [3]},
+                        {"withoutFeatures": "f"}, {"withoutFeatures": [False]},
+                        {"until": False}, {"until": None}, {"elisionOnly": 1}, {"elisionOnly": None}):
+            with self.subTest(options=options):
+                with self.assertRaisesRegex(AssertionError, "options\\."):
+                    run_case({**base, "options": options})
+                with self.assertRaisesRegex(AssertionError, "options\\."):
+                    validate_engine_case({"grammar": base["grammar"], "parses": [{"options": options, "expect": base["expect"]}]})
+                with self.assertRaisesRegex(AssertionError, "options\\."):
+                    parse_case(None, {**base, "options": options})
+                with self.assertRaisesRegex(AssertionError, "options\\."):
+                    parse_case(None, base, {"options": options, "expect": base["expect"]})
+        for value in (7, None, False, [], {}):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(AssertionError, "case.input"):
+                    run_case({**base, "input": value})
+                with self.assertRaisesRegex(AssertionError, "case.pipeline"):
+                    run_case({"pipeline": value, "expect": base["expect"]})
+                for field in ("input", "pipeline"):
+                    case = {field: value, "parses": [{"expect": base["expect"]}]}
+                    if field == "input":
+                        case["grammar"] = base["grammar"]
+                    with self.assertRaisesRegex(AssertionError, "case\\." + field):
+                        validate_engine_case(case)
 
     def test_expectations_must_apply_to_the_actual_outcome(self) -> None:
         base = {"grammar": '%rule text "a"', "input": "a"}
