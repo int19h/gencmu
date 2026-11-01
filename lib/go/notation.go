@@ -322,9 +322,6 @@ func (b *domBuilder) at(n *Node) [2]int {
 
 func (b *domBuilder) fail(n *Node, format string, args ...any) {
 	e := grammarError(b.doc, b.at(n), format, args...)
-	if n.Rule == "ranked-choice" {
-		e.Code = "ranked-choice-syntax"
-	}
 	panic(e)
 }
 

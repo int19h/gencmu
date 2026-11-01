@@ -110,7 +110,7 @@ class DomBuilder:
 
     def fail(self, node: Node, message: str) -> GencmuError:
         line, column = self.position(node)
-        return GencmuError(message, document=self.document, line=line, column=column, code="ranked-choice-syntax" if node.rule == "ranked-choice" else None)
+        return GencmuError(message, document=self.document, line=line, column=column)
 
     def token_value(self, node: Node) -> str:
         assert node.kind == "token" and node.token is not None
@@ -625,7 +625,8 @@ class DomBuilder:
             return symbol.rule == 'parameter' or symbol.rule in ("tag", "reference") and USER_NAME.fullmatch(self.token_value(self.token(symbol))) is not None
 
         if head.rule == "tested":
-            if not is_terminal(self.test_base(head)):
+            base = self.find_test_base(head)
+            if base is None or not is_terminal(base):
                 raise self.fail(node, form)
 
         elif not is_terminal(head):
@@ -702,13 +703,16 @@ class DomBuilder:
             raise self.fail(node, problem)
         return ends
 
-    def test_base(self, node: Node) -> Node:
+    def find_test_base(self, node: Node) -> Node | None:
         primary = self.one(node, "primary")
         if primary:
             return self.known_of(primary, _PRIMARIES)
-        found = next((kid for kid in self.kids(node) if kid.kind == "rule" and kid.rule in _PRIMARIES - {"tested"}), None)
+        return next((kid for kid in self.kids(node) if kid.kind == "rule" and kid.rule in _PRIMARIES - {"tested"}), None)
+
+    def test_base(self, node: Node) -> Node:
+        found = self.find_test_base(node)
         if found is None:
-            raise self.lacks(node, "base symbol")
+            raise self.lacks(node, "primary")
         return found
 
     def test_order(self, tests: list[Node], valid: bool) -> None:

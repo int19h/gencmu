@@ -53,6 +53,19 @@ def with_syntax(change: Callable[[str], str]) -> str:
 
 
 class NotationShapes(unittest.TestCase):
+    def test_a_supplied_ranked_choice_error_has_no_syntax_code(self) -> None:
+        bootstrap = BOOTSTRAP.replace(
+            '{"seq":[{"ref":"conjunction"},{"literal":{"string":"≻"}},{"repeat":{"ref":"conjunction"},"separator":{"literal":{"string":"≻"}}}]}',
+            '{"literal":{"string":"."}}',
+        )
+        with self.assertRaises(gencmu.GencmuError) as caught:
+            gencmu.load_pipeline_sources({
+                "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
+                "g.md": '```jbogenbau\n%rule text .\n```\n',
+                "data/preparsed/gencmu.json": bootstrap,
+            }, "p.md")
+        self.assertIsNone(caught.exception.code)
+
     def test_an_empty_leading_wrapper_preserves_the_guard_position(self) -> None:
         parsed = json.loads(BOOTSTRAP)
         documents = {path:entry["dom"] for path,entry in parsed["documents"].items()}

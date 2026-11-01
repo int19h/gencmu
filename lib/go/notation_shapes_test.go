@@ -9,6 +9,23 @@ import (
 	"testing"
 )
 
+func TestSuppliedRankedChoiceErrorHasNoSyntaxCode(t *testing.T) {
+	bootstrap, err := os.ReadFile("../../data/preparsed/gencmu.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed := strings.ReplaceAll(string(bootstrap), `{"seq":[{"ref":"conjunction"},{"literal":{"string":"≻"}},{"repeat":{"ref":"conjunction"},"separator":{"literal":{"string":"≻"}}}]}`, `{"literal":{"string":"."}}`)
+	_, err = LoadPipelineSources(map[string]string{
+		"p.md":                       "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
+		"g.md":                       "```jbogenbau\n%rule text .\n```\n",
+		"data/preparsed/gencmu.json": changed,
+	}, "p.md")
+	var problem *Error
+	if !errors.As(err, &problem) || problem.Code != "" {
+		t.Fatalf("expected a document error without a syntax code, got %v", err)
+	}
+}
+
 // A bootstrap of another notation gives the reader a tree of another shape
 // (engine §9). Every library reads through a wrapper, and needs the parts
 // of each rule that it knows. tests/notation-shapes.json holds the outcome

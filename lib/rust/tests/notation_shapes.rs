@@ -12,6 +12,36 @@ fn read(path: &[&str]) -> String {
     std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
 }
 
+#[test]
+fn a_captured_tested_target_requires_its_primary_before_its_tests() {
+    let bootstrap = read(&["data", "preparsed", "gencmu.json"]).replace(
+        r#"{"seq":[{"ref":"untested-primary"},{"repeat":{"ref":"symbol-test"}}]}"#,
+        r#"{"literal":{"string":"+"}}"#,
+    );
+    let sources = [
+        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("g.md", "```jbogenbau\n%rule text $x:+\n```\n".to_string()),
+        ("data/preparsed/gencmu.json", bootstrap),
+    ];
+    let error = gencmu::load_pipeline_sources(sources, "p.md").expect_err("the missing primary");
+    assert_eq!(error.message, "the notation's tested has no primary");
+}
+
+#[test]
+fn a_supplied_ranked_choice_error_has_no_syntax_code() {
+    let bootstrap = read(&["data", "preparsed", "gencmu.json"]).replace(
+        r#"{"seq":[{"ref":"conjunction"},{"literal":{"string":"≻"}},{"repeat":{"ref":"conjunction"},"separator":{"literal":{"string":"≻"}}}]}"#,
+        r#"{"literal":{"string":"."}}"#,
+    );
+    let sources = [
+        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("g.md", "```jbogenbau\n%rule text .\n```\n".to_string()),
+        ("data/preparsed/gencmu.json", bootstrap),
+    ];
+    let error = gencmu::load_pipeline_sources(sources, "p.md").expect_err("the missing conjunctions");
+    assert_eq!(error.code(), None);
+}
+
 fn outcome(shapes: &Value, bootstrap: String) -> Value {
     let place = shapes.get("where");
     let document = shapes.get("document").and_then(Value::str).expect("a document").to_string();

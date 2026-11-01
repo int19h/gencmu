@@ -1388,6 +1388,45 @@
         ""
       ],
       "expect": "grammar"
+    },
+    {
+      "description": "A captured tested symbol requires its primary before its tests.",
+      "find": "{\"seq\":[{\"ref\":\"untested-primary\"},{\"repeat\":{\"ref\":\"symbol-test\"}}]}",
+      "replace": "{\"literal\":{\"string\":\".\"}}",
+      "document": "```jbogenbau\n%rule text $x:.\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 15
+      }
+    },
+    {
+      "description": "An elidable tested head without a primary fails its form.",
+      "find": "{\"seq\":[{\"ref\":\"untested-primary\"},{\"repeat\":{\"ref\":\"symbol-test\"}}]}",
+      "replace": "{\"literal\":{\"string\":\".\"}}",
+      "document": "```jbogenbau\n%rule text [+. ]\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 12
+      }
+    },
+    {
+      "description": "A supplied ranked choice without conjunctions is a document error.",
+      "find": "{\"seq\":[{\"ref\":\"conjunction\"},{\"literal\":{\"string\":\"≻\"}},{\"repeat\":{\"ref\":\"conjunction\"},\"separator\":{\"literal\":{\"string\":\"≻\"}}}]}",
+      "replace": "{\"literal\":{\"string\":\".\"}}",
+      "document": "```jbogenbau\n%rule text .\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 12
+      }
     }
   ]
 }

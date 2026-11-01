@@ -210,7 +210,7 @@ func (b *domBuilder) stringRange(n *Node) [2]*domTerm {
 	return r
 }
 
-func (b *domBuilder) testBase(n *Node) *Node {
+func (b *domBuilder) findTestBase(n *Node) *Node {
 	if p := one(n, "primary"); p != nil {
 		return b.knownOf(p, primaryRules)
 	}
@@ -221,8 +221,15 @@ func (b *domBuilder) testBase(n *Node) *Node {
 			}
 		}
 	}
-	b.lacks(n, "primary")
 	return nil
+}
+
+func (b *domBuilder) testBase(n *Node) *Node {
+	base := b.findTestBase(n)
+	if base == nil {
+		b.lacks(n, "primary")
+	}
+	return base
 }
 
 func (b *domBuilder) tested(n *Node) *domExpr {

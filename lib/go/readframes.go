@@ -283,13 +283,13 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 		}
 	}
 	isTerminal := func(symbol *Node) bool {
-		return symbol.Rule == "parameter" || (symbol.Rule == "tag" || symbol.Rule == "reference") && isCapital(b.tokenValue(b.token(symbol)))
+		return symbol != nil && (symbol.Rule == "parameter" || (symbol.Rule == "tag" || symbol.Rule == "reference") && isCapital(b.tokenValue(b.token(symbol))))
 	}
 	switch {
 	case head == nil:
 		b.fail(n, form)
 	case head.Rule == "tested":
-		if !isTerminal(b.testBase(head)) {
+		if !isTerminal(b.findTestBase(head)) {
 			b.fail(n, form)
 		}
 	case !isTerminal(head):

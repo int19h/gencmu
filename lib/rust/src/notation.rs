@@ -115,14 +115,7 @@ impl<'a> Reader<'a> {
     /// give such a tree. The reader then gives this error, and never
     /// assumes a shape that the tree lacks.
     fn shape_error(&self, node: &Node, what: impl std::fmt::Display) -> Error {
-        {
-            let error = self.error(node, format!("the notation's {} has no {what}", rule_name(node)));
-            if rule_name(node) == "ranked-choice" {
-                error.coded("ranked-choice-syntax")
-            } else {
-                error
-            }
-        }
+        self.error(node, format!("the notation's {} has no {what}", rule_name(node)))
     }
 
     /// The error of a child of a kind that the reader does not know.
@@ -854,20 +847,19 @@ impl<'a> Reader<'a> {
                         .next()
                         .map(|primary| self.inner(primary, PRIMARIES))
                         .transpose()?
-                        .or_else(|| Self::parts(wrapped).into_iter().find(|part| PRIMARIES.contains(&rule_name(part))));
-                    if base.is_some_and(|base| {
-                        !matches!(
-                            rule_name(base),
-                            "reference"
-                                | "tag"
-                                | "string-terminal"
-                                | "constant-reference"
-                                | "wildcard"
-                                | "range"
-                                | "call"
-                                | "parameter"
-                        )
-                    }) {
+                        .or_else(|| Self::parts(wrapped).into_iter().find(|part| PRIMARIES.contains(&rule_name(part))))
+                        .ok_or_else(|| self.shape_error(wrapped, "primary"))?;
+                    if !matches!(
+                        rule_name(base),
+                        "reference"
+                            | "tag"
+                            | "string-terminal"
+                            | "constant-reference"
+                            | "wildcard"
+                            | "range"
+                            | "call"
+                            | "parameter"
+                    ) {
                         return Err(self.error(capture, "a capture wraps one symbol"));
                     }
                 }
