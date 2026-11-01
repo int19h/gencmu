@@ -1,0 +1,13 @@
+{
+  "description": "Parameter-dependent receivers and arguments retain independent value inspection.",
+  "grammar": "%const $W \"ab\"\n%rule sink(@Y) \"a\"\n%rule unused(@X) sink(#(@X ∪ $W..\"z\"))\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 30
+    }
+  }
+}

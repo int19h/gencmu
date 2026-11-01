@@ -229,14 +229,6 @@ pub(crate) fn stitch(
 
 fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unicode) -> Result<StageGrammar, Error> {
     let mut pending_templates = Vec::new();
-    for (document, dom) in documents {
-        for rule in dom.rules.iter().filter(|rule| rule.source.params.is_some()) {
-            let projected = crate::dom::partial::rule(rule).map_err(|message| located(message, document, rule.at))?;
-            if let Some(issue) = crate::clauses::check_definition(&projected, true).deferred {
-                pending_templates.push(located(issue.message, document, rule.at));
-            }
-        }
-    }
     let expansion = crate::parameters::expand(documents, unicode)?;
     let documents = expansion.as_ref().map_or(documents, |x| x.documents.as_slice());
     let mut arguments_by_site: HashMap<_, Vec<_>> = HashMap::new();
@@ -463,7 +455,8 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         match check {
             Check::Rule(document, rule) => {
                 let arguments = arguments_by_site.remove(&(document.clone(), rule.at)).unwrap_or_default();
-                constants.check_rule(document, rule, &arguments, &mut deferred)?;
+                let errors = if rule.source.params.is_some() { &mut pending_templates } else { &mut deferred };
+                constants.check_rule(document, rule, &arguments, errors)?;
             }
             Check::Feature(index) => {
                 let (document, directive) = &mut grammar.features[index];
@@ -494,6 +487,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     if !grammar.index.contains_key("text") {
         return Err(Error::grammar("has no rule text").in_stage(stage));
     }
+    crate::boundary::reachable(&grammar)?;
     // Shared clauses are checked once, with the first alternative that
     // holds them.
     let mut checked: FxSet<*const RuleClauses> = FxSet::default();
@@ -504,7 +498,6 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                 .map_err(|message| located(message, &alternative.document, alternative.at))?;
         }
     }
-    crate::boundary::reachable(&grammar)?;
     grammar.close_families = Arc::new(close_families(&grammar));
     grammar.ranked = Arc::new(crate::ranked::RankedGroups::new(&grammar)?);
     if !grammar.ranked.groups.is_empty() {
@@ -1515,7 +1508,15 @@ impl Constants<'_> {
         self.check_value_uses(ValuePart::Rule(rule), document, rule.at, false)?;
         // The checks that simplification decides, which the reader left
         // to the loader, now with the constants' values (§9).
-        let result = check_definition(&self.substitute_rule(rule), true);
+        let resolved = self.substitute_rule(rule);
+        let projected;
+        let checked = if rule.source.params.is_some() {
+            projected = crate::dom::partial::rule(&resolved).map_err(|message| located(message, document, rule.at))?;
+            &projected
+        } else {
+            &resolved
+        };
+        let result = check_definition(checked, true);
         if let Some(issue) = result.problem {
             return Err(located(issue.message, document, rule.at));
         }
@@ -1535,13 +1536,13 @@ impl Constants<'_> {
         for part in value_parts(root) {
             match part {
                 ValuePart::Pattern(term) => {
-                    self.evaluate_pattern(term, document, at)?;
+                    self.check_pattern_uses(term, document, at)?;
                 }
                 ValuePart::Expr(Expr::ScalarRange(a, b)) => {
-                    self.scalar_endpoints(a, b, document, at)?;
+                    self.check_scalar_uses(a, b, document, at)?;
                 }
                 ValuePart::Term(term @ Term::Pattern(_)) => {
-                    self.evaluate_pattern(term, document, at)?;
+                    self.check_pattern_uses(term, document, at)?;
                 }
                 ValuePart::Term(Term::Call(name, args)) if name == "split" => {
                     if let [_, Arg::Term(delimiter)] = &args[..] {
@@ -1563,10 +1564,58 @@ impl Constants<'_> {
         Ok(())
     }
 
+    fn check_scalar_uses(&self, a: &Term, b: &Term, document: &str, at: (usize, usize)) -> Result<(), Error> {
+        if !value_has_source(a) && !value_has_source(b) {
+            self.scalar_endpoints(a, b, document, at)?;
+        } else {
+            for term in [a, b] {
+                if !value_has_source(term) {
+                    self.scalar_endpoints(term, term, document, at)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn check_pattern_uses(&self, root: &Term, document: &str, at: (usize, usize)) -> Result<(), Error> {
+        if !value_has_source(root) {
+            self.evaluate_pattern(root, document, at)?;
+            return Ok(());
+        }
+        self.check_pattern_depth(root, document, at)?;
+        let mut pending = vec![root];
+        while let Some(term) = pending.pop() {
+            match term {
+                Term::Pattern(p) => {
+                    for part in p.walk() {
+                        match part {
+                            crate::patterns::Part::Pattern(Pattern::Range(a, b, position)) => {
+                                self.check_scalar_uses(a, b, document, *position)?
+                            }
+                            crate::patterns::Part::Term(term, _) => {
+                                self.check_value_uses(ValuePart::Term(term), document, at, false)?
+                            }
+                            crate::patterns::Part::Pattern(Pattern::Source(symbol)) => {
+                                self.check_value_uses(ValuePart::Source(symbol), document, at, false)?
+                            }
+                            _ => (),
+                        }
+                    }
+                }
+                Term::Union(xs) | Term::Intersection(xs) => pending.extend(xs.iter().rev()),
+                Term::Difference(a, b) => pending.extend([b.as_ref(), a.as_ref()]),
+                Term::Source(symbol) => self.check_value_uses(ValuePart::Source(symbol), document, at, false)?,
+                _ => {
+                    self.evaluate_pattern(term, document, at)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn resolve_feature(&self, document: &str, directive: &mut Directive) -> Result<(), Error> {
         if let Some(conditions) = &mut directive.conditions {
-            crate::features::problem(conditions).map_err(|message| located(message, document, directive.at))?;
-            for condition in conditions.iter_mut() {
+            for condition in conditions.iter() {
                 let mut references = Vec::new();
                 crate::dom::constants_in_cond(condition, &mut references);
                 for (name, _) in references {
@@ -1578,10 +1627,17 @@ impl Constants<'_> {
                         ));
                     }
                 }
+            }
+            crate::features::problem(conditions).map_err(|message| located(message, document, directive.at))?;
+            for condition in conditions.iter() {
                 if let Some(fault) = crate::dom::cond_type_fault(condition, &|name| self.ty(name)) {
                     return Err(located(fault.problem, document, directive.at));
                 }
+            }
+            for condition in conditions.iter() {
                 self.check_value_uses(ValuePart::Cond(condition), document, directive.at, true)?;
+            }
+            for condition in conditions.iter_mut() {
                 self.substitute_cond(condition);
             }
         }
@@ -1751,11 +1807,14 @@ impl Constants<'_> {
 
     fn substitute_term(&self, term: &mut Term) {
         if self.is_pattern(term) {
+            if value_has_source(term) {
+                return;
+            }
             *term = Term::Pattern(Box::new(self.evaluate_pattern(term, "", (0, 0)).expect("checked pattern")));
             return;
         }
         match term {
-            Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
+            Term::Source(_) => (),
             Term::Const(name, _) => *term = self.values[name.as_str()].value.term(),
             Term::Union(items) | Term::Intersection(items) => {
                 items.iter_mut().for_each(|item| self.substitute_term(item));
@@ -1782,9 +1841,18 @@ impl Constants<'_> {
     fn substitute_cond(&self, cond: &mut Cond) {
         work::count(Work::Stitched, 1);
         match cond {
-            Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
+            Cond::SourceQuery(_, args, _) => {
+                for arg in args {
+                    if let Arg::Term(term) = arg {
+                        self.substitute_term(term);
+                    }
+                }
+            }
             Cond::Compare(op, left, right) => {
                 if matches!(op.as_str(), "≅" | "≇") {
+                    if value_has_source(right) {
+                        return;
+                    }
                     *right =
                         Term::Pattern(Box::new(self.evaluate_pattern(right, "", (0, 0)).expect("checked pattern")));
                     return;
@@ -1821,6 +1889,30 @@ fn first_constant(term: &Term) -> Option<(usize, usize)> {
     out.first().map(|&(_, at)| at)
 }
 
+/// Whether a value still needs a template argument before evaluation.
+fn value_has_source(term: &Term) -> bool {
+    let mut pending = vec![term];
+    while let Some(root) = pending.pop() {
+        for part in value_parts(ValuePart::Term(root)) {
+            match part {
+                ValuePart::Term(Term::Source(_)) | ValuePart::Cond(Cond::SourceQuery(..)) => return true,
+                ValuePart::Term(Term::Pattern(p)) => {
+                    for part in p.walk() {
+                        match part {
+                            crate::patterns::Part::Pattern(Pattern::Source(_)) => return true,
+                            crate::patterns::Part::Term(term, _) => pending.push(term),
+                            _ => (),
+                        }
+                    }
+                }
+                ValuePart::Pattern(term) => pending.push(term),
+                _ => (),
+            }
+        }
+    }
+    false
+}
+
 /// Whether a string term reads only literals and constants.
 fn closed_string(term: &Term) -> bool {
     let mut pending = vec![term];
@@ -1842,6 +1934,7 @@ fn closed_string(term: &Term) -> bool {
 
 #[derive(Clone, Copy)]
 enum ValuePart<'a> {
+    Source(&'a crate::dom::source::SourceSymbol),
     Rule(&'a RuleDef),
     Alternative(&'a Alternative),
     Expr(&'a Expr),
@@ -1869,6 +1962,23 @@ impl<'a> Iterator for ValueParts<'a> {
         let part = self.pending.pop()?;
         let mut children = Vec::new();
         match part {
+            ValuePart::Source(crate::dom::source::SourceSymbol::Call(call)) => {
+                use crate::dom::source::{SourceArgument, SourceTarget};
+                for arg in &call.args {
+                    match arg {
+                        SourceArgument::Term(t) | SourceArgument::Requirements(t) => children.push(ValuePart::Term(t)),
+                        SourceArgument::Body(e) | SourceArgument::WrappedBody(e) => children.push(ValuePart::Expr(e)),
+                        SourceArgument::Targets(ts) => children.extend(ts.iter().filter_map(|t| {
+                            if let SourceTarget::Symbol(s) = t {
+                                Some(ValuePart::Source(s))
+                            } else {
+                                None
+                            }
+                        })),
+                    }
+                }
+            }
+            ValuePart::Source(_) => (),
             ValuePart::Rule(rule) => {
                 children.extend(rule.tags.iter().map(ValuePart::Term));
                 value_channels(&mut children, &rule.strings);
@@ -1890,6 +2000,7 @@ impl<'a> Iterator for ValueParts<'a> {
                 value_channels(&mut children, strings);
             }
             ValuePart::Expr(expr) => match expr {
+                Expr::Source(s) => children.push(ValuePart::Source(s)),
                 Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
                     children.extend(xs.iter().map(ValuePart::Expr))
                 }
@@ -1907,6 +2018,7 @@ impl<'a> Iterator for ValueParts<'a> {
                 _ => (),
             },
             ValuePart::Term(term) => match term {
+                Term::Source(s) => children.push(ValuePart::Source(s)),
                 Term::Union(xs) | Term::Intersection(xs) => children.extend(xs.iter().map(ValuePart::Term)),
                 Term::Difference(a, b) => children.extend([ValuePart::Term(a), ValuePart::Term(b)]),
                 Term::If(c, t) => children.extend([ValuePart::Cond(c), ValuePart::Term(t)]),
@@ -1920,6 +2032,13 @@ impl<'a> Iterator for ValueParts<'a> {
                 _ => (),
             },
             ValuePart::Cond(cond) => match cond {
+                Cond::SourceQuery(_, args, _) => children.extend(args.iter().filter_map(|a| {
+                    if let Arg::Term(t) = a {
+                        Some(ValuePart::Term(t))
+                    } else {
+                        None
+                    }
+                })),
                 Cond::Compare(op, a, b) => {
                     children.push(ValuePart::Term(a));
                     children.push(if matches!(op.as_str(), "≅" | "≇") {

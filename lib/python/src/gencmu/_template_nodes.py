@@ -64,10 +64,6 @@ def map_nodes(root, transform):
     return result[0]
 
 
-def clone_nodes(root):
-    return map_nodes(root, lambda node: node)
-
-
 def normalize_argument(root, patterns=frozenset()):
     def normalized(value):
         if isinstance(value, dict):

@@ -45,11 +45,6 @@ def canonical_argument(n, unicode):
     return run(_print_argument(n, unicode))
 
 
-def body_text(n, unicode, parent=''):
-    return run(_print_body(n, unicode, parent))
-
-
-
 def _print_join(items, unicode, printer, separator, parent=None):
     parts = []
     for item in items:
@@ -617,11 +612,14 @@ def expand_templates(documents, unicode):
             inspect_arguments(event)
     for event in validation_definitions:
         inspect_arguments(event)
-    validation = [{**e, 'rule': rewrite(e['rule'], e)} for e in events if not any(k in e['rule'] for k in ('params', 'args', 'instance'))]
+    validation = [e if 'params' in e['rule'] else {**e, 'rule': rewrite(e['rule'], e)}
+                  for e in events if 'params' in e['rule'] or not any(k in e['rule'] for k in ('args', 'instance'))]
     validation.extend({**e, 'rule': rewrite({**e['rule'], 'name': effective(i)}, e)} for i in queue for e in i['definitions'])
     validation.extend({**e, 'rule': rewrite(e['rule'], e)} for e in validation_definitions)
     validation.extend(argument_definitions)
     for event in validation:
+        if 'params' in event['rule']:
+            continue
         problem = dom_problem(empty_dom(documents[0][1]['format'], [event['rule']]), unicode, True, True)
         if problem:
             fail(event, event['rule'], problem)

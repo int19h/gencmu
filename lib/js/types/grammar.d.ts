@@ -246,10 +246,14 @@ export declare class Grammar {
     evaluateClosed(path: string, term: Term, item: [number, number], lookup?: (name: string) => TermValue, expected?: TermType): TermValue;
     /** @param {any} node @param {string} path @param {[number,number]} at @returns {any} */
     resolvePatterns(node: any, path: string, at: [number, number]): any;
-    /** @param {string} path @param {DomRule} rule */
-    checkConstantRule(path: string, rule: DomRule): void;
+    /** @param {string} path @param {DomRule} rule @returns {DomRule} */
+    checkConstantRule(path: string, rule: DomRule): DomRule;
     /** @param {any} root @param {string} path @param {[number,number]} at @param {boolean} [computed] */
     checkValueUses(root: any, path: string, at: [number, number], computed?: boolean): void;
+    /** @param {any[]} ends @param {string} path @param {[number,number]} at */
+    checkRangeUses(ends: any[], path: string, at: [number, number]): void;
+    /** @param {any} root @param {string} path @param {[number,number]} at */
+    checkPatternUses(root: any, path: string, at: [number, number]): void;
     /** @param {string} path @param {import("./types.js").DomDirective} directive */
     resolveFeature(path: string, directive: import("./types.js").DomDirective): {
         path: string;
