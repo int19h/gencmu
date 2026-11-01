@@ -2915,7 +2915,7 @@ Feature conditions receive syntax and DOM-shape analysis before stitching. Their
 
 A template first undergoes binder and syntax analysis (§2.3). Every source, cached, or supplied template receives all checks that do not depend on an argument. Uncalled templates receive the same checks. Unresolved symbols introduce no caller-visible captures. Unresolved terms have an unknown type during these checks. Argument-dependent requirements apply after substitution to every expanded definition.
 
-Constant binding, applicable type inspection, and bound-value inspection include every template definition, even when no call uses it. A value that depends on a parameter waits for substitution. Independent operands still receive inspection. This inspection creates no instance and no audit entry.
+Constant binding, applicable type inspection, and bound-value inspection include every template definition, even when no call uses it. A value that depends on a parameter waits for substitution. Independent operands still receive inspection. Pattern calls and parameters retain inspection of their attached children, after any call arguments. This inspection creates no instance and no audit entry.
 
 Definition errors retain their specific reason, including capture names, in every validation path. Type faults discovered after argument substitution retain their specific reason too. A call argument that reads or declares a capture reports "an argument cannot read or declare captures". When a diagnostic names a method, it uses the method's source spelling. A tag-set diagnostic directs the author to `$x.tags`.
 
