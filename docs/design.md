@@ -1042,6 +1042,8 @@ An inspection record owns one source declaration and a position within it. Its k
 
 The loader preserves these keys through argument retention, fragment conversion, substitution, and deferred error collection. Diagnostic locations remain distinct from ordering keys. A location can fall back to the declaration when a cached node lacks a written token position.
 
+Pattern parts define one child schedule for reference, type, and range inspection. A source-call part exposes its arguments before attached children.
+
 The loading paths use the following positions. The table names the entry points in each library, including the helpers that inspect nested parts.
 
 | Path | JavaScript | Python | Go | Rust | Position source |

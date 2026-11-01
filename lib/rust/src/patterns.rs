@@ -166,47 +166,70 @@ impl Pattern {
 pub(crate) enum Part<'a> {
     Pattern(&'a Pattern),
     Children(&'a Children),
+    Source(&'a crate::dom::source::SourceSymbol),
     Term(&'a Term, Option<&'a str>),
 }
 pub(crate) struct Walk<'a> {
     pending: Vec<Part<'a>>,
 }
+impl Part<'_> {
+    /// Schedule children in reverse written order for an explicit stack.
+    pub(crate) fn push_children(self, mut push: impl FnMut(Self)) {
+        match self {
+            Part::Pattern(pattern) => match pattern {
+                Pattern::Source(symbol) => push(Part::Source(symbol)),
+                Pattern::Literal(term, _) => push(Part::Term(term, None)),
+                Pattern::Range(a, b, _) => {
+                    push(Part::Term(b, None));
+                    push(Part::Term(a, None));
+                }
+                Pattern::Test(op, term, inner) => {
+                    push(Part::Term(term, Some(op)));
+                    push(Part::Pattern(inner));
+                }
+                Pattern::Node(node, _, children) => {
+                    if let Some(children) = children {
+                        push(Part::Children(children));
+                    }
+                    push(Part::Pattern(node));
+                }
+                Pattern::Path(_, inner) => push(Part::Pattern(inner)),
+                Pattern::Union(items) | Pattern::Intersection(items) => {
+                    for item in items.iter().rev() {
+                        push(Part::Pattern(item));
+                    }
+                }
+                Pattern::Difference(a, b) => {
+                    push(Part::Pattern(b));
+                    push(Part::Pattern(a));
+                }
+                _ => {}
+            },
+            Part::Children(children) => match children {
+                Children::Node(pattern) => push(Part::Pattern(pattern)),
+                Children::Sequence(items) | Children::Choice(items) => {
+                    for item in items.iter().rev() {
+                        push(Part::Children(item));
+                    }
+                }
+                Children::Optional(inner) => push(Part::Children(inner)),
+                Children::Repeat(item, separator) => {
+                    if let Some(separator) = separator.as_deref() {
+                        push(Part::Children(separator));
+                    }
+                    push(Part::Children(item));
+                }
+                Children::Siblings => {}
+            },
+            Part::Term(..) | Part::Source(_) => {}
+        }
+    }
+}
 impl<'a> Iterator for Walk<'a> {
     type Item = Part<'a>;
     fn next(&mut self) -> Option<Self::Item> {
         let part = self.pending.pop()?;
-        match part {
-            Part::Pattern(pattern) => match pattern {
-                Pattern::Literal(term, _) => self.pending.push(Part::Term(term, None)),
-                Pattern::Range(a, b, _) => self.pending.extend([Part::Term(b, None), Part::Term(a, None)]),
-                Pattern::Test(op, term, inner) => {
-                    self.pending.extend([Part::Term(term, Some(op)), Part::Pattern(inner)])
-                }
-                Pattern::Node(node, _, children) => {
-                    self.pending.extend(children.as_ref().map(Part::Children));
-                    self.pending.push(Part::Pattern(node));
-                }
-                Pattern::Path(_, inner) => self.pending.push(Part::Pattern(inner)),
-                Pattern::Union(items) | Pattern::Intersection(items) => {
-                    self.pending.extend(items.iter().rev().map(Part::Pattern))
-                }
-                Pattern::Difference(a, b) => self.pending.extend([Part::Pattern(b), Part::Pattern(a)]),
-                _ => {}
-            },
-            Part::Children(children) => match children {
-                Children::Node(pattern) => self.pending.push(Part::Pattern(pattern)),
-                Children::Sequence(items) | Children::Choice(items) => {
-                    self.pending.extend(items.iter().rev().map(Part::Children))
-                }
-                Children::Optional(inner) => self.pending.push(Part::Children(inner)),
-                Children::Repeat(item, separator) => {
-                    self.pending.extend(separator.as_deref().map(Part::Children));
-                    self.pending.push(Part::Children(item));
-                }
-                Children::Siblings => {}
-            },
-            Part::Term(..) => {}
-        }
+        part.push_children(|child| self.pending.push(child));
         Some(part)
     }
 }
