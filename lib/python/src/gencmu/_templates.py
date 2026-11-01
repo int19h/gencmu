@@ -576,7 +576,7 @@ def expand_templates(documents, unicode):
     arguments_to_check, argument_definitions = [], []
 
     def inspect_argument(argument, event):
-        parts = list(nodes(argument))
+        parts = list(nodes(argument, source=True))
         references = [n for n in parts if 'const' in n or 'constant' in n]
         if not references:
             return
@@ -600,7 +600,7 @@ def expand_templates(documents, unicode):
             add(arg)
 
     def inspect_arguments(event):
-        for node in nodes(event['rule']):
+        for node in nodes(event['rule'], source=True):
             if 'call' in node or 'name' in node and 'args' in node and 'op' in node:
                 for argument in node['args']:
                     inspect_argument(argument, event)
