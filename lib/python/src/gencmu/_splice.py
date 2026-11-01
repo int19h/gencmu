@@ -68,9 +68,9 @@ def items_in_order(dom: Dom) -> list[tuple[str, Dom]]:
     return items
 
 
-def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None], scoped_dom_of=None) -> SplicedPipeline:
+def splice_pipeline(path: str, dom_of: Callable[[str, list[str]], Dom | None]) -> SplicedPipeline:
     """Splice the pipeline document at ``path``. ``dom_of`` gives a
-    document's DOM, or ``None`` when the document does not exist."""
+    document's DOM for its inherited names, or ``None`` if it does not exist."""
     stages: list[SplicedStage] = []
     # The stages by name, for the check of a second stage of a name.
     named: dict[str, SplicedStage] = {}
@@ -85,9 +85,6 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None], scoped_dom_o
     frames: list[tuple[str, Dom, list[tuple[str, Dom]], list[int], list[str]]] = []
     # The documents of the frames, for the check of an include of itself.
     on_chain: set[str] = set()
-
-    def get_dom(document, inherited):
-        return scoped_dom_of(document, inherited) if scoped_dom_of else dom_of(document)
 
     def enter(document: str, dom: Dom, inherited=()) -> None:
         frames.append((document, dom, items_in_order(dom), [0], selected_names(document, dom, inherited)))
@@ -122,7 +119,7 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None], scoped_dom_o
                 if target in on_chain:
                     raise fail(f"{target} includes itself ({chain_to(target)})")
                 try:
-                    included = get_dom(target, names)
+                    included = dom_of(target, names)
                 except GencmuError as error:
                     if error.line is None and isinstance(error.__cause__, OSError):
                         raise fail(str(error)) from error.__cause__
@@ -176,7 +173,7 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None], scoped_dom_o
                 if name == "features":
                     declarations.append((selected.name, run[1], document, item))
 
-    top = get_dom(path, ())
+    top = dom_of(path, [])
     if top is None:
         raise GencmuError(f"{path} was not found", document=path)
     enter(path, top)

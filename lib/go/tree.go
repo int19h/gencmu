@@ -4,9 +4,8 @@ import (
 	"math/bits"
 )
 
-// The tree (engine §12) and emission (engine §11), both walks of a chosen
-// derivation. Derivations nest as deep as a text is long, so the walks keep
-// their own stacks.
+// The tree (engine §12) and source tables. The tree walk keeps its own
+// stack because derivations nest as deep as a text is long.
 
 // flattenKids lists a close's children in order.
 func flattenKids(kids *dn) []*dn {

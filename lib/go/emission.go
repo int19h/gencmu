@@ -350,7 +350,6 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 	type frame struct {
 		o             *occurrence
 		next          int
-		items         []*domEmitItem
 		item          int
 		phase         int
 		token         Token

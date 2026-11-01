@@ -9,19 +9,16 @@ from typing import Any, Union
 
 from ._earley import RESTORE, Evaluator, Forest, Parser, Sources, StageContext
 from ._errors import _GrammarFault
-from ._grammar import Lowered, Production, SymbolTest, written_symbol
+from ._grammar import Lowered, Production, SymbolTest
 from ._markdown import line_column
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Restoration, Tags, Token
 from ._rank import (
     Act,
-    ProfileSummaries,
-    Ranker,
     Ranking,
     Rope,
     actions,
     compare_profiles,
     concat,
-    count_roots,
     first_difference,
     leaf,
     rank,
@@ -553,12 +550,7 @@ class StageRunner:
         self.unicode = unicode
         self.features = features
 
-    def context(self, lowered: Lowered, tokens: list[Token]) -> StageContext:
-        context = StageContext(lowered, tokens, self.text, self.unicode)
-        context.count = count_roots
-        return context
-
-    def fault(self, fault: _GrammarFault, tokens: list[Token]) -> ParseError:
+    def fault(self, fault: _GrammarFault) -> ParseError:
         # A defect found while parsing has its stage and no position (§13).
         return ParseError("grammar", fault.message, stage=self.name)
 
@@ -595,14 +587,14 @@ class StageRunner:
         try:
             return self._run(elision_only)
         except _GrammarFault as fault:
-            return StageOutcome(error=self.fault(fault, self.tokens))
+            return StageOutcome(error=self.fault(fault))
 
     def _run(self, elision_only: bool) -> StageOutcome:
         """The steps of a stage, in order (engine §6): recognize, rank, and
         then, for a verdict of unique or resolved, emit and run the check of
         engine §7 where it applies. A tie ends the stage at the ranking."""
         lowered = self.lowered
-        context = self.context(lowered, self.tokens)
+        context = StageContext(lowered, self.tokens, self.text, self.unicode)
         start = lowered.rule_ids["text"]
         forest = Parser(context).parse(start)
         ranking = rank(forest, lowered.lean)
@@ -638,7 +630,7 @@ class StageRunner:
             # found while emitting ends the stage before the check.
             outcome.output = None
             outcome.tree = None
-            outcome.error = self.fault(fault, self.tokens)
+            outcome.error = self.fault(fault)
             return outcome
         return outcome
 

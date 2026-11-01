@@ -165,11 +165,10 @@ struct Run {
     warnings: Vec<Warning>,
 }
 
-/// A pipeline's features (engine §13): every name a guard of a stage's
-/// stitched rules uses, every gate of its classifiers' entries, and every
-/// name the pipeline's `%features` declares, in code point order. A name
-/// that one guard uses as a gate and another as a warning is an error of
-/// the pipeline; one that only `%features` declares is a gate.
+/// A pipeline's features (engine §13): names from guards and pipeline or
+/// stage-local `%features` declarations, in code point order.
+/// Unconditional declarations also supply defaults. A name that
+/// only declarations use is a gate. A name used as both gate and warning is an error.
 fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec<Feature>, Error> {
     let mut kinds: BTreeMap<&str, FeatureKind> = BTreeMap::new();
     for stage in stages {

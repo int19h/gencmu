@@ -20446,7 +20446,6 @@
 
 
 
-
   /** @import { DomClassifier, DomConstant, DomDirective, DomImplication, DomRule, GrammarDom } from "./types.js" */
 
   /**
@@ -20526,7 +20525,6 @@
       if (hooks.work) countWork(hooks.work, "splice");
       const where = itemAt(item);
       const at = { document: documentPath, line: where[0], column: where[1] };
-      const place = `${documentPath}:${at.line}:${at.column}`;
       if ("directive" in item && item.directive.name === "names") continue;
       if ("directive" in item && item.directive.name === "include") {
         let target;
@@ -20539,7 +20537,7 @@
         // include would cost the square of D.
         const through = () => frames.map((open) => open.path).join(" → ");
         if (including.has(target)) {
-          throw new GencmuError("grammar", `${place}: ${target} includes itself (${through()} → ${target})`, at);
+          throw new GencmuError("grammar", `${target} includes itself (${through()} → ${target})`, at);
         }
         let included;
         try { included = domOf(target, frame.names); }
@@ -20550,13 +20548,13 @@
           throw error;
         }
         if (included === undefined) {
-          throw new GencmuError("grammar", `${place}: ${target} was not found (${through()} → ${target})`, at);
+          throw new GencmuError("grammar", `${target} was not found (${through()} → ${target})`, at);
         }
         run = null;
         frames.push({ path: target, dom: included, items: itemsInOrder(included), next: 0, names:selectedNames(target,included,frame.names) });
         including.add(target);
       } else if ("directive" in item && item.directive.name === "features" && !selected) {
-        if (item.directive.conditions) throw new GencmuError("grammar", `${place}: global features cannot have conditions`, at);
+        if (item.directive.conditions) throw new GencmuError("grammar", "global features cannot have conditions", at);
         for (const name of item.directive.args) {
           if (hooks.work) countWork(hooks.work, "splice");
           if (featureNames.has(name)) continue;
@@ -20567,7 +20565,7 @@
         const name = item.directive.args[0];
         const earlier = stageNames.get(name);
         if (earlier) {
-          throw new GencmuError("grammar", `${place}: a second stage named ${name}; the first is at ${earlier.at.document}:${earlier.at.line}:${earlier.at.column}`, at);
+          throw new GencmuError("grammar", `a second stage named ${name}; the first is at ${earlier.at.document}:${earlier.at.line}:${earlier.at.column}`, at);
         }
         /** @type {SplicedStage} */
         const stage = { name, at, documents: [], changes: [] };
@@ -20578,7 +20576,7 @@
       } else if ("directive" in item && ["extend-stage", "redefine-stage"].includes(item.directive.name)) {
         const name = item.directive.args[0];
         selected = stageNames.get(name);
-        if (!selected) throw new GencmuError("grammar", `${place}: %${item.directive.name} names an unknown stage ${name}`, at);
+        if (!selected) throw new GencmuError("grammar", `%${item.directive.name} names an unknown stage ${name}`, at);
         const replaced = item.directive.name === "redefine-stage";
         if (replaced) selected.documents = [];
         selected.changes.push({ kind: replaced ? "replaced" : "extended", ...at });
@@ -20588,7 +20586,7 @@
         if (!stage) {
           const what = "rule" in item ? `the rule ${item.rule.name}` : "constant" in item ? `the constant $${item.constant.name}`
             : "classifier" in item ? `the classifier ${item.classifier.name}` : "implication" in item ? "%implies" : `%${item.directive.name}`;
-          throw new GencmuError("grammar", `${place}: ${what} stands before the first %stage`, at);
+          throw new GencmuError("grammar", `${what} stands before the first %stage`, at);
         }
         if (run === null || run.path !== documentPath) {
           run = { path: documentPath, dom: { format: dom.format, rules: [], directives: [], constants: [], classifiers: [], implications: [] } };
@@ -20604,7 +20602,7 @@
         }
       }
     }
-    if (stages.length === 0) throw new GencmuError("grammar", `${path}: a pipeline needs at least one %stage`, { document: path });
+    if (stages.length === 0) throw new GencmuError("grammar", "a pipeline needs at least one %stage", { document: path });
     for (const stage of stages) {
       if (!stage.documents.some((document) => document.dom.rules.length > 0)) {
         throw new EmptyStageError("grammar", "has no rules", {...stage.at, stage:stage.name});
@@ -20618,7 +20616,7 @@
         const owner = owners.get(name);
         if (owner !== undefined && owner !== stage.name) {
           const [line,column] = directive.at;
-          throw new GencmuError("grammar", `${run.path}:${line}:${column}: feature ${name} is local to both ${owner} and ${stage.name}`,
+          throw new GencmuError("grammar", `feature ${name} is local to both ${owner} and ${stage.name}`,
             {document:run.path,line,column,stage:stage.name});
         }
         owners.set(name,stage.name);
@@ -21054,10 +21052,10 @@
   }
 
   /**
-   * A pipeline's features (engine §13): every name a guard of any stage uses,
-   * and every name the pipeline's `%features` declares, in code point
-   * order. A name used both as a gate and as a warning is an error of the
-   * pipeline.
+   * A pipeline's features (engine §13): names from guards and pipeline or
+   * stage-local `%features` declarations, in code point order.
+   * Unconditional declarations also supply defaults. A name that
+   * only declarations use is a gate. A name used as both gate and warning is an error.
    * @param {Stage[]} stages
    * @param {string[]} declared
    * @returns {Feature[]}
@@ -21341,7 +21339,6 @@
     throw new GencmuError("grammar", `${path}:${line}:${column}: ${item.problem}`, { document: path, line, column, ...(item.problem?.startsWith("ranked-choice-syntax:") ? {code:"ranked-choice-syntax"} : {}) });
   }
 
-  // Adds the line and column of an error's source position.
   /**
    * Each declaration alone in a DOM of its own, including directives and
    * classifiers, in the order of the document.
@@ -21404,6 +21401,7 @@
    * @param {string} text
    * @returns {ParseError}
    */
+  // Adds the line and column of an error's source position.
   function locate(error, text) {
     if (!error.source) return error;
     const characters = [...text];

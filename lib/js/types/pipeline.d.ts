@@ -2,7 +2,7 @@ import { Stage } from "./stage.js";
 import { Token } from "./tokens.js";
 import { UnicodeTable } from "./unicode.js";
 export { fnv1a64 } from "./hash.js";
-import type { Feature, GrammarDom, ParseOptions, ParseResult, Resources, ResultNode } from "./types.js";
+import type { Feature, GrammarDom, ParseOptions, ParseResult, Resources } from "./types.js";
 export type PreparsedEntry = {
     hash: string;
     dom: GrammarDom;
@@ -140,20 +140,5 @@ export declare class Pipeline {
      */
     run(text: string, options: RunOptions): ParseResult;
 }
-/**
- * A document's DOM from the notation's syntax tree of it: the reader's DOM,
- * held to the rules of a preparsed DOM, or a grammar error at its place
- * (engine §9). The hand-written reader of tools/bootstrap-reader.js reads
- * its own tree with it too.
- * @param {ResultNode} tree
- * @param {Token[]} tokens the syntax stage's input tokens
- * @param {(token: Token) => import("./types.js").Position} positionOf
- * @param {string} path
- * @param {UnicodeTable} unicode
- * @param {(token:Token, path:boolean)=>string} decodeString
- * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
- * @returns {GrammarDom}
- */
-export declare function domOfTree(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => import("./types.js").Position, path: string, unicode: UnicodeTable, decodeString: (token: Token, path: boolean) => string, deferEmission?: boolean): GrammarDom;
 /** @param {Map<string, string>} sources */
 export declare function checkSourceStrings(sources: Map<string, string>): void;

@@ -413,7 +413,6 @@ class StageContext:
     # The nested parses running, by rule and span, whatever was asked of them.
     running: set[tuple[str, int, int]] = field(default_factory=set)
     token_tags: list[int] = field(default_factory=list)
-    count: Callable[[Forest, list[int]], list[int]] | None = None
     # Where each run of the tokens lies in the text (engine §1).
     sources: Sources = field(init=False)
     # The next token with a nonempty stored value, made on first use.

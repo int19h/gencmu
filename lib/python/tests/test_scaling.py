@@ -755,7 +755,7 @@ class Pipelines(Linear):
 
             def work() -> None:
                 with mock.patch.object(_splice, "resolve", lambda base, target, at=None: Path(resolve(base, target, at))):
-                    splice_pipeline("d0.md", doms.get)
+                    splice_pipeline("d0.md", lambda path, inherited: doms.get(path))
 
             return work
 
@@ -770,7 +770,7 @@ class Pipelines(Linear):
 
             def work() -> None:
                 try:
-                    splice_pipeline("p.md", {"p.md": dom}.get)
+                    splice_pipeline("p.md", lambda path, inherited: dom if path == "p.md" else None)
                 except gencmu.GencmuError as error:
                     assert "stage s0: has no rules" in str(error), error
 

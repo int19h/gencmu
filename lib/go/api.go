@@ -322,24 +322,24 @@ func (l *loader) loadMode(pipelinePath string) (*Pipeline, error) {
 	if perr != nil {
 		return nil, perr
 	}
-	d := &Pipeline{uni: l.uni, declared: p.features}
+	var stages []*stageGrammar
 	for _, s := range p.stages {
 		g, err := stitch(s.name, s.documents, l.uni)
 		if err != nil {
 			return nil, err
 		}
-		d.stages = append(d.stages, g)
+		stages = append(stages, g)
 	}
-	pipeline, err := newPipeline(d.stages, p.features, l.uni)
+	pipeline, err := newPipeline(stages, p.features, l.uni)
 	if err != nil {
 		return nil, err
 	}
 	return pipeline, nil
 }
 
-// pipeline splices the pipeline document at pipelinePath: its stages, each
+// splice splices the pipeline document at pipelinePath: its stages, each
 // a list of runs of one document's items, and the features it turns on
-// (engine §13). A document included more than once is read once.
+// (engine §13). The DOM cache keys each path with its inherited names.
 func (l *loader) splice(pipelinePath string) (*splicedPipeline, *Error) {
 	doms := map[string]*domDoc{}
 	return splicePipelineWithNames(pipelinePath, func(p string, names []string) (*domDoc, *Error) {
@@ -369,12 +369,10 @@ func newPipeline(stages []*stageGrammar, declared []string, uni *unicodeTable) (
 	return &Pipeline{uni: uni, stages: stages, declared: declared, features: features}, nil
 }
 
-// pipelineFeatures lists a pipeline's features (engine §13): every name that a
-// guard of a stage's stitched rules or a gate of its classifiers' entries
-// uses, whatever features are on, and
-// every name the pipeline's %features declares, in code point order. A
-// name only %features declares is a gate; a name that one guard uses as a
-// gate and another as a warning is an error of the pipeline.
+// pipelineFeatures lists names from guards and pipeline or stage-local
+// %features declarations, in code point order (engine §13).
+// Unconditional declarations also supply defaults. A name that
+// only declarations use is a gate. A name used as both gate and warning is an error.
 func pipelineFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Error) {
 	kinds := map[string]string{}
 	firstIn := map[string]string{} // the document of a name's first guard
@@ -601,7 +599,7 @@ func LoadPipelineFile(file string) (*Pipeline, error) {
 // LoadPipelineSources loads a pipeline from documents held in memory: a map
 // from /-separated path to text, and the path of the pipeline document in
 // it. The map may hold its own data/unicode/unicode.txt, data/preparsed/gencmu.json and
-// data/preparsed/lojban.json; those it lacks come from the bundled resources.
+// data/preparsed/FAMILY.json; those it lacks come from the bundled resources.
 func LoadPipelineSources(sources map[string]string, pipeline string) (*Pipeline, error) {
 	return loadSources(sources, pipeline, false)
 }

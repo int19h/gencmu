@@ -203,7 +203,7 @@ class NotationReader:
             return known_dom_members(entry["dom"])
 
         try:
-            pipeline = splice_pipeline("grammars/gencmu/jbogenbau/pipeline.md", dom_of)
+            pipeline = splice_pipeline("grammars/gencmu/jbogenbau/pipeline.md", lambda path, inherited: dom_of(path))
         except GencmuError as error:
             if isinstance(error, _EmptyStageError) and error.stage:
                 error.message = f"stage {error.stage}: {error.message}"
@@ -486,7 +486,7 @@ class _Loader:
                 return None
             dom = self.dom(path, inherited) if inherited else self.dom(path)
             return self.reader.located(dom, self.text(path), path, NamesScope(self.names_text, self.unicode, inherited)) if path == diagnostic_document else dom
-        return splice_pipeline(pipeline_path, document, document)
+        return splice_pipeline(pipeline_path, document)
 
     def load(self, pipeline_path: str) -> Pipeline:
         try:
@@ -626,11 +626,10 @@ def load_pipeline_sources(sources: Mapping[str, str], pipeline: str, *, use_cach
 
 
 def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tuple[Feature, ...]:
-    """A pipeline's features (engine §13): every name a guard of a stage's
-    stitched rules or a gate of its classifiers' entries uses, and every
-    name the pipeline's ``%features`` declares, in code point order. Each is
-    a gate or a warning as its guards use it, and a gate if only declared; a
-    name used both ways is an error of the pipeline."""
+    """A pipeline's features (engine §13): names from guards and pipeline or
+    stage-local ``%features`` declarations, in code point order.
+    Unconditional declarations also supply defaults. A name that
+    only declarations use is a gate. A name used as both gate and warning is an error."""
     kinds: dict[str, str] = {}
     for grammar in grammars:
         guards = [(guard, alternative.document, alternative.at) for rule in grammar.rules.values() for alternative in rule.alternatives for guard in alternative.guards]

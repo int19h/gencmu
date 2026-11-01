@@ -107,87 +107,6 @@ export type WarningJson = {
 export type DisplayValue = {
     [name: string]: DisplayValue | DisplayValue[] | string | string[] | null;
 };
-/** @import { WitnessAction, ParseError, ParseResult, ResultNode, Span } from "./types.js" */
-/** @import { AttachedToken, Token } from "./tokens.js" */
-/**
- * A token in the result JSON.
- * @typedef {object} TokenJson
- * @property {string} text
- * @property {string} value
- * @property {string} image
- * @property {string[]} tags
- * @property {Span} [span] absent for an attached token
- * @property {Span} source
- * @property {string} [insertedBy]
- * @property {TokenJson[]} [before] present only when not empty
- * @property {TokenJson[]} [after] present only when not empty
- */
-/**
- * A result tree node in the result JSON.
- * @typedef {{kind: "token", terminal: string, token: number, span: Span, source: Span}
- *   | {kind: "elided", terminal: string, span: Span, source: Span, value?:string}
- *   | {kind: "rule", rule: string, span: Span, source: Span, tags: string[], children: NodeJson[]}} NodeJson
- */
-/**
- * A witness action in the result JSON.
- * @typedef {{read: {token: number, terminal: string}}
- *   | {close: {rule: string, production: number, span: Span}}
- *   | {elided: {at: number, terminal: string}}} ActionJson
- */
-/**
- * An error in the result JSON.
- * @typedef {object} ErrorJson
- * @property {ParseError["kind"]} kind
- * @property {string} [stage]
- * @property {string} [feature]
- * @property {"elision-witness-lost"} [code]
- * @property {"tie" | "elision-only"} [reason]
- * @property {number} [token]
- * @property {Span} [source]
- * @property {number} [line]
- * @property {number} [column]
- * @property {{rule:string,condition:number,at:number}} [boundary]
- * @property {import("./types.js").Expectation[]} [expected]
- * @property {NodeJson[]} [readings]
- * @property {ActionJson[]} [witness]
- * @property {string} [document]
- * @property {string} message
- * @property {NodeJson} [chosen]
- * @property {import("./types.js").Restoration[]} [completion]
- */
-/**
- * A stage in the result JSON.
- * @typedef {object} StageJson
- * @property {string} name
- * @property {import("./types.js").Verdict | null} verdict
- * @property {ActionJson[]} [witness]
- * @property {TokenJson[]} [output]
- */
-/**
- * The canonical result JSON (docs/output.md).
- * @typedef {object} ResultJson
- * @property {number} format
- * @property {boolean} ok
- * @property {StageJson[]} stages
- * @property {NodeJson | null} tree
- * @property {ErrorJson | null} error
- * @property {WarningJson[]} [warnings] present only when there is one
- */
-/**
- * A warning (docs/output.md).
- * @typedef {object} WarningJson
- * @property {string} stage
- * @property {string} feature
- * @property {string} rule
- * @property {[number, number]} span
- * @property {[number, number]} source
- */
-/**
- * The display JSON projection of a tree: each node an object with one
- * member, its rule or terminal.
- * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
- */
-export declare const RESULT_FORMAT = 15;
 /**
  * @param {ResultNode} node
  * @returns {NodeJson}
@@ -241,14 +160,6 @@ export declare function nodeBrackets(root: ResultNode, tokens: Token[], options?
  * @returns {string}
  */
 export declare function toTree(result: ParseResult): string;
-/**
- * A tree without its hollow rule nodes, those with no token and no elided
- * terminator below them, such as an empty free-modifier slot: the renderings
- * for people leave them out (docs/output.md).
- * @param {ResultNode} root
- * @returns {ResultNode}
- */
-export declare function withoutHollowNodes(root: ResultNode): ResultNode;
 /**
  * The tree rendering of any tree over the tokens its nodes index. `text` is
  * the text that the tokens' sources index. Without it, only the images

@@ -13,7 +13,6 @@ import gencmu
 from gencmu._clauses import WHOLE, applies, captures_in, applies_prepared, prepare, prepare_conditions, simplify_condition, simplify_term
 from gencmu._earley import Parser, StageContext
 from gencmu._model import Token
-from gencmu._rank import count_roots
 
 from .shared import load_case_pipeline
 
@@ -109,7 +108,6 @@ class CaptureGrowth(unittest.TestCase):
         lowered = pipeline.lowered(0, frozenset())
         tokens = [Token("a", frozenset({"A"}), (index, index + 1), (2 * index, 2 * index + 1)) for index in range(n)]
         context = StageContext(lowered, tokens, " ".join("a" for _ in tokens), pipeline.unicode)
-        context.count = count_roots
         forest = Parser(context).parse(lowered.rule_ids["text"])
         t = lowered.rule_ids["t"]
         found = 0
@@ -155,7 +153,6 @@ class QueryHelpers(unittest.TestCase):
                 self.assertFalse(helper.conds_predict)
                 self.assertFalse(helper.conds_at)
                 context = StageContext(lowered, [Token("a", tags, (0, 1), (0, 1))], "a", pipeline.unicode)
-                context.count = count_roots
                 forest = Parser(context).parse(helper.lhs)
                 self.assertEqual(len(forest.roots), 1)
                 self.assertEqual(context.tagtab.get(forest.tag[forest.roots[0]]), tags)
