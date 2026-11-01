@@ -168,6 +168,62 @@ pub fn expect(value: &Value) -> R {
     Ok(())
 }
 
+// Token payload values can deliberately be invalid in usage cases. Member
+// names still belong to the fixture contract, even inside attachments.
+fn token_list(value: &Value, usage: bool) -> R {
+    let Value::Array(tokens) = value else {
+        return if usage { Ok(()) } else { Err("tokens must be an array outside a usage case".into()) };
+    };
+    let mut pending: Vec<_> = tokens.iter().collect();
+    while let Some(token) = pending.pop() {
+        if usage && !matches!(token, Value::Object(_)) {
+            continue;
+        }
+        fields(
+            token,
+            "token",
+            &[
+                ("text", Any),
+                ("tags", Any),
+                ("value", Any),
+                ("image", Any),
+                ("source", Any),
+                ("span", Any),
+                ("before", Any),
+                ("after", Any),
+            ],
+        )?;
+        if !usage {
+            required(token, "text", "token")?;
+            strings(required(token, "tags", "token")?, "token.tags")?;
+            for name in ["text", "value", "image"] {
+                if token.get(name).is_some_and(|value| !matches!(value, Value::String(_))) {
+                    return Err(format!("token.{name} must be a string"));
+                }
+            }
+            for name in ["source", "span"] {
+                if let Some(value) = token.get(name) {
+                    if !matches!(value, Value::Array(pair) if pair.len() == 2 && pair.iter().all(
+                        |n| matches!(n, Value::Number(n) if n.is_finite() && *n >= 0.0 && n.fract() == 0.0)
+                    )) {
+                        return Err(format!("token.{name} must contain two nonnegative integers"));
+                    }
+                }
+            }
+        }
+        for name in ["before", "after"] {
+            if let Some(value) = token.get(name) {
+                if let Value::Array(children) = value {
+                    pending.extend(children);
+                } else if !usage {
+                    return Err(format!("token.{name} must be an array"));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn engine(value: &Value) -> R {
     fields(
         value,
@@ -198,9 +254,7 @@ pub fn engine(value: &Value) -> R {
                         .iter()
                         .all(|run| run.get("expect").and_then(|e| e.get("error")).and_then(Value::str) == Some("usage"))
             });
-        if !matches!(tokens, Value::Array(_)) && !usage {
-            return Err("tokens must be an array outside a usage case".into());
-        }
+        token_list(tokens, usage)?;
     }
     let sources = ["grammar", "pipeline", "documents"].iter().filter(|name| value.get(name).is_some()).count();
     if sources != 1 {
@@ -282,6 +336,9 @@ pub fn memo(value: &Value) -> R {
     if let Some(inputs) = value.get("inputs") {
         if inputs.array().is_empty() || inputs.array().iter().any(|input| !matches!(input, Value::Array(_))) {
             return Err("inputs must be a nonempty array of token arrays".into());
+        }
+        for input in inputs.array() {
+            token_list(input, false)?;
         }
     }
     let configurations = required(value, "options", "memo run")?;

@@ -826,3 +826,96 @@ fn shared_case_metadata_is_well_formed() {
     }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
+
+#[test]
+fn runner_refuses_invalid_token_metadata() {
+    let mut accepted = Vec::new();
+    let unknowns = [
+        r#"{"text":"a","tags":["A"],"typo":true}"#,
+        r#"{"text":"a","tags":["A"],"before":[{"text":"b","tags":[],"typo":true}]}"#,
+        r#"{"text":"a","tags":["A"],"after":[{"text":"b","tags":[],"before":[{"text":"c","tags":[],"typo":true}]}]}"#,
+    ];
+    let invalid_payloads = [
+        r#"null"#,
+        r#"{}"#,
+        r#"{"text":"a"}"#,
+        r#"{"tags":[]}"#,
+        r#"{"text":3,"tags":[]}"#,
+        r#"{"text":"a","tags":false}"#,
+        r#"{"text":"a","tags":[3]}"#,
+        r#"{"text":"a","tags":[],"value":null}"#,
+        r#"{"text":"a","tags":[],"image":false}"#,
+        r#"{"text":"a","tags":[],"source":[0]}"#,
+        r#"{"text":"a","tags":[],"source":[0,1.5]}"#,
+        r#"{"text":"a","tags":[],"span":[-1,1]}"#,
+        r#"{"text":"a","tags":[],"span":"0,1"}"#,
+        r#"{"text":"a","tags":[],"before":{}}"#,
+        r#"{"text":"a","tags":[],"after":[null]}"#,
+        r#"{"text":"a","tags":[],"before":[{"text":"b","tags":false}]}"#,
+    ];
+    for token in unknowns.iter().chain(&invalid_payloads) {
+        let engine = parse_json(&format!(
+            r#"{{"grammar":"%rule text A","tokens":[{token}],"expect":{{"result":{{"ok":true}}}}}}"#,
+        ))
+        .unwrap();
+        if common::case::engine(&engine).is_ok() {
+            accepted.push(format!("engine accepted {token}"));
+        }
+        let memo =
+            parse_json(&format!(r#"{{"grammar":"%rule text A","inputs":[[{token}]],"options":[{{}}]}}"#)).unwrap();
+        if common::case::memo(&memo).is_ok() {
+            accepted.push(format!("memo accepted {token}"));
+        }
+    }
+    for token in unknowns {
+        for expectation in [r#""expect":{"error":"usage"}"#, r#""parses":[{"expect":{"error":"usage"}}]"#] {
+            let engine =
+                parse_json(&format!(r#"{{"grammar":"%rule text A","tokens":[{token}],{expectation}}}"#)).unwrap();
+            if common::case::engine(&engine).is_ok() {
+                accepted.push(format!("usage engine accepted {token}"));
+            }
+        }
+    }
+    let direct = parse_json(r#"{"grammar":"%rule text A","tokens":[{"text":"a","tags":["A"],"typo":true}],"expect":{"result":{"ok":true}}}"#).unwrap();
+    if run_engine_case(&direct).is_ok() {
+        accepted.push("direct engine runner ignored an unknown member".into());
+    }
+    assert!(accepted.is_empty(), "{}", accepted.join("\n"));
+}
+
+#[test]
+fn runner_keeps_usage_payloads_for_api_skips() {
+    for tokens in [
+        r#"false"#,
+        r#"[null]"#,
+        r#"[{}]"#,
+        r#"[{"text":"a"}]"#,
+        r#"[{"text":false,"tags":[]}]"#,
+        r#"[{"text":"a","tags":false}]"#,
+        r#"[{"text":"a","tags":[],"value":null}]"#,
+        r#"[{"text":"a","tags":[],"image":3}]"#,
+        r#"[{"text":"a","tags":[],"source":[0]}]"#,
+        r#"[{"text":"a","tags":[],"before":false}]"#,
+        r#"[{"text":"a","tags":[],"after":[null]}]"#,
+    ] {
+        let case =
+            parse_json(&format!(r#"{{"grammar":"%rule text A","tokens":{tokens},"expect":{{"error":"usage"}}}}"#))
+                .unwrap();
+        assert!(common::case::engine(&case).is_ok(), "invalidated usage payload {tokens}");
+        let repeated = common::apply_mutant(
+            &common::apply_mutant(&case, &parse_json(r#"{"path":["expect"],"remove":true}"#).unwrap()),
+            &parse_json(r#"{"path":["parses"],"set":[{"expect":{"error":"usage"}},{"expect":{"error":"usage"}}]}"#)
+                .unwrap(),
+        );
+        assert!(common::case::engine(&repeated).is_ok(), "invalidated repeated usage payload {tokens}");
+        let mixed = common::apply_mutant(
+            &repeated,
+            &parse_json(r#"{"path":["parses",1,"expect"],"set":{"result":{"ok":true}}}"#).unwrap(),
+        );
+        assert!(common::case::engine(&mixed).is_err(), "accepted invalid payload outside a usage parse {tokens}");
+        assert!(
+            common::unexpressible_tokens(&case).is_some() || has_caller_attachments(&case),
+            "lost API skip for {tokens}"
+        );
+    }
+}

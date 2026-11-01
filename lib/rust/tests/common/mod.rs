@@ -585,11 +585,6 @@ pub fn unexpressible_tokens(case: &Value) -> Option<&'static str> {
         if !matches!(token.get("text"), Some(Value::String(_))) {
             return Some("unavailable caller fields: Rust InputToken requires a text string");
         }
-        if token.object().iter().any(|(name, _)| {
-            !matches!(name.as_str(), "text" | "tags" | "value" | "image" | "source" | "span" | "before" | "after")
-        }) {
-            return Some("unavailable caller fields: Rust InputToken has no such member");
-        }
         let length = token.get("text").and_then(Value::str).unwrap_or("").chars().count();
         for (field, range) in [("source", [offset, offset + length]), ("span", [index, index + 1])] {
             if let Some(supplied) = token.get(field) {
@@ -605,9 +600,8 @@ pub fn unexpressible_tokens(case: &Value) -> Option<&'static str> {
                 return Some("unavailable caller fields: Rust InputToken requires string fields");
             }
         }
-        if token.get("tags").is_some_and(
-            |tags| !matches!(tags, Value::Array(items) if items.iter().all(|tag| matches!(tag, Value::String(_)))),
-        ) {
+        if !matches!(token.get("tags"), Some(Value::Array(items)) if items.iter().all(|tag| matches!(tag, Value::String(_))))
+        {
             return Some("unavailable caller fields: Rust InputToken requires a set of string tags");
         }
     }
