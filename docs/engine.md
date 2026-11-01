@@ -2569,6 +2569,8 @@ The reader completes argument-independent definition and boundary checks before 
 
 Within one declaration, structural shape errors precede type errors. Closed-term restrictions, empty literal split delimiters, own-tag reads, and engine-tag introduction also follow structural shape inspection. Pattern shape errors retain their specific reason. DOM conversion reuses one parsed JSON tree and never reparses a subtree at each ancestor. Decoding applies no early depth bound before the declaration checks.
 
+Semantic faults belong to their declarations. Closedness precedes type selection only within that declaration. Across declarations, the earliest erroneous declaration in source order wins.
+
 A known non-string operand fails concatenation even if it contains a parameter. This local failure uses the concatenation's position.
 
 Readers use common diagnostic text for unclosed grammar fences, classifier warnings, capture restrictions, method signatures, and directive operands. A method with an invalid receiver or arguments reports `a method has the wrong receiver or arguments`. This text also applies when type inspection detects the signature error. Advice for restored spans and bare captures keeps its specific text. A diagnostic position remains separate from its text. A library can prefix the text with that position.

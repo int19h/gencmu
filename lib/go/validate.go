@@ -149,150 +149,172 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			}
 		}
 	}
+	type inspection struct {
+		at  [2]int
+		run func() *domProblem
+	}
+	var inspections []inspection
 	for _, r := range d.Rules {
-		if r == nil || !(isRuleName(r.Name, uni) || expanded && strings.Contains(r.Name, "(") && strings.HasSuffix(r.Name, ")")) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || r.Instance == nil && len(r.Alternatives) == 0 {
+		if r == nil {
 			return &domProblem{message: "a malformed rule"}
 		}
-		if len(r.Flags) > 1 || (len(r.Flags) == 1 && ((r.Flags[0] != "leftmost-longest" && r.Flags[0] != "fewest") || r.Op == "extend")) {
-			return &domProblem{message: "a malformed rule flag list"}
-		}
-		c := &domChecker{rule: r, label: "rule " + r.Name, uni: uni, expanded: expanded}
-		c.sourceHead(r)
-		d.unresolved = d.unresolved || c.unresolved
-		if r.Instance != nil {
+		inspections = append(inspections, inspection{r.At, func() *domProblem {
+			if !(isRuleName(r.Name, uni) || expanded && strings.Contains(r.Name, "(") && strings.HasSuffix(r.Name, ")")) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || r.Instance == nil && len(r.Alternatives) == 0 {
+				return &domProblem{message: "a malformed rule"}
+			}
+			if len(r.Flags) > 1 || (len(r.Flags) == 1 && ((r.Flags[0] != "leftmost-longest" && r.Flags[0] != "fewest") || r.Op == "extend")) {
+				return &domProblem{message: "a malformed rule flag list"}
+			}
+			c := &domChecker{rule: r, label: "rule " + r.Name, uni: uni, expanded: expanded}
+			c.sourceHead(r)
+			d.unresolved = d.unresolved || c.unresolved
+			if r.Instance != nil {
+				if c.problem != nil {
+					return c.problem
+				}
+				return nil
+			}
+			c.constituentTags(r.Tags)
+			c.recipe(r.Value)
+			c.recipe(r.Image)
+			c.emission(r.Emit)
+			for _, cond := range r.Conditions {
+				c.condition(cond, 0)
+			}
+			for _, a := range r.Alternatives {
+				if a == nil || a.Guards == nil {
+					c.fail("a malformed alternative")
+					continue
+				}
+				// A guard is a gate or a warning, and a warning has no negated
+				// form. Its feature is a name (§9).
+				for _, g := range a.Guards {
+					if g.Kind != FeatureGate && (g.Kind != FeatureWarning || g.Negated) {
+						c.fail("a malformed guard")
+					}
+					if !nameSyntaxFeature.MatchString(g.Feature) {
+						c.fail("a malformed guard: a guard's feature is a name")
+					}
+				}
+				c.expr(a.Expr, 0, true, false)
+				c.constituentTags(a.Tags)
+				c.recipe(a.Value)
+				c.recipe(a.Image)
+			}
 			if c.problem != nil {
 				return c.problem
 			}
-			continue
-		}
-		c.constituentTags(r.Tags)
-		c.recipe(r.Value)
-		c.recipe(r.Image)
-		c.emission(r.Emit)
-		for _, cond := range r.Conditions {
-			c.condition(cond, 0)
-		}
-		for _, a := range r.Alternatives {
-			if a == nil || a.Guards == nil {
-				c.fail("a malformed alternative")
-				continue
-			}
-			// A guard is a gate or a warning, and a warning has no negated
-			// form. Its feature is a name (§9).
-			for _, g := range a.Guards {
-				if g.Kind != FeatureGate && (g.Kind != FeatureWarning || g.Negated) {
-					c.fail("a malformed guard")
-				}
-				if !nameSyntaxFeature.MatchString(g.Feature) {
-					c.fail("a malformed guard: a guard's feature is a name")
-				}
-			}
-			c.expr(a.Expr, 0, true, false)
-			c.constituentTags(a.Tags)
-			c.recipe(a.Value)
-			c.recipe(a.Image)
-		}
-		if c.problem != nil {
-			return c.problem
-		}
 
-		if c.unresolved && !c.ruleName(r.Name) {
-			return &domProblem{message: "a malformed rule name", rule: r}
-		}
-		if r.Erased && (r.Emit != nil || hasRecipes(r)) {
-			return &domProblem{message: "an erased rule has an emission or recipe", rule: r}
-		}
-		d.unresolved = d.unresolved || c.unresolved
-		// A capture name stands at most once in each production (engine
-		// §3.5).
-		for _, a := range r.Alternatives {
-			if twice := duplicateCaptures(a.Expr); len(twice) > 0 {
-				return &domProblem{message: fmt.Sprintf("rule %s: a capture name used twice in one production", r.Name), rule: r}
+			if c.unresolved && !c.ruleName(r.Name) {
+				return &domProblem{message: "a malformed rule name", rule: r}
 			}
-		}
-		// The values of its tests, once the nesting is bounded (engine §9).
-		for _, t := range c.tests {
-			if f := testValueFault(t.Op, t.Value); f != nil {
-				return &domProblem{message: fmt.Sprintf("rule %s: %s", r.Name, f.problem), rule: r}
+			if r.Erased && (r.Emit != nil || hasRecipes(r)) {
+				return &domProblem{message: "an erased rule has an emission or recipe", rule: r}
 			}
-		}
-		// The definition as a whole (engine §9, the end), and the types of
-		// its terms and conditions (engine §10).
-		if !c.unresolved && c.hasBoundary {
-			if _, msg := boundaryRuleProblem(r); msg != "" {
-				return &domProblem{message: msg, rule: r}
+			d.unresolved = d.unresolved || c.unresolved
+			// A capture name stands at most once in each production (engine
+			// §3.5).
+			for _, a := range r.Alternatives {
+				if twice := duplicateCaptures(a.Expr); len(twice) > 0 {
+					return &domProblem{message: fmt.Sprintf("rule %s: a capture name used twice in one production", r.Name), rule: r}
+				}
 			}
-		}
-		checked := r
-		if c.unresolved {
-			checked = partialSourceRule(r)
-			if f := ruleTypeFault(checked, nil); f != nil {
-				return &domProblem{message: f.problem, rule: r}
+			// The values of its tests, once the nesting is bounded (engine §9).
+			for _, t := range c.tests {
+				if f := testValueFault(t.Op, t.Value); f != nil {
+					return &domProblem{message: fmt.Sprintf("rule %s: %s", r.Name, f.problem), rule: r}
+				}
 			}
-			if _, msg := boundaryRuleProblem(checked); msg != "" {
-				return &domProblem{message: msg, rule: r}
+			// The definition as a whole (engine §9, the end), and the types of
+			// its terms and conditions (engine §10).
+			if !c.unresolved && c.hasBoundary {
+				if _, msg := boundaryRuleProblem(r); msg != "" {
+					return &domProblem{message: msg, rule: r}
+				}
 			}
-		}
-		result := checkDefinition(checked, true)
-		r.deferredEmission = result.deferred
-		if result.problem != nil {
-			return &domProblem{message: result.problem.message, rule: r}
-		}
-		if !c.unresolved {
-			if msg := ruleTypeProblem(r); msg != "" {
-				return &domProblem{message: fmt.Sprintf("rule %s: %s", r.Name, msg), rule: r}
+			checked := r
+			if c.unresolved {
+				checked = partialSourceRule(r)
+				if f := ruleTypeFault(checked, nil); f != nil {
+					return &domProblem{message: f.problem, rule: r}
+				}
+				if _, msg := boundaryRuleProblem(checked); msg != "" {
+					return &domProblem{message: msg, rule: r}
+				}
 			}
-		}
+			result := checkDefinition(checked, true)
+			r.deferredEmission = result.deferred
+			if result.problem != nil {
+				return &domProblem{message: result.problem.message, rule: r}
+			}
+			if !c.unresolved {
+				if msg := ruleTypeProblem(r); msg != "" {
+					return &domProblem{message: fmt.Sprintf("rule %s: %s", r.Name, msg), rule: r}
+				}
+			}
+			return nil
+		}})
 	}
 	// A constant's definition: its name, its op, and a value that is a
 	// closed term of a type that a constant can have (engine §2, §10).
 	for _, k := range d.Constants {
-
-		if !constName.MatchString(k.Name) || (k.Op != "define" && k.Op != "redefine") || k.Value == nil {
-			return &domProblem{message: "a malformed constant", constant: k}
-		}
-		c := &domChecker{constant: k, label: "constant $" + k.Name, uni: uni}
-		c.term(k.Value, 0, false)
-		if c.problem != nil {
-			return c.problem
-		}
-		d.unresolved = d.unresolved || c.unresolved
-		// The walks below recurse, so they run only once the nesting is
-		// bounded.
-		if hasEngineLiteral(k.Value) {
-			return &domProblem{message: "a constant contains an engine-tag literal", constant: k}
-		}
-		if openPart(k.Value) != nil {
-			return &domProblem{message: fmt.Sprintf("constant $%s: a constant's value is not a closed term", k.Name), constant: k}
-		}
-		if _, f := constantValueType(k.Value, k.Op == "redefine", nil); f != nil {
-			return &domProblem{message: fmt.Sprintf("constant $%s: %s", k.Name, f.problem), constant: k}
-		}
+		inspections = append(inspections, inspection{k.At, func() *domProblem {
+			if !constName.MatchString(k.Name) || (k.Op != "define" && k.Op != "redefine") || k.Value == nil {
+				return &domProblem{message: "a malformed constant", constant: k}
+			}
+			c := &domChecker{constant: k, label: "constant $" + k.Name, uni: uni}
+			c.term(k.Value, 0, false)
+			if c.problem != nil {
+				return c.problem
+			}
+			d.unresolved = d.unresolved || c.unresolved
+			// The walks below recurse, so they run only once the nesting is
+			// bounded.
+			if hasEngineLiteral(k.Value) {
+				return &domProblem{message: "a constant contains an engine-tag literal", constant: k}
+			}
+			if openPart(k.Value) != nil {
+				return &domProblem{message: fmt.Sprintf("constant $%s: a constant's value is not a closed term", k.Name), constant: k}
+			}
+			if _, f := constantValueType(k.Value, k.Op == "redefine", nil); f != nil {
+				return &domProblem{message: fmt.Sprintf("constant $%s: %s", k.Name, f.problem), constant: k}
+			}
+			return nil
+		}})
 	}
 	// An implication: two closed terms whose type is a tag set, checked
 	// once the nesting is bounded (engine §2, §9).
 	for _, m := range d.Implications {
-
-		c := &domChecker{implication: m, label: "an implication", uni: uni}
-		for _, side := range []*domTerm{m.If, m.Then} {
-			if side == nil {
-				return &domProblem{message: "a malformed implication", implication: m}
+		inspections = append(inspections, inspection{m.At, func() *domProblem {
+			c := &domChecker{implication: m, label: "an implication", uni: uni}
+			for _, side := range []*domTerm{m.If, m.Then} {
+				if side == nil {
+					return &domProblem{message: "a malformed implication", implication: m}
+				}
+				c.term(side, 0, false)
 			}
-			c.term(side, 0, false)
-		}
-		if c.problem != nil {
-			return c.problem
-		}
-		d.unresolved = d.unresolved || c.unresolved
-		for _, side := range []*domTerm{m.If, m.Then} {
-			if hasEngineLiteral(side) {
-				return &domProblem{message: "an implication contains an engine-tag literal", implication: m}
+			if c.problem != nil {
+				return c.problem
 			}
-			if msg := implicationSideProblem(side, nil); msg != "" {
-				return &domProblem{message: "an implication: " + msg, implication: m}
+			d.unresolved = d.unresolved || c.unresolved
+			for _, side := range []*domTerm{m.If, m.Then} {
+				if hasEngineLiteral(side) {
+					return &domProblem{message: "an implication contains an engine-tag literal", implication: m}
+				}
+				if msg := implicationSideProblem(side, nil); msg != "" {
+					return &domProblem{message: "an implication: " + msg, implication: m}
+				}
 			}
+			return nil
+		}})
+	}
+	slices.SortFunc(inspections, func(a, b inspection) int { return slices.Compare(a.at[:], b.at[:]) })
+	for _, inspection := range inspections {
+		if problem := inspection.run(); problem != nil {
+			return problem
 		}
 	}
+
 	return nil
 }
 

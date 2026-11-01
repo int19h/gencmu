@@ -404,71 +404,99 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
 }
 
 pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
-    for (item, rule) in raw.get("rules").and_then(Json::as_array).unwrap().iter().zip(&mut dom.rules) {
-        if rule.source.instance.is_some() {
-            continue;
-        }
-        if rule.alternatives.iter().any(|a| !crate::clauses::duplicate_captures(&a.expr).is_empty()) {
-            return Some("a production captures a name twice".into());
-        }
-        let projected;
-        let checked = if crate::parameters::unresolved(item) {
-            projected = match super::partial::rule(rule) {
-                Ok(rule) => rule,
-                Err(_) => return Some("a malformed partial rule".into()),
-            };
-            &projected
-        } else {
-            &*rule
-        };
-        if let Some((problem, _)) = crate::boundary::definition_problem(checked) {
-            return Some(problem);
-        }
-        if let Some(problem) = rule_type_problem(checked) {
-            return Some(problem);
-        }
-        // Retain the detailed issue and the deferred result on these nodes.
-        let result = crate::clauses::check_definition(checked, true);
-        if let Some(issue) = result.problem {
-            return Some(issue.message);
-        }
-        rule.deferred_emission = result.deferred;
-        for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alt| alt.tags.as_ref())) {
-            if crate::notation::reads_own_tags(term) {
-                return Some("a tag clause reads its own tags".into());
-            }
-        }
-        for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alt| alt.tags.as_ref())).chain(
-            rule.emit.iter().flatten().filter_map(|item| match item {
-                EmitItem::Capture(_, tags, _) | EmitItem::Insert(tags, _) => tags.as_ref(),
-            }),
-        ) {
-            if !engine_literals(term).is_empty() {
-                return Some("a tag clause introduces an engine tag".into());
-            }
-        }
+    enum Declaration {
+        Rule(usize),
+        Constant(usize),
+        Implication(usize),
     }
-    for (definition, constant) in raw.get("constants").and_then(Json::as_array).unwrap().iter().zip(&dom.constants) {
-        let term = &constant.value;
-        if !closed(term)
-            || any_engine_literal(term)
-            || !crate::parameters::unresolved(definition)
-                && constant_value_type(term, definition.get("op").and_then(Json::as_str) == Some("redefine"), &|_| {
-                    Type::Any
-                })
-                .is_err()
-        {
-            return Some("an invalid closed constant value".into());
-        }
+    let mut declarations = Vec::new();
+    for (index, rule) in dom.rules.iter().enumerate() {
+        declarations.push((rule.at, Declaration::Rule(index)));
     }
-    for (raw, implication) in raw.get("implications").and_then(Json::as_array).unwrap().iter().zip(&dom.implications) {
-        for term in [&implication.antecedent, &implication.consequent] {
-            if !closed(term)
-                || any_engine_literal(term)
-                || !crate::parameters::unresolved(raw)
-                    && term_type(term).map_or(true, |ty| expected_problem(ty, Type::Tags).is_some())
-            {
-                return Some("an invalid implication side".into());
+    for (index, constant) in dom.constants.iter().enumerate() {
+        declarations.push((constant.at, Declaration::Constant(index)));
+    }
+    for (index, implication) in dom.implications.iter().enumerate() {
+        declarations.push((implication.at, Declaration::Implication(index)));
+    }
+    declarations.sort_unstable_by_key(|(at, _)| *at);
+    for (_, declaration) in declarations {
+        match declaration {
+            Declaration::Rule(index) => {
+                let item = &raw.get("rules").and_then(Json::as_array).unwrap()[index];
+                let rule = &mut dom.rules[index];
+                if rule.source.instance.is_some() {
+                    continue;
+                }
+                if rule.alternatives.iter().any(|a| !crate::clauses::duplicate_captures(&a.expr).is_empty()) {
+                    return Some("a production captures a name twice".into());
+                }
+                let projected;
+                let checked = if crate::parameters::unresolved(item) {
+                    projected = match super::partial::rule(rule) {
+                        Ok(rule) => rule,
+                        Err(_) => return Some("a malformed partial rule".into()),
+                    };
+                    &projected
+                } else {
+                    &*rule
+                };
+                if let Some((problem, _)) = crate::boundary::definition_problem(checked) {
+                    return Some(problem);
+                }
+                if let Some(problem) = rule_type_problem(checked) {
+                    return Some(problem);
+                }
+                // Retain the detailed issue and the deferred result on these nodes.
+                let result = crate::clauses::check_definition(checked, true);
+                if let Some(issue) = result.problem {
+                    return Some(issue.message);
+                }
+                rule.deferred_emission = result.deferred;
+                for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alt| alt.tags.as_ref())) {
+                    if crate::notation::reads_own_tags(term) {
+                        return Some("a tag clause reads its own tags".into());
+                    }
+                }
+                for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alt| alt.tags.as_ref())).chain(
+                    rule.emit.iter().flatten().filter_map(|item| match item {
+                        EmitItem::Capture(_, tags, _) | EmitItem::Insert(tags, _) => tags.as_ref(),
+                    }),
+                ) {
+                    if !engine_literals(term).is_empty() {
+                        return Some("a tag clause introduces an engine tag".into());
+                    }
+                }
+            }
+            Declaration::Constant(index) => {
+                let definition = &raw.get("constants").and_then(Json::as_array).unwrap()[index];
+                let constant = &dom.constants[index];
+                let term = &constant.value;
+                if !closed(term)
+                    || any_engine_literal(term)
+                    || !crate::parameters::unresolved(definition)
+                        && constant_value_type(
+                            term,
+                            definition.get("op").and_then(Json::as_str) == Some("redefine"),
+                            &|_| Type::Any,
+                        )
+                        .is_err()
+                {
+                    return Some("an invalid closed constant value".into());
+                }
+            }
+            Declaration::Implication(index) => {
+                let raw = &raw.get("implications").and_then(Json::as_array).unwrap()[index];
+                let implication = &dom.implications[index];
+                for term in [&implication.antecedent, &implication.consequent] {
+                    if !closed(term)
+                        || any_engine_literal(term)
+                        || !crate::parameters::unresolved(raw)
+                            && term_type(term).map_or(true, |ty| expected_problem(ty, Type::Tags).is_some())
+                    {
+                        return Some("an invalid implication side".into());
+                    }
+                }
             }
         }
     }

@@ -228,9 +228,10 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             )
         if not valid:
             return "a directive has invalid operands"
-    ordered = sorted(((item, key == "directives" and item.get("name") == "names") for key in ("rules", "directives", "constants", "classifiers", "implications") for item in dom[key]), key=lambda pair: pair[0]["at"])
+    ordered = sorted(((item, key) for key in ("rules", "directives", "constants", "classifiers", "implications") for item in dom[key]), key=lambda pair: pair[0]["at"])
     seen_statement = False
-    for item, names in ordered:
+    for item, kind in ordered:
+        names = kind == "directives" and item.get("name") == "names"
         if names and seen_statement:
             return "%names must precede every other statement"
         seen_statement = seen_statement or not names
@@ -308,7 +309,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             if channel in r:
                 pending.append(("recipe", r[channel], 0, False, False))
         if "tags" in r:
-            tag_clauses.append((r["tags"], True))
+            tag_clauses.append((r, r["tags"], True))
             pending.append(("tags", r["tags"], 0, False, False))
         if "emit" in r:
             emit = r["emit"]
@@ -331,7 +332,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
                             return "a malformed attachment"
                         names.extend(item[side])
                 if "tags" in item:
-                    tag_clauses.append((item["tags"], False))
+                    tag_clauses.append((r, item["tags"], False))
                     pending.append(("tags", item["tags"], 0, False, False))
                 for channel in ("value", "image"):
                     if channel in item:
@@ -349,7 +350,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
                 return "a malformed alternative"
             pending.append(("expr", a.get("expr"), 0, True, False))
             if "tags" in a:
-                tag_clauses.append((a["tags"], True))
+                tag_clauses.append((r, a["tags"], True))
                 pending.append(("tags", a["tags"], 0, False, False))
             for channel in ("value", "image"):
                 if channel in a:
@@ -367,45 +368,56 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             feature_nodes.extend(node.values())
         elif isinstance(node, list):
             feature_nodes.extend(node)
-    # Shape inspection collects type faults for selection after closedness.
+    # Shape inspection collects type faults for each declaration.
     type_faults = []
     problem = _walk(pending, unicode, deferred, rule_name, type_roots, type_faults)
     if problem:
         return problem
-    for c in dom["constants"]:
-        if open_part(c["value"]) is not None or _contains_engine(c["value"]):
-            return "a constant requires a closed term without engine-tag literals"
-    for i in dom["implications"]:
-        if any(open_part(term) is not None or _contains_engine(term) for term in (i["if"], i["then"])):
-            return "an implication requires closed terms without engine-tag literals"
-    fault = select_type_fault(type_faults)
-    if fault is not None:
-        return fault[0]
-    for term, constituent in tag_clauses:
-        if constituent and (term_reads_own_tags(term) or lit(term)):
-            return "a constituent tag clause introduces engine tags or reads its own tags"
-        if not constituent and lit(term):
-            return "an emission tag clause introduces engine tags"
-    for r in dom["rules"]:
-        if "instance" in r:
-            continue
-        for a in r["alternatives"]:
-            if duplicate_captures(a["expr"]):
-                return "a capture name used twice in one production"
-        from ._boundary import problem as boundary_problem
-        boundary = boundary_problem(r)
-        if boundary:
-            return boundary[0]
-        issue = check_definition(r, defer_emission).problem
-        if issue:
-            return issue.message
-        problem = rule_type_problem(r)
-        if problem:
-            return problem
-    for c in dom["constants"]:
-        problem = constant_value_problem(c["value"], c["op"] == "redefine")
-        if problem:
-            return problem
+    # Fault ownership keeps each declaration's semantic phases together.
+    faults_by_owner = {}
+    if type_faults:
+        owners = {id(part): id(item) for item, _ in ordered for part in nodes(item)}
+        for fault in type_faults:
+            faults_by_owner.setdefault(owners[id(fault[1])], []).append(fault)
+    tags_by_owner = {}
+    for owner, term, constituent in tag_clauses:
+        tags_by_owner.setdefault(id(owner), []).append((term, constituent))
+    for item, kind in ordered:
+        if kind == "constants":
+            if open_part(item["value"]) is not None or _contains_engine(item["value"]):
+                return "a constant requires a closed term without engine-tag literals"
+        elif kind == "implications":
+            if any(open_part(term) is not None or _contains_engine(term) for term in (item["if"], item["then"])):
+                return "an implication requires closed terms without engine-tag literals"
+        fault = select_type_fault(faults_by_owner.get(id(item), []))
+        if fault is not None:
+            return fault[0]
+        for term, constituent in tags_by_owner.get(id(item), []):
+            if constituent and (term_reads_own_tags(term) or lit(term)):
+                return "a constituent tag clause introduces engine tags or reads its own tags"
+            if not constituent and lit(term):
+                return "an emission tag clause introduces engine tags"
+        if kind == "rules":
+            r = item
+            if "instance" in r:
+                continue
+            for a in r["alternatives"]:
+                if duplicate_captures(a["expr"]):
+                    return "a capture name used twice in one production"
+            from ._boundary import problem as boundary_problem
+            boundary = boundary_problem(r)
+            if boundary:
+                return boundary[0]
+            issue = check_definition(r, defer_emission).problem
+            if issue:
+                return issue.message
+            problem = rule_type_problem(r)
+            if problem:
+                return problem
+        elif kind == "constants":
+            problem = constant_value_problem(item["value"], item["op"] == "redefine")
+            if problem:
+                return problem
     return None
 
 
