@@ -1135,7 +1135,9 @@ Every well-typed test on the elidable terminal is legal. The omission predicate 
 
 Lowering records whether each helper represents an elidable optional. For an elidable helper, it also records the terminal `T`, its test and the optional's owner (§2.2). The rest of this document says "elidable optional" of these helpers.
 
-Before predicting an empty elidable production, the recognizer requires its omission predicate to hold. The predicate tests `(s,{T})` for equality `=s`, and `("",{T})` otherwise. Without a test, it is true. This condition applies in main recognition, nested queries and reconstruction.
+The default value d of an elidable optional is the string of its head's `≝`. Without `≝`, d is the string s of an equality test `=s`, or else the empty string. A default resolves after template substitution, and it must be one string. The string walk (§11.2) and restoration (§7.2) use d.
+
+Before predicting an empty elidable production, the recognizer requires its omission predicate to hold. The predicate tests `(d,{T})` against the head's tests. Without a test, it is true. A default whose predicate is false is a document error at its `≝` (§9.3). This condition applies in main recognition, nested queries and reconstruction.
 
 A false predicate creates no omitted node, elision count or restoration record. It causes no declaration error or warning. Written productions remain available.
 
@@ -1415,7 +1417,7 @@ For example, take `text → [X] body="y"`, `body → X Y | Y` and the input `X Y
 
 A tag test works in the same way. Take `text → [X] body<B>` and `body → X Y | Y`, where the second production of `body` has the tag term `B`. Only the `body` over `Y` carries `B`, so again `[X]` reads `X`.
 
-In a derivation, an empty elidable helper supplies one omission at its input boundary. Its record holds the terminal, boundary, source, and saved equality value. It does not record which constituent it closes. The step `late(elision)` reads omission counts. Aligned queries read their owned ordered close records.
+In a derivation, an empty elidable helper supplies one omission at its input boundary. Its record holds the terminal, boundary, source, and default value. It does not record which constituent it closes. The step `late(elision)` reads omission counts. Aligned queries read their owned ordered close records.
 
 The query blocker relation uses the logical preceding symbol described above. Braces use their expanded logical productions. Production start, a preceding terminal, and an initial recursive self-reference retain their immediate-prefix treatment.
 
@@ -1445,7 +1447,9 @@ Descendant paths combine local and child answers. First and last paths use only 
 
 The state retains more than final Boolean answers. It includes sequence prefixes, leaf tests and child observations that later transitions need. Intersections and differences use correlated product states. They never combine facts from different packed edges.
 
-An advance keeps its structural prefix and each captured child's completed state. A condition on a capture reads that state when the constituent completes. A condition on `$` reads the candidate completion state before ordinary tag evaluation. These conditions never run an additional recognizer or inspect ranking.
+An advance keeps its structural prefix and each captured child's completed state. A condition on a capture reads that state when the constituent completes.
+
+A condition can read `$x.emitted.value` or `$x.emitted.image` (§10). The completed state of a constituent then includes the string that the condition reads. That string is the constituent's string walk (§11.2) in its own derivation. Two derivations of one span with different strings are different completed states, as two different structural answers are. An implementation adds a string only to the states of the rules whose walks a condition can read. The number of distinct strings for one rule and span bounds the extra items. A condition on `$` reads the candidate completion state before ordinary tag evaluation. These conditions never run an additional recognizer or inspect ranking.
 
 At a ranked group completion, the structural sequence machine receives one fixed sealed leaf. Every option and proof supplies the same leaf. It has no name, terminal identity, value, tags or children. Every node test fails on a seal, including bare lists and exact empty lists. Paths stop there, while sibling ellipses consume it as one child.
 
@@ -1909,7 +1913,7 @@ Take D's elided terminators (§4, §12) in leaf order, from left to right. Keep 
 
 The reconstructed input R is O with one synthetic token for each record. The synthetic token stands before the input token at `p`, or at the end for `p` = N. Records at one position keep their order. Every token of O stands in R once, in its order, with all its fields unchanged.
 
-A synthetic token has recognition tags and a recognition value. Its recognition tags are its terminal alone. Its recognition value is its saved value, an exact string. Without a saved value, its recognition value is the empty string. Its synthetic image is empty.
+A synthetic token has recognition tags and a recognition value. Its recognition tags are its terminal alone. Its recognition value is the default value of its record (§3.8). Without a default value, its recognition value is the empty string. Its synthetic image is empty.
 
 A synthetic token has no attachments. It is not emitted, so no implication applies to it (§11). An original token's recognition tags and value are its stored tags and value (§5).
 
@@ -1994,6 +1998,8 @@ The rules of §4.2 use projected spans too. A constituent is empty for rules 2 t
 
 The projection comes first, then the method. So `s.first-token` is the first original token of `s`, not the first token of `s` with a synthetic one removed. A span method never carries a capture's constituent tags: `$x.first-token.tags` reads tokens even where `$x.first-token` is all of `$x`.
 
+A condition's `.emitted` read takes the walk of the reconstruction candidate. A read of a synthetic token supplies its recognition value on the value channel and the empty string on the image channel. So it agrees with the walk of the elided terminator in the main derivation.
+
 A capture whose span holds only synthetic tokens is present, and `$x` holds as a condition. Its text, value, and image are empty, and the union of its tokens' tags is empty. It still has its constituent's own tags. So `$x.tags` can hold `Mark` while `$x.first-token.tags` is empty.
 
 A constituent's tags are its production's tag terms, evaluated over its own captures (§4). A synthetic token gives a constituent no tag. A capture of a terminal that read a synthetic token has no tags. A production that inherits from one logical symbol (§3.7) inherits none from such a terminal. A restoration has none, as its empty production has none. A tag term can still give a constituent tags of its own, such as `:: Mark`, also where its span projects to empty.
@@ -2012,7 +2018,7 @@ This close observation differs from pattern projection, which removes bare synth
 
 Patterns compute each reconstruction candidate's projected structure over O and never copy the chosen original tree's observations. A restoration helper contributes exactly one omitted-T marker. Its synthetic terminal read contributes no second child. A synthetic read in an ordinary production contributes no observable child. Named constructors remain, subject to empty-child removal. Original terminal reads remain written.
 
-An omitted final terminator still stops the last-child path. Its pattern value and image remain empty even when its body equality saved nonempty restoration value. Its pattern tags remain `{T}`. Body tests read synthetic recognition values, while pattern tests read projected leaf observations. The reconstructed witness preserves these observations through helpers, named constructors, empty children and unary transitions.
+An omitted final terminator still stops the last-child path. Its pattern value and image remain empty even when its default value is nonempty. Its pattern tags remain `{T}`. Body tests read synthetic recognition values, while pattern tests read projected leaf observations. The reconstructed witness preserves these observations through helpers, named constructors, empty children and unary transitions.
 
 ### 7.6 Nested queries
 
@@ -2352,10 +2358,11 @@ group = "(" choice ")"
 optional = "[" ["+"] choice "]"
 repetition = "{" ["..."] choice ["/" choice] "}"
            | "{" choice "..." ["/" choice] "}"
-symbol-test = tag-test | value-test
+symbol-test = tag-test | value-test | default-value
 tag-test = "<" {requirement} ">"
 requirement = ["¬"] test-operand
 value-test = test test-operand
+default-value = "≝" test-operand
 test = "=" | "≠"
 test-operand = parameter | call | string-literal | constant-reference | reference | tag | range
              | capture-reference | method-chain | "∅" | pattern-literal | "(" term ")"
@@ -2645,6 +2652,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `tag-test` | Zero or more `tag-requirement` parts | Ordered requirements, including an empty array |
 | `tag-requirement` | Optional `¬` token, then one operand | Require a tag, tag-set constant, or parameter. Produce `negated` and unresolved `value`. |
 | `value-test` | `test`, then `test-operand` | Comparator and string operand |
+| `default-value` | `≝` token, then `test-operand` | The default value of the elidable optional whose head carries it |
 | `test` | One `=` or `≠` token | Precomposed value comparator from the token value |
 | `test-operand` | One recognized operand | Require a string literal, string constant, or declared parameter for a value test. Produce unresolved STRINGTERM. |
 | `capture` | Capture token, then `primary` | `capture` name without `$`, then `expr`. The base accepts every rule reference or call, including emoji rules. |
@@ -2906,7 +2914,8 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   A method's receiver and arguments must meet §10's signature after method selection. The reader reports a wrong receiver or arity at the method. A classifier or rule name is legal only in its corresponding argument position. A string constant can resolve a string argument after stitching.
 - A `split` whose delimiter is the string literal `""` is an error, reported at the call.
-- A `.verbatim-text` or `.emitted` read outside a recipe is a document error. A recipe accepts only the seven string methods and string atoms of §11.
+- A `.verbatim-text` read outside a recipe is a document error. An `.emitted` read outside a recipe or a `%conditions` clause is a document error too. A recipe accepts only the seven string methods and string atoms of §11.
+- A `default-value` that does not stand on the head of an elidable optional is an error at its `≝`. So is a second one on the same head. Its operand follows the value-test rules, and must resolve to one string. A default value whose omission predicate (§3.8) is false is an error at its `≝`, after template substitution.
 - A constant declaration requires a capitalized constant name. A string in that position is a document error.
 - A constant's value that is not a closed term (§10) is an error, reported at the first part that is not closed. Captures, `$`, guarded terms, and input methods such as `.value`, `.source-text`, `.tags`, `.classes`, or `.classify` are errors there.
 - An engine-tag literal in a constant's value, outside a pattern literal, is an error at that literal. Reject it during conversion, before reading the next part.
@@ -3159,7 +3168,7 @@ Terms include strings, string sets, tag sets, patterns, captures, and ordinary o
 | `A ⟹ t` | the set type of `t` | `t` where the condition `A` holds, else `∅` |
 | `s.value`, `s.source-text`, `s.decomposed-source-text` | string | §5 |
 | `a.split(d)` | set of strings | the pieces of the string `a` between the occurrences of the string `d` (below) |
-| `$x.emitted.value`, `$x.emitted.image` | string, recipes only | The selected string walk before the current item override (§11) |
+| `$x.emitted.value`, `$x.emitted.image` | string, in recipes and conditions | The selected string walk before the current item override (§11) |
 | `s.ngrams(n)` | set of strings | runs of `n` adjacent code points in string `s`, including overlapping runs |
 | `$NAME` | the type of its value | the value of the constant (§2) |
 | `s.tags` | tag set | the captured part's constituent tags if `s` is a whole capture, else the union of the span's tokens' tags |
@@ -3274,7 +3283,7 @@ For a bare name after either tree comparator, use the diagnostic of §9.3. Other
 | `.without-elision` | Bare capture only | Restored span |
 | `.without-elision-except(F)` | Bare capture only, with one ordinary rule name or exact instance | Restored span with a close family |
 | `.verbatim-text` | Bare capture only, in a recipe | String (§11) |
-| `.emitted.value`, `.emitted.image` | Bare capture only, in a recipe | Reconstructed string (§11) |
+| `.emitted.value`, `.emitted.image` | Bare capture or `$`, in a recipe or a condition | String walk of the receiver's own derivation (§11) |
 
 ### Method selection and juxtaposition
 
@@ -3370,7 +3379,7 @@ A later stage that forwards a token keeps its source, because a token over one i
 
 ### 11.2 The string walk
 
-The string walk builds a value or image from the selected occurrence. A directly read input token supplies its stored channel. An erased constituent supplies the empty string and stops descent. Another constituent uses its selected recipe, or concatenates its children's contributions in order.
+The string walk builds a value or image from the selected occurrence. A directly read input token supplies its stored channel. An elided terminator supplies its default value (§3.8) on the value channel and the empty string on the image channel. An erased constituent supplies the empty string and stops descent. Another constituent uses its selected recipe, or concatenates its children's contributions in order.
 
 The walk enters constituents with `%emits`, but never executes their emission items. A child item recipe therefore affects only a token that that item directly emits. A child constituent recipe also applies inside a parent's covering token. Unlisted input symbols still count unless an erased constituent excludes them.
 
@@ -3400,7 +3409,7 @@ Input methods read the original projected span. `.emitted` reads the string walk
 
 Evaluation identity includes the selected constituent occurrence and requested channel. Item evaluation also identifies its item position and override context. Equal productions or equal spans in different tree occurrences do not merge these identities. A value dependency and an image dependency remain separate unless they select the same recipe expression.
 
-A selected recipe runs only when an emitted string or another evaluated recipe needs it. An unused weaker recipe runs neither its methods nor its descendant walks. An explicit image recipe can therefore suppress all recursive descendant image recipes while value concatenation still enters those children.
+A selected recipe runs only when an emitted string, a condition or another evaluated recipe needs it. A condition reads the walk of the derivation that it tests, during recognition (§4.1). That walk uses the same recipes, defaults and erasure as emission. An unused weaker recipe runs neither its methods nor its descendant walks. An explicit image recipe can therefore suppress all recursive descendant image recipes while value concatenation still enters those children.
 
 ```jbogenbau
 %rule r := $.emitted.image :- "x"
@@ -3440,7 +3449,7 @@ The following definition is a document error, despite its item override:
 
 Its constituent value still defines a cyclic result for `.emitted` or a covering parent. Item selection suppresses runtime evaluation but does not legalize that constituent definition. An alternative override of that cyclic definition recipe can remove the dependency on its replaced channel.
 
-A losing runtime option runs no recipes, although its syntax and effective constituent dependencies still undergo document validation. A winning reading's runtime recipe error remains a grammar error. Ranking never falls back because emission failed.
+A losing runtime option runs no recipes for emission, although its syntax and effective constituent dependencies still undergo document validation. A condition that reads `.emitted` can run them during recognition. A winning reading's runtime recipe error remains a grammar error. Ranking never falls back because emission failed.
 
 ### 11.4 Capture scope and erasure
 

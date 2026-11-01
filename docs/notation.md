@@ -882,6 +882,20 @@ These context methods can look outside the constituent. Ordinary nested query bo
 
 The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes characters such as commas, or changes spacing. The [pipeline guide](pipelines.md#phoneme-values-and-stress) shows how a grammar sets values, with stress as its example.
 
+A condition can also read `$x.emitted.value` and `$x.emitted.image` of a capture or `$`. These read the string walk of the constituent's own parse, the walk that emission uses (see "Two walks and recipes"). So a recipe can leave text out of a comparison, and an elided terminator adds its default value (see "Elided terminators"). Eberban compares a resumed verb in this way:
+
+```jbogenbau
+%rule prefix := ""
+  [DU] DI
+
+%rule resumed-step
+  [si-free] $v:verb step-tail {resume-head $e:verb step-tail}
+%conditions
+  $v.emitted.value = $e.emitted.value
+```
+
+The empty recipe drops each free prefix from the walk, so `di duna` and `duna` give the same string. Two parses of one span whose walks differ are different constituents to a condition. A condition can keep one and refuse the other.
+
 `span.source-text` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's value with a literal, as in `$l.value = "la"`, a test says it in the body: `LA="la"`.
 
 The third type is the set of strings. `string.split(delimiter)` is the set of the pieces of the string between the occurrences of the delimiter. It reads the string from the left, and two occurrences never overlap. It drops the empty pieces.
@@ -1231,7 +1245,7 @@ The stage fixes each emitted token's value and image through recipes or plain co
 
 Default string construction concatenates non-erased input parts in order. It enters child constituents without executing their emission items. A child constituent recipe can replace its contribution separately by channel. Gap recipes supply spacing. A quote-body image recipe supplies verbatim text. No engine rule trims spacing or supplies placeholder text.
 
-A string walk builds each emitted token's two channels. It enters child constituents with `%emits` but ignores their emission lists. It skips `%erased` children. It uses a selected constituent recipe or concatenates its children. Attachment captures use their own emission walks.
+A string walk builds each emitted token's two channels. It enters child constituents with `%emits` but ignores their emission lists. It skips `%erased` children. It uses a selected constituent recipe or concatenates its children. An elided terminator adds its default value to the value and nothing to the image (see "Elided terminators"). Attachment captures use their own emission walks.
 
 Recipe priority follows this table, from strongest to weakest. A capture item's constituent supplies the alternative and rule recipes. An inserted item has no constituent.
 
@@ -1251,7 +1265,7 @@ Recipes form a closed language. They accept string literals, string constants, a
 
 A recipe contains exactly one recipe term, which can be a `++` chain. The reader rejects a second recipe term at its first token and tells the author to use `++`. Juxtaposed literals form a string set, which a recipe rejects at its first literal with the same instruction. Recipe atoms cannot use parentheses or method arguments.
 
-An input method reads the stage's original input tokens, including erased text. `.emitted.value` and `.emitted.image` read the string walk before the current item's override. They include constituent recipes and exclude erased parts.
+An input method reads the stage's original input tokens, including erased text. `.emitted.value` and `.emitted.image` read the string walk before the current item's override. They include constituent recipes and exclude erased parts. A condition can read them too (see "Conditions").
 
 Only selected recipes run. A weaker recipe runs only when another evaluated recipe reads its result. A constituent recipe cannot read its own result through `.emitted`, directly or through other recipes. Gencmu rejects this dependency even when an item recipe hides it at runtime. An item's `.emitted` read observes its constituent before that item's override. [Engine §11.3](engine.md#113-recipe-evaluation-and-cycles) defines dependency analysis.
 
@@ -1510,6 +1524,7 @@ A grammar marks each terminator that can be elided where it writes it. An elidab
 - The tag or parameter stands directly after the marker, as written, with no parentheses around it. So `[+(KU) 🆓]`, `[+((KU)) 🆓]`, `[+(KU 🆓)]` and `[+(KU 🆓) A]` are errors, although parentheses make no node elsewhere. `[+(@End) 🆓]` is invalid for the same reason. One spelling for each marked optional keeps every reader's check the same, and the check reads the written text, before parentheses are dropped.
 - `T` is a user tag or parameter written directly after `+`. `[+KU]` marks KU. A parameter must become exactly one bare user tag after argument conversion. A string, range, engine tag, wildcard, or rule, such as `🆓`, cannot mark an omission.
 - `T` can carry any existing symbol test. A test on a later item remains an ordinary test.
+- `T` can carry a default value, `≝` and a string after it, as in `[+JI ≝ "jie"]`. It is the value of the terminator where the terminator is elided. It changes nothing about a written `T`. `≝` stands only on the head of an elidable optional, at most once.
 - The rest is a sequence of any primaries, or nothing. A choice or `&` in the rest stands in parentheses, as in `[+KU (A | B)]`. A `|` or `&` that joins `T` to something else is an error, because some reading of the optional then does not begin with `T`. So `[+KU | VAU]` is an error.
 - No capture stands inside an elidable optional, at any depth (see "Captures").
 
@@ -1546,23 +1561,27 @@ A language's own rule can be narrower: a terminator can be elided only if no amb
 
 The enabled check runs after emission for `resolved`. It also runs for `unique` if the chosen parse holds an elided node. It skips a unique parse with no elided node. Uniqueness on the original input cannot exclude another reading of the restored input.
 
-With the check on, the stage restores the chosen parse's omitted terminators. An equality test saves its exact string as the restoration value. Other tests use empty value and singleton tags `{T}`. Synthetic images are empty. Omitted pattern leaves still observe empty strings, regardless of a saved equality value.
+With the check on, the stage restores the chosen parse's omitted terminators. A restored terminator has the default value of its optional (below) and the singleton tags `{T}`. Synthetic images are empty. Omitted pattern leaves still observe empty strings, whatever the default value.
 
-An omission exists only when its test passes on this restoration value. Synthetic tokens are readable only by their terminator tag. Strings, ranges, and `_` never read them. A failed omission creates no marker or restoration record. Written tokens still use their own value and tags. All well-typed tests are legal, even when either route cannot succeed.
+The default value of an elided terminator is the string after `≝`. Without `≝`, it is the string of an equality test `T=s`, or else the empty string. The string walk gives an elided terminator its default value and an empty image. So in Eberban, `to jie` and `to` with its `jie` elided have the same `.emitted.value`. A tree pattern still observes an empty value at the omitted leaf, so a pattern can tell a written terminator from an elided one.
+
+An omission exists only when its test passes on this default value. Synthetic tokens are readable only by their terminator tag. Strings, ranges, and `_` never read them. A failed omission creates no marker or restoration record. Written tokens still use their own value and tags. All well-typed tests are legal, even when either route cannot succeed.
 
 An inert route, one that cannot succeed, causes no special error or warning.
 
-| Test on T | Omission succeeds when | Restoration value |
+| Test on T | Omission succeeds when | Default value |
 | --- | --- | --- |
 | No test | Always | Empty |
+| `T ≝ d` | Always | d |
 | `T=s` | Always | s |
 | `T≠s` | s is nonempty | Empty |
+| `T≠s ≝ d` | d differs from s | d |
 | `T<$C>` | Every tag of C is T | Empty |
 | `T<¬$C>` | C does not contain T | Empty |
 | `T<>` | Always | Empty |
 | `T<T>` | Always | Empty |
 
-Here C is a resolved tag constant and s is an exact string. The same omission tests apply at each marked optional. `[+T≠""]` cannot omit T, but reads a written nonempty T. `[+T<U>]` cannot omit T when U differs from T, although a written token carrying both tags can pass.
+Here C is a resolved tag constant, and s and d are exact strings. The same omission tests apply at each marked optional. A default value that fails the terminator's own test is a document error at `≝`, because the terminator then cannot be elided. So `[+JI="jie" ≝ "jie"]` is legal, and `[+JI="jie" ≝ "jei"]` is an error. `[+T≠""]` cannot omit T, but reads a written nonempty T. `[+T<U>]` cannot omit T when U differs from T, although a written token carrying both tags can pass.
 
 Then the stage parses that input again. Each elidable optional is either restored or written. In the chosen parse's own reading, an optional that it left out is restored: it reads only its written-back terminator. Another reading can start an optional from a written-back terminator and read more after it, where the rest of the optional reads something.
 

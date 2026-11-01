@@ -365,6 +365,8 @@ The child definition recipe serves both walks. A recipe that must apply inside a
 
 Recipes use a closed string language. They join literals, string constants, and seven captured string methods with `++`. They cannot branch, inspect tags, split strings, classify words, or start queries. This keeps emission independent of recognition and makes channel dependencies explicit.
 
+A condition can read `.emitted.value` and `.emitted.image`. A language can then compare constituents by meaning, where recipes say what carries meaning. Eberban resumes a verb only when the repeated verb matches the earlier one, and free prefixes carry no meaning there. An empty recipe on the prefix rule drops them from the walk. A method that skips named rules can cover prefixes, but not the inferred `jie` after a number. A default value on the elided terminator covers that, and the walk then sees `to` and `to jie` as one string. The string becomes part of the completed state that the condition reads, as a structural answer does. Strings split items only for the rules whose walks a condition reads.
+
 Only requested selected recipes run. `.emitted` reads a constituent before the current item's override. Cross-channel reads can terminate through an explicit recipe. An effective constituent channel that depends on itself causes a document cycle error, even when an item overrides its runtime string. Engine §11 states occurrence identity and suppressed dependencies.
 
 ## Pauses and spacing

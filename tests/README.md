@@ -286,7 +286,7 @@ The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin si
 
 ## Layered pattern conformance
 
-The `notation/layered-pattern-*.json` cases use the public reader and format-41 DOM. They cover node decorations, item arrays, operator binding, grouping, source spacing, parameters, and source error positions.
+The `notation/layered-pattern-*.json` cases use the public reader and format-42 DOM. They cover node decorations, item arrays, operator binding, grouping, source spacing, parameters, and source error positions.
 
 The `engine/layered-pattern-*.json` cases use the public loader. They cover exact matching, independent child searches, empty lists, seals, choices, constant binding, template families, and error positions.
 
