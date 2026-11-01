@@ -9676,9 +9676,9 @@
           this.evaluateClosed(path,kind === "pattern" ? {pattern:node} : node,at,undefined,"pattern");
           continue;
         }
-        if (node.param) continue;
-        if (node.call) { this.checkValueUses(node.args,path,at); continue; }
+        if (node.call) this.checkValueUses(node.args,path,at);
         if (kind === "term") {
+          if (node.param || node.call) continue;
           if (node.pattern) pending.push({node:node.pattern,kind:"pattern"});
           else for (const child of clauseChildren(node).slice().reverse()) pending.push({node:child,kind:"term"});
         } else {

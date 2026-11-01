@@ -612,13 +612,15 @@ class _Constants:
             node, kind = pending.pop()
             if kind == "value":
                 self.check_value_uses(path, node, at)
-            elif not has_unresolved(node):
-                run(self._closed(path, {"pattern": node} if kind == "pattern" else node, at, "pattern"))
-            elif "param" in node:
                 continue
-            elif "call" in node:
+            if not has_unresolved(node):
+                run(self._closed(path, {"pattern": node} if kind == "pattern" else node, at, "pattern"))
+                continue
+            if "call" in node:
                 self.check_value_uses(path, node["args"], at)
-            elif kind == "term":
+            if kind == "term":
+                if "param" in node or "call" in node:
+                    continue
                 if "pattern" in node:
                     pending.append((node["pattern"], "pattern"))
                 else:
