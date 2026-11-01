@@ -465,18 +465,24 @@ def rule_type_fault(rule: Any, constants: ConstantTypes = _unknown_constants) ->
     faults = list(_rule_type_faults(rule, constants))
     if len(faults) <= 1:
         return faults[0] if faults else None
-    roots = [rule.get("tags"), rule.get("value"), rule.get("image")]
-    for alternative in rule["alternatives"]:
-        roots.extend(alternative.get(key) for key in ("expr", "tags", "value", "image"))
-    roots.extend(rule["conditions"])
-    for item in rule.get("emit", {}).get("items", []):
-        roots.extend(item.get(key) for key in ("tags", "value", "image"))
+    roots = rule_type_roots(rule)
     order = {}
     for index, root in enumerate(roots):
         for node in nodes(root):
             order.setdefault(id(node), index)
     faults.sort(key=lambda fault: order[id(fault[1])])
     return select_type_fault(faults)
+
+
+def rule_type_roots(rule: Any) -> list[Any]:
+    """The clause roots of a rule in canonical semantic order."""
+    roots = [rule.get("tags"), rule.get("value"), rule.get("image")]
+    for alternative in rule["alternatives"]:
+        roots.extend(alternative.get(key) for key in ("expr", "tags", "value", "image"))
+    roots.extend(rule["conditions"])
+    for item in rule.get("emit", {}).get("items", []):
+        roots.extend(item.get(key) for key in ("tags", "value", "image"))
+    return roots
 
 
 def select_type_fault(faults: list[Fault]) -> Optional[Fault]:

@@ -12,7 +12,7 @@ from ._clauses import check_definition, duplicate_captures
 from ._patterns import walk_pattern
 from ._pattern_shapes import layered_pattern_problem, MAX_POSITION
 from ._strings import ENGINE_TAGS, USER_NAME, is_constant, literal_string, lit
-from ._types import condition_type_fault, tag_term_fault, term_type_fault, select_type_fault, constant_value_problem, open_part, rule_type_problem, condition_type_problem, method_shape_problem
+from ._types import condition_type_fault, tag_term_fault, term_type_fault, select_type_fault, constant_value_problem, open_part, rule_type_problem, rule_type_roots, condition_type_problem, method_shape_problem
 
 
 class Marks(Protocol):
@@ -242,8 +242,6 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             or c["op"] not in ("define", "redefine")
         ):
             return "a malformed constant"
-        if open_part(c["value"]) is not None:
-            return "a constant requires a closed term without engine-tag literals"
         pending.append(("term", c["value"], 0, False, False))
     for c in dom["classifiers"]:
         if (
@@ -272,9 +270,8 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
         if set(i) != {"if", "then", "at"}:
             return "a malformed implication"
         for term in (i["if"], i["then"]):
-            if open_part(term) is not None:
-                return "an implication requires closed terms without engine-tag literals"
             pending.append(("tags", term, 0, False, False))
+    type_roots = [task[1] for task in pending]
     for r in dom["rules"]:
         params = r.get('params', [])
         if 'params' in r and (not isinstance(params, list) or not params or any(not isinstance(p, str) or re.fullmatch(r'[A-Za-z][A-Za-z0-9_-]*', p) is None for p in params) or len(set(params)) != len(params) or 'args' in r):
@@ -286,11 +283,13 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             if set(r) != {'name', 'op', 'flags', 'instance', 'conditions', 'at'} or not isinstance(r['name'], str) or not rule_name(r['name']) or r['op'] not in ('define', 'redefine') or r['flags'] != [] or r['conditions'] != []:
                 return 'a malformed instance binding'
             pending.append(('call', r['instance'], 0, False, False))
+            type_roots.append(r['instance'])
             continue
         if 'args' in r:
             if r['op'] not in ('extend', 'redefine'):
                 return 'an instance head requires an edit'
             pending.append(('call', dict(call=r['name'], args=r['args'], at=r['at']), 0, False, False))
+            type_roots.append(pending[-1][1])
         if (
             not set(r) <= {"name", "params", "args", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
             or not isinstance(r.get("name"), str)
@@ -357,6 +356,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
                     if "erased" in r:
                         return "an erased rule has a recipe"
                     pending.append(("recipe", a[channel], 0, False, False))
+        type_roots.extend(rule_type_roots(r))
     # Feature types depend on the surviving selected stage.
     deferred = set()
     feature_nodes = [condition for directive in dom["directives"] for condition in directive.get("conditions", [])]
@@ -367,14 +367,14 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             feature_nodes.extend(node.values())
         elif isinstance(node, list):
             feature_nodes.extend(node)
-    problem = _walk(pending, unicode, deferred, rule_name)
+    problem = _walk(pending, unicode, deferred, rule_name, type_roots)
     if problem:
         return problem
     for c in dom["constants"]:
-        if _contains_engine(c["value"]):
+        if open_part(c["value"]) is not None or _contains_engine(c["value"]):
             return "a constant requires a closed term without engine-tag literals"
     for i in dom["implications"]:
-        if any(_contains_engine(term) for term in (i["if"], i["then"])):
+        if any(open_part(term) is not None or _contains_engine(term) for term in (i["if"], i["then"])):
             return "an implication requires closed terms without engine-tag literals"
     for term, constituent in tag_clauses:
         if constituent and (term_reads_own_tags(term) or lit(term)):
@@ -404,10 +404,9 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
     return None
 
 
-def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str | None:
+def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: list) -> str | None:
     types = {}
     type_faults = []
-    roots = list(pending)
     root_order = {}
     root_nodes = {id(task[1]) for task in pending}
     decided = set()
@@ -416,7 +415,9 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
         if fault is None:
             return
         if not root_order:
-            root_order.update((id(part), index) for index, task in enumerate(roots) for part in nodes(task[1]))
+            for index, root in enumerate(roots):
+                for part in nodes(root):
+                    root_order.setdefault(id(part), index)
         order = root_order[id(node)]
         if order not in decided:
             type_faults.append(fault)
