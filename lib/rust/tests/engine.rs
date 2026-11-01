@@ -42,6 +42,7 @@ fn run_shared_case(name: &str) {
         }
         Err(error) => panic!("{}: a case is JSON: {error}", file.display()),
     };
+    common::case::engine(&case).unwrap_or_else(|error| panic!("{}: invalid case: {error}", file.display()));
     if let Some(reason) = common::unexpressible_tokens(&case) {
         eprintln!("skip {}: {reason}", file.display());
         return;
@@ -49,6 +50,9 @@ fn run_shared_case(name: &str) {
     if has_caller_attachments(&case) {
         eprintln!("skip {}: unavailable caller fields: Rust InputToken has no attachment fields", file.display());
         return;
+    }
+    if case.get("treeRendering").is_some() {
+        eprintln!("skip treeRendering in {}: Rust has no tree-listing operation", file.display());
     }
     let limit = common::case_timeout();
     let outcome = common::within(limit, move || {
@@ -759,4 +763,66 @@ fn invalid_restorations_are_local_to_the_boundary_assignment() {
         );
         run_engine_case(&parse_json(&case).unwrap()).unwrap();
     }
+}
+
+#[test]
+fn runner_refuses_unknown_and_wrongly_typed_case_members() {
+    let base = parse_json(r#"{"grammar":"%rule text \"a\"","input":"a","expect":{"result":{"ok":true}}}"#).unwrap();
+    for change in [
+        r#"{"path":["unexpected"],"set":true}"#,
+        r#"{"path":["options"],"set":false}"#,
+        r#"{"path":["options"],"set":{"features":"f"}}"#,
+        r#"{"path":["options"],"set":{"until":false}}"#,
+        r#"{"path":["options"],"set":{"elisionOnly":"yes"}}"#,
+        r#"{"path":["options"],"set":{"typo":true}}"#,
+        r#"{"path":["parses"],"set":{}}"#,
+        r#"{"path":["expect","brackets"],"set":false}"#,
+        r#"{"path":["expect","unknown"],"set":true}"#,
+    ] {
+        let changed = common::apply_mutant(&base, &parse_json(change).unwrap());
+        assert!(run_engine_case(&changed).is_err(), "accepted invalid case: {change}");
+    }
+}
+
+#[test]
+fn runner_refuses_expectations_for_another_outcome() {
+    for text in [
+        r#"{"grammar":"%rule text \"a\"","input":"a","expect":{"where":{"document":"main.md"}}}"#,
+        r#"{"grammar":"%rule text \"a\"","input":"a","expect":{"diagnostic":"unused"}}"#,
+        r#"{"grammar":"%rule text {ε}","expect":{"error":"grammar","where":{"document":"main.md"}}}"#,
+        r#"{"grammar":"%rule text {ε}","expect":{"error":"grammar","diagnostic":"unused"}}"#,
+    ] {
+        assert!(run_engine_case(&parse_json(text).unwrap()).is_err(), "accepted {text}");
+    }
+}
+
+#[test]
+fn result_patterns_refuse_error_message_assertions() {
+    let pattern = parse_json(r#"{"error":{"message":"same"}}"#).unwrap();
+    for actual in [r#"{"error":{"message":"same"}}"#, r#"{"error":{"message":"other"}}"#, r#"{"error":{}}"#] {
+        assert!(common::matches(&pattern, &parse_json(actual).unwrap(), "result").is_err(), "accepted {actual}");
+    }
+}
+
+#[test]
+fn shared_case_metadata_is_well_formed() {
+    let mut problems = Vec::new();
+    for file in case_files("engine") {
+        let text = std::fs::read_to_string(&file).unwrap();
+        let case = match parse_json(&text) {
+            Ok(case) => case,
+            Err(error) if error == "a bad code point" => continue,
+            Err(error) => panic!("{}: {error}", file.display()),
+        };
+        if let Err(problem) = common::case::engine(&case) {
+            problems.push(format!("{}: {problem}", file.display()));
+        }
+    }
+    let parameters = parse_json(include_str!("../../../tests/parameters.json")).unwrap();
+    for case in parameters.array() {
+        if let Err(problem) = common::case::engine(case) {
+            problems.push(format!("parameter {:?}: {problem}", case.get("name")));
+        }
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
 }

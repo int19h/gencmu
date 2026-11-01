@@ -20,6 +20,7 @@ fn recipe_set_operator_errors_name_the_operator() {
 }
 
 fn run(case: &Value) -> Result<(), String> {
+    common::case::notation(case)?;
     let document = case.get("document").and_then(Value::str).ok_or("a case without a document")?;
     let expect = case.get("expect").ok_or("a case without expect")?;
     match (gencmu::tools::read_grammar_document(document, ""), expect.get("dom"), expect.get("error")) {
@@ -292,5 +293,28 @@ fn canonical_dom_member_order() {
         r#""name":"features","args":["f"],"at":[4,1],"conditions":[{"captured":""}]"#,
     ] {
         assert!(json.contains(want), "missing {want} in {json}");
+    }
+}
+
+#[test]
+fn notation_expectations_select_one_outcome() {
+    let case =
+        parse_json(r#"{"document":"```jbogenbau\n%rule text \"a\"\n```","expect":{"dom":{},"error":{}}}"#).unwrap();
+    assert!(run(&case).is_err(), "both notation outcomes were accepted");
+}
+
+#[test]
+fn notation_cases_refuse_unknown_members() {
+    let case =
+        parse_json(r#"{"document":"```jbogenbau\n%rule text \"a\"\n```","expect":{"dom":{}},"unexpected":true}"#)
+            .unwrap();
+    assert!(run(&case).is_err(), "an unknown notation member was accepted");
+}
+
+#[test]
+fn shared_notation_metadata_is_well_formed() {
+    for file in case_files("notation") {
+        let case = parse_json(&std::fs::read_to_string(&file).unwrap()).unwrap();
+        common::case::notation(&case).unwrap_or_else(|error| panic!("{}: {error}", file.display()));
     }
 }
