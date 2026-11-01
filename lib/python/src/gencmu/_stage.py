@@ -705,15 +705,16 @@ class StageRunner:
         marks = walk.marks if walk is not None else None
         preferred = bool(lowered.ranked_helpers)
         raw_counted = True
-        if preferred:
+        if preferred and walk is not None:
             raw = rank(forest, "none", marks=marks, check=True, unfiltered=True)
             raw_counted = raw is not None and raw.witness_counted is True
-        ranking = _rank_check(forest, marks)
+        ranking = _rank_check(forest, marks) if walk is not None else None
         better = False
         watched_selection = False
         if ranking is not None:
+            assert walk is not None
             order = compare_profiles(ranking.profile, chosen_profile)
-            if walk is None or not raw_counted or not preferred and ranking.witness_counted is not True:
+            if not raw_counted or not preferred and ranking.witness_counted is not True:
                 ranking = None
             else:
                 restored_rope = None

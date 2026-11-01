@@ -189,3 +189,30 @@ func TestCorpusRunnerWitnessLost(t *testing.T) {
 		}
 	}
 }
+
+func TestLostWitnessSkipsAdmission(t *testing.T) {
+	sources := oneStage("%ambiguity-resolution late-elision elision-only\n%rule text (a ≻ b) ::∅\n%rule a \"a\" [+T]\n%rule b \"a\" [+T] [+U]")
+	pipeline, err := LoadPipelineSources(sources, "p.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := false
+	options := ParseOptions{private: &privateOptions{loseWitness: "roots", elisionCheck: func(run *elisionCheckRun) elisionWatch {
+		return elisionWatch{ranked: func(result *rankResult, rk *ranker) {
+			seen = true
+			if result != nil {
+				t.Fatal("a rootless check ranked")
+			}
+			if rk.admission != nil {
+				t.Errorf("a rootless check prepared admission for %d chart facts", rk.admission.stats.chartFacts)
+			}
+		}}
+	}}}
+	result, err := pipeline.Parse("a", options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !seen || result.Error == nil || result.Error.Code != CodeElisionWitnessLost {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+}

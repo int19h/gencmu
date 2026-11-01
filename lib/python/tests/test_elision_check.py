@@ -137,6 +137,25 @@ class WitnessHook(unittest.TestCase):
                 with lose(), self.assertRaises(WitnessLost):
                     parse_checked(parse)
 
+    def test_a_lost_walk_skips_raw_and_filtered_ranking(self) -> None:
+        from gencmu import _witness
+        for body in [
+            '%rule text a\n%rule a "a" [+T]',
+            '%rule text (a ≻ b) ::∅\n%rule a "a" [+T]\n%rule b "a" [+T] [+U]',
+        ]:
+            pipeline = gencmu.load_pipeline_sources({"p.md":'```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n'+body+'\n```'},"p.md")
+            original = _stage.rank
+            def rank(forest, lean, **options):
+                self.assertFalse(options.get("check",False))
+                return original(forest,lean,**options)
+            with (
+                mock.patch.object(_witness,"walk_witness",return_value=None),
+                mock.patch.object(_stage,"rank",side_effect=rank),
+                mock.patch.object(_stage,"_rank_check",side_effect=AssertionError("a lost walk cannot rank")),
+            ):
+                result = pipeline.parse("a")
+            self.assertEqual(result.error.code,"elision-witness-lost")
+
     def test_a_forest_without_the_chosen_root_has_no_witness(self) -> None:
         # A forest that holds another reading but not W(D) is no witness,
         # however many derivations it counts: here, the item of the chosen
