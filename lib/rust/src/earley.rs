@@ -387,12 +387,16 @@ impl Chart {
             return;
         }
         if let Some((before, cap)) = previous {
-            let edges = self.links.entry((set as u32, item)).or_default();
-            if !edges.contains(&(before, cap)) {
-                work::count(Work::PackedEdges, 1);
-                edges.push((before, cap));
+            match self.advances.entry((before, cap)) {
+                std::collections::hash_map::Entry::Occupied(entry) => {
+                    debug_assert_eq!(*entry.get(), item, "an advance has one resulting item");
+                }
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    entry.insert(item);
+                    self.links.entry((set as u32, item)).or_default().push((before, cap));
+                    work::count(Work::PackedEdges, 1);
+                }
             }
-            self.advances.insert((before, cap), item);
         }
     }
 
