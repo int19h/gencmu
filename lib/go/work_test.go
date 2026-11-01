@@ -89,3 +89,15 @@ func TestReadyConditionsKeepComputedTags(t *testing.T) {
 		}
 	}
 }
+
+func TestRuntimePresenceTestReportsLoweringFault(t *testing.T) {
+	defer func() {
+		failure, ok := recover().(*parseFailure)
+		if !ok || failure.message != "a presence test outlived lowering" {
+			t.Fatalf("unexpected lowering fault: %+v", failure)
+		}
+	}()
+	var w walk
+	w.cond(&evaluator{}, &domCond{Kind: cdCaptured, Capture: "x"})
+	w.resume()
+}
