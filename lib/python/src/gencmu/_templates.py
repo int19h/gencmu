@@ -45,11 +45,6 @@ def canonical_argument(n, unicode):
     return run(_print_argument(n, unicode))
 
 
-def body_text(n, unicode, parent=''):
-    return run(_print_body(n, unicode, parent))
-
-
-
 def _print_join(items, unicode, printer, separator, parent=None):
     parts = []
     for item in items:
