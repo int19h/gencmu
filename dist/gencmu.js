@@ -19681,7 +19681,12 @@
         return {...fields,...(exact ? {exact:true} : {}),...(list ? {children:yield readLayeredPattern(list)} : {}),...(position ? {at:position} : {})};
       }
       if (kind === 'pattern-union' || kind === 'pattern-intersection' || kind === 'child-set' || kind === 'child-intersection') {
-        const operands=parts(node).filter(part => ['pattern-intersection','pattern-path','child-intersection','child-path'].includes(ruleOf(part)));
+        /** @type {ResultNode[]} */
+        let operands;
+        if (kind === 'pattern-union') operands=some(node,'pattern-intersection');
+        else if (kind === 'pattern-intersection') operands=some(node,'pattern-path');
+        else if (kind === 'child-intersection') operands=some(node,'child-path');
+        else operands=parts(node).filter(part => ['child-intersection','child-path'].includes(ruleOf(part)));
         if (!operands.length) return lacks(node,'pattern operands');
         const values=[];
         for (const operand of operands) {
