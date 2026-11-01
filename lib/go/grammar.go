@@ -337,11 +337,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 	// The guards of an entry are all gates (engine §2).
 	g.classifierSet.gates = guardNames(entries)
 	g.guarded = guardNames(append(guards, entries...))
-	var err *Error
-	g.ranked, err = newRankedGroups(g)
-	if err != nil {
-		return nil, err
-	}
+	g.ranked = newRankedGroups(g)
 	if len(g.ranked.groups) > 0 {
 		if err := g.ranked.validateTags(g); err != nil {
 			return nil, err

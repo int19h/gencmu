@@ -207,14 +207,14 @@ pub(crate) fn cond_reads(cond: &Cond, out: &mut BTreeSet<String>) {
     capture_reads(ReadPart::Condition(cond), out);
 }
 impl RankedGroups {
-    pub fn new(grammar: &StageGrammar) -> Result<Self, Error> {
+    pub fn new(grammar: &StageGrammar) -> Self {
         let mut out = Self::default();
         for (rule, definition) in grammar.rules.iter().enumerate() {
             for (alternative, source) in definition.alternatives.iter().enumerate() {
                 out.visit(&source.alternative.expr, "", true, None, (rule, alternative));
             }
         }
-        Ok(out)
+        out
     }
     fn validate_clauses(
         &self,

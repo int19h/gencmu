@@ -15983,7 +15983,7 @@
       if (x === null && y === null) return null;
       if (x === null || y === null) return { left: x, right: y, index };
       if (!sameAction(x, y)) return { left: x, right: y, index };
-      if (!onlyVisible || visible(x)) index = add(index, 1);
+      if (visible(x)) index = add(index, 1);
     }
   }
 

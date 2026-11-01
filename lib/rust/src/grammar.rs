@@ -499,7 +499,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         }
     }
     grammar.close_families = Arc::new(close_families(&grammar));
-    grammar.ranked = Arc::new(crate::ranked::RankedGroups::new(&grammar)?);
+    grammar.ranked = Arc::new(crate::ranked::RankedGroups::new(&grammar));
     if !grammar.ranked.groups.is_empty() {
         grammar.ranked.validate_tags(&grammar)?;
     }

@@ -21,8 +21,8 @@ def helper_forest(raw, names, marks):
                 pending.append(parent)
     if not wrapped:
         return raw,marks
-    names = ['prod', 'dot', 'origin', 'end', 'caps', 'edges', 'structure', 'prefix', 'strict', 'close_structure', 'close_prefix', 'boundaries', 'boundary_annotations']
-    forest = replace(raw,**{name:list(getattr(raw,name)) for name in names},tag=dict(raw.tag))
+    fields = ['prod', 'dot', 'origin', 'end', 'caps', 'edges', 'structure', 'prefix', 'strict', 'close_structure', 'close_prefix', 'boundaries', 'boundary_annotations']
+    forest = replace(raw,**{name:list(getattr(raw,name)) for name in fields},tag=dict(raw.tag))
     forest.slot_original = list(range(len(raw.prod)))
     forest.slot_scopes = [None]*len(raw.prod)
     forest.slot_indices = [[] for _ in raw.prod]
@@ -37,7 +37,7 @@ def helper_forest(raw, names, marks):
             return scoped[key]
         number = len(forest.prod)
         scoped[key] = number
-        for name in names:
+        for name in fields:
             values = getattr(forest,name)
             if name == 'edges':
                 values.append([])
