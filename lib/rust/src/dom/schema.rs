@@ -167,7 +167,6 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
     let rule = |name: &str| rule_name(name, unicode, expanded);
     let mut pending = Vec::new();
     let mut positions = FxSet::default();
-    let mut value_problem = None;
     for name in ["rules", "directives", "constants", "classifiers", "implications"] {
         let Some(items) = dom.get(name).and_then(Json::as_array) else {
             return Some("missing declaration array".into());
@@ -180,22 +179,8 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
             if !positions.insert(at) {
                 return Some("two items at one position".into());
             }
-            for node in crate::parameters::nodes(item) {
-                if name != "rules" && node.get("param").is_some() {
-                    return Some("an undeclared or malformed parameter".into());
-                }
-                if name != "directives"
-                    && node.get("method").and_then(Json::as_str) == Some("split")
-                    && node
-                        .get("args")
-                        .and_then(Json::as_array)
-                        .and_then(|args| args.first())
-                        .and_then(|arg| arg.get("string"))
-                        .and_then(Json::as_str)
-                        == Some("")
-                {
-                    value_problem.get_or_insert("split has an empty delimiter");
-                }
+            if name != "rules" && crate::parameters::nodes(item).any(|node| node.get("param").is_some()) {
+                return Some("an undeclared or malformed parameter".into());
             }
             match name {
                 "directives" => {
@@ -400,7 +385,22 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
             }
         }
     }
-    parts_problem(pending, unicode, expanded).or_else(|| value_problem.map(str::to_string))
+    parts_problem(pending, unicode, expanded)
+}
+
+fn literal_split_problem(declaration: &Json) -> Option<&'static str> {
+    crate::parameters::nodes(declaration)
+        .any(|node| {
+            node.get("method").and_then(Json::as_str) == Some("split")
+                && node
+                    .get("args")
+                    .and_then(Json::as_array)
+                    .and_then(|args| args.first())
+                    .and_then(|arg| arg.get("string"))
+                    .and_then(Json::as_str)
+                    == Some("")
+        })
+        .then_some("split has an empty delimiter")
 }
 
 pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
@@ -424,6 +424,9 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
         match declaration {
             Declaration::Rule(index) => {
                 let item = &raw.get("rules").and_then(Json::as_array).unwrap()[index];
+                if let Some(problem) = literal_split_problem(item) {
+                    return Some(problem.into());
+                }
                 let rule = &mut dom.rules[index];
                 if rule.source.instance.is_some() {
                     continue;
@@ -470,6 +473,9 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
             }
             Declaration::Constant(index) => {
                 let definition = &raw.get("constants").and_then(Json::as_array).unwrap()[index];
+                if let Some(problem) = literal_split_problem(definition) {
+                    return Some(problem.into());
+                }
                 let constant = &dom.constants[index];
                 let term = &constant.value;
                 if !closed(term)
@@ -487,6 +493,9 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
             }
             Declaration::Implication(index) => {
                 let raw = &raw.get("implications").and_then(Json::as_array).unwrap()[index];
+                if let Some(problem) = literal_split_problem(raw) {
+                    return Some(problem.into());
+                }
                 let implication = &dom.implications[index];
                 for term in [&implication.antecedent, &implication.consequent] {
                     if !closed(term)
