@@ -494,6 +494,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     if !grammar.index.contains_key("text") {
         return Err(Error::grammar("has no rule text").in_stage(stage));
     }
+    crate::boundary::reachable(&grammar)?;
     // Shared clauses are checked once, with the first alternative that
     // holds them.
     let mut checked: FxSet<*const RuleClauses> = FxSet::default();
@@ -504,7 +505,6 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                 .map_err(|message| located(message, &alternative.document, alternative.at))?;
         }
     }
-    crate::boundary::reachable(&grammar)?;
     grammar.close_families = Arc::new(close_families(&grammar));
     grammar.ranked = Arc::new(crate::ranked::RankedGroups::new(&grammar)?);
     if !grammar.ranked.groups.is_empty() {
@@ -1565,8 +1565,7 @@ impl Constants<'_> {
 
     fn resolve_feature(&self, document: &str, directive: &mut Directive) -> Result<(), Error> {
         if let Some(conditions) = &mut directive.conditions {
-            crate::features::problem(conditions).map_err(|message| located(message, document, directive.at))?;
-            for condition in conditions.iter_mut() {
+            for condition in conditions.iter() {
                 let mut references = Vec::new();
                 crate::dom::constants_in_cond(condition, &mut references);
                 for (name, _) in references {
@@ -1578,10 +1577,17 @@ impl Constants<'_> {
                         ));
                     }
                 }
+            }
+            crate::features::problem(conditions).map_err(|message| located(message, document, directive.at))?;
+            for condition in conditions.iter() {
                 if let Some(fault) = crate::dom::cond_type_fault(condition, &|name| self.ty(name)) {
                     return Err(located(fault.problem, document, directive.at));
                 }
+            }
+            for condition in conditions.iter() {
                 self.check_value_uses(ValuePart::Cond(condition), document, directive.at, true)?;
+            }
+            for condition in conditions.iter_mut() {
                 self.substitute_cond(condition);
             }
         }
