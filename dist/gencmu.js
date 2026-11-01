@@ -9709,7 +9709,7 @@
         if (!directive.conditions) return {path,directive};
         const uses=argumentUses.get(this)?.get(argumentSite(inspectionRun,path,directive.at))??[];
         const references=constantsIn(directive.conditions);
-        for (const use of uses) references.push(...constantsIn(use.rule??use.term));
+        for (const use of uses) for (const reference of constantsIn(use.rule??use.term)) references.push(reference);
         if (uses.length) references.sort((a,b)=>a.at[0]-b.at[0]||a.at[1]-b.at[1]);
         for (const reference of references) {
           if (!this.constants.has(reference.const)) throw this.documentError(path,directive.at,`$${reference.const} is not defined in stage ${this.stageName}`);
