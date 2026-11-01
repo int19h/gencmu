@@ -1,0 +1,11 @@
+{
+  "description": "A later unknown selector precedes the final query role check.",
+  "document": "```jbogenbau\n%rule r $x:A %conditions $x.matches(A).unknown\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 26,
+      "message": "unknown method unknown"
+    }
+  }
+}

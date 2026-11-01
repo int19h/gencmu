@@ -25,15 +25,38 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 	n := f.n
 	if !f.started {
 		f.started = true
-		f.parts = ruleParts(n)
+		f.parts = b.ruleParts(n)
+		if n.Rule == "pattern-children" {
+			f.parts = nil
+			if child := b.one(n, "child-choice"); child != nil {
+				f.parts = []*Node{child}
+			}
+		}
+		if n.Rule == "pattern-brackets" || n.Rule == "pattern-repeat" {
+			f.parts = b.some(n, "child-choice", 1)
+			limit := 1
+			if n.Rule == "pattern-repeat" {
+				limit = 2
+			}
+			if len(f.parts) > limit {
+				f.parts = f.parts[:limit]
+			}
+		}
+		if n.Rule == "pattern-primary" {
+			f.parts = []*Node{b.knownOf(n, []string{"pattern-node", "pattern-bare", "pattern-union"})}
+		}
 		if n.Rule == "pattern-node" || n.Rule == "pattern-bare" {
 			f.atom = &domPattern{Kind: "any"}
 			if n.Rule == "pattern-node" {
 				atom := b.only(n, "pattern-atom")
-				f.atom = b.patternAtom(atom, parts(atom)[0])
+				atomParts := b.parts(atom)
+				if len(atomParts) == 0 {
+					b.lacks(atom, "pattern atom")
+				}
+				f.atom = b.patternAtom(atom, atomParts[0])
 			}
 			f.parts = nil
-			if children := one(n, "pattern-children"); children != nil {
+			if children := b.one(n, "pattern-children"); children != nil {
 				if f.atom.Kind != "name" && f.atom.Kind != "any" && f.atom.Kind != "param" && f.atom.Kind != "call" {
 					b.fail(children, "a child list requires a rule test")
 				}
@@ -41,7 +64,7 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 			}
 		}
 		if n.Rule == "child-item" {
-			ps := parts(n)
+			ps := b.parts(n)
 			if len(ps) == 0 {
 				b.lacks(n, "child item")
 			}
@@ -63,7 +86,7 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 		}
 		return give(values[0])
 	case "pattern-node", "pattern-bare":
-		for _, p := range parts(n) {
+		for _, p := range b.parts(n) {
 			if p.Kind == KindToken && b.tokenValue(p) == "·" {
 				f.atom.Exact = true
 			}
@@ -82,7 +105,7 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 			}
 		}
 		var ops []string
-		for _, p := range parts(n) {
+		for _, p := range b.parts(n) {
 			if p.Kind == KindToken {
 				ops = append(ops, b.tokenValue(p))
 			}
@@ -103,7 +126,7 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 			b.lacks(n, "one pattern operand")
 		}
 		axis := ""
-		for _, p := range parts(n) {
+		for _, p := range b.parts(n) {
 			if p.Kind == KindToken {
 				axis = b.tokenValue(p)
 				break

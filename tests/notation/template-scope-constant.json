@@ -1,0 +1,10 @@
+{
+  "description": "A constant after a template cannot use its parameters.",
+  "document": "```jbogenbau\n%rule t(@P) @P\n%const $X @P\n%rule r $x:(A)\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 11
+    }
+  }
+}

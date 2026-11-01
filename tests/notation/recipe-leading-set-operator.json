@@ -1,0 +1,10 @@
+{
+  "description": "A recipe rejects a leading set operator at its atom.",
+  "document": "```jbogenbau\n%rule r A := ∪ \"a\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 14
+    }
+  }
+}

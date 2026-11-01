@@ -1,0 +1,10 @@
+{
+  "description": "A recipe-only signature follows local argument errors.",
+  "document": "```jbogenbau\n%rule r $x:A %conditions $x.verbatim-text(_Nope)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 43
+    }
+  }
+}

@@ -9,6 +9,23 @@ import (
 	"testing"
 )
 
+func TestSuppliedRankedChoiceErrorHasNoSyntaxCode(t *testing.T) {
+	bootstrap, err := os.ReadFile("../../data/preparsed/gencmu.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed := strings.ReplaceAll(string(bootstrap), `{"seq":[{"ref":"conjunction"},{"literal":{"string":"≻"}},{"repeat":{"ref":"conjunction"},"separator":{"literal":{"string":"≻"}}}]}`, `{"literal":{"string":"."}}`)
+	_, err = LoadPipelineSources(map[string]string{
+		"p.md":                       "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
+		"g.md":                       "```jbogenbau\n%rule text .\n```\n",
+		"data/preparsed/gencmu.json": changed,
+	}, "p.md")
+	var problem *Error
+	if !errors.As(err, &problem) || problem.Code != "" {
+		t.Fatalf("expected a document error without a syntax code, got %v", err)
+	}
+}
+
 // A bootstrap of another notation gives the reader a tree of another shape
 // (engine §9). Every library reads through a wrapper, and needs the parts
 // of each rule that it knows. tests/notation-shapes.json holds the outcome
@@ -209,4 +226,41 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 	if !ok || e.Kind != ErrorGrammar || e.Line != 0 || !strings.Contains(e.Message, "lexical stage of the notation") {
 		t.Fatalf("%v", err)
 	}
+}
+
+func TestSuppliedNodePositionsUseTokenBoundaries(t *testing.T) {
+	b := &domBuilder{gt: &grammarText{pos: [][2]int{{1, 1}, {1, 2}, {1, 3}, {1, 4}}}, toks: []Token{{Source: [2]int{0, 1}}, {Source: [2]int{2, 3}}}}
+	for _, item := range []struct {
+		name   string
+		node   *Node
+		column int
+	}{
+		{"empty leading wrapper", &Node{Kind: KindRule, Children: []*Node{{Kind: KindRule}, {Kind: KindToken, Token: 1}}}, 3},
+		{"empty interior constructor", &Node{Kind: KindRule, Span: [2]int{1, 1}}, 3},
+		{"empty final constructor", &Node{Kind: KindRule, Span: [2]int{2, 2}}, 4},
+		{"missing token index", &Node{Kind: KindToken, Token: 999}, 4},
+	} {
+		t.Run(item.name, func(t *testing.T) {
+			defer func() {
+				if problem := recover(); problem != nil {
+					t.Fatalf("position lookup panicked: %v", problem)
+				}
+			}()
+			if got := b.at(item.node); got != [2]int{1, item.column} {
+				t.Fatalf("position %v, expected column %d", got, item.column)
+			}
+		})
+	}
+}
+
+func TestRootTokensPrecedeNamesDeclarations(t *testing.T) {
+	b := &domBuilder{doc: "g.md", gt: &grammarText{pos: [][2]int{{1, 1}}}, toks: []Token{{Value: "ignored"}, {Value: "%names"}}}
+	root := &Node{Kind: KindRule, Rule: "text", Children: []*Node{{Kind: KindToken, Token: 0}, {Kind: KindRule, Rule: "directive", Children: []*Node{{Kind: KindToken, Token: 1}}}}}
+	defer func() {
+		problem, ok := recover().(*Error)
+		if !ok || !strings.Contains(problem.Error(), "%names must precede every other statement") {
+			t.Fatalf("expected the names-order error, got %v", problem)
+		}
+	}()
+	b.document(root)
 }

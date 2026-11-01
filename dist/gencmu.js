@@ -18625,7 +18625,14 @@
    */
   function treeToDom(tree, tokens, positionOf, path, unicode, decodeString, deferEmission = false) {
     /** @type {(node: ResultNode) => Position} */
-    const at = (node) => positionOf(tokens[firstToken(node)]);
+    const at = (node) => {
+      const index = firstToken(node);
+      const found = tokens[index];
+      if (found) return positionOf(found);
+      const last = tokens[tokens.length - 1];
+      const end = last?.source[1] ?? 0;
+      return positionOf(/** @type {Token} */ ({...last, source:[end,end]}));
+    };
     /** @type {(message: string, position: Position) => never} */
     const failAt = (message, [line, column]) => {
       throw new GencmuError("grammar", `${path}:${line}:${column}: ${message}`, { document: path, line, column });
@@ -18636,10 +18643,15 @@
 
     // A rule node's children, with transparent rules read in their place,
     // in the order written, with an explicit stack.
+    /** @type {WeakMap<ResultNode, ResultNode[]>} */
+    const partsCache = new WeakMap();
     /** @type {(node: ResultNode) => ResultNode[]} */
     const parts = (node) => {
+      const cached = partsCache.get(node);
+      if (cached) return cached;
       /** @type {ResultNode[]} */
       const result = [];
+      partsCache.set(node, result);
       if (node.kind !== "rule") return result;
       /** @type {ResultNode[]} */
       const stack = node.children.slice().reverse();
@@ -18647,7 +18659,7 @@
         if (hooks.work) countWork(hooks.work, "walkSteps");
         const child = /** @type {ResultNode} */ (stack.pop());
         if (child.kind === "rule" && !NAMED.has(child.rule)) for (let index = child.children.length - 1; index >= 0; index--) stack.push(child.children[index]);
-        else result.push(child);
+        else if (child.kind !== "elided") result.push(child);
       }
       return result;
     };
@@ -18694,6 +18706,13 @@
     };
     /** @type {(node: ResultNode) => string} */
     const ruleOf = (node) => (node.kind === "rule" ? node.rule : "");
+    /** @type {(node: ResultNode) => RuleNode | undefined} */
+    const testBase = (node) => {
+      const wrapper = one(node, "primary");
+      if (wrapper) return knownOf(wrapper, PRIMARIES);
+      for (const child of parts(node)) if (child.kind === "rule" && PRIMARIES.has(child.rule)) return child;
+      return undefined;
+    };
     // The first node of a rule at or below a node, in the order written.
     /** @type {(node: ResultNode, name: string) => ResultNode | null} */
     const firstOfRule = (node, name) => {
@@ -18738,6 +18757,7 @@
     const tagSources = new Map();
     let statementSeen = false;
     for (const item of parts(tree)) {
+      parameterScope = new Set();
       if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
       const namesDirective = ruleOf(item) === "directive" && valueOf(token(item)) === "%names";
       if (namesDirective && statementSeen) fail("%names must precede every other statement", item);
@@ -18903,9 +18923,10 @@
           if (keyword === "%rule") fail("an instance head requires an edit", headCall);
         }
       }
+      const nameToken = headCall ? token(headCall) : token(only(node, "rule-name"));
       /** @type {any} */
-      const rule = { name: head ? head.call : valueOf(token(only(node, "rule-name"))), ...(head ? head.args.every((/** @type {any} */ arg) => arg.param) ? {params:head.args.map((/** @type {any} */ arg) => arg.param)} : {args:head.args} : {}), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
-      if (!unicode.isEmojiName?.(rule.name || "") && !/^[a-z][A-Za-z0-9_-]*$/.test(rule.name || "")) fail("a rule name starts with a lowercase letter or uses one eligible emoji", only(node, "rule-name"));
+      const rule = { name: head ? head.call : valueOf(nameToken), ...(head ? head.args.every((/** @type {any} */ arg) => arg.param) ? {params:head.args.map((/** @type {any} */ arg) => arg.param)} : {args:head.args} : {}), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
+      if (!unicode.isEmojiName?.(rule.name || "") && !/^[a-z][A-Za-z0-9_-]*$/.test(rule.name || "")) fail("a rule name starts with a lowercase letter or uses one eligible emoji", nameToken);
       const flags = one(node, "rule-flags");
       rule.flags = [];
       if (flags) {
@@ -19096,8 +19117,7 @@
       if (!head) fail(form, node);
       const symbol = /** @type {RuleNode} */ (head);
       if (ruleOf(symbol) === "tested") {
-        const wrapper = one(symbol, "primary");
-        const base = wrapper ? knownOf(wrapper, PRIMARIES) : parts(symbol).find(child => child.kind === "rule" && PRIMARIES.has(child.rule));
+        const base = testBase(symbol);
         if (!base || !isTerminal(/** @type {RuleNode} */ (base))) fail(form, node);
 
       } else if (!isTerminal(symbol)) {
@@ -19121,8 +19141,8 @@
       const found = parts(node);
       const choices = some(node, "choice");
       const markers = found.flatMap((child, index) => (tokenValue(child) === "..." ? [index] : []));
-      // Two markers are an error at the second, and a marker after the
-      // separator is an error at that marker, whichever a reader meets first.
+      // Repeated markers fail before separator placement is inspected.
+      // A sole marker after the separator fails at that marker (engine §9).
       if (markers.length >= 2) fail("braces have one chain marker ... at most", found[markers[1]]);
       const second = choices.length >= 2 ? found.indexOf(choices[1]) : found.length;
       if (markers.length === 1 && markers[0] > second) fail("a separator has no chain marker: ... stands after { or after the item", found[markers[0]]);
@@ -19151,14 +19171,14 @@
         case "reference": return { ref: valueOf(token(node)) };
         case "tag": return { ref: tagOf(token(node)) };
         case "string-terminal": return { literal: yield readTerm(knownOf(node, new Set(["string", "constant-reference"]))) };
+        case "constant-reference": return { literal: yield readTerm(node) };
         case "wildcard": token(node); return { wildcard: true };
         case "range": return { range: yield readRange(node) };
         case "tested": {
           const tests = parts(node).filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
           if (!tests.length) lacks(node, "test");
-          const wrapper = one(node, "primary");
-          const symbol = wrapper ? knownOf(wrapper, PRIMARIES) : parts(node).find(child => child.kind === "rule" && PRIMARIES.has(child.rule)) || lacks(node, "base primary");
-          checkTestOrder(tests, ["reference", "call", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)));
+          const symbol = testBase(node) || lacks(node, "primary");
+          checkTestOrder(tests, ["constant-reference", "reference", "call", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)));
           // Convert the base before test operands (engine §9.3).
           let expr = yield readPrimary(symbol);
           for (const test of tests) expr = { ...(yield readTest(test)), expr };
@@ -19172,9 +19192,8 @@
           if (valueOf(captureToken) === "$") fail("$ is the whole constituent and wraps nothing", node);
           if (!CAPTURE_NAME.test(valueOf(captureToken).slice(1))) fail("a capture's name is all lower case", node);
           const wrapped = knownOf(inner, PRIMARIES);
-          const target = one(wrapped, "primary");
-          const base = ruleOf(wrapped) === "tested" ? target ? knownOf(target, PRIMARIES) : parts(wrapped).find(child => child.kind === "rule" && PRIMARIES.has(child.rule)) || lacks(wrapped, "base primary") : wrapped;
-          if (!["reference", "call", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(base))) fail("a capture wraps one symbol", node);
+          const base = ruleOf(wrapped) === "tested" ? testBase(wrapped) || lacks(wrapped, "primary") : wrapped;
+          if (!["constant-reference", "reference", "call", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(base))) fail("a capture wraps one symbol", node);
           const name = valueOf(captureToken).slice(1);
           const expr = /** @type {Expr} */ (yield readPrimary(wrapped));
           const capture = { capture: name, expr };
@@ -19250,6 +19269,7 @@
     function* readRecipe(node) {
       const concat = [];
       for (const atom of some(node, "recipe-atom")) {
+        if (!Number.isSafeInteger(atom.span[0]) || !Number.isSafeInteger(atom.span[1]) || atom.span[0] < 0 || atom.span[1] < atom.span[0] || atom.span[1] > tokens.length) lacks(atom, "valid token span");
         if (concat.length) fail("juxtaposed recipe strings require ++. Use ++ between string atoms", atom);
         if (tokens.slice(atom.span[0], atom.span[1]).some(token => ["(", ")"].includes(token.value))) fail("a recipe atom has no grouping or arguments", atom);
         if (tokens.slice(atom.span[0], atom.span[1]).some(token => ["∪", "∩", "∖", "⟹"].includes(token.value))) fail("a recipe atom has no set operator", atom);
@@ -19294,7 +19314,7 @@
           const value = yield readTerm(inner);
           const type = termType(value);
           const problem = "problem" in type ? type.problem : expectedProblem(type.type, "tags");
-          if (problem && !hasUnresolved(value)) fail(problem, operand);
+          if (problem) fail(problem, operand);
           requirements.push({ negated: parts(requirement).some(child => tokenValue(child) === "¬"), value });
         }
         return { test: "tags", requirements };
@@ -19328,7 +19348,7 @@
       const term = /** @type {Term} */ (yield readTerm(node));
       const found = termType(term);
       const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
-      if (problem && !hasUnresolved(term)) fail(problem, node);
+      if (problem) fail(problem, node);
       const retained = yield literalTerms(term);
       if (retained.length) {
         const first = retained.map((/** @type {object} */ value) => tagSources.get(value)).filter(Boolean).sort((/** @type {ResultNode} */ a, /** @type {ResultNode} */ b) => firstToken(a) - firstToken(b))[0];
@@ -19403,7 +19423,8 @@
         case "presence":
           return { captured: valueOf(token(inner)).slice(1) };
         case "tree-comparison": {
-          const leftNode = only(inner,"capture-reference");
+          const left = {capture:valueOf(token(only(inner,"capture-reference"))).slice(1)};
+          const op = /** @type {Comparator} */ (operator(token(only(inner,"tree-comparator"))));
           const rightNode = only(inner,"union");
           const leaf = firstOfRule(rightNode,"name") ?? firstOfRule(rightNode,"tag");
           // A bare name gets this error before capital-initial tag typing.
@@ -19411,23 +19432,22 @@
             const name = valueOf(token(leaf));
             fail(`tree comparison requires a pattern; write #${name}, not ${name}`,leaf);
           }
-          const op = /** @type {Comparator} */ (operator(token(only(inner,"tree-comparator"))));
           const right = /** @type {Term} */ (yield readTerm(rightNode));
           const found = termType(right);
           const problem = "problem" in found ? found.problem : expectedProblem(found.type,"pattern");
           if (problem && !featureContext) fail(problem,inner);
-          return {op,left:{capture:valueOf(token(leftNode)).slice(1)},right};
+          return {op,left,right};
         }
         case "comparison": {
-          const [left, right] = some(inner, "union", 2);
           const op = /** @type {Comparator} */ (operator(token(only(inner, "comparator"))));
+          const [left, right] = some(inner, "union", 2);
           const condition = { op, left: /** @type {Term} */ (yield readTerm(left)), right: /** @type {Term} */ (yield readTerm(right)) };
           // The two sides fit the comparator (engine §10).
           const leftType = termType(condition.left);
           const rightType = termType(condition.right);
           const problem = "problem" in leftType ? leftType.problem : "problem" in rightType ? rightType.problem
             : comparisonProblem(op, leftType.type, rightType.type);
-          if (problem && !featureContext && !hasUnresolved(condition)) fail(problem, inner);
+          if (problem && !featureContext) fail(problem, inner);
           return condition;
         }
         case "negation":
@@ -19482,10 +19502,11 @@
           return written === "∪" || written === "∖" ? [written] : [];
         });
         // A leading ∪ is a separator, not an operator.
-        while (operators.length >= found.length) operators.shift();
+        operators.splice(0, Math.max(0, operators.length - found.length + 1));
         /** @type {Term[]} */
         const items = [];
         for (const item of found) items.push(yield readTerm(item));
+        if (operators.length < found.length - 1) lacks(node, "operator");
         const joined = joinedType(items.map((item) => {
           const type = termType(item);
           return "problem" in type ? (featureContext ? "any" : fail(type.problem, node)) : type.type;
@@ -19516,12 +19537,11 @@
           if (nodes.length > 1) {
             const found = termType(term);
             const problem = "problem" in found ? found.problem : !["string", "any"].includes(found.type) ? "++ requires string operands" : null;
-            const knownNonString = !("problem" in found) && !["string", "any"].includes(found.type);
-            if (problem && !featureContext && (knownNonString || !hasUnresolved(term))) fail(problem, node);
+            if (problem && !featureContext) fail(problem, node);
           }
           items.push(term);
         }
-        if (nodes.length === 1) return items.length === 1 ? items[0] : {concat: items};
+        if (nodes.length === 1) return items[0];
         return {concat: items};
       }
       if (ruleOf(node) === "intersection") {
@@ -19571,7 +19591,7 @@
           if (recipeContext && ruleOf(node) === "string-run") fail("juxtaposed recipe strings require ++. Use ++ between string atoms", node);
           const start = node.span[0];
           const end = node.span[1];
-          if (["∩", "∖"].includes(tokens[start - 1]?.value) || ["∩", "∖"].includes(tokens[end]?.value)) fail("a tag run beside ∩ or ∖ requires parentheses", node);
+          if (["∩", "∖"].includes(tokens[start - 1]?.value) || ["∩", "∖"].includes(tokens[end]?.value)) fail(`a ${ruleOf(node) === "string-run" ? "string" : "tag"} run beside intersection or difference requires parentheses`, node);
           const union = [];
           for (const tag of some(node, ruleOf(node) === "string-run" ? "string" : "tag", 2)) union.push(yield readTerm(tag));
           return { union };
@@ -19619,7 +19639,6 @@
         const atom = kind === 'pattern-node' ? (yield readPattern(only(node,'pattern-atom'))).node : {any:true};
         const list=one(node,'pattern-children');
         if (list && !['name','call','param','any'].some(key => key in atom)) fail('a child list requires a rule test',list);
-        if(atom.literal?.const) {atom.constant=atom.literal.const;delete atom.literal;}
         const {at:position,...fields}=atom;
         const exact=parts(node).some(part => tokenValue(part) === '·');
         return {...fields,...(exact ? {exact:true} : {}),...(list ? {children:yield readLayeredPattern(list)} : {}),...(position ? {at:position} : {})};
@@ -19685,7 +19704,7 @@
       if (kind === 'pattern-repeat') {
         const choices=some(node,'child-choice');
         const repeat=yield readLayeredPattern(choices[0]);
-        return [{repeat,...(choices.length === 2 ? {separator:yield readLayeredPattern(choices[1])} : {})}];
+        return [{repeat,...(choices.length >= 2 ? {separator:yield readLayeredPattern(choices[1])} : {})}];
       }
       return fail(`unexpected ${kind} in layered pattern`,node);
     }
@@ -19726,7 +19745,7 @@
         else if (ruleOf(first) === "string") expr = { literal: decode(token(first)), at: at(first) };
         else if (ruleOf(first) === "string-terminal") expr = { literal: yield readTerm(knownOf(first, new Set(["string", "constant-reference"]))), at: at(first) };
         else if (ruleOf(first) === "range") expr = { range: yield readRange(first), at: at(first) };
-        else if (ruleOf(first) === "wildcard") expr = { wildcard: true, at: at(first) };
+        else if (ruleOf(first) === "wildcard") {token(first);expr = { wildcard: true, at: at(first) };}
         else if (ruleOf(first) === "constant-reference") {
           const value = yield readTerm(first);
           expr = { constant: value.const, at: at(first) };
@@ -19759,14 +19778,14 @@
             args.push({integer:digits});
           } else args.push(yield readTerm(only(argument, "term"), true));
         }
+        if (argumentsNode) {
+          const separators = parts(argumentsNode).filter(child => child.kind === "token").map(valueOf);
+          if (separators.some(separator => separator !== (TARGET_METHODS.has(name) ? "|" : ","))) fail("invalid method argument separator", argumentsNode);
+        }
         if (["classify","ngrams"].includes(name) && args.some(arg => hasUnresolved(arg))) fail("a parameter cannot replace a classifier name or integer argument",node);
         if (name === "classify" && args.length === 1 && args[0].rule && CLASSIFIER_NAME.test(args[0].rule)) args[0] = { classifier: args[0].rule };
         if (TARGET_METHODS.has(name)) {
           for (let index = 0; index < args.length; index++) if (args[index].tag && !args[index].tag.startsWith("_")) args[index] = {terminal:args[index].tag};
-        }
-        if (argumentsNode) {
-          const separators = parts(argumentsNode).filter(child => child.kind === "token").map(valueOf);
-          if (separators.some(separator => separator !== (TARGET_METHODS.has(name) ? "|" : ","))) fail("invalid method argument separator", argumentsNode);
         }
         if (featureContext || hasUnresolved(receiver) || args.some(hasUnresolved)) {
           const problem = methodShapeProblem(name, receiver, args, recipeContext);
@@ -19944,7 +19963,7 @@
 
   // What a primary, a condition, a term and a term atom hold: the one rule
   // among their parts is one of these (engine §9).
-  const PRIMARIES = new Set(["call", "parameter", "reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty"]);
+  const PRIMARIES = new Set(["constant-reference", "call", "parameter", "reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty"]);
   const CONDITIONS = new Set(["tree-comparison", "comparison", "method", "negation", "presence", "implication"]);
   const TERMS = new Set(["union", "guarded-term"]);
   const ATOMS = new Set(["call", "parameter", "pattern-literal", "string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "guarded-term", "union", "term-atom", "method", "capture-reference", "constant-reference"]);
@@ -19965,17 +19984,14 @@
    * @returns {number}
    */
   function firstToken(node) {
-    // Down the first child that is a token or a rule, in a loop: a deep
-    // nesting cannot exhaust the call stack.
-    let current = node;
-    for (;;) {
+    const pending = [node];
+    while (pending.length) {
       if (hooks.work) countWork(hooks.work, "walkSteps");
+      const current = /** @type {ResultNode} */ (pending.pop());
       if (current.kind === "token") return current.token;
-      if (current.kind === "elided") return current.span[0];
-      const child = current.children.find((candidate) => candidate.kind === "token" || candidate.kind === "rule");
-      if (!child) return current.span[0];
-      current = child;
+      if (current.kind === "rule") for (let index = current.children.length - 1; index >= 0; index--) pending.push(current.children[index]);
     }
+    return node.span[0];
   }
 
   // ---- markdown.js

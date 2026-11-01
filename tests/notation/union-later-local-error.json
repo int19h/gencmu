@@ -1,0 +1,10 @@
+{
+  "description": "A local error in a later union operand precedes the completed type error.",
+  "document": "```jbogenbau\n%rule r $x:A %conditions $x ∪ _Nope = A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 31
+    }
+  }
+}

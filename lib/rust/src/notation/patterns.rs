@@ -44,16 +44,33 @@ impl<'a> Reader<'a> {
     pub(super) fn resume_pattern(&self, frame: &mut PatternFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
         if !frame.initialized {
             frame.initialized = true;
-            frame.parts = Self::parts(frame.node).into_iter().filter(|part| part.kind == NodeKind::Rule).collect();
+            frame.parts = self.parts(frame.node).into_iter().filter(|part| part.kind == NodeKind::Rule).collect();
+            match rule_name(frame.node) {
+                "pattern-primary" => {
+                    frame.parts = vec![self.inner(frame.node, &["pattern-node", "pattern-bare", "pattern-union"])?]
+                }
+                "child-primary" => {
+                    frame.parts = vec![self.inner(frame.node, &["pattern-node", "pattern-bare", "child-choice"])?]
+                }
+                "pattern-children" => frame.parts = self.rules(frame.node, "child-choice").take(1).collect(),
+                "pattern-brackets" => {
+                    frame.parts = self.some(frame.node, "child-choice", 1)?.into_iter().take(1).collect()
+                }
+                "pattern-repeat" => {
+                    frame.parts = self.some(frame.node, "child-choice", 1)?.into_iter().take(2).collect()
+                }
+                "pattern-path" => frame.parts = vec![self.one(frame.node, "pattern-primary")?],
+                "child-path" => frame.parts = vec![self.one(frame.node, "child-primary")?],
+                _ => {}
+            }
             if matches!(rule_name(frame.node), "pattern-node" | "pattern-bare") {
-                frame.parts = Self::rules(frame.node, "pattern-children").collect();
+                frame.parts = self.rules(frame.node, "pattern-children").take(1).collect();
                 if rule_name(frame.node) == "pattern-node" {
                     return Ok(Step::Call(Frame::PatternAtom(self.one(frame.node, "pattern-atom")?)));
                 }
                 frame.atom = Some(Pattern::Any);
             }
-            if rule_name(frame.node) == "child-item"
-                && Self::tokens_of(frame.node).any(|token| self.value(token) == "⋯")
+            if rule_name(frame.node) == "child-item" && self.tokens_of(frame.node).any(|token| self.value(token) == "⋯")
             {
                 return Ok(Step::Done(Val::Pattern(Value::Items(vec![Children::Siblings]))));
             }
@@ -121,7 +138,7 @@ impl<'a> Reader<'a> {
             }
             "pattern-node" | "pattern-bare" => {
                 let atom = frame.atom.unwrap();
-                let exact = Self::tokens_of(node).any(|token| self.value(token) == "·");
+                let exact = self.tokens_of(node).any(|token| self.value(token) == "·");
                 let children = values.pop().map(|value| Children::Sequence(value.items()));
                 Ok(Value::Pattern(if exact || children.is_some() {
                     Pattern::Node(Box::new(atom), exact, children)
@@ -141,7 +158,7 @@ impl<'a> Reader<'a> {
                         value.pattern()
                     });
                 }
-                let ops: Vec<_> = Self::tokens_of(node).map(|token| self.value(token)).collect();
+                let ops: Vec<_> = self.tokens_of(node).map(|token| self.value(token)).collect();
                 let mut operands = operands.into_iter();
                 let mut result = operands.next().unwrap();
                 for (index, value) in operands.enumerate() {
@@ -160,7 +177,7 @@ impl<'a> Reader<'a> {
                     return Err(self.shape_error(node, "one pattern operand"));
                 }
                 let value = values.pop().unwrap();
-                let Some(axis) = Self::tokens_of(node).next() else { return Ok(value) };
+                let Some(axis) = self.tokens_of(node).next() else { return Ok(value) };
                 let path = match self.value(axis) {
                     "⋮" => "descendant",
                     "⋱" => "last",

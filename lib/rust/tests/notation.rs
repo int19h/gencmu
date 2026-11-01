@@ -4,6 +4,21 @@ mod common;
 
 use common::{case_files, matches, parse_json, Value};
 
+#[test]
+fn document_reader_errors_retain_the_document_name() {
+    for text in ["```jbogenbau\n%rule r A", "```jbogenbau\n%rule r $x:(A)\n```\n"] {
+        let error = gencmu::tools::read_grammar_document(text, "grammar.md").unwrap_err();
+        assert_eq!(error.document.as_deref(), Some("grammar.md"));
+    }
+}
+
+#[test]
+fn recipe_set_operator_errors_name_the_operator() {
+    let error =
+        gencmu::tools::read_grammar_document("```jbogenbau\n%rule r A := ∪ \"a\"\n```\n", "grammar.md").unwrap_err();
+    assert!(error.message.contains("set operator"), "{error}");
+}
+
 fn run(case: &Value) -> Result<(), String> {
     let document = case.get("document").and_then(Value::str).ok_or("a case without a document")?;
     let expect = case.get("expect").ok_or("a case without expect")?;

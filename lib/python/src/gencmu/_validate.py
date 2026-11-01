@@ -506,7 +506,6 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
             if not (keys == {'rule'} and isinstance(node['rule'], str) and rule_name(node['rule']) or keys == {'terminal'} and _tag(node['terminal']) and not node['terminal'].startswith('_')):
                 return 'a malformed query target'
             continue
-        dependent = has_unresolved(node)
         if kind == "expr":
             if any(k in node for k in ("seq", "choice", "ranked", "and")):
                 key = next(k for k in ("seq", "choice", "ranked", "and") if k in node)
@@ -557,7 +556,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
             elif "range" in node:
                 if keys != {"range"} or not _items(node["range"], 2, 2):
                     return "a malformed range"
-                problem = None if dependent else range_problem(node["range"])
+                problem = range_problem(node["range"])
                 if problem:
                     return problem
                 pending.extend(("string", x, depth, False, False) for x in node["range"])
@@ -627,11 +626,11 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
                 and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by")
             ):
                 return "a malformed condition"
-            keep_type(None if id(node) in deferred or dependent else condition_type_fault(node, memo=types), node)
+            keep_type(None if id(node) in deferred else condition_type_fault(node, memo=types), node)
             if "method" not in node:
                 continue
         elif kind == "tags":
-            keep_type(None if id(node) in deferred or dependent else tag_term_fault(node, memo=types), node)
+            keep_type(None if id(node) in deferred else tag_term_fault(node, memo=types), node)
         if "method" in node:
             if keys != {"method", "receiver", "args"} or not isinstance(node["method"], str) or not isinstance(node["args"], list):
                 return "a malformed method"
@@ -651,7 +650,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
                 and node["receiver"].get("method") == "emitted"
             ):
                 return "a recipe-only method outside a recipe"
-            keep_type(None if id(node) in deferred or dependent else term_type_fault(node, memo=types)[1], node)
+            keep_type(None if id(node) in deferred else term_type_fault(node, memo=types)[1], node)
             if kind == "string":
                 return "a string operand requires a literal or constant"
             if id(node) not in deferred and node["method"] == "split" and literal_string(node["args"][0]) == "":

@@ -81,6 +81,78 @@ func TestNotationCases(t *testing.T) {
 	}
 }
 
+func TestRecipeSetOperatorsDescribeOperators(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	_, err := bundled.reader.read("```jbogenbau\n%rule r A := ∪ \"a\"\n```\n", "grammar.md")
+	if err == nil || !strings.Contains(err.Error(), "set operator") {
+		t.Fatalf("expected a set-operator error, got %v", err)
+	}
+}
+
+func TestRangeEmissionTargetReportsContentError(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	_, err := bundled.reader.read("```jbogenbau\n%rule r A %emits \"a\"..\"z\"\n```\n", "grammar.md")
+	if err == nil || !strings.Contains(err.Error(), "an emission target requires a capture or ε") {
+		t.Fatalf("expected an emission-target error, got %v", err)
+	}
+}
+
+func TestConstantNamePrecedesRequiredValue(t *testing.T) {
+	b := &domBuilder{doc: "g.md", gt: &grammarText{pos: [][2]int{{1, 1}}}, toks: []Token{{Value: "%const"}, {Value: "$bad"}}}
+	definer := &Node{Kind: KindRule, Rule: "constant-definer", Children: []*Node{{Kind: KindToken, Token: 0}}}
+	reference := &Node{Kind: KindRule, Rule: "constant-reference", Children: []*Node{{Kind: KindToken, Token: 1}}}
+	node := &Node{Kind: KindRule, Rule: "constant-definition", Children: []*Node{definer, reference}}
+	defer func() {
+		problem, ok := recover().(*Error)
+		if !ok || !strings.Contains(problem.Error(), "a constant requires a user name") {
+			t.Fatalf("expected the invalid name before the missing term, got %v", problem)
+		}
+	}()
+	b.constant(node)
+	t.Fatal("the invalid name was accepted")
+}
+
+func TestMalformedSuppliedConstructorsGiveDocumentErrors(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	node := func(name string, children ...*Node) *Node {
+		return &Node{Kind: KindRule, Rule: name, Children: children}
+	}
+	token := func(index int) *Node { return &Node{Kind: KindToken, Token: index} }
+	tag := func(index int) *Node {
+		return node("intersection", node("concatenation", node("term-atom", node("tag", token(index)))))
+	}
+	binding := node("rule", node("definer", token(0)), node("rule-name", token(1)), token(2))
+	atom := node("recipe-atom")
+	atom.Span = [2]int{999, 1000}
+	for _, item := range []struct {
+		name string
+		read func(*domBuilder)
+	}{
+		{"binding without a call", func(b *domBuilder) { b.rule(binding) }},
+		{"union without an operator", func(b *domBuilder) { b.term(node("union", tag(3), tag(4))) }},
+		{"recipe span outside the tokens", func(b *domBuilder) { b.recipe(node("recipe", atom)) }},
+		{"empty pattern atom", func(b *domBuilder) { b.run(&patternFrame{n: node("pattern-node", node("pattern-atom"))}) }},
+	} {
+		t.Run(item.name, func(t *testing.T) {
+			defer func() {
+				problem := recover()
+				if _, ok := problem.(*Error); !ok {
+					t.Fatalf("expected a document error, got %v", problem)
+				}
+			}()
+			b := &domBuilder{doc: "g.md", uni: bundled.uni, gt: &grammarText{pos: [][2]int{{1, 1}}}, types: newTypeMemo(), toks: []Token{{Value: "%rule"}, {Value: "r"}, {Value: "="}, {Value: "A"}, {Value: "B"}}}
+			item.read(b)
+			t.Fatal("the malformed constructor was accepted")
+		})
+	}
+}
+
 // TestFixpoint loads the notation's pipeline, grammars/gencmu/jbogenbau/pipeline.md, with
 // the bootstrap, splices it, and compares the stages with the bootstrap
 // itself (engine §8): the same names, and the same runs of documents with

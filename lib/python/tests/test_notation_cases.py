@@ -16,6 +16,10 @@ from .shared import REPOSITORY, add_case_tests, cases, load_case, mismatch, read
 
 
 class NotationCases(unittest.TestCase):
+    def test_range_emission_target_reports_a_content_error(self) -> None:
+        with self.assertRaisesRegex(gencmu.GencmuError, "an emission target requires a capture or ε"):
+            read_document('```jbogenbau\n%rule r A %emits "a".."z"\n```\n', "grammar.md")
+
     def test_canonical_dom_member_order(self) -> None:
         dom = read_document('```jbogenbau\n%rule f(@X) @X\n%extend-rule f("a") A\n%features f %conditions $\n```\n', "order.md")
         text = write_json(dom)

@@ -1,0 +1,10 @@
+{
+  "description": "Known union operands receive type inspection beside a parameter.",
+  "document": "```jbogenbau\n%rule r(@p) A :: \"a\" ∪ B ∪ @p\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 18
+    }
+  }
+}

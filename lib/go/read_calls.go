@@ -46,7 +46,7 @@ func (f *sourceArgumentFrame) resume(b *domBuilder, in any) readStep {
 			return give(&domArgument{Requirements: b.requirements(f.part)})
 		case "target-argument":
 			f.value = &domArgument{Targets: []*domTerm{}}
-			f.targets = ruleParts(f.part)
+			f.targets = b.ruleParts(f.part)
 		case "body-argument", "symbol-argument":
 			return ask(&exprFrame{n: b.knownOf(f.part, primaryRules), whole: true})
 		default:

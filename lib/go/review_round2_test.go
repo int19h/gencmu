@@ -46,9 +46,9 @@ func TestReviewEmptyGuardWrapper(t *testing.T) {
 func TestReviewEmptyConstructorAnchor(t *testing.T) {
 	t.Parallel()
 	gt := extractGrammarText(block("A"), &unicodeTable{})
-	b := &domBuilder{gt: gt}
 	end := len(gt.text)
-	node := &Node{Kind: KindRule, Source: [2]int{end, end}, Children: []*Node{{Kind: KindRule, Source: [2]int{0, 0}}}}
+	b := &domBuilder{gt: gt, toks: []Token{{Source: [2]int{0, end}}}}
+	node := &Node{Kind: KindRule, Span: [2]int{1, 1}, Children: []*Node{{Kind: KindRule, Source: [2]int{0, 0}}}}
 	if got := b.at(node); got != gt.at(end) {
 		t.Fatalf("empty constructor anchor %v, want %v", got, gt.at(end))
 	}
