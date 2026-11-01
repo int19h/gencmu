@@ -633,7 +633,7 @@ func walkValues(root valuePart, visit func(valuePart) *Error, patterns bool) *Er
 			}
 			terms(e.Value, e.Ends[0], e.Ends[1])
 		case part.term != nil:
-			if part.pattern || part.term.Kind == tmPattern {
+			if part.term.Kind == tmPattern || part.pattern && !patterns {
 				if patterns && part.term.Pattern != nil {
 					children = append(children, valuePart{patternNode: part.term.Pattern})
 				}

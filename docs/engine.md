@@ -536,7 +536,7 @@ A rule resolves every retained and rewritten constant reference before type insp
 
 Constant-reference inspection follows source clause order, including inside retained templates. Conditions precede emission items. A test visits its symbol before its value operand or tag requirements, then continues to the next body symbol. Serialized DOM member order does not change this inspection order.
 
-A pattern call visits its arguments before its attached children. Arguments include terms, requirements, body fragments, target lists, and nested patterns. Every term and condition container uses its semantic child order, regardless of JSON member order.
+A pattern call visits its arguments before its attached children. Arguments include terms, requirements, body fragments, target lists, and nested patterns. Pattern context does not remove operands of union, intersection, or difference terms. Every term and condition container uses its semantic child order, regardless of JSON member order.
 
 Feature-shape and bound-type inspection use the original condition list. Pattern evaluation and value substitution follow both inspections.
 
@@ -584,7 +584,7 @@ Value inspection uses one written-order walk for delimiter checks, range endpoin
 
 This inspection includes template arguments that no parameter uses. The loader retains their terms and expression fragments until constant inspection finishes. Value inspection also rejects direct empty delimiters and invalid range endpoints inside retained pattern arguments. It visits value operands in written order and reports the first fault.
 
-Constants inside open arguments still require a definition. Kind-dependent argument requirements wait for substitution. These requirements also apply to replaced definitions and calls in patterns, bindings, and edit heads.
+Constants inside open arguments still require a definition. Kind-dependent argument requirements wait for substitution. The retained argument keeps its complete operators and operands. Parameters have unknown types, but known operands retain their type constraints. These requirements also apply to replaced definitions and calls in patterns, bindings, and edit heads.
 
 A constant in a value test must resolve to a string (§9). The requirements of §9 that depend on the value of a constant apply there too. The loader applies these requirements to every definition of the stage. That includes a definition that a later `%redefine-rule` replaces, although its alternatives are then gone.
 
