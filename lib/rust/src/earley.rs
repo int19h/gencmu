@@ -697,6 +697,8 @@ pub(crate) struct EngineError {
 /// Within one parse the tokens do not change, so the place is everything
 /// they can tell a nested parse (§4).
 type Place = (u32, usize, usize);
+/// A query place, active queries, and optional family with candidate context.
+type QualificationKey = (Place, Vec<Place>, Option<(u32, u32)>);
 
 /// The longest span whose nested answers are remembered by content, so that
 /// a word repeated at many places is parsed once; a longer span is
@@ -800,7 +802,7 @@ enum NestedKey {
         match_end: usize,
         fixed_end: usize,
         observation: u32,
-        family: Option<u32>,
+        family: Option<(u32, u32)>,
         active: Vec<Place>,
     },
 }
@@ -825,7 +827,7 @@ pub(crate) struct Shared<'a> {
     /// The contents that the keys of the memo and of `begins` number.
     contents: Contents,
     /// Original qualified witnesses, shared by alignment constraints and endpoints.
-    qualified: FxMap<(Place, Vec<Place>, Option<u32>), Vec<QualifiedWitness>>,
+    qualified: FxMap<QualificationKey, Vec<QualifiedWitness>>,
     /// What `begins` reads, apart, since it can hold where `matches` does
     /// not.
     begins: FxMap<NestedKey, bool>,
@@ -1107,11 +1109,9 @@ impl Request<'_> {
     fn place(&self) -> Place {
         (self.rule, self.base + self.start, self.base + self.end)
     }
-    fn qualification_key(&self) -> (Place, Vec<Place>, Option<u32>) {
+    fn qualification_key(&self) -> QualificationKey {
         match &self.key {
-            NestedKey::Aligned { active, .. } => {
-                (self.place(), active.clone(), self.aligned.and_then(|a| a.family.map(|(_, context)| context)))
-            }
+            NestedKey::Aligned { active, .. } => (self.place(), active.clone(), self.aligned.and_then(|a| a.family)),
             _ => unreachable!("an aligned qualification key"),
         }
     }
@@ -3312,7 +3312,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 place: (rule, base + start, base + end),
                 match_end: a.match_end,
                 fixed_end: a.fixed_end,
-                family: a.family.map(|(_, context)| context),
+                family: a.family,
                 observation: self
                     .shared
                     .machine
