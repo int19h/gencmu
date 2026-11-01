@@ -1177,12 +1177,12 @@ func (dc *domDecoder) decodeExprObj(raw any, o domObject, depth int) (*domExpr, 
 		}
 		e := &domExpr{Kind: exTest, Op: op, Inner: inner}
 		if op == "tags" {
-			if o["value"] != nil {
+			if _, present := o["value"]; present {
 				return nil, fmt.Errorf("a tag test has no value member")
 			}
 			e.Requirements, err = dc.decodeRequirements(o["requirements"], depth+1)
 		} else {
-			if o["requirements"] != nil {
+			if _, present := o["requirements"]; present {
 				return nil, fmt.Errorf("a value test has no requirement member")
 			}
 			e.Value, err = dc.decodeTermAt(o["value"], depth+1)
@@ -1416,19 +1416,21 @@ func (dc *domDecoder) decodeEmit(raw any) (*domEmit, error) {
 				return nil, fmt.Errorf("a malformed emission item")
 			}
 		}
+		_, insert := io["insert"]
+		_, capture := io["capture"]
 		switch {
-		case io["insert"] != nil && io["capture"] == nil:
+		case insert && !capture:
 			it.IsInsert = true
 			if !domTrue(io["insert"]) {
 				err = fmt.Errorf("insert must be true")
 			}
-		case io["capture"] != nil && io["insert"] == nil:
+		case capture && !insert:
 			it.Capture, err = domString(io["capture"])
 		default:
 			err = fmt.Errorf("unknown emission item %v", r)
 		}
-		if err == nil && io["tags"] != nil {
-			it.Tags, err = dc.decodeTerm(io["tags"])
+		if tags, present := io["tags"]; err == nil && present {
+			it.Tags, err = dc.decodeTerm(tags)
 		}
 		if err == nil {
 			it.Value, it.Image, err = dc.decodeRecipes(io)
@@ -1438,10 +1440,11 @@ func (dc *domDecoder) decodeEmit(raw any) (*domEmit, error) {
 			key  string
 			into *[]string
 		}{{"before", &it.Before}, {"after", &it.After}} {
-			if err != nil || io[side.key] == nil {
+			raw, present := io[side.key]
+			if err != nil || !present {
 				continue
 			}
-			*side.into, err = domList(io[side.key], domString)
+			*side.into, err = domList(raw, domString)
 			if err == nil && len(*side.into) == 0 {
 				err = fmt.Errorf("a malformed emission item: an empty list of attachments")
 			}

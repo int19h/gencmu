@@ -203,6 +203,8 @@ Its envelope is `{"format":40,"rules":[RULE...],"directives":[DIRECTIVE...],"con
 
 `format` is the version of the DOM, 40. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
 
+An optional member is absent only when its key is absent. A present `null` does not replace an omitted member. Every present member must satisfy its stated form, including exclusive targets and optional clauses.
+
 A written literal joins its decomposed text runs with exact decoded escapes. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9.
 
 The cache identity follows engine §8.
