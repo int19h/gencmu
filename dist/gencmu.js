@@ -3860,6 +3860,15 @@
   // ---- template-nodes.js
   // Shared unresolved template nodes. This module has no loader dependencies.
 
+  /** @param {any} node @returns {string[]} */
+  function sourceKeys(node) {
+    const prefix = node.name && node.op ? ['instance','args','tags','value','image','alternatives','conditions','emit']
+      : node.expr && !node.test ? ['expr','tags','value','image']
+      : 'capture' in node || node.insert ? ['tags','value','image'] : [];
+    const order = [...prefix,'if','then','left','right','not','any','all','receiver','args','expr','body','targets','requirements','negated','tags','value','image','pattern','child','children','repeat','separator','optional','seq','choice','ranked','and','union','intersection','difference','concat','items','before','after'];
+    return [...new Set(order)].filter(key=>Object.hasOwn(node,key)).concat(Object.keys(node).filter(key=>!order.includes(key)).sort());
+  }
+
   /** @param {any} root @returns {boolean} */
   function hasUnresolved(root) {
     const pending=[root];
@@ -6721,7 +6730,7 @@
       else if (isDomObject(current)) {
         if (typeof current.constant === "string") found.push(/** @type {any} */ ({const: current.constant, at: current.at}));
         else if (typeof current.const === "string") found.push(/** @type {any} */ (current));
-        else children = Object.values(current);
+        else children = sourceKeys(current).filter(key => key !== "at").map(key => current[key]);
       }
       for (let index = children.length - 1; index >= 0; index--) stack.push(children[index]);
     }
@@ -7331,14 +7340,6 @@
     return [...order.filter(key=>Object.hasOwn(node,key)), ...Object.keys(node).filter(key=>key!=='at' && !order.includes(key)).sort()];
   }
 
-  /** @param {any} node @returns {string[]} */
-  function templateSourceKeys(node) {
-    const prefix = node.name && node.op ? ['instance','args','tags','value','image','alternatives','conditions','emit']
-      : node.expr && !node.test ? ['expr','tags','value','image']
-      : 'capture' in node || node.insert ? ['tags','value','image'] : [];
-    const order = [...prefix,'if','then','left','right','not','any','all','receiver','args','expr','body','targets','requirements','negated','tags','value','image','pattern','child','children','repeat','separator','optional','seq','choice','ranked','and','union','intersection','difference','concat','items','before','after'];
-    return [...new Set(order)].filter(key=>Object.hasOwn(node,key)).concat(Object.keys(node).filter(key=>!order.includes(key)).sort());
-  }
 
   /** @param {any} value @param {Set<string>} [patterns] @returns {any} */
   function normalizeTemplateArgument(value, patterns = new Set()) {

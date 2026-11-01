@@ -18,7 +18,7 @@ from typing import Any, Callable, Optional, Union
 
 from ._trampoline import Walk, run
 from ._patterns import walk_pattern
-from ._template_nodes import has_unresolved, nodes
+from ._template_nodes import has_unresolved, nodes, source_keys
 
 TermType = str
 """``"string"``, ``"strings"``, ``"tags"``, ``"span"``, ``"pattern"``, ``"set"`` or ``"any"``."""
@@ -638,7 +638,10 @@ def constants_in(node: Any) -> list[dict[str, Any]]:
             elif isinstance(current.get("const"), str):
                 found.append(current)
             else:
-                stack.extend(reversed(list(current.values())))
+                if "alternatives" in current or "expr" in current or "receiver" in current:
+                    stack.extend(current[key] for key in reversed(source_keys(current)) if key != "at")
+                else:
+                    stack.extend(reversed(list(current.values())))
     return found
 
 

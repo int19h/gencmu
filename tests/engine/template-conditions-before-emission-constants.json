@@ -1,0 +1,14 @@
+{
+  "description": "Uncalled templates inspect condition constants before emission constants.",
+  "grammar": "%ambiguity-resolution greedy\n%rule t(@X) \"a\"\n%rule bad(@Y) \"b\"\n%conditions $.matches(t($COND))\n%emits $ :: $.tags(t($EMIT))\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$COND is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 25
+    }
+  }
+}

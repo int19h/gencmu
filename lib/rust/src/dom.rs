@@ -1627,8 +1627,8 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
     found
 }
 
-/// The references to constants in a rule, in the order of its DOM: its
-/// tags, its alternatives' tests and tags, its emission and its conditions.
+/// The references to constants in source clause order: header clauses,
+/// alternatives, conditions, then emission items.
 pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
     let mut out = Vec::new();
     for term in rule.tags.iter().chain(rule.strings.value.iter()).chain(&rule.strings.image) {
@@ -1662,6 +1662,7 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
             references_in_term(term, &mut out);
         }
     }
+    rule.conditions.iter().for_each(|cond| constants_in(Nested::Cond(cond), &mut out, true));
     for item in rule.emit.iter().flatten() {
         let (tags, strings) = match item {
             EmitItem::Capture(_, tags, a) => (tags, &a.strings),
@@ -1671,7 +1672,6 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
             references_in_term(term, &mut out);
         }
     }
-    rule.conditions.iter().for_each(|cond| constants_in(Nested::Cond(cond), &mut out, true));
     out
 }
 

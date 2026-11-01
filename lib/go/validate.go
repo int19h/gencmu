@@ -1968,38 +1968,50 @@ func constRefs(nodes ...any) []*domTerm {
 				cond(c)
 			}
 		case *domRule:
-			// In the order the DOM writes them: the rule's tags, each
-			// alternative's tests and tags, the emission and the
-			// conditions.
+			// Header clauses, alternatives, conditions, then emission items.
 			term(x.Tags)
 			term(x.Value)
 			term(x.Image)
 			for _, a := range x.Alternatives {
-				stack := []*domExpr{a.Expr}
+				type part struct {
+					expr *domExpr
+					term *domTerm
+				}
+				stack := []part{{expr: a.Expr}}
 				for len(stack) > 0 {
-					e := stack[len(stack)-1]
+					p := stack[len(stack)-1]
 					stack = stack[:len(stack)-1]
+					if p.term != nil {
+						term(p.term)
+						continue
+					}
+					e := p.expr
 					if e == nil {
 						continue
 					}
 					if e.Kind == exLiteral {
 						term(e.Value)
 					}
-					for _, end := range e.Ends {
-						term(end)
+					if e.Kind == exTest {
+						stack = append(stack, part{term: e.Value})
 					}
-					for _, r := range e.Requirements {
-						term(r.Value)
+					for i := len(e.Requirements) - 1; i >= 0; i-- {
+						stack = append(stack, part{term: e.Requirements[i].Value})
 					}
-					stack = append(stack, e.Inner, e.Sep)
-					stack = append(stack, e.Items...)
-				}
-				for _, t := range testsIn(a.Expr) {
-					term(t.Value)
+					for i := len(e.Ends) - 1; i >= 0; i-- {
+						stack = append(stack, part{term: e.Ends[i]})
+					}
+					stack = append(stack, part{expr: e.Sep}, part{expr: e.Inner})
+					for i := len(e.Items) - 1; i >= 0; i-- {
+						stack = append(stack, part{expr: e.Items[i]})
+					}
 				}
 				term(a.Tags)
 				term(a.Value)
 				term(a.Image)
+			}
+			for _, c := range x.Conditions {
+				cond(c)
 			}
 			if x.Emit != nil {
 				for _, it := range x.Emit.Items {
@@ -2007,9 +2019,6 @@ func constRefs(nodes ...any) []*domTerm {
 					term(it.Value)
 					term(it.Image)
 				}
-			}
-			for _, c := range x.Conditions {
-				cond(c)
 			}
 		}
 	}

@@ -945,15 +945,15 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 for reference in constants_in(directive["conditions"]):
                     if reference["const"] not in constants.values:
                         raise _error(f"${reference['const']} is not defined in stage {stage}", path, directive["at"], stage)
-                conditions = run(constants.with_values(directive["conditions"]))
-                problem = input_conditions_problem(conditions)
+                problem = input_conditions_problem(directive["conditions"])
                 if problem:
                     raise _error(problem, path, directive["at"], stage)
-                for condition in conditions:
+                for condition in directive["conditions"]:
                     fault = condition_type_fault(condition, lambda name: constants.values[name].type)
                     if fault:
                         raise _error(fault[0], path, directive["at"], stage)
                 constants.check_value_uses(path, directive["conditions"], directive["at"], computed=True)
+                conditions = run(constants.with_values(directive["conditions"]))
                 resolved_features.append((path, {**directive, "conditions": conditions}))
             except GencmuError as error:
                 raise _error(error.message, path, directive["at"], stage) from error

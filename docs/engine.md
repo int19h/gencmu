@@ -524,7 +524,15 @@ The loader records declarations in written order within each expanded document r
 
 After recording declarations, the loader binds constant versions. It then checks rule uses, feature conditions, classifier keys, and implication sides in the same declaration order. Feature conditions first require every constant reference in their complete list to resolve. Feature-shape, type, and value inspection follow in that order. Final rule references follow the expanded rule order of §2.3. The loader checks for a resolution directive and the start rule `text` before those references.
 
+An uncalled template retains its declaration position for immediate inspection. Only the explicitly deferred ranked-definition problems use the later template queue of §9.
+
+Constant-reference inspection follows source clause order, including inside retained templates. Conditions precede emission items. A test visits its symbol before its value operand or tag requirements, then continues to the next body symbol. Serialized DOM member order does not change this inspection order.
+
+Feature-shape and bound-type inspection use the original condition list. Pattern evaluation and value substitution follow both inspections.
+
 Boundary-target inspection precedes the final rule-reference traversal. Both follow the requirements for a resolution directive and the start rule `text`.
+
+Boundary reachability classifies a reference as a rule or terminal by its spelling. An undefined rule remains a reached rule reference. Final reference inspection reports its missing definition.
 
 A clause uses one written-order walk for rule and classifier names together. A method's receiver precedes its arguments. A loading error from stitching always carries the stage name. A missing resolution or start rule has no document, line, or column.
 

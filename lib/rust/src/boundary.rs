@@ -532,8 +532,8 @@ fn reach(g: &crate::grammar::StageGrammar, roots: Vec<String>) -> (FxSet<String>
         let mut stack: Vec<_> = g.rules[index].alternatives.iter().map(|a| &a.alternative.expr).collect();
         while let Some(e) = stack.pop() {
             match e {
-                Expr::Ref(n) if g.index.contains_key(n) => pending.push(n.clone()),
-                Expr::Ref(n) | Expr::Terminal(n) => {
+                Expr::Ref(n) => pending.push(n.clone()),
+                Expr::Terminal(n) => {
                     terminals.insert(n.clone());
                 }
                 Expr::Seq(es) | Expr::Choice(es) | Expr::Ranked(es, _) | Expr::And(es) => stack.extend(es),

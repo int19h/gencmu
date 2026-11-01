@@ -1,0 +1,14 @@
+{
+  "description": "Feature conditions reject a forbidden pattern before evaluating its bound values.",
+  "grammar": "%ambiguity-resolution greedy\n%const $W \"ab\"\n%features f\n%conditions $ ≅ #$W..\"z\"\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "feature conditions can read only tokens",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}
