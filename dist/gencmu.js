@@ -7368,7 +7368,7 @@
       const n=pending.pop();
       if(!n || typeof n!=="object") continue;
       if(!Array.isArray(n)) found.push(n);
-      const children=(Array.isArray(n) ? n : templateSourceKeys(n).filter(k=>k!=="at").map(k=>n[k])).filter(v=>v && typeof v==="object");
+      const children=(Array.isArray(n) ? n : sourceKeys(n).filter(k=>k!=="at").map(k=>n[k])).filter(v=>v && typeof v==="object");
       for(let i=children.length-1;i>=0;i--) pending.push(children[i]);
     }
     return found;
@@ -7680,7 +7680,7 @@
       }
       /** @type {Record<string,any>} */
     const result={};
-      for(const key of templateSourceKeys(root)) {
+      for(const key of sourceKeys(root)) {
         const value=root[key];
         if(key==='at') {result.at=value;continue;}
         if(key==='args' && root.call) {result.args=value.map((/** @type {any} */ x)=>substitute(x,env,event,'arg'));continue;}
