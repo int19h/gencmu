@@ -12,7 +12,7 @@ from ._clauses import check_definition, duplicate_captures
 from ._patterns import walk_pattern
 from ._pattern_shapes import layered_pattern_problem, MAX_POSITION
 from ._strings import ENGINE_TAGS, USER_NAME, is_constant, literal_string, lit
-from ._types import constant_value_problem, open_part, rule_type_problem, term_type, tag_term_problem, condition_type_problem, method_shape_problem
+from ._types import condition_type_fault, tag_term_fault, term_type_fault, select_type_fault, constant_value_problem, open_part, rule_type_problem, condition_type_problem, method_shape_problem
 
 
 class Marks(Protocol):
@@ -406,7 +406,23 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
 
 def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str | None:
     types = {}
-    type_problem = None
+    type_faults = []
+    roots = list(pending)
+    root_order = {}
+    root_nodes = {id(task[1]) for task in pending}
+    decided = set()
+
+    def keep_type(fault, node):
+        if fault is None:
+            return
+        if not root_order:
+            root_order.update((id(part), index) for index, task in enumerate(roots) for part in nodes(task[1]))
+        order = root_order[id(node)]
+        if order not in decided:
+            type_faults.append(fault)
+            if id(node) in root_nodes:
+                decided.add(order)
+
     while pending:
         kind, node, depth, whole, sealed = pending.pop()
         if depth > MAX_DEPTH:
@@ -539,8 +555,11 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
                     pending.append(("string", node["value"], below, False, False))
             # Literal and range wrappers add no compound ancestor.
             elif "range" in node:
-                if keys != {"range"} or not _items(node["range"], 2, 2) or not dependent and range_problem(node["range"]):
+                if keys != {"range"} or not _items(node["range"], 2, 2):
                     return "a malformed range"
+                problem = None if dependent else range_problem(node["range"])
+                if problem:
+                    return problem
                 pending.extend(("string", x, depth, False, False) for x in node["range"])
             elif "literal" in node:
                 if keys != {"literal"}:
@@ -608,13 +627,11 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
                 and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by")
             ):
                 return "a malformed condition"
-            problem = None if id(node) in deferred or dependent else condition_type_problem(node, memo=types)
-            type_problem = type_problem or problem
+            keep_type(None if id(node) in deferred or dependent else condition_type_fault(node, memo=types), node)
             if "method" not in node:
                 continue
         elif kind == "tags":
-            problem = None if id(node) in deferred or dependent else tag_term_problem(node, memo=types)
-            type_problem = type_problem or problem
+            keep_type(None if id(node) in deferred or dependent else tag_term_fault(node, memo=types), node)
         if "method" in node:
             if keys != {"method", "receiver", "args"} or not isinstance(node["method"], str) or not isinstance(node["args"], list):
                 return "a malformed method"
@@ -634,12 +651,11 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
                 and node["receiver"].get("method") == "emitted"
             ):
                 return "a recipe-only method outside a recipe"
-            result, problem = ("any", None) if id(node) in deferred or dependent else term_type(node, memo=types)
-            type_problem = type_problem or problem
+            keep_type(None if id(node) in deferred or dependent else term_type_fault(node, memo=types)[1], node)
             if kind == "string":
                 return "a string operand requires a literal or constant"
             if id(node) not in deferred and node["method"] == "split" and literal_string(node["args"][0]) == "":
-                type_problem = type_problem or "split has an empty delimiter"
+                keep_type(("split has an empty delimiter", node), node)
             pending.append(("recipe-method" if recipe else "term", node["receiver"], below, False, False))
             for arg in node["args"]:
                 if isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}, {"terminal"}, {"integer"}):
@@ -685,8 +701,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
             key = next(k for k in ("union", "intersection", "difference") if k in node)
             if keys != {key} or not _items(node[key], 2, 2 if key == "difference" else float("inf")):
                 return "a malformed set expression"
-            problem = None if id(node) in deferred else term_type(node, memo=types)[1]
-            type_problem = type_problem or problem
+            keep_type(None if id(node) in deferred else term_type_fault(node, memo=types)[1], node)
             pending.extend(("term", x, below, False, False) for x in node[key])
         elif "if" in node:
             if keys != {"if", "then"}:
@@ -695,7 +710,9 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
             pending.append(("term", node["then"], below, False, False))
         elif not (keys == {"emptySet"} and node["emptySet"] is True):
             return "a malformed term"
-    return type_problem
+    type_faults.sort(key=lambda fault: root_order[id(fault[1])])
+    fault = select_type_fault(type_faults)
+    return fault[0] if fault is not None else None
 
 
 def input_conditions_problem(conditions):

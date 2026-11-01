@@ -1931,104 +1931,91 @@ pub(crate) fn rule_type_problem(rule: &RuleDef) -> Option<String> {
 /// Why a rule's terms and conditions do not agree in type, at the
 /// smallest construct that disagrees, or `None`.
 pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Option<Fault> {
+    enum Use<'a> {
+        Tags(&'a Term),
+        String(&'a Term),
+        Condition(&'a Cond),
+        Test(&'a str, &'a Term),
+    }
+    fn channels<'a>(channels: &'a Channels, uses: &mut Vec<Use<'a>>) {
+        for recipe in channels.value.iter().chain(&channels.image) {
+            if let Term::Call(name, args) = recipe {
+                if name == "concat" {
+                    uses.extend(args.iter().filter_map(|arg| match arg {
+                        Arg::Term(atom) => Some(Use::String(atom)),
+                        _ => None,
+                    }));
+                    continue;
+                }
+            }
+            uses.push(Use::String(recipe));
+        }
+    }
+    let mut uses = Vec::new();
+    uses.extend(rule.tags.iter().map(Use::Tags));
+    channels(&rule.strings, &mut uses);
+    for alternative in &rule.alternatives {
+        let mut pending = vec![&alternative.expr];
+        while let Some(expr) = pending.pop() {
+            match expr {
+                Expr::Literal(term) => uses.push(Use::String(term)),
+                Expr::ScalarRange(a, b) => uses.extend([Use::String(a), Use::String(b)]),
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                    pending.extend(items.iter().rev())
+                }
+                Expr::Optional(inner, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
+                Expr::Repeat(item, separator, _) => {
+                    pending.extend(separator.as_deref());
+                    pending.push(item);
+                }
+                _ => {}
+            }
+        }
+        uses.extend(tests_in(&alternative.expr).into_iter().map(|(op, value, _)| Use::Test(op, value)));
+        uses.extend(alternative.tags.iter().map(Use::Tags));
+        channels(&alternative.strings, &mut uses);
+    }
+    uses.extend(rule.conditions.iter().map(Use::Condition));
+    for item in rule.emit.iter().flatten() {
+        let (tags, strings) = match item {
+            EmitItem::Capture(_, tags, attachments) => (tags, &attachments.strings),
+            EmitItem::Insert(tags, strings) => (tags, strings),
+        };
+        uses.extend(tags.iter().map(Use::Tags));
+        channels(strings, &mut uses);
+    }
     let mut faults = Vec::new();
-    for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|a| a.tags.as_ref())).chain(
-        rule.emit.iter().flatten().filter_map(|item| match item {
-            EmitItem::Capture(_, tags, ..) | EmitItem::Insert(tags, _) => tags.as_ref(),
-        }),
-    ) {
-        faults.extend(tag_term_fault(term, constants));
-    }
-    for term in rule
-        .strings
-        .value
-        .iter()
-        .chain(&rule.strings.image)
-        .chain(rule.alternatives.iter().flat_map(|a| a.strings.value.iter().chain(&a.strings.image)))
-        .chain(rule.emit.iter().flatten().flat_map(|item| {
-            let strings = match item {
-                EmitItem::Capture(_, _, a) => &a.strings,
-                EmitItem::Insert(_, s) => s,
-            };
-            strings.value.iter().chain(&strings.image)
-        }))
-    {
-        let atoms: Vec<_> = match term {
-            Term::Call(name, args) if name == "concat" => args
-                .iter()
-                .filter_map(|arg| match arg {
-                    Arg::Term(atom) => Some(atom),
-                    _ => None,
-                })
-                .collect(),
-            _ => vec![term],
-        };
-        for atom in atoms {
-            match term_type_in(atom, constants) {
-                Err(fault) => faults.push(fault),
+    for usage in uses {
+        let fault = match usage {
+            Use::Tags(term) => tag_term_fault(term, constants),
+            Use::Condition(cond) => cond_type_fault(cond, constants),
+            Use::String(term) | Use::Test(_, term) => match term_type_in(term, constants) {
+                Err(fault) => Some(fault),
                 Ok(ty) => {
-                    if let Some(problem) = expected_problem(ty, Type::String) {
-                        faults.push(Fault::in_term(problem, atom));
-                    }
+                    let problem = match usage {
+                        Use::Test(op, _) => test_type_problem(op, ty),
+                        _ => expected_problem(ty, Type::String),
+                    };
+                    problem.map(|problem| Fault::in_term(problem, term))
                 }
-            }
-        }
-    }
-    for cond in &rule.conditions {
-        faults.extend(cond_type_fault(cond, constants));
-    }
-    for (op, value, _) in rule.alternatives.iter().flat_map(|a| tests_in(&a.expr)) {
-        match term_type_in(value, constants) {
-            Err(fault) => faults.push(fault),
-            Ok(ty) => {
-                if let Some(problem) = test_type_problem(op, ty) {
-                    faults.push(Fault::in_term(problem, value));
-                }
-            }
-        }
-    }
-    let mut pending: Vec<_> = rule.alternatives.iter().rev().map(|a| &a.expr).collect();
-    while let Some(expr) = pending.pop() {
-        let terms: [Option<&Term>; 2] = match expr {
-            Expr::Literal(t) => [Some(t), None],
-            Expr::ScalarRange(a, b) => [Some(a), Some(b)],
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
-                pending.extend(items.iter().rev());
-                continue;
-            }
-            Expr::Optional(inner, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => {
-                pending.push(inner);
-                continue;
-            }
-            Expr::Repeat(item, separator, _) => {
-                pending.extend(separator.as_deref());
-                pending.push(item);
-                continue;
-            }
-            _ => continue,
+            },
         };
-        for term in terms.into_iter().flatten() {
-            match term_type_in(term, constants) {
-                Err(fault) => faults.push(fault),
-                Ok(ty) => {
-                    if let Some(problem) = expected_problem(ty, Type::String) {
-                        faults.push(Fault::in_term(problem, term));
-                    }
-                }
-            }
+        faults.extend(fault);
+    }
+    let mut first = None;
+    let mut next = (usize::MAX, usize::MAX);
+    let mut position = (usize::MAX, usize::MAX, 2);
+    for fault in faults.into_iter().rev() {
+        if let Some(at) = fault.at {
+            next = at;
         }
-        if let Expr::ScalarRange(Term::Str(a), Term::Str(b)) = expr {
-            let mut a_chars = a.chars();
-            let mut b_chars = b.chars();
-            let endpoints = (a_chars.next(), b_chars.next());
-            if !matches!(endpoints, (Some(_), Some(_))) || a_chars.next().is_some() || b_chars.next().is_some() {
-                faults.push(Fault { problem: "a range endpoint is one scalar".into(), at: None });
-            } else if matches!(endpoints, (Some(a), Some(b)) if a > b) {
-                faults.push(Fault { problem: "a range starts above its end".into(), at: None });
-            }
+        let key = (next.0, next.1, if fault.at.is_some() { 1 } else { 0 });
+        if key <= position {
+            first = Some(fault);
+            position = key;
         }
     }
-    faults.into_iter().min_by_key(|fault| fault.at.unwrap_or((0, 0)))
+    first
 }
 
 /// The type of a constant's value, or why it cannot be one (engine §2,

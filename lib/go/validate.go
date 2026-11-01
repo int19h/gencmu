@@ -3,6 +3,7 @@ package gencmu
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -1680,20 +1681,10 @@ func ruleTypeProblem(r *domRule) string {
 // ruleTypeFault is why a rule's terms and conditions do not agree in type,
 // with the construct at fault, or nil.
 func ruleTypeFault(r *domRule, ct constTypes) *typeFault {
-	var first *typeFault
-	position := [2]int{int(^uint(0) >> 1), int(^uint(0) >> 1)}
+	var faults []*typeFault
 	keep := func(f *typeFault) {
-		if f == nil {
-			return
-		}
-		at := [2]int{}
-		for i, ref := range constRefs(f.node) {
-			if i == 0 || ref.At[0] < at[0] || ref.At[0] == at[0] && ref.At[1] < at[1] {
-				at = ref.At
-			}
-		}
-		if first == nil || at[0] < position[0] || at[0] == position[0] && at[1] < position[1] {
-			first, position = f, at
+		if f != nil {
+			faults = append(faults, f)
 		}
 	}
 	stringUse := func(t *domTerm) {
@@ -1766,6 +1757,113 @@ func ruleTypeFault(r *domRule, ct constTypes) *typeFault {
 			if problem := testTypeProblem(t.Op, ty); problem != "" {
 				keep(&typeFault{problem, t.Value})
 			}
+		}
+	}
+	if len(faults) == 0 {
+		return nil
+	}
+	if len(faults) == 1 {
+		return faults[0]
+	}
+	order := map[any]int{}
+	type reference struct {
+		name string
+		at   [2]int
+	}
+	references := map[reference]int{}
+	index := 0
+	add := func(part clausePart) {
+		walkClause(part, func(p clausePart) bool {
+			var node any = p.t
+			if p.c != nil {
+				node = p.c
+			}
+			if _, ok := order[node]; !ok {
+				order[node] = index
+			}
+			if p.t != nil && p.t.Kind == tmConst {
+				key := reference{p.t.Str, p.t.At}
+				if _, ok := references[key]; !ok {
+					references[key] = index
+				}
+			}
+			return true
+		})
+		index++
+	}
+	term := func(t *domTerm) {
+		if t != nil {
+			add(clausePart{t: t})
+		}
+	}
+	term(r.Tags)
+	term(r.Value)
+	term(r.Image)
+	for _, alternative := range r.Alternatives {
+		pending := []*domExpr{alternative.Expr}
+		for len(pending) > 0 {
+			e := pending[len(pending)-1]
+			pending = pending[:len(pending)-1]
+			if e == nil {
+				continue
+			}
+			term(e.Value)
+			for _, end := range e.Ends {
+				term(end)
+			}
+			for _, requirement := range e.Requirements {
+				term(requirement.Value)
+			}
+			pending = append(pending, e.Sep, e.Inner)
+			for i := len(e.Items) - 1; i >= 0; i-- {
+				pending = append(pending, e.Items[i])
+			}
+		}
+		term(alternative.Tags)
+		term(alternative.Value)
+		term(alternative.Image)
+	}
+	for _, condition := range r.Conditions {
+		add(clausePart{c: condition})
+	}
+	if r.Emit != nil {
+		for _, item := range r.Emit.Items {
+			term(item.Tags)
+			term(item.Value)
+			term(item.Image)
+		}
+	}
+	// Pattern atoms expose their references through temporary terms.
+	for _, fault := range faults {
+		if _, ok := order[fault.node]; ok {
+			continue
+		}
+		if term, ok := fault.node.(*domTerm); ok && term.Kind == tmConst {
+			order[fault.node] = references[reference{term.Str, term.At}]
+		}
+	}
+	slices.SortStableFunc(faults, func(a, b *typeFault) int { return order[a.node] - order[b.node] })
+	var first *typeFault
+	largest := int(^uint(0) >> 1)
+	next := [2]int{largest, largest}
+	position := [3]int{largest, largest, 2}
+	for i := len(faults) - 1; i >= 0; i-- {
+		fault := faults[i]
+		refs := constRefs(fault.node)
+		if len(refs) > 0 {
+			next = refs[0].At
+			for _, ref := range refs[1:] {
+				if before(ref.At, next) {
+					next = ref.At
+				}
+			}
+		}
+		key := [3]int{next[0], next[1], 0}
+		if len(refs) > 0 {
+			key[2] = 1
+		}
+		if first == nil || slices.Compare(key[:], position[:]) <= 0 {
+			first, position = fault, key
 		}
 	}
 	return first

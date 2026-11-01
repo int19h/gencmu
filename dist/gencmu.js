@@ -6517,11 +6517,37 @@
    * @returns {TypeFault | null}
    */
   function ruleTypeFault(rule, constants) {
+    const faults = [...ruleTypeFaults(rule, constants)];
+    if (faults.length <= 1) return faults[0] ?? null;
+    // The canonical clause order supplies positions absent from the DOM.
+    const roots = [rule.tags, rule.value, rule.image,
+      ...rule.alternatives.flatMap((/** @type {any} */ alt) => [alt.expr, alt.tags, alt.value, alt.image]),
+      ...rule.conditions,
+      ...(rule.emit?.items ?? []).flatMap((/** @type {any} */ item) => [item.tags, item.value, item.image])];
+    const order = new Map();
+    roots.forEach((root, index) => {
+      const pending = [root];
+      while (pending.length) {
+        const node = pending.pop();
+        if (!node || typeof node !== "object" || order.has(node)) continue;
+        order.set(node, index);
+        if (node.const || node.constant) continue;
+        for (const child of Object.values(node)) pending.push(child);
+      }
+    });
+    faults.sort((a,b) => order.get(a.node)-order.get(b.node));
     let first = null;
-    let position = [Infinity, Infinity];
-    for (const fault of ruleTypeFaults(rule, constants)) {
-      const at = constantsIn(fault.node).map(reference => reference.at).sort((a,b) => a[0]-b[0] || a[1]-b[1])[0] ?? [0,0];
-      if (at[0] < position[0] || at[0] === position[0] && at[1] < position[1]) { first = fault; position = at; }
+    let next = [Infinity, Infinity];
+    let position = [Infinity, Infinity, 2];
+    // A construct without a coordinate stands before the next positioned fault.
+    for (let index = faults.length - 1; index >= 0; index--) {
+      const fault = faults[index];
+      const at = constantsIn(fault.node).map(reference => reference.at).sort((a,b) => a[0]-b[0] || a[1]-b[1])[0];
+      if (at) next = at;
+      const key = [...next, at ? 1 : 0];
+      if (key[0] < position[0] || key[0] === position[0] && (key[1] < position[1] || key[1] === position[1] && key[2] <= position[2])) {
+        first = fault; position = key;
+      }
     }
     return first;
   }

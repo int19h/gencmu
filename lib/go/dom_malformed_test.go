@@ -128,3 +128,20 @@ func TestSpanTagHintUsesSourceSpelling(t *testing.T) {
 		t.Fatalf("tag-set hint: %v", err)
 	}
 }
+
+func TestPatternConstantTypeFaultKeepsClauseOrder(t *testing.T) {
+	plain := &domCond{Kind: cdCompare, Op: "=", Left: &domTerm{Kind: tmUnion, Items: []*domTerm{
+		{Kind: tmTag, Str: "T"}, {Kind: tmString, Str: "x"},
+	}}, Right: &domTerm{Kind: tmTag, Str: "T"}}
+	pattern := &domCond{Kind: cdCompare, Op: "≅", Left: &domTerm{Kind: tmCapture, Str: "x"},
+		Right: &domTerm{Kind: tmPattern, Pattern: &domPattern{Kind: "constant", Name: "T", At: [2]int{4, 30}}}}
+	constants := constTypes(func(string) termType { return tyTags })
+	for _, conditions := range [][]*domCond{{plain, pattern}, {pattern, plain}} {
+		want := condTypeFault(conditions[0], constants)
+		all := append([]*domCond{{Kind: cdCaptured, Capture: "x"}}, conditions...)
+		got := ruleTypeFault(&domRule{Conditions: all}, constants)
+		if got == nil || got.problem != want.problem {
+			t.Fatalf("expected first condition fault %q, got %#v", want.problem, got)
+		}
+	}
+}
