@@ -15,6 +15,7 @@ from ._pattern_shapes import layered_pattern_problem
 from ._template_nodes import argument_of_expression, has_unresolved
 from ._types import (
     _METHODS,
+    _PREDICATES,
     comparison_problem,
     method_shape_problem,
     method_type,
@@ -503,7 +504,7 @@ class DomBuilder:
         tags (engine §10). The error stands at the term."""
         term = self.value(node)
         problem = tag_term_problem(term, memo=self.types)
-        if problem is not None and not has_unresolved(term):
+        if problem is not None:
             raise self.fail(node, problem)
         retained = lit_occurrences(term)
         if retained:
@@ -697,7 +698,7 @@ class DomBuilder:
             raise self.lacks(node, "two string operands")
         ends = [self.value(end) for end in parts[:2]]
         problem = range_problem(ends)
-        if problem and not has_unresolved(ends):
+        if problem:
             raise self.fail(node, problem)
         return ends
 
@@ -830,7 +831,7 @@ class DomBuilder:
             kind, problem = term_type(right, memo=self.types)
             if problem is None:
                 problem = comparison_problem(op, "capture", kind)
-            if problem is not None and not self.feature_context and not has_unresolved(right):
+            if problem is not None and not self.feature_context:
                 raise self.fail(node, problem)
             return {"op":op, "left":left, "right":right}
         if node.rule == "comparison":
@@ -844,7 +845,7 @@ class DomBuilder:
                 right_type, problem = term_type(right, memo=self.types)
                 if problem is None:
                     problem = comparison_problem(op, left_type, right_type)  # type: ignore[arg-type]
-            if problem is not None and not self.feature_context and not has_unresolved([left, right]):
+            if problem is not None and not self.feature_context:
                 raise self.fail(node, problem)
             return {"op": op, "left": left, "right": right}
         if node.rule == "negation":
@@ -853,7 +854,7 @@ class DomBuilder:
             return {"captured": self.token_value(self.token(node))[1:]}
         if node.rule == "method":
             method = yield self._method(node)
-            if term_type(method, memo=self.types)[0] != "predicate" and not has_unresolved(method):
+            if method.get("method") not in _PREDICATES:
                 raise self.fail(node, "a condition requires a query method")
             return method
         raise self.fail(node, f"unexpected {node.rule} in a condition")
@@ -924,7 +925,7 @@ class DomBuilder:
             receiver = Located({"method": name, "receiver": receiver, "args": args}, self.position(node))
             self.boundary_nodes[id(receiver)] = node
             kind, problem = term_type(receiver, memo=self.types)
-            if problem and not self.feature_context and not dependent:
+            if problem and not self.feature_context:
                 specific = problem.startswith(("without-elision", "ends requires")) or problem == "split has an empty delimiter"
                 raise self.fail(node, problem if specific else "a method has the wrong receiver or arguments")
         return receiver
@@ -932,7 +933,7 @@ class DomBuilder:
     def _joined(self, node: Node, items: list[Dom], operator: str) -> None:
         """Sets joined by an operator are of one kind (engine §10); the
         error stands at the construct that joins them."""
-        if self.feature_context or has_unresolved(items):
+        if self.feature_context:
             return
         types = []
         for item in items:
@@ -1130,7 +1131,7 @@ class DomBuilder:
                 _, problem = joined_type([kind], "⟹")
                 if kind == "pattern":
                     problem = "a guarded term requires a set"
-            if problem is not None and not self.feature_context and not has_unresolved(guarded):
+            if problem is not None and not self.feature_context:
                 raise self.fail(guards[-1], problem)
             for condition in reversed(conditions):
                 guarded = {"if": condition, "then": guarded}
@@ -1171,7 +1172,7 @@ class DomBuilder:
                 value = yield self._term(part, argument and len(nodes) == 1)
                 if len(nodes) > 1:
                     kind, problem = term_type(value, memo=self.types)
-                    if not self.feature_context and (problem and not has_unresolved(value) or problem is None and kind not in ("string", "any")):
+                    if not self.feature_context and (problem or kind not in ("string", "any")):
                         raise self.fail(node, problem or "++ requires string operands")
                 items.append(value)
             if len(nodes) == 1:

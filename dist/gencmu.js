@@ -19296,7 +19296,7 @@
           const value = yield readTerm(inner);
           const type = termType(value);
           const problem = "problem" in type ? type.problem : expectedProblem(type.type, "tags");
-          if (problem && !hasUnresolved(value)) fail(problem, operand);
+          if (problem) fail(problem, operand);
           requirements.push({ negated: parts(requirement).some(child => tokenValue(child) === "¬"), value });
         }
         return { test: "tags", requirements };
@@ -19330,7 +19330,7 @@
       const term = /** @type {Term} */ (yield readTerm(node));
       const found = termType(term);
       const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
-      if (problem && !hasUnresolved(term)) fail(problem, node);
+      if (problem) fail(problem, node);
       const retained = yield literalTerms(term);
       if (retained.length) {
         const first = retained.map((/** @type {object} */ value) => tagSources.get(value)).filter(Boolean).sort((/** @type {ResultNode} */ a, /** @type {ResultNode} */ b) => firstToken(a) - firstToken(b))[0];
@@ -19429,7 +19429,7 @@
           const rightType = termType(condition.right);
           const problem = "problem" in leftType ? leftType.problem : "problem" in rightType ? rightType.problem
             : comparisonProblem(op, leftType.type, rightType.type);
-          if (problem && !featureContext && !hasUnresolved(condition)) fail(problem, inner);
+          if (problem && !featureContext) fail(problem, inner);
           return condition;
         }
         case "negation":
@@ -19518,8 +19518,7 @@
           if (nodes.length > 1) {
             const found = termType(term);
             const problem = "problem" in found ? found.problem : !["string", "any"].includes(found.type) ? "++ requires string operands" : null;
-            const knownNonString = !("problem" in found) && !["string", "any"].includes(found.type);
-            if (problem && !featureContext && (knownNonString || !hasUnresolved(term))) fail(problem, node);
+            if (problem && !featureContext) fail(problem, node);
           }
           items.push(term);
         }

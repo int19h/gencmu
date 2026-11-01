@@ -557,21 +557,8 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 				c.fail("a range requires string endpoints")
 			}
 		}
-		// A cached direct range must meet the reader's scalar restrictions too.
-		// User references remain unresolved until the whole stage is stitched.
-		if c.problem == nil && !unresolvedTerm(e.Ends[0]) && !unresolvedTerm(e.Ends[1]) && len(constRefs(e.Ends[0], e.Ends[1])) == 0 {
-			var ends [2]rune
-			for i, end := range e.Ends {
-				v, err := (&stageGrammar{}).evaluateClosed("", end, [2]int{})
-				if err != nil || utf8.RuneCountInString(v.s) != 1 {
-					c.fail("a range endpoint is one scalar")
-					return
-				}
-				ends[i], _ = utf8.DecodeRuneInString(v.s)
-			}
-			if ends[0] > ends[1] {
-				c.fail("a range starts above its end")
-			}
+		if problem := literalRangeProblem(e.Ends); problem != "" {
+			c.fail("%s", problem)
 		}
 	case exEmpty:
 	default:

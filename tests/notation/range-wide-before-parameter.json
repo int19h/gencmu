@@ -1,0 +1,11 @@
+{
+  "description": "A known wide range endpoint fails before parameter substitution.",
+  "document": "```jbogenbau\n%rule span(@X) \"ab\"..@X\n%rule text \"a\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 16,
+      "message": "a range endpoint is one scalar"
+    }
+  }
+}
