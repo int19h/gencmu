@@ -2,6 +2,12 @@
 
 Every gencmu library runs every shared case that its API can express. A library skips a usage case when its token or string types cannot express the invalid field. If a case fails in one library and passes in another, there is a bug. The bug is in the library that disagrees with `docs/engine.md`, or in the specification itself.
 
+A runner refuses unknown case members and control members with the wrong type. This includes configuration (`options`), parse lists (`parses`), and expectations (`expect`).
+
+An expectation must apply to the actual outcome. Loading positions and diagnostic codes require a load error. Parse-time usage errors cannot satisfy result, rendering, warning, enabled-feature, or message expectations.
+
+Token payload fields remain an exception for usage cases. A runner passes each present field unchanged to the library and supplies defaults only for absent fields. Unknown token members still invalidate the case.
+
 ## Running the tests
 
 After a change to `grammars/` or `data/`, run `node tools/sync.js` from the repository root. Each library runs all of its tests and the corpus sample in `core.txt` by default. Use `GENCMU_CORPUS=full` to select the whole corpus.
