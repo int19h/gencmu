@@ -19522,7 +19522,7 @@
           }
           items.push(term);
         }
-        if (nodes.length === 1) return items.length === 1 ? items[0] : {concat: items};
+        if (nodes.length === 1) return items[0];
         return {concat: items};
       }
       if (ruleOf(node) === "intersection") {
@@ -19620,7 +19620,6 @@
         const atom = kind === 'pattern-node' ? (yield readPattern(only(node,'pattern-atom'))).node : {any:true};
         const list=one(node,'pattern-children');
         if (list && !['name','call','param','any'].some(key => key in atom)) fail('a child list requires a rule test',list);
-        if(atom.literal?.const) {atom.constant=atom.literal.const;delete atom.literal;}
         const {at:position,...fields}=atom;
         const exact=parts(node).some(part => tokenValue(part) === '·');
         return {...fields,...(exact ? {exact:true} : {}),...(list ? {children:yield readLayeredPattern(list)} : {}),...(position ? {at:position} : {})};

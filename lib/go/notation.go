@@ -1053,9 +1053,6 @@ func (b *domBuilder) attachment(n *Node) string {
 	for _, p := range parts(n) {
 		if p.Kind == KindToken {
 			if text := b.tokenValue(p); strings.HasPrefix(text, "$") {
-				if text == "$" {
-					break
-				}
 				return text[1:]
 			}
 		}

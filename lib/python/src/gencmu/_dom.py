@@ -9,7 +9,7 @@ from ._clauses import attachment_order, check_definition, duplicate_captures
 from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
-from ._strings import ENGINE_TAGS, USER_NAME, lit_occurrences, literal_string
+from ._strings import USER_NAME, lit_occurrences, literal_string
 from ._trampoline import Walk, run
 from ._pattern_shapes import layered_pattern_problem
 from ._template_nodes import argument_of_expression, has_unresolved
@@ -21,11 +21,9 @@ from ._types import (
     Memo as TypeMemo,
     constant_value_type,
     expected_problem,
-    is_value_test,
     joined_type,
     tag_term_problem,
     term_type,
-    test_type_problem,
 )
 from ._validate import (
     CAPTURE_NAME,
@@ -1008,8 +1006,6 @@ class DomBuilder:
             children = self.one(node, "pattern-children")
             if children is not None and not any(key in atom for key in ("name", "call", "param", "any")):
                 raise self.fail(children, "a child list requires a rule test")
-            if isinstance(atom.get('literal'), dict) and 'const' in atom['literal']:
-                atom = {**{key: value for key, value in atom.items() if key != 'literal'}, 'constant': atom['literal']['const']}
             result = {key: value for key, value in atom.items() if key != "at"}
             if any(part.kind == "token" and self.token_value(part) == "·" for part in self.kids(node)):
                 result["exact"] = True
@@ -1178,7 +1174,7 @@ class DomBuilder:
                         raise self.fail(node, problem or "++ requires string operands")
                 items.append(value)
             if len(nodes) == 1:
-                return items[0] if len(items) == 1 else {"concat": items}
+                return items[0]
             return {"concat": items}
         if rule == "intersection":
             parts = self.some(node, "concatenation")
