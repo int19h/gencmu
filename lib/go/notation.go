@@ -444,7 +444,7 @@ var (
 	primaryRules   = []string{"call", "parameter", "reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
 	conditionRules = []string{"comparison", "tree-comparison", "method", "negation", "presence", "implication"}
 	termRules      = []string{"union", "guarded-term"}
-	atomRules      = []string{"call", "parameter", "string", "tag", "string-terminal", "wildcard", "range", "name", "empty-set", "term", "guarded-term", "union", "method", "tag-run", "string-run", "capture-reference", "constant-reference", "pattern-literal"}
+	atomRules      = []string{"call", "parameter", "string", "tag", "term-atom", "range", "name", "empty-set", "term", "guarded-term", "union", "method", "tag-run", "string-run", "capture-reference", "constant-reference", "pattern-literal"}
 )
 
 func (b *domBuilder) tokenValue(n *Node) string {
@@ -595,7 +595,6 @@ func (b *domBuilder) document(root *Node) *domDoc {
 func (b *domBuilder) constant(n *Node) *domConst {
 	definer := b.token(b.only(n, "constant-definer"))
 	reference := b.token(b.only(n, "constant-reference"))
-	valueNode := b.only(n, "term")
 	k := &domConst{Name: strings.TrimPrefix(b.tokenValue(reference), "$"), Op: "define", At: b.at(n)}
 	if b.tokenValue(definer) == "%redefine-const" {
 		k.Op = "redefine"
@@ -603,6 +602,7 @@ func (b *domBuilder) constant(n *Node) *domConst {
 	if !constName.MatchString(k.Name) {
 		b.fail(reference, "a constant requires a user name")
 	}
+	valueNode := b.only(n, "term")
 	b.closedFor = "a constant's value"
 	k.Value = b.term(valueNode)
 	b.closedFor = ""
@@ -646,7 +646,7 @@ func (b *domBuilder) entry(n *Node) *domEntry {
 	classNode := b.only(n, "classifier-class")
 	written := b.tokenValue(b.token(classNode))
 	e.Class = written
-	if !isClass(e.Class) {
+	if !className.MatchString(e.Class) || !isClass(e.Class) {
 		b.fail(classNode, "%s is not a class: a class starts and ends with a capital", written)
 	}
 	return e
@@ -755,6 +755,9 @@ func (b *domBuilder) rule(n *Node) *domRule {
 			}
 			r.Args = call.Args
 		}
+		if !classifierName.MatchString(r.Name) && !b.uni.isEmojiName(r.Name) {
+			b.fail(b.token(head), "a rule name starts with a lowercase letter or uses one eligible emoji")
+		}
 	}
 	r.Flags = b.ruleFlags(n, r.Op)
 	for _, p := range parts(n) {
@@ -762,8 +765,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 			if r.Params != nil || r.Args != nil {
 				b.fail(n, "a binding requires a plain rule name")
 			}
-			calls := ofRule(n, "call")
-			r.Instance = b.run(&sourceCallFrame{n: calls[len(calls)-1]}).(*domSourceCall)
+			r.Instance = b.run(&sourceCallFrame{n: b.only(n, "call")}).(*domSourceCall)
 			return r
 		}
 	}

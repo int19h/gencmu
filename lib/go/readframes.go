@@ -432,6 +432,9 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 	if n.Rule == "concatenation" {
 		return give(&domTerm{Kind: tmConcat, Items: f.items})
 	}
+	if len(f.ops) < len(f.items)-1 {
+		b.lacks(n, "operator")
+	}
 	op := f.ops[0]
 	for _, o := range f.ops {
 		if o == "∖" {
@@ -671,8 +674,9 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			b.patternOperand(right)
 			return ask(&termFrame{n: right})
 		case "comparison":
+			op := b.operator(b.token(b.only(n, "comparator")))
 			ps := b.some(n, "union", 2)
-			f.compare = &domCond{Kind: cdCompare}
+			f.compare = &domCond{Kind: cdCompare, Op: op}
 			f.right = ps[1]
 			return ask(&termFrame{n: ps[0]})
 		case "negation", "method", "implication":
@@ -704,7 +708,6 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 	case "comparison":
 		if f.right != nil {
 			f.compare.Left = in.(*domTerm)
-			f.compare.Op = b.operator(b.token(b.only(n, "comparator")))
 			right := f.right
 			f.right = nil
 			return ask(&termFrame{n: right})

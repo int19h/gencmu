@@ -6,10 +6,11 @@ pub(super) struct CallFrame<'a> {
     node: &'a Node,
     arguments: Option<Vec<&'a Node>>,
     args: Vec<SourceArgument>,
+    name: Option<String>,
 }
 impl<'a> CallFrame<'a> {
     pub(super) fn new(node: &'a Node) -> Self {
-        Self { node, arguments: None, args: Vec::new() }
+        Self { node, arguments: None, args: Vec::new(), name: None }
     }
 }
 
@@ -26,7 +27,7 @@ impl<'a> SourceArgumentFrame<'a> {
 
 impl<'a> Reader<'a> {
     pub(super) fn source_parameter(&self, node: &Node) -> R<SourceSymbol> {
-        let name = self.value(self.token(node)?).trim_start_matches('@');
+        let name = self.value(self.token(node)?).strip_prefix('@').unwrap_or("");
         if !self.reading_head.get() && !self.parameters.borrow().contains(name) {
             return Err(self.error(node, format!("undeclared parameter @{name}")));
         }
@@ -47,13 +48,14 @@ impl<'a> Reader<'a> {
             frame.args.push(arg);
         }
         if frame.arguments.is_none() {
+            frame.name = Some(self.value(self.token(frame.node)?).into());
             frame.arguments = Some(self.some(frame.node, "call-argument", 1)?);
         }
         if let Some(&node) = frame.arguments.as_ref().unwrap().get(frame.args.len()) {
             return Ok(Step::Call(Frame::SourceArgument(SourceArgumentFrame::new(node))));
         }
         Ok(Step::Done(Val::SourceCall(SourceCall {
-            name: self.value(self.token(frame.node)?).into(),
+            name: frame.name.take().unwrap(),
             args: std::mem::take(&mut frame.args),
             at: self.first(frame.node),
         })))

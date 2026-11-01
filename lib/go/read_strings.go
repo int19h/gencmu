@@ -314,6 +314,9 @@ func (b *domBuilder) recipes(n *Node) (value, image *domTerm) {
 func (b *domBuilder) recipe(n *Node) *domTerm {
 	r := &domTerm{Kind: tmConcat, At: b.at(n)}
 	for _, atom := range b.some(n, "recipe-atom", 1) {
+		if atom.Span[0] < 0 || atom.Span[1] < atom.Span[0] || atom.Span[1] > len(b.toks) {
+			b.lacks(atom, "valid token span")
+		}
 		if len(r.Items) > 0 {
 			b.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
 		}
@@ -367,13 +370,15 @@ type methodFrame struct {
 func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 	if !f.started {
 		f.started = true
-		f.selectors = b.some(f.n, "method-selector", 1)
 		return ask(&termFrame{n: b.only(b.only(f.n, "method-receiver"), "term-atom"), argument: true})
 	}
 	if f.receiver == nil {
 		f.receiver = in.(*domTerm)
 	} else if in != nil {
 		f.args = append(f.args, in.(*domTerm))
+	}
+	if f.selectors == nil {
+		f.selectors = b.some(f.n, "method-selector", 1)
 	}
 	selector := f.selectors[f.index]
 	name := b.tokenValue(b.token(b.only(selector, "method-name")))

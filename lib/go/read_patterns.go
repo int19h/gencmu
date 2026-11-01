@@ -26,11 +26,34 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 	if !f.started {
 		f.started = true
 		f.parts = ruleParts(n)
+		if n.Rule == "pattern-children" {
+			f.parts = nil
+			if child := one(n, "child-choice"); child != nil {
+				f.parts = []*Node{child}
+			}
+		}
+		if n.Rule == "pattern-brackets" || n.Rule == "pattern-repeat" {
+			f.parts = b.some(n, "child-choice", 1)
+			limit := 1
+			if n.Rule == "pattern-repeat" {
+				limit = 2
+			}
+			if len(f.parts) > limit {
+				f.parts = f.parts[:limit]
+			}
+		}
+		if n.Rule == "pattern-primary" {
+			f.parts = []*Node{b.knownOf(n, []string{"pattern-node", "pattern-bare", "pattern-union"})}
+		}
 		if n.Rule == "pattern-node" || n.Rule == "pattern-bare" {
 			f.atom = &domPattern{Kind: "any"}
 			if n.Rule == "pattern-node" {
 				atom := b.only(n, "pattern-atom")
-				f.atom = b.patternAtom(atom, parts(atom)[0])
+				atomParts := parts(atom)
+				if len(atomParts) == 0 {
+					b.lacks(atom, "pattern atom")
+				}
+				f.atom = b.patternAtom(atom, atomParts[0])
 			}
 			f.parts = nil
 			if children := one(n, "pattern-children"); children != nil {

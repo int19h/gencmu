@@ -221,7 +221,7 @@ impl<'a> Reader<'a> {
         let class_node = self.one(node, "classifier-class")?;
         let written = self.value(self.token(class_node)?);
         let class = written;
-        if !is_capital(class) || !class.ends_with(|c: char| c.is_ascii_uppercase()) {
+        if !crate::tags::is_name(class) || !is_capital(class) || !class.ends_with(|c: char| c.is_ascii_uppercase()) {
             return Err(
                 self.error(class_node, format!("{written} is not a class: a class starts and ends with a capital"))
             );
@@ -253,7 +253,7 @@ impl<'a> Reader<'a> {
     fn constant(&self, node: &'a Node) -> R<ConstDef> {
         let definer = self.token(self.one(node, "constant-definer")?)?;
         let reference = self.token(self.one(node, "constant-reference")?)?;
-        let name = self.value(reference).trim_start_matches('$').to_string();
+        let name = self.value(reference).strip_prefix('$').unwrap_or("").to_string();
         if !crate::dom::is_constant_name(&name) {
             return Err(self.error(reference, "a constant requires a user name"));
         }
@@ -275,7 +275,7 @@ impl<'a> Reader<'a> {
 
     fn directive(&self, node: &'a Node) -> R<Directive> {
         let token = self.token(node)?;
-        let name = self.value(token).trim_start_matches('%');
+        let name = self.value(token).strip_prefix('%').unwrap_or("");
         let parts: Vec<_> = Self::parts(node)
             .into_iter()
             .filter(|part| {
@@ -437,7 +437,7 @@ impl<'a> Reader<'a> {
             }
             (call.name, self.token(head)?)
         };
-        if !self.unicode.is_emoji_name(&name) && !name.starts_with(|c: char| c.is_ascii_lowercase()) {
+        if !self.unicode.is_emoji_name(&name) && !is_classifier_name(&name) {
             return Err(self.error(name_token, "a rule name starts with a lowercase letter or uses one eligible emoji"));
         }
         let op = match self.value(definer) {
@@ -582,7 +582,7 @@ impl<'a> Reader<'a> {
         // the first in the text where there are several (§3.5, §9).
         if let Some(Expr::Capture(_, target)) = crate::clauses::duplicate_captures(&expr).first() {
             let capture = self.captures.borrow()[&(target.as_ref() as *const Expr as usize)];
-            let name = self.value(self.token(capture)?).trim_start_matches('$').to_string();
+            let name = self.value(self.token(capture)?).strip_prefix('$').unwrap_or("").to_string();
             return Err(
                 self.error(capture, format!("the capture ${name} is read twice by one production of the alternative"))
             );
@@ -837,7 +837,7 @@ impl<'a> Reader<'a> {
                 if self.value(capture) == "$" {
                     return Err(self.error(capture, "$ is the whole constituent and wraps nothing"));
                 }
-                let name = self.value(capture).trim_start_matches('$').to_string();
+                let name = self.value(capture).strip_prefix('$').unwrap_or("").to_string();
                 if !is_capture_name(&name) {
                     return Err(self.error(capture, "a capture's name is all lower case"));
                 }
@@ -1097,7 +1097,8 @@ impl<'a> Reader<'a> {
     /// stand here.
     fn resume_term(&self, frame: &mut TermFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
         if frame.guards.is_none() {
-            let inner = self.inner(frame.node, &TERMS)?;
+            let inner =
+                if TERMS.contains(&rule_name(frame.node)) { frame.node } else { self.inner(frame.node, &TERMS)? };
             if rule_name(inner) != "guarded-term" {
                 frame.guards = Some(Vec::new());
                 frame.pass = true;
@@ -1188,8 +1189,9 @@ impl<'a> Reader<'a> {
             .filter(|text| matches!(*text, "∪" | "∖"))
             .collect();
         // A leading ∪ is a separator, not an operator.
-        while operators.len() >= parts.len() {
-            operators.remove(0);
+        operators.drain(..operators.len().saturating_sub(parts.len() - 1));
+        if operators.len() < parts.len() - 1 {
+            return Err(self.shape_error(frame.node, "operator"));
         }
         let operator = if operators.contains(&"∖") { "∖" } else { "∪" };
         let ty = if self.feature_context.get() {
@@ -1305,7 +1307,9 @@ impl<'a> Reader<'a> {
         let typed = |term: Term, ty: Type| Ok(Step::Done(Val::Term(term, ty)));
         match rule_name(inner) {
             // A span may stand in parentheses where a span is due.
-            "term" => Ok(Step::Call(Frame::Term(TermFrame::new(inner, frame.argument)))),
+            "term" | "guarded-term" => Ok(Step::Call(Frame::Term(TermFrame::new(inner, frame.argument)))),
+            "union" => Ok(Step::Call(Frame::Union(Joined::new(inner, frame.argument)))),
+            "term-atom" => Ok(Step::Call(Frame::Atom(Atom::new(inner, frame.argument)))),
             "parameter" => typed(Term::Source(self.source_parameter(inner)?), Type::Any),
             "call" => Ok(Step::Call(Frame::SourceCall(CallFrame::new(inner)))),
             "string" => typed(self.string_term(token()?)?, Type::String),
@@ -1354,7 +1358,7 @@ impl<'a> Reader<'a> {
                 typed(term, ty)
             }
             "capture-reference" => {
-                let name = self.value(token()?).trim_start_matches('$').to_string();
+                let name = self.value(token()?).strip_prefix('$').unwrap_or("").to_string();
                 if let Some(closed) = self.closed_for.get() {
                     return Err(self.error(inner, format!("{closed} is a closed term, and holds no capture")));
                 }
@@ -1430,7 +1434,10 @@ impl<'a> Reader<'a> {
                 };
                 (pattern, true)
             }
-            "wildcard" => (P::Wildcard(self.first(first)), true),
+            "wildcard" => {
+                self.token(first)?;
+                (P::Wildcard(self.first(first)), true)
+            }
             "range" => {
                 let symbol = self.symbol(first)?;
                 let Expr::ScalarRange(a, b) = &symbol else { unreachable!() };
@@ -1444,8 +1451,8 @@ impl<'a> Reader<'a> {
             _ if first.kind == NodeKind::Token || matches!(rule_name(first), "name" | "reference") => {
                 let token = if first.kind == NodeKind::Token { first } else { self.token(first)? };
                 let name = self.value(token);
-                if !Self::pattern_rule_name(first) && (is_capital(name) || crate::dom::is_engine_tag(name)) {
-                    (P::Terminal(name.into(), self.at(token)), true)
+                if !Self::pattern_rule_name(first) && (is_capital(name) || name.starts_with('_')) {
+                    (P::Terminal(self.tag_of(token)?, self.at(token)), true)
                 } else {
                     if !(self.unicode.is_emoji_name(name)
                         || name.starts_with(|c: char| c.is_ascii_lowercase()) && crate::tags::is_name(name))
@@ -1518,10 +1525,9 @@ impl<'a> Reader<'a> {
     }
 
     fn resume_method(&self, frame: &mut MethodFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
-        if frame.selectors.is_none() {
+        if frame.receiver.is_none() && input.is_none() {
             let receiver = self.one(frame.node, "method-receiver")?;
             let atom = self.one(receiver, "term-atom")?;
-            frame.selectors = Some(self.some(frame.node, "method-selector", 1)?);
             return Ok(Step::Call(Frame::Atom(Atom::new(atom, true))));
         }
         if let Some(value) = input {
@@ -1533,6 +1539,9 @@ impl<'a> Reader<'a> {
                 }
                 _ => unreachable!("a method reads a receiver or an argument"),
             }
+        }
+        if frame.selectors.is_none() {
+            frame.selectors = Some(self.some(frame.node, "method-selector", 1)?);
         }
         let selectors = frame.selectors.as_ref().unwrap();
         let selector = selectors[frame.index];
@@ -1800,34 +1809,41 @@ impl<'a> Reader<'a> {
                 // Parentheses make no node of their own (§9).
                 "implication" => Step::Call(Frame::Implication(Conditions::new(inner))),
                 "tree-comparison" => {
-                    let capture = self.one(inner, "capture-reference")?;
+                    let capture = self
+                        .value(self.token(self.one(inner, "capture-reference")?)?)
+                        .strip_prefix('$')
+                        .unwrap_or("")
+                        .to_owned();
+                    frame.op = self.operator(self.token(self.one(inner, "tree-comparator")?)?).to_owned();
                     let right = self.one(inner, "union")?;
                     if let Some(name) = first_of_rule(right, "name").or_else(|| first_of_rule(right, "tag")) {
-                        if right.span.end - right.span.start == 1 {
+                        if right
+                            .span
+                            .end
+                            .checked_sub(right.span.start)
+                            .ok_or_else(|| self.shape_error(right, "valid token span"))?
+                            == 1
+                        {
                             let at = name;
                             let name = self.value(self.token(name)?);
                             return Err(self
                                 .error(at, format!("tree comparison requires a pattern; write #{name}, not {name}")));
                         }
                     }
-                    frame.op = self.operator(self.token(self.one(inner, "tree-comparator")?)?).to_owned();
-                    frame.left = Some((
-                        Term::Capture(self.value(self.token(capture)?).trim_start_matches('$').to_owned()),
-                        Type::Span,
-                    ));
+                    frame.left = Some((Term::Capture(capture), Type::Span));
                     Step::Call(Frame::Union(Joined::new(right, false)))
                 }
                 "comparison" => {
-                    let operands = self.some(inner, "union", 2)?;
                     let comparator = self.one(inner, "comparator")?;
                     frame.op = self.operator(self.token(comparator)?).to_string();
+                    let operands = self.some(inner, "union", 2)?;
                     frame.right = Some(operands[1]);
                     Step::Call(Frame::Union(Joined::new(operands[0], false)))
                 }
                 "negation" => Step::Call(Frame::Condition(ConditionFrame::new(self.one(inner, "condition")?))),
                 "presence" => {
                     let token = self.token(inner)?;
-                    Step::Done(Val::Cond(Cond::Captured(self.value(token).trim_start_matches('$').to_string())))
+                    Step::Done(Val::Cond(Cond::Captured(self.value(token).strip_prefix('$').unwrap_or("").to_string())))
                 }
                 "method" => Step::Call(Frame::Method(MethodFrame::new(inner, true))),
                 other => return Err(self.unknown(frame.node, other)),
@@ -1869,13 +1885,12 @@ impl<'a> Reader<'a> {
             }
             "tag" => Ok(Expr::Ref(self.tag_of(self.token(node)?)?)),
             "constant-reference" => Ok(Expr::Literal(self.constant_reference(self.token(node)?)?)),
-            "wildcard" => Ok(Expr::Wildcard),
+            "wildcard" => {
+                self.token(node)?;
+                Ok(Expr::Wildcard)
+            }
             "string-terminal" => {
-                let parts = Self::parts(node);
-                let part = parts
-                    .iter()
-                    .find(|p| matches!(rule_name(p), "string" | "constant-reference" | "parameter"))
-                    .ok_or_else(|| self.shape_error(node, "string operand"))?;
+                let part = self.inner(node, &["string", "constant-reference"])?;
                 Ok(Expr::Literal(self.string_operand(part)?))
             }
             "range" => {
@@ -1968,11 +1983,12 @@ impl<'a> Reader<'a> {
                             self.error(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
                         );
                     }
-                    if self.tokens[atom.span.clone()].iter().any(|t| matches!(t.value.as_str(), "(" | ")")) {
+                    let written =
+                        self.tokens.get(atom.span.clone()).ok_or_else(|| self.shape_error(atom, "valid token span"))?;
+                    if written.iter().any(|t| matches!(t.value.as_str(), "(" | ")")) {
                         return Err(self.error(atom, "a recipe atom has no grouping or arguments"));
                     }
-                    if self.tokens[atom.span.clone()].iter().any(|t| matches!(t.value.as_str(), "∪" | "∩" | "∖" | "⟹"))
-                    {
+                    if written.iter().any(|t| matches!(t.value.as_str(), "∪" | "∩" | "∖" | "⟹")) {
                         return Err(self.error(atom, "a recipe atom has no set operator"));
                     }
                     let (mut term, _) = self.term(self.one(atom, "term")?, true)?;
@@ -2542,7 +2558,6 @@ const ATOMS: &[&str] = &[
     "method",
     "tag-run",
     "string-run",
-    "integer",
     "pattern-literal",
     "string",
     "tag",
@@ -2550,6 +2565,9 @@ const ATOMS: &[&str] = &[
     "name",
     "empty-set",
     "term",
+    "guarded-term",
+    "union",
+    "term-atom",
     "capture-reference",
     "constant-reference",
 ];
@@ -2617,12 +2635,19 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                     {
                         return true;
                     }
+                    stack.extend(args.iter().filter_map(|arg| {
+                        if let Arg::Term(term) = arg {
+                            Some(Part::Term(term))
+                        } else {
+                            None
+                        }
+                    }));
                 }
                 Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().map(Part::Term)),
                 Term::Difference(left, right) => stack.extend([Part::Term(left), Part::Term(right)]),
                 Term::If(cond, then) => stack.extend([Part::Cond(cond), Part::Term(then)]),
-                Term::Source(_)
-                | Term::Pattern(_)
+                Term::Source(symbol) => stack.push(Part::Symbol(symbol)),
+                Term::Pattern(_)
                 | Term::Str(_)
                 | Term::Tag(_)
                 | Term::EmptySet
@@ -2650,6 +2675,40 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 | Cond::Boundary(_, _, _, _)
                 | Cond::Captured(_) => {}
             },
+            Part::Symbol(symbol) => {
+                if let SourceSymbol::Call(call) = symbol {
+                    stack.extend(call.args.iter().map(Part::Argument));
+                }
+            }
+            Part::Argument(argument) => match argument {
+                SourceArgument::Term(term) | SourceArgument::Requirements(term) => stack.push(Part::Term(term)),
+                SourceArgument::Body(expr) | SourceArgument::WrappedBody(expr) => stack.push(Part::Expression(expr)),
+                SourceArgument::Targets(targets) => {
+                    for target in targets {
+                        if let crate::dom::source::SourceTarget::Symbol(symbol) = target {
+                            stack.push(Part::Symbol(symbol));
+                        }
+                    }
+                }
+            },
+            Part::Expression(expr) => match expr {
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                    stack.extend(items.iter().map(Part::Expression))
+                }
+                Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(Part::Expression(inner)),
+                Expr::Repeat(item, separator, _) => {
+                    stack.push(Part::Expression(item));
+                    stack.extend(separator.as_deref().map(Part::Expression));
+                }
+                Expr::Tested(_, value, inner) => {
+                    stack.push(Part::Term(value));
+                    stack.push(Part::Expression(inner));
+                }
+                Expr::Literal(term) => stack.push(Part::Term(term)),
+                Expr::ScalarRange(a, b) => stack.extend([Part::Term(a), Part::Term(b)]),
+                Expr::Source(symbol) => stack.push(Part::Symbol(symbol)),
+                _ => {}
+            },
         }
     }
     false
@@ -2659,6 +2718,9 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
 enum Part<'t> {
     Term(&'t Term),
     Cond(&'t Cond),
+    Symbol(&'t SourceSymbol),
+    Argument(&'t SourceArgument),
+    Expression(&'t Expr),
 }
 
 #[cfg(test)]

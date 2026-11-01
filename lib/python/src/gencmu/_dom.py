@@ -47,7 +47,7 @@ implication-declaration tree-comparison pattern-literal pattern-union pattern-in
 _PRIMARIES = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference", "call", "parameter"))
 _CONDITIONS = frozenset(("tree-comparison", "comparison", "method", "negation", "presence", "implication"))
 _TERMS = frozenset(("union", "guarded-term"))
-_ATOMS = frozenset(("string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "union", "guarded-term", "method", "capture-reference", "constant-reference", "pattern-literal", "call", "parameter"))
+_ATOMS = frozenset(("term-atom", "string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "union", "guarded-term", "method", "capture-reference", "constant-reference", "pattern-literal", "call", "parameter"))
 _ITEMS = frozenset(("directive", "rule", "constant-definition", "classifier", "implication-declaration"))
 _SYMBOLS = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "constant-reference", "call", "parameter"))
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
@@ -344,6 +344,8 @@ class DomBuilder:
     def recipe(self, node: Node) -> Dom:
         atoms = []
         for atom in self.some(node, "recipe-atom"):
+            if any(type(index) is not int for index in atom.span) or not 0 <= atom.span[0] <= atom.span[1] <= len(self.tokens):
+                raise self.lacks(atom, "valid token span")
             if atoms:
                 raise self.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
             if any(t.value in ("(", ")") for t in self.tokens[atom.span[0]:atom.span[1]]):
@@ -379,7 +381,9 @@ class DomBuilder:
         self.parameter_scope = set()
         self.reading_head = True
         name_node = self.one(node, "rule-name")
-        head_node = self.only(node, "call") if name_node is None else None
+        head_node = self.one(node, "call") if name_node is None else None
+        if head_node is None and name_node is None:
+            raise self.lacks(node, "rule-name")
         head = run(self._call(head_node)) if head_node is not None else None
         self.reading_head = False
         head_fields = {}
@@ -402,9 +406,10 @@ class DomBuilder:
                 if op == "define":
                     raise self.fail(head_node, "an instance head requires an edit")
                 head_fields['args'] = head['args']
-        name = head['call'] if head else self.token_value(self.token(name_node))
+        name_token = self.token(head_node if head_node is not None else name_node)
+        name = head['call'] if head else self.token_value(name_token)
         if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
-            raise self.fail(name_node, "a rule name starts with a lowercase letter or uses one eligible emoji")
+            raise self.fail(name_token, "a rule name starts with a lowercase letter or uses one eligible emoji")
         flags: list[str] = []
         flag_list = self.one(node, "rule-flags")
         if flag_list is not None:
@@ -846,8 +851,8 @@ class DomBuilder:
                 raise self.fail(node, problem)
             return {"op":op, "left":left, "right":right}
         if node.rule == "comparison":
-            terms = self.some(node, "union", 2)
             op = self.operator(self.token(self.only(node, "comparator")))
+            terms = self.some(node, "union", 2)
             left = yield self._term(terms[0])
             right = yield self._term(terms[1])
             # The two sides fit the comparator (engine §10).
@@ -1085,7 +1090,7 @@ class DomBuilder:
         if kind == "pattern-repeat":
             choices = self.some(node, "child-choice")
             result = {"repeat": (yield self._layered_pattern(choices[0]))}
-            if len(choices) == 2:
+            if len(choices) >= 2:
                 result["separator"] = yield self._layered_pattern(choices[1])
             return [result]
         raise self.fail(node, f"unexpected {kind} in layered pattern")
@@ -1161,6 +1166,8 @@ class DomBuilder:
             items: list[Dom] = []
             for part in parts:
                 items.append((yield self._term(part)))
+            if len(operators) < len(parts) - 1:
+                raise self.lacks(node, "operator")
             self._joined(node, items, "∖" if "∖" in operators else "∪")
             result = items[0]
             open_union = False
