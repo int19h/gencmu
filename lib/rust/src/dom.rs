@@ -1074,6 +1074,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
             write_str(&mut out, arg);
         }
         out.push(']');
+        out.push_str(&format!(",\"at\":[{},{}]", directive.at.0, directive.at.1));
         if let Some(conditions) = &directive.conditions {
             out.push_str(",\"conditions\":[");
             for (index, condition) in conditions.iter().enumerate() {
@@ -1084,7 +1085,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
             }
             out.push(']');
         }
-        out.push_str(&format!(",\"at\":[{},{}]}}", directive.at.0, directive.at.1));
+        out.push('}');
     }
     out.push_str("],\"constants\":[");
     for (index, constant) in dom.constants.iter().enumerate() {

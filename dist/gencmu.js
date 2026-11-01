@@ -18721,10 +18721,10 @@
           featureContext = false;
         }
         directives.push({
-          ...(conditions ? { conditions } : {}),
           name,
           args,
           at: at(item),
+          ...(conditions ? { conditions } : {}),
         });
       } else if (ruleOf(item) === "rule") {
         rules.push(run(readRule(item)));

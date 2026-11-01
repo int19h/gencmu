@@ -389,16 +389,6 @@ func writeGuards(w *jsonWriter, guards []domGuard) {
 func (r *domRule) writeJSON(w *jsonWriter) {
 	w.raw(`{"name":`)
 	w.str(r.Name)
-	w.raw(`,"op":`)
-	w.str(r.Op)
-	w.raw(`,"flags":[`)
-	for i, flag := range r.Flags {
-		if i > 0 {
-			w.raw(",")
-		}
-		w.str(flag)
-	}
-	w.raw("]")
 	if r.Params != nil {
 		w.raw(`,"params":[`)
 		for i, name := range r.Params {
@@ -413,6 +403,16 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 		w.raw(`,"args":`)
 		writeSourceArguments(w, r.Args)
 	}
+	w.raw(`,"op":`)
+	w.str(r.Op)
+	w.raw(`,"flags":[`)
+	for i, flag := range r.Flags {
+		if i > 0 {
+			w.raw(",")
+		}
+		w.str(flag)
+	}
+	w.raw("]")
 	if r.Instance != nil {
 		w.raw(`,"instance":`)
 		r.Instance.writeJSON(w)

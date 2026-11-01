@@ -266,3 +266,16 @@ fn decorated_pattern_member_order() {
         assert!(json.contains(want), "missing {want} in {json}");
     }
 }
+
+#[test]
+fn canonical_dom_member_order() {
+    let document = "```jbogenbau\n%rule f(@X) @X\n%extend-rule f(\"a\") A\n%features f %conditions $\n```\n";
+    let json = gencmu::tools::read_grammar_document(document, "order.md").unwrap();
+    for want in [
+        r#""name":"f","params":["X"],"op":"define""#,
+        r#""name":"f","args":[{"string":"a"}],"op":"extend""#,
+        r#""name":"features","args":["f"],"at":[4,1],"conditions":[{"captured":""}]"#,
+    ] {
+        assert!(json.contains(want), "missing {want} in {json}");
+    }
+}

@@ -766,3 +766,24 @@ func TestFeatureConditionDepthLabel(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestCanonicalDOMMemberOrder(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	dom, err := bundled.reader.read("```jbogenbau\n%rule f(@X) @X\n%extend-rule f(\"a\") A\n%features f %conditions $\n```\n", "order.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree, parseErr := templateFromJSON(dom.json())
+	if parseErr != nil {
+		t.Fatal(parseErr)
+	}
+	for _, text := range []string{string(dom.json()), string(templateJSON(tree))} {
+		for _, want := range []string{`"name":"f","params":["X"],"op":"define"`, `"name":"f","args":[{"string":"a"}],"op":"extend"`, `"name":"features","args":["f"],"at":[4,1],"conditions":[{"captured":""}]`} {
+			if !strings.Contains(text, want) {
+				t.Fatalf("missing %s in %s", want, text)
+			}
+		}
+	}
+}
