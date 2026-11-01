@@ -9650,6 +9650,7 @@
         const expressions = expressionChildren(part);
         const children = Array.isArray(part) ? part
           : part.alternatives ? [part.tags, part.value, part.image, part.alternatives, part.conditions, part.emit]
+          : (typeof part.capture === "string" && !part.expr || part.insert) ? [part.tags, part.value, part.image]
           : part.expr ? [part.expr, part.requirements, part.tags, part.value, part.image]
           : part.literal ? [part.literal]
           : part.range ? part.range
