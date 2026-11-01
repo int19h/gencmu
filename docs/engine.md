@@ -2018,6 +2018,8 @@ The check recognizes all of R, from the start rule `text`, in the reconstruction
 
 Cycles are found over spans of R, as §4 says. Two constituents of one rule whose spans of R differ are no cycle, even where both project to one span of O.
 
+If reconstruction has no root or no walk for W(D), the check reports witness loss without preparing admission or ranking.
+
 Locate raw W(D) before applying ranked admission. Admission groups options by their physical spans in R, including synthetic tokens. The reconstruction rules, including the omission ban and strictness test of §7.4, still apply. Equal projected O spans do not establish equal admission spans. Rank admitted derivations by rule profiles over projected spans `[π(a),π(b))` in O.
 
 No stage directive or diagnostic lean applies. Elision vectors are all zero. A flagged occurrence whose projected span is empty contributes nothing to either part of the rule profile. Distinct occurrences with equal nonempty projected spans each contribute separately. Reconstruction admission has its own cache and preserves restoration, strictness and projection rules.

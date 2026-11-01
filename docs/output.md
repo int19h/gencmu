@@ -8,7 +8,9 @@ JSON member names are case-sensitive. Names that differ in case are distinct mem
 
 ## Canonical JSON
 
-Canonical JSON is UTF-8 JSON with integers only. Serialization applies the witness gates even to caller-built results. An integer member has no fraction or exponent in its JSON spelling. A library leaves out an optional member that is absent. It never writes `null` for it, unless this document says otherwise. Every library writes canonical JSON with its own code, because the Rust standard library has no JSON writer.
+Canonical JSON is UTF-8 JSON with integers only. An integer member has no fraction or exponent in its JSON spelling. A library leaves out an optional member that is absent. It never writes `null` for it, unless this document says otherwise. Every library writes canonical JSON with its own code, because the Rust standard library has no JSON writer.
+
+Serialization applies the witness gates even to caller-built results. An error witness requires both kind `ambiguous` and reason `elision-only`.
 
 Single-guillemet escapes belong to notation strings printed in names and diagnostics. JSON serialization still preserves the actual member values with ordinary JSON quoting. A notation string inside a JSON member therefore has both its notation spelling and the surrounding JSON string encoding.
 

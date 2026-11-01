@@ -70,6 +70,8 @@ The same error type reports loading failures and caller mistakes. The error is a
 
 A feature-role conflict stores a bare description. The formatter adds its document, position, and stage once.
 
+A loading diagnostic recovers source positions from the exact document instance and names scope that supplied its failing definition.
+
 A diagnostic copies its location fields, including independent copies of `group`, `expression`, and `inheritance`. Editing a caught diagnostic cannot change cached documents or later diagnostics. For the same input and configuration, repeated parsing preserves the formatted diagnostic.
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
@@ -78,7 +80,7 @@ Rust exposes these optional fields through `code()`, `group()`, `option()`, `exp
 
 [Output formats](output.md) defines the grammar DOM, cache, and parse-result schemas. The compatibility boundary is the schema version and the notation contract. Callers supply DOMs of that version or grammar text in the specified notation.
 
-Each JavaScript loader cache keeps at most 256 entries and 4,000,000 UTF-16 code units. Eviction removes the least recently used entries. The DOM cache counts source text. The preparsed cache counts DOM JSON. The inherited-names cache counts paths and names. The preparsed-file cache counts paths.
+Each JavaScript loader cache keeps at most 256 entries and 4,000,000 UTF-16 code units. Eviction removes the least recently used entries. The DOM cache counts source text. The preparsed cache counts DOM JSON. The preparsed-file cache counts paths.
 
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
@@ -139,7 +141,9 @@ A failed result retains features enabled before the failure, including earlier d
 
 The [pipeline guide](pipelines.md#phoneme-values-and-stress) describes the bundled stages and comparison values. The `until` argument must name a stage in the selected pipeline.
 
-A stage exposes its name, input and output tokens, verdict, and any tie witness. If ranking chose a tree, the stage keeps that tree after an emission or elision-check error. Find stages by name because their order differs by pipeline. A tied stage emits nothing and places both readings in the result error. A token stores text, value, image, tags, span, and source. Both strings always exist.
+A stage exposes its name, input and output tokens, verdict, and any tie witness. JavaScript and Python expose a stage tree. If ranking chose that tree, those APIs retain it after an emission or elision-check error. Find stages by name because their order differs by pipeline. A tied stage emits nothing and places both readings in the result error.
+
+A token stores text, value, image, tags, span, and source. Both strings always exist.
 
 An `ε` item records its inserting rule and has empty source text. A token can carry before- and after-attachments, which remain token lists. Attached tokens have no stage span. An image can include neighboring text outside its source without changing its text field.
 
