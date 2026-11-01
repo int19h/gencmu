@@ -1075,3 +1075,48 @@ class CallerTokens(unittest.TestCase):
         read = result.stages[0].input[0]
         self.assertEqual((read.tags, tuple(read.span or ()), tuple(read.source)), (frozenset({"A"}), (0, 1), (0, 1)))
         self.assertIsNot(read, token)
+
+
+class ResultRenderingGuards(unittest.TestCase):
+    def test_ascii_elided_and_invalid_token_indices(self):
+        tokens = [gencmu.Token("a", {"W"}, (0,1), (0,1))]
+        for index in [-1, 1, 5]:
+            leaf = gencmu.Node("token", (0,1), (0,1), terminal="W", token=index)
+            stage = gencmu.Stage("main", "unique", tokens)
+            result = gencmu.ParseResult(True, [stage], leaf, None)
+            self.assertEqual(gencmu.to_brackets(result), "")
+            parent = gencmu.Node("rule", (0,1), (0,1), rule="text", children=[leaf, gencmu.Node("token", (0,1), (0,1), terminal="W", token=0)])
+            result.tree = parent
+            self.assertEqual(gencmu.to_brackets(result), "( a)")
+        result.tree = gencmu.Node("elided", (0,0), (0,0), terminal="İΟΣABC")
+        self.assertEqual(gencmu.to_brackets(result, show_elided=True), "⟨İΟΣabc⟩")
+
+    def test_emission_failure_keeps_the_stage_tree(self):
+        case = json.loads((Path(__file__).parents[3] / "tests/engine/emit-fault-keeps-verdict.json").read_text())
+        pipeline, error = load_case_pipeline(case)
+        assert pipeline is not None, error
+        tokens, text = case_tokens(case)
+        result = pipeline.parse_tokens(tokens, text, features=["w"])
+        self.assertIsNotNone(result.stages[0].tree)
+        self.assertIsNone(result.tree)
+        self.assertIsNone(result.stages[0].output)
+
+    def test_feature_usage_error_follows_enabled_order(self):
+        pipeline, error = load_case_pipeline({"grammar":'%rule text "a"'})
+        assert pipeline is not None, error
+        for features in (["b","a"], iter(["b","a"])):
+            with self.assertRaisesRegex(gencmu.GencmuError, "the feature b is named both"):
+                pipeline.parse("a", features=features, without_features=["a","b"])
+
+    def test_feature_role_location_occurs_once(self):
+        with self.assertRaises(gencmu.GencmuError) as caught:
+            gencmu.load_pipeline_sources({"p.md":'```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text f? "a" | f! "b"\n```\n'}, "p.md")
+        error = caught.exception
+        self.assertEqual(error.message, "the feature f is used both as a gate and as a warning")
+        self.assertEqual(str(error).count("p.md:4:1"), 1)
+
+    def test_invalid_pipeline_path_is_usage(self):
+        for load in (lambda: gencmu.load_pipeline_file("invalid-\udcff.md"), lambda: gencmu.load_pipeline_sources({}, "invalid-\udcff.md")):
+            with self.assertRaises(gencmu.GencmuError) as caught:
+                load()
+            self.assertEqual(caught.exception.kind, "usage")

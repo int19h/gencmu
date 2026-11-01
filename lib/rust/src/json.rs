@@ -64,38 +64,49 @@ impl Clone for Json {
 impl Json {
     /// Writes the value with object members in their stored order.
     pub fn to_json(&self) -> String {
-        fn write(out: &mut String, value: &Json) {
-            match value {
-                Json::Null => out.push_str("null"),
-                Json::Bool(v) => out.push_str(if *v { "true" } else { "false" }),
-                Json::Int(v) => out.push_str(&v.to_string()),
-                Json::Str(v) => write_str(out, v),
-                Json::Arr(items) => {
-                    out.push('[');
-                    for (i, item) in items.iter().enumerate() {
-                        if i > 0 {
-                            out.push(',');
-                        }
-                        write(out, item);
-                    }
-                    out.push(']');
-                }
-                Json::Obj(items) => {
-                    out.push('{');
-                    for (i, (key, item)) in items.iter().enumerate() {
-                        if i > 0 {
-                            out.push(',');
-                        }
-                        write_str(out, key);
-                        out.push(':');
-                        write(out, item);
-                    }
-                    out.push('}');
-                }
-            }
+        enum Task<'a> {
+            Value(&'a Json),
+            Text(&'static str),
+            Key(&'a str),
         }
         let mut out = String::new();
-        write(&mut out, self);
+        let mut pending = vec![Task::Value(self)];
+        while let Some(task) = pending.pop() {
+            match task {
+                Task::Text(text) => out.push_str(text),
+                Task::Key(key) => {
+                    write_str(&mut out, key);
+                    out.push(':');
+                }
+                Task::Value(value) => match value {
+                    Json::Null => out.push_str("null"),
+                    Json::Bool(v) => out.push_str(if *v { "true" } else { "false" }),
+                    Json::Int(v) => out.push_str(&v.to_string()),
+                    Json::Str(v) => write_str(&mut out, v),
+                    Json::Arr(items) => {
+                        out.push('[');
+                        pending.push(Task::Text("]"));
+                        for (i, item) in items.iter().enumerate().rev() {
+                            pending.push(Task::Value(item));
+                            if i > 0 {
+                                pending.push(Task::Text(","));
+                            }
+                        }
+                    }
+                    Json::Obj(items) => {
+                        out.push('{');
+                        pending.push(Task::Text("}"));
+                        for (i, (key, item)) in items.iter().enumerate().rev() {
+                            pending.push(Task::Value(item));
+                            pending.push(Task::Key(key));
+                            if i > 0 {
+                                pending.push(Task::Text(","));
+                            }
+                        }
+                    }
+                },
+            }
+        }
         out
     }
 

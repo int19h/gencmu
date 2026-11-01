@@ -73,6 +73,8 @@ class WitnessLostError(unittest.TestCase):
             with self.subTest(loss=name):
                 with lose():
                     result = parse()
+                self.assertIsNotNone(result.stages[0].tree)
+                self.assertIsNone(result.stages[0].output)
                 value = gencmu.result_json(result)
                 self.assertEqual(result_problems(value), [])
                 self.assertTrue(witness_lost(value))

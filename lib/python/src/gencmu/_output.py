@@ -9,6 +9,7 @@ from ._model import Action, Node, ParseError, ParseResult, ParseWarning, Restora
 from ._tags import sorted_tags
 
 FORMAT = 15
+_ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
 
 
 def token_json(token: Token) -> dict[str, Any]:
@@ -255,7 +256,7 @@ def to_brackets(result: ParseResult, *, show_elided: bool = False) -> str:
     while stack:
         node, done = stack.pop()
         if node.kind == "token":
-            token = tokens[node.token] if node.token is not None and node.token < len(tokens) else None
+            token = tokens[node.token] if node.token is not None and 0 <= node.token < len(tokens) else None
             # A token is a member even when its image is empty, as an empty
             # quotation's text is; only empty rule nodes are dropped.
             # Every rendering shows a token by its image (docs/output.md). A
@@ -263,7 +264,7 @@ def to_brackets(result: ParseResult, *, show_elided: bool = False) -> str:
             # its image and its after-attachments, each rendered the same way.
             rendered[id(node)] = _token_member(token) if token is not None else ""
         elif node.kind == "elided":
-            rendered[id(node)] = f"⟨{(node.terminal or '').lower()}⟩" if show_elided else None
+            rendered[id(node)] = f"⟨{(node.terminal or '').translate(_ASCII_LOWER)}⟩" if show_elided else None
         elif not done:
             stack.append((node, True))
             stack.extend((child, False) for child in node.children)

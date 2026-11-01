@@ -189,7 +189,7 @@ fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec
         for (guard, document, (line, column)) in rules.chain(entries) {
             if *kinds.entry(&guard.feature).or_insert(guard.kind) != guard.kind {
                 return Err(Error::grammar(format!(
-                    "{document}:{line}:{column}: the feature {} is used both as a gate and as a warning",
+                    "the feature {} is used both as a gate and as a warning",
                     guard.feature
                 ))
                 .in_document(document)

@@ -1618,3 +1618,35 @@ func TestStitchingStagesAndReferenceOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestCallerBuiltRenderingGuards(t *testing.T) {
+	actions := []Action{{Read: &ReadAction{Token: 0, Terminal: "A"}}, {Read: &ReadAction{Token: 0, Terminal: "B"}}}
+	res := &ParseResult{Stages: []Stage{{Name: "s", Verdict: VerdictUnique, Witness: actions}}, Error: &ParseError{Kind: ErrorAmbiguous, Reason: ReasonTie, Witness: actions}}
+	data, _ := MarshalResult(res)
+	if strings.Contains(string(data), `"witness"`) {
+		t.Errorf("witness escaped its gate: %s", data)
+	}
+	res.Error = nil
+	res.Tree = &Node{Kind: KindElided, Terminal: "İΟΣABC"}
+	if got := Brackets(res, BracketOptions{ShowElided: true}); got != "⟨İΟΣabc⟩" {
+		t.Errorf("ASCII case mapping: %q", got)
+	}
+	res.Tree = &Node{Kind: KindToken, Token: 5}
+	if got := Brackets(res, BracketOptions{}); got != "" {
+		t.Errorf("invalid token: %q", got)
+	}
+}
+
+func TestInvalidPipelinePathIsUsage(t *testing.T) {
+	invalid := "invalid-\xff.md"
+	for _, load := range []func() (*Pipeline, error){
+		func() (*Pipeline, error) { return LoadPipelineFile(invalid) },
+		func() (*Pipeline, error) { return LoadPipelineSources(map[string]string{}, invalid) },
+	} {
+		_, err := load()
+		var fault *Error
+		if !errors.As(err, &fault) || fault.Kind != ErrorUsage {
+			t.Fatalf("invalid path: %v", err)
+		}
+	}
+}

@@ -2697,10 +2697,10 @@
     return foldTree(node,
       /** @returns {NodeJson} */
       (leaf) => (leaf.kind === "token"
-        ? { kind: "token", terminal: leaf.terminal, token: leaf.token, span: leaf.span, source: leaf.source }
-        : { kind: "elided", terminal: leaf.terminal, span: leaf.span, source: leaf.source, ...(leaf.value === undefined ? {} : {value:leaf.value}) }),
+        ? { kind: "token", terminal: leaf.terminal, token: leaf.token, span: [leaf.span[0], leaf.span[1]], source: [leaf.source[0], leaf.source[1]] }
+        : { kind: "elided", terminal: leaf.terminal, span: [leaf.span[0], leaf.span[1]], source: [leaf.source[0], leaf.source[1]], ...(leaf.value === undefined ? {} : {value:leaf.value}) }),
       /** @returns {NodeJson} */
-      (rule, children) => ({ kind: "rule", rule: rule.rule, span: rule.span, source: rule.source, tags: sortedTags(rule.tags), children }));
+      (rule, children) => ({ kind: "rule", rule: rule.rule, span: [rule.span[0], rule.span[1]], source: [rule.source[0], rule.source[1]], tags: sortedTags(rule.tags), children }));
   }
 
   /**
@@ -2725,11 +2725,11 @@
     if (error.code !== undefined) result.code = error.code;
     if (error.reason !== undefined) result.reason = error.reason;
     if (error.token !== undefined) result.token = error.token;
-    if (error.source !== undefined) result.source = error.source;
+    if (error.source !== undefined) result.source = [error.source[0], error.source[1]];
     if (error.line !== undefined) result.line = error.line;
     if (error.column !== undefined) result.column = error.column;
-    if (error.expected !== undefined) result.expected = error.expected;
-    if (error.boundary !== undefined) result.boundary = error.boundary;
+    if (error.expected !== undefined) result.expected = error.expected.map(item => ({...item, rules:[...item.rules]}));
+    if (error.boundary !== undefined) result.boundary = {...error.boundary};
     if (error.readings !== undefined) result.readings = error.readings.map(nodeJson);
     // Only an error of elision-only has a witness (docs/output.md).
     if (error.witness !== undefined && error.reason === "elision-only") result.witness = error.witness.map(actionJson);
@@ -2761,7 +2761,7 @@
       stages: result.stages.map((stage) => {
         /** @type {StageJson} */
         const json = { name: stage.name, verdict: stage.verdict };
-        if (stage.witness) json.witness = stage.witness.map(actionJson);
+        if (stage.verdict === "tie" && stage.witness) json.witness = stage.witness.map(actionJson);
         if (stage.output) json.output = stage.output.map(tokenJson);
         return json;
       }),
@@ -2897,8 +2897,8 @@
     });
     const flat = foldTree(root,
       /** @returns {Flat | null} */
-      (leaf) => (leaf.kind === "token" ? tokenFlat(tokens[leaf.token])
-        : options.showElided ? { leaf: `⟨${leaf.terminal.toLowerCase()}⟩` } : null),
+      (leaf) => (leaf.kind === "token" ? (leaf.token >= 0 && leaf.token < tokens.length ? tokenFlat(tokens[leaf.token]) : {leaf:""})
+        : options.showElided ? { leaf: `⟨${leaf.terminal.replace(/[A-Z]/g, char => char.toLowerCase())}⟩` } : null),
       /** @returns {Flat | null} */
       (rule, values) => {
         const children = /** @type {Flat[]} */ (values.filter((child) => child !== null));
@@ -2973,7 +2973,8 @@
    */
   function nodeTree(root, tokens, text) {
     const core = resultCores.get(tokens);
-    return treeListing(root, tokens, text, core ? value => stringName(value, core) : JSON.stringify);
+    if (!core) throw new GencmuError("usage", "tree rendering requires the originating core table");
+    return treeListing(root, tokens, text, value => stringName(value, core));
   }
 
   /**
@@ -3230,7 +3231,7 @@
    * @returns {Token[]}
    */
   function finalInput(result) {
-    return result.stages[result.stages.length - 1].input || [];
+    return result.stages.at(-1)?.input || [];
   }
 
   // ---- cases.js
@@ -15463,8 +15464,9 @@
     const index = pipeline.stages.findIndex(stage => stage.name === name);
     if (index < 0) throw new GencmuError("usage", `no stage is named ${name}`);
     const report = result.stages[index];
-    if (result.error && (!report?.input || report.error && report.verdict === null && report.error.kind !== "rejected")) {
-      return `the ${name} stage is not reached: ${explainError(result)}`;
+    if (result.error && !report?.input) return `the ${name} stage is not reached: ${explainError(result)}`;
+    if (report?.input && report.error && report.verdict === null && report.error.kind !== "rejected") {
+      return `the ${name} stage failed before recognition: ${explainError(result)}`;
     }
     return null;
   }
@@ -21004,6 +21006,7 @@
      * @returns {Pipeline}
      */
     pipeline(path) {
+      if (loneSurrogate(path) !== null) throw new GencmuError("usage", "the pipeline path is not valid UTF-8");
       const pipeline = this.splice(path);
       const build = () => {
         const stages = pipeline.stages.map((stage) => new Stage(stage.name, new Grammar(stage.name, stage.documents, this.unicode), stage.changes));

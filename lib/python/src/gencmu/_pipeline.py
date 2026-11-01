@@ -584,7 +584,12 @@ def load_pipeline_file(path: str | os.PathLike[str], *, use_cache: bool = True) 
     bundled resources. Each document is known by its absolute path, with
     ``/`` between the parts, so an error names the file wherever the
     process runs."""
-    pipeline = os.path.abspath(os.fspath(path)).replace(os.sep, "/")
+    spelling = os.fsdecode(os.fspath(path))
+    if scalar_problem(spelling) is not None:
+        raise GencmuError("the pipeline path is not valid UTF-8", kind="usage")
+    pipeline = os.path.abspath(spelling).replace(os.sep, "/")
+    if scalar_problem(pipeline) is not None:
+        raise GencmuError("the pipeline path is not valid UTF-8", kind="usage")
 
     def lookup(key: str) -> str | None:
         try:
@@ -617,6 +622,8 @@ def load_pipeline_sources(sources: Mapping[str, str], pipeline: str, *, use_cach
     path to text, and the path of the pipeline document in it. The mapping
     may hold its own ``data/unicode/unicode.txt``, ``data/preparsed/gencmu.json`` and
     ``data/preparsed/FAMILY.json``; any it lacks come from the bundled resources."""
+    if scalar_problem(pipeline) is not None:
+        raise GencmuError("the pipeline path is not valid UTF-8", kind="usage")
     documents = dict(sources)
     for path in sorted(documents):
         problem = scalar_problem(documents[path])
@@ -641,7 +648,7 @@ def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tup
             name = guard["feature"]
             kind = "warning" if guard.get("kind") == "warning" else "gate"
             if kinds.setdefault(name, kind) != kind:
-                raise GencmuError(f"{document}:{at[0]}:{at[1]}: the feature {name} is used both as a gate and as a warning", document=document, line=at[0], column=at[1], stage=grammar.stage)
+                raise GencmuError(f"the feature {name} is used both as a gate and as a warning", document=document, line=at[0], column=at[1], stage=grammar.stage)
     local = set()
     defaults = set(declared)
     tested = {}
@@ -715,10 +722,11 @@ class Pipeline:
         for option, value in (("features", features), ("without_features", without_features)):
             if isinstance(value, str):
                 raise GencmuError(f"{option} is a collection of names, not one string", kind="usage")
-        on = frozenset(features)
+        feature_order = tuple(features)
+        on = frozenset(feature_order)
         off = frozenset(without_features)
         if on & off:
-            raise GencmuError(f"the feature {min(on & off)} is named both to turn on and to turn off", kind="usage")
+            raise GencmuError(f"the feature {next(name for name in feature_order if name in off)} is named both to turn on and to turn off", kind="usage")
         names = self.stage_names
         if until is None:
             last = len(names) - 1

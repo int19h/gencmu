@@ -1495,3 +1495,73 @@ fn cached_recipe_cycle_survives_boundary_location_recovery() {
     assert_eq!(error.document.as_deref(), Some("grammars/test/g.md"));
     assert_eq!((error.line, error.column), (None, None));
 }
+
+#[test]
+fn caller_rendering_witness_gates() {
+    let pipeline =
+        gencmu::load_pipeline_sources(single("%ambiguity-resolution greedy\n%rule text [[A]]"), "p.md").unwrap();
+    let mut result = pipeline.parse("", &ParseOptions::default()).unwrap();
+    assert!(result.stages[0].witness.is_some());
+    result.stages[0].verdict = Some(Verdict::Unique);
+    result.error.as_mut().unwrap().witness = result.stages[0].witness.clone();
+    assert!(!gencmu::to_json(&result).contains("\"witness\""));
+}
+
+#[cfg(unix)]
+#[test]
+fn caller_invalid_pipeline_path_is_usage() {
+    use std::os::unix::ffi::OsStringExt;
+    let path = std::ffi::OsString::from_vec(b"invalid-\xff.md".to_vec());
+    assert_eq!(gencmu::load_pipeline_file(std::path::PathBuf::from(path)).unwrap_err().kind, ErrorKind::Usage);
+}
+
+#[test]
+fn caller_deep_json_has_no_recursive_writer() {
+    std::thread::Builder::new()
+        .stack_size(128 * 1024)
+        .spawn(|| {
+            let mut value = gencmu::GrammarValue::Null;
+            for _ in 0..10000 {
+                value = gencmu::GrammarValue::Arr(vec![value]);
+            }
+            let json = value.to_json();
+            assert_eq!(json.len(), 20004);
+            assert!(json.starts_with("[[[["));
+            let ordered = gencmu::GrammarValue::Obj(vec![
+                (
+                    "z".into(),
+                    gencmu::GrammarValue::Arr(vec![gencmu::GrammarValue::Int(1), gencmu::GrammarValue::Bool(true)]),
+                ),
+                ("a".into(), gencmu::GrammarValue::Str("x".into())),
+            ]);
+            assert_eq!(ordered.to_json(), r#"{"z":[1,true],"a":"x"}"#);
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+#[test]
+fn caller_feature_role_location_occurs_once() {
+    let error =
+        gencmu::load_pipeline_sources(single("%ambiguity-resolution greedy\n%rule text f? \"a\" | f! \"b\""), "p.md")
+            .unwrap_err();
+    assert_eq!(error.message, "the feature f is used both as a gate and as a warning");
+    assert_eq!(error.to_string().matches("g.md:5:1").count(), 1);
+}
+
+#[test]
+fn caller_brackets_ascii_lower_case_and_invalid_indices() {
+    let pipeline =
+        gencmu::load_pipeline_sources(single("%ambiguity-resolution greedy\n%rule text [ABC]"), "p.md").unwrap();
+    let mut result = pipeline.parse("", &ParseOptions::default()).unwrap();
+    let tree = result.tree.as_mut().unwrap();
+    tree.kind = NodeKind::Elided;
+    tree.terminal = Some("İΟΣABC".into());
+    tree.children.clear();
+    assert_eq!(gencmu::to_brackets(&result, true), "⟨İΟΣabc⟩");
+    let leaf = result.tree.as_mut().unwrap();
+    leaf.kind = NodeKind::Token;
+    leaf.token = Some(5);
+    assert_eq!(gencmu::to_brackets(&result, true), "");
+}

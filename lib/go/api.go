@@ -569,6 +569,9 @@ func BundledPipelines() []string {
 // documents are found relative to it. data/unicode/unicode.txt and the notation's
 // bootstrap come from the bundled resources.
 func LoadPipelineFile(file string) (*Pipeline, error) {
+	if !utf8.ValidString(file) {
+		return nil, &Error{Kind: ErrorUsage, Message: "the pipeline path is not valid UTF-8"}
+	}
 	l, err := bundledLoader()
 	if err != nil {
 		return nil, err
@@ -576,6 +579,9 @@ func LoadPipelineFile(file string) (*Pipeline, error) {
 	abs, err := filepath.Abs(file)
 	if err != nil {
 		return nil, &Error{Kind: ErrorGrammar, Document: file, Message: err.Error()}
+	}
+	if !utf8.ValidString(abs) {
+		return nil, &Error{Kind: ErrorUsage, Message: "the pipeline path is not valid UTF-8"}
 	}
 	l.read = func(p string) (string, bool, *Error) {
 		data, err := os.ReadFile(filepath.FromSlash(p))
@@ -607,6 +613,9 @@ func LoadPipelineSources(sources map[string]string, pipeline string) (*Pipeline,
 }
 
 func loadSources(sources map[string]string, pipeline string, noCache bool) (d *Pipeline, err error) {
+	if !utf8.ValidString(pipeline) {
+		return nil, &Error{Kind: ErrorUsage, Message: "the pipeline path is not valid UTF-8"}
+	}
 	defer guard(ErrorGrammar, &err)
 	texts := make(map[string]string, len(sources))
 	paths := make([]string, 0, len(sources))

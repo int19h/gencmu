@@ -626,7 +626,6 @@ class StageRunner:
                 error = self.check_elision(context, root, tree.root)
                 if error is not None:
                     outcome.error = error
-                    outcome.tree = None
                     if error.code is not None:
                         # A lost witness is a defect of the engine, and the
                         # stage has no output (engine §7.9).
@@ -637,7 +636,6 @@ class StageRunner:
             # keeps its verdict and warnings (engine §7.7, §11). A defect
             # found while emitting ends the stage before the check.
             outcome.output = None
-            outcome.tree = None
             outcome.error = self.fault(fault, self.tokens)
             return outcome
         return outcome

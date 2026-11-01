@@ -244,7 +244,7 @@ fn write_stage(out: &mut String, stage: &Stage) {
         Some(Verdict::Resolved) => "\"resolved\"",
         Some(Verdict::Tie) => "\"tie\"",
     });
-    if let Some([first, second]) = &stage.witness {
+    if let Some([first, second]) = stage.witness.as_ref().filter(|_| stage.verdict == Some(Verdict::Tie)) {
         out.push_str(",\"witness\":[");
         write_action(out, first);
         out.push(',');
@@ -351,7 +351,9 @@ fn write_error(out: &mut String, error: &ParseError) {
                 write_node(out, reading);
             }
             out.push(']');
-            if let Some([first, second]) = &error.witness {
+            if let Some([first, second]) =
+                error.witness.as_ref().filter(|_| error.reason == Some(AmbiguityReason::ElisionOnly))
+            {
                 out.push_str(",\"witness\":[");
                 write_action(out, first);
                 out.push(',');
@@ -501,7 +503,7 @@ pub(crate) fn brackets(tree: &Node, tokens: &[Token], show_elided: bool) -> Stri
             }
             NodeKind::Elided => {
                 if show_elided {
-                    Rendered::Leaf(format!("⟨{}⟩", node.terminal.as_deref().unwrap_or("").to_lowercase()))
+                    Rendered::Leaf(format!("⟨{}⟩", node.terminal.as_deref().unwrap_or("").to_ascii_lowercase()))
                 } else {
                     Rendered::Empty
                 }

@@ -345,7 +345,7 @@ func writeError(w *jsonWriter, e *ParseError) {
 			writeNode(w, r)
 		}
 		w.raw("]")
-		if len(e.Witness) > 0 {
+		if e.Reason == ReasonElisionOnly && len(e.Witness) > 0 {
 			w.raw(`,"witness":[`)
 			for i, a := range e.Witness {
 				if i > 0 {
@@ -461,10 +461,18 @@ func Brackets(result *ParseResult, options BracketOptions) string {
 			// Every rendering shows a token by its label (docs/output.md),
 			// and a token with attachments as a group of its
 			// before-attachments, its label and its after-attachments.
+			if f.n.Token < 0 || f.n.Token >= len(input) {
+				return &rendered{leaf: ""}
+			}
 			return tokenRendered(&input[f.n.Token])
 		case KindElided:
 			if options.ShowElided {
-				return &rendered{leaf: "⟨" + strings.ToLower(f.n.Terminal) + "⟩"}
+				return &rendered{leaf: "⟨" + strings.Map(func(r rune) rune {
+					if r >= 'A' && r <= 'Z' {
+						return r + ('a' - 'A')
+					}
+					return r
+				}, f.n.Terminal) + "⟩"}
 			}
 			return &rendered{empty: true}
 		}

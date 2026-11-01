@@ -778,17 +778,19 @@ pub fn bundled_pipelines() -> Vec<String> {
 /// grammars. Each document is known by its absolute path, so an error
 /// names the file wherever the process runs.
 pub fn load_pipeline_file(path: impl AsRef<Path>) -> Result<Pipeline, Error> {
-    let context = Context::bundled()?;
     let path = path.as_ref();
+    let spelling = path.to_str().ok_or_else(|| Error::usage("the pipeline path is not valid UTF-8"))?;
+    let context = Context::bundled()?;
     let absolute = if path.is_absolute() {
         normalize(path)
     } else {
         let directory = std::env::current_dir().map_err(|error| {
-            Error::grammar(format!("cannot find the working directory: {error}")).in_document(&path.to_string_lossy())
+            Error::grammar(format!("cannot find the working directory: {error}")).in_document(spelling)
         })?;
         normalize(&directory.join(path))
     };
-    load(&context, &DiskSources, &absolute.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/"))
+    let absolute = absolute.to_str().ok_or_else(|| Error::usage("the pipeline path is not valid UTF-8"))?;
+    load(&context, &DiskSources, &absolute.replace(std::path::MAIN_SEPARATOR, "/"))
 }
 
 /// Loads a pipeline from documents held in memory: a map from

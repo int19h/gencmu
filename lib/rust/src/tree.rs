@@ -788,7 +788,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 out.push(carrier);
             }
             Work::Insert { tag, at, node, anchor, strings: channels } => {
-                let (start, end) = span_of(tree, node);
+                let (start, _) = span_of(tree, node);
                 // At the source end of the token before, or at the start of
                 // the constituent's source if `at` is its start.
                 let source = if let Some(anchor) = anchor {
@@ -800,8 +800,6 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     }
                 } else if at > start {
                     tokens[at as usize - 1].source.1
-                } else if start < end {
-                    sources.of(start as usize, end as usize).0
                 } else {
                     sources.empty(start as usize)
                 };
