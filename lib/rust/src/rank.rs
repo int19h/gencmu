@@ -143,7 +143,7 @@ enum Deps {
 struct SlotCandidate {
     node: Node,
     edge: usize,
-    image: String,
+    label: String,
     option: usize,
     open: Option<crate::boundary::Record>,
     group: usize,
@@ -263,11 +263,11 @@ impl Admission {
                     groups.len() - 1
                 });
                 let open = chart.boundaries.as_ref().map(|m| m.borrow().open(previous.boundary, cap.boundary));
-                let image = format!("{option:020}/{open:?}");
+                let label = format!("{option:020}/{open:?}");
                 let candidate = SlotCandidate {
                     node,
                     edge,
-                    image,
+                    label,
                     option,
                     open,
                     group,
@@ -368,11 +368,11 @@ impl Ranker<'_> {
                         });
                     }
                 }
-                let maxima = retained.iter().map(|c| c.image.clone()).collect();
+                let maxima = retained.iter().map(|c| c.label.clone()).collect();
                 self.admission.as_mut().unwrap().maxima.insert(context, maxima);
             }
             let all = &self.admission.as_ref().unwrap().maxima[&context];
-            masks[choice.edge] = all.contains(&choice.image);
+            masks[choice.edge] = all.contains(&choice.label);
         }
         let a = self.admission.as_mut().unwrap();
         a.stats.retained_edges += masks.iter().filter(|x| **x).count();
