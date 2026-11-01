@@ -202,6 +202,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
         if any('param' in node for item in dom[key] for node in nodes(item)):
             return 'an undeclared or malformed parameter'
     pending = []
+    tag_clauses = []
     for d in dom["directives"]:
         if "conditions" in d:
             if d.get("name") != "features" or not isinstance(d["conditions"], list) or not d["conditions"]:
@@ -241,7 +242,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             or c["op"] not in ("define", "redefine")
         ):
             return "a malformed constant"
-        if open_part(c["value"]) is not None or _contains_engine(c["value"]):
+        if open_part(c["value"]) is not None:
             return "a constant requires a closed term without engine-tag literals"
         pending.append(("term", c["value"], 0, False, False))
     for c in dom["classifiers"]:
@@ -271,7 +272,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
         if set(i) != {"if", "then", "at"}:
             return "a malformed implication"
         for term in (i["if"], i["then"]):
-            if open_part(term) is not None or _contains_engine(term):
+            if open_part(term) is not None:
                 return "an implication requires closed terms without engine-tag literals"
             pending.append(("tags", term, 0, False, False))
     for r in dom["rules"]:
@@ -308,8 +309,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             if channel in r:
                 pending.append(("recipe", r[channel], 0, False, False))
         if "tags" in r:
-            if term_reads_own_tags(r["tags"]) or lit(r["tags"]):
-                return "a constituent tag clause introduces engine tags or reads its own tags"
+            tag_clauses.append((r["tags"], True))
             pending.append(("tags", r["tags"], 0, False, False))
         if "emit" in r:
             emit = r["emit"]
@@ -332,8 +332,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
                             return "a malformed attachment"
                         names.extend(item[side])
                 if "tags" in item:
-                    if lit(item["tags"]):
-                        return "an emission tag clause introduces engine tags"
+                    tag_clauses.append((item["tags"], False))
                     pending.append(("tags", item["tags"], 0, False, False))
                 for channel in ("value", "image"):
                     if channel in item:
@@ -351,8 +350,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
                 return "a malformed alternative"
             pending.append(("expr", a.get("expr"), 0, True, False))
             if "tags" in a:
-                if term_reads_own_tags(a["tags"]) or lit(a["tags"]):
-                    return "a constituent tag clause introduces engine tags or reads its own tags"
+                tag_clauses.append((a["tags"], True))
                 pending.append(("tags", a["tags"], 0, False, False))
             for channel in ("value", "image"):
                 if channel in a:
@@ -372,6 +370,17 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
     problem = _walk(pending, unicode, deferred, rule_name)
     if problem:
         return problem
+    for c in dom["constants"]:
+        if _contains_engine(c["value"]):
+            return "a constant requires a closed term without engine-tag literals"
+    for i in dom["implications"]:
+        if any(_contains_engine(term) for term in (i["if"], i["then"])):
+            return "an implication requires closed terms without engine-tag literals"
+    for term, constituent in tag_clauses:
+        if constituent and (term_reads_own_tags(term) or lit(term)):
+            return "a constituent tag clause introduces engine tags or reads its own tags"
+        if not constituent and lit(term):
+            return "an emission tag clause introduces engine tags"
     for r in dom["rules"]:
         if "instance" in r:
             continue
@@ -630,7 +639,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
             if kind == "string":
                 return "a string operand requires a literal or constant"
             if id(node) not in deferred and node["method"] == "split" and literal_string(node["args"][0]) == "":
-                return "split has an empty delimiter"
+                type_problem = type_problem or "split has an empty delimiter"
             pending.append(("recipe-method" if recipe else "term", node["receiver"], below, False, False))
             for arg in node["args"]:
                 if isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}, {"terminal"}, {"integer"}):
