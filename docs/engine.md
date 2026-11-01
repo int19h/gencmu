@@ -2551,6 +2551,10 @@ The reader reads only a constructor's parts, after wrapper flattening. A missing
 
 Each declaration's `at` records its first token's line and column, counted from 1. A constant reference instead records its own token position. Token forms follow §9.1. Semantic types and arities follow §10 and `docs/output.md`.
 
+A public document reader reports the document name on every error. A run-placement diagnostic names the actual tag or string run.
+
+Conversion errors from supplied notation trees carry no `ranked-choice-syntax` code. Recognition and malformed DOM inspection assign that code.
+
 | Constructor | Required parts and lookup order | DOM conversion |
 | --- | --- | --- |
 | The root | Declaration constructors in source order | Five ordered item arrays, including empty arrays. A known non-declaration part is an error. |
@@ -2784,6 +2788,8 @@ A tree from a bootstrap of another notation can also lack a part that a construc
   Otherwise, read header tags, value, and image clauses, in that order. Next, look up `body`, or require `headed-body` if `body` is absent, and read its alternatives. Trailing conditions and emission or erasure come last.
 - A `tested`: require at least one test, then look up tag and value tests in that order. Retain all tests in written order, including repeated kinds. Next look up its `primary`. Check the target and test order before reading the symbol, then read requirements and operands. A missing required part is reported when its lookup occurs.
 - A `capture`: the checks of its place (inside braces, inside an elidable optional), then its token and its `primary`. Then come the checks of `$` and of the name. Last come the one known part of the primary, the base-symbol check, and that symbol. For a tested target, inspect only its base primary. The `tested` constructor checks its tests.
+
+  If a tested target lacks its primary, report `the notation's tested has no primary` before inspecting its tests.
 - An `optional`: its `choice`, then its markers, then the form of an elidable optional, and then its content through the ordinary symbol-test rules. So an `optional` with two markers and no `choice` is an error at the `optional`.
 - A `repetition`: its `choice`s, then its markers, then the placement of a chain, and then the item and the separator. So a `repetition` with two markers and no `choice` is an error at the `repetition`.
 - A `group`: its `choice`, and then its content.
@@ -2820,6 +2826,8 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An elidable optional that is not of the form of §3.8 is an error, reported at its `[`. Before the reader drops groups, it makes sure that the notation tree meets this rule. The hand-written bootstrap reader builds the same tree, so it makes the same check. The `optional`'s `choice` must be one `conjunction` of one `sequence`, with no leading `|` before the conjunction and no leading `&` before the sequence. This is the one place where a leading separator is not allowed: `[+| KU]` and `[+& KU]` are errors. A choice in parentheses later in the optional can still begin with `|`, as in `[+KU (| A | B)]`.
 
   The first `primary` of that sequence must be the terminal itself or a declared parameter. A written terminal is a `reference` whose name begins with `A` to `Z`, or a `tag`. It can also be a `tested` whose primary is that tag or parameter with an existing symbol-test comparator. So a `group` there is an error, even of one terminal or around the whole content.
+
+  A tested head without a primary fails this form before the reader inspects its contents.
 
   `[+(KU) 🆓]`, `[+((KU)) 🆓]`, `[+(KU 🆓)]` and `[+(KU 🆓) A]` are errors. So are a choice, an `and`, a rule, `🆓`, a string terminal or wildcard in first place. The same holds for a range, an engine tag, `ε`, braces and an optional.
 
@@ -2915,7 +2923,11 @@ Feature conditions receive syntax and DOM-shape analysis before stitching. Their
 
 A template first undergoes binder and syntax analysis (§2.3). Every source, cached, or supplied template receives all checks that do not depend on an argument. Uncalled templates receive the same checks. Unresolved symbols introduce no caller-visible captures. Unresolved terms have an unknown type during these checks. Argument-dependent requirements apply after substitution to every expanded definition.
 
+A template's parameters have scope only within that declaration. Each top-level declaration starts with an empty parameter scope.
+
 Constant binding, applicable type inspection, and bound-value inspection include every template definition, even when no call uses it. A value that depends on a parameter waits for substitution. Independent operands still receive inspection. Pattern calls and parameters retain inspection of their attached children, after any call arguments. This inspection creates no instance and no audit entry.
+
+A fault that the known operands already decide is immediate, even beside an unresolved operand. The reader reports it at its construct. Only a fault that depends on the unresolved operand waits for substitution.
 
 Definition errors retain their specific reason, including capture names, in every validation path. Type faults discovered after argument substitution retain their specific reason too. A call argument that reads or declares a capture reports "an argument cannot read or declare captures". When a diagnostic names a method, it uses the method's source spelling. A tag-set diagnostic directs the author to `$x.tags`.
 
