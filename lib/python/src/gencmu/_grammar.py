@@ -21,7 +21,8 @@ from ._tags import (
     ngrams,
 )
 from ._trampoline import Walk, run
-from ._patterns import empty_pattern, walk_pattern, pattern_depth_problem
+from ._patterns import empty_pattern, walk_pattern, pattern_depth_problem, pattern_parts
+from ._template_nodes import has_unresolved
 from ._ranked import RankedGroups, reads
 from ._types import (
     TermType,
@@ -272,6 +273,7 @@ class _Constants:
         # checks once the constants have their final values.
         self.users: list[tuple[str, Dom]] = []
         self.deferred_emissions = []
+        self.template_deferred = []
         self.arguments = {}
 
     def type_of(self, name: str) -> TermType:
@@ -573,26 +575,62 @@ class _Constants:
         if result.problem is not None:
             raise _error(result.problem.message, path, rule["at"], self.stage)
         if result.deferred is not None:
-            self.deferred_emissions.append(_error(result.deferred.message, path, rule["at"], self.stage))
+            deferred = self.template_deferred if rule.get("params") else self.deferred_emissions
+            deferred.append(_error(result.deferred.message, path, rule["at"], self.stage))
 
     def check_value_uses(self, path: str, root: Any, at: Any, *, computed: bool = False) -> None:
         """Inspect bound values through one written-order clause walk."""
         for node, pattern in _value_parts(root):
             if pattern or "pattern" in node:
-                run(self._closed(path, node, at, "pattern" if pattern else "any"))
+                self.check_pattern_uses(path, node, at)
             if "range" in node:
-                ends = [run(self._closed(path, end, at)) for end in node["range"]]
-                for index, end in enumerate(ends):
-                    if len(end) != 1:
-                        raise self.fault_error(path, node["range"][index], at, "a range endpoint is one scalar")
-                if ends[0] > ends[1]:
-                    raise self.fault_error(path, node["range"], at, "a range starts above its end")
+                self.check_range_uses(path, node["range"], at)
             if node.get("method") == "split":
                 delimiter = node["args"][0]
                 if not computed and "string" not in delimiter and "const" not in delimiter:
                     continue
                 if open_part(delimiter) is None and run(self._closed(path, delimiter, at)) == "":
                     raise self.fault_error(path, delimiter, at, "split has an empty delimiter")
+
+    def check_range_uses(self, path: str, terms: list[Dom], at: Any) -> None:
+        ends: list[Any] = [None if has_unresolved(term) else run(self._closed(path, term, at)) for term in terms]
+        for index, end in enumerate(ends):
+            if end is not None and len(end) != 1:
+                raise self.fault_error(path, terms[index], at, "a range endpoint is one scalar")
+        if all(end is not None for end in ends) and ends[0] > ends[1]:
+            raise self.fault_error(path, terms, at, "a range starts above its end")
+
+    def check_pattern_uses(self, path: str, root: Dom, at: Any) -> None:
+        if not has_unresolved(root):
+            run(self._closed(path, root, at, "pattern"))
+            return
+        depth = pattern_depth_problem(root, lambda name: self.values[name].value)
+        if depth:
+            raise _error("nested too deeply", path, depth[0] or at, self.stage)
+        pending = [(root, "term")]
+        while pending:
+            node, kind = pending.pop()
+            if kind == "value":
+                self.check_value_uses(path, node, at)
+            elif not has_unresolved(node):
+                run(self._closed(path, {"pattern": node} if kind == "pattern" else node, at, "pattern"))
+            elif "param" in node:
+                continue
+            elif "call" in node:
+                self.check_value_uses(path, node["args"], at)
+            elif kind == "term":
+                if "pattern" in node:
+                    pending.append((node["pattern"], "pattern"))
+                else:
+                    for key in ("union", "intersection", "difference"):
+                        pending.extend((child, "term") for child in reversed(node.get(key, [])))
+            else:
+                if "range" in node:
+                    self.check_range_uses(path, node["range"], at)
+                if "test" in node:
+                    values = [r["value"] for r in node["requirements"]] if node["test"] == "tags" else node["value"]
+                    pending.append((values, "value"))
+                pending.extend((child, "pattern") for child in reversed(pattern_parts(node)))
 
     def test(self, path: str, test: Dom, at: Any) -> SymbolTest:
         """A test of a body with its value, from the constants' final
@@ -632,12 +670,12 @@ class _Constants:
             return items
         if not isinstance(node, dict):
             return node
-        if "pattern" in node or any(key in node for key in ("union", "intersection", "difference")) and self._is_pattern(node):
+        if ("pattern" in node or any(key in node for key in ("union", "intersection", "difference")) and self._is_pattern(node)) and not has_unresolved(node):
             return (yield self._closed("", node, None))
         if isinstance(node.get("const"), str):
             constant = self.values[node["const"]]
             return constant.value if constant.type == "pattern" else {"string": constant.value} if constant.type == "string" else {"const": node["const"], "at": node["at"], "value": constant.value}
-        if node.get("op") in ("≅", "≇"):
+        if node.get("op") in ("≅", "≇") and not has_unresolved(node["right"]):
             return {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
         copy: dict[str, Any] = {}
         for key, value in node.items():
@@ -730,6 +768,14 @@ def _value_parts(root: Any):
             continue
         if "alternatives" in node:
             keys = ("tags", "value", "image", "alternatives", "conditions", "emit")
+        elif "call" in node:
+            keys = ("args",)
+        elif "body" in node:
+            keys = ("body",)
+        elif "targets" in node:
+            keys = ("targets",)
+        elif "requirements" in node and "expr" not in node:
+            keys = ("requirements",)
         elif "expr" in node:
             keys = ("expr", "requirements", "tags", "value", "image")
         elif "method" in node:
@@ -758,13 +804,6 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     controls canonical terminal spellings in diagnostics."""
     from ._templates import expand_templates
     from ._ranked import expression_locations
-    pending_templates = []
-    for path, dom in documents:
-        for rule in dom["rules"]:
-            if rule.get("params"):
-                issue = check_definition(rule, True).deferred
-                if issue is not None:
-                    pending_templates.append((path, rule["at"], issue))
     documents, template_order, _, validation, arguments_to_check = expand_templates(documents, unicode)
     rules: dict[str, Rule] = {}
     written_alternatives: list[Alternative] = []
@@ -881,7 +920,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     if template_order is not None:
         rules = {name: rules[name] for name in template_order}
     for event in validation:
-        if constants_in(event["rule"]) or _rule_has_pattern(event["rule"]) or (event["path"], tuple(event["rule"]["at"])) in constants.arguments:
+        if event["rule"].get("params") or constants_in(event["rule"]) or _rule_has_pattern(event["rule"]) or (event["path"], tuple(event["rule"]["at"])) in constants.arguments:
             constants.users.append((event["path"],event["rule"]))
             checks.append((event["path"],"rule",event["rule"]))
     constants.bind()
@@ -1007,9 +1046,8 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         grammar.ranked.validate_tags()
     if constants.deferred_emissions:
         raise constants.deferred_emissions[0]
-    if pending_templates:
-        path, at, issue = pending_templates[0]
-        raise _error(issue.message, path, at, stage)
+    if constants.template_deferred:
+        raise constants.template_deferred[0]
     from ._recipes import cycle
     retained = {id(alternative) for rule in rules.values() for alternative in rule.alternatives}
     for alternative in written_alternatives:
