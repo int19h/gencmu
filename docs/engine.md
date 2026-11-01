@@ -2872,7 +2872,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   The reader flattens nested `union`, `all`, `any`, and `concat` nodes throughout the document before measuring depth. This includes conditions, guards, directive conditions, and call arguments.
 
-  Pattern reference and type walks share one written-order traversal with an explicit stack before depth validation. Range inspection uses that traversal too. A reference walk gathers user and engine references together.
+  Pattern reference and type walks share one written-order traversal with an explicit stack before depth validation. Range inspection uses that traversal too. Within one pattern, the first invalid range in written order determines the error. A reference walk gathers user and engine references together.
 
   Pattern intersections also flatten before depth validation. Term intersections retain their written nesting until type resolution.
 

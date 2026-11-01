@@ -1,0 +1,13 @@
+{
+  "description": "An earlier wide endpoint takes priority over a later descending range.",
+  "grammar": "%const $A \"ab\"\n%const $C \"b\"\n%const $D \"a\"\n%const $P #($A..$A ∖ $C..$D)\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 6,
+      "column": 13
+    }
+  }
+}
