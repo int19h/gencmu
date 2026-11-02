@@ -36,7 +36,7 @@ import { quotedTextProblems } from "./quoted-texts.js";
 import { proseLineProblems } from "./prose-lines.js";
 import { repositoryCllFootnoteProblems } from "./cll-footnotes.js";
 import { markdownFiles, repositoryFiles } from "./documents.js";
-import { corpusShapeProblems, mutantShapeProblems } from "./corpus-shape.js";
+import { fixtureShapeProblems } from "./check-fixtures.js";
 import { missing as parserMissing } from "./markdown.js";
 import { DIAGRAMS, documentLines, elisionOutcomes, ownedLines, withDiagrams } from "./railroad.js";
 import { browserModule } from "./bundle-imports.js";
@@ -88,11 +88,9 @@ if (unlisted.length) {
   process.exit(1);
 }
 
-// Every corpus case and result mutant has the shape of tests/README.md
-// ("Corpus cases", "Result mutants"), so the runners of the four libraries
-// never see a field that they would read in different ways
-// (tools/corpus-shape.js).
-const misshapen = [...corpusShapeProblems(root), ...mutantShapeProblems(root)];
+// Inspect all shared fixture controls before generation. Library readers
+// rely on this contract, even when they bypass the main case runners.
+const misshapen = fixtureShapeProblems(root);
 if (misshapen.length) {
   console.error(misshapen.join("\n"));
   process.exit(1);
