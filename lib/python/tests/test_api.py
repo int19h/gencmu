@@ -414,6 +414,12 @@ class Options(unittest.TestCase):
 
 
 class Output(unittest.TestCase):
+    def test_parse_result_exposes_only_documented_fields(self) -> None:
+        result = gencmu.load_pipeline_sources(SOURCES, "pipeline.md").parse("mi", until="words")
+        self.assertTrue(result.ok, result.error)
+        self.assertEqual({name for name in vars(result) if not name.startswith("_")},
+                         {"ok", "stages", "tree", "error", "warnings", "features"})
+
     def test_canonical_json(self) -> None:
         pipeline = gencmu.load_pipeline_sources(SOURCES, "pipeline.md")
         result = pipeline.parse("mi", until="words")

@@ -841,7 +841,7 @@ class Pipeline:
                             if conditional:
                                 failure = ParseError("feature-conflict", f"the {grammar.stage} stage requires disabled feature {feature}", stage=grammar.stage, feature=feature)
                                 stages.append(Stage(grammar.stage, None, current))
-                                return ParseResult(False, stages, None, failure, text, warnings, features=sorted(features))
+                                return ParseResult(False, stages, None, failure, warnings=warnings, features=sorted(features))
                         else:
                             features = features | {feature}
                 lowered = self._lowered_grammar(number, features)
@@ -850,7 +850,7 @@ class Pipeline:
                 # is a result, with its stage and no position (engine §13).
                 failure = ParseError("grammar", error.message, stage=grammar.stage)
                 stages.append(Stage(grammar.stage, None, current))
-                return ParseResult(False, stages, None, failure, text, warnings, features=sorted(features))
+                return ParseResult(False, stages, None, failure, warnings=warnings, features=sorted(features))
 
             runner = StageRunner(grammar.stage, lowered, current, text, self._unicode, features=features)
             check = grammar.elision_only if elision_only is None else elision_only
@@ -866,10 +866,10 @@ class Pipeline:
             stages.append(stage)
             warnings.extend(outcome.warnings)
             if outcome.error is not None:
-                return ParseResult(False, stages, None, outcome.error, text, warnings, features=sorted(features))
+                return ParseResult(False, stages, None, outcome.error, warnings=warnings, features=sorted(features))
             assert outcome.output is not None
             current = outcome.output
-        return ParseResult(True, stages, stages[-1].tree if stages else None, None, text, warnings, features=sorted(features))
+        return ParseResult(True, stages, stages[-1].tree if stages else None, None, warnings=warnings, features=sorted(features))
 
 
 def read_document(text: str, path: str = "document.md", *, sources: Mapping[str, str] | None = None) -> Dom:

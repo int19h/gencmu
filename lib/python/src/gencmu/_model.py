@@ -285,7 +285,6 @@ class ParseResult:
     stages: list[Stage]
     tree: Node | None
     error: ParseError | None
-    text: str = ""
     warnings: list[ParseWarning] = field(default_factory=list)
     features: list[str] = field(default_factory=list)
 
