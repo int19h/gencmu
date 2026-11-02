@@ -1051,3 +1051,40 @@ fn canonical_results_refuse_raw_newlines_in_strings() {
     let accepted = parse_json(&malformed).and_then(|actual| common::check_json(&expectation, &actual));
     assert!(accepted.is_err(), "the runner accepted malformed canonical output");
 }
+
+#[test]
+fn runtime_message_expectations_use_structured_locations() {
+    let reason = "an item of braces in text can match no tokens";
+    let simple = parse_json(r#"{"grammar":"%rule text {ε}","input":"","expect":{"error":"grammar"}}"#).unwrap();
+    let colon = parse_json(r#"{"documents":{"p.md":"```jbogenbau\n%stage main\n%include \"g:7: part.md\"\n```\n","g:7: part.md":"```jbogenbau\n%ambiguity-resolution greedy\n%rule text {ε}\n```\n"},"pipelineDocument":"p.md","input":"","expect":{"error":"grammar"}}"#).unwrap();
+    let mut problems = Vec::new();
+    for (case, document) in [(simple, "main.md"), (colon, "g:7: part.md")] {
+        let public_message = format!("{document}:3:1: {reason}");
+        let before = common::engine_case_result(&case);
+        assert_eq!(
+            before.get("error").unwrap().get("message").and_then(common::Value::str),
+            Some(public_message.as_str())
+        );
+        for (message, accepted) in [(reason, true), (public_message.as_str(), false), ("a different reason", false)] {
+            let changed = common::apply_mutant(
+                &case,
+                &common::Value::Object(vec![
+                    (
+                        "path".into(),
+                        common::Value::Array(vec![
+                            common::Value::String("expect".into()),
+                            common::Value::String("message".into()),
+                        ]),
+                    ),
+                    ("set".into(), common::Value::String(message.into())),
+                ]),
+            );
+            if run_engine_case(&changed).is_ok() != accepted {
+                problems.push(format!("{document}: wrong outcome for {message:?}"));
+            }
+        }
+        let after = common::engine_case_result(&case);
+        assert_eq!(before, after, "the runner changed the public result");
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}

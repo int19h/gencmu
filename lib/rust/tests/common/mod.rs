@@ -947,6 +947,19 @@ pub fn check_json(expect: &Value, actual: &Value) -> Result<String, String> {
     Ok(problems)
 }
 
+/// Removes only the location supplied by the matching structured diagnostic.
+fn runtime_reason<'a>(message: &'a str, diagnostics: &[gencmu::Error]) -> &'a str {
+    for error in diagnostics.iter().filter(|error| error.message == message) {
+        if let (Some(document), Some(line), Some(column)) = (&error.document, error.line, error.column) {
+            let prefix = format!("{document}:{line}:{column}: ");
+            if let Some(reason) = message.strip_prefix(&prefix) {
+                return reason;
+            }
+        }
+    }
+    message
+}
+
 /// Parses a case's input with the options of `run`, the case itself or one
 /// item of its `parses`, and holds the result to `expect`.
 fn check_parse(pipeline: &gencmu::Pipeline, case: &Value, run: &Value, expect: &Value) -> Result<(), String> {
@@ -967,9 +980,11 @@ fn check_parse(pipeline: &gencmu::Pipeline, case: &Value, run: &Value, expect: &
     let options = case_options(run);
     // Every check of elision-only that runs must keep its witness
     // (tests/README.md).
-    let (parsed, checks) = gencmu::tools::with_elision_checks(|| match case_tokens(case) {
-        Some(tokens) => pipeline.parse_tokens(&tokens, &options),
-        None => pipeline.parse(case.get("input").and_then(Value::str).unwrap_or(""), &options),
+    let ((parsed, checks), diagnostics) = gencmu::tools::with_runtime_grammar_errors(|| {
+        gencmu::tools::with_elision_checks(|| match case_tokens(case) {
+            Some(tokens) => pipeline.parse_tokens(&tokens, &options),
+            None => pipeline.parse(case.get("input").and_then(Value::str).unwrap_or(""), &options),
+        })
     });
     let result = match parsed {
         Ok(result) => result,
@@ -1013,7 +1028,12 @@ fn check_parse(pipeline: &gencmu::Pipeline, case: &Value, run: &Value, expect: &
         if result.error.as_ref().map_or(true, |error| error.kind != gencmu::ParseErrorKind::Grammar) {
             return Err("expect.message applies only to a grammar error".into());
         }
-        if actual.get("error").and_then(|error| error.get("message")).and_then(Value::str) != Some(message) {
+        let reason = actual
+            .get("error")
+            .and_then(|error| error.get("message"))
+            .and_then(Value::str)
+            .map(|message| runtime_reason(message, &diagnostics));
+        if reason != Some(message) {
             let _ = writeln!(problems, "expected runtime error reason {message:?}");
         }
     }

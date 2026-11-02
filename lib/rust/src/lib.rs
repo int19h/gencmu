@@ -101,6 +101,8 @@ pub mod tools {
         bootstrap_hash, check_dom, check_dom_with_unicode, read_grammar_document, splice_bundled_pipeline,
     };
     #[doc(hidden)]
+    pub use crate::pipeline::with_runtime_grammar_errors;
+    #[doc(hidden)]
     pub use crate::restoration::family::with_family_conformance;
     pub use crate::slot_stats::{with_slot_statistics, BoundarySplit, SlotStatistics};
 
