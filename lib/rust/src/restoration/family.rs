@@ -439,22 +439,18 @@ mod tests {
     }
 
     #[test]
-    fn family_oracle_ignores_process_environment() {
-        let name = "GENCMU_FAMILY_CONFORMANCE";
-        let prior = std::env::var_os(name);
-        std::env::set_var(name, "1");
+    fn family_oracle_requires_explicit_hook() {
         let mut family = Families::default();
         family.enable_oracle();
-        match prior {
-            Some(value) => std::env::set_var(name, value),
-            None => std::env::remove_var(name),
-        }
-        assert!(family.oracle.is_none(), "the process environment enabled a test oracle");
+        assert!(family.oracle.is_none(), "the oracle needs an explicit test hook");
         with_family_conformance(|| {
             let mut family = Families::default();
             family.enable_oracle();
             assert!(family.oracle.is_some(), "the explicit test hook did not enable the oracle");
         });
+        let mut family = Families::default();
+        family.enable_oracle();
+        assert!(family.oracle.is_none(), "the hook did not restore the thread-local switch");
     }
 
     #[test]

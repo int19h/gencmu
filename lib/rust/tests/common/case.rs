@@ -221,26 +221,36 @@ fn token_list(value: &Value, usage: bool) -> R {
 }
 
 pub fn engine(value: &Value) -> R {
-    fields(
-        value,
-        "case",
-        &[
-            ("description", Text),
-            ("name", Text),
-            ("grammar", Text),
-            ("pipeline", Text),
-            ("documents", Object),
-            ("pipelineDocument", Text),
-            ("input", Text),
-            // Invalid caller-token fields belong to usage cases. Rust's
-            // typed API records its unsupported fields separately.
-            ("tokens", Any),
-            ("options", Object),
-            ("expect", Object),
-            ("parses", Array),
-            ("treeRendering", Object),
-        ],
-    )?;
+    engine_case(value, false)
+}
+
+pub fn parameter(value: &Value) -> R {
+    engine_case(value, true)
+}
+
+fn engine_case(value: &Value, parameter_case: bool) -> R {
+    let mut members = vec![
+        ("description", Text),
+        ("grammar", Text),
+        ("pipeline", Text),
+        ("documents", Object),
+        ("pipelineDocument", Text),
+        ("input", Text),
+        // Invalid caller-token fields belong to usage cases. Rust's
+        // typed API records its unsupported fields separately.
+        ("tokens", Any),
+        ("options", Object),
+        ("expect", Object),
+        ("parses", Array),
+        ("treeRendering", Object),
+    ];
+    if parameter_case {
+        members.push(("name", Text));
+    }
+    fields(value, "case", &members)?;
+    if parameter_case {
+        required(value, "name", "parameter case")?;
+    }
     if let Some(tokens) = value.get("tokens") {
         let usage = value.get("expect").and_then(|e| e.get("error")).and_then(Value::str) == Some("usage")
             || value.get("parses").is_some_and(|runs| {
