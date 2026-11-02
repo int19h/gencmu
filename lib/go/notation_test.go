@@ -979,7 +979,7 @@ func TestPropertyWrapperFromSuppliedBootstrap(t *testing.T) {
 			}
 		}
 		dom["rules"] = append(dom["rules"].([]any), map[string]any{
-			"name": "property", "op": "define", "flags": []any{},
+			"name": "property", "op": "define", "categories": []any{},
 			"alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"ref": "string-terminal"}}},
 			"conditions":   []any{}, "at": []any{1, 1},
 		})
@@ -1007,7 +1007,7 @@ func TestEmptyGuardWrapperValidation(t *testing.T) {
 			}
 		}
 		if path == "grammars/gencmu/jbogenbau/syntax.md" {
-			dom["rules"] = append(dom["rules"].([]any), map[string]any{"name": "padding", "op": "define", "flags": []any{}, "alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"empty": true}}}, "conditions": []any{}, "at": []any{1, 1}})
+			dom["rules"] = append(dom["rules"].([]any), map[string]any{"name": "padding", "op": "define", "categories": []any{}, "alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"empty": true}}}, "conditions": []any{}, "at": []any{1, 1}})
 		}
 	})
 	for _, c := range []struct {

@@ -14989,7 +14989,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "conditions": [],
       "at": [
         1,
@@ -15027,7 +15027,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "conditions": [],
       "at": [
         1,
@@ -15058,7 +15058,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "conditions": [],
       "at": [
         1,
@@ -15095,7 +15095,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "conditions": [],
       "at": [
         1,
@@ -15126,7 +15126,7 @@
     "rule": {
       "name": "Upper",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15148,7 +15148,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15171,7 +15171,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15194,7 +15194,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15219,7 +15219,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [
@@ -15247,7 +15247,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [
@@ -15275,7 +15275,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15308,7 +15308,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15341,7 +15341,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15374,7 +15374,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15399,7 +15399,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15425,7 +15425,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15453,7 +15453,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15478,7 +15478,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15553,7 +15553,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15575,7 +15575,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15597,7 +15597,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15619,7 +15619,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15645,7 +15645,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15675,7 +15675,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15705,7 +15705,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15735,7 +15735,7 @@
         "X"
       ],
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15781,7 +15781,7 @@
         "X"
       ],
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15835,7 +15835,7 @@
         "X"
       ],
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15877,7 +15877,7 @@
         "X"
       ],
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15923,7 +15923,7 @@
         "X"
       ],
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -15973,7 +15973,7 @@
         "X"
       ],
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16014,7 +16014,7 @@
         "X"
       ],
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16053,7 +16053,7 @@
         "X"
       ],
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16099,7 +16099,7 @@
         "X"
       ],
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16143,7 +16143,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16198,7 +16198,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16246,7 +16246,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16302,7 +16302,7 @@
     "rule": {
       "name": "unit",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16325,7 +16325,7 @@
     "rule": {
       "name": "unit",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16348,7 +16348,7 @@
     "rule": {
       "name": "unit",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16374,7 +16374,7 @@
     "rule": {
       "name": "unit",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16400,7 +16400,7 @@
     "rule": {
       "name": "unit",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16430,7 +16430,7 @@
     "rule": {
       "name": "unit",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16460,7 +16460,7 @@
     "rule": {
       "name": "unit",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16493,7 +16493,7 @@
     "rule": {
       "name": "unit",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16526,7 +16526,7 @@
     "rule": {
       "name": "unit",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16562,7 +16562,7 @@
     "rule": {
       "name": "unit",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16598,7 +16598,7 @@
     "rule": {
       "name": "unit",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16638,7 +16638,7 @@
     "rule": {
       "name": "unit",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16678,7 +16678,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16714,7 +16714,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16744,7 +16744,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16774,7 +16774,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16826,7 +16826,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16865,7 +16865,7 @@
   {
     "description": "A DOM envelope refuses unknown members.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -16878,7 +16878,7 @@
   {
     "description": "An empty complete DOM envelope is valid.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -16892,7 +16892,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16935,7 +16935,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16957,7 +16957,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16979,7 +16979,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -16999,12 +16999,12 @@
   {
     "description": "Unsafe coordinates do not produce a duplicate-position problem.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [
         {
           "name": "text",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -17022,7 +17022,7 @@
         {
           "name": "other",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -17051,7 +17051,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -17080,7 +17080,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -17118,7 +17118,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -17168,12 +17168,12 @@
   {
     "description": "An earlier malformed directive precedes excessive rule depth.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [
         {
           "name": "text",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -17727,7 +17727,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "tags": {
         "method": "tags",
         "receiver": {
@@ -17761,7 +17761,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -17812,7 +17812,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -17848,7 +17848,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -17888,7 +17888,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -17924,7 +17924,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -17967,7 +17967,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18022,7 +18022,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18082,7 +18082,7 @@
   {
     "description": "Ranked argument shape errors precede engine tags in constants.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [],
       "directives": [],
       "constants": [
@@ -18129,7 +18129,7 @@
   {
     "description": "Ranked argument shape errors precede engine tags in implications.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -18179,7 +18179,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18209,7 +18209,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18235,7 +18235,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18268,7 +18268,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18311,7 +18311,7 @@
   {
     "description": "Well-shaped constants still refuse engine-tag literals.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [],
       "directives": [],
       "constants": [
@@ -18335,7 +18335,7 @@
   {
     "description": "Well-shaped implications still refuse engine-tag literals.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -18362,7 +18362,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18392,7 +18392,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18422,7 +18422,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18471,7 +18471,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18520,7 +18520,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18586,7 +18586,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18652,7 +18652,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18692,7 +18692,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18768,7 +18768,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18838,7 +18838,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18911,7 +18911,7 @@
         "X"
       ],
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18947,7 +18947,7 @@
         "X"
       ],
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -18983,7 +18983,7 @@
         "X"
       ],
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19019,7 +19019,7 @@
         "X"
       ],
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19052,7 +19052,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19095,7 +19095,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19151,7 +19151,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19214,7 +19214,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19264,7 +19264,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19301,7 +19301,7 @@
   {
     "description": "Ranked argument shape errors precede a non-closed constant term.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [],
       "directives": [],
       "constants": [
@@ -19346,7 +19346,7 @@
   {
     "description": "A well-shaped constant still refuses a non-closed term.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [],
       "directives": [],
       "constants": [
@@ -19386,7 +19386,7 @@
   {
     "description": "Ranked argument shape errors precede a non-closed implication term.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19432,7 +19432,7 @@
   {
     "description": "A well-shaped implication still refuses a non-closed term.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19475,7 +19475,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19508,7 +19508,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19541,7 +19541,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19574,7 +19574,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19607,7 +19607,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19640,7 +19640,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19673,7 +19673,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19706,7 +19706,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19739,7 +19739,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19772,7 +19772,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19805,7 +19805,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19832,7 +19832,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19861,7 +19861,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19890,7 +19890,7 @@
     "rule": {
       "name": "text",
       "op": "define",
-      "flags": [],
+      "categories": [],
       "alternatives": [
         {
           "guards": [],
@@ -19917,7 +19917,7 @@
   {
     "description": "An implication checks then-side closedness before its capture type.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19943,7 +19943,7 @@
   {
     "description": "An implication checks if-side closedness before its capture type.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19969,12 +19969,12 @@
   {
     "description": "An earlier rule type fault precedes a later constant closedness fault.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [
         {
           "name": "extra",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20016,12 +20016,12 @@
   {
     "description": "An earlier constant closedness fault precedes a later rule type fault.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [
         {
           "name": "extra",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20063,12 +20063,12 @@
   {
     "description": "An earlier rule type fault precedes a later implication closedness fault.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [
         {
           "name": "extra",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20111,12 +20111,12 @@
   {
     "description": "An earlier implication closedness fault precedes a later rule type fault.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [
         {
           "name": "extra",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20159,12 +20159,12 @@
   {
     "description": "An earlier rule type fault precedes a later split delimiter fault in a supplied lexical DOM.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [
         {
           "name": "text",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20195,7 +20195,7 @@
         {
           "name": "piece",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20303,7 +20303,7 @@
         {
           "name": "emoji-name",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20360,7 +20360,7 @@
         {
           "name": "word",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20454,7 +20454,7 @@
         {
           "name": "whole-name",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20490,7 +20490,7 @@
         {
           "name": "name",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20521,7 +20521,7 @@
         {
           "name": "name-character",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20561,7 +20561,7 @@
         {
           "name": "letter",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20599,7 +20599,7 @@
         {
           "name": "digit",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20624,7 +20624,7 @@
         {
           "name": "integer",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20665,7 +20665,7 @@
         {
           "name": "lower-name",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20703,7 +20703,7 @@
         {
           "name": "upper-name",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20741,7 +20741,7 @@
         {
           "name": "engine-tag",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20798,7 +20798,7 @@
         {
           "name": "engine-name",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20829,7 +20829,7 @@
         {
           "name": "engine-name-part",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20867,7 +20867,7 @@
         {
           "name": "engine-digit-dot",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20910,7 +20910,7 @@
         {
           "name": "call-name",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -20971,7 +20971,7 @@
         {
           "name": "call-open",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21009,7 +21009,7 @@
         {
           "name": "star-character",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21029,7 +21029,7 @@
         {
           "name": "parameter-token",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21066,7 +21066,7 @@
         {
           "name": "capture-token",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21132,7 +21132,7 @@
         {
           "name": "constant-token",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21187,7 +21187,7 @@
         {
           "name": "guard",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21246,7 +21246,7 @@
         {
           "name": "feature-name",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21277,7 +21277,7 @@
         {
           "name": "feature-character",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21309,7 +21309,7 @@
         {
           "name": "negation",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21350,7 +21350,7 @@
         {
           "name": "string",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21396,7 +21396,7 @@
         {
           "name": "ordinary-string-character",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21434,7 +21434,7 @@
         {
           "name": "include",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21486,7 +21486,7 @@
         {
           "name": "names",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21538,7 +21538,7 @@
         {
           "name": "include-tail",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21565,7 +21565,7 @@
         {
           "name": "include-keyword",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21598,7 +21598,7 @@
         {
           "name": "names-keyword",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21631,7 +21631,7 @@
         {
           "name": "include-path",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21667,7 +21667,7 @@
         {
           "name": "layout-run",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21698,7 +21698,7 @@
         {
           "name": "layout",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21722,7 +21722,7 @@
         {
           "name": "comment",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21766,7 +21766,7 @@
         {
           "name": "comment-part",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21837,7 +21837,7 @@
         {
           "name": "stars",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -21872,7 +21872,7 @@
         {
           "name": "keyword",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -22388,7 +22388,7 @@
         {
           "name": "symbol",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -22838,7 +22838,7 @@
         {
           "name": "extra",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -22962,12 +22962,12 @@
   {
     "description": "An earlier split delimiter fault precedes a later rule type fault.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [
         {
           "name": "extra",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -23017,12 +23017,12 @@
   {
     "description": "An earlier rule type fault precedes a split delimiter fault in a later rule.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [
         {
           "name": "extra",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -23043,7 +23043,7 @@
         {
           "name": "later",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -23088,12 +23088,12 @@
   {
     "description": "An earlier rule type fault precedes a split delimiter fault in a later implication.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [
         {
           "name": "extra",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -23144,12 +23144,12 @@
   {
     "description": "A later ranked shape error precedes an earlier split delimiter fault.",
     "dom": {
-      "format": 40,
+      "format": 42,
       "rules": [
         {
           "name": "later",
           "op": "define",
-          "flags": [],
+          "categories": [],
           "alternatives": [
             {
               "guards": [],

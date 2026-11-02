@@ -669,9 +669,9 @@ CLL's own rule is narrower. It says only that a terminator can be elided if no a
 
 The check runs after `resolved`, even when the chosen tree elides nothing. It also runs after `unique` when the chosen tree holds an elided node.
 
-The initial search stops at the first elided node. The check walks the chosen derivation for a rule profile only when some production has a rule flag. It follows these steps:
+The initial search stops at the first elided node. The check walks the chosen derivation for a profile only when a key step can count an occurrence. It follows these steps:
 
-1. Take the chosen tree's `elided` nodes in leaf order, from left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries the tag of that terminator and, for a terminator with an `=` test, the test's string as its recognition value. The engine marks it synthetic.
+1. Take the chosen tree's `elided` nodes in leaf order, from left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries the terminator's tag. Its recognition value is the default value. The engine marks it synthetic.
 2. Parse the token sequence with the same grammar. Use a mode where each elidable optional is restored or written. Every condition, tag and test of a rule reads the original input through a projection that leaves the synthetic tokens out. A test on a terminal reads the written-back terminator's tag and recognition value. A query parses the original input with the grammar as it is.
 3. Locate the chosen reconstruction before filtering. Its absence gives `elision-witness-lost`. Filter the reconstructed forest, then rank by projected profiles without a lean. The check passes only when the witness remains admitted and is the sole best admitted derivation.
 
@@ -954,7 +954,7 @@ Twin instances use the same template. Corresponding arguments must be identical 
 
 Events follow source order and record `scope`, `op`, `document`, `line`, `column`, `categoriesBefore`, and `categoriesAfter`. Scope is `template` or `instance`. Replaced events remain in the list. `categories` gives the final effective categories. The printed report shows the same facts and names public bindings without implying wrapper rules.
 
-Printed template and family calls include their source locations. Printed instances include canonical arguments and final flags. An empty flag list prints as `none`. The audit reuses structural indexes across queries and family members.
+Printed template and family calls include their source locations. Printed instances include canonical arguments and final categories. An empty category list prints as `none`. The audit reuses structural indexes across queries and family members.
 
 The audit also reports these boundary notes:
 

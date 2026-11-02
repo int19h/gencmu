@@ -237,8 +237,8 @@
     },
     {
       "description": "Bootstrap refuses a 400-digit integer in its raw DOM (engine §9.3 and output.md)",
-      "find": "\"dom\":{\"format\":40",
-      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":40",
+      "find": "\"dom\":{\"format\":42",
+      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":42",
       "loads": false,
       "rustLoads": false,
       "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
@@ -283,35 +283,15 @@
     },
     {
       "description": "Bootstrap rejects a leading-zero integer.",
-      "find": "\"format\":40",
-      "replace": "\"format\":040",
+      "find": "\"format\":42",
+      "replace": "\"format\":042",
       "loads": false
     },
     {
       "description": "Bootstrap rejects a signed hexadecimal escape.",
-      "find": "\"format\":40",
+      "find": "\"format\":42",
       "replace": "\"form\\u+061t\":40",
       "loads": false
-    },
-    {
-      "description": "Bootstrap ignores preceding Rules",
-      "find": "\"rules\":",
-      "replace": "\"Rules\":null,\"rules\":",
-      "loads": true
-    },
-    {
-      "description": "Bootstrap ignores following Rules",
-      "find": "\"rules\":[]",
-      "replace": "\"rules\":[],\"Rules\":null",
-      "loads": true
-    },
-    {
-      "description": "Bootstrap ignores a 400-digit integer in its raw DOM (engine §9.3 and output.md)",
-      "find": "\"dom\":{\"format\":42",
-      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":42",
-      "loads": true,
-      "rustLoads": false,
-      "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
     }
   ],
   "preparsed": [
@@ -473,14 +453,14 @@
     },
     {
       "description": "Preparsed cache refuses preceding Format at DOM format (engine §9.3 and output.md)",
-      "find": "\"dom\":{\"format\":40",
-      "replace": "\"dom\":{\"Format\":0,\"format\":40",
+      "find": "\"dom\":{\"format\":42",
+      "replace": "\"dom\":{\"Format\":0,\"format\":42",
       "cached": false
     },
     {
       "description": "Preparsed cache refuses following Format at DOM format (engine §9.3 and output.md)",
-      "find": "\"dom\":{\"format\":40",
-      "replace": "\"dom\":{\"format\":40,\"Format\":0",
+      "find": "\"dom\":{\"format\":42",
+      "replace": "\"dom\":{\"format\":42,\"Format\":0",
       "cached": false
     },
     {
@@ -503,14 +483,14 @@
     },
     {
       "description": "Preparsed cache refuses preceding Rules at DOM rules (engine §9.3 and output.md)",
-      "find": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}]",
-      "replace": "\"Rules\":null,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}]",
+      "find": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}]",
+      "replace": "\"Rules\":null,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}]",
       "cached": false
     },
     {
       "description": "Preparsed cache refuses following Rules at DOM rules (engine §9.3 and output.md)",
-      "find": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}]",
-      "replace": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"Rules\":null",
+      "find": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}]",
+      "replace": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"Rules\":null",
       "cached": false
     },
     {
@@ -533,14 +513,14 @@
     },
     {
       "description": "Preparsed cache refuses preceding Directives at DOM directives",
-      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}]",
-      "replace": "\"Directives\":null,\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}]",
+      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[2,1]}]",
+      "replace": "\"Directives\":null,\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[2,1]}]",
       "cached": false
     },
     {
       "description": "Preparsed cache refuses following Directives at DOM directives",
-      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}]",
-      "replace": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"Directives\":null",
+      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[2,1]}]",
+      "replace": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[2,1]}],\"Directives\":null",
       "cached": false
     },
     {
@@ -663,8 +643,8 @@
     },
     {
       "description": "Preparsed refuses a 400-digit integer in its raw DOM (engine §9.3 and output.md)",
-      "find": "\"dom\":{\"format\":40",
-      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":40",
+      "find": "\"dom\":{\"format\":42",
+      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":42",
       "cached": false,
       "rustCached": false,
       "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
@@ -1923,20 +1903,20 @@
     },
     {
       "description": "Cache rejects a leading-zero integer.",
-      "find": "\"format\":40",
-      "replace": "\"format\":040",
+      "find": "\"format\":42",
+      "replace": "\"format\":042",
       "cached": false
     },
     {
       "description": "Cache rejects a signed hexadecimal escape.",
-      "find": "\"format\":40",
+      "find": "\"format\":42",
       "replace": "\"form\\u+061t\":40",
       "cached": false
     },
     {
       "description": "A cached recipe cycle survives location recovery with a boundary test.",
-      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"properties\":null,\"documents\":{\"grammars/test/g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
-      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"properties\":null,\"documents\":{\"grammars/test/g.md\":{\"hash\":\"aee98674a566d866\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"capture\":\"a\",\"expr\":{\"ref\":\"a\"}},{\"ref\":\"b\"}]}}],\"conditions\":[{\"method\":\"followed-by\",\"receiver\":{\"capture\":\"a\"},\"args\":[{\"rule\":\"b\"}]}],\"at\":[3,1],\"value\":{\"concat\":[{\"method\":\"value\",\"receiver\":{\"method\":\"emitted\",\"receiver\":{\"capture\":\"\"},\"args\":[]},\"args\":[]}]}},{\"name\":\"a\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"a\"}}}],\"conditions\":[],\"at\":[5,1]},{\"name\":\"b\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[6,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "find": "{\"format\":42,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"properties\":null,\"documents\":{\"grammars/test/g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":42,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":42,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"properties\":null,\"documents\":{\"grammars/test/g.md\":{\"hash\":\"aee98674a566d866\",\"dom\":{\"format\":42,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"capture\":\"a\",\"expr\":{\"ref\":\"a\"}},{\"ref\":\"b\"}]}}],\"conditions\":[{\"method\":\"followed-by\",\"receiver\":{\"capture\":\"a\"},\"args\":[{\"rule\":\"b\"}]}],\"at\":[3,1],\"value\":{\"concat\":[{\"method\":\"value\",\"receiver\":{\"method\":\"emitted\",\"receiver\":{\"capture\":\"\"},\"args\":[]},\"args\":[]}]}},{\"name\":\"a\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"a\"}}}],\"conditions\":[],\"at\":[5,1]},{\"name\":\"b\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[6,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "sources": {
         "grammars/test/g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text := \"safe\" | $a:a b\n%conditions $a.followed-by(b)\n%rule a \"a\"\n%rule b \"b\"\n```",
         "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text := \"safe\" | $a:a b\n%conditions $a.followed-by(b)\n%rule a \"a\"\n%rule b \"b\"\n```"
@@ -1950,8 +1930,8 @@
     },
     {
       "description": "A cached recipe cycle survives location recovery without a boundary test.",
-      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"properties\":null,\"documents\":{\"grammars/test/g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
-      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"properties\":null,\"documents\":{\"grammars/test/g.md\":{\"hash\":\"d6d8dc4a3f265bed\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"capture\":\"a\",\"expr\":{\"ref\":\"a\"}},{\"ref\":\"b\"}]}}],\"conditions\":[],\"at\":[3,1],\"value\":{\"concat\":[{\"method\":\"value\",\"receiver\":{\"method\":\"emitted\",\"receiver\":{\"capture\":\"\"},\"args\":[]},\"args\":[]}]}},{\"name\":\"a\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"a\"}}}],\"conditions\":[],\"at\":[5,1]},{\"name\":\"b\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[6,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "find": "{\"format\":42,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"properties\":null,\"documents\":{\"grammars/test/g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":42,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":42,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"properties\":null,\"documents\":{\"grammars/test/g.md\":{\"hash\":\"d6d8dc4a3f265bed\",\"dom\":{\"format\":42,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"capture\":\"a\",\"expr\":{\"ref\":\"a\"}},{\"ref\":\"b\"}]}}],\"conditions\":[],\"at\":[3,1],\"value\":{\"concat\":[{\"method\":\"value\",\"receiver\":{\"method\":\"emitted\",\"receiver\":{\"capture\":\"\"},\"args\":[]},\"args\":[]}]}},{\"name\":\"a\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"a\"}}}],\"conditions\":[],\"at\":[5,1]},{\"name\":\"b\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[6,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "sources": {
         "grammars/test/g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text := \"safe\" | $a:a b\n%rule a \"a\"\n%rule b \"b\"\n```",
         "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text := \"safe\" | $a:a b\n%rule a \"a\"\n%rule b \"b\"\n```"
@@ -1988,86 +1968,6 @@
       "find": "\"conditions\":[]",
       "replace": "\"conditions\":[{\"op\":\"≅\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"constant\":\"MISSING\"}}}]",
       "cached": false
-    },
-    {
-      "description": "Preparsed cache ignores preceding Format at DOM format (engine §9.3 and output.md)",
-      "find": "\"dom\":{\"format\":42",
-      "replace": "\"dom\":{\"Format\":0,\"format\":42",
-      "cached": true
-    },
-    {
-      "description": "Preparsed cache ignores following Format at DOM format (engine §9.3 and output.md)",
-      "find": "\"dom\":{\"format\":42",
-      "replace": "\"dom\":{\"format\":42,\"Format\":0",
-      "cached": true
-    },
-    {
-      "description": "Preparsed cache ignores preceding Rules at DOM rules (engine §9.3 and output.md)",
-      "find": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}]",
-      "replace": "\"Rules\":null,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}]",
-      "cached": true
-    },
-    {
-      "description": "Preparsed cache ignores following Rules at DOM rules (engine §9.3 and output.md)",
-      "find": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}]",
-      "replace": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"categories\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"Rules\":null",
-      "cached": true
-    },
-    {
-      "description": "Preparsed cache ignores preceding Directives at DOM directives",
-      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[2,1]}]",
-      "replace": "\"Directives\":null,\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[2,1]}]",
-      "cached": true
-    },
-    {
-      "description": "Preparsed cache ignores following Directives at DOM directives",
-      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[2,1]}]",
-      "replace": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[2,1]}],\"Directives\":null",
-      "cached": true
-    },
-    {
-      "description": "Preparsed cache ignores preceding Constants at DOM constants",
-      "find": "\"constants\":[]",
-      "replace": "\"Constants\":null,\"constants\":[]",
-      "cached": true
-    },
-    {
-      "description": "Preparsed cache ignores following Constants at DOM constants",
-      "find": "\"constants\":[]",
-      "replace": "\"constants\":[],\"Constants\":null",
-      "cached": true
-    },
-    {
-      "description": "Preparsed cache ignores preceding Classifiers at DOM classifiers",
-      "find": "\"classifiers\":[]",
-      "replace": "\"Classifiers\":null,\"classifiers\":[]",
-      "cached": true
-    },
-    {
-      "description": "Preparsed cache ignores following Classifiers at DOM classifiers",
-      "find": "\"classifiers\":[]",
-      "replace": "\"classifiers\":[],\"Classifiers\":null",
-      "cached": true
-    },
-    {
-      "description": "Preparsed cache ignores preceding Implications at DOM implications",
-      "find": "\"implications\":[]",
-      "replace": "\"Implications\":null,\"implications\":[]",
-      "cached": true
-    },
-    {
-      "description": "Preparsed cache ignores following Implications at DOM implications",
-      "find": "\"implications\":[]",
-      "replace": "\"implications\":[],\"Implications\":null",
-      "cached": true
-    },
-    {
-      "description": "Preparsed ignores a 400-digit integer in its raw DOM (engine §9.3 and output.md)",
-      "find": "\"dom\":{\"format\":42",
-      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":42",
-      "cached": true,
-      "rustCached": false,
-      "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
     }
   ],
   "grammar": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n",

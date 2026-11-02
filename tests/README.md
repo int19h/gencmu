@@ -75,9 +75,9 @@ A `cacheFallback` case supplies valid source and a malformed cached DOM. Each li
 
 A `public:true` case loads a complete pipeline through the public loader. It requires `grammar` and `order`. It permits only `grammar`, `order`, and `instances` beside `name`, `public`, and `cacheFallback`.
 
-A `cacheFallback:true` case requires `grammar`, `dom`, and `input`. It forbids `argument`, `order`, `flags`, `instances`, and `public:true`. Only this mode permits `input`.
+A `cacheFallback:true` case requires `grammar`, `dom`, and `input`. It forbids `argument`, `order`, `categories`, `instances`, and `public:true`. Only this mode permits `input`.
 
-A case with `flags` also requires `grammar`.
+A case with `categories` also requires `grammar`.
 
 An `instances` expectation compares the count even when it is zero. An `argument` expectation compares the argument even when the expected value is false or null.
 

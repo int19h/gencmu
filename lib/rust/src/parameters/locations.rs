@@ -228,7 +228,10 @@ fn annotate_expr(expr: &dom::Expr, n: &mut Json) {
                 }
             }
         }
-        Expr::Optional(inner, _) | Expr::Repeat(inner, _, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => {
+        Expr::Optional(inner, _, _)
+        | Expr::Repeat(inner, _, _)
+        | Expr::Capture(_, inner)
+        | Expr::Tested(_, _, inner) => {
             let key = match expr {
                 Expr::Optional(..) => "optional",
                 Expr::Repeat(..) => "repeat",
@@ -492,7 +495,7 @@ fn restore_defaults(expr: &mut dom::Expr, n: &Json) {
                 restore_defaults(inner, n);
             }
         }
-        Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs) | Expr::And(xs) => {
+        Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
             let key = ["seq", "choice", "ranked", "and"].into_iter().find(|key| has(n, key)).unwrap();
             if let Some(Json::Arr(ns)) = n.get(key) {
                 for (x, n) in xs.iter_mut().zip(ns) {
@@ -527,11 +530,11 @@ fn annotate_defaults(expr: &dom::Expr, n: &mut Json) {
                 annotate_defaults(inner, n);
             }
         }
-        Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs) | Expr::And(xs) => {
+        Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
             let key = match expr {
                 Expr::Seq(_) => "seq",
                 Expr::Choice(_) => "choice",
-                Expr::Ranked(_) => "ranked",
+                Expr::Ranked(_, _) => "ranked",
                 _ => "and",
             };
             if let Some(Json::Arr(ns)) = slot(n, key) {

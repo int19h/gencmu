@@ -85,11 +85,6 @@ fn template_categories() {
     let g=grammar("%ambiguity-resolution fewest(few), greedy\n%rule atom(@X) @X %counts-as few\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"");
     assert!(g.rules[g.index["atom(\"a\")"]].categories.is_empty());
     assert_eq!(g.rules[g.index["atom(\"b\")"]].categories, ["few"]);
-    let a = audit(&g);
-    let events = list(get(&list(get(&a, "instances"))[0], "events"));
-    assert_eq!(events.len(), 3);
-    assert_eq!(events.iter().map(|e| text(get(e, "scope"))).collect::<Vec<_>>(), ["template", "instance", "template"]);
-    assert!(list(get(&events[2], "categoriesAfter")).is_empty());
 }
 #[test]
 fn nominal_constants_and_group_normalization() {

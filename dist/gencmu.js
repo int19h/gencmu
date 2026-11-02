@@ -8313,7 +8313,7 @@
       const add=(/** @type {any} */ term,tags=false)=>argumentsToCheck.push({...owner,term:rewrite(term,event),tags});
       const arg=normalize(argument);
       if(arg.body || arg.test || arg.range || arg.wildcard) {
-        const rule={...(parts.some(n=>n.param)?{params:event.rule.params}:{}),name:extraIndexes.has(event.index)?'text':event.rule.name,op:'define',flags:[],conditions:[],alternatives:[{guards:[],expr:rewrite(arg.body??arg,event,'expr')}],at:event.rule.at};
+        const rule={...(parts.some(n=>n.param)?{params:event.rule.params}:{}),name:extraIndexes.has(event.index)?'text':event.rule.name,op:'define',categories:[],conditions:[],alternatives:[{guards:[],expr:rewrite(arg.body??arg,event,'expr')}],at:event.rule.at};
         argumentsToCheck.push({...owner,rule,fragment:true});
       } else if(arg.requirements) {
         for(const requirement of arg.requirements) add(requirement.value,true);
@@ -9836,8 +9836,8 @@
           throw new GencmuError("grammar", "has no %ambiguity-resolution", { stage: stageName });
         }
         if (!this.rules.has("text")) throw new GencmuError("grammar", "has no rule text", {stage:stageName});
+        (/** @type {Resolution} */ (this.resolution)).elisionOnly = this.elisionOnly;
         /** @type {WeakMap<RuleClauses,WeakMap<object,{rule:string,condition:number,order:number}>>} */
-        this.resolution.elisionOnly = this.elisionOnly;
         this.boundarySites = new WeakMap();
         let ruleOrder = 0;
         for (const rule of this.rules.values()) {
@@ -9868,6 +9868,7 @@
             throw error;
           }
         }
+        /** @type {any[]} */
         this.defaultValues = [];
         this.checkReferences();
         this.families = closeFamilies(this.rules);
@@ -9981,10 +9982,10 @@
               if (this.resolution) {
                 throw new GencmuError("grammar", "has a second %ambiguity-resolution", {...at, stage:this.stageName});
               }
-              const steps = directive.steps;
+              const steps = /** @type {import("./types.js").RankingStep[]} */ (directive.steps);
               const last = steps[steps.length - 1];
               const lean = last.step === "greedy" || last.step === "lazy" ? last.step : "none";
-              const keySteps = lean === "none" ? steps : steps.slice(0, -1);
+              const keySteps = /** @type {import("./types.js").KeyStep[]} */ (lean === "none" ? steps : steps.slice(0, -1));
               this.resolution = {steps:keySteps, lean, elisionOnly:false};
               break;
             }
@@ -16231,7 +16232,7 @@
       for (const change of stage.stageChanges) lines.push(`  stage ${change.kind} at ${change.document}:${change.line}:${change.column}`);
       for (const template of stage.templates) lines.push(`  template ${template.template}(${template.parameters.map((/** @type {string} */ parameter) => "@"+parameter).join(", ")}) at ${template.document}:${template.line}:${template.column}${template.notes.length ? ": "+template.notes.map((/** @type {any} */ note) => note.kind+(note.parameter ? " "+note.parameter : "")).join(", ") : ""}`);
       for (const instance of stage.instances) {
-        lines.push(`  instance ${instance.name} from ${instance.template}(${instance.arguments.map((/** @type {any} */ argument) => canonicalArgument(argument, unicode)).join(", ")}), flags ${instance.flags.join(", ") || "none"}, first call ${instance.firstCall.document}:${instance.firstCall.line}:${instance.firstCall.column}`);
+        lines.push(`  instance ${instance.name} from ${instance.template}(${instance.arguments.map((/** @type {any} */ argument) => canonicalArgument(argument, unicode)).join(", ")}), categories ${instance.categories.join(", ") || "none"}, first call ${instance.firstCall.document}:${instance.firstCall.line}:${instance.firstCall.column}`);
         if (instance.binding) lines.push(`    binding: ${instance.binding.document}:${instance.binding.line}:${instance.binding.column}`);
         for (const event of instance.events) lines.push(`    ${event.scope} ${event.op}: ${event.document}:${event.line}:${event.column}, categories ${event.categoriesBefore.join(", ") || "none"} -> ${event.categoriesAfter.join(", ") || "none"}`);
         for (const note of instance.notes) lines.push(`    ${note.kind}: ${note.instances.join(", ")}`);
@@ -17078,7 +17079,7 @@
     // Each context holds its greatest profile and retained edges.
     /**
      * @param {Item} item
-     * @returns {ProfileSummary}
+     * @returns {ElisionSummary}
      */
     profileSummary(item) {
       const space = this.space;
@@ -17129,7 +17130,7 @@
      * profileSummary has already computed.
      * @param {Item} item
      * @param {string} key
-     * @returns {ProfileSummary}
+     * @returns {ElisionSummary}
      */
     summaryAt(item, key) {
       const found = key === "" ? this.summaries.plain.get(item) : this.summaries.contextual.get(item)?.get(key);
@@ -17754,7 +17755,7 @@
   /** @type {ElisionSeq} */
   const NO_ELISIONS = { size: 0 };
 
-  /** @returns {ProfileSummary} */
+  /** @returns {ElisionSummary} */
   function noDerivation() {
     return { profile: null, least: 0, total: 0, kept: new Set() };
   }
@@ -18494,67 +18495,7 @@
     return !("read" in node) && node.production.helper && node.production.elided !== null && node.production.rhs.length === 0 && node.children.length === 0;
   }
 
-  // ---- string-gaps.js
-
-  /** @import {Span} from "./types.js" */
-  class GapClaims {
-    /** @param {import("./earley.js").ParseContext} context */
-    constructor(context) {
-      this.context = context;
-      /** @type {{span:Span, intervals:Span[]}[]} */
-      this.claims = [];
-      // Every input source participates, including tokens outside a capture.
-      /** @type {Span[]} */
-      this.covered = context.tokens.map(token => token.source).filter(([a,b]) => a < b).sort((a,b) => a[0]-b[0]);
-      /** @type {Span[]} */
-      const merged = [];
-      for (const [a,b] of this.covered) {
-        const previous = merged[merged.length-1];
-        if (previous && a <= previous[1]) previous[1] = Math.max(previous[1], b);
-        else merged.push([a,b]);
-      }
-      this.covered = merged;
-    }
-    /** @param {number} a @param {number} b @returns {string} */
-    verbatim(a,b) {
-      if (a === b) return "";
-      const {tokens, sources, sourceText} = this.context;
-      const [l,r] = sources.of(a,b);
-      const p = a > 0 ? tokens[a-1].source[1] : 0;
-      const q = b < tokens.length ? tokens[b].source[0] : sourceText.length;
-      let left = l, right = r;
-      if (p < l) {
-        left = p;
-        for (const [start,end] of this.covered) {
-          if (start >= l) break;
-          if (end > left) left = Math.min(l,end);
-        }
-      }
-      if (r < q) {
-        right = q;
-        for (const [start,end] of this.covered) {
-          if (end <= r) continue;
-          right = Math.max(r,Math.min(right,start));
-          break;
-        }
-      }
-      /** @type {Span[]} */
-      const intervals = [];
-      if (left < l) intervals.push([left,l]);
-      if (r < right) intervals.push([r,right]);
-      for (const claim of this.claims) {
-        if (claim.span[0] === a && claim.span[1] === b) continue;
-        for (const [x,y] of intervals) for (const [u,v] of claim.intervals) {
-          if (Math.max(x,u) < Math.min(y,v)) throw new GencmuError("grammar", "different verbatim spans claim the same uncovered source text");
-        }
-      }
-      if (intervals.length) this.claims.push({span:[a,b], intervals});
-      return sourceText.slice(left,right).join("");
-    }
-  }
-
   // ---- strings.js
-
   // The occurrence-based string walk and verbatim gap claims (engine §11).
 
 
@@ -18585,7 +18526,7 @@
   class StringWalk {
     /** @param {ParseContext} context @param {(node:DerivationRule)=>Scope} scope */
     constructor(context, scope) {
-      super(context);
+      this.context = context;
       this.scope = scope;
       /** @type {WeakMap<Derivation,Map<object|string,string>>} */
       this.values = new WeakMap();
@@ -20899,7 +20840,7 @@
       let receiver = yield readTerm(only(only(node, "method-receiver"), "term-atom"), true);
       for (const selector of some(node, "method-selector")) {
         const name = valueOf(token(only(selector, "method-name")));
-        if (name === "emitted" && !recipeContext && !conditionContext) fail("emitted requires a recipe or condition", node);
+        if (name === "emitted" && !recipeContext && !conditionContext) fail("a method has the wrong receiver or arguments", node);
         if(!METHODS.has(name)) fail(`unknown method ${name}`,node);
         if (closedFor && !["split", "ngrams"].includes(name)) fail(`${closedFor} cannot read an input method`, node);
         /** @type {any[]} */

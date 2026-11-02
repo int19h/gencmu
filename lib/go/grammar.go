@@ -19,8 +19,14 @@ type argumentSite struct {
 	at  [2]int
 }
 
+type defaultUse struct {
+	expr        *domExpr
+	alternative *sAlt
+}
+
 type stageGrammar struct {
-	conditionStrings bool
+	defaults          []defaultUse
+	conditionStrings  bool
 	arguments         map[argumentSite][]constArgument
 	features          []stageFeature
 	families          map[string]map[string]bool
@@ -235,7 +241,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 					if existing != nil {
 						return nil, fail(d.path, r.At, "%%rule %s is already defined, in %s; %%redefine-rule replaces a rule", r.Name, existing.doc)
 					}
-					nr := &sRule{categories: r.Flags, name: r.Name, alts: alts, doc: d.path, at: r.At}
+					nr := &sRule{categories: r.Categories, name: r.Name, alts: alts, doc: d.path, at: r.At}
 					g.rules = append(g.rules, nr)
 					g.byName[r.Name] = nr
 				case "redefine":
@@ -246,11 +252,11 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 					}
 					// The replacement keeps the place of the rule it replaces.
 					change := stitchChange{rule: r.Name, document: d.path, op: "replace"}
-					if !slices.Equal(existing.categories, r.Flags) {
-						change.flagChange = &flagChange{from: slices.Clone(existing.categories), to: slices.Clone(r.Flags)}
+					if !slices.Equal(existing.categories, r.Categories) {
+						change.categoryChange = &categoryChange{from: slices.Clone(existing.categories), to: slices.Clone(r.Categories)}
 					}
 					g.changes = append(g.changes, change)
-					existing.alts, existing.doc, existing.at, existing.categories = alts, d.path, r.At, r.Flags
+					existing.alts, existing.doc, existing.at, existing.categories = alts, d.path, r.At, r.Categories
 				case "extend":
 					if existing == nil {
 						return nil, fail(d.path, r.At, "%%extend-rule %s extends a rule that is not defined before it", r.Name)
@@ -271,22 +277,20 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 					if len(ambiguity) > 1 {
 						return nil, fail(d.path, dir.At, "has a second %%ambiguity-resolution")
 					}
-					// The rule of the ranking, greedy, lazy or late-elision, then
-					// optionally elision-only, in that
-					// order (engine §2).
-					args := dir.Args
-					rest := args
-					if len(rest) > 0 {
-						rest = rest[1:]
+					g.lean = ""
+					g.steps = nil
+					for _, step := range dir.Steps {
+						if step.HasCategory {
+							g.steps = append(g.steps, keyStep{step: step.Step, category: step.Category})
+						} else {
+							g.lean = step.Step
+						}
 					}
-					elisionOnly := len(rest) > 0 && rest[0] == "elision-only"
-					if elisionOnly {
-						rest = rest[1:]
+				case "elision-only":
+					if g.elisionOnly {
+						return nil, fail(d.path, dir.At, "has a second %%elision-only")
 					}
-					if len(args) == 0 || !isRankingRule(args[0]) || len(rest) > 0 {
-						return nil, fail(d.path, dir.At, "%%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only")
-					}
-					g.lean, g.elisionOnly = args[0], elisionOnly
+					g.elisionOnly = true
 				default:
 					return nil, fail(d.path, dir.At, "unknown directive %%%s", dir.Name)
 				}
@@ -473,29 +477,18 @@ func (g *stageGrammar) makeTests() *Error {
 			}
 		}
 	}
-	for _, r := range g.rules {
-		for _, a := range r.alts {
-			lw := &lowerer{g: g, l: &lowered{}, tests: map[*domExpr]*symTest{}}
-			for i, t := range testsIn(a.alt.Expr) {
-				lw.tests[t] = a.tests[i]
-			}
-			pending := []*domExpr{a.alt.Expr}
-			for len(pending) > 0 {
-				e := pending[len(pending)-1]
-				pending = pending[:len(pending)-1]
-				if e == nil {
-					continue
-				}
-				if e.Default != nil {
-					lw.elision(e, a)
-					if lw.l.fault != "" {
-						return lw.l.faultLocation
-					}
-				}
-				pending = append(pending, exprChildren(e)...)
-			}
+	for _, use := range g.defaults {
+		a := use.alternative
+		lw := &lowerer{g: g, l: &lowered{}, tests: map[*domExpr]*symTest{}}
+		for i, t := range testsIn(a.alt.Expr) {
+			lw.tests[t] = a.tests[i]
+		}
+		lw.elision(use.expr, a)
+		if lw.l.fault != "" {
+			return lw.l.faultLocation
 		}
 	}
+	g.defaults = nil
 	return nil
 }
 
@@ -517,6 +510,9 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 	walk = func(e *domExpr) *Error {
 		if e == nil {
 			return nil
+		}
+		if e.Default != nil {
+			g.defaults = append(g.defaults, defaultUse{e, a})
 		}
 		if e.Kind == exRef && !isTerminalName(e.Name) && g.byName[e.Name] == nil {
 			return fail("%s is not a rule of stage %s", e.Name, g.name)

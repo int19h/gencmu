@@ -453,7 +453,7 @@ pub(crate) fn validate_condition_strings(grammar: &crate::grammar::StageGrammar)
     use std::collections::{BTreeMap, BTreeSet};
     fn children(expr: &Expr) -> Vec<&Expr> {
         match expr {
-            Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs) | Expr::And(xs) => xs.iter().collect(),
+            Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => xs.iter().collect(),
             Expr::Optional(e, _, _) | Expr::Capture(_, e) | Expr::Tested(_, _, e) => vec![e],
             Expr::Repeat(e, separator, _) => std::iter::once(e.as_ref()).chain(separator.as_deref()).collect(),
             _ => Vec::new(),

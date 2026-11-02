@@ -130,6 +130,7 @@ fn restore(mut pending: Vec<Pair<'_>>) {
     while let Some(pair) = pending.pop() {
         match pair {
             Pair::Rule(to, from) => {
+                to.emitted_locations.clone_from(&from.emitted_locations);
                 channels(&mut to.strings, &from.strings, &mut pending);
                 for (to, from) in to.tags.iter_mut().zip(&from.tags) {
                     pending.push(Pair::Term(to, from));
@@ -174,9 +175,14 @@ fn restore(mut pending: Vec<Pair<'_>>) {
                 | (Expr::And(to), Expr::And(from)) => {
                     pending.extend(to.iter_mut().zip(from).map(|(to, from)| Pair::Expr(to, from)));
                 }
-                (Expr::Optional(to, _), Expr::Optional(from, _)) | (Expr::Capture(_, to), Expr::Capture(_, from)) => {
-                    pending.push(Pair::Expr(to, from))
+                (Expr::Optional(to, _, td), Expr::Optional(from, _, fd)) => {
+                    pending.push(Pair::Expr(to, from));
+                    for (to, from) in td.iter_mut().zip(fd) {
+                        to.at = from.at;
+                        pending.push(Pair::Term(&mut to.term, &from.term));
+                    }
                 }
+                (Expr::Capture(_, to), Expr::Capture(_, from)) => pending.push(Pair::Expr(to, from)),
                 (Expr::Repeat(to, ts, _), Expr::Repeat(from, fs, _)) => {
                     pending.push(Pair::Expr(to, from));
                     for (to, from) in ts.iter_mut().zip(fs) {

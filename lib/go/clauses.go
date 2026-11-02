@@ -577,7 +577,7 @@ func orderedMentions(p clausePart) []string {
 		case q.t != nil && q.t.Kind == tmCapture:
 			add(q.t.Str)
 		case q.c != nil && q.c.Kind == cdCaptured:
-			add(q.c.Rule)
+			add(q.c.Capture)
 		}
 		return true
 	})
@@ -684,7 +684,7 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 			// condition of the alternative's productions.
 			if len(here) == 0 {
 				if !applies {
-					for _, caps := range altCaptures(a) {
+					for _, caps := range validationCaptures(r, a) {
 						if conditionApplies(c, hasIn(caps)) {
 							applies = true
 							break
@@ -953,7 +953,7 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 	}
 	if len(itemNames) > 0 {
 		if msg := itemCaptureProblem(r, itemsByAlt, itemNames, waits); msg != "" {
-			return msg
+			return immediate(msg)
 		}
 	}
 	// An item condition applies to the productions of its braces' helper

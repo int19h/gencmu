@@ -976,8 +976,9 @@ impl Pipeline {
         let rooted = rooted && walk.is_some();
         let ranking = if rooted {
             let marks = walk.as_ref().map(|walk| &walk.marks);
-            let mut ranker =
-                Ranker::new(g, &chart, &tokens, shared, &steps, Lean::Neither).observing(input, &recon.project).checking(marks);
+            let mut ranker = Ranker::new(g, &chart, &tokens, shared, &steps, Lean::Neither)
+                .observing(input, &recon.project)
+                .checking(marks);
             let chosen_profile = ranker.tree_profile(chosen);
             let preferred = !g.ranked.slots.is_empty();
             let raw_counted = if preferred {
@@ -998,8 +999,8 @@ impl Pipeline {
                 })
                 .map(|mut ranking| {
                     let excluded = ranking.witness_counted != Some(true);
-                    let better =
-                        excluded || ranker.compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less;
+                    let better = excluded
+                        || ranker.compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less;
                     let keeps = if !witness::watched() {
                         false
                     } else if preferred {

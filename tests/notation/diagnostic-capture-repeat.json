@@ -1,11 +1,11 @@
 {
   "description": "Reader diagnostics use common text and retain their positions.",
-  "document": "```jbogenbau\n%rule text {$x:A}\n```\n",
+  "document": "```jbogenbau\n%rule text {$x:A ...}\n```\n",
   "expect": {
     "error": {
       "line": 2,
       "column": 13,
-      "message": "a capture cannot stand inside braces, whose parts repeat: name the list as a rule, and capture that"
+      "message": "a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level"
     }
   }
 }

@@ -41,11 +41,12 @@ pub(crate) struct Reader<'a> {
     pub marked: std::cell::Cell<usize>,
     /// The document position of a grammar-text index.
     pub position: &'a dyn Fn(usize) -> (usize, usize),
-    /// What the reader is reading as a closed term, a constant's value or a
-    /// test's operand, if it is reading one (engine §9, §10).
+    /// The source identity of the current elidable head.
     pub default_head: std::cell::Cell<usize>,
+    pub head_defaults: std::cell::RefCell<FxMap<usize, crate::dom::DefaultValue>>,
     pub in_condition: std::cell::Cell<bool>,
     pub in_recipe: std::cell::Cell<bool>,
+    /// The closed operand that the reader currently reads (engine §9, §10).
     pub closed_for: std::cell::Cell<Option<&'static str>>,
 }
 
@@ -183,7 +184,9 @@ impl<'a> Reader<'a> {
                 return Err(self.error(node, "%names must precede every other statement"));
             }
             statement_seen |= !names;
-            if rule_name(node) == "rule" { self.emitted_locations.borrow_mut().clear(); }
+            if rule_name(node) == "rule" {
+                self.emitted_locations.borrow_mut().clear();
+            }
             if node.kind != NodeKind::Rule {
                 continue;
             }
@@ -401,8 +404,8 @@ impl<'a> Reader<'a> {
     fn ranking_directive(&self, node: &'a Node) -> R<Directive> {
         let token = self.token(node)?;
         let mut steps = Vec::new();
-        for step in Self::rules(node, "ranking-step") {
-            let words: Vec<&str> = Self::tokens_of(step).map(|token| self.value(token)).collect();
+        for step in self.rules(node, "ranking-step") {
+            let words: Vec<&str> = self.tokens_of(step).map(|token| self.value(token)).collect();
             steps.push(match words[..] {
                 [step] => crate::dom::Step { step: step.into(), category: None },
                 _ => crate::dom::Step {
@@ -430,7 +433,7 @@ impl<'a> Reader<'a> {
     /// The categories of a rule's `%counts-as` clause (engine §9.3).
     pub(crate) fn counts_as(&self, node: &'a Node, op: Op) -> R<Vec<String>> {
         let mut categories: Vec<String> = Vec::new();
-        let Some(clause) = Self::rules(node, "counts-as-clause").next() else { return Ok(categories) };
+        let Some(clause) = self.rules(node, "counts-as-clause").next() else { return Ok(categories) };
         if op == Op::Extend {
             return Err(self.error(clause, "%extend-rule accepts no %counts-as clause"));
         }
@@ -519,6 +522,7 @@ impl<'a> Reader<'a> {
             source.instance = Some(self.source_call(self.one(node, "call")?)?);
             return Ok(RuleDef {
                 source,
+                emitted_locations: Default::default(),
                 deferred_emission: None,
                 name,
                 op,
@@ -667,8 +671,22 @@ impl<'a> Reader<'a> {
             let mut capture_targets = Vec::new();
             let mut pending = vec![&expr];
             while let Some(node) = pending.pop() {
-                if let Expr::Capture(_, target) = node { capture_targets.push(target.as_ref()); }
-                pending.extend(crate::clause_walk::expression_children(node).into_iter().rev());
+                if let Expr::Capture(_, target) = node {
+                    capture_targets.push(target.as_ref());
+                }
+                match node {
+                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                        pending.extend(items.iter().rev())
+                    }
+                    Expr::Capture(_, inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => {
+                        pending.push(inner)
+                    }
+                    Expr::Repeat(inner, sep, _) => {
+                        pending.extend(sep.as_deref());
+                        pending.push(inner);
+                    }
+                    _ => {}
+                }
             }
             for (index, name) in capture_names(&expr).into_iter().enumerate() {
                 let at = captures[&(capture_targets[index] as *const Expr as usize)];
@@ -1005,7 +1023,23 @@ impl<'a> Reader<'a> {
             if frame.mark != Mark::Plain {
                 self.marked.set(self.marked.get() - 1);
             }
-            return Ok(Step::Done(Val::Expr(Expr::Optional(Box::new(expr), frame.mark, None))));
+            let default = self.head_defaults.borrow_mut().remove(&frame.head);
+            if frame.mark != Mark::Plain {
+                self.default_head.set(frame.previous_head);
+            }
+            if let Some(crate::dom::DefaultValue { term: Term::Str(value), at }) = &default {
+                let mut head = if let Expr::Seq(items) = &expr { &items[0] } else { &expr };
+                while let Expr::Tested(op, operand, inner) = head {
+                    if let Term::Str(expected) = operand {
+                        if (value == expected) != (op == "=") {
+                            let (line, column) = at.unwrap();
+                            return Err(Error::grammar("a default fails its head test").at(line, column));
+                        }
+                    }
+                    head = inner;
+                }
+            }
+            return Ok(Step::Done(Val::Expr(Expr::Optional(Box::new(expr), frame.mark, default))));
         }
         let node = frame.node;
         // Its required part first, then its markers (§9).
@@ -1056,6 +1090,8 @@ impl<'a> Reader<'a> {
         } else if !is_terminal(head) {
             return Err(form());
         }
+        frame.head = head as *const Node as usize;
+        frame.previous_head = self.default_head.replace(frame.head);
         self.marked.set(self.marked.get() + 1);
         frame.mark = Mark::Elidable;
         Ok(Step::Call(Frame::Choice(Choice::new(choice))))
@@ -1137,8 +1173,11 @@ impl<'a> Reader<'a> {
             (Expr::Source(SourceSymbol::Call(call)), frame.tests.take().unwrap())
         } else {
             let parts = self.parts(node);
-            let tests: Vec<_> =
-                parts.iter().copied().filter(|part| matches!(rule_name(part), "tag-test" | "value-test")).collect();
+            let tests: Vec<_> = parts
+                .iter()
+                .copied()
+                .filter(|part| matches!(rule_name(part), "tag-test" | "value-test" | "default-value"))
+                .collect();
             if tests.is_empty() {
                 return Err(self.shape_error(node, "test"));
             }
@@ -1157,6 +1196,9 @@ impl<'a> Reader<'a> {
             let mut tags = false;
             let mut value = false;
             for test in &tests {
+                if rule_name(test) == "default-value" {
+                    continue;
+                }
                 let tag = rule_name(test) == "tag-test";
                 if !valid || value || tag && tags {
                     return Err(self.error(test, "invalid test target or order"));
@@ -1174,6 +1216,21 @@ impl<'a> Reader<'a> {
             (self.symbol(base)?, tests)
         };
         for test in tests {
+            if rule_name(test) == "default-value" {
+                let key = node as *const Node as usize;
+                if key != self.default_head.get() {
+                    return Err(self.error(test, "a default stands only on an elidable optional head"));
+                }
+                if self.head_defaults.borrow().contains_key(&key) {
+                    return Err(self.error(test, "an elidable head has one default at most"));
+                }
+                let operand = self.one(test, "test-operand")?;
+                let term = self.value_test_operand(operand)?;
+                self.head_defaults
+                    .borrow_mut()
+                    .insert(key, crate::dom::DefaultValue { term, at: Some(self.first(test)) });
+                continue;
+            }
             let (op, operand) = if rule_name(test) == "tag-test" {
                 ("tags".into(), self.source_requirements(test, "a tag requirement requires a tag or tag-set constant")?)
             } else {
@@ -1565,7 +1622,7 @@ impl<'a> Reader<'a> {
 
     /// Inspect the target and complete test sequence before any base conversion.
     fn pattern_test_nodes(&self, node: &'a Node, testable: bool) -> R<Vec<&'a Node>> {
-        if let Some(default) = Self::parts(node).into_iter().find(|p| rule_name(p) == "default-value") {
+        if let Some(default) = self.parts(node).into_iter().find(|p| rule_name(p) == "default-value") {
             return Err(self.error(default, "a default stands only on an elidable optional head"));
         }
         let tests: Vec<_> =
@@ -2368,11 +2425,13 @@ impl<'a> PrimaryFrame<'a> {
 struct OptionalFrame<'a> {
     node: &'a Node,
     mark: Mark,
+    head: usize,
+    previous_head: usize,
 }
 
 impl<'a> OptionalFrame<'a> {
     fn new(node: &'a Node) -> Self {
-        OptionalFrame { node, mark: Mark::Plain }
+        OptionalFrame { node, mark: Mark::Plain, head: 0, previous_head: 0 }
     }
 }
 
@@ -2388,7 +2447,7 @@ fn capture_names(expr: &Expr) -> Vec<&str> {
                 names.push(name.as_str());
                 stack.push(inner);
             }
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.iter().rev());
             }
             Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push(inner),
@@ -2401,7 +2460,8 @@ fn capture_names(expr: &Expr) -> Vec<&str> {
             | Expr::Literal(_)
             | Expr::ScalarRange(..)
             | Expr::Range(..)
-            | Expr::Property(_)
+            | Expr::Source(_)
+            | Expr::Wildcard
             | Expr::Empty => {}
         }
     }
@@ -2866,7 +2926,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     stack.extend(items.iter().map(Part::Expression))
                 }
-                Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(Part::Expression(inner)),
+                Expr::Optional(inner, _, _) | Expr::Capture(_, inner) => stack.push(Part::Expression(inner)),
                 Expr::Repeat(item, separator, _) => {
                     stack.push(Part::Expression(item));
                     stack.extend(separator.as_deref().map(Part::Expression));
@@ -2912,166 +2972,6 @@ fn own_tags_are_found_inside_call_arguments() {
 /// `all`, into the one around it: a group in parentheses of the same
 /// connective is part of the one around it (§9). One walk, with an explicit
 /// stack, that gathers each folded list once.
-fn flatten_term(root: &mut Term) {
-    let mut pending = vec![root];
-    while let Some(term) = pending.pop() {
-        match term {
-            Term::Union(items) => {
-                let mut stack: Vec<_> = std::mem::take(items).into_iter().rev().collect();
-                while let Some(mut term) = stack.pop() {
-                    match &mut term {
-                        Term::Union(inner) => stack.extend(std::mem::take(inner).into_iter().rev()),
-                        _ => items.push(term),
-                    }
-                }
-                pending.extend(items.iter_mut());
-            }
-            Term::Intersection(items) => pending.extend(items.iter_mut()),
-            Term::Difference(left, right) => {
-                pending.push(right);
-                pending.push(left);
-            }
-            Term::If(_, then) => pending.push(then),
-            Term::Call(_, args) => {
-                pending
-                    .extend(args.iter_mut().filter_map(|arg| if let Arg::Term(term) = arg { Some(term) } else { None }))
-            }
-            _ => {}
-        }
-    }
-}
-
-fn flatten_groups(rule: &mut RuleDef) {
-    let mut stack: Vec<PartMut> = Vec::new();
-    stack.extend(rule.conditions.iter_mut().map(PartMut::Cond));
-    stack.extend(rule.tags.iter_mut().map(PartMut::Term));
-    stack.extend(rule.alternatives.iter_mut().filter_map(|alternative| alternative.tags.as_mut()).map(PartMut::Term));
-    for item in rule.emit.iter_mut().flatten() {
-        if let EmitItem::Capture(_, Some(tags), _) = item {
-            stack.push(PartMut::Term(tags));
-        }
-    }
-    while let Some(part) = stack.pop() {
-        work::count(Work::Walked, 1);
-        match part {
-            PartMut::Term(term) => match term {
-                Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter_mut().map(PartMut::Term)),
-                Term::Difference(left, right) => stack.extend([PartMut::Term(left), PartMut::Term(right)]),
-                Term::If(cond, then) => stack.extend([PartMut::Cond(cond), PartMut::Term(then)]),
-                Term::Call(_, args) => stack.extend(args.iter_mut().filter_map(|arg| match arg {
-                    Arg::Term(term) => Some(PartMut::Term(term)),
-                    _ => None,
-                })),
-                _ => {}
-            },
-            PartMut::Cond(cond) => match cond {
-                Cond::Any(items) => {
-                    fold(items, |cond| if let Cond::Any(inner) = cond { Some(std::mem::take(inner)) } else { None });
-                    stack.extend(items.iter_mut().map(PartMut::Cond));
-                }
-                Cond::All(items) => {
-                    fold(items, |cond| if let Cond::All(inner) = cond { Some(std::mem::take(inner)) } else { None });
-                    stack.extend(items.iter_mut().map(PartMut::Cond));
-                }
-                Cond::Compare(_, left, right) => stack.extend([PartMut::Term(left), PartMut::Term(right)]),
-                Cond::Not(inner) => stack.push(PartMut::Cond(inner)),
-                Cond::If(antecedent, consequent) => {
-                    stack.extend([PartMut::Cond(antecedent), PartMut::Cond(consequent)])
-                }
-                Cond::Matches(span, _)
-                | Cond::Begins(span, _)
-                | Cond::Ends(span, _)
-                | Cond::Initial(span)
-                | Cond::Final(span)
-                | Cond::Boundary(_, span, _, _) => stack.push(PartMut::Term(span)),
-                Cond::Captured(_) => {}
-            },
-        }
-    }
-}
-
-/// Replaces each item of a list that `inner` opens, a group of the list's
-/// own connective, with that group's items, at any depth, in order.
-fn fold(items: &mut Vec<Cond>, inner: impl Fn(&mut Cond) -> Option<Vec<Cond>>) {
-    let mut joined = Vec::with_capacity(items.len());
-    let mut pending: Vec<Cond> = std::mem::take(items);
-    pending.reverse();
-    while let Some(mut item) = pending.pop() {
-        work::count(Work::Walked, 1);
-        match inner(&mut item) {
-            Some(mut parts) => {
-                parts.reverse();
-                pending.append(&mut parts);
-            }
-            None => joined.push(item),
-        }
-    }
-    *items = joined;
-}
-
-/// Cached DOMs omit source annotations. Recover recipe positions only for a failed load.
-pub(crate) fn restore_recipe_locations(
-    dom: &mut Dom,
-    tokens: &[crate::result::Token],
-    position: &dyn Fn(usize) -> (usize, usize),
-) {
-    for rule in &mut dom.rules {
-        let Some(start) = tokens.iter().position(|token| {
-            matches!(token.value.as_str(), "%rule" | "%extend-rule" | "%redefine-rule")
-                && position(token.source.start) == rule.at
-        }) else {
-            continue;
-        };
-        let mut values = Vec::new();
-        let mut images = Vec::new();
-        let mut defaults = Vec::new();
-        for index in start + 1..tokens.len() {
-            let token = &tokens[index];
-            if token.value.starts_with('%') {
-                break;
-            }
-            if let Some(next) = tokens.get(index + 1) {
-                match token.value.as_str() {
-                    ":=" => values.push(position(next.source.start)),
-                    ":-" => images.push(position(next.source.start)),
-                    "≝" => defaults.push(position(token.source.start)),
-                    _ => {}
-                }
-            }
-        }
-        let mut markers = defaults.into_iter();
-        for alternative in &mut rule.alternatives {
-            let mut pending = vec![&mut alternative.expr];
-            while let Some(expr) = pending.pop() {
-                match expr {
-                    Expr::Optional(inner, _, default) => {
-                        if let Some(default) = default {
-                            default.at = markers.next();
-                        }
-                        pending.push(inner);
-                    }
-                    Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs) | Expr::And(xs) => {
-                        pending.extend(xs.iter_mut().rev())
-                    }
-                    Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
-                    Expr::Repeat(inner, separator, _) => {
-                        pending.extend(separator.as_deref_mut());
-                        pending.push(inner);
-                    }
-                    _ => {}
-                }
-            }
-        }
-        let mut values = values.into_iter();
-        let mut images = images.into_iter();
-        for channels in std::iter::once(&mut rule.strings).chain(rule.alternatives.iter_mut().map(|a| &mut a.strings)) {
-            if channels.value.is_some() {
-                channels.value_at = values.next();
-            }
-            if channels.image.is_some() {
-                channels.image_at = images.next();
-            }
-        }
 #[cfg(test)]
 #[test]
 fn call_name_lookup_precedes_argument_lookup() {
@@ -3100,6 +3000,10 @@ fn call_name_lookup_precedes_argument_lookup() {
         })
         .collect();
     let reader = Reader {
+        head_defaults: Default::default(),
+        default_head: Default::default(),
+        emitted_locations: Default::default(),
+        in_condition: Default::default(),
         unresolved_nodes: Default::default(),
         parts_cache: Default::default(),
         parameters: Default::default(),

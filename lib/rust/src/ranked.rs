@@ -823,7 +823,7 @@ impl TagGraph {
                 }
                 result
             }
-            Expr::Optional(inner, crate::dom::Mark::Plain) if common_capture(inner, captured) => {
+            Expr::Optional(inner, crate::dom::Mark::Plain, _) if common_capture(inner, captured) => {
                 Unary { zero: false, children: self.describe(grammar, ranked, source, inner, memo, captured).children }
             }
             Expr::Ranked(..) | Expr::Optional(..) | Expr::Repeat(..) => {
@@ -848,7 +848,7 @@ impl TagGraph {
                             route(self, child, Some(option));
                         }
                     }
-                    Expr::Optional(inner, _) => route(self, inner, None),
+                    Expr::Optional(inner, _, _) => route(self, inner, None),
                     Expr::Repeat(inner, separator, _) => {
                         route(self, inner, None);
                         // Recursive repetition only adds a self edge.
@@ -881,7 +881,7 @@ fn common_capture(expr: &Expr, memo: &mut FxMap<usize, bool>) -> bool {
         Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
             items.iter().any(|child| common_capture(child, memo))
         }
-        Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => common_capture(inner, memo),
+        Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => common_capture(inner, memo),
         Expr::Repeat(inner, separator, _) => {
             common_capture(inner, memo) || separator.as_deref().is_some_and(|s| common_capture(s, memo))
         }
@@ -922,7 +922,7 @@ impl WrittenSpans {
                             self.branches.push((id, vec![child]));
                         }
                     }
-                    Expr::Optional(inner, _) => {
+                    Expr::Optional(inner, _, _) => {
                         let child = self.expression(inner, grammar);
                         self.branches.extend([(id, vec![]), (id, vec![child])]);
                     }

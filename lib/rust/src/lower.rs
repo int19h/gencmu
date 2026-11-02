@@ -1133,7 +1133,7 @@ pub(crate) fn lower(
             })
         })
         .collect();
-    let needs_slots = validation || !grammar.ranked.groups.is_empty() || !item_alts.is_empty();
+    let needs_slots = !grammar.ranked.groups.is_empty() || !item_alts.is_empty();
     for (index, rule) in grammar.rules.iter().enumerate() {
         lowerer.owner = index as u32;
         // Only a gate drops an alternative; a warning keeps it (§3.1).

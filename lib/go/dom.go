@@ -259,8 +259,8 @@ func (it *domEmitItem) attachments() []string {
 }
 
 type domDirective struct {
-	Conditions  []*domCond
-	Name        string
+	Conditions []*domCond
+	Name       string
 	// Args are the operands, which %ambiguity-resolution lacks: it has
 	// Steps instead (engine §9).
 	Args  []string
@@ -938,8 +938,8 @@ func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domD
 
 // decodeStep reads a step of %ambiguity-resolution, an object with a
 // step and, for a key step, a category.
-func decodeStep(raw json.RawMessage) (domStep, error) {
-	o, err := decodeObj(raw)
+func decodeStep(raw any) (domStep, error) {
+	o, err := domObjectOf(raw)
 	if err != nil {
 		return domStep{}, err
 	}
@@ -947,9 +947,9 @@ func decodeStep(raw json.RawMessage) (domStep, error) {
 	for key, value := range o {
 		switch key {
 		case "step":
-			step.Step, err = decodeString(value)
+			step.Step, err = domString(value)
 		case "category":
-			step.Category, err = decodeString(value)
+			step.Category, err = domString(value)
 			step.HasCategory = true
 		}
 		if err != nil {
@@ -1082,7 +1082,7 @@ func (dc *domDecoder) decodeRule(raw any) (*domRule, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !onlyMembers(o, "name", "params", "args", "instance", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at") {
+	if !onlyMembers(o, "name", "params", "args", "instance", "op", "categories", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at") {
 		return nil, fmt.Errorf("a malformed rule")
 	}
 	r := &domRule{}
@@ -1112,7 +1112,7 @@ func (dc *domDecoder) decodeRule(raw any) (*domRule, error) {
 		}
 	}
 	if instance, ok := o["instance"]; ok {
-		if !hasOneForm(o, [][]string{{"name", "op", "flags", "instance", "conditions", "at"}}) {
+		if !hasOneForm(o, [][]string{{"name", "op", "categories", "instance", "conditions", "at"}}) {
 			return nil, fmt.Errorf("a malformed instance binding")
 		}
 		call, err := domObjectOf(instance)
@@ -1254,12 +1254,9 @@ func (dc *domDecoder) decodeExprObj(raw any, o domObject, depth int) (*domExpr, 
 			if !e.Elidable {
 				return nil, fmt.Errorf("a default requires an elidable optional")
 			}
-			e.Default, err = decodeTerm(raw)
+			e.Default, err = dc.decodeTerm(raw)
 			if err != nil {
 				return nil, err
-			}
-			if e.Default.Kind != tmString && e.Default.Kind != tmConst {
-				return nil, fmt.Errorf("a default requires one string")
 			}
 		}
 		return e, nil

@@ -57,7 +57,7 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 		if p.Rule == "default-value" {
 			b.fail(p, "a default stands only on an elidable optional head")
 		}
-		if p.Rule == "tag-test" || p.Rule == "value-test" {
+		if p.Rule == "tag-test" || p.Rule == "value-test" || p.Rule == "default-value" {
 			tests = append(tests, p)
 		}
 	}
@@ -243,7 +243,7 @@ func (b *domBuilder) testBase(n *Node) *Node {
 func (b *domBuilder) tested(n *Node) *domExpr {
 	var tests []*Node
 	for _, p := range b.ruleParts(n) {
-		if p.Rule == "tag-test" || p.Rule == "value-test" {
+		if p.Rule == "tag-test" || p.Rule == "value-test" || p.Rule == "default-value" {
 			tests = append(tests, p)
 		}
 	}
@@ -254,6 +254,9 @@ func (b *domBuilder) tested(n *Node) *domExpr {
 	valid := capturedRules[base.Rule] && base.Rule != "tested"
 	seenTags, seenValue := false, false
 	for _, test := range tests {
+		if test.Rule == "default-value" {
+			continue
+		}
 		if !valid || test.Rule == "tag-test" && (seenTags || seenValue) || test.Rule == "value-test" && seenValue {
 			b.fail(test, "invalid test target or order")
 		}
@@ -265,6 +268,21 @@ func (b *domBuilder) tested(n *Node) *domExpr {
 	}
 	expr := b.expr(base)
 	for _, test := range tests {
+		if test.Rule == "default-value" {
+			if n != b.defaultHead {
+				b.fail(test, "a default stands only on an elidable optional head")
+			}
+			if b.headDefault != nil {
+				b.fail(test, "an elidable head has one default at most")
+			}
+			operand := b.only(test, "test-operand")
+			part := b.knownOf(operand, atomRules)
+			if part.Rule != "string" && part.Rule != "constant-reference" && part.Rule != "parameter" {
+				b.fail(operand, "a default requires one string")
+			}
+			b.headDefault, b.defaultNode = b.term(part), test
+			continue
+		}
 		e := &domExpr{Kind: exTest, Inner: expr}
 		if test.Rule == "tag-test" {
 			e.Op = "tags"
@@ -514,11 +532,8 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 			fail()
 		}
 		valid = name == "without-elision" && len(args) == 0 || name == "without-elision-except" && len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0]))
-	case "emitted":
-		valid = (b.inRecipe || b.inCondition) && len(args) == 0 && receiver.Kind == tmCapture
-	case "verbatim-text":
-
-		valid = b.inRecipe && len(args) == 0 && receiver.Kind == tmCapture
+	case methodRecipe:
+		valid = (b.inRecipe || name == "emitted" && b.inCondition) && len(args) == 0 && receiver.Kind == tmCapture
 	case methodTags:
 		valid = span && (len(args) == 0 || len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0])))
 	case methodBoundary:

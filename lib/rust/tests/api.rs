@@ -1099,7 +1099,7 @@ fn ranked_groups_grow_with_forest_positions() {
 
 #[test]
 fn ranked_template_locations_follow_nodes_before_and_after_cache_recovery() {
-    let text = "%ambiguity-resolution late-elision\n%rule f(@X)\n  @X C\n%rule text\n  (A ≻ B) C\n  | (E ≻ F)\n%conditions $ ≅ #f((G ≻ H))";
+    let text = "%ambiguity-resolution late(elision)\n%rule f(@X)\n  @X C\n%rule text\n  (A ≻ B) C\n  | (E ≻ F)\n%conditions $ ≅ #f((G ≻ H))";
     let sources = single(text)
         .into_iter()
         .map(|(path, text)| (format!("grammars/test/{path}"), text))

@@ -1002,8 +1002,6 @@ class DomBuilder:
                 raise self.fail(node, 'unknown method ' + name)
             if self.closed_for and name not in ("split", "ngrams"):
                 raise self.fail(node, f"{self.closed_for} cannot read an input method")
-            if not self.recipe_context and (name == "verbatim-text" or name == "emitted" and not self.condition_context):
-                raise self.fail(node, "this method is legal only in recipes")
             arguments = self.one(selector, "arguments")
             args = []
             argument_nodes = self.some(arguments, "argument") if arguments else []
@@ -1032,6 +1030,8 @@ class DomBuilder:
                     raise self.fail(node, "a method has the wrong receiver or arguments")
                 from ._boundary import Located
                 args[0] = Located({"classifier": args[0]["rule"]}, self.position(argument_nodes[0]))
+            if not self.recipe_context and (name == "verbatim-text" or name == "emitted" and not self.condition_context):
+                raise self.fail(node, "a method has the wrong receiver or arguments")
             dependent = self.has_unresolved(receiver) or self.has_unresolved(args)
             if self.feature_context or dependent:
                 problem = method_shape_problem(name, receiver, args, self.recipe_context)

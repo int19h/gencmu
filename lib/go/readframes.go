@@ -73,17 +73,21 @@ type exprFrame struct {
 	// What its value is made of: a list's kind, parts and items; or the
 	// construct it passes on; or the capture, the test or the optional
 	// that wraps what it asked for.
-	kind    string
-	parts   []*Node
-	items   []*domExpr
-	inWhole bool
-	pass    bool
-	capture string
-	marked  bool
-	elide   *domExpr
-	repeat  *domExpr
-	choices []*Node
-	call    bool
+	kind                string
+	parts               []*Node
+	items               []*domExpr
+	inWhole             bool
+	pass                bool
+	capture             string
+	marked              bool
+	previousHead        *Node
+	previousDefault     *domTerm
+	previousDefaultNode *Node
+	defaultNode         *Node
+	elide               *domExpr
+	repeat              *domExpr
+	choices             []*Node
+	call                bool
 }
 
 func (f *exprFrame) resume(b *domBuilder, in any) readStep {
@@ -111,8 +115,26 @@ func (f *exprFrame) resume(b *domBuilder, in any) readStep {
 	case f.elide != nil:
 		if f.marked {
 			b.marked--
+			f.elide.Default = b.headDefault
+			f.defaultNode = b.defaultNode
+			if b.defaultNode != nil {
+				f.elide.DefaultAt = b.at(b.defaultNode)
+			}
+			b.defaultHead, b.headDefault, b.defaultNode = f.previousHead, f.previousDefault, f.previousDefaultNode
 		}
 		f.elide.Inner = in.(*domExpr)
+		if value := f.elide.Default; value != nil && value.Kind == tmString {
+			head := f.elide.Inner
+			if head.Kind == exSeq {
+				head = head.Items[0]
+			}
+			for head.Kind == exTest {
+				if head.Op != "tags" && head.Value.Kind == tmString && ((value.Str == head.Value.Str) != (head.Op == "=")) {
+					b.fail(f.defaultNode, "a default fails its head test")
+				}
+				head = head.Inner
+			}
+		}
 		return give(f.elide)
 	case f.repeat != nil:
 		if f.repeat.Inner == nil {
@@ -321,6 +343,8 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 	case !isTerminal(head):
 		b.fail(n, form)
 	}
+	f.previousHead, f.previousDefault, f.previousDefaultNode = b.defaultHead, b.headDefault, b.defaultNode
+	b.defaultHead, b.headDefault, b.defaultNode = head, nil, nil
 	b.marked++
 	f.marked = true
 	f.elide = &domExpr{Kind: exOptional, Elidable: true}

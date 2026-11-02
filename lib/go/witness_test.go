@@ -191,7 +191,7 @@ func TestCorpusRunnerWitnessLost(t *testing.T) {
 }
 
 func TestLostWitnessSkipsAdmission(t *testing.T) {
-	sources := oneStage("%ambiguity-resolution late-elision elision-only\n%rule text (a ≻ b) ::∅\n%rule a \"a\" [+T]\n%rule b \"a\" [+T] [+U]")
+	sources := oneStage("%ambiguity-resolution late(elision)\n%elision-only\n%rule text (a ≻ b) ::∅\n%rule a \"a\" [+T]\n%rule b \"a\" [+T] [+U]")
 	pipeline, err := LoadPipelineSources(sources, "p.md")
 	if err != nil {
 		t.Fatal(err)

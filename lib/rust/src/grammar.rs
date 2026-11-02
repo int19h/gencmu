@@ -407,8 +407,10 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                             // The replacement keeps the place of the rule it
                             // replaces (§3, "Numbering").
                             let previous_categories = &grammar.rules[index].categories;
-                            let category_change = (previous_categories != &rule.categories)
-                                .then(|| CategoryChange { from: previous_categories.clone(), to: rule.categories.clone() });
+                            let category_change = (previous_categories != &rule.categories).then(|| CategoryChange {
+                                from: previous_categories.clone(),
+                                to: rule.categories.clone(),
+                            });
                             grammar.rules[index] = stitched();
                             grammar.changes.push(Change {
                                 stage: stage.to_string(),
@@ -443,52 +445,52 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                             checks.push((run, directive.at, 1, Check::Feature(grammar.features.len())));
                             grammar.features.push((document.clone(), directive.clone()));
                         }
-                "ambiguity-resolution" => {
-                    if resolution.is_some() {
-                        return Err(here(format!("stage {stage} has two %ambiguity-resolution directives")));
-                    }
-                    let refused = || {
-                        here(
-                            "%ambiguity-resolution takes leftmost-longest, fewest, most, late or early with a \
+                        "ambiguity-resolution" => {
+                            if resolution.is_some() {
+                                return Err(here("has a second %ambiguity-resolution".into()));
+                            }
+                            let refused = || {
+                                here(
+                                    "%ambiguity-resolution takes leftmost-longest, fewest, most, late or early with a \
                              category, then optionally greedy or lazy"
-                                .to_string(),
-                        )
-                    };
-                    let steps = directive.steps.as_deref().unwrap_or_default();
-                    if !crate::dom::valid_steps(steps) {
-                        return Err(refused());
-                    }
-                    grammar.lean = Lean::Neither;
-                    grammar.steps.clear();
-                    for step in steps {
-                        let kind = match step.step.as_str() {
-                            "greedy" => {
-                                grammar.lean = Lean::Greedy;
-                                continue;
+                                        .to_string(),
+                                )
+                            };
+                            let steps = directive.steps.as_deref().unwrap_or_default();
+                            if !crate::dom::valid_steps(steps) {
+                                return Err(refused());
                             }
-                            "lazy" => {
-                                grammar.lean = Lean::Lazy;
-                                continue;
+                            grammar.lean = Lean::Neither;
+                            grammar.steps.clear();
+                            for step in steps {
+                                let kind = match step.step.as_str() {
+                                    "greedy" => {
+                                        grammar.lean = Lean::Greedy;
+                                        continue;
+                                    }
+                                    "lazy" => {
+                                        grammar.lean = Lean::Lazy;
+                                        continue;
+                                    }
+                                    "leftmost-longest" => StepKind::LeftmostLongest,
+                                    "fewest" => StepKind::Fewest,
+                                    "most" => StepKind::Most,
+                                    "late" => StepKind::Late,
+                                    "early" => StepKind::Early,
+                                    _ => return Err(refused()),
+                                };
+                                let category = step.category.clone().ok_or_else(refused)?;
+                                grammar.steps.push(KeyStep { kind, category });
                             }
-                            "leftmost-longest" => StepKind::LeftmostLongest,
-                            "fewest" => StepKind::Fewest,
-                            "most" => StepKind::Most,
-                            "late" => StepKind::Late,
-                            "early" => StepKind::Early,
-                            _ => return Err(refused()),
-                        };
-                        let category = step.category.clone().ok_or_else(refused)?;
-                        grammar.steps.push(KeyStep { kind, category });
-                    }
-                    resolution = Some((document.clone(), directive.at));
-                }
-                "elision-only" => {
-                    if elision_only {
-                        return Err(here(format!("stage {stage} has two %elision-only directives")));
-                    }
-                    elision_only = true;
-                    grammar.elision_only = true;
-                }
+                            resolution = Some((document.clone(), directive.at));
+                        }
+                        "elision-only" => {
+                            if elision_only {
+                                return Err(here("has a second %elision-only".into()));
+                            }
+                            elision_only = true;
+                            grammar.elision_only = true;
+                        }
                         other => return Err(here(format!("an unknown directive %{other}"))),
                     }
                 }
@@ -755,7 +757,7 @@ fn emission_overlap(grammar: &StageGrammar) -> Result<(), Error> {
                     Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                         pending.extend(items)
                     }
-                    Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => pending.push(inner),
+                    Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => pending.push(inner),
                     Expr::Repeat(item, separator, _) => {
                         pending.push(item);
                         pending.extend(separator.as_deref());
@@ -1678,6 +1680,9 @@ impl Constants<'_> {
                 ValuePart::Pattern(term) => {
                     self.check_pattern_uses(term, document, at)?;
                 }
+                ValuePart::Expr(expr @ Expr::Optional(_, _, Some(_))) => {
+                    self.check_body_strings(expr, document, at)?;
+                }
                 ValuePart::Expr(Expr::ScalarRange(a, b)) => {
                     self.check_scalar_uses(a, b, document, at)?;
                 }
@@ -1908,11 +1913,15 @@ impl Constants<'_> {
                 Expr::ScalarRange(a, b) => {
                     self.scalar_endpoints(a, b, document, at)?;
                 }
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     pending.extend(items.iter().rev())
                 }
                 Expr::Optional(inner, _, default) => {
                     if let Some(default) = default {
+                        if matches!(default.term, Term::Source(_)) {
+                            pending.push(inner);
+                            continue;
+                        }
                         let value = self.evaluate(&default.term, document, default.at.unwrap_or(at))?;
                         let Value::Str(value) = value else {
                             return Err(located(
@@ -1926,7 +1935,10 @@ impl Constants<'_> {
                         while let Expr::Tested(_, _, next) = base {
                             base = next;
                         }
-                        let Expr::Ref(name) = base else { unreachable!("an elidable head names a tag") };
+                        let (Expr::Ref(name) | Expr::Terminal(name)) = base else {
+                            pending.push(inner);
+                            continue;
+                        };
                         let mut tested = head;
                         while let Expr::Tested(op, operand, next) = tested {
                             let operand = self.evaluate_test(operand, op, document, at)?;
@@ -1968,6 +1980,9 @@ impl Constants<'_> {
             for alternative in &mut rule.alternatives {
                 let mut stack = vec![&mut alternative.alternative.expr];
                 while let Some(expr) = stack.pop() {
+                    if matches!(expr, Expr::Optional(_, _, Some(_))) {
+                        self.check_body_strings(expr, &alternative.document, alternative.at)?;
+                    }
                     match expr {
                         Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                             stack.extend(items.iter_mut())
@@ -2232,7 +2247,13 @@ impl<'a> Iterator for ValueParts<'a> {
                 Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
                     children.extend(xs.iter().map(ValuePart::Expr))
                 }
-                Expr::Capture(_, e) | Expr::Optional(e, _) => children.push(ValuePart::Expr(e)),
+                Expr::Optional(e, _, default) => {
+                    children.push(ValuePart::Expr(e));
+                    if let Some(default) = default {
+                        children.push(ValuePart::Term(&default.term));
+                    }
+                }
+                Expr::Capture(_, e) => children.push(ValuePart::Expr(e)),
                 Expr::Repeat(e, separator, _) => {
                     children.push(ValuePart::Expr(e));
                     children.extend(separator.iter().map(|e| ValuePart::Expr(e)));

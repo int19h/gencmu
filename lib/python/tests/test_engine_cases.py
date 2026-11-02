@@ -522,7 +522,7 @@ class EngineCases(unittest.TestCase):
         self.assertIsNone(error)
         self.assertIsNotNone(features)
         self.check("runtime", {"error": "grammar"}, value, result, error, features)
-        with self.assertRaisesRegex(AssertionError, "expect.where requires a load failure"):
+        with self.assertRaisesRegex(AssertionError, "expect.where requires a load error"):
             self.check("runtime", {"error": "grammar", "where": {"document": "main.md"}}, value, result, error, features)
 
     def test_a_usage_error_of_loading_meets_only_its_kind(self) -> None:

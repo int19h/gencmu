@@ -162,9 +162,7 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			if !validCategories(r.Categories) || r.Op == "extend" && len(r.Categories) > 0 || !(isRuleName(r.Name, uni) || expanded && strings.Contains(r.Name, "(") && strings.HasSuffix(r.Name, ")")) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || r.Instance == nil && len(r.Alternatives) == 0 {
 				return &domProblem{message: "a malformed rule"}
 			}
-			if len(r.Flags) > 1 || (len(r.Flags) == 1 && ((r.Flags[0] != "leftmost-longest" && r.Flags[0] != "fewest") || r.Op == "extend")) {
-				return &domProblem{message: "a malformed rule flag list"}
-			}
+
 			c := &domChecker{rule: r, label: "rule " + r.Name, uni: uni, expanded: expanded}
 			c.sourceHead(r)
 			d.unresolved = d.unresolved || c.unresolved
@@ -224,7 +222,9 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			}
 			c.inConditions = false
 			for _, a := range r.Alternatives {
-				if repeatsItemCapture(a.Expr) { return &domProblem{message: "the name of an item capture used twice in one alternative", rule: r} }
+				if repeatsItemCapture(a.Expr) {
+					return &domProblem{message: "the name of an item capture used twice in one alternative", rule: r}
+				}
 			}
 			// The values of its tests, once the nesting is bounded (engine §9).
 			for _, t := range c.tests {
@@ -421,7 +421,7 @@ func directiveOperandsOK(dir *domDirective) bool {
 }
 
 type domChecker struct {
-	inConditions bool
+	inConditions    bool
 	expanded        bool
 	parameters      map[string]bool
 	unresolved      bool

@@ -92,10 +92,10 @@ export declare class Ranker {
     profileProject: number[] | null;
     /** @type {Lean} */
     lean: Lean;
-    /** @type {{plain: Map<Item, ProfileSummary>, contextual: Map<Item, Map<string, ProfileSummary>>}} */
+    /** @type {{plain: Map<Item, ElisionSummary>, contextual: Map<Item, Map<string, ElisionSummary>>}} */
     summaries: {
-        plain: Map<Item, ProfileSummary>;
-        contextual: Map<Item, Map<string, ProfileSummary>>;
+        plain: Map<Item, ElisionSummary>;
+        contextual: Map<Item, Map<string, ElisionSummary>>;
     };
     /** @type {Map<string, number>} */
     ruleGroups: Map<string, number>;
@@ -150,7 +150,7 @@ export declare class Ranker {
     candidateSummary(item: Item): Candidate[];
     /**
      * @param {Item} item
-     * @returns {ProfileSummary}
+     * @returns {ElisionSummary}
      */
     profileSummary(item: Item): ElisionSummary;
     /**
@@ -158,9 +158,9 @@ export declare class Ranker {
      * profileSummary has already computed.
      * @param {Item} item
      * @param {string} key
-     * @returns {ProfileSummary}
+     * @returns {ElisionSummary}
      */
-    summaryAt(item: Item, key: string): ProfileSummary;
+    summaryAt(item: Item, key: string): ElisionSummary;
     /**
      * The edges of an item that attain the greatest profile in its context.
      * @param {Item} item
@@ -261,7 +261,7 @@ export type ElisionNode = {
     left?: ElisionSeq;
     right?: ElisionSeq;
 };
-export type ProfileSummary = {
+export type ElisionSummary = {
     /**
      * null when there is no derivation
      */

@@ -1,10 +1,10 @@
 {
-  "description": "Rule flags report the flag token before body errors.",
-  "document": "```jbogenbau\n%rule(lazy) r A %conditions $ \u2245 #\u00ab a \u00bb\n```\n",
+  "description": "The removed rule-flag syntax fails at its opening parenthesis.",
+  "document": "```jbogenbau\n%rule(lazy) r A %conditions $ ≅ #« a »\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 7
+      "column": 6
     }
   }
 }

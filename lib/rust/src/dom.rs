@@ -732,7 +732,18 @@ fn expr_from_json(value: &Json) -> R<Expr> {
                     }
                     "optional" => {
                         let mark = if is_true(value.get("elidable")) { Mark::Elidable } else { Mark::Plain };
-                        pending.push(Task::Optional(mark, value.get("default").map(|d| -> R<DefaultValue> { Ok(DefaultValue {term:term_from_json(d)?, at:crate::parameters::locations::source_at(d)}) }).transpose()?));
+                        pending.push(Task::Optional(
+                            mark,
+                            value
+                                .get("default")
+                                .map(|d| -> R<DefaultValue> {
+                                    Ok(DefaultValue {
+                                        term: term_from_json(d)?,
+                                        at: crate::parameters::locations::source_at(d),
+                                    })
+                                })
+                                .transpose()?,
+                        ));
                         pending.push(Task::Read(field(value, "optional")?));
                         continue;
                     }
@@ -1134,7 +1145,6 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
             }
             out.push(']');
         }
-        out.push(']');
         out.push_str(&format!(",\"at\":[{},{}]", directive.at.0, directive.at.1));
         if let Some(conditions) = &directive.conditions {
             out.push_str(",\"conditions\":[");
@@ -1486,7 +1496,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     stack.extend(items.iter().rev().map(Nested::Expr))
                 }
-                Expr::Capture(_, inner) | Expr::Optional(inner, _) => stack.push(Nested::Expr(inner)),
+                Expr::Capture(_, inner) | Expr::Optional(inner, _, _) => stack.push(Nested::Expr(inner)),
                 Expr::Repeat(item, separator, _) => {
                     stack.extend(separator.as_deref().map(Nested::Expr));
                     stack.push(Nested::Expr(item));
@@ -1789,7 +1799,9 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
                     references_in_term(value, &mut out);
                     pending.push(inner);
                 }
-                Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => pending.extend(xs.iter().rev()),
+                Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
+                    pending.extend(xs.iter().rev())
+                }
                 Expr::Capture(_, x) => pending.push(x),
                 Expr::Optional(x, _, default) => {
                     if let Some(default) = default {
@@ -2109,7 +2121,12 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
                 Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     pending.extend(items.iter().rev())
                 }
-                Expr::Optional(inner, _, default) => { pending.push(inner); if let Some(default) = default { uses.push(Use::String(&default.term)); } },
+                Expr::Optional(inner, _, default) => {
+                    pending.push(inner);
+                    if let Some(default) = default {
+                        uses.push(Use::String(&default.term));
+                    }
+                }
                 Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
                 Expr::Repeat(item, separator, _) => {
                     pending.extend(separator.as_deref());

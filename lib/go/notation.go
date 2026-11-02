@@ -273,7 +273,7 @@ type domBuilder struct {
 	inRecipe    bool
 	inCondition bool
 	defaultHead *Node
-	headDefault templateObject
+	headDefault *domTerm
 	defaultNode *Node
 	// types keeps the types found of the terms and conditions read, each
 	// found once (§10).
@@ -639,7 +639,7 @@ func (b *domBuilder) rankingDirective(n *Node) *domDirective {
 	steps := b.some(n, "ranking-step", 1)
 	for i, p := range steps {
 		var words []string
-		for _, c := range parts(p) {
+		for _, c := range b.parts(p) {
 			if c.Kind == KindToken {
 				words = append(words, b.tokenValue(c))
 			}
@@ -667,7 +667,7 @@ func (b *domBuilder) rankingDirective(n *Node) *domDirective {
 // invalid name is reported before a repeated one.
 func (b *domBuilder) categories(n *Node, op string) []string {
 	out := []string{}
-	clause := one(n, "counts-as-clause")
+	clause := b.one(n, "counts-as-clause")
 	if clause == nil {
 		return out
 	}
@@ -771,31 +771,6 @@ func (b *domBuilder) implicationDeclaration(n *Node) *domImplication {
 	return m
 }
 
-func (b *domBuilder) ruleFlags(n *Node, op string) []string {
-	flags := []string{}
-	if list := b.one(n, "rule-flags"); list != nil {
-		if op == "extend" {
-			b.fail(list, "%%extend-rule accepts no flags")
-		}
-		for _, flag := range b.some(list, "rule-flag", 1) {
-			name := b.tokenValue(b.token(flag))
-			if name != "leftmost-longest" && name != "fewest" {
-				b.fail(flag, "unknown rule flag %s", name)
-			}
-			for _, previous := range flags {
-				if previous == name {
-					b.fail(flag, "duplicate rule flag %s", name)
-				}
-			}
-			if len(flags) > 0 {
-				b.fail(flag, "a rule accepts only one flag")
-			}
-			flags = append(flags, name)
-		}
-	}
-	return flags
-}
-
 func (b *domBuilder) rule(n *Node) *domRule {
 	b.hasBoundary = false
 	previous := b.parameters
@@ -860,7 +835,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 			b.fail(b.token(head), "a rule name starts with a lowercase letter or uses one eligible emoji")
 		}
 	}
-	r.Flags = b.ruleFlags(n, r.Op)
+	r.Categories = []string{}
 	for _, p := range b.parts(n) {
 		if p.Kind == KindToken && b.tokenValue(p) == "=" {
 			if r.Params != nil || r.Args != nil {

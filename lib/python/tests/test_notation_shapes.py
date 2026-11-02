@@ -71,7 +71,7 @@ class NotationShapes(unittest.TestCase):
             gencmu.load_pipeline_sources({
                 "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
                 "g.md": case["document"],
-                "data/preparsed/gencmu.json": BOOTSTRAP.replace(case["find"], case["replace"]),
+                "data/preparsed/gencmu.json": substitute(BOOTSTRAP, case["find"], case["replace"]),
             }, "p.md")
 
     def test_a_supplied_ranked_choice_error_has_no_syntax_code(self) -> None:

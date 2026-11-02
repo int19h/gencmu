@@ -207,7 +207,7 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                             return Some("a malformed directive".into());
                         };
                         let args: Option<Vec<_>> = args.iter().map(Json::as_str).collect();
-                        let Some(args) = args else { return Some("a malformed directive") };
+                        let Some(args) = args else { return Some("a malformed directive".into()) };
                         match name {
                             Some("stage" | "extend-stage" | "redefine-stage") => {
                                 matches!(&args[..], [name] if name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name))
@@ -452,7 +452,10 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
                 if rule.source.instance.is_some() {
                     continue;
                 }
-                if rule.alternatives.iter().any(|a| !crate::clauses::duplicate_captures(&a.expr).is_empty() || crate::clauses::repeats_item_capture(&a.expr)) {
+                if rule.alternatives.iter().any(|a| {
+                    !crate::clauses::duplicate_captures(&a.expr).is_empty()
+                        || crate::clauses::repeats_item_capture(&a.expr)
+                }) {
                     return Some("a production captures a name twice".into());
                 }
                 let projected;
@@ -552,11 +555,8 @@ pub(crate) fn names_problem(dom: &Json) -> Option<&'static str> {
 
 fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expanded: bool) -> Option<String> {
     let mut condition_nodes = FxSet::default();
-    let mut conditions: Vec<&Json> = pending
-        .iter()
-        .filter(|(kind, _, _)| matches!(kind, Part::Condition))
-        .map(|(_, n, _)| *n)
-        .collect();
+    let mut conditions: Vec<&Json> =
+        pending.iter().filter(|(kind, _, _)| matches!(kind, Part::Condition)).map(|(_, n, _)| *n).collect();
     while let Some(n) = conditions.pop() {
         condition_nodes.insert(n as *const Json as usize);
         match n {
@@ -665,11 +665,13 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     }
                     if let Some(default) = value.get("default") {
                         if value.get("elidable") != Some(&Json::Bool(true))
-                            || !(default.get("string").is_some() || default.get("const").is_some())
+                            || !(default.get("string").is_some()
+                                || default.get("const").is_some()
+                                || default.get("param").is_some())
                         {
-                            return Some("a malformed default");
+                            return Some("a malformed default".into());
                         }
-                        pending.push((Part::Term, default, depth + 1));
+                        pending.push((Part::String, default, depth + 1));
                     }
                     let sealed = flags.sealed || value.get("elidable").is_some();
                     pending.push(expression(inner, ExprFlags { sealed, ..flags }));
@@ -790,7 +792,11 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                         ("without-elision", []) => capture,
                         ("without-elision-except", [arg]) => capture && rule_arg(arg),
                         ("verbatim-text", []) => matches!(kind, Part::RecipeAtom) && capture,
-                        ("emitted", []) => (matches!(kind, Part::RecipeAtom) || condition_nodes.contains(&(value as *const Json as usize))) && capture,
+                        ("emitted", []) => {
+                            (matches!(kind, Part::RecipeAtom)
+                                || condition_nodes.contains(&(value as *const Json as usize)))
+                                && capture
+                        }
                         ("value" | "image", []) => {
                             span(receiver) || receiver.get("method").and_then(Json::as_str) == Some("emitted")
                         }

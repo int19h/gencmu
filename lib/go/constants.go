@@ -631,7 +631,7 @@ func walkValues(root valuePart, visit func(valuePart) *Error, patterns bool) *Er
 			for _, requirement := range e.Requirements {
 				terms(requirement.Value)
 			}
-			terms(e.Value, e.Ends[0], e.Ends[1])
+			terms(e.Value, e.Default, e.Ends[0], e.Ends[1])
 		case part.term != nil:
 			if part.term.Kind == tmPattern || part.pattern && !patterns {
 				if patterns && part.term.Pattern != nil {

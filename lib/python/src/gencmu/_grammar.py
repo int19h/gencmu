@@ -887,8 +887,8 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 elif op == "redefine":
                     if previous is None:
                         raise _error(f"%redefine-rule {name} replaces no rule defined before it", path, at, stage)
-                    flags = list(rule["categories"])
-                    category_change = CategoryChange(previous.categories.copy(), flags.copy()) if previous.categories != flags else None
+                    categories = list(rule["categories"])
+                    category_change = CategoryChange(previous.categories.copy(), categories.copy()) if previous.categories != categories else None
                     changes.append(Change("replace", name, path, previous.document, category_change))
                     # The rule keeps its place (engine §3, "Numbering").
                     rules[name] = Rule(name, alternatives, path, at, list(rule["categories"]))
@@ -1710,14 +1710,7 @@ class _Lowerer:
             # The union of the alternative's own tags and the definition's
             # (engine §3.7); the reader has made sure neither uses a capture
             # the alternative lacks.
-            if self.validation:
-                tag_clauses = tuple(None if clause is None else self.prepare(clause, False).simplified(present) for clause in (alt.tags, alt.rule_tags))
-                terms = [term for term in tag_clauses if term is not None]
-                if production.slot is not None:
-                    production.slot.tags = terms
-                    production.slot.tag_clauses = tag_clauses
-            else:
-                terms = [self.prepare(term, False).simplified(present) for term in (alt.tags, alt.rule_tags) if term is not None]
+            terms = [self.prepare(term, False).simplified(present) for term in (alt.tags, alt.rule_tags) if term is not None]
             if terms:
                 production.tags_term = terms[0] if len(terms) == 1 else {"union": terms}
             production.emit = self.lower_emit(alt.emit, captures, self.emission(alt.emit))

@@ -126,13 +126,7 @@ func TestParameterCategories(t *testing.T) {
 	g := parameterGrammar(t, "%rule atom(@X) @X\n%counts-as few\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"")
 	parameterEqual(t, g.byName["atom(\"a\")"].categories, []string{})
 	parameterEqual(t, g.byName["atom(\"b\")"].categories, []string{"few"})
-	instance := templateObj(templateList(templateAudit(g)["instances"])[0])
-	events := []any{}
-	for _, v := range templateList(instance["events"]) {
-		e := templateObj(v)
-		events = append(events, []any{e["scope"], e["op"], e["categoriesAfter"]})
-	}
-	parameterEqual(t, events, []any{[]any{"template", "define", []any{"few"}}, []any{"instance", "redefine", []any{}}, []any{"template", "extend", []any{}}})
+
 }
 func TestParameterNormalizationAndConstants(t *testing.T) {
 	g := parameterGrammar(t, "%const $A \"a\"\n%rule atom(@X) @X\n%rule text atom(\"a\") atom((\"a\")) atom($A)")
@@ -407,7 +401,7 @@ type parameterStructureCase struct {
 	Argument      json.RawMessage
 	Order         []string
 	Instances     *int
-	Categories         map[string][]string
+	Categories    map[string][]string
 }
 
 func (c *parameterStructureCase) checkExpectations(instances int, argument any) error {

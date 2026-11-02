@@ -423,8 +423,20 @@ mod tests {
             let mut documents = Failing {
                 top: Arc::new(Dom {
                     directives: vec![
-                        Directive { name: "stage".into(), args: vec!["main".into()], at: (1, 1), conditions: None },
-                        Directive { name: "include".into(), args: vec!["g.md".into()], at: (2, 1), conditions: None },
+                        Directive {
+                            steps: None,
+                            name: "stage".into(),
+                            args: vec!["main".into()],
+                            at: (1, 1),
+                            conditions: None,
+                        },
+                        Directive {
+                            steps: None,
+                            name: "include".into(),
+                            args: vec!["g.md".into()],
+                            at: (2, 1),
+                            conditions: None,
+                        },
                     ],
                     ..Dom::default()
                 }),

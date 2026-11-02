@@ -1,6 +1,6 @@
 {
   "description": "A range terminal cannot read a synthetic terminator (engine §4).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text \"a\" [+T=\"b\"] | \"a\" \"a\"..\"c\"",
+  "grammar": "%ambiguity-resolution late(elision)\n%elision-only\n%rule text \"a\" [+T=\"b\"] | \"a\" \"a\"..\"c\"",
   "input": "a",
   "expect": {
     "result": {

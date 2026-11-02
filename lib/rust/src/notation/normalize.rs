@@ -59,7 +59,7 @@ pub(super) fn document(dom: &mut Dom) {
                 Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
                     stack.extend(xs.iter_mut().map(Part::Expr))
                 }
-                Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(Part::Expr(inner)),
+                Expr::Optional(inner, _, _) | Expr::Capture(_, inner) => stack.push(Part::Expr(inner)),
                 Expr::Repeat(inner, separator, _) => {
                     stack.push(Part::Expr(inner));
                     stack.extend(separator.iter_mut().map(|s| Part::Expr(s)));

@@ -357,7 +357,15 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                             .boundaries
                             .as_ref()
                             .map_or(0, |m| m.borrow_mut().leaf(&g.terminals[symbol as usize], false));
-                        caps.push(Cap { boundary, close_requested: false, start: from, end: to, tags, structure });
+                        caps.push(Cap {
+                            emitted: forest.chart.token_strings.get(&from).copied().unwrap_or(0),
+                            boundary,
+                            close_requested: false,
+                            start: from,
+                            end: to,
+                            tags,
+                            structure,
+                        });
                     }
                     (IKind::Close { .. }, Sym::N(_)) => {
                         for &i in &found[child as usize] {
@@ -366,6 +374,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                                 continue;
                             }
                             caps.push(Cap {
+                                emitted: set.items[i as usize].emitted,
                                 boundary: set.items[i as usize].boundary,
                                 close_requested: set.items[i as usize].close_requested,
                                 start: from,

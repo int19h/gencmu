@@ -1,6 +1,6 @@
 {
   "description": "An inert omission predicate still records the structural observation that reconstructs the chosen witness (engine §7).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text A [+T≠\"\"] | A [+OTHER] [+OTHER] | A [+OTHER] [+OTHER] [+OTHER]",
+  "grammar": "%ambiguity-resolution late(elision)\n%rule text A [+T≠\"\"] | A [+OTHER] [+OTHER] | A [+OTHER] [+OTHER] [+OTHER]",
   "tokens": [
     {
       "text": "a",

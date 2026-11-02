@@ -46,7 +46,7 @@ class DomMalformed(unittest.TestCase):
             ({"extra": 1, "ranked": [{"ref": "A"}, {"ref": "B"}]}, False),
             ({"ranked": [None, {"ref": "B"}]}, False),
         ]:
-            dom = {"format": DOM_FORMAT, "rules": [{"name": "text", "op": "define", "flags": [], "alternatives": [{"guards": [], "expr": expr}], "conditions": [], "at": [1, 1]}], "directives": [], "constants": [], "classifiers": [], "implications": []}
+            dom = {"format": DOM_FORMAT, "rules": [{"name": "text", "op": "define", "categories": [], "alternatives": [{"guards": [], "expr": expr}], "conditions": [], "at": [1, 1]}], "directives": [], "constants": [], "classifiers": [], "implications": []}
             problem = dom_problem(dom, unicode)
             self.assertIsNotNone(problem)
             self.assertEqual(problem.startswith("ranked-choice-syntax:"), coded, str(expr))

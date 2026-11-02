@@ -819,7 +819,7 @@ impl Expander<'_> {
                     let mut rule = obj([
                         ("name", if extra { string("text") } else { get(&event.rule, "name").clone() }),
                         ("op", string("define")),
-                        ("flags", Json::Arr(Vec::new())),
+                        ("categories", Json::Arr(Vec::new())),
                         ("conditions", Json::Arr(Vec::new())),
                         (
                             "alternatives",

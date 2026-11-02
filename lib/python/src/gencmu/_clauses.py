@@ -1351,14 +1351,13 @@ def _definition_issues(rule: Dom):
     # Each production of each alternative, with the captures it reads
     # (engine §3.5, §9); productions that read the same captures in the same
     # order are one.
-    braced = [a["expr"] for a in alternatives]
     productions = [(alternative, captures) for alternative in alternatives for captures in validation_captures(rule, alternative)]
     captured = [[name for name, _ in sorted(captures.items(), key=lambda pair: pair[1]) if name != WHOLE] for _, captures in productions]
     presents = [set(captures) for _, captures in productions]
     known = set().union(*presents)
     emit = rule.get("emit")
     items: list[Dom] = emit["items"] if emit is not None else []
-    places = {id(expr): found for expr in braced if (found := item_captures(expr))}
+    places = {id(a["expr"]): found for a in alternatives if "capture" not in a["expr"] if (found := item_captures(a["expr"]))}
     item_places: set[str] = set().union(*places.values())
     clauses: list[Any] = [rule.get("tags"), rule.get("value"), rule.get("image")]
     clauses.extend(alternative.get(channel) for alternative in alternatives for channel in ("tags", "value", "image"))

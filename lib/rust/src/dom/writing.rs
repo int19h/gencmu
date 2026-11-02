@@ -148,13 +148,17 @@ fn emit_expr<'a>(out: &mut Pieces<'a>, expr: &'a Expr) {
         Expr::Choice(items) => write_list(out, "choice", items, write_expr),
         Expr::Ranked(items, _) => write_list(out, "ranked", items, write_expr),
         Expr::And(items) => write_list(out, "and", items, write_expr),
-        Expr::Optional(inner, mark) => {
+        Expr::Optional(inner, mark, default) => {
             out.push_str("{\"optional\":");
             write_expr(out, inner);
-            out.push_str(match mark {
-                Mark::Plain => "}",
-                Mark::Elidable => ",\"elidable\":true}",
-            });
+            if *mark == Mark::Elidable {
+                out.push_str(",\"elidable\":true");
+            }
+            if let Some(default) = default {
+                out.push_str(",\"default\":");
+                write_term(out, &default.term);
+            }
+            out.push('}');
         }
         Expr::Repeat(item, separator, chain) => {
             out.push_str("{\"repeat\":");

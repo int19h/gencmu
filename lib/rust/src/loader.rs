@@ -299,14 +299,6 @@ impl Context {
         } else {
             return read_document_named(&self.notation, text, true, names).map_err(|error| error.in_document(path));
         };
-        if diagnostic
-            && (text.contains("followed-by")
-                || text.contains("preceded-by")
-                || text.contains('≝')
-                || text.contains(".emitted"))
-        {
-            dom = read_document_named(&self.notation, text, true, names).map_err(|e| e.in_document(path))?;
-        }
         if diagnostic {
             #[cfg(test)]
             LOCATION_RECOVERIES.with(|count| count.set(count.get() + 1));
@@ -400,6 +392,7 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
         closed_for: Default::default(),
         in_recipe: Default::default(),
         in_condition: Default::default(),
+        head_defaults: Default::default(),
         default_head: Default::default(),
     };
     let mut dom = reader.document(tree)?;
@@ -880,7 +873,7 @@ pub fn check_dom_with_unicode(json: &str, table: &str) -> Result<Option<String>,
 }
 
 /// Splices a bundled pipeline document (engine §13) and returns the result
-/// as JSON, `{"format":40,"stages":[{"name":...,"documents":[{"path":...,
+/// as JSON, `{"format":42,"stages":[{"name":...,"documents":[{"path":...,
 /// "dom":...}]}],"features":[...]}`: each stage's runs of one document's
 /// items, as spliced stage records, and the features. With `cached`
 /// false, every document is read through the notation, bypassing

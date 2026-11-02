@@ -1119,33 +1119,11 @@ impl<'e> CaptureSequences<'e> {
             work::count(Work::Checked, 1);
             self.names[index]
         };
-        if work::mutated(Mutant::ScanDistinct) {
-            return self.distinct_by_scans(lists);
-        }
-        let mut seen: HashSet<Vec<&str>> = HashSet::new();
+        let mut seen: FxSet<Vec<&str>> = FxSet::default();
         let mut out = Vec::new();
         for list in lists {
             let key: Vec<&str> = list.iter().map(name).collect();
             if seen.insert(key) {
-                out.push(list);
-            }
-        }
-        out
-    }
-
-    /// A mutation for the tests of work: the distinct sequences, each
-    /// compared name by name with every one kept before it.
-    fn distinct_by_scans(&self, lists: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
-        let mut out: Vec<Vec<usize>> = Vec::new();
-        for list in lists {
-            let same = |kept: &Vec<usize>| {
-                kept.len() == list.len()
-                    && kept.iter().zip(&list).all(|(&a, &b)| {
-                        work::count(Work::Checked, 1);
-                        self.names[a] == self.names[b]
-                    })
-            };
-            if !out.iter().any(same) {
                 out.push(list);
             }
         }
@@ -1163,11 +1141,7 @@ impl<'e> CaptureSequences<'e> {
         };
         if let [only] = right {
             for sequence in &mut left {
-                if work::mutated(Mutant::CopySequences) {
-                    *sequence = sequence.iter().chain(only).map(copied).collect();
-                } else {
-                    sequence.extend(only.iter().map(copied));
-                }
+                sequence.extend(only.iter().map(copied));
             }
             return left;
         }
@@ -1188,7 +1162,7 @@ impl<'e> CaptureSequences<'e> {
             work::count(Work::Walked, 1);
             match current {
                 Expr::Capture(name, _) => self.names.push(name),
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     stack.extend(items.iter().rev())
                 }
                 Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push(inner),
@@ -1201,7 +1175,8 @@ impl<'e> CaptureSequences<'e> {
                 | Expr::Literal(_)
                 | Expr::ScalarRange(..)
                 | Expr::Range(..)
-                | Expr::Property(_)
+                | Expr::Source(_)
+                | Expr::Wildcard
                 | Expr::Empty => {}
             }
         }
@@ -1222,7 +1197,7 @@ impl<'e> CaptureSequences<'e> {
                         self.names.push(name);
                         done.push(vec![vec![self.names.len() - 1]]);
                     }
-                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                         stack.push((expr, true));
                         stack.extend(items.iter().rev().map(|item| (item, false)));
                     }
@@ -1240,7 +1215,8 @@ impl<'e> CaptureSequences<'e> {
                     | Expr::Literal(_)
                     | Expr::ScalarRange(..)
                     | Expr::Range(..)
-                    | Expr::Property(_)
+                    | Expr::Source(_)
+                    | Expr::Wildcard
                     | Expr::Empty => done.push(vec![Vec::new()]),
                 }
                 continue;
@@ -1254,7 +1230,7 @@ impl<'e> CaptureSequences<'e> {
                     }
                     sequences
                 }
-                Expr::Choice(items) | Expr::Ranked(items) => {
+                Expr::Choice(items) | Expr::Ranked(items, _) => {
                     let parts = done.split_off(done.len() - items.len());
                     let all = parts.into_iter().flatten().collect();
                     self.distinct(all)
@@ -1337,7 +1313,7 @@ fn item_captures_and_braces(expr: &Expr) -> ItemsAndBraces<'_> {
                 stack.extend(separator.as_deref().map(|separator| (separator, inner)));
                 stack.push((item, inner));
             }
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.iter().rev().map(|item| (item, place)));
             }
             Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push((inner, place)),
@@ -1346,7 +1322,8 @@ fn item_captures_and_braces(expr: &Expr) -> ItemsAndBraces<'_> {
             | Expr::Literal(_)
             | Expr::ScalarRange(..)
             | Expr::Range(..)
-            | Expr::Property(_)
+            | Expr::Source(_)
+            | Expr::Wildcard
             | Expr::Empty => {}
         }
     }
@@ -1383,7 +1360,7 @@ pub(crate) fn repeats_item_capture(expr: &Expr) -> bool {
                 stack.extend(separator.as_deref());
                 stack.push(item);
             }
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.iter())
             }
             Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push(inner),
@@ -1392,7 +1369,8 @@ pub(crate) fn repeats_item_capture(expr: &Expr) -> bool {
             | Expr::Literal(_)
             | Expr::ScalarRange(..)
             | Expr::Range(..)
-            | Expr::Property(_)
+            | Expr::Source(_)
+            | Expr::Wildcard
             | Expr::Empty => {}
         }
     }
@@ -1411,7 +1389,7 @@ fn flat_braces_in(expr: &Expr) -> usize {
                 stack.extend(separator.as_deref());
                 stack.push(item);
             }
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.iter().rev());
             }
             Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) | Expr::Capture(_, inner) => stack.push(inner),
@@ -1420,7 +1398,8 @@ fn flat_braces_in(expr: &Expr) -> usize {
             | Expr::Literal(_)
             | Expr::ScalarRange(..)
             | Expr::Range(..)
-            | Expr::Property(_)
+            | Expr::Source(_)
+            | Expr::Wildcard
             | Expr::Empty => {}
         }
     }
@@ -1457,7 +1436,7 @@ pub(crate) fn braces_sequences(expr: &Expr) -> Vec<Vec<Read<'_>>> {
                     order += 1 + flat_braces_in(item) + separator.as_deref().map_or(0, flat_braces_in);
                     done.push(vec![vec![Read::Braces(number)]]);
                 }
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     stack.push((current, true));
                     stack.extend(items.iter().rev().map(|item| (item, false)));
                 }
@@ -1485,7 +1464,8 @@ pub(crate) fn braces_sequences(expr: &Expr) -> Vec<Vec<Read<'_>>> {
                 | Expr::Literal(_)
                 | Expr::ScalarRange(..)
                 | Expr::Range(..)
-                | Expr::Property(_)
+                | Expr::Source(_)
+                | Expr::Wildcard
                 | Expr::Empty => done.push(vec![Vec::new()]),
             }
             continue;
@@ -1499,7 +1479,7 @@ pub(crate) fn braces_sequences(expr: &Expr) -> Vec<Vec<Read<'_>>> {
                 }
                 sequences
             }
-            Expr::Choice(items) | Expr::Ranked(items) => {
+            Expr::Choice(items) | Expr::Ranked(items, _) => {
                 done.split_off(done.len() - items.len()).into_iter().flatten().collect()
             }
             Expr::And(items) => {
@@ -1921,7 +1901,7 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
     }
     if !item_names.is_empty() {
         if let Some(problem) = item_capture_problem(rule) {
-            return Some(problem);
+            return immediate(problem);
         }
     }
 
@@ -2190,6 +2170,7 @@ mod tests {
                         Expr::Optional(
                             Box::new(Expr::Capture(name.clone(), Box::new(Expr::Terminal("A".into())))),
                             Mark::Plain,
+                            None,
                         )
                     })
                     .collect(),
@@ -2296,6 +2277,7 @@ mod tests {
                         Expr::Optional(
                             Box::new(Expr::Capture(format!("c{index}"), Box::new(Expr::Terminal("A".into())))),
                             crate::dom::Mark::Plain,
+                            None,
                         )
                     })
                     .collect(),

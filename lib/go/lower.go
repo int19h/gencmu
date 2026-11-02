@@ -38,37 +38,37 @@ type production struct {
 	// altItems are the item captures of a helper's alternative, which no
 	// condition of the helper's ranked group reads (§3.6).
 	altItems         map[string]bool
-	privateNames      map[string]bool
-	rankedBindings    string
-	parentTags        *domTerm
-	slot              *slotMetadata
-	num               int
-	lhs               int32
-	rhs               []symbol
-	tests             []*symTest // per position: the test its symbol must pass, or nil; nil when no symbol is tested (§4)
-	capName           []string   // per position: the capture's name, or ""
-	capSlot           []int32    // per position: the item's capture slot, or -1
-	nslots            int
-	slotOf            map[string]int32 // capture name → slot
-	posOf             map[string]int   // capture name → its first position
-	tags              *domTerm         // nil: default tags (§4)
-	inheritIndex      int
-	logicalCount      int
-	implicit          bool // one symbol and no tags: the constituent has its symbol's tags (§3.7)
-	conds             []lcond
-	condFrom          []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
-	predictConds      []*domCond // conditions using no capture but $ of an empty production, checked at prediction
-	rankedConditions  []*domCond // effective conditions across static ranked entry contexts
-	emit              *domEmit   // as dropped and simplified for the production (§3.6)
-	nothing           bool       // %erased: the constituent emits nothing and does not count (§11)
-	value, image      *domTerm
-	transparent       bool
-	helper            bool
-	elided            string   // for the ε production of an optional beginning with an elidable terminal
-	elidedTest        *symTest // the test of that terminal, if it is tested; a restored token sounds like the string of an = test (§7)
-	ruleName          string   // the rule the author wrote (for a helper, the one it serves)
-	doc               string
-	at                [2]int
+	privateNames     map[string]bool
+	rankedBindings   string
+	parentTags       *domTerm
+	slot             *slotMetadata
+	num              int
+	lhs              int32
+	rhs              []symbol
+	tests            []*symTest // per position: the test its symbol must pass, or nil; nil when no symbol is tested (§4)
+	capName          []string   // per position: the capture's name, or ""
+	capSlot          []int32    // per position: the item's capture slot, or -1
+	nslots           int
+	slotOf           map[string]int32 // capture name → slot
+	posOf            map[string]int   // capture name → its first position
+	tags             *domTerm         // nil: default tags (§4)
+	inheritIndex     int
+	logicalCount     int
+	implicit         bool // one symbol and no tags: the constituent has its symbol's tags (§3.7)
+	conds            []lcond
+	condFrom         []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
+	predictConds     []*domCond // conditions using no capture but $ of an empty production, checked at prediction
+	rankedConditions []*domCond // effective conditions across static ranked entry contexts
+	emit             *domEmit   // as dropped and simplified for the production (§3.6)
+	nothing          bool       // %erased: the constituent emits nothing and does not count (§11)
+	value, image     *domTerm
+	transparent      bool
+	helper           bool
+	elided           string   // for the ε production of an optional beginning with an elidable terminal
+	elidedTest       *symTest // the test of that terminal, if it is tested; a restored token sounds like the string of an = test (§7)
+	ruleName         string   // the rule the author wrote (for a helper, the one it serves)
+	doc              string
+	at               [2]int
 	// warnings holds every written warning name of the alternative, in
 	// written order. Output selects enabled names for the chosen tree (§12).
 	// A helper has none.
@@ -558,7 +558,7 @@ func (lw *lowerer) lowerRule(r *sRule) {
 						p.capSlot[p.inheritIndex] = int32(p.nslots)
 						p.nslots++
 					}
-					if lw.validation || ranked {
+					if ranked {
 						if group := lw.g.ranked.expressions[h.path]; group != nil {
 							p.ranked = group
 							p.option = lw.rankOptions[h.rule][optionIndex]

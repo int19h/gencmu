@@ -235,7 +235,9 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	}
 	steps := make([]keyStep, 0, len(g.steps))
 	for _, step := range g.steps {
-		if step.category != "elision" { steps = append(steps, step) }
+		if step.category != "elision" {
+			steps = append(steps, step)
+		}
 	}
 	marks, restored := walkWitness(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
 	if restored == nil {
@@ -246,7 +248,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	if len(top) > 0 {
 		rk = newRanker(r, steps, "")
 	} else {
-		rk = newUnfilteredRanker(r, "")
+		rk = newUnfilteredRanker(r, steps, "")
 	}
 	rk.check, rk.marks = true, marks
 	var chosenProfile profile
@@ -271,7 +273,6 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	better := false
 	var selected *rankResult
 	if res != nil {
-		chosenProfile := rk.space.derivationProfile(d)
 		profileOrder := rk.space.compare(res.profile, chosenProfile)
 		excluded := !res.witnessCounted
 		better = excluded || profileOrder < 0
