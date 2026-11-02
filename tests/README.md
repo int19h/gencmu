@@ -206,6 +206,8 @@ A shared case shows that a library is wrong where it fails. It cannot show that 
 
 An error that the library raises instead of returning a result counts as a result failure. JavaScript represents this error with `GencmuError`. JavaScript counts the fault's own error from its recursion limit as `bound`. A crash or any other execution error fails the fault test.
 
+The JavaScript fault F17 separates strict and ordinary items. It counts duplicate copies of one derivation as a false ambiguity. That injected result has no action witness. The shared case rejects the false ambiguity without a runtime exception.
+
 Each library's fault test must establish three facts about each fault:
 
 - How a case catches it: The test examines the result alone and the witness hook alone, so each test stands on its own. The catch is `result` where only the result fails the case, `hook` where only the hook does, and `result+hook` where both do. Each library has a fault whose only catch is `hook`, a mutation that the result alone does not show. An example is a count that skips W(D)'s edge where its item has siblings.

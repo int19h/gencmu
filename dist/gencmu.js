@@ -2058,6 +2058,7 @@
   const SITES = {
     F11: ["restore", "test"],
     F16: ["predict", "item", "empty"],
+    F17: ["items", "diagnostic"],
     F29: ["predict", "reading"],
     "order:tags": ["predict", "advance"],
     "lost:rank": ["candidates", "count"],
@@ -11920,7 +11921,7 @@
     const mode = context.mode;
     const synthetic = context.synthetic;
     const reading = mode === "reconstruction" ? readingOf(lowered) : null;
-    const twoItems = mode === "reconstruction" && fault("F17");
+    const twoItems = mode === "reconstruction" && fault("F17", "items");
 
     // Adds the item `previous` makes advanced over `child`, or over the token
     // before the set when `child` is null; a prediction when both are null.
@@ -18135,7 +18136,11 @@
       const result = {
         kind: "ambiguous",
         readings: ropes.map((rope, index) => better && index === 0 ? tree : remap(resultTree(derivationTree(rope), r)[0])),
-        witness: [mapAction(witness[0]), mapAction(witness[1])],
+        // F17 counts duplicated items as a false tie between identical
+        // derivations. There is no differing action in that injected state.
+        // Return its malformed result for the shared case to reject.
+        witness: ranking.witness === null && fault("F17", "diagnostic")
+          ? undefined : [mapAction(witness[0]), mapAction(witness[1])],
       };
       // A competing reading gives no warning (engine §7.10), unless a fault
       // takes its warnings (F22).
