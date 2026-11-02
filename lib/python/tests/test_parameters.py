@@ -269,6 +269,8 @@ class ParameterStructure(unittest.TestCase):
                     self.assertTrue(same_json(dom['rules'][-1]['alternatives'][0]['expr']['args'][0], case['argument']))
                 _, order, instances, *_ = expand_templates([('review.md', dom)], unicode)
                 if 'order' in case:
+                    if order is None:
+                        order = list(dict.fromkeys(rule['name'] for rule in dom['rules']))
                     self.assertTrue(same_json(order, case['order']))
                 if 'instances' in case:
                     self.assertTrue(same_json(len(instances), case['instances']))

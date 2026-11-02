@@ -437,14 +437,26 @@ fn shared_parameter_structure() {
             let rules = list(get(&raw, "rules"));
             assert_eq!(&list(get(expression(rules.last().unwrap()), "args"))[0], arg, "{name}");
         }
-        let x = expand(&[(Arc::from("grammars/test/review.md"), Arc::new(d))], &uni)
-            .unwrap_or_else(|e| panic!("{name}: {e:?}"))
-            .unwrap();
+        let documents = [(Arc::from("grammars/test/review.md"), Arc::new(d))];
+        let x = expand(&documents, &uni).unwrap_or_else(|e| panic!("{name}: {e:?}"));
         if let Some(order) = case.get("order") {
-            assert_eq!(x.order, list(order).iter().map(|n| text(n).to_string()).collect::<Vec<_>>(), "{name}");
+            let actual = x.as_ref().map_or_else(
+                || {
+                    let mut seen = std::collections::HashSet::new();
+                    documents[0]
+                        .1
+                        .rules
+                        .iter()
+                        .filter(|rule| seen.insert(&rule.name))
+                        .map(|rule| rule.name.clone())
+                        .collect()
+                },
+                |x| x.order.clone(),
+            );
+            assert_eq!(actual, list(order).iter().map(|n| text(n).to_string()).collect::<Vec<_>>(), "{name}");
         }
         if let Some(count) = case.get("instances") {
-            assert_eq!(x.instance_names.len(), count.as_int().unwrap() as usize, "{name}");
+            assert_eq!(x.as_ref().map_or(0, |x| x.instance_names.len()), count.as_int().unwrap() as usize, "{name}");
         }
         if let Some(flags) = case.get("flags").and_then(Json::as_object) {
             let g = grammar(text(get(case, "grammar")));

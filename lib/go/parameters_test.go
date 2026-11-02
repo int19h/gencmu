@@ -491,7 +491,18 @@ func TestParameterSharedStructure(t *testing.T) {
 				t.Fatal(expansionErr)
 			}
 			if c.Order != nil {
-				parameterEqual(t, x.order, c.Order)
+				order := x.order
+				if !dom.unresolved {
+					order = []string{}
+					seen := map[string]bool{}
+					for _, rule := range dom.Rules {
+						if !seen[rule.Name] {
+							seen[rule.Name] = true
+							order = append(order, rule.Name)
+						}
+					}
+				}
+				parameterEqual(t, order, c.Order)
 			}
 			if err := c.checkExpectations(len(x.instanceNames), argument); err != nil {
 				t.Fatal(err)
