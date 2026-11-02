@@ -117,7 +117,7 @@ func TestWitnessLost(t *testing.T) {
 		if len(problems) != 1 || !strings.Contains(problems[0], "elision-witness-lost") {
 			t.Fatalf("%s: %v\n%s", lose, problems, data)
 		}
-		if err := checkResult(res, got, data, &caseExpect{Error: ErrorGrammar}); err == nil {
+		if err := checkResult(res, got, data, &caseExpect{Error: ErrorGrammar}, nil); err == nil {
 			t.Fatalf("%s: the runner passes the error", lose)
 		}
 		e := res.Error

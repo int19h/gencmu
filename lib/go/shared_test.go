@@ -507,7 +507,22 @@ func checkParse(d *Pipeline, c *engineCase, options *caseOptions, expect *caseEx
 			return fmt.Errorf("enabled features: expected %s, got %v", shown(*expect.EnabledFeatures), res.Features)
 		}
 	}
-	return checkResult(res, got, data, expect)
+	// A runtime lowering error keeps its structured location in the lowered
+	// grammar. The public result deliberately has no position (engine §13).
+	var location *Error
+	if expect.Message != nil && res.Error != nil && res.Error.Kind == ErrorGrammar {
+		features := map[string]bool{}
+		for _, name := range res.Features {
+			features[name] = true
+		}
+		for i, stage := range d.stages {
+			if stage.name == res.Error.Stage {
+				location = d.lower(i, features).faultLocation
+				break
+			}
+		}
+	}
+	return checkResult(res, got, data, expect, location)
 }
 
 // resultProblems lists what a canonical result breaks of the invariants
@@ -570,8 +585,9 @@ func resultProblems(got any) []string {
 }
 
 // checkResult matches a result, and its canonical JSON as got and as data,
-// against an expectation. The invariants of the result come first.
-func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect) error {
+// against an expectation. Location is the original lowering error, or nil.
+// The invariants of the result come first.
+func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect, location *Error) error {
 	if expect.Where != nil || expect.Diagnostic != nil {
 		return fmt.Errorf("where and diagnostic apply only to load errors")
 	}
@@ -583,8 +599,15 @@ func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect) err
 	if expect.Message != nil && (res.Error == nil || res.Error.Kind != ErrorGrammar) {
 		return fmt.Errorf("expect.message applies only to grammar errors")
 	}
-	if expect.Message != nil && (res.Error == nil || res.Error.Message != *expect.Message) {
-		return fmt.Errorf("runtime message: expected %q, got %s", *expect.Message, data)
+	if expect.Message != nil {
+		message := res.Error.Message
+		if location != nil {
+			prefix := fmt.Sprintf("%s:%d:%d: ", location.Document, location.Line, location.Column)
+			message = strings.TrimPrefix(message, prefix)
+		}
+		if message != *expect.Message {
+			return fmt.Errorf("runtime message: expected %q, got %s", *expect.Message, data)
+		}
 	}
 	if problems := resultProblems(got); len(problems) > 0 {
 		return fmt.Errorf("the result breaks an invariant: %s\n%s", strings.Join(problems, "; "), data)
@@ -812,7 +835,7 @@ func TestEngineRunnerInvariants(t *testing.T) {
 		if len(resultProblems(got)) == 0 {
 			t.Errorf("%s: no problem found", m.Name)
 		}
-		if checkResult(res, got, data, &caseExpect{Error: ErrorAmbiguous}) == nil {
+		if checkResult(res, got, data, &caseExpect{Error: ErrorAmbiguous}, nil) == nil {
 			t.Errorf("%s: the runner accepts it", m.Name)
 		}
 	}
@@ -923,10 +946,8 @@ func inputTokensOf(tokens []Token) []InputToken {
 func unrepresentableTokenField(raw any) string {
 	tokens, _ := raw.([]any)
 	for _, raw := range tokens {
-		token, ok := raw.(map[string]any)
-		if !ok {
-			return "Go []InputToken cannot express a non-record token"
-		}
+		// tokenSchema already requires an object at every depth.
+		token := raw.(map[string]any)
 		for _, field := range []string{"text", "tags"} {
 			if _, exists := token[field]; !exists {
 				return "Go InputToken cannot express an absent " + field + " member"
@@ -1017,7 +1038,7 @@ func TestResultPatternsRejectErrorMessages(t *testing.T) {
 		map[string]any{"stages": []any{map[string]any{"error": map[string]any{"message": "reason"}}}},
 	} {
 		expect := &caseExpect{Error: ErrorGrammar, Result: &pattern}
-		if err := checkResult(&ParseResult{Error: &ParseError{Kind: ErrorGrammar, Message: "reason"}}, pattern, nil, expect); err == nil {
+		if err := checkResult(&ParseResult{Error: &ParseError{Kind: ErrorGrammar, Message: "reason"}}, pattern, nil, expect, nil); err == nil {
 			t.Errorf("accepted error message pattern %+v", pattern)
 		}
 	}
@@ -1075,5 +1096,122 @@ func TestGuardedCrashRecognition(t *testing.T) {
 		if got := isGuardedCrash(c.err); got != c.want {
 			t.Errorf("%v: guarded crash=%t, want %t", c.err, got, c.want)
 		}
+	}
+}
+
+func TestTokenCaseSchemaRejectsNonObjectTokens(t *testing.T) {
+	for _, bad := range []string{`null`, `false`, `0`, `"x"`, `[]`} {
+		for _, sides := range [][]string{nil, {"before"}, {"after"}, {"before", "after"}, {"after", "before"}} {
+			token, path := bad, "case.tokens[0]"
+			for i := len(sides) - 1; i >= 0; i-- {
+				token = `{"text":"x","tags":[],"` + sides[i] + `":[` + token + `]}`
+			}
+			for _, side := range sides {
+				path += "." + side + "[0]"
+			}
+			body := `"grammar":"%rule text A","tokens":[` + token + `],"expect":{"error":"usage"}`
+			_, err := decodeEngineCase([]byte(`{` + body + `}`))
+			if err == nil || !strings.Contains(err.Error(), path+": expected a token object") {
+				t.Errorf("engine case accepted %s at %s: %v", bad, path, err)
+			}
+			_, _, err = decodeParameterCase([]byte(`{"name":"token shape",` + body + `}`))
+			if err == nil || !strings.Contains(err.Error(), path+": expected a token object") {
+				t.Errorf("parameter case accepted %s at %s: %v", bad, path, err)
+			}
+		}
+	}
+}
+
+func TestUsageTokenCaseKeepsInvalidPayloads(t *testing.T) {
+	for _, token := range []string{
+		`{"text":false,"tags":[]}`,
+		`{"text":"x","tags":null}`,
+		`{"text":"x","tags":[],"before":false}`,
+		`{"text":"x","tags":[],"before":[{"text":false,"tags":[]}]}`,
+		`{"text":"x","tags":[],"after":[{"text":"y","tags":[],"before":null}]}`,
+	} {
+		raw := `{"grammar":"%rule text A","tokens":[` + token + `],"expect":{"error":"usage"}}`
+		c, err := decodeEngineCase([]byte(raw))
+		if err != nil || c.skipReason == "" {
+			t.Errorf("lost an invalid known payload in %s: %v", token, err)
+		}
+	}
+	c, err := decodeEngineCase([]byte(`{"grammar":"%rule text A","tokens":[{"text":"x","tags":["A"],"before":[{"text":"y","tags":[]}]}],"expect":{"error":"usage"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.skipReason != "" {
+		t.Fatal(c.skipReason)
+	}
+	if err := checkCase(c, true); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEngineRunnerRuntimeReasons(t *testing.T) {
+	const reason = "an item of braces in text can match no tokens"
+	for _, document := range []string{"main.md", "g:7: part.md"} {
+		t.Run(document, func(t *testing.T) {
+			c := &engineCase{
+				Documents: map[string]string{
+					"pipeline.md": block("%stage main", "%ambiguity-resolution greedy", fmt.Sprintf("%%include %q", document)),
+					document:      block("%rule text {ε}"),
+				},
+				PipelineDocument: "pipeline.md",
+				Expect:           caseExpect{Error: ErrorGrammar},
+			}
+			d, err := casePipeline(c, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			full := document + ":2:1: " + reason
+			for _, message := range []string{reason, full, "wrong reason"} {
+				c.Expect.Message = &message
+				err := checkParse(d, c, &c.Options, &c.Expect)
+				if (err == nil) != (message == reason) {
+					t.Errorf("message %q: %v", message, err)
+				}
+			}
+			res, err := runCase(d, c, &c.Options)
+			if err != nil || res.Error == nil || res.Error.Message != full {
+				t.Fatalf("public runtime message changed: %+v, %v", res, err)
+			}
+			if res.Error.Document != "" || res.Error.Line != 0 || res.Error.Column != 0 {
+				t.Fatalf("public runtime error gained a position: %+v", res.Error)
+			}
+		})
+	}
+}
+
+func TestRuntimeReasonRemovesOnlyItsLocation(t *testing.T) {
+	location := &Error{Document: "g:7: part.md", Line: 12, Column: 3}
+	prefix := "g:7: part.md:12:3: "
+	reason := "other.md:4:5: a reason with a location-shaped start"
+	res := &ParseResult{Error: &ParseError{Kind: ErrorGrammar, Message: prefix + reason}}
+	data, err := MarshalResult(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := decodeJSON(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, message := range []string{reason, prefix + reason, "a reason with a location-shaped start", "wrong reason"} {
+		err := checkResult(res, got, data, &caseExpect{Error: ErrorGrammar, Message: &message}, location)
+		if (err == nil) != (message == reason) {
+			t.Errorf("message %q: %v", message, err)
+		}
+	}
+	wrongLocation := &Error{Document: location.Document, Line: 1, Column: location.Column}
+	if err := checkResult(res, got, data, &caseExpect{Error: ErrorGrammar, Message: &reason}, wrongLocation); err == nil {
+		t.Error("removed a prefix that does not match the structured location")
+	}
+	after, err := MarshalResult(res)
+	if err != nil || string(after) != string(data) {
+		t.Fatalf("message comparison changed the public result: %s, %v", after, err)
+	}
+	bare := &ParseResult{Error: &ParseError{Kind: ErrorGrammar, Message: reason}}
+	if err := checkResult(bare, nil, nil, &caseExpect{Error: ErrorGrammar, Message: &reason}, nil); err != nil {
+		t.Fatalf("changed a reason without location metadata: %v", err)
 	}
 }
