@@ -208,7 +208,7 @@ func TestJSONRawAndIgnored(t *testing.T) {
 			}
 			if strings.HasSuffix(path, ".jsonl") {
 				for _, line := range bytes.Split(data, []byte("\n")) {
-					if len(bytes.TrimSpace(line)) != 0 {
+					if !blankJSONLine(line) {
 						docs = append(docs, line)
 					}
 				}
