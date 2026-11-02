@@ -9,6 +9,7 @@ import { readAllowList } from "./quoted-texts.js";
 
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const own = (value, key) => Object.hasOwn(value, key);
+const jsonWhitespaceOnly = (text) => /^[\t\n\r ]*$/.test(text);
 
 // Recursion follows the finite shape description, never an opaque payload.
 function inspect(shape, value, at, problems) {
@@ -86,10 +87,11 @@ export function fixtureProblems(relative, bytes, context) {
     }
     return problems;
   }
-  if (format === "jsonl" && !text.trim()) return [`tests/${relative}: expected at least one corpus record`];
+  if (text.startsWith("\ufeff")) return [`tests/${relative}: not JSON: initial byte order mark`];
+  if (format === "jsonl" && jsonWhitespaceOnly(text)) return [`tests/${relative}: expected at least one corpus record`];
   const parts = format === "jsonl" ? text.split("\n") : [text];
   parts.forEach((part, index) => {
-    if (format === "jsonl" && !part.trim()) return;
+    if (format === "jsonl" && jsonWhitespaceOnly(part)) return;
     const at = `tests/${relative}${format === "jsonl" ? `:${index + 1}` : ""}`;
     let value;
     try { value = JSON.parse(part); }
