@@ -167,6 +167,20 @@ func corpusOutcomeOf(res *ParseResult, canonical any) (map[string]any, error) {
 	return got, nil
 }
 
+// corpusTieCases requires at least one case that expects a tie.
+func corpusTieCases(cases []*corpusCase) ([]*corpusCase, error) {
+	var ties []*corpusCase
+	for _, c := range cases {
+		if _, ok := c.fields["ties"]; ok {
+			ties = append(ties, c)
+		}
+	}
+	if len(ties) == 0 {
+		return nil, fmt.Errorf("no corpus cases expect a tie")
+	}
+	return ties, nil
+}
+
 // The corpus runner refuses a result that breaks an invariant, whatever the
 // case expects: each shared mutant (tests/README.md, "Result mutants").
 // Each corpus case that expects a tie must also pass without a mutation.
@@ -182,11 +196,12 @@ func TestCorpusRunnerInvariants(t *testing.T) {
 			t.Errorf("%s: the corpus runner accepts it", m.Name)
 		}
 	}
+	ties, err := corpusTieCases(readCorpus(t))
+	if err != nil {
+		t.Fatal(err)
+	}
 	pipelines := map[string]*Pipeline{}
-	for _, c := range readCorpus(t) {
-		if _, ok := c.fields["ties"]; !ok {
-			continue
-		}
+	for _, c := range ties {
 		d := pipelines[c.Pipeline]
 		if d == nil {
 			var err error
@@ -330,4 +345,16 @@ func checkCorpusCase(d *Pipeline, c *corpusCase) (failure string) {
 		}
 	}
 	return ""
+}
+
+func TestCorpusTieSelectionRequiresCases(t *testing.T) {
+	ordinary := &corpusCase{fields: map[string]any{}}
+	if got, err := corpusTieCases([]*corpusCase{ordinary}); err == nil {
+		t.Errorf("accepted an empty tie selection: %v", got)
+	}
+	tied := &corpusCase{fields: map[string]any{"ties": []any{"syntax"}}}
+	got, err := corpusTieCases([]*corpusCase{ordinary, tied})
+	if err != nil || len(got) != 1 || got[0] != tied {
+		t.Fatalf("lost the tie case: %v, %v", got, err)
+	}
 }
