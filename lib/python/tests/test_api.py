@@ -16,7 +16,7 @@ from unittest.mock import patch
 import gencmu
 from gencmu._pipeline import DOM_FORMAT, bundled_text
 
-from .shared import case_sources, case_tokens, load_case_pipeline
+from .shared import case_sources, case_tokens, load_case_pipeline, same_json
 
 PIPELINE = """# A test pipeline
 
@@ -348,7 +348,7 @@ class Options(unittest.TestCase):
         elided = result.tree.children[1]
         self.assertEqual((elided.kind, elided.terminal, elided.value), ("elided", "KU", "ku"))
         value = gencmu.result_json(result)
-        self.assertEqual(sorted(value["tree"]["children"][1]), ["kind", "source", "span", "terminal", "value"])
+        self.assertTrue(same_json(sorted(value["tree"]["children"][1]), ["kind", "source", "span", "terminal", "value"]))
 
     def test_caller_image(self) -> None:
         """A supplied image survives input copying and covering emission.
@@ -439,11 +439,23 @@ class Output(unittest.TestCase):
         self.assertEqual({name for name in vars(result) if not name.startswith("_")},
                          {"ok", "stages", "tree", "error", "warnings", "features"})
 
+    def test_canonical_json_distinguishes_booleans_from_numbers(self) -> None:
+        loads = json.loads
+
+        def decode(text, *args, **kwargs):
+            value = loads(text, *args, **kwargs)
+            if isinstance(value, dict) and value.get("format") == 15:
+                value["ok"] = int(value["ok"])
+            return value
+
+        with patch(__name__ + ".json.loads", side_effect=decode), self.assertRaises(AssertionError):
+            Output().test_canonical_json()
+
     def test_canonical_json(self) -> None:
         pipeline = gencmu.load_pipeline_sources(SOURCES, "pipeline.md")
         result = pipeline.parse("mi", until="words")
         text = gencmu.to_json(result)
-        self.assertEqual(json.loads(text), gencmu.result_json(result))
+        self.assertTrue(same_json(json.loads(text), gencmu.result_json(result)))
         tags = json.dumps(sorted(result.stages[0].output[0].tags), ensure_ascii=False, separators=(",", ":"))
         self.assertTrue(
             text.startswith(
@@ -461,13 +473,10 @@ class Output(unittest.TestCase):
     def test_error_json(self) -> None:
         pipeline = gencmu.load_pipeline_sources(SOURCES, "pipeline.md")
         value = gencmu.result_json(pipeline.parse("mx"))
-        self.assertEqual(
-            list(value["error"]),
-            ["kind", "stage", "token", "source", "line", "column", "expected", "message"],
-        )
+        self.assertTrue(same_json(list(value["error"]), ["kind", "stage", "token", "source", "line", "column", "expected", "message"]))
         # In code point order: a property is its written form (engine §4).
-        self.assertEqual(value["error"]["expected"][0], {"terminal": '"a"', "rules": ["c"]})
-        self.assertEqual(value["error"]["expected"][1], {"terminal": '"i"', "rules": ["c"]})
+        self.assertTrue(same_json(value["error"]["expected"][0], {"terminal": '"a"', "rules": ["c"]}))
+        self.assertTrue(same_json(value["error"]["expected"][1], {"terminal": '"i"', "rules": ["c"]}))
         self.assertIsNone(value["tree"])
 
     def test_witness_lost_json(self) -> None:
@@ -486,14 +495,11 @@ class Output(unittest.TestCase):
             completion=[gencmu.Restoration("KU", 1, (1, 1), "ku"), gencmu.Restoration("VAU", 1, (1, 1))],
         )
         value = error_json(error)
-        self.assertEqual(list(value), ["kind", "stage", "code", "message", "chosen", "completion"])
-        self.assertEqual(value["code"], "elision-witness-lost")
-        self.assertEqual(value["chosen"]["rule"], "text")
-        self.assertEqual(
-            value["completion"],
-            [{"terminal": "KU", "at": 1, "source": [1, 1], "value": "ku"}, {"terminal": "VAU", "at": 1, "source": [1, 1]}],
-        )
-        self.assertEqual(list(value["completion"][0]), ["terminal", "at", "source", "value"])
+        self.assertTrue(same_json(list(value), ["kind", "stage", "code", "message", "chosen", "completion"]))
+        self.assertTrue(same_json(value["code"], "elision-witness-lost"))
+        self.assertTrue(same_json(value["chosen"]["rule"], "text"))
+        self.assertTrue(same_json(value["completion"], [{"terminal": "KU", "at": 1, "source": [1, 1], "value": "ku"}, {"terminal": "VAU", "at": 1, "source": [1, 1]}]))
+        self.assertTrue(same_json(list(value["completion"][0]), ["terminal", "at", "source", "value"]))
         # Any other error has no code.
         self.assertNotIn("code", error_json(gencmu.ParseError("grammar", "a defect", stage="main")))
 
@@ -573,8 +579,8 @@ class Attachments(unittest.TestCase):
         # The token that the next stage reads keeps them.
         self.assertIs(result.stages[1].input[0], word)
         value = gencmu.result_json(result)["stages"][0]["output"][0]
-        self.assertEqual(list(value), ["text", "value", "image", "tags", "span", "source", "before", "after"])
-        self.assertEqual(value["after"][0]["after"], [{"text": "n", "value": "n", "image": "n", "tags": ["Low"], "source": [3, 4]}])
+        self.assertTrue(same_json(list(value), ["text", "value", "image", "tags", "span", "source", "before", "after"]))
+        self.assertTrue(same_json(value["after"][0]["after"], [{"text": "n", "value": "n", "image": "n", "tags": ["Low"], "source": [3, 4]}]))
         self.assertEqual(gencmu.to_brackets(result), "([b w {i n}] z)")
 
     def test_error_order(self) -> None:

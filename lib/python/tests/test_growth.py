@@ -20,6 +20,7 @@ from gencmu._pipeline import read_document
 from gencmu._earley import Caps, Evaluator, Parser, StageContext
 
 from .shared import (
+    same_json,
     SHARED,
     OverBudget,
     Watch,
@@ -123,7 +124,7 @@ class CaptureStorage(unittest.TestCase):
             value, _, _ = parse_case(pipeline, case)
         self.assertIsNotNone(value)
         assert value is not None
-        self.assertTrue(value["ok"], f"{count} captures")
+        self.assertTrue(same_json(value["ok"], True), f"{count} captures")
         self.assertEqual(works["captures"].count, count, f"{count} captures")
 
     def test_an_item_shares_the_parts_of_the_item_it_advanced(self) -> None:
@@ -202,7 +203,7 @@ class CaptureStorage(unittest.TestCase):
             works.append(work)
             value, _, _ = parse_case(pipeline, case)
         assert value is not None
-        self.assertTrue(value["ok"], f"{count} captures")
+        self.assertTrue(same_json(value["ok"], True), f"{count} captures")
 
     @staticmethod
     def searches(count: int) -> list[tuple[str, Callable[[int], str], int]]:
@@ -267,7 +268,7 @@ class ConditionSelection(unittest.TestCase):
             works.append(work)
             value, _, _ = parse_case(pipeline, case)
         assert value is not None
-        self.assertTrue(value["ok"], f"{count} captures")
+        self.assertTrue(same_json(value["ok"], True), f"{count} captures")
 
     def test_an_advance_examines_only_the_conditions_of_its_dot(self) -> None:
         for count in (100, 200, 400):

@@ -12,7 +12,7 @@ from gencmu._pipeline import DOM_FORMAT, _resources, _unicode_table
 from gencmu._grammar import stitch
 from gencmu._validate import dom_problem
 
-from .shared import SHARED, load_json
+from .shared import SHARED, load_json, same_json
 
 
 class DomMalformed(unittest.TestCase):
@@ -83,11 +83,11 @@ class DomMalformed(unittest.TestCase):
                 dom = case["dom"] if "dom" in case else {"format": DOM_FORMAT, "rules": [case["rule"]] if "rule" in case else [], "directives": [case["directive"]] if "directive" in case else [], "constants": [], "classifiers": [], "implications": []}
                 table = _unicode_table(case["unicode"]) if "unicode" in case else unicode
                 problem = dom_problem(dom, table)
-                self.assertEqual(problem is not None, case["malformed"], str(problem))
+                self.assertTrue(same_json(problem is not None, case["malformed"]), str(problem))
                 if "message" in case:
                     self.assertIn(case["message"], problem or "")
                 if "code" in case:
-                    self.assertEqual((problem or "").split(":")[0], case["code"])
+                    self.assertTrue(same_json((problem or "").split(":")[0], case["code"]))
 
 
 if __name__ == "__main__":

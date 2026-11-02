@@ -10,7 +10,7 @@ from gencmu import GencmuError
 from gencmu._pipeline import read_document
 from gencmu._templates import canonical_argument, expand_templates
 from gencmu._validate import dom_problem
-from .shared import load_case_pipeline
+from .shared import load_case_pipeline, same_json
 
 
 CASES = json.loads((Path(__file__).resolve().parents[3] / 'tests/parameters.json').read_text())
@@ -64,8 +64,8 @@ class Parameters(unittest.TestCase):
 
     def test_public_edits_stay_on_the_source_key(self):
         grammar = grammar_of('%rule atom(@X) @X\n%rule text item atom("a")\n%rule item = atom("a")\n%extend-rule item "b"\n%redefine-rule item = atom("c")\n%extend-rule item "d"')
-        self.assertEqual([a.expr['literal']['string'] for a in grammar.rules['atom("a")'].alternatives], ['a', 'b'])
-        self.assertEqual([a.expr['literal']['string'] for a in grammar.rules['item'].alternatives], ['c', 'd'])
+        self.assertTrue(same_json([a.expr['literal']['string'] for a in grammar.rules['atom("a")'].alternatives], ['a', 'b']))
+        self.assertTrue(same_json([a.expr['literal']['string'] for a in grammar.rules['item'].alternatives], ['c', 'd']))
 
     def test_flags_follow_source_order(self):
         grammar = grammar_of('%rule(fewest) atom(@X) @X\n%rule text atom("a") atom("b")\n%redefine-rule atom("a") "c"\n%extend-rule atom(@Y) "d"')
@@ -118,7 +118,7 @@ class Parameters(unittest.TestCase):
     def test_ordinary_edit_history(self):
         grammar = grammar_of('%rule atom(@X) @X\n%rule text "a"\n%extend-rule text "b"\n%redefine-rule text "c"')
         self.assertEqual([(c.kind, c.rule) for c in grammar.changes], [('extend', 'text'), ('replace', 'text')])
-        self.assertEqual(grammar.rules['text'].alternatives[0].expr['literal']['string'], 'c')
+        self.assertTrue(same_json(grammar.rules['text'].alternatives[0].expr['literal']['string'], 'c'))
 
     def test_deep_template_bodies_and_arguments(self):
         unicode = grammar_of('%rule text "a"').unicode
@@ -171,8 +171,8 @@ class Parameters(unittest.TestCase):
         dom = reader.read('```jbogenbau\n%rule pair(@X,@Y) @X @Y\n%rule text pair("a","b") ("c" ≻ "d") :: ∅\n```', 'locations.md')
         before = deepcopy(dom)
         located = restore_locations(dom, [Token(text='≻', tags=set(), span=(0, 1), value='≻', source=(0, 1))], lambda _: (3, 42))
-        self.assertEqual(dom, before)
-        self.assertEqual(located, before)
+        self.assertTrue(same_json(dom, before))
+        self.assertTrue(same_json(located, before))
         self.assertEqual([n.ranked_at for n in nodes(located) if hasattr(n, 'ranked_at')], [(3, 42)])
 
     def test_ranked_body_argument_keeps_its_location_after_substitution(self):
@@ -210,6 +210,28 @@ class NestedArgumentAliases(unittest.TestCase):
             self.assertEqual(dom_problem(dom, unicode), 'a malformed pattern value test')
 
 class ParameterStructure(unittest.TestCase):
+    def test_argument_comparisons_distinguish_booleans_from_numbers(self):
+        source = '%rule use(@X) "a"\n%rule text use(#·A)'
+        dom = read_document('```jbogenbau\n' + source + '\n```')
+        argument = deepcopy(dom['rules'][-1]['alternatives'][0]['expr']['args'][0])
+        case = {'name': 'pattern argument', 'grammar': source, 'argument': argument}
+        read_text = Path.read_text
+        problem = dom_problem
+
+        def text(path, *args, **kwargs):
+            return json.dumps([case]) if path.name == 'parameter-structure.json' else read_text(path, *args, **kwargs)
+
+        def corrupt_after_validation(dom, unicode):
+            found = problem(dom, unicode)
+            # The comparison must detect a wrong type after DOM validation.
+            dom['rules'][-1]['alternatives'][0]['expr']['args'][0]['pattern']['exact'] = 1
+            return found
+
+        with patch.object(Path, 'read_text', text):
+            ParameterStructure().test_shared_structure()
+            with patch(__name__ + '.dom_problem', side_effect=corrupt_after_validation), self.assertRaises(AssertionError):
+                ParameterStructure().test_shared_structure()
+
     def test_supplied_empty_dom_values_reach_cache_validation(self):
         read_text = Path.read_text
         for dom in (None, False, 0, "", [], {}):
@@ -229,9 +251,9 @@ class ParameterStructure(unittest.TestCase):
             with self.subTest(case=case['name']):
                 if case.get('public'):
                     grammar = grammar_of(case['grammar'])
-                    self.assertEqual(list(grammar.rules), case['order'])
+                    self.assertTrue(same_json(list(grammar.rules), case['order']))
                     if 'instances' in case:
-                        self.assertEqual(len(instance_names(case['grammar'])), case['instances'])
+                        self.assertTrue(same_json(len(instance_names(case['grammar'])), case['instances']))
                     continue
                 dom = case['dom'] if 'dom' in case else read_document('```jbogenbau\n' + case['grammar'] + '\n```')
                 if case.get('cacheFallback'):
@@ -244,16 +266,16 @@ class ParameterStructure(unittest.TestCase):
                     continue
                 self.assertIsNone(dom_problem(dom, unicode))
                 if 'argument' in case:
-                    self.assertEqual(dom['rules'][-1]['alternatives'][0]['expr']['args'][0], case['argument'])
+                    self.assertTrue(same_json(dom['rules'][-1]['alternatives'][0]['expr']['args'][0], case['argument']))
                 _, order, instances, *_ = expand_templates([('review.md', dom)], unicode)
                 if 'order' in case:
-                    self.assertEqual(order, case['order'])
+                    self.assertTrue(same_json(order, case['order']))
                 if 'instances' in case:
-                    self.assertEqual(len(instances), case['instances'])
+                    self.assertTrue(same_json(len(instances), case['instances']))
                 if 'flags' in case:
                     grammar = grammar_of(case['grammar'])
                     for name, flags in case['flags'].items():
-                        self.assertEqual(grammar.rules[name].flags, flags)
+                        self.assertTrue(same_json(grammar.rules[name].flags, flags))
 
     def test_over_deep_supplied_template(self):
         unicode = grammar_of('%rule text "a"').unicode

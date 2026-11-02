@@ -14,7 +14,7 @@ from gencmu._clauses import WHOLE, applies, captures_in, applies_prepared, prepa
 from gencmu._earley import Parser, StageContext
 from gencmu._model import Token
 
-from .shared import load_case_pipeline
+from .shared import load_case_pipeline, same_json
 
 PIPELINE = '```jbogenbau\n%stage main\n%include "a.md"\n%include "b.md"\n```\n'
 
@@ -40,8 +40,8 @@ class LoweringErrors(unittest.TestCase):
         self.assertFalse(empty.ok)
         assert empty.error is not None
         value = gencmu.result_json(empty)
-        self.assertEqual(list(value["error"]), ["kind", "stage", "message"])
-        self.assertEqual((value["error"]["kind"], value["error"]["stage"]), ("grammar", "main"))
+        self.assertTrue(same_json(list(value["error"]), ["kind", "stage", "message"]))
+        self.assertTrue(same_json([value["error"]["kind"], value["error"]["stage"]], ["grammar", "main"]))
         self.assertEqual((empty.stages[0].verdict, empty.tree), (None, None))
         self.assertTrue(empty.error.message.startswith("a.md:3:1: "), empty.error.message)
         # With f on, c's chain stands beside B, which comes before the empty
@@ -233,8 +233,8 @@ class PreparedClauses(unittest.TestCase):
             prepared_term, prepared_condition = prepare(term, False), prepare(condition, True)
             prepared_list = prepare_conditions(conditions)
             for present in presents:
-                self.assertEqual(prepared_term.simplified(present), simplify_term(term, present), (term, present))
-                self.assertEqual(prepared_condition.simplified(present), simplify_condition(condition, present), (condition, present))
+                self.assertTrue(same_json(prepared_term.simplified(present), simplify_term(term, present)), (term, present))
+                self.assertTrue(same_json(prepared_condition.simplified(present), simplify_condition(condition, present)), (condition, present))
                 self.assertEqual(applies_prepared(prepared_condition, present), applies(condition, present), (condition, present))
                 # The conditions of a list that apply, in order, up to the
                 # first false one, which removes the production. A condition
@@ -242,4 +242,4 @@ class PreparedClauses(unittest.TestCase):
                 # does not apply, as lowering reads them (engine §3.6).
                 expected = self.applying([simplify_condition(written, present) for written in conditions], present)
                 found = self.applying(prepared_list.kept(present), present)
-                self.assertEqual(found, expected, (conditions, present))
+                self.assertTrue(same_json(found, expected), (conditions, present))

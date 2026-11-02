@@ -1091,7 +1091,7 @@ def result_problems(value: dict[str, Any]) -> list[str]:
             if member in error:
                 problems.append(f"the elision-witness-lost error has a member {member}")
         last = stages[-1] if stages else None
-        if last is None or last["name"] != error.get("stage") or last["verdict"] not in ("unique", "resolved") or "output" in last:
+        if last is None or not same_json(last["name"], error.get("stage")) or last["verdict"] not in ("unique", "resolved") or "output" in last:
             problems.append("the stage of the elision-witness-lost error is not the last, unique or resolved, with no output")
     for index, stage in enumerate(stages):
         if "tied" in stage:
@@ -1109,7 +1109,7 @@ def result_problems(value: dict[str, Any]) -> list[str]:
             or not isinstance(error, dict)
             or error.get("kind") != "ambiguous"
             or error.get("reason") != "tie"
-            or error.get("stage") != stage["name"]
+            or not same_json(error.get("stage"), stage["name"])
             or not isinstance(error.get("readings"), list)
             or len(error["readings"]) != 2
         ):

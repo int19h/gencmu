@@ -27,6 +27,7 @@ from .shared import (
     read_json,
     result_mutants,
     result_problems,
+    same_json,
     witness_lost,
     write_json,
 )
@@ -115,12 +116,21 @@ def mismatch(case: dict[str, Any], got: dict[str, Any] | str) -> str | None:
     for key in FIELDS:
         if key not in case and key not in got:
             continue
-        if case.get(key) != got.get(key):
+        if not same_json(case.get(key), got.get(key)):
             return f"{case['id']} ({case['pipeline']}): {key} expected {write_json(case.get(key))}, got {write_json(got.get(key))}"
     return None
 
 
 class Corpus(unittest.TestCase):
+    def test_json_expectations_distinguish_booleans_from_numbers(self) -> None:
+        from .shared import run_case
+
+        _, result, _, _ = run_case({"grammar": '%rule text "a"', "input": "b"})
+        case = {"id": "synthetic", "pipeline": "synthetic", "text": "b", "expect": "reject", "stage": "main", "at": 0}
+        self.assertIsNone(mismatch(case, outcome(case, result=result)))
+        result.error.source = (False, result.error.source[1])
+        self.assertIsNotNone(mismatch(case, outcome(case, result=result)))
+
     def test_corpus_selection(self) -> None:
         cases = all_cases()
         if os.environ.get("GENCMU_CORPUS") != "full":
@@ -199,7 +209,7 @@ class Corpus(unittest.TestCase):
 
         case = {"id": "lost", "pipeline": "lojban/cll", "text": "le sutra tavla"}
         clean = outcome(case)
-        self.assertEqual(clean.get("verdict"), "resolved")
+        self.assertTrue(same_json(clean.get("verdict"), "resolved"))
         reconstruct = _stage._reconstruct
 
         def no_roots(context: Any) -> Any:

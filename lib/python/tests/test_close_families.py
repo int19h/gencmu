@@ -14,7 +14,7 @@ from gencmu import _testing
 from gencmu._families import FamilyMatcher
 
 from .family_oracle import FamilyOracle
-from .shared import case_features, load_case_pipeline, parse_case, run_case
+from .shared import case_features, load_case_pipeline, parse_case, run_case, same_json
 from . import test_engine_cases as engine_cases
 
 
@@ -60,7 +60,7 @@ class CloseFamilies(unittest.TestCase):
         with patch.object(_testing, "family_check", oracle):
             value, _, error, _ = run_case(case)
         self.assertIsNone(error)
-        self.assertTrue(value["ok"])
+        self.assertTrue(same_json(value["ok"], True))
         self.assertGreater(oracle.witnesses, 0)
         self.assertGreater(oracle.observations, oracle.witnesses)
         with patch.object(_testing, "family_check", FamilyOracle()), patch.object(FamilyMatcher, "accepts", return_value=False):

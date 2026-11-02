@@ -12,7 +12,7 @@ from gencmu._closes import Block, CloseMachine, Sequences
 from gencmu._earley import Parser, StageContext
 from gencmu._model import Restoration
 
-from .shared import case_features, case_tokens, cases, load_case, load_case_pipeline, parse_case, run_case
+from .shared import case_features, case_tokens, cases, load_case, load_case_pipeline, parse_case, run_case, same_json
 from . import test_engine_cases as engine_cases
 
 
@@ -52,7 +52,7 @@ class WithoutElision(unittest.TestCase):
         value, result, error, _ = run_case({"grammar": grammar, "tokens": tokens(*input_tags)})
         self.assertIsNone(error)
         self.assertIsNotNone(result)
-        self.assertEqual(value["ok"], accepted, value)
+        self.assertTrue(same_json(value["ok"], accepted), value)
         return value
 
     def test_saved_sound_does_not_change_a_common_block_entry(self):
@@ -102,8 +102,8 @@ class WithoutElision(unittest.TestCase):
                 )
                 self.assertIsNone(error)
                 self.assertIsNotNone(result)
-                self.assertTrue(value["ok"], value)
-                self.assertEqual(value["stages"][0]["output"][0]["tags"], ["KEPT"])
+                self.assertTrue(same_json(value["ok"], True), value)
+                self.assertTrue(same_json(value["stages"][0]["output"][0]["tags"], ["KEPT"]))
 
     def test_whole_capture_keeps_the_enclosing_named_cycle(self):
         self.assert_outcome(
@@ -216,12 +216,12 @@ class WithoutElision(unittest.TestCase):
                     with patch.object(_testing, "count", bounded_count):
                         value, result, error = parse_case(pipeline, case)
                     self.assertIsNone(error)
-                    self.assertTrue(value["ok"], value)
+                    self.assertTrue(same_json(value["ok"], True), value)
                     self.assertEqual(_testing.work.get("close_sequence_nodes", 0), shared["maxCloseNodes"])
                     results.append(value)
                 finally:
                     _testing.work = None
-            self.assertEqual(results[0], results[1])
+            self.assertTrue(same_json(results[0], results[1]))
             print(f"ranked sibling depth {depth}: 0 close nodes")
 
     def test_shared_doubling_bound_and_unused_queries(self):
@@ -247,7 +247,7 @@ class WithoutElision(unittest.TestCase):
                     with patch.object(_testing, "count", bounded_count):
                         value, result, error, _ = run_case({**fixture, "grammar": grammar})
                     self.assertIsNone(error)
-                    self.assertTrue(value["ok"], value)
+                    self.assertTrue(same_json(value["ok"], True), value)
                     print(f"depth {depth}, witness {witness}: {_testing.work.get('close_sequence_nodes', 0)} close nodes")
                 finally:
                     _testing.work = None
@@ -269,7 +269,7 @@ class WithoutElision(unittest.TestCase):
                 with patch.object(_testing, "count", unused_count):
                     value, result, error, _ = run_case(fixture)
                 self.assertIsNone(error)
-                self.assertTrue(value["ok"], value)
+                self.assertTrue(same_json(value["ok"], True), value)
             finally:
                 _testing.work = None
 
@@ -299,8 +299,8 @@ class WithoutElision(unittest.TestCase):
                     with patch.object(_testing, "count", bounded_count):
                         value, result, error = parse_case(pipeline, case)
                     self.assertIsNone(error)
-                    self.assertFalse(value["ok"])
-                    self.assertEqual(value["error"]["reason"], "tie")
+                    self.assertTrue(same_json(value["ok"], False))
+                    self.assertTrue(same_json(value["error"]["reason"], "tie"))
                     if shared["maxCloseNodes"]:
                         self.assertGreater(_testing.work.get("close_observation_states", 0), 0)
                     self.assertGreater(_testing.work.get("items", 0), 0)

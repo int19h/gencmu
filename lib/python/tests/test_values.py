@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 import re
 
-from .shared import run_case
+from .shared import run_case, same_json
 
 
 class Values(unittest.TestCase):
@@ -86,8 +86,8 @@ class Values(unittest.TestCase):
         ]:
             value, _, error, _ = run_case({"grammar": '%classifier lex\n' + entries + '\n%rule text "a"', "input": "a"})
             self.assertIsNone(error)
-            self.assertEqual(re.sub(r'^main\.md:\d+:\d+: ', '', value["error"]["message"]),
-                             'the classifier lex: "a‹SHY›e‹U+0301›" ' + ending)
+            self.assertTrue(same_json(re.sub(r'^main\.md:\d+:\d+: ', '', value["error"]["message"]),
+                                      'the classifier lex: "a‹SHY›e‹U+0301›" ' + ending))
 
     def test_constant_cycles_exclude_entry_paths_and_identify_versions(self) -> None:
         cases = [
@@ -113,10 +113,10 @@ class Values(unittest.TestCase):
                         value, _, error, _ = run_case({"grammar": grammar, "tokens": [{"text": tag, "tags": [tag]} for tag in "BDTZ"]})
                         self.assertIsNone(error)
                         if method == "tags":
-                            self.assertTrue(value["ok"])
-                            self.assertEqual(value["tree"]["tags"], ["Queried"] if allowed else [])
+                            self.assertTrue(same_json(value["ok"], True))
+                            self.assertTrue(same_json(value["tree"]["tags"], ["Queried"] if allowed else []))
                         else:
-                            self.assertEqual(value["ok"], allowed)
+                            self.assertTrue(same_json(value["ok"], allowed))
 
     def test_engine_tag_diagnostics_follow_retained_occurrences(self) -> None:
         # Engine §1 retains occurrences, rather than every occurrence of
@@ -156,8 +156,8 @@ class Values(unittest.TestCase):
                     }
                 )
                 self.assertIsNone(error)
-                self.assertFalse(value["ok"])
-                self.assertEqual(value["error"]["kind"], "rejected")
+                self.assertTrue(same_json(value["ok"], False))
+                self.assertTrue(same_json(value["error"]["kind"], "rejected"))
 
     def test_loading_checks_string_types_and_scalar_ranges_before_gates(self) -> None:
         for grammar in (

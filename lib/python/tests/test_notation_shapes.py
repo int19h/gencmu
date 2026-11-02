@@ -154,7 +154,7 @@ class NotationShapes(unittest.TestCase):
         self.assertIn("lexical stage of the notation", raised.exception.message)
 
     def test_the_bundled_bootstrap_gives_the_control(self) -> None:
-        self.assertEqual(outcome(BOOTSTRAP), SHAPES["control"])
+        self.assertTrue(same_json(outcome(BOOTSTRAP), SHAPES["control"]))
 
     def test_a_wrapper_around_each_rule_changes_nothing(self) -> None:
         self.assertTrue(NAMES, "the wrapper test selects no syntax rule")
@@ -169,7 +169,7 @@ class NotationShapes(unittest.TestCase):
             )
             return syntax.replace('"rules":[', '"rules":[' + wrappers, 1)
 
-        self.assertEqual(outcome(with_syntax(wrap)), SHAPES["control"])
+        self.assertTrue(same_json(outcome(with_syntax(wrap)), SHAPES["control"]))
 
     def test_each_renamed_rule_gives_the_outcome_of_every_library(self) -> None:
         for name in NAMES:
@@ -181,7 +181,7 @@ class NotationShapes(unittest.TestCase):
                 return syntax
 
             with self.subTest(rule=name):
-                self.assertEqual(outcome(with_syntax(rename)), SHAPES["loads"].get(name, "grammar"))
+                self.assertTrue(same_json(outcome(with_syntax(rename)), SHAPES["loads"].get(name, "grammar")))
         for name in SHAPES["loads"]:
             self.assertIn(name, NAMES)
 
@@ -190,4 +190,4 @@ class NotationShapes(unittest.TestCase):
             with self.subTest(item["description"]):
                 self.assertEqual(len(find_places(BOOTSTRAP, item["find"])), 1)
                 changed = substitute(BOOTSTRAP, item["find"], item["replace"])
-                self.assertEqual(outcome(changed, item["document"], item["inputs"], item.get("where")), item["expect"])
+                self.assertTrue(same_json(outcome(changed, item["document"], item["inputs"], item.get("where")), item["expect"]))
