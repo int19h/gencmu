@@ -147,9 +147,8 @@ func TestCaptureStorage(t *testing.T) {
 	}
 }
 
-// TestCaptureStorageMutation stores each entry's prefix again, as the
-// entries did before they shared their prefixes. The budget of entries
-// stops the recognition at the first entry past it, not after the parse.
+// TestCaptureStorageMutation stores each entry's prefix again. Recognition
+// stops at the first entry past the budget, before the parse ends.
 func TestCaptureStorageMutation(t *testing.T) {
 	const n = 100
 	recognize := captureStorageRun(t, n)
