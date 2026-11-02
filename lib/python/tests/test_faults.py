@@ -7,9 +7,11 @@ from __future__ import annotations
 
 import os
 import unittest
+from unittest.mock import patch
 from typing import Any
 
 from gencmu import _testing
+from gencmu import GencmuError
 
 from .shared import REPOSITORY, case_features, cases, load_case, load_case_pipeline, parse_case, run_case
 from . import shared, test_engine_cases
@@ -20,6 +22,10 @@ HOOK = "hook"
 """Only the witness hook fails it."""
 BOTH = "result+hook"
 """Both fail it, each on its own."""
+
+
+class _CaseMismatch(AssertionError):
+    """An expectation fails, rather than an engine assertion."""
 
 # For each fault, shared engine cases that catch it, and how.
 CATCHES: dict[str, dict[str, str]] = {
@@ -42,13 +48,14 @@ def fails(fault: str, case: dict[str, Any], hook: bool = True) -> bool:
     """Whether an engine case fails with a fault on, as the runner of
     test_engine_cases checks it, with the witness hook or without it."""
     checker = test_engine_cases.EngineCases()
+    checker.failureException = _CaseMismatch
     _testing.faults.add(fault)
     shared.HOOK[0] = hook
     try:
         if "parses" in case:
             pipeline, error = load_case_pipeline(case, False)
             if pipeline is None:
-                return True
+                raise AssertionError(f"the fault case did not load: {error}")
             features = case_features(pipeline)
             for run in case["parses"]:
                 value, result, error = parse_case(pipeline, case, run)
@@ -56,8 +63,12 @@ def fails(fault: str, case: dict[str, Any], hook: bool = True) -> bool:
         else:
             value, result, error, features = run_case(case, False)
             checker.check("", case["expect"], value, result, error, features)
-    except Exception:
+    except _CaseMismatch:
         return True
+    except shared.WitnessLost:
+        if hook:
+            return True
+        raise
     finally:
         _testing.faults.discard(fault)
         shared.HOOK[0] = True
@@ -72,15 +83,13 @@ def fails_hook(fault: str, case: dict[str, Any]) -> bool:
         if "parses" in case:
             pipeline, _ = load_case_pipeline(case, False)
             if pipeline is None:
-                return False
+                raise AssertionError("the fault case did not load")
             for run in case["parses"]:
                 parse_case(pipeline, case, run)
         else:
             run_case(case, False)
     except shared.WitnessLost:
         return True
-    except Exception:
-        return False
     finally:
         _testing.faults.discard(fault)
     return False
@@ -100,6 +109,16 @@ def catch(fault: str, case: dict[str, Any]) -> str | None:
 
 
 class Faults(unittest.TestCase):
+    def test_crashes_escape_both_fault_checks(self) -> None:
+        case = {"grammar": '%rule text "a"', "input": "a", "expect": {}}
+        for error in (RuntimeError("engine crash"), AssertionError("engine assertion"), GencmuError("engine failure")):
+            with patch(__name__ + ".run_case", side_effect=error):
+                for check in (fails, fails_hook, catch):
+                    with self.subTest(error=type(error), check=check.__name__), self.assertRaises(type(error)):
+                        check("omission", case)
+            self.assertNotIn("omission", _testing.faults)
+            self.assertTrue(shared.HOOK[0])
+
     def test_the_shared_cases_catch_each_fault(self) -> None:
         self.assertEqual(sorted(CATCHES), sorted(_testing.FAULTS), "the table names every fault, and only those")
         for fault, names in CATCHES.items():
