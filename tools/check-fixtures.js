@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { fixtureShapes } from "./fixture-shapes.js";
-import { duplicateMembers, illFormedStrings } from "./fixture-json.js";
+import { duplicateMembers, illFormedStrings, numberProblems } from "./fixture-json.js";
 import { readAllowList } from "./quoted-texts.js";
 
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -95,6 +95,7 @@ export function fixtureProblems(relative, bytes, context) {
     try { value = JSON.parse(part); }
     catch (error) { problems.push(`${at}: not JSON: ${error.message}`); return; }
     for (const key of duplicateMembers(part)) problems.push(`${at}: repeated member ${key}`);
+    for (const message of numberProblems(part)) problems.push(`${at}: ${message}`);
     if (description.scalarStrings) for (const string of illFormedStrings(value)) problems.push(`${at}: not a Unicode scalar string: ${string}`);
     const errors = shapeProblems(description.shape, value);
     for (const message of errors) problems.push(`${at}: ${message}`);
@@ -139,6 +140,7 @@ export function fixtureContext(root, files = fixtureFiles(root)) {
         let record;
         try { record = JSON.parse(line); }
         catch { continue; }
+        if (numberProblems(line).length) continue;
         if (!isRecord(record) || typeof record.id !== "string" || typeof record.text !== "string") continue;
         if (!corpus.has(record.id)) corpus.set(record.id, new Set());
         corpus.get(record.id).add(record.text);
