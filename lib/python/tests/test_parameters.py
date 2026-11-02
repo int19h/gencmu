@@ -10,7 +10,7 @@ from gencmu import GencmuError
 from gencmu._pipeline import read_document
 from gencmu._templates import canonical_argument, expand_templates
 from gencmu._validate import dom_problem
-from .shared import load_case_pipeline
+from .shared import load_case_pipeline, same_json
 
 
 CASES = json.loads((Path(__file__).resolve().parents[3] / 'tests/parameters.json').read_text())
@@ -210,6 +210,28 @@ class NestedArgumentAliases(unittest.TestCase):
             self.assertEqual(dom_problem(dom, unicode), 'a malformed pattern value test')
 
 class ParameterStructure(unittest.TestCase):
+    def test_argument_comparisons_distinguish_booleans_from_numbers(self):
+        source = '%rule use(@X) "a"\n%rule text use(#·A)'
+        dom = read_document('```jbogenbau\n' + source + '\n```')
+        argument = deepcopy(dom['rules'][-1]['alternatives'][0]['expr']['args'][0])
+        case = {'name': 'pattern argument', 'grammar': source, 'argument': argument}
+        read_text = Path.read_text
+        problem = dom_problem
+
+        def text(path, *args, **kwargs):
+            return json.dumps([case]) if path.name == 'parameter-structure.json' else read_text(path, *args, **kwargs)
+
+        def corrupt_after_validation(dom, unicode):
+            found = problem(dom, unicode)
+            # The comparison must detect a wrong type after DOM validation.
+            dom['rules'][-1]['alternatives'][0]['expr']['args'][0]['pattern']['exact'] = 1
+            return found
+
+        with patch.object(Path, 'read_text', text):
+            ParameterStructure().test_shared_structure()
+            with patch(__name__ + '.dom_problem', side_effect=corrupt_after_validation), self.assertRaises(AssertionError):
+                ParameterStructure().test_shared_structure()
+
     def test_supplied_empty_dom_values_reach_cache_validation(self):
         read_text = Path.read_text
         for dom in (None, False, 0, "", [], {}):
@@ -244,7 +266,7 @@ class ParameterStructure(unittest.TestCase):
                     continue
                 self.assertIsNone(dom_problem(dom, unicode))
                 if 'argument' in case:
-                    self.assertEqual(dom['rules'][-1]['alternatives'][0]['expr']['args'][0], case['argument'])
+                    self.assertTrue(same_json(dom['rules'][-1]['alternatives'][0]['expr']['args'][0], case['argument']))
                 _, order, instances, *_ = expand_templates([('review.md', dom)], unicode)
                 if 'order' in case:
                     self.assertEqual(order, case['order'])

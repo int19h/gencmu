@@ -146,6 +146,8 @@ A pattern matches a result that has members beyond its own. So the invariants, a
 
 Expectation comparisons distinguish booleans from numbers, as JSON does.
 
+This rule covers complete JSON values, nested members, scalar projections, DOMs, and serialization round trips. Numbers compare by value, so `1` and `1.0` are equal.
+
 This rule includes actual line and column values in notation and loading diagnostics.
 
 A case can also parse its input several times with the one loaded pipeline. Then it has `parses`, a list of objects, each with its own `options` and `expect`, in place of the case's `options` and `expect`:
