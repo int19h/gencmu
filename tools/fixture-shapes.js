@@ -158,17 +158,17 @@ export const fixtureShapes = {
   "notation-growth.json": { shape: caseList(object({ name: string, description: string, prefix: string, open: string, middle: string, close: string, suffix: string })) },
   "query-depth.json": { shape: caseList(object({ name: string, description: string, grammar: string, link: string, suffix: string, count: positive })) },
   "query-work.json": { shape: caseList(object({ name: string, description: string, head: string, item: string, joiner: string, tail: string, rule: string, text: string, count: positive, most: positive })) },
-  "places.json": { shape: object({ description: string, positions: list(location), substitutions: list(object({ text: string, find: string, replace: string, places: natural, expect: nullable(string) })) }) },
-  "recipe-diagnostics.json": { shape: object({ recipes: list(object({ source: string, at: string })), positions: list(object({ name: string, template: string })), ordinary: strings }) },
+  "places.json": { shape: object({ description: string, positions: caseList(location), substitutions: caseList(object({ text: string, find: string, replace: string, places: natural, expect: nullable(string) })) }) },
+  "recipe-diagnostics.json": { shape: object({ recipes: caseList(object({ source: string, at: string })), positions: caseList(object({ name: string, template: string })), ordinary: strings }) },
   "notation-shapes.json": { shape: object({ description: string, document: string, inputs: strings, control: strings, loads: map(loadedOutcomes), extraParts: list(replacement) }, {}, [
     (v) => v.control.length !== v.inputs.length || Object.values(v.loads).some((x) => Array.isArray(x) && x.length !== v.inputs.length)
       ? ["control and loaded outcomes need one entry per input"] : [],
   ]) },
   "notation-values.json": { shape: suppliedNotation },
   "json-keys.json": { shape: object({ grammar: string, cache: string,
-    values: list(object({ description: string, json: string, expect: any })),
-    bootstrap: list(object({ description: string, find: string, replace: string, loads: boolean }, { rustLoads: boolean, note: string })),
-    preparsed: list(object({ description: string, find: string, replace: string }, {
+    values: caseList(object({ description: string, json: string, expect: any })),
+    bootstrap: caseList(object({ description: string, find: string, replace: string, loads: boolean }, { rustLoads: boolean, note: string })),
+    preparsed: caseList(object({ description: string, find: string, replace: string }, {
       cached: boolean,
       rustCached: boolean, note: string, document: string, tags: strings, portable: boolean, sources: map(string), error: position, concurrent: boolean,
     }, [(v) => !has(v, "cached") && !has(v, "error") ? ["a cache case needs cached or error"] : []])),
