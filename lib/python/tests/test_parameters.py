@@ -190,7 +190,7 @@ class Parameters(unittest.TestCase):
 def case_test(case):
     def test(self):
         from .test_engine_cases import EngineCases
-        EngineCases().check_fixture(case['name'], case)
+        EngineCases().check_fixture(case.get('name', 'parameter case'), case, parameters=True)
     return test
 
 

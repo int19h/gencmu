@@ -1131,6 +1131,11 @@ class CharacterClassLoading(unittest.TestCase):
 MIXED_DOCUMENT = '```jbogenbau\n%ambiguity-resolution greedy\n%rule text $x:A B\n%conditions $x.source-text = "ok"\n```\n'
 
 
+def _canonical_captured_value(dom: Dom) -> None:
+    """Use a canonical string as the captured value terminal."""
+    alt(dom)["expr"]["seq"][0]["expr"] = {"literal": {"string": "ab"}}
+
+
 def _mixed_changes() -> list[tuple[str, Callable[[Dom], None]]]:
     """Expressions and conditions that join the members of two forms, or
     that hold a value of the wrong kind, as changes to a DOM of ``$x:A B``
@@ -1200,7 +1205,6 @@ def _mixed_changes() -> list[tuple[str, Callable[[Dom], None]]]:
         ("a separated list with an unknown member", second({"repeat": b, "separator": c, "extra": False})),
         ("a reference that is not a name", second({"ref": "x y"})),
         ("a top-level sequence with a choice", beside("choice", [b, c])),
-        ("a captured terminal not in its canonical spelling", captured({"literal": {"string": "ab"}})),
         ("a captured reference with a terminal", captured({"ref": "A", "terminal": "A"})),
         ("a captured terminal with a reference", captured({"terminal": "A", "ref": "A"})),
         ("a captured reference that is not a name", captured({"ref": "x y"})),
@@ -1244,17 +1248,16 @@ class MixedFormLoading(unittest.TestCase):
         rule(control)["conditions"][0]["right"] = {"string": "no"}
         self.assertIsNone(dom_problem(control))
         self.assertNotEqual(parse(control), fresh)
+        literal_control = copy.deepcopy(control)
+        _canonical_captured_value(literal_control)
+        self.assertIsNone(dom_problem(literal_control))
+        self.assertNotEqual(parse(literal_control), fresh)
         for name, change in _mixed_changes():
             with self.subTest(refused=name):
                 dom = copy.deepcopy(control)
                 change(dom)
-                if name == "a captured terminal not in its canonical spelling":
-                    # Every scalar string is a legal value terminal now.
-                    self.assertIsNone(dom_problem(dom))
-                    self.assertNotEqual(parse(dom), fresh)
-                else:
-                    self.assertIsNotNone(dom_problem(dom))
-                    self.assertEqual(parse(dom), fresh)
+                self.assertIsNotNone(dom_problem(dom))
+                self.assertEqual(parse(dom), fresh)
 
     def test_a_bootstrap_node_of_two_forms_is_an_error(self) -> None:
         def with_rule(change: Callable[[Dom], None] | None) -> str:
@@ -1285,9 +1288,10 @@ class MixedFormLoading(unittest.TestCase):
             return False
 
         self.assertFalse(refused(with_rule(None)))
+        self.assertFalse(refused(with_rule(_canonical_captured_value)))
         for name, change in _mixed_changes():
             with self.subTest(refused=name):
-                self.assertEqual(refused(with_rule(change)), name != "a captured terminal not in its canonical spelling")
+                self.assertTrue(refused(with_rule(change)))
 
 
 CONSTANT_SOURCES = {

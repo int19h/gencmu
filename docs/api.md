@@ -276,6 +276,7 @@ gencmu.to_brackets(result, show_elided=True)
 - `Pipeline.features` is a tuple of `Feature`, a dataclass with `name`, `kind` and `default`.
 - Other pipeline attributes and helpers are private and use names that start with `_`.
 - `ParseResult`, `Stage`, `Node`, `Token`, `ParseWarning`, `ParseError`, `Action`, `Expected` and `Restoration` are dataclasses. Tags are a set of strings. The warning class is not called `Warning`, because `Warning` is a built-in exception.
+- `ParseResult` exposes `ok`, `stages`, `tree`, `error`, `warnings`, and `features`, as defined above.
 - `Expected` describes an expected terminal with `terminal` and `rules`. `ParseError.expected` holds a list of these records.
 - `Action` describes a derivation step with `kind` and the applicable `token`, `terminal`, `rule`, `production`, `span`, or `at` fields. `ParseError.witness` holds two actions.
 - `Restoration` describes an inserted terminator with `terminal`, `at`, `source`, and optional `value`. `ParseError.completion` holds a list of these frozen dataclasses.

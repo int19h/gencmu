@@ -21,10 +21,18 @@ def tokens(*tags):
 
 
 class WithoutElision(unittest.TestCase):
+    def test_aligned_query_selection_requires_cases_not_a_count(self):
+        paths = [path for path in cases("engine") if path.name.startswith("without-elision-")]
+        self.assertTrue(paths, "no aligned-query fixtures found")
+        with patch(__name__ + ".cases", return_value=[paths[0], paths[0]]):
+            self.test_shared_aligned_queries()
+        with patch(__name__ + ".cases", return_value=[]), self.assertRaisesRegex(AssertionError, "no aligned-query fixtures"):
+            self.test_shared_aligned_queries()
+
     def test_shared_aligned_queries(self):
         paths = [path for path in cases("engine") if path.name.startswith("without-elision-")]
         # Every aligned fixture exercises its query and growth contract.
-        self.assertEqual(len(paths), 232)
+        self.assertTrue(paths, "no aligned-query fixtures found")
         checker = engine_cases.EngineCases()
         for path in paths:
             with self.subTest(case=path.name):

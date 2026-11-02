@@ -4,6 +4,7 @@ library refuses, or accepts, in a DOM (tests/README.md, engine §9)."""
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 from itertools import permutations
 
 from gencmu import GencmuError
@@ -52,13 +53,18 @@ class DomMalformed(unittest.TestCase):
 
     def test_rule_type_fault_keeps_construct_order(self) -> None:
         from gencmu._types import rule_type_fault
-        for case in load_json(SHARED / "dom-malformed.json"):
-            if case["description"].startswith("A first "):
-                with self.subTest(case=case["description"]):
-                    rule = case["rule"]
-                    fault = rule_type_fault(rule)
-                    self.assertIsNotNone(fault)
-                    self.assertIs(fault[1], rule["conditions"][0])
+        cases = [case for case in load_json(SHARED / "dom-malformed.json") if case["description"].startswith("A first ")]
+        self.assertTrue(cases, "no construct-order cases found")
+        for case in cases:
+            with self.subTest(case=case["description"]):
+                rule = case["rule"]
+                fault = rule_type_fault(rule)
+                self.assertIsNotNone(fault)
+                self.assertIs(fault[1], rule["conditions"][0])
+
+    def test_construct_order_selection_is_required(self) -> None:
+        with patch(__name__ + ".load_json", return_value=[]), self.assertRaisesRegex(AssertionError, "no construct-order cases"):
+            self.test_rule_type_fault_keeps_construct_order()
 
     def test_cases(self) -> None:
         cases = load_json(SHARED / "dom-malformed.json")
