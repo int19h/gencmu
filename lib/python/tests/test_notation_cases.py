@@ -29,7 +29,10 @@ class NotationCases(unittest.TestCase):
             with self.subTest(change=change), self.assertRaises(AssertionError):
                 validate_notation_case({**base, **change})
         validate_notation_case(base)
-        validate_notation_case({**base, "expect": {"error": {}}})
+        for position in ({}, {"line": 2}, {"column": 15}):
+            with self.subTest(position=position), self.assertRaises(AssertionError):
+                validate_notation_case({**base, "expect": {"error": position}})
+        validate_notation_case({**base, "expect": {"error": {"line": 2, "column": 15}}})
 
     def test_range_emission_target_reports_a_content_error(self) -> None:
         with self.assertRaisesRegex(gencmu.GencmuError, "an emission target requires a capture or ε"):
@@ -105,9 +108,10 @@ class NotationCases(unittest.TestCase):
                 read_document(case["document"], path.name)
             error = caught.exception
             self.assertEqual(error.kind, "grammar")
-            for key in ("line", "column", "message"):
-                if key in expect["error"]:
-                    self.assertEqual(getattr(error, key), expect["error"][key], f"{path.name}: {error}")
+            for key in ("line", "column"):
+                self.assertEqual(getattr(error, key), expect["error"][key], f"{path.name}: {error}")
+            if "message" in expect["error"]:
+                self.assertEqual(error.message, expect["error"]["message"], f"{path.name}: {error}")
 
 def check_notation_cache_paths(
     test: unittest.TestCase, name: str, document: str, expected: dict, resources: _Resources | None = None

@@ -65,7 +65,7 @@ class NotationValues(unittest.TestCase):
             bootstrap.assert_not_called()
 
     def test_ordinary_notation_keeps_nested_error_messages(self) -> None:
-        validate_notation_case({"document": "", "expect": {"error": {"message": "agreed reason"}}})
+        validate_notation_case({"document": "", "expect": {"error": {"line": 2, "column": 15, "message": "agreed reason"}}})
 
     def check_case(self, case: dict[str, Any]) -> None:
         validate_notation_case(case, values=True)

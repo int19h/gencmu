@@ -57,6 +57,9 @@ pub fn options(value: &Value) -> R {
         "options",
         &[("features", Array), ("withoutFeatures", Array), ("until", Text), ("elisionOnly", Bool)],
     )?;
+    if value.get("until").and_then(Value::str) == Some("") {
+        return Err("options.until must be nonempty".into());
+    }
     for name in ["features", "withoutFeatures"] {
         if let Some(list) = value.get(name) {
             strings(list, &format!("options.{name}"))?;
@@ -311,6 +314,12 @@ pub fn notation(value: &Value) -> R {
     }
     if let Some(error) = expectation.get("error") {
         position(error, "expect.error", false)?;
+        for name in ["line", "column"] {
+            if !matches!(required(error, name, "expect.error")?, Value::Number(n) if n.is_finite() && *n >= 1.0 && n.fract() == 0.0)
+            {
+                return Err(format!("expect.error.{name} must be a positive integer"));
+            }
+        }
     }
     Ok(())
 }

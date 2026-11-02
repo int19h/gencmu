@@ -19,7 +19,7 @@ const exactly = (...keys) => (value) => keys.filter((key) => has(value, key)).le
 const together = (a, b) => (value) => has(value, a) === has(value, b) ? [] : [`${a} and ${b} must occur together`];
 const position = object({ document: string }, { line: positive, column: positive });
 const coordinates = { line: positive, column: positive };
-const options = object({}, { features: strings, withoutFeatures: strings, until: string, elisionOnly: boolean });
+const options = object({}, { features: strings, withoutFeatures: strings, until: { pattern: /./s }, elisionOnly: boolean });
 const feature = object({ name: string, kind: choice("gate", "warning"), default: boolean });
 const warning = object({ stage: string, feature: string, rule: string, span: pair, source: pair });
 const expectation = object({}, {
@@ -30,7 +30,7 @@ const expectation = object({}, {
 const parse = object({ expect: expectation }, { options });
 const tokens = { check: tokenMembers };
 const engine = object({}, {
-  description: string, name: string, grammar: string, documents: map(string), pipelineDocument: string, pipeline: string,
+  description: string, grammar: string, documents: map(string), pipelineDocument: string, pipeline: string,
   input: string, tokens, options, expect: expectation, parses: list(parse, 1),
   treeRendering: object({ aliases: strings, text: string, decodedError: string }),
 }, [
@@ -39,7 +39,7 @@ const engine = object({}, {
   (v) => has(v, "parses") && has(v, "options") ? ["parses replaces options"] : [],
   // The main runners inspect token payloads and match result patterns.
 ]);
-const notationError = object({}, { line: positive, column: positive, message: string });
+const notationError = object(coordinates, { message: string });
 const notation = object({ document: string, expect: object({}, { dom: record, error: notationError }, [exactly("dom", "error")]) },
   { description: string, cacheMisses: boolean }, [
     (v) => v.cacheMisses === true && !has(v.expect, "dom") ? ["cacheMisses requires a DOM expectation"] : [],
