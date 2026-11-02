@@ -86,6 +86,7 @@ export function fixtureProblems(relative, bytes, context) {
     }
     return problems;
   }
+  if (format === "jsonl" && !text.trim()) return [`tests/${relative}: expected at least one corpus record`];
   const parts = format === "jsonl" ? text.split("\n") : [text];
   parts.forEach((part, index) => {
     if (format === "jsonl" && !part.trim()) return;

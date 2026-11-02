@@ -94,17 +94,18 @@ const growth = object({ case: string, depths: counts, nodesPerDepth: natural, sl
 const corpus = object({ id: string, text: string, pipeline: string, expect: choice("accept", "reject") }, {
   features: strings, withoutFeatures: strings, verdict: string, stage: string, at: natural,
   error: object({ kind: choice("ambiguous"), reason: choice("tie", "elision-only") }),
-  ties: strings, words: strings, brackets: string, seeded: choice("accept", "reject"), reason: string,
+  ties: { tuple: [{ pattern: /./s }] }, words: strings, brackets: string, seeded: choice("accept", "reject"), reason: string,
 }, [(v) => {
   const problems = [];
   if (v.expect === "accept") {
     for (const key of ["verdict", "brackets"]) if (!has(v, key)) problems.push(`accept requires ${key}`);
-    for (const key of ["stage", "at", "error"]) if (has(v, key)) problems.push(`accept forbids ${key}`);
+    for (const key of ["stage", "at", "error", "ties"]) if (has(v, key)) problems.push(`accept forbids ${key}`);
   } else {
     if (!has(v, "stage")) problems.push("reject requires stage");
     for (const key of ["verdict", "brackets"]) if (has(v, key)) problems.push(`reject forbids ${key}`);
     for (const message of exactly("at", "error")(v)) problems.push(message);
   }
+  if (has(v, "ties") && v.ties[0] !== v.stage) problems.push("ties must name stage");
   if (has(v, "seeded") && !has(v, "reason")) problems.push("seeded requires reason");
   return problems;
 }]);
