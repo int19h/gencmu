@@ -219,20 +219,23 @@ class EngineCases(unittest.TestCase):
 
     def check_family_case(self, path: Path) -> None:
         with deadline(path.name):
-            case = load_case(path)
-            if "parses" in case:
-                # The case parses its input several times with the one
-                # loaded pipeline (tests/README.md).
-                pipeline, error = load_case_pipeline(case)
-                if pipeline is None:
-                    raise AssertionError(f"{path.name}: the pipeline did not load: {error}")
-                features = case_features(pipeline)
-                for index, run in enumerate(case["parses"]):
-                    value, result, error = parse_case(pipeline, case, run)
-                    self.check(f"{path.name} parse {index}", run["expect"], value, result, error, features)
-                return
-            value, result, error, features = run_case(case)
-            self.check(path.name, case["expect"], value, result, error, features)
+            self.check_fixture(path.name, load_case(path))
+
+    def check_fixture(self, name: str, case: dict[str, Any]) -> None:
+        validate_engine_case(case, complete=True)
+        if "parses" in case:
+            # The case parses its input several times with the one
+            # loaded pipeline (tests/README.md).
+            pipeline, error = load_case_pipeline(case)
+            if pipeline is None:
+                raise AssertionError(f"{name}: the pipeline did not load: {error}")
+            features = case_features(pipeline)
+            for index, run in enumerate(case["parses"]):
+                value, result, error = parse_case(pipeline, case, run)
+                self.check(f"{name} parse {index}", run["expect"], value, result, error, features)
+            return
+        value, result, error, features = run_case(case)
+        self.check(name, case["expect"], value, result, error, features)
 
     def check(
         self,

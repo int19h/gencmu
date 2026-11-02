@@ -9,7 +9,7 @@ from gencmu import GencmuError
 from gencmu._pipeline import read_document
 from gencmu._templates import canonical_argument, expand_templates
 from gencmu._validate import dom_problem
-from .shared import load_case_pipeline, run_case
+from .shared import load_case_pipeline
 
 
 CASES = json.loads((Path(__file__).resolve().parents[3] / 'tests/parameters.json').read_text())
@@ -29,6 +29,16 @@ def instance_names(text):
 
 
 class Parameters(unittest.TestCase):
+    def test_parameter_runner_accepts_repeated_parses_and_document_sources(self):
+        for case in (
+            {"name": "repeated", "grammar": '%rule atom(@X) @X\n%rule text atom("a")', "input": "a",
+             "parses": [{"expect": {"brackets": "a"}}, {"expect": {"brackets": "a"}}]},
+            {"name": "documents", "documents": {"p.md": '```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text "a"\n```'},
+             "pipelineDocument": "p.md", "input": "a", "expect": {"brackets": "a"}},
+        ):
+            with self.subTest(case=case["name"]):
+                case_test(case)(self)
+
     def test_instance_errors_retain_effective_names(self):
         for effective, tail in [('use("a")', '%rule text use("a")'), ('named', '%rule named = use("a")\n%rule text named')]:
             with self.subTest(effective=effective), self.assertRaises(GencmuError) as caught:
@@ -180,7 +190,7 @@ class Parameters(unittest.TestCase):
 def case_test(case):
     def test(self):
         from .test_engine_cases import EngineCases
-        EngineCases().check(case['name'], case['expect'], *run_case(case))
+        EngineCases().check_fixture(case['name'], case)
     return test
 
 

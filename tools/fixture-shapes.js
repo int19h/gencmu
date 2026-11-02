@@ -4,6 +4,7 @@
 const string = "string", boolean = "boolean", any = "any", record = "record";
 const positive = "positive", natural = "natural";
 const list = (item, min = 0) => ({ list: item, min });
+const caseList = (item) => list(item, 1);
 const object = (required, optional = {}, rules = []) => ({ required, optional, rules });
 const map = (item) => ({ map: item });
 const choice = (...values) => ({ choice: values });
@@ -15,14 +16,15 @@ const exactly = (...keys) => (value) => keys.filter((key) => has(value, key)).le
   ? [] : [`supply exactly one of ${keys.join(", ")}`];
 const together = (a, b) => (value) => has(value, a) === has(value, b) ? [] : [`${a} and ${b} must occur together`];
 const position = object({ document: string }, { line: positive, column: positive });
+const coordinates = { line: positive, column: positive };
 const options = object({}, { features: strings, withoutFeatures: strings, until: string, elisionOnly: boolean });
 const feature = object({ name: string, kind: choice("gate", "warning"), default: boolean });
 const warning = object({ stage: string, feature: string, rule: string, span: pair, source: pair });
 const expectation = object({}, {
-  result: record, error: string, where: position, diagnostic: string, message: string,
+  result: record, error: choice("grammar", "usage", "rejected", "ambiguous", "feature-conflict"), where: position, diagnostic: string, message: string,
   brackets: string, warnings: list(warning), features: list(feature), enabledFeatures: strings, bundledPipelines: strings,
-}, [(v) => (has(v, "where") || has(v, "diagnostic")) && v.error !== "grammar"
-  ? ["where and diagnostic require a grammar error"] : []]);
+}, [(v) => (has(v, "where") || has(v, "diagnostic") || has(v, "message")) && v.error !== "grammar"
+  ? ["where, diagnostic and message require a grammar error"] : []]);
 const parse = object({ expect: expectation }, { options });
 const tokens = { check: tokenMembers };
 const engine = object({}, {
@@ -37,11 +39,13 @@ const engine = object({}, {
 ]);
 const notationError = object({}, { line: positive, column: positive, message: string });
 const notation = object({ document: string, expect: object({}, { dom: record, error: notationError }, [exactly("dom", "error")]) },
-  { description: string, cacheMisses: boolean });
-const suppliedExpectation = object({}, { dom: record, error: object({}, { line: positive, column: positive }), message: string }, [
+  { description: string, cacheMisses: boolean }, [
+    (v) => v.cacheMisses === true && !has(v.expect, "dom") ? ["cacheMisses requires a DOM expectation"] : [],
+  ]);
+const suppliedExpectation = object({}, { dom: record, error: object(coordinates), message: string }, [
   exactly("dom", "error"), (v) => has(v, "message") && !has(v, "error") ? ["message requires error"] : [],
 ]);
-const suppliedNotation = object({ description: string, cases: list(object({
+const suppliedNotation = object({ description: string, cases: caseList(object({
   id: string, description: string, aliases: list(object({ spelling: string, value: string, tags: strings })),
   document: string, expect: suppliedExpectation,
 })) });
@@ -58,9 +62,10 @@ const parameterStructure = object({ name: string }, {
 }, [(v) => v.cacheFallback === true
   ? (has(v, "grammar") && has(v, "dom") && has(v, "input") ? [] : ["cacheFallback requires grammar, dom and input"])
   : exactly("grammar", "dom")(v),
-(v) => v.public === true && !has(v, "grammar") ? ["public requires grammar"] : []]);
-const memo = object({ description: string, runs: list(object({ options: list(options) }, {
-  grammar: string, pipeline: string, inputs: list(tokens), texts: strings,
+(v) => v.public === true && (!has(v, "grammar") || !has(v, "order")) ? ["public requires grammar and order"] : [],
+(v) => has(v, "flags") && !has(v, "grammar") ? ["flags requires grammar"] : []]);
+const memo = object({ description: string, runs: caseList(object({ options: list(options, 1) }, {
+  grammar: string, pipeline: string, inputs: list(tokens, 1), texts: list(string, 1),
 }, [exactly("grammar", "pipeline"), exactly("inputs", "texts")])) });
 const mutationPath = list(either(string, "path-index"), 1);
 const mutant = object({ name: string, case: string, path: mutationPath }, {
@@ -133,21 +138,21 @@ export const fixtureShapes = {
   "engine/*.json": { shape: engine },
   "notation/*.json": { shape: notation },
   "corpus/*.jsonl": { shape: corpus, format: "jsonl", scalarStrings: true },
-  "parameters.json": { shape: list(engine) },
-  "parameter-structure.json": { shape: list(parameterStructure) },
-  "bootstrap-errors.json": { shape: object({ kind: string, document: string, cases: list(bootstrapCase) }) },
-  "disk-names.json": { shape: list(object({ description: string, files: map(string), error: position })) },
-  "dom-depth-source.json": { shape: list(object({ description: string, head: string, prefix: string, leaf: string, suffix: string, tail: string, atLimit: natural })) },
-  "dom-depth.json": { shape: list(object({ description: string, dom: any, leaf: any, wrapper: any, atLimit: natural })) },
-  "dom-malformed.json": { shape: list(object({ description: string, malformed: boolean }, {
+  "parameters.json": { shape: caseList({ ...engine, required: { name: string } }) },
+  "parameter-structure.json": { shape: caseList(parameterStructure) },
+  "bootstrap-errors.json": { shape: object({ kind: string, document: string, cases: caseList(bootstrapCase) }) },
+  "disk-names.json": { shape: caseList(object({ description: string, files: map(string), error: object({ document: string, ...coordinates }) })) },
+  "dom-depth-source.json": { shape: caseList(object({ description: string, head: string, prefix: string, leaf: string, suffix: string, tail: string, atLimit: natural })) },
+  "dom-depth.json": { shape: caseList(object({ description: string, dom: any, leaf: any, wrapper: any, atLimit: natural })) },
+  "dom-malformed.json": { shape: caseList(object({ description: string, malformed: boolean }, {
     dom: any, rule: any, directive: any, unicode: string, code: string, message: string,
   }, [exactly("dom", "rule", "directive")])) },
-  "growth.json": { shape: list(object({ description: string, pipeline: string, text: string, link: string, small: positive, large: positive, most: positive }, {}, [
+  "growth.json": { shape: caseList(object({ description: string, pipeline: string, text: string, link: string, small: positive, large: positive, most: positive }, {}, [
     (v) => v.large > v.small ? [] : ["large must exceed small"],
   ])) },
-  "notation-growth.json": { shape: list(object({ name: string, description: string, prefix: string, open: string, middle: string, close: string, suffix: string })) },
-  "query-depth.json": { shape: list(object({ name: string, description: string, grammar: string, link: string, suffix: string, count: positive })) },
-  "query-work.json": { shape: list(object({ name: string, description: string, head: string, item: string, joiner: string, tail: string, rule: string, text: string, count: positive, most: positive })) },
+  "notation-growth.json": { shape: caseList(object({ name: string, description: string, prefix: string, open: string, middle: string, close: string, suffix: string })) },
+  "query-depth.json": { shape: caseList(object({ name: string, description: string, grammar: string, link: string, suffix: string, count: positive })) },
+  "query-work.json": { shape: caseList(object({ name: string, description: string, head: string, item: string, joiner: string, tail: string, rule: string, text: string, count: positive, most: positive })) },
   "places.json": { shape: object({ description: string, positions: list(location), substitutions: list(object({ text: string, find: string, replace: string, places: natural, expect: nullable(string) })) }) },
   "recipe-diagnostics.json": { shape: object({ recipes: list(object({ source: string, at: string })), positions: list(object({ name: string, template: string })), ordinary: strings }) },
   "notation-shapes.json": { shape: object({ description: string, document: string, inputs: strings, control: strings, loads: map(loadedOutcomes), extraParts: list(replacement) }, {}, [
@@ -170,9 +175,9 @@ export const fixtureShapes = {
     references: (v) => [v.case].concat(v.unusedCases.map((name) => `engine/${name}`),
       Object.values(v).filter((x) => x && typeof x === "object" && !Array.isArray(x))
         .flatMap((x) => x.strictCase ? [x.case, x.strictCase] : [x.case])) },
-  "diagnostic-notation.json": { shape: list(object({ description: string, grammar: string, text: string, term: any }, { abbreviation: string })) },
-  "playground-includes.json": { shape: list(object({ description: string, sources: map(string), documents: strings }, { stages: list(object({ name: string, documents: strings })) })) },
-  "playground-names-paths.json": { shape: strings },
+  "diagnostic-notation.json": { shape: caseList(object({ description: string, grammar: string, text: string, term: any }, { abbreviation: string })) },
+  "playground-includes.json": { shape: caseList(object({ description: string, sources: map(string), documents: strings }, { stages: list(object({ name: string, documents: strings })) })) },
+  "playground-names-paths.json": { shape: caseList(string) },
   "cll-footnotes.json": { shape: object({ edition: string, index: object({ url: string, sha256: digest }), pages: map(page) }) },
   "unicode/property-digests.json": { shape: object({ unicode: string, algorithm: choice("fnv1a64"), scalars: positive, properties: map(hash) }) },
   "text-sources/manifest.json": { shape: textManifest },
