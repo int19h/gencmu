@@ -190,15 +190,7 @@ func TestConcurrentSharedMemo(t *testing.T) {
 				visited[worker] = make([]bool, len(parses))
 				go func() {
 					defer wg.Done()
-					// Every parse of the run, from a starting place of
-					// the goroutine's own.
-					for step := 0; step < len(parses); step++ {
-						i := (step + worker*len(parses)/4) % len(parses)
-						visited[worker][i] = true
-						if got := memoParseJSON(t, shared, parses[i]); got != reference[i] {
-							failures <- fmt.Sprintf("parse %d with bound %d on goroutine %d", i, limit, worker)
-						}
-					}
+					memoWorker(shared, parses, reference, worker, limit, visited[worker], failures)
 				}()
 			}
 			wg.Wait()
@@ -211,6 +203,22 @@ func TestConcurrentSharedMemo(t *testing.T) {
 					t.Errorf("goroutine %d left a parse out", worker)
 				}
 			}
+		}
+	}
+}
+
+func memoWorker(shared *Pipeline, parses []memoParse, reference []string, worker, limit int, visited []bool, failures chan<- string) {
+	// Every parse of the run, from the worker's own starting place.
+	for step := 0; step < len(parses); step++ {
+		i := (step + worker*len(parses)/4) % len(parses)
+		visited[i] = true
+		got, err := memoParseOutcome(shared, parses[i])
+		if err != nil {
+			failures <- fmt.Sprintf("parse %d with bound %d on goroutine %d: %v", i, limit, worker, err)
+			continue
+		}
+		if got != reference[i] {
+			failures <- fmt.Sprintf("parse %d with bound %d on goroutine %d", i, limit, worker)
 		}
 	}
 }
@@ -524,5 +532,43 @@ func TestMemoRunsKeepUsageErrors(t *testing.T) {
 	data, err := memoParseOutcome(d, memoParse{text: "a", options: ParseOptions{Until: "missing"}})
 	if err != nil || !strings.Contains(data, "missing") {
 		t.Fatalf("the memo runner lost a usage error: %q, %v", data, err)
+	}
+}
+
+func TestMemoWorkerReportsCrashesAndContinues(t *testing.T) {
+	c := loadCase(t, "../../tests/engine/without-elision-except-owner-choice.json")
+	d, err := casePipeline(c, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokens, text, err := caseTokens(c.Tokens)
+	if err != nil {
+		t.Fatal(err)
+	}
+	good := memoParse{text: text, tokens: tokens}
+	want, err := memoParseOutcome(d, good)
+	if err != nil {
+		t.Fatal(err)
+	}
+	crash := good
+	crash.options.private = &privateOptions{familyOracle: func(*recognizer, *item) { panic("worker probe crash") }}
+	visited := make([]bool, 2)
+	failures := make(chan string, 2)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		memoWorker(d, []memoParse{crash, good}, []string{"", want}, 0, 1, visited, failures)
+	}()
+	<-done
+	close(failures)
+	if slices.Contains(visited, false) {
+		t.Errorf("worker skipped parses after the crash: %v", visited)
+	}
+	var messages []string
+	for failure := range failures {
+		messages = append(messages, failure)
+	}
+	if len(messages) != 1 || !strings.Contains(messages[0], "worker probe crash") {
+		t.Errorf("worker lost the crash reason: %v", messages)
 	}
 }
