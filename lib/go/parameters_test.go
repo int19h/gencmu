@@ -486,7 +486,7 @@ func TestParameterSharedStructure(t *testing.T) {
 				expr := templateObj(templateObj(templateList(templateObj(rules[len(rules)-1])["alternatives"])[0])["expr"])
 				argument = templateList(expr["args"])[0]
 			}
-			x, expansionErr := expandTemplates([]docDOM{{"review.md", dom}}, bundled.uni)
+			x, expansionErr := expandTemplates([]docDOM{{"parameters.md", dom}}, bundled.uni)
 			if expansionErr != nil {
 				t.Fatal(expansionErr)
 			}

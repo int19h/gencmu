@@ -624,7 +624,7 @@ func TestBootstrapNulls(t *testing.T) {
 
 // Malformed preparsed DOMs: a bad data/preparsed/lojban.json entry is a miss, read
 // from the document instead, and a bad bootstrap is a load error; neither
-// panics (review of PR #8).
+// panics.
 func TestMalformedPreparsed(t *testing.T) {
 	t.Parallel()
 	loadBundled()
@@ -823,7 +823,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 }
 
 // Caller tokens whose source lies outside the text are a usage error, not
-// a panic (review of PR #8).
+// a panic.
 func TestParseTokensOutOfRange(t *testing.T) {
 	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text \"a\"\n%emits $"))

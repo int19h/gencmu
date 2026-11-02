@@ -437,7 +437,7 @@ fn shared_parameter_structure() {
             let rules = list(get(&raw, "rules"));
             assert_eq!(&list(get(expression(rules.last().unwrap()), "args"))[0], arg, "{name}");
         }
-        let documents = [(Arc::from("grammars/test/review.md"), Arc::new(d))];
+        let documents = [(Arc::from("grammars/test/parameters.md"), Arc::new(d))];
         let x = expand(&documents, &uni).unwrap_or_else(|e| panic!("{name}: {e:?}"));
         if let Some(order) = case.get("order") {
             let actual = x.as_ref().map_or_else(

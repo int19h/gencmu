@@ -583,7 +583,7 @@ async function main() {
       }
       await assertLinks();
     }
-    console.log(`review regression cases work in ${browser}`);
+    console.log(`playground regression cases work in ${browser}`);
     await page.locator("#tab-brackets").click();
 
     await choose("grammars/lojban/cll/pipeline.md");
