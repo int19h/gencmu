@@ -116,14 +116,9 @@ pub(crate) enum Mutant {
     /// The search for duplicate captures keeps each capture it marks in
     /// its list, so that each level above marks it again.
     MarkAgain,
-    /// The product of capture sequences copies each sequence with its
-    /// suffix, not growing it in place.
-    #[cfg(test)]
-    CopySequences,
-    /// The distinct capture sequences are found by comparing each with
-    /// every one kept before it, not by a set of keys.
-    #[cfg(test)]
-    ScanDistinct,
+    /// Independent capture choices compare each sequence with every
+    /// preceding sequence instead of using a set of keys.
+    CompareCaptureChoices,
     /// The search for cycles finds each component's members by a scan of
     /// its stack from the bottom.
     ComponentByScan,

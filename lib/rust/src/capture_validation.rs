@@ -541,7 +541,7 @@ impl<'a> Queries<'a> {
 /// A variable sequence, optional or conjunction needs the structural queries.
 fn independent_choices(expr: &Expr) -> Option<Vec<Vec<&str>>> {
     let mut branches = vec![expr];
-    let mut witnesses = Vec::new();
+    let mut witnesses: Vec<Vec<&str>> = Vec::new();
     let mut seen = FxSet::default();
     while let Some(expr) = branches.pop() {
         match expr {
@@ -570,7 +570,15 @@ fn independent_choices(expr: &Expr) -> Option<Vec<Vec<&str>>> {
                 _ => {}
             }
         }
-        if seen.insert(names.clone()) {
+        let distinct = if work::mutated(Mutant::CompareCaptureChoices) {
+            !witnesses.iter().any(|previous| {
+                work::count(Work::Checked, 1);
+                previous == &names
+            })
+        } else {
+            seen.insert(names.clone())
+        };
+        if distinct {
             witnesses.push(names);
         }
     }
@@ -579,10 +587,6 @@ fn independent_choices(expr: &Expr) -> Option<Vec<Vec<&str>>> {
 
 pub(super) fn captures(rule: &RuleDef, alternative: usize) -> Vec<Vec<&str>> {
     let alt = &rule.alternatives[alternative];
-    #[cfg(test)]
-    if work::mutated(Mutant::CopySequences) && !variable(&alt.expr) {
-        return CaptureSequences::of(&alt.expr).named();
-    }
     if let Some(witnesses) = independent_choices(&alt.expr) {
         return witnesses;
     }
