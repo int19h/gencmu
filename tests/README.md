@@ -350,6 +350,8 @@ Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A 
 
 Instead, an item can supply `dom`, the complete DOM envelope. This form can test the envelope and interactions between declarations. An optional `message` requires that the problem contains that agreed text. An optional `code` requires the problem code before its first colon.
 
+A runner uses a present `dom` unchanged, including `null`, `false`, zero, empty strings, empty arrays, and empty objects.
+
 An optional `unicode` member supplies the contents of `data/unicode/unicode.txt` for that case. Without it, the case uses the bundled table.
 
 A library that refuses a malformed preparsed DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.

@@ -4,6 +4,7 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 from gencmu import GencmuError
 
 from gencmu._pipeline import read_document
@@ -209,6 +210,18 @@ class NestedArgumentAliases(unittest.TestCase):
             self.assertEqual(dom_problem(dom, unicode), 'a malformed pattern value test')
 
 class ParameterStructure(unittest.TestCase):
+    def test_supplied_empty_dom_values_reach_cache_validation(self):
+        read_text = Path.read_text
+        for dom in (None, False, 0, "", [], {}):
+            case = {'name': 'supplied empty DOM', 'dom': dom, 'grammar': '%rule text "a"',
+                    'cacheFallback': True, 'input': 'a'}
+
+            def read(path, *args, **kwargs):
+                return json.dumps([case]) if path.name == 'parameter-structure.json' else read_text(path, *args, **kwargs)
+
+            with self.subTest(dom=dom), patch.object(Path, 'read_text', read):
+                self.test_shared_structure()
+
     def test_shared_structure(self):
         cases = json.loads((Path(__file__).resolve().parents[3] / 'tests/parameter-structure.json').read_text())
         unicode = grammar_of('%rule text "a"').unicode
@@ -220,7 +233,7 @@ class ParameterStructure(unittest.TestCase):
                     if 'instances' in case:
                         self.assertEqual(len(instance_names(case['grammar'])), case['instances'])
                     continue
-                dom = case.get('dom') or read_document('```jbogenbau\n' + case['grammar'] + '\n```')
+                dom = case['dom'] if 'dom' in case else read_document('```jbogenbau\n' + case['grammar'] + '\n```')
                 if case.get('cacheFallback'):
                     from gencmu import load_pipeline_sources
                     from .test_ranked import cached_sources, sources
