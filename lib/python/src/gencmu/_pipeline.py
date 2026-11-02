@@ -848,7 +848,7 @@ class Pipeline:
             except GencmuError as error:
                 # An error of the grammar lowering finds for these features
                 # is a result, with its stage and no position (engine §13).
-                failure = ParseError("grammar", error.message, stage=grammar.stage)
+                failure = ParseError("grammar", error.message, stage=grammar.stage, _grammar_location=error.where)
                 stages.append(Stage(grammar.stage, None, current))
                 return ParseResult(False, stages, None, failure, warnings=warnings, features=sorted(features))
 

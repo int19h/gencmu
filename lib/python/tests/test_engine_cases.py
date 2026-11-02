@@ -388,7 +388,10 @@ class EngineCases(unittest.TestCase):
         if "message" in expect:
             self.assertIsNotNone(value["error"], f"{label}: expect.message requires a grammar error")
             self.assertEqual(value["error"]["kind"], "grammar", f"{label}: expect.message requires a grammar error")
-            self.assertEqual(value["error"]["message"], expect["message"], label)
+            message = value["error"]["message"]
+            if result.error._grammar_location:
+                message = message.removeprefix(result.error._grammar_location + ": ")
+            self.assertEqual(message, expect["message"], label)
         if "error" in expect:
             self.assertIsNotNone(value["error"], f"{label}: expected an error\n{text[:2000]}")
             self.assertEqual(value["error"]["kind"], expect["error"], label)
@@ -463,6 +466,42 @@ class EngineCases(unittest.TestCase):
             self.check(name, fixture["expect"], *outcome)
             with self.assertRaises(AssertionError):
                 self.check(name, {**fixture["expect"], "message": "a wrong reason"}, *outcome)
+
+    def test_runtime_reasons_remove_only_the_structured_location(self) -> None:
+        reason = "an item of braces in text can match no tokens"
+        cases = [
+            {"grammar": "%rule text {ε}", "input": ""},
+            {"documents": {
+                "p.md": '```jbogenbau\n%stage main\n%include "g:7: part.md"\n```',
+                "g:7: part.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {ε}\n```",
+            }, "pipelineDocument": "p.md", "input": ""},
+        ]
+        for case in cases:
+            outcome = run_case(case)
+            value, result, _, _ = outcome
+            message = value["error"]["message"]
+            serialized = gencmu.to_json(result)
+            with self.subTest(case=case):
+                self.check("runtime reason", {"error": "grammar", "message": reason}, *outcome)
+                for wrong in (message, "a wrong reason"):
+                    with self.assertRaises(AssertionError):
+                        self.check("runtime reason", {"error": "grammar", "message": wrong}, *outcome)
+                self.assertEqual(result.error.message, message)
+                self.assertEqual(gencmu.to_json(result), serialized)
+                self.assertNotIn("document", value["error"])
+                self.assertNotIn("line", value["error"])
+                self.assertNotIn("column", value["error"])
+
+    def test_unlocated_runtime_reasons_keep_location_like_text(self) -> None:
+        fixture = load_case(Path(__file__).resolve().parents[3] / "tests/engine/split-empty-delimiter-runtime-message.json")
+        value, result, error, features = run_case(fixture)
+        for reason in ("split has an empty delimiter", "g:7: part.md:3:1: a reason"):
+            result.error.message = reason
+            value = gencmu.result_json(result)
+            self.check("unlocated reason", {"error": "grammar", "message": reason}, value, result, error, features)
+            for wrong in ("wrong reason", "a reason"):
+                with self.assertRaises(AssertionError):
+                    self.check("unlocated reason", {"error": "grammar", "message": wrong}, value, result, error, features)
 
     def test_a_load_error_meets_only_an_expectation_of_the_error(self) -> None:
         # The runner fails a case whose pipeline does not load, when the case

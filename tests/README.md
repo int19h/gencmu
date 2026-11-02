@@ -126,6 +126,8 @@ A pattern describes required result fields. `expect.result` is a pattern matched
 
 `expect.error` accepts `grammar`, `usage`, `rejected`, `ambiguous`, or `feature-conflict`. `expect.message` requires `expect.error: "grammar"`. It pins an agreed error reason, without a resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors. The runtime comparison removes the location prefix without changing the public result.
 
+The runner constructs that exact prefix from the originating error's document, line, and column. It preserves colons inside document names.
+
 A result pattern rejects error `message` assertions. Existing unit tests pin the common stitching and classifier messages specified in engine §2. Other wording stays library-specific.
 
 A pattern matches a result that has members beyond its own. So the invariants, and not the patterns, say that a tied stage has no output.
