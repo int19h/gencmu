@@ -2546,7 +2546,7 @@ A choice level cannot mix `|` and `≻`. Groups, plain optionals, and flat repea
 
 Its remainder is a sequence of primaries. It cannot contain captures.
 
-Flat repetition is `{body}` or `{body / body}`. A chain places one `...` immediately after `{` or after the whole item. A chain is the whole alternative expression. Captures cannot occur inside either repetition form. Tests cannot follow a group, capture, optional, repeat, or `ε`.
+Flat repetition is `{body}` or `{body / body}`. A chain places one `...` immediately after `{` or after the whole item. A chain is the whole alternative expression. A capture cannot occur inside a chain. A capture inside flat braces is an item capture (§3.5), and no capture can wrap either repetition form. Tests cannot follow a group, capture, optional, repeat, or `ε`.
 
 The reader checks each recipe atom in its written form, before folding or removing operators. Any operator token except `++`, including a leading no-op `∪` or `∩`, is an error at the atom. Thus `%rule r A := ∪ "a"` fails at `∪`, column 14. Recipe atoms have no grouping or method-chain extension. The `++` operators join those atoms.
 

@@ -234,7 +234,7 @@ A reference or terminal can carry one signed tag test followed by one exact valu
 - `( )` is grouping.
 - `ε` is empty.
 - `f?` and `¬f?` are gates, and `f!` is a warning. These are the feature guards on an alternative (see "Gates and warnings").
-- `$x:symbol` is a capture, and `$` is the whole constituent. A capture can stand anywhere but in braces and in an elidable optional.
+- `$x:symbol` is a capture, and `$` is the whole constituent. A capture can stand anywhere but in a chain and in an elidable optional. Inside flat braces it is an item capture, which only a condition reads.
 
 Rule names include single emoji scalars with `Emoji_Presentation` and without `Emoji_Component`. The grammar's Unicode version fixes this set. Other identifiers keep their ASCII rules. `#` starts a pattern, `@` starts a parameter, and `/` separates brace items from separators.
 
@@ -435,7 +435,7 @@ Braces state grouping explicitly, independently of how many alternatives feature
 
 Every kind of braces requires one or more items. ISO 14977 reads braces as zero or more, but jbogenbau writes zero or more as `[{x}]`. An item must read at least one token, so `[{x}]` reads nothing in one way only. No bundled grammar repeats an item that can be empty.
 
-A capture cannot stand inside braces or around them because a repeated part has no single captured occurrence. A grammar that needs a capture names its list or chain as a rule. A capture next to flat braces remains legal, as in `$a:A {B}`.
+A capture cannot stand around braces, or inside a chain, because a repeated part has no single captured occurrence. A grammar that needs such a capture names its list or chain as a rule. A capture inside flat braces is an item capture. It names one part of each item, and only a condition can read it, so the condition holds of every item. A capture next to flat braces remains legal, as in `$a:A {B}`.
 
 Independent alternatives with fixed capture lists need one validation witness per list. They do not enumerate unrelated capture-presence combinations.
 
@@ -460,7 +460,7 @@ A marked optional has one form, with a user tag or parameter directly after the 
 
 An omission has an elided node and contributes to its boundary's elision count. It does not record which constituent it closes. `elision-only` reconstructs its defined routes and preserves the exact value that an equality test saves. Query blockers instead read the preceding logical symbol, with plain optionals retained as helpers.
 
-A capture can stand anywhere except inside braces or inside an elidable optional. An alternative expands into productions, one per choice branch and subsequence of `&`. A plain optional with a capture expands into productions with and without the capture. A capture can therefore be present in some productions and absent in others.
+A capture can stand anywhere except inside a chain or inside an elidable optional. Inside flat braces it is an item capture. An alternative expands into productions, one per choice branch and subsequence of `&`. A plain optional with a capture expands into productions with and without the capture. A capture can therefore be present in some productions and absent in others.
 
 Presence tests and `⟹` guards handle missing captures. Conditions and emission items that require a missing capture do not apply. Tag terms must guard a missing capture or cause an error.
 
