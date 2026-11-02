@@ -648,7 +648,7 @@ func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect, loc
 // The runner fails a case whose pipeline does not load, when the case
 // expects another kind of error, or more than the error.
 func TestEngineRunnerAgreedReasons(t *testing.T) {
-	for _, name := range []string{"cr1-unicode-categories-conflict.json", "w2-75-suffix-recursion-local.json"} {
+	for _, name := range []string{"unicode-categories-conflict.json", "suffix-recursion-local.json"} {
 		c := loadCase(t, "../../tests/engine/"+name)
 		if err := checkCase(c, false); err != nil {
 			t.Fatal(err)

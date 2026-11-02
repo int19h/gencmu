@@ -117,7 +117,7 @@ class SharedMemo(unittest.TestCase):
         self.assertEqual(result.error.kind, "grammar")
 
     def test_suffix_cache_hits_preserve_aligned_dependencies(self) -> None:
-        fixture = load_json(SHARED / "engine" / "w2-76-retained-suffix-dependency.json")
+        fixture = load_json(SHARED / "engine" / "retained-suffix-dependency.json")
         pipeline = pipeline_of(fixture)
         self.assertTrue(pipeline.parse(fixture["input"]).ok)
         rules = shared_rules(pipeline)

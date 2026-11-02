@@ -460,7 +460,7 @@ class EngineCases(unittest.TestCase):
         self.assertTrue(same_json(changed["error"], value))
 
     def test_the_runner_refuses_wrong_agreed_error_reasons(self):
-        for name in ("cr1-unicode-categories-conflict.json", "w2-75-suffix-recursion-local.json"):
+        for name in ("unicode-categories-conflict.json", "suffix-recursion-local.json"):
             fixture = load_case(Path(__file__).resolve().parents[3] / "tests" / "engine" / name)
             outcome = run_case(fixture)
             self.check(name, fixture["expect"], *outcome)

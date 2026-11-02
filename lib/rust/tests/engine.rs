@@ -98,7 +98,7 @@ fn a_deep_result_runs_on_an_ordinary_stack() {
 
 #[test]
 fn harness_refuses_wrong_agreed_error_reasons() {
-    for name in ["cr1-unicode-categories-conflict.json", "w2-75-suffix-recursion-local.json"] {
+    for name in ["unicode-categories-conflict.json", "suffix-recursion-local.json"] {
         let text = std::fs::read_to_string(common::repository().join("tests/engine").join(name)).unwrap();
         let case = parse_json(&text).unwrap();
         run_engine_case(&case).expect("the agreed reason");

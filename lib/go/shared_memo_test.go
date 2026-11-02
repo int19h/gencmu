@@ -465,7 +465,7 @@ func TestWarmMemoCannotHideSuffixRecursion(t *testing.T) {
 }
 
 func TestSuffixCacheHitsPreserveAlignedDependencies(t *testing.T) {
-	c := loadCase(t, "../../tests/engine/w2-76-retained-suffix-dependency.json")
+	c := loadCase(t, "../../tests/engine/retained-suffix-dependency.json")
 	pipeline := memoPipeline(t, memoRun{Grammar: *c.Grammar}, 1<<13)
 	result, err := pipeline.Parse("a", ParseOptions{})
 	if err != nil || !result.OK {
