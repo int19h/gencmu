@@ -10,6 +10,8 @@ An expectation must apply to the actual outcome. Loading positions and diagnosti
 
 Token payload fields remain an exception for usage cases. A runner passes each present field unchanged to the library and supplies defaults only for absent fields. Unknown token members still invalidate the case.
 
+Each element of an attachment list must be a token object, including in usage cases. Known fields inside that object can contain invalid payloads.
+
 ## Fixture shapes
 
 `tools/fixture-shapes.js` defines the shared fixture shapes in one place. Each description lists required and optional members, their types, and the combinations that the fixture permits. `node tools/check-fixtures.js` inspects these shapes without running a grammar or a corpus case. `node tools/sync.js --check` runs the same check before generation checks.
@@ -131,6 +133,8 @@ A pattern matches a result that has members beyond its own. So the invariants, a
 `treeRendering` pins the JavaScript tree listing in `lib/js/test/output.test.js`. Its `aliases` list supplies alternative abbreviations for U+000A. Its `text` gives the expected listing, with `ALIAS` replaced by each abbreviation. Its `decodedError` gives the error kind for rendering a result decoded from JSON. Other libraries inspect this object's shape and run the rest of the case.
 
 `expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the pipeline (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
+
+Expectation comparisons distinguish booleans from numbers, as JSON does.
 
 A case can also parse its input several times with the one loaded pipeline. Then it has `parses`, a list of objects, each with its own `options` and `expect`, in place of the case's `options` and `expect`:
 

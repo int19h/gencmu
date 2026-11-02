@@ -807,7 +807,7 @@ def validate_case_tokens(tokens: Any, usage: bool = False) -> None:
                 if not usage:
                     assert isinstance(value, list), f"token.{field}: expected an array"
                 if isinstance(value, list):
-                    stack.extend(item for item in value if not usage or isinstance(item, dict))
+                    stack.extend(value)
             elif not usage:
                 kind = "strings" if field == "tags" else "range" if field in ("span", "source") else "string"
                 case_value(value, kind, "token." + field)

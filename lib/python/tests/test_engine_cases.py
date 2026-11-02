@@ -151,7 +151,8 @@ class EngineCases(unittest.TestCase):
     def test_malformed_token_fields_reach_library_usage_validation(self) -> None:
         for token in ({"text": 7, "tags": []}, {"tags": []}, {"text": "a"},
                       {"text": "a", "tags": [], "before": 3}, {"text": "a", "tags": [], "after": "bad"},
-                      {"text": "a", "tags": [], "before": [None]}, {"text": "a", "tags": [], "after": ["bad"]}):
+                      {"text": "a", "tags": [], "before": [{"text": 7, "tags": []}]},
+                      {"text": "a", "tags": [], "after": [{"text": "a"}]}):
             for source in ({}, {"input": "a"}):
                 case = {"grammar": '%rule text "a"', "tokens": [token], "expect": {"error": "usage"}, **source}
                 with self.subTest(token=token, source=source):
@@ -160,6 +161,16 @@ class EngineCases(unittest.TestCase):
                     self.assertIsNone(result)
                     self.assertIsNotNone(features)
                     self.assertEqual(error.kind, "usage")
+
+    def test_usage_fixtures_require_token_objects_in_attachment_lists(self) -> None:
+        for side in ("before", "after"):
+            for element in (None, False, 0, "bad", []):
+                token = {"text": "a", "tags": [], side: [element]}
+                for nested in (False, True):
+                    supplied = {"text": "a", "tags": [], side: [token]} if nested else token
+                    case = {"grammar": '%rule text "a"', "tokens": [supplied], "expect": {"error": "usage"}}
+                    with self.subTest(side=side, element=element, nested=nested), self.assertRaisesRegex(AssertionError, "token: expected an object"):
+                        self.check_fixture("attachment element", case)
 
     def test_token_defaults_replace_only_absent_fields(self) -> None:
         for field in ("text", "tags", "value", "image", "source", "span", "before", "after"):
@@ -189,6 +200,38 @@ class EngineCases(unittest.TestCase):
             self.assertNotEqual(malformed, text)
             with self.subTest(name=name), patch.object(gencmu, "to_json", return_value=malformed), self.assertRaises(AssertionError):
                 self.check("invalid serialized member", {}, *outcome)
+
+    def test_feature_expectations_distinguish_booleans_from_numbers(self) -> None:
+        value, result, error, _ = run_case({"grammar": '%rule text "a"', "input": "a"})
+        for default in (False, True):
+            expected = [{"name": "f", "kind": "gate", "default": default}]
+            self.check("feature types", {"features": expected}, value, result, error, expected)
+            changed = [{**expected[0], "default": int(default)}]
+            with self.subTest(default=default), self.assertRaises(AssertionError):
+                self.check("feature types", {"features": expected}, value, result, error, changed)
+
+    def test_loading_positions_distinguish_booleans_from_numbers(self) -> None:
+        outcome = run_case({"grammar": "%rule text A\n%rule text A"})
+        error = outcome[2]
+        expect = {"error": "grammar", "where": {"document": error.document, "line": error.line, "column": error.column}}
+        self.check("loading position types", expect, *outcome)
+        self.assertEqual(error.column, 1)
+        error.column = True
+        with self.assertRaises(AssertionError):
+            self.check("loading position types", expect, *outcome)
+
+    def test_warning_expectations_distinguish_booleans_from_numbers(self) -> None:
+        value, result, error, features = run_case({"grammar": '%rule text "a"', "input": "a"})
+        warning = {"stage": "main", "feature": "f", "rule": "text", "span": [0, 1], "source": [0, 1]}
+        for field in ("span", "source"):
+            for changed in (warning, {**warning, field: [False, True]}):
+                actual = {**value, "warnings": [changed]}
+                with self.subTest(field=field, changed=changed), patch.object(gencmu, "to_json", return_value=write_json(actual)):
+                    if changed is warning:
+                        self.check("warning types", {"warnings": [warning]}, actual, result, error, features)
+                    else:
+                        with self.assertRaises(AssertionError):
+                            self.check("warning types", {"warnings": [warning]}, actual, result, error, features)
 
     def test_json_comparisons_distinguish_booleans_from_numbers(self) -> None:
         for left, right in ((True, 1), (False, 0), ({"a": [True]}, {"a": [1]})):
@@ -304,16 +347,15 @@ class EngineCases(unittest.TestCase):
                 # Where the error stands, in a document of the case, given
                 # only for a grammar error (tests/README.md).
                 self.assertEqual(error.kind, "grammar", f"{label}: expect.where is only for a grammar error")
-                self.assertEqual(
+                self.assertTrue(same_json(
                     {"document": error.document, "line": error.line, "column": error.column},
                     {"line": None, "column": None, **expect["where"]},
-                    f"{label}: {error.message}",
-                )
+                ), f"{label}: {error.message}")
             return
         for field in ("where", "diagnostic"):
             self.assertNotIn(field, expect, f"{label}: expect.{field} requires a load error")
         if "features" in expect:
-            self.assertEqual(features, expect["features"], label)
+            self.assertTrue(same_json(features, expect["features"]), label)
         if error is not None:
             # A mistake of the caller is an error, not a result (engine §13).
             self.assertEqual(expect.get("error"), "usage", f"{label}: unexpected usage error: {error}")
@@ -323,7 +365,7 @@ class EngineCases(unittest.TestCase):
         assert value is not None and result is not None
         self.assertNotIn("features", value)
         if "enabledFeatures" in expect:
-            self.assertEqual(result.features, expect["enabledFeatures"], label)
+            self.assertTrue(same_json(result.features, expect["enabledFeatures"]), label)
         # A canonical result nests as deep as a case's attachments do
         # (attach-deep.json). So the runner reads, writes and compares it
         # with a list for a stack, as the library does, not with json and ==.
@@ -337,7 +379,7 @@ class EngineCases(unittest.TestCase):
         self.assertTrue(same_json(read_json(gencmu.to_json(result)), value), f"{label}: the canonical JSON reads back as another value")
         if "warnings" in expect:
             # Compared whole: [] says that there are none.
-            self.assertEqual(value.get("warnings", []), expect["warnings"], label)
+            self.assertTrue(same_json(value.get("warnings", []), expect["warnings"]), label)
         if "result" in expect:
             problem = mismatch(expect["result"], value)
             self.assertIsNone(problem, f"{label}: {problem}\n{text[:3000]}")
