@@ -167,7 +167,7 @@ class Loaders(unittest.TestCase):
             },
             "p.md",
         )
-        changes = pipeline.grammars[0].changes
+        changes = pipeline._grammars[0].changes
         removed = CategoryChange(["span"], [])
         added = CategoryChange([], ["span"])
         self.assertEqual([change.category_change for change in changes], [None, removed, added, None, removed, None])

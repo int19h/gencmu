@@ -698,10 +698,10 @@ class StageRunner:
 
             chosen_profile = space.derivation_profile(chosen)
             walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
-        marks = walk.marks if walk is not None else watch.marks if watch is not None else None
+        marks = walk.marks if walk is not None else None
         preferred = bool(lowered.ranked_helpers)
         raw_counted = True
-        if preferred:
+        if preferred and walk is not None:
             raw = rank(forest, steps, "none", marks=marks, check=True, unfiltered=True)
             raw_counted = raw is not None and raw.witness_counted is True
         ranking = _rank_check(forest, marks) if walk is not None else None

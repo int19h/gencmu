@@ -22860,8 +22860,10 @@
       "directives": [
         {
           "name": "ambiguity-resolution",
-          "args": [
-            "greedy"
+          "steps": [
+            {
+              "step": "greedy"
+            }
           ],
           "at": [
             20,

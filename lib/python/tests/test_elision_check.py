@@ -155,9 +155,9 @@ class WitnessHook(unittest.TestCase):
         ]:
             pipeline = gencmu.load_pipeline_sources({"p.md":'```jbogenbau\n%stage main\n%ambiguity-resolution late(elision)\n%elision-only\n'+body+'\n```'},"p.md")
             original = _stage.rank
-            def rank(forest, lean, **options):
+            def rank(forest, steps, lean, **options):
                 self.assertFalse(options.get("check",False))
-                return original(forest,lean,**options)
+                return original(forest,steps,lean,**options)
             with (
                 mock.patch.object(_witness,"walk_witness",return_value=None),
                 mock.patch.object(_stage,"rank",side_effect=rank),

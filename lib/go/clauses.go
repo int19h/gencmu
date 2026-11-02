@@ -932,7 +932,6 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 		}
 		names = append(names, item.attachments()...)
 	}
-	sortStrings(names, readerCount(), "reader steps")
 	// The item captures of each alternative, which bind to the helper of
 	// their braces, not to the productions listed above (engine §3.5).
 	var itemsByAlt []map[string]itemPlace

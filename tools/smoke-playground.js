@@ -265,7 +265,7 @@ async function main() {
     console.log(`decoded include paths match the editor in ${browser}`);
 
     const workerTrace = await run(() => new Promise((resolve, reject) => {
-      const source = '```jbogenbau\n%stage chars\n%ambiguity-resolution greedy\n%rule text "a" :: A %emits $\n%stage syntax\n%ambiguity-resolution late-elision elision-only\n%rule text a | b | c %emits $ :: A\n%rule a (A [+T])\n%rule b (A [+T] [+T])\n%rule c (A T)\n%stage tree\n%ambiguity-resolution greedy\n%rule text A\n```\n';
+      const source = '```jbogenbau\n%stage chars\n%ambiguity-resolution greedy\n%rule text "a" :: A %emits $\n%stage syntax\n%ambiguity-resolution late(elision)\n%elision-only\n%rule text a | b | c %emits $ :: A\n%rule a (A [+T])\n%rule b (A [+T] [+T])\n%rule c (A T)\n%stage tree\n%ambiguity-resolution greedy\n%rule text A\n```\n';
       const sources = {...self.gencmuGrammars, "grammars/lojban/cll/pipeline.md":source};
       const client = new self.ParserWorker(sources, message => {
         if (message.kind === "ready") client.run(1, {pipeline:"lojban/cll", text:"a", features:[], withoutFeatures:[], until:null,
