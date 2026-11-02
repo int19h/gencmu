@@ -23,6 +23,9 @@ fn parameter_source_round_trips() {
 fn shared_parameter_sources_are_read() {
     let cases = parse_json(include_str!("../../../tests/parameters.json")).unwrap();
     assert!(!cases.array().is_empty(), "the parameter cases must be nonempty");
+    for case in cases.array() {
+        common::case::parameter(case).expect("valid parameter metadata");
+    }
     let mut failures = Vec::new();
     let selected = common::require_cases(
         cases
@@ -50,9 +53,17 @@ fn shared_parameters() {
     let cases = parse_json(include_str!("../../../tests/parameters.json")).unwrap();
     let mut failures = Vec::new();
     for c in cases.array() {
-        if let Err(e) = common::run_engine_case(c) {
+        if let Err(e) = common::run_parameter_case(c) {
             failures.push(format!("{}: {e}", c.get("name").and_then(Value::str).unwrap()))
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn parameter_cases_require_names() {
+    let cases = parse_json(include_str!("../../../tests/parameters.json")).unwrap();
+    let change = parse_json(r#"{"path":["name"],"remove":true}"#).unwrap();
+    let case = common::apply_mutant(&cases.array()[0], &change);
+    assert!(common::run_parameter_case(&case).is_err(), "the parameter runner accepted an absent name");
 }

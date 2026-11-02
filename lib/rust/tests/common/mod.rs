@@ -699,6 +699,16 @@ pub fn within<T: Send + 'static>(limit: std::time::Duration, work: impl FnOnce()
 /// each item's options in order, each result held to the item's `expect`.
 pub fn run_engine_case(case: &Value) -> Result<(), String> {
     self::case::engine(case)?;
+    run_case(case)
+}
+
+/// Runs one named case from parameters.json with the same parse checks.
+pub fn run_parameter_case(case: &Value) -> Result<(), String> {
+    self::case::parameter(case)?;
+    run_case(case)
+}
+
+fn run_case(case: &Value) -> Result<(), String> {
     let (result, (accepted, rejected)) = gencmu::tools::with_family_conformance(|| run_engine_case_inner(case));
     if accepted + rejected > 0 {
         eprintln!("family alignment: {accepted} accepted, {rejected} rejected comparisons");

@@ -826,7 +826,7 @@ fn shared_case_metadata_is_well_formed() {
     }
     let parameters = parse_json(include_str!("../../../tests/parameters.json")).unwrap();
     for case in parameters.array() {
-        if let Err(problem) = common::case::engine(case) {
+        if let Err(problem) = common::case::parameter(case) {
             problems.push(format!("parameter {:?}: {problem}", case.get("name")));
         }
     }
@@ -959,4 +959,14 @@ fn runner_refuses_nonobject_tokens_even_in_usage_cases() {
 #[test]
 fn runner_refuses_empty_selected_groups() {
     assert!(std::panic::catch_unwind(|| common::require_cases(Vec::<usize>::new(), "absent")).is_err());
+}
+
+#[test]
+fn engine_cases_refuse_parameter_names() {
+    let case = parse_json(
+        r#"{"name":"parameter only","grammar":"%rule text \"a\"","input":"a","expect":{"result":{"ok":true}}}"#,
+    )
+    .unwrap();
+    assert!(common::case::engine(&case).is_err(), "engine metadata accepted a parameter name");
+    assert!(run_engine_case(&case).is_err(), "the engine runner accepted a parameter name");
 }
