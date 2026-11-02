@@ -22388,7 +22388,7 @@
 
 
 
-    return { version: "0.1.0", Loader, Pipeline, fnv1a64, bundledPipelines, stitchText, GencmuError, Token, resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree, attachmentText, explainError, explainTies, explainWarnings, tokenTable, audit, formatAudit, trace, formatTrace, sourceExcerpt, formatCondition, formatTerm, formatItem, loadPipelineSources, loaderFromSources };
+    return { version: "0.1.0", Loader, Pipeline, fnv1a64, bundledPipelines, stitchText, GencmuError, Token, resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree, explainError, explainTies, explainWarnings, tokenTable, audit, formatAudit, trace, formatTrace, formatTerm, loadPipelineSources, loaderFromSources };
   }
   root.gencmuFactory = gencmuFactory;
   root.gencmu = gencmuFactory();

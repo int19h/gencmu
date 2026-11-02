@@ -235,6 +235,8 @@ toJson(result); toBrackets(result, { showElided: true });
 - Errors are `GencmuError`, with `kind` and `where`.
 - The lower-level `Loader`, `loaderFromSources` and `loaderFromDirectory` are available for tools that load several pipelines over one set of documents. `Loader.splice(path)` expands includes into stage document runs. `Loader.pipeline(path)` returns a loaded `Pipeline`.
 
+Internal formatting helpers are private to the library.
+
 The types are in the package's declarations (`lib/js/types/`).
 
 ## Python
