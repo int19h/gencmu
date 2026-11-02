@@ -38,6 +38,33 @@ def value_notation(aliases: list[dict[str, Any]]) -> str:
 
 
 class NotationValues(unittest.TestCase):
+    def test_generated_names_refuse_collisions(self) -> None:
+        original = NotationValues
+        for ids in (("duplicate", "duplicate"), ("dash-name", "dash_name"), ("supplied_errors_compare_the_top_level_message",)):
+            class Generated(original):
+                pass
+
+            cases = [{"id": name, "aliases": [], "document": "", "expect": {"dom": {}}} for name in ids]
+            with self.subTest(ids=ids), patch(__name__ + ".NotationValues", Generated), patch(__name__ + ".load_json", return_value={"cases": cases}):
+                with self.assertRaisesRegex(AssertionError, "duplicate test name"):
+                    add_value_tests()
+            self.assertIs(Generated.test_supplied_errors_compare_the_top_level_message, original.test_supplied_errors_compare_the_top_level_message)
+
+    def test_unique_generated_names_retain_each_case(self) -> None:
+        class Generated(NotationValues):
+            pass
+
+        cases = [{"id": name, "aliases": [], "document": "", "expect": {"dom": {}}} for name in ("unique-generated-a", "unique_generated_b")]
+        with patch(__name__ + ".NotationValues", Generated), patch(__name__ + ".load_json", return_value={"cases": cases}):
+            add_value_tests()
+        self.assertEqual({name for name in Generated.__dict__ if name.startswith("test_")},
+                         {"test_unique_generated_a", "test_unique_generated_b"})
+        seen = []
+        with patch.object(Generated, "check_case", side_effect=seen.append):
+            Generated().test_unique_generated_a()
+            Generated().test_unique_generated_b()
+        self.assertEqual(seen, cases)
+
     def test_supplied_errors_compare_the_top_level_message(self) -> None:
         case = deepcopy(next(item for item in load_json(SHARED / "notation-values.json")["cases"]
                              if item["id"] == "directive-name-single-sigil"))
@@ -99,7 +126,10 @@ def add_value_tests() -> None:
         return test
 
     for case in cases:
-        setattr(NotationValues, "test_" + case["id"].replace("-", "_"), test_for(case))
+        name = "test_" + case["id"].replace("-", "_")
+        if hasattr(NotationValues, name):
+            raise AssertionError(f"duplicate test name: {name}")
+        setattr(NotationValues, name, test_for(case))
 
 
 add_value_tests()
