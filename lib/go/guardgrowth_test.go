@@ -106,6 +106,7 @@ func TestClausesByPresence(t *testing.T) {
 	// it keeps.
 	const readEach, lowerEach = 60, 10
 	for _, c := range cases {
+		var smallSize int64
 		for _, n := range []int{100, 400} {
 			text := guardedText(n, c.keyword, c.sep, c.clause, c.all, c.shared)
 			// Once without counting, for the size of what lowering makes.
@@ -115,6 +116,12 @@ func TestClausesByPresence(t *testing.T) {
 			}
 			d := domStage(t, string(dom.json()))
 			size := loweredSize(lower(d.stages[0], map[string]bool{}))
+			if n == 100 {
+				smallSize = size
+			} else if size > 4*smallSize+8 {
+				t.Errorf("%s: lowering makes %d at 400 captures, past four times %d plus 8", c.name, size, smallSize)
+				continue
+			}
 			// A count past its budget stops the work at once, with the panic
 			// that the test reports.
 			run := func(w *workCounts, f func()) (stop any) {
