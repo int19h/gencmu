@@ -366,7 +366,7 @@ func checkCase(c *engineCase, noCache bool) error {
 		}
 		for i := range c.Parses {
 			if err := checkParse(d, c, &c.Parses[i].Options, &c.Parses[i].Expect); err != nil {
-				return fmt.Errorf("parse %d: %v", i, err)
+				return fmt.Errorf("parse %d: %w", i, err)
 			}
 		}
 		return nil
@@ -451,6 +451,10 @@ func checkParse(d *Pipeline, c *engineCase, options *caseOptions, expect *caseEx
 	}
 
 	res, log, err := runCaseLogged(d, c, options, "")
+	// Parse returns a grammar error only when its panic guard runs.
+	if e, ok := err.(*Error); ok && e.Kind == ErrorGrammar {
+		return err
+	}
 	if c.onlyHook {
 		if err == nil && log.lost() > 0 {
 			return fmt.Errorf("%d checks of elision-only lost the witness of their chosen derivation", log.lost())
