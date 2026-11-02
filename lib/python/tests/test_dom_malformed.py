@@ -66,6 +66,12 @@ class DomMalformed(unittest.TestCase):
         with patch(__name__ + ".load_json", return_value=[]), self.assertRaisesRegex(AssertionError, "no construct-order cases"):
             self.test_rule_type_fault_keeps_construct_order()
 
+    def test_supplied_empty_dom_values_reach_validation(self) -> None:
+        for dom in (None, False, 0, "", [], {}):
+            case = {"description": "supplied empty DOM", "dom": dom, "malformed": True}
+            with self.subTest(dom=dom), patch(__name__ + ".load_json", return_value=[case]):
+                self.test_cases()
+
     def test_cases(self) -> None:
         cases = load_json(SHARED / "dom-malformed.json")
         self.assertTrue(cases, "no cases found")
@@ -74,7 +80,7 @@ class DomMalformed(unittest.TestCase):
             with self.subTest(case=case["description"]):
                 # The directive alone in an otherwise empty DOM of the
                 # current format, checked as a preparsed one is.
-                dom = case.get("dom") or {"format": DOM_FORMAT, "rules": [case["rule"]] if "rule" in case else [], "directives": [case["directive"]] if "directive" in case else [], "constants": [], "classifiers": [], "implications": []}
+                dom = case["dom"] if "dom" in case else {"format": DOM_FORMAT, "rules": [case["rule"]] if "rule" in case else [], "directives": [case["directive"]] if "directive" in case else [], "constants": [], "classifiers": [], "implications": []}
                 table = _unicode_table(case["unicode"]) if "unicode" in case else unicode
                 problem = dom_problem(dom, table)
                 self.assertEqual(problem is not None, case["malformed"], str(problem))

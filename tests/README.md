@@ -4,9 +4,13 @@ Every gencmu library runs every shared case that its API can express. A library 
 
 A runner refuses unknown case members and control members with the wrong type. This includes configuration (`options`), parse lists (`parses`), and expectations (`expect`).
 
+A runner reads serialized results as JSON. Object member names need quotation marks, and `NaN` and `Infinity` are invalid JSON values.
+
 An expectation must apply to the actual outcome. Loading positions and diagnostic codes require a load error. Parse-time usage errors cannot satisfy result, rendering, warning, enabled-feature, or message expectations.
 
 Token payload fields remain an exception for usage cases. A runner passes each present field unchanged to the library and supplies defaults only for absent fields. Unknown token members still invalidate the case.
+
+Each element of an attachment list must be a token object, including in usage cases. Known fields inside that object can contain invalid payloads.
 
 ## Fixture shapes
 
@@ -129,6 +133,8 @@ A pattern matches a result that has members beyond its own. So the invariants, a
 `treeRendering` pins the JavaScript tree listing in `lib/js/test/output.test.js`. Its `aliases` list supplies alternative abbreviations for U+000A. Its `text` gives the expected listing, with `ALIAS` replaced by each abbreviation. Its `decodedError` gives the error kind for rendering a result decoded from JSON. Other libraries inspect this object's shape and run the rest of the case.
 
 `expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the pipeline (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
+
+Expectation comparisons distinguish booleans from numbers, as JSON does.
 
 A case can also parse its input several times with the one loaded pipeline. Then it has `parses`, a list of objects, each with its own `options` and `expect`, in place of the case's `options` and `expect`:
 
@@ -347,6 +353,8 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
 Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 40. The library tests it as a preparsed DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 Instead, an item can supply `dom`, the complete DOM envelope. This form can test the envelope and interactions between declarations. An optional `message` requires that the problem contains that agreed text. An optional `code` requires the problem code before its first colon.
+
+A runner uses a present `dom` unchanged, including `null`, `false`, zero, empty strings, empty arrays, and empty objects.
 
 An optional `unicode` member supplies the contents of `data/unicode/unicode.txt` for that case. Without it, the case uses the bundled table.
 
