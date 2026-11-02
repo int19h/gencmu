@@ -449,13 +449,6 @@ pub fn to_json(result: &ParseResult) -> String {
     out
 }
 
-/// Writes a node as canonical JSON (`docs/output.md`, "Node").
-pub fn node_to_json(node: &Node) -> String {
-    let mut out = String::new();
-    write_node(&mut out, node);
-    out
-}
-
 /// A rendered node: empty, a image, or a group of rendered members.
 enum Rendered {
     Empty,

@@ -249,7 +249,7 @@ fn a_cache_of_another_format_is_a_miss() {
 #[test]
 fn a_preparsed_range_or_property_is_checked() {
     let expr = |expr: &str| with_alternative(&format!(r#"{{"guards":[],"expr":{expr}}}"#));
-    // Scalar strings replace the old canonical character-tag spellings.
+    // Range endpoints use scalar strings.
     assert_eq!(gencmu::tools::check_dom(&expr(r#"{"range":[{"string":"a"},{"string":"z"}]}"#)).unwrap(), None);
     // Well formed, and none reads "a": each entry is used.
     for dom in [

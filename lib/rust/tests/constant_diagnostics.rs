@@ -1,4 +1,4 @@
-//! Shared DOM cases for structural patterns and elidable tests.
+//! Constant-cycle diagnostics report dependency paths and source positions.
 #[test]
 fn constant_cycles_report_the_dependency_path() {
     let declarations = [

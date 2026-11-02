@@ -87,7 +87,7 @@ fn tests_in_a_body_are_read_and_refused() {
         .collect();
     assert_eq!(tests, ["=", "=", "=", "=", "≠", "tags", "tags", "tags", "tags", "tags"], "{json}");
     assert!(dom.get("rules").is_some());
-    // The new value tests accept capitalization and tested capture targets.
+    // The value tests accept capitalization and tested capture targets.
     for accepted in [
         "%rule text A=\"A\"",
         "%rule text A=\"b,c\"",
