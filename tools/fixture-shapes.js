@@ -53,7 +53,7 @@ const suppliedNotation = object({ description: string, cases: caseList(object({
 })) });
 const bootstrapCase = object({ description: string, stage: nullable(string) }, {
   bootstrap: string, find: string, replace: string, line: nullable(positive), column: nullable(positive),
-  at: string, context: string, message: string,
+  at: { pattern: /./s }, context: string, message: string,
 }, [exactly("bootstrap", "find"), together("find", "replace"), together("line", "column"),
   exactly("line", "at"), (v) => has(v, "at") && !has(v, "context") ? ["at requires context"] : [],
   (v) => (v.line === null) !== (v.column === null) ? ["line and column must both be null or both be numbers"] : [],
@@ -65,7 +65,18 @@ const parameterStructure = object({ name: string }, {
   ? (has(v, "grammar") && has(v, "dom") && has(v, "input") ? [] : ["cacheFallback requires grammar, dom and input"])
   : exactly("grammar", "dom")(v),
 (v) => v.public === true && (!has(v, "grammar") || !has(v, "order")) ? ["public requires grammar and order"] : [],
-(v) => has(v, "flags") && !has(v, "grammar") ? ["flags requires grammar"] : []]);
+(v) => has(v, "flags") && !has(v, "grammar") ? ["flags requires grammar"] : [],
+(v) => {
+  const problems = [];
+  if (v.public === true) {
+    if (v.cacheFallback === true) problems.push("public forbids cacheFallback");
+    for (const key of ["argument", "flags", "input"]) if (has(v, key)) problems.push(`public forbids ${key}`);
+  }
+  if (v.cacheFallback === true) {
+    for (const key of ["argument", "order", "flags", "instances"]) if (has(v, key)) problems.push(`cacheFallback forbids ${key}`);
+  } else if (has(v, "input")) problems.push("input requires cacheFallback");
+  return problems;
+}]);
 const memo = object({ description: string, runs: caseList(object({ options: list(options, 1) }, {
   grammar: string, pipeline: string, inputs: list(tokens, 1), texts: list(string, 1),
 }, [exactly("grammar", "pipeline"), exactly("inputs", "texts")])) });
@@ -170,7 +181,7 @@ export const fixtureShapes = {
     bootstrap: caseList(object({ description: string, find: string, replace: string, loads: boolean }, { rustLoads: boolean, note: string })),
     preparsed: caseList(object({ description: string, find: string, replace: string }, {
       cached: boolean,
-      rustCached: boolean, note: string, document: string, tags: strings, portable: boolean, sources: map(string), error: position, concurrent: boolean,
+      rustCached: boolean, note: string, document: string, tags: strings, portable: boolean, sources: map(string), error: object({ document: string }, { line: positive }), concurrent: boolean,
     }, [(v) => !has(v, "cached") && !has(v, "error") ? ["a cache case needs cached or error"] : []])),
   }) },
   "shared-memo.json": { shape: memo },

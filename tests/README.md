@@ -55,6 +55,16 @@ The cases in `parameters.json` use the same case shape and require a string `nam
 
 The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries. Cases with `public:true` load complete pipelines through the public loader and require `grammar` and `order`. A case with `flags` also requires `grammar`.
 
+A `public:true` case permits only `grammar`, `order`, and `instances` beside its name and mode flags.
+
+A `cacheFallback:true` case requires `grammar`, `dom`, and `input`. It forbids `argument`, `order`, `flags`, `instances`, and `public:true`.
+
+Only a cache fallback case permits `input`.
+
+An `instances` expectation compares the count even when it is zero.
+
+An `argument` expectation compares the argument even when the expected value is false or null.
+
 Each case supplies `grammar` source or a complete `dom`. The optional `argument` matches the last source rule's first call argument. `order` lists the expanded rule names. `instances` gives the instance count. `flags` maps rule names to their final flags.
 
 A `cacheFallback` case supplies valid source and a malformed cached DOM. Each library uses matching cache fingerprints and must parse `input` from the source.
@@ -193,9 +203,12 @@ A shared case shows that a library is wrong where it fails. It cannot show that 
 
 Each library's fault test must establish three facts about each fault:
 
-- How a case catches it: The test runs each named case twice. It examines the result alone and the witness hook alone, so each test stands on its own. The catch is `result` where only the result fails the case, `hook` where only the hook does, and `result+hook` where both do. Each library has a fault whose only catch is `hook`, a mutation that the result alone does not show. An example is a count that skips W(D)'s edge where its item has siblings.
+- How a case catches it: The test examines the result alone and the witness hook alone, so each test stands on its own. The catch is `result` where only the result fails the case, `hook` where only the hook does, and `result+hook` where both do. Each library has a fault whose only catch is `hook`, a mutation that the result alone does not show. An example is a count that skips W(D)'s edge where its item has siblings.
 
   Each library also has a case where the hook catches candidates that skip W(D)'s edge. This tests the selection channel independently of the result. JavaScript labels a catch `bound` where the fault's own bound ends a recursion that it lets through.
+
+  An unexpected exception fails the fault test. It does not count as a catch.
+
 - Its sites: A fault can have several places in the code. Each place is a declared site, and the test asserts that the named cases enter every declared site while the fault is on. So a case that catches a fault at one site does not hide a site that nothing reaches.
 - Completeness: The list of faults comes from the declarations, and every fault has an entry in the table.
 
@@ -255,7 +268,7 @@ Ordinary controls require the concatenation type error without a recipe instruct
 
 ## Bootstrap errors: `bootstrap-errors.json`
 
-Each case supplies the preparsed bootstrap file or replaces the first place of `find` with `replace` in the bundled bootstrap, as "Places in fixtures" says. Each library loads a simple pipeline with that bootstrap and requires a grammar error. The error must name `data/preparsed/gencmu.json`, including failures that arise when the loader constructs the stages. If a case supplies `line` and `column`, the error must keep that position. A case of the bundled bootstrap gives `at` instead, and the error must stand where `at` stands in the document `context`.
+Each case supplies the preparsed bootstrap file or replaces the first place of `find` with `replace` in the bundled bootstrap, as "Places in fixtures" says. Each library loads a simple pipeline with that bootstrap and requires a grammar error. The error must name `data/preparsed/gencmu.json`, including failures that arise when the loader constructs the stages. If a case supplies `line` and `column`, the error must keep that position. A case of the bundled bootstrap gives nonempty `at` instead, and the error must stand where `at` stands in the document `context`.
 
 ## Notation shapes: `notation-shapes.json`
 
@@ -283,9 +296,11 @@ The shared cases exercise exact member names, escaped names, duplicate members, 
 
 Each cache case names its core Unicode table, `data/unicode/unicode.txt`, explicitly. Without a companion in `sources`, its properties fingerprint is `null`. Property cases compare exact companion text fingerprints, even when no grammar names an additional property. An absent properties member always gives a miss.
 
-Cache cases can supply resource text through `sources`. The value `@bundled-names@` selects pinned names text. The value `@unicode-16@` changes only the version line of the bundled `data/unicode/unicode.txt`. An `error` names the required resource position. A `portable` case also loads through the portable JavaScript entry point without bundled names text.
+Cache cases can supply resource text through `sources`. The value `@bundled-names@` selects pinned names text. The value `@unicode-16@` changes only the version line of the bundled `data/unicode/unicode.txt`. An `error` pins the resource document and an optional line. It accepts no `column` member. A `portable` case also loads through the portable JavaScript entry point without bundled names text.
 
 The `loads` and `cached` fields state the expected behavior. A cache case can omit `cached` when it expects a load error through `error`. Rust rejects ignored integers outside signed 64-bit range because of a reader limit. For those cases, `rustLoads` and `rustCached` record the current Rust behavior, and each note names the limit.
+
+A test that selects fixtures by their names or contents must assert that its selection is not empty.
 
 ## Places in fixtures
 
