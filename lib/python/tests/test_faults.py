@@ -55,7 +55,8 @@ def fails(fault: str, case: dict[str, Any], hook: bool = True) -> bool:
         if "parses" in case:
             pipeline, error = load_case_pipeline(case, False)
             if pipeline is None:
-                raise AssertionError(f"the fault case did not load: {error}")
+                assert error is not None, "the loader returned neither a pipeline nor an error"
+                raise error
             features = case_features(pipeline)
             for run in case["parses"]:
                 value, result, error = parse_case(pipeline, case, run)
@@ -63,7 +64,7 @@ def fails(fault: str, case: dict[str, Any], hook: bool = True) -> bool:
         else:
             value, result, error, features = run_case(case, False)
             checker.check("", case["expect"], value, result, error, features)
-    except _CaseMismatch:
+    except (_CaseMismatch, GencmuError):
         return True
     except shared.WitnessLost:
         if hook:
@@ -81,15 +82,18 @@ def fails_hook(fault: str, case: dict[str, Any]) -> bool:
     _testing.faults.add(fault)
     try:
         if "parses" in case:
-            pipeline, _ = load_case_pipeline(case, False)
+            pipeline, error = load_case_pipeline(case, False)
             if pipeline is None:
-                raise AssertionError("the fault case did not load")
+                assert error is not None, "the loader returned neither a pipeline nor an error"
+                raise error
             for run in case["parses"]:
                 parse_case(pipeline, case, run)
         else:
             run_case(case, False)
     except shared.WitnessLost:
         return True
+    except GencmuError:
+        return False
     finally:
         _testing.faults.discard(fault)
     return False
@@ -111,13 +115,33 @@ def catch(fault: str, case: dict[str, Any]) -> str | None:
 class Faults(unittest.TestCase):
     def test_crashes_escape_both_fault_checks(self) -> None:
         case = {"grammar": '%rule text "a"', "input": "a", "expect": {}}
-        for error in (RuntimeError("engine crash"), AssertionError("engine assertion"), GencmuError("engine failure")):
+        for error in (RuntimeError("engine crash"), AssertionError("engine assertion")):
             with patch(__name__ + ".run_case", side_effect=error):
                 for check in (fails, fails_hook, catch):
                     with self.subTest(error=type(error), check=check.__name__), self.assertRaises(type(error)):
                         check("omission", case)
             self.assertNotIn("omission", _testing.faults)
             self.assertTrue(shared.HOOK[0])
+
+    def test_library_errors_count_only_as_result_failures(self) -> None:
+        case = {"grammar": '%rule text "a"', "input": "a", "expect": {}}
+        pipeline, error = load_case_pipeline(case)
+        self.assertIsNone(error)
+        repeated = {"grammar": case["grammar"], "input": case["input"], "parses": [{"expect": {}}]}
+        for kind in ("grammar", "usage"):
+            error = GencmuError("library failure", kind=kind)
+            for mode in ("single", "repeated", "load"):
+                fixture = case if mode == "single" else repeated
+                with self.subTest(kind=kind, mode=mode):
+                    loaded = (None, error) if mode == "load" else (pipeline, None)
+                    with (patch(__name__ + ".load_case_pipeline", return_value=loaded),
+                          patch(__name__ + ".run_case", side_effect=error),
+                          patch(__name__ + ".parse_case", side_effect=error)):
+                        self.assertTrue(fails("omission", fixture, hook=False))
+                        self.assertFalse(fails_hook("omission", fixture))
+                        self.assertEqual(catch("omission", fixture), RESULT)
+                    self.assertNotIn("omission", _testing.faults)
+                    self.assertTrue(shared.HOOK[0])
 
     def test_the_shared_cases_catch_each_fault(self) -> None:
         self.assertEqual(sorted(CATCHES), sorted(_testing.FAULTS), "the table names every fault, and only those")
