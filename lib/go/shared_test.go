@@ -507,7 +507,22 @@ func checkParse(d *Pipeline, c *engineCase, options *caseOptions, expect *caseEx
 			return fmt.Errorf("enabled features: expected %s, got %v", shown(*expect.EnabledFeatures), res.Features)
 		}
 	}
-	return checkResult(res, got, data, expect)
+	// A runtime lowering error keeps its structured location in the lowered
+	// grammar. The public result deliberately has no position (engine §13).
+	var location *Error
+	if expect.Message != nil && res.Error != nil && res.Error.Kind == ErrorGrammar {
+		features := map[string]bool{}
+		for _, name := range res.Features {
+			features[name] = true
+		}
+		for i, stage := range d.stages {
+			if stage.name == res.Error.Stage {
+				location = d.lower(i, features).faultLocation
+				break
+			}
+		}
+	}
+	return checkResult(res, got, data, expect, location)
 }
 
 // resultProblems lists what a canonical result breaks of the invariants
@@ -570,8 +585,9 @@ func resultProblems(got any) []string {
 }
 
 // checkResult matches a result, and its canonical JSON as got and as data,
-// against an expectation. The invariants of the result come first.
-func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect) error {
+// against an expectation. Location is the original lowering error, or nil.
+// The invariants of the result come first.
+func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect, location *Error) error {
 	if expect.Where != nil || expect.Diagnostic != nil {
 		return fmt.Errorf("where and diagnostic apply only to load errors")
 	}
@@ -583,8 +599,15 @@ func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect) err
 	if expect.Message != nil && (res.Error == nil || res.Error.Kind != ErrorGrammar) {
 		return fmt.Errorf("expect.message applies only to grammar errors")
 	}
-	if expect.Message != nil && (res.Error == nil || res.Error.Message != *expect.Message) {
-		return fmt.Errorf("runtime message: expected %q, got %s", *expect.Message, data)
+	if expect.Message != nil {
+		message := res.Error.Message
+		if location != nil {
+			prefix := fmt.Sprintf("%s:%d:%d: ", location.Document, location.Line, location.Column)
+			message = strings.TrimPrefix(message, prefix)
+		}
+		if message != *expect.Message {
+			return fmt.Errorf("runtime message: expected %q, got %s", *expect.Message, data)
+		}
 	}
 	if problems := resultProblems(got); len(problems) > 0 {
 		return fmt.Errorf("the result breaks an invariant: %s\n%s", strings.Join(problems, "; "), data)
@@ -812,7 +835,7 @@ func TestEngineRunnerInvariants(t *testing.T) {
 		if len(resultProblems(got)) == 0 {
 			t.Errorf("%s: no problem found", m.Name)
 		}
-		if checkResult(res, got, data, &caseExpect{Error: ErrorAmbiguous}) == nil {
+		if checkResult(res, got, data, &caseExpect{Error: ErrorAmbiguous}, nil) == nil {
 			t.Errorf("%s: the runner accepts it", m.Name)
 		}
 	}
@@ -1015,7 +1038,7 @@ func TestResultPatternsRejectErrorMessages(t *testing.T) {
 		map[string]any{"stages": []any{map[string]any{"error": map[string]any{"message": "reason"}}}},
 	} {
 		expect := &caseExpect{Error: ErrorGrammar, Result: &pattern}
-		if err := checkResult(&ParseResult{Error: &ParseError{Kind: ErrorGrammar, Message: "reason"}}, pattern, nil, expect); err == nil {
+		if err := checkResult(&ParseResult{Error: &ParseError{Kind: ErrorGrammar, Message: "reason"}}, pattern, nil, expect, nil); err == nil {
 			t.Errorf("accepted error message pattern %+v", pattern)
 		}
 	}
@@ -1122,5 +1145,73 @@ func TestUsageTokenCaseKeepsInvalidPayloads(t *testing.T) {
 	}
 	if err := checkCase(c, true); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestEngineRunnerRuntimeReasons(t *testing.T) {
+	const reason = "an item of braces in text can match no tokens"
+	for _, document := range []string{"main.md", "g:7: part.md"} {
+		t.Run(document, func(t *testing.T) {
+			c := &engineCase{
+				Documents: map[string]string{
+					"pipeline.md": block("%stage main", "%ambiguity-resolution greedy", fmt.Sprintf("%%include %q", document)),
+					document:      block("%rule text {ε}"),
+				},
+				PipelineDocument: "pipeline.md",
+				Expect:           caseExpect{Error: ErrorGrammar},
+			}
+			d, err := casePipeline(c, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			full := document + ":2:1: " + reason
+			for _, message := range []string{reason, full, "wrong reason"} {
+				c.Expect.Message = &message
+				err := checkParse(d, c, &c.Options, &c.Expect)
+				if (err == nil) != (message == reason) {
+					t.Errorf("message %q: %v", message, err)
+				}
+			}
+			res, err := runCase(d, c, &c.Options)
+			if err != nil || res.Error == nil || res.Error.Message != full {
+				t.Fatalf("public runtime message changed: %+v, %v", res, err)
+			}
+			if res.Error.Document != "" || res.Error.Line != 0 || res.Error.Column != 0 {
+				t.Fatalf("public runtime error gained a position: %+v", res.Error)
+			}
+		})
+	}
+}
+
+func TestRuntimeReasonRemovesOnlyItsLocation(t *testing.T) {
+	location := &Error{Document: "g:7: part.md", Line: 12, Column: 3}
+	prefix := "g:7: part.md:12:3: "
+	reason := "other.md:4:5: a reason with a location-shaped start"
+	res := &ParseResult{Error: &ParseError{Kind: ErrorGrammar, Message: prefix + reason}}
+	data, err := MarshalResult(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := decodeJSON(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, message := range []string{reason, prefix + reason, "a reason with a location-shaped start", "wrong reason"} {
+		err := checkResult(res, got, data, &caseExpect{Error: ErrorGrammar, Message: &message}, location)
+		if (err == nil) != (message == reason) {
+			t.Errorf("message %q: %v", message, err)
+		}
+	}
+	wrongLocation := &Error{Document: location.Document, Line: 1, Column: location.Column}
+	if err := checkResult(res, got, data, &caseExpect{Error: ErrorGrammar, Message: &reason}, wrongLocation); err == nil {
+		t.Error("removed a prefix that does not match the structured location")
+	}
+	after, err := MarshalResult(res)
+	if err != nil || string(after) != string(data) {
+		t.Fatalf("message comparison changed the public result: %s, %v", after, err)
+	}
+	bare := &ParseResult{Error: &ParseError{Kind: ErrorGrammar, Message: reason}}
+	if err := checkResult(bare, nil, nil, &caseExpect{Error: ErrorGrammar, Message: &reason}, nil); err != nil {
+		t.Fatalf("changed a reason without location metadata: %v", err)
 	}
 }
