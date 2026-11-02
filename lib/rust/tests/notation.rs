@@ -36,7 +36,7 @@ fn run(case: &Value) -> Result<(), String> {
             }
             let line = position.get("line").and_then(Value::number).map(|n| n as usize);
             let column = position.get("column").and_then(Value::number).map(|n| n as usize);
-            if (line.is_none() || error.line == line) && (column.is_none() || error.column == column) {
+            if error.line == line && error.column == column {
                 Ok(())
             } else {
                 Err(format!("the error is at {:?}:{:?}, not {line:?}:{column:?}: {error}", error.line, error.column))
@@ -317,4 +317,20 @@ fn shared_notation_metadata_is_well_formed() {
         let case = parse_json(&std::fs::read_to_string(&file).unwrap()).unwrap();
         common::case::notation(&case).unwrap_or_else(|error| panic!("{}: {error}", file.display()));
     }
+}
+
+#[test]
+fn notation_error_positions_are_required() {
+    for position in [r#"{}"#, r#"{"line":2}"#, r#"{"column":15}"#, r#"{"line":0,"column":15}"#] {
+        let case = parse_json(&format!(r#"{{"document":"","expect":{{"error":{position}}}}}"#)).unwrap();
+        assert!(common::case::notation(&case).is_err(), "accepted incomplete position {position}");
+    }
+}
+
+#[test]
+fn fixture_options_require_a_stage_name() {
+    let options = parse_json(r#"{"until":""}"#).unwrap();
+    assert!(common::case::options(&options).is_err());
+    let options = parse_json(r#"{"until":"main"}"#).unwrap();
+    assert!(common::case::options(&options).is_ok());
 }

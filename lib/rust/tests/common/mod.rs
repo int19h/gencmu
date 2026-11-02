@@ -849,7 +849,7 @@ pub fn result_problems(json: &Value) -> Vec<String> {
     if let Some(error) = json.get("error") {
         for member in ["cycle", "conflict", "chosenReading"] {
             if error.get(member).is_some() {
-                problems.push(format!("obsolete error field {member}"));
+                problems.push(format!("the error has the member {member}"));
             }
         }
     }

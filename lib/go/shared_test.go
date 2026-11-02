@@ -550,7 +550,7 @@ func resultProblems(got any) []string {
 	if e, _ := result["error"].(map[string]any); e != nil {
 		for _, field := range []string{"cycle", "conflict", "chosenReading"} {
 			if _, present := e[field]; present {
-				problems = append(problems, "the result contains obsolete preference output "+field)
+				problems = append(problems, "the error has the member "+field)
 			}
 		}
 	}

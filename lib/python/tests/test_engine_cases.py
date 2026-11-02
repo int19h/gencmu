@@ -90,7 +90,7 @@ class EngineCases(unittest.TestCase):
         base = {"grammar": '%rule text "a"', "input": "a", "expect": {"error": "usage"}}
         for options in ({"features": "f"}, {"features": 3}, {"features": [3]},
                         {"withoutFeatures": "f"}, {"withoutFeatures": [False]},
-                        {"until": False}, {"until": None}, {"elisionOnly": 1}, {"elisionOnly": None}):
+                        {"until": False}, {"until": None}, {"until": ""}, {"elisionOnly": 1}, {"elisionOnly": None}):
             with self.subTest(options=options):
                 with self.assertRaisesRegex(AssertionError, "options\\."):
                     run_case({**base, "options": options})
@@ -222,6 +222,8 @@ class EngineCases(unittest.TestCase):
             self.check_fixture(path.name, load_case(path))
 
     def check_fixture(self, name: str, case: dict[str, Any]) -> None:
+        # JavaScript checks treeRendering through its tree listing. Python
+        # checks that member's shape and runs the rest of the case.
         validate_engine_case(case, complete=True)
         if "parses" in case:
             # The case parses its input several times with the one

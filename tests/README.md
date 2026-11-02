@@ -51,7 +51,7 @@ The bundled grammars use the current notation. A case that loads a bundled pipel
 
 The corpus records full outcomes. These shared fixtures also express stage cutoffs and token metadata that the corpus cannot record. A description names the grammar documents when a case tests their rules.
 
-The cases in `parameters.json` use the same case shape and require a string `name`. All four libraries run these shared parameter cases.
+The cases in `parameters.json` use the same case shape and require a string `name`. All four libraries run these shared parameter cases. The `name` member is valid only in this file, not in `engine/*.json`.
 
 The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries. Cases with `public:true` load complete pipelines through the public loader and require `grammar` and `order`. A case with `flags` also requires `grammar`.
 
@@ -108,7 +108,7 @@ The condition-loading cases stop before the condition's stage, so a runtime fail
 
 `options.features` and `options.withoutFeatures` are the features the caller turns on and off (engine §13).
 
-`options.until`, when present, names the last stage to run (engine §13). A name that is not a stage of the pipeline is a `usage` error. No case gives an empty name, because Go cannot tell an empty name from no name (`docs/api.md`). Each library tests an empty name in its own tests.
+If `options.until` is present, it names the last stage to run (engine §13). A name that is not a stage of the pipeline is a `usage` error. No case gives an empty name, because Go cannot tell an empty name from no name (`docs/api.md`). The same restriction applies to memo configurations. Each library tests an empty name in its own tests.
 
 A pattern describes required result fields. `expect.result` is a pattern matched against the format 15 canonical result of `docs/output.md`. A pattern matches in these ways:
 
@@ -125,6 +125,8 @@ A pattern matches a result that has members beyond its own. So the invariants, a
 `expect.diagnostic` pins the code of a ranked-choice loading error. The API supplies that code directly. Loading diagnostics also expose their written group, option, expression, and inheritance witness where available.
 
 `expect.enabledFeatures` compares the result's enabled feature names as a complete list, outside canonical JSON (`docs/api.md`).
+
+`treeRendering` pins the JavaScript tree listing in `lib/js/test/output.test.js`. Its `aliases` list supplies alternative abbreviations for U+000A. Its `text` gives the expected listing, with `ALIAS` replaced by each abbreviation. Its `decodedError` gives the error kind for rendering a result decoded from JSON. Other libraries inspect this object's shape and run the rest of the case.
 
 `expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the pipeline (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
 
@@ -161,6 +163,7 @@ Cases preserve the shared pause and foreign readings for the seven No explicit r
 An invariant is a required property of every result. Every runner also makes sure that each canonical result meets these invariants, whatever the case expects. A case cannot turn them off, and its pattern need not repeat them:
 
 - An error of kind `ambiguous` has no member `token` and no member `source`.
+- An error has no member `cycle`, `conflict`, or `chosenReading`.
 - No stage has a member `tied`.
 - A stage whose verdict is `tie` has no member `output`, and it is the last stage of the result.
 - Such a result has `ok` false and `tree` null. Its error has kind `ambiguous`, reason `tie`, and that stage's name. It contains exactly two readings.
@@ -226,7 +229,7 @@ Apart from the table, each library's own tests lose the witness on purpose after
 
 Each library reads the document as a grammar document (engine §8, §9). The reading makes a DOM (document object model), as `docs/output.md` describes. The library matches the DOM against the pattern, or it compares the position of the error with the expected position. The reader reports a syntax error at the first token that cannot continue the document. It reports an error of §9 at the first token of the offending construct.
 
-A notation error can also specify `expect.error.message`. This member pins the diagnostic text without a location prefix. The reader diagnostics of engine §9.3 use this common text. Other error cases pin only their line and column.
+Every notation error expectation requires positive integer `line` and `column` members. The runner compares both coordinates exactly. A notation error can also specify `expect.error.message`. This member pins the diagnostic text without a location prefix. The reader diagnostics of engine §9.3 use this common text. Other error cases pin only their line and column.
 
 A notation case with `cacheMisses: true` requires a DOM expectation. Every library also runs that case through its document loader. The document first loads without a preparsed entry. A matching preparsed entry must give the same DOM.
 
@@ -241,6 +244,18 @@ The JavaScript library also reads each cache case with the handwritten bootstrap
 Open names are names that grammar authors choose.
 
 The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin sign in each open name context. Their DOM patterns assert rule names, tags, constant names, features, classifier names, classes, and query arguments. Patterns and elidable terminators assert their own names. Captures require lowercase ASCII, and fixed keywords, methods, flags, and engine names have no Kelvin spelling.
+
+## Diagnostic notation: `diagnostic-notation.json`
+
+`lib/js/test/diagnostics.test.js` reads these printer cases. Each case gives a `description`, `grammar`, input `term`, and expected notation `text`. An optional `abbreviation` appends Unicode table text before loading. The runner compares `formatTerm` output with `text` and reads that text as a constant. Other libraries have no diagnostics printer for these cases.
+
+## Playground includes: `playground-includes.json`
+
+`lib/js/test/playground.test.js` reads these editor cases. Each case gives a `description`, a `sources` map, and an expected `documents` list. The map contains the root pipeline document `p.md`. An optional `stages` list gives each stage's `name` and ordered `documents`. The runner compares the editor's resolved paths and stages, then parses `a` through the pipeline.
+
+## Playground names paths: `playground-names-paths.json`
+
+`tools/smoke-playground.js` reads this list of resource paths in its browser tests. The list supplies resource path strings. The runner serves a names table at each path and loads a grammar that names it. These cases exercise URL escaping and literal path characters in the playground.
 
 ## Layered pattern conformance
 
@@ -300,7 +315,11 @@ The shared cases exercise exact member names, escaped names, duplicate members, 
 
 Each cache case names its core Unicode table, `data/unicode/unicode.txt`, explicitly. Without a companion in `sources`, its properties fingerprint is `null`. Property cases compare exact companion text fingerprints, even when no grammar names an additional property. An absent properties member always gives a miss.
 
-Cache cases can supply resource text through `sources`. The value `@bundled-names@` selects pinned names text. The value `@unicode-16@` changes only the version line of the bundled `data/unicode/unicode.txt`. An `error` pins the resource document and an optional line. It accepts no `column` member. A `portable` case also loads through the portable JavaScript entry point without bundled names text.
+Cache cases can supply resource text through `sources`. The value `@bundled-names@` selects pinned names text. The value `@unicode-16@` changes only the version line of the bundled `data/unicode/unicode.txt`.
+
+An `error` names the required resource position. It requires `document` and accepts optional positive `line` and `column` members. Every reader compares both coordinates. An omitted coordinate requires its absence from the reported error.
+
+A `portable` case also loads through the portable JavaScript entry point without bundled names text.
 
 The `loads` and `cached` fields state the expected behavior. A cache case can omit `cached` when it expects a load error through `error`. Rust rejects ignored integers outside signed 64-bit range because of a reader limit. For those cases, `rustLoads` and `rustCached` record the current Rust behavior, and each note names the limit.
 

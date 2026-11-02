@@ -3,6 +3,7 @@ package gencmu
 import (
 	"fmt"
 	"math"
+	"testing"
 )
 
 // Case schemas inspect test instructions, not the arbitrary JSON patterns
@@ -13,6 +14,24 @@ func caseAny(any, string) error { return nil }
 func caseString(value any, path string) error {
 	if _, ok := value.(string); !ok {
 		return fmt.Errorf("%s: expected a string", path)
+	}
+	return nil
+}
+func caseNonemptyString(value any, path string) error {
+	if err := caseString(value, path); err != nil {
+		return err
+	}
+	if value == "" {
+		return fmt.Errorf("%s: expected a nonempty string", path)
+	}
+	return nil
+}
+func casePositiveInteger(value any, path string) error {
+	if err := caseInteger(value, path); err != nil {
+		return err
+	}
+	if value.(float64) < 1 {
+		return fmt.Errorf("%s: expected a positive integer", path)
 	}
 	return nil
 }
@@ -68,7 +87,7 @@ func caseObject(fields map[string]caseSchema, required ...string) caseSchema {
 
 var optionsSchema = caseObject(map[string]caseSchema{
 	"features": caseArray(caseString), "withoutFeatures": caseArray(caseString),
-	"elisionOnly": caseBool, "until": caseString,
+	"elisionOnly": caseBool, "until": caseNonemptyString,
 })
 var expectSchema = caseObject(map[string]caseSchema{
 	"message": caseString, "diagnostic": caseString, "error": caseString, "brackets": caseString,
@@ -224,7 +243,7 @@ func engineCaseSchema(value any) error {
 func notationCaseSchema(value any) error {
 	schema := caseObject(map[string]caseSchema{
 		"description": caseString, "document": caseString, "cacheMisses": caseBool,
-		"expect": caseObject(map[string]caseSchema{"dom": caseAny, "error": caseObject(map[string]caseSchema{"line": caseInteger, "column": caseInteger, "message": caseString})}),
+		"expect": caseObject(map[string]caseSchema{"dom": caseAny, "error": caseObject(map[string]caseSchema{"line": casePositiveInteger, "column": casePositiveInteger, "message": caseString}, "line", "column")}),
 	}, "document", "expect")
 	if err := schema(value, "case"); err != nil {
 		return err
@@ -304,4 +323,27 @@ func resultPatternProblem(pattern any) error {
 		}
 	}
 	return nil
+}
+
+func TestNotationErrorPositionsRequired(t *testing.T) {
+	for _, position := range []string{`{}`, `{"line":2}`, `{"column":15}`, `{"line":0,"column":15}`} {
+		value, err := decodeJSON([]byte(`{"document":"","expect":{"error":` + position + `}}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := notationCaseSchema(value); err == nil {
+			t.Errorf("accepted incomplete position %s", position)
+		}
+	}
+}
+
+func TestOptionsRequireNonemptyUntil(t *testing.T) {
+	if err := optionsSchema(map[string]any{"until": ""}, "options"); err == nil {
+		t.Error("accepted an empty stage name")
+	}
+	for _, value := range []map[string]any{{}, {"until": "main"}} {
+		if err := optionsSchema(value, "options"); err != nil {
+			t.Fatal(err)
+		}
+	}
 }

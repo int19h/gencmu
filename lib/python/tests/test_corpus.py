@@ -163,8 +163,8 @@ class Corpus(unittest.TestCase):
     def test_a_result_that_breaks_an_invariant_is_refused(self) -> None:
         """The runner checks the invariants on the canonical result of each
         corpus case, and refuses each shared mutant (tests/README.md,
-        "Result mutants"). No text ties in a bundled pipeline, so the tied
-        corpus cases, if any, only pass as they are."""
+        "Result mutants"). Each corpus case that expects a tie must also pass
+        without a mutation."""
         for mutant in result_mutants():
             with self.subTest(mutant=mutant["name"]):
                 pipeline, load_error = load_case_pipeline(mutant["engine_case"])

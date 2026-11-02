@@ -792,6 +792,8 @@ def validate_case_options(options: Any) -> None:
     for field, value in options.items():
         kind = "strings" if field in ("features", "withoutFeatures") else "string" if field == "until" else "boolean"
         case_value(value, kind, "options." + field)
+        if field == "until":
+            assert value, "options.until: expected a nonempty string"
 
 
 def validate_case_tokens(tokens: Any, usage: bool = False) -> None:
@@ -873,7 +875,7 @@ def validate_notation_case(case: Any, values: bool = False) -> None:
         assert isinstance(expect["dom"], dict), "expect.dom: expected an object"
     else:
         assert not case.get("cacheMisses"), "cacheMisses requires a DOM expectation"
-        case_object(expect["error"], "line column" if values else "line column message", "expect.error", "line column" if values else "")
+        case_object(expect["error"], "line column" if values else "line column message", "expect.error", "line column")
         for field, value in expect["error"].items():
             case_value(value, "string" if field == "message" else "position", "expect.error." + field)
 
@@ -1109,7 +1111,7 @@ def result_problems(value: dict[str, Any]) -> list[str]:
     if isinstance(error, dict):
         for member in ("cycle", "conflict", "chosenReading"):
             if member in error:
-                problems.append(f"the error has the obsolete preference member {member}")
+                problems.append(f"the error has the member {member}")
     return problems
 
 

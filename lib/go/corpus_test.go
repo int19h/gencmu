@@ -168,9 +168,8 @@ func corpusOutcomeOf(res *ParseResult, canonical any) (map[string]any, error) {
 }
 
 // The corpus runner refuses a result that breaks an invariant, whatever the
-// case expects: each shared mutant (tests/README.md, "Result mutants"). No
-// text ties in a bundled pipeline, so the tied corpus cases, if any, only
-// pass as they are.
+// case expects: each shared mutant (tests/README.md, "Result mutants").
+// Each corpus case that expects a tie must also pass without a mutation.
 func TestCorpusRunnerInvariants(t *testing.T) {
 	for _, m := range loadResultMutants(t) {
 		res, data := mutantResult(t, m)
