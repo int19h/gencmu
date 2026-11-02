@@ -1474,7 +1474,9 @@ mod notation_cache_tests {
             let case = crate::test_common::apply_mutant(&base, &parse_json(change).unwrap());
             assert!(crate::test_common::case::notation_value(&case).is_err(), "accepted invalid metadata: {change}");
         }
-        let ordinary = parse_json(r#"{"document":"","expect":{"error":{"message":"ordinary reason"}}}"#).unwrap();
+        let ordinary =
+            parse_json(r#"{"document":"","expect":{"error":{"line":1,"column":1,"message":"ordinary reason"}}}"#)
+                .unwrap();
         assert!(
             crate::test_common::case::notation(&ordinary).is_ok(),
             "ordinary notation retains its nested message field"
