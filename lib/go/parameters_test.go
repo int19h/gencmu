@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -389,6 +390,34 @@ func TestParameterPatternTestOperands(t *testing.T) {
 	}
 }
 
+type parameterStructureCase struct {
+	Name, Grammar string
+	CacheFallback bool
+	Public        bool
+	Input         string
+	DOM           json.RawMessage
+	Argument      json.RawMessage
+	Order         []string
+	Instances     *int
+	Flags         map[string][]string
+}
+
+func (c *parameterStructureCase) checkExpectations(instances int, argument any) error {
+	if c.Instances != nil && instances != *c.Instances {
+		return fmt.Errorf("got %d instances, want %d", instances, *c.Instances)
+	}
+	if c.Argument != nil {
+		want, err := decodeJSON(c.Argument)
+		if err != nil {
+			return err
+		}
+		if !reflect.DeepEqual(argument, want) {
+			return fmt.Errorf("got argument %#v, want %#v", argument, want)
+		}
+	}
+	return nil
+}
+
 func TestParameterSharedStructure(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
@@ -397,17 +426,7 @@ func TestParameterSharedStructure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var cases []struct {
-		Name, Grammar string
-		CacheFallback bool
-		Public        bool
-		Input         string
-		DOM           json.RawMessage
-		Argument      any
-		Order         []string
-		Instances     int
-		Flags         map[string][]string
-	}
+	var cases []parameterStructureCase
 	if err := json.Unmarshal(raw, &cases); err != nil {
 		t.Fatal(err)
 	}
@@ -416,8 +435,10 @@ func TestParameterSharedStructure(t *testing.T) {
 			if c.Public {
 				grammar := parameterGrammar(t, c.Grammar)
 				parameterEqual(t, parameterRuleNames(grammar), c.Order)
-				if c.Instances != 0 && len(parameterInstanceNames(t, c.Grammar)) != c.Instances {
-					t.Fatalf("instance count: %d", len(parameterInstanceNames(t, c.Grammar)))
+				if c.Instances != nil {
+					if err := c.checkExpectations(len(parameterInstanceNames(t, c.Grammar)), nil); err != nil {
+						t.Fatal(err)
+					}
 				}
 				return
 			}
@@ -450,6 +471,7 @@ func TestParameterSharedStructure(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			var argument any
 			if c.Argument != nil {
 				value, err := templateFromJSON(raw)
 				if err != nil {
@@ -457,7 +479,7 @@ func TestParameterSharedStructure(t *testing.T) {
 				}
 				rules := templateList(value["rules"])
 				expr := templateObj(templateObj(templateList(templateObj(rules[len(rules)-1])["alternatives"])[0])["expr"])
-				parameterEqual(t, templateList(expr["args"])[0], c.Argument)
+				argument = templateList(expr["args"])[0]
 			}
 			x, expansionErr := expandTemplates([]docDOM{{"review.md", dom}}, bundled.uni)
 			if expansionErr != nil {
@@ -466,8 +488,8 @@ func TestParameterSharedStructure(t *testing.T) {
 			if c.Order != nil {
 				parameterEqual(t, x.order, c.Order)
 			}
-			if c.Instances != 0 && len(x.instanceNames) != c.Instances {
-				t.Fatalf("got %d instances, want %d", len(x.instanceNames), c.Instances)
+			if err := c.checkExpectations(len(x.instanceNames), argument); err != nil {
+				t.Fatal(err)
 			}
 			if c.Flags != nil {
 				g := parameterGrammar(t, c.Grammar)
@@ -518,7 +540,32 @@ func TestTemplatePatternClosedness(t *testing.T) {
 func TestParameterErrorsUseEffectiveNames(t *testing.T) {
 	text := "%rule use(@X) @X :: @X\n%rule text use(\"a\")"
 	_, err := casePipeline(&engineCase{Grammar: &text}, false)
-	if err == nil || !strings.Contains(err.Error(), `rule use("a"):`) || strings.Contains(err.Error(), "instance-") {
+	if isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), `rule use("a"):`) || strings.Contains(err.Error(), "instance-") {
 		t.Fatalf("effective name missing: %v", err)
+	}
+}
+
+func TestParameterStructureComparesZeroAndNull(t *testing.T) {
+	for _, test := range []struct {
+		raw      string
+		argument any
+	}{
+		{`{"instances":0}`, nil}, {`{"argument":null}`, nil},
+		{`{"argument":false}`, false}, {`{"argument":0}`, float64(0)},
+		{`{"argument":""}`, ""},
+	} {
+		var c parameterStructureCase
+		if err := json.Unmarshal([]byte(test.raw), &c); err != nil {
+			t.Fatal(err)
+		}
+		if err := c.checkExpectations(1, true); err == nil {
+			t.Errorf("ignored expectation %s", test.raw)
+		}
+		if err := c.checkExpectations(0, test.argument); err != nil {
+			t.Fatalf("rejected matching expectation %s: %v", test.raw, err)
+		}
+	}
+	if err := (&parameterStructureCase{}).checkExpectations(99, true); err != nil {
+		t.Fatalf("compared an absent expectation: %v", err)
 	}
 }

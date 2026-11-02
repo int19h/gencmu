@@ -571,7 +571,7 @@ func bootstrapError(t *testing.T, list, item string) error {
 func assertGrammarError(t *testing.T, err error, want string) {
 	t.Helper()
 	var e *Error
-	if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, want) {
+	if isGuardedCrash(err) || !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, want) {
 		t.Errorf("expected an error of the grammar with %q, got %v", want, err)
 	}
 }
@@ -639,7 +639,7 @@ func TestDeepConstant(t *testing.T) {
 	src["data/preparsed/gencmu.json"] = bootstrap[:i] + k + sep + bootstrap[i:]
 	_, err = LoadPipelineSources(src, "grammars/test/p.md")
 	var e *Error
-	if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, "nested more than 256 deep") {
+	if isGuardedCrash(err) || !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, "nested more than 256 deep") {
 		t.Fatalf("a deep bootstrap constant: expected an error of the grammar, got %v", err)
 	}
 }
@@ -664,7 +664,7 @@ func TestCachedClauseWaitsForConstant(t *testing.T) {
 		d, err := LoadPipelineSources(src, "grammars/test/p.md")
 		if err != nil {
 			var e *Error
-			if !errors.As(err, &e) {
+			if isGuardedCrash(err) || !errors.As(err, &e) {
 				t.Fatal(err)
 			}
 			return "error at " + strconv.Itoa(e.Line) + ":" + strconv.Itoa(e.Column)
@@ -890,8 +890,8 @@ func TestAbsentRecipeCaptureOrder(t *testing.T) {
 	for _, recipe := range []string{"$x.value ++ $y.value", "$y.value ++ $x.value"} {
 		for _, grammar := range []string{"%rule text := " + recipe + " | [$x:A] [$y:B]", "%rule text [$x:A] [$y:B] %emits $ := " + recipe} {
 			_, err := LoadPipelineSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n" + grammar + "\n```\n"}, "p.md")
-			if err == nil {
-				t.Fatal("an absent recipe capture was accepted")
+			if isGuardedCrash(err) || err == nil {
+				t.Fatalf("expected an error for an absent capture, got %v", err)
 			}
 			if !strings.Contains(err.Error(), "capture "+recipe[:2]) {
 				t.Fatal(err)
@@ -915,7 +915,7 @@ func TestRecipeDependencyCyclePaths(t *testing.T) {
 		t.Run(c.path, func(t *testing.T) {
 			_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+c.grammar), "p.md")
 			var e *Error
-			if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, c.path) {
+			if isGuardedCrash(err) || !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, c.path) {
 				t.Fatalf("expected a recipe cycle with path %q, got %v", c.path, err)
 			}
 		})

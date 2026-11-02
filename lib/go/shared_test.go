@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,11 @@ import (
 )
 
 // The shared cases of tests/README.md.
+
+func isGuardedCrash(err error) bool {
+	var failure *Error
+	return errors.As(err, &failure) && failure != nil && strings.HasPrefix(failure.Message, "internal error: ")
+}
 
 type engineCase struct {
 	Pipeline         *string           `json:"pipeline"`
@@ -358,6 +364,9 @@ func checkCase(c *engineCase, noCache bool) error {
 		}
 	}
 	d, err := casePipeline(c, noCache)
+	if isGuardedCrash(err) {
+		return err
+	}
 	if c.Parses != nil {
 		// One loaded pipeline parses the input with each item's options in
 		// order (tests/README.md).
@@ -384,6 +393,9 @@ func checkCase(c *engineCase, noCache bool) error {
 // an expectation. The error is the whole outcome, so an expectation of
 // anything that only a loaded pipeline gives fails (tests/README.md).
 func checkLoadError(expect *caseExpect, err error) error {
+	if isGuardedCrash(err) {
+		return fmt.Errorf("load crashed: %w", err)
+	}
 	if expect.BundledPipelines != nil {
 		have := []any{}
 		for _, name := range BundledPipelines() {
@@ -451,8 +463,7 @@ func checkParse(d *Pipeline, c *engineCase, options *caseOptions, expect *caseEx
 	}
 
 	res, log, err := runCaseLogged(d, c, options, "")
-	// Parse returns a grammar error only when its panic guard runs.
-	if e, ok := err.(*Error); ok && e.Kind == ErrorGrammar {
+	if isGuardedCrash(err) {
 		return err
 	}
 	if c.onlyHook {
@@ -1045,6 +1056,24 @@ func TestParameterCaseSchemaRejectsInvalidMembers(t *testing.T) {
 	} {
 		if _, _, err := decodeParameterCase([]byte(raw)); err == nil {
 			t.Errorf("accepted %s", raw)
+		}
+	}
+}
+
+func TestGuardedCrashRecognition(t *testing.T) {
+	crash := &Error{Kind: ErrorGrammar, Message: "internal error: probe crash"}
+	var absent *Error
+	for _, c := range []struct {
+		err  error
+		want bool
+	}{
+		{nil, false}, {absent, false},
+		{&Error{Kind: ErrorGrammar, Message: "ordinary error"}, false},
+		{fmt.Errorf("internal error: ordinary error value"), false},
+		{crash, true}, {fmt.Errorf("parse 0: %w", crash), true},
+	} {
+		if got := isGuardedCrash(c.err); got != c.want {
+			t.Errorf("%v: guarded crash=%t, want %t", c.err, got, c.want)
 		}
 	}
 }
