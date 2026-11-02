@@ -99,7 +99,7 @@ const families = Object.fromEntries([
   "familyUndemandedRankedSibling", "familyCallerScope", "familyImpossiblePrefix", "familyNestedTwoTerminals",
 ].map((name) => [name, family]));
 const linearClose = object({ case: string, lengths: counts, maxCloseNodes: natural, maxCloseStates: natural, itemsPerUnit: natural, slack: natural });
-const growth = object({ case: string, depths: counts, nodesPerDepth: natural, slack: natural, unusedCases: strings }, {
+const growth = object({ case: string, depths: counts, nodesPerDepth: natural, slack: natural, unusedCases: caseList(string) }, {
   rankedSibling: object({ case: string, depths: counts, maxCloseNodes: natural }),
   callerScope: linearClose, impossiblePrefix: linearClose, ...families,
 });
