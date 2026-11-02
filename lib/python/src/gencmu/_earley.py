@@ -1347,7 +1347,8 @@ class Parser:
                         return None
             return record, notes
 
-        string_demands = demanded_strings(productions) if lowered.grammar.condition_strings else {}
+        reads_strings = lowered.grammar.condition_strings
+        string_demands = demanded_strings(productions) if reads_strings else {}
         string_prefixes, string_values = [], []
 
         def string_state(p, position, start, at, captured, edge, enclosing_prefix=None, enclosing_bound=None):
@@ -1396,7 +1397,8 @@ class Parser:
         def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False, prefix: int = 0, close_prefix: int = 0, family_prefix: Summary = IDENTITY, obligations=None, known_tag=None) -> None:
             if position == 0 and not productions[production].rhs:
                 known_tag = prediction_tags.pop((production, at), known_tag)
-            string_prefix, strings = string_state(productions[production], position, start, at, captured, edge)
+            if reads_strings:
+                string_prefix, strings = string_state(productions[production], position, start, at, captured, edge)
             bounded = None
             if boundaries is not None:
                 obligations = prediction_obligations.pop((production, at), []) if obligations is None else obligations
@@ -1405,7 +1407,7 @@ class Parser:
                     return
             structure = completed_structure(productions[production], position, prefix)
             key = (production, position, start, captured) + ((prefix, structure) if machine is not None else ())
-            if productions[production].real_id in string_demands:
+            if reads_strings and productions[production].real_id in string_demands:
                 key += (strings if position == len(productions[production].rhs) else string_prefix,)
             if closes is not None:
                 close_prefix = closes.trim(close_prefix, original(start), original(at))
@@ -1432,8 +1434,9 @@ class Parser:
                     annotations.append(bounded[1])
                 if known_tag is not None:
                     item_tags[found] = known_tag
-                string_prefixes.append(string_prefix)
-                string_values.append(strings)
+                if reads_strings:
+                    string_prefixes.append(string_prefix)
+                    string_values.append(strings)
                 prod.append(production)
                 dot.append(position)
                 origin.append(start)
@@ -1479,7 +1482,7 @@ class Parser:
             if frames is None:
                 return None
             p = productions[prod[item]]
-            return frames.entry(p, dot[item], origin[item], prefixes[item], caps[item], rule, any(edge[1] == RESTORE for edge in edges[item]), close_prefixes[item] if closes is not None else 0, end[item], records[item] if boundaries is not None else None,string_prefixes[item])
+            return frames.entry(p, dot[item], origin[item], prefixes[item], caps[item], rule, any(edge[1] == RESTORE for edge in edges[item]), close_prefixes[item] if closes is not None else 0, end[item], records[item] if boundaries is not None else None, string_prefixes[item] if reads_strings else ())
 
         def candidate(p, frame, requested=False):
             p = frames.production(p, frame) if frames is not None else p
@@ -1618,8 +1621,9 @@ class Parser:
                 else:
                     part_summary = family.token(original(edge[2]))
                 family_prefix = family.join(family_prefixes[item], part_summary)
-            child_strings = string_values[edge[2]] if edge[1] == 2 else (("image", tokens[edge[2]].image), ("value", tokens[edge[2]].value))
-            part = (*part[:3], part_structure, part_closes, child_strings)
+            if reads_strings:
+                child_strings = string_values[edge[2]] if edge[1] == 2 else (("image", tokens[edge[2]].image), ("value", tokens[edge[2]].value))
+                part = (*part[:3], part_structure, part_closes, child_strings)
             captured = caps[item]
             if production.slots[position] >= 0:
                 step = (captured, part)
@@ -1660,8 +1664,9 @@ class Parser:
                 bound = bound_for(production, captured, (start, at, known_tag), structure, close_structure)
             else:
                 bound = bound_for(production, captured)
-            strings = string_state(production, position+1, start, at, captured, edge)[1]
-            bound.string_reader = lambda channel: condition_strings(production,captured,at,strings).get(channel, "")
+            if reads_strings:
+                strings = string_state(production, position+1, start, at, captured, edge)[1]
+                bound.string_reader = lambda channel: condition_strings(production,captured,at,strings).get(channel, "")
             obligations = []
             try:
                 for condition in conditions or ():
@@ -1693,8 +1698,9 @@ class Parser:
             known_tag = lazy_tag(production, NO_CAPS, j, j, structure, close_structure) if not production.rhs else None
             whole = (j, j, known_tag) if known_tag is not None else None
             bound = bound_for(production, NO_CAPS, whole, structure, close_structure)
-            strings = string_state(production, 0, j, j, NO_CAPS, SEED)[1]
-            bound.string_reader = lambda channel: condition_strings(production,NO_CAPS,j,strings).get(channel, "")
+            if reads_strings:
+                strings = string_state(production, 0, j, j, NO_CAPS, SEED)[1]
+                bound.string_reader = lambda channel: condition_strings(production,NO_CAPS,j,strings).get(channel, "")
             obligations = []
             try:
                 for condition in production.conds_predict:

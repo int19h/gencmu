@@ -2271,12 +2271,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     }
                 }
                 Sym::N(rule) => {
-                    let outer = run.chart.lexical_frame(item.lexical).map_or(0, |f| f.emitted);
-                    let mut prefix = self.shared.string_states[outer as usize].clone();
-                    for (channel, text) in prefix.iter_mut().enumerate() {
-                        text.push_str(&self.shared.string_states[item.emitted as usize][channel]);
-                    }
-                    let string_prefix = self.intern_strings(prefix);
+                    let string_prefix = if g.condition_strings {
+                        let outer = run.chart.lexical_frame(item.lexical).map_or(0, |f| f.emitted);
+                        let mut prefix = self.shared.string_states[outer as usize].clone();
+                        for (channel, text) in prefix.iter_mut().enumerate() {
+                            text.push_str(&self.shared.string_states[item.emitted as usize][channel]);
+                        }
+                        self.intern_strings(prefix)
+                    } else {
+                        0
+                    };
                     let lexical = run.chart.enter_helper(
                         g,
                         item,
@@ -2380,7 +2384,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         'g: 't,
     {
         self.finish_structure(chart.family, &mut item, set, base, tokens);
-        self.finish_strings(chart, &mut item, set, tokens, base)?;
+        if self.g.condition_strings {
+            self.finish_strings(chart, &mut item, set, tokens, base)?;
+        }
         let g = self.g;
         let production = &g.prods[item.prod as usize];
         // A strict item never completes.
@@ -2906,7 +2912,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             structure: u32::MAX,
         };
         self.finish_structure(chart.family, &mut item, e + 1, 0, tokens);
-        self.finish_strings(chart, &mut item, e + 1, tokens, 0).expect("an omitted helper has a fixed default");
+        if self.g.condition_strings {
+            self.finish_strings(chart, &mut item, e + 1, tokens, 0).expect("an omitted helper has a fixed default");
+        }
         if e + 1 >= chart.sets.len() {
             while chart.sets.len() < e + 2 {
                 chart.sets.push(self.shared.fresh_set());
@@ -3023,7 +3031,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 prefix
             }
         });
-        let strings = self.advance_strings(item, cap);
+        let strings = if self.g.condition_strings { self.advance_strings(item, cap) } else { 0 };
         let mut next = Item {
             emitted: strings,
             boundary: 0,
@@ -3037,7 +3045,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             structure: u32::MAX,
         };
         self.finish_structure(chart.family, &mut next, into, base, tokens);
-        self.finish_strings(chart, &mut next, into, tokens, base)?;
+        if self.g.condition_strings {
+            self.finish_strings(chart, &mut next, into, tokens, base)?;
+        }
         if chart.machine.is_some() && self.shared.boundaries.is_none() {
             let edges = chart.links.entry((into as u32, next)).or_default();
             if !edges.contains(&(item, cap)) {

@@ -9505,9 +9505,14 @@
       const captures = [];
       for (let part = item.slots; part; part = part.parent) {
         const name = item.production.captures[part.index].name;
-        if (!name.startsWith('\u0000')) captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id,part.emitted]);
+        if (!name.startsWith('\u0000')) {
+          captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id]);
+          if (context.lowered.conditionStrings) captures[captures.length-1].push(part.emitted);
+        }
       }
-      return [written(item.production),item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,item.stringPrefix,captures.reverse(),item.restores,item.production.rankedBindings,item.observationPrefix?.id];
+      const key = [written(item.production),item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,captures.reverse(),item.restores,item.production.rankedBindings,item.observationPrefix?.id];
+      if (context.lowered.conditionStrings) key.push(item.stringPrefix);
+      return key;
     };
     return {
       contextual,
@@ -9539,8 +9544,11 @@
         const sealGroup = inside && outer ? outer.sealGroup : context.lowered.ranked?.groups.find((/** @type {any} */ group) => group.helper === name) ?? null;
         const sealEntry = inside && outer ? outer.sealEntry : item;
         const knownPrivate = new Set([...outer?.knownPrivate ?? [],...item.production.rankedPrivate ?? []]);
-        const stringPrefix = {...outer?.stringPrefix};
-        for (const [channel,value] of Object.entries(item.stringPrefix ?? {})) stringPrefix[channel] = (stringPrefix[channel] ?? "") + value;
+        let stringPrefix;
+        if (context.lowered.conditionStrings) {
+          stringPrefix = {...outer?.stringPrefix};
+          for (const [channel,value] of Object.entries(item.stringPrefix ?? {})) stringPrefix[channel] = (stringPrefix[channel] ?? "") + value;
+        }
         const frame = {id:next++,key,captures,root,namedOrigin,prefix,stringPrefix,inside,sealPrefix,present,knownPrivate,
           observationPrefix,sealObservationPrefix,sealGroup,sealEntry};
         frames.set(key,frame);
@@ -11888,7 +11896,8 @@
       const closes = part.observation && context.closes
         ? context.closes.identity(part.observation) : null;
       captures.push([name, originalPosition(context, part.start), originalPosition(context, part.end),
-        tagKey(context.interner.get(part.tags)), structuralKey(context, part.structure), closes, part.emitted]);
+        tagKey(context.interner.get(part.tags)), structuralKey(context, part.structure), closes]);
+      if (context.lowered.conditionStrings) captures[captures.length-1].push(part.emitted);
     }
     const frame = before.production.lexicalFrame;
     const prefix = frame && context.patterns ? context.patterns.concat(frame.prefix, before.prefix) : before.prefix;
@@ -11897,10 +11906,13 @@
       : before.observationPrefix;
     // The written group and original entry observations survive across runs.
     // Runtime frame IDs and the selected option do not enter this key.
-    return JSON.stringify([group.site, originalPosition(context, child.origin), originalPosition(context, child.end),
+    /** @type {unknown[]} */
+    const key = [group.site, originalPosition(context, child.origin), originalPosition(context, child.end),
       originalPosition(context, frame?.namedOrigin ?? before.origin), writtenPrefixKey(context, before.production),
       before.production.rhs.slice(0, before.dot).map(symbol => prefixSymbolKey(context, symbol)),
-      structuralKey(context, prefix), frame?.stringPrefix, before.stringPrefix, captures, closePrefix && context.closes ? context.closes.identity(closePrefix) : null]);
+      structuralKey(context, prefix), captures, closePrefix && context.closes ? context.closes.identity(closePrefix) : null];
+    if (context.lowered.conditionStrings) key.push(frame?.stringPrefix, before.stringPrefix);
+    return JSON.stringify(key);
   }
 
   /**
@@ -12707,7 +12719,7 @@
             const edge = boundary.start & literal.bit ? "start" : "end";
             fail(literal,edge === "start" ? origin : set.position,bounded?.annotations[edge].get(literal.bit));
           })) return;
-      const strings = stringStep(context,production,dot,origin,set.position,slots,previous,child);
+      const strings = context.lowered.conditionStrings ? stringStep(context,production,dot,origin,set.position,slots,previous,child) : null;
       const projected = structuralStep(context, production, dot, previous, child, set.position);
       const close = closeStep(context,production,dot,origin,previous,child,set.position);
       const summary = familyStep(context, family, members, production, dot, origin, previous, child, set.position, close);
@@ -12775,8 +12787,10 @@
       }
       item.boundary = boundary;
       if (bounded) item.boundaryAnnotations = bounded.annotations;
-      item.emitted = strings?.value;
-      item.stringPrefix = strings?.prefix;
+      if (strings) {
+        item.emitted = strings.value;
+        item.stringPrefix = strings.prefix;
+      }
       item.prefix = projected.prefix;
       item.structure = projected.structure;
       item.observationPrefix = close?.prefix ?? null;
@@ -12854,7 +12868,7 @@
       item.observationPrefix = context.closes?.empty ?? null;
       item.observation = observation;
       item.restores = true;
-      item.emitted = stringStep(context,production,0,position,position+1,null,null,null)?.value;
+      item.emitted = context.lowered.conditionStrings ? stringStep(context,production,0,position,position+1,null,null,null)?.value : undefined;
       if (hooks.work) { countWork(hooks.work, "items"); countWork(hooks.work, "packedEdges"); }
       item.end = position + 1;
       // It has the tags of the empty production, none, unless a fault gives
@@ -12935,7 +12949,7 @@
         // One scope for the step, which evaluates the tag term at most once
         // (engine §4).
         /** @type {StepScope} */
-        const step = { scope: null, emitted:stringStep(context,production,0,set.position,set.position,null,null,null)?.value, structure: structuralStep(context, production, 0, null, null, set.position).structure, observation: closeStep(context,production,0,set.position,null,null,set.position)?.observation ?? null };
+        const step = { scope: null, emitted:context.lowered.conditionStrings ? stringStep(context,production,0,set.position,set.position,null,null,null)?.value : undefined, structure: structuralStep(context, production, 0, null, null, set.position).structure, observation: closeStep(context,production,0,set.position,null,null,set.position)?.observation ?? null };
         // The tag term comes after the conditions (engine §4), unless a
         // fault evaluates it first (order:tags).
         if (production.rhs.length === 0 && fault("order:tags", "predict")) {
@@ -13011,11 +13025,11 @@
         // production that inherits from the terminal (F7:capture).
         const tags = child ? child.tagId
           : context.interner.intern(synthetic !== null && synthetic[from] && !rawObservations(context) && !fault("F7:capture") ? tagSet() : tokens[from].tags);
-        slots = captureAfter(context, slots, captureIndex, from, to, tags, child ? child.structure : terminalState(context, production, item.dot, from), child ? closeChild(context,item,child) : terminalObservation(context,production.rhs[item.dot].name,from), child ? child.emitted : {value:tokens[from].value,image:tokens[from].image});
+        slots = captureAfter(context, slots, captureIndex, from, to, tags, child ? child.structure : terminalState(context, production, item.dot, from), child ? closeChild(context,item,child) : terminalObservation(context,production.rhs[item.dot].name,from), context.lowered.conditionStrings ? child ? child.emitted : {value:tokens[from].value,image:tokens[from].image} : undefined);
       }
       if (hooks.work) countWork(hooks.work, "captureLookups");
       /** @type {StepScope} */
-      const step = { scope: null, emitted:stringStep(context,production,item.dot+1,item.origin,to,slots,item,child)?.value, structure: structuralStep(context, production, item.dot + 1, item, child, to).structure, observation: closeStep(context,production,item.dot+1,item.origin,item,child,to)?.observation ?? null };
+      const step = { scope: null, emitted:context.lowered.conditionStrings ? stringStep(context,production,item.dot+1,item.origin,to,slots,item,child)?.value : undefined, structure: structuralStep(context, production, item.dot + 1, item, child, to).structure, observation: closeStep(context,production,item.dot+1,item.origin,item,child,to)?.observation ?? null };
       if (item.dot + 1 === production.rhs.length && fault("order:tags", "advance")) {
         if (completeTags(context, production, slots, item.origin, to, step) === HALT) {
           return pause(() => advanceFrom(item, to, slots, step, PART_CONDITIONS, null));
@@ -13639,7 +13653,8 @@
    * @returns {Captured}
    */
   function captureAfter(context, parent, index, start, end, tags, structure, observation, emitted) {
-    const key = (parent === null ? "" : parent.id) + ":" + index + ":" + start + ":" + end + ":" + tags + ":" + structure + ":" + (observation?.id ?? "") + JSON.stringify(emitted ?? null);
+    let key = (parent === null ? "" : parent.id) + ":" + index + ":" + start + ":" + end + ":" + tags + ":" + structure + ":" + (observation?.id ?? "");
+    if (context.lowered.conditionStrings) key += JSON.stringify(emitted ?? null);
     let found = context.captured.get(key);
     if (!found) {
       // The jumps of a skew-binary list: a sequence jumps to its parent's
@@ -13879,9 +13894,12 @@
         for (let part = this.slots; part; part = part.parent) captures.set(this.production.captures[part.index].name,part);
         const production = {...frame.root,tags:this.production.parentTags,lexicalFrame:{...frame,captures,parentWhole:true}};
         const parent = new ChartScope(this.context,production,null,frame.namedOrigin,this.end,structure,observation);
-        const strings = {...frame.stringPrefix};
-        for (const [channel,value] of Object.entries(this.emitted ?? {})) strings[channel] = (strings[channel] ?? "") + value;
-        const emitted = stringStep(this.context,production,production.rhs.length,frame.namedOrigin,this.end,null,null,null,strings)?.value;
+        let emitted;
+        if (this.context.lowered.conditionStrings) {
+          const strings = {...frame.stringPrefix};
+          for (const [channel,value] of Object.entries(this.emitted ?? {})) strings[channel] = (strings[channel] ?? "") + value;
+          emitted = stringStep(this.context,production,production.rhs.length,frame.namedOrigin,this.end,null,null,null,strings)?.value;
+        }
         return {emitted,observation,structure,patterns:machine,start:frame.namedOrigin,end:this.end,space:this.space,
           get tags() {return /** @type {TagSet} */ (parent.constituent());}};
       }

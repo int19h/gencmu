@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import linecache
 import re
+import sys
 import unittest
 from types import FrameType
 from typing import Any, Callable, ContextManager
@@ -338,6 +339,43 @@ def unit_chain(n: int) -> Forest:
     tokens = [Token("a", frozenset({"A"}), (0, 1), (0, 1))]
     context = StageContext(pipeline._lowered_grammar(0, frozenset()), tokens, "a", pipeline._unicode)
     return Parser(context).parse(context.lowered.rule_ids["text"])
+
+
+class ConditionStrings(unittest.TestCase):
+    def test_disabled_condition_strings_keep_no_item_records(self) -> None:
+        for grammar, text in (
+            ('%rule text {"a"}', 'a' * 40),
+            ('%rule text $x:w\n%conditions $x.value = "a"\n%rule w "a"', 'a'),
+            ('%rule text :: ∅ | ("a" ≻ "b")', 'a'),
+        ):
+            with self.subTest(grammar=grammar):
+                pipeline, error = load_case_pipeline({"grammar": '%ambiguity-resolution greedy\n' + grammar})
+                assert pipeline is not None, error
+                self.assertFalse(pipeline._lowered_grammar(0, frozenset()).grammar.condition_strings)
+                items = 0
+
+                def profile(frame: FrameType, event: str, arg: Any) -> None:
+                    nonlocal items
+                    if frame.f_code.co_filename != Parser.walk.__code__.co_filename:
+                        return
+                    name = frame.f_code.co_name
+                    if event == "call":
+                        self.assertNotIn(name, ("string_state", "condition_strings"))
+                    if event == "return" and name == "add":
+                        items += 1
+                        self.assertEqual(frame.f_locals["string_prefixes"], [])
+                        self.assertEqual(frame.f_locals["string_values"], [])
+                    if name in ("checked", "allowed") and "bound" in frame.f_locals:
+                        self.assertIsNone(frame.f_locals["bound"].string_reader)
+
+                previous = sys.getprofile()
+                sys.setprofile(profile)
+                try:
+                    result = pipeline.parse(text)
+                finally:
+                    sys.setprofile(previous)
+                self.assertTrue(result.ok)
+                self.assertGreater(items, 0)
 
 
 class ItemAdds(Linear):

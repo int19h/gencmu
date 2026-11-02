@@ -656,7 +656,9 @@ func (r *recognizer) restore(k int, p *production) {
 		return
 	}
 	key := itemKey{prod: p, origin: int32(k)}
-	r.finishStrings(&key, int32(k+1))
+	if r.g.stage.conditionStrings {
+		r.finishStrings(&key, int32(k+1))
+	}
 	r.finishStructure(&key)
 	r.finishCloses(&key, int32(k+1))
 	s := r.set(k + 1)
@@ -729,8 +731,14 @@ func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 			tags = r.lazyTags(p, caps, int32(k), int32(k), key.structure, key.closes)
 		}
 		r.predictTags = tags
-		r.finishStrings(&key, int32(k))
-		r.ev = r.run.evaluator(r.g, withStringCapture(r.captureFunc(p, caps, int32(k), int32(k), tags, key.structure, key.closes), func(c int) string { return r.conditionStrings(key, int32(k))[c] }))
+		if r.g.stage.conditionStrings {
+			r.finishStrings(&key, int32(k))
+		}
+		capture := r.captureFunc(p, caps, int32(k), int32(k), tags, key.structure, key.closes)
+		if r.g.stage.conditionStrings {
+			capture = withStringCapture(capture, func(c int) string { return r.conditionStrings(key, int32(k))[c] })
+		}
+		r.ev = r.run.evaluator(r.g, capture)
 		r.pending, r.condAt = true, 0
 		countCondition()
 		r.startCondition(r.ev, p.predictConds[0], p)
@@ -763,7 +771,9 @@ func countCondition() {
 // again for what its strictness held back.
 func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
 	if !hasLink {
-		r.finishStrings(&key, int32(k))
+		if r.g.stage.conditionStrings {
+			r.finishStrings(&key, int32(k))
+		}
 	}
 	if strict && int(key.dot) == len(key.prod.rhs) {
 		return
@@ -1026,28 +1036,31 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		if r.observesCloses(p) && l.sym != nil && r.g.rankedHelpers[l.sym.rule] != nil {
 			cv.closes = r.closes.seal(cv.closes, r.blockEvent(l.sym))
 		}
-		if l.sym != nil {
-			cv.emitted = l.sym.emitted
-		} else {
-			cv.emitted = r.tokenStrings(int(l.tok))
+		if r.g.stage.conditionStrings {
+			if l.sym != nil {
+				cv.emitted = l.sym.emitted
+			} else {
+				cv.emitted = r.tokenStrings(int(l.tok))
+			}
+			if channels := r.g.demandedStrings()[int32(p.num)]; channels != 0 {
+				for channel := 0; channel < 2; channel++ {
+					recipe := p.value
+					if channel == 1 && p.image != nil {
+						recipe = p.image
+					}
+					if recipe != nil || p.nothing {
+						continue
+					}
+					if channels&(1<<channel) != 0 {
+						key.emitted[channel] += cv.emitted[channel]
+					}
+				}
+			}
 		}
 		if slot := p.capSlot[pos]; slot >= 0 {
 			r.setCap(&key, slot, cv)
 		}
-		if channels := r.g.demandedStrings()[int32(p.num)]; channels != 0 {
-			for channel := 0; channel < 2; channel++ {
-				recipe := p.value
-				if channel == 1 && p.image != nil {
-					recipe = p.image
-				}
-				if recipe != nil || p.nothing {
-					continue
-				}
-				if channels&(1<<channel) != 0 {
-					key.emitted[channel] += cv.emitted[channel]
-				}
-			}
-		}
+
 		key.dot++
 		if r.observesCloses(p) {
 			child := cv.closes
@@ -1080,7 +1093,9 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			key.prefix = r.machine.concat(it.prefix, structure)
 		}
 		r.finishStructure(&key)
-		r.finishStrings(&key, int32(k))
+		if r.g.stage.conditionStrings {
+			r.finishStrings(&key, int32(k))
+		}
 	}
 	// Each condition the walk examines counts before it is looked at, so
 	// a walk wider than the dot's own conditions passes the budget at once.
@@ -1108,7 +1123,11 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			if c.whole && whole == nil {
 				whole = r.lazyTags(p, caps, key.origin, int32(k), key.structure, key.closes)
 			}
-			r.startCondition(r.run.evaluator(r.g, withStringCapture(r.captureFunc(p, caps, key.origin, int32(k), whole, key.structure, key.closes), func(c int) string { return r.conditionStrings(key, int32(k))[c] })), c.cond, p)
+			capture := r.captureFunc(p, caps, key.origin, int32(k), whole, key.structure, key.closes)
+			if r.g.stage.conditionStrings {
+				capture = withStringCapture(capture, func(c int) string { return r.conditionStrings(key, int32(k))[c] })
+			}
+			r.startCondition(r.run.evaluator(r.g, capture), c.cond, p)
 		}
 		resuming = false
 		if q := r.resumeCondition(); q != nil {

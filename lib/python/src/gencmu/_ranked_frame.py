@@ -124,7 +124,7 @@ def prepare_ranked_conditions(lowered):
             conditions = [c for c, _, _ in frame_conditions(p, frame, private.get(id(p.source), set()))]
             if p.items:
                 conditions.extend(c for c, _ in item_frame_conditions(p, frame, prepare_conditions(p.items.conditions)))
-            if conditions:
+            if conditions and lowered.grammar.condition_strings:
                 if p.string_conditions is None:
                     p.string_conditions = []
                 p.string_conditions.extend(conditions)
@@ -185,7 +185,9 @@ class Frames:
         outer = p.lexical
         if outer is not None and p.lhs==rule:
             return outer
-        key = (written_prefix(self.lowered,p,dot,origin,prefix,caps,restores), boundary.id if boundary is not None else None,strings)
+        key = (written_prefix(self.lowered,p,dot,origin,prefix,caps,restores), boundary.id if boundary is not None else None)
+        if self.lowered.grammar.condition_strings:
+            key += (strings,)
         if self.closes is not None:
             key = key, close_prefix
         if key in self.frames:
@@ -201,10 +203,11 @@ class Frames:
         inside = bool(p.ranked or outer and outer.inside)
         seal_prefix = outer.seal_prefix if inside and outer else prefix
         frame = Frame(len(self.frames)+1,key,captures,present,root,named_origin,prefix,seal_prefix,inside,(outer.known_private if outer else set()) | p.private_names)
-        values = dict(outer.string_prefix) if outer else {}
-        for channel, value in strings:
-            values[channel] = values.get(channel, "") + value
-        frame.string_prefix = tuple(sorted(values.items()))
+        if self.lowered.grammar.condition_strings:
+            values = dict(outer.string_prefix) if outer else {}
+            for channel, value in strings:
+                values[channel] = values.get(channel, "") + value
+            frame.string_prefix = tuple(sorted(values.items()))
         if self.closes is not None and p.lhs in self.lowered.close_rules:
             frame.close_prefix = self.closes.concat(outer.close_prefix, close_prefix) if outer else close_prefix
             frame.seal_close_prefix = outer.seal_close_prefix if inside and outer else frame.close_prefix
@@ -232,13 +235,17 @@ class Frames:
             if name in private:
                 continue
             start, end, tags = part[:3]
-            observations.append((name, self.project(start), self.project(end), tags,
-                                 part[3] if len(part) > 3 else 0,
-                                 self.closes.semantic(part[4]) if len(part) > 4 else 0,
-                                 part[5] if len(part)>5 else ()))
+            observation = (name, self.project(start), self.project(end), tags,
+                           part[3] if len(part) > 3 else 0,
+                           self.closes.semantic(part[4]) if len(part) > 4 else 0)
+            if lowered.grammar.condition_strings:
+                observation += (part[5] if len(part) > 5 else (),)
+            observations.append(observation)
         source = p.rule_name, p.slot.source.document, p.slot.source.at, lowered.written_helpers.get(p.lhs)
-        return (outer.close_entry if outer else None, source, route, self.project(origin), prefix,
-                strings, tuple(observations), self.closes.semantic(close_prefix))
+        key = (outer.close_entry if outer else None, source, route, self.project(origin), prefix)
+        if lowered.grammar.condition_strings:
+            key += (strings,)
+        return (*key, tuple(observations), self.closes.semantic(close_prefix))
 
     def production(self,p,frame):
         if frame is None:
