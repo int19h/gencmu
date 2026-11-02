@@ -19,9 +19,9 @@ class Places(unittest.TestCase):
                     self.assertTrue(same_json(list(position_of(item["text"], item["needle"])), [item["line"], item["column"]]))
         for item in places["substitutions"]:
             with self.subTest(find=item["find"], text=item["text"]):
-                self.assertEqual(len(find_places(item["text"], item["find"])), item["places"])
+                self.assertTrue(same_json(len(find_places(item["text"], item["find"])), item["places"]))
                 if item["expect"] is None:
                     with self.assertRaises(AssertionError):
                         substitute(item["text"], item["find"], item["replace"])
                 else:
-                    self.assertEqual(substitute(item["text"], item["find"], item["replace"]), item["expect"])
+                    self.assertTrue(same_json(substitute(item["text"], item["find"], item["replace"]), item["expect"]))

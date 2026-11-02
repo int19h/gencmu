@@ -122,14 +122,14 @@ class NotationCases(unittest.TestCase):
             for key in ("line", "column"):
                 self.assertTrue(same_json(getattr(error, key), expect["error"][key]), f"{path.name}: {error}")
             if "message" in expect["error"]:
-                self.assertEqual(error.message, expect["error"]["message"], f"{path.name}: {error}")
+                self.assertTrue(same_json(error.message, expect["error"]["message"]), f"{path.name}: {error}")
 
 def check_notation_cache_paths(
     test: unittest.TestCase, name: str, document: str, expected: dict, resources: _Resources | None = None
 ) -> None:
     resources = _resources() if resources is None else resources
     cold = _Loader({name: document}.get, _Resources(resources.unicode, resources.bootstrap, None, resources.properties), use_cache=False)
-    test.assertEqual(cold.dom(name), expected)
+    test.assertTrue(same_json(cold.dom(name), expected))
     envelope = {
         "format": DOM_FORMAT,
         "bootstrap": cold.reader.hash,
@@ -143,9 +143,9 @@ def check_notation_cache_paths(
 
     cached = loader(envelope)
     with patch.object(cached.reader, "read", side_effect=AssertionError("preparsed cache was bypassed")):
-        test.assertEqual(cached.dom(name), expected)
+        test.assertTrue(same_json(cached.dom(name), expected))
         test.assertIn((name, fnv1a64(document)), cached.preparsed)
-        test.assertEqual(cached.dom(name), expected)
+        test.assertTrue(same_json(cached.dom(name), expected))
     for key in ("document", "bootstrap", "unicode", "format"):
         with test.subTest(cache_mismatch=key):
             stale = deepcopy(envelope)
@@ -157,8 +157,8 @@ def check_notation_cache_paths(
             else:
                 stale[key] = fnv1a64("another " + key)
             missed = loader(stale)
-            test.assertEqual(missed.dom(name), expected)
-            test.assertEqual(missed.dom(name), expected)
+            test.assertTrue(same_json(missed.dom(name), expected))
+            test.assertTrue(same_json(missed.dom(name), expected))
 
 
 class NotationTies(unittest.TestCase):

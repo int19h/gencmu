@@ -1,5 +1,6 @@
 """Stage zero preserves original text through canonical decomposition."""
 
+from .shared import same_json
 import unittest
 
 import gencmu
@@ -53,7 +54,7 @@ class GrammarReading(unittest.TestCase):
         resources = _resources()
         first = _Loader(texts.get, resources)
         dom = first.dom("g.md")
-        self.assertEqual(dom["rules"][0]["alternatives"][0]["expr"]["literal"], {"string": "e\u0301"})
+        self.assertTrue(same_json(dom["rules"][0]["alternatives"][0]["expr"]["literal"], {"string": "e\u0301"}))
         cache = {"format": DOM_FORMAT, "bootstrap": first.reader.hash, "unicode": fnv1a64(table), "properties": None,
                  "documents": {"g.md": {"hash": fnv1a64(grammar), "dom": dom}}}
         preparsed = json.dumps(cache)
@@ -65,7 +66,7 @@ class GrammarReading(unittest.TestCase):
         cache["unicode"] = fnv1a64(table)
         second = _Loader(texts.get, type(resources)(sparse, resources.bootstrap, preparsed))
         sparse_dom = second.dom("g.md")
-        self.assertEqual(sparse_dom["rules"][0]["alternatives"][0]["expr"]["literal"], {"string": "é"})
+        self.assertTrue(same_json(sparse_dom["rules"][0]["alternatives"][0]["expr"]["literal"], {"string": "é"}))
         # The matching envelope must be used even if its valid DOM differs.
         cache["documents"]["g.md"]["dom"] = sparse_dom
         cached = _Loader(texts.get, type(resources)(table, resources.bootstrap, json.dumps(cache)))
@@ -82,7 +83,7 @@ class GrammarReading(unittest.TestCase):
                 gencmu.load_pipeline_sources({"data/unicode/unicode.txt": sparse, "p.md": document('%stage main\n%include "g.md"'),
                                             "g.md": source}, "p.md", use_cache=use_cache)
             self.assertEqual((caught.exception.document, caught.exception.column), ("g.md", 35))
-        self.assertEqual(read_document(source, "g.md")["rules"][0]["conditions"][0]["op"], "≠")
+        self.assertTrue(same_json(read_document(source, "g.md")["rules"][0]["conditions"][0]["op"], "≠"))
 
     def test_include_preserves_original_filename(self) -> None:
         texts = {"p.md": document('%stage main\n%include "café.md"'),

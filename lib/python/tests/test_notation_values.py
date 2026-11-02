@@ -74,7 +74,7 @@ class NotationValues(unittest.TestCase):
         with patch.object(Generated, "check_case", side_effect=seen.append):
             Generated().test_unique_generated_a()
             Generated().test_unique_generated_b()
-        self.assertEqual(seen, cases)
+        self.assertTrue(same_json(seen, cases))
 
     def test_supplied_errors_compare_the_top_level_message(self) -> None:
         case = deepcopy(next(item for item in load_json(SHARED / "notation-values.json")["cases"]
@@ -117,7 +117,7 @@ class NotationValues(unittest.TestCase):
             self.assertTrue(same_json([caught.exception.line, caught.exception.column],
                                       [expected["line"], expected["column"]]))
             if "message" in case["expect"]:
-                self.assertEqual(caught.exception.message, case["expect"]["message"])
+                self.assertTrue(same_json(caught.exception.message, case["expect"]["message"]))
             return
         dom = read_document(case["document"], name, sources=sources)
         problem = mismatch(case["expect"], {"dom": dom})

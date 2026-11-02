@@ -27,8 +27,8 @@ class BootstrapErrors(unittest.TestCase):
                         "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
                         "data/preparsed/gencmu.json": bootstrap,
                     }, "p.md")
-                self.assertEqual(raised.exception.kind, fixtures["kind"])
-                self.assertEqual(raised.exception.document, fixtures["document"])
+                self.assertTrue(same_json(raised.exception.kind, fixtures["kind"]))
+                self.assertTrue(same_json(raised.exception.document, fixtures["document"]))
                 self.assertTrue(str(raised.exception).startswith(fixtures["document"] + ":"), str(raised.exception))
                 self.assertFalse(raised.exception.message.startswith(fixtures["document"] + ":"))
                 self.assertEqual(str(raised.exception).count(fixtures["document"] + ":"), 1)

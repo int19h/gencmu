@@ -66,7 +66,7 @@ class JsonKeys(unittest.TestCase):
                                               ["grammar", item["error"]["document"], item["error"].get("line"), item["error"].get("column")]))
                     continue
                 pipeline = gencmu.load_pipeline_sources({**case_sources, "data/preparsed/test.json": cache}, "grammars/test/p.md")
-                self.assertEqual(pipeline.parse("a").ok, not item["cached"])
-                self.assertEqual(pipeline.parse("b").ok, item["cached"])
+                self.assertTrue(same_json(pipeline.parse("a").ok, not item["cached"]))
+                self.assertTrue(same_json(pipeline.parse("b").ok, item["cached"]))
                 if "tags" in item:
-                    self.assertEqual(sorted(pipeline.parse("b").tree.tags), item["tags"])
+                    self.assertTrue(same_json(sorted(pipeline.parse("b").tree.tags), item["tags"]))

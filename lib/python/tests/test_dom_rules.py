@@ -18,7 +18,7 @@ from gencmu._model import Token
 from gencmu._validate import Marks
 from gencmu._validate import dom_problem as _dom_problem
 
-from .shared import read_json
+from .shared import read_json, same_json
 
 DOCUMENT = """```jbogenbau
 %ambiguity-resolution greedy
@@ -986,7 +986,9 @@ class PreparsedDomRules(unittest.TestCase):
             with self.subTest(items=items):
                 expected = (
                     "an emission lists a capture twice"
-                    if items in ([{"capture": "x", "after": ["a"]}, {"capture": "a"}], [{"capture": "x", "before": ["b", "b"]}])
+                    if any(same_json(items, duplicate) for duplicate in (
+                        [{"capture": "x", "after": ["a"]}, {"capture": "a"}], [{"capture": "x", "before": ["b", "b"]}],
+                    ))
                     else "a malformed insertion"
                     if "insert" in items[0]
                     else "a malformed attachment"
@@ -1370,7 +1372,7 @@ class Constants(unittest.TestCase):
         assert expected.tree is not None
         self.assertEqual(sorted(expected.tree.tags), ["A", "B"])
         dom = read_document(CONSTANT_SOURCES["grammars/test/g.md"], "grammars/test/g.md")
-        self.assertEqual(dom["constants"], [{"name": "K", "op": "define", "value": {"union": [{"tag": "A"}, {"tag": "B"}]}, "at": [3, 1]}])
+        self.assertTrue(same_json(dom["constants"], [{"name": "K", "op": "define", "value": {"union": [{"tag": "A"}, {"tag": "B"}]}, "at": [3, 1]}]))
         bootstrap_hash = fnv1a64(bundled_text("data/preparsed/gencmu.json") or "")
 
         def parse(entry: Dom) -> str:
@@ -1476,7 +1478,7 @@ class Constants(unittest.TestCase):
         self.assertEqual(outcome(empty, dom), ["Y"])
         # A hit: the entry, changed, is the one the parse sees.
         changed = json.loads(json.dumps(dom).replace('{"tag": "Y"}', '{"tag": "Z"}'))
-        self.assertNotEqual(changed, dom)
+        self.assertFalse(same_json(changed, dom))
         self.assertEqual(outcome(empty, changed), ["Z"])
         full = document("B ∖ B", "B")
         dom = read_document(full, "grammars/test/g.md")
@@ -1553,10 +1555,10 @@ class Classifiers(unittest.TestCase):
             entry(**{"class": "/a/"}),
             entry(extra=True),
         ]:
-            if bad_entry["keys"] in ([{"string": "Mi"}], [{"string": "m,i"}]):
+            if any(same_json(bad_entry["keys"], keys) for keys in ([{"string": "Mi"}], [{"string": "m,i"}])):
                 self.assertIsNone(dom_problem(dom([classifier([bad_entry])])), json.dumps(bad_entry))
             else:
-                expected = "a malformed string" if bad_entry["keys"] == [1] else "a malformed classifier entry"
+                expected = "a malformed string" if same_json(bad_entry["keys"], [1]) else "a malformed classifier entry"
                 self.assertEqual(dom_problem(dom([classifier([bad_entry])])), expected, json.dumps(bad_entry))
 
     def test_a_preparsed_implication_is_checked(self) -> None:
@@ -1750,7 +1752,7 @@ class Classifiers(unittest.TestCase):
             with self.subTest(document=refused):
                 if refused in ('%classifier l "A" ∈ A', '%classifier l "a,b" ∈ A'):
                     dom = read_document("```jbogenbau\n" + refused + "\n```\n", "t.md")
-                    self.assertEqual(dom["classifiers"][0]["entries"][0]["keys"][0]["string"], "A" if '"A"' in refused else "a,b")
+                    self.assertTrue(same_json(dom["classifiers"][0]["entries"][0]["keys"][0]["string"], "A" if '"A"' in refused else "a,b"))
                 else:
                     with self.assertRaises(gencmu.GencmuError):
                         read_document("```jbogenbau\n" + refused + "\n```\n", "t.md")
@@ -1759,7 +1761,7 @@ class Classifiers(unittest.TestCase):
         from .shared import load_case_pipeline
         document = '%implies classify("a", l) ⟹ A'
         dom = read_document("```jbogenbau\n" + document + "\n```\n", "t.md")
-        self.assertEqual(dom['implications'][0]['if']['call'], 'classify')
+        self.assertTrue(same_json(dom['implications'][0]['if']['call'], 'classify'))
         pipeline, error = load_case_pipeline(dict(grammar=document + '\n%rule text "a"'))
         self.assertIsNone(pipeline)
         self.assertEqual(error.kind, 'grammar')
