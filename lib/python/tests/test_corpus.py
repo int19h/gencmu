@@ -209,7 +209,7 @@ class Corpus(unittest.TestCase):
 
         case = {"id": "lost", "pipeline": "lojban/cll", "text": "le sutra tavla"}
         clean = outcome(case)
-        self.assertEqual(clean.get("verdict"), "resolved")
+        self.assertTrue(same_json(clean.get("verdict"), "resolved"))
         reconstruct = _stage._reconstruct
 
         def no_roots(context: Any) -> Any:

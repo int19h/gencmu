@@ -8,7 +8,7 @@ from unittest.mock import patch
 from gencmu import GencmuError, _testing, load_pipeline_sources
 from gencmu._pipeline import DOM_FORMAT, bundled_text, _reader, _resources, NotationReader
 from gencmu._hash import fnv1a64
-from .shared import load_case_pipeline, parse_case
+from .shared import load_case_pipeline, parse_case, same_json
 
 
 def sources(grammar):
@@ -82,7 +82,7 @@ class Ranked(unittest.TestCase):
                 )
             finally:
                 _testing.slot_admission.reset(token)
-            self.assertEqual(result["stages"][0]["verdict"], "unique")
+            self.assertTrue(same_json(result["stages"][0]["verdict"], "unique"))
             self.assertEqual(stats[0]["groups"], length)
             self.assertEqual(stats[0]["candidate_edges"], 2 * length)
             self.assertEqual(stats[0]["retained_edges"], length)

@@ -26,7 +26,7 @@ from gencmu._rank import Summaries
 from gencmu._stage import implied
 from gencmu._trampoline import run
 
-from .shared import OverBudget, Watch, Work, calls, code_of, count_work, load_case_pipeline, mutant, parse_case, reads, steps
+from .shared import OverBudget, Watch, Work, calls, code_of, count_work, load_case_pipeline, mutant, parse_case, reads, same_json, steps
 
 MOST = 6
 """How many times the work at n the work at 4n may cost."""
@@ -126,7 +126,7 @@ class SpanReads(Linear):
 
             def work() -> None:
                 value, _, _ = parse_case(pipeline, case)
-                assert value is not None and value["ok"], value
+                assert value is not None and same_json(value["ok"], True), value
 
             return work
 

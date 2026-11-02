@@ -327,26 +327,26 @@ class EngineCases(unittest.TestCase):
         """Whether an outcome meets a case's expectation (tests/README.md)."""
         validate_engine_expect(expect)
         if "bundledPipelines" in expect:
-            self.assertEqual(gencmu.bundled_pipelines(), expect["bundledPipelines"], label)
+            self.assertTrue(same_json(gencmu.bundled_pipelines(), expect["bundledPipelines"]), label)
         if features is None:
             # A pipeline that does not load gives the error alone, so a case
             # that expects anything that only a loaded pipeline gives fails
             # (tests/README.md).
             assert error is not None
-            self.assertEqual(error.kind, expect.get("error"), f"{label}: unexpected load error: {error}")
+            self.assertTrue(same_json(error.kind, expect.get("error")), f"{label}: unexpected load error: {error}")
             loaded_only = [name for name in AFTER_LOAD if name in expect]
             self.assertEqual(loaded_only, [], f"{label}: the pipeline did not load: {error}")
             if error.kind != "grammar":
                 for field in ("message", "where", "diagnostic"):
                     self.assertNotIn(field, expect, f"{label}: expect.{field} requires a grammar error")
             if "message" in expect:
-                self.assertEqual(error.message, expect["message"], label)
+                self.assertTrue(same_json(error.message, expect["message"]), label)
             if "diagnostic" in expect:
-                self.assertEqual(error.code, expect["diagnostic"], f"{label}: {error.message}")
+                self.assertTrue(same_json(error.code, expect["diagnostic"]), f"{label}: {error.message}")
             if "where" in expect:
                 # Where the error stands, in a document of the case, given
                 # only for a grammar error (tests/README.md).
-                self.assertEqual(error.kind, "grammar", f"{label}: expect.where is only for a grammar error")
+                self.assertTrue(same_json(error.kind, "grammar"), f"{label}: expect.where is only for a grammar error")
                 self.assertTrue(same_json(
                     {"document": error.document, "line": error.line, "column": error.column},
                     {"line": None, "column": None, **expect["where"]},
@@ -358,7 +358,7 @@ class EngineCases(unittest.TestCase):
             self.assertTrue(same_json(features, expect["features"]), label)
         if error is not None:
             # A mistake of the caller is an error, not a result (engine §13).
-            self.assertEqual(expect.get("error"), "usage", f"{label}: unexpected usage error: {error}")
+            self.assertTrue(same_json(expect.get("error"), "usage"), f"{label}: unexpected usage error: {error}")
             for field in ("result", "brackets", "warnings", "enabledFeatures", "message"):
                 self.assertNotIn(field, expect, f"{label}: expect.{field} requires a parse result")
             return
@@ -384,17 +384,17 @@ class EngineCases(unittest.TestCase):
             problem = mismatch(expect["result"], value)
             self.assertIsNone(problem, f"{label}: {problem}\n{text[:3000]}")
         if "brackets" in expect:
-            self.assertEqual(gencmu.to_brackets(result), expect["brackets"], label)
+            self.assertTrue(same_json(gencmu.to_brackets(result), expect["brackets"]), label)
         if "message" in expect:
             self.assertIsNotNone(value["error"], f"{label}: expect.message requires a grammar error")
-            self.assertEqual(value["error"]["kind"], "grammar", f"{label}: expect.message requires a grammar error")
+            self.assertTrue(same_json(value["error"]["kind"], "grammar"), f"{label}: expect.message requires a grammar error")
             message = value["error"]["message"]
             if result.error._grammar_location:
                 message = message.removeprefix(result.error._grammar_location + ": ")
-            self.assertEqual(message, expect["message"], label)
+            self.assertTrue(same_json(message, expect["message"]), label)
         if "error" in expect:
             self.assertIsNotNone(value["error"], f"{label}: expected an error\n{text[:2000]}")
-            self.assertEqual(value["error"]["kind"], expect["error"], label)
+            self.assertTrue(same_json(value["error"]["kind"], expect["error"]), label)
         else:
             self.assertIsNone(value["error"], f"{label}: unexpected error\n{text[:2000]}")
 
