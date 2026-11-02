@@ -171,13 +171,8 @@ fn harness_detects_a_wrong_expectation() {
     // A Rust document is always valid, so no load here fails with a usage
     // error. A grammar error given the kind usage stands for one. It has
     // no line or column, so a case gives no `where` for it.
-    let (documents, pipeline) = common::case_documents(
-        &parse_json(
-            r#"{"grammar": "%rule text X
-%rule text Y"}"#,
-        )
-        .unwrap(),
-    );
+    let (documents, pipeline) =
+        common::case_documents(&parse_json(r#"{"grammar": "%rule text X\n%rule text Y"}"#).unwrap());
     let mut error = gencmu::load_pipeline_sources(documents, &pipeline).expect_err("a load error");
     error.kind = gencmu::ErrorKind::Usage;
     (error.line, error.column) = (None, None);
