@@ -501,6 +501,27 @@
       "(q [t r])",
       "(q s)",
       "rejected"
+    ],
+    "pattern-exact-start": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "pattern-attached-start": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "pattern-adjacent-item": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
     ]
   },
   "extraParts": [

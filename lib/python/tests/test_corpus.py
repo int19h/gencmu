@@ -220,7 +220,7 @@ def add_corpus_tests() -> None:
     if os.environ.get("GENCMU_CORPUS") != "full":
         core = {line.strip() for line in (SHARED / "core.txt").read_text(encoding="utf-8").splitlines() if line.strip()}
         cases = [case for case in cases if case["id"] in core]
-    # Schedule long texts first, as the previous pool did.
+    # Schedule long texts first to reduce the wait for the last worker.
     cases.sort(key=lambda case: -len(case["text"]))
     for index, case in enumerate(cases):
         # The index keeps names unique even when IDs normalize alike.

@@ -262,7 +262,11 @@ gencmu.to_brackets(result, show_elided=True)
 - `Pipeline.parse(text, *, features=(), without_features=(), until=None, elision_only=None) -> ParseResult` parses a text.
 - `Pipeline.parse_tokens(tokens: Sequence[Token], text: str, *, features=(), without_features=(), until=None, elision_only=None) -> ParseResult` parses supplied tokens.
 - `Pipeline.features` is a tuple of `Feature`, a dataclass with `name`, `kind` and `default`.
-- `ParseResult`, `Stage`, `Node`, `Token`, `ParseWarning` and `ParseError` are dataclasses. Tags are a set of strings. The warning class is not called `Warning`, because `Warning` is a built-in exception.
+- Other pipeline attributes and helpers are private and use names that start with `_`.
+- `ParseResult`, `Stage`, `Node`, `Token`, `ParseWarning`, `ParseError`, `Action`, `Expected` and `Restoration` are dataclasses. Tags are a set of strings. The warning class is not called `Warning`, because `Warning` is a built-in exception.
+- `Expected` describes an expected terminal with `terminal` and `rules`. `ParseError.expected` holds a list of these records.
+- `Action` describes a derivation step with `kind` and the applicable `token`, `terminal`, `rule`, `production`, `span`, or `at` fields. `ParseError.witness` holds two actions.
+- `Restoration` describes an inserted terminator with `terminal`, `at`, `source`, and optional `value`. `ParseError.completion` holds a list of these frozen dataclasses.
 - `to_json(result) -> str` writes the canonical JSON. `result_json(result)` returns it as plain data. `to_brackets(result, *, show_elided=False)` renders the tree as brackets.
 - Errors raise `gencmu.GencmuError`, with `kind` and `where`.
 

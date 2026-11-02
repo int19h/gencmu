@@ -678,20 +678,20 @@ class Pipeline:
     number of parses, and shared between threads."""
 
     def __init__(self, path: str, pipeline: SplicedPipeline, stages: list[Grammar], unicode: UnicodeTable) -> None:
-        self.path = path
+        self._path = path
         # The features the pipeline turns on, and every feature with its kind.
-        self.declared = pipeline.features
+        self._declared = pipeline.features
         self.features = _pipeline_features(stages, pipeline.features)
-        self.grammars = stages
-        self.unicode = unicode
+        self._grammars = stages
+        self._unicode = unicode
         # Each stage's lowered grammars, keyed by the gates that are on, or
         # the error that lowering found.
         self._lowered: list[Recent[frozenset[str], Lowered | ErrorData]] = [Recent(MAX_LOWERED) for _ in stages]
         self._lock = threading.Lock()
 
     @property
-    def stage_names(self) -> list[str]:
-        return [grammar.stage for grammar in self.grammars]
+    def _stage_names(self) -> list[str]:
+        return [grammar.stage for grammar in self._grammars]
 
     def _lowered_grammars(self) -> list[Lowered]:
         """Every lowered grammar the pipeline holds, for the library's own
@@ -699,18 +699,18 @@ class Pipeline:
         with self._lock:
             return [found for cache in self._lowered for found in cache.values() if isinstance(found, Lowered)]
 
-    def lowered(self, number: int, features: frozenset[str]) -> Lowered:
+    def _lowered_grammar(self, number: int, features: frozenset[str]) -> Lowered:
         # Only the gates that are on change the productions. So two sets of
         # features with the same gates on share one lowered grammar. The
         # check of elision-only reads the same one in a mode of its own
         # (engine §7.1).
-        gates = features & self.grammars[number].gates
+        gates = features & self._grammars[number].gates
         key = gates
         with self._lock:
             found = self._lowered[number].get(key)
         if found is None:
             try:
-                found = lower(self.grammars[number], gates)
+                found = lower(self._grammars[number], gates)
             except GencmuError as error:
                 found = ErrorData.of(error)
             with self._lock:
@@ -730,14 +730,14 @@ class Pipeline:
         off = frozenset(without_features)
         if on & off:
             raise GencmuError(f"the feature {next(name for name in feature_order if name in off)} is named both to turn on and to turn off", kind="usage")
-        names = self.stage_names
+        names = self._stage_names
         if until is None:
             last = len(names) - 1
         elif until in names:
             last = names.index(until)
         else:
             raise GencmuError(f"the pipeline has no stage {until}; its stages are {', '.join(names)}", kind="usage")
-        return (self.declared | on) - off, off, last
+        return (self._declared | on) - off, off, last
 
     def parse(
         self,
@@ -756,7 +756,7 @@ class Pipeline:
         problem = scalar_problem(text)
         if problem is not None:
             raise GencmuError(f"the text is not a sequence of Unicode scalar values: {problem}", kind="usage")
-        tokens = character_tokens(text, self.unicode)
+        tokens = character_tokens(text, self._unicode)
         enabled, off, last = self._parse_selection(features, without_features, until)
         return self._run(text, tokens, enabled, off, last, elision_only)
 
@@ -797,7 +797,7 @@ class Pipeline:
                 value = getattr(token, field)
                 if not isinstance(value, str) or scalar_problem(value) is not None:
                     raise GencmuError(f"token {index}: {field} requires a scalar string", kind="usage")
-            if isinstance(token.tags, str) or not isinstance(token.tags, (list, tuple, set, frozenset)) or any(not is_tag(tag, self.unicode) for tag in token.tags):
+            if isinstance(token.tags, str) or not isinstance(token.tags, (list, tuple, set, frozenset)) or any(not is_tag(tag, self._unicode) for tag in token.tags):
                 raise GencmuError(f"token {index}: invalid stored tags", kind="usage")
             if not valid_range(token.source, len(text)) or not valid_range(token.span):
                 raise GencmuError(f"token {index}: invalid source or span", kind="usage")
@@ -805,7 +805,7 @@ class Pipeline:
         tokens = [
             replace(
                 token,
-                tags=frozenset(self.unicode.canonical_tag(tag) if tag.startswith("_") else tag for tag in token.tags),
+                tags=frozenset(self._unicode.canonical_tag(tag) if tag.startswith("_") else tag for tag in token.tags),
                 span=(token.span[0], token.span[1]),
                 source=(token.source[0], token.source[1]),
                 before=[],
@@ -830,11 +830,11 @@ class Pipeline:
         warnings: list[ParseWarning] = []
         current = tokens
         for number in range(last + 1):
-            grammar = self.grammars[number]
+            grammar = self._grammars[number]
             try:
                 for _, directive in grammar.feature_items:
                     conditional = "conditions" in directive
-                    if conditional and not _input_conditions_hold(directive["conditions"], current, text, self.unicode):
+                    if conditional and not _input_conditions_hold(directive["conditions"], current, text, self._unicode):
                         continue
                     for feature in directive["args"]:
                         if feature in off:
@@ -844,7 +844,7 @@ class Pipeline:
                                 return ParseResult(False, stages, None, failure, text, warnings, features=sorted(features))
                         else:
                             features = features | {feature}
-                lowered = self.lowered(number, features)
+                lowered = self._lowered_grammar(number, features)
             except GencmuError as error:
                 # An error of the grammar lowering finds for these features
                 # is a result, with its stage and no position (engine §13).
@@ -852,7 +852,7 @@ class Pipeline:
                 stages.append(Stage(grammar.stage, None, current))
                 return ParseResult(False, stages, None, failure, text, warnings, features=sorted(features))
 
-            runner = StageRunner(grammar.stage, lowered, current, text, self.unicode, features=features)
+            runner = StageRunner(grammar.stage, lowered, current, text, self._unicode, features=features)
             check = grammar.elision_only if elision_only is None else elision_only
             outcome = runner.run(check)
             stage = Stage(

@@ -86,8 +86,8 @@ class BoundaryTests(unittest.TestCase):
         tokens, text = case_tokens({'tokens': [{'text': 'a', 'tags': ['A']}, {'text': 'b', 'tags': ['B']}]})
         for token in tokens:
             token.tags = frozenset(token.tags)
-        lowered = pipeline.lowered(0, frozenset())
-        forest = Parser(StageContext(lowered, tokens, text, pipeline.unicode)).parse(lowered.rule_ids['text'])
+        lowered = pipeline._lowered_grammar(0, frozenset())
+        forest = Parser(StageContext(lowered, tokens, text, pipeline._unicode)).parse(lowered.rule_ids['text'])
         sites = {(condition, rule) for _, _, _, source in forest.boundary_failures if source is not None
                  for order, condition, rule in source.sites}
         self.assertEqual(sites, {(0, 'r'), (1, 'r')})

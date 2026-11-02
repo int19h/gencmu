@@ -16,7 +16,7 @@ from unittest.mock import patch
 import gencmu
 from gencmu import _testing
 
-from .shared import SHARED, case_tokens, load_case_pipeline, load_json, validate_case_options
+from .shared import SHARED, case_tokens, load_case_pipeline, load_json, validate_case_options, validate_case_tokens
 
 RUNS = load_json(SHARED / "shared-memo.json")["runs"]
 
@@ -44,6 +44,7 @@ def parse(pipeline: gencmu.Pipeline, item: dict[str, Any], options: dict[str, An
     }
     try:
         if "tokens" in item:
+            validate_case_tokens(item["tokens"])
             tokens, text = case_tokens(item)
             result = pipeline.parse_tokens(tokens, text, **kwargs)
         else:
@@ -62,6 +63,13 @@ def shared_rules(pipeline: gencmu.Pipeline) -> list[str]:
 
 
 class SharedMemo(unittest.TestCase):
+    def test_memo_tokens_require_the_types_of_non_usage_cases(self):
+        pipeline = pipeline_of({"grammar": '%rule text "a"'})
+        for field, value in (("text", 7), ("tags", "X"), ("value", None), ("image", None),
+                             ("span", None), ("source", False), ("before", 1), ("after", "bad")):
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                parse(pipeline, {"tokens": [{"text": "a", "tags": [], field: value}]}, {})
+
     def test_shared_memo_runner_refuses_malformed_options_and_token_members(self):
         pipeline = pipeline_of({"grammar": '%rule text "a"'})
         for options in ({"typo": True}, {"features": "f"}, {"until": 3}, {"elisionOnly": []}):

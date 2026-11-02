@@ -145,9 +145,11 @@ class NotationShapes(unittest.TestCase):
         self.assertEqual(outcome(BOOTSTRAP), SHAPES["control"])
 
     def test_a_wrapper_around_each_rule_changes_nothing(self) -> None:
+        self.assertTrue(NAMES, "the wrapper test selects no syntax rule")
         def wrap(syntax: str) -> str:
             for name in NAMES:
-                syntax = syntax.replace(f'{{"ref":"{name}"}}', f'{{"ref":"{name}-wrapper"}}')
+                for field in ("ref", "rule"):
+                    syntax = syntax.replace(f'"{field}":"{name}"', f'"{field}":"{name}-wrapper"')
             wrappers = "".join(
                 f'{{"name":"{name}-wrapper","op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],'
                 f'"conditions":[],"at":[{100000 + index},1]}},'
@@ -161,9 +163,10 @@ class NotationShapes(unittest.TestCase):
         for name in NAMES:
 
             def rename(syntax: str, name: str = name) -> str:
-                return syntax.replace(f'"name":"{name}","op"', f'"name":"{name}x","op"').replace(
-                    f'{{"ref":"{name}"}}', f'{{"ref":"{name}x"}}'
-                )
+                syntax = syntax.replace(f'"name":"{name}","op"', f'"name":"{name}x","op"')
+                for field in ("ref", "rule"):
+                    syntax = syntax.replace(f'"{field}":"{name}"', f'"{field}":"{name}x"')
+                return syntax
 
             with self.subTest(rule=name):
                 self.assertEqual(outcome(with_syntax(rename)), SHAPES["loads"].get(name, "grammar"))

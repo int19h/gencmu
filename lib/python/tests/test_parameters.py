@@ -19,7 +19,7 @@ def grammar_of(text):
     pipeline, error = load_case_pipeline(dict(grammar=text))
     if error:
         raise error
-    return pipeline.grammars[0]
+    return pipeline._grammars[0]
 
 
 def instance_names(text):

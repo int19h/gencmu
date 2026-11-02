@@ -86,7 +86,7 @@ def tag_copies() -> list[Watch]:
 def stage_context(tokens: list[Token]) -> StageContext:
     pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
     assert pipeline is not None, error
-    return StageContext(pipeline.lowered(0, frozenset()), tokens, "a" * len(tokens), pipeline.unicode)
+    return StageContext(pipeline._lowered_grammar(0, frozenset()), tokens, "a" * len(tokens), pipeline._unicode)
 
 
 class SpanReads(Linear):
@@ -336,7 +336,7 @@ def unit_chain(n: int) -> Forest:
     pipeline, error = load_case_pipeline({"grammar": "%rule text r1" + rules})
     assert pipeline is not None, error
     tokens = [Token("a", frozenset({"A"}), (0, 1), (0, 1))]
-    context = StageContext(pipeline.lowered(0, frozenset()), tokens, "a", pipeline.unicode)
+    context = StageContext(pipeline._lowered_grammar(0, frozenset()), tokens, "a", pipeline._unicode)
     return Parser(context).parse(context.lowered.rule_ids["text"])
 
 
@@ -360,7 +360,7 @@ class ItemAdds(Linear):
         pipeline, error = load_case_pipeline({"grammar": f"%rule text u B\n%rule u {alternatives}{rules}"})
         assert pipeline is not None, error
         tokens = [Token("a", frozenset({"A"}), (0, 1), (0, 1)), Token("b", frozenset({"B"}), (1, 2), (1, 2))]
-        context = StageContext(pipeline.lowered(0, frozenset()), tokens, "ab", pipeline.unicode)
+        context = StageContext(pipeline._lowered_grammar(0, frozenset()), tokens, "ab", pipeline._unicode)
         number = context.lowered.rule_ids["text"]
         return lambda: Parser(context).parse(number)
 
@@ -491,7 +491,7 @@ class SharedClauses(Linear):
                 "classifiers": [],
                 "implications": [],
             }
-            return lambda: stitch("s", [("t.md", dom)], pipeline.unicode)
+            return lambda: stitch("s", [("t.md", dom)], pipeline._unicode)
 
         self.assert_linear(loading_steps, make, 200)
 
@@ -521,7 +521,7 @@ class SharedClauses(Linear):
                 "classifiers": [],
                 "implications": [],
             }
-            return lambda: stitch("s", [("t.md", dom)], pipeline.unicode)
+            return lambda: stitch("s", [("t.md", dom)], pipeline._unicode)
 
         self.assert_linear(loading_steps, make, 60)
 
@@ -620,7 +620,7 @@ class GuardedClauses(Linear):
         pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
         assert pipeline is not None, error
         _, dom = self.documents(n, clause)
-        lowered = lower(stitch("s", [("t.md", dom)], pipeline.unicode), frozenset())
+        lowered = lower(stitch("s", [("t.md", dom)], pipeline._unicode), frozenset())
         output = sum(
             nodes_of(production.tags_term) + nodes_of(production.conds_predict) + nodes_of(production.conds_at) + nodes_of(production.emit)
             for production in lowered.productions
@@ -634,7 +634,7 @@ class GuardedClauses(Linear):
 
         def work() -> None:
             self.assertIsNone(_clauses.definition_problem(rule))
-            lower(stitch("s", [("t.md", dom)], pipeline.unicode), frozenset())
+            lower(stitch("s", [("t.md", dom)], pipeline._unicode), frozenset())
 
         return work
 
@@ -650,9 +650,8 @@ class GuardedClauses(Linear):
                     self.assertGreater(counted, 0)
 
     def test_simplifying_every_part_for_each_production_fails_at_the_first_unit_past_its_budget(self) -> None:
-        # Each regression simplifies the whole union of guarded tags for
-        # each production, as lowering and the definition check did before
-        # the clauses were prepared once.
+        # Each regression repeats the simplification of the whole guarded
+        # union for each production instead of reusing prepared clauses.
         clause = GUARDED["a union of guarded tags"]
         for owner, function, change in (
             (_Lowerer, "add", ("self.prepare(term, False).simplified(present)", "simplify_term(term, present)")),
@@ -701,7 +700,7 @@ class Classifiers(Linear):
         items = [("t.md", {"name": "c", "entries": entries})]
         pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
         assert pipeline is not None, error
-        return lambda: _grammar._resolve_classifiers(items, frozenset(), pipeline.unicode)
+        return lambda: _grammar._resolve_classifiers(items, frozenset(), pipeline._unicode)
 
     @staticmethod
     def watches() -> list[Watch]:

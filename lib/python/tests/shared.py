@@ -1049,11 +1049,17 @@ def mismatch(pattern: Any, value: Any, where: str = "$") -> str | None:
 
 
 def result_problems(value: dict[str, Any]) -> list[str]:
-    """What a canonical result breaks of the invariants that every runner
-    checks on every result, whatever the case expects (tests/README.md): an
-    ambiguous error has no token or source, no stage has a tied tree, and a stage whose verdict is tie has no output,
-    comes last, and has the result's ambiguous error with the reason tie,
-    its name and two readings."""
+    """Report broken result invariants from tests/README.md.
+
+    An ambiguous error has no token or source, and no stage has a tied
+    member. A tied stage comes last and has no output. Its result has ok
+    false, tree null, and an ambiguous error with reason tie, its stage
+    name, and two readings. Errors have no cycle, conflict, or chosenReading.
+
+    A witness-loss error has kind grammar, a stage, chosen, and completion.
+    It has no token, source, line, column, expected, reason, or readings.
+    Its stage comes last, is unique or resolved, and has no output.
+    """
     problems: list[str] = []
     stages = value["stages"]
     error = value["error"]

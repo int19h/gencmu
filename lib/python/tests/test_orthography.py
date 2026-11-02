@@ -143,7 +143,7 @@ class StageZeroExecution(unittest.TestCase):
         pipeline = gencmu.load_pipeline("lojban/experimental")
         for options in ({}, {"until": "words"}):
             with self.subTest(options=options):
-                with patch.object(pipeline.unicode, "decompose_with_origins", wraps=pipeline.unicode.decompose_with_origins) as decompose:
+                with patch.object(pipeline._unicode, "decompose_with_origins", wraps=pipeline._unicode.decompose_with_origins) as decompose:
                     with patch.object(pipeline, "_run", wraps=pipeline._run) as run:
                         result = pipeline.parse("mi klama", **options)
                 self.assertTrue(result.ok, result.error)

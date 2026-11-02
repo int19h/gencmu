@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gc
+import ast
 import inspect
 import json
 import sys
@@ -109,6 +110,19 @@ def elided_tokens() -> tuple[list[gencmu.Token], str]:
     )
 
 
+class TestDefinitions(unittest.TestCase):
+    def test_methods_have_unique_names_in_each_test_class(self) -> None:
+        for path in Path(__file__).parent.glob("test_*.py"):
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if not isinstance(node, ast.ClassDef):
+                    continue
+                methods = [item.name for item in node.body if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))]
+                if not any(name.startswith("test_") for name in methods):
+                    continue
+                with self.subTest(file=path.name, cls=node.name):
+                    self.assertEqual(len(methods), len(set(methods)), f"{path.name}: {node.name} repeats a method name")
+
+
 class Loaders(unittest.TestCase):
     def test_source_maps_reject_every_non_scalar_resource_before_parsing(self):
         for path in ("data/unicode/unicode.txt", "data/unicode/unicode-properties.txt", "data/unicode/unicode-names.txt",
@@ -144,7 +158,7 @@ class Loaders(unittest.TestCase):
             },
             "p.md",
         )
-        changes = pipeline.grammars[0].changes
+        changes = pipeline._grammars[0].changes
         removed = FlagChange(["leftmost-longest"], [])
         added = FlagChange([], ["leftmost-longest"])
         self.assertEqual([change.flag_change for change in changes], [None, removed, added, None, removed, None])
@@ -154,7 +168,7 @@ class Loaders(unittest.TestCase):
 
     def test_bundled(self) -> None:
         pipeline = gencmu.load_pipeline("gencmu/jbogenbau")
-        self.assertEqual(pipeline.stage_names, ["lexical", "syntax"])
+        self.assertEqual(pipeline._stage_names, ["lexical", "syntax"])
         result = pipeline.parse("%rule text A")
         self.assertTrue(result.ok)
         self.assertEqual(result.tree.rule if result.tree else None, "text")
@@ -166,7 +180,7 @@ class Loaders(unittest.TestCase):
 
     def test_sources(self) -> None:
         pipeline = gencmu.load_pipeline_sources(SOURCES, "pipeline.md")
-        self.assertEqual(pipeline.stage_names, ["sounds", "words", "syntax"])
+        self.assertEqual(pipeline._stage_names, ["sounds", "words", "syntax"])
         self.assertTrue(pipeline.parse("mi mi").ok)
 
     def test_file(self) -> None:
@@ -249,7 +263,10 @@ class Options(unittest.TestCase):
         with self.assertRaises(gencmu.GencmuError):
             self.pipeline.parse("mi", features="sa-su")
 
-    def test_pipeline_features(self) -> None:
+    def test_pipeline_exposes_only_documented_members(self) -> None:
+        self.assertEqual({name for name in dir(self.pipeline) if not name.startswith("_")}, {"features", "parse", "parse_tokens"})
+
+    def test_pipeline_defaults_enable_features(self) -> None:
         sources = dict(SOURCES)
         sources["pipeline.md"] = PIPELINE.replace("# A test pipeline", "# A test pipeline\n\n```jbogenbau\n%features sa-su\n```")
         pipeline = gencmu.load_pipeline_sources(sources, "pipeline.md")
@@ -580,8 +597,8 @@ class GrammarFaults(unittest.TestCase):
             "a condition asks whether its own span parses as text from inside the parse of that span as text: "
             "the grammar defines text in terms of itself over the same text"
         )
-        # Engine §1 and §11 remove tag-assigned strings and opacity. The
-        # first four former faults now succeed with explicit channel data.
+        # Explicit token channels and visible attachments let the first
+        # four grammars succeed (engine §1 and §11).
         for grammar, message, output in [
             ('%implies A ⟹ C\n%rule text [{word}]\n%rule word $w:W :: A := "e" %emits $', None, [("e", "e", {"A", "C"})]),
             ("%rule text [{word}]\n%rule word $w:W :: E ∪ O :- $.verbatim-text %emits $", None, [("x", "x", {"E", "O"})]),
@@ -937,7 +954,7 @@ class LoweringCaches(unittest.TestCase):
         for index in range(50):
             self.assertTrue(pipeline.parse("y", features=[f"unused-{index}"]).ok)
         self.assertEqual(len(pipeline._lowered[0]), 1)
-        self.assertEqual(len(pipeline.grammars[0]._classifier_tables), 1)
+        self.assertEqual(len(pipeline._grammars[0]._classifier_tables), 1)
 
     def test_bounded(self) -> None:
         names = ["a", "b", "c", "d", "e", "f", "g"]
@@ -952,7 +969,7 @@ class LoweringCaches(unittest.TestCase):
             self.assertEqual(result.stages[0].verdict is not None, bool(features), features)
             self.assertEqual(result.ok, len(features) == 1, features)
         self.assertLessEqual(len(pipeline._lowered[0]), 16)
-        self.assertLessEqual(len(pipeline.grammars[0]._classifier_tables), 16)
+        self.assertLessEqual(len(pipeline._grammars[0]._classifier_tables), 16)
 
     def test_classifier_tables_bounded(self) -> None:
         """Every set of five classifier gates, twice: the second round
@@ -969,7 +986,7 @@ class LoweringCaches(unittest.TestCase):
                 result = pipeline.parse("x", features=features)
                 assert result.tree is not None
                 self.assertEqual(result.tree.tags, frozenset(["X"] + [name.upper() for name in features]))
-        self.assertLessEqual(len(pipeline.grammars[0]._classifier_tables), 16)
+        self.assertLessEqual(len(pipeline._grammars[0]._classifier_tables), 16)
 
 
 class RepeatedFailures(unittest.TestCase):
@@ -1023,7 +1040,7 @@ class SharedCaches(unittest.TestCase):
             sources["data/unicode/unicode.txt"] = unicode + "\n" * (index + 1)
             loaded = gencmu.load_pipeline_sources(sources, pipeline)
             self.assertTrue(loaded.parse("a").ok)
-            tables.append(weakref.ref(loaded.unicode))
+            tables.append(weakref.ref(loaded._unicode))
             del loaded
         gc.collect()
         self.assertLessEqual(len(_pipeline._unicode_tables), _pipeline._MAX_TEXTS)

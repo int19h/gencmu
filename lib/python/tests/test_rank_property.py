@@ -610,9 +610,9 @@ class RankingProperty(unittest.TestCase):
         case = load_case(SHARED / "engine" / "cycle-repeated-partial-item.json")
         pipeline, error = load_case_pipeline(case)
         assert pipeline is not None, error
-        lowered = pipeline.lowered(0, frozenset())
+        lowered = pipeline._lowered_grammar(0, frozenset())
         tokens, text = case_tokens(case)
-        context = StageContext(lowered, tokens, text, pipeline.unicode)
+        context = StageContext(lowered, tokens, text, pipeline._unicode)
         forest = Parser(context).parse(lowered.rule_ids["text"])
         derivations = forest_derivations(forest, context, 20000)
         expected = ranked(derivations, lowered.lean, frozenset(), len(tokens))
@@ -633,8 +633,8 @@ class RankingProperty(unittest.TestCase):
                 )
                 pipeline, error = load_case_pipeline({"grammar": grammar})
                 assert pipeline is not None, error
-                lowered = pipeline.lowered(0, frozenset())
-                context = StageContext(lowered, [Token("a", frozenset(["A"]), (0, 1), (0, 1))], "a", pipeline.unicode)
+                lowered = pipeline._lowered_grammar(0, frozenset())
+                context = StageContext(lowered, [Token("a", frozenset(["A"]), (0, 1), (0, 1))], "a", pipeline._unicode)
                 forest = Parser(context).parse(lowered.rule_ids["text"])
                 # The ranking alone: the chosen tree has 2^n nodes, so the
                 # stage cannot build it.
