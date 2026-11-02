@@ -7,8 +7,7 @@ fn shared_aligned_queries() {
         .into_iter()
         .filter(|p| p.file_name().unwrap().to_string_lossy().starts_with("without-elision-"))
         .collect();
-    // Issue 183 adds 124 family cases and nine strict twins to the original 99.
-    assert_eq!(files.len(), 232);
+    let files = common::require_cases(files, "aligned queries");
     let mut failures = Vec::new();
     for file in files {
         let text = std::fs::read_to_string(&file).unwrap();

@@ -42,6 +42,26 @@ fn a_supplied_ranked_choice_error_has_no_syntax_code() {
     assert_eq!(error.code(), None);
 }
 
+fn load_kind(kind: gencmu::ErrorKind) -> Value {
+    Value::String(
+        match kind {
+            gencmu::ErrorKind::Grammar => "grammar",
+            gencmu::ErrorKind::Usage => "usage",
+            _ => panic!("the notation runner must name every load error kind"),
+        }
+        .into(),
+    )
+}
+
+fn parse_kind(kind: gencmu::ParseErrorKind) -> Value {
+    Value::String(common::error_kind(kind).into())
+}
+
+#[test]
+fn error_kinds_use_shared_names() {
+    assert_eq!(parse_kind(gencmu::ParseErrorKind::FeatureConflict), Value::String("feature-conflict".into()));
+}
+
 fn outcome(shapes: &Value, bootstrap: String) -> Value {
     let place = shapes.get("where");
     let document = shapes.get("document").and_then(Value::str).expect("a document").to_string();
@@ -50,7 +70,6 @@ fn outcome(shapes: &Value, bootstrap: String) -> Value {
         ("g.md", document),
         ("data/preparsed/gencmu.json", bootstrap),
     ];
-    let kind = |debug: String| Value::String(debug.to_lowercase());
     let pipeline = match gencmu::load_pipeline_sources(sources, "p.md") {
         Ok(pipeline) => pipeline,
         Err(error) => {
@@ -62,7 +81,7 @@ fn outcome(shapes: &Value, bootstrap: String) -> Value {
                 );
                 assert_eq!((error.document.as_deref(), error.line, error.column), expected, "{error}");
             }
-            return kind(format!("{:?}", error.kind));
+            return load_kind(error.kind);
         }
     };
     assert!(place.is_none(), "the document loaded, but the item gives where its error stands");
@@ -74,7 +93,7 @@ fn outcome(shapes: &Value, bootstrap: String) -> Value {
                 let result = pipeline.parse(input.str().expect("an input"), &Default::default()).expect("a parse");
                 match &result.error {
                     None => Value::String(gencmu::to_brackets(&result, false)),
-                    Some(error) => kind(format!("{:?}", error.kind)),
+                    Some(error) => parse_kind(error.kind),
                 }
             })
             .collect(),

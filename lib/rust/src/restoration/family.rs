@@ -658,7 +658,11 @@ mod tests {
         let growth =
             crate::json::parse(&std::fs::read_to_string(root.join("without-elision-growth.json")).unwrap()).unwrap();
         let Json::Obj(ref entries) = growth else { panic!("growth object") };
-        for (name, shared) in entries.iter().filter(|(_, v)| v.get("strictCase").is_some()) {
+        let selected = crate::test_common::require_cases(
+            entries.iter().filter(|(_, v)| v.get("strictCase").is_some()).collect(),
+            "strict family growth",
+        );
+        for (name, shared) in selected {
             let sizes = shared.get("lengths").or_else(|| shared.get("depths")).unwrap().as_array().unwrap();
             for size in sizes {
                 let size = size.as_int().unwrap() as usize;

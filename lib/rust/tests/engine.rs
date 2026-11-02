@@ -490,10 +490,16 @@ fn skipped_source_cases_have_stage_equivalents() {
     .into_iter()
     .map(str::to_string)
     .collect();
-    names.extend(case_files("engine").into_iter().filter_map(|file| {
-        let name = file.file_stem()?.to_str()?;
-        name.starts_with("query-logical-prefix-").then(|| name.to_string())
-    }));
+    names.extend(common::require_cases(
+        case_files("engine")
+            .into_iter()
+            .filter_map(|file| {
+                let name = file.file_stem()?.to_str()?;
+                name.starts_with("query-logical-prefix-").then(|| name.to_string())
+            })
+            .collect(),
+        "logical-prefix stage equivalents",
+    ));
     for name in &names {
         let name = name.as_str();
         let file = common::repository().join("tests/engine").join(format!("{name}.json"));
@@ -886,8 +892,6 @@ fn runner_refuses_invalid_token_metadata() {
 #[test]
 fn runner_keeps_usage_payloads_for_api_skips() {
     for tokens in [
-        r#"false"#,
-        r#"[null]"#,
         r#"[{}]"#,
         r#"[{"text":"a"}]"#,
         r#"[{"text":false,"tags":[]}]"#,
@@ -896,7 +900,6 @@ fn runner_keeps_usage_payloads_for_api_skips() {
         r#"[{"text":"a","tags":[],"image":3}]"#,
         r#"[{"text":"a","tags":[],"source":[0]}]"#,
         r#"[{"text":"a","tags":[],"before":false}]"#,
-        r#"[{"text":"a","tags":[],"after":[null]}]"#,
     ] {
         let case =
             parse_json(&format!(r#"{{"grammar":"%rule text A","tokens":{tokens},"expect":{{"error":"usage"}}}}"#))
@@ -918,4 +921,42 @@ fn runner_keeps_usage_payloads_for_api_skips() {
             "lost API skip for {tokens}"
         );
     }
+}
+
+#[test]
+fn test_json_refuses_repeated_members() {
+    let mut accepted = Vec::new();
+    for text in
+        [r#"{"error":{},"error":{}}"#, r#"{"error":{},"\u0065rror":{}}"#, r#"{"stages":[{"name":"a","name":"b"}]}"#]
+    {
+        if parse_json(text).is_ok() {
+            accepted.push(text);
+        }
+    }
+    assert!(accepted.is_empty(), "accepted repeated members: {accepted:?}");
+}
+
+#[test]
+fn runner_refuses_nonobject_tokens_even_in_usage_cases() {
+    let mut accepted = Vec::new();
+    for tokens in [
+        "false",
+        "[null]",
+        "[[]]",
+        r#"[{"text":"a","tags":[],"before":[null]}]"#,
+        r#"[{"text":"a","tags":[],"after":[{"text":"b","before":[false]}]}]"#,
+    ] {
+        let case =
+            parse_json(&format!(r#"{{"grammar":"%rule text A","tokens":{tokens},"expect":{{"error":"usage"}}}}"#))
+                .unwrap();
+        if common::case::engine(&case).is_ok() {
+            accepted.push(tokens);
+        }
+    }
+    assert!(accepted.is_empty(), "accepted invalid token containers: {accepted:?}");
+}
+
+#[test]
+fn runner_refuses_empty_selected_groups() {
+    assert!(std::panic::catch_unwind(|| common::require_cases(Vec::<usize>::new(), "absent")).is_err());
 }

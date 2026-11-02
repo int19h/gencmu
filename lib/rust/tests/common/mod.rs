@@ -6,7 +6,7 @@
 
 pub mod case;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -239,7 +239,7 @@ pub fn parse_json(text: &str) -> Result<Value, String> {
     // members so far and the key of the value being read.
     enum Open {
         Array(Vec<Value>),
-        Object(Vec<(String, Value)>, HashMap<String, usize>, String),
+        Object(Vec<(String, Value)>, HashSet<String>, String),
     }
     let chars: Vec<char> = text.chars().collect();
     let at = &mut 0;
@@ -265,7 +265,7 @@ pub fn parse_json(text: &str) -> Result<Value, String> {
                     *at += 1;
                     Value::Object(Vec::new())
                 } else {
-                    open.push(Open::Object(Vec::new(), HashMap::new(), parse_key(&chars, at)?));
+                    open.push(Open::Object(Vec::new(), HashSet::new(), parse_key(&chars, at)?));
                     continue;
                 }
             }
@@ -290,14 +290,12 @@ pub fn parse_json(text: &str) -> Result<Value, String> {
                         _ => return Err(format!("expected ',' or ']' at {at}")),
                     }
                 }
-                Some(Open::Object(members, indices, key)) => {
+                Some(Open::Object(members, seen, key)) => {
                     let key = std::mem::take(key);
-                    if let Some(&index) = indices.get(&key) {
-                        members[index].1 = value;
-                    } else {
-                        indices.insert(key.clone(), members.len());
-                        members.push((key, value));
+                    if !seen.insert(key.clone()) {
+                        return Err(format!("repeated object member {key:?}"));
                     }
+                    members.push((key, value));
                     match chars.get(*at) {
                         Some(',') => false,
                         Some('}') => true,
@@ -493,6 +491,12 @@ pub fn case_files(directory: &str) -> Vec<PathBuf> {
     files
 }
 
+/// A required group of shared cases selected by a runner.
+pub fn require_cases<T>(cases: Vec<T>, group: &str) -> Vec<T> {
+    assert!(!cases.is_empty(), "no shared cases selected for {group}");
+    cases
+}
+
 /// The documents of an engine case and its pipeline's path.
 pub fn case_documents(case: &Value) -> (BTreeMap<String, String>, String) {
     let mut documents = BTreeMap::new();
@@ -573,13 +577,7 @@ pub fn has_caller_attachments(case: &Value) -> bool {
 /// InputToken exposes scalar strings and tags, with generated source ranges.
 pub fn unexpressible_tokens(case: &Value) -> Option<&'static str> {
     let tokens = case.get("tokens")?;
-    let tokens = match tokens {
-        Value::Array(tokens) => tokens,
-        _ => return Some("unavailable caller fields: Rust requires a token slice"),
-    };
-    if tokens.iter().any(|token| !matches!(token, Value::Object(_))) {
-        return Some("unavailable caller fields: Rust requires InputToken records");
-    }
+    let Value::Array(tokens) = tokens else { panic!("the fixture requires a token array") };
     let mut offset = 0;
     for (index, token) in tokens.iter().enumerate() {
         if !matches!(token.get("text"), Some(Value::String(_))) {
