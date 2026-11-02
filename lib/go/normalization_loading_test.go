@@ -123,8 +123,8 @@ func TestNormalizationDecomposedSourceRecipes(t *testing.T) {
 		}
 	}
 	for _, recipe := range []string{"$.emitted.decomposed-source-text", "$.onward.decomposed-source-text"} {
-		if _, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text _\n%emits $ := "+recipe), "p.md"); err == nil {
-			t.Fatalf("accepted invalid recipe: %s", recipe)
+		if _, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text _\n%emits $ := "+recipe), "p.md"); isGuardedCrash(err) || err == nil {
+			t.Fatalf("expected an error for recipe %s, got %v", recipe, err)
 		}
 	}
 }

@@ -336,8 +336,8 @@ func TestParameterUncalledTemplateValidation(t *testing.T) {
 		t.Run(c.source, func(t *testing.T) {
 			text := c.source + "\n%rule text \"a\""
 			_, e := casePipeline(&engineCase{Grammar: &text}, false)
-			if e == nil {
-				t.Fatal("accepted an invalid uncalled template")
+			if isGuardedCrash(e) || e == nil {
+				t.Fatalf("expected an error for an invalid uncalled template, got %v", e)
 			}
 			if !strings.Contains(e.Error(), c.message) {
 				t.Fatalf("expected %q, got %v", c.message, e)
@@ -385,7 +385,7 @@ func TestParameterPatternTestOperands(t *testing.T) {
 	text := `%rule atom(@X) @X
 %rule unused(@X) @X %conditions $ ≅ #(atom("a")="a")
 %rule text "a"`
-	if _, e := casePipeline(&engineCase{Grammar: &text}, false); e == nil || !strings.Contains(e.Error(), "invalid pattern test") {
+	if _, e := casePipeline(&engineCase{Grammar: &text}, false); isGuardedCrash(e) || e == nil || !strings.Contains(e.Error(), "invalid pattern test") {
 		t.Fatalf("tested exact call: %v", e)
 	}
 }
