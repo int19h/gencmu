@@ -116,7 +116,7 @@ A pattern describes required result fields. `expect.result` is a pattern matched
 - An array matches when it has the same length and each element matches.
 - Anything else matches when it is equal.
 
-`expect.error` accepts `grammar`, `usage`, `rejected`, `ambiguous`, or `feature-conflict`. `expect.message` requires `expect.error: "grammar"`. It pins an agreed error reason, without a resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors.
+`expect.error` accepts `grammar`, `usage`, `rejected`, `ambiguous`, or `feature-conflict`. `expect.message` requires `expect.error: "grammar"`. It pins an agreed error reason, without a resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors. The runtime comparison removes the location prefix without changing the public result.
 
 A result pattern rejects error `message` assertions. Existing unit tests pin the common stitching and classifier messages specified in engine §2. Other wording stays library-specific.
 
@@ -413,6 +413,10 @@ A tag projection keeps all user tags and the engine inventory before profiles. T
 The workload comparison uses this projection for equality against the baseline. It still compares parse outcomes, complete tree structure, values, images, sources, spans, and all retained user tags. A reviewed full-corpus change does not excuse different parse work in a timed workload. Separate conformance cases inspect complete unprojected profiles, generic set operations, and serialization.
 
 The harness records both revisions, environment, selection manifest, raw timings, medians, peak memory, serialization time, and full-corpus differences. It exits unsuccessfully for a timing failure, missing measurement, unexplained outcome change, or changed timed-workload result. CI requires this comparison for implementation changes that affect profiles. The gate cannot pass through omitted logical tags or reduced parse work.
+
+## JavaScript calls
+
+`lib/js/test/call-spreads.test.js` parses the libraries, tools, playground, and browser bundle. It refuses spread arguments in calls and constructors. It examines template expressions and optional calls. It also refuses calls to `apply`, including calls through a literal property name.
 
 ## Growth cases: `growth.json`
 
