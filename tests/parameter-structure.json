@@ -164,5 +164,7 @@
 {"name":"a boolean cached DOM falls back to the grammar source","grammar":"%rule text \"a\"","dom":false,"cacheFallback":true,"input":"a"},
 {"name":"a number cached DOM falls back to the grammar source","grammar":"%rule text \"a\"","dom":0,"cacheFallback":true,"input":"a"},
 {"name":"a string cached DOM falls back to the grammar source","grammar":"%rule text \"a\"","dom":"","cacheFallback":true,"input":"a"},
-{"name":"an array cached DOM falls back to the grammar source","grammar":"%rule text \"a\"","dom":[],"cacheFallback":true,"input":"a"}
+{"name":"an array cached DOM falls back to the grammar source","grammar":"%rule text \"a\"","dom":[],"cacheFallback":true,"input":"a"},
+{"name":"signed zero counts no template instances","grammar":"%rule text \"a\"","instances":-0},
+{"name":"signed zero counts no public template instances","grammar":"%rule text \"a\"","instances":-0,"public":true,"order":["text"]}
 ]

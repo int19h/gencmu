@@ -79,6 +79,7 @@
       "replace": "δ",
       "places": 1,
       "expect": "βδ"
-    }
+    },
+    {"text":"x","find":"y","replace":"z","places":-0,"expect":null}
   ]
 }
