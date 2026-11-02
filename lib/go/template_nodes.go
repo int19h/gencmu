@@ -15,7 +15,6 @@ type templateObject = map[string]any
 func templateObj(v any) templateObject { o, _ := v.(map[string]any); return o }
 func templateList(v any) []any         { a, _ := v.([]any); return a }
 func templateText(v any) string        { s, _ := v.(string); return s }
-func templatePosition(at [2]int) []any { return []any{float64(at[0]), float64(at[1])} }
 func templateAt(n templateObject) [2]int {
 	a := templateList(n["at"])
 	if len(a) != 2 {

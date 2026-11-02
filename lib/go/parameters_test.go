@@ -9,6 +9,8 @@ import (
 	"testing"
 )
 
+func templatePosition(at [2]int) []any { return []any{float64(at[0]), float64(at[1])} }
+
 func TestParameterCacheComparisonKeepsSerializedFields(t *testing.T) {
 	cached := templateObject{"call": "f", "args": []any{templateObject{"tag": "A"}}, "at": templatePosition([2]int{2, 3})}
 	source := templateObj(templateClone(cached))
