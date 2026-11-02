@@ -20,7 +20,9 @@ This check is the fixture contract. Library readers can trust the checked shapes
 
 A description follows the strictest library reader, except where this document makes a member optional.
 
-JSON and JSONL fixtures use UTF-8 without an initial byte order mark.
+JSON and JSONL fixtures use UTF-8 without an initial byte order mark. The reader refuses an initial mark before it ignores blank JSONL lines.
+
+Blank JSONL lines contain only spaces, tabs, or carriage returns. A byte order mark outside a JSON string is invalid.
 
 JSON numbers use integer spellings without decimal points or exponents. They must fit in a signed 64-bit integer. This rule also applies inside payload objects. Strings preserve their embedded text, including malformed JSON and noninteger number spellings.
 
