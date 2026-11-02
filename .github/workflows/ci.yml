@@ -203,6 +203,9 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
           cache: false
+      - name: Formatting
+        working-directory: lib/go
+        run: test -z "$(gofmt -l .)"
       - name: Vet
         working-directory: lib/go
         run: go vet ./...

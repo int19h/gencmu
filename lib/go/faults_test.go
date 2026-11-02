@@ -1,6 +1,8 @@
 package gencmu
 
 import (
+	"errors"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -54,6 +56,15 @@ var faultCatches = map[string]map[string]string{
 	"lost:select": {"reparse-witness-sibling-first.json": catchHook, "reparse-strict-later-reading-symbol.json": catchResult},
 }
 
+func faultCatch(c *engineCase) (bool, error) {
+	err := checkCase(c, true)
+	var crash *Error
+	if errors.As(err, &crash) && crash.Kind == ErrorGrammar {
+		return false, fmt.Errorf("fault run crashed: %w", err)
+	}
+	return err != nil, nil
+}
+
 // catchOf runs a case with a fault on, once checking only the result and
 // once checking only the hook, and says how the case catches the fault, or
 // "" where it does not.
@@ -61,7 +72,11 @@ func catchOf(t *testing.T, fault, file string, hits map[string]bool) string {
 	run := func(result bool) bool {
 		c := loadCase(t, filepath.Join("../../tests/engine", file))
 		c.fault, c.noHook, c.onlyHook, c.hits = fault, result, !result, hits
-		return checkCase(c, true) != nil
+		caught, err := faultCatch(c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return caught
 	}
 	switch result, hook := run(true), run(false); {
 	case result && hook:
@@ -196,5 +211,25 @@ func TestFaultSiteDeclarationsCoverSource(t *testing.T) {
 	}
 	for site, at := range found {
 		t.Errorf("undeclared site %s at %s", site, at)
+	}
+}
+
+func TestFaultRunsRejectParseCrashes(t *testing.T) {
+	for _, repeated := range []bool{false, true} {
+		for _, result := range []bool{true, false} {
+			c := loadCase(t, "../../tests/engine/without-elision-except-owner-choice.json")
+			c.fault, c.noHook, c.onlyHook = "probe-crash", result, !result
+			c.familyOracle = func(*recognizer, *item) { panic("probe crash") }
+			if repeated {
+				c.Parses = append(c.Parses, struct {
+					Options caseOptions `json:"options"`
+					Expect  caseExpect  `json:"expect"`
+				}{Expect: c.Expect})
+			}
+			caught, err := faultCatch(c)
+			if err == nil || caught || !strings.Contains(err.Error(), "probe crash") {
+				t.Errorf("repeated=%t, result-only=%t: crash counted as caught=%t, error=%v", repeated, result, caught, err)
+			}
+		}
 	}
 }
