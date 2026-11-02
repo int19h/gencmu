@@ -19,6 +19,26 @@ use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, ReadingMa
 use crate::unicode::Unicode;
 use crate::witness::{self, CheckForest};
 
+thread_local! {
+    static RUNTIME_GRAMMAR_ERRORS: std::cell::RefCell<Option<Vec<Error>>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Observes structured lowering diagnostics without changing public runtime errors.
+#[doc(hidden)]
+pub fn with_runtime_grammar_errors<T>(parse: impl FnOnce() -> T) -> (T, Vec<Error>) {
+    struct Restore(Option<Vec<Error>>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            RUNTIME_GRAMMAR_ERRORS.with(|errors| errors.replace(self.0.take()));
+        }
+    }
+    let restore = Restore(RUNTIME_GRAMMAR_ERRORS.with(|errors| errors.replace(Some(Vec::new()))));
+    let result = parse();
+    let errors = RUNTIME_GRAMMAR_ERRORS.with(|errors| errors.replace(None).unwrap());
+    drop(restore);
+    (result, errors)
+}
+
 /// The options of [`Pipeline::parse`].
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ParseOptions {
@@ -595,6 +615,11 @@ impl Pipeline {
         let lowered = match self.lowered(index, features) {
             Ok(lowered) => lowered,
             Err(error) => {
+                RUNTIME_GRAMMAR_ERRORS.with(|errors| {
+                    if let Some(errors) = errors.borrow_mut().as_mut() {
+                        errors.push(error.clone());
+                    }
+                });
                 let error = self.grammar_error(index, EngineError { message: error.message, rule: None });
                 run.stages.push(stage);
                 return Err(Box::new(error));
@@ -1233,6 +1258,37 @@ mod tests {
         let grammar = format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n");
         let pipeline = "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string();
         crate::load_pipeline_sources([("p.md".to_string(), pipeline), ("g.md".to_string(), grammar)], "p.md").unwrap()
+    }
+
+    #[test]
+    fn runtime_grammar_diagnostics_restore_nested_and_panicking_scopes() {
+        use super::with_runtime_grammar_errors;
+        let pipeline = pipeline("%rule text {ε}");
+        let parse = || {
+            let result = pipeline.parse("", &ParseOptions::default()).unwrap();
+            let error = result.error.unwrap();
+            assert!(error.message.starts_with("g.md:3:1: "));
+            assert_eq!((error.document, error.line, error.column), (None, None, None));
+        };
+        let (_, outer) = with_runtime_grammar_errors(|| {
+            parse();
+            let (_, inner) = with_runtime_grammar_errors(parse);
+            assert_eq!(inner.len(), 1);
+            let panic = std::panic::catch_unwind(|| {
+                with_runtime_grammar_errors(|| {
+                    parse();
+                    panic!("diagnostic scope");
+                })
+            })
+            .unwrap_err();
+            assert_eq!(panic.downcast_ref::<&str>(), Some(&"diagnostic scope"));
+            parse();
+        });
+        assert_eq!(outer.len(), 2);
+        for error in outer {
+            assert_eq!((error.document.as_deref(), error.line, error.column), (Some("g.md"), Some(3), Some(1)));
+        }
+        super::RUNTIME_GRAMMAR_ERRORS.with(|errors| assert!(errors.borrow().is_none()));
     }
 
     #[test]
