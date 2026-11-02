@@ -105,9 +105,9 @@ class CaptureGrowth(unittest.TestCase):
         "The completed items of the production t → t t or t → $l:t $r:t\n        over the whole input of n tokens A."
         pipeline, error = load_case_pipeline({"grammar": grammar})
         assert pipeline is not None, error
-        lowered = pipeline.lowered(0, frozenset())
+        lowered = pipeline._lowered_grammar(0, frozenset())
         tokens = [Token("a", frozenset({"A"}), (index, index + 1), (2 * index, 2 * index + 1)) for index in range(n)]
-        context = StageContext(lowered, tokens, " ".join("a" for _ in tokens), pipeline.unicode)
+        context = StageContext(lowered, tokens, " ".join("a" for _ in tokens), pipeline._unicode)
         forest = Parser(context).parse(lowered.rule_ids["text"])
         t = lowered.rule_ids["t"]
         found = 0
@@ -137,7 +137,7 @@ class QueryHelpers(unittest.TestCase):
         for grammar in (text + "\n" + aux, aux + "\n" + text):
             pipeline, error = load_case_pipeline({"grammar": grammar})
             assert pipeline is not None, error
-            lowered = pipeline.lowered(0, frozenset())
+            lowered = pipeline._lowered_grammar(0, frozenset())
             helpers = [p for p in lowered.productions if p.rule_name.startswith("\0query:")]
             self.assertEqual([p.rule_name for p in helpers], ["\0query:Q", "\0query:T", "\0query:Z"])
             self.assertEqual([p.id for p in helpers], list(range(len(lowered.productions) - 3, len(lowered.productions))))
@@ -152,7 +152,7 @@ class QueryHelpers(unittest.TestCase):
                 self.assertIsNone(helper.tests)
                 self.assertFalse(helper.conds_predict)
                 self.assertFalse(helper.conds_at)
-                context = StageContext(lowered, [Token("a", tags, (0, 1), (0, 1))], "a", pipeline.unicode)
+                context = StageContext(lowered, [Token("a", tags, (0, 1), (0, 1))], "a", pipeline._unicode)
                 forest = Parser(context).parse(helper.lhs)
                 self.assertEqual(len(forest.roots), 1)
                 self.assertEqual(context.tagtab.get(forest.tag[forest.roots[0]]), tags)

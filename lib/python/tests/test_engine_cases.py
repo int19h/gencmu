@@ -199,14 +199,14 @@ class EngineCases(unittest.TestCase):
             self.assertIs(load.call_args_list[1].args[0], load.call_args_list[0].args[0])
             other, error = load_case_pipeline({**case, "pipelineDocument": "memo-b.md"})
             self.assertIsNone(error)
-            self.assertNotEqual(other.stage_names, first.stage_names)
+            self.assertNotEqual(other._stage_names, first._stage_names)
             changed, error = load_case_pipeline({**case, "documents": {**documents, "memo-a.md": documents["memo-b.md"]}})
             self.assertIsNone(error)
-            self.assertEqual(changed.stage_names, other.stage_names)
+            self.assertEqual(changed._stage_names, other._stage_names)
             uncached, error = load_case_pipeline(case, use_cache=False)
             self.assertIsNone(error)
             self.assertIsNot(uncached, first)
-            self.assertEqual(uncached.stage_names, first.stage_names)
+            self.assertEqual(uncached._stage_names, first._stage_names)
             self.assertEqual(load.call_args.kwargs, {"use_cache": False})
 
     def test_cases_are_present(self) -> None:

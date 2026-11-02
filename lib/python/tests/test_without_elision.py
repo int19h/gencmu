@@ -179,7 +179,7 @@ class WithoutElision(unittest.TestCase):
         sizes = []
         for count in (8, 32):
             input_tokens, text = case_tokens({"tokens": tokens(*("X" for _ in range(count)))})
-            context = StageContext(pipeline.lowered(0, frozenset()), input_tokens, text, pipeline.unicode)
+            context = StageContext(pipeline._lowered_grammar(0, frozenset()), input_tokens, text, pipeline._unicode)
             forest = Parser(context).parse(context.lowered.rule_ids["text"])
             self.assertTrue(forest.roots)
             sizes.append((len(forest.prod), len(context.closes.states), len(context.closes.links)))
@@ -251,7 +251,7 @@ class WithoutElision(unittest.TestCase):
             pipeline, error = load_case_pipeline(fixture)
             self.assertIsNone(error)
             input_tokens, text = case_tokens(fixture)
-            context = StageContext(pipeline.lowered(0, frozenset()), input_tokens, text, pipeline.unicode)
+            context = StageContext(pipeline._lowered_grammar(0, frozenset()), input_tokens, text, pipeline._unicode)
             self.assertIsNone(context.closes)
 
             def unused_count(name, amount=1):

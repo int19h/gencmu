@@ -144,7 +144,7 @@ class Loaders(unittest.TestCase):
             },
             "p.md",
         )
-        changes = pipeline.grammars[0].changes
+        changes = pipeline._grammars[0].changes
         removed = FlagChange(["leftmost-longest"], [])
         added = FlagChange([], ["leftmost-longest"])
         self.assertEqual([change.flag_change for change in changes], [None, removed, added, None, removed, None])
@@ -154,7 +154,7 @@ class Loaders(unittest.TestCase):
 
     def test_bundled(self) -> None:
         pipeline = gencmu.load_pipeline("gencmu/jbogenbau")
-        self.assertEqual(pipeline.stage_names, ["lexical", "syntax"])
+        self.assertEqual(pipeline._stage_names, ["lexical", "syntax"])
         result = pipeline.parse("%rule text A")
         self.assertTrue(result.ok)
         self.assertEqual(result.tree.rule if result.tree else None, "text")
@@ -166,7 +166,7 @@ class Loaders(unittest.TestCase):
 
     def test_sources(self) -> None:
         pipeline = gencmu.load_pipeline_sources(SOURCES, "pipeline.md")
-        self.assertEqual(pipeline.stage_names, ["sounds", "words", "syntax"])
+        self.assertEqual(pipeline._stage_names, ["sounds", "words", "syntax"])
         self.assertTrue(pipeline.parse("mi mi").ok)
 
     def test_file(self) -> None:
@@ -937,7 +937,7 @@ class LoweringCaches(unittest.TestCase):
         for index in range(50):
             self.assertTrue(pipeline.parse("y", features=[f"unused-{index}"]).ok)
         self.assertEqual(len(pipeline._lowered[0]), 1)
-        self.assertEqual(len(pipeline.grammars[0]._classifier_tables), 1)
+        self.assertEqual(len(pipeline._grammars[0]._classifier_tables), 1)
 
     def test_bounded(self) -> None:
         names = ["a", "b", "c", "d", "e", "f", "g"]
@@ -952,7 +952,7 @@ class LoweringCaches(unittest.TestCase):
             self.assertEqual(result.stages[0].verdict is not None, bool(features), features)
             self.assertEqual(result.ok, len(features) == 1, features)
         self.assertLessEqual(len(pipeline._lowered[0]), 16)
-        self.assertLessEqual(len(pipeline.grammars[0]._classifier_tables), 16)
+        self.assertLessEqual(len(pipeline._grammars[0]._classifier_tables), 16)
 
     def test_classifier_tables_bounded(self) -> None:
         """Every set of five classifier gates, twice: the second round
@@ -969,7 +969,7 @@ class LoweringCaches(unittest.TestCase):
                 result = pipeline.parse("x", features=features)
                 assert result.tree is not None
                 self.assertEqual(result.tree.tags, frozenset(["X"] + [name.upper() for name in features]))
-        self.assertLessEqual(len(pipeline.grammars[0]._classifier_tables), 16)
+        self.assertLessEqual(len(pipeline._grammars[0]._classifier_tables), 16)
 
 
 class RepeatedFailures(unittest.TestCase):
@@ -1023,7 +1023,7 @@ class SharedCaches(unittest.TestCase):
             sources["data/unicode/unicode.txt"] = unicode + "\n" * (index + 1)
             loaded = gencmu.load_pipeline_sources(sources, pipeline)
             self.assertTrue(loaded.parse("a").ok)
-            tables.append(weakref.ref(loaded.unicode))
+            tables.append(weakref.ref(loaded._unicode))
             del loaded
         gc.collect()
         self.assertLessEqual(len(_pipeline._unicode_tables), _pipeline._MAX_TEXTS)

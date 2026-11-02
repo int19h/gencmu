@@ -99,9 +99,9 @@ class Preparsed(unittest.TestCase):
                     a = cached.load(path)
                 self.assertTrue(cached.preparsed)
                 b = uncached.load(path)
-                self.assertEqual(b.stage_names, a.stage_names)
-                self.assertEqual(b.grammars, a.grammars)
-                self.assertEqual((b.features, b.declared), (a.features, a.declared))
+                self.assertEqual(b._stage_names, a._stage_names)
+                self.assertEqual(b._grammars, a._grammars)
+                self.assertEqual((b.features, b._declared), (a.features, a._declared))
 
     def test_parsing_with_and_without_the_cache(self) -> None:
         cached = gencmu.load_pipeline("gencmu/jbogenbau")
