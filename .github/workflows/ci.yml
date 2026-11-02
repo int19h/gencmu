@@ -86,12 +86,18 @@ jobs:
           python -m venv "$RUNNER_TEMP/build"
           "$RUNNER_TEMP/build/bin/python" -m pip install build
           "$RUNNER_TEMP/build/bin/python" -m build --outdir "$RUNNER_TEMP/dist"
-      - name: The wheel holds everything it needs
+      - name: The Python packages hold everything they need
         working-directory: lib/python
         # With bash named, the step runs with pipefail, so a failure of
         # zipfile fails the step.
         shell: bash
         run: |
+          tar -tzf "$RUNNER_TEMP"/dist/*.tar.gz | tee sdist.txt
+          grep -q "gencmu/data/preparsed/lojban.json" sdist.txt
+          grep -q "gencmu/data/preparsed/gencmu.json" sdist.txt
+          if grep -E '(^|/)tests(/|$)' sdist.txt; then
+            exit 1
+          fi
           python -m zipfile -l "$RUNNER_TEMP"/dist/*.whl | tee wheel.txt
           grep -q "gencmu/data/preparsed/lojban.json" wheel.txt
           grep -q "gencmu/data/preparsed/gencmu.json" wheel.txt

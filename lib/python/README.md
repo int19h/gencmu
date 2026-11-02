@@ -119,7 +119,7 @@ Local tests read the sources in `src/`. The runner selects its worker count from
 
 Corpus cases use the same pytest workers as the other tests.
 
-CI builds and installs the wheel, then runs the suite once with `GENCMU_INSTALLED=1`. The import guard refuses a source import in that mode. CI uses Python 3.14.
+CI builds the source archive and wheel, then installs the wheel and runs the suite once with `GENCMU_INSTALLED=1`. The source archive excludes tests because they need fixtures from the repository. The import guard refuses a source import in that mode. CI uses Python 3.14.
 
 The tests cover these items:
 
