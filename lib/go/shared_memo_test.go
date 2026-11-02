@@ -1,7 +1,6 @@
 package gencmu
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
@@ -40,13 +39,28 @@ func memoRuns(t *testing.T) []memoRun {
 	if err != nil {
 		t.Fatal(err)
 	}
+	runs, err := decodeMemoRuns(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return runs
+}
+
+func decodeMemoRuns(data []byte) ([]memoRun, error) {
+	raw, err := decodeJSON(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := memoRunsSchema(raw); err != nil {
+		return nil, err
+	}
 	var file struct {
 		Runs []memoRun `json:"runs"`
 	}
-	if err := json.Unmarshal(data, &file); err != nil {
-		t.Fatal(err)
+	if err := unmarshalJSON(data, &file); err != nil {
+		return nil, err
 	}
-	return file.Runs
+	return file.Runs, nil
 }
 
 // memoPipeline is a fresh pipeline of a run, with a bound on its shared
@@ -440,5 +454,38 @@ func TestSuffixCacheHitsPreserveAlignedDependencies(t *testing.T) {
 	rules := memoRules(pipeline)
 	if !slices.Contains(rules, "plain") || slices.Contains(rules, "driver") || slices.Contains(rules, "wrap") {
 		t.Fatalf("retained suffix dependency: %v", rules)
+	}
+}
+
+func TestMemoRunSchemaRejectsInvalidMembers(t *testing.T) {
+	for _, token := range []string{
+		`{"text":"x","tags":["X"],"bogus":true}`,
+		`{"text":"x","tags":["X"],"before":[{"text":"x","tags":[],"nested-bogus":true}]}`,
+		`{"text":"x","tags":["X"],"after":[{"text":"x","tags":[],"nested-bogus":true}]}`,
+	} {
+		raw := `{"runs":[{"grammar":"%rule text X","inputs":[[` + token + `]],"options":[{}]}]}`
+		if _, err := decodeMemoRuns([]byte(raw)); err == nil {
+			t.Errorf("accepted unknown token member in %s", token)
+		}
+	}
+	for _, raw := range []string{
+		`{"runs":[{"grammar":"%rule text X","unknown":true,"options":[{}]}]}`,
+		`{"runs":[{"grammar":"%rule text X","options":[{"unknown":true}]}]}`,
+		`{"runs":[{"grammar":"%rule text X","inputs":[[{"text":"x","tags":null}]],"options":[{}]}]}`,
+	} {
+		if _, err := decodeMemoRuns([]byte(raw)); err == nil {
+			t.Errorf("accepted invalid memo input %s", raw)
+		}
+	}
+}
+
+func TestMemoRunSchemaKeepsTokenFields(t *testing.T) {
+	runs, err := decodeMemoRuns([]byte(`{"runs":[{"grammar":"%rule text X","inputs":[[{"text":"x","tags":["X"],"value":"","image":"image","span":[0,1],"source":[0,1],"before":[{"text":"b","tags":[]}],"after":[{"text":"a","tags":[]}]}]],"options":[{"features":["f"],"withoutFeatures":["g"],"until":"main","elisionOnly":false}]}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	token := runs[0].Inputs[0][0]
+	if token.Value == nil || *token.Value != "" || token.Before[0].Text != "b" || token.After[0].Text != "a" {
+		t.Fatalf("the decoder lost token fields: %+v", token)
 	}
 }
