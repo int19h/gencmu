@@ -222,6 +222,8 @@ class EngineCases(unittest.TestCase):
             self.check_fixture(path.name, load_case(path))
 
     def check_fixture(self, name: str, case: dict[str, Any]) -> None:
+        # JavaScript checks treeRendering through its tree listing. Python
+        # checks that member's shape and runs the rest of the case.
         validate_engine_case(case, complete=True)
         if "parses" in case:
             # The case parses its input several times with the one

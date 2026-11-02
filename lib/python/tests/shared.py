@@ -1105,7 +1105,7 @@ def result_problems(value: dict[str, Any]) -> list[str]:
     if isinstance(error, dict):
         for member in ("cycle", "conflict", "chosenReading"):
             if member in error:
-                problems.append(f"the error has the obsolete preference member {member}")
+                problems.append(f"the error has the member {member}")
     return problems
 
 
