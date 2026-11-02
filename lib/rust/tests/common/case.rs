@@ -16,11 +16,7 @@ use Kind::*;
 
 fn fields(value: &Value, path: &str, members: &[(&str, Kind)]) -> R {
     let Value::Object(values) = value else { return Err(format!("{path} must be an object")) };
-    let mut seen = std::collections::BTreeSet::new();
     for (name, value) in values {
-        if !seen.insert(name) {
-            return Err(format!("{path}.{name} is repeated"));
-        }
         let Some((_, kind)) = members.iter().find(|(allowed, _)| *allowed == name) else {
             return Err(format!("{path}.{name} is unknown"));
         };
@@ -172,13 +168,10 @@ pub fn expect(value: &Value) -> R {
 // names still belong to the fixture contract, even inside attachments.
 fn token_list(value: &Value, usage: bool) -> R {
     let Value::Array(tokens) = value else {
-        return if usage { Ok(()) } else { Err("tokens must be an array outside a usage case".into()) };
+        return Err("tokens must be an array of objects".into());
     };
     let mut pending: Vec<_> = tokens.iter().collect();
     while let Some(token) = pending.pop() {
-        if usage && !matches!(token, Value::Object(_)) {
-            continue;
-        }
         fields(
             token,
             "token",

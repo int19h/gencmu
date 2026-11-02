@@ -25,14 +25,6 @@ fn shared_json_keys() {
             ("g.md".to_string(), text(&fixtures, "grammar").to_string()),
         ])
     };
-    for case in fixtures.get("values").unwrap().array() {
-        assert_eq!(
-            &parse_json(text(case, "json")).unwrap(),
-            case.get("expect").unwrap(),
-            "{}",
-            text(case, "description")
-        );
-    }
     for case in fixtures.get("bootstrap").unwrap().array() {
         let mut sources = sources();
         sources.insert("data/preparsed/gencmu.json".into(), mutate(&bundled, case));

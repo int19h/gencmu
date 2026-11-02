@@ -3,8 +3,6 @@
 //! and the checks of a definition as a whole.
 
 use std::collections::HashMap;
-#[cfg(test)]
-use std::collections::HashSet;
 #[path = "capture_validation.rs"]
 mod validation;
 
@@ -1087,211 +1085,6 @@ fn mark(duplicate: &mut [bool], indices: &mut Vec<usize>) {
     }
 }
 
-/// The distinct sequences of captures that the productions of an
-/// expression read, each in the order read (engine §3.2, §3.5): a choice
-/// gives each branch's, an `&` each subsequence's, a plain optional none
-/// or its content's, and braces and an elidable optional none. Productions
-/// that read the same names in the same order are one sequence. Gates do
-/// not matter, since they drop whole alternatives.
-///
-/// A capture is known by its index among the expression's captures in the
-/// order written, which is the order a reader meets them.
-#[cfg(test)]
-pub(crate) struct CaptureSequences<'e> {
-    /// The name of each capture, by index.
-    pub names: Vec<&'e str>,
-    /// Each distinct sequence, as indices.
-    pub sequences: Vec<Vec<usize>>,
-}
-
-#[cfg(test)]
-impl<'e> CaptureSequences<'e> {
-    pub(crate) fn of(expr: &'e Expr) -> CaptureSequences<'e> {
-        let mut found = CaptureSequences { names: Vec::new(), sequences: Vec::new() };
-        found.sequences = found.visit(expr);
-        found
-    }
-
-    /// Each production's capture names, in the order it reads them.
-    pub(crate) fn named(&self) -> Vec<Vec<&'e str>> {
-        self.sequences.iter().map(|sequence| sequence.iter().map(|&index| self.names[index]).collect()).collect()
-    }
-
-    fn distinct(&self, lists: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
-        // Each name of a key counts as it is read.
-        let name = |&index: &usize| {
-            work::count(Work::Checked, 1);
-            self.names[index]
-        };
-        if work::mutated(Mutant::ScanDistinct) {
-            return self.distinct_by_scans(lists);
-        }
-        let mut seen: HashSet<Vec<&str>> = HashSet::new();
-        let mut out = Vec::new();
-        for list in lists {
-            let key: Vec<&str> = list.iter().map(name).collect();
-            if seen.insert(key) {
-                out.push(list);
-            }
-        }
-        out
-    }
-
-    /// A mutation for the tests of work: the distinct sequences, each
-    /// compared name by name with every one kept before it.
-    fn distinct_by_scans(&self, lists: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
-        let mut out: Vec<Vec<usize>> = Vec::new();
-        for list in lists {
-            let same = |kept: &Vec<usize>| {
-                kept.len() == list.len()
-                    && kept.iter().zip(&list).all(|(&a, &b)| {
-                        work::count(Work::Checked, 1);
-                        self.names[a] == self.names[b]
-                    })
-            };
-            if !out.iter().any(same) {
-                out.push(list);
-            }
-        }
-        out
-    }
-
-    fn product(&mut self, mut left: Vec<Vec<usize>>, right: &[Vec<usize>]) -> Vec<Vec<usize>> {
-        // With one right sequence, the usual case, each left sequence grows
-        // in place, so that a long sequence costs its length. Distinct
-        // sequences with one suffix added stay distinct.
-        // Each capture counts as it is copied.
-        let copied = |&index: &usize| {
-            work::count(Work::Checked, 1);
-            index
-        };
-        if let [only] = right {
-            for sequence in &mut left {
-                if work::mutated(Mutant::CopySequences) {
-                    *sequence = sequence.iter().chain(only).map(copied).collect();
-                } else {
-                    sequence.extend(only.iter().map(copied));
-                }
-            }
-            return left;
-        }
-        let mut out = Vec::with_capacity(left.len() * right.len());
-        for first in left {
-            for second in right {
-                out.push(first.iter().chain(second).map(copied).collect());
-            }
-        }
-        self.distinct(out)
-    }
-
-    /// Counts the captures of a part no production reads, so that the
-    /// indices stay those of the order written.
-    fn skip(&mut self, expr: &'e Expr) {
-        let mut stack = vec![expr];
-        while let Some(current) = stack.pop() {
-            work::count(Work::Walked, 1);
-            match current {
-                Expr::Capture(name, _) => self.names.push(name),
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
-                    stack.extend(items.iter().rev())
-                }
-                Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => stack.push(inner),
-                Expr::Repeat(item, separator, _) => {
-                    stack.extend(separator.as_deref());
-                    stack.push(item);
-                }
-                Expr::Source(_)
-                | Expr::Ref(_)
-                | Expr::Terminal(_)
-                | Expr::Literal(_)
-                | Expr::ScalarRange(..)
-                | Expr::Range(..)
-                | Expr::Wildcard
-                | Expr::Empty => {}
-            }
-        }
-    }
-
-    /// The sequences of an expression, with an explicit stack: each part
-    /// is met first to name its captures in the order written and to push
-    /// its parts, and then to combine their sequences.
-    fn visit(&mut self, expr: &'e Expr) -> Vec<Vec<usize>> {
-        let mut stack: Vec<(&'e Expr, bool)> = vec![(expr, false)];
-        let mut done: Vec<Vec<Vec<usize>>> = Vec::new();
-        while let Some((expr, combine)) = stack.pop() {
-            work::count(Work::Walked, 1);
-            work::count(Work::Walked, 1);
-            if !combine {
-                match expr {
-                    Expr::Capture(name, _) => {
-                        self.names.push(name);
-                        done.push(vec![vec![self.names.len() - 1]]);
-                    }
-                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
-                        stack.push((expr, true));
-                        stack.extend(items.iter().rev().map(|item| (item, false)));
-                    }
-                    Expr::Optional(inner, Mark::Plain) => {
-                        stack.push((expr, true));
-                        stack.push((inner, false));
-                    }
-                    Expr::Optional(..) | Expr::Repeat(..) => {
-                        self.skip(expr);
-                        done.push(vec![Vec::new()]);
-                    }
-                    Expr::Tested(..)
-                    | Expr::Source(_)
-                    | Expr::Ref(_)
-                    | Expr::Terminal(_)
-                    | Expr::Literal(_)
-                    | Expr::ScalarRange(..)
-                    | Expr::Range(..)
-                    | Expr::Wildcard
-                    | Expr::Empty => done.push(vec![Vec::new()]),
-                }
-                continue;
-            }
-            let combined = match expr {
-                Expr::Seq(items) => {
-                    let parts = done.split_off(done.len() - items.len());
-                    let mut sequences = vec![Vec::new()];
-                    for part in parts {
-                        sequences = self.product(sequences, &part);
-                    }
-                    sequences
-                }
-                Expr::Choice(items) | Expr::Ranked(items, _) => {
-                    let parts = done.split_off(done.len() - items.len());
-                    let all = parts.into_iter().flatten().collect();
-                    self.distinct(all)
-                }
-                Expr::And(items) => {
-                    let parts = done.split_off(done.len() - items.len());
-                    let mut all = Vec::new();
-                    for mask in 1u64..(1u64 << parts.len().min(63)) {
-                        let mut sequences = vec![Vec::new()];
-                        for (bit, part) in parts.iter().enumerate() {
-                            if mask & (1 << bit) != 0 {
-                                sequences = self.product(sequences, part);
-                            }
-                        }
-                        all.extend(sequences);
-                    }
-                    self.distinct(all)
-                }
-                _ => {
-                    // A plain optional: none, or its content's.
-                    let mut all = vec![Vec::new()];
-                    all.extend(done.pop().expect("the content"));
-                    self.distinct(all)
-                }
-            };
-            done.push(combined);
-        }
-        done.pop().expect("the sequences")
-    }
-}
-
 /// Whether a term holds a constant. A constant is its value in
 /// simplification (§3.6), and the DOM holds no value, so the checks that
 /// simplification decides wait for the loader, which substitutes the values
@@ -1691,7 +1484,7 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
 
 #[cfg(test)]
 mod tests {
-    use super::{definition_problem, duplicate_captures, CaptureSequences};
+    use super::{check_definition, definition_problem, duplicate_captures};
     use crate::dom::{Alternative, Arg, Attachments, EmitItem, Expr, Op, RuleDef, Term};
     use crate::work::{assert_linear, assert_mutant_stops, Mutant, Work};
 
@@ -1767,23 +1560,20 @@ mod tests {
         let rules = [many_captures(8000), many_captures(32000)];
         let mut run = |n: usize| {
             let rule = &rules[usize::from(n != 8000)];
-            assert_eq!(definition_problem(rule), None);
+            assert_eq!(check_definition(rule, false).problem, None);
         };
         assert_linear(Work::Checked, 8000, &mut run);
         assert_linear(Work::Walked, 8000, &mut run);
     }
 
-    /// A copy of each sequence with its suffix, and a scan for the first
-    /// position of each capture, stop at the first count past the budget
-    /// of `a_definition_of_many_captures_checks_in_linear_work`.
+    /// A scan for each capture's first position stops at the budget of
+    /// the production definition check.
     #[test]
     fn quadratic_checks_of_a_definition_stop_at_the_budget() {
         let rules = [many_captures(8000), many_captures(32000)];
-        for mutant in [Mutant::CopySequences, Mutant::FirstByScan] {
-            assert_mutant_stops(Work::Checked, mutant, 8000, &mut |n| {
-                definition_problem(&rules[usize::from(n != 8000)]);
-            });
-        }
+        assert_mutant_stops(Work::Checked, Mutant::FirstByScan, 8000, &mut |n| {
+            check_definition(&rules[usize::from(n != 8000)], false);
+        });
     }
 
     /// A choice of n captures, each its own production, whose distinct
@@ -1793,16 +1583,46 @@ mod tests {
     #[test]
     fn a_choice_of_many_captures_finds_distinct_sequences_in_linear_work() {
         let choice = |n: usize| {
-            Expr::Choice(
+            let mut rule = many_captures(0);
+            rule.alternatives[0].expr = Expr::Choice(
                 (0..n).map(|index| Expr::Capture(format!("c{index}"), Box::new(Expr::Terminal("A".into())))).collect(),
-            )
+            );
+            rule.tags = Some(Term::Tag("T".into()));
+            rule.emit = None;
+            rule
         };
-        let exprs = [choice(2000), choice(8000)];
+        let rules = [choice(2000), choice(8000)];
         let mut run = |n: usize| {
-            assert_eq!(CaptureSequences::of(&exprs[usize::from(n != 2000)]).sequences.len(), n);
+            assert_eq!(check_definition(&rules[usize::from(n != 2000)], false).problem, None);
         };
         assert_linear(Work::Checked, 2000, &mut run);
-        assert_mutant_stops(Work::Checked, Mutant::ScanDistinct, 2000, &mut run);
+        assert_mutant_stops(Work::Checked, Mutant::CompareCaptureChoices, 2000, &mut run);
+    }
+
+    /// Independent optional captures use structural queries in the
+    /// production validator without enumerating their combinations.
+    #[test]
+    fn variable_capture_queries_check_in_linear_work() {
+        let optional = |n: usize| {
+            let mut rule = many_captures(0);
+            rule.alternatives[0].expr = Expr::Seq(
+                (0..n)
+                    .map(|index| {
+                        Expr::Optional(
+                            Box::new(Expr::Capture(format!("c{index}"), Box::new(Expr::Terminal("A".into())))),
+                            crate::dom::Mark::Plain,
+                        )
+                    })
+                    .collect(),
+            );
+            rule.tags = Some(Term::Tag("T".into()));
+            rule.emit = None;
+            rule
+        };
+        let rules = [optional(2000), optional(8000)];
+        assert_linear(Work::Checked, 2000, &mut |n| {
+            assert_eq!(check_definition(&rules[usize::from(n != 2000)], false).problem, None);
+        });
     }
 
     /// A sequence of n captures nested to the right, each level a capture
@@ -1832,16 +1652,25 @@ mod tests {
         Expr::Repeat(Box::new(Expr::Seq(items.collect())), None, None)
     }
 
-    /// The captures inside braces are counted for their indices in one
-    /// walk, by the search for duplicates and by the capture sequences.
+    /// Duplicate detection walks the captures inside braces. Definition
+    /// checks also run through the production validator.
     #[test]
     fn captures_in_braces_are_counted_in_linear_work() {
-        let exprs = [captures_in_braces(2000), captures_in_braces(8000)];
-        assert_linear(Work::Walked, 2000, &mut |n| {
-            let expr = &exprs[usize::from(n != 2000)];
-            assert!(duplicate_captures(expr).is_empty());
-            assert_eq!(CaptureSequences::of(expr).names.len(), n);
-        });
+        let braces = |n| {
+            let mut rule = many_captures(0);
+            rule.alternatives[0].expr = captures_in_braces(n);
+            rule.tags = Some(Term::Tag("T".into()));
+            rule.emit = None;
+            rule
+        };
+        let rules = [braces(2000), braces(8000)];
+        let mut run = |n: usize| {
+            let rule = &rules[usize::from(n != 2000)];
+            assert!(duplicate_captures(&rule.alternatives[0].expr).is_empty());
+            assert_eq!(check_definition(rule, false).problem, None);
+        };
+        assert_linear(Work::Walked, 2000, &mut run);
+        assert_linear(Work::Checked, 2000, &mut run);
     }
 
     /// A sequence of n captures of one name nested to the right, each level
