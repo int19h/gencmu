@@ -300,7 +300,8 @@ func independentCaptureChoices(root *domExpr) ([]map[string]int, bool) {
 		for len(pending) > 0 {
 			node := pending[len(pending)-1]
 			pending = pending[:len(pending)-1]
-			if w := work.Load(); w != nil {
+			w := work.Load()
+			if w != nil {
 				w.readerSteps.add("reader steps")
 			}
 			if node == nil {
@@ -309,6 +310,9 @@ func independentCaptureChoices(root *domExpr) ([]map[string]int, bool) {
 			switch node.Kind {
 			case exCapture:
 				caps[node.Name] = len(caps) - 1
+				if w != nil && w.copyCapturePrefixes {
+					names = appendCounted(nil, names, &w.readerSteps, "reader steps")
+				}
 				names = append(names, node.Name)
 			case exSeq:
 				for i := len(node.Items) - 1; i >= 0; i-- {

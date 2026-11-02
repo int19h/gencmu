@@ -194,64 +194,88 @@ func TestLoweringLinear(t *testing.T) {
 	}
 }
 
-// TestCaptureSequencesLinear: the checks of a definition list the captures
-// of a long sequence in one pass, without copying the sequence so far at
-// each capture (engine §3.5). A sequence of many groups costs its length
-// too, without copying the groups already read at each group.
-func TestCaptureSequencesLinear(t *testing.T) {
-	capture := func(i int) *domExpr {
-		return &domExpr{Kind: exCapture, Name: fmt.Sprintf("c%d", i), Inner: &domExpr{Kind: exRef, Name: "A"}}
-	}
-	for _, n := range []int{1000, 4000} {
-		flat, grouped := &domExpr{Kind: exSeq}, &domExpr{Kind: exSeq}
-		for i := range n {
-			flat.Items = append(flat.Items, capture(i))
-			grouped.Items = append(grouped.Items, &domExpr{Kind: exSeq, Items: []*domExpr{capture(i)}})
+// captureValidationSequence gives each capture a distinct name. Grouped
+// sequences put each capture inside its own sequence.
+func captureValidationSequence(n int, grouped bool) *domExpr {
+	seq := &domExpr{Kind: exSeq}
+	for i := range n {
+		capture := &domExpr{Kind: exCapture, Name: fmt.Sprintf("c%d", i), Inner: &domExpr{Kind: exRef, Name: "A"}}
+		if grouped {
+			seq.Items = append(seq.Items, &domExpr{Kind: exSeq, Items: []*domExpr{capture}})
+		} else {
+			seq.Items = append(seq.Items, capture)
 		}
-		for _, seq := range []*domExpr{flat, grouped} {
-			// Each capture and each group is looked at, copied and joined
-			// a bounded number of times.
+	}
+	return seq
+}
+
+// The guarded tag term requires capture inspection and permits its absence.
+func captureValidationRule(expr *domExpr, capture string) *domRule {
+	return &domRule{Name: "text", Alternatives: []*domAlt{{Expr: expr}}, Tags: &domTerm{
+		Kind: tmIf, Cond: &domCond{Kind: cdCaptured, Capture: capture},
+		Items: []*domTerm{{Kind: tmCall, Str: "tags", Items: []*domTerm{{Kind: tmCapture, Str: capture}}}},
+	}}
+}
+
+func checkCaptureValidation(t *testing.T, rule *domRule) {
+	t.Helper()
+	result := checkDefinition(rule, false)
+	if result.problem != nil {
+		t.Fatalf("capture validation: %s", result.problem.message)
+	}
+	if result.deferred != nil {
+		t.Fatalf("unexpected deferred capture problem: %s", result.deferred.message)
+	}
+}
+
+// Definition validation reads a flat or grouped sequence in linear work.
+// Its clause requires the final capture, so validation must inspect the input.
+func TestCaptureValidationLinear(t *testing.T) {
+	for _, n := range []int{1000, 4000} {
+		for _, grouped := range []bool{false, true} {
+			rule := captureValidationRule(captureValidationSequence(n, grouped), fmt.Sprintf("c%d", n-1))
 			w := &workCounts{}
-			w.readerSteps.most = 12 * int64(n)
-			var caps []map[string]int
-			countWorkIn(w, func() { caps = altCaptures(&domAlt{Expr: seq}) })
-			if len(caps) != 1 || len(caps[0]) != n+1 {
-				t.Fatalf("%d captures: %d sequences", n, len(caps))
+			w.readerSteps.most = 16 * int64(n)
+			countWorkIn(w, func() { checkCaptureValidation(t, rule) })
+			if w.readerSteps.Load() < int64(n) {
+				t.Fatalf("validation skipped capture inspection: %d steps for %d captures", w.readerSteps.Load(), n)
 			}
-			t.Logf("%d captures: %d steps", n, w.readerSteps.Load())
+			t.Logf("%d captures, grouped=%t: %d steps", n, grouped, w.readerSteps.Load())
 		}
 	}
 }
 
-// TestCaptureSequencesOutputBound: captures in nested optionals, $c0(A)
-// [$c1(A) [… $c(n−1)(A) …]], give n+1 sequences of up to n captures each.
-// Listing them costs a bounded number of steps for each capture of each
-// sequence. A list is written out once, so a check for repeated lists that
-// wrote out every list at each level would cost n cubed.
-func TestCaptureSequencesOutputBound(t *testing.T) {
+// Nested optionals have quadratically many capture occurrences across
+// their productions. Validation inspects only the witnesses its clause needs.
+func TestCaptureValidationNestedOptionals(t *testing.T) {
 	for _, n := range []int{60, 240} {
-		var e *domExpr
+		var expr *domExpr
 		for i := n - 1; i >= 0; i-- {
-			c := &domExpr{Kind: exCapture, Name: fmt.Sprintf("c%d", i), Inner: &domExpr{Kind: exRef, Name: "A"}}
-			if e == nil {
-				e = &domExpr{Kind: exOptional, Inner: c}
-				continue
+			capture := &domExpr{Kind: exCapture, Name: fmt.Sprintf("c%d", i), Inner: &domExpr{Kind: exRef, Name: "A"}}
+			if expr == nil {
+				expr = &domExpr{Kind: exOptional, Inner: capture}
+			} else {
+				expr = &domExpr{Kind: exOptional, Inner: &domExpr{Kind: exSeq, Items: []*domExpr{capture, expr}}}
 			}
-			e = &domExpr{Kind: exOptional, Inner: &domExpr{Kind: exSeq, Items: []*domExpr{c, e}}}
 		}
-		size := int64(n + 1)
-		for k := 1; k <= n; k++ {
-			size += int64(k)
-		}
+		rule := captureValidationRule(expr, fmt.Sprintf("c%d", n-1))
 		w := &workCounts{}
-		w.readerSteps.most = 8 * size
-		var caps []map[string]int
-		countWorkIn(w, func() { caps = altCaptures(&domAlt{Expr: e}) })
-		if len(caps) != n+1 {
-			t.Fatalf("%d levels: %d sequences", n, len(caps))
+		w.readerSteps.most = 64 * int64(n)
+		countWorkIn(w, func() { checkCaptureValidation(t, rule) })
+		if w.readerSteps.Load() < int64(n) {
+			t.Fatalf("validation skipped nested captures: %d steps for %d captures", w.readerSteps.Load(), n)
 		}
-		t.Logf("%d levels, %d captures in all: %d steps", n, size, w.readerSteps.Load())
+		t.Logf("%d optional levels: %d steps", n, w.readerSteps.Load())
 	}
+}
+
+// Copying every growing prefix in production exceeds the linear budget.
+func TestCaptureValidationPrefixMutation(t *testing.T) {
+	const n = 1000
+	rule := captureValidationRule(captureValidationSequence(n, false), "c999")
+	w := &workCounts{copyCapturePrefixes: true}
+	w.readerSteps.most = 16 * n
+	stopsAtFirst(t, w, &w.readerSteps, "reader steps", func() { checkCaptureValidation(t, rule) })
 }
 
 // TestSharedClausesOnce: a rule's clauses, which all its alternatives
@@ -577,37 +601,47 @@ func TestIncludeChainLinear(t *testing.T) {
 	}
 }
 
-// TestCaptureSetsStopAtFirst: the checks of a definition count each
-// capture they look at, compare or copy before they do, so a budget
-// stops them at the first step past it. The expression is a sequence of
-// groups of captures whose names repeat, with a choice that makes the
-// sequences multiply.
+// Capture validation and duplicate detection count their visits before
+// the work. Each budget stops at its first excess step. Both inputs hold
+// groups and a choice. The duplicate case repeats capture names.
 func TestCaptureSetsStopAtFirst(t *testing.T) {
 	capture := func(name string) *domExpr {
 		return &domExpr{Kind: exCapture, Name: name, Inner: &domExpr{Kind: exRef, Name: "A"}}
 	}
-	seq := &domExpr{Kind: exSeq}
-	for g := range 12 {
-		group := &domExpr{Kind: exSeq}
-		for i := range 10 {
-			group.Items = append(group.Items, capture(fmt.Sprintf("c%d", (g+i)%5)))
+	sequence := func(repeated bool) *domExpr {
+		seq := &domExpr{Kind: exSeq}
+		for g := range 12 {
+			group := &domExpr{Kind: exSeq}
+			for i := range 10 {
+				name := g*10 + i
+				if repeated {
+					name = (g + i) % 5
+				}
+				group.Items = append(group.Items, capture(fmt.Sprintf("c%d", name)))
+			}
+			seq.Items = append(seq.Items, group)
+			if g == 6 {
+				seq.Items = append(seq.Items, &domExpr{Kind: exChoice, Items: []*domExpr{capture("x"), capture("y")}})
+			}
 		}
-		seq.Items = append(seq.Items, group)
-		if g == 6 {
-			seq.Items = append(seq.Items, &domExpr{Kind: exChoice, Items: []*domExpr{capture("x"), capture("y")}})
-		}
+		return seq
 	}
+	valid, repeated := sequence(false), sequence(true)
+	rule := captureValidationRule(valid, "c0")
 	for _, c := range []struct {
 		name string
 		f    func()
 	}{
-		{"captureSequences", func() { captureSequences(seq) }},
-		{"duplicateCaptures", func() { duplicateCaptures(seq) }},
+		{"validationCaptures", func() { validationCaptures(rule, rule.Alternatives[0]) }},
+		{"duplicateCaptures", func() { duplicateCaptures(repeated) }},
 	} {
 		name, f := c.name, c.f
 		all := &workCounts{}
 		countWorkIn(all, f)
 		total := all.readerSteps.Load()
+		if total == 0 {
+			t.Fatalf("%s inspected no captures", name)
+		}
 		for most := int64(1); most < total; most++ {
 			w := &workCounts{}
 			w.readerSteps.most = most
@@ -677,225 +711,6 @@ func TestUnionsMutation(t *testing.T) {
 	stopsAtFirst(t, w, &w.interned, "interned members", func() {
 		run.evaluate(run.evaluator(nil, nil), tagUnion(n))
 	})
-}
-
-// captureSequences lists the distinct sequences of captures that the
-// productions of an expression read, each in the order read (engine §3.2,
-// §3.5): a choice gives each branch's, an & each subsequence's, a plain
-// optional none or its content's, and braces and an elidable optional
-// none. Productions that read the same names in the same order are one
-// sequence. Gates do not matter, since they drop whole alternatives.
-// Repeated names are duplicateCaptures' concern.
-func captureSequences(e *domExpr) [][]*domExpr {
-	// Each capture or join that the work below makes, looks up, compares
-	// or writes out counts before it does.
-	w := work.Load()
-	step := func() {
-		if w != nil {
-			w.readerSteps.add("reader steps")
-		}
-	}
-	// A sequence is a tree of the sequences it joins, so a join shares its
-	// parts and costs one step. A copy at each join would cost nested
-	// sequences the square of their depth. Each sequence is written out
-	// once, at the end.
-	type capSeq struct {
-		c    *domExpr
-		l, r *capSeq
-		// h is a hash of the names in order, and pw the base to the power
-		// of their number, so that a join finds its hash in one step.
-		h, pw uint64
-	}
-	const base = 1099511628211
-	empty := (*capSeq)(nil)
-	powOf := func(s *capSeq) uint64 {
-		if s == nil {
-			return 1
-		}
-		return s.pw
-	}
-	hashOf := func(s *capSeq) uint64 {
-		if s == nil {
-			return 0
-		}
-		return s.h
-	}
-	leaf := func(c *domExpr) *capSeq {
-		// The hash of a name reads each of its bytes once, as reading the
-		// name did.
-		h := uint64(14695981039346656037)
-		for i := 0; i < len(c.Name); i++ {
-			h = (h ^ uint64(c.Name[i])) * base
-		}
-		return &capSeq{c: c, h: h | 1, pw: base}
-	}
-	// flat writes a sequence out in order, each part of its tree counted
-	// before it is entered.
-	flat := func(s *capSeq) []*domExpr {
-		var out []*domExpr
-		stack := []*capSeq{s}
-		for len(stack) > 0 {
-			step()
-			top := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-			switch {
-			case top == nil:
-			case top.c != nil:
-				out = append(out, top.c)
-			default:
-				stack = append(stack, top.r, top.l)
-			}
-		}
-		return out
-	}
-	join := func(a, b *capSeq) *capSeq {
-		step()
-		switch {
-		case a == nil:
-			return b
-		case b == nil:
-			return a
-		}
-		return &capSeq{l: a, r: b, h: hashOf(a)*powOf(b) + b.h, pw: a.pw * b.pw}
-	}
-	same := func(a, b *capSeq) bool {
-		x, y := flat(a), flat(b)
-		if len(x) != len(y) {
-			return false
-		}
-		for i := range x {
-			step()
-			if x[i].Name != y[i].Name {
-				return false
-			}
-		}
-		return true
-	}
-	// distinct keeps the first of each list of names. Lists are found by
-	// their hash, and only lists of equal hash are written out and
-	// compared, so a list that is not repeated is never written out here.
-	distinct := func(lists []*capSeq) []*capSeq {
-		if len(lists) < 2 {
-			return lists
-		}
-		seen := map[uint64][]*capSeq{}
-		var out []*capSeq
-	next:
-		for _, list := range lists {
-			step()
-			h := hashOf(list)
-			for _, other := range seen[h] {
-				if same(list, other) {
-					continue next
-				}
-			}
-			seen[h] = append(seen[h], list)
-			out = append(out, list)
-		}
-		return out
-	}
-	product := func(left, right []*capSeq) []*capSeq {
-		var out []*capSeq
-		for _, a := range left {
-			for _, b := range right {
-				out = append(out, join(a, b))
-			}
-		}
-		return distinct(out)
-	}
-	// Each node is met twice, with an explicit stack: first to push its
-	// parts, and then to combine their sequences, which stand on done.
-	kids := func(n *domExpr) []*domExpr {
-		switch {
-		case n == nil:
-			return nil
-		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
-			return n.Items
-		case n.Kind == exOptional && !n.Elidable:
-			return []*domExpr{n.Inner}
-		}
-		return nil
-	}
-	type frame struct {
-		n       *domExpr
-		combine bool
-	}
-	stack := []frame{{n: e}}
-	var done [][]*capSeq
-	for len(stack) > 0 {
-		step()
-		top := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		n := top.n
-		if !top.combine {
-			if n != nil && n.Kind == exCapture {
-				done = append(done, []*capSeq{leaf(n)})
-				continue
-			}
-			items := kids(n)
-			if len(items) == 0 {
-				done = append(done, []*capSeq{empty})
-				continue
-			}
-			stack = append(stack, frame{n: n, combine: true})
-			for i := len(items) - 1; i >= 0; i-- {
-				stack = append(stack, frame{n: items[i]})
-			}
-			continue
-		}
-		count := len(kids(n))
-		parts := appendCounted(nil, done[len(done)-count:], readerCount(), "reader steps")
-		done = done[:len(done)-count]
-		var out []*capSeq
-		switch n.Kind {
-		case exSeq:
-			out = []*capSeq{empty}
-			for _, part := range parts {
-				out = product(out, part)
-			}
-		case exChoice, exRanked:
-			for _, part := range parts {
-				out = appendCounted(out, part, readerCount(), "reader steps")
-			}
-			out = distinct(out)
-		case exAnd:
-			for mask := 1; mask < 1<<len(parts); mask++ {
-				seqs := []*capSeq{empty}
-				for i, part := range parts {
-					if mask&(1<<i) != 0 {
-						seqs = product(seqs, part)
-					}
-				}
-				out = appendCounted(out, seqs, readerCount(), "reader steps")
-			}
-			out = distinct(out)
-		default:
-			out = distinct(appendCounted([]*capSeq{empty}, parts[0], readerCount(), "reader steps"))
-		}
-		done = append(done, out)
-	}
-	sequences := make([][]*domExpr, len(done[0]))
-	for i, s := range done[0] {
-		sequences[i] = flat(s)
-	}
-	return sequences
-}
-
-// isCapturable says whether a capture can wrap an expression of a kind: a
-// altCaptures lists, for each production of an alternative, each capture
-// it reads with its place in the order read; $ is at -1 (engine §3.5).
-// Productions that read the same captures in the same order are one.
-func altCaptures(a *domAlt) []map[string]int {
-	seqs := captureSequences(a.Expr)
-	out := make([]map[string]int, len(seqs))
-	for i, seq := range seqs {
-		caps := map[string]int{"": -1}
-		for j, c := range seq {
-			caps[c.Name] = j
-		}
-		out[i] = caps
-	}
-	return out
 }
 
 func TestPartialPresenceSimplificationBoundsIndependentGuards(t *testing.T) {
