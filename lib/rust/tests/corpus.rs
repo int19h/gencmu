@@ -11,6 +11,10 @@ use std::sync::{Arc, Mutex};
 
 use common::{feature_names, parse_json, repository, Value};
 
+fn read_cases(text: &str) -> Result<Vec<Value>, String> {
+    text.lines().filter(|line| !line.bytes().all(|byte| matches!(byte, b' ' | b'\t' | b'\r'))).map(parse_json).collect()
+}
+
 fn all_cases() -> Vec<Value> {
     let directory = repository().join("tests/corpus");
     let mut files: Vec<_> = std::fs::read_dir(directory)
@@ -21,13 +25,50 @@ fn all_cases() -> Vec<Value> {
     files.sort();
     let mut cases = Vec::new();
     for file in files {
-        for line in std::fs::read_to_string(&file).expect("a corpus file").lines() {
-            if !line.trim().is_empty() {
-                cases.push(parse_json(line).unwrap_or_else(|error| panic!("{}: {error}", file.display())));
+        let text = std::fs::read_to_string(&file).expect("a corpus file");
+        cases.extend(read_cases(&text).unwrap_or_else(|error| panic!("{}: {error}", file.display())));
+    }
+    cases
+}
+
+#[test]
+fn jsonl_reader_refuses_non_json_whitespace() {
+    let record = r#"{"id":"whitespace","pipeline":"lojban/cll","text":"","expect":"accept"}"#;
+    let mut accepted = Vec::new();
+    for whitespace in [
+        '\u{b}', '\u{c}', '\u{85}', '\u{a0}', '\u{1680}', '\u{2007}', '\u{2028}', '\u{2029}', '\u{202f}', '\u{3000}',
+        '\u{feff}',
+    ] {
+        for text in [
+            format!("{whitespace}\n{record}\n"),
+            format!("{record}\n{whitespace}\n"),
+            format!(" \t{whitespace}\r\n{record}\n"),
+            format!("{record}\n \t{whitespace}\r\n"),
+            format!("{whitespace}{record}\n"),
+            format!("{record}{whitespace}\n"),
+        ] {
+            if read_cases(&text).is_ok() {
+                accepted.push(text);
             }
         }
     }
-    cases
+    assert!(accepted.is_empty(), "accepted invalid JSONL whitespace: {accepted:?}");
+}
+
+#[test]
+fn jsonl_reader_keeps_records_and_json_whitespace() {
+    for text in ["", "\n", " \t\r\n\t \n\r"] {
+        assert!(read_cases(text).unwrap().is_empty(), "{text:?}");
+    }
+    let record = r#"{"id":"whitespace","pipeline":"lojban/cll","text":"","expect":"accept"}"#;
+    for text in [record.to_string(), format!(" \t\r\n \t{record}\t\r\n\r\n")] {
+        assert_eq!(read_cases(&text).unwrap(), vec![parse_json(record).unwrap()]);
+    }
+    let string_record = r#"{"text":" \u000b\u000c\u2028\ufeff"}"#;
+    assert_eq!(
+        read_cases(&format!("\n{record}\r\n{string_record}\n\t\n")).unwrap(),
+        vec![parse_json(record).unwrap(), parse_json(string_record).unwrap()]
+    );
 }
 
 fn string(value: &str) -> Value {
