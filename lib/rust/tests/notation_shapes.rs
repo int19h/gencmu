@@ -110,7 +110,9 @@ fn notation_shapes() {
     let wrapped = with_syntax(&|mut syntax: String| {
         let mut wrappers = String::new();
         for (index, name) in names.iter().enumerate() {
-            syntax = syntax.replace(&format!(r#"{{"ref":"{name}"}}"#), &format!(r#"{{"ref":"{name}-wrapper"}}"#));
+            for field in ["ref", "rule"] {
+                syntax = syntax.replace(&format!(r#""{field}":"{name}""#), &format!(r#""{field}":"{name}-wrapper""#));
+            }
             wrappers.push_str(&format!(
                 r#"{{"name":"{name}-wrapper","op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],"conditions":[],"at":[{},1]}},"#,
                 100_000 + index
@@ -123,9 +125,11 @@ fn notation_shapes() {
     let loads = shapes.get("loads").expect("loads");
     for name in &names {
         let renamed = with_syntax(&|syntax: String| {
+            let mut syntax = syntax.replace(&format!(r#""name":"{name}","op""#), &format!(r#""name":"{name}x","op""#));
+            for field in ["ref", "rule"] {
+                syntax = syntax.replace(&format!(r#""{field}":"{name}""#), &format!(r#""{field}":"{name}x""#));
+            }
             syntax
-                .replace(&format!(r#""name":"{name}","op""#), &format!(r#""name":"{name}x","op""#))
-                .replace(&format!(r#"{{"ref":"{name}"}}"#), &format!(r#"{{"ref":"{name}x"}}"#))
         });
         let expected = loads.get(name).cloned().unwrap_or_else(|| Value::String("grammar".to_string()));
         assert_eq!(outcome(&shapes, renamed), expected, "{name} renamed");
