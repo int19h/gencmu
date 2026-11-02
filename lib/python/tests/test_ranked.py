@@ -62,12 +62,12 @@ class Ranked(unittest.TestCase):
         for separator in ("|", "&"):
             grammar = f'%rule text (($x:A {separator} $y:B) ≻ C) Z\n%conditions ($y ⟹ $.value = "y"), ($x ⟹ $.value = "x")'
             _, error = load_case_pipeline({"grammar": grammar})
-            self.assertEqual(error.code, "ranked-choice-continuation")
-            self.assertEqual(error.option, 0)
-            self.assertEqual(error.expression["if"]["captured"], "x")
+            self.assertTrue(same_json(error.code, "ranked-choice-continuation"))
+            self.assertTrue(same_json(error.option, 0))
+            self.assertTrue(same_json(error.expression["if"]["captured"], "x"))
         _, error = load_case_pipeline({"grammar": '%rule text (($x:A ≻ B) ≻ C) Z\n%conditions (¬$x ∧ $.value = "b")'})
-        self.assertEqual(error.code, "ranked-choice-continuation")
-        self.assertEqual(error.option, 1)
+        self.assertTrue(same_json(error.code, "ranked-choice-continuation"))
+        self.assertTrue(same_json(error.option, 1))
 
     def test_independent_slots_keep_a_linear_forest(self):
         case = {"grammar": "%ambiguity-resolution late-elision\n%rule text {unit}\n%rule unit a ≻ b\n%rule a X Y\n%rule b X Y"}
@@ -101,6 +101,23 @@ class Ranked(unittest.TestCase):
                 for _ in range(2):
                     load_pipeline_sources(cached_sources(texts, dom), "grammars/test/p.md")
 
+    def test_cached_diagnostic_option_keeps_its_json_type(self):
+        to_dict = GencmuError.to_dict
+        seen = []
+
+        def diagnostic(error):
+            value = to_dict(error)
+            if len(seen) == 1:
+                value["option"] = False
+            seen.append(value)
+            return value
+
+        with patch.object(GencmuError, "to_dict", diagnostic), self.assertRaises(AssertionError):
+            Ranked().test_cached_dom_preserves_original_diagnostic()
+        self.assertEqual(len(seen), 2)
+        self.assertTrue(same_json(seen[0]["option"], 0))
+        self.assertIs(seen[1]["option"], False)
+
     def test_cached_dom_preserves_original_diagnostic(self):
         texts = sources("""%const $K K
 %ambiguity-resolution late-elision
@@ -116,13 +133,14 @@ class Ranked(unittest.TestCase):
         with require_preparsed_cache(reader, texts), self.assertRaises(GencmuError) as cached:
             load_pipeline_sources(cached_sources(texts, dom), "grammars/test/p.md")
         error = plain.exception
-        self.assertEqual(error.to_dict(), cached.exception.to_dict())
-        self.assertEqual(error.code, "ranked-choice-export")
-        self.assertEqual(error.group["path"], "/seq/1/ranked/0")
-        self.assertEqual(error.group["at"], [4, 46])
-        self.assertEqual(error.option, 0)
+        diagnostic = error.to_dict()
+        self.assertTrue(same_json(diagnostic, cached.exception.to_dict()))
+        self.assertTrue(same_json(diagnostic["code"], "ranked-choice-export"))
+        self.assertTrue(same_json(diagnostic["group"]["path"], "/seq/1/ranked/0"))
+        self.assertTrue(same_json(diagnostic["group"]["at"], [4, 46]))
+        self.assertTrue(same_json(diagnostic["option"], 0))
         self.assertIn('"const":"K"', error.to_json())
-        self.assertEqual(list(error.to_dict()), ["kind", "code", "message", "group", "option", "expression"])
+        self.assertTrue(same_json(list(diagnostic), ["kind", "code", "message", "group", "option", "expression"]))
 
     def test_shortest_tag_witness(self):
         texts = sources("""%ambiguity-resolution late-elision
@@ -135,8 +153,8 @@ class Ranked(unittest.TestCase):
         with self.assertRaises(GencmuError) as raised:
             load_pipeline_sources(texts, "grammars/test/p.md")
         error = raised.exception
-        self.assertEqual(error.code, "ranked-choice-tags")
-        self.assertEqual([site["rule"] for site in error.inheritance], ["text", "a", "v"])
+        self.assertTrue(same_json(error.code, "ranked-choice-tags"))
+        self.assertTrue(same_json([site["rule"] for site in error.inheritance], ["text", "a", "v"]))
 
     def test_syntax_and_retirement(self):
         found = _resources()
@@ -144,7 +162,7 @@ class Ranked(unittest.TestCase):
         for body in ("a | b ≻ c", "a ≻ b | c", "| a ≻ b", "a ≻", "≻ a"):
             with self.subTest(body=body), self.assertRaises(GencmuError) as raised:
                 reader.read("```jbogenbau\n%rule text " + body + "\n```\n", "grammars/test/g.md")
-            self.assertEqual(raised.exception.code, "ranked-choice-syntax")
+            self.assertTrue(same_json(raised.exception.code, "ranked-choice-syntax"))
         with self.assertRaises(GencmuError) as raised:
             reader.read("```jbogenbau\n%prefer a > b\n```\n", "grammars/test/g.md")
         self.assertIsNone(raised.exception.code)
