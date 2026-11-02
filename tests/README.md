@@ -16,6 +16,8 @@ This check is the fixture contract. Library readers can trust the checked shapes
 
 A description follows the strictest library reader, except where this document makes a member optional.
 
+JSON and JSONL fixtures use UTF-8 without an initial byte order mark.
+
 Deliberately malformed grammar, DOM, notation, token, and result payloads remain library inputs. Their fixture wrappers still follow the declared shape. Text fixtures use their documented line or column formats. Source snapshots are opaque UTF-8 text. A new fixture file needs a shape description before a library reads it.
 
 Every file of cases contains at least one case. Each memo run has nonempty input and configuration lists.

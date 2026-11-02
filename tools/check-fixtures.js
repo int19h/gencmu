@@ -75,7 +75,7 @@ export function fixtureProblems(relative, bytes, context) {
   if (!kind) return [`tests/${relative}: no fixture shape description`];
   const description = fixtureShapes[kind], problems = [];
   let text;
-  try { text = typeof bytes === "string" ? bytes : new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+  try { text = typeof bytes === "string" ? bytes : new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes); }
   catch { return [`tests/${relative}: not UTF-8`]; }
   const format = description.format ?? "json";
   if (format === "text") {
@@ -133,7 +133,7 @@ export function fixtureContext(root, files = fixtureFiles(root)) {
     corpus = new Map();
     for (const relative of files) if (fixtureKind(relative) === "corpus/*.jsonl") {
       let text;
-      try { text = new TextDecoder("utf-8", { fatal: true }).decode(read(relative)); }
+      try { text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(read(relative)); }
       catch { continue; }
       for (const line of text.split("\n")) {
         let record;
