@@ -404,7 +404,7 @@ function corpusCases(base) {
   const corpus = path.join(base, "tests", "corpus");
   for (const file of fs.readdirSync(corpus).filter((name) => name.endsWith(".jsonl")).sort()) {
     for (const line of fs.readFileSync(path.join(corpus, file), "utf8").split("\n")) {
-      if (line.trim()) cases.push(JSON.parse(line));
+      if (!/^[ \t\r]*$/.test(line)) cases.push(JSON.parse(line));
     }
   }
   return cases;

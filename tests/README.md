@@ -22,7 +22,7 @@ A description follows the strictest library reader, except where this document m
 
 JSON and JSONL fixtures use UTF-8 without an initial byte order mark. The reader refuses an initial mark before it ignores blank JSONL lines.
 
-Blank JSONL lines contain only spaces, tabs, or carriage returns. A byte order mark outside a JSON string is invalid.
+Blank JSONL lines contain only spaces, tabs, or carriage returns. A byte order mark outside a JSON string is invalid. The corpus reader, CLI, and corpus tools apply this rule to every line.
 
 JSON numbers use integer spellings without decimal points or exponents. They must fit in a signed 64-bit integer. This rule also applies inside payload objects. Strings preserve their embedded text, including malformed JSON and noninteger number spellings.
 
