@@ -64,6 +64,9 @@ type workCounts struct {
 	// storePrefixes is a mutation for the tests of the budgets: each
 	// stored capture entry copies its prefix. A budget must stop the extra work.
 	storePrefixes bool
+	// copyCapturePrefixes copies the growing name list during production
+	// capture validation. The linear reader budget must stop this mutation.
+	copyCapturePrefixes bool
 	// scanConds is a mutation for the tests of the budgets: an advance
 	// examines every condition of its production, as a selection by scan
 	// would, and not only those its dot makes ready.

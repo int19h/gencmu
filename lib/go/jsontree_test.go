@@ -211,9 +211,9 @@ func TestJSONTreeAgrees(t *testing.T) {
 }
 
 // TestJSONTreeDeep reads, converts, compares, copies and writes JSON
-// 20,000 deep with the stack of a goroutine held to 1 MiB, which a
-// recursion as deep as that would pass. encoding/json refuses such a
-// document, as the runners did before they read JSON here.
+// 20,000 levels deep with a goroutine stack limited to 1 MiB.
+// Recursing through this depth exceeds that limit. encoding/json rejects
+// the same input at its depth limit.
 func TestJSONTreeDeep(t *testing.T) {
 	const n = 20000
 	text := []byte(strings.Repeat(`{"text":"a","before":[`, n) + strings.Repeat(`]}`, n))
