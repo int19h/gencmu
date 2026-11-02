@@ -8,6 +8,14 @@ An expectation must apply to the actual outcome. Loading positions and diagnosti
 
 Token payload fields remain an exception for usage cases. A runner passes each present field unchanged to the library and supplies defaults only for absent fields. Unknown token members still invalidate the case.
 
+## Fixture shapes
+
+`tools/fixture-shapes.js` defines the shared fixture shapes in one place. Each description lists required and optional members, their types, and the combinations that the fixture permits. `node tools/check-fixtures.js` inspects these shapes without running a grammar or a corpus case. `node tools/sync.js --check` runs the same check before generation checks.
+
+This check is the fixture contract. Library readers can trust the checked shapes. The main case runners retain their own checks, because those checks also expose faults in the runners. For engine and notation cases, the central check covers the documented members and controls. The main case runners retain deeper payload and outcome checks.
+
+Deliberately malformed grammar, DOM, notation, token, and result payloads remain library inputs. Their fixture wrappers still follow the declared shape. Text fixtures use their documented line or column formats. Source snapshots are opaque UTF-8 text. A new fixture file needs a shape description before a library reads it.
+
 ## Running the tests
 
 After a change to `grammars/` or `data/`, run `node tools/sync.js` from the repository root. Each library runs all of its tests and the corpus sample in `core.txt` by default. Use `GENCMU_CORPUS=full` to select the whole corpus.
@@ -263,7 +271,7 @@ Each cache case names its core Unicode table, `data/unicode/unicode.txt`, explic
 
 Cache cases can supply resource text through `sources`. The value `@bundled-names@` selects pinned names text. The value `@unicode-16@` changes only the version line of the bundled `data/unicode/unicode.txt`. An `error` names the required resource position. A `portable` case also loads through the portable JavaScript entry point without bundled names text.
 
-The `loads` and `cached` fields state the expected behavior. Rust rejects ignored integers outside signed 64-bit range because of a reader limit. For those cases, `rustLoads` and `rustCached` record the current Rust behavior, and each note names the limit.
+The `loads` and `cached` fields state the expected behavior. A cache case can omit `cached` when it expects a load error through `error`. Rust rejects ignored integers outside signed 64-bit range because of a reader limit. For those cases, `rustLoads` and `rustCached` record the current Rust behavior, and each note names the limit.
 
 ## Places in fixtures
 
@@ -491,7 +499,7 @@ Within `overStrict`, a missing field is zero. An entry without `overStrict` has 
 
 Each mutant is a change to a canonical result that breaks an invariant (above). Every library runs the engine case `case` under `engine/`, and makes sure that its result keeps the invariants. Then it applies the change, and requires two refusals. The engine runner refuses the changed result, and so does the corpus runner.
 
-So the four runners hold the same invariants, and no library keeps a list of its own. Each runner requires at least one mutant, so an emptied file does not pass in silence. `node tools/sync.js --check` makes sure that the file and corpus meet their schemas (`tools/corpus-shape.js`).
+So the four runners hold the same invariants, and no library keeps a list of its own. Each runner requires at least one mutant, so an emptied file does not pass in silence. `node tools/sync.js --check` makes sure that the file and corpus meet their schemas (`tools/fixture-shapes.js`).
 
 `path` leads from the result to the member or element that changes. A step is a member name or an index into a list, and the index -1 is the last element. No other negative index is defined. The change is one of these:
 
@@ -534,7 +542,7 @@ A runner also tests tie invariants (above) for each corpus result. It fails a ca
 
 Every runner compares all of these fields, `at` included.
 
-The runners differ on input that this format does not allow, such as a field whose value is null. So `node tools/sync.js --check` first makes sure that every case meets its schema (`tools/corpus-shape.js`). Each file is UTF-8, and each line is one JSON object. No object has a member name twice, at any depth, and every string is a sequence of Unicode scalar values, with no lone surrogate.
+The runners differ on input that this format does not allow, such as a field whose value is null. So `node tools/sync.js --check` first makes sure that every case meets its schema (`tools/fixture-shapes.js`). Each file is UTF-8, and each line is one JSON object. No object has a member name twice, at any depth, and every string is a sequence of Unicode scalar values, with no lone surrogate.
 
 A case has only the fields above, and none of them is null. An accepted case has `verdict` and `brackets`. A rejected case has `stage`, and it has `at` exactly when it has no `error`.
 
