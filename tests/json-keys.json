@@ -1,5 +1,7 @@
 {
   "values": [
+    {"description":"Negative zero equals zero","json":"-0","expect":0},
+    {"description":"Nested signed zeros compare by value","json":"{\"x\":[-0,{\"value\":0}]}","expect":{"x":[0,{"value":-0}]}},
     {
       "description": "Exact keys differ by case",
       "json": "{\"name\":1,\"Name\":2}",
