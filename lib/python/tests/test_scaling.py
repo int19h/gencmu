@@ -650,9 +650,8 @@ class GuardedClauses(Linear):
                     self.assertGreater(counted, 0)
 
     def test_simplifying_every_part_for_each_production_fails_at_the_first_unit_past_its_budget(self) -> None:
-        # Each regression simplifies the whole union of guarded tags for
-        # each production, as lowering and the definition check did before
-        # the clauses were prepared once.
+        # Each regression repeats the simplification of the whole guarded
+        # union for each production instead of reusing prepared clauses.
         clause = GUARDED["a union of guarded tags"]
         for owner, function, change in (
             (_Lowerer, "add", ("self.prepare(term, False).simplified(present)", "simplify_term(term, present)")),

@@ -413,11 +413,9 @@ def visits() -> list[Watch]:
 
 @contextmanager
 def halting_and_repeating() -> Iterator[None]:
-    """A recognizer that halts a step for each query whose answer is not
-    yet known and makes the step again from its start, as Rust, Go and JS
-    did before they resumed in place. It is built on the walks: each
-    evaluation of one bound that answered a new query is followed by the
-    evaluations of that bound so far, once for each such query."""
+    """A recognizer that repeats a step when it answers a new query.
+    It evaluates each bound again from its start for each answered query,
+    so the work measures the cost of repeating earlier evaluations."""
     walk_condition, walk_value, answer = Evaluator.walk_condition, Evaluator.walk_value, StageContext.answer
     # The depth of the evaluation running, and the queries answered so far.
     state = {"depth": 0, "answered": 0}

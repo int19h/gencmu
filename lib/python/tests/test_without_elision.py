@@ -23,9 +23,7 @@ def tokens(*tags):
 class WithoutElision(unittest.TestCase):
     def test_shared_aligned_queries(self):
         paths = [path for path in cases("engine") if path.name.startswith("without-elision-")]
-        # DOM 27 adds family queries and their strict growth twins. The
-        # rule-argument update adds three queries with the 🆓 family.
-        # Keep the presence assertion and run every aligned fixture.
+        # Every aligned fixture exercises its query and growth contract.
         self.assertEqual(len(paths), 232)
         checker = engine_cases.EngineCases()
         for path in paths:
