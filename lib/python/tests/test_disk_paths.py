@@ -12,6 +12,7 @@ import unittest
 
 import gencmu
 from gencmu._splice import splice_pipeline
+from .shared import same_json
 
 
 class DiskPaths(unittest.TestCase):
@@ -76,7 +77,7 @@ class DiskPaths(unittest.TestCase):
                     error = caught.exception
                     self.assertEqual(error.kind, "grammar")
                     self.assertEqual(error.document, str(pathlib.Path(root, item["error"]["document"])))
-                    self.assertEqual((error.line, error.column), (item["error"]["line"], item["error"]["column"]))
+                    self.assertTrue(same_json([error.line, error.column], [item["error"]["line"], item["error"]["column"]]))
                 finally:
                     os.chdir(home)
 

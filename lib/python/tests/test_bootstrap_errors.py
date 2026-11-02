@@ -7,7 +7,7 @@ from unittest.mock import patch
 from gencmu import _pipeline
 
 import gencmu
-from .shared import REPOSITORY, find_places, position_of, substitute
+from .shared import REPOSITORY, find_places, position_of, same_json, substitute
 
 
 class BootstrapErrors(unittest.TestCase):
@@ -47,7 +47,7 @@ class BootstrapErrors(unittest.TestCase):
                 else:
                     line, column = item["line"], item["column"]
                 for field, value in (("stage", item["stage"]), ("line", line), ("column", column)):
-                    self.assertEqual(getattr(raised.exception, field), value, field)
+                    self.assertTrue(same_json(getattr(raised.exception, field), value), field)
 
     def test_bootstrap_file_reading_errors(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

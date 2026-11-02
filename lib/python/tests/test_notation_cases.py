@@ -12,7 +12,7 @@ import gencmu
 from gencmu._pipeline import DOM_FORMAT, _Loader, _Resources, _resources, _reader, read_document
 from gencmu._hash import fnv1a64
 
-from .shared import REPOSITORY, add_case_tests, cases, load_case, mismatch, read_json, validate_notation_case, write_json
+from .shared import REPOSITORY, add_case_tests, cases, load_case, mismatch, read_json, same_json, validate_notation_case, write_json
 
 
 class NotationCases(unittest.TestCase):
@@ -33,6 +33,17 @@ class NotationCases(unittest.TestCase):
             with self.subTest(position=position), self.assertRaises(AssertionError):
                 validate_notation_case({**base, "expect": {"error": position}})
         validate_notation_case({**base, "expect": {"error": {"line": 2, "column": 15}}})
+
+    def test_actual_error_coordinates_keep_their_json_types(self) -> None:
+        case = {"document": "", "expect": {"error": {"line": 1, "column": 1}}}
+        for line, column in ((1, 1), (True, 1), (1, True), (False, 1), (1, False), ("1", 1), (1, "1"), (None, 1), (1, None)):
+            error = gencmu.GencmuError("reason", line=line, column=column)
+            with self.subTest(line=line, column=column), patch(__name__ + ".load_case", return_value=case), patch(__name__ + ".read_document", side_effect=error):
+                if type(line) is int and type(column) is int:
+                    self.check_case(Path("coordinates.json"))
+                else:
+                    with self.assertRaises(AssertionError):
+                        self.check_case(Path("coordinates.json"))
 
     def test_range_emission_target_reports_a_content_error(self) -> None:
         with self.assertRaisesRegex(gencmu.GencmuError, "an emission target requires a capture or ε"):
@@ -83,7 +94,7 @@ class NotationCases(unittest.TestCase):
                         with self.assertRaises(gencmu.GencmuError) as caught:
                             read_document("```jbogenbau\n" + body + "\n```", "recipe.md")
                         self.assertIn("use ++", caught.exception.message.lower())
-                        self.assertEqual((caught.exception.line, caught.exception.column), (2, marker + 1))
+                        self.assertTrue(same_json([caught.exception.line, caught.exception.column], [2, marker + 1]))
         for body in data["ordinary"]:
             with self.subTest(ordinary=body), self.assertRaises(gencmu.GencmuError) as caught:
                 read_document("```jbogenbau\n" + body + "\n```", "recipe.md")
@@ -109,7 +120,7 @@ class NotationCases(unittest.TestCase):
             error = caught.exception
             self.assertEqual(error.kind, "grammar")
             for key in ("line", "column"):
-                self.assertEqual(getattr(error, key), expect["error"][key], f"{path.name}: {error}")
+                self.assertTrue(same_json(getattr(error, key), expect["error"][key]), f"{path.name}: {error}")
             if "message" in expect["error"]:
                 self.assertEqual(error.message, expect["error"]["message"], f"{path.name}: {error}")
 

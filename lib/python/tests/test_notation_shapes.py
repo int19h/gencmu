@@ -7,11 +7,12 @@ from __future__ import annotations
 
 import json
 import unittest
+from unittest.mock import patch
 from typing import Any, Callable
 
 import gencmu
 
-from .shared import SHARED, REPOSITORY, find_places, load_json, read_json, substitute
+from .shared import SHARED, REPOSITORY, find_places, load_json, read_json, same_json, substitute
 
 SHAPES: dict[str, Any] = load_json(SHARED / "notation-shapes.json")
 with open(REPOSITORY / "data/preparsed/gencmu.json", encoding="utf-8") as _file:
@@ -33,7 +34,7 @@ def outcome(bootstrap: str, document: str | None = None, inputs: list[str] | Non
     except gencmu.GencmuError as error:
         if where is not None:
             found = {"document": error.document, "line": error.line, "column": error.column}
-            assert found == where, f"{error}: expected the error at {where}"
+            assert same_json(found, where), f"{error}: expected the error at {where}"
         return error.kind
     assert where is None, "the document loaded, but the item gives where its error stands"
     results = []
@@ -53,6 +54,17 @@ def with_syntax(change: Callable[[str], str]) -> str:
 
 
 class NotationShapes(unittest.TestCase):
+    def test_actual_error_coordinates_keep_their_json_types(self) -> None:
+        where = {"document": "g.md", "line": 1, "column": 1}
+        for line, column in ((1, 1), (True, 1), (1, True)):
+            error = gencmu.GencmuError("reason", document="g.md", line=line, column=column)
+            with self.subTest(line=line, column=column), patch.object(gencmu, "load_pipeline_sources", side_effect=error):
+                if type(line) is int and type(column) is int:
+                    self.assertEqual(outcome("", where=where), "grammar")
+                else:
+                    with self.assertRaises(AssertionError):
+                        outcome("", where=where)
+
     def test_a_headless_rule_requires_its_rule_name(self) -> None:
         case = next(item for item in SHAPES["extraParts"] if item["description"] == "A headless rule reports its missing rule-name.")
         with self.assertRaisesRegex(gencmu.GencmuError, "the notation's rule has no rule-name"):

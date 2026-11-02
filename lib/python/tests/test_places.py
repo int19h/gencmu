@@ -4,7 +4,7 @@ tests/places.json."""
 
 import unittest
 
-from .shared import SHARED, find_places, load_json, position_of, substitute
+from .shared import SHARED, find_places, load_json, position_of, same_json, substitute
 
 
 class Places(unittest.TestCase):
@@ -16,7 +16,7 @@ class Places(unittest.TestCase):
                     with self.assertRaises(AssertionError):
                         position_of(item["text"], item["needle"])
                 else:
-                    self.assertEqual(position_of(item["text"], item["needle"]), (item["line"], item["column"]))
+                    self.assertTrue(same_json(list(position_of(item["text"], item["needle"])), [item["line"], item["column"]]))
         for item in places["substitutions"]:
             with self.subTest(find=item["find"], text=item["text"]):
                 self.assertEqual(len(find_places(item["text"], item["find"])), item["places"])

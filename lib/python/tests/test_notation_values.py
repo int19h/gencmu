@@ -11,7 +11,7 @@ from gencmu import GencmuError
 
 from gencmu._pipeline import _Resources, _resources, bundled_text, read_document
 
-from .shared import SHARED, load_json, mismatch, validate_notation_case, write_json
+from .shared import SHARED, load_json, mismatch, same_json, validate_notation_case, write_json
 from .test_notation_cases import check_notation_cache_paths
 
 
@@ -38,6 +38,17 @@ def value_notation(aliases: list[dict[str, Any]]) -> str:
 
 
 class NotationValues(unittest.TestCase):
+    def test_actual_error_coordinates_keep_their_json_types(self) -> None:
+        case = {"id": "coordinates", "document": "", "aliases": [], "expect": {"error": {"line": 1, "column": 1}}}
+        for line, column in ((1, 1), (True, 1), (1, True), (False, 1), (1, False), ("1", 1), (1, "1"), (None, 1), (1, None)):
+            error = GencmuError("reason", line=line, column=column)
+            with self.subTest(line=line, column=column), patch(__name__ + ".value_notation", return_value=""), patch(__name__ + ".read_document", side_effect=error):
+                if type(line) is int and type(column) is int:
+                    self.check_case(case)
+                else:
+                    with self.assertRaises(AssertionError):
+                        self.check_case(case)
+
     def test_generated_names_refuse_collisions(self) -> None:
         original = NotationValues
         for ids in (("duplicate", "duplicate"), ("dash-name", "dash_name"), ("supplied_errors_compare_the_top_level_message",)):
@@ -103,8 +114,8 @@ class NotationValues(unittest.TestCase):
             with self.assertRaises(GencmuError) as caught:
                 read_document(case["document"], name, sources=sources)
             expected = case["expect"]["error"]
-            self.assertEqual((caught.exception.line, caught.exception.column),
-                             (expected["line"], expected["column"]))
+            self.assertTrue(same_json([caught.exception.line, caught.exception.column],
+                                      [expected["line"], expected["column"]]))
             if "message" in case["expect"]:
                 self.assertEqual(caught.exception.message, case["expect"]["message"])
             return

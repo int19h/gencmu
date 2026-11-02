@@ -226,6 +226,8 @@ class ParseError:
     completion: list[Restoration] | None = None
     witness: tuple[Action, Action] | None = None
     feature: str | None = None
+    # The definition's location is separate from the stage-input position.
+    _grammar_location: str | None = field(default=None, repr=False, compare=False)
 
 
 @dataclass(frozen=True)
