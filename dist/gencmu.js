@@ -523,6 +523,24 @@
     }
   }
 
+  /** @internal @type {WeakMap<import("./types.js").ParseError, import("./types.js").ErrorLocation>} */
+  const runtimeErrorLocations = new WeakMap();
+
+  /**
+   * A runtime grammar error keeps its formatted message and source metadata.
+   * @internal
+   * @param {GencmuError} error
+   * @param {string} stage
+   * @returns {import("./types.js").ParseError}
+   */
+  function runtimeGrammarError(error, stage) {
+    /** @type {import("./types.js").ParseError} */
+    const result = {kind:"grammar",stage,message:error.message};
+    const {document,line,column} = error.where;
+    runtimeErrorLocations.set(result,{document,line,column});
+    return result;
+  }
+
   /** @internal The splicer found a declared stage without rules. */
   class EmptyStageError extends GencmuError {}
 
@@ -17837,7 +17855,7 @@
         roots = rootItems(chart, "text");
       } catch (error) {
         if (error instanceof GencmuError) {
-          report.error = { kind: "grammar", stage: this.name, message: error.withLocation({stage:undefined}).message };
+          report.error = runtimeGrammarError(error.withLocation({stage:undefined}),this.name);
           return report;
         }
         throw error;
@@ -17888,7 +17906,7 @@
         report.output = emit(derivation, context);
       } catch (error) {
         if (error instanceof GencmuError) {
-          report.error = { kind: "grammar", stage: this.name, message: error.withLocation({stage:undefined}).message };
+          report.error = runtimeGrammarError(error.withLocation({stage:undefined}),this.name);
           return report;
         }
         throw error;
@@ -17918,7 +17936,7 @@
                 chosen: report.tree,
                 completion: [],
               }
-              : { kind: "grammar", stage: this.name, message: error.withLocation({stage:undefined}).message };
+              : runtimeGrammarError(error.withLocation({stage:undefined}),this.name);
             return report;
           }
           throw error;
@@ -21377,7 +21395,7 @@
           }
         } catch (error) {
           if (!(error instanceof GencmuError)) throw error;
-          featureError = {kind:"grammar",stage:stage.name,message:error.message};
+          featureError = runtimeGrammarError(error,stage.name);
         }
         const report = featureError ? {name:stage.name,verdict:null,witness:null,tree:null,output:null,error:featureError} : stage.run(tokens, sourceText, this.loader.unicode, {
           features: options.features,
