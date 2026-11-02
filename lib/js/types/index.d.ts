@@ -4,7 +4,7 @@ export { stitchText } from "./splice.js";
 export { GencmuError } from "./errors.js";
 export { Token } from "./tokens.js";
 export { resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree } from "./output.js";
-export { explainError, explainTies, explainWarnings, tokenTable, audit, formatAudit, trace, formatTrace, formatTerm } from "./diagnostics.js";
+export { explainError, explainTies, explainWarnings, tokenTable, audit, formatAudit, trace, formatTrace } from "./diagnostics.js";
 import { Loader, Pipeline } from "./pipeline.js";
 export type TagSet = import("./types.js").TagSet;
 export type Span = import("./types.js").Span;

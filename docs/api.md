@@ -235,7 +235,19 @@ toJson(result); toBrackets(result, { showElided: true });
 - Errors are `GencmuError`, with `kind` and `where`.
 - The lower-level `Loader`, `loaderFromSources` and `loaderFromDirectory` are available for tools that load several pipelines over one set of documents. `Loader.splice(path)` expands includes into stage document runs. `Loader.pipeline(path)` returns a loaded `Pipeline`.
 
-Internal formatting helpers are private to the library.
+The JavaScript entry points also export helpers for the CLI and playground:
+
+- `fnv1a64(text)` returns the FNV-1a hash of the UTF-8 bytes as 16 hexadecimal digits.
+- `stitchText(pipeline)` returns one jbogenbau text with the pipeline's includes expanded and its strings in canonical spelling.
+- `compactJson(value)` returns JSON text without spacing and supports values deeper than the call stack.
+- `nodeBrackets(root, tokens, { showElided })` renders any result tree over its indexed tokens as brackets. The configuration argument is optional.
+- `nodeTree(root, tokens, text)` renders any result tree over its indexed tokens as a tree listing. The source text is optional.
+- `explainWarnings(result)` returns warning descriptions and excerpts from the source text.
+- `bundledGrammarsDirectory()` returns the bundled grammar directory and comes only from `gencmu/node`.
+
+The portable `gencmu` entry point and `gencmu/node` both export the first six helpers.
+
+The `tokens` arguments come from the stage that produced `root`. The tree listing uses their originating Unicode table.
 
 The types are in the package's declarations (`lib/js/types/`).
 
