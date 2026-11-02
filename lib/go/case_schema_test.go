@@ -128,9 +128,6 @@ func tokenSchema(usage bool) caseSchema {
 			pending = pending[:len(pending)-1]
 			object, ok := part.value.(map[string]any)
 			if !ok {
-				if usage {
-					continue
-				}
 				return fmt.Errorf("%s: expected a token object", part.path)
 			}
 			if !usage {

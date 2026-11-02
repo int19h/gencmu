@@ -923,10 +923,8 @@ func inputTokensOf(tokens []Token) []InputToken {
 func unrepresentableTokenField(raw any) string {
 	tokens, _ := raw.([]any)
 	for _, raw := range tokens {
-		token, ok := raw.(map[string]any)
-		if !ok {
-			return "Go []InputToken cannot express a non-record token"
-		}
+		// tokenSchema already requires an object at every depth.
+		token := raw.(map[string]any)
 		for _, field := range []string{"text", "tags"} {
 			if _, exists := token[field]; !exists {
 				return "Go InputToken cannot express an absent " + field + " member"
@@ -1075,5 +1073,54 @@ func TestGuardedCrashRecognition(t *testing.T) {
 		if got := isGuardedCrash(c.err); got != c.want {
 			t.Errorf("%v: guarded crash=%t, want %t", c.err, got, c.want)
 		}
+	}
+}
+
+func TestTokenCaseSchemaRejectsNonObjectTokens(t *testing.T) {
+	for _, bad := range []string{`null`, `false`, `0`, `"x"`, `[]`} {
+		for _, sides := range [][]string{nil, {"before"}, {"after"}, {"before", "after"}, {"after", "before"}} {
+			token, path := bad, "case.tokens[0]"
+			for i := len(sides) - 1; i >= 0; i-- {
+				token = `{"text":"x","tags":[],"` + sides[i] + `":[` + token + `]}`
+			}
+			for _, side := range sides {
+				path += "." + side + "[0]"
+			}
+			body := `"grammar":"%rule text A","tokens":[` + token + `],"expect":{"error":"usage"}`
+			_, err := decodeEngineCase([]byte(`{` + body + `}`))
+			if err == nil || !strings.Contains(err.Error(), path+": expected a token object") {
+				t.Errorf("engine case accepted %s at %s: %v", bad, path, err)
+			}
+			_, _, err = decodeParameterCase([]byte(`{"name":"token shape",` + body + `}`))
+			if err == nil || !strings.Contains(err.Error(), path+": expected a token object") {
+				t.Errorf("parameter case accepted %s at %s: %v", bad, path, err)
+			}
+		}
+	}
+}
+
+func TestUsageTokenCaseKeepsInvalidPayloads(t *testing.T) {
+	for _, token := range []string{
+		`{"text":false,"tags":[]}`,
+		`{"text":"x","tags":null}`,
+		`{"text":"x","tags":[],"before":false}`,
+		`{"text":"x","tags":[],"before":[{"text":false,"tags":[]}]}`,
+		`{"text":"x","tags":[],"after":[{"text":"y","tags":[],"before":null}]}`,
+	} {
+		raw := `{"grammar":"%rule text A","tokens":[` + token + `],"expect":{"error":"usage"}}`
+		c, err := decodeEngineCase([]byte(raw))
+		if err != nil || c.skipReason == "" {
+			t.Errorf("lost an invalid known payload in %s: %v", token, err)
+		}
+	}
+	c, err := decodeEngineCase([]byte(`{"grammar":"%rule text A","tokens":[{"text":"x","tags":["A"],"before":[{"text":"y","tags":[]}]}],"expect":{"error":"usage"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.skipReason != "" {
+		t.Fatal(c.skipReason)
+	}
+	if err := checkCase(c, true); err != nil {
+		t.Fatal(err)
 	}
 }
