@@ -1,6 +1,8 @@
 // Shared fixture contracts. An object lists its required and optional members.
 // All other members are errors. Rules describe combinations of members.
 // Opaque payloads deliberately reach the library without a shape restriction.
+import { createHash } from "node:crypto";
+
 const string = "string", boolean = "boolean", any = "any", record = "record";
 const positive = "positive", natural = "natural";
 const list = (item, min = 0) => ({ list: item, min });
@@ -125,11 +127,12 @@ const sourceChange = object({}, { kind: string, description: string, before: str
   (v) => !has(v, "kind") && !has(v, "before") ? ["a change needs a kind or a replacement"] : [],
   (v) => has(v, "count") && !has(v, "before") ? ["count requires before and after"] : [],
 ]);
-const textManifest = object({ grammar_commit: { pattern: /^[0-9a-f]{40}$/ }, sources: list(object({
-  id: string, title: string, url: string, fetched: { pattern: /^\d{4}-\d\d-\d\d$/ }, html: string, html_sha256: digest,
-  extracted: string, extracted_sha256: digest, location: either(object({ column: string, rows: list(positive) }),
+const sourceFile = (extension) => ({ pattern: new RegExp(`^[^/\\\\:\\x00]+\\.${extension}$`) });
+const textManifest = object({ grammar_commit: { pattern: /^[0-9a-f]{40}$/ }, sources: caseList(object({
+  id: string, title: string, url: string, fetched: { pattern: /^\d{4}-\d\d-\d\d$/ }, html: sourceFile("html"), html_sha256: digest,
+  extracted: sourceFile("txt"), extracted_sha256: digest, location: either(object({ column: string, rows: list(positive) }),
     object({ chunk: string, paragraphs: list(positive) }, { heading: string })),
-  variants: list(object({ name: string, changes: list(sourceChange), text_sha256: digest, cases: strings })),
+  variants: list(object({ name: string, changes: list(sourceChange), text_sha256: digest, cases: list(string, 1) })),
 })) }, { audit_grammar_commit: { pattern: /^[0-9a-f]{40}$/ } });
 
 // A directory's format applies to each member. Documentation is not a fixture.
@@ -180,8 +183,12 @@ export const fixtureShapes = {
   "playground-names-paths.json": { shape: caseList(string) },
   "cll-footnotes.json": { shape: object({ edition: string, index: object({ url: string, sha256: digest }), pages: map(page) }) },
   "unicode/property-digests.json": { shape: object({ unicode: string, algorithm: choice("fnv1a64"), scalars: positive, properties: map(hash) }) },
-  "text-sources/manifest.json": { shape: textManifest },
-  "core.txt": { format: "text", rows: coreRows },
+  "text-sources/manifest.json": { shape: textManifest,
+    references: (v) => v.sources.flatMap((source) => [`text-sources/${source.html}`, `text-sources/${source.extracted}`]),
+    audit: manifestProblems },
+  "core.txt": { format: "text", rows: coreRows,
+    audit: (text, context) => text.split(/\r\n|\r|\n/).filter(Boolean)
+      .filter((id) => !context.corpus().has(id)).map((id) => `unknown corpus case ${id}`) },
   "quoted-allow.txt": { format: "text", rows: allowRows },
   "unicode/NormalizationTest.txt": { format: "text", rows: normalizationRows },
   "text-sources/*.html": { format: "text" },
@@ -231,6 +238,38 @@ function tokenMembers(value) {
     for (const key of Object.keys(token)) if (!allowed.includes(key)) problems.push(`${at}: unknown token member ${key}`);
     for (const side of ["before", "after"]) if (Array.isArray(token[side])) {
       token[side].forEach((child, index) => pending.push([child, `${at}.${side}[${index}]`]));
+    }
+  }
+  return problems;
+}
+
+// Hashes describe bytes, except for variant text, whose bytes are UTF-8.
+// The context supplies files and corpus records without executing a case.
+function manifestProblems(value, context) {
+  const problems = [], corpus = context.corpus();
+  const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+  for (const source of value.sources) {
+    for (const field of ["html", "extracted"]) {
+      const relative = `text-sources/${source[field]}`;
+      if (!context.files.has(relative)) continue; // The reference check reports it.
+      try {
+        if (sha256(context.read(relative)) !== source[`${field}_sha256`]) problems.push(`${relative}: ${field}_sha256 differs from the file bytes`);
+      } catch (error) { problems.push(`${relative}: cannot read the snapshot: ${error.message}`); }
+    }
+    for (const variant of source.variants) {
+      const at = `${source.id}/${variant.name}`, texts = new Set();
+      if (!variant.changes.length && variant.text_sha256 !== source.extracted_sha256) {
+        problems.push(`${at}: an unchanged variant must use extracted_sha256`);
+      }
+      for (const id of variant.cases) {
+        const records = corpus.get(id);
+        if (!records) problems.push(`${at}: unknown corpus case ${id}`);
+        else for (const text of records) texts.add(text);
+      }
+      if (texts.size > 1) problems.push(`${at}: the corpus cases must share one text`);
+      for (const text of texts) if (sha256(text) !== variant.text_sha256) {
+        problems.push(`${at}: text_sha256 differs from the corpus text`);
+      }
     }
   }
   return problems;

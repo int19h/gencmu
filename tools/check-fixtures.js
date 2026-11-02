@@ -70,7 +70,7 @@ export function fixtureKind(relative) {
 
 // bytes can also be a string in focused tests. Fatal decoding keeps broken
 // UTF-8 from silently turning into replacement characters in some readers.
-export function fixtureProblems(relative, bytes, availableFiles) {
+export function fixtureProblems(relative, bytes, context) {
   const kind = fixtureKind(relative);
   if (!kind) return [`tests/${relative}: no fixture shape description`];
   const description = fixtureShapes[kind], problems = [];
@@ -81,6 +81,9 @@ export function fixtureProblems(relative, bytes, availableFiles) {
   if (format === "text") {
     if (!text.isWellFormed()) return [`tests/${relative}: not a sequence of Unicode scalar values`];
     for (const message of description.rows?.(text, { readAllowList }) ?? []) problems.push(`tests/${relative}: ${message}`);
+    if (!problems.length && context && description.audit) {
+      for (const message of description.audit(text, context)) problems.push(`tests/${relative}: ${message}`);
+    }
     return problems;
   }
   const parts = format === "jsonl" ? text.split("\n") : [text];
@@ -94,8 +97,11 @@ export function fixtureProblems(relative, bytes, availableFiles) {
     if (description.scalarStrings) for (const string of illFormedStrings(value)) problems.push(`${at}: not a Unicode scalar string: ${string}`);
     const errors = shapeProblems(description.shape, value);
     for (const message of errors) problems.push(`${at}: ${message}`);
-    if (!errors.length && availableFiles && description.references) for (const reference of description.references(value)) {
-      if (!availableFiles.has(reference)) problems.push(`${at}: missing fixture reference ${reference}`);
+    if (!errors.length && context && description.references) for (const reference of description.references(value)) {
+      if (!context.files.has(reference)) problems.push(`${at}: missing fixture reference ${reference}`);
+    }
+    if (!errors.length && context && description.audit) {
+      for (const message of description.audit(value, context)) problems.push(`${at}: ${message}`);
     }
   });
   return problems;
@@ -116,12 +122,37 @@ export function fixtureFiles(root) {
   return files;
 }
 
+// A context resolves references within one fixture tree. Corpus records are
+// indexed once, on demand, and malformed records remain the shape check's job.
+export function fixtureContext(root, files = fixtureFiles(root)) {
+  const read = (relative) => fs.readFileSync(path.join(root, "tests", relative));
+  let corpus;
+  return { files: new Set(files), read, corpus: () => {
+    if (corpus) return corpus;
+    corpus = new Map();
+    for (const relative of files) if (fixtureKind(relative) === "corpus/*.jsonl") {
+      let text;
+      try { text = new TextDecoder("utf-8", { fatal: true }).decode(read(relative)); }
+      catch { continue; }
+      for (const line of text.split("\n")) {
+        let record;
+        try { record = JSON.parse(line); }
+        catch { continue; }
+        if (!isRecord(record) || typeof record.id !== "string" || typeof record.text !== "string") continue;
+        if (!corpus.has(record.id)) corpus.set(record.id, new Set());
+        corpus.get(record.id).add(record.text);
+      }
+    }
+    return corpus;
+  } };
+}
+
 export function fixtureShapeProblems(root) {
-  const files = fixtureFiles(root), availableFiles = new Set(files), problems = [], kinds = new Set();
+  const files = fixtureFiles(root), context = fixtureContext(root, files), problems = [], kinds = new Set();
   for (const relative of files) {
     const kind = fixtureKind(relative);
     if (kind) kinds.add(kind);
-    for (const message of fixtureProblems(relative, fs.readFileSync(path.join(root, "tests", relative)), availableFiles)) problems.push(message);
+    for (const message of fixtureProblems(relative, fs.readFileSync(path.join(root, "tests", relative)), context)) problems.push(message);
   }
   for (const kind of Object.keys(fixtureShapes)) if (!kinds.has(kind)) problems.push(`tests/${kind}: required fixture is missing`);
   return problems;
