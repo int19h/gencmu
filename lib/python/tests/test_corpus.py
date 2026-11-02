@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import tempfile
 import time
 import unittest
 from unittest.mock import patch
@@ -42,7 +43,7 @@ def all_cases() -> list[dict[str, Any]]:
     found: list[dict[str, Any]] = []
     for path in sorted((SHARED / "corpus").glob("*.jsonl")):
         with open(path, encoding="utf-8") as file:
-            found.extend(read_json(line) for line in file if line.strip())
+            found.extend(read_json(line) for line in file if line.strip(" \t\r\n"))
     return found
 
 
@@ -122,6 +123,37 @@ def mismatch(case: dict[str, Any], got: dict[str, Any] | str) -> str | None:
 
 
 class Corpus(unittest.TestCase):
+    def test_jsonl_blank_lines_use_only_json_whitespace(self) -> None:
+        record = {"id": "synthetic", "text": "\u00a0\u2028\ufeff", "pipeline": "synthetic",
+                  "expect": "reject", "stage": "main", "at": 0}
+        line = json.dumps(record, ensure_ascii=False) + "\n"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "corpus").mkdir()
+            file = root / "corpus" / "synthetic.jsonl"
+            with patch(__name__ + ".SHARED", root):
+                for blank in ("", " ", "\t", "\r", "\n", " \t\r\n"):
+                    with self.subTest(blank=blank):
+                        file.write_text(blank + "\n" + line + blank + "\n", encoding="utf-8")
+                        self.assertTrue(same_json(all_cases(), [record]))
+
+    def test_jsonl_refuses_non_json_whitespace_on_every_line(self) -> None:
+        record = {"id": "synthetic", "text": "a", "pipeline": "synthetic",
+                  "expect": "reject", "stage": "main", "at": 0}
+        line = json.dumps(record)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "corpus").mkdir()
+            file = root / "corpus" / "synthetic.jsonl"
+            with patch(__name__ + ".SHARED", root):
+                for whitespace in ("\u00a0", "\v", "\f", "\u2028", "\u2029", "\u0085", "\u2003", "\ufeff"):
+                    for text in (whitespace + "\n" + line, line + "\n" + whitespace,
+                                 whitespace + line, line + whitespace):
+                        with self.subTest(whitespace=whitespace, text=text):
+                            file.write_text(text, encoding="utf-8")
+                            with self.assertRaises((AssertionError, ValueError)):
+                                all_cases()
+
     def test_json_expectations_distinguish_booleans_from_numbers(self) -> None:
         from .shared import run_case
 
