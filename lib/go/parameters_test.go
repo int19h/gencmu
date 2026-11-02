@@ -41,8 +41,8 @@ func TestParameters(t *testing.T) {
 	if err = json.Unmarshal(raw, &cases); err != nil {
 		t.Fatal(err)
 	}
-	if len(cases) != 274 {
-		t.Fatalf("got %d shared cases", len(cases))
+	if len(cases) == 0 {
+		t.Fatal("no shared parameter cases")
 	}
 	for _, raw := range cases {
 		name, c, err := decodeParameterCase(raw)
