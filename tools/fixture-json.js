@@ -1,5 +1,29 @@
 // JSON text checks shared by the fixture checker.
 /**
+ * Number spellings that the shared fixture readers cannot all decode.
+ * The text must be valid JSON. Strings, including embedded library inputs,
+ * remain opaque. Rust's fixture reader requires signed 64-bit integers.
+ * @param {string} json
+ * @returns {string[]}
+ */
+export function numberProblems(json) {
+  const found = [];
+  const tokens = /"(?:[^"\\]|\\.)*"|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/gs;
+  for (const match of json.matchAll(tokens)) {
+    const number = match[1];
+    if (number === undefined) continue;
+    if (/[.eE]/.test(number)) found.push(`number ${number} needs an integer spelling at character ${match.index}`);
+    else {
+      const value = BigInt(number);
+      if (value < -9223372036854775808n || value > 9223372036854775807n) {
+        found.push(`number ${number} is outside the signed 64-bit range at character ${match.index}`);
+      }
+    }
+  }
+  return found;
+}
+
+/**
  * The member names that an object of a JSON text has twice, at any depth,
  * each as its path from the top, such as `at` or `error.kind`. The text
  * must be valid JSON. Two names are the same when their values are, so
