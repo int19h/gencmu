@@ -469,7 +469,7 @@ A close node stores an omitted terminator, a ranked seal, or a shared concatenat
 
 An aligned witness is a query proof with matching closes.
 
-The runners replace `r16` with the selected deepest rule and regenerate each doubled rule. Each runner also demands that rule as an aligned witness, so the bound exercises close concatenation.
+The runners replace `r16` with the selected deepest rule and regenerate each doubled rule. Each runner also demands that rule as an aligned witness, so the bound exercises close concatenation. A family entry with `itemsPerUnit` or `nodesPerDepth` also requires `slack`.
 
 `unusedCases` names ordinary fixtures that receive an unreachable facility rule. These fixtures must keep their expected results and allocate no close observations.
 

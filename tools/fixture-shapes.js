@@ -80,7 +80,8 @@ const family = object({ case: string, strictCase: string }, {
   overStrict: object({}, { itemsPercent: natural, itemsPercentPerUnit: natural, itemsSlack: natural, closeStatesPerUnit: natural }),
   strictBound: object({ closeStatesPerUnit: natural, closeStatesSlack: natural }),
   summaries: object({ perSquare: natural, slack: natural }), steps: object({ perCube: natural, slack: natural }),
-}, [exactly("depths", "lengths")]);
+}, [exactly("depths", "lengths"),
+(v) => (has(v, "itemsPerUnit") || has(v, "nodesPerDepth")) && !has(v, "slack") ? ["a scaled bound requires slack"] : []]);
 const families = Object.fromEntries([
   "familyOwnerChoice", "familyOwnerChoiceTags", "familyNestedCloses", "familyNestedAnchored", "familyNestedExtras",
   "familyIrrelevant", "familyPermittedExtras", "familyNullableCycle", "familySharedDoubleCloses",
