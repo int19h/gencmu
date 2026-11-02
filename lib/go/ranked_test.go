@@ -138,7 +138,7 @@ func TestValidRankedCacheSkipsLocationRecovery(t *testing.T) {
 func TestDeferredRecipePrecedesEmptyEmission(t *testing.T) {
 	grammar := `%rule text [$a:A] (X ≻ Y) | [$b:B] Z := $b.value %emits $a`
 	_, err := casePipeline(&engineCase{Grammar: &grammar}, false)
-	if err == nil || !strings.Contains(err.Error(), "recipe") || !strings.Contains(err.Error(), "$b") {
+	if isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), "recipe") || !strings.Contains(err.Error(), "$b") {
 		t.Fatalf("got %v", err)
 	}
 	if e, ok := err.(*Error); !ok || e.Code != "" {
@@ -224,7 +224,7 @@ func TestRankedPrivateRecipeExports(t *testing.T) {
 	// Earlier local constructors still reject invalid recipe methods.
 	_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+`%rule text ($x:A ≻ B) := $x.tags %emits`), "p.md")
 	var e *Error
-	if !errors.As(err, &e) || e.Code != "" || !strings.Contains(e.Message, "recipe") {
+	if isGuardedCrash(err) || !errors.As(err, &e) || e.Code != "" || !strings.Contains(e.Message, "recipe") {
 		t.Fatalf("local recipe constructor: %v", err)
 	}
 }

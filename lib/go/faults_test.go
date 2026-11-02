@@ -1,7 +1,6 @@
 package gencmu
 
 import (
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -58,8 +57,7 @@ var faultCatches = map[string]map[string]string{
 
 func faultCatch(c *engineCase) (bool, error) {
 	err := checkCase(c, true)
-	var crash *Error
-	if errors.As(err, &crash) && crash.Kind == ErrorGrammar {
+	if isGuardedCrash(err) {
 		return false, fmt.Errorf("fault run crashed: %w", err)
 	}
 	return err != nil, nil

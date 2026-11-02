@@ -739,7 +739,7 @@ func TestMalformedPreparsed(t *testing.T) {
 		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
 		_, err = LoadPipelineSources(src, "grammars/test/p.md")
 		var e *Error
-		if !errors.As(err, &e) || e.Kind != ErrorGrammar {
+		if isGuardedCrash(err) || !errors.As(err, &e) || e.Kind != ErrorGrammar {
 			t.Fatalf("%s in the bootstrap: expected a load error, got %v", expr, err)
 		}
 	}
@@ -993,7 +993,7 @@ func TestFileUTF8(t *testing.T) {
 	}
 	// A byte order mark stays U+FEFF, so a fence after it opens no block.
 	marked := dir(map[string]string{"p.md": "\uFEFF" + pipeline[strings.Index(pipeline, "```"):], "g.md": good})
-	if _, err := LoadPipelineFile(filepath.Join(marked, "p.md")); err == nil || !strings.Contains(err.Error(), "at least one %stage") {
+	if _, err := LoadPipelineFile(filepath.Join(marked, "p.md")); isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), "at least one %stage") {
 		t.Errorf("a fence after a byte order mark: %v", err)
 	}
 	prose := dir(map[string]string{"p.md": "\uFEFF" + pipeline, "g.md": grammar("%rule text \"\uFEFF\"")})
@@ -1498,19 +1498,19 @@ func TestParseUsageErrorOrder(t *testing.T) {
 		{Text: "a", Tags: []string{"second invalid tag"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}},
 	}
 	_, err = d.ParseTokens("\xff", tokens, options)
-	if err == nil || !strings.Contains(err.Error(), "the text is not a sequence") {
+	if isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), "the text is not a sequence") {
 		t.Fatalf("text: %v", err)
 	}
 	_, err = d.ParseTokens("a", tokens, options)
-	if err == nil || !strings.Contains(err.Error(), "token 0: invalid stored tag") {
+	if isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), "token 0: invalid stored tag") {
 		t.Fatalf("tokens: %v", err)
 	}
 	_, err = d.Parse("a", options)
-	if err == nil || !strings.Contains(err.Error(), "the feature f is named both") {
+	if isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), "the feature f is named both") {
 		t.Fatalf("features: %v", err)
 	}
 	_, err = d.Parse("a", ParseOptions{Until: "missing"})
-	if err == nil || !strings.Contains(err.Error(), "has no stage") {
+	if isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), "has no stage") {
 		t.Fatalf("until: %v", err)
 	}
 }
@@ -1537,7 +1537,7 @@ func TestConstantCyclePathAndVersions(t *testing.T) {
 	} {
 		sources := map[string]string{"p.md": block("%stage main", `%include "g.md"`), "g.md": block("%ambiguity-resolution greedy", c.declarations, `%rule text "a"`)}
 		_, err := LoadPipelineSources(sources, "p.md")
-		if err == nil || !strings.HasSuffix(err.Error(), "constant dependency cycle: "+c.path) {
+		if isGuardedCrash(err) || err == nil || !strings.HasSuffix(err.Error(), "constant dependency cycle: "+c.path) {
 			t.Fatalf("expected %s, got %v", c.path, err)
 		}
 	}

@@ -128,7 +128,7 @@ func memoParseOutcome(d *Pipeline, p memoParse) (string, error) {
 		res, err = d.ParseTokens(p.text, inputTokensOf(p.tokens), p.options)
 	}
 	if err != nil {
-		if e, ok := err.(*Error); ok && e.Kind == ErrorGrammar {
+		if isGuardedCrash(err) {
 			return "", err
 		}
 		return fmt.Sprintf("error %v", err), nil

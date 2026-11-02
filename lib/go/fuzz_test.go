@@ -67,8 +67,8 @@ func FuzzPreparsedDOM(f *testing.F) {
 		for _, on := range [][]string{nil, all} {
 			for _, elision := range []bool{false, true} {
 				if _, err := d.Parse(text, ParseOptions{Features: on, ElisionOnly: &elision}); err != nil {
-					if e, ok := err.(*Error); ok && e.Message != "" && len(e.Message) > 15 && e.Message[:15] == "internal error:" {
-						t.Fatalf("a panic, recovered: %v", e)
+					if isGuardedCrash(err) {
+						t.Fatalf("a panic, recovered: %v", err)
 					}
 				}
 			}

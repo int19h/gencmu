@@ -21,9 +21,41 @@ func TestSuppliedRankedChoiceErrorHasNoSyntaxCode(t *testing.T) {
 		"data/preparsed/gencmu.json": changed,
 	}, "p.md")
 	var problem *Error
-	if !errors.As(err, &problem) || problem.Code != "" {
+	if isGuardedCrash(err) || !errors.As(err, &problem) || problem.Code != "" {
 		t.Fatalf("expected a document error without a syntax code, got %v", err)
 	}
+}
+
+func notationShapeOutcome(d *Pipeline, loadErr error, inputs []string, where *[3]any) (any, error) {
+	if isGuardedCrash(loadErr) {
+		return nil, fmt.Errorf("load crashed: %w", loadErr)
+	}
+	if loadErr != nil {
+		var e *Error
+		if !errors.As(loadErr, &e) {
+			return nil, fmt.Errorf("an error that is not an *Error: %v", loadErr)
+		}
+		if where != nil && *where != [3]any{e.Document, e.Line, e.Column} {
+			return nil, fmt.Errorf("the load error stands at %s:%d:%d, not at %v: %v", e.Document, e.Line, e.Column, *where, e)
+		}
+		return e.Kind, nil
+	}
+	if where != nil {
+		return nil, fmt.Errorf("the document loaded, but the error must stand at %v", *where)
+	}
+	var results []any
+	for _, input := range inputs {
+		res, err := d.Parse(input, ParseOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("%q: %w", input, err)
+		}
+		if res.OK {
+			results = append(results, Brackets(res, BracketOptions{}))
+		} else {
+			results = append(results, res.Error.Kind)
+		}
+	}
+	return results, nil
 }
 
 // A bootstrap of another notation gives the reader a tree of another shape
@@ -89,32 +121,11 @@ func TestNotationShapes(t *testing.T) {
 	// kind of its error, which must be an *Error.
 	outcomeAt := func(boot, document string, inputs []string, where *[3]any) any {
 		d, err := LoadPipelineSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "g.md": document, "data/preparsed/gencmu.json": boot}, "p.md")
+		got, err := notationShapeOutcome(d, err, inputs, where)
 		if err != nil {
-			var e *Error
-			if !errors.As(err, &e) {
-				t.Fatalf("an error that is not an *Error: %v", err)
-			}
-			if where != nil && *where != [3]any{e.Document, e.Line, e.Column} {
-				t.Errorf("the load error stands at %s:%d:%d, not at %v: %v", e.Document, e.Line, e.Column, *where, e)
-			}
-			return e.Kind
+			t.Fatal(err)
 		}
-		if where != nil {
-			t.Errorf("the document loaded, but the error should stand at %v", *where)
-		}
-		var results []any
-		for _, input := range inputs {
-			res, err := d.Parse(input, ParseOptions{})
-			if err != nil {
-				t.Fatalf("%q: %v", input, err)
-			}
-			if res.OK {
-				results = append(results, Brackets(res, BracketOptions{}))
-			} else {
-				results = append(results, res.Error.Kind)
-			}
-		}
-		return results
+		return got
 	}
 	outcomeOf := func(boot, document string, inputs []string) any { return outcomeAt(boot, document, inputs, nil) }
 	outcome := func(boot string) any { return outcomeOf(boot, shapes.Document, shapes.Inputs) }
@@ -228,7 +239,7 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 	}
 	_, err = LoadPipelineSources(sources(elision), "p.md")
 	e, ok := err.(*Error)
-	if !ok || e.Kind != ErrorGrammar || e.Line != 0 || !strings.Contains(e.Message, "lexical stage of the notation") {
+	if isGuardedCrash(err) || !ok || e.Kind != ErrorGrammar || e.Line != 0 || !strings.Contains(e.Message, "lexical stage of the notation") {
 		t.Fatalf("%v", err)
 	}
 }
@@ -268,4 +279,27 @@ func TestRootTokensPrecedeNamesDeclarations(t *testing.T) {
 		}
 	}()
 	b.document(root)
+}
+
+func TestRunnersRejectGuardedLoadErrors(t *testing.T) {
+	crash := func() (err error) {
+		defer guard(ErrorGrammar, &err)
+		panic("loader probe crash")
+	}()
+	if err := checkLoadError(&caseExpect{Error: ErrorGrammar}, crash); err == nil {
+		t.Error("the engine runner accepted a recovered loader panic")
+	}
+	if got, err := notationShapeOutcome(nil, crash, nil, nil); err == nil {
+		t.Errorf("the notation-shapes runner accepted a recovered loader panic as %v", got)
+	}
+}
+
+func TestLoadRunnersKeepGrammarErrors(t *testing.T) {
+	problem := &Error{Kind: ErrorGrammar, Message: "ordinary grammar error"}
+	if err := checkLoadError(&caseExpect{Error: ErrorGrammar}, problem); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := notationShapeOutcome(nil, problem, nil, nil); err != nil || got != ErrorGrammar {
+		t.Fatalf("lost a grammar error: %v, %v", got, err)
+	}
 }

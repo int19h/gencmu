@@ -540,7 +540,7 @@ func TestTemplatePatternClosedness(t *testing.T) {
 func TestParameterErrorsUseEffectiveNames(t *testing.T) {
 	text := "%rule use(@X) @X :: @X\n%rule text use(\"a\")"
 	_, err := casePipeline(&engineCase{Grammar: &text}, false)
-	if err == nil || !strings.Contains(err.Error(), `rule use("a"):`) || strings.Contains(err.Error(), "instance-") {
+	if isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), `rule use("a"):`) || strings.Contains(err.Error(), "instance-") {
 		t.Fatalf("effective name missing: %v", err)
 	}
 }
