@@ -23,7 +23,7 @@ import (
 type corpusCase struct {
 	ID              string         `json:"id"`
 	Text            string         `json:"text"`
-	Pipeline         string         `json:"pipeline"`
+	Pipeline        string         `json:"pipeline"`
 	Features        []string       `json:"features"`
 	WithoutFeatures []string       `json:"withoutFeatures"`
 	fields          map[string]any // the fields compared
