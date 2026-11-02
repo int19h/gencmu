@@ -858,11 +858,10 @@ func witnessLostProblems(e map[string]any, stages []any) []string {
 	}
 	stage, _ := e["stage"].(string)
 	_, chosen := e["chosen"]
-	completion, isList := e["completion"].([]any)
+	_, isList := e["completion"].([]any)
 	if e["kind"] != ErrorGrammar || stage == "" || !chosen || !isList {
 		problems = append(problems, "the elision-witness-lost error lacks its kind grammar, stage, chosen or completion")
 	}
-	_ = completion
 	for _, member := range []string{"token", "source", "line", "column", "expected", "reason", "readings"} {
 		if _, ok := e[member]; ok {
 			problems = append(problems, "the elision-witness-lost error has a member "+member)
