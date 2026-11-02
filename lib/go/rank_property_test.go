@@ -624,6 +624,44 @@ func sameActions(a, b []action) bool {
 	return true
 }
 
+func TestRankBestCountAgreement(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		body    string
+		verdict string
+		least   int
+	}{
+		{"tied forest with count one", "x | y", VerdictTie, 1},
+		{"unique forest with count two", "x", VerdictUnique, 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := mustLoad(t, oneStage("%ambiguity-resolution late(elision)\n%rule text w\n%rule w "+tc.body+"\n%rule x A\n%rule y A"))
+			lg := d.lower(0, map[string]bool{})
+			tokens := []Token{{Text: "a", Value: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
+			ps := newParseState(d.uni, []rune("a"))
+			rec := ps.newRun("main", d.stages[0], tokens).recognize(lg, lg.byName["text"], 0, 1)
+			top := rec.accepted(lg.byName["text"])
+			rk := newRanker(rec, lg.steps, "")
+			if result := rk.rank(top); result == nil || result.verdict != tc.verdict {
+				t.Fatalf("unexpected baseline ranking: %v", result)
+			}
+			if len(top) != 1 {
+				t.Fatalf("got %d root constituents, want one", len(top))
+			}
+			// Change only the cached count, retaining the forest's derivations.
+			e := rk.symVal(top[0], nil)
+			e.count = 2
+			e.least = tc.least
+			defer func() {
+				if got := recover(); got != "gencmu: the best count disagrees with its forest" {
+					t.Fatalf("got panic %v, want the best-count disagreement", got)
+				}
+			}()
+			rk.rank(top)
+		})
+	}
+}
+
 func TestRankingProperty(t *testing.T) {
 	t.Parallel()
 	printDerivations := false

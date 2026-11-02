@@ -30,7 +30,7 @@ from gencmu._earley import Forest, Parser, StageContext
 from gencmu._grammar import lower, stitch
 from gencmu import _rank
 from gencmu._model import Token
-from gencmu._rank import Elided, Best, Vector, actions, compare_vectors, count_roots, join, rank
+from gencmu._rank import Elided, Best, Vector, actions, compare_vectors, join, rank
 from gencmu._stage import StageRunner
 
 from .shared import SHARED, OverBudget, Watch, calls, case_tokens, count_work, load_case, load_case_pipeline

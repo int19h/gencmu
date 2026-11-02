@@ -1226,6 +1226,11 @@ func (rk *ranker) rankOriginal(top []*symNode) *rankResult {
 	// Without a lean, the count of the best derivations decides; with one,
 	// the lean decides among them (engine §6).
 	counts := rk.profiles && rk.lean == ""
+	// Without a lean, the forest holds a second best derivation exactly
+	// when the best count is two (engine §6).
+	if counts && (root.least == 2) != (len(m.tied.ds) > 0) {
+		panic("gencmu: the best count disagrees with its forest")
+	}
 	switch {
 	case root.total == 1:
 		res.verdict = VerdictUnique

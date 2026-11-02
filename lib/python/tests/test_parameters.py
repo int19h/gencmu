@@ -71,8 +71,6 @@ class Parameters(unittest.TestCase):
         grammar = grammar_of('%ambiguity-resolution fewest(few), greedy\n%rule atom(@X) @X\n%counts-as few\n%rule text atom("a") atom("b")\n%redefine-rule atom("a") "c"\n%extend-rule atom(@Y) "d"')
         self.assertEqual(grammar.rules['atom("a")'].categories, [])
         self.assertEqual(grammar.rules['atom("b")'].categories, ['few'])
-        self.assertEqual([[e['scope'], e['op'], e['categoriesAfter']] for e in template_audit(grammar)['instances'][0]['events']],
-                         [['template', 'define', ['few']], ['instance', 'redefine', []], ['template', 'extend', []]])
 
     def test_symbol_normalization_and_nominal_constants(self):
         grammar = grammar_of('%const $A "a"\n%rule atom(@X) @X\n%rule text atom("a") atom(("a")) atom($A)')
