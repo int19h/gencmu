@@ -319,7 +319,7 @@ pub fn parse_json(text: &str) -> Result<Value, String> {
 }
 
 fn skip(chars: &[char], at: &mut usize) {
-    while *at < chars.len() && chars[*at].is_whitespace() {
+    while matches!(chars.get(*at), Some(' ' | '\t' | '\n' | '\r')) {
         *at += 1;
     }
 }
@@ -371,16 +371,24 @@ fn parse_scalar(chars: &[char], at: &mut usize) -> Result<Value, String> {
                                     u32::from_str_radix(&digits, 16).map_err(|e| e.to_string())
                                 };
                                 let mut code = hex(at)?;
-                                if (0xD800..0xDC00).contains(&code) && chars.get(*at) == Some(&'\\') {
+                                if (0xD800..0xDC00).contains(&code) {
+                                    if chars.get(*at) != Some(&'\\') || chars.get(*at + 1) != Some(&'u') {
+                                        return Err("a bad code point".into());
+                                    }
                                     *at += 2;
                                     let low = hex(at)?;
+                                    if !(0xDC00..0xE000).contains(&low) {
+                                        return Err("a bad code point".into());
+                                    }
                                     code = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00);
                                 }
                                 out.push(char::from_u32(code).ok_or("a bad code point")?);
                             }
-                            other => out.push(other),
+                            '"' | '\\' | '/' => out.push(escape),
+                            _ => return Err("an unknown string escape".into()),
                         }
                     }
+                    c if c < '\u{20}' => return Err("an unescaped control character".into()),
                     c => out.push(c),
                 }
             }
@@ -399,19 +407,45 @@ fn parse_scalar(chars: &[char], at: &mut usize) -> Result<Value, String> {
         }
         Some(c) if *c == '-' || c.is_ascii_digit() => {
             let start = *at;
-            while *at < chars.len()
-                && (chars[*at] == '-'
-                    || chars[*at] == '+'
-                    || chars[*at] == '.'
-                    || chars[*at] == 'e'
-                    || chars[*at] == 'E'
-                    || chars[*at].is_ascii_digit())
-            {
+            if chars[*at] == '-' {
                 *at += 1;
             }
-            let digits = start + usize::from(chars[start] == '-');
-            if chars.get(digits) == Some(&'0') && chars.get(digits + 1).is_some_and(char::is_ascii_digit) {
-                return Err("a leading zero in a number".into());
+            match chars.get(*at) {
+                Some('0') => {
+                    *at += 1;
+                    if chars.get(*at).is_some_and(char::is_ascii_digit) {
+                        return Err("a leading zero in a number".into());
+                    }
+                }
+                Some('1'..='9') => {
+                    while chars.get(*at).is_some_and(char::is_ascii_digit) {
+                        *at += 1;
+                    }
+                }
+                _ => return Err("a number needs an integer part".into()),
+            }
+            if chars.get(*at) == Some(&'.') {
+                *at += 1;
+                let fraction = *at;
+                while chars.get(*at).is_some_and(char::is_ascii_digit) {
+                    *at += 1;
+                }
+                if *at == fraction {
+                    return Err("a fraction needs digits".into());
+                }
+            }
+            if matches!(chars.get(*at), Some('e' | 'E')) {
+                *at += 1;
+                if matches!(chars.get(*at), Some('+' | '-')) {
+                    *at += 1;
+                }
+                let exponent = *at;
+                while chars.get(*at).is_some_and(char::is_ascii_digit) {
+                    *at += 1;
+                }
+                if *at == exponent {
+                    return Err("an exponent needs digits".into());
+                }
             }
             let text: String = chars[start..*at].iter().collect();
             text.parse().map(Value::Number).map_err(|_| format!("a bad number {text}"))

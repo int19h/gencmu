@@ -970,3 +970,84 @@ fn engine_cases_refuse_parameter_names() {
     assert!(common::case::engine(&case).is_err(), "engine metadata accepted a parameter name");
     assert!(run_engine_case(&case).is_err(), "the engine runner accepted a parameter name");
 }
+
+#[test]
+fn result_reader_refuses_malformed_json() {
+    let mut invalid = vec![
+        r#""\a""#.to_string(),
+        r#""\0""#.into(),
+        r#""\uD800\uE000""#.into(),
+        r#""\uD800\xDC00""#.into(),
+        r#""\uD800\uDBFF""#.into(),
+        r#""\uDC00""#.into(),
+        r#""\uD800""#.into(),
+        r#""\u000G""#.into(),
+        "1.".into(),
+        "1.e2".into(),
+        "01".into(),
+        "-01".into(),
+        ".1".into(),
+        "+1".into(),
+        "1e".into(),
+        "1e+".into(),
+        "--1".into(),
+        "\u{b}null".into(),
+        "\u{c}true".into(),
+        "[0,\u{a0}1]".into(),
+        "{\"a\":\u{85}true}".into(),
+        "\u{2028}0".into(),
+        "[1,]".into(),
+        "{\"a\":1,}".into(),
+        "{xok\":true}".into(),
+    ];
+    invalid.extend((0..0x20).map(|n| format!("\"{}\"", char::from_u32(n).unwrap())));
+    let mut problems = Vec::new();
+    for text in invalid {
+        if !matches!(std::panic::catch_unwind(|| parse_json(&text)), Ok(Err(_))) {
+            problems.push(format!("accepted or panicked on {text:?}"));
+        }
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn result_reader_keeps_valid_json_lexical_forms() {
+    let text = r#""\"\\\/\b\f\n\r\t\u0041\uD800\uDC00\uDBFF\uDFFF""#;
+    assert_eq!(
+        parse_json(text).unwrap(),
+        common::Value::String(format!(
+            "\"\\/\u{8}\u{c}\n\r\tA{}{}",
+            char::from_u32(0x10000).unwrap(),
+            char::from_u32(0x10ffff).unwrap(),
+        ))
+    );
+    for (text, expected) in [
+        ("0", 0.0),
+        ("-0", -0.0),
+        ("0.0", 0.0),
+        ("-0.1", -0.1),
+        ("1.25", 1.25),
+        ("1e3", 1000.0),
+        ("-1E-2", -0.01),
+        ("1E+0", 1.0),
+    ] {
+        assert_eq!(parse_json(text).unwrap(), common::Value::Number(expected), "{text}");
+    }
+    let spaced = "\t\n\r {\"a\": [true, false, null, 1.25]} \n\t\r";
+    assert_eq!(parse_json(spaced).unwrap().to_text(), r#"{"a":[true,false,null,1.25]}"#);
+}
+
+#[test]
+fn canonical_results_refuse_raw_newlines_in_strings() {
+    let case =
+        parse_json(r#"{"grammar":"%rule text _ %emits $","input":"\n","expect":{"result":{"ok":true}}}"#).unwrap();
+    let (sources, path) = common::case_documents(&case);
+    let pipeline = gencmu::load_pipeline_sources(sources, &path).unwrap();
+    let result = pipeline.parse("\n", &gencmu::ParseOptions::default()).unwrap();
+    let canonical = gencmu::to_json(&result);
+    assert!(canonical.contains(r#"\n"#), "the control must contain an escaped newline");
+    let expectation = common::Value::Object(vec![("result".into(), parse_json(&canonical).unwrap())]);
+    let malformed = canonical.replace(r#"\n"#, "\n");
+    let accepted = parse_json(&malformed).and_then(|actual| common::check_json(&expectation, &actual));
+    assert!(accepted.is_err(), "the runner accepted malformed canonical output");
+}
