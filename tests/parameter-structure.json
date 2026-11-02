@@ -1,4 +1,5 @@
 [
+{"name":"ordinary rules retain source order without template instances","grammar":"%rule zebra \"z\"\n%rule text zebra\n%extend-rule zebra \"a\"\n%rule apple \"a\"","order":["zebra","text","apple"],"instances":0},
 {"name":"Python reader folds nested argument unions","grammar":"%rule use(@X) A :: @X\n%rule text use(A ∪ (B ∪ C))","argument":{"union":[{"tag":"A"},{"tag":"B"},{"tag":"C"}]}},
 {"name":"rebound key returns before a later unnamed discovery","grammar":"%rule atom(@X) @X\n%rule text atom(\"a\") atom(\"b\") named\n%rule named = atom(\"a\")\n%redefine-rule named = atom(\"c\")","order":["text","named","atom(\"a\")","atom(\"b\")"]},
 {"name":"local redefinition clears only its own inherited flag","grammar":"%rule(fewest) atom(@X) @X\n%rule text named atom(\"b\")\n%rule named = atom(\"a\")\n%redefine-rule named \"c\"","order":["text","named","atom(\"b\")"],"flags":{"named":[],"atom(\"b\")":["fewest"]}},

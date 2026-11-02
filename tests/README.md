@@ -81,6 +81,8 @@ A case with `flags` also requires `grammar`.
 
 An `instances` expectation compares the count even when it is zero. An `argument` expectation compares the argument even when the expected value is false or null.
 
+Without template expansion, `instances` is zero. The `order` lists distinct source rule names in their first declaration order.
+
 Each file is one case:
 
 ```
