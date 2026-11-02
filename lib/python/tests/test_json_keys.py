@@ -4,7 +4,7 @@ import unittest
 
 import gencmu
 from gencmu._hash import fnv1a64
-from .shared import REPOSITORY
+from .shared import REPOSITORY, same_json
 
 
 class JsonKeys(unittest.TestCase):
@@ -41,8 +41,8 @@ class JsonKeys(unittest.TestCase):
                 if "error" in item:
                     with self.assertRaises(gencmu.GencmuError) as caught:
                         gencmu.load_pipeline_sources({**case_sources, "data/preparsed/test.json": cache}, "grammars/test/p.md")
-                    self.assertEqual((caught.exception.kind, caught.exception.document, caught.exception.line, caught.exception.column),
-                                     ("grammar", item["error"]["document"], item["error"].get("line"), item["error"].get("column")))
+                    self.assertTrue(same_json([caught.exception.kind, caught.exception.document, caught.exception.line, caught.exception.column],
+                                              ["grammar", item["error"]["document"], item["error"].get("line"), item["error"].get("column")]))
                     continue
                 pipeline = gencmu.load_pipeline_sources({**case_sources, "data/preparsed/test.json": cache}, "grammars/test/p.md")
                 self.assertEqual(pipeline.parse("a").ok, not item["cached"])
