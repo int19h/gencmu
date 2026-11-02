@@ -107,7 +107,7 @@ pub(crate) struct Families {
 }
 impl Families {
     pub(crate) fn enable_oracle(&mut self) {
-        if CONFORMANCE.with(std::cell::Cell::get) || std::env::var_os("GENCMU_FAMILY_CONFORMANCE").is_some() {
+        if CONFORMANCE.with(std::cell::Cell::get) {
             self.oracle = Some(Sequence::new());
         }
     }
@@ -436,6 +436,25 @@ mod tests {
     fn growth_tokens(tokens: &[Json], unit_size: usize, size: usize) -> impl Iterator<Item = &Json> {
         let (unit, suffix) = tokens.split_at(unit_size);
         unit.iter().cycle().take(size).chain(suffix)
+    }
+
+    #[test]
+    fn family_oracle_ignores_process_environment() {
+        let name = "GENCMU_FAMILY_CONFORMANCE";
+        let prior = std::env::var_os(name);
+        std::env::set_var(name, "1");
+        let mut family = Families::default();
+        family.enable_oracle();
+        match prior {
+            Some(value) => std::env::set_var(name, value),
+            None => std::env::remove_var(name),
+        }
+        assert!(family.oracle.is_none(), "the process environment enabled a test oracle");
+        with_family_conformance(|| {
+            let mut family = Families::default();
+            family.enable_oracle();
+            assert!(family.oracle.is_some(), "the explicit test hook did not enable the oracle");
+        });
     }
 
     #[test]
