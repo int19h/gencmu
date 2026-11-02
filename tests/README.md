@@ -202,11 +202,14 @@ Each library also tests its recognizer on a capture of a rule that can end in ma
 A shared case shows that a library is wrong where it fails. It cannot show that a library is right. So each library also breaks itself on purpose, one fault at a time, and makes sure that the shared cases see the break. A fault is a private switch of the library's own tests, which the documented API does not name. Each one changes one path of the engine, mostly a path of the check of engine §7, in a way that the specification forbids.
 
 - The JavaScript library holds the full table. Its faults cover each observer of engine §7.5, the tags of synthetic tokens, and the routes and strictness of §7.4. They cover projection, queries (§7.6), cycles and ways to lose W(D). They also cover the order of steps 3 and 4 of §4. `lib/js/test/faults.json` names the cases that must catch each fault, and records every catch.
+
+  Fault F17 counts one derivation twice and reports a false ambiguity. The shared case `engine/reparse-strict-shared-prediction.json` must reject that faulty result without a crash.
+
 - Each other library has faults of its own paths. Some are paths that JavaScript does not have, such as a ranker that rebuilds the check's links from completed spans and applies the tests there. Others are paths that every library has in a form of its own. Examples are the strictness of route 3, a restoration's test, and the ways to lose W(D). Another is the processing again of an item that an ordinary step reaches after it was processed as strict. Its own tests name, for each fault, the shared cases that catch it.
 
-An error that the library raises instead of returning a result counts as a result failure. JavaScript represents this error with `GencmuError`. JavaScript counts the fault's own error from its recursion limit as `bound`. A crash or any other execution error fails the fault test.
+A defined library error counts as a result failure when the library raises or returns it instead of a result. Defined kinds include `grammar` and `usage`. An internal fault counts as a crash and fails the fault test, even when the library returns it as an error.
 
-The JavaScript fault F17 separates strict and ordinary items. It counts duplicate copies of one derivation as a false ambiguity. That injected result has no action witness. The shared case rejects the false ambiguity without a runtime exception.
+JavaScript counts `GencmuError` as a library error, an error from the fault's recursion limit as `bound`, and any other exception as a crash. Python counts `GencmuError` as a library error and any other exception as a crash. Go counts an `*Error` whose message begins with `internal error: ` as a crash. Rust counts a panic as a crash.
 
 Each library's fault test must establish three facts about each fault:
 
