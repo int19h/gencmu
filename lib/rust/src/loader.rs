@@ -1355,40 +1355,130 @@ mod notation_cache_tests {
         bootstrap.to_json()
     }
 
+    fn run_supplied_notation_value(case: &Json) {
+        crate::test_common::case::notation_value(&parse_json(&case.to_json()).unwrap())
+            .unwrap_or_else(|problem| panic!("invalid supplied notation case: {problem}"));
+        let id = case.get("id").and_then(Json::as_str).unwrap();
+        let bootstrap = value_notation(case.get("aliases").and_then(Json::as_array).unwrap());
+        let context = Context::new(super::bundled("data/unicode/unicode.txt").unwrap(), &bootstrap).unwrap();
+        let text = case.get("document").and_then(Json::as_str).unwrap();
+        if let Some(expected) = case.get("expect").and_then(|value| value.get("error")) {
+            let error = read_document(&context.notation, text, "").expect_err("a bad name must fail");
+            assert_eq!(error.line, expected.get("line").and_then(Json::as_int).map(|n| n as usize), "{id}: {error}");
+            assert_eq!(
+                error.column,
+                expected.get("column").and_then(Json::as_int).map(|n| n as usize),
+                "{id}: {error}"
+            );
+            if let Some(message) = case.get("expect").and_then(|value| value.get("message")) {
+                assert_eq!(error.message, message.as_str().unwrap(), "{id}: the reader reason differs");
+            }
+            return;
+        }
+        let expected =
+            dom_to_json(&read_document(&context.notation, text, "").unwrap_or_else(|error| panic!("{id}: {error}")));
+        assert_pattern(case, &expected, id);
+        cache_paths(&context, &fnv1a64(&bootstrap), &format!("{id}.md"), text, &expected);
+        eprintln!("supplied notation values and cache paths: {id}");
+    }
+
     #[test]
     fn shared_supplied_notation_values_cover_names_and_cache_paths() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/notation-values.json");
         let fixture = json::parse(&std::fs::read_to_string(path).unwrap()).unwrap();
+        crate::test_common::case::notation_values_file(&parse_json(&fixture.to_json()).unwrap())
+            .unwrap_or_else(|problem| panic!("invalid supplied notation file: {problem}"));
         let cases = fixture.get("cases").and_then(Json::as_array).unwrap();
         assert!(!cases.is_empty(), "no supplied notation cases ran");
         let mut ids = std::collections::HashSet::new();
         for case in cases {
             let id = case.get("id").and_then(Json::as_str).unwrap();
             assert!(ids.insert(id), "duplicate case ID: {id}");
-            let bootstrap = value_notation(case.get("aliases").and_then(Json::as_array).unwrap());
-            let context = Context::new(super::bundled("data/unicode/unicode.txt").unwrap(), &bootstrap).unwrap();
-            let text = case.get("document").and_then(Json::as_str).unwrap();
-            if let Some(expected) = case.get("expect").and_then(|value| value.get("error")) {
-                let error = read_document(&context.notation, text, "").expect_err("a bad name must fail");
-                assert_eq!(
-                    error.line,
-                    expected.get("line").and_then(Json::as_int).map(|n| n as usize),
-                    "{id}: {error}"
-                );
-                assert_eq!(
-                    error.column,
-                    expected.get("column").and_then(Json::as_int).map(|n| n as usize),
-                    "{id}: {error}"
-                );
-                continue;
-            }
-            let expected = dom_to_json(
-                &read_document(&context.notation, text, "").unwrap_or_else(|error| panic!("{id}: {error}")),
-            );
-            assert_pattern(case, &expected, id);
-            cache_paths(&context, &fnv1a64(&bootstrap), &format!("{id}.md"), text, &expected);
-            eprintln!("supplied notation values and cache paths: {id}");
+            run_supplied_notation_value(case);
         }
+    }
+
+    #[test]
+    fn supplied_notation_refuses_ignored_expectations() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/notation-values.json");
+        let fixture = json::parse(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let base = fixture
+            .get("cases")
+            .and_then(Json::as_array)
+            .unwrap()
+            .iter()
+            .find(|case| case.get("expect").unwrap().get("error").is_some())
+            .unwrap();
+        let mut accepted = Vec::new();
+        for (name, nested) in [("message", true), ("message", false), ("unknown", false)] {
+            let mut case = base.clone();
+            let expectation = field(&mut case, "expect");
+            let target = if nested { field(expectation, "error") } else { expectation };
+            let Json::Obj(members) = target else { unreachable!() };
+            members.push((name.into(), Json::Str("not the reader reason".into())));
+            if std::panic::catch_unwind(|| run_supplied_notation_value(&case)).is_ok() {
+                accepted.push(format!("accepted {name}, nested={nested}"));
+            }
+        }
+        assert!(accepted.is_empty(), "{}", accepted.join("\n"));
+    }
+
+    #[test]
+    fn supplied_notation_compares_the_reader_reason() {
+        let mut case = json::parse(
+            r#"{"id":"reader-reason","aliases":[],"document":"```jbogenbau\n%rule\n```","expect":{"error":{}}}"#,
+        )
+        .unwrap();
+        let context = Context::bundled().unwrap();
+        let document = case.get("document").and_then(Json::as_str).unwrap();
+        let error = read_document(&context.notation, document, "").unwrap_err();
+        *field(&mut case, "expect") = object([
+            (
+                "error",
+                object([
+                    ("line", Json::Int(error.line.unwrap() as i64)),
+                    ("column", Json::Int(error.column.unwrap() as i64)),
+                ]),
+            ),
+            ("message", Json::Str(error.message)),
+        ]);
+        run_supplied_notation_value(&case);
+        *field(field(&mut case, "expect"), "message") = Json::Str(String::new());
+        assert!(
+            std::panic::catch_unwind(|| run_supplied_notation_value(&case)).is_err(),
+            "ignored an empty expected reason"
+        );
+    }
+
+    #[test]
+    fn supplied_notation_refuses_invalid_metadata_before_reading() {
+        let base =
+            parse_json(r#"{"id":"metadata","aliases":[],"document":"","expect":{"error":{"line":1,"column":1}}}"#)
+                .unwrap();
+        for change in [
+            r#"{"path":["expect","error","message"],"set":"nested"}"#,
+            r#"{"path":["expect","unknown"],"set":true}"#,
+            r#"{"path":["expect","error","line"],"set":true}"#,
+            r#"{"path":["expect","error","line"],"set":0}"#,
+            r#"{"path":["expect","error","column"],"remove":true}"#,
+            r#"{"path":["expect"],"set":{"dom":false}}"#,
+            r#"{"path":["expect","message"],"set":false}"#,
+            r#"{"path":["expect"],"set":{"dom":{},"message":"requires an error"}}"#,
+            r#"{"path":["expect","dom"],"set":{}}"#,
+            r#"{"path":["unknown"],"set":true}"#,
+            r#"{"path":["document"],"set":false}"#,
+            r#"{"path":["aliases"],"set":[{"spelling":"x","value":"y","tags":[],"unknown":true}]}"#,
+            r#"{"path":["aliases"],"set":[{"spelling":"x","value":"y","tags":[false]}]}"#,
+            r#"{"path":["aliases"],"set":[{"spelling":"x","tags":[]}]}"#,
+        ] {
+            let case = crate::test_common::apply_mutant(&base, &parse_json(change).unwrap());
+            assert!(crate::test_common::case::notation_value(&case).is_err(), "accepted invalid metadata: {change}");
+        }
+        let ordinary = parse_json(r#"{"document":"","expect":{"error":{"message":"ordinary reason"}}}"#).unwrap();
+        assert!(
+            crate::test_common::case::notation(&ordinary).is_ok(),
+            "ordinary notation retains its nested message field"
+        );
     }
 }
 

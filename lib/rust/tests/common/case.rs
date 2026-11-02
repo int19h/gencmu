@@ -315,6 +315,52 @@ pub fn notation(value: &Value) -> R {
     Ok(())
 }
 
+/// Supplied notation has its own error-message field, outside the position.
+pub fn notation_value(value: &Value) -> R {
+    fields(
+        value,
+        "supplied notation case",
+        &[("id", Text), ("description", Text), ("document", Text), ("aliases", Array), ("expect", Object)],
+    )?;
+    required(value, "id", "supplied notation case")?;
+    required(value, "document", "supplied notation case")?;
+    for alias in required(value, "aliases", "supplied notation case")?.array() {
+        fields(alias, "alias", &[("spelling", Text), ("value", Text), ("tags", Array)])?;
+        required(alias, "spelling", "alias")?;
+        required(alias, "value", "alias")?;
+        strings(required(alias, "tags", "alias")?, "alias.tags")?;
+    }
+    let expectation = required(value, "expect", "supplied notation case")?;
+    fields(expectation, "expect", &[("dom", Object), ("error", Object), ("message", Text)])?;
+    if expectation.get("dom").is_some() == expectation.get("error").is_some() {
+        return Err("a supplied notation case requires exactly one dom or error expectation".into());
+    }
+    if let Some(error) = expectation.get("error") {
+        fields(error, "expect.error", &[("line", Any), ("column", Any)])?;
+        for name in ["line", "column"] {
+            if !matches!(required(error, name, "expect.error")?, Value::Number(n) if n.is_finite() && *n >= 1.0 && n.fract() == 0.0)
+            {
+                return Err(format!("expect.error.{name} must be a positive integer"));
+            }
+        }
+    } else if expectation.get("message").is_some() {
+        return Err("expect.message requires an error expectation".into());
+    }
+    Ok(())
+}
+
+pub fn notation_values_file(value: &Value) -> R {
+    fields(value, "supplied notation file", &[("description", Text), ("cases", Array)])?;
+    let cases = required(value, "cases", "supplied notation file")?;
+    if cases.array().is_empty() {
+        return Err("supplied notation cases must be nonempty".into());
+    }
+    for case in cases.array() {
+        notation_value(case)?;
+    }
+    Ok(())
+}
+
 pub fn memo(value: &Value) -> R {
     fields(
         value,
