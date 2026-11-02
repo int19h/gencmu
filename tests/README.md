@@ -65,6 +65,8 @@ The cases in `parameters.json` use the same case shape and require a string `nam
 
 The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries.
 
+Parameter-structure readers also preserve every present `dom` value. A cache fallback case passes that value to the cache unchanged.
+
 Each case supplies `grammar` source or a complete `dom`. The optional `argument` matches the last source rule's first call argument. `order` lists the expanded rule names. `instances` gives the instance count. `flags` maps rule names to their final flags.
 
 A `cacheFallback` case supplies valid source and a malformed cached DOM. Each library uses matching cache fingerprints and must parse `input` from the source.
@@ -124,7 +126,7 @@ A pattern describes required result fields. `expect.result` is a pattern matched
 - An array matches when it has the same length and each element matches.
 - Anything else matches when it is equal.
 
-`expect.error` accepts `grammar`, `usage`, `rejected`, `ambiguous`, or `feature-conflict`. `expect.message` requires `expect.error: "grammar"`. It pins an agreed error reason, without a resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors. The runtime comparison removes the location prefix without changing the public result.
+`expect.error` accepts `grammar`, `usage`, `rejected`, `ambiguous`, or `feature-conflict`. `expect.message` requires `expect.error: "grammar"`. It pins an agreed error reason, without a resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors. The runtime comparison removes exactly the prefix built from the error's structured document, line, and column. It preserves the public result.
 
 A result pattern rejects error `message` assertions. Existing unit tests pin the common stitching and classifier messages specified in engine §2. Other wording stays library-specific.
 
@@ -428,7 +430,7 @@ The harness records both revisions, environment, selection manifest, raw timings
 
 ## JavaScript calls
 
-`lib/js/test/call-spreads.test.js` parses the libraries, tools, playground, and browser bundle. It refuses spread arguments in calls and constructors. It examines template expressions and optional calls. It also refuses calls to `apply`, including calls through a literal property name.
+`lib/js/test/call-spreads.test.js` parses the libraries, tools, playground, and browser bundle. It refuses spread arguments in calls and constructors. It examines template expressions and optional calls. It also refuses calls to `apply`, including calls through a literal property name. Parentheses around a literal property name do not change this rule.
 
 ## Growth cases: `growth.json`
 
