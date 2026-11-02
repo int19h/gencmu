@@ -46,29 +46,13 @@ func readCorpus(t *testing.T) []*corpusCase {
 		sc := bufio.NewScanner(fh)
 		sc.Buffer(make([]byte, 1<<20), 1<<26)
 		for sc.Scan() {
-			line := strings.TrimSpace(sc.Text())
-			if line == "" {
-				continue
-			}
-			c := &corpusCase{}
-			if err := unmarshalJSON([]byte(line), c); err != nil {
+			c, err := decodeCorpusLine(sc.Bytes())
+			if err != nil {
 				t.Fatalf("%s: %v", f, err)
 			}
-			var all map[string]json.RawMessage
-			if err := unmarshalJSON([]byte(line), &all); err != nil {
-				t.Fatalf("%s: %v", f, err)
+			if c != nil {
+				cases = append(cases, c)
 			}
-			c.fields = map[string]any{}
-			for _, k := range corpusFields {
-				if raw, ok := all[k]; ok {
-					v, err := decodeJSON(raw)
-					if err != nil {
-						t.Fatalf("%s: %v", f, err)
-					}
-					c.fields[k] = v
-				}
-			}
-			cases = append(cases, c)
 		}
 		fh.Close()
 		if err := sc.Err(); err != nil {
@@ -76,6 +60,69 @@ func readCorpus(t *testing.T) []*corpusCase {
 		}
 	}
 	return cases
+}
+
+// decodeCorpusLine ignores JSON whitespace alone and decodes every other
+// line unchanged, so non-JSON whitespace reaches the decoder.
+func decodeCorpusLine(line []byte) (*corpusCase, error) {
+	if blankJSONLine(line) {
+		return nil, nil
+	}
+	c := &corpusCase{}
+	if err := unmarshalJSON(line, c); err != nil {
+		return nil, err
+	}
+	var all map[string]json.RawMessage
+	if err := unmarshalJSON(line, &all); err != nil {
+		return nil, err
+	}
+	c.fields = map[string]any{}
+	for _, k := range corpusFields {
+		if raw, ok := all[k]; ok {
+			v, err := decodeJSON(raw)
+			if err != nil {
+				return nil, err
+			}
+			c.fields[k] = v
+		}
+	}
+	return c, nil
+}
+
+func TestCorpusJSONLWhitespace(t *testing.T) {
+	const record = `{"id":"record","text":"a","pipeline":"unused","expect":"reject","stage":"main","at":0}`
+	for _, line := range []string{"", " ", "\t", "\r", "\n", " \t\r\n"} {
+		if !blankJSONLine([]byte(line)) {
+			t.Errorf("JSON whitespace is not blank: %q", line)
+		}
+		if c, err := decodeCorpusLine([]byte(line)); err != nil || c != nil {
+			t.Errorf("blank line %q: %+v, %v", line, c, err)
+		}
+	}
+	for _, line := range []string{record, " \t\r" + record + "\r\t "} {
+		c, err := decodeCorpusLine([]byte(line))
+		if err != nil || c == nil || c.ID != "record" || c.Text != "a" || c.fields["expect"] != "reject" {
+			t.Errorf("valid line %q: %+v, %v", line, c, err)
+		}
+	}
+	for _, space := range []string{"\u00a0", "\v", "\f", "\u2028", "\u2029", "\ufeff"} {
+		if blankJSONLine([]byte(space)) {
+			t.Errorf("non-JSON whitespace is blank: %q", space)
+		}
+		for _, line := range []string{space, space + record, record + space, space + record + space} {
+			if c, err := decodeCorpusLine([]byte(line)); err == nil || c != nil {
+				t.Errorf("accepted non-JSON whitespace: %q: %+v, %v", line, c, err)
+			}
+		}
+		line, err := json.Marshal(map[string]any{"id": "record", "text": space, "pipeline": "unused", "expect": "reject", "stage": "main", "at": 0})
+		if err != nil {
+			t.Fatal(err)
+		}
+		c, err := decodeCorpusLine(line)
+		if err != nil || c == nil || c.Text != space {
+			t.Errorf("changed whitespace inside a string: %s: %+v, %v", line, c, err)
+		}
+	}
 }
 
 // corpusOutcome is what gencmu makes of a case, in the case's own terms.

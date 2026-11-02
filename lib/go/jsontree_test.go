@@ -156,6 +156,9 @@ func shown(v any) string {
 	return encodeJSON(v, 300)
 }
 
+// Blank JSONL lines contain only JSON whitespace (tests/README.md).
+func blankJSONLine(line []byte) bool { return len(bytes.Trim(line, " \t\r\n")) == 0 }
+
 // TestJSONTreeAgrees decodes every shared JSON file and corpus line, and
 // some text that is not JSON, as json.Unmarshal does.
 func TestJSONTreeAgrees(t *testing.T) {
@@ -172,7 +175,7 @@ func TestJSONTreeAgrees(t *testing.T) {
 				continue
 			}
 			for _, line := range bytes.Split(data, []byte("\n")) {
-				if len(bytes.TrimSpace(line)) > 0 {
+				if !blankJSONLine(line) {
 					docs = append(docs, line)
 				}
 			}
