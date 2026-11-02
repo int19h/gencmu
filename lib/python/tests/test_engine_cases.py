@@ -175,6 +175,21 @@ class EngineCases(unittest.TestCase):
         self.assertEqual([(t.value, t.image, t.span, t.source, t.before, t.after) for t in tokens],
                          [("ab", "ab", (0, 1), (0, 2), [], []), ("c", "c", (1, 2), (3, 4), [], [])])
 
+    def test_result_reader_refuses_invalid_json(self) -> None:
+        for text in ('{xok":true}', '{"a":1,xok":true}', 'NaN', 'Infinity', '-Infinity', '[NaN]'):
+            with self.subTest(text=text), self.assertRaises((AssertionError, ValueError)):
+                read_json(text)
+        self.assertTrue(same_json(read_json(' {"ok":true,"a":[null,1]} '), {"ok": True, "a": [None, 1]}))
+
+    def test_serialized_result_requires_quoted_member_names(self) -> None:
+        outcome = run_case({"grammar": '%rule text "a"', "input": "a"})
+        text = gencmu.to_json(outcome[1])
+        for name in ("ok", "stages"):
+            malformed = text.replace('"' + name + '"', 'x' + name + '"', 1)
+            self.assertNotEqual(malformed, text)
+            with self.subTest(name=name), patch.object(gencmu, "to_json", return_value=malformed), self.assertRaises(AssertionError):
+                self.check("invalid serialized member", {}, *outcome)
+
     def test_json_comparisons_distinguish_booleans_from_numbers(self) -> None:
         for left, right in ((True, 1), (False, 0), ({"a": [True]}, {"a": [1]})):
             with self.subTest(left=left, right=right):

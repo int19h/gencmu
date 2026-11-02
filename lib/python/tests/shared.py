@@ -885,7 +885,10 @@ def read_json(text: str) -> Any:
     """A JSON text's value, read with a list for a stack. A result can nest
     beyond the depth that json.loads accepts, so the reader keeps open
     containers in an explicit stack."""
-    decoder = json.JSONDecoder()
+    def invalid_constant(name: str) -> Any:
+        raise ValueError(f"invalid JSON constant: {name}")
+
+    decoder = json.JSONDecoder(parse_constant=invalid_constant)
     # Each open container, and for an object the key that waits for its
     # value.
     stack: list[tuple[Any, str | None]] = []
@@ -911,6 +914,7 @@ def read_json(text: str) -> Any:
                 container: Any = {} if char == "{" else []
                 key = None
                 if char == "{":
+                    assert text[index] == '"', f"expected a quoted member name at {index}"
                     key, index = json.decoder.scanstring(text, index + 1)
                     skip()
                     assert text[index] == ":", f"expected : at {index}"
@@ -940,6 +944,7 @@ def read_json(text: str) -> Any:
                 index += 1
                 if isinstance(container, dict):
                     skip()
+                    assert text[index] == '"', f"expected a quoted member name at {index}"
                     key, index = json.decoder.scanstring(text, index + 1)
                     skip()
                     assert text[index] == ":", f"expected : at {index}"

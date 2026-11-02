@@ -4,6 +4,8 @@ Every gencmu library runs every shared case that its API can express. A library 
 
 A runner refuses unknown case members and control members with the wrong type. This includes configuration (`options`), parse lists (`parses`), and expectations (`expect`).
 
+A runner reads serialized results as JSON. Object member names need quotation marks, and `NaN` and `Infinity` are invalid JSON values.
+
 An expectation must apply to the actual outcome. Loading positions and diagnostic codes require a load error. Parse-time usage errors cannot satisfy result, rendering, warning, enabled-feature, or message expectations.
 
 Token payload fields remain an exception for usage cases. A runner passes each present field unchanged to the library and supplies defaults only for absent fields. Unknown token members still invalidate the case.
