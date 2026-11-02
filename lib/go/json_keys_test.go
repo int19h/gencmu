@@ -40,6 +40,7 @@ func TestSharedJSONKeys(t *testing.T) {
 			Error       *struct {
 				Document string `json:"document"`
 				Line     int    `json:"line"`
+				Column   int    `json:"column"`
 			} `json:"error"`
 		} `json:"preparsed"`
 		Grammar string `json:"grammar"`
@@ -139,8 +140,8 @@ func TestSharedJSONKeys(t *testing.T) {
 			d, err := LoadPipelineSources(family, "grammars/test/p.md")
 			if item.Error != nil {
 				e, ok := err.(*Error)
-				if !ok || e.Kind != ErrorGrammar || e.Document != item.Error.Document || e.Line != item.Error.Line {
-					t.Fatalf("expected grammar error at %s:%d, got %v", item.Error.Document, item.Error.Line, err)
+				if !ok || e.Kind != ErrorGrammar || e.Document != item.Error.Document || e.Line != item.Error.Line || e.Column != item.Error.Column {
+					t.Fatalf("expected grammar error at %s:%d:%d, got %v", item.Error.Document, item.Error.Line, item.Error.Column, err)
 				}
 				return
 			}

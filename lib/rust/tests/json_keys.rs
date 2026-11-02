@@ -92,6 +92,7 @@ fn shared_json_keys() {
             assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
             assert_eq!(error.document.as_deref(), Some(text(expected, "document")));
             assert_eq!(error.line, expected.get("line").map(|v| v.number().unwrap() as usize));
+            assert_eq!(error.column, expected.get("column").map(|v| v.number().unwrap() as usize));
             continue;
         }
         let pipeline = result.unwrap_or_else(|e| panic!("{}: {e}", text(case, "description")));

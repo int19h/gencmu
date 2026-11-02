@@ -1906,7 +1906,8 @@
       },
       "error": {
         "document": "grammars/test/g.md",
-        "line": 3
+        "line": 3,
+        "column": 15
       },
       "cached": true
     },
@@ -1920,7 +1921,8 @@
       },
       "error": {
         "document": "grammars/test/g.md",
-        "line": 3
+        "line": 3,
+        "column": 15
       },
       "cached": true
     },
@@ -1930,7 +1932,8 @@
       "replace": "\"conditions\":[{\"op\":\"=\",\"right\":{\"const\":\"SECOND\",\"at\":[5,33]},\"left\":{\"const\":\"FIRST\",\"at\":[4,20]}}]",
       "error": {
         "document": "grammars/test/g.md",
-        "line": 4
+        "line": 4,
+        "column": 20
       }
     },
     {
@@ -1939,7 +1942,8 @@
       "replace": "\"conditions\":[{\"op\":\"=\",\"left\":{\"then\":{\"const\":\"SECOND\",\"at\":[5,33]},\"if\":{\"op\":\"=\",\"left\":{\"const\":\"FIRST\",\"at\":[4,20]},\"right\":{\"string\":\"x\"}}},\"right\":{\"string\":\"x\"}}]",
       "error": {
         "document": "grammars/test/g.md",
-        "line": 4
+        "line": 4,
+        "column": 20
       }
     },
     {
