@@ -45,6 +45,24 @@ AFTER_LOAD = ("result", "brackets", "warnings", "features", "enabledFeatures")
 
 
 class EngineCases(unittest.TestCase):
+    def test_name_is_required_only_for_parameter_cases(self) -> None:
+        base = {"grammar": '%rule text "a"', "input": "a", "expect": {}}
+        named = {**base, "name": "parameter control"}
+        validate_engine_case(base, complete=True)
+        validate_engine_case(named, complete=True, parameters=True)
+        self.check_fixture(named["name"], named, parameters=True)
+        for check in (lambda: validate_engine_case(named, complete=True), lambda: run_case(named),
+                      lambda: self.check_fixture("engine control", named)):
+            with self.subTest(check=check), self.assertRaisesRegex(AssertionError, "unknown members.*name"):
+                check()
+        for name in (None, 3, False, []):
+            with self.subTest(name=name), self.assertRaisesRegex(AssertionError, "case.name"):
+                validate_engine_case({**base, "name": name}, parameters=True)
+        with self.assertRaisesRegex(AssertionError, "missing members.*name"):
+            validate_engine_case(base, parameters=True)
+        with self.assertRaisesRegex(AssertionError, "missing members.*name"):
+            self.check_fixture("unnamed parameter", base, parameters=True)
+
     def test_case_schema_refuses_unknown_members_and_wrong_metadata_types(self) -> None:
         base = {"grammar": '%rule text "a"', "input": "a", "expect": {}}
         changes = (
@@ -221,10 +239,10 @@ class EngineCases(unittest.TestCase):
         with deadline(path.name):
             self.check_fixture(path.name, load_case(path))
 
-    def check_fixture(self, name: str, case: dict[str, Any]) -> None:
+    def check_fixture(self, name: str, case: dict[str, Any], *, parameters: bool = False) -> None:
         # JavaScript checks treeRendering through its tree listing. Python
         # checks that member's shape and runs the rest of the case.
-        validate_engine_case(case, complete=True)
+        validate_engine_case(case, complete=True, parameters=parameters)
         if "parses" in case:
             # The case parses its input several times with the one
             # loaded pipeline (tests/README.md).
@@ -236,7 +254,7 @@ class EngineCases(unittest.TestCase):
                 value, result, error = parse_case(pipeline, case, run)
                 self.check(f"{name} parse {index}", run["expect"], value, result, error, features)
             return
-        value, result, error, features = run_case(case)
+        value, result, error, features = run_case(case, parameters=parameters)
         self.check(name, case["expect"], value, result, error, features)
 
     def check(

@@ -813,9 +813,10 @@ def validate_case_tokens(tokens: Any, usage: bool = False) -> None:
                 case_value(value, kind, "token." + field)
 
 
-def validate_engine_case(case: Any, complete: bool = False) -> None:
+def validate_engine_case(case: Any, complete: bool = False, *, parameters: bool = False) -> None:
     """Validate case metadata, retaining malformed token fields in usage cases."""
-    case_object(case, "description name grammar pipeline documents pipelineDocument input tokens options expect parses treeRendering", "case")
+    members = "description grammar pipeline documents pipelineDocument input tokens options expect parses treeRendering"
+    case_object(case, members + (" name" if parameters else ""), "case", "name" if parameters else "")
     for field in ("description", "name", "grammar", "pipelineDocument", "pipeline", "input"):
         if field in case:
             case_value(case[field], "string", "case." + field)
@@ -1265,13 +1266,13 @@ def case_features(pipeline: gencmu.Pipeline) -> list[dict[str, Any]]:
 
 
 def run_case(
-    case: dict[str, Any], use_cache: bool = True
+    case: dict[str, Any], use_cache: bool = True, *, parameters: bool = False
 ) -> tuple[dict[str, Any] | None, gencmu.ParseResult | None, gencmu.GencmuError | None, list[dict[str, Any]] | None]:
     """An engine case's canonical result and result, or the error in their
     place: the load's, or the parse's for a mistake of the caller, which is
     no result (engine §13). Last, the pipeline's features as a case writes
     them, or None if it did not load."""
-    validate_engine_case(case)
+    validate_engine_case(case, parameters=parameters)
     pipeline, error = load_case_pipeline(case, use_cache)
     if pipeline is None:
         return None, None, error, None
