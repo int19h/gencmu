@@ -453,12 +453,15 @@ func TestParameterSharedStructure(t *testing.T) {
 					t.Fatal("malformed DOM accepted")
 				}
 				source := "```jbogenbau\n" + c.Grammar + "\n```"
-				value, e := templateFromJSON(raw)
-				if e != nil {
-					t.Fatal(e)
+				cache, err := json.Marshal(map[string]any{
+					"format": domFormat, "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash,
+					"properties": fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]),
+					"documents":  map[string]any{"grammars/test/g.md": map[string]any{"hash": fnv1a64(source), "dom": json.RawMessage(raw)}},
+				})
+				if err != nil {
+					t.Fatal(err)
 				}
-				cache := templateObject{"format": float64(domFormat), "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]), "documents": templateObject{"grammars/test/g.md": templateObject{"hash": fnv1a64(source), "dom": value}}}
-				sources := map[string]string{"grammars/test/g.md": source, "grammars/test/p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g.md\"\n```", "data/preparsed/test.json": string(templateJSON(cache))}
+				sources := map[string]string{"grammars/test/g.md": source, "grammars/test/p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g.md\"\n```", "data/preparsed/test.json": string(cache)}
 				pipeline, err := LoadPipelineSources(sources, "grammars/test/p.md")
 				if err != nil {
 					t.Fatal(err)
