@@ -20,6 +20,8 @@ Deliberately malformed grammar, DOM, notation, token, and result payloads remain
 
 Every file of cases contains at least one case. Each memo run has nonempty input and configuration lists.
 
+A test that selects fixtures by their names or contents must assert that its selection is not empty.
+
 ## Source manifest: `text-sources/manifest.json`
 
 Each source names its HTML snapshot and extracted text with one file name inside `text-sources/`. Absolute paths and directory segments are invalid. Each file must exist. Its SHA-256 digest must equal `html_sha256` or `extracted_sha256`, respectively.
@@ -53,21 +55,19 @@ The corpus records full outcomes. These shared fixtures also express stage cutof
 
 The cases in `parameters.json` use the same case shape and require a string `name`. All four libraries run these shared parameter cases. The `name` member is valid only in this file, not in `engine/*.json`.
 
-The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries. Cases with `public:true` load complete pipelines through the public loader and require `grammar` and `order`. A case with `flags` also requires `grammar`.
-
-A `public:true` case permits only `grammar`, `order`, and `instances` beside its name and mode flags.
-
-A `cacheFallback:true` case requires `grammar`, `dom`, and `input`. It forbids `argument`, `order`, `flags`, `instances`, and `public:true`.
-
-Only a cache fallback case permits `input`.
-
-An `instances` expectation compares the count even when it is zero.
-
-An `argument` expectation compares the argument even when the expected value is false or null.
+The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries.
 
 Each case supplies `grammar` source or a complete `dom`. The optional `argument` matches the last source rule's first call argument. `order` lists the expanded rule names. `instances` gives the instance count. `flags` maps rule names to their final flags.
 
 A `cacheFallback` case supplies valid source and a malformed cached DOM. Each library uses matching cache fingerprints and must parse `input` from the source.
+
+A `public:true` case loads a complete pipeline through the public loader. It requires `grammar` and `order`. It permits only `grammar`, `order`, and `instances` beside `name`, `public`, and `cacheFallback`.
+
+A `cacheFallback:true` case requires `grammar`, `dom`, and `input`. It forbids `argument`, `order`, `flags`, `instances`, and `public:true`. Only this mode permits `input`.
+
+A case with `flags` also requires `grammar`.
+
+An `instances` expectation compares the count even when it is zero. An `argument` expectation compares the argument even when the expected value is false or null.
 
 Each file is one case:
 
@@ -204,15 +204,13 @@ A shared case shows that a library is wrong where it fails. It cannot show that 
 - The JavaScript library holds the full table. Its faults cover each observer of engine §7.5, the tags of synthetic tokens, and the routes and strictness of §7.4. They cover projection, queries (§7.6), cycles and ways to lose W(D). They also cover the order of steps 3 and 4 of §4. `lib/js/test/faults.json` names the cases that must catch each fault, and records every catch.
 - Each other library has faults of its own paths. Some are paths that JavaScript does not have, such as a ranker that rebuilds the check's links from completed spans and applies the tests there. Others are paths that every library has in a form of its own. Examples are the strictness of route 3, a restoration's test, and the ways to lose W(D). Another is the processing again of an item that an ordinary step reaches after it was processed as strict. Its own tests name, for each fault, the shared cases that catch it.
 
-A crash fails the fault test. It does not count as a catch through the result or the witness hook.
+An error that the library raises instead of returning a result counts as a result failure. JavaScript represents this error with `GencmuError`. JavaScript counts the fault's own error from its recursion limit as `bound`. A crash or any other execution error fails the fault test.
 
 Each library's fault test must establish three facts about each fault:
 
 - How a case catches it: The test examines the result alone and the witness hook alone, so each test stands on its own. The catch is `result` where only the result fails the case, `hook` where only the hook does, and `result+hook` where both do. Each library has a fault whose only catch is `hook`, a mutation that the result alone does not show. An example is a count that skips W(D)'s edge where its item has siblings.
 
-  Each library also has a case where the hook catches candidates that skip W(D)'s edge. This tests the selection channel independently of the result. JavaScript labels a catch `bound` where the fault's own bound ends a recursion that it lets through.
-
-  An unexpected exception fails the fault test. It does not count as a catch.
+  Each library also has a case where the hook catches candidates that skip W(D)'s edge. This tests the selection channel independently of the result.
 
 - Its sites: A fault can have several places in the code. Each place is a declared site, and the test asserts that the named cases enter every declared site while the fault is on. So a case that catches a fault at one site does not hide a site that nothing reaches.
 - Completeness: The list of faults comes from the declarations, and every fault has an entry in the table.
@@ -322,8 +320,6 @@ An `error` names the required resource position. It requires `document` and acce
 A `portable` case also loads through the portable JavaScript entry point without bundled names text.
 
 The `loads` and `cached` fields state the expected behavior. A cache case can omit `cached` when it expects a load error through `error`. Rust rejects ignored integers outside signed 64-bit range because of a reader limit. For those cases, `rustLoads` and `rustCached` record the current Rust behavior, and each note names the limit.
-
-A test that selects fixtures by their names or contents must assert that its selection is not empty.
 
 ## Places in fixtures
 
