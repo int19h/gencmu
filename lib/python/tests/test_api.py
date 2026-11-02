@@ -11,6 +11,7 @@ import tempfile
 import unittest
 import weakref
 from pathlib import Path
+from unittest.mock import patch
 
 import gencmu
 from gencmu._pipeline import DOM_FORMAT, bundled_text
@@ -112,8 +113,14 @@ def elided_tokens() -> tuple[list[gencmu.Token], str]:
 
 class TestDefinitions(unittest.TestCase):
     def test_methods_have_unique_names_in_each_test_class(self) -> None:
-        for path in Path(__file__).parent.glob("test_*.py"):
-            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        paths = list(Path(__file__).parent.glob("*.py"))
+        self.assertTrue(paths, "no Python test modules found")
+        for path in paths:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            definitions = [node.name for node in tree.body if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))]
+            with self.subTest(file=path.name):
+                self.assertEqual(len(definitions), len(set(definitions)), f"{path.name}: module repeats a definition name")
+            for node in ast.walk(tree):
                 if not isinstance(node, ast.ClassDef):
                     continue
                 methods = [item.name for item in node.body if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))]
@@ -121,6 +128,18 @@ class TestDefinitions(unittest.TestCase):
                     continue
                 with self.subTest(file=path.name, cls=node.name):
                     self.assertEqual(len(methods), len(set(methods)), f"{path.name}: {node.name} repeats a method name")
+
+    def test_module_duplicates_are_refused(self) -> None:
+        read = Path.read_text
+        for module, extra in (("test_api.py", "\nclass HiddenProbe:\n    pass\nclass HiddenProbe:\n    pass\n"),
+                              ("shared.py", "\ndef hidden_probe(): pass\ndef hidden_probe(): pass\n"),
+                              ("witness.py", "\nclass HiddenProbe: pass\ndef HiddenProbe(): pass\n")):
+            def duplicated(path, *args, **kwargs):
+                source = read(path, *args, **kwargs)
+                return source + extra if path.name == module else source
+
+            with self.subTest(extra=extra), patch.object(Path, "read_text", duplicated), self.assertRaisesRegex(AssertionError, "module repeats"):
+                TestDefinitions().test_methods_have_unique_names_in_each_test_class()
 
 
 class Loaders(unittest.TestCase):
