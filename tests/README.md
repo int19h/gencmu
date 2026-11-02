@@ -14,7 +14,17 @@ Token payload fields remain an exception for usage cases. A runner passes each p
 
 This check is the fixture contract. Library readers can trust the checked shapes. The main case runners retain their own checks, because those checks also expose faults in the runners. For engine and notation cases, the central check covers the documented members and controls. The main case runners retain deeper payload and outcome checks.
 
+A description follows the strictest library reader, except where this document makes a member optional.
+
 Deliberately malformed grammar, DOM, notation, token, and result payloads remain library inputs. Their fixture wrappers still follow the declared shape. Text fixtures use their documented line or column formats. Source snapshots are opaque UTF-8 text. A new fixture file needs a shape description before a library reads it.
+
+Every file of cases contains at least one case. Each memo run has nonempty input and configuration lists.
+
+## Source manifest: `text-sources/manifest.json`
+
+Each source names its HTML snapshot and extracted text with one file name inside `text-sources/`. Absolute paths and directory segments are invalid. Each file must exist. Its SHA-256 digest must equal `html_sha256` or `extracted_sha256`, respectively.
+
+Each variant lists at least one existing corpus case identifier. All listed cases share one text. The SHA-256 digest of that text must equal `text_sha256`. A variant with no changes uses the extracted text digest.
 
 ## Running the tests
 
@@ -41,9 +51,9 @@ The bundled grammars use the current notation. A case that loads a bundled pipel
 
 The corpus records full outcomes. These shared fixtures also express stage cutoffs and token metadata that the corpus cannot record. A description names the grammar documents when a case tests their rules.
 
-The cases in `parameters.json` use the same case shape. All four libraries run these shared parameter cases.
+The cases in `parameters.json` use the same case shape and require a string `name`. All four libraries run these shared parameter cases.
 
-The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries. Cases with `public:true` load complete pipelines through the public loader.
+The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries. Cases with `public:true` load complete pipelines through the public loader and require `grammar` and `order`. A case with `flags` also requires `grammar`.
 
 Each case supplies `grammar` source or a complete `dom`. The optional `argument` matches the last source rule's first call argument. `order` lists the expanded rule names. `instances` gives the instance count. `flags` maps rule names to their final flags.
 
@@ -96,7 +106,7 @@ A pattern describes required result fields. `expect.result` is a pattern matched
 - An array matches when it has the same length and each element matches.
 - Anything else matches when it is equal.
 
-`expect.message` pins an agreed error reason, without a resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors.
+`expect.error` accepts `grammar`, `usage`, `rejected`, `ambiguous`, or `feature-conflict`. `expect.message` requires `expect.error: "grammar"`. It pins an agreed error reason, without a resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors.
 
 A result pattern rejects error `message` assertions. Existing unit tests pin the common stitching and classifier messages specified in engine §2. Other wording stays library-specific.
 
@@ -203,7 +213,7 @@ Each library reads the document as a grammar document (engine §8, §9). The rea
 
 A notation error can also specify `expect.error.message`. This member pins the diagnostic text without a location prefix. The reader diagnostics of engine §9.3 use this common text. Other error cases pin only their line and column.
 
-Every library also runs a notation case with `cacheMisses: true` through its document loader. The document first loads without a preparsed entry. A matching preparsed entry must give the same DOM.
+A notation case with `cacheMisses: true` requires a DOM expectation. Every library also runs that case through its document loader. The document first loads without a preparsed entry. A matching preparsed entry must give the same DOM.
 
 Four further loads each change one identity field. These fields are the document hash, the bootstrap fingerprint, the Unicode table hash, and the DOM format.
 
@@ -233,7 +243,7 @@ Small native tests retain state-reuse bounds, walk order, and codec preservation
 
 Each case gives a document, lexical aliases, and a DOM pattern or an error expectation. Every library adds each alias as a rule in the lexical document of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. Its `leftmost-longest` flag selects it over ordinary lexical divisions. The library reads the document with this bootstrap and compares the DOM or error. A successful reading also exercises the cold, matching, and mismatched cache paths described above.
 
-An error expectation in this file accepts only `line` and `column` under `expect.error`. An `expect.error.message` member invalidates the case. Only `expect.message` pins an agreed reason. The invalid pattern-name cases cover constants, nested patterns and rule conditions.
+An error expectation in this file requires both `line` and `column` under `expect.error`. Each coordinate is a positive integer. Other members under `expect.error` are invalid. An `expect.error.message` member invalidates the case. Only `expect.message` pins an agreed reason. The invalid pattern-name cases cover constants, nested patterns and rule conditions.
 
 The canonical-name cases use canonically equivalent ASCII and Kelvin spellings. These aliases test captures and fixed names through a supplied notation. The invalid-name cases supply semantic values that the bundled notation cannot produce. These cases add no spelling to the bundled notation. The handwritten reader implements the bundled notation, so these cases apply to library readers.
 
@@ -262,6 +272,10 @@ A caller can supply its own `data/preparsed/gencmu.json` (`docs/api.md`). Its no
 Each item of `extraParts` changes a rule of either notation stage. Its `find` stands once in the bundled bootstrap. The item's bootstrap has `replace` in that place ("Places in fixtures"). Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
 
 An extra part holds text that the reader refuses if it reads it. An outcome other than `expect` then shows that the library read it. Other items change constructor shapes or supply tokens that the bundled lexical stage refuses. These tokens test reader validation, including guard errors and their priority (engine §9.3). An item whose `expect` is a load error can give `where`, `{"document": "g.md", "line": 3, "column": 21}`, the place of that error in its document. The load must then fail there, as `expect.where` says for an engine case.
+
+## Disk names: `disk-names.json`
+
+Each case gives `description`, a `files` map of document names to source text, and an `error` object. The error requires `document`, `line`, and `column`. Both coordinates are positive integers.
 
 ## External JSON cases: `json-keys.json`
 
@@ -535,7 +549,7 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
   An error with no position, such as an ambiguity, gives no `at`.
 - `error` is present exactly when the result's error is of kind `ambiguous`. It is `{"kind": "ambiguous", "reason": "tie"}`, or the same with the reason `elision-only` (engine §6, §7). A case with any other result has no `error`, a rejection or an error of the grammar included. A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed.
 - The `reason` inside `error` is the reason of the ambiguous error. It is a field of `error`, and it is not the case's own `reason`, which explains the expected verdict (below). A case can have both.
-- `ties`, when present, names the stage whose verdict is `tie`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
+- `ties`, when present, contains exactly one nonempty stage name. It requires `expect: "reject"`, and its name equals `stage`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
 - `words` records the words stage's output when that output is present. The case writes each token as its image (engine §5). The pipeline's grammar recipes supply pause spaces and verbatim text.
 
 A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. Some corpus texts tie in their pipeline, and those cases expect the tie. Each library also tests that its runner refuses the result mutants above. A case uses its pipeline declarations and the caller configuration. The case matches when every one of those fields that the case or the result of the library has is equal.
