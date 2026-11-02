@@ -69,15 +69,13 @@ The cases in `parameter-structure.json` inspect parameter DOMs and expanded rule
 
 Parameter-structure readers also preserve every present `dom` value. A cache fallback case passes that value to the cache unchanged.
 
-Each case supplies `grammar` source or a complete `dom`. The optional `argument` matches the last source rule's first call argument. `order` lists the expanded rule names. `instances` gives the instance count. `categories` maps rule names to their final categories.
+Each case supplies `grammar` source or a complete `dom`. The optional `argument` matches the last source rule's first call argument. `order` lists the expanded rule names. `instances` gives the instance count.
 
 A `cacheFallback` case supplies valid source and a malformed cached DOM. Each library uses matching cache fingerprints and must parse `input` from the source.
 
 A `public:true` case loads a complete pipeline through the public loader. It requires `grammar` and `order`. It permits only `grammar`, `order`, and `instances` beside `name`, `public`, and `cacheFallback`.
 
-A `cacheFallback:true` case requires `grammar`, `dom`, and `input`. It forbids `argument`, `order`, `categories`, `instances`, and `public:true`. Only this mode permits `input`.
-
-A case with `categories` also requires `grammar`.
+A `cacheFallback:true` case requires `grammar`, `dom`, and `input`. It forbids `argument`, `order`, `instances`, and `public:true`. Only this mode permits `input`.
 
 An `instances` expectation compares the count even when it is zero. An `argument` expectation compares the argument even when the expected value is false or null.
 
@@ -298,7 +296,7 @@ Small native tests retain state-reuse bounds, walk order, and codec preservation
 
 ## Supplied notation values: `notation-values.json`
 
-Each case gives a document, lexical aliases, and a DOM pattern or an error expectation. Every library adds each alias as a rule in the lexical document of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. The rule counts as `alias`, and the library puts the step `leftmost-longest(alias)` first in the lexical directive, so the alias wins over ordinary lexical divisions. The library reads the document with this bootstrap and compares the DOM or error. A successful reading also exercises the cold, matching, and mismatched cache paths described above.
+Each case gives a document, lexical aliases, and a DOM pattern or an error expectation. Every library adds each alias as a rule in the lexical document of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. The library puts the step `leftmost-longest #(·a1 ∪ ·a2 ∪ …)` first in the lexical directive, over the case's alias rule names, so the alias wins over ordinary lexical divisions. The library reads the document with this bootstrap and compares the DOM or error. A successful reading also exercises the cold, matching, and mismatched cache paths described above.
 
 An error expectation in this file requires both `line` and `column` under `expect.error`. Each coordinate is a positive integer. Other members under `expect.error` are invalid. An `expect.error.message` member invalidates the case. Only `expect.message` pins an agreed reason. The invalid pattern-name cases cover constants, nested patterns and rule conditions.
 

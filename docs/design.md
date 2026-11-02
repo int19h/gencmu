@@ -109,9 +109,9 @@ The four libraries implement one specification, `docs/engine.md`. It defines the
 
    Nested parses for `span.matches(rule)`, `span.begins(rule)`, `span.ends(rule)`, and `span.tags(rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. Ordinary answers of short spans can also outlive the parse, in the shared memo of engine §4.3. A nested parse asked about its own span, as the same rule, is a grammar error. A nested parse never leaves out an elidable optional that the same construct can read whole as written (see "Nested queries and elided terminators" below).
 
-4. A rule's `%counts-as` clause names the categories that its occurrences count as. The stage directive lists steps that compare parses by those categories, in order. Each elided terminator counts as an `elision`.
+4. The stage directive lists steps that compare parses, in order. Each key step counts the nodes that a node pattern matches. Those nodes are the constituents of a rule, for example, or the elided terminators, which carry the mark `_Elided`.
 
-   The steps compare the parses' profiles first, category by category. A final `greedy` or `lazy` step then ranks parses with the greatest profile by bottom-up actions, while `late(elision)` compares elided terminators (see "Ambiguity" below).
+   The steps compare the parses' profiles first, step by step. A final `greedy` or `lazy` step then ranks parses with the greatest profile by bottom-up actions, while `late #·<_Elided>` compares elided terminators (see "Ambiguity" below).
 
 5. The stage emits the next stage's tokens. Each has text, value, image, tags, and source metadata. A value is the string that comparisons read. An image is the string that people see. An attachment is a token that another token owns and that later stages never read.
 
@@ -189,8 +189,6 @@ Only `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in con
 
 A stage reads its input with one grammar. The loader assembles that grammar from one or more documents, read in order. `%rule` defines a rule, and is an error if a rule of that name exists. `%redefine-rule` replaces a rule defined before it in the stage, and is an error if none was. `%extend-rule` adds alternatives to a rule defined before it, and is an error if none was.
 
-A `%counts-as` clause after `%rule` or `%redefine-rule` declares categories. Extensions inherit them, while a redefinition without the clause removes them.
-
 So an accidental override never passes silently, and a replacement says so where it is made. A misspelled name in a replacement, an extension or a reference is an error. A misspelled `%rule` defines a rule that nothing reads, and the audit (see "Diagnostics and debugging") reports it. The loader also reports every replacement and extension: which document changed which rule. So a reader can see the effect of a pipeline on its base in one place.
 
 The notation has no way to remove a single alternative. A rule is small enough to restate, and a restated rule reads better than a list of deletions.
@@ -199,7 +197,7 @@ A parameterized rule is a template with load-time arguments. `%rule pair(@Left, 
 
 The loader substitutes parsed nodes without changing grouping. `(BIhE 🆓)` and `ε` each pass one sequence argument. Only query-target choices and explicit requirement lists splice into their corresponding lists. Arguments cannot read captures.
 
-`%rule named-pair = pair("a", "b")` names one instance without adding a wrapper node. Other instances use canonical call spellings everywhere that a rule name appears. Templates and instance edits apply in source order. A later template redefinition replaces earlier local edits. Categories apply to actual instance constituents, without an extra ranking tier.
+`%rule named-pair = pair("a", "b")` names one instance without adding a wrapper node. Other instances use canonical call spellings everywhere that a rule name appears. Templates and instance edits apply in source order. A later template redefinition replaces earlier local edits. A ranking step that names a family counts the actual instance constituents, without an extra ranking tier.
 
 A later binding can move a public name to another instance with `%redefine-rule NAME = CALL`. The old instance keeps its edits and takes its canonical name. Ordinary rules and named instances keep declaration slots, followed by unnamed instances in discovery order. Numbering, reference checks, rule traversal for diagnostics, and audit lists use that expanded order.
 
@@ -629,31 +627,35 @@ An index into the visible actions counts only visible actions, even when its com
 
 The [Ambiguity](notation.md#ambiguity) section defines verdict transitions and their effects on emission and the elision-only check.
 
-[The notation guide](notation.md#ambiguity) defines every step, including action comparison and the `elision` category.
+[The notation guide](notation.md#ambiguity) defines every step, including action comparison and the mark `_Elided`.
 
-The reason for `late(elision)` is that `greedy` decides more than CLL asks. CLL leaves one choice to the parser, the place of an elided terminator. `greedy` also decides every other choice of read against close, such as where a free modifier attaches. So it can hide an ambiguity of the grammar behind a preference that no rule states. `late(elision)` decides only the place of elided terminators. Parses with equal profiles remain tied, and the grammar settles them with its rules.
+The reason for `late #·<_Elided>` is that `greedy` decides more than CLL asks. CLL leaves one choice to the parser, the place of an elided terminator. `greedy` also decides every other choice of read against close, such as where a free modifier attaches. So it can hide an ambiguity of the grammar behind a preference that no rule states. `late #·<_Elided>` decides only the place of elided terminators. Parses with equal profiles remain tied, and the grammar settles them with its rules.
 
 The count composes by addition over the packed forest, the shared graph of all parses. So the engine never enumerates the parses (engine §6). It does not depend on the name of a terminator, its depth or the constituent that it ends. "Close an older construct as late as possible" describes some of its results, but the count has no record of which construct is older. It can trade an early elision of one terminator for an early elision of another.
 
-The syntax grammars end their directive with `late(elision)` ("Syntax conventions" below).
+The syntax grammars end their directive with `late #·<_Elided>` ("Syntax conventions" below).
 
 The forms stage divides the text into words. The words stage applies the magic words, such as `si`, which act on other words. Both stages use `lazy`. Ordinary word forms divide a run in one way only, so `lazy` decides nothing in the forms stage outside the `ra'oi` exception below. In the words stage, a magic word acts on what exists when it is read.
 
-A rafsi is a form used inside compounds. A gismu is a root word. Zantufa's `ra'oi` quote is the exception to unique word division. It counts as a quote, and `leftmost-longest(quote)` selects the longest rafsi or gismu form within a complete reading.
+A rafsi is a form used inside compounds. A gismu is a root word. Zantufa's `ra'oi` quote is the exception to unique word division. Its forms stage puts `leftmost-longest #·rahoi-form` first, which selects the longest rafsi or gismu form within a complete reading.
 
-### Categories and steps
+### Patterns and steps
 
-Categories state structural preferences independently of terminator policy. An atom is one independent grammatical unit. Intended uses include atoms such as `simple-tense-modal`. A broad rule such as `tag` also counts wrappers, nested groups, and chain levels. Those occurrences can favor a different grouping from the intended atoms.
+A key step names the nodes that it counts in a node pattern, and that pattern states a structural preference independently of terminator policy. An atom is one independent grammatical unit. Intended uses name atoms such as `#·simple-tense-modal`. A broad rule such as `tag` also counts wrappers, nested groups, and chain levels. Those occurrences can favor a different grouping from the intended atoms.
+
+The pattern is exact and local. Each node test carries `·`, so a wrapper above the named node never counts. The pattern has no child list or path, so a node's count depends on the node alone. That locality is what lets the ranker add counts over the shared forest without enumerating parses. A pattern can name several rules, `#(·a ∪ ·b)`, or test a tag that several rules carry, `#·<Link>`. The tag form counts every node whose tags satisfy the test, inherited tags included, so an untagged unary wrapper counts again. The bundled grammars name their rules.
+
+The elided terminators carry the mark `_Elided` on their pattern leaves, and `late #·<_Elided>` counts them. Because the mark is an ordinary pattern tag, a grammar can combine it, as in `fewest #·JI<_Elided>`, which counts elided `JI` alone. A written leaf counts by the terminal that read it, so a step can prefer one reading of a token over another.
 
 `leftmost-longest` compares token spans, not reading and closing actions. For `r → r B | A`, action comparison can tie a longer outer `r` with a short one. Span comparison prefers the longer outer `r`. Presence and repeated occurrences count because each occurrence expresses the declaration. Empty occurrences contribute nothing, so the step does not reward empty wrappers.
 
-A step on a category can rank before the lean, so an author can state grouping independently of terminator policy. Equal profiles leave the lean to decide. Extensions inherit the categories, while redefinitions replace them with their own declaration. This gives one authoritative declaration for the whole rule.
+A key step can rank before the lean, so an author can state grouping independently of terminator policy. Equal profiles leave the lean to decide. A step that names a rule counts its extensions and its redefinition too, because the name is the stitched rule's. So the directive is the one authoritative statement of what counts, and a layer changes it by restating the directive.
 
 `elision-only` keeps the key steps because they express structural preferences. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. The check never replaces the chosen parse. Restored terminators add no width, so writing them back cannot lengthen an occurrence.
 
-With only `simple-tense-modal` counting as a tense, `pu va ca gi` groups as `pu va` then `ca gi`, as the official parser does. The step ranks complete parses. The official lexer instead groups tokens before syntax parsing. The notation's "Ambiguity" section explains the differences from POSIX subexpression semantics.
+With `leftmost-longest #·simple-tense-modal` first, `pu va ca gi` groups as `pu va` then `ca gi`, as the official parser does. The step ranks complete parses. The official lexer instead groups tokens before syntax parsing. The notation's "Ambiguity" section explains the differences from POSIX subexpression semantics.
 
-The rule says what its occurrences count as, and the directive says how to compare them. So two preferences of one grammar keep separate counts, and the directive states which comes first. Eberban's syntax, for example, prefers the smallest erasure before the deepest resumption. `fewest` favors absence. It counts nonempty occurrences and ignores their span lengths, because a disfavored construct has no natural position to prefer. Every key step composes by addition, as an elision count does, and none can form a comparison cycle. Arithmetic over categories is left out on purpose: a weighted sum would hide the order of preferences that the steps state.
+The directive says which nodes count and how to compare them. So two preferences of one grammar keep separate counts, and the directive states which comes first. Eberban's syntax, for example, prefers the smallest erasure before the deepest resumption. `fewest` favors absence. It counts nonempty occurrences and ignores their span lengths, because a disfavored construct has no natural position to prefer. Every key step composes by addition, as an elision count does, and none can form a comparison cycle. Arithmetic over steps is left out on purpose: a weighted sum would hide the order of preferences that the steps state.
 
 ### Ties are errors
 
@@ -715,7 +717,7 @@ A boundary atom reads the parse itself, so it has no window and no written-termi
 
 `$x.without-elision` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary.
 
-An elision is an omitted terminator. An aligned witness is a reading with the same closes. An ordinary query parses captured words afresh and can choose another omission boundary. A category condition sometimes needs the captured candidate's actual boundaries while it asks about another grammatical category.
+An elision is an omitted terminator. An aligned witness is a reading with the same closes. An ordinary query parses captured words afresh and can choose another omission boundary. A condition about one grammatical category sometimes needs the captured candidate's actual boundaries while it asks about another grammatical category.
 
 The span method keeps `.matches`, `.begins`, and `.tags(rule)` queries. `$x.without-elision.matches(R)` compares the whole capture. `$x.without-elision.onward.begins(R)` permits a rival category that continues beyond it. The query can still inspect following original words. This context retains following-operator conditions and written-terminator priority.
 
@@ -765,7 +767,7 @@ A parse option overrides `elision-only` either way. A caller switches it on to r
 
 ### Syntax conventions
 
-The syntax stages of the bundled Lojban grammars end with `late(elision)`. The `lojban/cll` and `lojban/bpfk` pipelines also declare `%elision-only`.
+The syntax stages of the bundled Lojban grammars end with `late elision`. The `lojban/cll` and `lojban/bpfk` pipelines also declare `%elision-only`.
 
 The CLL grammar expresses the official lexer's `JOIK_KE` preference with a ranked choice. Its preferred option groups with `joik [stag] KE … KEhE`. Its plain option joins two units with `joik-jek`. The preferred option removes the plain reading only over the same span.
 
@@ -781,13 +783,13 @@ The `lojban/experimental` pipeline redefines `selbri-4` and `operator`, with the
 
 The pipeline also states three conventions as rules:
 
-- A sumti connection takes priority over a term connection. After span ranking, `fewest(link)` prefers fewer links that `bridi-tail-connective` and `gi-stag-connective` build across the whole reading. Equal counts leave late elision to decide, which can keep the first description open. This applies to A, JA, JOI, and VUhU, including terms marked with `fe` or `pu` and bare `na ku` terms.
+- A sumti connection takes priority over a term connection. After span ranking, `fewest link` prefers fewer links that `bridi-tail-connective` and `gi-stag-connective` build across the whole reading. Equal counts leave late elision to decide, which can keep the first description open. This applies to A, JA, JOI, and VUhU, including terms marked with `fe` or `pu` and bare `na ku` terms.
 - A `be` group attaches to the preceding unit when there is one.
 - A subscript after a subscript nests, as CLL 18.13 says.
 
 A preference for each connective or argument can misread natural texts. Form alone does not determine the intended meaning. The `lojban/experimental` pipeline keeps the whole-reading count. Written `kei ku` after the first description selects parallel descriptions, while `gi'e` explicitly marks a bridi-tail link. The [syntax closing section](../grammars/lojban/experimental/syntax.md#terms-and-descriptions) gives both choices and their written forms in plain words.
 
-`leftmost-longest(unit)` settles a free modifier's span before the `fewest(link)` step, since `free` counts as a unit. An omitted terminator therefore closes as late as the text allows. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis. The [experimental syntax document](../grammars/lojban/experimental/syntax.md) gives examples with omitted and written `toi`.
+`leftmost-longest unit` settles a free modifier's span before the `fewest link` step, since `free` counts as a unit. An omitted terminator therefore closes as late as the text allows. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis. The [experimental syntax document](../grammars/lojban/experimental/syntax.md) gives examples with omitted and written `toi`.
 
 The Zantufa grammar states its attachment conventions as rules, derived from its reference parser:
 
@@ -806,7 +808,7 @@ Zantufa marks neither `CU` nor `IAU` as elidable. CLL also leaves `CU` unmarked.
 
 ## Indivisible numbers and letter strings
 
-The `lojban/cll` and `lojban/bpfk` pipelines use `late(elision)` with `%elision-only`. Their numbers and letter strings cannot end before another continuation unit. A continuation unit is `PA` or a complete `lerfu-word`. It includes recursive LAU words and balanced TEI/FOI compounds. CLL 17.9 and 18.6 require `boi` between adjacent runs. CLL 17.14 lists what can follow a LAU cmavo.
+The `lojban/cll` and `lojban/bpfk` pipelines use `late elision` with `%elision-only`. Their numbers and letter strings cannot end before another continuation unit. A continuation unit is `PA` or a complete `lerfu-word`. It includes recursive LAU words and balanced TEI/FOI compounds. CLL 17.9 and 18.6 require `boi` between adjacent runs. CLL 17.14 lists what can follow a LAU cmavo.
 
 The conditions on `number` and `lerfu-string` test the completed run once, where it ends. The rules use brace notation.
 
@@ -930,7 +932,7 @@ The product provides these diagnostics and debugging tools:
   A stage with input and no verdict reports that it failed, with its diagnostic. A later stage without input is not reached.
 
   The trace position must be a finite integer. The trace clamps it to the stage's token boundaries. Printed conditions preserve method receivers with parentheses around compound terms.
-- The audit reports unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` covers text that can never emit a token and that no token can cover. The audit names a replacement that changes the rule's categories, with the categories before and after. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
+- The audit reports unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` covers text that can never emit a token and that no token can cover. The audit names each redefinition or extension of a counted rule, with the step that it affects. A counted rule is one that a key step names. A rule whose resolved tag terms hold a literal for a tested tag is counted too. Rules that can match a step only through an inherited, forwarded or computed tag set stand in a separate, marked section. The audit also labels each key step as impossible, possible or unknown for its stage. It lists each rule that can carry a tested tag without a literal for it. And it lists the inherited tags that a `::` clause drops on a rule with one logical symbol and a tested tag. A tested tag that no source of the stage can produce is a warning (engine §9.3). It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
 
   Its data lists the family's members in closure order. That order starts with the family rule and reads the members breadth first. It reads each member's alternatives in written order, and each alternative's member edges in written order. The data also lists the optionals that the family permits, each with its terminal and owning definition. They follow the members in closure order, and each member's optionals come in written order.
 
@@ -946,15 +948,15 @@ The product provides these diagnostics and debugging tools:
 
 Each stage's audit also exposes `templates` and `instances` lists. Templates follow declaration order. The instance list follows expanded rule order (engine §2.3), after omitting ordinary rules. A template entry contains `template`, `parameters`, `document`, `line`, `column`, and `notes`. Its notes identify `unused-parameter` with `parameter`, or `uncalled-template`.
 
-An instance entry contains `template`, `arguments`, `name`, `binding`, `firstCall`, `categories`, `events`, and `notes`. Arguments use the unresolved ARG schema without source positions. The template and ordered arguments encode its key within the stage. `binding` is null for an unnamed instance. Otherwise it names the binding's document, line, and column. `firstCall` records that call's document, line, and column.
+An instance entry contains `template`, `arguments`, `name`, `binding`, `firstCall`, `events`, and `notes`. Arguments use the unresolved ARG schema without source positions. The template and ordered arguments encode its key within the stage. `binding` is null for an unnamed instance. Otherwise it names the binding's document, line, and column. `firstCall` records that call's document, line, and column.
 
 An `argument-alias-twin` note names distinct instance keys with equivalent argument references. It does not claim that local edits give those instances identical bodies. The note has `kind` and an `instances` list of the other effective names, in expanded rule order.
 
 Twin instances use the same template. Corresponding arguments must be identical after key normalization, apart from a named-instance reference standing for a call of that same instance key. Only the bare reference changes during this comparison. Decorations, including `exact` and `children`, must still match on both nodes. The comparison follows the finite written argument trees and never expands a nominal reference's body. The comparison accepts either direction and applies inside nested argument forms.
 
-Events follow source order and record `scope`, `op`, `document`, `line`, `column`, `categoriesBefore`, and `categoriesAfter`. Scope is `template` or `instance`. Replaced events remain in the list. `categories` gives the final effective categories. The printed report shows the same facts and names public bindings without implying wrapper rules.
+Events follow source order and record `scope`, `op`, `document`, `line`, and `column`. Scope is `template` or `instance`. Replaced events remain in the list. The printed report shows the same facts and names public bindings without implying wrapper rules.
 
-Printed template and family calls include their source locations. Printed instances include canonical arguments and final categories. An empty category list prints as `none`. The audit reuses structural indexes across queries and family members.
+Printed template and family calls include their source locations. Printed instances include canonical arguments. The audit reuses structural indexes across queries and family members.
 
 The audit also reports these boundary notes:
 
@@ -968,7 +970,7 @@ The CLI is `node lib/js/cli.js`. A published package exposes it as `npx gencmu`.
 - `parse`, to parse a text, with configuration arguments that include `--pipeline`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|canonical|tokens` and `--trace`
 - `pipelines`, to list the bundled pipelines
 - `features`, to list a pipeline's features
-- `audit`, to report the unreachable, replaced and extended rules of a pipeline, including replacements that add or remove categories. It also reports the close families that the pipeline's stages name.
+- `audit`, to report the unreachable, replaced and extended rules of a pipeline. It includes the redefinitions and extensions of counted rules and the labels of the ranking steps. It also reports the close families that the pipeline's stages name.
 - `stitch`, to print a pipeline's documents as one jbogenbau text, with each classifier's entries as written
 - `test`, to compare a grammar author's own file of corpus-format cases with the expected results under a pipeline. It compares each case as the library's corpus runner does, with the same code. It runs no engine self-tests, such as the witness hook of `elision-only`
 - `help`, to list the commands and every option

@@ -70,6 +70,13 @@ The syntax is [`syntax.md`](syntax.md), a grammar of its own that translates Zan
   %include "lexicon.md"
   ```
 
+The ordinary word forms divide each run in one way only. The [`ra'oi` quote](morphology.md#the-raoi-quote) is the exception. The first step names its rule and takes the longest rafsi or gismu form within a complete reading. The `lazy` step then decides nothing else.
+
+```jbogenbau
+%ambiguity-resolution
+  leftmost-longest #·rahoi-form, lazy
+```
+
 ## Stage 3: words
 
 ```jbogenbau

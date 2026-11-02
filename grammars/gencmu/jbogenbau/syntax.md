@@ -10,7 +10,7 @@ A tag is a named mark on a token. Lexical tags distinguish names, strings, integ
 
 These rules implement the recognition productions of [engine §9.2](../../../docs/engine.md#92-syntax-forms). They admit forms that the reader rejects under [§9.3](../../../docs/engine.md#93-conversion-and-validation).
 
-The rule names identify reader constructors. Section 9.2 maps recognition names to these constructors: `document` becomes `text`, `captured` becomes `capture`, and `item` becomes `emit-item`. It also maps `counts-as` to `counts-as-clause`, `conditions` to `conditions-clause`, and `method-chain` to `method`. The same table specifies the remaining wrapper mappings.
+The rule names identify reader constructors. Section 9.2 maps recognition names to these constructors: `document` becomes `text`, `captured` becomes `capture`, and `item` becomes `emit-item`. It also maps `conditions` to `conditions-clause` and `method-chain` to `method`. The same table specifies the remaining wrapper mappings.
 
 ## Choosing among readings
 
@@ -43,7 +43,7 @@ The reader converts the recognized tree into a DOM, its document object model. C
 
 ## Rules and alternatives
 
-A rule defines, redefines, or extends a name. The body precedes the conditions, the categories and the output.
+A rule defines, redefines, or extends a name. The body precedes the conditions and the output.
 
 Header tag and string clauses apply to every alternative. A header clause requires the leading `|`, which separates its operands from the body.
 
@@ -54,7 +54,7 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
 ```jbogenbau
 %rule rule
   definer (rule-name | call) ("=" call | (body | clauses headed-body)
-    [conditions-clause] [counts-as-clause] [output])
+    [conditions-clause] [output])
 
 %rule definer
   KW-RULE | KW-REDEFINE-RULE | KW-EXTEND-RULE
@@ -299,19 +299,11 @@ A valid target is a capture or `ε`, which inserts a token. Recognition admits n
 
 Attachments are named captures in parentheses around a named carrier. The reader rejects attachments around the whole-rule capture or an inserted item.
 
-`%counts-as` names the categories that the rule's occurrences count as, separated by commas. The reader checks each name and refuses the clause on an extension.
-
 `%erased` discards the constituent during emission. It cannot share output with `%emits`.
 
 ```jbogenbau
 %rule conditions-clause
   KW-CONDITIONS [","] {implication / ","}
-
-%rule counts-as-clause
-  KW-COUNTS-AS {category / ","}
-
-%rule category
-  Identifier
 
 %rule output
   erased-clause | emits-clause
@@ -344,10 +336,8 @@ Attachments are named captures in parentheses around a named carrier. The reader
   "::" term
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>conditions-clause</code> to <code>emit-tags</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>conditions-clause</code> to <code>emit-tags</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/conditions-clause.svg" alt="Railroad diagram of the rule conditions-clause"></p>
-<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/counts-as-clause.svg" alt="Railroad diagram of the rule counts-as-clause"></p>
-<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/category.svg" alt="Railroad diagram of the rule category"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/output.svg" alt="Railroad diagram of the rule output"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/erased-clause.svg" alt="Railroad diagram of the rule erased-clause"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/emits-clause.svg" alt="Railroad diagram of the rule emits-clause"></p>
@@ -561,7 +551,7 @@ A tree comparison has a bare capture on the left and a pattern term on the right
 
 A pattern starts with `#` and one node test, bare child list, or grouped predicate. An exact prefix suppresses the node test's single-child search.
 
-Guillemets enclose child items. A list directly after a pattern atom attaches to that atom. The reader keeps an attached list only on a rule name, emoji rule, template family, exact call, or compatible parameter.
+A pattern atom is a name, a terminal or a constant with its tests, or tests alone. Tests alone make a node test on tags, as in `#<Tense>`, which the reader converts as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says. Guillemets enclose child items. A list directly after a pattern atom attaches to that atom. The reader keeps an attached list only on a rule name, emoji rule, template family, exact call, or compatible parameter.
 
 A bare list or an exact prefix needs whitespace or a comment after a node test, `»`, `]`, `}`, or a group's `)`. Thus `« a «b» »` has two items, while `« a«b» »` attaches the list to `a`. `« (a)«b» »` is an error. After `⋯` or `⋰`, no space is necessary.
 
@@ -606,7 +596,8 @@ Recognition admits repeated or reversed tests on names, terminals, and constants
   $exact ⟹ $exact.onward.begins(pattern-exact-start)
 
 %rule pattern-atom
-  (pattern-name | tag | string | range | wildcard | constant-reference) [{symbol-test}]
+  | (pattern-name | tag | string | range | wildcard | constant-reference) [{symbol-test}]
+  | {symbol-test}
 
 %rule pattern-name
   Lowercase-Name | Emoji-Name | call | parameter
@@ -697,7 +688,7 @@ Recognition admits repeated or reversed tests on names, terminals, and constants
 
 ## Directives
 
-A directive starts a stage, includes a document, declares features, turns on the elision check, or lists the ranking steps. Each written name is a separate operand. The ranking directive has its own form: steps separated by commas, each a name alone or a name with one category in parentheses.
+A directive starts a stage, includes a document, declares features, turns on the elision check, or lists the ranking steps. Each written name is a separate operand. The ranking directive has its own form: steps separated by commas, each a name alone or a name followed by one pattern literal or constant reference. The reader requires an exact local pattern there, as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says.
 
 Recognition accepts wider operands than each directive permits. The reader rejects wrong counts and types at the directive before converting those operands.
 
@@ -715,7 +706,7 @@ Recognition accepts wider operands than each directive permits. The reader rejec
   KW-AMBIGUITY-RESOLUTION {ranking-step / ","}
 
 %rule ranking-step
-  Call-Name "(" Identifier ")" | Identifier
+  Identifier [pattern-literal | constant-reference]
 
 %rule directive-name
   | KW-STAGE | KW-EXTEND-STAGE | KW-REDEFINE-STAGE
