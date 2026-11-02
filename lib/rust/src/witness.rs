@@ -31,11 +31,22 @@ pub struct ElisionCheckRun {
     pub keeps_witness: bool,
 }
 
-/// A fault of this library's own paths in the check of `elision-only`,
-/// which a test turns on to show that the shared cases catch it
-/// (tests/README.md). The omission fault also affects the original recognition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Fault {
+macro_rules! faults {
+    ($( $(#[$doc:meta])* $variant:ident, )+) => {
+        /// A fault of this library's paths in the check of `elision-only`.
+        /// Tests enable each fault and require a shared case to catch it.
+        /// The omission fault also changes the original recognition.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub enum Fault { $( $(#[$doc])* $variant, )+ }
+
+        impl Fault {
+            /// Every fault, generated from the variant declarations.
+            pub const ALL: [Fault; [$(stringify!($variant)),+].len()] = [$(Fault::$variant),+];
+        }
+    };
+}
+
+faults! {
     /// The recognizer admits an omission without its restoration predicate.
     Omission,
     /// The ranker, which rebuilds the links of the check's derivations from
@@ -64,19 +75,6 @@ pub enum Fault {
 }
 
 impl Fault {
-    /// Every fault, for the tests that run each one.
-    pub const ALL: [Fault; 9] = [
-        Fault::Omission,
-        Fault::RankerTests,
-        Fault::ReferenceSpan,
-        Fault::Reprocess,
-        Fault::Route3,
-        Fault::RankRestoration,
-        Fault::LostContext,
-        Fault::LostSelect,
-        Fault::Restore,
-    ];
-
     /// The sites of a fault: the places in the code where it is checked,
     /// each of which the named cases must enter while it is on.
     pub fn sites(self) -> &'static [&'static str] {
