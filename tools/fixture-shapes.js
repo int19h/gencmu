@@ -159,8 +159,8 @@ export const fixtureShapes = {
   "query-depth.json": { shape: caseList(object({ name: string, description: string, grammar: string, link: string, suffix: string, count: positive })) },
   "query-work.json": { shape: caseList(object({ name: string, description: string, head: string, item: string, joiner: string, tail: string, rule: string, text: string, count: positive, most: positive })) },
   "places.json": { shape: object({ description: string, positions: caseList(location), substitutions: caseList(object({ text: string, find: string, replace: string, places: natural, expect: nullable(string) })) }) },
-  "recipe-diagnostics.json": { shape: object({ recipes: caseList(object({ source: string, at: string })), positions: caseList(object({ name: string, template: string })), ordinary: strings }) },
-  "notation-shapes.json": { shape: object({ description: string, document: string, inputs: strings, control: strings, loads: map(loadedOutcomes), extraParts: list(replacement) }, {}, [
+  "recipe-diagnostics.json": { shape: object({ recipes: caseList(object({ source: string, at: string })), positions: caseList(object({ name: string, template: string })), ordinary: caseList(string) }) },
+  "notation-shapes.json": { shape: object({ description: string, document: string, inputs: caseList(string), control: caseList(string), loads: map(loadedOutcomes), extraParts: caseList(replacement) }, {}, [
     (v) => v.control.length !== v.inputs.length || Object.values(v.loads).some((x) => Array.isArray(x) && x.length !== v.inputs.length)
       ? ["control and loaded outcomes need one entry per input"] : [],
   ]) },
