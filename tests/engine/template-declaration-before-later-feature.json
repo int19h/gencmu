@@ -1,0 +1,14 @@
+{
+  "description": "An uncalled template keeps its position before a later feature declaration.",
+  "grammar": "%ambiguity-resolution greedy\n%rule unused(@X) $FIRST\n%features f %conditions $.value = $SECOND\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$FIRST is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 18
+    }
+  }
+}

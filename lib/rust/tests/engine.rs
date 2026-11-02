@@ -42,6 +42,7 @@ fn run_shared_case(name: &str) {
         }
         Err(error) => panic!("{}: a case is JSON: {error}", file.display()),
     };
+    common::case::engine(&case).unwrap_or_else(|error| panic!("{}: invalid case: {error}", file.display()));
     if let Some(reason) = common::unexpressible_tokens(&case) {
         eprintln!("skip {}: {reason}", file.display());
         return;
@@ -49,6 +50,9 @@ fn run_shared_case(name: &str) {
     if has_caller_attachments(&case) {
         eprintln!("skip {}: unavailable caller fields: Rust InputToken has no attachment fields", file.display());
         return;
+    }
+    if case.get("treeRendering").is_some() {
+        eprintln!("skip treeRendering in {}: Rust has no tree-listing operation", file.display());
     }
     let limit = common::case_timeout();
     let outcome = common::within(limit, move || {
@@ -90,6 +94,18 @@ fn a_deep_result_runs_on_an_ordinary_stack() {
         r#"{{"grammar": "%rule text text \"a\" | \"a\"", "input": "{input}", "expect": {{"result": {{"ok": true, "stages": [{{"verdict": "unique"}}]}}}}}}"#
     );
     run_engine_case(&parse_json(&case).unwrap()).expect("the case passes");
+}
+
+#[test]
+fn harness_refuses_wrong_agreed_error_reasons() {
+    for name in ["unicode-categories-conflict.json", "suffix-recursion-local.json"] {
+        let text = std::fs::read_to_string(common::repository().join("tests/engine").join(name)).unwrap();
+        let case = parse_json(&text).unwrap();
+        run_engine_case(&case).expect("the agreed reason");
+        let expected = case.get("expect").unwrap().get("message").and_then(common::Value::str).unwrap();
+        let wrong = text.replace(expected, "a wrong reason");
+        assert!(run_engine_case(&parse_json(&wrong).unwrap()).is_err(), "{name} accepted a wrong reason");
+    }
 }
 
 #[test]
@@ -155,13 +171,8 @@ fn harness_detects_a_wrong_expectation() {
     // A Rust document is always valid, so no load here fails with a usage
     // error. A grammar error given the kind usage stands for one. It has
     // no line or column, so a case gives no `where` for it.
-    let (documents, pipeline) = common::case_documents(
-        &parse_json(
-            r#"{"grammar": "%rule text X
-%rule text Y"}"#,
-        )
-        .unwrap(),
-    );
+    let (documents, pipeline) =
+        common::case_documents(&parse_json(r#"{"grammar": "%rule text X\n%rule text Y"}"#).unwrap());
     let mut error = gencmu::load_pipeline_sources(documents, &pipeline).expect_err("a load error");
     error.kind = gencmu::ErrorKind::Usage;
     (error.line, error.column) = (None, None);
@@ -466,6 +477,7 @@ fn skipped_source_cases_have_stage_equivalents() {
         "values-verbatim-out-of-order",
         "values-verbatim-overridden",
         "values-verbatim-source",
+        "verbatim-disjoint-empty-sources",
         "rejection-empty-supplied-slice",
         "rejection-supplied-slice-before-text-end",
         "rejection-supplied-slice-last-source",
@@ -473,10 +485,16 @@ fn skipped_source_cases_have_stage_equivalents() {
     .into_iter()
     .map(str::to_string)
     .collect();
-    names.extend(case_files("engine").into_iter().filter_map(|file| {
-        let name = file.file_stem()?.to_str()?;
-        name.starts_with("query-logical-prefix-").then(|| name.to_string())
-    }));
+    names.extend(common::require_cases(
+        case_files("engine")
+            .into_iter()
+            .filter_map(|file| {
+                let name = file.file_stem()?.to_str()?;
+                name.starts_with("query-logical-prefix-").then(|| name.to_string())
+            })
+            .collect(),
+        "logical-prefix stage equivalents",
+    ));
     for name in &names {
         let name = name.as_str();
         let file = common::repository().join("tests/engine").join(format!("{name}.json"));
@@ -485,7 +503,11 @@ fn skipped_source_cases_have_stage_equivalents() {
         let input = case.get("input").and_then(Value::str).unwrap();
         let supplied = case.get("tokens").unwrap().array();
         let nonmonotonic = name.starts_with("source-out-of-order") || name == "memo-source-enclosing";
-        let bodies = if name == "rejection-empty-supplied-slice" {
+        let bodies = if name == "verbatim-disjoint-empty-sources" {
+            // Empty captures preserve the six source points. Their values
+            // carry the supplied digits, while their texts are empty.
+            vec!["%rule text $a:anchor \"a\" $b:anchor \"b\" $c:anchor \"c\" $d:anchor \"d\" $e:anchor \"e\" $f:anchor \"f\"\n%emits $a :: A := \"0\", $b :: B := \"1\", $c :: A := \"2\", $d :: B := \"3\", $e :: A := \"4\", $f :: B := \"5\"\n%rule anchor ε".to_string()]
+        } else if name == "rejection-empty-supplied-slice" {
             vec!["%rule text _ %erased".to_string()]
         } else if name == "rejection-supplied-slice-before-text-end" {
             vec!["%rule text $a:part \"c\" %emits $a :: A\n%rule part \"a\" \"‹U+000A›\" \"b\"".to_string()]
@@ -570,7 +592,12 @@ fn skipped_source_cases_have_stage_equivalents() {
                     range[0].number().unwrap() as usize..range[1].number().unwrap() as usize,
                     "{name}"
                 );
-                assert_eq!(generated.text, supplied.get("text").and_then(Value::str).unwrap(), "{name}");
+                if name == "verbatim-disjoint-empty-sources" {
+                    assert_eq!(generated.text, "", "{name}");
+                    assert_eq!(generated.value, supplied.get("text").and_then(Value::str).unwrap(), "{name}");
+                } else {
+                    assert_eq!(generated.text, supplied.get("text").and_then(Value::str).unwrap(), "{name}");
+                }
                 assert_eq!(
                     generated.tags,
                     supplied
@@ -737,4 +764,322 @@ fn invalid_restorations_are_local_to_the_boundary_assignment() {
         );
         run_engine_case(&parse_json(&case).unwrap()).unwrap();
     }
+}
+
+#[test]
+fn runner_refuses_unknown_and_wrongly_typed_case_members() {
+    let base = parse_json(r#"{"grammar":"%rule text \"a\"","input":"a","expect":{"result":{"ok":true}}}"#).unwrap();
+    for change in [
+        r#"{"path":["unexpected"],"set":true}"#,
+        r#"{"path":["options"],"set":false}"#,
+        r#"{"path":["options"],"set":{"features":"f"}}"#,
+        r#"{"path":["options"],"set":{"until":false}}"#,
+        r#"{"path":["options"],"set":{"elisionOnly":"yes"}}"#,
+        r#"{"path":["options"],"set":{"typo":true}}"#,
+        r#"{"path":["parses"],"set":{}}"#,
+        r#"{"path":["expect","brackets"],"set":false}"#,
+        r#"{"path":["expect","unknown"],"set":true}"#,
+    ] {
+        let changed = common::apply_mutant(&base, &parse_json(change).unwrap());
+        assert!(run_engine_case(&changed).is_err(), "accepted invalid case: {change}");
+    }
+}
+
+#[test]
+fn runner_refuses_expectations_for_another_outcome() {
+    for text in [
+        r#"{"grammar":"%rule text \"a\"","input":"a","expect":{"where":{"document":"main.md"}}}"#,
+        r#"{"grammar":"%rule text \"a\"","input":"a","expect":{"diagnostic":"unused"}}"#,
+        r#"{"grammar":"%rule text {ε}","expect":{"error":"grammar","where":{"document":"main.md"}}}"#,
+        r#"{"grammar":"%rule text {ε}","expect":{"error":"grammar","diagnostic":"unused"}}"#,
+    ] {
+        assert!(run_engine_case(&parse_json(text).unwrap()).is_err(), "accepted {text}");
+    }
+}
+
+#[test]
+fn result_patterns_refuse_error_message_assertions() {
+    let pattern = parse_json(r#"{"error":{"message":"same"}}"#).unwrap();
+    for actual in [r#"{"error":{"message":"same"}}"#, r#"{"error":{"message":"other"}}"#, r#"{"error":{}}"#] {
+        assert!(common::matches(&pattern, &parse_json(actual).unwrap(), "result").is_err(), "accepted {actual}");
+    }
+}
+
+#[test]
+fn shared_case_metadata_is_well_formed() {
+    let mut problems = Vec::new();
+    for file in case_files("engine") {
+        let text = std::fs::read_to_string(&file).unwrap();
+        let case = match parse_json(&text) {
+            Ok(case) => case,
+            Err(error) if error == "a bad code point" => continue,
+            Err(error) => panic!("{}: {error}", file.display()),
+        };
+        if let Err(problem) = common::case::engine(&case) {
+            problems.push(format!("{}: {problem}", file.display()));
+        }
+    }
+    let parameters = parse_json(include_str!("../../../tests/parameters.json")).unwrap();
+    for case in parameters.array() {
+        if let Err(problem) = common::case::parameter(case) {
+            problems.push(format!("parameter {:?}: {problem}", case.get("name")));
+        }
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn runner_refuses_invalid_token_metadata() {
+    let mut accepted = Vec::new();
+    let unknowns = [
+        r#"{"text":"a","tags":["A"],"typo":true}"#,
+        r#"{"text":"a","tags":["A"],"before":[{"text":"b","tags":[],"typo":true}]}"#,
+        r#"{"text":"a","tags":["A"],"after":[{"text":"b","tags":[],"before":[{"text":"c","tags":[],"typo":true}]}]}"#,
+    ];
+    let invalid_payloads = [
+        r#"null"#,
+        r#"{}"#,
+        r#"{"text":"a"}"#,
+        r#"{"tags":[]}"#,
+        r#"{"text":3,"tags":[]}"#,
+        r#"{"text":"a","tags":false}"#,
+        r#"{"text":"a","tags":[3]}"#,
+        r#"{"text":"a","tags":[],"value":null}"#,
+        r#"{"text":"a","tags":[],"image":false}"#,
+        r#"{"text":"a","tags":[],"source":[0]}"#,
+        r#"{"text":"a","tags":[],"source":[0,1.5]}"#,
+        r#"{"text":"a","tags":[],"span":[-1,1]}"#,
+        r#"{"text":"a","tags":[],"span":"0,1"}"#,
+        r#"{"text":"a","tags":[],"before":{}}"#,
+        r#"{"text":"a","tags":[],"after":[null]}"#,
+        r#"{"text":"a","tags":[],"before":[{"text":"b","tags":false}]}"#,
+    ];
+    for token in unknowns.iter().chain(&invalid_payloads) {
+        let engine = parse_json(&format!(
+            r#"{{"grammar":"%rule text A","tokens":[{token}],"expect":{{"result":{{"ok":true}}}}}}"#,
+        ))
+        .unwrap();
+        if common::case::engine(&engine).is_ok() {
+            accepted.push(format!("engine accepted {token}"));
+        }
+        let memo =
+            parse_json(&format!(r#"{{"grammar":"%rule text A","inputs":[[{token}]],"options":[{{}}]}}"#)).unwrap();
+        if common::case::memo(&memo).is_ok() {
+            accepted.push(format!("memo accepted {token}"));
+        }
+    }
+    for token in unknowns {
+        for expectation in [r#""expect":{"error":"usage"}"#, r#""parses":[{"expect":{"error":"usage"}}]"#] {
+            let engine =
+                parse_json(&format!(r#"{{"grammar":"%rule text A","tokens":[{token}],{expectation}}}"#)).unwrap();
+            if common::case::engine(&engine).is_ok() {
+                accepted.push(format!("usage engine accepted {token}"));
+            }
+        }
+    }
+    let direct = parse_json(r#"{"grammar":"%rule text A","tokens":[{"text":"a","tags":["A"],"typo":true}],"expect":{"result":{"ok":true}}}"#).unwrap();
+    if run_engine_case(&direct).is_ok() {
+        accepted.push("direct engine runner ignored an unknown member".into());
+    }
+    assert!(accepted.is_empty(), "{}", accepted.join("\n"));
+}
+
+#[test]
+fn runner_keeps_usage_payloads_for_api_skips() {
+    for tokens in [
+        r#"[{}]"#,
+        r#"[{"text":"a"}]"#,
+        r#"[{"text":false,"tags":[]}]"#,
+        r#"[{"text":"a","tags":false}]"#,
+        r#"[{"text":"a","tags":[],"value":null}]"#,
+        r#"[{"text":"a","tags":[],"image":3}]"#,
+        r#"[{"text":"a","tags":[],"source":[0]}]"#,
+        r#"[{"text":"a","tags":[],"before":false}]"#,
+    ] {
+        let case =
+            parse_json(&format!(r#"{{"grammar":"%rule text A","tokens":{tokens},"expect":{{"error":"usage"}}}}"#))
+                .unwrap();
+        assert!(common::case::engine(&case).is_ok(), "invalidated usage payload {tokens}");
+        let repeated = common::apply_mutant(
+            &common::apply_mutant(&case, &parse_json(r#"{"path":["expect"],"remove":true}"#).unwrap()),
+            &parse_json(r#"{"path":["parses"],"set":[{"expect":{"error":"usage"}},{"expect":{"error":"usage"}}]}"#)
+                .unwrap(),
+        );
+        assert!(common::case::engine(&repeated).is_ok(), "invalidated repeated usage payload {tokens}");
+        let mixed = common::apply_mutant(
+            &repeated,
+            &parse_json(r#"{"path":["parses",1,"expect"],"set":{"result":{"ok":true}}}"#).unwrap(),
+        );
+        assert!(common::case::engine(&mixed).is_err(), "accepted invalid payload outside a usage parse {tokens}");
+        assert!(
+            common::unexpressible_tokens(&case).is_some() || has_caller_attachments(&case),
+            "lost API skip for {tokens}"
+        );
+    }
+}
+
+#[test]
+fn test_json_refuses_repeated_members() {
+    let mut accepted = Vec::new();
+    for text in
+        [r#"{"error":{},"error":{}}"#, r#"{"error":{},"\u0065rror":{}}"#, r#"{"stages":[{"name":"a","name":"b"}]}"#]
+    {
+        if parse_json(text).is_ok() {
+            accepted.push(text);
+        }
+    }
+    assert!(accepted.is_empty(), "accepted repeated members: {accepted:?}");
+}
+
+#[test]
+fn runner_refuses_nonobject_tokens_even_in_usage_cases() {
+    let mut accepted = Vec::new();
+    for tokens in [
+        "false",
+        "[null]",
+        "[[]]",
+        r#"[{"text":"a","tags":[],"before":[null]}]"#,
+        r#"[{"text":"a","tags":[],"after":[{"text":"b","before":[false]}]}]"#,
+    ] {
+        let case =
+            parse_json(&format!(r#"{{"grammar":"%rule text A","tokens":{tokens},"expect":{{"error":"usage"}}}}"#))
+                .unwrap();
+        if common::case::engine(&case).is_ok() {
+            accepted.push(tokens);
+        }
+    }
+    assert!(accepted.is_empty(), "accepted invalid token containers: {accepted:?}");
+}
+
+#[test]
+fn runner_refuses_empty_selected_groups() {
+    assert!(std::panic::catch_unwind(|| common::require_cases(Vec::<usize>::new(), "absent")).is_err());
+}
+
+#[test]
+fn engine_cases_refuse_parameter_names() {
+    let case = parse_json(
+        r#"{"name":"parameter only","grammar":"%rule text \"a\"","input":"a","expect":{"result":{"ok":true}}}"#,
+    )
+    .unwrap();
+    assert!(common::case::engine(&case).is_err(), "engine metadata accepted a parameter name");
+    assert!(run_engine_case(&case).is_err(), "the engine runner accepted a parameter name");
+}
+
+#[test]
+fn result_reader_refuses_malformed_json() {
+    let mut invalid = vec![
+        r#""\a""#.to_string(),
+        r#""\0""#.into(),
+        r#""\uD800\uE000""#.into(),
+        r#""\uD800\xDC00""#.into(),
+        r#""\uD800\uDBFF""#.into(),
+        r#""\uDC00""#.into(),
+        r#""\uD800""#.into(),
+        r#""\u000G""#.into(),
+        "1.".into(),
+        "1.e2".into(),
+        "01".into(),
+        "-01".into(),
+        ".1".into(),
+        "+1".into(),
+        "1e".into(),
+        "1e+".into(),
+        "--1".into(),
+        "\u{b}null".into(),
+        "\u{c}true".into(),
+        "[0,\u{a0}1]".into(),
+        "{\"a\":\u{85}true}".into(),
+        "\u{2028}0".into(),
+        "[1,]".into(),
+        "{\"a\":1,}".into(),
+        "{xok\":true}".into(),
+    ];
+    invalid.extend((0..0x20).map(|n| format!("\"{}\"", char::from_u32(n).unwrap())));
+    let mut problems = Vec::new();
+    for text in invalid {
+        if !matches!(std::panic::catch_unwind(|| parse_json(&text)), Ok(Err(_))) {
+            problems.push(format!("accepted or panicked on {text:?}"));
+        }
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn result_reader_keeps_valid_json_lexical_forms() {
+    let text = r#""\"\\\/\b\f\n\r\t\u0041\uD800\uDC00\uDBFF\uDFFF""#;
+    assert_eq!(
+        parse_json(text).unwrap(),
+        common::Value::String(format!(
+            "\"\\/\u{8}\u{c}\n\r\tA{}{}",
+            char::from_u32(0x10000).unwrap(),
+            char::from_u32(0x10ffff).unwrap(),
+        ))
+    );
+    for (text, expected) in [
+        ("0", 0.0),
+        ("-0", -0.0),
+        ("0.0", 0.0),
+        ("-0.1", -0.1),
+        ("1.25", 1.25),
+        ("1e3", 1000.0),
+        ("-1E-2", -0.01),
+        ("1E+0", 1.0),
+    ] {
+        assert_eq!(parse_json(text).unwrap(), common::Value::Number(expected), "{text}");
+    }
+    let spaced = "\t\n\r {\"a\": [true, false, null, 1.25]} \n\t\r";
+    assert_eq!(parse_json(spaced).unwrap().to_text(), r#"{"a":[true,false,null,1.25]}"#);
+}
+
+#[test]
+fn canonical_results_refuse_raw_newlines_in_strings() {
+    let case =
+        parse_json(r#"{"grammar":"%rule text _ %emits $","input":"\n","expect":{"result":{"ok":true}}}"#).unwrap();
+    let (sources, path) = common::case_documents(&case);
+    let pipeline = gencmu::load_pipeline_sources(sources, &path).unwrap();
+    let result = pipeline.parse("\n", &gencmu::ParseOptions::default()).unwrap();
+    let canonical = gencmu::to_json(&result);
+    assert!(canonical.contains(r#"\n"#), "the control must contain an escaped newline");
+    let expectation = common::Value::Object(vec![("result".into(), parse_json(&canonical).unwrap())]);
+    let malformed = canonical.replace(r#"\n"#, "\n");
+    let accepted = parse_json(&malformed).and_then(|actual| common::check_json(&expectation, &actual));
+    assert!(accepted.is_err(), "the runner accepted malformed canonical output");
+}
+
+#[test]
+fn runtime_message_expectations_use_structured_locations() {
+    let reason = "an item of braces in text can match no tokens";
+    let simple = parse_json(r#"{"grammar":"%rule text {ε}","input":"","expect":{"error":"grammar"}}"#).unwrap();
+    let colon = parse_json(r#"{"documents":{"p.md":"```jbogenbau\n%stage main\n%include \"g:7: part.md\"\n```\n","g:7: part.md":"```jbogenbau\n%ambiguity-resolution greedy\n%rule text {ε}\n```\n"},"pipelineDocument":"p.md","input":"","expect":{"error":"grammar"}}"#).unwrap();
+    let mut problems = Vec::new();
+    for (case, document) in [(simple, "main.md"), (colon, "g:7: part.md")] {
+        let public_message = format!("{document}:3:1: {reason}");
+        let before = common::engine_case_result(&case);
+        assert_eq!(
+            before.get("error").unwrap().get("message").and_then(common::Value::str),
+            Some(public_message.as_str())
+        );
+        for (message, accepted) in [(reason, true), (public_message.as_str(), false), ("a different reason", false)] {
+            let changed = common::apply_mutant(
+                &case,
+                &common::Value::Object(vec![
+                    (
+                        "path".into(),
+                        common::Value::Array(vec![
+                            common::Value::String("expect".into()),
+                            common::Value::String("message".into()),
+                        ]),
+                    ),
+                    ("set".into(), common::Value::String(message.into())),
+                ]),
+            );
+            if run_engine_case(&changed).is_ok() != accepted {
+                problems.push(format!("{document}: wrong outcome for {message:?}"));
+            }
+        }
+        let after = common::engine_case_result(&case);
+        assert_eq!(before, after, "the runner changed the public result");
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
 }

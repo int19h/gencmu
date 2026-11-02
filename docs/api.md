@@ -2,7 +2,7 @@
 
 The common API gives every gencmu library the same operations on the same data. An API is the operations that a library exposes. Each library spells them the way its language spells things. This document says what the operations are. The engine specification, `docs/engine.md`, says what they compute. `docs/output.md` says what the results look like as JSON.
 
-The audit is a JavaScript library and CLI tool outside the common API. Engine references to audit notes describe that tool.
+The audit is a JavaScript library and CLI tool outside the common API. Engine references to audit notes describe that tool. Other libraries discard template histories after expansion. Their conformance tests inspect instance names through an internal expansion result.
 
 ## What every library offers
 
@@ -11,8 +11,12 @@ The audit is a JavaScript library and CLI tool outside the common API. Engine re
 A pipeline runs grammar stages in sequence. A stage is one step with its own grammar. A pipeline document names its stages and the grammar documents that each stage uses. The loaded object is a `Pipeline`. A library loads a pipeline in three ways:
 
 - It loads a bundled pipeline by its full name. The name is its directory path under `grammars/`, such as `lojban/cll`. Its resource key is `grammars/NAME/pipeline.md`.
-- It loads a pipeline document from disk. The library finds grammar documents relative to that pipeline document. Bundled resources supply `data/unicode/unicode.txt`, `data/unicode/unicode-properties.txt`, and `data/preparsed/gencmu.json`. The library loads properties and abbreviations with the core data. Core abbreviation escapes use the core map, and other source names require names data. Absolute paths identify documents in errors.
+- It loads a pipeline document from disk. The library finds grammar documents relative to that pipeline document. Bundled resources supply `data/unicode/unicode.txt`, `data/unicode/unicode-properties.txt`, and `data/preparsed/gencmu.json`. The standard names file, `data/unicode/unicode-names.txt`, also comes from the bundle.
+
+  The working directory never replaces these resources. A source map can supply replacement names data. The library loads properties and abbreviations with the core data. Core abbreviation escapes use the core map, and other source names require names data. Absolute paths identify documents in errors.
 - It loads documents held in memory through a map of `/`-separated paths to text. The caller gives the pipeline document's path in that map. Resource keys are relative to the package root, which holds sibling `grammars/` and `data/` directories. The map can replace Unicode resources and any `data/preparsed/FAMILY.json`. Libraries fill missing entries from bundled resources except a properties companion for an overridden core.
+
+Every pipeline path must be valid UTF-8. A loader refuses an invalid path with a `usage` error before it reads that path.
 
 A bundled name has two or more segments separated by `/`. Each segment matches `[a-z0-9][a-z0-9-]*`. Names are case-sensitive and have no short aliases. Invalid names and missing bundled pipelines cause a `usage` error before grammar loading.
 
@@ -26,7 +30,7 @@ The portable JavaScript entry point has no bundled resources. Its map must suppl
 
 A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, with no fallback to the bundled data. This holds for `White_Space`, `Emoji_Presentation`, and `Emoji_Component` too, so the table must list the white space that the documents use. The table must give `Emoji_Presentation` to every emoji name that the documents use. Those names must also lack `Emoji_Component`. A code point that the core table omits has category `Cn` and lacks all three core binary properties. A companion's explicit assignments and declared defaults still apply to it (engine §1).
 
-A supplied `data/unicode/unicode-properties.txt` replaces bundled properties without fallback for omitted properties or values. Its Unicode version must match the core table. Even without an additional property reference, the loader reads every present properties file. An unavailable property reference is a grammar loading error at that reference. Missing bundled data, malformed files, and version mismatches are resource loading errors.
+A supplied `data/unicode/unicode-properties.txt` replaces bundled properties without fallback for omitted properties or values. Its Unicode version must match the core table. Even without an additional property reference, the loader reads every present properties file. An unavailable property reference is a grammar loading error at that reference. Missing bundled data, malformed files, and version mismatches are resource loading errors. Node bundle discovery, enumeration, and file reads report these failures as `grammar` errors.
 
 A supplied `data/unicode/unicode-names.txt` replaces bundled names data without fallback for omitted names. Its declared Unicode version must match `data/unicode/unicode.txt`. If bundled resources exist and versions match, an omitted names file uses that bundle. Source names outside the core abbreviation map require names data. Names-dependent cache hits can use bundled fingerprints without reading names files (engine §8). Canonical printing uses the core abbreviation records.
 
@@ -34,15 +38,19 @@ A custom names file can omit standard entries and add names only for unnamed sca
 
 A name is unknown only if neither the core abbreviation map nor the combined selected names files resolves it. Unknown names are document errors at `‹`. A missing required file, version mismatch, or malformed file is a grammar loading error (engine §1).
 
-The decoded include path resolves against its containing document, with `.` and `..` normalized (engine §13).
+The decoded include target is a relative path, resolved against its declaring document's directory (engine §13). A target that starts with `/` is a grammar error at the directive. Lexical cleaning collapses `.` and each `..` with a parent segment, but keeps `..` that climbs above a relative base. An earlier `..` is not a parent segment. Above an absolute root, `..` stays at the root.
 
 `%names "PATH"` uses the same resolution for extra names resources. A pipeline or grammar document declares extras in its preamble. The loader inherits them through nested includes and restores the parent's set after each include.
 
-Disk loaders read the resolved file. Source-map loaders use that exact normalized key. Bundled loaders supply selected names resources from any family. One example is `grammars/lojban/common/zbalermorna-names.txt`. If a document selects and needs it, the portable caller supplies it. Extras augment the selected standard names, without fallback for omitted standard entries.
+Disk loaders read the resolved file. Source-map loaders use that exact normalized key. They preserve caller-supplied keys and the pipeline path exactly. An absent resolved key gives the ordinary “was not found” error.
+
+Bundled loaders supply selected names resources from any family. One example is `grammars/lojban/common/zbalermorna-names.txt`. If a document selects and needs it, the portable caller supplies it. Extras augment the selected standard names, without fallback for omitted standard entries.
 
 Names-file inspection also requires the complete pinned standard reference, independently of selected lookup files. Bundled and disk loaders use the package's `data/unicode/unicode-names.txt`. If the selected base matches the pinned reference fingerprint, that text also serves as the reference. Otherwise, the portable map supplies the reference under `data/unicode/unicode-names-reference.txt`. The reference never supplies omitted lookup entries. Missing, mismatched, or wrong-version reference data causes a grammar loading error (engine §1).
 
 A DOM (document object model) is the parsed form of a grammar document, as `docs/output.md` describes. Each `data/preparsed/FAMILY.json` holds the preparsed DOMs for one family. The required `gencmu.json` supplies the notation bootstrap.
+
+Within one load, a document read serves every include with the same path and inherited names. Separate loads read the current text again.
 
 Each document under `grammars/FAMILY/` uses only `data/preparsed/FAMILY.json`, besides the bootstrap. A bundled pipeline therefore reads only its own family's file. A missing or malformed optional file gives cache misses. If no matching cache entry exists, the library reads the document through the notation grammar.
 
@@ -52,13 +60,27 @@ The optional `bundledNames` cache registry supplies fingerprints for unoverridde
 
 Core abbreviations depend only on the core hash. Numeric escapes alone add no names dependency. A caller's `data/unicode/unicode.txt` changes the table hash, so it never reuses a DOM that another table produced.
 
-A pipeline that cannot be loaded is an error. A pipeline cannot be loaded when a document is missing, does not parse as the notation, or does not stitch (combine) into a valid grammar. It also cannot be loaded when a document on disk is not valid UTF-8 (engine §1). A tie while the notation reads a document is a load error too (engine §8).
+A pipeline that cannot be loaded is an error. A pipeline cannot be loaded when a document is missing, does not parse as the notation, or does not stitch (combine) into a valid grammar. It also cannot be loaded when a document on disk is not valid UTF-8 (engine §1).
 
-The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known. A tie has no line or column.
+An existing document that cannot be read causes a `grammar` error: “the document could not be read: REASON”. The message names the document path and the operating-system reason. An include read failure also identifies the `%include` line and column. A missing document keeps the “was not found” error.
+
+An unreadable optional `data/preparsed/FAMILY.json` gives a cache miss. A tie while the notation reads a document is a load error too (engine §8).
+
+The same error type reports loading failures and caller mistakes. The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known. A tie has no line or column.
+
+A feature-role conflict stores a bare description. The formatter adds its document, position, and stage once.
+
+A loading diagnostic recovers source positions from the exact document instance and names scope that supplied its failing definition.
+
+A diagnostic copies its location fields, including independent copies of `group`, `expression`, and `inheritance`. Editing a caught diagnostic cannot change cached documents or later diagnostics. For the same input and configuration, repeated parsing preserves the formatted diagnostic.
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
+Rust exposes these optional fields through `code()`, `group()`, `option()`, `expression()`, and `inheritance()` on `Error`. These accessors borrow stored data without creating a diagnostic.
+
 [Output formats](output.md) defines the grammar DOM, cache, and parse-result schemas. The compatibility boundary is the schema version and the notation contract. Callers supply DOMs of that version or grammar text in the specified notation.
+
+Each JavaScript loader cache keeps at most 256 entries and 4,000,000 UTF-16 code units. Eviction removes the least recently used entries. The DOM cache counts source text. The preparsed cache counts DOM JSON. The preparsed-file cache counts paths.
 
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
@@ -81,9 +103,15 @@ A loaded pipeline parses a text with these configuration arguments. Each argumen
 | until | the last stage | the name of the last stage to run. An unknown name is an error, and so is an empty name. Go is the exception, as its section says. |
 | elision-only | the grammar's own | On or off for every stage that runs. This overrides `%ambiguity-resolution ... elision-only`. |
 
-A text must be a sequence of Unicode scalar values, or it is a usage error (engine §1). So a JavaScript or Python string with a lone surrogate is a usage error. So is a Go string that is not valid UTF-8. The same holds for a document held in memory. A document read from disk is different: bytes that are not valid UTF-8 there are a `grammar` load error, with no line or column.
+Usage errors follow this order: the original text, each caller token in input order, the feature lists, then `until`. The first invalid category ends the call. Within one token, the order of field errors is not defined. When several features occur in both lists, the first one in the caller's enabled list names the error.
 
-A text that does not parse gives a failed result. Its `ok` is false, and its `error` explains the failure. The kind of that error is `rejected`, `ambiguous`, `feature-conflict`, or `grammar`.
+A text must be a sequence of Unicode scalar values, or it is a usage error (engine §1). So a JavaScript or Python string with a lone surrogate is a usage error. So is a Go string that is not valid UTF-8. The same holds for every source-map string, including Unicode resources and cached JSON. The loader inspects supplied strings in code point order of their keys before hashing or parsing any entry. A non-scalar string gives a `usage` error with its key and no line or column.
+
+Each source-map loader copies the supplied entries. Later changes to the caller's map do not change that loader's strings.
+
+A document read from disk is different: bytes that are not valid UTF-8 there are a `grammar` load error, with no line or column.
+
+A text that does not parse gives a failed result. Its `ok` is false, and its `error` explains the failure. The kind of that error is `rejected`, `ambiguous`, `feature-conflict`, or `grammar`. A grammar result message keeps the document location and description. Its separate `stage` field names the stage. This rule also applies to grammar errors from conditions, queries, and emission.
 
 An `ambiguous` error has a reason. It is `tie` where a stage has two or more best readings (engine §6). It is `elision-only` where the check of engine §7 fails.
 
@@ -113,7 +141,9 @@ A failed result retains features enabled before the failure, including earlier d
 
 The [pipeline guide](pipelines.md#phoneme-values-and-stress) describes the bundled stages and comparison values. The `until` argument must name a stage in the selected pipeline.
 
-A stage exposes its name, input and output tokens, verdict, and any tie witness. Find stages by name because their order differs by pipeline. A tied stage emits nothing and places both readings in the result error. A token stores text, value, image, tags, span, and source. Both strings always exist.
+A stage exposes its name, input and output tokens, verdict, and any tie witness. JavaScript and Python expose a stage tree. If ranking chose that tree, those APIs retain it after an emission or elision-check error. Find stages by name because their order differs by pipeline. A tied stage emits nothing and places both readings in the result error.
+
+A token stores text, value, image, tags, span, and source. Both strings always exist.
 
 An `ε` item records its inserting rule and has empty source text. A token can carry before- and after-attachments, which remain token lists. Attached tokens have no stage span. An image can include neighboring text outside its source without changing its text field.
 
@@ -163,7 +193,7 @@ Go `ParseTokens` accepts `[]InputToken`. Its `Value *string` and `Image *string`
 
 For example, a supplied token with `text:"A"`, `value:"a"`, `image:"A"`, and `tags:["Stressed"]` compares as `a` and displays as `A`. A supplied syllable comma can have `value:""`, `image:","`, and `tags:["Syllable-Break"]`. Neither token receives `_General_Category_Uppercase_Letter` or any other engine tag unless the caller supplies it.
 
-Each library copies the caller's tokens before it parses them, and it leaves the caller's objects unchanged.
+Each library copies the caller's tokens before it parses them, and it leaves the caller's objects unchanged. Insertion provenance belongs to emitted tokens. A parser drops any caller-supplied insertion provenance when it copies input tokens.
 
 ### Tests
 
@@ -205,6 +235,20 @@ toJson(result); toBrackets(result, { showElided: true });
 - Errors are `GencmuError`, with `kind` and `where`.
 - The lower-level `Loader`, `loaderFromSources` and `loaderFromDirectory` are available for tools that load several pipelines over one set of documents. `Loader.splice(path)` expands includes into stage document runs. `Loader.pipeline(path)` returns a loaded `Pipeline`.
 
+The JavaScript entry points also export helpers for the CLI and playground:
+
+- `fnv1a64(text)` returns the FNV-1a hash of the UTF-8 bytes as 16 hexadecimal digits.
+- `stitchText(pipeline)` returns one jbogenbau text with the pipeline's includes expanded and its strings in canonical spelling.
+- `compactJson(value)` returns JSON text without spacing and supports values deeper than the call stack.
+- `nodeBrackets(root, tokens, { showElided })` renders any result tree over its indexed tokens as brackets. The configuration argument is optional.
+- `nodeTree(root, tokens, text)` renders any result tree over its indexed tokens as a tree listing. The source text is optional.
+- `explainWarnings(result)` returns warning descriptions and excerpts from the source text.
+- `bundledGrammarsDirectory()` returns the bundled grammar directory and comes only from `gencmu/node`.
+
+The portable `gencmu` entry point and `gencmu/node` both export the first six helpers.
+
+The `tokens` arguments come from the stage that produced `root`. The tree listing uses their originating Unicode table.
+
 The types are in the package's declarations (`lib/js/types/`).
 
 ## Python
@@ -230,7 +274,12 @@ gencmu.to_brackets(result, show_elided=True)
 - `Pipeline.parse(text, *, features=(), without_features=(), until=None, elision_only=None) -> ParseResult` parses a text.
 - `Pipeline.parse_tokens(tokens: Sequence[Token], text: str, *, features=(), without_features=(), until=None, elision_only=None) -> ParseResult` parses supplied tokens.
 - `Pipeline.features` is a tuple of `Feature`, a dataclass with `name`, `kind` and `default`.
-- `ParseResult`, `Stage`, `Node`, `Token`, `ParseWarning` and `ParseError` are dataclasses. Tags are a set of strings. The warning class is not called `Warning`, because `Warning` is a built-in exception.
+- Other pipeline attributes and helpers are private and use names that start with `_`.
+- `ParseResult`, `Stage`, `Node`, `Token`, `ParseWarning`, `ParseError`, `Action`, `Expected` and `Restoration` are dataclasses. Tags are a set of strings. The warning class is not called `Warning`, because `Warning` is a built-in exception.
+- `ParseResult` exposes `ok`, `stages`, `tree`, `error`, `warnings`, and `features`, as defined above.
+- `Expected` describes an expected terminal with `terminal` and `rules`. `ParseError.expected` holds a list of these records.
+- `Action` describes a derivation step with `kind` and the applicable `token`, `terminal`, `rule`, `production`, `span`, or `at` fields. `ParseError.witness` holds two actions.
+- `Restoration` describes an inserted terminator with `terminal`, `at`, `source`, and optional `value`. `ParseError.completion` holds a list of these frozen dataclasses.
 - `to_json(result) -> str` writes the canonical JSON. `result_json(result)` returns it as plain data. `to_brackets(result, *, show_elided=False)` renders the tree as brackets.
 - Errors raise `gencmu.GencmuError`, with `kind` and `where`.
 
@@ -298,3 +347,5 @@ gencmu::to_brackets(&result, true);
 - `to_brackets(&ParseResult, show_elided: bool) -> String` renders the tree as brackets.
 - A result owns its data (`String`, `Vec`) and borrows neither the text nor the pipeline. So it outlives both.
 - The crate has no dependencies. It states its minimum supported Rust version.
+
+The Rust `GrammarValue::to_json` writer uses an explicit stack for nested arrays and objects. Object members keep their stored order.

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -14,15 +15,24 @@ type templateObject = map[string]any
 func templateObj(v any) templateObject { o, _ := v.(map[string]any); return o }
 func templateList(v any) []any         { a, _ := v.([]any); return a }
 func templateText(v any) string        { s, _ := v.(string); return s }
-func templatePosition(at [2]int) []any { return []any{float64(at[0]), float64(at[1])} }
 func templateAt(n templateObject) [2]int {
 	a := templateList(n["at"])
 	if len(a) != 2 {
 		return [2]int{}
 	}
-	x, xok := a[0].(float64)
-	y, yok := a[1].(float64)
-	if !xok || !yok || x < 1 || y < 1 || x != float64(int(x)) || y != float64(int(y)) {
+	coordinate := func(v any) (int, bool) {
+		switch n := v.(type) {
+		case json.Number:
+			value, err := strconv.ParseInt(string(n), 10, 64)
+			return int(value), err == nil && value >= 1 && value <= maxDOMPosition
+		case float64:
+			return int(n), n >= 1 && n <= maxDOMPosition && n == float64(int(n))
+		}
+		return 0, false
+	}
+	x, xok := coordinate(a[0])
+	y, yok := coordinate(a[1])
+	if !xok || !yok {
 		return [2]int{}
 	}
 	return [2]int{int(x), int(y)}
@@ -36,7 +46,7 @@ func templateNodes(root any) []templateObject {
 		switch n := n.(type) {
 		case map[string]any:
 			found = append(found, n)
-			keys := templateKeys(n)
+			keys := templateSourceKeys(n)
 			for i := len(keys) - 1; i >= 0; i-- {
 				if keys[i] != "at" && keys[i] != templateSourceKey {
 					pending = append(pending, n[keys[i]])
@@ -50,6 +60,33 @@ func templateNodes(root any) []templateObject {
 	}
 	return found
 }
+
+func templateSourceKeys(n templateObject) []string {
+	var prefix []string
+	switch {
+	case n["name"] != nil && n["op"] != nil:
+		prefix = []string{"instance", "args", "tags", "value", "image", "alternatives", "conditions", "emit"}
+	case n["expr"] != nil && n["test"] == nil:
+		prefix = []string{"expr", "tags", "value", "image"}
+	case n["capture"] != nil || n["insert"] != nil:
+		prefix = []string{"tags", "value", "image"}
+	}
+	order := append(prefix, "if", "then", "left", "right", "not", "any", "all", "receiver", "args", "expr", "body", "targets", "requirements", "negated", "tags", "value", "image", "pattern", "child", "children", "repeat", "separator", "optional", "seq", "choice", "ranked", "and", "union", "intersection", "difference", "concat", "items", "before", "after")
+	var keys []string
+	seen := map[string]bool{}
+	for _, key := range order {
+		if _, ok := n[key]; ok && !seen[key] {
+			keys = append(keys, key)
+			seen[key] = true
+		}
+	}
+	for _, key := range templateKeys(n) {
+		if !seen[key] {
+			keys = append(keys, key)
+		}
+	}
+	return keys
+}
 func templateKeys(n templateObject) []string {
 	keys := make([]string, 0, len(n))
 	for k := range n {
@@ -60,14 +97,6 @@ func templateKeys(n templateObject) []string {
 	sort.Strings(keys)
 	return keys
 }
-func templateUnresolved(root any) bool {
-	for _, n := range templateNodes(root) {
-		if n["param"] != nil || n["call"] != nil || n["params"] != nil || n["instance"] != nil || n["args"] != nil && n["name"] != nil && n["op"] != nil {
-			return true
-		}
-	}
-	return false
-}
 func templateCopy(n templateObject) templateObject {
 	out := templateObject{}
 	for k, v := range n {
@@ -76,52 +105,6 @@ func templateCopy(n templateObject) templateObject {
 	return out
 }
 
-// Copy source nodes for DOM inspection while retaining their public positions.
-func templateClean(root templateObject) templateObject {
-	type pair struct{ source, target any }
-	out := templateObject{}
-	pending := []pair{{root, out}}
-	copyValue := func(value any) any {
-		switch value := value.(type) {
-		case map[string]any:
-			return templateObject{}
-		case []any:
-			return make([]any, len(value))
-		default:
-			return value
-		}
-	}
-	for len(pending) > 0 {
-		current := pending[len(pending)-1]
-		pending = pending[:len(pending)-1]
-		switch source := current.source.(type) {
-		case map[string]any:
-			target := templateObj(current.target)
-			for key, value := range source {
-				if key == templateSourceKey {
-					continue
-				}
-				child := copyValue(value)
-				target[key] = child
-				switch value.(type) {
-				case map[string]any, []any:
-					pending = append(pending, pair{value, child})
-				}
-			}
-		case []any:
-			target := templateList(current.target)
-			for index, value := range source {
-				child := copyValue(value)
-				target[index] = child
-				switch value.(type) {
-				case map[string]any, []any:
-					pending = append(pending, pair{value, child})
-				}
-			}
-		}
-	}
-	return out
-}
 func templateIdentity(root any) any {
 	switch n := root.(type) {
 	case []any:
@@ -200,6 +183,8 @@ func writeTemplateJSON(w *jsonWriter, v any) {
 		keys := templateKeys(n)
 		order := []string{"name", "params", "args", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
 		switch {
+		case n["name"] != nil && n["args"] != nil && n["op"] == nil:
+			order = []string{"name", "args", "at", "conditions"}
 		case n["call"] != nil:
 			order = []string{"call", "args", "at"}
 		case n["param"] != nil:
@@ -280,15 +265,6 @@ func templateFromJSON(raw []byte) (templateObject, error) {
 	return out, nil
 }
 
-func templateWritten(value interface{ writeJSON(*jsonWriter) }) templateObject {
-	w := &jsonWriter{}
-	value.writeJSON(w)
-	out, err := templateFromJSON(w.buf)
-	if err != nil {
-		panic(err)
-	}
-	return out
-}
 func templateDocument(rules []any) templateObject {
 	return templateObject{"format": float64(domFormat), "rules": rules, "directives": []any{}, "constants": []any{}, "classifiers": []any{}, "implications": []any{}}
 }
@@ -309,21 +285,6 @@ func templateChildPosition(key, position string) string {
 		return "pattern"
 	}
 	return position
-}
-
-func templateJoined(key string, items []any) templateObject {
-	if key != "union" && key != "concat" && key != "any" && key != "all" {
-		return templateObject{key: items}
-	}
-	flat := []any{}
-	for _, v := range items {
-		if nested := templateList(templateObj(v)[key]); nested != nil {
-			flat = append(flat, nested...)
-		} else {
-			flat = append(flat, v)
-		}
-	}
-	return templateObject{key: flat}
 }
 
 func templatePatternTerm(root any, patterns ...map[string]bool) bool {
@@ -375,3 +336,15 @@ func templatePatternConstants(definitions []templateObject) map[string]bool {
 	return patterns
 }
 func (x *templateExpander) normalize(root any) any { return templateNormalize(root, x.patterns) }
+
+func templateOnly(n templateObject, keys ...string) bool {
+	if templateLen(n) != len(keys) {
+		return false
+	}
+	for _, k := range keys {
+		if _, ok := n[k]; !ok {
+			return false
+		}
+	}
+	return true
+}

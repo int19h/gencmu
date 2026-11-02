@@ -12,11 +12,11 @@ func TestNormalizationCacheIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	text, _ := bundledNamesText("data/preparsed/lojban.json")
-	if len(readPreparsed(text, bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]))) == 0 {
+	if got, _, _ := readPreparsedCache(text, bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) == 0 {
 		t.Fatal("bundled cache missed")
 	}
 	for _, hash := range []string{"", "0000000000000000"} {
-		if len(readPreparsed(text, bundled.reader.hash, hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]))) != 0 {
+		if got, _, _ := readPreparsedCache(text, bundled.reader.hash, hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
 			t.Fatalf("used cache under Unicode hash %q", hash)
 		}
 	}
@@ -29,7 +29,7 @@ func TestNormalizationCacheIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(readPreparsed(string(old), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]))) != 0 {
+	if got, _, _ := readPreparsedCache(string(old), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
 		t.Fatal("used cache without Unicode identity")
 	}
 
@@ -123,8 +123,8 @@ func TestNormalizationDecomposedSourceRecipes(t *testing.T) {
 		}
 	}
 	for _, recipe := range []string{"$.emitted.decomposed-source-text", "$.onward.decomposed-source-text"} {
-		if _, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text _\n%emits $ := "+recipe), "p.md"); err == nil {
-			t.Fatalf("accepted invalid recipe: %s", recipe)
+		if _, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text _\n%emits $ := "+recipe), "p.md"); isGuardedCrash(err) || err == nil {
+			t.Fatalf("expected an error for recipe %s, got %v", recipe, err)
 		}
 	}
 }

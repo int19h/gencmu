@@ -1,0 +1,14 @@
+{
+  "description": "Uncalled pattern calls and parameters retain bound-value inspection of attached children.",
+  "grammar": "%const $W \"ab\"\n%rule g(@X) @X\n%rule unused(@P) \"a\"\n%conditions $ ≅ #@P« $W..\"z\" »\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "a range endpoint is one scalar",
+    "where": {
+      "document": "main.md",
+      "line": 6,
+      "column": 22
+    }
+  }
+}

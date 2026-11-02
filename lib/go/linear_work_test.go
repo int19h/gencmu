@@ -121,7 +121,7 @@ func domStage(t *testing.T, dom string) *Pipeline {
 		t.Fatal(err)
 	}
 	src := oneStage("")
-	l.read = func(p string) (string, bool) { s, ok := src[p]; return s, ok }
+	l.read = func(p string) (string, bool, *Error) { s, ok := src[p]; return s, ok, nil }
 	l.preparsedRead = nil
 	l.preparsed = map[domCacheKey]json.RawMessage{{"g.md", fnv1a64(src["g.md"]), l.reader.hash, l.uni.hash, l.uni.propertiesHash, domFormat}: json.RawMessage(dom)}
 	d, err := l.pipeline("p.md")
@@ -194,64 +194,88 @@ func TestLoweringLinear(t *testing.T) {
 	}
 }
 
-// TestCaptureSequencesLinear: the checks of a definition list the captures
-// of a long sequence in one pass, without copying the sequence so far at
-// each capture (engine §3.5). A sequence of many groups costs its length
-// too, without copying the groups already read at each group.
-func TestCaptureSequencesLinear(t *testing.T) {
-	capture := func(i int) *domExpr {
-		return &domExpr{Kind: exCapture, Name: fmt.Sprintf("c%d", i), Inner: &domExpr{Kind: exRef, Name: "A"}}
-	}
-	for _, n := range []int{1000, 4000} {
-		flat, grouped := &domExpr{Kind: exSeq}, &domExpr{Kind: exSeq}
-		for i := range n {
-			flat.Items = append(flat.Items, capture(i))
-			grouped.Items = append(grouped.Items, &domExpr{Kind: exSeq, Items: []*domExpr{capture(i)}})
+// captureValidationSequence gives each capture a distinct name. Grouped
+// sequences put each capture inside its own sequence.
+func captureValidationSequence(n int, grouped bool) *domExpr {
+	seq := &domExpr{Kind: exSeq}
+	for i := range n {
+		capture := &domExpr{Kind: exCapture, Name: fmt.Sprintf("c%d", i), Inner: &domExpr{Kind: exRef, Name: "A"}}
+		if grouped {
+			seq.Items = append(seq.Items, &domExpr{Kind: exSeq, Items: []*domExpr{capture}})
+		} else {
+			seq.Items = append(seq.Items, capture)
 		}
-		for _, seq := range []*domExpr{flat, grouped} {
-			// Each capture and each group is looked at, copied and joined
-			// a bounded number of times.
+	}
+	return seq
+}
+
+// The guarded tag term requires capture inspection and permits its absence.
+func captureValidationRule(expr *domExpr, capture string) *domRule {
+	return &domRule{Name: "text", Alternatives: []*domAlt{{Expr: expr}}, Tags: &domTerm{
+		Kind: tmIf, Cond: &domCond{Kind: cdCaptured, Capture: capture},
+		Items: []*domTerm{{Kind: tmCall, Str: "tags", Items: []*domTerm{{Kind: tmCapture, Str: capture}}}},
+	}}
+}
+
+func checkCaptureValidation(t *testing.T, rule *domRule) {
+	t.Helper()
+	result := checkDefinition(rule, false)
+	if result.problem != nil {
+		t.Fatalf("capture validation: %s", result.problem.message)
+	}
+	if result.deferred != nil {
+		t.Fatalf("unexpected deferred capture problem: %s", result.deferred.message)
+	}
+}
+
+// Definition validation reads a flat or grouped sequence in linear work.
+// Its clause requires the final capture, so validation must inspect the input.
+func TestCaptureValidationLinear(t *testing.T) {
+	for _, n := range []int{1000, 4000} {
+		for _, grouped := range []bool{false, true} {
+			rule := captureValidationRule(captureValidationSequence(n, grouped), fmt.Sprintf("c%d", n-1))
 			w := &workCounts{}
-			w.readerSteps.most = 12 * int64(n)
-			var caps []map[string]int
-			countWorkIn(w, func() { caps = altCaptures(&domAlt{Expr: seq}) })
-			if len(caps) != 1 || len(caps[0]) != n+1 {
-				t.Fatalf("%d captures: %d sequences", n, len(caps))
+			w.readerSteps.most = 16 * int64(n)
+			countWorkIn(w, func() { checkCaptureValidation(t, rule) })
+			if w.readerSteps.Load() < int64(n) {
+				t.Fatalf("validation skipped capture inspection: %d steps for %d captures", w.readerSteps.Load(), n)
 			}
-			t.Logf("%d captures: %d steps", n, w.readerSteps.Load())
+			t.Logf("%d captures, grouped=%t: %d steps", n, grouped, w.readerSteps.Load())
 		}
 	}
 }
 
-// TestCaptureSequencesOutputBound: captures in nested optionals, $c0(A)
-// [$c1(A) [… $c(n−1)(A) …]], give n+1 sequences of up to n captures each.
-// Listing them costs a bounded number of steps for each capture of each
-// sequence. A list is written out once, so a check for repeated lists that
-// wrote out every list at each level would cost n cubed.
-func TestCaptureSequencesOutputBound(t *testing.T) {
+// Nested optionals have quadratically many capture occurrences across
+// their productions. Validation inspects only the witnesses its clause needs.
+func TestCaptureValidationNestedOptionals(t *testing.T) {
 	for _, n := range []int{60, 240} {
-		var e *domExpr
+		var expr *domExpr
 		for i := n - 1; i >= 0; i-- {
-			c := &domExpr{Kind: exCapture, Name: fmt.Sprintf("c%d", i), Inner: &domExpr{Kind: exRef, Name: "A"}}
-			if e == nil {
-				e = &domExpr{Kind: exOptional, Inner: c}
-				continue
+			capture := &domExpr{Kind: exCapture, Name: fmt.Sprintf("c%d", i), Inner: &domExpr{Kind: exRef, Name: "A"}}
+			if expr == nil {
+				expr = &domExpr{Kind: exOptional, Inner: capture}
+			} else {
+				expr = &domExpr{Kind: exOptional, Inner: &domExpr{Kind: exSeq, Items: []*domExpr{capture, expr}}}
 			}
-			e = &domExpr{Kind: exOptional, Inner: &domExpr{Kind: exSeq, Items: []*domExpr{c, e}}}
 		}
-		size := int64(n + 1)
-		for k := 1; k <= n; k++ {
-			size += int64(k)
-		}
+		rule := captureValidationRule(expr, fmt.Sprintf("c%d", n-1))
 		w := &workCounts{}
-		w.readerSteps.most = 8 * size
-		var caps []map[string]int
-		countWorkIn(w, func() { caps = altCaptures(&domAlt{Expr: e}) })
-		if len(caps) != n+1 {
-			t.Fatalf("%d levels: %d sequences", n, len(caps))
+		w.readerSteps.most = 64 * int64(n)
+		countWorkIn(w, func() { checkCaptureValidation(t, rule) })
+		if w.readerSteps.Load() < int64(n) {
+			t.Fatalf("validation skipped nested captures: %d steps for %d captures", w.readerSteps.Load(), n)
 		}
-		t.Logf("%d levels, %d captures in all: %d steps", n, size, w.readerSteps.Load())
+		t.Logf("%d optional levels: %d steps", n, w.readerSteps.Load())
 	}
+}
+
+// Copying every growing prefix in production exceeds the linear budget.
+func TestCaptureValidationPrefixMutation(t *testing.T) {
+	const n = 1000
+	rule := captureValidationRule(captureValidationSequence(n, false), "c999")
+	w := &workCounts{copyCapturePrefixes: true}
+	w.readerSteps.most = 16 * n
+	stopsAtFirst(t, w, &w.readerSteps, "reader steps", func() { checkCaptureValidation(t, rule) })
 }
 
 // TestSharedClausesOnce: a rule's clauses, which all its alternatives
@@ -356,7 +380,7 @@ func TestClassesLinear(t *testing.T) {
 		w := &workCounts{}
 		w.classSteps.most = int64(n) * (4 + int64(bits.Len(uint(n))))
 		var tables *classifierTables
-		countWorkIn(w, func() { tables = resolveClassifiers([]classifierItem{{classifier: c}}, nil) })
+		countWorkIn(w, func() { tables = resolveClassifiers([]classifierItem{{classifier: c}}, nil, nil) })
 		if tables.fault != "" || len(tables.tables["c"]["a"].names) != n/2 {
 			t.Fatalf("%d classes: %q", n, tables.fault)
 		}
@@ -392,22 +416,18 @@ func TestImpliedLinear(t *testing.T) {
 	}
 }
 
-// TestDeepDOMRefusedEarly: a preparsed DOM nested far deeper than its
-// limit is refused once decoding passes the limit, so its cost grows with
-// its size, not with its size times its depth (engine §9).
-func TestDeepDOMRefusedEarly(t *testing.T) {
-	// Each capture is one level of JSON, and encoding/json refuses more
-	// than 10,000.
+// DOM conversion reads each input byte once, independent of constructor depth.
+func TestDOMDecodeReadsInputOnce(t *testing.T) {
 	for _, n := range []int{1000, 4000} {
-		expr := strings.Repeat(`{"capture":"x","expr":`, n) + `{"ref":"A"}` + strings.Repeat(`}`, n)
+		expr := strings.Repeat(`{"optional":`, n) + `{"ref":"A"}` + strings.Repeat(`}`, n)
 		dom := json.RawMessage(seqDOM([]string{expr}))
-		// Each level down to the limit reads what lies below it, and a few
-		// levels above the expression read it all too. Decoding every level
-		// would read the DOM as many times as it is deep.
 		w := &workCounts{}
-		w.decodeSteps.most = int64(maxDOMDepth+32) * int64(len(dom))
+		w.decodeSteps.most = int64(len(dom))
 		var err error
 		countWorkIn(w, func() { _, err = decodeDOM(dom, nil) })
+		if w.decodeSteps.Load() != int64(len(dom)) {
+			t.Fatalf("decoded %d bytes for an input of %d", w.decodeSteps.Load(), len(dom))
+		}
 		if err == nil {
 			t.Fatalf("a DOM %d deep is not refused", n)
 		}
@@ -581,37 +601,47 @@ func TestIncludeChainLinear(t *testing.T) {
 	}
 }
 
-// TestCaptureSetsStopAtFirst: the checks of a definition count each
-// capture they look at, compare or copy before they do, so a budget
-// stops them at the first step past it. The expression is a sequence of
-// groups of captures whose names repeat, with a choice that makes the
-// sequences multiply.
+// Capture validation and duplicate detection count their visits before
+// the work. Each budget stops at its first excess step. Both inputs hold
+// groups and a choice. The duplicate case repeats capture names.
 func TestCaptureSetsStopAtFirst(t *testing.T) {
 	capture := func(name string) *domExpr {
 		return &domExpr{Kind: exCapture, Name: name, Inner: &domExpr{Kind: exRef, Name: "A"}}
 	}
-	seq := &domExpr{Kind: exSeq}
-	for g := range 12 {
-		group := &domExpr{Kind: exSeq}
-		for i := range 10 {
-			group.Items = append(group.Items, capture(fmt.Sprintf("c%d", (g+i)%5)))
+	sequence := func(repeated bool) *domExpr {
+		seq := &domExpr{Kind: exSeq}
+		for g := range 12 {
+			group := &domExpr{Kind: exSeq}
+			for i := range 10 {
+				name := g*10 + i
+				if repeated {
+					name = (g + i) % 5
+				}
+				group.Items = append(group.Items, capture(fmt.Sprintf("c%d", name)))
+			}
+			seq.Items = append(seq.Items, group)
+			if g == 6 {
+				seq.Items = append(seq.Items, &domExpr{Kind: exChoice, Items: []*domExpr{capture("x"), capture("y")}})
+			}
 		}
-		seq.Items = append(seq.Items, group)
-		if g == 6 {
-			seq.Items = append(seq.Items, &domExpr{Kind: exChoice, Items: []*domExpr{capture("x"), capture("y")}})
-		}
+		return seq
 	}
+	valid, repeated := sequence(false), sequence(true)
+	rule := captureValidationRule(valid, "c0")
 	for _, c := range []struct {
 		name string
 		f    func()
 	}{
-		{"captureSequences", func() { captureSequences(seq) }},
-		{"duplicateCaptures", func() { duplicateCaptures(seq) }},
+		{"validationCaptures", func() { validationCaptures(rule, rule.Alternatives[0]) }},
+		{"duplicateCaptures", func() { duplicateCaptures(repeated) }},
 	} {
 		name, f := c.name, c.f
 		all := &workCounts{}
 		countWorkIn(all, f)
 		total := all.readerSteps.Load()
+		if total == 0 {
+			t.Fatalf("%s inspected no captures", name)
+		}
 		for most := int64(1); most < total; most++ {
 			w := &workCounts{}
 			w.readerSteps.most = most
@@ -681,4 +711,44 @@ func TestUnionsMutation(t *testing.T) {
 	stopsAtFirst(t, w, &w.interned, "interned members", func() {
 		run.evaluate(run.evaluator(nil, nil), tagUnion(n))
 	})
+}
+
+func TestPartialPresenceSimplificationBoundsIndependentGuards(t *testing.T) {
+	const n = 24
+	for _, kind := range []string{"any", "all", "tags", "guarded"} {
+		expr := &domExpr{Kind: exSeq}
+		condition := &domCond{Kind: cdAny}
+		if kind == "all" {
+			condition.Kind = cdAll
+		}
+		tags := &domTerm{Kind: tmUnion}
+		for i := range n {
+			name := fmt.Sprintf("c%d", i)
+			expr.Items = append(expr.Items, &domExpr{Kind: exOptional, Inner: &domExpr{Kind: exCapture, Name: name, Inner: &domExpr{Kind: exRef, Name: "A"}}})
+			guard := &domCond{Kind: cdCaptured, Capture: name}
+			condition.Items = append(condition.Items, guard)
+			tags.Items = append(tags.Items, &domTerm{Kind: tmIf, Cond: guard, Items: []*domTerm{{Kind: tmCall, Str: "tags", Items: []*domTerm{{Kind: tmCapture, Str: name}}}}})
+		}
+		rule := &domRule{Name: "r", Alternatives: []*domAlt{{Expr: expr}}}
+		if kind == "tags" {
+			rule.Tags = tags
+		} else {
+			if kind == "guarded" {
+				condition.Kind = cdAll
+				condition.Items = condition.Items[:8]
+				for i, guard := range condition.Items {
+					value := &domTerm{Kind: tmCall, Str: "value", Items: []*domTerm{{Kind: tmCapture, Str: guard.Capture}}}
+					condition.Items[i] = &domCond{Kind: cdIf, Items: []*domCond{guard, {Kind: cdCompare, Op: "=", Left: value, Right: &domTerm{Kind: tmString, Str: "x"}}}}
+				}
+			}
+			rule.Conditions = []*domCond{condition}
+		}
+		w := &workCounts{}
+		w.readerSteps.most = 100 * n * n
+		countWorkIn(w, func() {
+			if result := checkDefinition(rule, false); result.problem != nil {
+				t.Fatalf("%s: %s", kind, result.problem.message)
+			}
+		})
+	}
 }

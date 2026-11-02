@@ -1,0 +1,16 @@
+{
+  "description": "A closed pattern value can contain an engine-tag literal.",
+  "document": "```jbogenbau\n%const $P #_General_Category_Letter\n```\n",
+  "expect": {
+    "dom": {
+      "constants": [
+        {
+          "name": "P",
+          "value": {
+            "pattern": {}
+          }
+        }
+      ]
+    }
+  }
+}

@@ -7,10 +7,6 @@ import type { UnicodeTable } from "./unicode.js";
 export type StageOptions = {
     features: Set<string>;
     elisionOnly: boolean | null | undefined;
-    /**
-     * whether this is the pipeline's last stage
-     */
-    last: boolean;
 };
 export declare class Stage {
     name: string;
@@ -36,9 +32,9 @@ export declare class Stage {
      * elided terminators back into the stage's input as synthetic tokens and
      * recognizes that input, R, with the main lowering in the reconstruction
      * mode. Every observation reads the stage's input through the projection
-     * π. The check passes where R has one derivation, and gives two readings
-     * where it has more. With none, the witness of the chosen derivation is
-     * lost.
+     * π. Raw absence of the chosen witness gives witness loss. An admitted
+     * witness that is solely best keeps the main result. Any other best
+     * competitor gives an elision-only ambiguity.
      * @param {Derivation} chosen D, the chosen derivation
      * @param {ResultNode} tree D's tree
      * @param {ParseContext} main the context of the main parse, whose memo
@@ -66,16 +62,6 @@ export type ElisionCheck = ({
 }) & {
     competitorWarnings?: import("./types.js").ParseWarning[];
 };
-/**
- * The result tree of a derivation (engine §12), as a list: a spliced node
- * yields its children. The walk keeps its own stack, since a right-recursive
- * rule over a long text, such as paragraphs joined by `ni'o`, nests as deep
- * as the text is long.
- * @param {Derivation} root
- * @param {ParseContext} context
- * @returns {ResultNode[]}
- */
-export declare function resultTree(root: Derivation, context: ParseContext): ResultNode[];
 export type Emitter = {
     context: ParseContext;
     strings: StringWalk;

@@ -4,9 +4,8 @@ import (
 	"math/bits"
 )
 
-// The tree (engine §12) and emission (engine §11), both walks of a chosen
-// derivation. Derivations nest as deep as a text is long, so the walks keep
-// their own stacks.
+// The tree (engine §12) and source tables. The tree walk keeps its own
+// stack because derivations nest as deep as a text is long.
 
 // flattenKids lists a close's children in order.
 func flattenKids(kids *dn) []*dn {
@@ -141,9 +140,9 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 			f.node.Children = append(f.node.Children, &Node{Kind: KindToken, Terminal: g.terminals[n.term], Token: i, Span: [2]int{i, i + 1}, Source: run.toks[i].Source})
 		case n.prod.helper && n.a == nil && n.prod.elided != "":
 			p := base + int(n.start)
-			node := &Node{Kind: KindElided, Terminal: n.prod.elided, Span: [2]int{p, p}, Source: run.emptySource(p), sound: elidedValue(n.prod.elidedTest), tested: elidedTested(n.prod.elidedTest)}
-			if node.tested {
-				value := node.sound
+			node := &Node{Kind: KindElided, Terminal: n.prod.elided, Span: [2]int{p, p}, Source: run.emptySource(p)}
+			if elidedTested(n.prod.elidedTest) {
+				value := elidedValue(n.prod.elidedTest)
 				node.Value = &value
 			}
 			f.node.Children = append(f.node.Children, node)
@@ -162,7 +161,7 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 // node of its tree gives one for each warning of its production, in the
 // order a walk meets the nodes, parent before children and children left to
 // right. Helpers give their children in their place, as in buildTree.
-func (run *stageRun) warnings(rec *recognizer, d *dn) []Warning {
+func (run *stageRun) warnings(rec *recognizer, d *dn, features map[string]bool) []Warning {
 	var out []Warning
 	pending := []*dn{d}
 	for len(pending) > 0 {
@@ -174,12 +173,31 @@ func (run *stageRun) warnings(rec *recognizer, d *dn) []Warning {
 		if !n.prod.helper {
 			a, b := rec.base+int(n.start), rec.base+int(n.end)
 			for _, f := range n.prod.warnings {
+				if !features[f] {
+					continue
+				}
 				out = append(out, Warning{Stage: run.name, Feature: f, Rule: n.prod.ruleName, Span: [2]int{a, b}, Source: run.spanSource(a, b)})
 			}
 		}
 		pending = pushKids(pending, n)
 	}
 	return out
+}
+
+// hasElided stops at the first elided node of the tree.
+func hasElided(root *Node) bool {
+	stack := []*Node{root}
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if n.Kind == KindElided {
+			return true
+		}
+		for i := len(n.Children) - 1; i >= 0; i-- {
+			stack = append(stack, n.Children[i])
+		}
+	}
+	return false
 }
 
 // elidedNodes lists a tree's elided nodes in text order.

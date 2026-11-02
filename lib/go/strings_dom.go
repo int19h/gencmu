@@ -97,20 +97,20 @@ func writeRequirements(w *jsonWriter, requirements []tagRequirement) {
 	w.raw("]")
 }
 
-func decodeRequirements(raw json.RawMessage, depth int) ([]tagRequirement, error) {
-	return decodeList(raw, func(raw json.RawMessage) (tagRequirement, error) {
-		o, err := decodeObj(raw)
+func (dc *domDecoder) decodeRequirements(raw any, depth int) ([]tagRequirement, error) {
+	return domList(raw, func(raw any) (tagRequirement, error) {
+		o, err := domObjectOf(raw)
 		var r tagRequirement
-		if err != nil || len(o) != 2 || unmarshal(o["negated"], &r.Negated) != nil {
+		if err != nil || len(o) != 2 || domScalar(o["negated"], &r.Negated) != nil {
 			return r, fmt.Errorf("a malformed tag requirement")
 		}
-		r.Value, err = decodeTermAt(o["value"], depth)
+		r.Value, err = dc.decodeTermAt(o["value"], depth)
 		return r, err
 	})
 }
 
-func decodeStringRange(raw json.RawMessage, depth int) ([2]*domTerm, error) {
-	ends, err := decodeList(raw, func(raw json.RawMessage) (*domTerm, error) { return decodeTermAt(raw, depth) })
+func (dc *domDecoder) decodeStringRange(raw any, depth int) ([2]*domTerm, error) {
+	ends, err := domList(raw, func(raw any) (*domTerm, error) { return dc.decodeTermAt(raw, depth) })
 	if err != nil {
 		return [2]*domTerm{}, err
 	}
@@ -120,17 +120,17 @@ func decodeStringRange(raw json.RawMessage, depth int) ([2]*domTerm, error) {
 	return [2]*domTerm{ends[0], ends[1]}, nil
 }
 
-func decodeRecipes(o jobj) (value, image *domTerm, err error) {
+func (dc *domDecoder) decodeRecipes(o domObject) (value, image *domTerm, err error) {
 	for _, c := range []struct {
 		name string
 		into **domTerm
 	}{{"value", &value}, {"image", &image}} {
 		if raw, ok := o[c.name]; ok {
-			obj, e := decodeObj(raw)
+			obj, e := domObjectOf(raw)
 			if e != nil || len(obj) != 1 || obj[tmConcat] == nil {
 				return nil, nil, fmt.Errorf("a malformed recipe")
 			}
-			parts, e := decodeList(obj[tmConcat], decodeTerm)
+			parts, e := domList(obj[tmConcat], dc.decodeTerm)
 			if e != nil || len(parts) == 0 {
 				return nil, nil, fmt.Errorf("a recipe requires atoms")
 			}
@@ -148,10 +148,8 @@ func isClass(name string) bool {
 	return isCapital(name) && name[len(name)-1] >= 'A' && name[len(name)-1] <= 'Z'
 }
 
-func userConstRefs(nodes ...any) []*domTerm { return constRefs(nodes...) }
-
 func stringTermShape(t *domTerm) bool {
-	return t != nil && (t.Kind == tmString || t.Kind == tmConst)
+	return t != nil && (t.Kind == tmString || t.Kind == tmConst || t.Kind == tmParam)
 }
 
 func hasRecipes(r *domRule) bool {
@@ -178,17 +176,24 @@ func effectiveRecipes(r *domRule, a *domAlt) []*domTerm {
 }
 
 func recipeCapturesProblem(recipe *domTerm, has func(string) bool) string {
-	if recipe == nil {
-		return ""
-	}
-	used := map[string]bool{}
-	termCaptures(recipe, used)
-	for name := range used {
-		if !has(name) {
-			return "a selected recipe reads an absent capture $" + name
-		}
+	if missing, found := firstAbsentRecipeCapture(recipe, has); found {
+		return "a selected recipe reads an absent capture $" + missing
 	}
 	return ""
+}
+
+func firstAbsentRecipeCapture(recipe *domTerm, has func(string) bool) (string, bool) {
+	if recipe == nil {
+		return "", false
+	}
+	missing, found := "", false
+	walkClause(clausePart{t: recipe}, func(p clausePart) bool {
+		if !found && p.t != nil && p.t.Kind == tmCapture && !has(p.t.Str) {
+			missing, found = p.t.Str, true
+		}
+		return !found
+	})
+	return missing, found
 }
 
 // literalEngineTags retains literal occurrences through filters (§1).

@@ -5,6 +5,7 @@
 // reads them.
 import fs from "node:fs";
 import path from "node:path";
+import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { Loader } from "../lib/js/src/node.js";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
 
@@ -26,7 +27,7 @@ export function sourceLoader(base, bootstrap) {
     return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
   });
   // The required file boots the reader but supplies no ordinary cached entries here.
-  loader.preparsedFiles.add("data/preparsed/gencmu.json");
+  loader.preparsedFiles.set("data/preparsed/gencmu.json",true,"data/preparsed/gencmu.json".length);
   return loader;
 }
 
@@ -58,13 +59,14 @@ export function sourceDoms(base, loader) {
  * @returns {{get: (file: string) => any}}
  */
 export function sourceIncludeEdges(base) {
+  const unicode = new UnicodeTable(fs.readFileSync(path.join(base, "data/unicode/unicode.txt"), "utf8"));
   const documents = new Map();
   return {
     get(file) {
       if (documents.has(file)) return documents.get(file);
       const source = path.join(base, file);
       if (!fs.existsSync(source)) return undefined;
-      const { text, positions } = extractGrammarText(fs.readFileSync(source, "utf8"), file);
+      const { text, positions } = extractGrammarText(fs.readFileSync(source, "utf8"), file, unicode);
       const chars = [...text];
       const directives = [];
       const layout = (at) => {

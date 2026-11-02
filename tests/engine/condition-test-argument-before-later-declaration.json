@@ -1,0 +1,14 @@
+{
+  "description": "A condition test argument precedes later source declarations.",
+  "grammar": "%ambiguity-resolution greedy\n%rule t(@X) \"a\"\n%rule early \"b\"\n%conditions\n  $.matches(t($LEFT = $RIGHT))\n%rule late $LATE",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$LEFT is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 6,
+      "column": 15
+    }
+  }
+}

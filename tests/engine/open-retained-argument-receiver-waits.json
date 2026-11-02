@@ -1,0 +1,10 @@
+{
+  "description": "A valid known operand leaves the unresolved parameter constraint for substitution.",
+  "grammar": "%ambiguity-resolution greedy\n%const $GOOD \"x\"\n%rule g(@Q) \"a\"\n%rule unused(@P) g(@P.split($GOOD))\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

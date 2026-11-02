@@ -2,7 +2,6 @@ import { BoundaryAnnotations } from "./boundary-annotations.js";
 import { PatternMachine } from "./patterns.js";
 import { CloseObservations } from "./close-observations.js";
 import { FamilySummaries } from "./family-summaries.js";
-import { restoreTokens } from "./restoration.js";
 import { Sources } from "./tokens.js";
 import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Captured, SpanValue, SymbolTest, TagSet, TermValue } from "./types.js";
 import type { CloseEvent, CloseObservation } from "./close-observations.js";
@@ -30,6 +29,13 @@ export type Chart = {
         permitted: boolean;
     }[]> | null;
 };
+export type QualifiedObservation = {
+    end: number;
+    tags: TagSet;
+    observation: CloseObservation | null;
+    familyAligned: boolean | null;
+    direct: boolean | null;
+};
 /**
  * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, ReadyCondition, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
  * @import { CloseEvent, CloseObservation } from "./close-observations.js"
@@ -50,6 +56,11 @@ export type Chart = {
  * @property {any[]} [boundaryFailures]
  * @property {FamilySummaries|null} [family]
  * @property {Map<Item,{event:CloseEvent,permitted:boolean}[]>|null} [familyTrace]
+ */
+/**
+ * One eligible completion, detached from the chart and its proof edges.
+ * Family qualification fixes the candidate, so its alignment is final here.
+ * @typedef {{end:number, tags:TagSet, observation:CloseObservation|null, familyAligned:boolean|null, direct:boolean|null}} QualifiedObservation
  */
 export declare class TagInterner {
     /** @type {TagSet[]} */
@@ -92,8 +103,6 @@ export declare class ParseContext {
     closeRules: Set<string>;
     /** @type {CloseObservations|null} */
     closes: CloseObservations | null;
-    /** @type {Map<number,ReturnType<typeof restoreTokens>>} */
-    restoredViews: Map<number, ReturnType<typeof restoreTokens>>;
     tokens: Token[];
     /** Where each run of the tokens lies in the text (engine §1). */
     sources: Sources;
@@ -124,9 +133,8 @@ export declare class ParseContext {
     /** Whether the check of engine §7 is running over this context's input. */
     checking: boolean;
     /**
-     * Each token's value in canonical form, for the value tests of
-     * symbols and for value(), computed when one first looks at the
-     * token (engine §4, §5).
+     * Each token's exact stored value, for symbol tests and value(),
+     * cached on its first observation (engine §4, §5).
      * @type {(string | undefined)[]}
      */
     storedValues: (string | undefined)[];
@@ -138,8 +146,10 @@ export declare class ParseContext {
      */
     nextSounding: Int32Array | null;
     dots: number;
-    /** @type {Map<string, boolean | TagSet>} */
-    nested: Map<string, boolean | TagSet>;
+    /** @type {Map<string, QueryAnswer>} */
+    nested: Map<string, QueryAnswer>;
+    /** @type {Map<string, QualifiedObservation[]>} */
+    qualified: Map<string, QualifiedObservation[]>;
     /** @type {Set<string>} */
     inProgress: Set<string>;
     /** Where the input of the recognition now running begins. */
@@ -297,10 +307,11 @@ export declare class ChartSet {
      * The rules predicted here with productions not made items, since they
      * begin with a terminal the next token does not carry; kept for saying
      * what could have come next (see expectedAt). A rule, not each of its
-     * productions: a long text skips millions.
-     * @type {string[]}
+     * productions for ordinary rules: a long text skips millions. Bound
+     * productions retain the lexical conditions that already passed.
+     * @type {(string | Production)[]}
      */
-    skipped: string[];
+    skipped: (string | Production)[];
     /** @param {number} position */
     constructor(position: number);
 }
@@ -327,6 +338,8 @@ declare class Pending {
     asked: number;
     /** @type {import("./types.js").AlignedSpan|null} */
     aligned: import("./types.js").AlignedSpan | null;
+    /** @type {string|null} */
+    qualificationKey: string | null;
     /**
      * What the halted evaluation has left to do, the innermost part first.
      * Each frame takes the value of the part inside it and gives its own,
@@ -402,6 +415,10 @@ export declare function recognize(context: ParseContext, rule: string, start: nu
  * @returns {T}
  */
 export declare function settled<T>(evaluation: () => T | Halt): T;
+export type QueryAnswer = boolean | {
+    accepted: boolean;
+    tags: TagSet;
+};
 export type Advanced = {
     dot: number;
     slots: Captured;
@@ -537,12 +554,7 @@ export type Comparison = Extract<Condition, {
 export type SuffixState = {
     answers: Map<number, boolean>;
     run: Run | null;
-    active: boolean;
-    errorAt: number;
-    error: {
-        at: number;
-        error: unknown;
-    } | null;
+    dependent: boolean;
     extend: ((end: number) => void) | null;
 };
 /**

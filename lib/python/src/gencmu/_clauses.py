@@ -44,19 +44,50 @@ def captures_in(dom: Any) -> set[str]:
     return found
 
 
-def mentioned_in(dom: Any) -> set[str]:
-    """The capture names a clause mentions, presence tests included."""
-    found = captures_in(dom)
+def first_absent_recipe_capture(recipe: Dom, present: AbstractSet[str]) -> str | None:
+    """Find the first absent capture in the recipe's written order."""
+    for atom in recipe["concat"]:
+        receiver = atom.get("receiver")
+        while isinstance(receiver, dict) and "method" in receiver:
+            receiver = receiver.get("receiver")
+        if isinstance(receiver, dict):
+            name = receiver.get("capture")
+            if isinstance(name, str) and name not in present:
+                return name
+    return None
+
+
+def mentions_in_order(dom: Any):
+    """Capture mentions in written operand order, including presence tests."""
     stack = [dom]
     while stack:
-        value = stack.pop()
-        if isinstance(value, dict):
-            if isinstance(value.get("captured"), str):
-                found.add(value["captured"])
-            stack.extend(value.values())
-        elif isinstance(value, list):
-            stack.extend(value)
-    return found
+        node = stack.pop()
+        if isinstance(node, list):
+            stack.extend(reversed(node))
+            continue
+        if not isinstance(node, dict):
+            continue
+        for key in ("capture", "captured"):
+            if isinstance(node.get(key), str):
+                yield node[key]
+        if "pattern" in node:
+            continue
+        if "method" in node:
+            children = [node["receiver"], *node["args"]]
+        elif "op" in node:
+            children = [node["left"], node["right"]]
+        elif "if" in node:
+            children = [node["if"], node["then"]]
+        elif "not" in node:
+            children = [node["not"]]
+        else:
+            children = next((node[key] for key in ("any", "all", "union", "intersection", "difference", "concat") if key in node), [])
+        stack.extend(reversed(children))
+
+
+def mentioned_in(dom: Any) -> set[str]:
+    """The capture names a clause mentions, presence tests included."""
+    return set(mentions_in_order(dom))
 
 
 def duplicate_captures(expr: Any) -> list[Dom]:
@@ -135,174 +166,73 @@ def duplicate_captures(expr: Any) -> list[Dom]:
         stack[-1][2].append(joined)
 
 
-class _Sequence:
-    """One sequence of captures as capture_sequences builds it, with the
-    set of its names and its key of names, so that extending it by a few
-    captures costs those captures and not the whole sequence again."""
-
-    __slots__ = ("captures", "names", "cached")
-
-    def __init__(self, captures: list[Dom], names: set[str]) -> None:
-        self.captures = captures
-        self.names = names
-        self.cached: tuple[str, ...] | None = None
-
-    def key(self) -> tuple[str, ...]:
-        if self.cached is None:
-            self.cached = tuple(capture["capture"] for capture in self.captures)
-        return self.cached
-
-    def extend(self, captures: list[Dom]) -> None:
-        if captures:
-            self.captures.extend(captures)
-            self.names.update(capture["capture"] for capture in captures)
-            self.cached = None
-
-    def copy(self) -> _Sequence:
-        return _Sequence(list(self.captures), set(self.names))
-
-
-def capture_sequences(expr: Any) -> tuple[list[list[Dom]], list[Dom]]:
-    """The distinct sequences of captures that the productions of an
-    expression read, each in the order read (engine §3.2, §3.5): a choice
-    gives each branch's, an ``&`` each subsequence's, a plain optional none
-    or its content's, and braces and an elidable optional none. Productions
-    that read the same names in the same order are one sequence. The second
-    list holds the capture nodes that some production reads after one of
-    the same name, in no particular order. Gates do not matter, since they
-    drop whole alternatives."""
-    duplicates: dict[int, Dom] = {}
-
-    def distinct(sequences: list[_Sequence]) -> list[_Sequence]:
-        seen: set[tuple[str, ...]] = set()
-        result: list[_Sequence] = []
-        for sequence in sequences:
-            key = sequence.key()
-            if key not in seen:
-                seen.add(key)
-                result.append(sequence)
-        return result
-
-    def product(left: list[_Sequence], right: list[_Sequence], owned: bool) -> list[_Sequence]:
-        """Each sequence of the left followed by each of the right. Where the
-        right has one sequence, distinct lefts stay distinct, and a left that
-        this product's caller ``owned`` is extended in place, since a copy of
-        each would cost the sequence's whole length at every step."""
-        for first in left:
-            for second in right:
-                for capture in second.captures:
-                    if capture["capture"] in first.names:
-                        duplicates[id(capture)] = capture
-        if len(right) == 1:
-            result = left if owned else [first.copy() for first in left]
-            for first in result:
-                first.extend(right[0].captures)
-            return result
-        joined: list[_Sequence] = []
-        for first in left:
-            for second in right:
-                sequence = first.copy()
-                sequence.extend(second.captures)
-                joined.append(sequence)
-        return distinct(joined)
-
-    def visit(node: Any) -> Walk:
-        if not isinstance(node, dict):
-            return [_Sequence([], set())]
-        if isinstance(node.get("capture"), str) and "expr" in node:
-            return [_Sequence([node], {node["capture"]})]
-        if isinstance(node.get("seq"), list):
-            # The sequences built here are this loop's own, so the product
-            # may extend them in place.
-            sequences: list[_Sequence] = [_Sequence([], set())]
-            for item in node["seq"]:
-                sequences = product(sequences, (yield visit(item)), True)
-            return sequences
-        if isinstance(node.get("choice", node.get("ranked")), list):
-            branches: list[_Sequence] = []
-            for item in node.get("choice", node.get("ranked", [])):
-                branches.extend((yield visit(item)))
-            return distinct(branches)
-        if isinstance(node.get("and"), list):
-            parts = []
-            for item in node["and"]:
-                parts.append((yield visit(item)))
-            result: list[_Sequence] = []
-            for mask in range(1, 1 << len(parts)):
-                chosen: list[_Sequence] = [_Sequence([], set())]
-                for index, part in enumerate(parts):
-                    if mask >> index & 1:
-                        chosen = product(chosen, part, True)
-                result.extend(chosen)
-            return distinct(result)
-        if "optional" in node:
-            if node.get("elidable") is True:
-                return [_Sequence([], set())]
-            return distinct([_Sequence([], set()), *(yield visit(node["optional"]))])
-        return [_Sequence([], set())]
-
-    sequences: list[_Sequence] = run(visit(expr))
-    return [sequence.captures for sequence in sequences], list(duplicates.values())
-
-
-def alternative_captures(alternative: Dom) -> list[dict[str, int]]:
-    """The captures of each production of an alternative, each name with its
-    place in the order that the production reads them, and ``$`` at -1
-    (engine §3.5). Productions that read the same captures in the same order
-    are one."""
-    sequences, _ = capture_sequences(alternative["expr"])
-    return [{WHOLE: -1, **{capture["capture"]: index for index, capture in enumerate(sequence)}} for sequence in sequences]
-
-
-def simplify_condition(condition: Dom, present: AbstractSet[str]) -> Simplified:
+def simplify_condition(condition: Dom, present: AbstractSet[str], absent: AbstractSet[str] | None = None) -> Simplified:
     """A condition simplified for a production that has the captures
-    ``present`` (engine §3.6)."""
-    return run(_condition(condition, present))  # type: ignore[no-any-return]
+    ``present`` (engine §3.6). If ``absent`` is supplied, other names
+    retain their presence tests for partial assignments."""
+    return run(_condition(condition, present, absent))[0]  # type: ignore[no-any-return]
 
 
-def simplify_term(term: Dom, present: AbstractSet[str]) -> Dom:
+def simplify_term(term: Dom, present: AbstractSet[str], absent: AbstractSet[str] | None = None) -> Dom:
     """A tag term simplified for a production that has the captures
     ``present``: a guarded term whose condition is false is the empty set
-    (engine §3.6)."""
-    return run(_term(term, present))  # type: ignore[no-any-return]
+    (engine §3.6). If ``absent`` is supplied, other names stay unresolved."""
+    return run(_term(term, present, absent))[0]  # type: ignore[no-any-return]
 
 
-def _condition(dom: Dom, present: AbstractSet[str]) -> Walk:
+def _condition(dom: Dom, present: AbstractSet[str], absent: AbstractSet[str] | None = None, fixed=None) -> Walk:
+    """Return the simplified value and its first unresolved presence test."""
+    if fixed is not None and id(dom) in fixed:
+        known = fixed[id(dom)]
+        if known is None:
+            known = yield _condition(dom, present, absent)
+            fixed[id(dom)] = known
+        return known
     if "captured" in dom:
-        return dom["captured"] == WHOLE or dom["captured"] in present
+        name = dom["captured"]
+        if name == WHOLE or name in present:
+            return True, None
+        return (dom, name) if absent is not None and name not in absent else (False, None)
     if "if" in dom:
-        premise = yield _condition(dom["if"], present)
+        premise, guard = yield _condition(dom["if"], present, absent, fixed)
         if premise is False:
-            return True
-        consequent = yield _condition(dom["then"], present)
+            return True, None
+        consequent, next_guard = yield _condition(dom["then"], present, absent, fixed)
         if premise is True or consequent is True:
-            return consequent
+            return consequent, next_guard
         if consequent is False:
-            return {"not": premise}
-        return {"if": premise, "then": consequent}
+            return {"not": premise}, guard
+        value = dom if premise is dom["if"] and consequent is dom["then"] else {"if": premise, "then": consequent}
+        return value, guard if guard is not None else next_guard
     if "not" in dom:
-        inner = yield _condition(dom["not"], present)
-        return (not inner) if isinstance(inner, bool) else {"not": inner}
+        inner, guard = yield _condition(dom["not"], present, absent, fixed)
+        if isinstance(inner, bool):
+            return not inner, None
+        return (dom if inner is dom["not"] else {"not": inner}), guard
     if "all" in dom or "any" in dom:
         key = "all" if "all" in dom else "any"
-        # ∧ is decided by a false part, ∨ by a true one; the other constant
-        # adds nothing.
         deciding = key == "any"
-        parts: list[Dom] = []
+        parts, guard, unchanged = [], None, True
         for item in dom[key]:
-            part = yield _condition(item, present)
+            part, next_guard = yield _condition(item, present, absent, fixed)
             if part is deciding:
-                return deciding
+                return deciding, None
             if part is not (not deciding):
                 parts.append(part)
+                if guard is None:
+                    guard = next_guard
+            unchanged = unchanged and part is item
         if not parts:
-            return not deciding
-        return parts[0] if len(parts) == 1 else {key: parts}
+            return not deciding, None
+        if len(parts) == 1:
+            return parts[0], guard
+        return (dom if unchanged else {key: parts}), guard
     if "op" in dom:
-        left = yield _term(dom["left"], present)
-        right = yield _term(dom["right"], present)
-        return {"op": dom["op"], "left": left, "right": right}
-    return dom
+        left, guard = yield _term(dom["left"], present, absent, fixed)
+        right, next_guard = yield _term(dom["right"], present, absent, fixed)
+        value = dom if left is dom["left"] and right is dom["right"] else {"op": dom["op"], "left": left, "right": right}
+        return value, guard if guard is not None else next_guard
+    return dom, None
 
 
 def is_empty_set(dom: Any) -> bool:
@@ -317,54 +247,71 @@ def is_empty_set(dom: Any) -> bool:
     return isinstance(dom.get("const"), str) and isinstance(value, frozenset) and not value
 
 
-def _term(dom: Any, present: AbstractSet[str]) -> Walk:
-    """A term's empty set, written or left by a guard, is dropped from a
-    union, and makes an intersection, a difference from it or a guarded term
-    empty (engine §3.6):
-    what is reduced away is never evaluated."""
+def _term(dom: Any, present: AbstractSet[str], absent: AbstractSet[str] | None = None, fixed=None) -> Walk:
+    """Reduce a term and retain its next unresolved presence test."""
+    if fixed is not None and id(dom) in fixed:
+        known = fixed[id(dom)]
+        if known is None:
+            known = yield _term(dom, present, absent)
+            fixed[id(dom)] = known
+        return known
     if not isinstance(dom, dict):
-        return dom
+        return dom, None
     if "if" in dom:
-        premise = yield _condition(dom["if"], present)
+        premise, guard = yield _condition(dom["if"], present, absent, fixed)
         if premise is False:
-            return dict(EMPTY_SET)
-        then = yield _term(dom["then"], present)
+            return dict(EMPTY_SET), None
+        then, next_guard = yield _term(dom["then"], present, absent, fixed)
         if is_empty_set(then):
-            return then
-        return then if premise is True else {"if": premise, "then": then}
-    if isinstance(dom.get("union"), list):
-        parts = []
-        for item in dom["union"]:
-            part = yield _term(item, present)
-            if not is_empty_set(part):
-                parts.append(part)
-        if not parts:
-            return dict(EMPTY_SET)
-        return parts[0] if len(parts) == 1 else {"union": parts}
-    if isinstance(dom.get("intersection"), list):
-        parts = []
-        for item in dom["intersection"]:
-            part = yield _term(item, present)
+            return then, None
+        if premise is True:
+            return then, next_guard
+        value = dom if premise is dom["if"] and then is dom["then"] else {"if": premise, "then": then}
+        return value, guard if guard is not None else next_guard
+    if isinstance(dom.get("union"), list) or isinstance(dom.get("intersection"), list):
+        key = "union" if "union" in dom else "intersection"
+        parts, guard, unchanged = [], None, True
+        for item in dom[key]:
+            part, next_guard = yield _term(item, present, absent, fixed)
             if is_empty_set(part):
-                return part
-            parts.append(part)
-        return {"intersection": parts}
+                if key == "intersection":
+                    return part, None
+                unchanged = False
+            else:
+                parts.append(part)
+                if guard is None:
+                    guard = next_guard
+            unchanged = unchanged and part is item
+        if key == "union":
+            if not parts:
+                return dict(EMPTY_SET), None
+            if len(parts) == 1:
+                return parts[0], guard
+        return (dom if unchanged else {key: parts}), guard
     if isinstance(dom.get("difference"), list):
-        # A difference from the empty set is empty, and one of the empty set
-        # is its first part (engine §3.6).
-        left = yield _term(dom["difference"][0], present)
+        left, guard = yield _term(dom["difference"][0], present, absent, fixed)
         if is_empty_set(left):
-            return left
-        right = yield _term(dom["difference"][1], present)
-        return left if is_empty_set(right) else {"difference": [left, right]}
+            return left, None
+        right, next_guard = yield _term(dom["difference"][1], present, absent, fixed)
+        if is_empty_set(right):
+            return left, guard
+        value = dom if left is dom["difference"][0] and right is dom["difference"][1] else {"difference": [left, right]}
+        return value, guard if guard is not None else next_guard
     if isinstance(dom.get("args"), list):
-        args = []
-        for arg in dom["args"]:
-            args.append((yield _term(arg, present)))
+        args, guard, unchanged = [], None, True
         if "receiver" in dom:
-            return {**dom, "receiver": (yield _term(dom["receiver"], present)), "args": args}
-        return {**dom, "args": args}
-    return dom
+            receiver, guard = yield _term(dom["receiver"], present, absent, fixed)
+            unchanged = receiver is dom["receiver"]
+        for arg in dom["args"]:
+            value, next_guard = yield _term(arg, present, absent, fixed)
+            args.append(value)
+            if guard is None:
+                guard = next_guard
+            unchanged = unchanged and value is arg
+        if unchanged:
+            return dom, guard
+        return ({**dom, "receiver": receiver, "args": args} if "receiver" in dom else {**dom, "args": args}), guard
+    return dom, None
 
 
 def applies(condition: Dom, present: AbstractSet[str]) -> Simplified | None:
@@ -420,7 +367,7 @@ class Prepared:
     them, since a production without it drops the condition. Parts of any
     other shape are simplified for each production, as before."""
 
-    __slots__ = ("join", "parts", "condition", "listed", "fixed", "values", "guards", "required", "decided", "absent", "inner")
+    __slots__ = ("join", "parts", "condition", "listed", "fixed", "values", "guards", "required", "absent", "inner")
 
     def __init__(self, parts: list[Any], join: str | None, condition: bool, listed: bool) -> None:
         self.join = join
@@ -441,9 +388,6 @@ class Prepared:
         # For an ∨, the captures of its guarded parts. A production that
         # lacks one of them makes that part true, and so the whole ∨.
         self.required: set[str] = set()
-        # The value of the whole for every production, where a part that
-        # tests no presence decides it: false for an ∧, true for an ∨.
-        self.decided: Any = _UNSET
         # For a guarded clause alone, its value for a production without
         # the capture.
         self.absent: Any = _UNSET
@@ -457,25 +401,19 @@ class Prepared:
                 self.absent = absent
                 if join == "any":
                     self.required.add(name)
-                    # True whether the capture is there or not.
-                    if value is True:
-                        self.decided = True
                 # A join drops a guarded part where its capture is absent,
                 # and a part that it drops where its capture is present too
                 # is never kept. An ∨ is made true by the absence instead.
-                if join is not None and self.vanishes(value):
+                if not condition and self.vanishes(value):
                     continue
                 self.guards.setdefault(name, []).append(index)
                 continue
             if tests_no_presence(part):
                 value = _simplify(part, _NONE, condition)
                 self.values[index] = value
-                if join is not None:
-                    if self.decides(value) and self.decided is _UNSET:
-                        self.decided = value
-                    if self.vanishes(value):
-                        continue
-                if listed and not isinstance(value, bool):
+                if not condition and self.vanishes(value):
+                    continue
+                if listed:
                     used = captures_in(value) - {WHOLE}
                     if used:
                         self.guards.setdefault(min(used), []).append(index)
@@ -483,19 +421,12 @@ class Prepared:
             self.fixed.append(index)
 
     def vanishes(self, value: Any) -> bool:
-        """Whether the join drops a part's value: the empty set from a
-        union, true from a conjunction and false from a disjunction
-        (engine §3.6)."""
+        """Whether the join drops a part's value (engine §3.6)."""
         if self.join == "union":
             return is_empty_set(value)
         if self.join == "all":
             return value is True
         return value is False if self.join == "any" else False
-
-    def decides(self, value: Any) -> bool:
-        """Whether a part's value decides the join: false decides an ∧, and
-        true decides an ∨."""
-        return value is False if self.join == "all" else value is True if self.join == "any" else False
 
     def has_required(self, present: AbstractSet[str]) -> bool:
         """Whether a production has every capture that guards a part of an
@@ -508,8 +439,6 @@ class Prepared:
         """The values of the parts that a production with the captures
         ``present`` keeps, in order, each simplified, without those that
         the join drops."""
-        if self.decided is False:
-            return [False]
         # The indexed parts this production keeps, found from whichever is
         # fewer, its captures or the captures that index parts.
         kept: list[int] = []
@@ -559,8 +488,6 @@ class Prepared:
             # A guarded clause alone is its value or the value of its absence.
             (name,) = self.guards
             return self.values[0] if name in present else dict(self.absent) if isinstance(self.absent, dict) else self.absent
-        if self.decided is not _UNSET:
-            return self.decided
         if self.join == "any" and self.required and not self.has_required(present):
             return True
         items = self.kept(present)
@@ -624,6 +551,9 @@ def waits(clause: Any) -> bool:
     its value in simplification (engine §3.6), so the checks that
     simplification decides wait for the loader, which checks the definition
     again once the constants have their values (engine §9)."""
+    from ._template_nodes import has_unresolved
+    if has_unresolved(clause):
+        return True
     stack = [clause]
     while stack:
         value = stack.pop()
@@ -719,35 +649,348 @@ class Emission:
         return first, next(name for name in attachments_of(self.items[first]) if name in present)
 
 
+def _witness_flat(tree):
+    out, pending = [], [tree]
+    while pending:
+        part = pending.pop()
+        if isinstance(part, tuple):
+            pending.extend((part[1], part[0]))
+        elif part is not None:
+            out.append(part)
+    return out
+
+
+def _witness_key_less(left, right):
+    x, y = [left], [right]
+    while x and y:
+        a, b = x[-1], y[-1]
+        if a is None:
+            x.pop()
+        elif b is None:
+            y.pop()
+        elif a is b or not isinstance(a, tuple) and not isinstance(b, tuple) and a == b:
+            x.pop()
+            y.pop()
+        elif isinstance(a, tuple):
+            x.pop()
+            x.extend((a[1], a[0]))
+        elif isinstance(b, tuple):
+            y.pop()
+            y.extend((b[1], b[0]))
+        else:
+            return a < b
+    return not any(p is not None for p in x) and any(p is not None for p in y)
+
+
+def _capture_witness(expr, required=(), forbidden=(), order=()):
+    required, forbidden = set(required) - {WHOLE}, set(forbidden)
+    if WHOLE in forbidden or required & forbidden:
+        return None
+
+    def pick(into, state, candidate):
+        old = into.get(state)
+        if old is None or candidate[0] > old[0] or candidate[0] == old[0] and _witness_key_less(candidate[2], old[2]):
+            into[state] = candidate
+
+    def join(left, right):
+        out = {}
+        for a, x in left.items():
+            for b, y in right.items():
+                if a & b or a & 2 and b & 1:
+                    continue
+                pick(out, a | b, (x[0] + y[0], (x[1], y[1]), (x[2], y[2])))
+        return out
+
+    def visit(node):
+        if 'capture' in node:
+            name = node['capture']
+            state = 1 if order and name == order[0] else 2 if order and name == order[1] else 0
+            return {} if name in forbidden else {state: (int(name in required), name, None)}
+        children = next((node[k] for k in ('seq', 'choice', 'ranked', 'and') if k in node), None)
+        if children is not None:
+            all_parts = {0: (0, None, None)}
+            if 'choice' in node or 'ranked' in node:
+                all_parts = {}
+                for i, child in enumerate(children):
+                    for state, w in (yield visit(child)).items():
+                        pick(all_parts, state, (w[0], w[1], (i, w[2])))
+            elif 'and' in node:
+                all_parts = {}
+                for i, child in enumerate(children):
+                    part = yield visit(child)
+                    next_parts = dict(all_parts)
+                    for state, w in part.items():
+                        pick(next_parts, state, (w[0], w[1], (1 << i, w[2])))
+                    for a, x in all_parts.items():
+                        for b, y in part.items():
+                            if a & b or a & 2 and b & 1:
+                                continue
+                            pick(next_parts, a | b, (x[0] + y[0], (x[1], y[1]), (x[2][0] | 1 << i, (x[2][1], y[2]))))
+                    all_parts = next_parts
+            else:
+                for child in children:
+                    all_parts = join(all_parts, (yield visit(child)))
+            return all_parts
+        if 'optional' in node and not node.get('elidable'):
+            out = {0: (0, None, 0)}
+            for state, w in (yield visit(node['optional'])).items():
+                pick(out, state, (w[0], w[1], (1, w[2])))
+            return out
+        if 'test' in node:
+            return (yield visit(node['expr']))
+        return {0: (0, None, None)}
+
+    result = run(visit(expr)).get(3 if order else 0)
+    if result is None or result[0] != len(required):
+        return None
+    return (*result, frozenset(_witness_flat(result[1])) | {WHOLE})
+
+
+def _variable_captures(expr):
+    # A capture varies only below an optional or a branching choice or &.
+    # Its content does not change the presence of the capture itself.
+    pending = [(expr, False)]
+    while pending:
+        node, variable = pending.pop()
+        if 'capture' in node:
+            if variable:
+                return True
+            continue
+        children = next((node[k] for k in ('seq', 'choice', 'ranked', 'and') if k in node), None)
+        if children is not None:
+            variable = variable or len(children) > 1 and any(k in node for k in ('choice', 'ranked', 'and'))
+            pending.extend((child, variable) for child in reversed(children))
+        elif 'optional' in node and not node.get('elidable'):
+            pending.append((node['optional'], True))
+        elif 'test' in node:
+            pending.append((node['expr'], variable))
+    return False
+
+
+def _independent_capture_choices(expr):
+    branches, lists, seen = [expr], [], set()
+    while branches:
+        branch = branches.pop()
+        if 'choice' in branch or 'ranked' in branch:
+            branches.extend(reversed(branch.get('choice', branch.get('ranked'))))
+            continue
+        if 'test' in branch:
+            branches.append(branch['expr'])
+            continue
+        if _variable_captures(branch):
+            return None
+        captures, pending = {WHOLE: -1}, [branch]
+        while pending:
+            node = pending.pop()
+            if 'capture' in node:
+                captures[node['capture']] = len(captures) - 1
+            elif 'seq' in node:
+                pending.extend(reversed(node['seq']))
+            elif any(k in node for k in ('choice', 'ranked', 'and')):
+                pending.append(next(node[k][0] for k in ('choice', 'ranked', 'and') if k in node))
+            elif 'test' in node:
+                pending.append(node['expr'])
+        key = tuple(captures)
+        if key not in seen:
+            seen.add(key)
+            lists.append(captures)
+    return lists
+
+
+def _fixed_clause_parts(value):
+    """Index fixed subtrees once, before partial assignments branch."""
+    fixed, free = {}, {}
+    pending = [(value, False)]
+    while pending:
+        node, ready = pending.pop()
+        if not isinstance(node, (dict, list)) or id(node) in free:
+            continue
+        children = list(node.values()) if isinstance(node, dict) and 'pattern' not in node else node if isinstance(node, list) else []
+        if not ready:
+            pending.append((node, True))
+            pending.extend((child, False) for child in children)
+            continue
+        stable = not (isinstance(node, dict) and node.get('captured', WHOLE) != WHOLE)
+        stable = stable and all(free.get(id(child), True) for child in children)
+        free[id(node)] = stable
+        if stable and isinstance(node, dict):
+            fixed[id(node)] = None
+    return fixed
+
+
+def validation_captures(rule, alternative):
+    expr = alternative['expr']
+    # A direct capture already fixes its complete capture list.
+    if 'capture' in expr:
+        return [{WHOLE: -1, expr['capture']: 0}]
+    lists = _independent_capture_choices(expr)
+    if lists is not None:
+        return lists
+    witnesses = []
+
+    def ask(required=(), forbidden=(), order=()):
+        w = _capture_witness(expr, required, forbidden, order)
+        if w is not None:
+            witnesses.append(w)
+
+    initial = _capture_witness(expr)
+    if initial is not None:
+        witnesses.append(initial)
+    items = rule.get('emit', {}).get('items', [])
+    clauses = [rule.get('tags'), rule.get('value'), rule.get('image'), *rule['conditions']]
+    for item in items:
+        clauses.extend(item.get(channel) for channel in ('tags', 'value', 'image'))
+    clauses.extend(a.get(k) for a in rule['alternatives'] for k in ('tags', 'value', 'image'))
+    for value in clauses:
+        for name in mentioned_in(value):
+            ask([name])
+    for item in items:
+        if 'capture' in item:
+            for name in attachment_order(item):
+                ask([name])
+
+    def clause(value, condition=False, carrier=()):
+        if value is None or waits(value):
+            return
+        if not condition and 'union' in value:
+            for part in value['union']:
+                clause(part, carrier=carrier)
+            return
+
+        fixed = _fixed_clause_parts(value)
+
+        def branch(part, yes, no, witness):
+            simple, guard = run(_condition(part, set(yes) | {WHOLE}, set(no), fixed) if condition
+                                else _term(part, set(yes) | {WHOLE}, set(no), fixed))
+            if simple is True:
+                return
+
+            def extend(required, forbidden):
+                names = witness[3]
+                if set(required) <= names and not (set(forbidden) & names):
+                    return witness
+                return _capture_witness(expr, required, forbidden)
+
+            if guard is not None:
+                without = extend(yes, [*no, guard])
+                if without is not None:
+                    branch(simple, yes, [*no, guard], without)
+                with_guard = extend([*yes, guard], no)
+                if with_guard is not None:
+                    branch(simple, [*yes, guard], no, with_guard)
+                return
+            used = captures_in(simple)
+            if condition:
+                found = extend([*carrier, *yes, *used], no)
+                if found is not None:
+                    witnesses.append(found)
+            else:
+                for name in used:
+                    found = extend([*carrier, *yes], [*no, name])
+                    if found is not None:
+                        witnesses.append(found)
+        if initial is not None:
+            branch(value, [], [], initial)
+
+    for value in rule['conditions']:
+        clause(value, True)
+    for value in (rule.get('tags'), alternative.get('tags')):
+        clause(value)
+    value = alternative.get('value', rule.get('value'))
+    for recipe in (value, alternative.get('image', rule.get('image', value))):
+        for name in captures_in(recipe):
+            ask(forbidden=[name])
+    if items and not any('insert' in i or i.get('capture') == WHOLE for i in items):
+        ask(forbidden=[i['capture'] for i in items])
+    written = []
+    for item in items:
+        carrier = [item['capture']] if 'capture' in item else []
+        if carrier:
+            for name in attachments_of(item):
+                ask([name], carrier)
+            ask(forbidden=carrier)
+        for channel in ('value', 'image'):
+            for name in captures_in(item.get(channel)):
+                ask(carrier, [name])
+        clause(item.get('tags'), carrier=carrier)
+        if item.get('capture'):
+            written.extend((name, item['capture']) for name in attachment_order(item))
+    for i, (a, ac) in enumerate(written):
+        for b, bc in written[i + 1:]:
+            if a != b:
+                ask([a, ac, b, bc], order=[b, a])
+    witnesses.sort(key=lambda w: _witness_flat(w[2]))
+    found, out = set(), []
+    for w in witnesses:
+        names = tuple(_witness_flat(w[1]))
+        if names not in found:
+            found.add(names)
+            out.append({WHOLE: -1, **{name: i for i, name in enumerate(names)}})
+    return out
+
+
+class DefinitionIssue:
+    """A definition problem whose kind controls its validation phase."""
+    def __init__(self, kind: str, message: str):
+        self.kind, self.message = kind, message
+
+
+class DefinitionCheck:
+    def __init__(self):
+        self.problem: DefinitionIssue | None = None
+        self.deferred: DefinitionIssue | None = None
+
+
+def check_definition(rule: Dom, defer_ranked: bool = False) -> DefinitionCheck:
+    result = DefinitionCheck()
+    ranked: bool | None = None
+    for issue in _definition_issues(rule):
+        deferred_kind = defer_ranked and issue.kind in ("recipe-capture", "empty-emission")
+        if deferred_kind and ranked is None:
+            ranked = rule_has_ranked(rule)
+        if deferred_kind and ranked:
+            if result.deferred is None or result.deferred.kind == "empty-emission" and issue.kind == "recipe-capture":
+                result.deferred = issue
+        else:
+            result.problem = issue
+            break
+    return result
+
+
 def definition_problem(rule: Dom) -> str | None:
-    """Why a definition, a well-formed rule of a DOM with its clauses, is an
-    error of its document as a whole (engine §9), or None. The checks that
-    simplification decides skip a clause that holds a constant without its
-    value."""
+    issue = check_definition(rule).problem
+    return issue.message if issue is not None else None
+
+
+def _definition_issues(rule: Dom):
+    """Yield definition faults in their established validation order."""
     if rule.get("erased") and ("emit" in rule or any(channel in owner for owner in [rule, *rule["alternatives"]] for channel in ("value", "image"))):
-        return "an erased definition cannot carry a recipe or emission"
+        yield DefinitionIssue("independent", "an erased definition cannot carry a recipe or emission")
     alternatives = rule["alternatives"]
     # A definition with no clause has nothing to check about its captures,
     # and its productions, whose number can be exponential, are not listed.
     if not any(k in rule for k in ("tags", "value", "image", "emit")) and not rule["conditions"] and all(not any(k in alternative for k in ("tags", "value", "image")) for alternative in alternatives):
-        return None
+        return
     # Each production of each alternative, with the captures it reads
     # (engine §3.5, §9); productions that read the same captures in the same
     # order are one.
-    productions = [(alternative, captures) for alternative in alternatives for captures in alternative_captures(alternative)]
+    productions = [(alternative, captures) for alternative in alternatives for captures in validation_captures(rule, alternative)]
     captured = [[name for name, _ in sorted(captures.items(), key=lambda pair: pair[1]) if name != WHOLE] for _, captures in productions]
     presents = [set(captures) for _, captures in productions]
     known = set().union(*presents)
     emit = rule.get("emit")
     items: list[Dom] = emit["items"] if emit is not None else []
-    clauses: list[Any] = [rule.get("tags"), rule["conditions"], items]
-    clauses.extend(alternative.get("tags") for alternative in alternatives)
-    clauses.extend(owner.get(channel) for owner in [rule, *alternatives] for channel in ("value", "image"))
-    # An emission item mentions its attachments too.
-    attached = {name for item in items if "capture" in item for name in attachments_of(item)}
-    unknown = sorted(set().union(attached, *(mentioned_in(clause) for clause in clauses)) - known)
-    if unknown:
-        return f"${unknown[0]} is captured by no alternative of {rule['name']}"
+    clauses: list[Any] = [rule.get("tags"), rule.get("value"), rule.get("image")]
+    clauses.extend(alternative.get(channel) for alternative in alternatives for channel in ("tags", "value", "image"))
+    clauses.extend(rule["conditions"])
+    for item in items:
+        clauses.extend([{"capture": item["capture"]} if "capture" in item else None,
+                        item.get("tags"), item.get("value"), item.get("image")])
+        clauses.extend({"capture": name} for name in attachments_of(item))
+    for clause in clauses:
+        for name in mentions_in_order(clause):
+            if name not in known:
+                yield DefinitionIssue("independent", f"${name} is captured by no alternative of {rule['name']}")
     # The rule-level clauses depend only on a production's captures, which
     # many alternatives share, so each is checked once for each sequence of
     # captures and not once for each production.
@@ -765,9 +1008,7 @@ def definition_problem(rule: Dom) -> str | None:
             continue
         prepared = prepare(condition, True)
         candidates: Any = (present for _, present in distinct.values())
-        if prepared.decided is not _UNSET:
-            pass
-        elif not prepared.fixed and (prepared.join == "all" or prepared.join is None and prepared.guards):
+        if not prepared.fixed and (prepared.join == "all" or prepared.join is None and prepared.guards):
             # A condition made only of guarded parts is true for a
             # production that has none of their captures, so only those
             # that have one can apply.
@@ -775,81 +1016,96 @@ def definition_problem(rule: Dom) -> str | None:
         elif prepared.join == "any" and prepared.required:
             # An ∨ is true for a production that lacks one of its guards.
             candidates = iter(capturing.get(min(prepared.required), ()))
-        elif prepared.join is None and prepared.values[0] is not _UNSET and not isinstance(prepared.values[0], bool):
+        elif prepared.join is None and prepared.values[0] is not _UNSET:
             # A condition the same for every production applies only to
             # those that have every capture it uses.
             used = captures_in(prepared.values[0]) - {WHOLE}
             if used:
                 candidates = iter(capturing.get(min(used), ()))
         if all(applies_prepared(prepared, present) is None for present in candidates):
-            return f"a condition of {rule['name']} applies to none of its productions"
+            yield DefinitionIssue("independent", f"a condition of {rule['name']} applies to none of its productions")
 
     # Each term is prepared, and looked at for constants, once, though the
     # checks below ask again for each production.
     prepared_terms: dict[int, tuple[bool, Prepared]] = {}
 
-    def lacks(term: Dom, present: set[str]) -> bool:
+    def missing(term: Dom, present: set[str]) -> str | None:
         known = prepared_terms.get(id(term))
         if known is None:
             known = prepared_terms[id(term)] = (waits(term), prepare(term, False))
-        return not known[0] and not captures_in(known[1].simplified(present)) <= present
+        if known[0]:
+            return None
+        simple = known[1].simplified(present)
+        used = captures_in(simple)
+        if used <= present:
+            return None
+        return next(name for name in mentions_in_order(simple) if name in used and name not in present)
 
-    rule_lacks: dict[tuple[str, ...], bool] = {}
-    for (alternative, _), names, present in zip(productions, captured, presents):
-        if "tags" in alternative and lacks(alternative["tags"], present):
-            return "an alternative's tags use a capture that one of its productions lacks; guard the use with ⟹"
-        if "tags" in rule:
-            key = tuple(names)
-            if key not in rule_lacks:
-                rule_lacks[key] = lacks(rule["tags"], present)
-            if rule_lacks[key]:
-                return f"the %tags of {rule['name']} use a capture a production lacks; guard the use with ⟹"
-    for (alternative, _), present in zip(productions, presents):
-        value = alternative.get("value", rule.get("value"))
-        image = alternative.get("image", rule.get("image", value))
-        for recipe in (value, image):
-            if recipe is None:
-                continue
-            if not captures_in(recipe) <= present:
-                return "a selected recipe uses a capture that its production lacks"
-    # The anchor of each inserted tag, the capture of the next capture
-    # item, found for every item in one backward pass.
+    def tag_issue(name: str) -> DefinitionIssue:
+        return DefinitionIssue("independent", f"a tag term of {rule['name']} uses ${name}, which a production lacks; guard it with ${name} ⟹")
+
+    rule_missing: dict[tuple[str, ...], str | None] = {}
+    # The anchor of each inserted tag is its next covering capture item.
     anchors: list[str | None] = [None] * len(items)
     following: str | None = None
     for index in range(len(items) - 1, -1, -1):
         anchors[index] = following
         if "capture" in items[index]:
             following = items[index]["capture"]
-    emission = Emission(items)
-    for names, present in distinct.values():
+    emission = Emission(items) if items else None
+    checked_emissions: set[tuple[str, ...]] = set()
+    for (alternative, _), names, present in zip(productions, captured, presents):
+        key = tuple(names)
+        if "tags" in rule:
+            if key not in rule_missing:
+                rule_missing[key] = missing(rule["tags"], present)
+            absent = rule_missing[key]
+            if absent is not None:
+                yield tag_issue(absent)
+        if "tags" in alternative:
+            absent = missing(alternative["tags"], present)
+            if absent is not None:
+                yield tag_issue(absent)
+        value = alternative.get("value", rule.get("value"))
+        image = alternative.get("image", rule.get("image", value))
+        for recipe in (value, image):
+            if recipe is None:
+                continue
+            absent = first_absent_recipe_capture(recipe, present)
+            if absent is not None:
+                yield DefinitionIssue("recipe-capture", f"a selected recipe reads an absent capture ${absent}")
+        if emission is None or key in checked_emissions:
+            continue
+        checked_emissions.add(key)
         kept = [items[index] for index in emission.kept(present)]
-        if items and not kept:
-            return f"%emits of {rule['name']} leaves a production nothing to emit"
-        for item in kept:
-            for channel in ("value", "image"):
-                if channel not in item:
-                    continue
-                if not captures_in(item[channel]) <= present:
-                    return "an item recipe uses a capture that its production lacks"
-            if "tags" in item and lacks(item["tags"], present):
-                return "the tags of an item of %emits use a capture a production lacks; guard the use with ⟹"
-        # A production without an item's carrier lacks its attachments too
-        # (engine §9).
+        if not kept:
+            yield DefinitionIssue("empty-emission", f"%emits of {rule['name']} leaves a production nothing to emit")
+        # A production without an item's carrier lacks its attachments too.
         stray = emission.stray(present)
         if stray is not None:
-            return f"%emits of {rule['name']} attaches ${stray[1]} in a production without its carrier ${items[stray[0]]['capture']}"
-        # The written order of the captures, attachments included, is the
-        # order they stand in (engine §9).
+            yield DefinitionIssue("independent", f"%emits of {rule['name']} attaches ${stray[1]} in a production without its carrier ${items[stray[0]]['capture']}")
         written = [name for item in kept if item.get("capture") for name in attachment_order(item)]
         place = {name: index for index, name in enumerate(names)}
         order = [place[name] for name in written if name in place]
         if order != sorted(order):
-            return f"%emits of {rule['name']} lists captures out of the order they stand in the text"
+            yield DefinitionIssue("independent", f"%emits of {rule['name']} lists captures out of the order they stand in the text")
+        for item in kept:
+            for channel in ("value", "image"):
+                if channel not in item:
+                    continue
+                absent = first_absent_recipe_capture(item[channel], present)
+                if absent is not None:
+                    yield DefinitionIssue("recipe-capture", f"an item recipe of {rule['name']} uses absent capture ${absent}")
+            if "tags" in item:
+                absent = missing(item["tags"], present)
+                if absent is not None:
+                    yield tag_issue(absent)
+    if emission is not None:
         for index in emission.inserts:
             anchor = anchors[index]
-            if anchor is not None and anchor not in present:
-                return f"an inserted tag of {rule['name']} stands before ${anchor}, which a production lacks"
-    return None
+            if anchor is not None and any(anchor not in present for _, present in distinct.values()):
+                yield DefinitionIssue("independent", f"an inserted tag of {rule['name']} stands before ${anchor}, which a production lacks")
+    return
 
 
 def rule_has_ranked(rule: Dom) -> bool:
@@ -863,11 +1119,3 @@ def rule_has_ranked(rule: Dom) -> bool:
         elif isinstance(value,list):
             pending.extend(value)
     return False
-
-
-def deferred_emission_problem(message):
-    return any(part in message for part in (
-        "leaves a production nothing to emit",
-        "a selected recipe uses a capture that its production lacks",
-        "an item recipe uses a capture that its production lacks",
-    ))

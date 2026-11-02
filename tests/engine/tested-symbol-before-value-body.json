@@ -1,0 +1,14 @@
+{
+  "description": "A tested body symbol precedes its value operand during constant inspection.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $LEFT = $RIGHT",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$LEFT is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 12
+    }
+  }
+}

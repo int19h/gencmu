@@ -1,0 +1,13 @@
+{
+  "description": "A bound fault inside a method operand retains its own construct position.",
+  "grammar": "%ambiguity-resolution greedy\n%const $T A\n%rule g(@Q) \"a\"\n%rule unused(@P) g((\"x\" ++ $T).split(@P))\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 28
+    }
+  }
+}

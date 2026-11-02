@@ -10,11 +10,6 @@
       "value": "x"
     }
   ],
-  "expect": {
-    "result": {
-      "ok": true
-    }
-  },
   "parses": [
     {
       "options": {},

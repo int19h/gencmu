@@ -26,7 +26,7 @@ from gencmu._rank import Summaries
 from gencmu._stage import implied
 from gencmu._trampoline import run
 
-from .shared import OverBudget, Watch, Work, calls, code_of, count_work, load_case_pipeline, mutant, parse_case, reads, steps
+from .shared import OverBudget, Watch, Work, calls, code_of, count_work, load_case_pipeline, mutant, parse_case, reads, same_json, steps
 
 MOST = 6
 """How many times the work at n the work at 4n may cost."""
@@ -77,16 +77,16 @@ class Linear(unittest.TestCase):
 
 def tag_copies() -> list[Watch]:
     """The tags that the operations on tag sets read, each line counted
-    before it runs, with what it reads: a union of two sets, a set added
+    before it runs, with what it reads: a set added
     to a gathered union, the gathered union frozen, an intersection and a
     difference."""
-    return [steps(target, weight=reads) for target in (_tags.union, _tags.Gathered, _tags.intersection, _tags.difference)]
+    return [steps(target, weight=reads) for target in (_tags.Gathered, _tags.intersection, _tags.difference)]
 
 
 def stage_context(tokens: list[Token]) -> StageContext:
     pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
     assert pipeline is not None, error
-    return StageContext(pipeline.lowered(0, frozenset()), tokens, "a" * len(tokens), pipeline.unicode)
+    return StageContext(pipeline._lowered_grammar(0, frozenset()), tokens, "a" * len(tokens), pipeline._unicode)
 
 
 class SpanReads(Linear):
@@ -126,7 +126,7 @@ class SpanReads(Linear):
 
             def work() -> None:
                 value, _, _ = parse_case(pipeline, case)
-                assert value is not None and value["ok"], value
+                assert value is not None and same_json(value["ok"], True), value
 
             return work
 
@@ -336,7 +336,7 @@ def unit_chain(n: int) -> Forest:
     pipeline, error = load_case_pipeline({"grammar": "%rule text r1" + rules})
     assert pipeline is not None, error
     tokens = [Token("a", frozenset({"A"}), (0, 1), (0, 1))]
-    context = StageContext(pipeline.lowered(0, frozenset()), tokens, "a", pipeline.unicode)
+    context = StageContext(pipeline._lowered_grammar(0, frozenset()), tokens, "a", pipeline._unicode)
     return Parser(context).parse(context.lowered.rule_ids["text"])
 
 
@@ -360,7 +360,7 @@ class ItemAdds(Linear):
         pipeline, error = load_case_pipeline({"grammar": f"%rule text u B\n%rule u {alternatives}{rules}"})
         assert pipeline is not None, error
         tokens = [Token("a", frozenset({"A"}), (0, 1), (0, 1)), Token("b", frozenset({"B"}), (1, 2), (1, 2))]
-        context = StageContext(pipeline.lowered(0, frozenset()), tokens, "ab", pipeline.unicode)
+        context = StageContext(pipeline._lowered_grammar(0, frozenset()), tokens, "ab", pipeline._unicode)
         number = context.lowered.rule_ids["text"]
         return lambda: Parser(context).parse(number)
 
@@ -491,7 +491,7 @@ class SharedClauses(Linear):
                 "classifiers": [],
                 "implications": [],
             }
-            return lambda: stitch("s", [("t.md", dom)], pipeline.unicode)
+            return lambda: stitch("s", [("t.md", dom)], pipeline._unicode)
 
         self.assert_linear(loading_steps, make, 200)
 
@@ -521,7 +521,7 @@ class SharedClauses(Linear):
                 "classifiers": [],
                 "implications": [],
             }
-            return lambda: stitch("s", [("t.md", dom)], pipeline.unicode)
+            return lambda: stitch("s", [("t.md", dom)], pipeline._unicode)
 
         self.assert_linear(loading_steps, make, 60)
 
@@ -620,7 +620,7 @@ class GuardedClauses(Linear):
         pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
         assert pipeline is not None, error
         _, dom = self.documents(n, clause)
-        lowered = lower(stitch("s", [("t.md", dom)], pipeline.unicode), frozenset())
+        lowered = lower(stitch("s", [("t.md", dom)], pipeline._unicode), frozenset())
         output = sum(
             nodes_of(production.tags_term) + nodes_of(production.conds_predict) + nodes_of(production.conds_at) + nodes_of(production.emit)
             for production in lowered.productions
@@ -634,7 +634,7 @@ class GuardedClauses(Linear):
 
         def work() -> None:
             self.assertIsNone(_clauses.definition_problem(rule))
-            lower(stitch("s", [("t.md", dom)], pipeline.unicode), frozenset())
+            lower(stitch("s", [("t.md", dom)], pipeline._unicode), frozenset())
 
         return work
 
@@ -650,13 +650,12 @@ class GuardedClauses(Linear):
                     self.assertGreater(counted, 0)
 
     def test_simplifying_every_part_for_each_production_fails_at_the_first_unit_past_its_budget(self) -> None:
-        # Each regression simplifies the whole union of guarded tags for
-        # each production, as lowering and the definition check did before
-        # the clauses were prepared once.
+        # Each regression repeats the simplification of the whole guarded
+        # union for each production instead of reusing prepared clauses.
         clause = GUARDED["a union of guarded tags"]
         for owner, function, change in (
             (_Lowerer, "add", ("self.prepare(term, False).simplified(present)", "simplify_term(term, present)")),
-            (_clauses, "definition_problem", ("captures_in(known[1].simplified(present))", "captures_in(simplify_term(term, present))")),
+            (_clauses, "_definition_issues", ("simple = known[1].simplified(present)", "simple = simplify_term(term, present)")),
         ):
             with self.subTest(function=function):
                 budget = self.budget(1000, clause)
@@ -699,7 +698,9 @@ class Classifiers(Linear):
         # n entries, each giving the one key a class of its own.
         entries = [{"guards": [], "op": "∈", "class": f"C{index}C", "keys": ["k"], "at": [1, 1]} for index in range(n)]
         items = [("t.md", {"name": "c", "entries": entries})]
-        return lambda: _grammar._resolve_classifiers(items, frozenset())
+        pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
+        assert pipeline is not None, error
+        return lambda: _grammar._resolve_classifiers(items, frozenset(), pipeline._unicode)
 
     @staticmethod
     def watches() -> list[Watch]:
@@ -752,8 +753,8 @@ class Pipelines(Linear):
             resolve = _splice.resolve
 
             def work() -> None:
-                with mock.patch.object(_splice, "resolve", lambda base, target: Path(resolve(base, target))):
-                    splice_pipeline("d0.md", doms.get)
+                with mock.patch.object(_splice, "resolve", lambda base, target, at=None: Path(resolve(base, target, at))):
+                    splice_pipeline("d0.md", lambda path, inherited: doms.get(path))
 
             return work
 
@@ -768,9 +769,9 @@ class Pipelines(Linear):
 
             def work() -> None:
                 try:
-                    splice_pipeline("p.md", {"p.md": dom}.get)
+                    splice_pipeline("p.md", lambda path, inherited: dom if path == "p.md" else None)
                 except gencmu.GencmuError as error:
-                    assert "stage s0 has no rules" in str(error), error
+                    assert "stage s0: has no rules" in str(error), error
 
             return work
 

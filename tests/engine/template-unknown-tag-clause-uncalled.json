@@ -1,0 +1,10 @@
+{
+  "description": "Engine §9.3 defers parameter-dependent tag-clause values in a uncalled template.",
+  "grammar": "%rule use(@T) \"a\" :: @T\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

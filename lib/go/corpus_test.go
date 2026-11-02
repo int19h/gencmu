@@ -23,7 +23,7 @@ import (
 type corpusCase struct {
 	ID              string         `json:"id"`
 	Text            string         `json:"text"`
-	Pipeline         string         `json:"pipeline"`
+	Pipeline        string         `json:"pipeline"`
 	Features        []string       `json:"features"`
 	WithoutFeatures []string       `json:"withoutFeatures"`
 	fields          map[string]any // the fields compared
@@ -46,29 +46,13 @@ func readCorpus(t *testing.T) []*corpusCase {
 		sc := bufio.NewScanner(fh)
 		sc.Buffer(make([]byte, 1<<20), 1<<26)
 		for sc.Scan() {
-			line := strings.TrimSpace(sc.Text())
-			if line == "" {
-				continue
-			}
-			c := &corpusCase{}
-			if err := unmarshalJSON([]byte(line), c); err != nil {
+			c, err := decodeCorpusLine(sc.Bytes())
+			if err != nil {
 				t.Fatalf("%s: %v", f, err)
 			}
-			var all map[string]json.RawMessage
-			if err := unmarshalJSON([]byte(line), &all); err != nil {
-				t.Fatalf("%s: %v", f, err)
+			if c != nil {
+				cases = append(cases, c)
 			}
-			c.fields = map[string]any{}
-			for _, k := range corpusFields {
-				if raw, ok := all[k]; ok {
-					v, err := decodeJSON(raw)
-					if err != nil {
-						t.Fatalf("%s: %v", f, err)
-					}
-					c.fields[k] = v
-				}
-			}
-			cases = append(cases, c)
 		}
 		fh.Close()
 		if err := sc.Err(); err != nil {
@@ -76,6 +60,69 @@ func readCorpus(t *testing.T) []*corpusCase {
 		}
 	}
 	return cases
+}
+
+// decodeCorpusLine ignores JSON whitespace alone and decodes every other
+// line unchanged, so non-JSON whitespace reaches the decoder.
+func decodeCorpusLine(line []byte) (*corpusCase, error) {
+	if blankJSONLine(line) {
+		return nil, nil
+	}
+	c := &corpusCase{}
+	if err := unmarshalJSON(line, c); err != nil {
+		return nil, err
+	}
+	var all map[string]json.RawMessage
+	if err := unmarshalJSON(line, &all); err != nil {
+		return nil, err
+	}
+	c.fields = map[string]any{}
+	for _, k := range corpusFields {
+		if raw, ok := all[k]; ok {
+			v, err := decodeJSON(raw)
+			if err != nil {
+				return nil, err
+			}
+			c.fields[k] = v
+		}
+	}
+	return c, nil
+}
+
+func TestCorpusJSONLWhitespace(t *testing.T) {
+	const record = `{"id":"record","text":"a","pipeline":"unused","expect":"reject","stage":"main","at":0}`
+	for _, line := range []string{"", " ", "\t", "\r", "\n", " \t\r\n"} {
+		if !blankJSONLine([]byte(line)) {
+			t.Errorf("JSON whitespace is not blank: %q", line)
+		}
+		if c, err := decodeCorpusLine([]byte(line)); err != nil || c != nil {
+			t.Errorf("blank line %q: %+v, %v", line, c, err)
+		}
+	}
+	for _, line := range []string{record, " \t\r" + record + "\r\t "} {
+		c, err := decodeCorpusLine([]byte(line))
+		if err != nil || c == nil || c.ID != "record" || c.Text != "a" || c.fields["expect"] != "reject" {
+			t.Errorf("valid line %q: %+v, %v", line, c, err)
+		}
+	}
+	for _, space := range []string{"\u00a0", "\v", "\f", "\u2028", "\u2029", "\ufeff"} {
+		if blankJSONLine([]byte(space)) {
+			t.Errorf("non-JSON whitespace is blank: %q", space)
+		}
+		for _, line := range []string{space, space + record, record + space, space + record + space} {
+			if c, err := decodeCorpusLine([]byte(line)); err == nil || c != nil {
+				t.Errorf("accepted non-JSON whitespace: %q: %+v, %v", line, c, err)
+			}
+		}
+		line, err := json.Marshal(map[string]any{"id": "record", "text": space, "pipeline": "unused", "expect": "reject", "stage": "main", "at": 0})
+		if err != nil {
+			t.Fatal(err)
+		}
+		c, err := decodeCorpusLine(line)
+		if err != nil || c == nil || c.Text != space {
+			t.Errorf("changed whitespace inside a string: %s: %+v, %v", line, c, err)
+		}
+	}
 }
 
 // corpusOutcome is what gencmu makes of a case, in the case's own terms.
@@ -167,10 +214,23 @@ func corpusOutcomeOf(res *ParseResult, canonical any) (map[string]any, error) {
 	return got, nil
 }
 
+// corpusTieCases requires at least one case that expects a tie.
+func corpusTieCases(cases []*corpusCase) ([]*corpusCase, error) {
+	var ties []*corpusCase
+	for _, c := range cases {
+		if _, ok := c.fields["ties"]; ok {
+			ties = append(ties, c)
+		}
+	}
+	if len(ties) == 0 {
+		return nil, fmt.Errorf("no corpus cases expect a tie")
+	}
+	return ties, nil
+}
+
 // The corpus runner refuses a result that breaks an invariant, whatever the
-// case expects: each shared mutant (tests/README.md, "Result mutants"). No
-// text ties in a bundled pipeline, so the tied corpus cases, if any, only
-// pass as they are.
+// case expects: each shared mutant (tests/README.md, "Result mutants").
+// Each corpus case that expects a tie must also pass without a mutation.
 func TestCorpusRunnerInvariants(t *testing.T) {
 	for _, m := range loadResultMutants(t) {
 		res, data := mutantResult(t, m)
@@ -183,11 +243,12 @@ func TestCorpusRunnerInvariants(t *testing.T) {
 			t.Errorf("%s: the corpus runner accepts it", m.Name)
 		}
 	}
+	ties, err := corpusTieCases(readCorpus(t))
+	if err != nil {
+		t.Fatal(err)
+	}
 	pipelines := map[string]*Pipeline{}
-	for _, c := range readCorpus(t) {
-		if _, ok := c.fields["ties"]; !ok {
-			continue
-		}
+	for _, c := range ties {
 		d := pipelines[c.Pipeline]
 		if d == nil {
 			var err error
@@ -331,4 +392,16 @@ func checkCorpusCase(d *Pipeline, c *corpusCase) (failure string) {
 		}
 	}
 	return ""
+}
+
+func TestCorpusTieSelectionRequiresCases(t *testing.T) {
+	ordinary := &corpusCase{fields: map[string]any{}}
+	if got, err := corpusTieCases([]*corpusCase{ordinary}); err == nil {
+		t.Errorf("accepted an empty tie selection: %v", got)
+	}
+	tied := &corpusCase{fields: map[string]any{"ties": []any{"syntax"}}}
+	got, err := corpusTieCases([]*corpusCase{ordinary, tied})
+	if err != nil || len(got) != 1 || got[0] != tied {
+		t.Fatalf("lost the tie case: %v, %v", got, err)
+	}
 }

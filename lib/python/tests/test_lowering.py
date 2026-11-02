@@ -13,9 +13,8 @@ import gencmu
 from gencmu._clauses import WHOLE, applies, captures_in, applies_prepared, prepare, prepare_conditions, simplify_condition, simplify_term
 from gencmu._earley import Parser, StageContext
 from gencmu._model import Token
-from gencmu._rank import count_roots
 
-from .shared import load_case_pipeline
+from .shared import load_case_pipeline, same_json
 
 PIPELINE = '```jbogenbau\n%stage main\n%include "a.md"\n%include "b.md"\n```\n'
 
@@ -41,8 +40,8 @@ class LoweringErrors(unittest.TestCase):
         self.assertFalse(empty.ok)
         assert empty.error is not None
         value = gencmu.result_json(empty)
-        self.assertEqual(list(value["error"]), ["kind", "stage", "message"])
-        self.assertEqual((value["error"]["kind"], value["error"]["stage"]), ("grammar", "main"))
+        self.assertTrue(same_json(list(value["error"]), ["kind", "stage", "message"]))
+        self.assertTrue(same_json([value["error"]["kind"], value["error"]["stage"]], ["grammar", "main"]))
         self.assertEqual((empty.stages[0].verdict, empty.tree), (None, None))
         self.assertTrue(empty.error.message.startswith("a.md:3:1: "), empty.error.message)
         # With f on, c's chain stands beside B, which comes before the empty
@@ -106,10 +105,9 @@ class CaptureGrowth(unittest.TestCase):
         "The completed items of the production t → t t or t → $l:t $r:t\n        over the whole input of n tokens A."
         pipeline, error = load_case_pipeline({"grammar": grammar})
         assert pipeline is not None, error
-        lowered = pipeline.lowered(0, frozenset())
+        lowered = pipeline._lowered_grammar(0, frozenset())
         tokens = [Token("a", frozenset({"A"}), (index, index + 1), (2 * index, 2 * index + 1)) for index in range(n)]
-        context = StageContext(lowered, tokens, " ".join("a" for _ in tokens), pipeline.unicode)
-        context.count = count_roots
+        context = StageContext(lowered, tokens, " ".join("a" for _ in tokens), pipeline._unicode)
         forest = Parser(context).parse(lowered.rule_ids["text"])
         t = lowered.rule_ids["t"]
         found = 0
@@ -139,7 +137,7 @@ class QueryHelpers(unittest.TestCase):
         for grammar in (text + "\n" + aux, aux + "\n" + text):
             pipeline, error = load_case_pipeline({"grammar": grammar})
             assert pipeline is not None, error
-            lowered = pipeline.lowered(0, frozenset())
+            lowered = pipeline._lowered_grammar(0, frozenset())
             helpers = [p for p in lowered.productions if p.rule_name.startswith("\0query:")]
             self.assertEqual([p.rule_name for p in helpers], ["\0query:Q", "\0query:T", "\0query:Z"])
             self.assertEqual([p.id for p in helpers], list(range(len(lowered.productions) - 3, len(lowered.productions))))
@@ -154,8 +152,7 @@ class QueryHelpers(unittest.TestCase):
                 self.assertIsNone(helper.tests)
                 self.assertFalse(helper.conds_predict)
                 self.assertFalse(helper.conds_at)
-                context = StageContext(lowered, [Token("a", tags, (0, 1), (0, 1))], "a", pipeline.unicode)
-                context.count = count_roots
+                context = StageContext(lowered, [Token("a", tags, (0, 1), (0, 1))], "a", pipeline._unicode)
                 forest = Parser(context).parse(helper.lhs)
                 self.assertEqual(len(forest.roots), 1)
                 self.assertEqual(context.tagtab.get(forest.tag[forest.roots[0]]), tags)
@@ -236,8 +233,8 @@ class PreparedClauses(unittest.TestCase):
             prepared_term, prepared_condition = prepare(term, False), prepare(condition, True)
             prepared_list = prepare_conditions(conditions)
             for present in presents:
-                self.assertEqual(prepared_term.simplified(present), simplify_term(term, present), (term, present))
-                self.assertEqual(prepared_condition.simplified(present), simplify_condition(condition, present), (condition, present))
+                self.assertTrue(same_json(prepared_term.simplified(present), simplify_term(term, present)), (term, present))
+                self.assertTrue(same_json(prepared_condition.simplified(present), simplify_condition(condition, present)), (condition, present))
                 self.assertEqual(applies_prepared(prepared_condition, present), applies(condition, present), (condition, present))
                 # The conditions of a list that apply, in order, up to the
                 # first false one, which removes the production. A condition
@@ -245,4 +242,4 @@ class PreparedClauses(unittest.TestCase):
                 # does not apply, as lowering reads them (engine §3.6).
                 expected = self.applying([simplify_condition(written, present) for written in conditions], present)
                 found = self.applying(prepared_list.kept(present), present)
-                self.assertEqual(found, expected, (conditions, present))
+                self.assertTrue(same_json(found, expected), (conditions, present))

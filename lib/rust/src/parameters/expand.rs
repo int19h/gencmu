@@ -2,15 +2,17 @@
 use super::print::canonical;
 use super::*;
 use crate::error::Error;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::Arc;
 type R<T> = Result<T, Error>;
 type Documents = Vec<(Arc<str>, Arc<Dom>)>;
 #[derive(Debug, Clone)]
 pub(crate) struct Event {
+    pub kind: usize,
     pub path: Arc<str>,
     pub rule: Json,
     pub index: usize,
+    pub inspection_run: usize,
     pub origin: Option<Json>,
     pub instance: String,
 }
@@ -29,7 +31,7 @@ impl Event {
         }
         let mut e = Error::grammar(message).in_document(&self.path).at(at.0, at.1);
         if e.message.starts_with("unbounded-instantiation:") {
-            e.code = Some("unbounded-instantiation".into())
+            e = e.coded("unbounded-instantiation")
         }
         e
     }
@@ -40,19 +42,15 @@ fn at_origin(n: &Json) -> (usize, usize) {
 #[derive(Debug, Clone)]
 pub(crate) struct Template {
     pub name: String,
-    pub path: Arc<str>,
-    pub at: (usize, usize),
     pub arity: usize,
     pub events: Vec<Event>,
 }
 #[derive(Debug, Clone)]
 pub(crate) struct Instance {
-    pub key: String,
     pub canonical: String,
     pub name: Option<String>,
     pub call: Json,
     pub origin: Json,
-    pub binding: Json,
     pub locals: Vec<Event>,
     pub definitions: Vec<Event>,
     discovered: bool,
@@ -62,16 +60,34 @@ impl Instance {
         self.name.as_deref().unwrap_or(&self.canonical)
     }
 }
-#[derive(Debug, Clone, Default)]
-pub(crate) struct Records {
-    pub templates: Vec<Template>,
-    pub instances: Vec<Instance>,
+pub(crate) enum RetainedPart {
+    Term(dom::Term),
+    Fragment(Box<dom::RuleDef>),
+}
+pub(crate) struct ArgumentUse {
+    order: usize,
+    pub kind: usize,
+    pub path: Arc<str>,
+    pub inspection_run: usize,
+    pub position: (usize, usize),
+    pub part: RetainedPart,
+    pub at: (usize, usize),
+    pub tags: bool,
+}
+struct FragmentInspection {
+    order: usize,
+    inspection_run: usize,
+    position: (usize, usize),
+    event: Event,
 }
 pub(crate) struct Expansion {
     pub documents: Documents,
+    pub inspection_runs: Vec<usize>,
     pub order: Vec<String>,
-    pub records: Records,
-    pub validation: Vec<(Arc<str>, dom::RuleDef)>,
+    #[cfg(test)]
+    pub instance_names: Vec<String>,
+    pub validation: Vec<(usize, Arc<str>, Arc<Dom>)>,
+    pub arguments: Vec<ArgumentUse>,
 }
 struct Expander<'a> {
     uni: &'a Unicode,
@@ -85,6 +101,10 @@ struct Expander<'a> {
 fn retained(items: &[Event]) -> &[Event] {
     let start = items.iter().rposition(|e| text(get(&e.rule, "op")) != "extend").unwrap_or(0);
     &items[start..]
+}
+fn remember_retained<'a>(events: impl Iterator<Item = &'a Event> + Clone, indexes: &mut BTreeSet<usize>) {
+    let first = events.clone().filter(|e| text(get(&e.rule, "op")) != "extend").map(|e| e.index).max().unwrap_or(0);
+    indexes.extend(events.filter(|e| e.index >= first).map(|e| e.index));
 }
 fn sorted(a: &[Event], b: &[Event]) -> Vec<Event> {
     let mut xs = a.to_vec();
@@ -151,7 +171,7 @@ fn empty(rules: Vec<Json>) -> Json {
     ])
 }
 pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Option<Expansion>> {
-    if !documents.iter().any(|(_, d)| !d.unresolved.is_empty()) {
+    if !documents.iter().any(|(_, d)| d.unresolved) {
         return Ok(None);
     }
     let mut x = Expander {
@@ -169,21 +189,28 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
     let mut extra = Vec::new();
     let mut raw_docs = Vec::new();
     let mut serial = 0;
-    for (path, d) in documents {
+    for (inspection_run, (path, d)) in documents.iter().enumerate() {
         let mut raw = crate::json::parse(&dom::dom_to_json(d)).expect("a DOM writer produces JSON");
-        for kind in KINDS {
-            let rs = list(get(&raw, kind))
-                .iter()
-                .map(|r| d.unresolved.get(&at(r).unwrap()).cloned().unwrap_or_else(|| r.clone()))
-                .collect();
-            set(&mut raw, kind, Json::Arr(rs));
-        }
         super::locations::annotate_document(&mut raw, d);
         let mut items: Vec<_> =
             KINDS.into_iter().flat_map(|k| list(get(&raw, k)).iter().map(move |r| (k, r))).collect();
         items.sort_by_key(|(_, r)| at(r));
         for (kind, r) in items {
-            let e = Event { path: path.clone(), rule: r.clone(), index: serial, origin: None, instance: String::new() };
+            let e = Event {
+                path: path.clone(),
+                rule: r.clone(),
+                index: serial,
+                kind: match kind {
+                    "rules" => 0,
+                    "directives" => 1,
+                    "constants" => 2,
+                    "classifiers" => 3,
+                    _ => 4,
+                },
+                inspection_run,
+                origin: None,
+                instance: String::new(),
+            };
             serial += 1;
             if kind != "rules" {
                 extra.push(e);
@@ -196,13 +223,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
                         return Err(e.fail(r, format!("duplicate template {name}")));
                     }
                     x.template_names.insert(name.clone(), x.templates.len());
-                    x.templates.push(Template {
-                        name,
-                        path: path.clone(),
-                        at: at(r).unwrap(),
-                        arity: list(get(r, "params")).len(),
-                        events: vec![e.clone()],
-                    });
+                    x.templates.push(Template { name, arity: list(get(r, "params")).len(), events: vec![e.clone()] });
                 } else {
                     let t = x
                         .template_names
@@ -232,7 +253,9 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
         raw_docs.push(raw);
     }
     x.patterns = pattern_constant_names(raw_docs.iter().flat_map(|d| list(get(d, "constants"))));
-    x.flow(&sorted(&events, &extra))?;
+    let mut source_events: Vec<_> = events.iter().chain(&extra).collect();
+    source_events.sort_by_key(|e| e.index);
+    x.flow(&source_events)?;
     let mut current: BTreeMap<String, usize> = BTreeMap::new();
     let mut ordinary: BTreeMap<String, Vec<Event>> = BTreeMap::new();
     for e in &events {
@@ -261,15 +284,8 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             }
             if let Some(old) = current.get(name) {
                 x.instances[*old].name = None;
-                x.instances[*old].binding = Json::Null
             }
-            let a = at(r).unwrap();
             x.instances[i].name = Some(name.into());
-            x.instances[i].binding = obj([
-                ("document", string(&*e.path)),
-                ("line", Json::Int(a.0 as i64)),
-                ("column", Json::Int(a.1 as i64)),
-            ]);
             current.insert(name.into(), i);
             ordinary.remove(name);
         } else if let Some(i) = current.get(name) {
@@ -278,38 +294,39 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             ordinary.entry(name.into()).or_default().push(e.clone())
         }
     }
-    for e in sorted(&events, &extra) {
+    let extra_indexes: BTreeSet<_> = extra.iter().map(|e| e.index).collect();
+    let mut retained_indexes = BTreeSet::new();
+    for template in &x.templates {
+        remember_retained(template.events.iter(), &mut retained_indexes);
+    }
+    for history in ordinary.values() {
+        remember_retained(history.iter(), &mut retained_indexes);
+    }
+    for instance in &x.instances {
+        let template = &x.templates[x.template_names[text(get(&instance.call, "call"))]];
+        remember_retained(template.events.iter().chain(&instance.locals), &mut retained_indexes);
+    }
+    for &e in &source_events {
         let r = &e.rule;
         let name = text(get(r, "name"));
-        if extra.iter().any(|v| v.index == e.index) {
-            x.discover(r, &e)?;
+        if extra_indexes.contains(&e.index) {
+            x.discover(r, e)?;
             continue;
         }
         if has(r, "instance") {
-            x.discover(get(r, "instance"), &e)?;
+            x.discover(get(r, "instance"), e)?;
             continue;
         }
         if has(r, "args") {
             x.discover(
                 &obj([("call", string(name)), ("args", get(r, "args").clone()), ("at", get(r, "at").clone())]),
-                &e,
+                e,
             )?
         }
-        let items = if has(r, "params") {
-            Some(x.templates[x.template_names[name]].events.clone())
-        } else {
-            ordinary.get(name).cloned()
-        }
-        .or_else(|| {
-            x.instances
-                .iter()
-                .find(|i| i.locals.iter().any(|v| v.index == e.index))
-                .map(|i| sorted(&x.templates[x.template_names[text(get(&i.call, "call"))]].events, &i.locals))
-        });
-        if items.is_some_and(|items| retained(&items).iter().any(|v| v.index == e.index)) {
+        if retained_indexes.contains(&e.index) {
             let mut body = r.clone();
             remove(&mut body, "args");
-            x.discover(&body, &e)?
+            x.discover(&body, e)?
         }
     }
     let mut cursor = 0;
@@ -331,21 +348,53 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             set(&mut body, "name", string(i.effective()));
             let context = Event { origin: Some(i.origin.clone()), instance: i.canonical.clone(), ..e };
             let expanded = x.substitute(&body, &env, &context, "term")?;
-            let mut checked = expanded.clone();
-            set(&mut checked, "name", string("expanded"));
-            if let Some(p) = schema::declaration(&checked, "rules", uni) {
-                return Err(context.fail(&expanded, p.into()));
-            }
-            x.instances[id].definitions.push(Event { rule: expanded, ..context });
+            let definition = Event { rule: expanded, ..context };
+            x.decode(&empty(vec![definition.rule.clone()]), &definition)?;
+            x.instances[id].definitions.push(definition);
         }
         for e in retained(&x.instances[id].definitions.clone()) {
             x.discover(&e.rule, e)?
         }
     }
+    let mut validation_keys: BTreeSet<_> = x.keys.keys().cloned().collect();
+    let mut validation_queue = VecDeque::new();
+    let mut validation_definitions = Vec::new();
+    for e in &events {
+        if !["params", "args", "instance"].iter().any(|k| has(&e.rule, k)) {
+            x.validation_calls(&e.rule, e, &mut validation_keys, &mut validation_queue)?;
+        }
+    }
+    for id in &x.queue {
+        for e in &x.instances[*id].definitions {
+            x.validation_calls(&e.rule, e, &mut validation_keys, &mut validation_queue)?;
+        }
+    }
+    while let Some((call, origin)) = validation_queue.pop_front() {
+        let name = canonical(&call, uni);
+        let t = &x.templates[x.template_names[text(get(&call, "call"))]];
+        for e in &t.events {
+            let env = list(get(&e.rule, "params"))
+                .iter()
+                .zip(list(get(&call, "args")))
+                .map(|(k, v)| (text(k).to_string(), v.clone()))
+                .collect();
+            let mut body = e.rule.clone();
+            remove(&mut body, "params");
+            set(&mut body, "name", string(&name));
+            let context = Event { origin: Some(origin.clone()), instance: name.clone(), ..e.clone() };
+            let rule = x.substitute(&body, &env, &context, "term")?;
+            let definition = Event { rule, ..context };
+            x.decode(&empty(vec![definition.rule.clone()]), &definition)?;
+            x.validation_calls(&definition.rule, &definition, &mut validation_keys, &mut validation_queue)?;
+            validation_definitions.push(definition);
+        }
+    }
     let mut validation = Vec::new();
     let mut output = Vec::new();
     for e in &events {
-        if !["params", "args", "instance"].iter().any(|k| has(&e.rule, k)) {
+        if has(&e.rule, "params") {
+            validation.push(e.clone());
+        } else if !["args", "instance"].iter().any(|k| has(&e.rule, k)) {
             validation.push(Event { rule: x.rewrite(&e.rule, e, "term")?, ..e.clone() })
         }
     }
@@ -357,32 +406,65 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             validation.push(Event { rule: x.rewrite(&r, e, "term")?, ..e.clone() })
         }
     }
-    let mut users = Vec::new();
-    for e in validation {
-        let mut d = x.decode(&empty(vec![e.rule.clone()]), &e)?;
-        users.push((e.path, d.rules.remove(0)))
+    for e in &validation_definitions {
+        validation.push(Event { rule: x.rewrite(&e.rule, e, "term")?, ..e.clone() });
     }
+    let mut arguments = Vec::new();
+    let mut fragments = Vec::new();
+    let owner_runs: BTreeMap<_, _> = validation
+        .iter()
+        .enumerate()
+        .map(|(index, event)| {
+            let run = if event.origin.is_some() { documents.len() + index } else { event.inspection_run };
+            ((event.index, event.instance.clone()), run)
+        })
+        .collect();
+    for e in source_events
+        .iter()
+        .copied()
+        .chain(x.queue.iter().flat_map(|id| x.instances[*id].definitions.iter()))
+        .chain(&validation_definitions)
+    {
+        let run = owner_runs.get(&(e.index, e.instance.clone())).copied().unwrap_or(e.inspection_run);
+        x.inspect_arguments(e, run, extra_indexes.contains(&e.index), &mut arguments, &mut fragments)?;
+    }
+    let mut users = Vec::new();
+    let mut decoded = BTreeMap::new();
+    for (index, e) in validation.into_iter().enumerate() {
+        let run = if e.origin.is_some() { documents.len() + index } else { e.inspection_run };
+        let d = Arc::new(x.decode(&empty(vec![e.rule.clone()]), &e)?);
+        decoded.insert((e.index, text(get(&e.rule, "name")).to_string()), (run, d.clone()));
+        users.push((run, e.path, d));
+    }
+    for fragment in fragments {
+        let event = fragment.event;
+        let mut decoded = x.decode(&empty(vec![event.rule.clone()]), &event)?;
+        arguments.push(ArgumentUse {
+            order: fragment.order,
+            kind: event.kind,
+            path: event.path.clone(),
+            inspection_run: fragment.inspection_run,
+            position: fragment.position,
+            at: at(&event.rule).unwrap(),
+            tags: false,
+            part: RetainedPart::Fragment(Box::new(decoded.rules.remove(0))),
+        });
+    }
+    arguments.sort_by_key(|argument| argument.order);
     let mut ordinary_events: Vec<_> = ordinary.values().flatten().collect();
     ordinary_events.sort_by_key(|e| e.index);
     for e in ordinary_events {
-        output.push(Event { rule: x.rewrite(&e.rule, e, "term")?, ..e.clone() })
+        output.push((e.path.clone(), e.index, text(get(&e.rule, "name")).to_string()));
     }
     for id in &x.queue {
         let i = &x.instances[*id];
         for e in &i.definitions {
-            let mut r = e.rule.clone();
-            set(&mut r, "name", string(i.effective()));
-            output.push(Event { rule: x.rewrite(&r, e, "term")?, ..e.clone() })
-        }
-    }
-    let mut started = BTreeSet::new();
-    for e in &mut output {
-        if started.insert(text(get(&e.rule, "name")).to_string()) {
-            set(&mut e.rule, "op", string("define"))
+            output.push((e.path.clone(), e.index, i.effective().to_string()));
         }
     }
     let mut expanded = Vec::new();
-    for ((path, _), raw) in documents.iter().zip(raw_docs) {
+    let mut inspection_runs = Vec::new();
+    for (index, ((path, _), raw)) in documents.iter().zip(raw_docs).enumerate() {
         let mut raw = raw;
         set(&mut raw, "rules", Json::Arr(Vec::new()));
         for k in KINDS.into_iter().filter(|k| *k != "rules") {
@@ -391,44 +473,76 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
                 .map(|r| {
                     x.rewrite(
                         r,
-                        &Event { path: path.clone(), rule: r.clone(), index: 0, origin: None, instance: String::new() },
+                        &Event {
+                            path: path.clone(),
+                            rule: r.clone(),
+                            index: 0,
+                            kind: 0,
+                            inspection_run: 0,
+                            origin: None,
+                            instance: String::new(),
+                        },
                         "term",
                     )
                 })
                 .collect::<R<Vec<_>>>()?;
             set(&mut raw, k, Json::Arr(items));
         }
-        let e = Event { path: path.clone(), rule: raw.clone(), index: 0, origin: None, instance: String::new() };
+        let e = Event {
+            path: path.clone(),
+            rule: raw.clone(),
+            index: 0,
+            kind: 0,
+            inspection_run: 0,
+            origin: None,
+            instance: String::new(),
+        };
         expanded.push((path.clone(), Arc::new(x.decode(&raw, &e)?)));
+        inspection_runs.push(index);
     }
-    for e in output {
-        expanded.push((e.path.clone(), Arc::new(x.decode(&empty(vec![e.rule.clone()]), &e)?)))
+    for (path, index, name) in output {
+        // Output events are a subset of the checked ordinary and instance definitions.
+        let (run, dom) = decoded.get(&(index, name)).expect("a checked output definition");
+        expanded.push((path, dom.clone()));
+        inspection_runs.push(*run);
     }
     let mut order: Vec<_> = slots.into_iter().filter(|n| current.contains_key(n) || ordinary.contains_key(n)).collect();
     order.extend(
         x.queue.iter().map(|i| &x.instances[*i]).filter(|i| i.name.is_none()).map(|i| i.effective().to_string()),
     );
-    let records =
-        Records { templates: x.templates, instances: x.queue.into_iter().map(|i| x.instances[i].clone()).collect() };
-    Ok(Some(Expansion { documents: expanded, order, records, validation: users }))
+    #[cfg(test)]
+    let instance_names = {
+        let names: BTreeSet<_> = x.queue.iter().map(|i| x.instances[*i].effective()).collect();
+        order.iter().filter(|name| names.contains(name.as_str())).cloned().collect()
+    };
+    Ok(Some(Expansion {
+        documents: expanded,
+        inspection_runs,
+        order,
+        #[cfg(test)]
+        instance_names,
+        validation: users,
+        arguments,
+    }))
 }
 impl Expander<'_> {
     fn normalize(&self, root: &Json) -> Json {
         normalize_patterns(root, &self.patterns)
     }
-    fn flow(&self, events: &[Event]) -> R<()> {
-        #[derive(Clone)]
-        struct Edge {
-            to: (String, usize),
+    fn flow(&self, events: &[&Event]) -> R<()> {
+        struct Edge<'a> {
+            from: (&'a str, usize),
+            to: (&'a str, usize),
             growing: bool,
-            event: Event,
-            node: Json,
-            arg: Json,
+            event: &'a Event,
+            node: &'a Json,
+            arg: &'a Json,
         }
-        let mut edges: BTreeMap<(String, usize), Vec<Edge>> = BTreeMap::new();
-        for e in events {
+        let mut edges = Vec::new();
+        let mut outgoing = BTreeMap::<_, Vec<usize>>::new();
+        for &e in events {
             let params = list(get(&e.rule, "params"));
-            for n in nodes(&e.rule) {
+            for n in source_nodes(&e.rule) {
                 if has(n, "param") && !params.contains(get(n, "param")) {
                     return Err(e.fail(n, format!("undeclared parameter @{}", text(get(n, "param")))));
                 }
@@ -445,52 +559,78 @@ impl Expander<'_> {
                     return Err(e.fail(n, format!("template {name} expects {} arguments", t.arity)));
                 }
                 for (i, arg) in list(get(n, "args")).iter().enumerate() {
-                    for part in nodes(arg) {
+                    let mut normalized = None;
+                    for part in source_nodes(arg) {
                         if has(part, "capture") || has(part, "captured") {
                             return Err(e.fail(part, "an argument cannot read or declare captures".into()));
                         }
                         if let Some(p) = params.iter().position(|p| p == get(part, "param")) {
-                            edges.entry((text(get(&e.rule, "name")).into(), p)).or_default().push(Edge {
-                                to: (name.into(), i),
-                                growing: get(&self.normalize(arg), "param") != get(part, "param"),
-                                event: e.clone(),
-                                node: n.clone(),
-                                arg: arg.clone(),
-                            })
+                            let from = (text(get(&e.rule, "name")), p);
+                            outgoing.entry(from).or_default().push(edges.len());
+                            edges.push(Edge {
+                                from,
+                                to: (name, i),
+                                growing: get(normalized.get_or_insert_with(|| self.normalize(arg)), "param")
+                                    != get(part, "param"),
+                                event: e,
+                                node: n,
+                                arg,
+                            });
                         }
                     }
                 }
             }
         }
-        for (source, outgoing) in &edges {
-            for edge in outgoing.iter().filter(|e| e.growing) {
-                let mut pending = vec![(edge.to.clone(), vec![(source.clone(), edge.clone())])];
-                let mut seen = BTreeSet::new();
-                while let Some((target, steps)) = pending.pop() {
-                    if &target == source {
-                        let trail = steps
-                            .iter()
-                            .map(|(s, e)| {
-                                let a = at(&e.node).unwrap();
-                                format!("{}:{} → {}:{} at {}:{}:{}", s.0, s.1, e.to.0, e.to.1, e.event.path, a.0, a.1)
-                            })
-                            .collect::<Vec<_>>()
-                            .join(" then ");
-                        return Err(edge.event.fail(
-                            &edge.node,
-                            format!(
-                                "unbounded-instantiation: {trail}, growing argument {}",
-                                canonical(&edge.arg, self.uni)
-                            ),
-                        ));
-                    }
-                    if !seen.insert(target.clone()) {
+        for template in &self.templates {
+            for parameter in 0..template.arity {
+                let source = (template.name.as_str(), parameter);
+                for &first in outgoing.get(&source).into_iter().flatten() {
+                    let edge = &edges[first];
+                    if !edge.growing {
                         continue;
                     }
-                    for e in edges.get(&target).into_iter().flatten() {
-                        let mut path = steps.clone();
-                        path.push((target.clone(), e.clone()));
-                        pending.push((e.to.clone(), path))
+                    // Each trace entry names one edge and its predecessor.
+                    let mut traces = vec![(first, None)];
+                    let mut pending = vec![(edge.to, 0)];
+                    let mut seen = BTreeSet::new();
+                    while let Some((target, trace)) = pending.pop() {
+                        if target == source {
+                            let mut path = Vec::new();
+                            let mut cursor = Some(trace);
+                            while let Some(index) = cursor {
+                                let (edge, previous) = traces[index];
+                                path.push(edge);
+                                cursor = previous;
+                            }
+                            path.reverse();
+                            let trail = path
+                                .into_iter()
+                                .map(|index| {
+                                    let e = &edges[index];
+                                    let a = at(e.node).unwrap();
+                                    format!(
+                                        "{}:{} → {}:{} at {}:{}:{}",
+                                        e.from.0, e.from.1, e.to.0, e.to.1, e.event.path, a.0, a.1
+                                    )
+                                })
+                                .collect::<Vec<_>>()
+                                .join(" then ");
+                            return Err(edge.event.fail(
+                                edge.node,
+                                format!(
+                                    "unbounded-instantiation: {trail}, growing argument {}",
+                                    canonical(edge.arg, self.uni)
+                                ),
+                            ));
+                        }
+                        if !seen.insert(target) {
+                            continue;
+                        }
+                        for &next in outgoing.get(&target).into_iter().flatten() {
+                            let index = traces.len();
+                            traces.push((next, Some(trace)));
+                            pending.push((edges[next].to, index));
+                        }
                     }
                 }
             }
@@ -506,9 +646,6 @@ impl Expander<'_> {
             .filter(|t| t.arity == list(get(call, "args")).len())
             .ok_or_else(|| event.fail(call, "an instance call requires the declared arity".into()))?;
         let _ = t;
-        if nodes(get(call, "args")).any(|n| has(n, "param")) {
-            return Err(event.fail(call, "an instance call requires closed arguments".into()));
-        }
         let call =
             obj([("call", string(name)), ("args", self.normalize(get(call, "args"))), ("at", get(call, "at").clone())]);
         let k = key(&call);
@@ -518,12 +655,10 @@ impl Expander<'_> {
             let i = self.instances.len();
             self.keys.insert(k.clone(), i);
             self.instances.push(Instance {
-                key: k,
                 canonical: canonical(&call, self.uni),
                 name: None,
                 origin: obj([("document", string(&*event.path)), ("at", get(&call, "at").clone())]),
                 call: call.clone(),
-                binding: Json::Null,
                 locals: Vec::new(),
                 definitions: Vec::new(),
                 discovered: false,
@@ -538,31 +673,37 @@ impl Expander<'_> {
         Ok(i)
     }
     fn discover(&mut self, root: &Json, event: &Event) -> R<()> {
+        Self::visit_calls(root, &mut |call| {
+            self.intern(call, event, true)?;
+            Ok(())
+        })
+    }
+    fn visit_calls(root: &Json, visit: &mut impl FnMut(&Json) -> R<()>) -> R<()> {
         match root {
             Json::Arr(xs) => {
                 for x in xs {
-                    self.discover(x, event)?
+                    Self::visit_calls(x, visit)?
                 }
             }
             Json::Obj(fs) => {
                 if has(root, "alternatives") {
                     for (i, alt) in list(get(root, "alternatives")).iter().enumerate() {
                         for k in ["expr", "tags", "value", "image"] {
-                            self.discover(get(alt, k), event)?
+                            Self::visit_calls(get(alt, k), visit)?
                         }
                         if i == 0 {
                             for k in ["tags", "value", "image", "conditions", "emit"] {
-                                self.discover(get(root, k), event)?
+                                Self::visit_calls(get(root, k), visit)?
                             }
                         }
                     }
                     return Ok(());
                 }
                 if has(root, "method") {
-                    self.discover(get(root, "receiver"), event)?;
-                    self.discover(get(root, "args"), event)?
+                    Self::visit_calls(get(root, "receiver"), visit)?;
+                    Self::visit_calls(get(root, "args"), visit)?
                 } else if has(root, "call") {
-                    self.discover(get(root, "args"), event)?
+                    Self::visit_calls(get(root, "args"), visit)?
                 } else {
                     const ORDER: &[&str] = &[
                         "if",
@@ -602,17 +743,110 @@ impl Expander<'_> {
                     let mut fields: Vec<_> = fs.iter().filter(|(k, _)| k != "at" && k != SOURCE).collect();
                     fields.sort_by_key(|(k, _)| (ORDER.iter().position(|v| *v == k).unwrap_or(ORDER.len()), k));
                     for (_, v) in fields {
-                        self.discover(v, event)?;
+                        Self::visit_calls(v, visit)?;
                     }
                 }
                 if has(root, "call") && !nodes(get(root, "args")).any(|n| has(n, "param")) {
-                    self.intern(root, event, true)?;
+                    visit(root)?;
                 }
                 if has(root, "call") && has(root, "children") {
-                    self.discover(get(root, "children"), event)?;
+                    Self::visit_calls(get(root, "children"), visit)?;
                 }
             }
             _ => (),
+        }
+        Ok(())
+    }
+    fn validation_calls(
+        &self,
+        root: &Json,
+        event: &Event,
+        keys: &mut BTreeSet<String>,
+        queue: &mut VecDeque<(Json, Json)>,
+    ) -> R<()> {
+        Self::visit_calls(root, &mut |call| {
+            let normalized = obj([
+                ("call", get(call, "call").clone()),
+                ("args", self.normalize(get(call, "args"))),
+                ("at", get(call, "at").clone()),
+            ]);
+            if keys.insert(key(&normalized)) {
+                queue.push_back((
+                    normalized,
+                    obj([("document", string(&*event.path)), ("at", get(call, "at").clone())]),
+                ));
+            }
+            Ok(())
+        })
+    }
+    fn inspect_arguments(
+        &self,
+        event: &Event,
+        inspection_run: usize,
+        extra: bool,
+        arguments: &mut Vec<ArgumentUse>,
+        fragments: &mut Vec<FragmentInspection>,
+    ) -> R<()> {
+        for call in
+            source_nodes(&event.rule).filter(|n| has(n, "call") || has(n, "name") && has(n, "args") && has(n, "op"))
+        {
+            for argument in list(get(call, "args")) {
+                let parts: Vec<_> = source_nodes(argument).collect();
+                let references: Vec<_> = parts.iter().filter(|n| has(n, "const") || has(n, "constant")).collect();
+                if references.is_empty() {
+                    continue;
+                }
+                let position = at(references[0]).unwrap();
+                let mut add = |term: &Json, tags| -> R<()> {
+                    let term = self.rewrite(term, event, "term")?;
+                    let decoded = dom::term_from_json(&term).map_err(|p| event.fail(&term, p))?;
+                    arguments.push(ArgumentUse {
+                        order: arguments.len() + fragments.len(),
+                        path: event.path.clone(),
+                        kind: event.kind,
+                        part: RetainedPart::Term(decoded),
+                        inspection_run,
+                        position,
+                        at: at(&event.rule).unwrap(),
+                        tags,
+                    });
+                    Ok(())
+                };
+                let arg = self.normalize(argument);
+                if ["body", "test", "range", "wildcard"].iter().any(|k| has(&arg, k)) {
+                    let body = arg.get("body").unwrap_or(&arg);
+                    let mut rule = obj([
+                        ("name", if extra { string("text") } else { get(&event.rule, "name").clone() }),
+                        ("op", string("define")),
+                        ("flags", Json::Arr(Vec::new())),
+                        ("conditions", Json::Arr(Vec::new())),
+                        (
+                            "alternatives",
+                            Json::Arr(vec![obj([
+                                ("guards", Json::Arr(Vec::new())),
+                                ("expr", self.rewrite(body, event, "expr")?),
+                            ])]),
+                        ),
+                        ("at", get(&event.rule, "at").clone()),
+                    ]);
+                    if parts.iter().any(|node| has(node, "param")) {
+                        set(&mut rule, "params", get(&event.rule, "params").clone());
+                    }
+                    let fragment = Event { rule, ..event.clone() };
+                    fragments.push(FragmentInspection {
+                        order: arguments.len() + fragments.len(),
+                        inspection_run,
+                        position,
+                        event: fragment,
+                    });
+                } else if has(&arg, "requirements") {
+                    for requirement in list(get(&arg, "requirements")) {
+                        add(get(requirement, "value"), true)?;
+                    }
+                } else if !["call", "rule", "targets"].iter().any(|k| has(&arg, k)) {
+                    add(&arg, false)?;
+                }
+            }
         }
         Ok(())
     }
@@ -699,7 +933,7 @@ impl Expander<'_> {
         if let Json::Arr(xs) = root {
             return Ok(Json::Arr(xs.iter().map(|v| self.substitute(v, env, event, position)).collect::<R<_>>()?));
         }
-        let Some(fields) = root.as_object() else { return Ok(root.clone()) };
+        let Some(_) = root.as_object() else { return Ok(root.clone()) };
         if has(root, "param") {
             let arg =
                 env.get(text(get(root, "param"))).ok_or_else(|| event.fail(root, "an undeclared parameter".into()))?;
@@ -725,7 +959,7 @@ impl Expander<'_> {
             return Ok(converted);
         }
         let mut result = root.clone();
-        for (k, v) in fields {
+        for (k, v) in source_fields(root) {
             if k == "at" || k == SOURCE {
                 continue;
             }
@@ -914,33 +1148,17 @@ impl Expander<'_> {
         Ok(result)
     }
     fn decode(&self, root: &Json, event: &Event) -> R<Dom> {
-        fn shadow(n: &Json, aliases: &mut BTreeMap<String, String>) -> Json {
-            match n {
-                Json::Obj(fs) => Json::Obj(
-                    fs.iter()
-                        .filter(|(k, _)| k != SOURCE)
-                        .map(|(k, v)| {
-                            let value = if ["name", "rule", "ref"].contains(&k.as_str()) && text(v).contains('(') {
-                                let len = aliases.len();
-                                string(
-                                    aliases.entry(text(v).into()).or_insert_with(|| format!("instance-{len}")).clone(),
-                                )
-                            } else {
-                                shadow(v, aliases)
-                            };
-                            (k.clone(), value)
-                        })
-                        .collect(),
-                ),
-                Json::Arr(xs) => Json::Arr(xs.iter().map(|v| shadow(v, aliases)).collect()),
-                _ => n.clone(),
-            }
+        let checked = clean(root);
+        let failure = |message: String| {
+            let name = text(get(&event.rule, "name"));
+            let prefix = format!("rule {name}: ");
+            let message = if name.is_empty() || message.starts_with(&prefix) { message } else { prefix + &message };
+            event.fail(&event.rule, message)
+        };
+        if let Some(problem) = dom::schema::structure_problem(&checked, self.uni, true) {
+            return Err(failure(problem));
         }
-        let checked = shadow(root, &mut BTreeMap::new());
-        if let Some(problem) = dom::schema::problem(&checked, self.uni) {
-            return Err(event.fail(&event.rule, problem.into()));
-        }
-        let mut d = dom::decode_checked(&clean(root), self.uni, true).map_err(|s| event.fail(&event.rule, s))?;
+        let mut d = dom::decode_checked(&checked, self.uni).map_err(failure)?;
         super::locations::restore_document(&mut d, root);
         Ok(d)
     }

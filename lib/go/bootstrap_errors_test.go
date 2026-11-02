@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"strings"
@@ -55,8 +56,8 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 				bootstrap = replaced
 			}
 			_, err := LoadPipelineSources(map[string]string{
-				"p.md":                    "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
-				"g.md":                    "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
+				"p.md":                       "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
+				"g.md":                       "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
 				"data/preparsed/gencmu.json": bootstrap,
 			}, "p.md")
 			var e *Error
@@ -66,14 +67,20 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 			if e.Kind != fixtures.Kind || e.Document != fixtures.Document {
 				t.Fatalf("expected %s in %s, got %#v", fixtures.Kind, fixtures.Document, e)
 			}
-			if !strings.HasPrefix(e.Message, fixtures.Document+":") || e.Error() != e.Message {
+			if !strings.HasPrefix(e.Error(), fixtures.Document+":") || strings.Count(e.Error(), fixtures.Document+":") != 1 || strings.HasPrefix(e.Message, fixtures.Document+":") {
 				t.Fatalf("the diagnostic does not name the bootstrap: %s", e)
+			}
+			if e.Stage != "" && !strings.Contains(e.Error(), "stage "+e.Stage+": ") {
+				t.Fatalf("the diagnostic lost its stage: %s", e)
 			}
 			if item.Context != "" && !strings.Contains(e.Message, item.Context) {
 				t.Fatalf("the diagnostic lost its source: %s", e)
 			}
 			if item.Message != "" && !strings.Contains(e.Message, item.Message) {
 				t.Fatalf("expected %q, got %s", item.Message, e)
+			}
+			if item.Stage == nil && !strings.HasPrefix(item.Message, "stage ") && strings.HasPrefix(e.Message, "stage ") {
+				t.Fatalf("a splice description gained a stage prefix: %s", e)
 			}
 			line, column, stage := 0, 0, ""
 			if item.Line != nil {
@@ -101,5 +108,34 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func bootstrapWithDOMChange(t *testing.T, change func(string, map[string]any)) string {
+	t.Helper()
+	raw, err := bundledFS.ReadFile("data/preparsed/gencmu.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var bootstrap map[string]any
+	if err := json.Unmarshal(raw, &bootstrap); err != nil {
+		t.Fatal(err)
+	}
+	for path, item := range bootstrap["documents"].(map[string]any) {
+		document := item.(map[string]any)
+		change(path, document["dom"].(map[string]any))
+	}
+	encoded, err := json.Marshal(bootstrap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(encoded)
+}
+
+func sourcesWithBootstrap(grammar, bootstrap string) map[string]string {
+	return map[string]string{
+		"grammars/test/p.md":         block("%stage main", `%include "main.md"`),
+		"grammars/test/main.md":      block("%ambiguity-resolution greedy", grammar),
+		"data/preparsed/gencmu.json": bootstrap,
 	}
 }

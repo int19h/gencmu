@@ -1,0 +1,42 @@
+{
+  "description": "Emission tags observe every requested rule and terminal boundary in the chosen derivation (engine §10).",
+  "grammar": "%rule text left $x:B right\n%emits $x :: (($x.preceded-by(left) ∧ $x.followed-by(C)) ⟹ X)\n%rule left A\n%rule right C",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "text": "b",
+              "tags": [
+                "X"
+              ]
+            }
+          ]
+        }
+      ],
+      "ok": true
+    }
+  }
+}

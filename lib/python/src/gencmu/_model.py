@@ -84,8 +84,9 @@ class Node:
     a tag, a canonical string or range, or the wildcard (engine §4).
     An elided node
     has ``terminal``, the terminator it stands for, and ``value``, the
-    string of the terminator's ``=`` test if it has one, which elision-only's
-    restored token stores (engine §7) and the output does not show.
+    string of the terminator's ``=`` test if it has one.
+    The restored token stores this string (engine §7).
+    Canonical JSON writes it as ``value``, including an empty string.
     """
 
     kind: str
@@ -225,6 +226,8 @@ class ParseError:
     completion: list[Restoration] | None = None
     witness: tuple[Action, Action] | None = None
     feature: str | None = None
+    # The definition's location is separate from the stage-input position.
+    _grammar_location: str | None = field(default=None, repr=False, compare=False)
 
 
 @dataclass(frozen=True)
@@ -284,7 +287,6 @@ class ParseResult:
     stages: list[Stage]
     tree: Node | None
     error: ParseError | None
-    text: str = ""
     warnings: list[ParseWarning] = field(default_factory=list)
     features: list[str] = field(default_factory=list)
 

@@ -28,7 +28,7 @@ class DocumentStrings:
             if end != index + 2 or not quoted(tokens[index + 1]):
                 line, column = self.position(tokens[index].source[0])
                 raise GencmuError("%names takes one quoted path", document=self.path, line=line, column=column)
-            extras.add(resolve(self.path, self.decode(tokens[index + 1], True)))
+            extras.add(resolve(self.path, self.decode(tokens[index + 1], True), self.position(tokens[index].source[0])))
             index = end
         self.names.extras = sorted(extras)
         for token in tokens:

@@ -1,0 +1,14 @@
+{
+  "description": "Retained binding arguments keep their source declaration position.",
+  "grammar": "%ambiguity-resolution greedy\n%rule f(@X) \"a\"\n%rule named = f($FIRST)\n%rule text $SECOND",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$FIRST is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 17
+    }
+  }
+}

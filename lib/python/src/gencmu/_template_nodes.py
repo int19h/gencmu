@@ -5,13 +5,41 @@ from __future__ import annotations
 from copy import copy
 
 
-def nodes(root):
+_SOURCE_KEYS = ('if', 'then', 'left', 'right', 'not', 'any', 'all', 'receiver', 'args', 'expr', 'body', 'targets', 'requirements', 'negated', 'tags', 'value', 'image', 'pattern', 'child', 'children', 'repeat', 'separator', 'optional', 'seq', 'choice', 'ranked', 'and', 'union', 'intersection', 'difference', 'concat', 'items', 'before', 'after')
+
+
+def _source_order(prefix):
+    return {key: index for index, key in reversed(list(enumerate((*prefix, *_SOURCE_KEYS))))}
+
+
+_SOURCE_ORDERS = (
+    _source_order(('instance', 'args', 'tags', 'value', 'image', 'alternatives', 'conditions', 'emit')),
+    _source_order(('expr', 'tags', 'value', 'image')),
+    _source_order(('tags', 'value', 'image')),
+    _source_order(()),
+)
+
+
+def source_keys(node):
+    if node.get('name') and node.get('op'):
+        order = _SOURCE_ORDERS[0]
+    elif node.get('expr') and not node.get('test'):
+        order = _SOURCE_ORDERS[1]
+    elif 'capture' in node or node.get('insert'):
+        order = _SOURCE_ORDERS[2]
+    else:
+        order = _SOURCE_ORDERS[3]
+    return sorted(node, key=lambda key: (order.get(key, 100), key))
+
+
+def nodes(root, *, source=False):
     pending = [root]
     while pending:
         node = pending.pop()
         if isinstance(node, dict):
             yield node
-            pending.extend(reversed([v for k, v in node.items() if k != "at"]))
+            keys = source_keys(node) if source else node.keys()
+            pending.extend(node[key] for key in reversed(list(keys)) if key != "at")
         elif isinstance(node, list):
             pending.extend(reversed(node))
 
@@ -48,10 +76,6 @@ def map_nodes(root, transform):
         else:
             parent[key] = node
     return result[0]
-
-
-def clone_nodes(root):
-    return map_nodes(root, lambda node: node)
 
 
 def normalize_argument(root, patterns=frozenset()):

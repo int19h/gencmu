@@ -91,15 +91,39 @@ fn invalid_bytes_are_a_grammar_error_of_the_document() {
             }),
             "g.md",
         ),
+        (
+            "an extra names file",
+            Box::new(|b| {
+                vec![
+                    ("p.md", PIPELINE.replace("%stage main", "%names \"bad.names\"\n%stage main").into_bytes()),
+                    ("g.md", grammar("%rule text \"‹LATIN SMALL LETTER A›\"").into_bytes()),
+                    ("bad.names", with_bytes("unicode-names 15.1.0\n@", b)),
+                ]
+            }),
+            "bad.names",
+        ),
     ];
     for (place, files, bad) in &places {
         for bytes in INVALID {
-            let directory = Directory::new(&files(bytes));
+            let documents = files(bytes);
+            let offset = documents
+                .iter()
+                .find(|(name, _)| name == bad)
+                .unwrap()
+                .1
+                .windows(bytes.len())
+                .position(|part| part == bytes)
+                .unwrap();
+            let directory = Directory::new(&documents);
             let error = gencmu::load_pipeline_file(directory.pipeline()).expect_err(place);
             assert_eq!(error.kind, ErrorKind::Grammar, "{place}: {error}");
             let document = error.document.as_deref().expect("a document");
             assert!(Path::new(document).ends_with(bad), "{place}: {document}");
-            assert!(error.message.contains("not valid UTF-8"), "{place}: {error}");
+            assert_eq!(
+                error.message,
+                format!("the document is not valid UTF-8: an invalid byte sequence at byte {offset}"),
+                "{place}: {error}"
+            );
             assert_eq!((error.line, error.column), (None, None), "{place}");
         }
     }
@@ -129,4 +153,18 @@ fn fffd_supplementary_characters_and_a_byte_order_mark_decode_as_themselves() {
     assert!(
         gencmu::load_pipeline_file(prose.pipeline()).unwrap().parse("\u{FEFF}", &ParseOptions::default()).unwrap().ok
     );
+}
+
+#[test]
+fn missing_names_file_uses_its_resolved_path() {
+    let directory = Directory::new(&[
+        ("p.md", PIPELINE.replace("%stage main", "%names \"bad.names\"\n%stage main").into_bytes()),
+        ("g.md", grammar("%rule text \"‹LATIN SMALL LETTER A›\"").into_bytes()),
+    ]);
+    let error = gencmu::load_pipeline_file(directory.pipeline()).expect_err("a missing names file");
+    let document = error.document.as_deref().expect("the resolved path");
+    assert_eq!(Path::new(document), directory.0.join("bad.names"));
+    assert_eq!(error.kind, ErrorKind::Grammar);
+    assert_eq!(error.message, format!("{document} was not found"));
+    assert_eq!((error.line, error.column), (None, None));
 }

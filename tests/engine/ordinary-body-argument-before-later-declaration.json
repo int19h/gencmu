@@ -1,0 +1,14 @@
+{
+  "description": "An ordinary rule retains body arguments in its source inspection slot.",
+  "grammar": "%ambiguity-resolution greedy\n%rule t(@X) @X\n%rule early t(($FIRST \"a\"))\n%rule late $LATE",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$FIRST is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 16
+    }
+  }
+}

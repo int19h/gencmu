@@ -13,7 +13,7 @@ The users of gencmu want to read a grammar, change it, and see at once what the 
 gencmu ships these parts:
 
 - There are four libraries, in JavaScript, Python, Go and Rust. A clean-room implementation uses the specification alone. Each library implements one engine specification without using another library's code. No library has dependencies beyond the standard library of its language.
-- All four libraries share the grammar documents and pipelines.
+- All four libraries share the grammar documents and pipelines. Internal method names match the method names in the engine specification.
 - There is one command-line tool (CLI) and one web playground, both in JavaScript. Both run from a clone with no install step.
 - All four libraries share one test corpus. Its expectations are what gencmu itself is meant to produce.
 
@@ -151,7 +151,7 @@ The core file owns categories, combining classes, whitespace, and two emoji prop
 
 Libraries can share immutable scalar profiles. They do not copy a property set onto every token. Generic set operations and output still see every retained membership. A property reference in a later stage never changes initial profiles. Engine §1 defines the performance gate for pipelines naming no additional property.
 
-A class is a tag with capital letters at both ends. It never starts with `_`. This identifies `KOhA`, `BRIVLA`, and `FOREIGN` as classes while leaving `Word` and `Run-Final` as marks. Renderings use this same definition for attachments.
+A class is a tag with uppercase ASCII letters at both ends. It never starts with `_`. This identifies `KOhA`, `BRIVLA`, and `FOREIGN` as classes while leaving `Word` and `Run-Final` as marks. Renderings use this same definition for attachments.
 
 ## The notation
 
@@ -289,6 +289,12 @@ A maintainer changes the notation in its documents, and `tools/sync.js` regenera
 
 `docs/engine.md` specifies the search (§8), the walk rule by rule (§9) and the restrictions (§9).
 
+Each document conversion caches the flattened parts of each syntax node. The cache lasts only for that conversion. Repeated lookups reuse those parts. Reader walks use explicit stacks, and method selectors fold in a loop.
+
+Method conversion also caches whether each completed subtree contains unresolved parameters or calls. Each dependency walk visits a node once per conversion and counts that work.
+
+Ranking rejects a forest without roots before it builds admission. The later ranking step receives only forests with roots.
+
 Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The bundled Markdown grammar documents include prose and diagram links. A character-level stage reads these documents quickly in Rust and JavaScript but slowly in pure Python.
 
 Each package ships those DOMs in `data/preparsed/FAMILY.json`. Each document under `grammars/FAMILY/` uses only `data/preparsed/FAMILY.json`, besides the required `gencmu.json`. Other document keys select no optional file. A bundled pipeline therefore reads only its own family's file.
@@ -317,7 +323,11 @@ A recipe supplies one string channel. `:=` supplies a value and an implied image
 
 The emission walk determines which tokens reach the next stage. A constituent with `%emits` emits its items and stops that walk. `%erased` contributes nothing. Without either directive, the walk enters children.
 
+If no emission term of a stage tests a boundary, the stage builds no boundary index.
+
 The string walk determines a covering token's value and image. It enters child constituents but skips their emission lists. Their alternative and definition recipes still apply. Erased children contribute nothing. Attachment ownership counts surviving input parts independently of either string.
+
+Item recipes and constituent recipes use the same string evaluator. Each request starts with its owning occurrence and either a channel or a recipe.
 
 An item recipe serves its directly emitted token. The following grammar gives `x` for input `a`, but `ab` for input `ab`:
 
@@ -392,6 +402,14 @@ An empty delimited body contributes empty concatenation to the quote value. The 
 
 The image extension does not enlarge `source` or `text`. This lets quote punctuation appear without changing source provenance. Different evaluated spans cannot claim the same uncovered text. The conflict rule avoids any hidden priority between touching quoted parts.
 
+Each emission indexes evaluated spans and claimed intervals. Source endpoints divide those intervals into cells, whose interiors contain no endpoint. A new span marks each claimed cell once. Repeated requests for that span reuse its claim. A coverage search costs no more than its gap, or a logarithm of the token count.
+
+Each emission builds its coverage index on the first nonempty `.verbatim-text` request. Runs without this request do not build the index.
+
+The stage shares one source index between its tree, warnings, emission, and recipe evaluation. Each tree node receives its source when the tree walk creates it. Emission inspects attachment ownership only when its input has attachments.
+
+The tree walk appends each visible node directly to its parent's child list. A helper forwards its children to that same list.
+
 In pipelines with punctuation pauses, a one-word foreign quote takes the next raw stretch between whitespace or period boundaries. A decimal point between digits stays inside its run. Punctuation and ignored characters belong to that body.
 
 The Latin conventions expose punctuation as pause tokens tagged `Quote-Material`. Each token keeps the punctuation's source spelling as its image. Its phoneme-stage value keeps the decomposed punctuation. The [pause rules](#pauses-and-spacing) define its later normalized value.
@@ -415,6 +433,8 @@ Braces state grouping explicitly, independently of how many alternatives feature
 Every kind of braces requires one or more items. ISO 14977 reads braces as zero or more, but jbogenbau writes zero or more as `[{x}]`. An item must read at least one token, so `[{x}]` reads nothing in one way only. No bundled grammar repeats an item that can be empty.
 
 A capture cannot stand inside braces or around them because a repeated part has no single captured occurrence. A grammar that needs a capture names its list or chain as a rule. A capture next to flat braces remains legal, as in `$a:A {B}`.
+
+Independent alternatives with fixed capture lists need one validation witness per list. They do not enumerate unrelated capture-presence combinations.
 
 The engine defines these rules in §3:
 
@@ -507,6 +527,8 @@ The local tag closure prevents hidden option tags from changing the common conti
 
 An open literal records an unsettled boundary condition. An offer records a boundary target that a derivation can satisfy.
 
+Ranked-group construction records groups and source references. Separate validation reports grammar errors. An admission candidate's label identifies its option and open facts.
+
 A higher option excludes a lower proof when its open literals are a subset at each edge and its offers are equal. Error annotations do not affect this comparison. Every proof that the filter excludes has a qualifying replacement in its admission group. Sealing and the tag rule preserve that replacement's continuation. Induction preserves recognition with sealing fixed. A seal hides option structure from outside observations.
 
 The exact group key, tag closure, and algorithm belong to engine §2.1 and §6.1. [Ambiguity](notation.md#ambiguity) defines verdict changes and their effects on later stages. The ranker compares flagged profiles before the stage directive.
@@ -558,6 +580,8 @@ A library reads each document into its DOM on its own, as it reads any grammar. 
 
 The result is what textual inclusion gives. Stitching looks only at the order of a stage's rules, never at the documents that hold them (engine §2). A later rule can redefine or extend an earlier one wherever each was written. Stages run in the order they start, and every stage's start rule is `text`. Paths resolve against the including document, in the same way on disk, in memory and on GitHub.
 
+The textual export and normal loading use the same include walk. Both report include cycles and missing documents as grammar errors.
+
 A document can be included in several stages. An included document can hold stage selectors and `%features` too. So several pipelines can share a stage by including one document that holds it. A second `%stage` of one name is an error.
 
 `%extend-stage` selects an earlier stage and appends subsequent items. `%redefine-stage` clears that stage's accumulated items and selects it for replacement. Both keep the stage's original execution position. Selection continues across includes, and replacement leaves global features and other stages intact. The loader evaluates only the final stage definitions, but it still reads every source document.
@@ -595,6 +619,10 @@ The words stage declares `sa-su` with conditions on its input classes. It enable
 Ranked choices filter the parses that recognition allows before ranking. The parses that survive are admitted. The engine ranks admitted parses by rule profile, first by `leftmost-longest` and then by `fewest`, and then by the stage directive. A parse is best if no other admitted parse beats it.
 
 One admitted derivation gives `unique`. Several admitted derivations with exactly one best give `resolved`. Several best derivations give a tie with two readings and an action witness.
+
+Ranking stops before admission preparation when the forest has no roots.
+
+An index into the visible actions counts only visible actions, even when its comparison includes transparent closes. Sharing a prefix does not change that index.
 
 The [Ambiguity](notation.md#ambiguity) section defines verdict transitions and their effects on emission and the elision-only check.
 
@@ -636,7 +664,9 @@ An error is better than a hidden choice. A reader of the error sees the two read
 
 CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` is one reading of that rule, for the stage whose grammar declares it. CLL does not say which parse to test, so the check tests the one that the ranking chose.
 
-The check runs after `resolved`, even when the chosen tree elides nothing. It also runs after `unique` when the chosen tree holds an elided node. It follows these steps:
+The check runs after `resolved`, even when the chosen tree elides nothing. It also runs after `unique` when the chosen tree holds an elided node.
+
+The initial search stops at the first elided node. The check walks the chosen derivation for a rule profile only when some production has a rule flag. It follows these steps:
 
 1. Take the chosen tree's `elided` nodes in leaf order, from left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries the tag of that terminator and, for a terminator with an `=` test, the test's string as its recognition value. The engine marks it synthetic.
 2. Parse the token sequence with the same grammar. Use a mode where each elidable optional is restored or written. Every condition, tag and test of a rule reads the original input through a projection that leaves the synthetic tokens out. A test on a terminal reads the written-back terminator's tag and recognition value. A query parses the original input with the grammar as it is.
@@ -838,7 +868,7 @@ The engine splices out only one kind of node, because no author wrote it. That i
 
 An absent elidable optional leaves an `elided` node with an empty span, at the place of the missing terminator. Collapsing chains is a choice of the renderers, not of the tree. Ordinary nodes store no `text`, `value`, or `image`. The libraries compute them from tokens.
 
-An equality-tested elided node saves its restoration operand as `value`, including an explicit empty string. Other nodes omit this member. Omitted pattern leaves still observe empty strings.
+An equality-tested elided node saves its restoration operand as `value`, including an explicit empty string. This member alone records the operand and whether an equality test exists. Other nodes omit this member. Omitted pattern leaves still observe empty strings.
 
 Canonical JSON includes saved `value` for equality-tested elisions. This distinguishes their restoration data without changing what a pattern observes.
 
@@ -861,9 +891,13 @@ pipeline.features                              # each feature: name, gate or war
 to_json(result); to_brackets(result)
 ```
 
-The bundled grammars are embedded in each package, so a library works with no files beside it. A caller can also supply any grammar from disk or from memory.
+The bundled grammars are embedded in each package, so a library works with no files beside it. A caller can also supply any grammar from disk or from memory. Embedded resources use a path index built once for document lookup.
 
-In-memory sources are a map from path to text. The paths are `/`-separated and relative to the package root. Bundled source keys start with `grammars/`, and engine resource keys start with `data/`. The loader resolves the document paths of a pipeline against the pipeline's own path, and normalizes `.` and `..`, exactly as on disk. The bundled pipelines are that same map.
+In-memory sources are a map from path to text. The paths are `/`-separated and relative to the package root. Bundled source keys start with `grammars/`, and engine resource keys start with `data/`. The loader preserves caller-supplied keys and the pipeline path exactly.
+
+Include and names targets must be relative, and a leading `/` is a grammar error at the directive. The loader resolves each target against its declaring document's directory.
+
+Lexical cleaning collapses `.` and each `..` with a parent segment. It keeps `..` above a relative base, and an earlier `..` is not a parent segment. Above an absolute root, `..` stays at the root. Disk loaders open the result, and source-map loaders look up that exact key (engine §13). The bundled pipelines are that same map.
 
 Parsing is synchronous everywhere, and the browser runs it in a worker (a background thread). If `elision_only` is left unset, the parse follows the grammar's directive. Stage-local features follow the declarations and conditions of the grammar. A caller can disable features with `without_features`. If a conditional declaration holds for a disabled feature, the parse gives a `feature-conflict` result.
 
@@ -880,13 +914,19 @@ Each contains its grammar copy and nothing from outside its directory. CI makes 
 
 The audit is a JavaScript library and CLI tool outside the common API. Engine references to audit notes describe that tool.
 
+Audit work counts every expression node that it visits, including a sequence root inspected by an erasure scan.
+
 The product provides these diagnostics and debugging tools:
 
 - A rejection names the stage, and shows the source line with a caret under the failing character or word. It lists what can continue at that point as grammar terms, grouped by rule, not as a set of tag names.
-- A grammar error carries file, line and column, and names the rule.
+- A grammar error carries file, line and column, and names the rule. Explanations omit unknown location components.
 - A tie shows the two derivations side by side from the first difference.
 - Stage inspection shows the tokens that every stage emitted, with their tags.
-- The trace shows, for one position, which items the recognizer predicted, advanced, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this".
+- The trace shows, for one position, which items the recognizer predicted, advanced, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this". A trace uses the parse's features and `elisionOnly` choice. Its declared `elisionOnly` option accepts `true`, `false`, or `null`. An omitted or `null` choice keeps the grammar's own rule.
+
+  A stage with input and no verdict reports that it failed, with its diagnostic. A later stage without input is not reached.
+
+  The trace position must be a finite integer. The trace clamps it to the stage's token boundaries. Printed conditions preserve method receivers with parentheses around compound terms.
 - The audit reports unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` covers text that can never emit a token and that no token can cover. The audit names a replacement that adds or removes a rule flag, with the flags before and after. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
 
   Its data lists the family's members in closure order. That order starts with the family rule and reads the members breadth first. It reads each member's alternatives in written order, and each alternative's member edges in written order. The data also lists the optionals that the family permits, each with its terminal and owning definition. They follow the members in closure order, and each member's optionals come in written order.
@@ -907,9 +947,11 @@ An instance entry contains `template`, `arguments`, `name`, `binding`, `firstCal
 
 An `argument-alias-twin` note names distinct instance keys with equivalent argument references. It does not claim that local edits give those instances identical bodies. The note has `kind` and an `instances` list of the other effective names, in expanded rule order.
 
-Twin instances use the same template. Corresponding arguments must be identical after key normalization, apart from a named-instance reference standing for a call of that same instance key. The comparison follows the finite written argument trees and never expands a nominal reference's body. It accepts either direction of that replacement. It also applies inside nested argument forms.
+Twin instances use the same template. Corresponding arguments must be identical after key normalization, apart from a named-instance reference standing for a call of that same instance key. Only the bare reference changes during this comparison. Decorations, including `exact` and `children`, must still match on both nodes. The comparison follows the finite written argument trees and never expands a nominal reference's body. The comparison accepts either direction and applies inside nested argument forms.
 
 Events follow source order and record `scope`, `op`, `document`, `line`, `column`, `flagsBefore`, and `flagsAfter`. Scope is `template` or `instance`. Replaced events remain in the list. `flags` gives the final effective flag list. The printed report shows the same facts and names public bindings without implying wrapper rules.
+
+Printed template and family calls include their source locations. Printed instances include canonical arguments and final flags. An empty flag list prints as `none`. The audit reuses structural indexes across queries and family members.
 
 The audit also reports these boundary notes:
 
@@ -928,7 +970,17 @@ The CLI is `node lib/js/cli.js`. A published package exposes it as `npx gencmu`.
 - `test`, to compare a grammar author's own file of corpus-format cases with the expected results under a pipeline. It compares each case as the library's corpus runner does, with the same code. It runs no engine self-tests, such as the witness hook of `elision-only`
 - `help`, to list the commands and every option
 
-`--pipeline NAME` selects a bundled full name and defaults to `lojban/cll`. `--pipeline-file FILE` loads a local pipeline document instead. The file selector takes precedence when both selectors are supplied.
+`--pipeline NAME` selects a bundled full name and defaults to `lojban/cll`. `--pipeline-file FILE` loads a local pipeline document instead. The file selector takes precedence when both selectors are supplied. An explicitly supplied empty filename still selects the file loader.
+
+Only `parse` and `test` accept bare arguments. `test` requires exactly one case file. Other commands reject bare arguments with a `usage` error.
+
+`parse` accepts every listed option. `test` accepts the pipeline selectors, `--feature`, and `--no-feature`. `audit`, `stitch`, and `features` accept only the pipeline selectors. `pipelines` and `help` accept no options. Each command rejects options that it does not read.
+
+`--trace` selects trace output, so it cannot combine with `--format` or `--show-elided`. Without tracing, `--show-elided` requires the brackets format.
+
+The `test` command reports invalid JSON or case fields as a `usage` error with the file, physical line number, and exit status 2. Each case has a string `text`, an optional bundled `pipeline`, and optional string arrays `features` and `withoutFeatures`. The `parse` standard input and `test` case files use strict UTF-8. Invalid bytes cause a `usage` error before pipeline loading.
+
+When `parse` reads standard input, it removes one final LF and an immediately preceding CR. Arguments keep their final line endings.
 
 `parse` prints any warning on standard error, as it prints an error, a tie included. The CLI needs Node and nothing else.
 
@@ -967,9 +1019,13 @@ The playground has these parts:
 - The diagnostics above
 - An editor for the grammar documents, which parses the text again at once after each edit and lets the user download the edited documents
 
-The editor lists a pipeline's documents stage by stage. A forgiving scan of stage selectors and `%include` directives finds them (`playground/pipeline.js`). So a pipeline with an error, a missing document or a cycle still shows every document it reaches. Parsing runs in a `Blob` worker, so a long text does not freeze the page.
+The editor lists a pipeline's documents stage by stage. A forgiving scan of stage selectors and `%include` directives finds them (`playground/pipeline.js`). The scan resolves include and names targets under the path rule of engine §13. So a pipeline with an error, a missing document or a cycle still shows every document it reaches. Parsing runs in a `Blob` worker, so a long text does not freeze the page.
+
+An absolute target gives a grammar error at its directive. The editor keeps that error and continues through valid targets. It never lists a relative alias for the absolute target.
 
 ## Output formats
+
+Compact and display JSON share one iterative serializer. In JavaScript, both layouts omit object members whose values are `undefined`.
 
 `docs/output.md` defines the output formats exactly. JavaScript implements them for the CLI and the playground, and every library implements the bracket form for the tests:
 
@@ -979,6 +1035,32 @@ The editor lists a pipeline's documents stage by stage. A forgiving scan of stag
 - `canonical` is the canonical JSON of the whole result, which the shared tests compare.
 
 ## Documents
+
+### Positions for loading inspections
+
+An inspection record owns one source declaration and a position within it. Its key contains the document run, declaration position, and semantic position of the inspected part. Generated owners use the discovery order after source owners. Deferred ordinary and template problems retain separate later phases.
+
+The loader preserves these keys through argument retention, fragment conversion, substitution, and deferred error collection. Diagnostic locations remain distinct from ordering keys. A location can fall back to the declaration when a cached node lacks a written token position.
+
+Pattern parts define one child schedule for reference, type, and range inspection. A source-call part exposes its arguments before attached children.
+
+The loading paths use the following positions. The table names the entry points in each library, including the helpers that inspect nested parts.
+
+| Path | JavaScript | Python | Go | Rust | Position source |
+| --- | --- | --- | --- | --- | --- |
+| Constant versions and dependencies | `bindConstants`, `constantsIn` | `_Constants.bind`, `constants_in` | `bindConstants`, `constRefs` | `Constants::bind`, `references_in_term` | Recorded declaration and dependency-reference positions, in version order. |
+| Closed constant values | `evaluateClosed`, `checkValueUses` | `_closed`, `check_value_uses` | `evaluateClosed`, `checkValueUses` | `evaluate`, `check_value_uses` | The version's declaration, then the term, operand, or first implicated constant position. |
+| Ordinary and retained template rules | `checkConstantRule` | `_Constants.check_rule` | `checkConstantRule` | `Constants::check_rule` | Original source run and declaration, then header, alternative, condition, and emission positions. |
+| Retained term and requirement arguments | `inspectArgumentConstants` | `_Constants.check_arguments` | `checkArguments` | `Constants::check_arguments` | The call's owning declaration and the argument's source position. |
+| Retained test and body fragments | `inspectArgument`, retained fragment records | `inspect_argument`, retained fragment records | `inspectArgument`, retained fragment records | `inspect_arguments`, `RetainedPart` | The same owner and argument position as the source fragment. |
+| Feature conditions | `resolveFeature` | The feature branch of `_stitch` | `resolveFeature` | `resolve_feature` | The directive's source slot, then condition and operand positions within its complete-list phases. |
+| Classifier keys | `resolveClassifierKeys` | `_Constants.string` | `resolveClassifierKeys` | `resolve_classifier` | Classifier declaration, entry position, then key and operand order. |
+| Implication sides | `resolveImplication` | `_Constants.implication` | `addImplications` | `Constants::implication` | Implication declaration, antecedent, then consequent, with each side's operand positions. |
+| Test and pattern parts | `constantsIn`, `checkPatternUses` | `constants_in`, `check_pattern_uses` | `constRefs`, `checkPatternUses` | `constants_in_rule`, `constants_in`, `check_pattern_uses` | The symbol precedes its test operand. A call's arguments precede attached pattern children. |
+| Bound types | `ruleTypeFault`, `termType`, `conditionTypeFault` | `rule_type_fault`, `term_type_fault`, `condition_type_fault` | `ruleTypeFault`, `termTypeIn`, `condTypeFault` | `rule_type_fault`, `term_type_in`, `cond_type_fault` | The inspected source part and its implicated constant position. |
+| Bound values | `checkValueUses`, `checkRangeUses`, `resolvePatterns` | `check_value_uses`, `check_range_uses`, `with_values` | `checkValueUses`, resolver walks | `check_value_uses`, `check_scalar_uses`, substitution | The declaration's ordered part records survive resolution and pattern evaluation. |
+| Final substitution | `resolveConstants` | `_Constants.resolve`, `_resolve_tests` | Resolver walks after `resolveConstants` | Substitution helpers after `check_rule` | Existing source ownership survives replacement by a bound value. This path creates no later inspection slot. |
+| Deferred ranked-definition problems | `emissionUsers`, pending templates | `deferred_emissions`, `template_deferred` | Deferred emission and template lists | Deferred ordinary and template lists | The original source key, within the separate ordinary or template phase. |
 
 Every paragraph, heading and table row of a Markdown document in the repository stands on one line. A list item can hold several paragraphs, each on its own line. Some renderers show a line break inside a paragraph as a break. A code span closes on the line where it opens. A paragraph can follow a heading directly. The content of a fenced block is not prose.
 
@@ -1044,7 +1126,7 @@ There are three kinds of shared test. Every library runs each case that its API 
 
   `expect` is whether gencmu is meant to accept the text, `words` the tokens of the words stage, and `brackets` the tree. A full result for each case needs hundreds of megabytes. The engine cases pin down the full result, and the corpus pins what a Lojban reader cares about.
 
-A corpus case can include provenance fields, `seeded` and `reason`. The reason states the case's expectation in terms of gencmu's grammars. `tests/README.md` defines these fields.
+Corpus comparison ignores JSON object member order and preserves array order. A corpus case can include provenance fields, `seeded` and `reason`. The reason states the case's expectation in terms of gencmu's grammars. `tests/README.md` defines these fields.
 
 Update a case's expectations in the same commit as the grammar change that affects them. Explain the expectation in the commit message. Changes to `words` or `brackets` need no additional field.
 

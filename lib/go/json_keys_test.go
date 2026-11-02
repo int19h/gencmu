@@ -40,6 +40,7 @@ func TestSharedJSONKeys(t *testing.T) {
 			Error       *struct {
 				Document string `json:"document"`
 				Line     int    `json:"line"`
+				Column   int    `json:"column"`
 			} `json:"error"`
 		} `json:"preparsed"`
 		Grammar string `json:"grammar"`
@@ -97,7 +98,7 @@ func TestSharedJSONKeys(t *testing.T) {
 				if !errors.As(err, &e) {
 					t.Fatalf("expected grammar error, got %v", err)
 				}
-				if e.Kind != ErrorGrammar || e.Document != "data/preparsed/gencmu.json" || e.Stage != "" || e.Line != 0 || e.Column != 0 || !strings.HasPrefix(e.Message, "data/preparsed/gencmu.json:") {
+				if e.Kind != ErrorGrammar || e.Document != "data/preparsed/gencmu.json" || e.Stage != "" || e.Line != 0 || e.Column != 0 || !strings.HasPrefix(e.Error(), "data/preparsed/gencmu.json:") {
 					t.Fatalf("metadata: %#v", e)
 				}
 			}
@@ -139,8 +140,8 @@ func TestSharedJSONKeys(t *testing.T) {
 			d, err := LoadPipelineSources(family, "grammars/test/p.md")
 			if item.Error != nil {
 				e, ok := err.(*Error)
-				if !ok || e.Kind != ErrorGrammar || e.Document != item.Error.Document || e.Line != item.Error.Line {
-					t.Fatalf("expected grammar error at %s:%d, got %v", item.Error.Document, item.Error.Line, err)
+				if !ok || e.Kind != ErrorGrammar || e.Document != item.Error.Document || e.Line != item.Error.Line || e.Column != item.Error.Column {
+					t.Fatalf("expected grammar error at %s:%d:%d, got %v", item.Error.Document, item.Error.Line, item.Error.Column, err)
 				}
 				return
 			}
@@ -207,7 +208,7 @@ func TestJSONRawAndIgnored(t *testing.T) {
 			}
 			if strings.HasSuffix(path, ".jsonl") {
 				for _, line := range bytes.Split(data, []byte("\n")) {
-					if len(bytes.TrimSpace(line)) != 0 {
+					if !blankJSONLine(line) {
 						docs = append(docs, line)
 					}
 				}
@@ -297,7 +298,7 @@ func BenchmarkReadPreparsedJSON(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		if len(readPreparsed(text, hash, unicodeHash, propertiesHash)) == 0 {
+		if got, _, _ := readPreparsedCache(text, hash, unicodeHash, propertiesHash); len(got) == 0 {
 			b.Fatal("cache miss")
 		}
 	}

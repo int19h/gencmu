@@ -27,7 +27,7 @@ func withChecks(opts *ParseOptions) *checkLog {
 	log := &checkLog{}
 	opts.private = &privateOptions{elisionCheck: func(run *elisionCheckRun) elisionWatch {
 		marks, w := walkWitness(run)
-		return elisionWatch{marks: marks, ranked: func(res *rankResult, rk *ranker) {
+		return elisionWatch{ranked: func(res *rankResult, rk *ranker) {
 			kept := marks != nil && keeps(res, rk, w)
 			log.mu.Lock()
 			log.checks++
@@ -117,7 +117,7 @@ func TestWitnessLost(t *testing.T) {
 		if len(problems) != 1 || !strings.Contains(problems[0], "elision-witness-lost") {
 			t.Fatalf("%s: %v\n%s", lose, problems, data)
 		}
-		if err := checkResult(res, got, data, &caseExpect{Error: ErrorGrammar}); err == nil {
+		if err := checkResult(res, got, data, &caseExpect{Error: ErrorGrammar}, nil); err == nil {
 			t.Fatalf("%s: the runner passes the error", lose)
 		}
 		e := res.Error
@@ -187,5 +187,32 @@ func TestCorpusRunnerWitnessLost(t *testing.T) {
 		if _, err := corpusOutcomeLosing(d, c, lose); err == nil || !strings.Contains(err.Error(), "elision-witness-lost") {
 			t.Fatalf("%s: %v", lose, err)
 		}
+	}
+}
+
+func TestLostWitnessSkipsAdmission(t *testing.T) {
+	sources := oneStage("%ambiguity-resolution late-elision elision-only\n%rule text (a ≻ b) ::∅\n%rule a \"a\" [+T]\n%rule b \"a\" [+T] [+U]")
+	pipeline, err := LoadPipelineSources(sources, "p.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := false
+	options := ParseOptions{private: &privateOptions{loseWitness: "roots", elisionCheck: func(run *elisionCheckRun) elisionWatch {
+		return elisionWatch{ranked: func(result *rankResult, rk *ranker) {
+			seen = true
+			if result != nil {
+				t.Fatal("a rootless check ranked")
+			}
+			if rk.admission != nil {
+				t.Errorf("a rootless check prepared admission for %d chart facts", rk.admission.stats.chartFacts)
+			}
+		}}
+	}}}
+	result, err := pipeline.Parse("a", options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !seen || result.Error == nil || result.Error.Code != CodeElisionWitnessLost {
+		t.Fatalf("unexpected result: %+v", result)
 	}
 }

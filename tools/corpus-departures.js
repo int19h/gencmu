@@ -9,7 +9,7 @@ const directory = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", 
 const groups = new Map();
 for (const file of fs.readdirSync(directory).filter((name) => name.endsWith(".jsonl")).sort()) {
   for (const line of fs.readFileSync(path.join(directory, file), "utf8").split("\n")) {
-    if (!line.trim()) continue;
+    if (/^[ \t\r]*$/.test(line)) continue;
     const c = JSON.parse(line);
     if (!c.seeded) continue;
     if (!groups.has(c.reason)) groups.set(c.reason, []);

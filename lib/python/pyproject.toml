@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gencmu"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A Lojban parser whose grammars are literate documents loaded at runtime"
 readme = "README.md"
 license = "MIT"
@@ -29,6 +29,9 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "gencmu.__version__"}
 
 [tool.setuptools.package-data]
 gencmu = ["py.typed", "grammars/*", "grammars/**/*", "data/*", "data/**/*"]

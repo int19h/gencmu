@@ -22,13 +22,18 @@ export declare class StringWalk {
     values: WeakMap<Derivation, Map<object | string, string>>;
     /** @type {WeakMap<Derivation,Set<object|string>>} */
     active: WeakMap<Derivation, Set<object | string>>;
-    /** @type {{span:Span, intervals:Span[]}[]} */
-    claims: {
-        span: Span;
-        intervals: Span[];
-    }[];
-    /** @type {Span[]} */
-    covered: Span[];
+    /** @type {Set<string>} */
+    claims: Set<string>;
+    /** @type {number[] | null} */
+    claimPoints: number[] | null;
+    /** @type {Set<number>} */
+    claimedCells: Set<number>;
+    /** @type {{ranges: Span[], starts: number[], ends: number[]} | null} */
+    coverage: {
+        ranges: Span[];
+        starts: number[];
+        ends: number[];
+    } | null;
     /** @type {WeakMap<object,Map<object,object>>} */
     itemKeys: WeakMap<object, Map<object, object>>;
     /** @param {ParseContext} context @param {(node:DerivationRule)=>Scope} scope */

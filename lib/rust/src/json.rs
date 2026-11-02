@@ -64,38 +64,49 @@ impl Clone for Json {
 impl Json {
     /// Writes the value with object members in their stored order.
     pub fn to_json(&self) -> String {
-        fn write(out: &mut String, value: &Json) {
-            match value {
-                Json::Null => out.push_str("null"),
-                Json::Bool(v) => out.push_str(if *v { "true" } else { "false" }),
-                Json::Int(v) => out.push_str(&v.to_string()),
-                Json::Str(v) => write_str(out, v),
-                Json::Arr(items) => {
-                    out.push('[');
-                    for (i, item) in items.iter().enumerate() {
-                        if i > 0 {
-                            out.push(',');
-                        }
-                        write(out, item);
-                    }
-                    out.push(']');
-                }
-                Json::Obj(items) => {
-                    out.push('{');
-                    for (i, (key, item)) in items.iter().enumerate() {
-                        if i > 0 {
-                            out.push(',');
-                        }
-                        write_str(out, key);
-                        out.push(':');
-                        write(out, item);
-                    }
-                    out.push('}');
-                }
-            }
+        enum Task<'a> {
+            Value(&'a Json),
+            Text(&'static str),
+            Key(&'a str),
         }
         let mut out = String::new();
-        write(&mut out, self);
+        let mut pending = vec![Task::Value(self)];
+        while let Some(task) = pending.pop() {
+            match task {
+                Task::Text(text) => out.push_str(text),
+                Task::Key(key) => {
+                    write_str(&mut out, key);
+                    out.push(':');
+                }
+                Task::Value(value) => match value {
+                    Json::Null => out.push_str("null"),
+                    Json::Bool(v) => out.push_str(if *v { "true" } else { "false" }),
+                    Json::Int(v) => out.push_str(&v.to_string()),
+                    Json::Str(v) => write_str(&mut out, v),
+                    Json::Arr(items) => {
+                        out.push('[');
+                        pending.push(Task::Text("]"));
+                        for (i, item) in items.iter().enumerate().rev() {
+                            pending.push(Task::Value(item));
+                            if i > 0 {
+                                pending.push(Task::Text(","));
+                            }
+                        }
+                    }
+                    Json::Obj(items) => {
+                        out.push('{');
+                        pending.push(Task::Text("}"));
+                        for (i, (key, item)) in items.iter().enumerate().rev() {
+                            pending.push(Task::Value(item));
+                            pending.push(Task::Key(key));
+                            if i > 0 {
+                                pending.push(Task::Text(","));
+                            }
+                        }
+                    }
+                },
+            }
+        }
         out
     }
 
@@ -179,6 +190,11 @@ pub(crate) const MAX_DEPTH: usize = 2048;
 /// files hold. The error is a message with the byte offset.
 pub(crate) fn parse(text: &str) -> Result<Json, String> {
     parse_within(text, MAX_DEPTH)
+}
+
+/// Internal source projections precede the grammar's depth check.
+pub(crate) fn parse_unbounded(text: &str) -> Result<Json, String> {
+    parse_within(text, usize::MAX)
 }
 
 /// Parses the shared test cases, which nest as deep as a case makes them:
@@ -354,6 +370,9 @@ impl<'a> Reader<'a> {
         if self.at == digits {
             return Err(self.error("expected digits"));
         }
+        if self.at > digits + 1 && self.bytes[digits] == b'0' {
+            return Err(self.error("a leading zero in an integer"));
+        }
         if matches!(self.bytes.get(self.at), Some(b'.' | b'e' | b'E')) {
             return Err(self.error("only integers are supported"));
         }
@@ -362,6 +381,9 @@ impl<'a> Reader<'a> {
 
     fn hex4(&mut self) -> Result<u32, String> {
         let digits = self.text.get(self.at..self.at + 4).ok_or_else(|| self.error("a short \\u escape"))?;
+        if !digits.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(self.error("a bad \\u escape"));
+        }
         let value = u32::from_str_radix(digits, 16).map_err(|_| self.error("a bad \\u escape"))?;
         self.at += 4;
         Ok(value)
@@ -471,6 +493,16 @@ mod tests {
                 "{}",
                 case.get("description").unwrap().as_str().unwrap()
             );
+        }
+    }
+
+    #[test]
+    fn numbers_and_escapes_follow_json_spelling() {
+        for text in ["00", "01", "-01", "040", r#""\u+061""#, r#""\u-061""#, r#""\u00g1""#] {
+            assert!(parse(text).is_err(), "{text}");
+        }
+        for text in ["0", "-0", "1", "-10", r#""\u0061""#, r#""\uD83D\uDE00""#] {
+            assert!(parse(text).is_ok(), "{text}");
         }
     }
 

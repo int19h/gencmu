@@ -15,9 +15,29 @@ use crate::result::{
     Action, AmbiguityReason, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Restoration,
     Stage, Tags, Token, Verdict, Warning,
 };
-use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, ReadingMap, TreeContext};
+use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, ReadingMap, Sources, TreeContext};
 use crate::unicode::Unicode;
 use crate::witness::{self, CheckForest};
+
+thread_local! {
+    static RUNTIME_GRAMMAR_ERRORS: std::cell::RefCell<Option<Vec<Error>>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Observes structured lowering diagnostics without changing public runtime errors.
+#[doc(hidden)]
+pub fn with_runtime_grammar_errors<T>(parse: impl FnOnce() -> T) -> (T, Vec<Error>) {
+    struct Restore(Option<Vec<Error>>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            RUNTIME_GRAMMAR_ERRORS.with(|errors| errors.replace(self.0.take()));
+        }
+    }
+    let restore = Restore(RUNTIME_GRAMMAR_ERRORS.with(|errors| errors.replace(Some(Vec::new()))));
+    let result = parse();
+    let errors = RUNTIME_GRAMMAR_ERRORS.with(|errors| errors.replace(None).unwrap());
+    drop(restore);
+    (result, errors)
+}
 
 /// The options of [`Pipeline::parse`].
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -58,7 +78,7 @@ pub struct Feature {
 pub struct InputToken {
     /// The token's text.
     pub text: String,
-    /// Its tags, each in its canonical spelling (engine §1).
+    /// Its tags. Property aliases are accepted and normalized (engine §1).
     pub tags: Tags,
     /// What it sounds like, if anything (engine §5).
     pub value: Option<String>,
@@ -165,11 +185,10 @@ struct Run {
     warnings: Vec<Warning>,
 }
 
-/// A pipeline's features (engine §13): every name a guard of a stage's
-/// stitched rules uses, every gate of its classifiers' entries, and every
-/// name the pipeline's `%features` declares, in code point order. A name
-/// that one guard uses as a gate and another as a warning is an error of
-/// the pipeline; one that only `%features` declares is a gate.
+/// A pipeline's features (engine §13): names from guards and pipeline or
+/// stage-local `%features` declarations, in code point order.
+/// Unconditional declarations also supply defaults. A name that
+/// only declarations use is a gate. A name used as both gate and warning is an error.
 fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec<Feature>, Error> {
     let mut kinds: BTreeMap<&str, FeatureKind> = BTreeMap::new();
     for stage in stages {
@@ -189,7 +208,7 @@ fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec
         for (guard, document, (line, column)) in rules.chain(entries) {
             if *kinds.entry(&guard.feature).or_insert(guard.kind) != guard.kind {
                 return Err(Error::grammar(format!(
-                    "{document}:{line}:{column}: the feature {} is used both as a gate and as a warning",
+                    "the feature {} is used both as a gate and as a warning",
                     guard.feature
                 ))
                 .in_document(document)
@@ -245,10 +264,8 @@ pub(crate) fn line_column(text: &[char], offset: usize) -> (usize, usize) {
                 line += 1;
                 column = 1;
             }
+            '\r' if text.get(index + 1) == Some(&'\n') => column += 1,
             '\r' => {
-                if text.get(index + 1) == Some(&'\n') && index + 1 < offset {
-                    index += 1;
-                }
                 line += 1;
                 column = 1;
             }
@@ -283,7 +300,7 @@ impl Pipeline {
     }
 
     /// The names of the pipeline's stages, in order.
-    pub fn stage_names(&self) -> Vec<&str> {
+    fn stage_names(&self) -> Vec<&str> {
         self.stages.iter().map(|stage| stage.name.as_str()).collect()
     }
 
@@ -460,7 +477,7 @@ impl Pipeline {
         };
         let mut shared = Shared::new(&self.unicode, &chars);
         let (mut input, public_input) = first(&mut shared.tags, &chars);
-        crate::earley::mark_quiet(&mut input, &self.unicode);
+        crate::earley::mark_quiet(&mut input);
         let fresh = Run { stages: Vec::new(), input, public_input, tree: None, error: None, warnings: Vec::new() };
         let mut run = fresh;
         self.stages_between(&mut shared, &mut run, &mut features, (off, last, options.elision_only), &mut inspect)?;
@@ -598,6 +615,11 @@ impl Pipeline {
         let lowered = match self.lowered(index, features) {
             Ok(lowered) => lowered,
             Err(error) => {
+                RUNTIME_GRAMMAR_ERRORS.with(|errors| {
+                    if let Some(errors) = errors.borrow_mut().as_mut() {
+                        errors.push(error.clone());
+                    }
+                });
                 let error = self.grammar_error(index, EngineError { message: error.message, rule: None });
                 run.stages.push(stage);
                 return Err(Box::new(error));
@@ -647,7 +669,8 @@ impl Pipeline {
             return Err(Box::new(error));
         };
         let tag_set = |set: u32| shared.tags.to_set(set);
-        let context = TreeContext { g: &lowered, tokens: &input, tag_map: &tag_set, reading: None };
+        let sources = Sources::new(&input);
+        let context = TreeContext { g: &lowered, sources: &sources, tag_map: &tag_set, reading: None };
         stage.verdict = Some(match ranking.verdict {
             RankVerdict::Unique => Verdict::Unique,
             RankVerdict::Resolved => Verdict::Resolved,
@@ -671,10 +694,10 @@ impl Pipeline {
         let tree = public_tree(&chosen, &context);
         // The chosen tree's warnings, which stand even if the emission or
         // the `elision-only` check then fails (§12).
-        run.warnings.extend(warnings_of(&chosen, &lowered, &input, features, &grammar.name));
+        run.warnings.extend(warnings_of(&chosen, &lowered, &sources, features, &grammar.name));
         let emitted = {
             let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared, recon: None };
-            emit(&mut recognizer, &chosen, &input)
+            emit(&mut recognizer, &chosen, &input, &sources)
         };
         let emitted = match emitted {
             Ok(emitted) => emitted,
@@ -711,14 +734,14 @@ impl Pipeline {
                 after: token.after,
             });
         }
-        crate::earley::mark_quiet(&mut next, &self.unicode);
+        crate::earley::mark_quiet(&mut next);
         // The check of `elision-only` runs after emission.
         let check = elision.unwrap_or(grammar.elision_only);
         let mut ambiguous = None;
         if check
             && (ranking.verdict == RankVerdict::Resolved || ranking.verdict == RankVerdict::Unique && has_elided(&tree))
         {
-            match self.elision_check(index, shared, &input, &chosen, &lowered, &matchers) {
+            match self.elision_check(index, shared, &input, &sources, &chosen, &lowered, &matchers) {
                 Ok(Check::Pass) => {}
                 Ok(Check::Ambiguous(error)) => ambiguous = Some(*error),
                 // The witness of the chosen derivation is lost: a defect of
@@ -843,15 +866,16 @@ impl Pipeline {
     /// synthetic tokens, and recognizes that input, R, with the main
     /// lowering in the reconstruction mode. Every observation reads the
     /// stage's input through the projection π, and the check's queries
-    /// share the main parse's memo. It passes where R has one derivation,
-    /// gives two readings where it has more, and has lost the witness of
-    /// the chosen derivation where it has none.
+    /// share the main parse's memo. Raw absence of the chosen witness gives
+    /// witness loss. An admitted witness that is solely best keeps the main
+    /// result. Any other best competitor gives an elision-only ambiguity.
     #[allow(clippy::too_many_arguments)]
     fn elision_check(
         &self,
         index: usize,
         shared: &mut Shared,
         input: &[Tok],
+        sources: &Sources,
         chosen: &ITree,
         g: &Lowered,
         matchers: &[Matcher],
@@ -922,7 +946,7 @@ impl Pipeline {
         for (index, &flag) in synthetic.iter().enumerate() {
             project.push(project[index] + u32::from(!flag));
         }
-        crate::earley::mark_quiet(&mut tokens, &self.unicode);
+        crate::earley::mark_quiet(&mut tokens);
         let mut saved_values = vec![None; tokens.len()];
         for (index, &position) in record_at.iter().enumerate() {
             saved_values[position as usize] = records[index].value.clone();
@@ -937,31 +961,22 @@ impl Pipeline {
         // An optional test hook observes the witness (tests/README.md).
         let flagged = g.rules.iter().any(|rule| rule.leftmost_longest || rule.fewest);
         let chosen_profile = if flagged { tree_profile(g, chosen) } else { crate::rank::Profile::ZERO };
-        let protect = true;
-        let walk = if witness::watched() || protect {
-            let empty = shared.tags.set(Vec::new());
+        let walk = {
             let forest = CheckForest {
                 g,
                 chart: &chart,
                 rooted,
                 tokens: &tokens,
-                observed: input,
-                project: &recon.project,
                 synthetic: &recon.synthetic,
                 original_at: &original_at,
                 record_at: &record_at,
-                unicode: shared.unicode,
-                tags: &shared.tags,
-                empty,
             };
-            Some(witness::walk(&forest, chosen))
-        } else {
-            None
+            witness::walk(&forest, chosen)
         };
         // The ranking of R has no lean (§7.7).
-        let rooted = rooted && (!protect || walk.as_ref().is_some_and(|walk| walk.is_some()));
+        let rooted = rooted && walk.is_some();
         let ranking = if rooted {
-            let marks = walk.as_ref().and_then(|walk| walk.as_ref()).map(|walk| &walk.marks);
+            let marks = walk.as_ref().map(|walk| &walk.marks);
             let mut ranker =
                 Ranker::new(g, &chart, &tokens, shared, Lean::Neither).observing(input, &recon.project).checking(marks);
             let preferred = !g.ranked.slots.is_empty();
@@ -978,20 +993,21 @@ impl Pipeline {
                 .rank()
                 .filter(|ranking| {
                     loss != Some(witness::Loss::Count)
-                        && (!protect || (raw_counted && (preferred || ranking.witness_counted == Some(true))))
-                        && (preferred
-                            || compare_profiles(&ranking.profile, &chosen_profile) != std::cmp::Ordering::Greater)
+                        && raw_counted
+                        && (preferred || ranking.witness_counted == Some(true))
                 })
                 .map(|mut ranking| {
-                    let excluded = protect && ranking.witness_counted != Some(true);
+                    let excluded = ranking.witness_counted != Some(true);
                     let better =
                         excluded || compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less;
-                    let keeps = if preferred {
+                    let keeps = if !witness::watched() {
+                        false
+                    } else if preferred {
                         raw_counted
                     } else {
                         ranking.witness_counted == Some(true)
                             && (better
-                                || walk.as_ref().and_then(|w| w.as_ref()).is_some_and(|walk| match ranking.second {
+                                || walk.as_ref().is_some_and(|walk| match ranking.second {
                                     Some(second) if ranking.verdict == RankVerdict::Tie || better => {
                                         let w = ranker.derivation(&walk.sequence);
                                         !ranker.before(w, ranking.first)
@@ -1000,9 +1016,8 @@ impl Pipeline {
                                     _ => true,
                                 }))
                     };
-                    if better || ranking.verdict == RankVerdict::Tie && protect {
-                        let w = ranker
-                            .derivation(&walk.as_ref().and_then(|w| w.as_ref()).expect("a restored witness").sequence);
+                    if better || ranking.verdict == RankVerdict::Tie {
+                        let w = ranker.derivation(&walk.as_ref().expect("a restored witness").sequence);
                         let competitor = if excluded {
                             ranking.first
                         } else {
@@ -1068,7 +1083,7 @@ impl Pipeline {
         // The readings, mapped to the stage's input (§7.10).
         let tag_set = |set: u32| shared.tags.to_set(set);
         let map = ReadingMap { project: &recon.project, record_of: &record_of, records: &records };
-        let context = TreeContext { g, tokens: input, tag_map: &tag_set, reading: Some(&map) };
+        let context = TreeContext { g, sources, tag_map: &tag_set, reading: Some(&map) };
         let readings = trees.iter().map(|t| public_tree(t, &context)).collect();
         let stage = &self.stages[index].name;
         Ok(Check::Ambiguous(Box::new(ParseError {
@@ -1094,8 +1109,8 @@ impl Pipeline {
     }
 }
 
-/// What the check of `elision-only` found (engine §7): one reading of the
-/// reconstructed input, two, or none.
+/// What the check of `elision-only` found (engine §7): a pass, ambiguity,
+/// or witness loss.
 enum Check {
     Pass,
     Ambiguous(Box<ParseError>),
@@ -1243,6 +1258,37 @@ mod tests {
         let grammar = format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n");
         let pipeline = "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string();
         crate::load_pipeline_sources([("p.md".to_string(), pipeline), ("g.md".to_string(), grammar)], "p.md").unwrap()
+    }
+
+    #[test]
+    fn runtime_grammar_diagnostics_restore_nested_and_panicking_scopes() {
+        use super::with_runtime_grammar_errors;
+        let pipeline = pipeline("%rule text {ε}");
+        let parse = || {
+            let result = pipeline.parse("", &ParseOptions::default()).unwrap();
+            let error = result.error.unwrap();
+            assert!(error.message.starts_with("g.md:3:1: "));
+            assert_eq!((error.document, error.line, error.column), (None, None, None));
+        };
+        let (_, outer) = with_runtime_grammar_errors(|| {
+            parse();
+            let (_, inner) = with_runtime_grammar_errors(parse);
+            assert_eq!(inner.len(), 1);
+            let panic = std::panic::catch_unwind(|| {
+                with_runtime_grammar_errors(|| {
+                    parse();
+                    panic!("diagnostic scope");
+                })
+            })
+            .unwrap_err();
+            assert_eq!(panic.downcast_ref::<&str>(), Some(&"diagnostic scope"));
+            parse();
+        });
+        assert_eq!(outer.len(), 2);
+        for error in outer {
+            assert_eq!((error.document.as_deref(), error.line, error.column), (Some("g.md"), Some(3), Some(1)));
+        }
+        super::RUNTIME_GRAMMAR_ERRORS.with(|errors| assert!(errors.borrow().is_none()));
     }
 
     #[test]

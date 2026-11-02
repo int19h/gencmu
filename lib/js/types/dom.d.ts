@@ -13,71 +13,45 @@ export declare const TEST_OPS: Set<string>;
  */
 export declare function isSoundTest(op: string): boolean;
 /**
- * What is wrong with a test's value (engine §9), or null: it must be a
- * closed term, of type string for a value test and tag set for a tag test,
- * and a string literal of a value test must be a canonical value. The shape
- * of the value must already be checked, and its nesting bounded.
- * @param {string} op
- * @param {any} value
- * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean}} [unicode]
- * @returns {{problem: string, node: any} | null}
- */
-export declare function testValueFault(op: string, value: any, unicode?: {
-    isMark(code: number): boolean;
-    changesInDocument?(code: number): boolean;
-    isEmojiName?(name: string): boolean;
-}): {
-    problem: string;
-    node: any;
-} | null;
-/**
- * What is wrong with a range (engine §1, §9), or null: its ends must be two
- * character tags in their canonical spelling by the table, which says which
- * code points are marks, the start not above the end.
+ * What is wrong with a range (engine §1, §9), or null: visible endpoints
+ * must each contain one scalar, with the start not above the end.
  * @param {unknown} range
- * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
  * @returns {string | null}
  */
-export declare function rangeProblem(range: unknown, unicode: {
-    isMark(code: number): boolean;
-    changesInDocument?(code: number): boolean;
-    isEmojiName?(name: string): boolean;
-    canonicalTag?(name: string): string | null;
-}): string | null;
+export declare function rangeProblem(range: unknown): string | null;
 /**
- * Why a value is not a grammar DOM, or null when it is one. `unicode` is
- * the loader's table: the lowercase mapping that the strings of value
- * tests are checked against, and the marks that decide a character tag's canonical spelling.
+ * Why a value is not a grammar DOM, or null when it is one.
+ * The loader's Unicode table supplies engine-tag and emoji-name identities.
  * @param {unknown} dom
- * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
+ * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName(name:string):boolean, canonicalTag(name:string):string|null}} unicode
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {string | null}
  */
 export declare function domProblem(dom: unknown, unicode: {
     isMark(code: number): boolean;
     changesInDocument?(code: number): boolean;
-    isEmojiName?(name: string): boolean;
-    canonicalTag?(name: string): string | null;
+    isEmojiName(name: string): boolean;
+    canonicalTag(name: string): string | null;
 }, deferEmission?: boolean): string | null;
 /** @param {any} term @returns {Set<string>} */
 export declare function engineLiterals(term: any): Set<string>;
 /**
  * Whether a value is a grammar DOM, by the loader's table.
  * @param {unknown} dom
- * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
+ * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName(name:string):boolean, canonicalTag(name:string):string|null}} unicode
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {dom is GrammarDom}
  */
 export declare function isDom(dom: unknown, unicode: {
     isMark(code: number): boolean;
     changesInDocument?(code: number): boolean;
-    isEmojiName?(name: string): boolean;
-    canonicalTag?(name: string): string | null;
+    isEmojiName(name: string): boolean;
+    canonicalTag(name: string): string | null;
 }, deferEmission?: boolean): dom is GrammarDom;
 /**
  * Whether a term, or a condition inside one, reads the tags of `$`, the
- * constituent whose tags it may be defining: `$` as a value, `tags($)` or
- * `classes($)`. A span argument such as `value($)` reads tokens, not tags.
+ * constituent whose tags it defines: `$.tags` or `$.classes`.
+ * A string method such as `$.value` reads tokens, not tags.
  * The DOM's shape need not have been checked: anything malformed reads
  * nothing, and the check of its shape refuses it.
  * @param {unknown} node
@@ -95,12 +69,13 @@ export declare const DOM_FALSE: Readonly<{
  * A clause simplified for a production that has the captures `has`: each
  * presence test becomes true or false, and guards and logic over them are
  * reduced (engine §3.6). A condition may become DOM_TRUE or DOM_FALSE; a term may
- * become the empty set.
+ * become the empty set. An undefined answer retains its presence test
+ * for a partial assignment.
  * @param {any} node a condition or a term
- * @param {(name: string) => boolean} has
+ * @param {(name: string) => boolean | undefined} has
  * @returns {any}
  */
-export declare function simplify(node: any, has: (name: string) => boolean): any;
+export declare function simplify(node: any, has: (name: string) => boolean | undefined): any;
 export type PreparedClause = {
     /**
      * how the parts join, or
@@ -133,16 +108,6 @@ export type PreparedClause = {
      * production without the capture
      */
     absent: any;
-    /**
-     * for a ∨, whether a part true for every
-     * production makes it true
-     */
-    decided: boolean;
-    /**
-     * for a ∨, whether a guarded part is true
-     * where its capture is present
-     */
-    guardedTrue: boolean;
 };
 export type CaptureNames = {
     size: number;
@@ -228,40 +193,6 @@ export declare function strayAttachment(items: any[], has: (name: string) => boo
  */
 export declare function capturesUsed(node: unknown): string[];
 /**
- * The captures of each production of an alternative, name to its place in
- * the order that the production reads them, with `$` at -1 (engine §3.5).
- * @param {any} alternative
- * @returns {Map<string, number>[]}
- */
-export declare function alternativeCaptures(alternative: any): Map<string, number>[];
-export type CaptureNode = {
-    parent: CaptureNode | null;
-    name: string;
-    length: number;
-    children: Map<string, CaptureNode> | null;
-};
-/**
- * A sequence of capture names, as a node of a trie of all the sequences
- * of one expression: one node for each distinct sequence, which shares its
- * prefix with the sequences it extends.
- * @typedef {{parent: CaptureNode | null, name: string, length: number, children: Map<string, CaptureNode> | null}} CaptureNode
- */
-/**
- * The distinct sequences of captures that the productions of an expression
- * read, each in the order read (engine §3.2, §3.5): a choice gives each
- * branch's, an `&` each subsequence's, a plain optional none or its
- * content's, and braces and an elidable optional none. Productions that
- * read the same names in the same order are one sequence. Gates do not
- * matter, since they drop whole alternatives.
- *
- * The sequences are nodes of a trie, so that extending one by a capture
- * costs one step and two equal sequences are one node. A copy of each
- * growing prefix would cost the square of a sequence's length.
- * @param {any} expr
- * @returns {string[][]}
- */
-export declare function captureSequences(expr: any): string[][];
-/**
  * The captures that some production of an expression reads after a
  * capture of the same name (engine §3.5, §9), found from the structure
  * alone: two captures are read by one production exactly when they stand
@@ -277,8 +208,8 @@ export declare function duplicateCaptures(expr: any): {
 /**
  * The terminal at the head of an elidable optional's expression, or null
  * when the expression has no such head (engine §3.8, §9): a `ref` whose
- * name begins with a capital, a `terminal` whose tag is a name, or an `=`
- * test of one of these, alone or first in a `seq`.
+ * name begins with a capital, or a declared parameter before expansion.
+ * Only `=`, `≠`, and `tags` tests unwrap, after selecting the first `seq` item.
  * @param {any} expr
  * @returns {any}
  */
@@ -287,6 +218,13 @@ export declare function elidableHead(expr: any): any;
 export declare const deferredRecipeProblem: (rule: object) => string | undefined;
 /** @param {object} rule @returns {string | undefined} */
 export declare const deferredEmissionProblem: (rule: object) => string | undefined;
+export type CaptureWitness = {
+    count: number;
+    names: any;
+    key: any;
+    mask?: number;
+    present?: Set<string>;
+};
 /**
  * Why a definition, a rule's alternatives with its own clauses, cannot be
  * read (engine §9), or null. The DOM's shape must already be checked. The
@@ -402,7 +340,7 @@ export declare function constantValueType(value: any, redefine: boolean, constan
 } | TypeFault;
 /**
  * The first part of a term that is not closed (engine §10), or null: a
- * capture, a guarded term, or a call of anything but split and tag. The
+ * capture, a guarded term, or a call of anything but split and ngrams. The
  * shape of the term need not be checked.
  * @param {unknown} term
  * @returns {any}

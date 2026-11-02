@@ -1,0 +1,11 @@
+{
+  "description": "An unread selector does not change an earlier method diagnostic.",
+  "document": "```jbogenbau\n%rule r(@P) $x:A %conditions $x.value.without-elision.tags(@P)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 30,
+      "message": "without-elision requires a bare capture: write $x.without-elision.onward"
+    }
+  }
+}

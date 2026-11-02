@@ -1,6 +1,6 @@
 package gencmu
 
-import "strings"
+import "sort"
 
 // occurrence distinguishes uses of a shared derivation node. Recipes use
 // occurrence identity, not production numbers or spans (engine §11.3).
@@ -17,8 +17,11 @@ type stringEmitter struct {
 	boundaryStarts, boundaryEnds map[string]map[int]bool
 	run                          *stageRun
 	rec                          *recognizer
-	claims                       map[[2]int][][2]int
+	claims                       map[[2]int]bool
+	claimPoints                  []int
+	claimedCells                 []bool
 	inherited                    map[int]bool
+	coverage                     []bool
 }
 
 func occurrenceTree(d *dn) *occurrence {
@@ -56,9 +59,9 @@ func (em *stringEmitter) capture(o *occurrence, name string) *occurrence {
 	panic(&parseFailure{message: "a recipe reads an absent capture $" + name})
 }
 
-// channel runs the string walk without executing emission items. Its
+// strings runs one channel or recipe without executing emission items. Its
 // frames preserve left-to-right dependency evaluation without recursion.
-func (em *stringEmitter) channel(root *occurrence, channel int) string {
+func (em *stringEmitter) strings(root *occurrence, channel int, recipe *domTerm) string {
 	type frame struct {
 		o       *occurrence
 		channel int
@@ -67,7 +70,7 @@ func (em *stringEmitter) channel(root *occurrence, channel int) string {
 		next    int
 		pieces  []*stringParts
 	}
-	stack := []*frame{{o: root, channel: channel}}
+	stack := []*frame{{o: root, channel: channel, recipe: recipe}}
 	var result *stringParts
 	pushChannel := func(o *occurrence, c int) { stack = append(stack, &frame{o: o, channel: c}) }
 	pushRecipe := func(o *occurrence, t *domTerm) { stack = append(stack, &frame{o: o, recipe: t}) }
@@ -185,43 +188,12 @@ func (em *stringEmitter) channel(root *occurrence, channel int) string {
 	return partsText(result)
 }
 
+func (em *stringEmitter) channel(root *occurrence, channel int) string {
+	return em.strings(root, channel, nil)
+}
+
 func (em *stringEmitter) recipe(o *occurrence, recipe *domTerm) string {
-	var result strings.Builder
-	for _, atom := range recipe.Items {
-		if stringTermShape(atom) {
-			v, err := em.rec.g.stage.evaluateClosed("", atom, [2]int{})
-			if err != nil {
-				panic(&parseFailure{message: err.Message})
-			}
-			result.WriteString(v.s)
-			continue
-		}
-		r := atom.Items[0]
-		if r.Kind == tmCall {
-			c := 0
-			if atom.Str == "image" {
-				c = 1
-			}
-			result.WriteString(em.channel(em.capture(o, r.Items[0].Str), c))
-			continue
-		}
-		part := em.capture(o, r.Str)
-		a, b, _ := em.span(part)
-		s := spanVal{a: a, b: b}
-		switch atom.Str {
-		case "value":
-			result.WriteString(em.run.spanValue(s))
-		case "image":
-			result.WriteString(em.run.spanImage(s))
-		case "source-text":
-			result.WriteString(em.run.spanText(s))
-		case "decomposed-source-text":
-			result.WriteString(em.run.ps.uni.decompose(em.run.spanText(s)))
-		case "verbatim-text":
-			result.WriteString(em.verbatim(a, b))
-		}
-	}
-	return result.String()
+	return em.strings(o, 0, recipe)
 }
 
 func (em *stringEmitter) verbatim(a, b int) string {
@@ -237,18 +209,35 @@ func (em *stringEmitter) verbatim(a, b int) string {
 	if b < len(em.run.toks) {
 		q = em.run.toks[b].Source[0]
 	}
-	covered := func(at int) bool {
-		for _, t := range em.run.toks {
-			if t.Source[0] <= at && at < t.Source[1] {
-				return true
+	if em.coverage == nil {
+		points := []int{0, len(em.run.ps.text)}
+		for _, token := range em.run.toks {
+			points = append(points, token.Source[0], token.Source[1])
+		}
+		sort.Ints(points)
+		for _, point := range points {
+			if len(em.claimPoints) == 0 || em.claimPoints[len(em.claimPoints)-1] != point {
+				em.claimPoints = append(em.claimPoints, point)
 			}
 		}
-		return false
+		em.claimedCells = make([]bool, len(em.claimPoints)-1)
+		// A difference array unions overlapping sources in one pass.
+		changes := make([]int, len(em.run.ps.text)+1)
+		for _, token := range em.run.toks {
+			changes[token.Source[0]]++
+			changes[token.Source[1]]--
+		}
+		em.coverage = make([]bool, len(em.run.ps.text))
+		depth := 0
+		for at := range em.coverage {
+			depth += changes[at]
+			em.coverage[at] = depth > 0
+		}
 	}
-	for p < l && !covered(l-1) {
+	for p < l && !em.coverage[l-1] {
 		l--
 	}
-	for r < q && !covered(r) {
+	for r < q && !em.coverage[r] {
 		r++
 	}
 	span := [2]int{a, b}
@@ -260,19 +249,16 @@ func (em *stringEmitter) verbatim(a, b int) string {
 		if source[1] < r {
 			claims = append(claims, [2]int{source[1], r})
 		}
-		for other, intervals := range em.claims {
-			if other == span {
-				continue
-			}
-			for _, x := range intervals {
-				for _, y := range claims {
-					if x[0] < y[1] && y[0] < x[1] {
-						panic(&parseFailure{message: "different verbatim spans claim the same source gap"})
-					}
+		for _, interval := range claims {
+			limit := sort.SearchInts(em.claimPoints, interval[1])
+			for cell := sort.SearchInts(em.claimPoints, interval[0]); cell < limit; cell++ {
+				if em.claimedCells[cell] {
+					panic(&parseFailure{message: "different verbatim spans claim the same source gap"})
 				}
+				em.claimedCells[cell] = true
 			}
 		}
-		em.claims[span] = claims
+		em.claims[span] = true
 	}
 	return string(em.run.ps.text[l:r])
 }
@@ -319,7 +305,14 @@ func (em *stringEmitter) ownership(o *occurrence) int {
 }
 
 func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
-	em := &stringEmitter{run: run, rec: rec, claims: map[[2]int][][2]int{}, inherited: map[int]bool{}}
+	em := &stringEmitter{run: run, rec: rec, claims: map[[2]int]bool{}, inherited: map[int]bool{}}
+	forwards := false
+	for i := range run.toks {
+		if hasAttachments(&run.toks[i]) {
+			forwards = true
+			break
+		}
+	}
 	root := occurrenceTree(d)
 	demands := map[string]bool{}
 	for _, p := range rec.g.prods {
@@ -364,7 +357,6 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 	type frame struct {
 		o             *occurrence
 		next          int
-		items         []*domEmitItem
 		item          int
 		phase         int
 		token         Token
@@ -516,7 +508,7 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 			} else if !it.IsInsert {
 				token.Image = em.channel(part, 1)
 			}
-			if !it.IsInsert {
+			if forwards && !it.IsInsert {
 				if index := em.ownership(part); index >= 0 {
 					if em.inherited[index] {
 						panic(&parseFailure{message: "two emitted tokens inherit the same attachments"})

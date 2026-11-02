@@ -96,7 +96,7 @@ struct Summary {
 pub(crate) struct Families {
     oracle: Option<Sequence<(Aligned, bool)>>,
     contexts: Vec<Context>,
-    context_ids: FxMap<(u32, usize, usize, u32), u32>,
+    context_ids: FxMap<(u32, usize, usize), u32>,
     summaries: Vec<Summary>,
     ids: FxMap<Summary, u32>,
     #[cfg(test)]
@@ -107,7 +107,7 @@ pub(crate) struct Families {
 }
 impl Families {
     pub(crate) fn enable_oracle(&mut self) {
-        if CONFORMANCE.with(std::cell::Cell::get) || std::env::var_os("GENCMU_FAMILY_CONFORMANCE").is_some() {
+        if CONFORMANCE.with(std::cell::Cell::get) {
             self.oracle = Some(Sequence::new());
         }
     }
@@ -167,16 +167,9 @@ impl Families {
         assert_eq!(actual, valid, "family summaries disagree with the whole-observation deletion test");
     }
 
-    pub(crate) fn context(
-        &mut self,
-        observations: &Observations,
-        candidate: u32,
-        start: usize,
-        end: usize,
-        family: u32,
-    ) -> u32 {
+    pub(crate) fn context(&mut self, observations: &Observations, candidate: u32, start: usize, end: usize) -> u32 {
         let aligned = observations.normalized(candidate);
-        let key = (aligned, start, end, family);
+        let key = (aligned, start, end);
         if let Some(&id) = self.context_ids.get(&key) {
             return id;
         }
@@ -446,6 +439,21 @@ mod tests {
     }
 
     #[test]
+    fn family_oracle_requires_explicit_hook() {
+        let mut family = Families::default();
+        family.enable_oracle();
+        assert!(family.oracle.is_none(), "the oracle needs an explicit test hook");
+        with_family_conformance(|| {
+            let mut family = Families::default();
+            family.enable_oracle();
+            assert!(family.oracle.is_some(), "the explicit test hook did not enable the oracle");
+        });
+        let mut family = Families::default();
+        family.enable_oracle();
+        assert!(family.oracle.is_none(), "the hook did not restore the thread-local switch");
+    }
+
+    #[test]
     fn mixed_terminal_growth_repeats_the_written_unit() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/engine");
         for name in ["without-elision-except-nested-two-terminals.json", "without-elision-nested-two-terminals.json"] {
@@ -467,7 +475,7 @@ mod tests {
         let candidate =
             observations.close(crate::result::Restoration { terminal: "T".into(), at: 1, source: 1..1, value: None });
         let mut f = Families::default();
-        let c = f.context(&observations, candidate, 0, 2, 0);
+        let c = f.context(&observations, candidate, 0, 2);
         let t = Aligned::Close("T".into(), 1);
         let u = Aligned::Close("U".into(), 1);
         work::reset();
@@ -490,7 +498,7 @@ mod tests {
         }
         // The structural transition cache must not bypass a family relation charge.
         let mut machine = crate::patterns::Machine::new(&[]);
-        let context = machine.families.context(&observations, candidate, 0, 2, 0);
+        let context = machine.families.context(&observations, candidate, 0, 2);
         let a = machine.families.record(context, Aligned::Close("T".into(), 1), true);
         let b = machine.families.record(context, Aligned::Close("U".into(), 1), true);
         let left = machine.with_family(machine.empty, a);
@@ -603,7 +611,7 @@ mod tests {
                     candidate = observations.join(candidate, record);
                 }
                 let mut families = Families::default();
-                let context = families.context(&observations, candidate, start, end, 0);
+                let context = families.context(&observations, candidate, start, end);
                 let candidate: Vec<_> = (0..candidate_len).map(|_| Aligned::Close("T".into(), at)).collect();
                 for length in 0..=4 {
                     for code in 0..4usize.pow(length) {
@@ -646,7 +654,11 @@ mod tests {
         let growth =
             crate::json::parse(&std::fs::read_to_string(root.join("without-elision-growth.json")).unwrap()).unwrap();
         let Json::Obj(ref entries) = growth else { panic!("growth object") };
-        for (name, shared) in entries.iter().filter(|(_, v)| v.get("strictCase").is_some()) {
+        let selected = crate::test_common::require_cases(
+            entries.iter().filter(|(_, v)| v.get("strictCase").is_some()).collect(),
+            "strict family growth",
+        );
+        for (name, shared) in selected {
             let sizes = shared.get("lengths").or_else(|| shared.get("depths")).unwrap().as_array().unwrap();
             for size in sizes {
                 let size = size.as_int().unwrap() as usize;

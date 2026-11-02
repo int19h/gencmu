@@ -2,6 +2,8 @@
 //! category, whitespace, decomposition and combining-class properties. Every library reads this
 //! table rather than its platform's Unicode data.
 
+use crate::error::Error;
+
 include!("unicode_names_catalog.rs");
 
 /// The General_Category values in their short form (engine §1).
@@ -10,39 +12,8 @@ pub(crate) const CATEGORIES: [&str; 30] = [
     "Sc", "Sk", "So", "Zs", "Zl", "Zp", "Cc", "Cf", "Cs", "Co", "Cn",
 ];
 
-/// Whether a name is a property (engine §1): a General_Category value in its
-/// short form, one of their one-letter groups, `White_Space` or `Any`.
-#[cfg(test)]
-pub(crate) fn is_property_name(name: &str) -> bool {
-    Property::of(name).is_some()
-}
-
-/// A property (engine §1), resolved from its name.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Property {
-    Any,
-    WhiteSpace,
-    EmojiPresentation,
-    EmojiComponent,
-    /// A one-letter group of General_Category values, by its letter.
-    Group(u8),
-    /// One General_Category value, in its short form.
-    Category(&'static str),
-}
-
-impl Property {
-    /// The property of a name, or `None` for a name that is not one.
-    pub(crate) fn of(name: &str) -> Option<Property> {
-        match name {
-            "Any" => Some(Property::Any),
-            "White_Space" => Some(Property::WhiteSpace),
-            "Emoji_Presentation" => Some(Property::EmojiPresentation),
-            "Emoji_Component" => Some(Property::EmojiComponent),
-            "L" | "M" | "N" | "P" | "S" | "Z" | "C" => Some(Property::Group(name.as_bytes()[0])),
-            _ => CATEGORIES.iter().find(|&&category| category == name).map(|&category| Property::Category(category)),
-        }
-    }
-}
+pub(crate) type ScalarProfile = std::sync::Arc<[String]>;
+type ProfileCache = std::sync::Arc<std::sync::Mutex<std::collections::BTreeMap<u32, ScalarProfile>>>;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Unicode {
@@ -60,6 +31,75 @@ pub(crate) struct Unicode {
     pub(crate) version_count: usize,
     pub(crate) properties_fingerprint: Option<String>,
     pub(crate) properties: std::collections::BTreeMap<String, crate::unicode_properties::PropertyData>,
+    pub(crate) profiles: ProfileCache,
+}
+
+// The sparse interval tree has depth at most 21 over the Unicode code space.
+#[derive(Default)]
+enum ValueRanges<T> {
+    #[default]
+    Empty,
+    Value(T),
+    Split(Box<[Self; 2]>),
+}
+
+impl<T: Copy + Eq> ValueRanges<T> {
+    fn add(
+        &mut self,
+        first: u32,
+        last: u32,
+        value: T,
+        bounds: (u32, u32),
+        line: usize,
+        reason: &str,
+    ) -> Result<(), Error> {
+        let (low, high) = bounds;
+        match self {
+            Self::Value(previous) => {
+                return if *previous == value { Ok(()) } else { Err(core_error(line, reason)) };
+            }
+            Self::Empty if first <= low && high <= last => {
+                *self = Self::Value(value);
+                return Ok(());
+            }
+            Self::Empty => *self = Self::Split(Box::new([Self::Empty, Self::Empty])),
+            Self::Split(_) => {}
+        }
+        let mid = (low + high) / 2;
+        let Self::Split(children) = self else { unreachable!() };
+        if first <= mid {
+            children[0].add(first, last, value, (low, mid), line, reason)?;
+        }
+        if last > mid {
+            children[1].add(first, last, value, (mid + 1, high), line, reason)?;
+        }
+        if let (Self::Value(left), Self::Value(right)) = (&children[0], &children[1]) {
+            if left == right {
+                *self = Self::Value(*left);
+            }
+        }
+        Ok(())
+    }
+
+    fn ranges(&self, result: &mut Vec<(u32, u32, T)>, low: u32, high: u32) {
+        match self {
+            Self::Empty => {}
+            Self::Value(value) => {
+                if let Some(previous) =
+                    result.last_mut().filter(|previous| previous.1 + 1 == low && previous.2 == *value)
+                {
+                    previous.1 = high;
+                } else {
+                    result.push((low, high, *value));
+                }
+            }
+            Self::Split(children) => {
+                let mid = (low + high) / 2;
+                children[0].ranges(result, low, mid);
+                children[1].ranges(result, mid + 1, high);
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,30 +109,36 @@ pub(crate) struct Decomposed {
     klass: u8,
 }
 
-fn hex(field: &str, line: usize) -> Result<u32, String> {
+fn core_error(line: usize, reason: &str) -> Error {
+    let mut error = Error::grammar(reason).in_document("data/unicode/unicode.txt");
+    error.line = Some(line);
+    error
+}
+
+fn hex(field: &str, line: usize) -> Result<u32, Error> {
     if field.is_empty() || !field.bytes().all(|c| c.is_ascii_hexdigit()) {
-        return Err(format!("data/unicode/unicode.txt line {line}: a bad code point {field:?}"));
+        return Err(core_error(line, "an invalid code point"));
     }
     let digits = field.trim_start_matches('0');
     if digits.len() > 6 {
-        return Err(format!("data/unicode/unicode.txt line {line}: a bad code point {field:?}"));
+        return Err(core_error(line, "an invalid code point"));
     }
     u32::from_str_radix(if digits.is_empty() { "0" } else { digits }, 16)
         .ok()
         .filter(|&code| code <= 0x10ffff)
-        .ok_or_else(|| format!("data/unicode/unicode.txt line {line}: a bad code point {field:?}"))
+        .ok_or_else(|| core_error(line, "an invalid code point"))
 }
 
-fn range(first: &str, last: &str, line: usize) -> Result<(u32, u32), String> {
+fn range(first: &str, last: &str, line: usize) -> Result<(u32, u32), Error> {
     let (first, last) = (hex(first, line)?, hex(last, line)?);
     if first > last {
-        return Err(format!("data/unicode/unicode.txt line {line}: a reversed range"));
+        return Err(core_error(line, "a reversed range"));
     }
     Ok((first, last))
 }
 
 impl Unicode {
-    pub(crate) fn parse(text: &str) -> Result<Unicode, String> {
+    pub(crate) fn parse(text: &str) -> Result<Unicode, Error> {
         let mut table = Unicode {
             categories: Vec::new(),
             white_space: Vec::new(),
@@ -106,7 +152,11 @@ impl Unicode {
             version_count: 0,
             properties: std::collections::BTreeMap::new(),
             properties_fingerprint: None,
+            profiles: Default::default(),
         };
+        let mut categories = ValueRanges::default();
+        let mut combining = ValueRanges::default();
+        let mut decomposition_codes = std::collections::BTreeSet::new();
         for (index, raw) in text.split_inclusive('\n').enumerate() {
             let number = index + 1;
             let line = raw.strip_suffix('\n').map_or(raw, |line| line.strip_suffix('\r').unwrap_or(line));
@@ -129,7 +179,7 @@ impl Unicode {
                         || table.abbreviations.contains_key(*alias)
                         || pinned.is_some_and(|known| known != code)
                     {
-                        return Err(format!("data/unicode/unicode.txt line {number}: an invalid abbreviation"));
+                        return Err(core_error(number, "an invalid abbreviation"));
                     }
                     table.abbreviations.insert((*alias).into(), code);
                     if table
@@ -141,11 +191,14 @@ impl Unicode {
                     }
                 }
                 ["category", name, first, last] => {
-                    let Some(&category) = CATEGORIES.iter().find(|&&known| known == *name) else {
-                        return Err(format!("data/unicode/unicode.txt line {number}: an unknown category {name:?}"));
-                    };
                     let (first, last) = range(first, last, number)?;
-                    table.categories.push((first, last, category));
+                    let Some(&category) = CATEGORIES.iter().find(|&&known| known == *name) else {
+                        return Err(core_error(number, "an unknown category"));
+                    };
+                    if category == "Cs" {
+                        return Err(core_error(number, "category Cs is not allowed"));
+                    }
+                    categories.add(first, last, category, (0, 0x10ffff), number, "conflicting category ranges")?;
                 }
                 [entry @ ("white-space" | "emoji-presentation" | "emoji-component"), first, last] => {
                     let record = range(first, last, number)?;
@@ -157,40 +210,38 @@ impl Unicode {
                 }
                 ["decompose", code, scalars @ ..] if !scalars.is_empty() => {
                     let code = hex(code, number)?;
-                    if char::from_u32(code).is_none() {
-                        return Err(format!("data/unicode/unicode.txt line {number}: an invalid scalar"));
+                    let scalars = scalars.iter().map(|field| hex(field, number)).collect::<Result<Vec<_>, Error>>()?;
+                    if char::from_u32(code).is_none() || scalars.iter().any(|&code| char::from_u32(code).is_none()) {
+                        return Err(core_error(number, "an invalid scalar"));
                     }
-                    let scalars = scalars
-                        .iter()
-                        .map(|field| {
-                            char::from_u32(hex(field, number)?)
-                                .ok_or_else(|| format!("data/unicode/unicode.txt line {number}: an invalid scalar"))
-                        })
-                        .collect::<Result<Vec<_>, String>>()?;
+                    let scalars = scalars.into_iter().map(|code| char::from_u32(code).unwrap()).collect();
+                    if !decomposition_codes.insert(code) {
+                        return Err(core_error(number, "a second decompose record"));
+                    }
                     table.decompositions.push((code, scalars));
                 }
                 ["combining", klass, first, last] => {
+                    let (first, last) = range(first, last, number)?;
                     let digits = klass.trim_start_matches('0');
                     if digits.len() > 3 || !klass.bytes().all(|c| c.is_ascii_digit()) {
-                        return Err(format!("data/unicode/unicode.txt line {number}: a bad combining class"));
+                        return Err(core_error(number, "an invalid combining class"));
                     }
                     let klass = digits
                         .parse::<u8>()
                         .ok()
                         .filter(|&n| n > 0 && n < 255)
-                        .ok_or_else(|| format!("data/unicode/unicode.txt line {number}: a bad combining class"))?;
-                    let (first, last) = range(first, last, number)?;
-                    table.combining.push((first, last, klass));
+                        .ok_or_else(|| core_error(number, "an invalid combining class"))?;
+                    combining.add(first, last, klass, (0, 0x10ffff), number, "conflicting combining ranges")?;
                 }
-                _ => return Err(format!("data/unicode/unicode.txt line {number}: an unreadable record")),
+                _ => return Err(core_error(number, "the core record is invalid")),
             }
         }
-        table.categories.sort_unstable();
-        table.white_space.sort_unstable();
+        categories.ranges(&mut table.categories, 0, 0x10ffff);
+        combining.ranges(&mut table.combining, 0, 0x10ffff);
+        Self::union_ranges(&mut table.white_space);
         Self::union_ranges(&mut table.emoji_presentation);
         Self::union_ranges(&mut table.emoji_component);
         table.decompositions.sort_unstable_by_key(|entry| entry.0);
-        table.combining.sort_unstable();
         Ok(table)
     }
 
@@ -293,13 +344,13 @@ impl Unicode {
         chars.next().is_some_and(|c| {
             chars.next().is_none()
                 && !matches!(c, '#' | '@')
-                && self.has(Property::EmojiPresentation, c as u32)
-                && !self.has(Property::EmojiComponent, c as u32)
+                && self.is_emoji_presentation(c as u32)
+                && !self.is_emoji_component(c as u32)
         })
     }
 
     /// Whether a code point is a nonspacing mark, of General_Category `Mn`,
-    /// which a character tag writes escaped (engine §1).
+    /// which canonical string diagnostics escape (engine §1, §9.1).
     pub(crate) fn is_mark(&self, code: u32) -> bool {
         self.category(code) == "Mn"
     }
@@ -310,16 +361,12 @@ impl Unicode {
         index > 0 && self.white_space[index - 1].1 >= code
     }
 
-    /// Whether a scalar value has a property (engine §1).
-    pub(crate) fn has(&self, property: Property, code: u32) -> bool {
-        match property {
-            Property::Any => true,
-            Property::WhiteSpace => self.is_white_space(code),
-            Property::EmojiPresentation => Self::in_ranges(&self.emoji_presentation, code),
-            Property::EmojiComponent => Self::in_ranges(&self.emoji_component, code),
-            Property::Group(letter) => self.category(code).as_bytes()[0] == letter,
-            Property::Category(category) => self.category(code) == category,
-        }
+    pub(crate) fn is_emoji_presentation(&self, code: u32) -> bool {
+        Self::in_ranges(&self.emoji_presentation, code)
+    }
+
+    pub(crate) fn is_emoji_component(&self, code: u32) -> bool {
+        Self::in_ranges(&self.emoji_component, code)
     }
 }
 
@@ -385,16 +432,13 @@ mod tests {
     #[test]
     fn an_omitted_scalar_value_is_cn_without_white_space_or_lowercase() {
         let table = Unicode::parse("unicode 0.0.0\ncategory Lu 0041 005A\n").expect("a partial table");
-        let has = |name: &str, code: u32| table.has(Property::of(name).expect("a property"), code);
         assert_eq!(table.category('A' as u32), "Lu");
         assert_eq!(table.category('a' as u32), "Cn");
         assert_eq!(table.category(0x10FFFF), "Cn");
         assert_eq!(table.category(0), "Cn");
         assert_eq!(table.category(0xD800), "Cs");
-        assert!(has("Cn", 'a' as u32) && has("C", 'a' as u32));
-        assert!(!has("L", 'a' as u32) && !has("Cs", 'a' as u32));
-        assert!(!table.is_white_space(0x20) && !table.is_white_space(0x9) && !has("White_Space", 0x20));
-        // The engine no longer accepts a comparison normalization table (engine §1).
+        assert!(!table.is_white_space(0x20) && !table.is_white_space(0x9));
+        // No table supplies comparison normalization, so a lower record is invalid (engine §1).
         assert!(Unicode::parse("unicode 0.0.0\nlower 0041 0061\n").is_err());
         assert!(!table.is_mark(0x301));
     }
@@ -402,15 +446,13 @@ mod tests {
     #[test]
     fn properties() {
         let unicode = table();
-        let has = |name: &str, code: u32| unicode.has(Property::of(name).expect("a property"), code);
-        assert!(has("L", 'a' as u32));
-        assert!(has("Ll", 'a' as u32));
-        assert!(!has("Lu", 'a' as u32));
-        assert!(has("White_Space", 0x3000));
-        assert!(!has("White_Space", 0x200B));
-        assert!(has("Any", 0x10FFFF));
-        assert!(is_property_name("Nd") && is_property_name("Z") && !is_property_name("lu"));
-        assert!(!is_property_name("Letter") && !is_property_name("L&"));
+        assert_eq!(unicode.category('a' as u32), "Ll");
+        assert!(unicode.category('a' as u32).starts_with('L'));
+        assert_ne!(unicode.category('a' as u32), "Lu");
+        assert!(unicode.is_white_space(0x3000));
+        assert!(!unicode.is_white_space(0x200B));
+        assert!(unicode.is_emoji_presentation(0x1F600));
+        assert!(unicode.is_emoji_component(0x1F3FB));
     }
     #[test]
     fn normalization_conformance() {

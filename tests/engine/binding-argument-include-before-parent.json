@@ -1,0 +1,18 @@
+{
+  "description": "A retained binding argument in an include precedes the parent declaration.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"z.md\"\n%rule text $SECOND\n```\n",
+    "z.md": "```jbogenbau\n%rule f(@X) \"a\"\n%rule named = f($FIRST)\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$FIRST is not defined in stage main",
+    "where": {
+      "document": "z.md",
+      "line": 3,
+      "column": 17
+    }
+  }
+}

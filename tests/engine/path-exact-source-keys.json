@@ -1,0 +1,15 @@
+{
+  "description": "Path exact source keys.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g.md\"\n```\n",
+    "g.md": "```jbogenbau\n%rule text \"a\"\n```\n",
+    "a/../g.md": "```jbogenbau\n%rule text \"b\"\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

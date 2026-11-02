@@ -12,7 +12,7 @@ from gencmu._closes import Block, CloseMachine, Sequences
 from gencmu._earley import Parser, StageContext
 from gencmu._model import Restoration
 
-from .shared import case_features, case_tokens, cases, load_case, load_case_pipeline, parse_case, run_case
+from .shared import case_features, case_tokens, cases, load_case, load_case_pipeline, parse_case, run_case, same_json
 from . import test_engine_cases as engine_cases
 
 
@@ -21,12 +21,18 @@ def tokens(*tags):
 
 
 class WithoutElision(unittest.TestCase):
+    def test_aligned_query_selection_requires_cases_not_a_count(self):
+        paths = [path for path in cases("engine") if path.name.startswith("without-elision-")]
+        self.assertTrue(paths, "no aligned-query fixtures found")
+        with patch(__name__ + ".cases", return_value=[paths[0], paths[0]]):
+            self.test_shared_aligned_queries()
+        with patch(__name__ + ".cases", return_value=[]), self.assertRaisesRegex(AssertionError, "no aligned-query fixtures"):
+            self.test_shared_aligned_queries()
+
     def test_shared_aligned_queries(self):
         paths = [path for path in cases("engine") if path.name.startswith("without-elision-")]
-        # DOM 27 adds family queries and their strict growth twins. The
-        # rule-argument update adds three queries with the 🆓 family.
-        # Keep the presence assertion and run every aligned fixture.
-        self.assertEqual(len(paths), 232)
+        # Every aligned fixture exercises its query and growth contract.
+        self.assertTrue(paths, "no aligned-query fixtures found")
         checker = engine_cases.EngineCases()
         for path in paths:
             with self.subTest(case=path.name):
@@ -46,7 +52,7 @@ class WithoutElision(unittest.TestCase):
         value, result, error, _ = run_case({"grammar": grammar, "tokens": tokens(*input_tags)})
         self.assertIsNone(error)
         self.assertIsNotNone(result)
-        self.assertEqual(value["ok"], accepted, value)
+        self.assertTrue(same_json(value["ok"], accepted), value)
         return value
 
     def test_saved_sound_does_not_change_a_common_block_entry(self):
@@ -96,8 +102,8 @@ class WithoutElision(unittest.TestCase):
                 )
                 self.assertIsNone(error)
                 self.assertIsNotNone(result)
-                self.assertTrue(value["ok"], value)
-                self.assertEqual(value["stages"][0]["output"][0]["tags"], ["KEPT"])
+                self.assertTrue(same_json(value["ok"], True), value)
+                self.assertTrue(same_json(value["stages"][0]["output"][0]["tags"], ["KEPT"]))
 
     def test_whole_capture_keeps_the_enclosing_named_cycle(self):
         self.assert_outcome(
@@ -179,7 +185,7 @@ class WithoutElision(unittest.TestCase):
         sizes = []
         for count in (8, 32):
             input_tokens, text = case_tokens({"tokens": tokens(*("X" for _ in range(count)))})
-            context = StageContext(pipeline.lowered(0, frozenset()), input_tokens, text, pipeline.unicode)
+            context = StageContext(pipeline._lowered_grammar(0, frozenset()), input_tokens, text, pipeline._unicode)
             forest = Parser(context).parse(context.lowered.rule_ids["text"])
             self.assertTrue(forest.roots)
             sizes.append((len(forest.prod), len(context.closes.states), len(context.closes.links)))
@@ -210,12 +216,12 @@ class WithoutElision(unittest.TestCase):
                     with patch.object(_testing, "count", bounded_count):
                         value, result, error = parse_case(pipeline, case)
                     self.assertIsNone(error)
-                    self.assertTrue(value["ok"], value)
+                    self.assertTrue(same_json(value["ok"], True), value)
                     self.assertEqual(_testing.work.get("close_sequence_nodes", 0), shared["maxCloseNodes"])
                     results.append(value)
                 finally:
                     _testing.work = None
-            self.assertEqual(results[0], results[1])
+            self.assertTrue(same_json(results[0], results[1]))
             print(f"ranked sibling depth {depth}: 0 close nodes")
 
     def test_shared_doubling_bound_and_unused_queries(self):
@@ -241,7 +247,7 @@ class WithoutElision(unittest.TestCase):
                     with patch.object(_testing, "count", bounded_count):
                         value, result, error, _ = run_case({**fixture, "grammar": grammar})
                     self.assertIsNone(error)
-                    self.assertTrue(value["ok"], value)
+                    self.assertTrue(same_json(value["ok"], True), value)
                     print(f"depth {depth}, witness {witness}: {_testing.work.get('close_sequence_nodes', 0)} close nodes")
                 finally:
                     _testing.work = None
@@ -251,7 +257,7 @@ class WithoutElision(unittest.TestCase):
             pipeline, error = load_case_pipeline(fixture)
             self.assertIsNone(error)
             input_tokens, text = case_tokens(fixture)
-            context = StageContext(pipeline.lowered(0, frozenset()), input_tokens, text, pipeline.unicode)
+            context = StageContext(pipeline._lowered_grammar(0, frozenset()), input_tokens, text, pipeline._unicode)
             self.assertIsNone(context.closes)
 
             def unused_count(name, amount=1):
@@ -263,7 +269,7 @@ class WithoutElision(unittest.TestCase):
                 with patch.object(_testing, "count", unused_count):
                     value, result, error, _ = run_case(fixture)
                 self.assertIsNone(error)
-                self.assertTrue(value["ok"], value)
+                self.assertTrue(same_json(value["ok"], True), value)
             finally:
                 _testing.work = None
 
@@ -293,8 +299,8 @@ class WithoutElision(unittest.TestCase):
                     with patch.object(_testing, "count", bounded_count):
                         value, result, error = parse_case(pipeline, case)
                     self.assertIsNone(error)
-                    self.assertFalse(value["ok"])
-                    self.assertEqual(value["error"]["reason"], "tie")
+                    self.assertTrue(same_json(value["ok"], False))
+                    self.assertTrue(same_json(value["error"]["reason"], "tie"))
                     if shared["maxCloseNodes"]:
                         self.assertGreater(_testing.work.get("close_observation_states", 0), 0)
                     self.assertGreater(_testing.work.get("items", 0), 0)

@@ -6,13 +6,11 @@
 
 use std::cell::RefCell;
 
-use crate::earley::{test_holds, Cap, Chart, Item, Tok};
-use crate::fxhash::FxSet;
+use crate::earley::{Cap, Chart, Item, Tok};
+use crate::fxhash::{FxMap, FxSet};
 use crate::lower::{Lowered, Sym};
 use crate::rank::restored_terminal;
-use crate::tags::{SetId, Tags};
 use crate::tree::{IKind, ITree};
-use crate::unicode::Unicode;
 
 /// A way to lose the witness of a check after recognition (engine §7.9).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,11 +31,22 @@ pub struct ElisionCheckRun {
     pub keeps_witness: bool,
 }
 
-/// A fault of this library's own paths in the check of `elision-only`,
-/// which a test turns on to show that the shared cases catch it
-/// (tests/README.md). The omission fault also affects the original recognition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Fault {
+macro_rules! faults {
+    ($( $(#[$doc:meta])* $variant:ident, )+) => {
+        /// A fault of this library's paths in the check of `elision-only`.
+        /// Tests enable each fault and require a shared case to catch it.
+        /// The omission fault also changes the original recognition.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub enum Fault { $( $(#[$doc])* $variant, )+ }
+
+        impl Fault {
+            /// Every fault, generated from the variant declarations.
+            pub const ALL: [Fault; [$(stringify!($variant)),+].len()] = [$(Fault::$variant),+];
+        }
+    };
+}
+
+faults! {
     /// The recognizer admits an omission without its restoration predicate.
     Omission,
     /// The ranker, which rebuilds the links of the check's derivations from
@@ -66,19 +75,6 @@ pub enum Fault {
 }
 
 impl Fault {
-    /// Every fault, for the tests that run each one.
-    pub const ALL: [Fault; 9] = [
-        Fault::Omission,
-        Fault::RankerTests,
-        Fault::ReferenceSpan,
-        Fault::Reprocess,
-        Fault::Route3,
-        Fault::RankRestoration,
-        Fault::LostContext,
-        Fault::LostSelect,
-        Fault::Restore,
-    ];
-
     /// The sites of a fault: the places in the code where it is checked,
     /// each of which the named cases must enter while it is on.
     pub fn sites(self) -> &'static [&'static str] {
@@ -195,20 +191,13 @@ pub(crate) struct CheckForest<'a> {
     /// Whether the chart has completed items of `text` over R that count
     /// as its roots.
     pub rooted: bool,
-    /// R, the reconstructed input, and O, the stage's input.
+    /// R, the reconstructed input.
     pub tokens: &'a [Tok],
-    pub observed: &'a [Tok],
-    pub project: &'a [u32],
     pub synthetic: &'a [bool],
     /// For each token of O, its index in R.
     pub original_at: &'a [u32],
     /// For each restoration record, the index of its synthetic token in R.
     pub record_at: &'a [u32],
-    pub unicode: &'a Unicode,
-    pub tags: &'a Tags,
-    /// The empty tag set, which a terminal that reads a synthetic token
-    /// captures.
-    pub empty: SetId,
 }
 
 /// The marks of W(D) that the check's ranker takes (tests/README.md): the
@@ -314,6 +303,8 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
     // reaches, by set and index.
     let mut found: Vec<Vec<u32>> = vec![Vec::new(); count];
     let mut marks = Marks::default();
+    type Seeds = FxMap<(u32, u32, u32), Vec<u32>>;
+    let mut seeds: FxMap<u32, Seeds> = FxMap::default();
     for &index in &order {
         let node = &chosen.nodes[index as usize];
         let IKind::Close { prod, .. } = node.kind else {
@@ -321,256 +312,81 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
         };
         let (start, end) = spans[index as usize];
         let at = |set: u32, item: Item| forest.chart.sets.get(set as usize).and_then(|set| set.find(&item));
+        let seed_set = if elided(&node.kind) { end } else { start };
+        let seed_items = seeds
+            .entry(seed_set)
+            .or_insert_with(|| {
+                let mut index = Seeds::default();
+                for (i, item) in forest.chart.sets[seed_set as usize].items.iter().enumerate() {
+                    if item.dot == 0 && item.caps == 0 {
+                        index.entry((item.prod, item.dot, item.origin)).or_default().push(i as u32);
+                    }
+                }
+                index
+            })
+            .get(&(prod, 0, start))
+            .map_or(&[][..], Vec::as_slice);
         if elided(&node.kind) {
             // The restoration: the empty production's item from `start`,
             // in the set after it.
-            found[index as usize] = if forest.chart.machine.is_some() || forest.chart.boundaries.is_some() {
-                forest.chart.sets[end as usize]
-                    .items
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, item)| item.prod == prod && item.dot == 0 && item.origin == start && item.caps == 0)
-                    .map(|(i, _)| i as u32)
-                    .collect()
-            } else {
-                at(
-                    end,
-                    Item {
-                        boundary: 0,
-                        close_requested: false,
-                        lexical: 0,
-                        prod,
-                        dot: 0,
-                        origin: start,
-                        caps: 0,
-                        prefix: 0,
-                        structure: u32::MAX,
-                    },
-                )
-                .into_iter()
-                .collect()
-            };
+            found[index as usize] = seed_items.to_vec();
             marks.items.extend(found[index as usize].iter().map(|&item| (end, item)));
             continue;
         }
         let production = &g.prods[prod as usize];
-        if forest.chart.machine.is_some() || forest.chart.boundaries.is_some() {
-            let mut current: Vec<Item> = forest.chart.sets[start as usize]
-                .items
-                .iter()
-                .filter(|item| item.prod == prod && item.dot == 0 && item.origin == start && item.caps == 0)
-                .copied()
-                .collect();
-            for &item in &current {
-                if let Some(i) = at(start, item) {
-                    marks.items.insert((start, i));
-                }
+        let mut current: Vec<Item> =
+            seed_items.iter().map(|&i| forest.chart.sets[start as usize].items[i as usize]).collect();
+        for &item in &current {
+            if let Some(i) = at(start, item) {
+                marks.items.insert((start, i));
             }
-            for (position, &child) in node.children.iter().enumerate() {
-                let (from, to) = spans[child as usize];
-                let mut next = Vec::new();
-                for &item in &current {
-                    let mut caps = Vec::new();
-                    match (&chosen.nodes[child as usize].kind, production.syms[position]) {
-                        (IKind::Read { tok, terminal }, Sym::T(symbol)) if *terminal == symbol => {
-                            let rule = &g.rules[production.rule as usize];
-                            let omitted = forest.synthetic[from as usize]
-                                && position == 0
-                                && rule.helper
-                                && rule.elided.is_some();
-                            if let Some(structure) = forest
-                                .chart
-                                .terminal_states
-                                .get(&(from, symbol, omitted))
-                                .copied()
-                                .or_else(|| forest.chart.boundaries.as_ref().map(|_| u32::MAX))
-                            {
-                                let token = &forest.tokens[forest.original_at[*tok as usize] as usize];
-                                let tags = if forest.synthetic[from as usize] { forest.empty } else { token.tags };
-                                let boundary = forest.chart.boundaries.as_ref().map_or(0, |m| {
-                                    m.borrow_mut().leaf(&g.terminals[symbol as usize], forest.synthetic[from as usize])
-                                });
-                                caps.push(Cap {
-                                    boundary,
-                                    close_requested: false,
-                                    start: from,
-                                    end: to,
-                                    tags,
-                                    structure,
-                                });
-                            }
-                        }
-                        (IKind::Close { .. }, Sym::N(_)) => {
-                            for &i in &found[child as usize] {
-                                let set = &forest.chart.sets[to as usize];
-                                if set.items[i as usize].lexical != forest.chart.expected_lexical(item, from) {
-                                    continue;
-                                }
-                                caps.push(Cap {
-                                    boundary: set.items[i as usize].boundary,
-                                    close_requested: set.items[i as usize].close_requested,
-                                    start: from,
-                                    end: to,
-                                    tags: set.tagset[i as usize],
-                                    structure: set.items[i as usize].structure,
-                                });
-                            }
-                        }
-                        _ => {}
-                    }
-                    for cap in caps {
-                        if let Some(&advanced) = forest.chart.advances.get(&(item, cap)) {
-                            if let Some(i) = at(to, advanced) {
-                                if !next.contains(&advanced) {
-                                    next.push(advanced);
-                                }
-                                marks.items.insert((to, i));
-                                marks.links.insert((to, i, from));
-                            }
-                        }
-                    }
-                }
-                current = next;
-            }
-            found[index as usize] = current.into_iter().filter_map(|item| at(end, item)).collect();
-            continue;
         }
-        let mut current: Vec<Item> = at(
-            start,
-            Item {
-                boundary: 0,
-                close_requested: false,
-                lexical: 0,
-                prod,
-                dot: 0,
-                origin: start,
-                caps: 0,
-                prefix: 0,
-                structure: u32::MAX,
-            },
-        )
-        .map(|_| Item {
-            boundary: 0,
-            close_requested: false,
-            lexical: 0,
-            prod,
-            dot: 0,
-            origin: start,
-            caps: 0,
-            prefix: 0,
-            structure: u32::MAX,
-        })
-        .into_iter()
-        .collect();
-        marks.items.extend(
-            at(
-                start,
-                Item {
-                    boundary: 0,
-                    close_requested: false,
-                    lexical: 0,
-                    prod,
-                    dot: 0,
-                    origin: start,
-                    caps: 0,
-                    prefix: 0,
-                    structure: u32::MAX,
-                },
-            )
-            .map(|item| (start, item)),
-        );
         for (position, &child) in node.children.iter().enumerate() {
             let (from, to) = spans[child as usize];
-            let test = g.test(prod, position);
-            // The tag sets that the child can have here: a read's token's,
-            // or none for a synthetic one; the derived items' own for a
-            // rule. Each must pass the symbol's test.
-            let own: Vec<SetId> = match (chosen.nodes[child as usize].kind.clone(), production.syms[position]) {
-                (IKind::Read { tok, terminal }, Sym::T(symbol)) if terminal == symbol => {
-                    let token = &forest.tokens[forest.original_at[tok as usize] as usize];
-                    let passes = test.map_or(true, |test| {
-                        test_holds(test, std::slice::from_ref(token), forest.unicode, forest.tags, token.tags)
-                    });
-                    if passes {
-                        vec![token.tags]
-                    } else {
-                        Vec::new()
+            let mut next = Vec::new();
+            for &item in &current {
+                let mut caps = Vec::new();
+                match (&chosen.nodes[child as usize].kind, production.syms[position]) {
+                    (IKind::Read { tok, terminal }, Sym::T(symbol)) if *terminal == symbol => {
+                        let structure =
+                            forest.chart.terminal_states.get(&(from, symbol, false)).copied().unwrap_or(u32::MAX);
+                        let token = &forest.tokens[forest.original_at[*tok as usize] as usize];
+                        let tags = token.tags;
+                        let boundary = forest
+                            .chart
+                            .boundaries
+                            .as_ref()
+                            .map_or(0, |m| m.borrow_mut().leaf(&g.terminals[symbol as usize], false));
+                        caps.push(Cap { boundary, close_requested: false, start: from, end: to, tags, structure });
                     }
-                }
-                (IKind::Close { .. }, Sym::N(_)) => {
-                    let set = &forest.chart.sets[to as usize];
-                    let span =
-                        &forest.observed[forest.project[from as usize] as usize..forest.project[to as usize] as usize];
-                    let mut sets: Vec<SetId> = found[child as usize]
-                        .iter()
-                        .map(|&item| set.tagset[item as usize])
-                        .filter(|&tags| {
-                            test.map_or(true, |test| test_holds(test, span, forest.unicode, forest.tags, tags))
-                        })
-                        .collect();
-                    sets.sort_unstable();
-                    sets.dedup();
-                    sets
-                }
-                _ => Vec::new(),
-            };
-            let mut next: Vec<Item> = Vec::new();
-            for item in &current {
-                if production.cap_at[position].is_some() {
-                    for &tags in &own {
-                        let tags = match production.syms[position] {
-                            Sym::T(_) if forest.synthetic[from as usize] => forest.empty,
-                            _ => tags,
-                        };
-                        let Some(caps) = forest.chart.lookup_caps(
-                            item.caps,
-                            Cap {
-                                boundary: 0,
-                                close_requested: false,
+                    (IKind::Close { .. }, Sym::N(_)) => {
+                        for &i in &found[child as usize] {
+                            let set = &forest.chart.sets[to as usize];
+                            if set.items[i as usize].lexical != forest.chart.expected_lexical(item, from) {
+                                continue;
+                            }
+                            caps.push(Cap {
+                                boundary: set.items[i as usize].boundary,
+                                close_requested: set.items[i as usize].close_requested,
                                 start: from,
                                 end: to,
-                                tags,
-                                structure: u32::MAX,
-                            },
-                        ) else {
-                            continue;
-                        };
-                        let advanced = Item {
-                            boundary: 0,
-                            close_requested: item.close_requested,
-                            lexical: 0,
-                            prod,
-                            dot: item.dot + 1,
-                            origin: start,
-                            caps,
-                            prefix: 0,
-                            structure: u32::MAX,
-                        };
-                        if at(to, advanced).is_some() && !next.contains(&advanced) {
-                            next.push(advanced);
+                                tags: set.tagset[i as usize],
+                                structure: set.items[i as usize].structure,
+                            });
                         }
                     }
-                } else if !own.is_empty() {
-                    let advanced = Item {
-                        boundary: 0,
-                        close_requested: item.close_requested,
-                        lexical: item.lexical,
-                        prod,
-                        dot: item.dot + 1,
-                        origin: start,
-                        caps: item.caps,
-                        prefix: 0,
-                        structure: u32::MAX,
-                    };
-                    if at(to, advanced).is_some() && !next.contains(&advanced) {
-                        next.push(advanced);
-                    }
+                    _ => {}
                 }
-            }
-            for &item in &next {
-                if let Some(index) = at(to, item) {
-                    marks.items.insert((to, index));
-                    marks.links.insert((to, index, from));
+                for cap in caps {
+                    if let Some(&advanced) = forest.chart.advances.get(&(item, cap)) {
+                        if let Some(i) = at(to, advanced) {
+                            if !next.contains(&advanced) {
+                                next.push(advanced);
+                            }
+                            marks.items.insert((to, i));
+                            marks.links.insert((to, i, from));
+                        }
+                    }
                 }
             }
             current = next;

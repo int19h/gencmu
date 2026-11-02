@@ -1,0 +1,11 @@
+{
+  "description": "Independent definition checks finish before the next declaration or template expansion.",
+  "document": "```jbogenbau\n%rule f $x:g(\"a\") %conditions $y\n%rule s $xY:A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1,
+      "message": "$y is captured by no alternative of f"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "description": "The engine preserves structural and ranked context through lowering (engine §§2.1, 3.3, 3.8, 6.1).",
+  "grammar": "%rule text :: ∅ := $x.value | ($x:A ≻ $x:B) := $x.image %emits",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-export"
+  }
+}

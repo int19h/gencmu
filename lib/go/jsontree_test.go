@@ -156,6 +156,9 @@ func shown(v any) string {
 	return encodeJSON(v, 300)
 }
 
+// Blank JSONL lines contain only JSON whitespace (tests/README.md).
+func blankJSONLine(line []byte) bool { return len(bytes.Trim(line, " \t\r\n")) == 0 }
+
 // TestJSONTreeAgrees decodes every shared JSON file and corpus line, and
 // some text that is not JSON, as json.Unmarshal does.
 func TestJSONTreeAgrees(t *testing.T) {
@@ -172,7 +175,7 @@ func TestJSONTreeAgrees(t *testing.T) {
 				continue
 			}
 			for _, line := range bytes.Split(data, []byte("\n")) {
-				if len(bytes.TrimSpace(line)) > 0 {
+				if !blankJSONLine(line) {
 					docs = append(docs, line)
 				}
 			}
@@ -211,9 +214,9 @@ func TestJSONTreeAgrees(t *testing.T) {
 }
 
 // TestJSONTreeDeep reads, converts, compares, copies and writes JSON
-// 20,000 deep with the stack of a goroutine held to 1 MiB, which a
-// recursion as deep as that would pass. encoding/json refuses such a
-// document, as the runners did before they read JSON here.
+// 20,000 levels deep with a goroutine stack limited to 1 MiB.
+// Recursing through this depth exceeds that limit. encoding/json rejects
+// the same input at its depth limit.
 func TestJSONTreeDeep(t *testing.T) {
 	const n = 20000
 	text := []byte(strings.Repeat(`{"text":"a","before":[`, n) + strings.Repeat(`]}`, n))

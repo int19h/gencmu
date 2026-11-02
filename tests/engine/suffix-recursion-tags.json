@@ -1,0 +1,9 @@
+{
+  "description": "Active suffix queries bypass cached answers that can conceal recursion (engine §4.3).",
+  "grammar": "%rule text $x:body\n%conditions $x.tags(wrap) = ∅, $x.ends(r)\n%rule body \"a\" \"a\"\n%rule r \"a\" [\"a\"]\n%conditions $.starts-input ∨ $.preceding-tokens.onward.matches(wrap)\n%rule wrap $x:body\n%conditions $x.matches(r)",
+  "input": "aa",
+  "expect": {
+    "error": "grammar",
+    "message": "a condition asks whether its own span parses as r from inside the parse of that span as r: the grammar defines r in terms of itself over the same text"
+  }
+}

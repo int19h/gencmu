@@ -34,7 +34,7 @@
     "check-types": "tsc -p . --noEmit && tsc -p typecheck"
   },
   "devDependencies": {
-    "@types/node": "20.19.43",
+    "@types/node": "24.19.2",
     "mdast-util-from-markdown": "2.0.3",
     "mdast-util-gfm": "3.1.0",
     "micromark": "4.0.3",

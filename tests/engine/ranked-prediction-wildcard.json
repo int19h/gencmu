@@ -1,0 +1,10 @@
+{
+  "description": "A holding frame condition preserves ranked wildcard predictions before lookahead (engine §4).",
+  "grammar": "%rule text (\"b\" ≻ _) :: ∅\n%conditions \"a\" = \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

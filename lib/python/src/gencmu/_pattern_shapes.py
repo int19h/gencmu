@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 
-from ._trampoline import run
 
 
 _IDENTIFIER = re.compile(r"[A-Za-z][A-Za-z0-9_-]*\Z", re.ASCII)
@@ -13,8 +12,11 @@ _RULE = re.compile(r"[a-z][A-Za-z0-9_-]*\Z", re.ASCII)
 _SETS = ("union", "intersection", "difference")
 
 
+MAX_POSITION = 9007199254740991
+
+
 def _position(value):
-    return isinstance(value, list) and len(value) == 2 and all(type(x) is int and x > 0 for x in value)
+    return isinstance(value, list) and len(value) == 2 and all(type(x) is int and 1 <= x <= MAX_POSITION for x in value)
 
 
 def _string_term(node):
@@ -28,15 +30,7 @@ def _string_term(node):
     return False
 
 
-def pattern_item_parts(node):
-    if "child" in node:
-        return [node["child"]]
-    if "choice" in node:
-        return [item for arm in node["choice"] for item in arm]
-    return node.get("optional", node.get("repeat", [])) + node.get("separator", [])
-
-
-def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=0, defer_depth=False):
+def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=0, defer_depth=False, defer_groups=False):
     def rule_name(value):
         return isinstance(value, str) and (name(value) if name else bool(_RULE.fullmatch(value)) or len(value) == 1 and ord(value) > 127)
 
@@ -52,7 +46,6 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
                 and "exact" not in node and "children" not in node)
 
     pending = [(root, False, False, depth, False)]
-    repeats = []
     while pending:
         node, item, repeated, level, inner = pending.pop()
         if not defer_depth and level > 256:
@@ -72,7 +65,10 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
             return True
 
         if item:
-            if keys == {"child"}:
+            if defer_groups and keys == {"sequence"}:
+                if not items(node["sequence"]):
+                    return "a malformed pattern sequence"
+            elif keys == {"child"}:
                 push(node["child"], False, False)
             elif keys == {"siblings"}:
                 if node["siblings"] is not True:
@@ -85,12 +81,11 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
             elif keys in ({"repeat"}, {"repeat", "separator"}):
                 if not items(node["repeat"], True) or "separator" in node and not items(node["separator"], True):
                     return "a malformed pattern repeat"
-                repeats.append(node["repeat"])
             elif keys == {"choice"}:
                 if not isinstance(node["choice"], list) or len(node["choice"]) < 2:
                     return "a malformed pattern choice"
                 for arm in node["choice"]:
-                    if not items(arm) or len(arm) == 1 and isinstance(arm[0], dict) and "choice" in arm[0]:
+                    if not items(arm) or not defer_groups and len(arm) == 1 and isinstance(arm[0], dict) and "choice" in arm[0]:
                         return "a malformed pattern choice"
             else:
                 return "a malformed pattern child item"
@@ -100,7 +95,7 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
             operands = node[compound]
             if keys != {compound} or not isinstance(operands, list) or len(operands) < 2 or compound == "difference" and len(operands) != 2:
                 return "a malformed pattern"
-            if compound != "difference" and any(isinstance(x, dict) and compound in x for x in operands):
+            if not defer_groups and compound != "difference" and any(isinstance(x, dict) and compound in x for x in operands):
                 return "a nested pattern set must be flat"
             for child in operands:
                 push(child, False, False)
@@ -171,17 +166,6 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
             return "a malformed pattern node test"
         if "children" in node and not items(node["children"], False, True):
             return "a malformed pattern child list"
-    for repeat in repeats:
-        pending_items = list(repeat)
-        consumes = False
-        while pending_items and not consumes:
-            item = pending_items.pop()
-            if "child" in item:
-                consumes = True
-            else:
-                pending_items.extend(pattern_item_parts(item))
-        if not consumes:
-            return "a pattern repeat cannot match only empty sequences"
     return None
 
 
@@ -280,11 +264,3 @@ def _print_layered(root, term, literal=True):
                 tasks += [("text", "« "), ("items", value["children"]), ("text", " »")] if value["children"] else [("text", "«»")]
         pending.extend(reversed(tasks))
     return "".join(out)
-
-
-def layered_pattern_text(root, term, literal=True):
-    def print_term(node):
-        if False:
-            yield
-        return term(node)
-    return run(_print_layered(root, print_term, literal))

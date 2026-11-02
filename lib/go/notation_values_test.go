@@ -70,6 +70,49 @@ func valueNotation(t *testing.T, aliases []notationAlias) string {
 	return string(raw)
 }
 
+type notationValueCase struct {
+	ID          string          `json:"id"`
+	Description string          `json:"description"`
+	Aliases     []notationAlias `json:"aliases"`
+	Document    string          `json:"document"`
+	Expect      struct {
+		Dom     any     `json:"dom"`
+		Message *string `json:"message"`
+		Error   *struct {
+			Line   int `json:"line"`
+			Column int `json:"column"`
+		} `json:"error"`
+	} `json:"expect"`
+}
+
+func decodeNotationValues(data []byte) ([]notationValueCase, error) {
+	raw, err := decodeJSON(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := notationValuesSchema(raw); err != nil {
+		return nil, err
+	}
+	var suite struct {
+		Cases []notationValueCase `json:"cases"`
+	}
+	if err := unmarshalJSON(data, &suite); err != nil {
+		return nil, err
+	}
+	return suite.Cases, nil
+}
+
+func checkNotationValueError(c *notationValueCase, actual *Error) error {
+	expected := c.Expect.Error
+	if actual == nil || actual.Line != expected.Line || actual.Column != expected.Column {
+		return fmt.Errorf("%s: expected %d:%d, got %v", c.ID, expected.Line, expected.Column, actual)
+	}
+	if message := c.Expect.Message; message != nil && actual.Message != *message {
+		return fmt.Errorf("%s: expected message %q, got %q", c.ID, *message, actual.Message)
+	}
+	return nil
+}
+
 func TestNotationValues(t *testing.T) {
 	t.Parallel()
 	if err := loadBundled(); err != nil {
@@ -79,28 +122,14 @@ func TestNotationValues(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var suite struct {
-		Cases []struct {
-			ID          string          `json:"id"`
-			Description string          `json:"description"`
-			Aliases     []notationAlias `json:"aliases"`
-			Document    string          `json:"document"`
-			Expect      struct {
-				Dom   any `json:"dom"`
-				Error *struct {
-					Line   int `json:"line"`
-					Column int `json:"column"`
-				} `json:"error"`
-			} `json:"expect"`
-		} `json:"cases"`
-	}
-	if err := unmarshalJSON(raw, &suite); err != nil {
+	cases, err := decodeNotationValues(raw)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if len(suite.Cases) == 0 {
+	if len(cases) == 0 {
 		t.Fatal("no supplied notation cases")
 	}
-	for _, c := range suite.Cases {
+	for _, c := range cases {
 		t.Run(c.ID, func(t *testing.T) {
 			t.Parallel()
 			reader, err := newNotationReader(valueNotation(t, c.Aliases), bundled.uni)
@@ -109,8 +138,8 @@ func TestNotationValues(t *testing.T) {
 			}
 			dom, rerr := reader.read(c.Document, "case.md")
 			if expected := c.Expect.Error; expected != nil {
-				if rerr == nil || rerr.Line != expected.Line || rerr.Column != expected.Column {
-					t.Fatalf("%s: expected %d:%d, got %v", c.ID, expected.Line, expected.Column, rerr)
+				if err := checkNotationValueError(&c, rerr); err != nil {
+					t.Fatal(err)
 				}
 				return
 			}
@@ -122,5 +151,42 @@ func TestNotationValues(t *testing.T) {
 			}
 			notationCacheCases(t, c.Document, dom, reader)
 		})
+	}
+}
+
+func TestNotationValueCaseSchemaRejectsInvalidMembers(t *testing.T) {
+	for _, expect := range []string{
+		`{"error":{"line":3,"column":7,"message":"ignored"}}`,
+		`{"error":{"line":3,"column":7},"unknown":true}`,
+		`{"error":{"line":3,"column":7},"message":null}`,
+		`{"dom":{},"message":"no error"}`,
+		`{"dom":{},"error":{"line":3,"column":7}}`,
+		`{"error":{"line":null,"column":7}}`,
+	} {
+		raw := `{"cases":[{"id":"case","aliases":[],"document":"","expect":` + expect + `}]}`
+		if _, err := decodeNotationValues([]byte(raw)); err == nil {
+			t.Errorf("accepted invalid expectation %s", expect)
+		}
+	}
+	if _, err := decodeNotationCase([]byte(`{"document":"","expect":{"error":{"line":3,"column":7,"message":"reason"}}}`)); err != nil {
+		t.Fatalf("ordinary notation cases must retain nested messages: %v", err)
+	}
+}
+
+func TestNotationValueErrorComparesMessage(t *testing.T) {
+	cases, err := decodeNotationValues([]byte(`{"cases":[{"id":"case","aliases":[],"document":"","expect":{"error":{"line":3,"column":7},"message":"expected reason"}}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := checkNotationValueError(&cases[0], &Error{Line: 3, Column: 7, Message: "different reason"}); err == nil {
+		t.Error("accepted the wrong error message")
+	}
+	if err := checkNotationValueError(&cases[0], &Error{Line: 3, Column: 7, Message: "expected reason"}); err != nil {
+		t.Fatal(err)
+	}
+	empty := ""
+	cases[0].Expect.Message = &empty
+	if err := checkNotationValueError(&cases[0], &Error{Line: 3, Column: 7, Message: "reason"}); err == nil {
+		t.Error("ignored an empty expected message")
 	}
 }

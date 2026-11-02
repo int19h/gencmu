@@ -1,0 +1,10 @@
+{
+  "description": "Nested calls and patterns share the ordinary reader stack and DOM depth bound.",
+  "document": "```jbogenbau\n%rule atom(@X) @X\n%rule text A %conditions $ ≅ #atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#atom(#a))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))\n```",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 1
+    }
+  }
+}

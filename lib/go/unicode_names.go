@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 )
 
 type unicodeNameRecord struct {
@@ -252,41 +251,49 @@ func (t *unicodeNames) inspect(pinned *unicodeNames, abbreviations map[string]ru
 }
 
 type namesScope struct {
-	read         func(string) (string, bool)
+	names        map[string]rune
+	read         func(string) (string, bool, *Error)
 	uni          *unicodeTable
 	extras       []string
-	tables       []*unicodeNames
+	base         *unicodeNames
 	dependencies map[string]string
 }
 
-func newNamesScope(read func(string) (string, bool), uni *unicodeTable, extras []string) *namesScope {
+func newNamesScope(read func(string) (string, bool, *Error), uni *unicodeTable, extras []string) *namesScope {
 	paths := append([]string{}, extras...)
 	slices.Sort(paths)
 	return &namesScope{read: read, uni: uni, extras: slices.Compact(paths)}
 }
 
-func selectedNames(path string, dom *domDoc, inherited []string) []string {
+func selectedNames(path string, dom *domDoc, inherited []string) ([]string, *Error) {
 	paths := append([]string{}, inherited...)
 	for _, directive := range dom.Directives {
 		if directive.Name == "names" {
-			paths = append(paths, resolvePath(path, directive.Args[0]))
+			resolved, err := resolvePath(path, directive.Args[0], directive.At)
+			if err != nil {
+				return nil, err
+			}
+			paths = append(paths, resolved)
 		}
 	}
 	slices.Sort(paths)
-	return slices.Compact(paths)
+	return slices.Compact(paths), nil
 }
 func (n *namesScope) need(path string) (string, *Error) {
-	text, ok := n.read(path)
-	if !ok {
-		return "", namesError(path, 0, "the names resource is missing")
+	text, ok, err := n.read(path)
+	if err != nil {
+		return "", err
 	}
-	if !utf8.ValidString(text) {
-		return "", namesError(path, 0, "the names resource is not valid UTF-8")
+	if !ok {
+		return "", namesError(path, 0, path+" was not found")
+	}
+	if problem := utf8Problem(text); problem != "" {
+		return "", namesError(path, 0, "the document is not valid UTF-8: "+problem)
 	}
 	return text, nil
 }
 func (n *namesScope) load() *Error {
-	if n.tables != nil {
+	if n.names != nil {
 		return nil
 	}
 	if n.uni.versionCount != 1 || n.uni.version == "" {
@@ -324,7 +331,14 @@ func (n *namesScope) load() *Error {
 	if err = base.inspect(pinned, n.uni.abbreviations, false); err != nil {
 		return err
 	}
-	tables := []*unicodeNames{base}
+	names := make(map[string]rune, len(base.names))
+	for name, code := range base.names {
+		names[name] = code
+	}
+	formal := make(map[rune]string, len(base.formal))
+	for code, record := range base.formal {
+		formal[code] = record.name
+	}
 	dependencies := map[string]string{"data/unicode/unicode-names.txt": hash}
 	for _, path := range n.extras {
 		text, err := n.need(path)
@@ -339,18 +353,17 @@ func (n *namesScope) load() *Error {
 			return err
 		}
 		for _, r := range table.records {
-			for _, earlier := range tables {
-				code, ok := earlier.lookup(r.name)
-				formal, hasFormal := earlier.formal[r.code]
-				if ok && code != r.code || hasFormal && formal.name != r.name {
-					return namesError(path, r.line, "names resources conflict")
-				}
+			// inspect excludes every pinned algorithmic spelling and scalar first.
+			code, ok := names[r.name]
+			previous, hasFormal := formal[r.code]
+			if ok && code != r.code || hasFormal && previous != r.name {
+				return namesError(path, r.line, "names resources conflict")
 			}
+			names[r.name], formal[r.code] = r.code, r.name
 		}
 		dependencies[path] = fnv1a64(text)
-		tables = append(tables, table)
 	}
-	n.tables, n.dependencies = tables, dependencies
+	n.base, n.dependencies, n.names = base, dependencies, names
 	return nil
 }
 func (n *namesScope) lookup(name string, coreOnly bool) (rune, bool, *Error) {
@@ -363,12 +376,11 @@ func (n *namesScope) lookup(name string, coreOnly bool) (rune, bool, *Error) {
 	if err := n.load(); err != nil {
 		return 0, false, err
 	}
-	for _, table := range n.tables {
-		if code, ok := table.lookup(name); ok {
-			return code, true, nil
-		}
+	if code, ok := n.names[name]; ok {
+		return code, true, nil
 	}
-	return 0, false, nil
+	code, ok := n.base.lookup(name)
+	return code, ok, nil
 }
 
 var namesFingerprintPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)

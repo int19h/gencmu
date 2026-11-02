@@ -362,6 +362,14 @@ impl Observations {
     }
 }
 
+pub(crate) fn plans_by_production(g: &crate::lower::Lowered) -> Vec<Vec<&crate::lower::RankedPlan>> {
+    let mut plans = vec![Vec::new(); g.prods.len()];
+    for ((production, ..), plan) in &g.ranked.plans {
+        plans[*production as usize].push(plan);
+    }
+    plans
+}
+
 /// Only reachable queries demand candidate and witness observations.
 pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
     use crate::fxhash::FxSet;
@@ -449,6 +457,7 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
             }
         }
     }
+    let plans = plans_by_production(g);
     let mut w = FxSet::default();
     let mut seen = FxSet::default();
     let mut todo = vec![g.start];
@@ -485,14 +494,12 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
                 }
                 _ => {}
             }
-            for ((production, _, _, _), plan) in &g.ranked.plans {
-                if *production == id {
-                    for (c, _) in plan.conditions.iter().flatten() {
-                        cond(c, p, &mut local, &mut todo);
-                    }
-                    if let Some(t) = &plan.whole_tags {
-                        term(t, p, &mut local, &mut todo);
-                    }
+            for plan in &plans[id as usize] {
+                for (c, _) in plan.conditions.iter().flatten() {
+                    cond(c, p, &mut local, &mut todo);
+                }
+                if let Some(t) = &plan.whole_tags {
+                    term(t, p, &mut local, &mut todo);
                 }
             }
             if !local.is_empty() && p.syms.iter().any(|s| matches!(s,Sym::N(r) if g.ranked.slots.contains_key(r))) {
@@ -802,6 +809,7 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
             }
         }
     }
+    let plans = plans_by_production(g);
     let mut out = vec![LocalDemand::default(); g.prods.len()];
     let mut sources: crate::fxhash::FxMap<(usize, usize), LocalDemand> = crate::fxhash::FxMap::default();
     for (i, p) in g.prods.iter().enumerate() {
@@ -827,19 +835,17 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
             }
             _ => {}
         }
-        for ((production, _, _, _), plan) in &g.ranked.plans {
-            if *production == i as u32 {
-                for (c, _) in plan.conditions.iter().flatten() {
-                    cond(c, d);
-                }
-                if let Some(t) = &plan.whole_tags {
-                    term(t, d);
-                }
-                if let Some(slot) = &p.slot {
-                    let shared = sources.entry(slot.source).or_default();
-                    shared.whole |= d.whole;
-                    shared.lexical.extend(d.lexical.iter().cloned());
-                }
+        for plan in &plans[i] {
+            for (c, _) in plan.conditions.iter().flatten() {
+                cond(c, d);
+            }
+            if let Some(t) = &plan.whole_tags {
+                term(t, d);
+            }
+            if let Some(slot) = &p.slot {
+                let shared = sources.entry(slot.source).or_default();
+                shared.whole |= d.whole;
+                shared.lexical.extend(d.lexical.iter().cloned());
             }
         }
     }

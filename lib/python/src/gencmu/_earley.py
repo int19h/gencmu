@@ -328,9 +328,7 @@ class SuffixState:
     answers: dict[int, bool] = field(default_factory=dict)
     parser: Any = None
     walk: Walk | None = None
-    active: bool = False
-    error_at: int = 0
-    error: tuple[int, Exception] | None = None
+    dependent: bool = False
 
     def resume(self, context: StageContext, number: int, start: int, end: int) -> Walk:
         if self.parser is None:
@@ -339,22 +337,18 @@ class SuffixState:
         self.parser.end = end
         self.parser.evaluator.end = end
         value, error = None, None
-        try:
-            while True:
-                if error is not None:
-                    pending, error = error, None
-                    request = self.walk.throw(pending)
-                else:
-                    request = self.walk.send(value)
-                if request is _SUFFIX_BOUNDARY:
-                    return self.answers[end]
-                try:
-                    value = yield request
-                except Exception as exception:
-                    error = exception
-        except Exception as exception:
-            self.error = self.error_at, exception
-            raise
+        while True:
+            if error is not None:
+                pending, error = error, None
+                request = self.walk.throw(pending)
+            else:
+                request = self.walk.send(value)
+            if request is _SUFFIX_BOUNDARY:
+                return self.answers[end]
+            try:
+                value = yield request
+            except Exception as exception:
+                error = exception
 
 
 def suffix_reads_end(lowered: Lowered, number: int) -> bool:
@@ -419,7 +413,6 @@ class StageContext:
     # The nested parses running, by rule and span, whatever was asked of them.
     running: set[tuple[str, int, int]] = field(default_factory=set)
     token_tags: list[int] = field(default_factory=list)
-    count: Callable[[Forest, list[int]], list[int]] | None = None
     # Where each run of the tokens lies in the text (engine §1).
     sources: Sources = field(init=False)
     # The next token with a nonempty stored value, made on first use.
@@ -440,7 +433,7 @@ class StageContext:
     # The mutable records belong to this stage context alone.
     boundary_machine: Records | None = field(init=False, default=None)
     aligned_memo: dict[tuple, NestedAnswer] = field(default_factory=dict)
-    qualified_memo: dict[tuple, tuple[Forest, list[int]]] = field(default_factory=dict)
+    qualified_memo: dict[tuple, list[tuple[int, int, int, bool | None]]] = field(default_factory=dict)
     # How many aligned queries the parse asked, and the keys of the answers
     # that depend on one. Such an answer stays out of the shared memo, and so
     # does every answer that reads it (engine §4.3).
@@ -448,6 +441,7 @@ class StageContext:
     tainted: set[tuple[bool, tuple[Any, ...]]] = field(default_factory=set)
     # How many aligned queries are active now.
     aligned_active: int = 0
+    suffix_active: int = 0
 
     def __post_init__(self) -> None:
         self.token_tags = [self.tagtab.intern(token.tags) for token in self.tokens]
@@ -526,9 +520,9 @@ class StageContext:
         parse can observe (engine §4): a short span's content, so that equal
         spans at other positions share the answer, or a longer span's
         position, which within one parse fixes its tokens. A key of content
-        costs as much as the span is long, and the span of from() or after()
-        runs to the end of the input. The two kinds of key never meet: one
-        holds numbers where the other holds text."""
+        costs as much as the span is long. The span of .onward or
+        .following-tokens runs to the context end. The two kinds of key
+        never meet: one holds numbers where the other holds text."""
         if end - start > CONTENT_KEY_LIMIT:
             return (rule, start, end)
         # The text over the span's source (engine §1), each token's tags,
@@ -557,12 +551,11 @@ class StageContext:
         read. A walk, which runs the nested parse where its answer is not
         yet known."""
         self.require_inactive(rule, start, end)
-        # Ordinary answers depend on their input, not the caller query stack.
+        # Suffix activity can expose recursion that a cached whole query hides.
         key = self.nested_key(rule, start, end)
-        found = self.memo.get(key)
+        found = self.memo.get(key) if not self.suffix_active else None
         if found is None:
-            yield self.answer(rule, start, end, key, False)
-            found = self.memo[key]
+            return (yield self.answer(rule, start, end, key, False))
         elif self.tainted and (False, key) in self.tainted:
             self.aligned_asked += 1
         return found
@@ -573,12 +566,11 @@ class StageContext:
         eligible proof tree begins at the span's start, in any set (engine
         §4). A walk, as for :meth:`nested`."""
         self.require_inactive(rule, start, end)
-        # Ordinary answers depend on their input, not the caller query stack.
+        # Suffix activity can expose recursion that a cached whole query hides.
         key = self.nested_key(rule, start, end)
-        found = self.begins_memo.get(key)
+        found = self.begins_memo.get(key) if not self.suffix_active else None
         if found is None:
-            yield self.answer(rule, start, end, key, True)
-            found = self.begins_memo[key]
+            return (yield self.answer(rule, start, end, key, True))
         elif self.tainted and (True, key) in self.tainted:
             self.aligned_asked += 1
         return found
@@ -588,22 +580,25 @@ class StageContext:
         self.require_inactive(rule, start, end)
         number = self.lowered.rule_ids[rule]
         key = (number, start, end) if suffix_reads_end(self.lowered, number) else (number, start)
-        state = self.suffixes.get(key)
-        if state is None:
-            state = self.suffixes[key] = SuffixState()
-        if state.error is not None and end >= state.error[0]:
-            raise state.error[1]
-        if end in state.answers:
-            return state.answers[end]
-        if state.active:
+        if self.suffix_active:
             state = SuffixState()
+        else:
+            state = self.suffixes.get(key)
+            if state is None:
+                state = self.suffixes[key] = SuffixState()
+            if end in state.answers:
+                if state.dependent:
+                    self.aligned_asked += 1
+                return state.answers[end]
         active = rule, start, end
         self.running.add(active)
-        state.active = True
+        self.suffix_active += 1
+        asked = self.aligned_asked
         try:
             return (yield state.resume(self, number, start, end))
         finally:
-            state.active = False
+            state.dependent |= self.aligned_asked != asked
+            self.suffix_active -= 1
             self.running.discard(active)
 
     def require_inactive(self, rule, start, end):
@@ -619,12 +614,10 @@ class StageContext:
         self.require_inactive(rule, span.start, span.context_end)
         closes = self.closes
         assert closes is not None
-        if span.observation == closes.INVALID:
-            return NestedAnswer(False, EMPTY)
         ancestry = frozenset(self.running)
         key = (rule, span.start, span.context_end, span.end, span.captured_end, prefix,
                closes.semantic(span.observation), span.family, ancestry)
-        found = self.aligned_memo.get(key)
+        found = self.aligned_memo.get(key) if not self.suffix_active else None
         if found is not None:
             return found
         request = rule, span.start, span.context_end
@@ -637,7 +630,7 @@ class StageContext:
             family = None
             if span.family is not None:
                 raw_key += span.family, span.captured_end, closes.semantic(span.observation)
-            qualified = self.qualified_memo.get(raw_key)
+            qualified = self.qualified_memo.get(raw_key) if not self.suffix_active else None
             if qualified is None:
                 number = self.lowered.rule_ids.get(rule)
                 if number is None:
@@ -651,30 +644,33 @@ class StageContext:
                               and forest.lowered.productions[forest.prod[item]].lhs == number
                               and forest.dot[item] == len(forest.lowered.productions[forest.prod[item]].rhs)
                               and forest.lowered.productions[forest.prod[item]].close_requested]
-                qualified = forest, eligible(forest, boundary_witnesses(forest, candidates))
-                self.qualified_memo[raw_key] = qualified
-            forest, candidates = qualified
+                qualified = []
+                for item in eligible(forest, boundary_witnesses(forest, candidates)):
+                    end = span.start + forest.end[item]
+                    family_answer = forest.family.accepts(forest.family_structure[item], end) if forest.family is not None else None
+                    if family_answer is not None and _testing.family_check is not None:
+                        _testing.family_check(forest, item, span.start, family_answer)
+                    qualified.append((end, forest.tag[item], forest.close_structure[item], family_answer))
+                if not self.suffix_active:
+                    self.qualified_memo[raw_key] = qualified
             tags = Gathered()
             accepted = False
-            for item in candidates:
-                end = span.start + forest.end[item]
-                if forest.family is not None and _testing.family_check is not None:
-                    answer = forest.family.accepts(forest.family_structure[item], end)
-                    _testing.family_check(forest, item, span.start, answer)
+            for end, tag_id, observation, family_answer in qualified:
                 if end > span.end or not prefix and end != span.end:
                     continue
                 boundary = min(span.captured_end, end)
-                if forest.family is not None:
-                    matches = forest.family.accepts(forest.family_structure[item], end)
+                if family_answer is not None:
+                    matches = family_answer
                 else:
                     candidate = closes.through(span.observation, boundary)
-                    witness = closes.through(forest.close_structure[item], boundary)
+                    witness = closes.through(observation, boundary)
                     matches = candidate is not None and candidate == witness
                 if matches:
                     accepted = True
-                    tags.add(self.tagtab.get(forest.tag[item]))
+                    tags.add(self.tagtab.get(tag_id))
             found = NestedAnswer(accepted, tags.value())
-            self.aligned_memo[key] = found
+            if not self.suffix_active:
+                self.aligned_memo[key] = found
             return found
         finally:
             self.aligned_active -= 1
@@ -690,18 +686,12 @@ class StageContext:
         condition asks of it. So alternating matches, begins and tags cannot
         hide a question about a span from inside its own parse (engine §4)."""
         running = (rule, start, end)
-        if running in self.running:
-            raise _GrammarFault(
-                f"a condition asks whether its own span parses as {rule} from inside the parse of that span as {rule}: "
-                f"the grammar defines {rule} in terms of itself over the same text"
-            )
         number = self.lowered.rule_ids.get(rule)
         if number is None:
             raise _GrammarFault(f"{rule} is not a rule of this stage")
         bound = _memo.limit()
-        shared = self.shared_key(rule, start, end, begins) if bound > 0 and end - start <= CONTENT_KEY_LIMIT else None
-        # While an aligned query is active, the shared memo serves nothing
-        # (engine §4.3). It still keeps what the parse computes.
+        shared = self.shared_key(rule, start, end, begins) if bound > 0 and not self.suffix_active and end - start <= CONTENT_KEY_LIMIT else None
+        # Shared answers cannot hide recursive aligned or suffix requests (§4.3).
         found = self.lowered.memo.get(shared, bound) if shared is not None and not self.aligned_active else None
         if found is not None:
             if _testing.memo_hit is not None:
@@ -712,7 +702,7 @@ class StageContext:
             if isinstance(found, NestedAnswer):
                 found = NestedAnswer(found.accepted, frozenset(list(found.tags)))
             (self.begins_memo if begins else self.memo)[key] = found
-            return
+            return found
         asked = self.aligned_asked
         self.running.add(running)
         try:
@@ -720,22 +710,25 @@ class StageContext:
         finally:
             # Also when the parse failed, so that the place is free again.
             self.running.discard(running)
-        self.remember(key, number, shared, begins, asked, bound, forest)
+        return self.remember(key, number, shared, begins, asked, bound, forest)
 
     def remember(
         self, key: tuple[Any, ...], number: int, shared: tuple[Any, ...] | None, begins: bool, asked: int, bound: int, forest: Forest
-    ) -> None:
+    ) -> NestedAnswer | bool:
         """Remembers the answer of a nested parse in the memo of the parse,
         and in the shared memo unless it depends on an aligned query (engine
         §4.3)."""
-        self.settle(key, number, begins, forest)
-        if self.aligned_asked != asked:
-            self.tainted.add((begins, key))
-        elif shared is not None:
-            answer = (self.begins_memo if begins else self.memo)[key]
-            if isinstance(answer, NestedAnswer):
-                answer = NestedAnswer(bool(answer.accepted), frozenset(_plain(tag) for tag in answer.tags))
-            self.lowered.memo.insert(shared, answer, bound)
+        answer = self.settle(number, begins, forest)
+        if not self.suffix_active:
+            (self.begins_memo if begins else self.memo)[key] = answer
+            if self.aligned_asked != asked:
+                self.tainted.add((begins, key))
+            elif shared is not None:
+                stored = answer
+                if isinstance(stored, NestedAnswer):
+                    stored = NestedAnswer(bool(stored.accepted), frozenset(_plain(tag) for tag in stored.tags))
+                self.lowered.memo.insert(shared, stored, bound)
+        return answer
 
     def shared_key(self, rule: str, start: int, end: int, begins: bool) -> tuple[Any, ...]:
         """The key of the shared memo for a short span: the query kind, the
@@ -761,8 +754,8 @@ class StageContext:
             ),
         )
 
-    def settle(self, key: tuple[Any, ...], number: int, begins: bool, forest: Forest) -> None:
-        """Remembers the answer of a nested parse in the memo of the parse."""
+    def settle(self, number: int, begins: bool, forest: Forest) -> NestedAnswer | bool:
+        """Compute the current query answer without retaining it."""
         if not begins:
             # The answer reads the completed items of the rule over the span
             # that have an eligible proof tree, under written-terminator
@@ -771,8 +764,7 @@ class StageContext:
             gathered = Gathered()
             for root in found_items:
                 gathered.add(self.tagtab.get(forest.tag[root]))
-            self.memo[key] = NestedAnswer(bool(found_items), gathered.value())
-            return
+            return NestedAnswer(bool(found_items), gathered.value())
         # A completed item of the rule from the span's start, in any set.
         productions = forest.lowered.productions
         witnesses = [
@@ -781,7 +773,7 @@ class StageContext:
             if item in forest.tag and origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs) and not productions[prod].close_requested
         ]
         # Only an item with an eligible proof tree counts (engine §4).
-        self.begins_memo[key] = bool(eligible(forest, boundary_witnesses(forest, witnesses)))
+        return bool(eligible(forest, boundary_witnesses(forest, witnesses)))
 
 
 def _plain(text: str) -> str:
@@ -813,9 +805,9 @@ class Evaluator:
     def __init__(self, context: StageContext, base: int, end: int, project: list[int] | None = None) -> None:
         self.context = context
         # Where the parse's input begins, in the stage's tokens: the captures
-        # count from here, and initial() holds here (engine §10).
+        # count from here, and .starts-input holds here (engine §10).
         self.base = base
-        # Where it ends: from() and after() run to here.
+        # Where it ends: .onward and .following-tokens run to here.
         self.end = end
         # In the check of engine §7, π: the captures are spans of the
         # reconstructed input R, and every observation reads their
@@ -1065,9 +1057,9 @@ class Parser:
         else:
             # The recognition of R in the check of engine §7: its conditions,
             # tag terms and tests of references read the stage's input
-            # through π, and the input that initial(), from() and after()
-            # see is the stage's. Its queries run in the context of the
-            # stage's input, with the main grammar in its ordinary mode, so
+            # through π, and the input that .starts-input, .onward and
+            # .following-tokens see is the stage's. Its queries run in the
+            # context of the stage's input, with the main grammar in its ordinary mode, so
             # they name their spans in positions of that input and share
             # the main parse's memo and the nested parses running (engine
             # §4, §7.6).
@@ -1085,12 +1077,9 @@ class Parser:
         stack, and its answer resumes the evaluation that asked (engine §4).
         So a chain of nested parses costs heap and not the call stack.
 
-        This is the design of the Rust recognizer, with the same frames and
-        order of work. There a run keeps its chart, its queue's place and
-        its step by hand, and a step that needs an answer is made again once
-        it is known. Here the generator's frame keeps the parse's state, and
-        the evaluation's own walks keep their place. So nothing is evaluated
-        twice, which matters more in Python, where each repeat is costly.
+        The generator's frame keeps the parse's state. Evaluation walks
+        keep their place while nested queries run, so resumption preserves
+        the work already done.
 
         Only the work that can ask a nested parse is a walk: a prediction,
         the conditions of an advance, and a tag term. A plain call costs
@@ -1124,7 +1113,7 @@ class Parser:
 
         boundaries = context.boundary_machine
         records, annotations, failures, prediction_obligations = [], [], [], {}
-        boundary_seen = set()
+        item_tags, prediction_tags = {}, {}
         has_slots = bool(ranked_groups)
         prod: list[int] = []
         dot: list[int] = []
@@ -1337,7 +1326,9 @@ class Parser:
                         return None
             return record, notes
 
-        def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False, prefix: int = 0, close_prefix: int = 0, family_prefix: Summary = IDENTITY, obligations=None) -> None:
+        def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False, prefix: int = 0, close_prefix: int = 0, family_prefix: Summary = IDENTITY, obligations=None, known_tag=None) -> None:
+            if position == 0 and not productions[production].rhs:
+                known_tag = prediction_tags.pop((production, at), known_tag)
             bounded = None
             if boundaries is not None:
                 obligations = prediction_obligations.pop((production, at), []) if obligations is None else obligations
@@ -1358,6 +1349,8 @@ class Parser:
             if bounded is not None:
                 key += (bounded[0].id,)
             found = sets[at].get(key)
+            if found is not None and known_tag is not None and found not in tag:
+                item_tags.setdefault(found, known_tag)
             if found is not None and bounded is not None:
                 annotations[found].merge(bounded[1])
             if found is None:
@@ -1365,11 +1358,10 @@ class Parser:
                 found = len(prod)
                 sets[at][key] = found
                 if bounded is not None:
-                    if bounded[0].id not in boundary_seen:
-                        boundary_seen.add(bounded[0].id)
-                        _testing.count("boundary_records")
                     records.append(bounded[0])
                     annotations.append(bounded[1])
+                if known_tag is not None:
+                    item_tags[found] = known_tag
                 prod.append(production)
                 dot.append(position)
                 origin.append(start)
@@ -1487,8 +1479,6 @@ class Parser:
             conditions ready, it gives the walk that evaluates them and then
             adds the item, which the caller yields. A plain call costs less
             than a walk, so an advance without conditions makes none."""
-            if suffix is not None:
-                suffix.error_at = base + at
             production = productions[prod[item]]
             position = dot[item]
             if strict_step and position + 1 == len(production.rhs):
@@ -1585,10 +1575,14 @@ class Parser:
             and then the item, if they all hold. Once the constituent is
             complete, $ has its tags, and the tag term runs only where a
             condition reads them (engine §4)."""
-            if production.whole_ready and position + 1 == len(production.rhs):
+            known_tag = None
+            complete = position + 1 == len(production.rhs)
+            if complete and (production.whole_ready or boundaries is not None and production.tags_term is not None):
                 structure = completed_structure(production, position + 1, prefix)
                 close_structure = completed_closes(production, position + 1, start, at, close_prefix)
-                bound = bound_for(production, captured, (start, at, lazy_tag(production, captured, start, at, structure, close_structure)), structure, close_structure)
+                known_tag = lazy_tag(production, captured, start, at, structure, close_structure)
+            if production.whole_ready and complete:
+                bound = bound_for(production, captured, (start, at, known_tag), structure, close_structure)
             else:
                 bound = bound_for(production, captured)
             obligations = []
@@ -1597,17 +1591,17 @@ class Parser:
                     if not (yield boundary_condition(condition, bound, obligations)):
                         return
                 if boundaries is not None and position + 1 == len(production.rhs) and production.tags_term is not None:
-                    yield term_tag(production, captured, start, at, completed_structure(production, position + 1, prefix), completed_closes(production, position + 1, start, at, close_prefix))
+                    yield known_tag()
             except InvalidObservation:
                 return
-            add(production.id, position + 1, start, captured, at, edge, strict_step, prefix, close_prefix, family_prefix, obligations)
+            add(production.id, position + 1, start, captured, at, edge, strict_step, prefix, close_prefix, family_prefix, obligations, known_tag)
 
-        # A production whose first symbol is a terminal the next token lacks
-        # is not predicted, since its item could never advance; a rejection
-        # at that position lists the terminals it expected all the same.
+        # Prediction conditions run before lookahead. Other terminal-first
+        # productions use the terminal indexes to avoid prediction work.
+        # Rejection still lists the terminals that lookahead leaves out.
         by_first = lowered.by_first_terminal
         by_first_characters = lowered.by_first_characters
-        not_terminal_first = lowered.not_terminal_first
+        unfiltered_predictions = lowered.unfiltered_predictions
         characters = lowered.characters
         carries = context.carries
 
@@ -1619,7 +1613,8 @@ class Parser:
             # §4).
             structure = completed_structure(production, 0, 0)
             close_structure = completed_closes(production, 0, j, j, 0)
-            whole = (j, j, lazy_tag(production, NO_CAPS, j, j, structure, close_structure)) if not production.rhs else None
+            known_tag = lazy_tag(production, NO_CAPS, j, j, structure, close_structure) if not production.rhs else None
+            whole = (j, j, known_tag) if known_tag is not None else None
             bound = bound_for(production, NO_CAPS, whole, structure, close_structure)
             obligations = []
             try:
@@ -1631,7 +1626,9 @@ class Parser:
             if boundaries is not None:
                 prediction_obligations[production.id, j] = obligations
                 if not production.rhs and production.tags_term is not None:
-                    yield term_tag(production, NO_CAPS, j, j, structure, close_structure)
+                    yield known_tag()
+            if known_tag is not None:
+                prediction_tags[production.id, j] = known_tag
             return True
 
         def restore(number: int, j: int) -> None:
@@ -1667,7 +1664,6 @@ class Parser:
             """The prediction that :func:`begin` began, a walk since its
             conditions can ask nested parses."""
             if suffix is not None:
-                suffix.error_at = base + j
                 # Keep terminal-first predictions at the window end too.
                 # Their scans wait until a later request extends the window.
                 for number in lowered.rule_productions[rule]:
@@ -1677,7 +1673,10 @@ class Parser:
                     if not production.conds_predict or (yield allowed(production,j)):
                         add(production.id,0,j,NO_CAPS,j,SEED)
                 return
-            for number in not_terminal_first[rule]:
+            # A frame can add prediction conditions to a helper. Inspect the
+            # candidate before lookahead instead of using its base's index.
+            numbers = lowered.rule_productions[rule] if frame is not None else unfiltered_predictions[rule]
+            for number in numbers:
                 production = candidate(productions[number],frame,requested)
                 number = production.id
                 if production.elided is not None and not omission_allowed(production):
@@ -1693,15 +1692,19 @@ class Parser:
                     if strict_prediction and last_reading[production.real_id] < 0:
                         continue
                 if not production.conds_predict or (yield allowed(production, j)):
+                    if production.rhs and production.terminal[0]:
+                        first = production.rhs[0]
+                        if j == n or not (carries(first, base + j) if first in characters else first in tokens[base + j].tags):
+                            continue
                     add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
-            if j < n:
+            if j < n and frame is None:
                 table = by_first[rule]
                 if table:
                     for tag in tokens[base + j].tags:
                         for number in table.get(tag, ()):
                             p = candidate(productions[number],frame,requested)
                             number = p.id
-                            if not p.conds_predict or (yield allowed(p, j)):
+                            if not p.conds_predict:
                                 add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
                 # A string, range, or wildcard matches the stored token value.
                 table = by_first_characters[rule]
@@ -1712,7 +1715,7 @@ class Parser:
                             for number in numbers:
                                 p = candidate(productions[number],frame,requested)
                                 number = p.id
-                                if not p.conds_predict or (yield allowed(p, j)):
+                                if not p.conds_predict:
                                     add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
 
         current = [0]
@@ -1727,7 +1730,6 @@ class Parser:
                 agenda = following
                 following = []
             if suffix is not None:
-                suffix.error_at = base + j
                 if begin(start_rule,j):
                     yield from predict(start_rule,j)
             if suffix is None and not agenda and not sets[j]:
@@ -1792,7 +1794,13 @@ class Parser:
                     continue
                 # A completed item: its tag set, then the items waiting for it.
                 start = origin[item]
-                if production.tags_term is None:
+                known_tag = item_tags.pop(item, None)
+                if known_tag is not None:
+                    try:
+                        tag[item] = yield known_tag()
+                    except InvalidObservation:
+                        continue
+                elif production.tags_term is None:
                     tag[item] = constituent_tag(production, caps[item])
                 else:
                     try:

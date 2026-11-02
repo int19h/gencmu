@@ -116,6 +116,9 @@ func TestFamilyGrowth(t *testing.T) {
 			names = append(names, name)
 		}
 	}
+	if len(names) == 0 {
+		t.Fatal("no family growth fixtures")
+	}
 	sort.Strings(names)
 	for _, name := range names {
 		var bound familyGrowthBounds

@@ -1,0 +1,22 @@
+{
+  "description": "An absent ranked capture removes the sibling route and its impossible terminal prediction (engine \u00a7\u00a73.6, 3.9, 4).",
+  "grammar": "%rule text | \"a\" ($x:\"b\" | (\"c\" \u227b $y:\"d\"))\n%conditions $y",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "expected": [
+          {
+            "terminal": "\"d\"",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

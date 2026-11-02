@@ -4,7 +4,9 @@
 
 #![allow(dead_code)]
 
-use std::collections::{BTreeMap, HashMap};
+pub mod case;
+
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -151,11 +153,10 @@ impl PartialEq for Value {
             match pair {
                 (Value::Array(a), Value::Array(b)) if a.len() == b.len() => pairs.extend(a.iter().zip(b)),
                 (Value::Object(a), Value::Object(b)) if a.len() == b.len() => {
-                    for ((name_a, value_a), (name_b, value_b)) in a.iter().zip(b) {
-                        if name_a != name_b {
-                            return false;
-                        }
-                        pairs.push((value_a, value_b));
+                    let by_name: BTreeMap<_, _> = b.iter().map(|(name, value)| (name.as_str(), value)).collect();
+                    for (name, value) in a {
+                        let Some(other) = by_name.get(name.as_str()) else { return false };
+                        pairs.push((value, *other));
                     }
                 }
                 (Value::Null, Value::Null) => {}
@@ -238,7 +239,7 @@ pub fn parse_json(text: &str) -> Result<Value, String> {
     // members so far and the key of the value being read.
     enum Open {
         Array(Vec<Value>),
-        Object(Vec<(String, Value)>, HashMap<String, usize>, String),
+        Object(Vec<(String, Value)>, HashSet<String>, String),
     }
     let chars: Vec<char> = text.chars().collect();
     let at = &mut 0;
@@ -264,7 +265,7 @@ pub fn parse_json(text: &str) -> Result<Value, String> {
                     *at += 1;
                     Value::Object(Vec::new())
                 } else {
-                    open.push(Open::Object(Vec::new(), HashMap::new(), parse_key(&chars, at)?));
+                    open.push(Open::Object(Vec::new(), HashSet::new(), parse_key(&chars, at)?));
                     continue;
                 }
             }
@@ -289,14 +290,12 @@ pub fn parse_json(text: &str) -> Result<Value, String> {
                         _ => return Err(format!("expected ',' or ']' at {at}")),
                     }
                 }
-                Some(Open::Object(members, indices, key)) => {
+                Some(Open::Object(members, seen, key)) => {
                     let key = std::mem::take(key);
-                    if let Some(&index) = indices.get(&key) {
-                        members[index].1 = value;
-                    } else {
-                        indices.insert(key.clone(), members.len());
-                        members.push((key, value));
+                    if !seen.insert(key.clone()) {
+                        return Err(format!("repeated object member {key:?}"));
                     }
+                    members.push((key, value));
                     match chars.get(*at) {
                         Some(',') => false,
                         Some('}') => true,
@@ -320,7 +319,7 @@ pub fn parse_json(text: &str) -> Result<Value, String> {
 }
 
 fn skip(chars: &[char], at: &mut usize) {
-    while *at < chars.len() && chars[*at].is_whitespace() {
+    while matches!(chars.get(*at), Some(' ' | '\t' | '\n' | '\r')) {
         *at += 1;
     }
 }
@@ -365,20 +364,31 @@ fn parse_scalar(chars: &[char], at: &mut usize) -> Result<Value, String> {
                                 let hex = |at: &mut usize| -> Result<u32, String> {
                                     let digits: String =
                                         chars.get(*at..*at + 4).ok_or("a short escape")?.iter().collect();
+                                    if !digits.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+                                        return Err("a bad hexadecimal escape".into());
+                                    }
                                     *at += 4;
                                     u32::from_str_radix(&digits, 16).map_err(|e| e.to_string())
                                 };
                                 let mut code = hex(at)?;
-                                if (0xD800..0xDC00).contains(&code) && chars.get(*at) == Some(&'\\') {
+                                if (0xD800..0xDC00).contains(&code) {
+                                    if chars.get(*at) != Some(&'\\') || chars.get(*at + 1) != Some(&'u') {
+                                        return Err("a bad code point".into());
+                                    }
                                     *at += 2;
                                     let low = hex(at)?;
+                                    if !(0xDC00..0xE000).contains(&low) {
+                                        return Err("a bad code point".into());
+                                    }
                                     code = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00);
                                 }
                                 out.push(char::from_u32(code).ok_or("a bad code point")?);
                             }
-                            other => out.push(other),
+                            '"' | '\\' | '/' => out.push(escape),
+                            _ => return Err("an unknown string escape".into()),
                         }
                     }
+                    c if c < '\u{20}' => return Err("an unescaped control character".into()),
                     c => out.push(c),
                 }
             }
@@ -397,15 +407,45 @@ fn parse_scalar(chars: &[char], at: &mut usize) -> Result<Value, String> {
         }
         Some(c) if *c == '-' || c.is_ascii_digit() => {
             let start = *at;
-            while *at < chars.len()
-                && (chars[*at] == '-'
-                    || chars[*at] == '+'
-                    || chars[*at] == '.'
-                    || chars[*at] == 'e'
-                    || chars[*at] == 'E'
-                    || chars[*at].is_ascii_digit())
-            {
+            if chars[*at] == '-' {
                 *at += 1;
+            }
+            match chars.get(*at) {
+                Some('0') => {
+                    *at += 1;
+                    if chars.get(*at).is_some_and(char::is_ascii_digit) {
+                        return Err("a leading zero in a number".into());
+                    }
+                }
+                Some('1'..='9') => {
+                    while chars.get(*at).is_some_and(char::is_ascii_digit) {
+                        *at += 1;
+                    }
+                }
+                _ => return Err("a number needs an integer part".into()),
+            }
+            if chars.get(*at) == Some(&'.') {
+                *at += 1;
+                let fraction = *at;
+                while chars.get(*at).is_some_and(char::is_ascii_digit) {
+                    *at += 1;
+                }
+                if *at == fraction {
+                    return Err("a fraction needs digits".into());
+                }
+            }
+            if matches!(chars.get(*at), Some('e' | 'E')) {
+                *at += 1;
+                if matches!(chars.get(*at), Some('+' | '-')) {
+                    *at += 1;
+                }
+                let exponent = *at;
+                while chars.get(*at).is_some_and(char::is_ascii_digit) {
+                    *at += 1;
+                }
+                if *at == exponent {
+                    return Err("an exponent needs digits".into());
+                }
             }
             let text: String = chars[start..*at].iter().collect();
             text.parse().map(Value::Number).map_err(|_| format!("a bad number {text}"))
@@ -420,6 +460,9 @@ fn parse_scalar(chars: &[char], at: &mut usize) -> Result<Value, String> {
 /// anything else when it is equal. The error names the path, and is the
 /// first difference in the order of the pattern.
 pub fn matches(pattern: &Value, actual: &Value, path: &str) -> Result<(), String> {
+    if path == "result" {
+        case::result_pattern(pattern)?;
+    }
     // A check still to make: a pattern against a value, or a member that
     // is missing. They are pushed last first, so that they pop in order.
     enum Check<'a> {
@@ -435,12 +478,6 @@ pub fn matches(pattern: &Value, actual: &Value, path: &str) -> Result<(), String
         match (pattern, actual) {
             (Value::Object(members), Value::Object(_)) => {
                 for (name, expected) in members.iter().rev() {
-                    // An error's message is the description for people, and
-                    // the shared tests do not compare its wording
-                    // (docs/output.md).
-                    if name == "message" && path.ends_with(".error") {
-                        continue;
-                    }
                     let here = format!("{path}.{name}");
                     checks.push(match actual.get(name) {
                         Some(found) => Check::Match(expected, found, here),
@@ -486,6 +523,12 @@ pub fn case_files(directory: &str) -> Vec<PathBuf> {
         files.retain(|p| p.file_name().unwrap().to_string_lossy().contains(&filter));
     }
     files
+}
+
+/// A required group of shared cases selected by a runner.
+pub fn require_cases<T>(cases: Vec<T>, group: &str) -> Vec<T> {
+    assert!(!cases.is_empty(), "no shared cases selected for {group}");
+    cases
 }
 
 /// The documents of an engine case and its pipeline's path.
@@ -534,11 +577,16 @@ pub fn case_documents(case: &Value) -> (BTreeMap<String, String>, String) {
 /// The names of a list of features, `features` or `withoutFeatures`, in an
 /// engine case's options or a corpus case.
 pub fn feature_names(list: Option<&Value>) -> Vec<String> {
-    list.map(Value::array).unwrap_or(&[]).iter().map(|v| v.str().unwrap().to_string()).collect()
+    let Some(list) = list else { return Vec::new() };
+    let Value::Array(items) = list else { panic!("a feature list must be an array") };
+    items.iter().map(|v| v.str().expect("a feature name").to_string()).collect()
 }
 
 pub fn case_options(case: &Value) -> gencmu::ParseOptions {
     let options = case.get("options");
+    if let Some(options) = options {
+        self::case::options(options).expect("valid case options");
+    }
     let get = |key: &str| options.and_then(|options| options.get(key));
     gencmu::ParseOptions {
         features: feature_names(get("features")),
@@ -563,15 +611,12 @@ pub fn has_caller_attachments(case: &Value) -> bool {
 /// InputToken exposes scalar strings and tags, with generated source ranges.
 pub fn unexpressible_tokens(case: &Value) -> Option<&'static str> {
     let tokens = case.get("tokens")?;
-    let tokens = match tokens {
-        Value::Array(tokens) => tokens,
-        _ => return Some("unavailable caller fields: Rust requires a token slice"),
-    };
-    if tokens.iter().any(|token| !matches!(token, Value::Object(_))) {
-        return Some("unavailable caller fields: Rust requires InputToken records");
-    }
+    let Value::Array(tokens) = tokens else { panic!("the fixture requires a token array") };
     let mut offset = 0;
     for (index, token) in tokens.iter().enumerate() {
+        if !matches!(token.get("text"), Some(Value::String(_))) {
+            return Some("unavailable caller fields: Rust InputToken requires a text string");
+        }
         let length = token.get("text").and_then(Value::str).unwrap_or("").chars().count();
         for (field, range) in [("source", [offset, offset + length]), ("span", [index, index + 1])] {
             if let Some(supplied) = token.get(field) {
@@ -587,9 +632,8 @@ pub fn unexpressible_tokens(case: &Value) -> Option<&'static str> {
                 return Some("unavailable caller fields: Rust InputToken requires string fields");
             }
         }
-        if token.get("tags").is_some_and(
-            |tags| !matches!(tags, Value::Array(items) if items.iter().all(|tag| matches!(tag, Value::String(_)))),
-        ) {
+        if !matches!(token.get("tags"), Some(Value::Array(items)) if items.iter().all(|tag| matches!(tag, Value::String(_))))
+        {
             return Some("unavailable caller fields: Rust InputToken requires a set of string tags");
         }
     }
@@ -688,6 +732,17 @@ pub fn within<T: Send + 'static>(limit: std::time::Duration, work: impl FnOnce()
 /// A case with `parses` loads its pipeline once and parses its input with
 /// each item's options in order, each result held to the item's `expect`.
 pub fn run_engine_case(case: &Value) -> Result<(), String> {
+    self::case::engine(case)?;
+    run_case(case)
+}
+
+/// Runs one named case from parameters.json with the same parse checks.
+pub fn run_parameter_case(case: &Value) -> Result<(), String> {
+    self::case::parameter(case)?;
+    run_case(case)
+}
+
+fn run_case(case: &Value) -> Result<(), String> {
     let (result, (accepted, rejected)) = gencmu::tools::with_family_conformance(|| run_engine_case_inner(case));
     if accepted + rejected > 0 {
         eprintln!("family alignment: {accepted} accepted, {rejected} rejected comparisons");
@@ -726,15 +781,18 @@ const AFTER_LOAD: [&str; 5] = ["result", "brackets", "warnings", "features", "en
 /// the whole outcome, so a case that expects anything that only a loaded
 /// pipeline gives fails (tests/README.md).
 pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), String> {
+    case::expect(expect)?;
     if let Some(expected) = expect.get("bundledPipelines") {
         let names = Value::Array(gencmu::bundled_pipelines().into_iter().map(Value::String).collect());
         same(expected, &names, "bundledPipelines")?;
     }
 
-    let kind = match error.kind {
-        gencmu::ErrorKind::Grammar => "grammar",
-        gencmu::ErrorKind::Usage => "usage",
-        _ => "another kind",
+    let kind = if error.kind == gencmu::ErrorKind::Grammar {
+        "grammar"
+    } else if error.kind == gencmu::ErrorKind::Usage {
+        "usage"
+    } else {
+        "another kind"
     };
     if expect.get("error").and_then(Value::str) != Some(kind) {
         return Err(format!("unexpected load error: {error}"));
@@ -742,12 +800,17 @@ pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), Str
     if AFTER_LOAD.iter().any(|name| expect.get(name).is_some()) {
         return Err(format!("the pipeline did not load: {error}"));
     }
+    if let Some(message) = expect.get("message").and_then(Value::str) {
+        if error.message != message {
+            return Err(format!("expected error reason {message:?}: {error}"));
+        }
+    }
     // `where` is given only for a grammar error.
     if kind != "grammar" && expect.get("where").is_some() {
         return Err(format!("expect.where is only for a grammar error: {error}"));
     }
     if let Some(code) = expect.get("diagnostic").and_then(Value::str) {
-        if error.code.as_deref() != Some(code) {
+        if error.code() != Some(code) {
             return Err(format!("expected diagnostic {code}: {error}"));
         }
     }
@@ -830,7 +893,7 @@ pub fn result_problems(json: &Value) -> Vec<String> {
     if let Some(error) = json.get("error") {
         for member in ["cycle", "conflict", "chosenReading"] {
             if error.get(member).is_some() {
-                problems.push(format!("obsolete error field {member}"));
+                problems.push(format!("the error has the member {member}"));
             }
         }
     }
@@ -863,6 +926,7 @@ pub fn witness_problem(result: &gencmu::ParseResult, checks: &[gencmu::tools::El
 /// invariants come first, and a result that breaks them is an error and is
 /// compared no further.
 pub fn check_json(expect: &Value, actual: &Value) -> Result<String, String> {
+    case::expect(expect)?;
     let mut problems = String::new();
     let broken = result_problems(actual);
     if !broken.is_empty() {
@@ -883,10 +947,24 @@ pub fn check_json(expect: &Value, actual: &Value) -> Result<String, String> {
     Ok(problems)
 }
 
+/// Removes only the location supplied by the matching structured diagnostic.
+fn runtime_reason<'a>(message: &'a str, diagnostics: &[gencmu::Error]) -> &'a str {
+    for error in diagnostics.iter().filter(|error| error.message == message) {
+        if let (Some(document), Some(line), Some(column)) = (&error.document, error.line, error.column) {
+            let prefix = format!("{document}:{line}:{column}: ");
+            if let Some(reason) = message.strip_prefix(&prefix) {
+                return reason;
+            }
+        }
+    }
+    message
+}
+
 /// Parses a case's input with the options of `run`, the case itself or one
 /// item of its `parses`, and holds the result to `expect`.
 fn check_parse(pipeline: &gencmu::Pipeline, case: &Value, run: &Value, expect: &Value) -> Result<(), String> {
-    if let Some(expected) = expect.get("bundledPipelines") {
+    if let Some(expected) = expect.get("bundledPipelines").filter(|_| CHECKS.with(std::cell::Cell::get) != Checks::Hook)
+    {
         let names = Value::Array(gencmu::bundled_pipelines().into_iter().map(Value::String).collect());
         same(expected, &names, "bundledPipelines")?;
     }
@@ -902,9 +980,11 @@ fn check_parse(pipeline: &gencmu::Pipeline, case: &Value, run: &Value, expect: &
     let options = case_options(run);
     // Every check of elision-only that runs must keep its witness
     // (tests/README.md).
-    let (parsed, checks) = gencmu::tools::with_elision_checks(|| match case_tokens(case) {
-        Some(tokens) => pipeline.parse_tokens(&tokens, &options),
-        None => pipeline.parse(case.get("input").and_then(Value::str).unwrap_or(""), &options),
+    let ((parsed, checks), diagnostics) = gencmu::tools::with_runtime_grammar_errors(|| {
+        gencmu::tools::with_elision_checks(|| match case_tokens(case) {
+            Some(tokens) => pipeline.parse_tokens(&tokens, &options),
+            None => pipeline.parse(case.get("input").and_then(Value::str).unwrap_or(""), &options),
+        })
     });
     let result = match parsed {
         Ok(result) => result,
@@ -912,6 +992,11 @@ fn check_parse(pipeline: &gencmu::Pipeline, case: &Value, run: &Value, expect: &
         // and there is nothing more to compare.
         Err(_) if CHECKS.with(std::cell::Cell::get) == Checks::Hook => return Ok(()),
         Err(error) => {
+            for member in ["result", "brackets", "warnings", "enabledFeatures", "message"] {
+                if expect.get(member).is_some() {
+                    return Err(format!("expect.{member} does not apply to a caller usage error"));
+                }
+            }
             if error.kind != gencmu::ErrorKind::Usage || expect.get("error").and_then(Value::str) != Some("usage") {
                 let _ = writeln!(problems, "the parse failed: {error}");
             }
@@ -933,7 +1018,25 @@ fn check_parse(pipeline: &gencmu::Pipeline, case: &Value, run: &Value, expect: &
     if CHECKS.with(std::cell::Cell::get) == Checks::Hook {
         return Ok(());
     }
+    for member in ["where", "diagnostic"] {
+        if expect.get(member).is_some() {
+            return Err(format!("expect.{member} applies only to a load error"));
+        }
+    }
     let actual = parse_json(&json).map_err(|error| format!("the result is not JSON ({error}): {json}"))?;
+    if let Some(message) = expect.get("message").and_then(Value::str) {
+        if result.error.as_ref().map_or(true, |error| error.kind != gencmu::ParseErrorKind::Grammar) {
+            return Err("expect.message applies only to a grammar error".into());
+        }
+        let reason = actual
+            .get("error")
+            .and_then(|error| error.get("message"))
+            .and_then(Value::str)
+            .map(|message| runtime_reason(message, &diagnostics));
+        if reason != Some(message) {
+            let _ = writeln!(problems, "expected runtime error reason {message:?}");
+        }
+    }
     if actual.get("features").is_some() {
         return Err("canonical JSON contains enabled features".into());
     }

@@ -24,7 +24,6 @@ from gencmu._earley import Forest, Parser, StageContext
 from gencmu._eligible import eligible
 from gencmu._grammar import lower, stitch
 from gencmu._model import Token
-from gencmu._rank import count_roots
 
 import gencmu
 
@@ -195,7 +194,6 @@ class EligibleProperty(unittest.TestCase):
                 tags = tags[: rng.randrange(len(tags))]
             tokens = [Token("x", frozenset([tag]), (index, index + 1), (2 * index, 2 * index + 1)) for index, tag in enumerate(tags)]
             context = StageContext(lowered, tokens, " ".join("x" for _ in tokens), unicode)
-            context.count = count_roots
             forest = Parser(context).parse(lowered.rule_ids["r"])
             # The witnesses of begins: completed items of r from the start,
             # in any set.

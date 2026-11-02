@@ -56,8 +56,8 @@ export declare class BoundaryRecords {
     names: Map<any, any>;
     forward: bigint;
     backward: bigint;
-    /** @type {BoundaryLiteral[]} */
-    literals: BoundaryLiteral[];
+    /** @type {Map<bigint,BoundaryLiteral>} */
+    literals: Map<bigint, BoundaryLiteral>;
     /** @type {Map<string,BoundaryLiteral>} */
     literalKeys: Map<string, BoundaryLiteral>;
     /** @type {Map<string,BoundaryRecord>} */

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -114,5 +115,80 @@ func TestSelectedDiskNames(t *testing.T) {
 				t.Fatal(e)
 			}
 		})
+	}
+}
+
+func TestIncludeErrorRelocationUsesItsKind(t *testing.T) {
+	t.Parallel()
+	top := &domDoc{Directives: []*domDirective{
+		{Name: "stage", Args: []string{"main"}, At: [2]int{1, 1}},
+		{Name: "include", Args: []string{"g.md"}, At: [2]int{2, 1}},
+	}}
+	for _, c := range []struct {
+		line    int
+		problem spliceProblem
+		message string
+	}{
+		{0, 0, "the document could not be read: a grammar diagnostic"},
+		{7, 0, "the document could not be read: a grammar diagnostic"},
+		{0, unreadableDocumentProblem, "an unreadable document"},
+		{7, unreadableDocumentProblem, "an unreadable document"},
+	} {
+		fault := &Error{Kind: ErrorGrammar, Document: "g.md", Line: c.line,
+			Message: c.message, Code: "sentinel", spliceProblem: c.problem}
+		want := *fault
+		want.Stage = "main"
+		if c.problem == unreadableDocumentProblem && c.line == 0 {
+			want.Message = "g.md: " + c.message
+			want.Document, want.Line, want.Column = "p.md", 2, 1
+		}
+		_, got := splicePipeline("p.md", func(path string) (*domDoc, *Error) {
+			if path == "p.md" {
+				return top, nil
+			}
+			return nil, fault
+		})
+		if !reflect.DeepEqual(got, &want) {
+			t.Fatalf("%#v: got %#v, wanted %#v", c, got, &want)
+		}
+	}
+}
+
+func TestUnreadableDocuments(t *testing.T) {
+	for _, included := range []bool{false, true} {
+		for _, exists := range []bool{false, true} {
+			root := t.TempDir()
+			pipeline := filepath.Join(root, "p.md")
+			file := pipeline
+			if included {
+				file = filepath.Join(root, "g.md")
+				if err := os.WriteFile(pipeline, []byte("```jbogenbau\n%stage main\n%include \"g.md\"\n```\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if exists {
+				if err := os.Mkdir(file, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			_, err := LoadPipelineFile(pipeline)
+			var problem *Error
+			if !errors.As(err, &problem) {
+				t.Fatalf("expected a grammar error: %v", err)
+			}
+			message := "was not found"
+			if exists {
+				message = "the document could not be read:"
+			}
+			if problem.Kind != ErrorGrammar || !strings.Contains(problem.Error(), message) || !strings.Contains(problem.Error(), filepath.ToSlash(file)) {
+				t.Fatal(problem)
+			}
+			if problem.Document != filepath.ToSlash(pipeline) {
+				t.Fatal(problem)
+			}
+			if included && (problem.Line != 3 || problem.Column != 1) {
+				t.Fatal(problem)
+			}
+		}
 	}
 }

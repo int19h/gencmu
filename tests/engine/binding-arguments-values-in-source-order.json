@@ -1,0 +1,13 @@
+{
+  "description": "Retained body and term arguments keep source order within bound-value inspection.",
+  "grammar": "%ambiguity-resolution greedy\n%const $WIDE \"ab\"\n%const $EMPTY \"\"\n%rule f(@A,@B) \"a\"\n%rule named = f(($WIDE..\"z\"), \"a\".split($EMPTY))\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 6,
+      "column": 18
+    }
+  }
+}

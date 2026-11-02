@@ -2,7 +2,9 @@
 //! §9): simplifying a clause for a production, the captures a clause uses,
 //! and the checks of a definition as a whole.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+#[path = "capture_validation.rs"]
+mod validation;
 
 use crate::fxhash::{FxMap, FxSet};
 use crate::work::{self, Mutant, Work};
@@ -23,6 +25,7 @@ pub(crate) enum Simple {
 pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
     work::count(Work::Walked, 1);
     match cond {
+        Cond::SourceQuery(..) => unreachable!("source queries expand before clause checks"),
         Cond::Captured(name) => {
             if has(name) {
                 Simple::True
@@ -141,6 +144,23 @@ enum Part<'a> {
     Cond(&'a Cond),
 }
 
+impl<'a> Part<'a> {
+    fn reducing_children(self) -> Vec<Part<'a>> {
+        match self {
+            Part::Term(Term::If(cond, then)) => vec![Part::Cond(cond), Part::Term(then)],
+            Part::Term(Term::Union(items) | Term::Intersection(items)) => items.iter().map(Part::Term).collect(),
+            Part::Term(Term::Difference(left, right)) => vec![Part::Term(left), Part::Term(right)],
+            Part::Cond(Cond::Not(inner)) => vec![Part::Cond(inner)],
+            Part::Cond(Cond::Any(items) | Cond::All(items)) => items.iter().map(Part::Cond).collect(),
+            Part::Cond(Cond::If(antecedent, consequent)) => {
+                vec![Part::Cond(antecedent), Part::Cond(consequent)]
+            }
+            Part::Cond(Cond::Compare(_, left, right)) => vec![Part::Term(left), Part::Term(right)],
+            _ => Vec::new(),
+        }
+    }
+}
+
 /// The captures that a clause uses as values or spans, presence tests
 /// aside (`values`), or its presence tests, outside calls (`presences`), in
 /// the order written. One walk, with an explicit stack: a clause is as deep
@@ -167,9 +187,14 @@ fn walk_captures<'a>(start: Part<'a>, values: bool, presences: bool, out: &mut V
                     }
                 }
                 Term::If(cond, then) => stack.extend([Part::Term(then), Part::Cond(cond)]),
-                Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => {}
+                Term::Source(_) | Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => {
+                }
             },
             Part::Cond(cond) => match cond {
+                Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
+                    Arg::Term(term) => Some(Part::Term(term)),
+                    _ => None,
+                })),
                 Cond::Captured(name) => {
                     if presences {
                         out.push(name);
@@ -252,20 +277,7 @@ impl<'a> Shaped<'a> {
         while let Some((part, combine)) = stack.pop() {
             work::count(Work::Walked, 1);
             let Some(from) = combine else {
-                let children: Vec<Part<'a>> = match part {
-                    Part::Term(Term::If(cond, then)) => vec![Part::Cond(cond), Part::Term(then)],
-                    Part::Term(Term::Union(items) | Term::Intersection(items)) => {
-                        items.iter().map(Part::Term).collect()
-                    }
-                    Part::Term(Term::Difference(left, right)) => vec![Part::Term(left), Part::Term(right)],
-                    Part::Cond(Cond::Not(inner)) => vec![Part::Cond(inner)],
-                    Part::Cond(Cond::Any(items) | Cond::All(items)) => items.iter().map(Part::Cond).collect(),
-                    Part::Cond(Cond::If(antecedent, consequent)) => {
-                        vec![Part::Cond(antecedent), Part::Cond(consequent)]
-                    }
-                    Part::Cond(Cond::Compare(_, left, right)) => vec![Part::Term(left), Part::Term(right)],
-                    _ => Vec::new(),
-                };
+                let children = part.reducing_children();
                 stack.push((part, Some(uses.len())));
                 stack.extend(children.into_iter().rev().map(|child| (child, None)));
                 continue;
@@ -316,6 +328,7 @@ impl<'a> Shaped<'a> {
                     }
                 },
                 Part::Cond(cond) => match cond {
+                    Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
                     Cond::Captured(name) => {
                         if has(name) {
                             Outcome::True
@@ -439,19 +452,16 @@ struct Split<'a, P, T> {
     needs: FxMap<String, Vec<usize>>,
     /// The parts of other shapes, in the order written.
     other: Vec<usize>,
-    /// Whether a fixed part decides the whole for every production.
-    absorbed: bool,
 }
 
 impl<'a, P: Copy, T> Split<'a, P, T> {
     /// Splits `parts`, finding what `know` can find of each before the
     /// productions. A part whose known result is `neutral` drops out of
-    /// the whole, and one that is `absorbing` decides it.
+    /// the whole. Fixed conditions stay open.
     fn new(
         parts: impl IntoIterator<Item = P>,
         know: impl Fn(P) -> Known<'a, T>,
         neutral: impl Fn(&T) -> bool,
-        absorbing: impl Fn(&T) -> bool,
     ) -> Split<'a, P, T> {
         let mut split = Split {
             parts: Vec::new(),
@@ -459,14 +469,12 @@ impl<'a, P: Copy, T> Split<'a, P, T> {
             guarded: FxMap::default(),
             needs: FxMap::default(),
             other: Vec::new(),
-            absorbed: false,
         };
         for part in parts {
             work::count(Work::Walked, 1);
             let index = split.parts.len();
             let result = match know(part) {
                 Known::Fixed(result) => {
-                    split.absorbed |= absorbing(&result);
                     if !neutral(&result) {
                         split.fixed.push(index);
                     }
@@ -613,7 +621,7 @@ impl<'a> TermSplit<'a> {
             }
             known => known,
         };
-        TermSplit(Split::new(union_parts(term), know, Option::is_none, |_| false))
+        TermSplit(Split::new(union_parts(term), know, Option::is_none))
     }
 
     /// The term simplified for a production whose distinct captures are
@@ -648,18 +656,8 @@ impl<'a> CondParts<'a> {
         let fixed = |part: &'a Cond| simplify_cond(part, &no_presence);
         let know = |part| know_cond(part, &fixed);
         match cond {
-            Cond::All(items) => CondParts::All(Split::new(
-                items,
-                know,
-                |simple| *simple == Simple::True,
-                |simple| *simple == Simple::False,
-            )),
-            Cond::Any(items) => CondParts::Any(Split::new(
-                items,
-                know,
-                |simple| *simple == Simple::False,
-                |simple| *simple == Simple::True,
-            )),
+            Cond::All(items) => CondParts::All(Split::new(items, know, |_| false)),
+            Cond::Any(items) => CondParts::Any(Split::new(items, know, |_| false)),
             cond => CondParts::Whole(cond),
         }
     }
@@ -675,9 +673,6 @@ impl<'a> CondParts<'a> {
         // A `∧` stops at a false part and a `∨` at a true one. A `∨` is
         // also true where a guard of it is absent.
         let (stop, rest) = if all { (Simple::False, Simple::True) } else { (Simple::True, Simple::False) };
-        if split.absorbed {
-            return stop;
-        }
         let (chosen, present) = split.select(own);
         if !all && present < split.guarded.len() {
             return Simple::True;
@@ -724,7 +719,7 @@ impl<'a> CondListSplit<'a> {
             },
             known => known,
         };
-        let split = Split::new(conds, know, |simple| *simple == Simple::True, |simple| *simple == Simple::False);
+        let split = Split::new(conds, know, |_| false);
         let parts = split.other.iter().map(|&index| (index, CondParts::new(split.parts[index].0))).collect();
         CondListSplit { split, parts }
     }
@@ -733,9 +728,6 @@ impl<'a> CondListSplit<'a> {
     /// order written, or `None` where one is false, which removes the
     /// production. A condition true for it is left out.
     pub(crate) fn simplify_indexed(&self, own: &[&str], has: &dyn Fn(&str) -> bool) -> Option<Vec<(Cond, usize)>> {
-        if self.split.absorbed {
-            return None;
-        }
         let (chosen, _) = self.split.select(own.iter().copied());
         let mut left = Vec::with_capacity(chosen.len());
         for index in chosen {
@@ -765,7 +757,6 @@ impl<'a> TermCheck<'a> {
             union_parts(term),
             |part| know_term(part, &fixed),
             |shaped| shaped.shape == Outcome::Empty,
-            |_| false,
         ))
     }
 
@@ -784,10 +775,9 @@ impl<'a> TermCheck<'a> {
     }
 }
 
-/// The productions that a condition can apply to: none, every one, or
+/// The productions that a condition can apply to: every one, or
 /// only those with the capture named.
 enum Reach<'a> {
-    Nothing,
     Every,
     Named(&'a str),
 }
@@ -811,18 +801,8 @@ impl<'a> CondCheck<'a> {
             Known::Guarded(name, shaped) => CondCheck::Guarded(name, shaped),
             Known::Needs(..) => unreachable!("a condition of the check needs no capture"),
             Known::Other => match cond {
-                Cond::All(items) => CondCheck::All(Split::new(
-                    items,
-                    know,
-                    |shaped| shaped.shape == Outcome::True,
-                    |shaped| shaped.shape == Outcome::False,
-                )),
-                Cond::Any(items) => CondCheck::Any(Split::new(
-                    items,
-                    know,
-                    |shaped| shaped.shape == Outcome::False,
-                    |shaped| shaped.shape == Outcome::True,
-                )),
+                Cond::All(items) => CondCheck::All(Split::new(items, know, |_| false)),
+                Cond::Any(items) => CondCheck::Any(Split::new(items, know, |_| false)),
                 cond => CondCheck::Whole(cond),
             },
         }
@@ -835,7 +815,6 @@ impl<'a> CondCheck<'a> {
     fn reach(&self) -> Reach<'a> {
         match self {
             CondCheck::Fixed(shaped) => match shaped.shape {
-                Outcome::True => Reach::Nothing,
                 Outcome::Uses(_) => match shaped.uses.iter().copied().filter(|name| !name.is_empty()).min() {
                     Some(name) => Reach::Named(name),
                     None => Reach::Every,
@@ -858,9 +837,6 @@ impl<'a> CondCheck<'a> {
         // A `∧` stops at a false part and a `∨` at a true one. A `∨` is
         // also true where a guard of it is absent.
         let (stop, rest) = if all { (Outcome::False, Outcome::True) } else { (Outcome::True, Outcome::False) };
-        if split.absorbed {
-            return stop;
-        }
         let (chosen, present) = split.select(own);
         if !all && present < split.guarded.len() {
             return Outcome::True;
@@ -979,8 +955,8 @@ impl<'a> EmitIndex<'a> {
 /// in different items of one sequence or one `&`, since each item is read in
 /// any of its expansions. So no production is listed. A choice's branches
 /// never meet, and braces and an elidable optional hold no capture. Each
-/// capture is its index in the order written, and the list is increasing.
-pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
+/// capture retains its identity, and the list follows the written order.
+pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<&Expr> {
     // Each part gives its captures, by name, each a list of indices, and
     // counts them. An item of a sequence or an `&` meets the items before
     // it: the side with fewer captures is looked up in the other, and the
@@ -989,6 +965,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
     // their count, not with the depth of the expression.
     type Found<'e> = (HashMap<&'e str, Vec<usize>>, usize);
     let mut duplicate: Vec<bool> = Vec::new();
+    let mut captures = Vec::new();
     let mut stack: Vec<(&Expr, bool)> = vec![(expr, false)];
     let mut done: Vec<Found> = Vec::new();
     let empty = || (HashMap::new(), 0);
@@ -998,9 +975,10 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
             match expr {
                 Expr::Capture(name, _) => {
                     duplicate.push(false);
+                    captures.push(expr);
                     done.push((HashMap::from([(name.as_str(), vec![duplicate.len() - 1])]), 1));
                 }
-                Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) | Expr::Ranked(items) => {
+                Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) | Expr::Ranked(items, _) => {
                     stack.push((expr, true));
                     stack.extend(items.iter().rev().map(|item| (item, false)));
                 }
@@ -1015,8 +993,11 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
                     while let Some(current) = inside.pop() {
                         work::count(Work::Walked, 1);
                         match current {
-                            Expr::Capture(..) => duplicate.push(false),
-                            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                            Expr::Capture(..) => {
+                                duplicate.push(false);
+                                captures.push(current);
+                            }
+                            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                                 inside.extend(items.iter().rev())
                             }
                             Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => inside.push(inner),
@@ -1029,18 +1010,19 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
                     }
                     done.push(empty());
                 }
-                Expr::Ref(_)
+                Expr::Source(_)
+                | Expr::Ref(_)
                 | Expr::Terminal(_)
                 | Expr::Literal(_)
                 | Expr::ScalarRange(..)
                 | Expr::Range(..)
-                | Expr::Property(_)
+                | Expr::Wildcard
                 | Expr::Empty => done.push(empty()),
             }
             continue;
         }
         let count = match expr {
-            Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) | Expr::Ranked(items) => items.len(),
+            Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) | Expr::Ranked(items, _) => items.len(),
             _ => 1,
         };
         let parts = done.split_off(done.len() - count);
@@ -1087,7 +1069,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
         }
         done.push(joined);
     }
-    (0..duplicate.len()).filter(|&index| duplicate[index]).collect()
+    (0..duplicate.len()).filter(|&index| duplicate[index]).map(|index| captures[index]).collect()
 }
 
 /// Marks each capture of a list as repeated and empties the list, so that
@@ -1100,207 +1082,6 @@ fn mark(duplicate: &mut [bool], indices: &mut Vec<usize>) {
     }
     if !work::mutated(Mutant::MarkAgain) {
         indices.clear();
-    }
-}
-
-/// The distinct sequences of captures that the productions of an
-/// expression read, each in the order read (engine §3.2, §3.5): a choice
-/// gives each branch's, an `&` each subsequence's, a plain optional none
-/// or its content's, and braces and an elidable optional none. Productions
-/// that read the same names in the same order are one sequence. Gates do
-/// not matter, since they drop whole alternatives.
-///
-/// A capture is known by its index among the expression's captures in the
-/// order written, which is the order a reader meets them.
-pub(crate) struct CaptureSequences<'e> {
-    /// The name of each capture, by index.
-    pub names: Vec<&'e str>,
-    /// Each distinct sequence, as indices.
-    pub sequences: Vec<Vec<usize>>,
-}
-
-impl<'e> CaptureSequences<'e> {
-    pub(crate) fn of(expr: &'e Expr) -> CaptureSequences<'e> {
-        let mut found = CaptureSequences { names: Vec::new(), sequences: Vec::new() };
-        found.sequences = found.visit(expr);
-        found
-    }
-
-    /// Each production's capture names, in the order it reads them.
-    pub(crate) fn named(&self) -> Vec<Vec<&'e str>> {
-        self.sequences.iter().map(|sequence| sequence.iter().map(|&index| self.names[index]).collect()).collect()
-    }
-
-    fn distinct(&self, lists: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
-        // Each name of a key counts as it is read.
-        let name = |&index: &usize| {
-            work::count(Work::Checked, 1);
-            self.names[index]
-        };
-        if work::mutated(Mutant::ScanDistinct) {
-            return self.distinct_by_scans(lists);
-        }
-        let mut seen: HashSet<Vec<&str>> = HashSet::new();
-        let mut out = Vec::new();
-        for list in lists {
-            let key: Vec<&str> = list.iter().map(name).collect();
-            if seen.insert(key) {
-                out.push(list);
-            }
-        }
-        out
-    }
-
-    /// A mutation for the tests of work: the distinct sequences, each
-    /// compared name by name with every one kept before it.
-    fn distinct_by_scans(&self, lists: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
-        let mut out: Vec<Vec<usize>> = Vec::new();
-        for list in lists {
-            let same = |kept: &Vec<usize>| {
-                kept.len() == list.len()
-                    && kept.iter().zip(&list).all(|(&a, &b)| {
-                        work::count(Work::Checked, 1);
-                        self.names[a] == self.names[b]
-                    })
-            };
-            if !out.iter().any(same) {
-                out.push(list);
-            }
-        }
-        out
-    }
-
-    fn product(&mut self, mut left: Vec<Vec<usize>>, right: &[Vec<usize>]) -> Vec<Vec<usize>> {
-        // With one right sequence, the usual case, each left sequence grows
-        // in place, so that a long sequence costs its length. Distinct
-        // sequences with one suffix added stay distinct.
-        // Each capture counts as it is copied.
-        let copied = |&index: &usize| {
-            work::count(Work::Checked, 1);
-            index
-        };
-        if let [only] = right {
-            for sequence in &mut left {
-                if work::mutated(Mutant::CopySequences) {
-                    *sequence = sequence.iter().chain(only).map(copied).collect();
-                } else {
-                    sequence.extend(only.iter().map(copied));
-                }
-            }
-            return left;
-        }
-        let mut out = Vec::with_capacity(left.len() * right.len());
-        for first in left {
-            for second in right {
-                out.push(first.iter().chain(second).map(copied).collect());
-            }
-        }
-        self.distinct(out)
-    }
-
-    /// Counts the captures of a part no production reads, so that the
-    /// indices stay those of the order written.
-    fn skip(&mut self, expr: &'e Expr) {
-        let mut stack = vec![expr];
-        while let Some(current) = stack.pop() {
-            work::count(Work::Walked, 1);
-            match current {
-                Expr::Capture(name, _) => self.names.push(name),
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
-                    stack.extend(items.iter().rev())
-                }
-                Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => stack.push(inner),
-                Expr::Repeat(item, separator, _) => {
-                    stack.extend(separator.as_deref());
-                    stack.push(item);
-                }
-                Expr::Ref(_)
-                | Expr::Terminal(_)
-                | Expr::Literal(_)
-                | Expr::ScalarRange(..)
-                | Expr::Range(..)
-                | Expr::Property(_)
-                | Expr::Empty => {}
-            }
-        }
-    }
-
-    /// The sequences of an expression, with an explicit stack: each part
-    /// is met first to name its captures in the order written and to push
-    /// its parts, and then to combine their sequences.
-    fn visit(&mut self, expr: &'e Expr) -> Vec<Vec<usize>> {
-        let mut stack: Vec<(&'e Expr, bool)> = vec![(expr, false)];
-        let mut done: Vec<Vec<Vec<usize>>> = Vec::new();
-        while let Some((expr, combine)) = stack.pop() {
-            work::count(Work::Walked, 1);
-            work::count(Work::Walked, 1);
-            if !combine {
-                match expr {
-                    Expr::Capture(name, _) => {
-                        self.names.push(name);
-                        done.push(vec![vec![self.names.len() - 1]]);
-                    }
-                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
-                        stack.push((expr, true));
-                        stack.extend(items.iter().rev().map(|item| (item, false)));
-                    }
-                    Expr::Optional(inner, Mark::Plain) => {
-                        stack.push((expr, true));
-                        stack.push((inner, false));
-                    }
-                    Expr::Optional(..) | Expr::Repeat(..) => {
-                        self.skip(expr);
-                        done.push(vec![Vec::new()]);
-                    }
-                    Expr::Tested(..)
-                    | Expr::Ref(_)
-                    | Expr::Terminal(_)
-                    | Expr::Literal(_)
-                    | Expr::ScalarRange(..)
-                    | Expr::Range(..)
-                    | Expr::Property(_)
-                    | Expr::Empty => done.push(vec![Vec::new()]),
-                }
-                continue;
-            }
-            let combined = match expr {
-                Expr::Seq(items) => {
-                    let parts = done.split_off(done.len() - items.len());
-                    let mut sequences = vec![Vec::new()];
-                    for part in parts {
-                        sequences = self.product(sequences, &part);
-                    }
-                    sequences
-                }
-                Expr::Choice(items) | Expr::Ranked(items) => {
-                    let parts = done.split_off(done.len() - items.len());
-                    let all = parts.into_iter().flatten().collect();
-                    self.distinct(all)
-                }
-                Expr::And(items) => {
-                    let parts = done.split_off(done.len() - items.len());
-                    let mut all = Vec::new();
-                    for mask in 1u64..(1u64 << parts.len().min(63)) {
-                        let mut sequences = vec![Vec::new()];
-                        for (bit, part) in parts.iter().enumerate() {
-                            if mask & (1 << bit) != 0 {
-                                sequences = self.product(sequences, part);
-                            }
-                        }
-                        all.extend(sequences);
-                    }
-                    self.distinct(all)
-                }
-                _ => {
-                    // A plain optional: none, or its content's.
-                    let mut all = vec![Vec::new()];
-                    all.extend(done.pop().expect("the content"));
-                    self.distinct(all)
-                }
-            };
-            done.push(combined);
-        }
-        done.pop().expect("the sequences")
     }
 }
 
@@ -1320,10 +1101,48 @@ fn cond_waits(cond: &Cond) -> bool {
     !out.is_empty()
 }
 
-/// Why a definition, a rule's alternatives with its own clauses, is an
-/// error of the document (engine §9), or `None`. The checks that
-/// simplification decides skip a clause that holds a constant.
+/// Definition problem kinds determine which checks wait for ranked validation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DefinitionKind {
+    Independent,
+    RecipeCapture,
+    EmptyEmission,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DefinitionIssue {
+    pub kind: DefinitionKind,
+    pub message: String,
+}
+pub(crate) struct DefinitionCheck {
+    pub problem: Option<DefinitionIssue>,
+    pub deferred: Option<DefinitionIssue>,
+}
+
+pub(crate) fn check_definition(rule: &RuleDef, defer_ranked: bool) -> DefinitionCheck {
+    let defer_ranked = defer_ranked && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr));
+    let mut deferred = None;
+    let problem = definition_fault(rule, &mut |issue| {
+        if defer_ranked && matches!(issue.kind, DefinitionKind::RecipeCapture | DefinitionKind::EmptyEmission) {
+            if deferred.as_ref().map_or(true, |previous: &DefinitionIssue| {
+                previous.kind == DefinitionKind::EmptyEmission && issue.kind == DefinitionKind::RecipeCapture
+            }) {
+                deferred = Some(issue.clone());
+            }
+            true
+        } else {
+            false
+        }
+    });
+    DefinitionCheck { problem, deferred }
+}
+
+#[cfg(test)]
 pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
+    check_definition(rule, false).problem.map(|issue| issue.message)
+}
+
+fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssue) -> bool) -> Option<DefinitionIssue> {
+    let immediate = |message| Some(DefinitionIssue { kind: DefinitionKind::Independent, message });
     // A definition with no clause has nothing to check about its captures,
     // and its productions, whose number can be exponential, are not listed.
     if rule.tags.is_none()
@@ -1344,9 +1163,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         .alternatives
         .iter()
         .enumerate()
-        .flat_map(|(index, alternative)| {
-            CaptureSequences::of(&alternative.expr).named().into_iter().map(move |names| (index, names))
-        })
+        .flat_map(|(index, _)| validation::captures(rule, index).into_iter().map(move |names| (index, names)))
         .collect();
     // Where each production reads each capture, first, and every capture
     // any production reads, so that a question about one is not a scan.
@@ -1392,59 +1209,40 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             || rule.strings.image.is_some()
             || rule.alternatives.iter().any(|a| a.strings.value.is_some() || a.strings.image.is_some()))
     {
-        return Some(format!("{} is erased and has an emission or recipe", rule.name));
+        return immediate(format!("{} is erased and has an emission or recipe", rule.name));
     }
 
     // A capture mentioned anywhere, presence tests included, that no
     // alternative captures.
     let mut mentioned: Vec<&str> = Vec::new();
-    for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alternative| alternative.tags.as_ref())) {
-        term_captures(term, &mut mentioned);
-        term_presences(term, &mut mentioned);
+    for term in rule.tags.iter().chain(&rule.strings.value).chain(&rule.strings.image) {
+        walk_captures(Part::Term(term), true, true, &mut mentioned);
     }
-    for cond in &rule.conditions {
-        cond_captures(cond, &mut mentioned);
-        cond_presences(cond, &mut mentioned);
-    }
-    for item in items {
-        match item {
-            EmitItem::Capture(name, tags, attachments) => {
-                // An item mentions its own capture and its attachments.
-                mentioned.push(name);
-                mentioned.extend(attachments.names());
-                if let Some(term) = tags {
-                    term_captures(term, &mut mentioned);
-                    term_presences(term, &mut mentioned);
-                }
-            }
-            EmitItem::Insert(tags, _) => {
-                if let Some(term) = tags {
-                    term_captures(term, &mut mentioned);
-                    term_presences(term, &mut mentioned);
-                }
-            }
+    for alternative in &rule.alternatives {
+        for term in alternative.tags.iter().chain(&alternative.strings.value).chain(&alternative.strings.image) {
+            walk_captures(Part::Term(term), true, true, &mut mentioned);
         }
     }
-    for recipe in rule
-        .strings
-        .value
-        .iter()
-        .chain(&rule.strings.image)
-        .chain(rule.alternatives.iter().flat_map(|a| a.strings.value.iter().chain(&a.strings.image)))
-    {
-        term_captures(recipe, &mut mentioned);
+    for cond in &rule.conditions {
+        walk_captures(Part::Cond(cond), true, true, &mut mentioned);
     }
     for item in items {
-        let strings = match item {
-            EmitItem::Capture(_, _, attachments) => &attachments.strings,
-            EmitItem::Insert(_, strings) => strings,
+        let (tags, strings) = match item {
+            EmitItem::Capture(name, tags, attachments) => {
+                mentioned.push(name);
+                (tags, &attachments.strings)
+            }
+            EmitItem::Insert(tags, strings) => (tags, strings),
         };
-        for recipe in strings.value.iter().chain(&strings.image) {
-            term_captures(recipe, &mut mentioned);
+        for term in tags.iter().chain(&strings.value).chain(&strings.image) {
+            walk_captures(Part::Term(term), true, true, &mut mentioned);
+        }
+        if let EmitItem::Capture(_, _, attachments) = item {
+            mentioned.extend(attachments.names());
         }
     }
     if let Some(name) = mentioned.iter().find(|name| !any_has(name)) {
-        return Some(format!("${name} is captured by no alternative of {}", rule.name));
+        return immediate(format!("${name} is captured by no alternative of {}", rule.name));
     }
 
     // A condition that applies to no production.
@@ -1482,12 +1280,11 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         let applies = match check.reach() {
             // A mutation of the tests asks every production.
             _ if by_scan => (0..productions.len()).any(applies_to),
-            Reach::Nothing => false,
             Reach::Every => (0..productions.len()).any(applies_to),
             Reach::Named(name) => holders.get(name).into_iter().flatten().any(|&index| applies_to(index)),
         };
         if !applies {
-            return Some(format!("a condition of {} applies to no production", rule.name));
+            return immediate(format!("a condition of {} applies to no production", rule.name));
         }
     }
 
@@ -1524,13 +1321,13 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             // term for each production.
             for term in [rule_tags, alternative_tags[*alternative]].into_iter().flatten() {
                 if let Outcome::Uses(Some(missing)) = simplified_outcome(Part::Term(term), &has) {
-                    return Some(unguarded(missing));
+                    return immediate(unguarded(missing));
                 }
             }
         }
         for check in [&rule_check, &alternative_checks[*alternative]].into_iter().flatten() {
             if let Some(missing) = check.missing(positions[index].keys().copied(), &has) {
-                return Some(unguarded(missing));
+                return immediate(unguarded(missing));
             }
         }
         let alternative = &rule.alternatives[*alternative];
@@ -1540,7 +1337,13 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             let mut used = Vec::new();
             term_captures(recipe, &mut used);
             if let Some(missing) = used.into_iter().find(|name| !has(name)) {
-                return Some(format!("a selected recipe of {} uses absent capture ${missing}", rule.name));
+                let issue = DefinitionIssue {
+                    kind: DefinitionKind::RecipeCapture,
+                    message: format!("a selected recipe of {} uses absent capture ${missing}", rule.name),
+                };
+                if !defer_issue(&issue) {
+                    return Some(issue);
+                }
             }
         }
         if rule.emit.is_none() {
@@ -1565,7 +1368,13 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         };
         // An emission that loses every item is an error (§9).
         if present.is_empty() && !items.is_empty() {
-            return Some(format!("%emits of {} leaves a production nothing to emit", rule.name));
+            let issue = DefinitionIssue {
+                kind: DefinitionKind::EmptyEmission,
+                message: format!("%emits of {} leaves a production nothing to emit", rule.name),
+            };
+            if !defer_issue(&issue) {
+                return Some(issue);
+            }
         }
         // A production without an item's carrier lacks its attachments too
         // (§9).
@@ -1580,7 +1389,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                     continue;
                 }
                 if let Some(stray) = attachments.names().find(|name| has(name)) {
-                    return Some(format!(
+                    return immediate(format!(
                         "%emits of {} attaches ${stray} in a production without its carrier ${carrier}",
                         rule.name
                     ));
@@ -1607,7 +1416,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             })
             .collect();
         if order.windows(2).any(|pair| pair[1] < pair[0]) {
-            return Some(format!("%emits of {} lists captures out of the order they stand in", rule.name));
+            return immediate(format!("%emits of {} lists captures out of the order they stand in", rule.name));
         }
         for &(item, waits) in &present {
             let strings = match item {
@@ -1618,7 +1427,13 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                 let mut used = Vec::new();
                 term_captures(recipe, &mut used);
                 if let Some(missing) = used.into_iter().find(|name| !has(name)) {
-                    return Some(format!("an item recipe of {} uses absent capture ${missing}", rule.name));
+                    let issue = DefinitionIssue {
+                        kind: DefinitionKind::RecipeCapture,
+                        message: format!("an item recipe of {} uses absent capture ${missing}", rule.name),
+                    };
+                    if !defer_issue(&issue) {
+                        return Some(issue);
+                    }
                 }
             }
             if let EmitItem::Capture(_, Some(term), ..) | EmitItem::Insert(Some(term), _) = item {
@@ -1626,7 +1441,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                     continue;
                 }
                 if let Outcome::Uses(Some(missing)) = simplified_outcome(Part::Term(term), &has) {
-                    return Some(unguarded(missing));
+                    return immediate(unguarded(missing));
                 }
             }
         }
@@ -1657,7 +1472,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                 anchor.is_empty() || holders.get(anchor).map_or(0, Vec::len) == productions.len()
             };
             if !everywhere {
-                return Some(format!(
+                return immediate(format!(
                     "%emits of {} inserts a tag before ${anchor}, which a production lacks",
                     rule.name
                 ));
@@ -1669,9 +1484,73 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{definition_problem, duplicate_captures, CaptureSequences};
+    use super::{check_definition, definition_problem, duplicate_captures};
     use crate::dom::{Alternative, Arg, Attachments, EmitItem, Expr, Op, RuleDef, Term};
     use crate::work::{assert_linear, assert_mutant_stops, Mutant, Work};
+
+    #[test]
+    fn partial_presence_simplification_bounds_independent_guards() {
+        use crate::dom::{Cond, Mark};
+        use crate::work::{self, Work};
+        const N: usize = 24;
+        for kind in ["any", "all", "tags", "guarded"] {
+            let mut rule = many_captures(N);
+            rule.emit = None;
+            rule.tags = None;
+            let names: Vec<_> = (0..N).map(|i| format!("c{i}")).collect();
+            rule.alternatives[0].expr = Expr::Seq(
+                names
+                    .iter()
+                    .map(|name| {
+                        Expr::Optional(
+                            Box::new(Expr::Capture(name.clone(), Box::new(Expr::Terminal("A".into())))),
+                            Mark::Plain,
+                        )
+                    })
+                    .collect(),
+            );
+            let guards = names.iter().map(|name| Cond::Captured(name.clone())).collect();
+            match kind {
+                "any" => rule.conditions = vec![Cond::Any(guards)],
+                "all" => rule.conditions = vec![Cond::All(guards)],
+                "guarded" => {
+                    rule.conditions = vec![Cond::All(
+                        names
+                            .iter()
+                            .take(8)
+                            .map(|name| {
+                                Cond::If(
+                                    Box::new(Cond::Captured(name.clone())),
+                                    Box::new(Cond::Compare(
+                                        "=".into(),
+                                        Term::Call("value".into(), vec![Arg::Term(Term::Capture(name.clone()))]),
+                                        Term::Str("x".into()),
+                                    )),
+                                )
+                            })
+                            .collect(),
+                    )]
+                }
+                _ => {
+                    rule.tags = Some(Term::Union(
+                        names
+                            .iter()
+                            .map(|name| {
+                                Term::If(
+                                    Box::new(Cond::Captured(name.clone())),
+                                    Box::new(Term::Call("tags".into(), vec![Arg::Term(Term::Capture(name.clone()))])),
+                                )
+                            })
+                            .collect(),
+                    ))
+                }
+            }
+            work::reset();
+            work::budget(Work::Checked, (100 * N * N) as u64);
+            assert_eq!(definition_problem(&rule), None, "{kind}");
+            work::reset();
+        }
+    }
 
     /// A rule of n captures whose tag term reads each and whose emission
     /// lists n inserted tags and then each capture: its checks and the
@@ -1681,23 +1560,20 @@ mod tests {
         let rules = [many_captures(8000), many_captures(32000)];
         let mut run = |n: usize| {
             let rule = &rules[usize::from(n != 8000)];
-            assert_eq!(definition_problem(rule), None);
+            assert_eq!(check_definition(rule, false).problem, None);
         };
         assert_linear(Work::Checked, 8000, &mut run);
         assert_linear(Work::Walked, 8000, &mut run);
     }
 
-    /// A copy of each sequence with its suffix, and a scan for the first
-    /// position of each capture, stop at the first count past the budget
-    /// of `a_definition_of_many_captures_checks_in_linear_work`.
+    /// A scan for each capture's first position stops at the budget of
+    /// the production definition check.
     #[test]
     fn quadratic_checks_of_a_definition_stop_at_the_budget() {
         let rules = [many_captures(8000), many_captures(32000)];
-        for mutant in [Mutant::CopySequences, Mutant::FirstByScan] {
-            assert_mutant_stops(Work::Checked, mutant, 8000, &mut |n| {
-                definition_problem(&rules[usize::from(n != 8000)]);
-            });
-        }
+        assert_mutant_stops(Work::Checked, Mutant::FirstByScan, 8000, &mut |n| {
+            check_definition(&rules[usize::from(n != 8000)], false);
+        });
     }
 
     /// A choice of n captures, each its own production, whose distinct
@@ -1707,16 +1583,46 @@ mod tests {
     #[test]
     fn a_choice_of_many_captures_finds_distinct_sequences_in_linear_work() {
         let choice = |n: usize| {
-            Expr::Choice(
+            let mut rule = many_captures(0);
+            rule.alternatives[0].expr = Expr::Choice(
                 (0..n).map(|index| Expr::Capture(format!("c{index}"), Box::new(Expr::Terminal("A".into())))).collect(),
-            )
+            );
+            rule.tags = Some(Term::Tag("T".into()));
+            rule.emit = None;
+            rule
         };
-        let exprs = [choice(2000), choice(8000)];
+        let rules = [choice(2000), choice(8000)];
         let mut run = |n: usize| {
-            assert_eq!(CaptureSequences::of(&exprs[usize::from(n != 2000)]).sequences.len(), n);
+            assert_eq!(check_definition(&rules[usize::from(n != 2000)], false).problem, None);
         };
         assert_linear(Work::Checked, 2000, &mut run);
-        assert_mutant_stops(Work::Checked, Mutant::ScanDistinct, 2000, &mut run);
+        assert_mutant_stops(Work::Checked, Mutant::CompareCaptureChoices, 2000, &mut run);
+    }
+
+    /// Independent optional captures use structural queries in the
+    /// production validator without enumerating their combinations.
+    #[test]
+    fn variable_capture_queries_check_in_linear_work() {
+        let optional = |n: usize| {
+            let mut rule = many_captures(0);
+            rule.alternatives[0].expr = Expr::Seq(
+                (0..n)
+                    .map(|index| {
+                        Expr::Optional(
+                            Box::new(Expr::Capture(format!("c{index}"), Box::new(Expr::Terminal("A".into())))),
+                            crate::dom::Mark::Plain,
+                        )
+                    })
+                    .collect(),
+            );
+            rule.tags = Some(Term::Tag("T".into()));
+            rule.emit = None;
+            rule
+        };
+        let rules = [optional(2000), optional(8000)];
+        assert_linear(Work::Checked, 2000, &mut |n| {
+            assert_eq!(check_definition(&rules[usize::from(n != 2000)], false).problem, None);
+        });
     }
 
     /// A sequence of n captures nested to the right, each level a capture
@@ -1746,16 +1652,25 @@ mod tests {
         Expr::Repeat(Box::new(Expr::Seq(items.collect())), None, None)
     }
 
-    /// The captures inside braces are counted for their indices in one
-    /// walk, by the search for duplicates and by the capture sequences.
+    /// Duplicate detection walks the captures inside braces. Definition
+    /// checks also run through the production validator.
     #[test]
     fn captures_in_braces_are_counted_in_linear_work() {
-        let exprs = [captures_in_braces(2000), captures_in_braces(8000)];
-        assert_linear(Work::Walked, 2000, &mut |n| {
-            let expr = &exprs[usize::from(n != 2000)];
-            assert!(duplicate_captures(expr).is_empty());
-            assert_eq!(CaptureSequences::of(expr).names.len(), n);
-        });
+        let braces = |n| {
+            let mut rule = many_captures(0);
+            rule.alternatives[0].expr = captures_in_braces(n);
+            rule.tags = Some(Term::Tag("T".into()));
+            rule.emit = None;
+            rule
+        };
+        let rules = [braces(2000), braces(8000)];
+        let mut run = |n: usize| {
+            let rule = &rules[usize::from(n != 2000)];
+            assert!(duplicate_captures(&rule.alternatives[0].expr).is_empty());
+            assert_eq!(check_definition(rule, false).problem, None);
+        };
+        assert_linear(Work::Walked, 2000, &mut run);
+        assert_linear(Work::Checked, 2000, &mut run);
     }
 
     /// A sequence of n captures of one name nested to the right, each level
@@ -1797,6 +1712,7 @@ mod tests {
                 .chain(names.iter().map(|name| EmitItem::Capture(name.clone(), None, Attachments::default())))
                 .collect();
             RuleDef {
+                source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
                 name: "r".into(),

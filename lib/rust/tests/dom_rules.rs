@@ -249,7 +249,7 @@ fn a_cache_of_another_format_is_a_miss() {
 #[test]
 fn a_preparsed_range_or_property_is_checked() {
     let expr = |expr: &str| with_alternative(&format!(r#"{{"guards":[],"expr":{expr}}}"#));
-    // Scalar strings replace the old canonical character-tag spellings.
+    // Range endpoints use scalar strings.
     assert_eq!(gencmu::tools::check_dom(&expr(r#"{"range":[{"string":"a"},{"string":"z"}]}"#)).unwrap(), None);
     // Well formed, and none reads "a": each entry is used.
     for dom in [
@@ -320,7 +320,7 @@ fn a_bootstrap_with_a_malformed_range_or_property_is_an_error() {
             .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
         error
-            .message
+            .to_string()
             .strip_prefix(
                 "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/gencmu/jbogenbau/lexical.md is malformed: ",
             )
@@ -840,7 +840,7 @@ fn a_refused_bootstrap_test_is_an_error() {
             .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
         error
-            .message
+            .to_string()
             .strip_prefix(
                 "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/gencmu/jbogenbau/lexical.md is malformed: ",
             )
@@ -877,7 +877,7 @@ fn a_bootstrap_term_of_two_forms_is_an_error() {
             .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
         error
-            .message
+            .to_string()
             .strip_prefix(
                 "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/gencmu/jbogenbau/lexical.md is malformed: ",
             )
@@ -1112,7 +1112,7 @@ fn a_bootstrap_with_a_malformed_constant_is_an_error() {
             .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
         error
-            .message
+            .to_string()
             .strip_prefix(
                 "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/gencmu/jbogenbau/lexical.md is malformed: ",
             )
@@ -1331,7 +1331,7 @@ fn bootstrap_refusal(dom: &str) -> Option<String> {
         .expect_err("a notation that cannot read grammars/test/g.md");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
     error
-        .message
+        .to_string()
         .strip_prefix(
             "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/gencmu/jbogenbau/lexical.md is malformed: ",
         )
@@ -1625,4 +1625,78 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
     ] {
         assert_eq!(expression_problem(expr).as_deref(), twice, "{expr}");
     }
+}
+
+#[test]
+fn absent_recipe_capture_order() {
+    for recipe in ["$x.value ++ $y.value", "$y.value ++ $x.value"] {
+        for grammar in [
+            format!("%rule text := {recipe} | [$x:A] [$y:B]"),
+            format!("%rule text [$x:A] [$y:B] %emits $ := {recipe}"),
+        ] {
+            let sources = std::collections::BTreeMap::from([
+                ("p.md".to_string(), "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+                ("g.md".to_string(), format!("```jbogenbau\n%ambiguity-resolution greedy\n{grammar}\n```\n")),
+            ]);
+            let error = gencmu::load_pipeline_sources(&sources, "p.md").expect_err("an absent recipe capture");
+            assert!(error.message.contains(&format!("capture {}", &recipe[..2])), "{error}");
+        }
+    }
+}
+
+#[test]
+fn deferred_recipe_precedes_empty_emission() {
+    let sources: std::collections::BTreeMap<String,String> = std::collections::BTreeMap::from([
+        ("p.md".into(), "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".into()),
+        ("g.md".into(), "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [$a:A] (X ≻ Y) | [$b:B] Z := $b.value %emits $a\n```\n".into()),
+    ]);
+    let error = gencmu::load_pipeline_sources(&sources, "p.md").expect_err("a deferred recipe fault");
+    assert!(error.message.contains("recipe") && error.message.contains("$b"), "{error}");
+    assert!(error.diagnostic.is_none(), "{error}");
+}
+
+#[test]
+fn template_definition_keeps_its_specific_problem() {
+    for params in ["", r#","params":["X"]"#] {
+        let raw = format!(
+            r#"{{"format":40,"rules":[{{"name":"pair"{params},"op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"tags":{{"method":"tags","receiver":{{"capture":"y"}},"args":[]}},"conditions":[],"at":[2,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
+        );
+        let problem = gencmu::tools::check_dom(&raw).unwrap().unwrap();
+        assert!(problem.contains("$y") && problem.contains("pair"), "{problem}");
+    }
+}
+
+#[test]
+fn requirement_type_fault_hides_private_container_names() {
+    for sign in ["", "¬"] {
+        let sources = std::collections::BTreeMap::from([
+            ("p.md".to_string(), format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $GOOD A\n%const $BAD \"x\"\n%rule text A<$GOOD {sign}$BAD>\n```\n")),
+        ]);
+        let error = gencmu::load_pipeline_sources(&sources, "p.md").expect_err("a string requirement");
+        assert!(!error.message.contains(".requirements") && !error.message.contains(".forbid"), "{error}");
+        assert!(error.message.contains("tag set"), "{error}");
+    }
+}
+
+#[test]
+fn substituted_condition_keeps_its_type_reason() {
+    for call in ["%rule text f(A)", "%rule named = f(A)\n%rule text named"] {
+        let sources = std::collections::BTreeMap::from([(
+            "main.md".to_string(),
+            format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule f(@X) $c:\"a\" %conditions $c.value ⊆ @X\n{call}\n```\n"),
+        )]);
+        let error = gencmu::load_pipeline_sources(&sources, "main.md").expect_err("incompatible set types");
+        assert!(error.message.contains("⊆ joins two sets of one kind"), "{error}");
+        assert!(!error.message.contains("a term or a condition whose types do not agree"), "{error}");
+        let name = if call.contains("named") { "named" } else { "f(A)" };
+        assert!(error.message.contains(&format!("rule {name}:")), "{error}");
+        assert!(error.message.contains("in f(A) called at"), "{error}");
+    }
+}
+
+#[test]
+fn span_tag_hint_uses_source_spelling() {
+    let raw = r#"{"format":40,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"tags":{"union":[{"capture":"x"},{"tag":"B"}]},"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}"#;
+    let problem = gencmu::tools::check_dom(raw).unwrap().unwrap();
+    assert!(problem.contains("$x.tags") && !problem.contains("tags($x)"), "{problem}");
 }

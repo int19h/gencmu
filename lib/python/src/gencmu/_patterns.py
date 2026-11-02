@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import re
-from typing import Any, Callable
+from typing import Any
 
-from . import _testing
-from ._pattern_shapes import layered_pattern_problem
-from ._strings import ENGINE_TAGS, USER_NAME, is_constant
+
 
 Dom = dict[str, Any]
 
@@ -29,6 +26,47 @@ def pattern_parts(node):
     return [*node.get('children', []), *node.get('optional', node.get('repeat', [])), *node.get('separator', [])]
 
 
+def pattern_depth_problem(term, constant):
+    """Inspect shared substitutions before copying or compiling their values."""
+    empty = empty_pattern()
+    pending = [(term, 1, "", True, None)]
+    seen = {}
+    while pending:
+        node, depth, parent, is_term, at = pending.pop()
+        if isinstance(node, list):
+            pending.extend((child, depth, parent, is_term, at) for child in reversed(node))
+            continue
+        name = node.get("const" if is_term else "constant")
+        if name:
+            value = constant(name)
+            if isinstance(value, dict) and "pattern" in value:
+                pending.append((value["pattern"], depth, parent, False, at or node["at"]))
+            elif is_term and isinstance(value, frozenset) and not value:
+                pending.append((empty, depth, parent, False, at or node["at"]))
+            elif depth > 256:
+                return (at,)
+            continue
+        if is_term and "emptySet" in node:
+            pending.append((empty, depth, parent, False, at))
+            continue
+        if is_term and "pattern" in node:
+            pending.append((node["pattern"], depth, parent, False, at))
+            continue
+        operation = next((key for key in ("union", "intersection", "difference") if key in node), None)
+        flat = operation is not None and operation != "difference" and operation == parent
+        if not flat and depth > 256:
+            return (at,)
+        context = (id(node), is_term, parent)
+        if seen.get(context, -1) >= depth:
+            continue
+        seen[context] = depth
+        if operation:
+            pending.append((node[operation], depth + (not flat), operation, is_term, at))
+        elif not is_term:
+            pending.append((pattern_parts(node), depth + 1, "", False, at))
+    return None
+
+
 def walk_pattern(root: Dom):
     stack = [(root, 0)]
     while stack:
@@ -37,11 +75,6 @@ def walk_pattern(root: Dom):
             continue
         yield node, depth
         stack.extend((child, depth + 1) for child in reversed(pattern_parts(node)))
-
-
-def pattern_problem(root, test_fault=None, initial_depth=0):
-    return layered_pattern_problem(root, test=test_fault, depth=initial_depth,
-        terminal=lambda name: USER_NAME.fullmatch(name) is not None or name in ENGINE_TAGS)
 
 
 def empty_pattern() -> Dom:
@@ -97,6 +130,7 @@ class PatternMachine:
         for root in roots:
             self.compile(root)
         self.empty = self.intern((0, 0, 0, 0, tuple(m["epsilon"] for m in self.machines), None, False))
+        self.seal = self.node_state(0, False)
 
     def compile(self, root: Dom) -> int:
         pending = [(root, False)]
@@ -160,7 +194,9 @@ class PatternMachine:
             elif "child" in node:
                 edges.append((start, end, self.root_ids[id(node["child"])]))
             elif "siblings" in node:
-                edges.extend(((start, end, None), (start, start, -1)))
+                gap = size
+                size += 1
+                edges.extend(((start, gap, None), (gap, gap, -1), (gap, end, None)))
             elif "choice" in node:
                 pending.extend((arm, start, end) for arm in reversed(node["choice"]))
             elif "optional" in node:
@@ -169,12 +205,12 @@ class PatternMachine:
             elif "repeat" in node:
                 a, b = size, size + 1
                 size += 2
-                edges.append((a, end, None))
-                pending.extend(((node["repeat"], b, a), (node["repeat"], start, a)))
+                edges.extend(((start, a, None), (b, end, None)))
+                pending.append((node["repeat"], a, b))
                 if "separator" in node:
-                    pending.append((node["separator"], a, b))
+                    pending.append((node["separator"], b, a))
                 else:
-                    edges.append((a, b, None))
+                    edges.append((b, a, None))
         epsilon = [1 << i for i in range(size)]
         for a, b, predicate in edges:
             if predicate is None:
@@ -192,7 +228,6 @@ class PatternMachine:
         index = len(self.states)
         self.states.append(state)
         self.state_ids[state] = index
-        _testing.count("structural_states")
         return index
 
     @staticmethod
@@ -216,7 +251,6 @@ class PatternMachine:
         state = (min(2, a[0] + b[0]), a[1] if a[0] else b[1], b[2] if b[0] else a[2], a[3] | b[3], tuple(self.compose(x, y) for x, y in zip(a[4], b[4])), None, False)
         result = self.intern(state)
         self.transitions[key] = result
-        _testing.count("structural_transitions")
         return result
 
     def node_state(self, bits: int, empty: bool) -> int:
@@ -232,7 +266,7 @@ class PatternMachine:
         return self.intern((1, bits, bits, bits, tuple(relations), bits, False))
 
     def sealed(self) -> int:
-        return self.node_state(0,False)
+        return self.seal
 
     def node(self, name: str | None, children: int, leaf: tuple[str, str, frozenset[str]] | None = None) -> int:
         key = ("node", name, children, leaf)
@@ -270,7 +304,6 @@ class PatternMachine:
                 bits |= bit
         result = self.node_state(bits, leaf is None and state[0] == 0)
         self.transitions[key] = result
-        _testing.count("structural_transitions")
         return result
 
     def matches(self, state: int, pattern: Dom) -> bool:

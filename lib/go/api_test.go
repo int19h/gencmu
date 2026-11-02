@@ -61,8 +61,8 @@ func TestLoadPipelineBundled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Join(d.StageNames(), " "); got != "lexical syntax" {
-		t.Fatalf("stages %q", got)
+	if len(d.stages) != 2 || d.stages[0].name != "lexical" || d.stages[1].name != "syntax" {
+		t.Fatalf("stages %+v", d.stages)
 	}
 	res, err := d.Parse("%rule text A [{B}]", ParseOptions{})
 	if err != nil || !res.OK {
@@ -624,7 +624,7 @@ func TestBootstrapNulls(t *testing.T) {
 
 // Malformed preparsed DOMs: a bad data/preparsed/lojban.json entry is a miss, read
 // from the document instead, and a bad bootstrap is a load error; neither
-// panics (review of PR #8).
+// panics.
 func TestMalformedPreparsed(t *testing.T) {
 	t.Parallel()
 	loadBundled()
@@ -739,7 +739,7 @@ func TestMalformedPreparsed(t *testing.T) {
 		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
 		_, err = LoadPipelineSources(src, "grammars/test/p.md")
 		var e *Error
-		if !errors.As(err, &e) || e.Kind != ErrorGrammar {
+		if isGuardedCrash(err) || !errors.As(err, &e) || e.Kind != ErrorGrammar {
 			t.Fatalf("%s in the bootstrap: expected a load error, got %v", expr, err)
 		}
 	}
@@ -823,7 +823,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 }
 
 // Caller tokens whose source lies outside the text are a usage error, not
-// a panic (review of PR #8).
+// a panic.
 func TestParseTokensOutOfRange(t *testing.T) {
 	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text \"a\"\n%emits $"))
@@ -961,14 +961,19 @@ func TestFileUTF8(t *testing.T) {
 		{"a comment of an included document", func(b string) map[string]string {
 			return map[string]string{"p.md": pipeline, "g.md": grammar("%rule text \"a\" (* " + b + " *)")}
 		}, "g.md"},
+		{"an extra names file", func(b string) map[string]string {
+			return map[string]string{"p.md": strings.Replace(pipeline, "%stage main", "%names \"bad.names\"\n%stage main", 1), "g.md": grammar("%rule text \"‹LATIN SMALL LETTER A›\""), "bad.names": "unicode-names 15.1.0\n" + b}
+		}, "bad.names"},
 	}
 	for _, p := range places {
 		for _, b := range invalid {
-			root := dir(p.files(b))
+			documents := p.files(b)
+			offset := strings.Index(documents[p.bad], b)
+			root := dir(documents)
 			_, err := LoadPipelineFile(filepath.Join(root, "p.md"))
 			var e *Error
 			if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.HasSuffix(e.Document, "/"+p.bad) ||
-				!strings.Contains(e.Message, "not valid UTF-8") || e.Line != 0 || e.Column != 0 {
+				e.Message != "the document is not valid UTF-8: an invalid byte sequence at byte "+strconv.Itoa(offset) || e.Line != 0 || e.Column != 0 {
 				t.Errorf("%s, %q: expected a grammar error of %s, got %#v", p.place, b, p.bad, err)
 			}
 		}
@@ -988,7 +993,7 @@ func TestFileUTF8(t *testing.T) {
 	}
 	// A byte order mark stays U+FEFF, so a fence after it opens no block.
 	marked := dir(map[string]string{"p.md": "\uFEFF" + pipeline[strings.Index(pipeline, "```"):], "g.md": good})
-	if _, err := LoadPipelineFile(filepath.Join(marked, "p.md")); err == nil || !strings.Contains(err.Error(), "at least one %stage") {
+	if _, err := LoadPipelineFile(filepath.Join(marked, "p.md")); isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), "at least one %stage") {
 		t.Errorf("a fence after a byte order mark: %v", err)
 	}
 	prose := dir(map[string]string{"p.md": "\uFEFF" + pipeline, "g.md": grammar("%rule text \"\uFEFF\"")})
@@ -1031,18 +1036,18 @@ func TestGrammarFaultHasNoPosition(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct{ grammar, message string }{
 		{`%rule text $w:W %emits $w :: $.tags(bad)
-%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "stage main: split has an empty delimiter"},
+%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "split has an empty delimiter"},
 		{`%rule text $w:W %emits $, ε :: $.tags(bad) := "a"
-%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "stage main: split has an empty delimiter"},
+%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "split has an empty delimiter"},
 		{`%rule text $w:W %emits ε :: $.tags(bad) := "a", $w
-%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "stage main: split has an empty delimiter"},
+%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "split has an empty delimiter"},
 		// Empty user tag sets are valid in the redesign. The failed query still tests error positions.
 		{`%rule text $a:W %emits $a :: $.tags(bad)
-%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "stage main: split has an empty delimiter"},
+%rule bad ε %conditions "x" ∈ $.value.split($.value)`, "split has an empty delimiter"},
 		{"%rule text $a:x %conditions ¬$a.matches(text)\n%rule x W",
-			"stage main: a condition asks whether its own span parses as text, which defines text in terms of itself over the same text"},
+			"a condition asks whether its own span parses as text from inside the parse of that span as text: the grammar defines text in terms of itself over the same text"},
 		{"%rule text $a:x %conditions ¬$a.onward.begins(text)\n%rule x W",
-			"stage main: a condition asks whether its own span parses as text, which defines text in terms of itself over the same text"},
+			"a condition asks whether its own span parses as text from inside the parse of that span as text: the grammar defines text in terms of itself over the same text"},
 	} {
 		d, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+c.grammar), "p.md")
 		if err != nil {
@@ -1442,9 +1447,10 @@ func TestClassifierTablesBounded(t *testing.T) {
 // tested terminator (docs/output.md). No other error has a code.
 func TestMarshalWitnessLost(t *testing.T) {
 	t.Parallel()
+	value := "ta"
 	chosen := &Node{Kind: KindRule, Rule: "text", Span: [2]int{0, 1}, Source: [2]int{0, 1}, Children: []*Node{
 		{Kind: KindToken, Terminal: "A", Token: 0, Span: [2]int{0, 1}, Source: [2]int{0, 1}},
-		{Kind: KindElided, Terminal: "T", Span: [2]int{1, 1}, Source: [2]int{1, 1}, sound: "ta", tested: true},
+		{Kind: KindElided, Terminal: "T", Span: [2]int{1, 1}, Source: [2]int{1, 1}, Value: &value},
 	}}
 	res := &ParseResult{Stages: []Stage{{Name: "main", Verdict: VerdictResolved}}, Error: &ParseError{
 		Kind: ErrorGrammar, Stage: "main", Code: CodeElisionWitnessLost,
@@ -1459,8 +1465,252 @@ func TestMarshalWitnessLost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"format":15,"ok":false,"stages":[{"name":"main","verdict":"resolved"}],"tree":null,"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"A","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"T","span":[1,1],"source":[1,1]}]},"completion":[{"terminal":"T","at":1,"source":[1,1],"value":"ta"},{"terminal":"U","at":1,"source":[1,1]}]}}`
+	want := `{"format":15,"ok":false,"stages":[{"name":"main","verdict":"resolved"}],"tree":null,"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"A","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"T","span":[1,1],"source":[1,1],"value":"ta"}]},"completion":[{"terminal":"T","at":1,"source":[1,1],"value":"ta"},{"terminal":"U","at":1,"source":[1,1]}]}}`
 	if string(data) != want {
 		t.Fatalf("got  %s\nwant %s", data, want)
+	}
+}
+
+func TestSourceMapsRejectNonScalarResourcesBeforeParsing(t *testing.T) {
+	for _, path := range []string{"data/unicode/unicode.txt", "data/unicode/unicode-properties.txt", "data/unicode/unicode-names.txt",
+		"data/unicode/unicode-names-reference.txt", "extra-names.txt", "data/preparsed/gencmu.json", "data/preparsed/test.json", "unused.md"} {
+		_, err := LoadPipelineSources(map[string]string{path: "header\n\xed\xa0\x80"}, "missing.md")
+		var e *Error
+		if !errors.As(err, &e) || e.Kind != ErrorUsage || e.Document != path || e.Line != 0 || e.Column != 0 {
+			t.Fatalf("%s: %v", path, err)
+		}
+	}
+	_, err := LoadPipelineSources(map[string]string{"z": "\xff", "a": "\xff"}, "missing.md")
+	var e *Error
+	if !errors.As(err, &e) || e.Document != "a" {
+		t.Fatal(err)
+	}
+}
+
+func TestParseUsageErrorOrder(t *testing.T) {
+	d, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text A"), "p.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := ParseOptions{Features: []string{"f"}, WithoutFeatures: []string{"f"}, Until: "missing"}
+	tokens := []InputToken{
+		{Text: "a", Tags: []string{"first invalid tag"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}},
+		{Text: "a", Tags: []string{"second invalid tag"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}},
+	}
+	_, err = d.ParseTokens("\xff", tokens, options)
+	if isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), "the text is not a sequence") {
+		t.Fatalf("text: %v", err)
+	}
+	_, err = d.ParseTokens("a", tokens, options)
+	if isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), "token 0: invalid stored tag") {
+		t.Fatalf("tokens: %v", err)
+	}
+	_, err = d.Parse("a", options)
+	if isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), "the feature f is named both") {
+		t.Fatalf("features: %v", err)
+	}
+	_, err = d.Parse("a", ParseOptions{Until: "missing"})
+	if isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), "has no stage") {
+		t.Fatalf("until: %v", err)
+	}
+}
+
+func TestWarningFeaturesShareALowering(t *testing.T) {
+	t.Parallel()
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text a! b! \"x\""))
+	for _, features := range [][]string{nil, {"a"}, {"b"}, {"a", "b"}, nil} {
+		result, err := d.Parse("x", ParseOptions{Features: features})
+		if err != nil || !result.OK || len(result.Warnings) != len(features) {
+			t.Fatalf("%v: %v %+v", features, err, result)
+		}
+	}
+	if n := d.lowered[0].len(); n != 1 {
+		t.Fatalf("%d lowered grammars", n)
+	}
+}
+
+func TestConstantCyclePathAndVersions(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ declarations, path string }{
+		{"%const $A $B\n%const $B $C\n%const $C $B", "$B → $C → $B"},
+		{"%const $A $B\n%const $B $A\n%redefine-const $A $A", "$A [g.md:3:1] → $B [g.md:4:1] → $A [g.md:5:1] → $A [g.md:3:1]"},
+	} {
+		sources := map[string]string{"p.md": block("%stage main", `%include "g.md"`), "g.md": block("%ambiguity-resolution greedy", c.declarations, `%rule text "a"`)}
+		_, err := LoadPipelineSources(sources, "p.md")
+		if isGuardedCrash(err) || err == nil || !strings.HasSuffix(err.Error(), "constant dependency cycle: "+c.path) {
+			t.Fatalf("expected %s, got %v", c.path, err)
+		}
+	}
+}
+
+func TestStitchingMessagesAndCaptureOrder(t *testing.T) {
+	t.Parallel()
+	cases := [][2]string{
+		{"%rule text missing", "missing is not a rule of stage main"},
+		{"%classifier lex $NOPEK ∈ K\n%rule text \"a\"", "$NOPEK is not defined in stage main"},
+		{"%rule other \"a\"", "has no rule text"},
+		{"%ambiguity-resolution greedy\n%rule text \"a\"", "has a second %ambiguity-resolution"},
+		{"%rule text $x:A :: $x.value.classify(unknown)", "unknown is not a classifier of stage main"},
+		{"%extend-rule absent \"a\"\n%rule text \"a\"", "%extend-rule absent extends a rule that is not defined before it"},
+		{"%rule text \"a\"\n%rule text \"b\"", "%rule text is already defined, in g.md; %redefine-rule replaces a rule"},
+		{"%const $P $Q\n%rule text \"a\"", "$Q is not defined in stage main; dependency $P → $Q"},
+		{"%const $S \"ab\"\n%rule text $S..\"z\"", "a range endpoint is one scalar"},
+		{"%const $S \"z\"\n%rule text $S..\"a\"", "a range starts above its end"},
+		{"%rule text \"a\"\n%conditions $zz ∧ $bb", "$zz is captured by no alternative of text"},
+		{"%rule text \"a\"\n%conditions $zz ∧ $.value = $bb.value", "$zz is captured by no alternative of text"},
+		{"%rule text \"a\" :: ($zz ⟹ $bb.tags)", "$zz is captured by no alternative of text"},
+		{"%rule text := $zz.value | \"a\" :: $bb.tags", "$zz is captured by no alternative of text"},
+	}
+	for _, c := range cases {
+		_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+c[0]), "p.md")
+		var fault *Error
+		if !errors.As(err, &fault) || fault.Message != c[1] {
+			t.Errorf("%s: wanted %s, got %v", c[0], c[1], err)
+		}
+	}
+}
+
+func TestClassifierCanonicalKeyMessages(t *testing.T) {
+	t.Parallel()
+	for _, c := range [][2]string{
+		{" \"a‹U+00AD›é\" ∈ A\n \"a‹U+00AD›é\" ∈ A", "is already in A"},
+		{" \"a‹U+00AD›é\" ∉ A", "is not in A, so ∉ has nothing to remove"},
+	} {
+		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%classifier lex\n"+c[0]+"\n%rule text \"a\""))
+		result, err := d.Parse("a", ParseOptions{})
+		want := "the classifier lex: \"a‹SHY›e‹U+0301›\" " + c[1]
+		if err != nil || result.Error == nil || !strings.HasSuffix(result.Error.Message, want) {
+			t.Fatalf("wanted %s, got %+v, %v", want, result.Error, err)
+		}
+	}
+}
+
+func TestMissingResolutionMessage(t *testing.T) {
+	_, err := LoadPipelineSources(oneStage("%rule text \"a\""), "p.md")
+	var fault *Error
+	if !errors.As(err, &fault) || fault.Message != "has no %ambiguity-resolution" {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestStitchingStagesAndReferenceOrder(t *testing.T) {
+	cases := []struct {
+		source, message       string
+		resolution, unlocated bool
+	}{
+		{"%rule other missing", "has no rule text", true, true},
+		{"%rule text A", "has no %ambiguity-resolution", false, true},
+		{"%rule text A :: $.value.classify(nolex) ∪ $.tags(norule)", "nolex is not a classifier of stage main", true, false},
+		{"%rule text A :: $.tags(norule) ∪ $.value.classify(nolex)", "norule is not a rule of stage main", true, false},
+		{"%const $A $MISSING\n%rule text A", "$MISSING is not defined in stage main; dependency $A → $MISSING", true, false},
+		{"%ambiguity-resolution greedy\n%rule text A", "has a second %ambiguity-resolution", true, false},
+	}
+	for _, c := range cases {
+		source := c.source
+		if c.resolution {
+			source = "%ambiguity-resolution greedy\n" + source
+		}
+		_, err := LoadPipelineSources(oneStage(source), "p.md")
+		var fault *Error
+		if !errors.As(err, &fault) {
+			t.Fatalf("expected error, got %v", err)
+		}
+		if fault.Message != c.message || fault.Stage != "main" {
+			t.Errorf("%s: %+v", c.source, fault)
+		}
+		if c.unlocated && (fault.Document != "" || fault.Line != 0 || fault.Column != 0) {
+			t.Errorf("unexpected location: %+v", fault)
+		}
+	}
+}
+
+func TestCallerBuiltRenderingGuards(t *testing.T) {
+	actions := []Action{{Read: &ReadAction{Token: 0, Terminal: "A"}}, {Read: &ReadAction{Token: 0, Terminal: "B"}}}
+	res := &ParseResult{Stages: []Stage{{Name: "s", Verdict: VerdictUnique, Witness: actions}}, Error: &ParseError{Kind: ErrorAmbiguous, Reason: ReasonTie, Witness: actions}}
+	data, _ := MarshalResult(res)
+	if strings.Contains(string(data), `"witness"`) {
+		t.Errorf("witness escaped its gate: %s", data)
+	}
+	res.Error = nil
+	res.Tree = &Node{Kind: KindElided, Terminal: "İΟΣABC"}
+	if got := Brackets(res, BracketOptions{ShowElided: true}); got != "⟨İΟΣabc⟩" {
+		t.Errorf("ASCII case mapping: %q", got)
+	}
+	res.Tree = &Node{Kind: KindToken, Token: 5}
+	if got := Brackets(res, BracketOptions{}); got != "" {
+		t.Errorf("invalid token: %q", got)
+	}
+}
+
+func TestInvalidPipelinePathIsUsage(t *testing.T) {
+	invalid := "invalid-\xff.md"
+	for _, load := range []func() (*Pipeline, error){
+		func() (*Pipeline, error) { return LoadPipelineFile(invalid) },
+		func() (*Pipeline, error) { return LoadPipelineSources(map[string]string{}, invalid) },
+	} {
+		_, err := load()
+		var fault *Error
+		if !errors.As(err, &fault) || fault.Kind != ErrorUsage {
+			t.Fatalf("invalid path: %v", err)
+		}
+	}
+}
+
+func TestSpliceReadsEachDocumentOnce(t *testing.T) {
+	l, err := bundledLoader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources := oneStage("%ambiguity-resolution greedy\n%rule text A")
+	reads := map[string]int{}
+	l.read = func(path string) (string, bool, *Error) {
+		text, ok := sources[path]
+		if ok {
+			reads[path]++
+		}
+		return text, ok, nil
+	}
+	if _, err := l.pipeline("p.md"); err != nil {
+		t.Fatal(err)
+	}
+	for path, count := range reads {
+		if count != 1 {
+			t.Errorf("%s read %d times", path, count)
+		}
+	}
+}
+
+func TestSelectedStageOnEverySpliceError(t *testing.T) {
+	for _, source := range []string{`%include "missing.md"`, `%include "/absolute.md"`, `%include "p.md"`, `%extend-stage missing`, `%redefine-stage missing`, `%stage main`} {
+		_, err := LoadPipelineSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n" + source + "\n```\n"}, "p.md")
+		var fault *Error
+		if !errors.As(err, &fault) || fault.Kind != ErrorGrammar || fault.Stage != "main" {
+			t.Errorf("%s: %v", source, err)
+		}
+	}
+}
+
+func TestMissingNamesFileUsesResolvedPath(t *testing.T) {
+	root := t.TempDir()
+	files := map[string]string{
+		"p.md": "```jbogenbau\n%names \"bad.names\"\n%stage main\n%include \"g.md\"\n```",
+		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹LATIN SMALL LETTER A›\"\n```",
+	}
+	for name, text := range files {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := LoadPipelineFile(filepath.Join(root, "p.md"))
+	var e *Error
+	want := filepath.ToSlash(filepath.Join(root, "bad.names"))
+	if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != want || e.Message != want+" was not found" || e.Line != 0 || e.Column != 0 {
+		t.Fatalf("unexpected missing names diagnostic: %#v", err)
+	}
+}
+
+func TestPipelinePublicMethodsExcludeStageNames(t *testing.T) {
+	if _, exported := reflect.TypeOf((*Pipeline)(nil)).MethodByName("StageNames"); exported {
+		t.Fatal("the pipeline exports StageNames outside the documented API")
 	}
 }

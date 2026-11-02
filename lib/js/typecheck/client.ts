@@ -1,6 +1,6 @@
 // A client of gencmu, type-checked against the declarations in types/ and
 // never run. Each @ts-expect-error line is a misuse the types must reject.
-import { loaderFromSources, resultJson, toBrackets, type ParseResult, type ResultNode, type Verdict } from "gencmu";
+import { loaderFromSources, resultJson, toBrackets, trace, type ParseResult, type ResultNode, type Verdict } from "gencmu";
 import { loaderFromDirectory } from "gencmu/node";
 
 const loader = loaderFromDirectory();
@@ -9,8 +9,7 @@ const result: ParseResult = pipeline.parse("%rule text A", { features: ["sa-su"]
 
 const verdicts: (Verdict | null)[] = result.stages.map((stage) => stage.verdict);
 for (const stage of result.stages) {
-  if (stage.verdict === "tie" && stage.witness) {
-    // A cycle tie has no pairwise witness.
+  if (stage.verdict === "tie") {
     void stage.witness[0];
   } else {
     // @ts-expect-error only a tie has a witness
@@ -37,7 +36,7 @@ if (result.error) {
   // An ambiguous error says why: a tie or the check of elision-only.
   const reason: "tie" | "elision-only" | undefined = result.error.reason;
   if (result.error.readings) result.error.readings.forEach(rules);
-  // @ts-expect-error the historical cycle field is outside the released result schema
+  // @ts-expect-error a result error has no cycle member
   void result.error.cycle;
   void kind, reason;
 }
@@ -61,3 +60,13 @@ pipeline.parse("A", { tokens: [{ text: "A", tags: ["_Lu", "_L"], span: [0, 1], s
 pipeline.parse("A", { tokens: [{ text: "A", value: "a", image: "", tags: [], span: [0, 1], source: [0, 1] }] });
 // @ts-expect-error JavaScript caller values use omission, never null
 pipeline.parse("A", { tokens: [{ text: "A", value: null, tags: [], span: [0, 1], source: [0, 1] }] });
+
+
+trace(pipeline, "", {stage:"syntax", position:0, elisionOnly:true});
+trace(pipeline, "", {stage:"syntax", position:0, elisionOnly:false});
+trace(pipeline, "", {stage:"syntax", position:0, elisionOnly:null});
+// @ts-expect-error elisionOnly accepts a boolean or null
+trace(pipeline, "", {stage:"syntax", position:0, elisionOnly:"off"});
+
+// @ts-expect-error caller tokens do not declare insertion provenance
+pipeline.parse("a", {tokens:[{text:"a", tags:[], span:[0,1], source:[0,1], insertedBy:"caller"}]});

@@ -7,7 +7,7 @@ from unittest.mock import patch
 from gencmu import _pipeline
 
 import gencmu
-from .shared import REPOSITORY, find_places, position_of, substitute
+from .shared import REPOSITORY, find_places, position_of, same_json, substitute
 
 
 class BootstrapErrors(unittest.TestCase):
@@ -27,14 +27,19 @@ class BootstrapErrors(unittest.TestCase):
                         "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
                         "data/preparsed/gencmu.json": bootstrap,
                     }, "p.md")
-                self.assertEqual(raised.exception.kind, fixtures["kind"])
-                self.assertEqual(raised.exception.document, fixtures["document"])
-                self.assertTrue(raised.exception.message.startswith(fixtures["document"] + ":"), raised.exception.message)
-                self.assertEqual(str(raised.exception), raised.exception.message)
+                self.assertTrue(same_json(raised.exception.kind, fixtures["kind"]))
+                self.assertTrue(same_json(raised.exception.document, fixtures["document"]))
+                self.assertTrue(str(raised.exception).startswith(fixtures["document"] + ":"), str(raised.exception))
+                self.assertFalse(raised.exception.message.startswith(fixtures["document"] + ":"))
+                self.assertEqual(str(raised.exception).count(fixtures["document"] + ":"), 1)
+                if item["stage"]:
+                    self.assertIn(f"stage {item['stage']}: ", str(raised.exception))
                 if "context" in item:
                     self.assertIn(item["context"], raised.exception.message)
                 if "message" in item:
                     self.assertIn(item["message"], raised.exception.message)
+                if item["stage"] is None and not item.get("message", "").startswith("stage "):
+                    self.assertFalse(raised.exception.message.startswith("stage "), str(raised.exception))
                 # The place of the error, by the text that stands there in
                 # its grammar document, or as the case gives it.
                 if "at" in item:
@@ -42,7 +47,7 @@ class BootstrapErrors(unittest.TestCase):
                 else:
                     line, column = item["line"], item["column"]
                 for field, value in (("stage", item["stage"]), ("line", line), ("column", column)):
-                    self.assertEqual(getattr(raised.exception, field), value, field)
+                    self.assertTrue(same_json(getattr(raised.exception, field), value), field)
 
     def test_bootstrap_file_reading_errors(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -63,5 +68,5 @@ class BootstrapErrors(unittest.TestCase):
                         with self.assertRaises(gencmu.GencmuError) as raised:
                             gencmu.load_pipeline_sources({"p.md": "%stage main"}, "p.md")
                     self.assertEqual(raised.exception.document, "data/preparsed/gencmu.json")
-                    self.assertTrue(raised.exception.message.startswith("data/preparsed/gencmu.json:"), raised.exception.message)
-                    self.assertEqual(str(raised.exception), raised.exception.message)
+                    self.assertTrue(str(raised.exception).startswith("data/preparsed/gencmu.json:"), str(raised.exception))
+                    self.assertFalse(raised.exception.message.startswith("data/preparsed/gencmu.json:"))

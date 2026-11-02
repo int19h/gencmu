@@ -102,17 +102,23 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 	// includes is joined only for an error, so a deep chain costs its
 	// depth, not its square.
 	type spliceFrame struct {
-		path  string
-		items []docItem
-		next  int
-		names []string
+		unresolved bool
+		path       string
+		items      []docItem
+		next       int
+		names      []string
 	}
 	var through []*spliceFrame
 	inChain := map[string]bool{}
 	stageNamed := map[string]*splicedStage{}
-	enter := func(docPath string, dom *domDoc, inherited []string) {
-		through = append(through, &spliceFrame{path: docPath, items: itemsInOrder(dom), names: selectedNames(docPath, dom, inherited)})
+	enter := func(docPath string, dom *domDoc, inherited []string) *Error {
+		names, err := selectedNames(docPath, dom, inherited)
+		if err != nil {
+			return err
+		}
+		through = append(through, &spliceFrame{unresolved: dom.unresolved, path: docPath, items: itemsInOrder(dom), names: names})
 		inChain[docPath] = true
+		return nil
 	}
 	splice := func() *Error {
 		for len(through) > 0 {
@@ -131,7 +137,10 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 			case item.dir != nil && item.dir.Name == "names":
 				continue
 			case item.dir != nil && item.dir.Name == "include":
-				target := resolvePath(docPath, item.dir.Args[0])
+				target, err := resolvePath(docPath, item.dir.Args[0], at)
+				if err != nil {
+					return err
+				}
 				trail := func() string {
 					// Each path counts as it is joined, so that a trail joined
 					// at each include passes the budget.
@@ -153,6 +162,12 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 				}
 				included, err := domOf(target, f.names)
 				if err != nil {
+					if err.spliceProblem == unreadableDocumentProblem && err.Line == 0 {
+						relocated := *err
+						relocated.Message = err.Document + ": " + err.Message
+						relocated.Document, relocated.Line, relocated.Column = docPath, at[0], at[1]
+						err = &relocated
+					}
 					if s := selected; s != nil && err.Stage == "" {
 						err.Stage = s.name
 					}
@@ -162,7 +177,9 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 					return grammarError(docPath, at, "%s was not found (%s)", target, trail())
 				}
 				run = nil
-				enter(target, included, f.names)
+				if err := enter(target, included, f.names); err != nil {
+					return err
+				}
 			case item.dir != nil && item.dir.Name == "features" && selected == nil:
 				if item.dir.Conditions != nil {
 					return grammarError(docPath, at, "global features cannot have conditions")
@@ -190,10 +207,11 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 				if w := work.Load(); w != nil {
 					w.spliceSteps.add("splice steps")
 				}
-				selected = stageNamed[name]
-				if selected == nil {
+				nextStage := stageNamed[name]
+				if nextStage == nil {
 					return grammarError(docPath, at, "%%%s names an unknown stage %s", item.dir.Name, name)
 				}
+				selected = nextStage
 				if item.dir.Name == "redefine-stage" {
 					selected.documents = nil
 				}
@@ -219,6 +237,7 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 					run, runPath = &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}, Classifiers: []*domClassifier{}, Implications: []*domImplication{}}, docPath
 					s.documents = append(s.documents, docDOM{path: docPath, dom: run})
 				}
+				run.unresolved = run.unresolved || f.unresolved
 				switch {
 				case item.rule != nil:
 					run.Rules = append(run.Rules, item.rule)
@@ -244,10 +263,15 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 		return nil, err
 	}
 	if top == nil {
-		return nil, &Error{Kind: ErrorGrammar, Document: pipelinePath, Message: "the pipeline document is missing"}
+		return nil, &Error{Kind: ErrorGrammar, Document: pipelinePath, Message: "the pipeline document was not found"}
 	}
-	enter(pipelinePath, top, nil)
+	if err := enter(pipelinePath, top, nil); err != nil {
+		return nil, err
+	}
 	if err := splice(); err != nil {
+		if selected != nil {
+			err.Stage = selected.name
+		}
 		return nil, err
 	}
 	if len(p.stages) == 0 {
@@ -259,7 +283,8 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 			rules += len(d.dom.Rules)
 		}
 		if rules == 0 {
-			e := grammarError(s.doc, s.at, "the stage has no rules")
+			e := grammarError(s.doc, s.at, "has no rules")
+			e.spliceProblem = emptyStageProblem
 			e.Stage = s.name
 			return nil, e
 		}

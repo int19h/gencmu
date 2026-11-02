@@ -1,0 +1,20 @@
+{
+  "grammar": "%rule text\n  | a\n\n%rule a A\n\n%rule b\n  | A\n%conditions\n  $.followed-by(zz)\n\n%extend-rule a\n  | B\n%conditions\n  $.followed-by(yy)\n\n%rule zz Z\n%rule yy Y",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "description": "Boundary-target errors follow expanded rule order before source order (engine §9.3).",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 16,
+      "column": 17
+    }
+  }
+}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gc
+import ast
 import inspect
 import json
 import sys
@@ -10,11 +11,12 @@ import tempfile
 import unittest
 import weakref
 from pathlib import Path
+from unittest.mock import patch
 
 import gencmu
 from gencmu._pipeline import DOM_FORMAT, bundled_text
 
-from .shared import case_sources, case_tokens, load_case_pipeline
+from .shared import case_sources, case_tokens, load_case_pipeline, same_json
 
 PIPELINE = """# A test pipeline
 
@@ -109,7 +111,52 @@ def elided_tokens() -> tuple[list[gencmu.Token], str]:
     )
 
 
+class TestDefinitions(unittest.TestCase):
+    def test_methods_have_unique_names_in_each_test_class(self) -> None:
+        paths = list(Path(__file__).parent.glob("*.py"))
+        self.assertTrue(paths, "no Python test modules found")
+        for path in paths:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            definitions = [node.name for node in tree.body if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))]
+            with self.subTest(file=path.name):
+                self.assertEqual(len(definitions), len(set(definitions)), f"{path.name}: module repeats a definition name")
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ClassDef):
+                    continue
+                methods = [item.name for item in node.body if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))]
+                if not any(name.startswith("test_") for name in methods):
+                    continue
+                with self.subTest(file=path.name, cls=node.name):
+                    self.assertEqual(len(methods), len(set(methods)), f"{path.name}: {node.name} repeats a method name")
+
+    def test_module_duplicates_are_refused(self) -> None:
+        read = Path.read_text
+        for module, extra in (("test_api.py", "\nclass HiddenProbe:\n    pass\nclass HiddenProbe:\n    pass\n"),
+                              ("shared.py", "\ndef hidden_probe(): pass\ndef hidden_probe(): pass\n"),
+                              ("witness.py", "\nclass HiddenProbe: pass\ndef HiddenProbe(): pass\n")):
+            def duplicated(path, *args, **kwargs):
+                source = read(path, *args, **kwargs)
+                return source + extra if path.name == module else source
+
+            with self.subTest(extra=extra), patch.object(Path, "read_text", duplicated), self.assertRaisesRegex(AssertionError, "module repeats"):
+                TestDefinitions().test_methods_have_unique_names_in_each_test_class()
+
+
 class Loaders(unittest.TestCase):
+    def test_source_maps_reject_every_non_scalar_resource_before_parsing(self):
+        for path in ("data/unicode/unicode.txt", "data/unicode/unicode-properties.txt", "data/unicode/unicode-names.txt",
+                     "data/unicode/unicode-names-reference.txt", "extra-names.txt", "data/preparsed/gencmu.json",
+                     "data/preparsed/test.json", "unused.md"):
+            with self.subTest(path=path), self.assertRaises(gencmu.GencmuError) as caught:
+                gencmu.load_pipeline_sources({path: "header\n\ud800"}, "missing.md")
+            self.assertEqual(caught.exception.kind, "usage")
+            self.assertEqual(caught.exception.document, path)
+            self.assertIsNone(caught.exception.line)
+            self.assertIsNone(caught.exception.column)
+        with self.assertRaises(gencmu.GencmuError) as caught:
+            gencmu.load_pipeline_sources({"z": "\ud800", "a": "\ud800"}, "missing.md")
+        self.assertEqual(caught.exception.document, "a")
+
     def test_replacements_record_flag_changes(self) -> None:
         from gencmu._grammar import FlagChange
 
@@ -130,7 +177,7 @@ class Loaders(unittest.TestCase):
             },
             "p.md",
         )
-        changes = pipeline.grammars[0].changes
+        changes = pipeline._grammars[0].changes
         removed = FlagChange(["leftmost-longest"], [])
         added = FlagChange([], ["leftmost-longest"])
         self.assertEqual([change.flag_change for change in changes], [None, removed, added, None, removed, None])
@@ -140,7 +187,7 @@ class Loaders(unittest.TestCase):
 
     def test_bundled(self) -> None:
         pipeline = gencmu.load_pipeline("gencmu/jbogenbau")
-        self.assertEqual(pipeline.stage_names, ["lexical", "syntax"])
+        self.assertEqual(pipeline._stage_names, ["lexical", "syntax"])
         result = pipeline.parse("%rule text A")
         self.assertTrue(result.ok)
         self.assertEqual(result.tree.rule if result.tree else None, "text")
@@ -152,7 +199,7 @@ class Loaders(unittest.TestCase):
 
     def test_sources(self) -> None:
         pipeline = gencmu.load_pipeline_sources(SOURCES, "pipeline.md")
-        self.assertEqual(pipeline.stage_names, ["sounds", "words", "syntax"])
+        self.assertEqual(pipeline._stage_names, ["sounds", "words", "syntax"])
         self.assertTrue(pipeline.parse("mi mi").ok)
 
     def test_file(self) -> None:
@@ -235,7 +282,10 @@ class Options(unittest.TestCase):
         with self.assertRaises(gencmu.GencmuError):
             self.pipeline.parse("mi", features="sa-su")
 
-    def test_pipeline_features(self) -> None:
+    def test_pipeline_exposes_only_documented_members(self) -> None:
+        self.assertEqual({name for name in dir(self.pipeline) if not name.startswith("_")}, {"features", "parse", "parse_tokens"})
+
+    def test_pipeline_defaults_enable_features(self) -> None:
         sources = dict(SOURCES)
         sources["pipeline.md"] = PIPELINE.replace("# A test pipeline", "# A test pipeline\n\n```jbogenbau\n%features sa-su\n```")
         pipeline = gencmu.load_pipeline_sources(sources, "pipeline.md")
@@ -298,7 +348,7 @@ class Options(unittest.TestCase):
         elided = result.tree.children[1]
         self.assertEqual((elided.kind, elided.terminal, elided.value), ("elided", "KU", "ku"))
         value = gencmu.result_json(result)
-        self.assertEqual(sorted(value["tree"]["children"][1]), ["kind", "source", "span", "terminal", "value"])
+        self.assertTrue(same_json(sorted(value["tree"]["children"][1]), ["kind", "source", "span", "terminal", "value"]))
 
     def test_caller_image(self) -> None:
         """A supplied image survives input copying and covering emission.
@@ -383,11 +433,29 @@ class Options(unittest.TestCase):
 
 
 class Output(unittest.TestCase):
+    def test_parse_result_exposes_only_documented_fields(self) -> None:
+        result = gencmu.load_pipeline_sources(SOURCES, "pipeline.md").parse("mi", until="words")
+        self.assertTrue(result.ok, result.error)
+        self.assertEqual({name for name in vars(result) if not name.startswith("_")},
+                         {"ok", "stages", "tree", "error", "warnings", "features"})
+
+    def test_canonical_json_distinguishes_booleans_from_numbers(self) -> None:
+        loads = json.loads
+
+        def decode(text, *args, **kwargs):
+            value = loads(text, *args, **kwargs)
+            if isinstance(value, dict) and value.get("format") == 15:
+                value["ok"] = int(value["ok"])
+            return value
+
+        with patch(__name__ + ".json.loads", side_effect=decode), self.assertRaises(AssertionError):
+            Output().test_canonical_json()
+
     def test_canonical_json(self) -> None:
         pipeline = gencmu.load_pipeline_sources(SOURCES, "pipeline.md")
         result = pipeline.parse("mi", until="words")
         text = gencmu.to_json(result)
-        self.assertEqual(json.loads(text), gencmu.result_json(result))
+        self.assertTrue(same_json(json.loads(text), gencmu.result_json(result)))
         tags = json.dumps(sorted(result.stages[0].output[0].tags), ensure_ascii=False, separators=(",", ":"))
         self.assertTrue(
             text.startswith(
@@ -405,13 +473,10 @@ class Output(unittest.TestCase):
     def test_error_json(self) -> None:
         pipeline = gencmu.load_pipeline_sources(SOURCES, "pipeline.md")
         value = gencmu.result_json(pipeline.parse("mx"))
-        self.assertEqual(
-            list(value["error"]),
-            ["kind", "stage", "token", "source", "line", "column", "expected", "message"],
-        )
+        self.assertTrue(same_json(list(value["error"]), ["kind", "stage", "token", "source", "line", "column", "expected", "message"]))
         # In code point order: a property is its written form (engine §4).
-        self.assertEqual(value["error"]["expected"][0], {"terminal": '"a"', "rules": ["c"]})
-        self.assertEqual(value["error"]["expected"][1], {"terminal": '"i"', "rules": ["c"]})
+        self.assertTrue(same_json(value["error"]["expected"][0], {"terminal": '"a"', "rules": ["c"]}))
+        self.assertTrue(same_json(value["error"]["expected"][1], {"terminal": '"i"', "rules": ["c"]}))
         self.assertIsNone(value["tree"])
 
     def test_witness_lost_json(self) -> None:
@@ -430,14 +495,11 @@ class Output(unittest.TestCase):
             completion=[gencmu.Restoration("KU", 1, (1, 1), "ku"), gencmu.Restoration("VAU", 1, (1, 1))],
         )
         value = error_json(error)
-        self.assertEqual(list(value), ["kind", "stage", "code", "message", "chosen", "completion"])
-        self.assertEqual(value["code"], "elision-witness-lost")
-        self.assertEqual(value["chosen"]["rule"], "text")
-        self.assertEqual(
-            value["completion"],
-            [{"terminal": "KU", "at": 1, "source": [1, 1], "value": "ku"}, {"terminal": "VAU", "at": 1, "source": [1, 1]}],
-        )
-        self.assertEqual(list(value["completion"][0]), ["terminal", "at", "source", "value"])
+        self.assertTrue(same_json(list(value), ["kind", "stage", "code", "message", "chosen", "completion"]))
+        self.assertTrue(same_json(value["code"], "elision-witness-lost"))
+        self.assertTrue(same_json(value["chosen"]["rule"], "text"))
+        self.assertTrue(same_json(value["completion"], [{"terminal": "KU", "at": 1, "source": [1, 1], "value": "ku"}, {"terminal": "VAU", "at": 1, "source": [1, 1]}]))
+        self.assertTrue(same_json(list(value["completion"][0]), ["terminal", "at", "source", "value"]))
         # Any other error has no code.
         self.assertNotIn("code", error_json(gencmu.ParseError("grammar", "a defect", stage="main")))
 
@@ -517,8 +579,8 @@ class Attachments(unittest.TestCase):
         # The token that the next stage reads keeps them.
         self.assertIs(result.stages[1].input[0], word)
         value = gencmu.result_json(result)["stages"][0]["output"][0]
-        self.assertEqual(list(value), ["text", "value", "image", "tags", "span", "source", "before", "after"])
-        self.assertEqual(value["after"][0]["after"], [{"text": "n", "value": "n", "image": "n", "tags": ["Low"], "source": [3, 4]}])
+        self.assertTrue(same_json(list(value), ["text", "value", "image", "tags", "span", "source", "before", "after"]))
+        self.assertTrue(same_json(value["after"][0]["after"], [{"text": "n", "value": "n", "image": "n", "tags": ["Low"], "source": [3, 4]}]))
         self.assertEqual(gencmu.to_brackets(result), "([b w {i n}] z)")
 
     def test_error_order(self) -> None:
@@ -566,8 +628,8 @@ class GrammarFaults(unittest.TestCase):
             "a condition asks whether its own span parses as text from inside the parse of that span as text: "
             "the grammar defines text in terms of itself over the same text"
         )
-        # Engine §1 and §11 remove tag-assigned strings and opacity. The
-        # first four former faults now succeed with explicit channel data.
+        # Explicit token channels and visible attachments let the first
+        # four grammars succeed (engine §1 and §11).
         for grammar, message, output in [
             ('%implies A ⟹ C\n%rule text [{word}]\n%rule word $w:W :: A := "e" %emits $', None, [("e", "e", {"A", "C"})]),
             ("%rule text [{word}]\n%rule word $w:W :: E ∪ O :- $.verbatim-text %emits $", None, [("x", "x", {"E", "O"})]),
@@ -923,7 +985,7 @@ class LoweringCaches(unittest.TestCase):
         for index in range(50):
             self.assertTrue(pipeline.parse("y", features=[f"unused-{index}"]).ok)
         self.assertEqual(len(pipeline._lowered[0]), 1)
-        self.assertEqual(len(pipeline.grammars[0]._classifier_tables), 1)
+        self.assertEqual(len(pipeline._grammars[0]._classifier_tables), 1)
 
     def test_bounded(self) -> None:
         names = ["a", "b", "c", "d", "e", "f", "g"]
@@ -938,7 +1000,7 @@ class LoweringCaches(unittest.TestCase):
             self.assertEqual(result.stages[0].verdict is not None, bool(features), features)
             self.assertEqual(result.ok, len(features) == 1, features)
         self.assertLessEqual(len(pipeline._lowered[0]), 16)
-        self.assertLessEqual(len(pipeline.grammars[0]._classifier_tables), 16)
+        self.assertLessEqual(len(pipeline._grammars[0]._classifier_tables), 16)
 
     def test_classifier_tables_bounded(self) -> None:
         """Every set of five classifier gates, twice: the second round
@@ -955,7 +1017,7 @@ class LoweringCaches(unittest.TestCase):
                 result = pipeline.parse("x", features=features)
                 assert result.tree is not None
                 self.assertEqual(result.tree.tags, frozenset(["X"] + [name.upper() for name in features]))
-        self.assertLessEqual(len(pipeline.grammars[0]._classifier_tables), 16)
+        self.assertLessEqual(len(pipeline._grammars[0]._classifier_tables), 16)
 
 
 class RepeatedFailures(unittest.TestCase):
@@ -1009,7 +1071,7 @@ class SharedCaches(unittest.TestCase):
             sources["data/unicode/unicode.txt"] = unicode + "\n" * (index + 1)
             loaded = gencmu.load_pipeline_sources(sources, pipeline)
             self.assertTrue(loaded.parse("a").ok)
-            tables.append(weakref.ref(loaded.unicode))
+            tables.append(weakref.ref(loaded._unicode))
             del loaded
         gc.collect()
         self.assertLessEqual(len(_pipeline._unicode_tables), _pipeline._MAX_TEXTS)
@@ -1019,6 +1081,30 @@ class SharedCaches(unittest.TestCase):
 
 
 class CallerTokens(unittest.TestCase):
+    def test_usage_error_order(self):
+        pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
+        assert pipeline is not None, error
+        options = {"features": ["f"], "without_features": ["f"], "until": "missing"}
+        tokens = [gencmu.Token("a", {tag}, (0, 1), (0, 1)) for tag in ("first invalid tag", "second invalid tag")]
+        with self.assertRaisesRegex(gencmu.GencmuError, "the text is not a sequence"):
+            pipeline.parse_tokens(tokens, "\ud800", **options)
+        with self.assertRaisesRegex(gencmu.GencmuError, "token 0: invalid stored tags"):
+            pipeline.parse_tokens(tokens, "a", **options)
+        with self.assertRaisesRegex(gencmu.GencmuError, "the feature f is named both"):
+            pipeline.parse("a", **options)
+        with self.assertRaisesRegex(gencmu.GencmuError, "has no stage missing"):
+            pipeline.parse("a", until="missing")
+
+    def test_caller_insertion_provenance_is_dropped(self):
+        pipeline, error = load_case_pipeline({"grammar": '%rule text "a"'})
+        assert pipeline is not None, error
+        for inserted_by in ("caller", 17):
+            token = gencmu.Token("a", set(), (0, 1), (0, 1), inserted_by=inserted_by)
+            result = pipeline.parse_tokens([token], "a")
+            self.assertTrue(result.ok)
+            self.assertIsNone(result.stages[0].input[0].inserted_by)
+            self.assertEqual(token.inserted_by, inserted_by)
+
     """A result shares nothing that can change with the caller's tokens
     (docs/api.md)."""
 
@@ -1037,3 +1123,88 @@ class CallerTokens(unittest.TestCase):
         read = result.stages[0].input[0]
         self.assertEqual((read.tags, tuple(read.span or ()), tuple(read.source)), (frozenset({"A"}), (0, 1), (0, 1)))
         self.assertIsNot(read, token)
+
+
+class ResultRenderingGuards(unittest.TestCase):
+    def test_ascii_elided_and_invalid_token_indices(self):
+        tokens = [gencmu.Token("a", {"W"}, (0,1), (0,1))]
+        for index in [-1, 1, 5]:
+            leaf = gencmu.Node("token", (0,1), (0,1), terminal="W", token=index)
+            stage = gencmu.Stage("main", "unique", tokens)
+            result = gencmu.ParseResult(True, [stage], leaf, None)
+            self.assertEqual(gencmu.to_brackets(result), "")
+            parent = gencmu.Node("rule", (0,1), (0,1), rule="text", children=[leaf, gencmu.Node("token", (0,1), (0,1), terminal="W", token=0)])
+            result.tree = parent
+            self.assertEqual(gencmu.to_brackets(result), "( a)")
+        result.tree = gencmu.Node("elided", (0,0), (0,0), terminal="İΟΣABC")
+        self.assertEqual(gencmu.to_brackets(result, show_elided=True), "⟨İΟΣabc⟩")
+
+    def test_emission_failure_keeps_the_stage_tree(self):
+        case = json.loads((Path(__file__).parents[3] / "tests/engine/emit-fault-keeps-verdict.json").read_text())
+        pipeline, error = load_case_pipeline(case)
+        assert pipeline is not None, error
+        tokens, text = case_tokens(case)
+        result = pipeline.parse_tokens(tokens, text, features=["w"])
+        self.assertIsNotNone(result.stages[0].tree)
+        self.assertIsNone(result.tree)
+        self.assertIsNone(result.stages[0].output)
+
+    def test_feature_usage_error_follows_enabled_order(self):
+        pipeline, error = load_case_pipeline({"grammar":'%rule text "a"'})
+        assert pipeline is not None, error
+        for features in (["b","a"], iter(["b","a"])):
+            with self.assertRaisesRegex(gencmu.GencmuError, "the feature b is named both"):
+                pipeline.parse("a", features=features, without_features=["a","b"])
+
+    def test_feature_role_location_occurs_once(self):
+        with self.assertRaises(gencmu.GencmuError) as caught:
+            gencmu.load_pipeline_sources({"p.md":'```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text f? "a" | f! "b"\n```\n'}, "p.md")
+        error = caught.exception
+        self.assertEqual(error.message, "the feature f is used both as a gate and as a warning")
+        self.assertEqual(str(error).count("p.md:4:1"), 1)
+
+    def test_invalid_pipeline_path_is_usage(self):
+        for load in (lambda: gencmu.load_pipeline_file("invalid-\udcff.md"), lambda: gencmu.load_pipeline_sources({}, "invalid-\udcff.md")):
+            with self.assertRaises(gencmu.GencmuError) as caught:
+                load()
+            self.assertEqual(caught.exception.kind, "usage")
+
+
+    def test_splice_reads_each_document_once(self):
+        from collections import Counter
+        from gencmu._pipeline import _Loader, _resources
+        sources = {"p.md":'```jbogenbau\n%stage first\n%include "g.md"\n%stage second\n%include "g.md"\n```\n', "g.md":'```jbogenbau\n%ambiguity-resolution greedy\n%rule text "a"\n```\n'}
+        reads = Counter()
+        def read(path):
+            if path in sources:
+                reads[path] += 1
+            return sources.get(path)
+        loader = _Loader(read, _resources())
+        first = loader.splice("p.md")
+        self.assertEqual(reads, {"p.md":1,"g.md":1})
+        sources["g.md"] = sources["g.md"].replace('"a"', '"b"')
+        second = loader.splice("p.md")
+        self.assertEqual(reads, {"p.md":2,"g.md":2})
+        self.assertNotEqual(first.stages[0].documents, second.stages[0].documents)
+
+
+    def test_selected_stage_on_every_splice_error(self):
+        for source in ['%include "missing.md"', '%include "/absolute.md"', '%include "p.md"', '%extend-stage missing', '%redefine-stage missing', '%stage main']:
+            with self.subTest(source=source), self.assertRaises(gencmu.GencmuError) as caught:
+                gencmu.load_pipeline_sources({"p.md":'```jbogenbau\n%stage main\n'+source+'\n```\n'},"p.md")
+            self.assertEqual(caught.exception.kind, "grammar")
+            self.assertEqual(caught.exception.stage, "main")
+
+
+    def test_error_witness_requires_an_elision_only_ambiguity(self):
+        from gencmu._model import Action
+        witness = (Action("read",token=0,terminal="A"),Action("read",token=0,terminal="B"))
+        error = gencmu.ParseError("ambiguous","x",stage="main",reason="elision-only",witness=witness)
+        result = gencmu.ParseResult(False,[],None,error)
+        self.assertIn("witness",gencmu.result_json(result)["error"])
+        error.reason = "tie"
+        self.assertNotIn("witness",gencmu.result_json(result)["error"])
+        error.reason = "elision-only"
+        for kind in ["grammar","rejected","feature-conflict"]:
+            error.kind = kind
+            self.assertNotIn("witness",gencmu.result_json(result)["error"])

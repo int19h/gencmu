@@ -1,0 +1,13 @@
+{
+  "description": "An open retained argument keeps the known delimiter type constraint.",
+  "grammar": "%ambiguity-resolution greedy\n%const $T A\n%rule g(@Q) \"a\"\n%rule unused(@P) g(@P.split($T))\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 29
+    }
+  }
+}

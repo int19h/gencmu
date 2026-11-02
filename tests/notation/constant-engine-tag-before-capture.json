@@ -1,0 +1,10 @@
+{
+  "description": "A forbidden engine tag precedes a later capture in a closed value.",
+  "document": "```jbogenbau\n%const $X _General_Category_Letter ∪ $c\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

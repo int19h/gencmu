@@ -1,0 +1,13 @@
+{
+  "description": "A substituted definition is inspected before nested calls or name rewriting.",
+  "grammar": "%rule f(@X)\n  $c:@X\n%rule text\n  f(a | b) C\n%rule other\n  f\n%rule a\n  A\n%rule b\n  B",
+  "input": "b",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

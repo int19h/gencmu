@@ -1,4 +1,5 @@
 export declare class GencmuError extends Error {
+    #private;
     kind: "grammar" | "usage";
     where: import("./types.js").ErrorLocation;
     code: string | undefined;
@@ -16,6 +17,13 @@ export declare class GencmuError extends Error {
     constructor(kind: "grammar" | "usage", message: string, where?: import("./types.js").ErrorLocation, options?: {
         cause?: unknown;
     });
+    /**
+     * Copies the diagnostic with a new location and an optional explanation.
+     * @param {import("./types.js").ErrorLocation} where
+     * @param {string} [suffix]
+     * @returns {GencmuError}
+     */
+    withLocation(where: import("./types.js").ErrorLocation, suffix?: string): GencmuError;
     toJSON(): {
         kind: "grammar" | "usage";
         code?: string | undefined;

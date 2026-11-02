@@ -1,0 +1,13 @@
+{
+  "description": "Uncalled templates receive argument-independent constant inspection.",
+  "grammar": "%rule unused(@X) $MISSING\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 18
+    }
+  }
+}

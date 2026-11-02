@@ -1,0 +1,10 @@
+{
+  "description": "An earlier failure precedes a later unknown directive.",
+  "document": "```jbogenbau\n%rule r ) A\n%prefer x\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

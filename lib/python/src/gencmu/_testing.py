@@ -3,15 +3,15 @@ the package does not export it.
 
 ``elision_check``, when set, receives each check of elision-only (engine
 §7) that recognized R and met no error of the grammar, before it ranks,
-for the witness test of tests/README.md. It gives back the marks of W(D)'s
-edges, which the check's own ranker takes, and a callback for the
-ranking.
+for the witness test of tests/README.md. It returns a ranking observer.
+Runtime tracking supplies the witness marks independently.
 
 ``faults`` holds the faults of the library's own paths in the check that a
 test turns on, one at a time, to show that the shared cases catch each
 (tests/README.md, tests/test_faults.py). An empty set is the engine as
 specified:
 
+- "omission" skips the predicate of an elided terminal.
 - "reprocess" leaves an item that an ordinary step reaches after it was
   processed as strict as it was (engine §7.4).
 - "again" makes the processing of such an item again do nothing: no
@@ -56,12 +56,8 @@ class CheckRun:
 
 @dataclass
 class CheckWatch:
-    """What the witness test hands back to the check: the marks of W(D),
-    for each item the indices of the edges that W(D) uses, or ``None``
-    where the chart does not hold W(D); and a callback that receives the
-    check's ranking, ``None`` where it has none."""
+    """The independent witness test's ranking observer."""
 
-    marks: dict[int, set[int]] | None
     ranked: Callable[[Ranking | None], None]
 
 

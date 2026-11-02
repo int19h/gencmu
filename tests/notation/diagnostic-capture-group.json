@@ -1,0 +1,11 @@
+{
+  "description": "Reader diagnostics use common text and retain their positions.",
+  "document": "```jbogenbau\n%rule text $x:(A B)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12,
+      "message": "a capture wraps one symbol"
+    }
+  }
+}

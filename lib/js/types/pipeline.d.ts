@@ -1,3 +1,4 @@
+import { Recent } from "./recent.js";
 import { Stage } from "./stage.js";
 import { Token } from "./tokens.js";
 import { UnicodeTable } from "./unicode.js";
@@ -43,18 +44,16 @@ export declare class Loader {
     bootstrapText: string;
     bootstrapHash: string;
     notation: Pipeline;
-    /** @type {Map<string, PreparsedEntry>} */
-    preparsed: Map<string, PreparsedEntry>;
-    /** @type {Set<string>} */
-    preparsedFiles: Set<string>;
+    /** @type {Recent<string, PreparsedEntry>} */
+    preparsed: Recent<string, PreparsedEntry>;
+    /** @type {Recent<string,boolean>} */
+    preparsedFiles: Recent<string, boolean>;
     /** @type {WeakMap<GrammarDom, Record<string,string> | null>} */
     domRegistries: WeakMap<GrammarDom, Record<string, string> | null>;
-    /** @type {Map<string, GrammarDom>} */
-    cache: Map<string, GrammarDom>;
+    /** @type {Recent<string, GrammarDom>} */
+    cache: Recent<string, GrammarDom>;
     /** @type {WeakMap<GrammarDom,Record<string,string>>} */
     namesDependencies: WeakMap<GrammarDom, Record<string, string>>;
-    /** @type {Map<string,string[]>} */
-    inheritedNames: Map<string, string[]>;
     /** @param {Resources} read @param {(path:string)=>boolean} [namesOverride] */
     constructor(read: Resources, namesOverride?: (path: string) => boolean);
     /**
@@ -79,9 +78,10 @@ export declare class Loader {
      * bootstrap and the format all match, else read with the notation.
      * @param {string} path
      * @param {string[]} [inherited]
+     * @param {string} [text]
      * @returns {GrammarDom}
      */
-    documentDom(path: string, inherited?: string[]): GrammarDom;
+    documentDom(path: string, inherited?: string[], text?: string): GrammarDom;
     /**
      * Reads a grammar document's Markdown into its DOM with the notation.
      * @param {string} markdown
@@ -104,9 +104,15 @@ export declare class Loader {
      * one document's items, and the features the pipeline turns on (engine
      * §13).
      * @param {string} path
+     * @param {Map<string,{path:string,dom:GrammarDom,inherited:string[],text:string}>} [documents]
      * @returns {{stages: import("./splice.js").SplicedStage[], features: string[]}}
      */
-    splice(path: string): {
+    splice(path: string, documents?: Map<string, {
+        path: string;
+        dom: GrammarDom;
+        inherited: string[];
+        text: string;
+    }>): {
         stages: import("./splice.js").SplicedStage[];
         features: string[];
     };
@@ -150,8 +156,10 @@ export declare class Pipeline {
  * @param {(token: Token) => import("./types.js").Position} positionOf
  * @param {string} path
  * @param {UnicodeTable} unicode
+ * @param {(token:Token, path:boolean)=>string} decodeString
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
- * @param {(token:Token, path:boolean)=>string} [decodeString]
  * @returns {GrammarDom}
  */
-export declare function domOfTree(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => import("./types.js").Position, path: string, unicode: UnicodeTable, deferEmission?: boolean, decodeString?: (token: Token, path: boolean) => string): GrammarDom;
+export declare function domOfTree(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => import("./types.js").Position, path: string, unicode: UnicodeTable, decodeString: (token: Token, path: boolean) => string, deferEmission?: boolean): GrammarDom;
+/** @param {Map<string, string>} sources */
+export declare function checkSourceStrings(sources: Map<string, string>): void;

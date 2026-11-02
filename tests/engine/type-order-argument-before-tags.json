@@ -1,0 +1,13 @@
+{
+  "description": "Merged validation selects the first constant type fault across unused arguments and ordinary clauses.",
+  "grammar": "%const $S \"s\"\n%const $T A\n%rule ignored(@x) \"a\"\n%rule text ignored($T.split(\",\")) :: $S",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 6,
+      "column": 20
+    }
+  }
+}

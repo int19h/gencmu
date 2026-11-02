@@ -18,6 +18,7 @@ from typing import Any, Callable, Optional, Union
 
 from ._trampoline import Walk, run
 from ._patterns import walk_pattern
+from ._template_nodes import has_unresolved, nodes, source_keys
 
 TermType = str
 """``"string"``, ``"strings"``, ``"tags"``, ``"span"``, ``"pattern"``, ``"set"`` or ``"any"``."""
@@ -144,10 +145,8 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
     elif name in ("matches", "begins", "ends"):
         valid = receiver in spans and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
         result, arity = "predicate", None
-    elif name in _PREDICATES:
-        valid, result, arity = receiver in spans, "predicate", 0 if name in ("starts-input", "ends-input") else 1
-        if arity and (len(args) != 1 or set(args[0]) != {"rule"}):
-            valid = False
+    elif name in ("starts-input", "ends-input"):
+        valid, result, arity = receiver in spans, "predicate", 0
     elif name == "ngrams":
         valid = receiver in spans | {"string", "any"} and len(args) == 1 and set(args[0]) == {"integer"} and isinstance(args[0]["integer"], str) and re.fullmatch(r"[1-9][0-9]*", args[0]["integer"]) is not None
         result, arity = "strings", 1
@@ -158,7 +157,7 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
     else:
         return None, f"unknown method .{name}"
     if not valid or arity is not None and len(args) != arity:
-        return None, f"invalid receiver or arguments for .{name}"
+        return None, "a method has the wrong receiver or arguments"
     return result, None
 
 
@@ -210,7 +209,7 @@ def comparison_problem(op: str, left: TermType, right: TermType) -> str | None:
             return None
         if left == "string" and right == "string":
             # = and ≠ compare two values of one type.
-            return None if left == right else f"{op} compares two values of one type, not {_NAMES[left]} and {_NAMES[right]}"
+            return None
     kind, problem = joined_type([left, right], op)
     if problem is not None:
         return problem
@@ -306,7 +305,7 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
                 if kind == "pattern" and (node.get("exact") or "children" in node):
                     problem = "a pattern-valued constant cannot carry node decorations"
                 if problem is not None:
-                    return None, (problem, {"const": node["constant"], "at": node["at"]})
+                    return None, (problem, node)
             if "test" in node:
                 operands = [r["value"] for r in node["requirements"]] if node["test"] == "tags" else [node["value"]]
                 for operand in operands:
@@ -366,7 +365,11 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
         if fault is not None:
             return None, fault
         recipe = name in ("verbatim-text", "emitted") or kind == "emitted"
-        result, problem = method_type(name, kind, term["args"], set(term["receiver"]) == {"capture"}, recipe)
+        selection_kind = "capture" if kind == "any" and has_unresolved(term["receiver"]) else kind
+        nominal = name in ("tags", "matches", "begins", "ends", "followed-by", "preceded-by", "without-elision-except")
+        args = [{"rule": "unresolved"} if nominal and ("param" in arg or "call" in arg) else arg for arg in term["args"]]
+        bare = set(term["receiver"]) == {"capture"} or bool({"param", "call"} & term["receiver"].keys())
+        result, problem = method_type(name, selection_kind, args, bare, recipe)
         if problem is not None:
             return None, (problem, term)
         if name == "split":
@@ -375,7 +378,7 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
                 return None, fault
             problem = expected_problem(argument, "string")
             if problem:
-                return None, (problem, term)
+                return None, ("a method has the wrong receiver or arguments", term)
         return result, None
     if "param" in term or "call" in term:
         return "any", None
@@ -458,8 +461,47 @@ def tag_term_problem(term: Any, memo: Optional[Memo] = None) -> str | None:
 
 
 def rule_type_fault(rule: Any, constants: ConstantTypes = _unknown_constants) -> Optional[Fault]:
-    """Why a well-formed rule's terms and conditions do not agree in type,
-    with the construct at fault, or None."""
+    """Use construct order for unpositioned faults and constant positions otherwise."""
+    faults = list(_rule_type_faults(rule, constants))
+    if len(faults) <= 1:
+        return faults[0] if faults else None
+    roots = rule_type_roots(rule)
+    order = {}
+    for index, root in enumerate(roots):
+        for node in nodes(root):
+            order.setdefault(id(node), index)
+    faults.sort(key=lambda fault: order[id(fault[1])])
+    return select_type_fault(faults)
+
+
+def rule_type_roots(rule: Any) -> list[Any]:
+    """The clause roots of a rule in canonical semantic order."""
+    roots = [rule.get("tags"), rule.get("value"), rule.get("image")]
+    for alternative in rule["alternatives"]:
+        roots.extend(alternative.get(key) for key in ("expr", "tags", "value", "image"))
+    roots.extend(rule["conditions"])
+    for item in rule.get("emit", {}).get("items", []):
+        roots.extend(item.get(key) for key in ("tags", "value", "image"))
+    return roots
+
+
+def select_type_fault(faults: list[Fault]) -> Optional[Fault]:
+    """Select among written-order faults, retaining positioned constant priority."""
+    first = None
+    position = (float("inf"), float("inf"), 2)
+    next_position = position[:2]
+    for fault in reversed(faults):
+        at = min((tuple(reference["at"]) for reference in constants_in(fault[1])), default=None)
+        if at is not None:
+            next_position = at
+        key = (*next_position, 1 if at is not None else 0)
+        if key <= position:
+            first, position = fault, key
+    return first
+
+
+def _rule_type_faults(rule: Any, constants: ConstantTypes = _unknown_constants) -> Any:
+    """Yield rule type faults with their smallest disagreeing constructs."""
     terms = [rule.get("tags"), *(alternative.get("tags") for alternative in rule["alternatives"])]
     if "emit" in rule:
         terms.extend(item.get("tags") for item in rule["emit"]["items"])
@@ -468,21 +510,22 @@ def rule_type_fault(rule: Any, constants: ConstantTypes = _unknown_constants) ->
             continue
         fault = tag_term_fault(term, constants)
         if fault is not None:
-            return fault
+            yield fault
     for condition in rule["conditions"]:
         fault = condition_type_fault(condition, constants)
         if fault is not None:
-            return fault
+            yield fault
     for alternative in rule["alternatives"]:
         for test in tests_in(alternative["expr"]):
             operands = [r["value"] for r in test["requirements"]] if test["test"] == "tags" else [test["value"]]
             for value in operands:
                 kind, fault = term_type_fault(value, constants)
                 if fault is not None:
-                    return fault
+                    yield fault
+                    continue
                 problem = test_type_problem(test["test"], kind)
                 if problem is not None:
-                    return problem, value
+                    yield problem, value
     # The reader knows the shape of string terminals and recipe atoms.
     # Binding supplies the types of their user constants, including those
     # in definitions that a later declaration replaces.
@@ -498,12 +541,12 @@ def rule_type_fault(rule: Any, constants: ConstantTypes = _unknown_constants) ->
             for operand in operands:
                 kind, fault = term_type_fault(operand, constants)
                 if fault is not None:
-                    return fault
+                    yield fault
+                    continue
                 problem = expected_problem(kind, "string")
                 if problem is not None:
-                    return problem, operand
+                    yield problem, operand
             pending.extend(reversed(list(node.values())))
-    return None
 
 
 def tests_in(expr: Any) -> list[dict[str, Any]]:
@@ -559,7 +602,7 @@ def constant_value_problem(value: Any, redefine: bool) -> str | None:
 
 def open_part(term: Any) -> Any:
     """The first part of a term that is not closed (engine §10), or None: a
-    capture, a guarded term, or a method other than split. The
+    capture, a guarded term, or a method other than split or ngrams. The
     shape of the term need not be checked. In the order written, with a
     list for a stack."""
     stack: list[Any] = [term]
@@ -570,9 +613,6 @@ def open_part(term: Any) -> Any:
         if "capture" in current or "if" in current:
             return current
         if "pattern" in current:
-            for node, _ in walk_pattern(current["pattern"]):
-                if "test" in node:
-                    stack.extend(r["value"] for r in node["requirements"]) if node["test"] == "tags" else stack.append(node["value"])
             continue
         items: Any = []
         if isinstance(current.get("method"), str):
@@ -599,12 +639,14 @@ def constants_in(node: Any) -> list[dict[str, Any]]:
         if isinstance(current, list):
             stack.extend(reversed(current))
         elif isinstance(current, dict):
-            if isinstance(current.get("constant"), str):
+            if len(current) == 1:
+                stack.extend(current.values())
+            elif isinstance(current.get("constant"), str):
                 found.append({"const": current["constant"], "at": current["at"]})
             elif isinstance(current.get("const"), str):
                 found.append(current)
             else:
-                stack.extend(reversed(list(current.values())))
+                stack.extend(current[key] for key in reversed(source_keys(current)) if key != "at")
     return found
 
 

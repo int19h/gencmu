@@ -1,0 +1,10 @@
+{
+  "description": "An implication after a template cannot use its parameters.",
+  "document": "```jbogenbau\n%rule t(@P) @P\n%implies @P ⟹ A\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 10
+    }
+  }
+}

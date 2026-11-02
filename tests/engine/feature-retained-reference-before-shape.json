@@ -1,0 +1,14 @@
+{
+  "description": "A feature joins retained argument references before feature-shape inspection.",
+  "grammar": "%ambiguity-resolution greedy\n%features f\n%conditions $.matches(t($FIRST)), $SECOND = \"x\"\n%rule t(@X) \"a\"\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    },
+    "message": "$FIRST is not defined in stage main"
+  }
+}

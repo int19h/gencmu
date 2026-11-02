@@ -1,0 +1,13 @@
+{
+  "description": "Deferred rule problems retain declaration order across extensions.",
+  "grammar": "%ambiguity-resolution greedy\n%rule unused(@X) @X\n%rule a \"a\"\n%rule b [$x:\"b\"] (\"c\" \u227b \"d\") :: \u2205 %emits $x\n%extend-rule a [$x:\"a\"] (\"c\" \u227b \"d\") :: \u2205 %emits $x\n%rule text a",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 1
+    }
+  }
+}

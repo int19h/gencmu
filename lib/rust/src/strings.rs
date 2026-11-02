@@ -1,6 +1,7 @@
 //! Selected string recipes and their dependencies (engine §11).
 use crate::dom::{Arg, Channels, Term};
 use crate::earley::{EngineError, Tok};
+use crate::fxhash::FxSet;
 use crate::lower::Lowered;
 use crate::tree::{IKind, ITree, Sources};
 
@@ -17,21 +18,18 @@ enum Task<'a> {
     Save(u32, Channel),
 }
 
-struct GapClaim {
-    span: (usize, usize),
-    intervals: Vec<(usize, usize)>,
-}
-
 /// One evaluation context for the complete emission, attachments included.
 pub(crate) struct Strings<'a> {
     grammar: &'a Lowered,
     tree: &'a ITree,
     tokens: &'a [Tok],
-    sources: Sources,
+    sources: &'a Sources,
     text: &'a [char],
     unicode: &'a crate::unicode::Unicode,
     covered: Vec<bool>,
-    claims: Vec<GapClaim>,
+    claims: FxSet<(usize, usize)>,
+    claim_points: Vec<usize>,
+    claimed_cells: Vec<bool>,
     saved: Vec<[Option<String>; 2]>,
     active: Vec<[bool; 2]>,
 }
@@ -41,22 +39,21 @@ impl<'a> Strings<'a> {
         grammar: &'a Lowered,
         tree: &'a ITree,
         tokens: &'a [Tok],
+        sources: &'a Sources,
         text: &'a [char],
         unicode: &'a crate::unicode::Unicode,
     ) -> Self {
-        let mut covered = vec![false; text.len()];
-        for token in tokens {
-            covered[token.source.0..token.source.1].fill(true);
-        }
         Self {
             grammar,
             tree,
             tokens,
-            sources: Sources::new(tokens),
+            sources,
             text,
             unicode,
-            covered,
-            claims: Vec::new(),
+            covered: Vec::new(),
+            claims: FxSet::default(),
+            claim_points: Vec::new(),
+            claimed_cells: Vec::new(),
             saved: vec![[None, None]; tree.nodes.len()],
             active: vec![[false; 2]; tree.nodes.len()],
         }
@@ -90,6 +87,26 @@ impl<'a> Strings<'a> {
         if span.0 == span.1 {
             return Ok(String::new());
         }
+        if self.claim_points.is_empty() {
+            let mut changes = vec![0isize; self.text.len() + 1];
+            for token in self.tokens {
+                changes[token.source.0] += 1;
+                changes[token.source.1] -= 1;
+            }
+            let mut depth = 0;
+            self.covered = changes[..self.text.len()]
+                .iter()
+                .map(|change| {
+                    depth += change;
+                    depth > 0
+                })
+                .collect();
+            self.claim_points.extend([0, self.text.len()]);
+            self.claim_points.extend(self.tokens.iter().flat_map(|token| [token.source.0, token.source.1]));
+            self.claim_points.sort_unstable();
+            self.claim_points.dedup();
+            self.claimed_cells.resize(self.claim_points.len() - 1, false);
+        }
         let (left, right) = self.sources.of(span.0, span.1);
         let previous = span.0.checked_sub(1).map_or(0, |i| self.tokens[i].source.1);
         let following = self.tokens.get(span.1).map_or(self.text.len(), |t| t.source.0);
@@ -108,13 +125,17 @@ impl<'a> Strings<'a> {
         if right < end {
             extensions.push((right, end));
         }
-        if !self.claims.iter().any(|claim| claim.span == span) {
-            for claim in &self.claims {
-                if extensions.iter().any(|a| claim.intervals.iter().any(|b| a.0 < b.1 && b.0 < a.1)) {
-                    return Err(Self::failure("different verbatim spans claim the same uncovered source text"));
+        if self.claims.insert(span) {
+            for (start, end) in extensions {
+                let first = self.claim_points.binary_search(&start).expect("a source endpoint");
+                let last = self.claim_points.binary_search(&end).expect("a source endpoint");
+                for cell in first..last {
+                    if self.claimed_cells[cell] {
+                        return Err(Self::failure("different verbatim spans claim the same uncovered source text"));
+                    }
+                    self.claimed_cells[cell] = true;
                 }
             }
-            self.claims.push(GapClaim { span, intervals: extensions });
         }
         Ok(self.text[start..end].iter().collect())
     }
@@ -223,7 +244,7 @@ impl<'a> Strings<'a> {
                         values.push(match name.as_str() {
                             "value" => self.input(target, Channel::Value),
                             "image" => self.input(target, Channel::Image),
-                            "text" | "decomposed-source-text" => {
+                            "source-text" | "decomposed-source-text" => {
                                 let (start, end) = self.span(target);
                                 if start == end {
                                     String::new()

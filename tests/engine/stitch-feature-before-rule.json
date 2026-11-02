@@ -1,0 +1,12 @@
+{
+  "description": "Stitching selects errors in written declaration order (engine §2).",
+  "grammar": "%features f\n%conditions $.value = $F\n%rule text $R",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

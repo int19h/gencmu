@@ -1,0 +1,14 @@
+{
+  "description": "A pattern intersection resolves every operand before type inspection for ≅.",
+  "grammar": "%ambiguity-resolution greedy\n%rule unused(@X) \"a\"\n%conditions $ ≅ (#A ∩ $MISSING)\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$MISSING is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 23
+    }
+  }
+}

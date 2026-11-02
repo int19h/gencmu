@@ -20,15 +20,22 @@ enum Catch {
     Both,
 }
 
+fn case_failed(work: impl FnOnce() -> Result<(), String>) -> bool {
+    work().is_err()
+}
+
+#[test]
+fn a_panic_is_not_a_witness_hook_failure() {
+    assert!(std::panic::catch_unwind(|| case_failed(|| panic!("a reader panic"))).is_err());
+}
+
 /// How a case catches a fault, if it does: it runs once checking only the
 /// result and once checking only the hook.
 fn catch(fault: Fault, file: &std::path::Path) -> Option<Catch> {
     let text = std::fs::read_to_string(file).expect("a case");
     let case = parse_json(&text).expect("a case is JSON");
-    let fails = |checks: Checks| {
-        std::panic::catch_unwind(|| with_fault(fault, || checking(checks, || run_engine_case(&case))))
-            .map_or(true, |outcome| outcome.is_err())
-    };
+    common::case::engine(&case).expect("a valid fault-table case");
+    let fails = |checks: Checks| case_failed(|| with_fault(fault, || checking(checks, || run_engine_case(&case))));
     match (fails(Checks::Result), fails(Checks::Hook)) {
         (true, true) => Some(Catch::Both),
         (true, false) => Some(Catch::Result),

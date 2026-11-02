@@ -1,0 +1,13 @@
+{
+  "description": "A tag requirement fault names its failing operand rather than an earlier valid requirement.",
+  "grammar": "%const $GOOD A\n%const $BAD \"x\"\n%rule text $x:A %conditions $x ≅ #A<$GOOD $BAD>",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 43
+    }
+  }
+}

@@ -1,12 +1,15 @@
 //! Finite observations of structural trees (engine §4.1).
+mod dropping;
 mod layered;
+pub(crate) use layered::emit_pattern;
 pub(crate) mod shapes;
 
 use crate::dom::{self, Arg, Term};
-use crate::json::{write_str, Json};
+use crate::json::Json;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Pattern {
+    Source(crate::dom::source::SourceSymbol),
     Name(String, (usize, usize)),
     Terminal(String, (usize, usize)),
     Literal(Term, (usize, usize)),
@@ -47,6 +50,11 @@ fn exact(j: &Json, keys: &[&str]) -> bool {
 }
 /// Convert patterns and child expressions without a recursive call stack.
 impl Pattern {
+    pub(crate) fn empty() -> Self {
+        let all = Self::Node(Box::new(Self::Any), false, Some(Children::Sequence(vec![Children::Siblings])));
+        Self::Difference(Box::new(all.clone()), Box::new(all))
+    }
+
     pub(crate) fn from_json(j: &Json) -> Result<Self, String> {
         Self::from_layered_json(j)
     }
@@ -94,172 +102,138 @@ impl Pattern {
     pub(crate) fn write(&self, out: &mut String) {
         self.write_layered(out);
     }
-    pub(crate) fn constants<'a>(&'a self, out: &mut Vec<(&'a str, (usize, usize))>) {
-        match self {
-            Self::Literal(t, _) => dom::constants_in_term(t, out),
-            Self::Range(a, b, _) => {
-                dom::constants_in_term(a, out);
-                dom::constants_in_term(b, out);
-            }
-            Self::Constant(n, a) => out.push((n, *a)),
-            Self::Test(_, v, p) => {
-                p.constants(out);
-                dom::constants_in_term(v, out);
-            }
-            Self::Node(node, _, children) => {
-                node.constants(out);
-                if let Some(children) = children {
-                    children.constants(out);
-                }
-            }
-            Self::Path(_, p) => p.constants(out),
-            Self::Union(xs) | Self::Intersection(xs) => {
-                for p in xs {
-                    p.constants(out);
-                }
-            }
-            Self::Difference(a, b) => {
-                a.constants(out);
-                b.constants(out);
-            }
-            _ => {}
-        }
-    }
-    pub(crate) fn references<'a>(&'a self, out: &mut Vec<(&'a str, (usize, usize))>) {
-        self.constants(out);
-        enum Part<'a> {
-            Pattern(&'a Pattern),
-            Children(&'a Children),
-        }
-        let mut pending = vec![Part::Pattern(self)];
-        while let Some(part) = pending.pop() {
-            match part {
-                Part::Pattern(pattern) => match pattern {
-                    Pattern::Literal(term, _) => dom::references_in_term(term, out),
-                    Pattern::Range(a, b, _) => {
-                        dom::references_in_term(a, out);
-                        dom::references_in_term(b, out);
-                    }
-                    Pattern::Test(_, term, inner) => {
-                        dom::references_in_term(term, out);
-                        pending.push(Part::Pattern(inner));
-                    }
-                    Pattern::Union(items) | Pattern::Intersection(items) => {
-                        pending.extend(items.iter().map(Part::Pattern))
-                    }
-                    Pattern::Difference(a, b) => {
-                        pending.push(Part::Pattern(a));
-                        pending.push(Part::Pattern(b));
-                    }
-                    Pattern::Path(_, inner) => pending.push(Part::Pattern(inner)),
-                    Pattern::Node(node, _, children) => {
-                        pending.push(Part::Pattern(node));
-                        pending.extend(children.as_ref().map(Part::Children));
-                    }
-                    _ => {}
-                },
-                Part::Children(children) => match children {
-                    Children::Node(pattern) => pending.push(Part::Pattern(pattern)),
-                    Children::Sequence(items) | Children::Choice(items) => {
-                        pending.extend(items.iter().map(Part::Children))
-                    }
-                    Children::Optional(inner) => pending.push(Part::Children(inner)),
-                    Children::Repeat(item, separator) => {
-                        pending.push(Part::Children(item));
-                        pending.extend(separator.as_deref().map(Part::Children));
-                    }
-                    Children::Siblings => {}
-                },
-            }
-        }
-        out.sort_by_key(|reference| reference.1);
-        out.dedup();
+    pub(crate) fn walk(&self) -> Walk<'_> {
+        Walk { pending: vec![Part::Pattern(self)] }
     }
 
     pub(crate) fn type_fault(&self, constants: dom::ConstantTypes) -> Option<dom::Fault> {
+        for part in self.walk() {
+            match part {
+                Part::Term(term, test) => match dom::term_type_in(term, constants) {
+                    Err(fault) => return Some(fault),
+                    Ok(ty) => {
+                        let problem = match test {
+                            Some(op) => dom::test_type_problem(op, ty),
+                            None => dom::expected_problem(ty, dom::Type::String),
+                        };
+                        if let Some(problem) = problem {
+                            return Some(dom::Fault { problem, at: dom::first_constant_in_term(term) });
+                        }
+                    }
+                },
+                Part::Pattern(Self::Constant(name, at)) => {
+                    if !matches!(constants(name), dom::Type::String | dom::Type::Pattern | dom::Type::Any) {
+                        return Some(dom::Fault {
+                            problem: "a pattern atom requires a string or pattern constant".into(),
+                            at: Some(*at),
+                        });
+                    }
+                }
+                Part::Pattern(Self::Test(_, _, inner)) => {
+                    let mut base = inner.as_ref();
+                    while let Self::Test(_, _, nested) = base {
+                        base = nested;
+                    }
+                    if let Self::Constant(name, at) = base {
+                        if !matches!(constants(name), dom::Type::String | dom::Type::Any) {
+                            return Some(dom::Fault {
+                                problem: "a tested pattern atom requires a string constant".into(),
+                                at: Some(*at),
+                            });
+                        }
+                    }
+                }
+                Part::Pattern(Self::Node(node, _, _)) => {
+                    if let Self::Constant(name, at) = node.as_ref() {
+                        if matches!(constants(name), dom::Type::Pattern) {
+                            return Some(dom::Fault {
+                                problem: "a pattern-valued constant cannot carry node decorations".into(),
+                                at: Some(*at),
+                            });
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+}
+
+/// A pattern part in written order. A term records its enclosing test,
+/// or requires a string when it is a literal or range endpoint.
+#[derive(Clone, Copy)]
+pub(crate) enum Part<'a> {
+    Pattern(&'a Pattern),
+    Children(&'a Children),
+    Source(&'a crate::dom::source::SourceSymbol),
+    Term(&'a Term, Option<&'a str>),
+}
+pub(crate) struct Walk<'a> {
+    pending: Vec<Part<'a>>,
+}
+impl Part<'_> {
+    /// Schedule children in reverse written order for an explicit stack.
+    pub(crate) fn push_children(self, mut push: impl FnMut(Self)) {
         match self {
-            Self::Constant(n, a) => (!matches!(constants(n), dom::Type::String | dom::Type::Pattern | dom::Type::Any))
-                .then(|| dom::Fault {
-                    problem: "a pattern atom requires a string or pattern constant".into(),
-                    at: Some(*a),
-                }),
-            Self::Literal(t, _) => match dom::term_type_in(t, constants) {
-                Err(f) => Some(f),
-                Ok(ty) => dom::expected_problem(ty, dom::Type::String)
-                    .map(|problem| dom::Fault { problem, at: dom::first_constant_in_term(t) }),
+            Part::Pattern(pattern) => match pattern {
+                Pattern::Source(symbol) => push(Part::Source(symbol)),
+                Pattern::Literal(term, _) => push(Part::Term(term, None)),
+                Pattern::Range(a, b, _) => {
+                    push(Part::Term(b, None));
+                    push(Part::Term(a, None));
+                }
+                Pattern::Test(op, term, inner) => {
+                    push(Part::Term(term, Some(op)));
+                    push(Part::Pattern(inner));
+                }
+                Pattern::Node(node, _, children) => {
+                    if let Some(children) = children {
+                        push(Part::Children(children));
+                    }
+                    push(Part::Pattern(node));
+                }
+                Pattern::Path(_, inner) => push(Part::Pattern(inner)),
+                Pattern::Union(items) | Pattern::Intersection(items) => {
+                    for item in items.iter().rev() {
+                        push(Part::Pattern(item));
+                    }
+                }
+                Pattern::Difference(a, b) => {
+                    push(Part::Pattern(b));
+                    push(Part::Pattern(a));
+                }
+                _ => {}
             },
-            Self::Range(a, b, _) => [a, b].into_iter().find_map(|t| match dom::term_type_in(t, constants) {
-                Err(f) => Some(f),
-                Ok(ty) => dom::expected_problem(ty, dom::Type::String)
-                    .map(|problem| dom::Fault { problem, at: dom::first_constant_in_term(t) }),
-            }),
-            Self::Test(op, v, p) => {
-                // A tested user constant is a terminal, never a predicate.
-                let mut base = p.as_ref();
-                while let Self::Test(_, _, inner) = base {
-                    base = inner;
-                }
-                if let Self::Constant(n, at) = base {
-                    if !matches!(constants(n), dom::Type::String | dom::Type::Any) {
-                        return Some(dom::Fault {
-                            problem: "a tested pattern atom requires a string constant".into(),
-                            at: Some(*at),
-                        });
+            Part::Children(children) => match children {
+                Children::Node(pattern) => push(Part::Pattern(pattern)),
+                Children::Sequence(items) | Children::Choice(items) => {
+                    for item in items.iter().rev() {
+                        push(Part::Children(item));
                     }
                 }
-                p.type_fault(constants).or_else(|| match dom::term_type_in(v, constants) {
-                    Err(f) => Some(f),
-                    Ok(ty) => dom::test_type_problem(op, ty)
-                        .map(|problem| dom::Fault { problem, at: dom::first_constant_in_term(v) }),
-                })
-            }
-            Self::Node(node, _, children) => {
-                if let Self::Constant(name, at) = node.as_ref() {
-                    if matches!(constants(name), dom::Type::Pattern) {
-                        return Some(dom::Fault {
-                            problem: "a pattern-valued constant cannot carry node decorations".into(),
-                            at: Some(*at),
-                        });
+                Children::Optional(inner) => push(Part::Children(inner)),
+                Children::Repeat(item, separator) => {
+                    if let Some(separator) = separator.as_deref() {
+                        push(Part::Children(separator));
                     }
+                    push(Part::Children(item));
                 }
-                node.type_fault(constants).or_else(|| children.as_ref().and_then(|c| c.type_fault(constants)))
-            }
-            Self::Path(_, p) => p.type_fault(constants),
-            Self::Union(xs) | Self::Intersection(xs) => xs.iter().find_map(|p| p.type_fault(constants)),
-            Self::Difference(a, b) => a.type_fault(constants).or_else(|| b.type_fault(constants)),
-            _ => None,
+                Children::Siblings => {}
+            },
+            Part::Term(..) | Part::Source(_) => {}
         }
     }
 }
-impl Children {
-    fn constants<'a>(&'a self, out: &mut Vec<(&'a str, (usize, usize))>) {
-        match self {
-            Self::Node(n) => n.constants(out),
-            Self::Sequence(xs) | Self::Choice(xs) => {
-                for x in xs {
-                    x.constants(out);
-                }
-            }
-            Self::Optional(x) => x.constants(out),
-            Self::Repeat(x, s) => {
-                x.constants(out);
-                if let Some(s) = s {
-                    s.constants(out);
-                }
-            }
-            Self::Siblings => {}
-        }
-    }
-    fn type_fault(&self, c: dom::ConstantTypes) -> Option<dom::Fault> {
-        match self {
-            Self::Node(n) => n.type_fault(c),
-            Self::Sequence(xs) | Self::Choice(xs) => xs.iter().find_map(|x| x.type_fault(c)),
-            Self::Optional(x) => x.type_fault(c),
-            Self::Repeat(x, s) => x.type_fault(c).or_else(|| s.as_ref().and_then(|s| s.type_fault(c))),
-            Self::Siblings => None,
-        }
+impl<'a> Iterator for Walk<'a> {
+    type Item = Part<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        let part = self.pending.pop()?;
+        part.push_children(|child| self.pending.push(child));
+        Some(part)
     }
 }
+
 type ConstantResolver<'a, E> = &'a dyn Fn(&str, (usize, usize)) -> Result<Pattern, E>;
 
 impl Pattern {
@@ -395,6 +369,7 @@ pub(crate) struct Machine {
 fn pattern_key(p: &Pattern) -> String {
     fn plain(p: &Pattern) -> Pattern {
         match p {
+            Pattern::Source(symbol) => Pattern::Source(symbol.clone()),
             Pattern::Literal(t, _) => Pattern::Literal(t.clone(), (0, 0)),
             Pattern::Range(a, b, _) => Pattern::Range(a.clone(), b.clone(), (0, 0)),
             Pattern::Wildcard(_) => Pattern::Wildcard((0, 0)),
@@ -472,6 +447,7 @@ impl Machine {
             return id;
         }
         let pred = match p {
+            Pattern::Source(_) => unreachable!("source symbols expand before pattern compilation"),
             Pattern::Node(node, exact, attached) => {
                 let test = self.node_test(node);
                 let children = attached.as_ref().map(|children| {
@@ -556,8 +532,10 @@ impl Machine {
                 match item {
                     PatternItem::Child(p) => n.edges.push((start, end, Some(*p))),
                     PatternItem::Siblings => {
-                        n.edges.push((start, end, None));
-                        n.edges.push((start, start, Some(usize::MAX)));
+                        let gap = state(n);
+                        n.edges.push((start, gap, None));
+                        n.edges.push((gap, gap, Some(usize::MAX)));
+                        n.edges.push((gap, end, None));
                     }
                     PatternItem::Choice(arms) => {
                         for arm in arms {
@@ -567,14 +545,14 @@ impl Machine {
                     PatternItem::Repeat(body, separator) => {
                         let a = state(n);
                         let b = state(n);
-                        build(n, body, start, a);
-                        n.edges.push((a, end, None));
+                        n.edges.push((start, a, None));
+                        build(n, body, a, b);
+                        n.edges.push((b, end, None));
                         if let Some(separator) = separator {
-                            build(n, separator, a, b);
+                            build(n, separator, b, a);
                         } else {
-                            n.edges.push((a, b, None));
+                            n.edges.push((b, a, None));
                         }
-                        build(n, body, b, a);
                     }
                 }
                 start = end;
@@ -606,7 +584,6 @@ impl Machine {
         if let Some(&id) = self.state_ids.get(&s) {
             return id;
         }
-        crate::work::count(crate::work::Work::StructuralStates, 1);
         let id = self.states.len() as u32;
         self.state_ids.insert(s.clone(), id);
         self.states.push(s);
@@ -656,7 +633,6 @@ impl Machine {
             bits: Some(bits),
             empty: false,
         });
-        crate::work::count(crate::work::Work::StructuralTransitions, 1);
         self.transitions.insert(key, id);
         id
     }
@@ -696,7 +672,6 @@ impl Machine {
             empty: false,
         };
         let id = self.intern(s);
-        crate::work::count(crate::work::Work::StructuralTransitions, 1);
         self.transitions.insert(key, id);
         id
     }
@@ -777,7 +752,6 @@ impl Machine {
             empty,
         };
         let id = self.intern(state);
-        crate::work::count(crate::work::Work::StructuralTransitions, 1);
         self.transitions.insert(key, id);
         id
     }

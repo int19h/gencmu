@@ -1,0 +1,13 @@
+{
+  "description": "overlap empty capture consuming attachment.",
+  "grammar": "%rule text $e:empty [$a:\"a\"]\n%emits $, $e ($a)\n%rule empty \u03b5",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

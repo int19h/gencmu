@@ -1,0 +1,10 @@
+{
+  "description": "An include rejects forbidden conditions before an unknown method inside them.",
+  "document": "```jbogenbau\n%include \"x.md\" %conditions $x.foo\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

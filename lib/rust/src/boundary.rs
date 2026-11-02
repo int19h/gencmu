@@ -3,20 +3,78 @@ use crate::fxhash::{FxMap, FxSet};
 use crate::lower::{LCond, Lowered};
 use std::collections::BTreeSet;
 
-pub(crate) type Bits = BTreeSet<u32>;
+/// An unbounded bitset with no trailing zero words.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub(crate) struct Bits(Vec<u64>);
+impl Bits {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn insert(&mut self, id: u32) {
+        let word = id as usize / 64;
+        self.0.resize(self.0.len().max(word + 1), 0);
+        self.0[word] |= 1 << (id % 64);
+    }
+    fn contains(&self, id: u32) -> bool {
+        self.0.get(id as usize / 64).is_some_and(|word| word & (1 << (id % 64)) != 0)
+    }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+    fn is_subset(&self, other: &Self) -> bool {
+        self.0.iter().enumerate().all(|(i, word)| word & !other.0.get(i).copied().unwrap_or(0) == 0)
+    }
+    fn intersects(&self, other: &Self) -> bool {
+        self.0.iter().zip(&other.0).any(|(a, b)| a & b != 0)
+    }
+    fn extend(&mut self, other: &Self) {
+        self.0.resize(self.0.len().max(other.0.len()), 0);
+        for (a, b) in self.0.iter_mut().zip(&other.0) {
+            *a |= b;
+        }
+    }
+    fn union(&self, other: &Self) -> Self {
+        let mut bits = self.clone();
+        bits.extend(other);
+        bits
+    }
+    fn iter(&self) -> impl Iterator<Item = u32> + '_ {
+        self.0.iter().enumerate().flat_map(|(index, &word)| {
+            let mut word = word;
+            std::iter::from_fn(move || {
+                if word == 0 {
+                    None
+                } else {
+                    let bit = word.trailing_zeros();
+                    word &= word - 1;
+                    Some(index as u32 * 64 + bit)
+                }
+            })
+        })
+    }
+}
+impl FromIterator<u32> for Bits {
+    fn from_iter<T: IntoIterator<Item = u32>>(iter: T) -> Self {
+        let mut bits = Self::new();
+        for id in iter {
+            bits.insert(id);
+        }
+        bits
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct Literal {
     pub forward: bool,
-    pub targets: Vec<String>,
+    targets: Bits,
     pub positive: bool,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub(crate) struct Record {
     pub nonempty: bool,
     pub start: Bits,
-    pub first: BTreeSet<String>,
+    pub first: Bits,
     pub end: Bits,
-    pub last: BTreeSet<String>,
+    pub last: Bits,
 }
 impl Record {
     pub fn dominates(&self, lower: &Self) -> bool {
@@ -33,8 +91,9 @@ pub(crate) struct Records {
     index: FxMap<Record, u32>,
     pub literals: Vec<Literal>,
     literal_index: FxMap<Literal, u32>,
-    forward: FxSet<String>,
-    backward: FxSet<String>,
+    names: FxMap<String, u32>,
+    forward: Bits,
+    backward: Bits,
 }
 pub(crate) fn atom(condition: &LCond) -> Option<&LCond> {
     let mut stack = vec![condition];
@@ -61,8 +120,9 @@ impl Records {
             index: FxMap::default(),
             literals: vec![],
             literal_index: FxMap::default(),
-            forward: FxSet::default(),
-            backward: FxSet::default(),
+            names: FxMap::default(),
+            forward: Bits::new(),
+            backward: Bits::new(),
         };
         for (c, _) in g
             .prods
@@ -71,12 +131,26 @@ impl Records {
             .chain(g.ranked.plans.values().flat_map(|p| p.conditions.iter().flatten()))
         {
             if let Some(LCond::Boundary(forward, _, targets, _, _)) = atom(c) {
-                let names = if *forward { &mut out.forward } else { &mut out.backward };
-                names.extend(targets.iter().cloned());
+                for name in targets {
+                    let id = out.name(name);
+                    if *forward {
+                        out.forward.insert(id);
+                    } else {
+                        out.backward.insert(id);
+                    }
+                }
             }
         }
         out.intern(Record::default());
         (!out.forward.is_empty() || !out.backward.is_empty()).then_some(out)
+    }
+    fn name(&mut self, name: &str) -> u32 {
+        if let Some(&id) = self.names.get(name) {
+            return id;
+        }
+        let next = self.names.len() as u32;
+        self.names.insert(name.to_string(), next);
+        next
     }
     pub fn intern(&mut self, record: Record) -> u32 {
         if let Some(&id) = self.index.get(&record) {
@@ -88,9 +162,7 @@ impl Records {
         id
     }
     pub fn literal(&mut self, forward: bool, targets: &[String], positive: bool) -> u32 {
-        let mut targets = targets.to_vec();
-        targets.sort();
-        targets.dedup();
+        let targets = targets.iter().map(|name| self.name(name)).collect();
         let literal = Literal { forward, targets, positive };
         if let Some(&id) = self.literal_index.get(&literal) {
             return id;
@@ -105,31 +177,25 @@ impl Records {
             return 0;
         }
         let mut r = Record { nonempty: true, ..Record::default() };
-        if self.forward.contains(name) {
-            r.first.insert(name.to_string());
-        }
-        if self.backward.contains(name) {
-            r.last.insert(name.to_string());
+        if let Some(&id) = self.names.get(name) {
+            if self.forward.contains(id) {
+                r.first.insert(id);
+            }
+            if self.backward.contains(id) {
+                r.last.insert(id);
+            }
         }
         self.intern(r)
     }
-    fn meet(
-        &self,
-        literals: &Bits,
-        offers: &BTreeSet<String>,
-        forward: bool,
-        final_: bool,
-        failed: &mut Vec<u32>,
-    ) -> Bits {
+    fn meet(&self, literals: &Bits, offers: &Bits, forward: bool, final_: bool, failed: &mut Vec<u32>) -> Bits {
         literals
             .iter()
-            .copied()
             .filter(|&id| {
                 let l = &self.literals[id as usize];
                 if l.forward != forward {
                     return true;
                 }
-                let hit = l.targets.iter().any(|n| offers.contains(n));
+                let hit = l.targets.intersects(offers);
                 if !hit && !final_ {
                     return true;
                 }
@@ -141,30 +207,39 @@ impl Records {
             .collect()
     }
     pub fn advance(&mut self, prefix: u32, child: u32, failed: &mut Vec<u32>) -> u32 {
-        let mut p = self.records[prefix as usize].clone();
-        let c = self.records[child as usize].clone();
-        if !c.nonempty {
-            let end = if p.nonempty { self.meet(&c.end, &p.last, false, false, failed) } else { c.end };
-            p.end.extend(end);
+        let p = &self.records[prefix as usize];
+        let c = &self.records[child as usize];
+        let r = if !c.nonempty {
+            let end = if p.nonempty { self.meet(&c.end, &p.last, false, false, failed) } else { c.end.clone() };
+            Record {
+                nonempty: p.nonempty,
+                start: p.start.clone(),
+                first: p.first.clone(),
+                end: p.end.union(&end),
+                last: p.last.clone(),
+            }
         } else if !p.nonempty {
-            let mut pending = p.end;
-            pending.extend(&c.start);
-            p = Record {
+            let pending = p.end.union(&c.start);
+            Record {
                 nonempty: true,
                 start: self.meet(&pending, &c.first, true, false, failed),
-                first: c.first,
-                end: c.end,
-                last: c.last,
-            };
+                first: c.first.clone(),
+                end: c.end.clone(),
+                last: c.last.clone(),
+            }
         } else {
-            let mut middle = p.end;
-            middle.extend(&c.start);
+            let middle = p.end.union(&c.start);
             self.meet(&middle, &c.first, true, true, failed);
             self.meet(&middle, &p.last, false, true, failed);
-            p.end = c.end;
-            p.last = c.last;
-        }
-        self.intern(p)
+            Record {
+                nonempty: true,
+                start: p.start.clone(),
+                first: p.first.clone(),
+                end: c.end.clone(),
+                last: c.last.clone(),
+            }
+        };
+        self.intern(r)
     }
     pub fn complete(
         &mut self,
@@ -180,12 +255,12 @@ impl Records {
             r.end.extend(forward);
             return self.intern(r);
         }
-        if let Some(name) = name {
-            if self.forward.contains(name) {
-                r.first.insert(name.to_string());
+        if let Some(id) = name.and_then(|name| self.names.get(name)).copied() {
+            if self.forward.contains(id) {
+                r.first.insert(id);
             }
-            if self.backward.contains(name) {
-                r.last.insert(name.to_string());
+            if self.backward.contains(id) {
+                r.last.insert(id);
             }
         }
         r.start = self.meet(&r.start, &r.first, true, false, failed);
@@ -204,7 +279,7 @@ impl Records {
     }
     pub fn accepts(&self, record: u32) -> bool {
         let r = &self.records[record as usize];
-        r.start.iter().chain(&r.end).all(|&id| !self.literals[id as usize].positive)
+        r.start.iter().chain(r.end.iter()).all(|id| !self.literals[id as usize].positive)
     }
     pub fn open(&self, prefix: u32, child: u32) -> Record {
         let p = &self.records[prefix as usize];
@@ -340,7 +415,7 @@ impl Sources {
     }
     fn select(&mut self, bits: &Bits, inputs: &[&FxMap<u32, u32>]) -> FxMap<u32, u32> {
         bits.iter()
-            .map(|&literal| {
+            .map(|literal| {
                 let id = self.join(inputs.iter().filter_map(|m| m.get(&literal).copied()));
                 (literal, id)
             })
@@ -457,11 +532,11 @@ fn reach(g: &crate::grammar::StageGrammar, roots: Vec<String>) -> (FxSet<String>
         let mut stack: Vec<_> = g.rules[index].alternatives.iter().map(|a| &a.alternative.expr).collect();
         while let Some(e) = stack.pop() {
             match e {
-                Expr::Ref(n) if g.index.contains_key(n) => pending.push(n.clone()),
-                Expr::Ref(n) | Expr::Terminal(n) => {
+                Expr::Ref(n) => pending.push(n.clone()),
+                Expr::Terminal(n) => {
                     terminals.insert(n.clone());
                 }
-                Expr::Seq(es) | Expr::Choice(es) | Expr::Ranked(es) | Expr::And(es) => stack.extend(es),
+                Expr::Seq(es) | Expr::Choice(es) | Expr::Ranked(es, _) | Expr::And(es) => stack.extend(es),
                 Expr::Capture(_, e) | Expr::Optional(e, _) | Expr::Tested(_, _, e) => stack.push(e),
                 Expr::Repeat(e, s, _) => {
                     stack.push(e);
@@ -495,6 +570,7 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
                     stack.extend(t.iter().map(Part::T));
                 }
             }
+            let first_atom = atoms.len();
             while let Some(part) = stack.pop() {
                 match part {
                     Part::C(c) => match c {
@@ -532,14 +608,13 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
                     },
                 }
             }
+            atoms[first_atom..].sort_by_key(|(_, _, location)| location.at);
         }
     }
     if atoms.is_empty() {
         return Ok(());
     }
     let (rules, terminals) = reach(g, roots);
-    // Restore source order: target diagnostics follow written atom order.
-    atoms.sort_by_key(|(alt, _, location)| (alt.text_order, location.at));
     for (alt, targets, location) in atoms {
         for (index, target) in targets.iter().enumerate() {
             let found = if target.starts_with(|c: char| c.is_ascii_uppercase()) {
@@ -549,7 +624,8 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
             };
             if !found {
                 let mut error = crate::error::Error::grammar(format!("boundary target {target} is unreachable"))
-                    .in_document(&alt.document);
+                    .in_document(&alt.document)
+                    .recover_location(crate::error::LocationRecovery::Boundary);
                 if let Some(&(line, column)) = location.targets.get(index) {
                     error = error.at(line, column);
                 }

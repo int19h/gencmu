@@ -488,21 +488,18 @@ class Summaries:
 
 class Ranker(Summaries):
     """Ranks a forest's derivations under ``greedy``, ``lazy`` or no lean,
-    or only counts them (up to two). ``best``, when given, is the
-    summaries of ``late-elision``, and the ranker then sees only the edges
-    that attain their least vectors, the forest of the best derivations
-    (engine §6)."""
+    and retains their counts up to two. The optional ``best`` summaries retain
+    the best rule profile under every directive. Under ``late-elision``,
+    they also compare elision vectors (engine §6)."""
 
     def __init__(
         self,
         forest: Forest,
         lean: str,
-        entries: bool = True,
-        best: Elisions | None = None,
+        best: ProfileSummaries | None = None,
     ) -> None:
         super().__init__(forest)
         self.lean = lean
-        self.entries = entries
         self.best = best
         self.read_leaves: dict[tuple[int, str], Rope] = {}
         self.close_leaves: dict[int, Rope] = {}
@@ -553,8 +550,8 @@ class Ranker(Summaries):
         return found
 
     def compute(self, key: Key) -> Any:
-        """A key's value: the candidates and the number of derivations, or
-        the number alone when only counting. Each partial key holds its item's derivations."""
+        """A key's candidates and derivation count. Each partial key holds
+        its item's derivations."""
         kind, item, _ = key
         memo = self.memo
         marks = self.marks
@@ -563,8 +560,6 @@ class Ranker(Summaries):
                 inner_w = self.witnessed[self.inner_key(key)]
                 self.witnessed[key] = inner_w
             inner = memo[self.inner_key(key)]
-            if not self.entries:
-                return inner
             entries, count = inner
             close = self.close_leaf(item)
             kept: list[Entry] = []
@@ -572,9 +567,6 @@ class Ranker(Summaries):
                 self.keep(kept, self.extend(entry, close))
             return (kept, count)
         mask = self.admission.mask(key) if self.admission is not None else None
-        best = self.best
-        if best is not None:
-            best_all = best.edges(key)
         total = 0
         kept = []
         marked = marks.get(item) if marks is not None else None
@@ -582,9 +574,8 @@ class Ranker(Summaries):
         w_all = False
         edges = len(self.forest.edges[item])
         for index, edge_kind, pred_key, child_key, a, b in self.steps(key):
-            to_all = mask is None or index in mask
-            if best is not None:
-                to_all = to_all and index in best_all
+            if mask is not None and index not in mask:
+                continue
             # Faults of the check skip the first of two or more edges, in the
             # count or in the candidates (tests/README.md). Python's agenda
             # completes the restoring sibling first.
@@ -594,20 +585,16 @@ class Ranker(Summaries):
             produced: list[Entry] = []
             if edge_kind == 0:
                 ways = 1
-                if self.entries:
-                    produced.append(Entry(None, [], INF))
+                produced.append(Entry(None, [], INF))
             elif edge_kind == RESTORE:
                 # A restoration reads its synthetic token, and its own close
                 # follows (engine §7.4, §7.7).
                 ways = 1
-                if self.entries:
-                    produced.append(Entry(self.read_leaf(a, b), [], INF))
+                produced.append(Entry(self.read_leaf(a, b), [], INF))
             else:
                 assert pred_key is not None
                 earlier = memo[pred_key]
-                if not self.entries:
-                    ways = earlier * (memo[child_key] if edge_kind == 2 else 1)
-                elif edge_kind == 1:
+                if edge_kind == 1:
                     pred_entries, ways = earlier
                     read = self.read_leaf(a, b)
                     for entry in pred_entries:
@@ -627,18 +614,16 @@ class Ranker(Summaries):
                     edge_w = witnessed[pred_key]
                 if edge_w and child_key is not None and edge_kind == 2:
                     edge_w = witnessed[child_key]
-                w_all = w_all or (to_all and edge_w)
+                w_all = w_all or edge_w
             if not counted:
                 ways = 0
-            if to_all:
-                total += ways
+            total += ways
             if not selected:
                 produced = []
             for entry in produced:
-                if to_all:
-                    self.keep(kept, entry)
+                self.keep(kept, entry)
         total = min(total, 2)
-        value = (kept, total) if self.entries else total
+        value = (kept, total)
         if marks is not None:
             witnessed[key] = w_all
         return value
@@ -722,18 +707,6 @@ class Ranker(Summaries):
                 self.offer(winner, alt, loser.at)
 
     # -- the whole input
-
-    def count(self, roots: list[int]) -> list[int]:
-        """The number of derivations of each root, up to two."""
-        results: list[int] = []
-        for root in roots:
-            key = self.full_key(root, self.empty)
-            if key is None:
-                results.append(0)
-                continue
-            value = self.solve(key)
-            results.append(value[1] if self.entries else value)
-        return results
 
     def rank(self, roots: list[int]) -> Ranking | None:
         """The first reading, the verdict, the second reading and the
@@ -980,7 +953,7 @@ class Least:
 NO_EDGES: frozenset[int] = frozenset()
 
 
-class Elisions(Summaries):
+class ProfileSummaries(Summaries):
     """Filter a forest by rule profiles and optional elision vectors.
 
     Summaries add the scores of children in their own contexts.
@@ -1132,6 +1105,8 @@ class Ranking:
 
 
 def rank(forest: Forest, lean: str, marks=None, check=False, unfiltered=False) -> Ranking | None:
+    if not forest.roots:
+        return None
     admission = None
     ranked_helpers = forest.lowered.ranked_helpers
     productions = forest.lowered.productions
@@ -1165,17 +1140,10 @@ def rank_original(forest: Forest, lean: str, marks=None, check=False, admission=
     """Rank a forest's derivations by a rule of the ranking, ``greedy``,
     ``lazy`` or ``late-elision``, or by no lean, ``none``; ``None`` if the
     input has no derivation that counts."""
-    if not forest.roots:
-        return None
     if lean == "late-elision" or any(production.leftmost_longest or production.fewest for production in forest.lowered.productions):
-        ranker = Elisions(forest, lean)
+        ranker = ProfileSummaries(forest, lean)
     else:
         ranker = Ranker(forest, lean)
     ranker.marks, ranker.check = marks, check
     ranker.admission = admission
     return ranker.rank(forest.roots)
-
-
-def count_roots(forest: Forest, roots: list[int]) -> list[int]:
-    """The number of derivations, up to two, of each of a forest's roots."""
-    return Ranker(forest, "greedy", entries=False).count(roots)

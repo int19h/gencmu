@@ -1,0 +1,10 @@
+{
+  "description": "Definition analysis simplifies partial presence assignments before extending them.",
+  "grammar": "%rule text \"z\"\n%rule other off? \"a\" [$c0:\"x\"] [$c1:\"x\"] [$c2:\"x\"] [$c3:\"x\"] [$c4:\"x\"] [$c5:\"x\"] [$c6:\"x\"] [$c7:\"x\"] [$c8:\"x\"] [$c9:\"x\"] [$c10:\"x\"] [$c11:\"x\"] [$c12:\"x\"] [$c13:\"x\"] [$c14:\"x\"] [$c15:\"x\"] [$c16:\"x\"] [$c17:\"x\"] [$c18:\"x\"] [$c19:\"x\"] [$c20:\"x\"] [$c21:\"x\"] [$c22:\"x\"] [$c23:\"x\"]\n%conditions $c0 ∧ $c1 ∧ $c2 ∧ $c3 ∧ $c4 ∧ $c5 ∧ $c6 ∧ $c7 ∧ $c8 ∧ $c9 ∧ $c10 ∧ $c11 ∧ $c12 ∧ $c13 ∧ $c14 ∧ $c15 ∧ $c16 ∧ $c17 ∧ $c18 ∧ $c19 ∧ $c20 ∧ $c21 ∧ $c22 ∧ $c23",
+  "input": "z",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

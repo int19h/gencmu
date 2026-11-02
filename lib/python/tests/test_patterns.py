@@ -10,6 +10,16 @@ from types import SimpleNamespace
 
 
 class Patterns(unittest.TestCase):
+    def test_depth_follows_shared_values_without_expanding_their_branches(self) -> None:
+        from gencmu._patterns import pattern_depth_problem
+        pattern = {"terminal": "A"}
+        for _ in range(255):
+            pattern = {"difference": [pattern, pattern]}
+        reference = {"const": "P", "at": [4, 7]}
+        lookup = lambda name: {"pattern": pattern}
+        self.assertIsNone(pattern_depth_problem(reference, lookup))
+        self.assertEqual(pattern_depth_problem({"difference": [reference, reference]}, lookup), ([4, 7],))
+
     def test_state_growth(self) -> None:
         pattern = {"any": True, "children": [{"repeat": [{"child": {"terminal": "A", "at": [1, 1]}}]}]}
         machine = PatternMachine([pattern])

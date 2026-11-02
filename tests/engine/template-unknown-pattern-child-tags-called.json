@@ -1,0 +1,10 @@
+{
+  "description": "Engine §9.3 defers parameter-dependent pattern-child-tags values in a called template.",
+  "grammar": "%rule word _\n%rule use(@T) $x:word %conditions $x ≅ #word« _<@T> »\n%rule text = use(_General_Category_Letter)",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

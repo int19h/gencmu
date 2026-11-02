@@ -1,0 +1,12 @@
+{
+  "description": "Stitching selects errors in written declaration order (engine §2).",
+  "grammar": "%const $A \"a\"\n%const $A \"b\"\n%ambiguity-resolution greedy\n%ambiguity-resolution lazy\n%rule text A",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

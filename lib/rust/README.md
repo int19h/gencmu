@@ -111,7 +111,7 @@ sh ../../tools/check-rust-package.sh target/package/gencmu-*.crate
 
 The script unpacks the archive into a temporary consumer and runs `cargo build --offline` with a fresh target directory. The consumer has engine and notation fixtures whose names collide after test-name conversion. Both Rust CI versions run this procedure.
 
-The shared engine runner enables `gencmu::tools::with_family_conformance` on each case thread. This hidden test hook compares every eligible family witness with an independent deletion test. It restores the prior switch when the case ends, including after a panic. Growth tests retain only the production summaries. For a direct engine probe, set `GENCMU_FAMILY_CONFORMANCE=1` and select `--test engine`.
+The shared engine runner enables `gencmu::tools::with_family_conformance` on each case thread. This hidden test hook compares every eligible family witness with an independent deletion test. It restores the prior switch when the case ends, including after a panic. Growth tests retain only the production summaries. For a direct engine test, wrap the parse in `gencmu::tools::with_family_conformance`.
 
 `cargo test` runs these tests:
 

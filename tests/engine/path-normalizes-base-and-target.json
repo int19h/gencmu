@@ -1,0 +1,14 @@
+{
+  "description": "Path normalizes base and target.",
+  "documents": {
+    "a/./b/../p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"./c/../g.md\"\n```\n",
+    "a/g.md": "```jbogenbau\n%rule text \"a\"\n```\n"
+  },
+  "pipelineDocument": "a/./b/../p.md",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

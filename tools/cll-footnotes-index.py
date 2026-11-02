@@ -85,7 +85,7 @@ def build_index(cache_dir=None):
             raise ValueError(f"No numbered heading on {url}")
         pages[url] = {"sha256": hashlib.sha256(data).hexdigest(), "default": first, "anchors": anchors}
 
-    # These reviewed claims catch plausible links to the wrong page.
+    # These source-backed claims catch plausible links to the wrong page.
     # They are finite citation guards, not a proof of arbitrary prose.
     # The excerpt is checked against the cached or fetched source once.
     claims = [

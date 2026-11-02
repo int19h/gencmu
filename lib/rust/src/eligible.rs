@@ -15,11 +15,9 @@
 
 use std::cell::OnceCell;
 
-use crate::earley::{test_holds, Cap, Chart, Item, Tok};
+use crate::earley::{Cap, Chart, Item};
 use crate::fxhash::FxMap;
 use crate::lower::{Lowered, OptionalBoundary, Sym};
-use crate::tags::Tags;
-use crate::unicode::Unicode;
 use crate::work::{self, Mutant, Work};
 
 /// A place in the chart: the set and the index of an item there.
@@ -63,10 +61,6 @@ type OptionalIndex = FxMap<(u32, usize, u32, u32), Vec<Place>>;
 pub(crate) struct Proofs<'a> {
     g: &'a Lowered,
     chart: &'a Chart,
-    /// The tokens of the nested parse's span alone.
-    tokens: &'a [Tok],
-    unicode: &'a Unicode,
-    tags: &'a Tags,
     /// The completed items of the whole chart by rule and origin, built
     /// once, when the first search for a blocking path needs it.
     index: OnceCell<CompletedIndex>,
@@ -74,14 +68,8 @@ pub(crate) struct Proofs<'a> {
 }
 
 impl<'a> Proofs<'a> {
-    pub(crate) fn new(
-        g: &'a Lowered,
-        chart: &'a Chart,
-        tokens: &'a [Tok],
-        unicode: &'a Unicode,
-        tags: &'a Tags,
-    ) -> Proofs<'a> {
-        Proofs { g, chart, tokens, unicode, tags, index: OnceCell::new(), optional_index: OnceCell::new() }
+    pub(crate) fn new(g: &'a Lowered, chart: &'a Chart) -> Proofs<'a> {
+        Proofs { g, chart, index: OnceCell::new(), optional_index: OnceCell::new() }
     }
 
     /// Counts one entry of the chart or the index that a search examines,
@@ -98,32 +86,8 @@ impl<'a> Proofs<'a> {
     /// constituent `cap`, if the chart holds it: the advance that the
     /// recognizer made, with its test and its conditions passed.
     fn advanced(&self, item: Item, cap: Cap) -> Option<Place> {
-        if self.chart.machine.is_some() || self.chart.boundaries.is_some() {
-            let next = self.chart.advances.get(&(item, cap))?;
-            return self.chart.sets.get(cap.end as usize)?.find(next).map(|index| (cap.end, index));
-        }
-        let production = &self.g.prods[item.prod as usize];
-        let dot = item.dot as usize;
-        if let Some(test) = self.g.test(item.prod, dot) {
-            let span = &self.tokens[cap.start as usize..cap.end as usize];
-            if !test_holds(test, span, self.unicode, self.tags, cap.tags) {
-                return None;
-            }
-        }
-        let caps = if production.cap_at[dot].is_some() { self.chart.lookup_caps(item.caps, cap)? } else { item.caps };
-        let next = Item {
-            boundary: 0,
-            close_requested: item.close_requested,
-            lexical: item.lexical,
-            prod: item.prod,
-            dot: item.dot + 1,
-            origin: item.origin,
-            caps,
-            prefix: 0,
-            structure: u32::MAX,
-        };
-        let set = cap.end;
-        self.chart.sets.get(set as usize)?.find(&next).map(|index| (set, index))
+        let next = self.chart.advances.get(&(item, cap))?;
+        self.chart.sets.get(cap.end as usize)?.find(next).map(|index| (cap.end, index))
     }
 
     /// The completed items of `rule` from `origin`, each with its place,
@@ -242,7 +206,7 @@ impl<'a> Proofs<'a> {
                 }
                 a.test(at) == b.test(at) && name(a, at) == name(b, at)
             })
-            && Item { boundary: 0, prod: other.prod, ..item } == other
+            && Item { prod: other.prod, ..item } == other
     }
 
     /// The furthest optional route that reaches a written terminator,
@@ -354,85 +318,36 @@ impl<'a> Proofs<'a> {
     }
 
     /// The advances that make the item at `place`, each with the places of
-    /// the items it reads, rebuilt from completed spans.
+    /// the items it reads, from recorded recognition links.
     fn edges(&self, place: Place) -> Vec<RawEdge> {
         let (set, _) = place;
         let item = self.item(place);
         if item.dot == 0 {
             return vec![(None, None)];
         }
-        if self.chart.machine.is_some() || self.chart.boundaries.is_some() {
-            let mut edges = Vec::new();
-            let production = &self.g.prods[item.prod as usize];
-            for &(pred, cap) in self.chart.links.get(&(set, item)).into_iter().flatten() {
-                let Some(index) = self.chart.sets[cap.start as usize].find(&pred) else {
-                    continue;
-                };
-                let before = (cap.start, index);
-                match production.syms[item.dot as usize - 1] {
-                    Sym::T(_) => edges.push((Some(before), None)),
-                    Sym::N(rule) => {
-                        for &index in
-                            self.chart.sets[set as usize].completed.get(&(rule, cap.start)).into_iter().flatten()
-                        {
-                            let child = (set, index);
-                            if self.cap(child) == cap
-                                && self.item(child).lexical == self.chart.expected_lexical(pred, cap.start)
-                            {
-                                edges.push((Some(before), Some(child)));
-                            }
-                        }
-                    }
-                }
-            }
-            return edges;
-        }
+        let mut edges = Vec::new();
         let production = &self.g.prods[item.prod as usize];
-        let position = item.dot as usize - 1;
-        let captured = production.cap_at[position].is_some();
-        let before_caps = if captured {
-            if item.caps == 0 {
-                return Vec::new();
-            }
-            self.chart.caps_parent(item.caps)
-        } else {
-            item.caps
-        };
-        let before = Item {
-            boundary: 0,
-            close_requested: item.close_requested,
-            lexical: item.lexical,
-            prod: item.prod,
-            dot: item.dot - 1,
-            origin: item.origin,
-            caps: before_caps,
-            prefix: 0,
-            structure: u32::MAX,
-        };
-        let find = |at: u32| self.chart.sets[at as usize].find(&before).map(|index| (at, index));
-        match production.syms[position] {
-            Sym::T(_) => find(set - 1).map(|before| (Some(before), None)).into_iter().collect(),
-            Sym::N(rule) => {
-                let origins: Vec<u32> = if captured {
-                    vec![self.chart.last_cap(item.caps).start]
-                } else {
-                    self.chart.origins_between(&before, rule, item.origin, set)
-                };
-                let mut edges = Vec::new();
-                for m in origins {
-                    let Some(before) = find(m) else { continue };
-                    for &index in self.chart.sets[set as usize].completed.get(&(rule, m)).into_iter().flatten() {
+        for &(pred, cap) in self.chart.links.get(&(set, item)).into_iter().flatten() {
+            let Some(index) = self.chart.sets[cap.start as usize].find(&pred) else {
+                continue;
+            };
+            let before = (cap.start, index);
+            match production.syms[item.dot as usize - 1] {
+                Sym::T(_) => edges.push((Some(before), None)),
+                Sym::N(rule) => {
+                    for &index in self.chart.sets[set as usize].completed.get(&(rule, cap.start)).into_iter().flatten()
+                    {
                         let child = (set, index);
-                        // The advance over this very constituent makes the
-                        // item, with its test and its captures.
-                        if self.advanced(self.item(before), self.cap(child)) == Some(place) {
+                        if self.cap(child) == cap
+                            && self.item(child).lexical == self.chart.expected_lexical(pred, cap.start)
+                        {
                             edges.push((Some(before), Some(child)));
                         }
                     }
                 }
-                edges
             }
         }
+        edges
     }
 
     /// Which of `witnesses`, completed items of the queried rule, have an
@@ -1086,7 +1001,7 @@ mod tests {
         if witnesses.is_empty() {
             return None;
         }
-        let proofs = Proofs::new(&g, &chart, &input, &pipeline.unicode, &shared.tags);
+        let proofs = Proofs::new(&g, &chart);
         let got = proofs.eligible(&witnesses);
         let mut oracle = Oracle::new(&g, &tokens, start);
         let mut truth = Vec::new();
@@ -1212,7 +1127,7 @@ mod tests {
             })
             .collect();
         assert!(!witnesses.is_empty(), "r completes");
-        let proofs = Proofs::new(&g, &chart, &input, &pipeline.unicode, &shared.tags);
+        let proofs = Proofs::new(&g, &chart);
         // The chart is made before the searches, so the budget of the
         // searches can depend on its items.
         let items = chart.sets.iter().map(|set| set.items.len() as u64).sum();

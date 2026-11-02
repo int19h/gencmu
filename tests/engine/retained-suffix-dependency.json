@@ -1,0 +1,10 @@
+{
+  "description": "A retained suffix dependency keeps enclosing answers out of the shared memo (engine §4.3).",
+  "grammar": "%rule text $x:body\n%conditions $x.ends(driver), $x.matches(wrap), $x.matches(plain)\n%rule body \"a\"\n%rule driver $x:body\n%conditions $x.without-elision.matches(tail)\n%rule wrap $x:body\n%conditions $x.ends(driver)\n%rule tail \"a\"\n%rule plain \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

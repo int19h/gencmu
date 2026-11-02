@@ -1,0 +1,11 @@
+{
+  "description": "Reader diagnostics use common text and retain their positions.",
+  "document": "```jbogenbau\n%classifier c f! \"a\" ∈ A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 15,
+      "message": "an entry of a classifier takes gates only, not a warning"
+    }
+  }
+}

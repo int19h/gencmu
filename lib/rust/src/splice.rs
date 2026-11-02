@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use crate::dom::{ClassifierDef, ConstDef, Directive, Dom, ImplicationDef, RuleDef};
-use crate::error::Error;
+use crate::error::{Error, SpliceProblem};
 use crate::fxhash::{FxMap, FxSet};
 use crate::work::{self, Work};
 
@@ -114,8 +114,8 @@ pub(crate) trait Documents {
     fn dom_with_names(&mut self, path: &str, _inherited: &[String]) -> Result<Option<Arc<Dom>>, Error> {
         self.dom(path)
     }
-    /// `target` resolved against the document `base`, or `None` when it
-    /// leads out of the documents a loader may read.
+    /// `target` resolved against the document `base`, or `None` for an
+    /// absolute target.
     fn resolve(&self, base: &str, target: &str) -> Option<String>;
 }
 
@@ -152,18 +152,15 @@ impl Splicer<'_> {
         let names = crate::unicode_names::selected_names(&path, &dom, &[], &|base, target| {
             self.documents.resolve(base, target)
         })?;
+        self.on_chain.insert(path.clone());
         let mut frames = vec![Frame::new(path, dom, names)];
-        // The documents whose includes are being spliced, outermost first.
-        let mut chain: Vec<Arc<str>> = Vec::new();
         while let Some(frame) = frames.last_mut() {
             let Some(&place) = frame.order.get(frame.next) else {
                 // The document is done, and its includer goes on after
                 // the include, in a new run.
-                frames.pop();
-                if let Some(includer) = chain.pop() {
-                    self.on_chain.remove(&includer);
-                    self.open_run = false;
-                }
+                let done = frames.pop().expect("the current frame");
+                self.on_chain.remove(&done.path);
+                self.open_run = false;
                 continue;
             };
             frame.next += 1;
@@ -174,7 +171,7 @@ impl Splicer<'_> {
             let here = |message: String| Error::grammar(message).in_document(path).at(line, column);
             // An error of a document read on the way belongs to the stage
             // being built, if any.
-            let stage_name = self.selected.map(|index| self.stages[index].name.clone());
+            let stage_name = self.selected.map(|index| self.stages[index].name.as_str());
             let in_stage = |error: Error| match &stage_name {
                 Some(name) => error.in_stage(name),
                 None => error,
@@ -185,12 +182,10 @@ impl Splicer<'_> {
                     let inherited = frame.names.clone();
                     let target_text = directive.args.first().map_or("", String::as_str);
                     let Some(target) = self.documents.resolve(path, target_text) else {
-                        return Err(in_stage(here(format!("the document path {target_text} leaves the grammars"))));
+                        return Err(in_stage(here("a path target must be relative".into())));
                     };
-                    chain.push(path.clone());
-                    self.on_chain.insert(path.clone());
                     let through = || {
-                        let mut names: Vec<&str> = chain.iter().map(|name| &**name).collect();
+                        let mut names: Vec<&str> = frames.iter().map(|frame| &*frame.path).collect();
                         names.push(&target);
                         names.join(" → ")
                     };
@@ -200,7 +195,17 @@ impl Splicer<'_> {
                     if self.on_chain.contains(target.as_str()) {
                         return Err(in_stage(here(format!("{target} includes itself ({})", through()))));
                     }
-                    let Some(included) = self.documents.dom_with_names(&target, &inherited).map_err(in_stage)? else {
+                    let Some(included) = self.documents.dom_with_names(&target, &inherited).map_err(|mut error| {
+                        if error.splice_problem == Some(SpliceProblem::UnreadableDocument) && error.line.is_none() {
+                            let unreadable = error.document.as_deref().unwrap_or(&target);
+                            error.message = format!("{unreadable}: {}", error.message);
+                            error.document = Some(path.to_string());
+                            error.line = Some(line);
+                            error.column = Some(column);
+                        }
+                        in_stage(error)
+                    })?
+                    else {
                         return Err(in_stage(here(format!("{target} was not found ({})", through()))));
                     };
                     self.open_run = false;
@@ -208,7 +213,9 @@ impl Splicer<'_> {
                         crate::unicode_names::selected_names(&target, &included, &inherited, &|base, target| {
                             self.documents.resolve(base, target)
                         })?;
-                    frames.push(Frame::new(Arc::from(target.as_str()), included, names));
+                    let target: Arc<str> = Arc::from(target);
+                    self.on_chain.insert(target.clone());
+                    frames.push(Frame::new(target, included, names));
                 }
                 Item::Directive(directive) if directive.name == "features" && self.selected.is_none() => {
                     if directive.conditions.is_some() {
@@ -281,9 +288,7 @@ impl Splicer<'_> {
                         self.open_run = true;
                     }
                     let (_, run) = stage.documents.last_mut().expect("a run");
-                    if let Some(raw) = dom.unresolved.get(&item.at()) {
-                        run.unresolved.insert(item.at(), raw.clone());
-                    }
+                    run.unresolved |= dom.unresolved;
                     match item {
                         Item::Rule(rule) => run.rules.push(rule.clone()),
                         Item::Constant(constant) => run.constants.push(constant.clone()),
@@ -315,7 +320,26 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
         open_run: false,
         selected: None,
     };
-    splicer.splice(Arc::from(path), top)?;
+    if let Err(mut error) = splicer.splice(Arc::from(path), top) {
+        if let Some(selected) = splicer.selected {
+            error = error.in_stage(&splicer.stages[selected].name);
+        }
+        return Err(error);
+    }
+    let stages = &splicer.stages;
+    if stages.is_empty() {
+        return Err(Error::grammar("a pipeline needs at least one %stage").in_document(path));
+    }
+    for stage in stages {
+        if stage.documents.iter().all(|(_, dom)| dom.rules.is_empty()) {
+            let mut error = Error::grammar("has no rules")
+                .in_document(&stage.document)
+                .at(stage.at.0, stage.at.1)
+                .in_stage(&stage.name);
+            error.splice_problem = Some(SpliceProblem::EmptyStage);
+            return Err(error);
+        }
+    }
     let mut owners = FxMap::default();
     for item in &splicer.declarations {
         if item.generation != splicer.generations[item.stage] {
@@ -335,17 +359,6 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
         }
     }
     let Splicer { stages, mut features, .. } = splicer;
-    if stages.is_empty() {
-        return Err(Error::grammar("a pipeline needs at least one %stage").in_document(path));
-    }
-    for stage in &stages {
-        if stage.documents.iter().all(|(_, dom)| dom.rules.is_empty()) {
-            return Err(Error::grammar(format!("stage {} has no rules", stage.name))
-                .in_document(&stage.document)
-                .at(stage.at.0, stage.at.1)
-                .in_stage(&stage.name));
-        }
-    }
     features.sort();
     Ok(Spliced { stages, features })
 }
@@ -357,7 +370,7 @@ mod tests {
 
     use super::{splice, Documents};
     use crate::dom::{Alternative, Directive, Dom, Expr, Op, RuleDef};
-    use crate::error::Error;
+    use crate::error::{Error, SpliceProblem};
     use crate::work::{assert_linear, Work};
 
     /// Documents held in memory, each path its own name.
@@ -370,6 +383,54 @@ mod tests {
 
         fn resolve(&self, _: &str, target: &str) -> Option<String> {
             Some(target.to_string())
+        }
+    }
+
+    #[test]
+    fn include_error_relocation_uses_its_kind() {
+        struct Failing {
+            top: Arc<Dom>,
+            error: Error,
+        }
+        impl Documents for Failing {
+            fn dom(&mut self, path: &str) -> Result<Option<Arc<Dom>>, Error> {
+                if path == "p.md" {
+                    Ok(Some(self.top.clone()))
+                } else {
+                    Err(self.error.clone())
+                }
+            }
+            fn resolve(&self, _: &str, target: &str) -> Option<String> {
+                Some(target.into())
+            }
+        }
+        for (line, problem, message) in [
+            (None, None, "the document could not be read: a grammar diagnostic"),
+            (Some(7), None, "the document could not be read: a grammar diagnostic"),
+            (None, Some(SpliceProblem::UnreadableDocument), "an unreadable document"),
+            (Some(7), Some(SpliceProblem::UnreadableDocument), "an unreadable document"),
+        ] {
+            let mut error = Error::grammar(message).in_document("g.md").coded("sentinel");
+            error.line = line;
+            error.splice_problem = problem;
+            let mut expected = error.clone().in_stage("main");
+            if problem == Some(SpliceProblem::UnreadableDocument) && line.is_none() {
+                expected.message = format!("g.md: {message}");
+                expected.document = Some("p.md".into());
+                expected.line = Some(2);
+                expected.column = Some(1);
+            }
+            let mut documents = Failing {
+                top: Arc::new(Dom {
+                    directives: vec![
+                        Directive { name: "stage".into(), args: vec!["main".into()], at: (1, 1), conditions: None },
+                        Directive { name: "include".into(), args: vec!["g.md".into()], at: (2, 1), conditions: None },
+                    ],
+                    ..Dom::default()
+                }),
+                error,
+            };
+            assert_eq!(splice("p.md", &mut documents).unwrap_err(), expected);
         }
     }
 
@@ -389,6 +450,7 @@ mod tests {
                 .collect();
             // Each stage at line 2k + 2, with its rule on the next line.
             let rule = |index: usize| RuleDef {
+                source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
                 name: "text".into(),

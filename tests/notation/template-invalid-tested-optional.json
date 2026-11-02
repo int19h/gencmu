@@ -1,0 +1,10 @@
+{
+  "description": "A template keeps the ordinary position of an invalid tested optional.",
+  "document": "```jbogenbau\n%rule r(@X) $x:A [B]=\"x\"\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 21
+    }
+  }
+}

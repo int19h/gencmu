@@ -15,7 +15,7 @@ from unittest import mock
 import gencmu
 from gencmu import _stage, _testing
 
-from .shared import SHARED, WitnessLost, case_tokens, load_case, load_case_pipeline, parse_checked, result_problems, run_case, witness_lost
+from .shared import SHARED, WitnessLost, case_tokens, load_case, load_case_pipeline, parse_checked, result_problems, run_case, witness_lost, same_json
 from .witness import checks, walk_witness
 
 CASE: dict[str, Any] = {
@@ -64,6 +64,18 @@ def parse(**options: Any) -> gencmu.ParseResult:
 
 
 class WitnessLostError(unittest.TestCase):
+    def test_serialized_witness_errors_distinguish_booleans_from_numbers(self) -> None:
+        loads = json.loads
+
+        def decode(text, *args, **kwargs):
+            value = loads(text, *args, **kwargs)
+            if isinstance(value, dict) and value.get("format") == 15:
+                value["ok"] = int(value["ok"])
+            return value
+
+        with mock.patch(__name__ + ".json.loads", side_effect=decode), self.assertRaises(AssertionError):
+            WitnessLostError().test_a_lost_witness_is_the_grammar_error_elision_witness_lost()
+
     def test_a_lost_witness_is_the_grammar_error_elision_witness_lost(self) -> None:
         clean = parse()
         self.assertTrue(clean.ok, clean.error)
@@ -73,6 +85,8 @@ class WitnessLostError(unittest.TestCase):
             with self.subTest(loss=name):
                 with lose():
                     result = parse()
+                self.assertIsNotNone(result.stages[0].tree)
+                self.assertIsNone(result.stages[0].output)
                 value = gencmu.result_json(result)
                 self.assertEqual(result_problems(value), [])
                 self.assertTrue(witness_lost(value))
@@ -85,36 +99,33 @@ class WitnessLostError(unittest.TestCase):
                 self.assertIs(value["ok"], False)
                 self.assertIsNone(value["tree"])
                 error = value["error"]
-                self.assertEqual(list(error), ["kind", "stage", "code", "message", "chosen", "completion"])
-                self.assertEqual(error["kind"], "grammar")
-                self.assertEqual(error["stage"], "main")
-                self.assertEqual(error["code"], "elision-witness-lost")
-                self.assertEqual(error["message"], "the main stage could not reconstruct its chosen derivation for elision-only")
+                self.assertTrue(same_json(list(error), ["kind", "stage", "code", "message", "chosen", "completion"]))
+                self.assertTrue(same_json(error["kind"], "grammar"))
+                self.assertTrue(same_json(error["stage"], "main"))
+                self.assertTrue(same_json(error["code"], "elision-witness-lost"))
+                self.assertTrue(same_json(error["message"], "the main stage could not reconstruct its chosen derivation for elision-only"))
                 # The chosen tree is that of the main stage, as a run that
                 # ends there shows it.
-                self.assertEqual(error["chosen"], main["tree"])
+                self.assertTrue(same_json(error["chosen"], main["tree"]))
                 # The records in their order of insertion, with the sound
                 # only for the tested terminator.
-                self.assertEqual(
-                    error["completion"],
-                    [{"terminal": "T", "at": 1, "source": [1, 1], "value": "ta"}, {"terminal": "U", "at": 1, "source": [1, 1]}],
-                )
+                self.assertTrue(same_json(error["completion"], [{"terminal": "T", "at": 1, "source": [1, 1], "value": "ta"}, {"terminal": "U", "at": 1, "source": [1, 1]}]))
                 # The stage keeps its verdict and warnings, has no output,
                 # and no later stage runs.
-                self.assertEqual(value["stages"], [{"name": "main", "verdict": "resolved"}])
-                self.assertEqual(value["warnings"], [warning for warning in clean_value["warnings"] if warning["stage"] == "main"])
+                self.assertTrue(same_json(value["stages"], [{"name": "main", "verdict": "resolved"}]))
+                self.assertTrue(same_json(value["warnings"], [warning for warning in clean_value["warnings"] if warning["stage"] == "main"]))
                 self.assertEqual(len(value["warnings"]), 1)
-                self.assertEqual(json.loads(gencmu.to_json(result)), value)
+                self.assertTrue(same_json(json.loads(gencmu.to_json(result)), value))
 
     def test_an_ordinary_grammar_error_in_the_check_has_no_code(self) -> None:
         case = load_case(SHARED / "engine" / "reparse-competing-evaluation-error.json")
         value, _, error, _ = run_case(case)
         assert value is not None, error
-        self.assertEqual(value["error"]["kind"], "grammar")
+        self.assertTrue(same_json(value["error"]["kind"], "grammar"))
         self.assertNotIn("code", value["error"])
         self.assertNotIn("chosen", value["error"])
         self.assertNotIn("completion", value["error"])
-        self.assertNotEqual(value["error"]["message"], "the main stage could not reconstruct its chosen derivation for elision-only")
+        self.assertFalse(same_json(value["error"]["message"], "the main stage could not reconstruct its chosen derivation for elision-only"))
 
 
 class WitnessHook(unittest.TestCase):
@@ -135,6 +146,25 @@ class WitnessHook(unittest.TestCase):
                 with lose(), self.assertRaises(WitnessLost):
                     parse_checked(parse)
 
+    def test_a_lost_walk_skips_raw_and_filtered_ranking(self) -> None:
+        from gencmu import _witness
+        for body in [
+            '%rule text a\n%rule a "a" [+T]',
+            '%rule text (a ≻ b) ::∅\n%rule a "a" [+T]\n%rule b "a" [+T] [+U]',
+        ]:
+            pipeline = gencmu.load_pipeline_sources({"p.md":'```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n'+body+'\n```'},"p.md")
+            original = _stage.rank
+            def rank(forest, lean, **options):
+                self.assertFalse(options.get("check",False))
+                return original(forest,lean,**options)
+            with (
+                mock.patch.object(_witness,"walk_witness",return_value=None),
+                mock.patch.object(_stage,"rank",side_effect=rank),
+                mock.patch.object(_stage,"_rank_check",side_effect=AssertionError("a lost walk cannot rank")),
+            ):
+                result = pipeline.parse("a")
+            self.assertEqual(result.error.code,"elision-witness-lost")
+
     def test_a_forest_without_the_chosen_root_has_no_witness(self) -> None:
         # A forest that holds another reading but not W(D) is no witness,
         # however many derivations it counts: here, the item of the chosen
@@ -143,7 +173,7 @@ class WitnessHook(unittest.TestCase):
 
         def watch(run: _testing.CheckRun) -> _testing.CheckWatch:
             runs.append(run)
-            return _testing.CheckWatch(None, lambda ranking: None)
+            return _testing.CheckWatch(lambda ranking: None)
 
         with mock.patch.object(_testing, "elision_check", watch):
             parse()

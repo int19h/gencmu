@@ -84,7 +84,7 @@ pub use error::{Error, ErrorKind, GroupSite, RankedDiagnostic};
 pub use grammar::{Change, FlagChange};
 pub use json::Json as GrammarValue;
 pub use loader::{bundled_pipelines, load_pipeline, load_pipeline_file, load_pipeline_sources};
-pub use output::{node_to_json, to_brackets, to_json};
+pub use output::{to_brackets, to_json};
 pub use pipeline::{Feature, InputToken, ParseOptions, Pipeline};
 pub use result::{
     Action, AmbiguityReason, Attachment, BoundaryFailure, ErrorCode, Expected, Node, NodeKind, ParseError,
@@ -100,6 +100,8 @@ pub mod tools {
     pub use crate::loader::{
         bootstrap_hash, check_dom, check_dom_with_unicode, read_grammar_document, splice_bundled_pipeline,
     };
+    #[doc(hidden)]
+    pub use crate::pipeline::with_runtime_grammar_errors;
     #[doc(hidden)]
     pub use crate::restoration::family::with_family_conformance;
     pub use crate::slot_stats::{with_slot_statistics, BoundarySplit, SlotStatistics};

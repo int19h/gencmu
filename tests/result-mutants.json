@@ -152,7 +152,7 @@
       }
     },
     {
-      "name": "obsolete preference cycle",
+      "name": "error member cycle",
       "case": "late-elision-roots-tie.json",
       "path": [
         "error",
@@ -161,7 +161,7 @@
       "set": []
     },
     {
-      "name": "obsolete preference conflict",
+      "name": "error member conflict",
       "case": "late-elision-roots-tie.json",
       "path": [
         "error",
@@ -170,7 +170,7 @@
       "set": {}
     },
     {
-      "name": "obsolete preference chosenReading",
+      "name": "error member chosenReading",
       "case": "late-elision-roots-tie.json",
       "path": [
         "error",

@@ -20,6 +20,7 @@ from gencmu._pipeline import read_document
 from gencmu._earley import Caps, Evaluator, Parser, StageContext
 
 from .shared import (
+    same_json,
     SHARED,
     OverBudget,
     Watch,
@@ -123,7 +124,7 @@ class CaptureStorage(unittest.TestCase):
             value, _, _ = parse_case(pipeline, case)
         self.assertIsNotNone(value)
         assert value is not None
-        self.assertTrue(value["ok"], f"{count} captures")
+        self.assertTrue(same_json(value["ok"], True), f"{count} captures")
         self.assertEqual(works["captures"].count, count, f"{count} captures")
 
     def test_an_item_shares_the_parts_of_the_item_it_advanced(self) -> None:
@@ -202,7 +203,7 @@ class CaptureStorage(unittest.TestCase):
             works.append(work)
             value, _, _ = parse_case(pipeline, case)
         assert value is not None
-        self.assertTrue(value["ok"], f"{count} captures")
+        self.assertTrue(same_json(value["ok"], True), f"{count} captures")
 
     @staticmethod
     def searches(count: int) -> list[tuple[str, Callable[[int], str], int]]:
@@ -267,7 +268,7 @@ class ConditionSelection(unittest.TestCase):
             works.append(work)
             value, _, _ = parse_case(pipeline, case)
         assert value is not None
-        self.assertTrue(value["ok"], f"{count} captures")
+        self.assertTrue(same_json(value["ok"], True), f"{count} captures")
 
     def test_an_advance_examines_only_the_conditions_of_its_dot(self) -> None:
         for count in (100, 200, 400):
@@ -294,7 +295,7 @@ def reader_steps() -> list[Watch]:
     copy of a stack or a list."""
     # The check of repeated captures is named as the reader calls it, so
     # that a mutant put in its place is the one watched.
-    return [steps(target, weight=reads) for target in (_trampoline.run, _dom.flatten_groups, _dom.duplicate_captures)]
+    return [steps(target, weight=reads) for target in (_trampoline.run, _dom.flatten_groups, _dom.duplicate_captures, _dom.DomBuilder.has_unresolved)]
 
 
 class NotationGrowth(unittest.TestCase):
@@ -413,11 +414,9 @@ def visits() -> list[Watch]:
 
 @contextmanager
 def halting_and_repeating() -> Iterator[None]:
-    """A recognizer that halts a step for each query whose answer is not
-    yet known and makes the step again from its start, as Rust, Go and JS
-    did before they resumed in place. It is built on the walks: each
-    evaluation of one bound that answered a new query is followed by the
-    evaluations of that bound so far, once for each such query."""
+    """A recognizer that repeats a step when it answers a new query.
+    It evaluates each bound again from its start for each answered query,
+    so the work measures the cost of repeating earlier evaluations."""
     walk_condition, walk_value, answer = Evaluator.walk_condition, Evaluator.walk_value, StageContext.answer
     # The depth of the evaluation running, and the queries answered so far.
     state = {"depth": 0, "answered": 0}
@@ -456,10 +455,11 @@ def halting_and_repeating() -> Iterator[None]:
         # A nested parse runs evaluations of its own, from depth 0.
         depth, state["depth"] = state["depth"], 0
         try:
-            yield answer(self, *args)
+            value = yield answer(self, *args)
         finally:
             state["depth"] = depth
         state["answered"] += 1
+        return value
 
     with (
         mock.patch.object(Evaluator, "walk_condition", repeating(walk_condition)),

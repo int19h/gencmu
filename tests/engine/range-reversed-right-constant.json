@@ -1,0 +1,13 @@
+{
+  "description": "range reversed right constant.",
+  "grammar": "%const $A \"a\"\n%rule text \"z\"..$A",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 17
+    }
+  }
+}

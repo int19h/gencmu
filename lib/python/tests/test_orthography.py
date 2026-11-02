@@ -1,5 +1,6 @@
 """Stage zero preserves original text through canonical decomposition."""
 
+from .shared import same_json
 import unittest
 
 import gencmu
@@ -23,7 +24,7 @@ class StageZero(unittest.TestCase):
                 self.assertEqual([token.text for token in tokens], [text[i] for i in origins])
                 self.assertEqual([token.source for token in tokens], [(i, i + 1) for i in origins])
                 self.assertEqual([token.span for token in tokens], [(i, i + 1) for i in range(len(values))])
-        self.assertEqual(character_tokens("á", table)[1].tags, frozenset({"_General_Category_Nonspacing_Mark", "_General_Category_Mark"}))
+        self.assertEqual(character_tokens("á", table)[1].tags, frozenset({"_General_Category_Nonspacing_Mark", "_General_Category_Mark", "_Canonical_Combining_Class_Above"}))
 
     def test_scalar_validation_precedes_decomposition(self) -> None:
         class UnusedTable(UnicodeTable):
@@ -53,19 +54,19 @@ class GrammarReading(unittest.TestCase):
         resources = _resources()
         first = _Loader(texts.get, resources)
         dom = first.dom("g.md")
-        self.assertEqual(dom["rules"][0]["alternatives"][0]["expr"]["literal"], {"string": "e\u0301"})
+        self.assertTrue(same_json(dom["rules"][0]["alternatives"][0]["expr"]["literal"], {"string": "e\u0301"}))
         cache = {"format": DOM_FORMAT, "bootstrap": first.reader.hash, "unicode": fnv1a64(table), "properties": None,
                  "documents": {"g.md": {"hash": fnv1a64(grammar), "dom": dom}}}
         preparsed = json.dumps(cache)
-        self.assertTrue(_preparsed_index(preparsed, first.reader.hash, table))
-        self.assertFalse(_preparsed_index(preparsed, first.reader.hash, sparse))
+        self.assertTrue(_preparsed_index(preparsed, first.reader.hash, table)[0])
+        self.assertFalse(_preparsed_index(preparsed, first.reader.hash, sparse)[0])
         for fingerprint in (None, "0000000000000000"):
             cache["unicode"] = fingerprint
-            self.assertFalse(_preparsed_index(json.dumps(cache), first.reader.hash, table))
+            self.assertFalse(_preparsed_index(json.dumps(cache), first.reader.hash, table)[0])
         cache["unicode"] = fnv1a64(table)
         second = _Loader(texts.get, type(resources)(sparse, resources.bootstrap, preparsed))
         sparse_dom = second.dom("g.md")
-        self.assertEqual(sparse_dom["rules"][0]["alternatives"][0]["expr"]["literal"], {"string": "é"})
+        self.assertTrue(same_json(sparse_dom["rules"][0]["alternatives"][0]["expr"]["literal"], {"string": "é"}))
         # The matching envelope must be used even if its valid DOM differs.
         cache["documents"]["g.md"]["dom"] = sparse_dom
         cached = _Loader(texts.get, type(resources)(table, resources.bootstrap, json.dumps(cache)))
@@ -82,7 +83,7 @@ class GrammarReading(unittest.TestCase):
                 gencmu.load_pipeline_sources({"data/unicode/unicode.txt": sparse, "p.md": document('%stage main\n%include "g.md"'),
                                             "g.md": source}, "p.md", use_cache=use_cache)
             self.assertEqual((caught.exception.document, caught.exception.column), ("g.md", 35))
-        self.assertEqual(read_document(source, "g.md")["rules"][0]["conditions"][0]["op"], "≠")
+        self.assertTrue(same_json(read_document(source, "g.md")["rules"][0]["conditions"][0]["op"], "≠"))
 
     def test_include_preserves_original_filename(self) -> None:
         texts = {"p.md": document('%stage main\n%include "café.md"'),
@@ -136,14 +137,14 @@ class DecomposedSource(unittest.TestCase):
         self.assertEqual(result.stages[0].output[0].value, "\u0301")
 
 
-class StageZero(unittest.TestCase):
+class StageZeroExecution(unittest.TestCase):
     def test_stage_zero_runs_once(self) -> None:
         from unittest.mock import patch
 
         pipeline = gencmu.load_pipeline("lojban/experimental")
         for options in ({}, {"until": "words"}):
             with self.subTest(options=options):
-                with patch.object(pipeline.unicode, "decompose_with_origins", wraps=pipeline.unicode.decompose_with_origins) as decompose:
+                with patch.object(pipeline._unicode, "decompose_with_origins", wraps=pipeline._unicode.decompose_with_origins) as decompose:
                     with patch.object(pipeline, "_run", wraps=pipeline._run) as run:
                         result = pipeline.parse("mi klama", **options)
                 self.assertTrue(result.ok, result.error)

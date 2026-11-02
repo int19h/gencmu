@@ -47,3 +47,92 @@ func stopsAtFirst(t *testing.T, w *workCounts, c *workCount, name string, f func
 	}
 	return true
 }
+
+// Asking for the constituent's tags adds only the condition's observation.
+// It never repeats the term, including at prediction and boundary processing.
+func TestReadyConditionsKeepComputedTags(t *testing.T) {
+	for _, empty := range []bool{false, true} {
+		for _, boundary := range []bool{false, true} {
+			body, input := `"a"`, "ab"
+			if empty {
+				body, input = "ε", "b"
+			}
+			var visits [2]int64
+			for index, observed := range []bool{false, true} {
+				condition := `X ⊆ X`
+				if observed {
+					condition = `X ⊆ $.tags`
+				}
+				if boundary {
+					condition += ", $.followed-by(tail)"
+				}
+				grammar := fmt.Sprintf(`%%ambiguity-resolution greedy
+%%rule text body tail
+%%rule body %s :: X ∪ Y %%conditions %s
+%%rule tail "b"`, body, condition)
+				d := mustLoad(t, oneStage(grammar))
+				w := &workCounts{}
+				countWorkIn(w, func() {
+					result, err := d.Parse(input, ParseOptions{})
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !result.OK {
+						t.Fatalf("empty=%v boundary=%v: %v", empty, boundary, result.Error)
+					}
+				})
+				visits[index] = w.visits.Load()
+			}
+			if delta := visits[1] - visits[0]; delta > 2 {
+				t.Errorf("empty=%v boundary=%v: observing tags added %d visits", empty, boundary, delta)
+			}
+		}
+	}
+}
+
+func TestRuntimePresenceTestReportsLoweringFault(t *testing.T) {
+	for _, name := range []string{"", "x"} {
+		t.Run("$"+name, func(t *testing.T) {
+			defer func() {
+				failure, ok := recover().(*parseFailure)
+				if !ok || failure.message != "a presence test outlived lowering" {
+					t.Fatalf("unexpected lowering fault: %+v", failure)
+				}
+			}()
+			var w walk
+			ev := &evaluator{capture: func(string) (spanVal, bool) { return spanVal{}, true }}
+			w.cond(ev, &domCond{Kind: cdCaptured, Capture: name})
+			w.resume()
+		})
+	}
+}
+
+func TestStageInputPresenceKeepsEvaluationOrder(t *testing.T) {
+	for _, input := range []string{"", "a"} {
+		t.Run(fmt.Sprintf("input=%q", input), func(t *testing.T) {
+			body := `"a"`
+			if input == "" {
+				body = "ε"
+			}
+			grammar := `
+%features enabled
+%conditions ¬¬$, ¬$ ∨ ($ ∧ $), ($ ⟹ A) = A, $ ∨ "a" ∈ "a".split($.value)
+%ambiguity-resolution greedy
+%rule text enabled? ` + body
+			d := mustLoad(t, oneStage(grammar))
+			result, err := d.Parse(input, ParseOptions{})
+			if err != nil || !result.OK {
+				t.Fatalf("stage presence: %v %+v", err, result)
+			}
+		})
+	}
+	d := mustLoad(t, oneStage(`
+%features enabled
+%conditions "a" ∈ "a".split($.value) ∨ $
+%ambiguity-resolution greedy
+%rule text ε`))
+	result, err := d.Parse("", ParseOptions{})
+	if err != nil || result.OK || result.Error == nil || result.Error.Kind != ErrorGrammar || result.Error.Message != "split has an empty delimiter" {
+		t.Fatalf("an earlier runtime fault must precede a true presence test: %v %+v", err, result)
+	}
+}

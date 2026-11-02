@@ -1,0 +1,18 @@
+{
+  "description": "A deferred emission ends its stage before the next stage loads.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%include \"a.md\"\n%stage second\n%include \"b.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [$a:A] (X ≻ Y) %emits $a\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $Missing\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "a.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

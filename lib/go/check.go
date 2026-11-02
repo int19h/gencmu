@@ -94,11 +94,9 @@ type elisionCheckRun struct {
 	originalAt, recordAt []int
 }
 
-// elisionWatch is what the witness test gives back to a check: the marks of
-// W(D)'s links, nil where the chart does not hold W(D), and a callback that
-// receives the check's ranking, nil where it has none, and its ranker.
+// elisionWatch is the independent witness test's ranking observer.
+// Runtime tracking supplies the witness marks.
 type elisionWatch struct {
-	marks  map[*item]map[link]bool
 	ranked func(*rankResult, *ranker)
 }
 
@@ -112,8 +110,8 @@ type privateOptions struct {
 	slotAdmission func(slotStatistics)
 	// elisionCheck, when set, receives each check of elision-only that
 	// recognized R and met no error of the grammar, before it ranks, for
-	// the witness test of tests/README.md. It returns independent witness
-	// marks and a callback that receives the ranking and the ranker.
+	// the witness test of tests/README.md. It returns an independent
+	// observer that receives the ranking and the ranker.
 	// Runtime tracking supplies the ranker's marks independently.
 	elisionCheck func(*elisionCheckRun) elisionWatch
 	// loseWitness loses the witness of a check after recognition (§7.9):
@@ -123,6 +121,7 @@ type privateOptions struct {
 	// fault turns on a fault of the library's own paths in the check, to
 	// show that the shared cases catch it (tests/README.md,
 	// faults_test.go):
+	//   - "omission" bypasses the test of an omitted elidable;
 	//   - "reprocess" leaves an item that an ordinary step reaches as it
 	//     was processed while strict (§7.4);
 	//   - "route3" makes the item after the T of route 3 ordinary (§7.4);
@@ -173,7 +172,11 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	// The records, in the order of the tree's leaves (§7.2).
 	var records []Restoration
 	for _, n := range elidedNodes(tree) {
-		records = append(records, Restoration{Terminal: n.Terminal, At: n.Span[0], Source: n.Source, Value: n.sound, Tested: n.tested})
+		record := Restoration{Terminal: n.Terminal, At: n.Span[0], Source: n.Source, Tested: n.Value != nil}
+		if n.Value != nil {
+			record.Value = *n.Value
+		}
+		records = append(records, record)
 	}
 	// R: O with one synthetic token before the token at each record's
 	// position, or at the end. Records at one position keep their order.
@@ -231,29 +234,29 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 		watch = private.elisionCheck(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
 	}
 	// The check ranks with no lean (§7.7).
-	var restored *dn
-	marks := watch.marks
 	var chosenProfile ruleProfile
 	flagged := false
 	for _, rule := range g.rules {
 		flagged = flagged || rule.leftmostLongest || rule.fewest
 	}
-	protect := true
 	if flagged {
 		chosenProfile = derivationProfile(g, d)
 	}
-	if protect {
-		marks, restored = walkWitness(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
-		if restored == nil {
-			top = nil
-		}
+	marks, restored := walkWitness(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
+	if restored == nil {
+		top = nil
 	}
 	var res *rankResult
-	rk := newRanker(r, "")
+	var rk *ranker
+	if len(top) > 0 {
+		rk = newRanker(r, "")
+	} else {
+		rk = newUnfilteredRanker(r, "")
+	}
 	rk.check, rk.marks = true, marks
 	preferred := len(g.rankedHelpers) > 0
 	rawCounted := true
-	if preferred {
+	if preferred && len(top) > 0 {
 		raw := newUnfilteredRanker(r, "")
 		raw.check, raw.marks = true, marks
 		rawRes := raw.rank(top)
@@ -263,37 +266,33 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	if len(top) > 0 && private.loseWitness != "count" {
 		res = rk.rank(top)
 	}
-	if res != nil && protect && (!rawCounted || !preferred && !res.witnessCounted) {
+	if res != nil && (!rawCounted || !preferred && !res.witnessCounted) {
 		res = nil
 	}
 	better := false
 	var selected *rankResult
 	if res != nil {
 		profileOrder := compareProfiles(res.profile, chosenProfile)
-		if !preferred && profileOrder > 0 {
-			res = nil
-		} else {
-			excluded := protect && !res.witnessCounted
-			better = excluded || profileOrder < 0
-			if watch.ranked != nil && !better && !preferred {
-				copy := *res
-				selected = &copy
+		excluded := !res.witnessCounted
+		better = excluded || profileOrder < 0
+		if watch.ranked != nil && !better && !preferred {
+			copy := *res
+			selected = &copy
+		}
+		if better || res.verdict == VerdictTie {
+			competitor := res.first
+			if rk.compare(restored, competitor).kind == cIdentical {
+				competitor = res.second
 			}
-			if better || res.verdict == VerdictTie && protect {
-				competitor := res.first
-				if rk.compare(restored, competitor).kind == cIdentical {
-					competitor = res.second
-				}
-				if competitor == nil {
-					panic("reconstruction requires a distinct best admitted competitor")
-				}
-				res.first, res.second = restored, competitor
-				diff := rk.compare(restored, competitor)
-				if diff.kind == cVisDiff {
-					res.witness = [2]action{diff.va, diff.vb}
-				} else {
-					res.witness = [2]action{diff.wa, diff.wb}
-				}
+			if competitor == nil {
+				panic("reconstruction requires a distinct best admitted competitor")
+			}
+			res.first, res.second = restored, competitor
+			diff := rk.compare(restored, competitor)
+			if diff.kind == cVisDiff {
+				res.witness = [2]action{diff.va, diff.vb}
+			} else {
+				res.witness = [2]action{diff.wa, diff.wb}
 			}
 		}
 	}
@@ -333,7 +332,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 					// record's source.
 					rec := records[rc.record[k]]
 					p := rc.project[k]
-					*n = Node{Kind: KindElided, Terminal: rec.Terminal, Span: [2]int{p, p}, Source: rec.Source, sound: rec.Value, tested: rec.Tested}
+					*n = Node{Kind: KindElided, Terminal: rec.Terminal, Span: [2]int{p, p}, Source: rec.Source}
 					if rec.Tested {
 						value := rec.Value
 						n.Value = &value

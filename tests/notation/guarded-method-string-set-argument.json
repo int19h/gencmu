@@ -1,0 +1,10 @@
+{
+  "description": "A method retains its complete guarded argument during conversion.",
+  "document": "```jbogenbau\n%rule text \"x\" %conditions $.value.split($ ⟹ \"x\") = ∅\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 28
+    }
+  }
+}

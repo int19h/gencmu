@@ -1,0 +1,151 @@
+{
+  "description": "Warning features change collected warnings while one pipeline reuses its lowering (engine §§3.1, 12).",
+  "grammar": "%rule text a! b! \"x\"",
+  "input": "x",
+  "parses": [
+    {
+      "options": {
+        "features": []
+      },
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "warnings": []
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "a"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "warnings": [
+          {
+            "stage": "main",
+            "feature": "a",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "b"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "warnings": [
+          {
+            "stage": "main",
+            "feature": "b",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "a",
+          "b"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "warnings": [
+          {
+            "stage": "main",
+            "feature": "a",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          },
+          {
+            "stage": "main",
+            "feature": "b",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "options": {
+        "features": []
+      },
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "warnings": []
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "a"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "warnings": [
+          {
+            "stage": "main",
+            "feature": "a",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

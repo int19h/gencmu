@@ -12,8 +12,10 @@ import json
 import os
 from pathlib import Path
 import sys
+import tempfile
 import time
 import unittest
+from unittest.mock import patch
 from typing import Any, Callable
 
 from .shared import (
@@ -26,6 +28,7 @@ from .shared import (
     read_json,
     result_mutants,
     result_problems,
+    same_json,
     witness_lost,
     write_json,
 )
@@ -40,7 +43,7 @@ def all_cases() -> list[dict[str, Any]]:
     found: list[dict[str, Any]] = []
     for path in sorted((SHARED / "corpus").glob("*.jsonl")):
         with open(path, encoding="utf-8") as file:
-            found.extend(read_json(line) for line in file if line.strip())
+            found.extend(read_json(line) for line in file if line.strip(" \t\r\n"))
     return found
 
 
@@ -114,12 +117,52 @@ def mismatch(case: dict[str, Any], got: dict[str, Any] | str) -> str | None:
     for key in FIELDS:
         if key not in case and key not in got:
             continue
-        if case.get(key) != got.get(key):
+        if not same_json(case.get(key), got.get(key)):
             return f"{case['id']} ({case['pipeline']}): {key} expected {write_json(case.get(key))}, got {write_json(got.get(key))}"
     return None
 
 
 class Corpus(unittest.TestCase):
+    def test_jsonl_blank_lines_use_only_json_whitespace(self) -> None:
+        record = {"id": "synthetic", "text": "\u00a0\u2028\ufeff", "pipeline": "synthetic",
+                  "expect": "reject", "stage": "main", "at": 0}
+        line = json.dumps(record, ensure_ascii=False) + "\n"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "corpus").mkdir()
+            file = root / "corpus" / "synthetic.jsonl"
+            with patch(__name__ + ".SHARED", root):
+                for blank in ("", " ", "\t", "\r", "\n", " \t\r\n"):
+                    with self.subTest(blank=blank):
+                        file.write_text(blank + "\n" + line + blank + "\n", encoding="utf-8")
+                        self.assertTrue(same_json(all_cases(), [record]))
+
+    def test_jsonl_refuses_non_json_whitespace_on_every_line(self) -> None:
+        record = {"id": "synthetic", "text": "a", "pipeline": "synthetic",
+                  "expect": "reject", "stage": "main", "at": 0}
+        line = json.dumps(record)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "corpus").mkdir()
+            file = root / "corpus" / "synthetic.jsonl"
+            with patch(__name__ + ".SHARED", root):
+                for whitespace in ("\u00a0", "\v", "\f", "\u2028", "\u2029", "\u0085", "\u2003", "\ufeff"):
+                    for text in (whitespace + "\n" + line, line + "\n" + whitespace,
+                                 whitespace + line, line + whitespace):
+                        with self.subTest(whitespace=whitespace, text=text):
+                            file.write_text(text, encoding="utf-8")
+                            with self.assertRaises((AssertionError, ValueError)):
+                                all_cases()
+
+    def test_json_expectations_distinguish_booleans_from_numbers(self) -> None:
+        from .shared import run_case
+
+        _, result, _, _ = run_case({"grammar": '%rule text "a"', "input": "b"})
+        case = {"id": "synthetic", "pipeline": "synthetic", "text": "b", "expect": "reject", "stage": "main", "at": 0}
+        self.assertIsNone(mismatch(case, outcome(case, result=result)))
+        result.error.source = (False, result.error.source[1])
+        self.assertIsNotNone(mismatch(case, outcome(case, result=result)))
+
     def test_corpus_selection(self) -> None:
         cases = all_cases()
         if os.environ.get("GENCMU_CORPUS") != "full":
@@ -163,8 +206,10 @@ class Corpus(unittest.TestCase):
     def test_a_result_that_breaks_an_invariant_is_refused(self) -> None:
         """The runner checks the invariants on the canonical result of each
         corpus case, and refuses each shared mutant (tests/README.md,
-        "Result mutants"). No text ties in a bundled pipeline, so the tied
-        corpus cases, if any, only pass as they are."""
+        "Result mutants"). Each corpus case that expects a tie must also pass
+        without a mutation."""
+        tied = [case for case in all_cases() if "ties" in case]
+        self.assertTrue(tied, "no corpus cases expect a tie")
         for mutant in result_mutants():
             with self.subTest(mutant=mutant["name"]):
                 pipeline, load_error = load_case_pipeline(mutant["engine_case"])
@@ -175,9 +220,12 @@ class Corpus(unittest.TestCase):
                 outcome({}, result=result)
                 with self.assertRaisesRegex(AssertionError, "breaks an invariant"):
                     outcome({}, lambda value: apply_mutant(value, mutant), result=result)
-        for case in all_cases():
-            if "ties" in case:
-                self.assertIsNone(mismatch(case, outcome(case)))
+        for case in tied:
+            self.assertIsNone(mismatch(case, outcome(case)))
+
+    def test_tie_control_selection_is_required(self) -> None:
+        with patch(__name__ + ".all_cases", return_value=[]), self.assertRaisesRegex(AssertionError, "no corpus cases expect a tie"):
+            self.test_a_result_that_breaks_an_invariant_is_refused()
 
     def test_the_runner_refuses_the_error_elision_witness_lost(self) -> None:
         """The runner fails a corpus case whose result is the error
@@ -193,7 +241,7 @@ class Corpus(unittest.TestCase):
 
         case = {"id": "lost", "pipeline": "lojban/cll", "text": "le sutra tavla"}
         clean = outcome(case)
-        self.assertEqual(clean.get("verdict"), "resolved")
+        self.assertTrue(same_json(clean.get("verdict"), "resolved"))
         reconstruct = _stage._reconstruct
 
         def no_roots(context: Any) -> Any:
@@ -220,7 +268,7 @@ def add_corpus_tests() -> None:
     if os.environ.get("GENCMU_CORPUS") != "full":
         core = {line.strip() for line in (SHARED / "core.txt").read_text(encoding="utf-8").splitlines() if line.strip()}
         cases = [case for case in cases if case["id"] in core]
-    # Schedule long texts first, as the previous pool did.
+    # Schedule long texts first to reduce the wait for the last worker.
     cases.sort(key=lambda case: -len(case["text"]))
     for index, case in enumerate(cases):
         # The index keeps names unique even when IDs normalize alike.

@@ -84,12 +84,6 @@ export declare function compareCodePoints(left: string, right: string): number;
  * @returns {string[]}
  */
 export declare function sortedTags(tags: TagSet): string[];
-/**
- * Whether a string is a name, and so an identifier tag (engine §1).
- * @param {string} tag
- * @returns {boolean}
- */
-export declare function isName(tag: string): boolean;
 /** @param {string} string @param {string} digits @returns {Set<string>} */
 export declare function ngrams(string: string, digits: string): Set<string>;
 /**
@@ -112,10 +106,3 @@ export declare function isTag(tag: unknown, unicode?: {
     changesInDocument?(code: number): boolean;
     canonicalTag?(name: string): string | null;
 }): boolean;
-/**
- * The written form of a range, its identity as a terminal (engine §4):
- * its two ends, in their canonical spelling, joined by `..`.
- * @param {[string, string]} range
- * @returns {string}
- */
-export declare function rangeName(range: [string, string]): string;

@@ -1797,6 +1797,18 @@
       "options": [
         {}
       ]
+    },
+    {
+      "grammar": "%rule text $mode:_ $x:body\n%conditions ($mode = \"p\" ⟹ $x.matches(wrap)), ($mode = \"q\" ⟹ $x.ends(r))\n%rule body \"a\" \"a\"\n%rule r \"a\" [\"a\"]\n%conditions $.starts-input ∨ $.preceding-tokens.onward.matches(wrap)\n%rule wrap $x:body\n%conditions $x.matches(r)",
+      "texts": [
+        "paa",
+        "qaa",
+        "paa",
+        "qaa"
+      ],
+      "options": [
+        {}
+      ]
     }
   ]
 }

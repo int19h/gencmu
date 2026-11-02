@@ -1,0 +1,14 @@
+{
+  "description": "Template argument faults in conditions precede those in emission clauses.",
+  "grammar": "%ambiguity-resolution greedy\n%rule t(@X) \"a\"\n%rule bad \"b\"\n%conditions\n  $.matches(t($COND))\n%emits\n  $ :: $.tags(t($EMIT))",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$COND is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 6,
+      "column": 15
+    }
+  }
+}

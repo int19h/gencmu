@@ -1,7 +1,6 @@
 package gencmu
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 // domPattern holds either a node predicate or a children expression.
 // Its shape distinguishes the two sorts in the grammar DOM.
 type domPattern struct {
+	Call         *domSourceCall
 	Kind, Name   string
 	At           [2]int
 	Items        []*domPattern
@@ -20,6 +20,115 @@ type domPattern struct {
 	Ends         [2]*domTerm
 	Exact        bool
 	Attached     []*domPattern
+}
+
+// checkPatternDepth follows substitutions before copying or compiling them.
+// Shared nodes retain the greatest visited depth in each flattening context.
+func (g *stageGrammar) checkPatternDepth(doc string, root *domTerm, item [2]int) *Error {
+	type entry struct {
+		t      *domTerm
+		p      *domPattern
+		depth  int
+		parent string
+		at     [2]int
+	}
+	type key struct {
+		t      *domTerm
+		p      *domPattern
+		parent string
+	}
+	pending := []entry{{t: root, depth: 1}}
+	empty := emptyPattern()
+	seen := map[key]int{}
+	for len(pending) > 0 {
+		e := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		kind, name, at := "", "", [2]int{}
+		if e.t != nil {
+			kind, at = e.t.Kind, e.t.At
+			if kind == tmConst {
+				name = e.t.Str
+			}
+			if kind == tmPattern {
+				e.p, e.t = e.t.Pattern, nil
+				pending = append(pending, e)
+				continue
+			}
+			if kind == tmEmptySet {
+				e.p, e.t = empty, nil
+				pending = append(pending, e)
+				continue
+			}
+		} else {
+			kind, at = e.p.Kind, e.p.At
+			if kind == "constant" {
+				name = e.p.Name
+			}
+		}
+		if name != "" {
+			value := g.constants[name].value
+			if value.ty == tyPattern {
+				e.t, e.p = nil, value.pattern
+				if e.at == [2]int{} {
+					e.at = at
+				}
+				pending = append(pending, e)
+				continue
+			}
+			if e.t != nil && value.ty == tySet {
+				e.t, e.p = nil, empty
+				if e.at == [2]int{} {
+					e.at = at
+				}
+				pending = append(pending, e)
+				continue
+			}
+		}
+		flat := (kind == tmUnion || kind == tmIntersection) && kind == e.parent
+		if !flat && e.depth > maxDOMDepth {
+			where := e.at
+			if where == [2]int{} {
+				where = item
+			}
+			return g.constError(doc, where, "a resolved pattern is nested more than 256 deep")
+		}
+		k := key{e.t, e.p, e.parent}
+		if previous, ok := seen[k]; ok && previous >= e.depth {
+			continue
+		}
+		seen[k] = e.depth
+		child := e
+		child.parent = ""
+		child.depth++
+		if kind == tmUnion || kind == tmIntersection || kind == tmDifference {
+			child.parent = kind
+			if flat {
+				child.depth--
+			}
+		}
+		if e.t != nil {
+			if kind == tmUnion || kind == tmIntersection || kind == tmDifference {
+				for i := len(e.t.Items) - 1; i >= 0; i-- {
+					child.t = e.t.Items[i]
+					pending = append(pending, child)
+				}
+			}
+		} else {
+			if kind == "sequence" {
+				child.depth = e.depth
+				child.parent = e.parent
+			}
+			for i := len(e.p.Attached) - 1; i >= 0; i-- {
+				child.p = e.p.Attached[i]
+				pending = append(pending, child)
+			}
+			for i := len(e.p.Items) - 1; i >= 0; i-- {
+				child.p = e.p.Items[i]
+				pending = append(pending, child)
+			}
+		}
+	}
+	return nil
 }
 
 func walkPattern(p *domPattern, visit func(*domPattern)) {
@@ -77,7 +186,7 @@ func patternProblem(root *domPattern, depth int, check func(*domPattern, int) st
 			}
 			continue
 		}
-		if check != nil && (p.Kind == "name" || p.Kind == "literal" || p.Kind == "range" || p.Kind == "wildcard" || p.Kind == "test") {
+		if check != nil && (p.Kind == "param" || p.Kind == "call" || p.Kind == "name" || p.Kind == "literal" || p.Kind == "range" || p.Kind == "wildcard" || p.Kind == "test") {
 			if problem := check(p, e.depth); problem != "" {
 				return problem
 			}
@@ -89,9 +198,7 @@ func patternProblem(root *domPattern, depth int, check func(*domPattern, int) st
 			for _, v := range p.Items {
 				push(v, false)
 			}
-		case "children":
-			push(p.Items[0], true)
-		case "name", "terminal", "constant", "literal", "range", "wildcard", "any":
+		case "param", "call", "name", "terminal", "constant", "literal", "range", "wildcard", "any":
 		default:
 			return "a malformed pattern"
 		}
@@ -100,12 +207,6 @@ func patternProblem(root *domPattern, depth int, check func(*domPattern, int) st
 		}
 	}
 	return ""
-}
-func decodePattern(raw json.RawMessage, children bool, depth int) (*domPattern, error) {
-	if children {
-		return nil, fmt.Errorf("a pattern child must be an item in an array")
-	}
-	return decodeLayeredPattern(raw, depth)
 }
 func (w *jsonWriter) pattern(p *domPattern) { writeLayeredPattern(w, p) }
 func patternKey(p *domPattern) string {
@@ -156,7 +257,7 @@ type patternMachine struct {
 	states      []patternState
 	stateIDs    map[string]int
 	transitions map[string]int
-	empty       int
+	empty, seal int
 }
 
 func newPatternMachine(roots []*domPattern) *patternMachine {
@@ -169,6 +270,7 @@ func newPatternMachine(roots []*domPattern) *patternMachine {
 		s.relations = append(s.relations, n.epsilon)
 	}
 	m.empty = m.intern(s)
+	m.seal = m.nodeState(new(big.Int), false)
 	return m
 }
 func (m *patternMachine) compile(p *domPattern) int {
@@ -187,11 +289,8 @@ func (m *patternMachine) compile(p *domPattern) int {
 			pred.operands = append(pred.operands, m.compile(n))
 		}
 	}
-	if p.Kind == "children" || p.Attached != nil {
+	if p.Attached != nil {
 		items := &domPattern{Kind: "sequence", Items: p.Attached}
-		if p.Kind == "children" {
-			items = p.Items[0]
-		}
 		n := m.sequence(items)
 		pred.machine = len(m.machines)
 		m.machines = append(m.machines, n)
@@ -212,8 +311,10 @@ func (m *patternMachine) sequence(p *domPattern) patternNFA {
 		case "node":
 			edge(a, b, m.compile(p.Items[0]))
 		case "siblings":
-			edge(a, b, -2)
-			edge(a, a, -1)
+			gap := state()
+			edge(a, gap, -2)
+			edge(gap, gap, -1)
+			edge(gap, b, -2)
 		case "sequence":
 			if len(p.Items) == 0 {
 				edge(a, b, -2)
@@ -235,14 +336,14 @@ func (m *patternMachine) sequence(p *domPattern) patternNFA {
 			build(p.Items[0], a, b)
 		case "repeat":
 			x, y := state(), state()
-			build(p.Items[0], a, x)
-			edge(x, b, -2)
+			edge(a, x, -2)
+			build(p.Items[0], x, y)
+			edge(y, b, -2)
 			if len(p.Items) == 2 {
-				build(p.Items[1], x, y)
+				build(p.Items[1], y, x)
 			} else {
-				edge(x, y, -2)
+				edge(y, x, -2)
 			}
-			build(p.Items[0], y, x)
 		}
 	}
 	build(p, 0, 1)
@@ -284,9 +385,6 @@ func (m *patternMachine) intern(s patternState) int {
 	id := len(m.states)
 	m.states = append(m.states, s)
 	m.stateIDs[key] = id
-	if w := work.Load(); w != nil {
-		w.structuralStates.add("structural states")
-	}
 	return id
 }
 func patternCompose(a, b []*big.Int) []*big.Int {
@@ -319,9 +417,6 @@ func (m *patternMachine) concat(a, b int) int {
 	}
 	id := m.intern(s)
 	m.transitions[key] = id
-	if w := work.Load(); w != nil {
-		w.structuralTransitions.add("structural transitions")
-	}
 	return id
 }
 func (m *patternMachine) nodeState(bits *big.Int, empty bool) int {
@@ -348,7 +443,7 @@ func (m *patternMachine) nodeState(bits *big.Int, empty bool) int {
 	}
 	return m.intern(s)
 }
-func (m *patternMachine) sealed() int { return m.nodeState(new(big.Int), false) }
+func (m *patternMachine) sealed() int { return m.seal }
 
 func (m *patternMachine) node(name string, children int, terminal, sound string, tags *tagset) int {
 	leaf := ""
@@ -371,8 +466,6 @@ func (m *patternMachine) node(name string, children int, terminal, sound string,
 			holds = tags != nil && terminal == p.Name
 		case "test":
 			holds = tags != nil && patternLeafMatches(p, terminal, sound, tags)
-		case "children":
-			holds = true
 		case "any":
 			holds = name != "" || tags != nil
 		case "path":
@@ -400,7 +493,7 @@ func (m *patternMachine) node(name string, children int, terminal, sound string,
 			n := m.machines[pr.machine]
 			holds = holds && s.relations[pr.machine][n.start].Bit(n.end) != 0
 		}
-		if !p.Exact && (p.Kind == "name" || p.Kind == "terminal" || p.Kind == "test" || p.Kind == "children" || p.Kind == "any") && s.count == 1 {
+		if !p.Exact && (p.Kind == "name" || p.Kind == "terminal" || p.Kind == "test" || p.Kind == "any") && s.count == 1 {
 			holds = holds || s.first.Bit(i) != 0
 		}
 		if holds {
@@ -409,9 +502,6 @@ func (m *patternMachine) node(name string, children int, terminal, sound string,
 	}
 	id := m.nodeState(bits, tags == nil && s.count == 0)
 	m.transitions[key] = id
-	if w := work.Load(); w != nil {
-		w.structuralTransitions.add("structural transitions")
-	}
 	return id
 }
 func (m *patternMachine) matches(state int, p *domPattern) bool {
@@ -446,7 +536,7 @@ func ruleHasPattern(r *domRule) bool {
 }
 
 func emptyPattern() *domPattern {
-	p := &domPattern{Kind: "children", Items: []*domPattern{{Kind: "siblings"}}}
+	p := &domPattern{Kind: "any", Attached: []*domPattern{{Kind: "siblings"}}}
 	return &domPattern{Kind: tmDifference, Items: []*domPattern{p, p}}
 }
 func patternLiteral(v *constValue) *domTerm {

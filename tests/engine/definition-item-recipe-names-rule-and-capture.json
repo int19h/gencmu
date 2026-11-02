@@ -1,0 +1,9 @@
+{
+  "description": "Definition diagnostics follow production order and name each absent capture.",
+  "grammar": "%rule text $a:\"a\" [$b:\"b\"]\n%emits $a := $b.value",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "an item recipe of text uses absent capture $b"
+  }
+}

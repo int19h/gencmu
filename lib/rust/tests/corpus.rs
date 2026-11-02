@@ -11,6 +11,10 @@ use std::sync::{Arc, Mutex};
 
 use common::{feature_names, parse_json, repository, Value};
 
+fn read_cases(text: &str) -> Result<Vec<Value>, String> {
+    text.lines().filter(|line| !line.bytes().all(|byte| matches!(byte, b' ' | b'\t' | b'\r'))).map(parse_json).collect()
+}
+
 fn all_cases() -> Vec<Value> {
     let directory = repository().join("tests/corpus");
     let mut files: Vec<_> = std::fs::read_dir(directory)
@@ -21,13 +25,50 @@ fn all_cases() -> Vec<Value> {
     files.sort();
     let mut cases = Vec::new();
     for file in files {
-        for line in std::fs::read_to_string(&file).expect("a corpus file").lines() {
-            if !line.trim().is_empty() {
-                cases.push(parse_json(line).unwrap_or_else(|error| panic!("{}: {error}", file.display())));
+        let text = std::fs::read_to_string(&file).expect("a corpus file");
+        cases.extend(read_cases(&text).unwrap_or_else(|error| panic!("{}: {error}", file.display())));
+    }
+    cases
+}
+
+#[test]
+fn jsonl_reader_refuses_non_json_whitespace() {
+    let record = r#"{"id":"whitespace","pipeline":"lojban/cll","text":"","expect":"accept"}"#;
+    let mut accepted = Vec::new();
+    for whitespace in [
+        '\u{b}', '\u{c}', '\u{85}', '\u{a0}', '\u{1680}', '\u{2007}', '\u{2028}', '\u{2029}', '\u{202f}', '\u{3000}',
+        '\u{feff}',
+    ] {
+        for text in [
+            format!("{whitespace}\n{record}\n"),
+            format!("{record}\n{whitespace}\n"),
+            format!(" \t{whitespace}\r\n{record}\n"),
+            format!("{record}\n \t{whitespace}\r\n"),
+            format!("{whitespace}{record}\n"),
+            format!("{record}{whitespace}\n"),
+        ] {
+            if read_cases(&text).is_ok() {
+                accepted.push(text);
             }
         }
     }
-    cases
+    assert!(accepted.is_empty(), "accepted invalid JSONL whitespace: {accepted:?}");
+}
+
+#[test]
+fn jsonl_reader_keeps_records_and_json_whitespace() {
+    for text in ["", "\n", " \t\r\n\t \n\r"] {
+        assert!(read_cases(text).unwrap().is_empty(), "{text:?}");
+    }
+    let record = r#"{"id":"whitespace","pipeline":"lojban/cll","text":"","expect":"accept"}"#;
+    for text in [record.to_string(), format!(" \t\r\n \t{record}\t\r\n\r\n")] {
+        assert_eq!(read_cases(&text).unwrap(), vec![parse_json(record).unwrap()]);
+    }
+    let string_record = r#"{"text":" \u000b\u000c\u2028\ufeff"}"#;
+    assert_eq!(
+        read_cases(&format!("\n{record}\r\n{string_record}\n\t\n")).unwrap(),
+        vec![parse_json(record).unwrap(), parse_json(string_record).unwrap()]
+    );
 }
 
 fn string(value: &str) -> Value {
@@ -121,7 +162,7 @@ fn outcome(pipeline: &gencmu::Pipeline, case: &Value) -> Result<BTreeMap<&'stati
     if let Some(output) =
         result.stages.iter().find(|stage| stage.name == "words").and_then(|stage| stage.output.as_ref())
     {
-        // Each word is written as its label (tests/README.md).
+        // Each word is written as its image (tests/README.md).
         let words = output.iter().map(|token| string(&token.image)).collect();
         got.insert("words", Value::Array(words));
     }
@@ -262,4 +303,25 @@ fn the_corpus_runner_refuses_the_error_elision_witness_lost() {
         let problem = lost.expect_err("the runner refuses it");
         assert!(problem.contains("elision-witness-lost"), "{problem}");
     }
+}
+
+#[test]
+fn corpus_comparison_ignores_object_member_order_and_preserves_array_order() {
+    let got = BTreeMap::from([
+        ("error", parse_json(r#"{"kind":"ambiguous","reason":"tie"}"#).unwrap()),
+        ("ties", parse_json(r#"["a","b"]"#).unwrap()),
+    ]);
+    let case = parse_json(r#"{"ties":["a","b"],"error":{"reason":"tie","kind":"ambiguous"}}"#).unwrap();
+    assert_eq!(compare(&case, &got), None);
+    for text in [
+        r#"{"ties":["b","a"],"error":{"reason":"tie","kind":"ambiguous"}}"#,
+        r#"{"ties":["a","b"],"error":{"reason":"other","kind":"ambiguous"}}"#,
+        r#"{"ties":["a","b"],"error":{"kind":"ambiguous"}}"#,
+    ] {
+        assert!(compare(&parse_json(text).unwrap(), &got).is_some());
+    }
+    assert_eq!(
+        parse_json(r#"{"nested":{"a":1,"b":2},"other":true}"#).unwrap(),
+        parse_json(r#"{"other":true,"nested":{"b":2,"a":1}}"#).unwrap()
+    );
 }

@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 use crate::earley::{Cap, Caps, EngineError, Frame, Recognizer, Tok};
 use crate::fxhash::{FxMap, FxSet};
 use crate::grammar::Implication;
-use crate::lower::{LEmit, LEmitItem, LTerm, Lowered};
+use crate::lower::{LCond, LEmit, LEmitItem, LTerm, Lowered, Sym};
 use crate::rank::{DNode, Ranker};
 use crate::result::{Attachment, Node, NodeKind, Restoration, Warning};
 use crate::tags::{SetId, TagId, TagList, Tags};
@@ -80,8 +80,8 @@ pub(crate) fn build(ranker: &Ranker, root: u32) -> ITree {
 /// What the public tree needs to know of a stage: its tokens and tag names.
 pub(crate) struct TreeContext<'a> {
     pub g: &'a Lowered,
-    /// The stage's input.
-    pub tokens: &'a [Tok],
+    /// The source index of the stage's input.
+    pub sources: &'a Sources,
     pub tag_map: &'a dyn Fn(SetId) -> crate::result::Tags,
     /// For a reading of the check of `elision-only`, how the reconstructed
     /// input maps to the stage's input (§7.10).
@@ -189,7 +189,7 @@ pub(crate) fn source_of(sources: &Sources, start: usize, end: usize) -> std::ops
 /// Builds the result's tree (§12): helpers spliced out, a chain's levels
 /// as nested rule nodes, absent elidable optionals as elided nodes.
 pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
-    let originals = Sources::new(context.tokens);
+    let originals = context.sources;
     let mut fragments: Vec<Vec<Node>> = (0..tree.nodes.len()).map(|_| Vec::new()).collect();
     for index in (0..tree.nodes.len()).rev() {
         let node = &tree.nodes[index];
@@ -220,7 +220,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                         terminal: Some(context.g.terminals[terminal as usize].clone()),
                         token: Some(at),
                         span: at..at + 1,
-                        source: source_of(&originals, at, at + 1),
+                        source: source_of(originals, at, at + 1),
                         tags: crate::result::Tags::new(),
                         value: None,
                         children: Vec::new(),
@@ -254,7 +254,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                             terminal: Some(terminal.clone()),
                             token: None,
                             span: start..start,
-                            source: source_of(&originals, start, start),
+                            source: source_of(originals, start, start),
                             tags: crate::result::Tags::new(),
                             value: rule.elided_test.and_then(|id| {
                                 let test = &context.g.tests[id as usize];
@@ -271,7 +271,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                         terminal: None,
                         token: None,
                         span: start..end,
-                        source: source_of(&originals, start, end),
+                        source: source_of(originals, start, end),
                         tags: (context.tag_map)(tags),
                         value: None,
                         children,
@@ -294,11 +294,10 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
 pub(crate) fn warnings_of(
     tree: &ITree,
     g: &Lowered,
-    tokens: &[Tok],
+    sources: &Sources,
     features: &BTreeSet<String>,
     stage: &str,
 ) -> Vec<Warning> {
-    let sources = Sources::new(tokens);
     let mut warnings = Vec::new();
     let mut stack = vec![0u32];
     while let Some(index) = stack.pop() {
@@ -314,7 +313,7 @@ pub(crate) fn warnings_of(
                 feature: feature.clone(),
                 rule: g.rules[production.rule as usize].name.clone(),
                 span: start as usize..end as usize,
-                source: source_of(&sources, start as usize, end as usize),
+                source: source_of(sources, start as usize, end as usize),
             });
         }
         stack.extend(node.children.iter().rev());
@@ -349,7 +348,7 @@ enum Work<'g> {
         tags: SetId,
         strings: &'g crate::dom::Channels,
     },
-    /// An inserted token with one tag, at a token index, in a node.
+    /// An inserted token with an optional tag term, at a token index, in a node.
     Insert {
         tag: Option<&'g LTerm>,
         at: u32,
@@ -477,8 +476,8 @@ fn attachment(recognizer: &Recognizer, token: Emitted) -> Attachment {
     }
 }
 
-/// The tags an emission item's term gives a token (§11): a term that gives
-/// none is an error of the grammar, since no terminal could read the token.
+/// The tags an emission item's term gives a token (§11). An empty set is
+/// legal, and string terminals and `_` can read the resulting token.
 fn item_tags(recognizer: &mut Recognizer, term: &LTerm, frame: &Frame, tokens: &[Tok]) -> Result<SetId, EngineError> {
     recognizer.tag_term(term, frame, tokens, 0)
 }
@@ -573,30 +572,91 @@ impl Implications {
     }
 }
 
+/// The boundary names that emission tags can test, resolved once per emission.
+fn emission_targets(g: &Lowered) -> FxMap<String, Sym> {
+    let mut terms = Vec::new();
+    for production in &g.prods {
+        match &production.emit {
+            LEmit::This(tags) => terms.extend(tags.iter().flatten()),
+            LEmit::Items(items) => terms.extend(items.iter().filter_map(|item| match item {
+                LEmitItem::Cap(_, tags, _, _) | LEmitItem::Insert(tags, _) => tags.as_ref(),
+            })),
+            _ => {}
+        }
+    }
+    enum Part<'a> {
+        Term(&'a LTerm),
+        Condition(&'a LCond),
+    }
+    let mut pending: Vec<_> = terms.into_iter().map(Part::Term).collect();
+    let mut names = FxSet::default();
+    while let Some(part) = pending.pop() {
+        match part {
+            Part::Term(term) => match term {
+                LTerm::If(condition, value) => pending.extend([Part::Condition(condition), Part::Term(value)]),
+                LTerm::Union(ts) | LTerm::Inter(ts) | LTerm::Concat(ts) => pending.extend(ts.iter().map(Part::Term)),
+                LTerm::Diff(a, b) | LTerm::Split(a, b) => pending.extend([Part::Term(a), Part::Term(b)]),
+                LTerm::Classify(t, _) | LTerm::Ngrams(t, _) => pending.push(Part::Term(t)),
+                _ => {}
+            },
+            Part::Condition(condition) => match condition {
+                LCond::Boundary(_, _, targets, _, _) => names.extend(targets.iter().map(String::as_str)),
+                LCond::Not(c) => pending.push(Part::Condition(c)),
+                LCond::All(cs) | LCond::Any(cs) => pending.extend(cs.iter().map(Part::Condition)),
+                LCond::If(a, b) => pending.extend([Part::Condition(a), Part::Condition(b)]),
+                LCond::Cmp(_, a, b) => pending.extend([Part::Term(a), Part::Term(b)]),
+                _ => {}
+            },
+        }
+    }
+    if names.is_empty() {
+        return FxMap::default();
+    }
+    g.rules
+        .iter()
+        .enumerate()
+        .map(|(id, rule)| (rule.name.as_str(), Sym::N(id as u32)))
+        .chain(g.terminals.iter().enumerate().map(|(id, name)| (name.as_str(), Sym::T(id as u32))))
+        .filter(|(name, _)| names.contains(name))
+        .map(|(name, symbol)| (name.to_string(), symbol))
+        .collect()
+}
+
 /// Walks the chosen tree from the left and emits the next stage's tokens
 /// (§11).
-pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) -> Result<Vec<Emitted>, EngineError> {
+pub(crate) fn emit(
+    recognizer: &mut Recognizer,
+    tree: &ITree,
+    tokens: &[Tok],
+    sources: &Sources,
+) -> Result<Vec<Emitted>, EngineError> {
     let g = recognizer.g;
     recognizer.shared.emission_boundaries.clear();
-    for node in &tree.nodes {
-        let (name, start, end) = match &node.kind {
-            IKind::Read { tok, terminal } => (g.terminals[*terminal as usize].as_str(), *tok, *tok + 1),
-            IKind::Close { prod, start, end, .. } => {
-                let r = &g.rules[g.prods[*prod as usize].rule as usize];
-                if r.helper || start == end {
-                    continue;
+    recognizer.shared.emission_targets = emission_targets(g);
+    if !recognizer.shared.emission_targets.is_empty() {
+        let targets: FxSet<_> = recognizer.shared.emission_targets.values().copied().collect();
+        for node in &tree.nodes {
+            let (symbol, start, end) = match &node.kind {
+                IKind::Read { tok, terminal } => (Sym::T(*terminal), *tok, *tok + 1),
+                IKind::Close { prod, start, end, .. } => {
+                    let rule = g.prods[*prod as usize].rule;
+                    if g.rules[rule as usize].helper || start == end {
+                        continue;
+                    }
+                    (Sym::N(rule), *start, *end)
                 }
-                (r.name.as_str(), *start, *end)
+            };
+            if targets.contains(&symbol) {
+                recognizer.shared.emission_boundaries.insert((true, start, symbol));
+                recognizer.shared.emission_boundaries.insert((false, end, symbol));
             }
-        };
-        recognizer.shared.emission_boundaries.entry((true, start)).or_default().insert(name.to_string());
-        recognizer.shared.emission_boundaries.entry((false, end)).or_default().insert(name.to_string());
+        }
     }
-    let sources = Sources::new(tokens);
     // The stage's implications, as tag sets of this parse (§11).
     let mut implications = Implications::new(&mut recognizer.shared.tags, &g.implications);
     let mut out: Vec<Emitted> = Vec::new();
-    let mut strings = crate::strings::Strings::new(g, tree, tokens, recognizer.shared.text, recognizer.shared.unicode);
+    let mut strings =
+        crate::strings::Strings::new(g, tree, tokens, sources, recognizer.shared.text, recognizer.shared.unicode);
     let mut forwarding = Forwarding { on: tokens.iter().any(Tok::has_attachments), inherited: FxSet::default() };
     // The output positions of the marks of the items being emitted.
     let mut marks: Vec<usize> = Vec::new();
@@ -710,7 +770,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     None => tags,
                 };
                 let tags = implications.implied(&mut recognizer.shared.tags, tags);
-                let mut token = cover(recognizer, tree, tokens, &sources, &mut forwarding, node, tags)?;
+                let mut token = cover(recognizer, tree, tokens, sources, &mut forwarding, node, tags)?;
                 (token.value, token.image) = strings.item(owner, Some(node), channels)?;
                 out.push(token);
             }
@@ -732,7 +792,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 out.push(carrier);
             }
             Work::Insert { tag, at, node, anchor, strings: channels } => {
-                let (start, end) = span_of(tree, node);
+                let (start, _) = span_of(tree, node);
                 // At the source end of the token before, or at the start of
                 // the constituent's source if `at` is its start.
                 let source = if let Some(anchor) = anchor {
@@ -744,8 +804,6 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     }
                 } else if at > start {
                     tokens[at as usize - 1].source.1
-                } else if start < end {
-                    sources.of(start as usize, end as usize).0
                 } else {
                     sources.empty(start as usize)
                 };

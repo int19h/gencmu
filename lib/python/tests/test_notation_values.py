@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 import unittest
+from unittest.mock import patch
 from typing import Any
 from gencmu import GencmuError
 
 from gencmu._pipeline import _Resources, _resources, bundled_text, read_document
 
-from .shared import SHARED, load_json, mismatch, write_json
+from .shared import SHARED, load_json, mismatch, same_json, validate_notation_case, write_json
 from .test_notation_cases import check_notation_cache_paths
 
 
@@ -36,7 +38,75 @@ def value_notation(aliases: list[dict[str, Any]]) -> str:
 
 
 class NotationValues(unittest.TestCase):
+    def test_actual_error_coordinates_keep_their_json_types(self) -> None:
+        case = {"id": "coordinates", "document": "", "aliases": [], "expect": {"error": {"line": 1, "column": 1}}}
+        for line, column in ((1, 1), (True, 1), (1, True), (False, 1), (1, False), ("1", 1), (1, "1"), (None, 1), (1, None)):
+            error = GencmuError("reason", line=line, column=column)
+            with self.subTest(line=line, column=column), patch(__name__ + ".value_notation", return_value=""), patch(__name__ + ".read_document", side_effect=error):
+                if type(line) is int and type(column) is int:
+                    self.check_case(case)
+                else:
+                    with self.assertRaises(AssertionError):
+                        self.check_case(case)
+
+    def test_generated_names_refuse_collisions(self) -> None:
+        original = NotationValues
+        for ids in (("duplicate", "duplicate"), ("dash-name", "dash_name"), ("supplied_errors_compare_the_top_level_message",)):
+            class Generated(original):
+                pass
+
+            cases = [{"id": name, "aliases": [], "document": "", "expect": {"dom": {}}} for name in ids]
+            with self.subTest(ids=ids), patch(__name__ + ".NotationValues", Generated), patch(__name__ + ".load_json", return_value={"cases": cases}):
+                with self.assertRaisesRegex(AssertionError, "duplicate test name"):
+                    add_value_tests()
+            self.assertIs(Generated.test_supplied_errors_compare_the_top_level_message, original.test_supplied_errors_compare_the_top_level_message)
+
+    def test_unique_generated_names_retain_each_case(self) -> None:
+        class Generated(NotationValues):
+            pass
+
+        cases = [{"id": name, "aliases": [], "document": "", "expect": {"dom": {}}} for name in ("unique-generated-a", "unique_generated_b")]
+        with patch(__name__ + ".NotationValues", Generated), patch(__name__ + ".load_json", return_value={"cases": cases}):
+            add_value_tests()
+        self.assertEqual({name for name in Generated.__dict__ if name.startswith("test_")},
+                         {"test_unique_generated_a", "test_unique_generated_b"})
+        seen = []
+        with patch.object(Generated, "check_case", side_effect=seen.append):
+            Generated().test_unique_generated_a()
+            Generated().test_unique_generated_b()
+        self.assertTrue(same_json(seen, cases))
+
+    def test_supplied_errors_compare_the_top_level_message(self) -> None:
+        case = deepcopy(next(item for item in load_json(SHARED / "notation-values.json")["cases"]
+                             if item["id"] == "directive-name-single-sigil"))
+        case["expect"]["message"] = "a malformed directive"
+        self.check_case(case)
+        case["expect"]["message"] = "a wrong reason"
+        with self.assertRaises(AssertionError):
+            self.check_case(case)
+
+    def test_supplied_cases_refuse_invalid_metadata_before_reading(self) -> None:
+        base = {"id": "invalid-metadata", "document": "", "aliases": [], "expect": {"error": {"line": 1, "column": 1}}}
+        changes = (
+            {"expect": {"error": {"line": 1, "column": 1, "message": "wrong level"}}},
+            {"expect": {"error": {"line": 1, "column": 1}, "bogus": True}},
+            {"expect": {"error": {"line": True, "column": 1}}},
+            {"expect": {"error": {"line": 1, "column": 1}, "message": False}},
+            {"expect": {"dom": {}, "message": "requires an error"}},
+            {"expect": {"dom": {}, "error": {"line": 1, "column": 1}}},
+            {"bogus": True}, {"aliases": [{"spelling": "x", "value": "y", "tags": [], "bogus": True}]},
+        )
+        with patch(__name__ + ".value_notation", side_effect=RuntimeError("bootstrap construction must not run")) as bootstrap:
+            for change in changes:
+                with self.subTest(change=change), self.assertRaises(AssertionError):
+                    self.check_case({**base, **change})
+            bootstrap.assert_not_called()
+
+    def test_ordinary_notation_keeps_nested_error_messages(self) -> None:
+        validate_notation_case({"document": "", "expect": {"error": {"line": 2, "column": 15, "message": "agreed reason"}}})
+
     def check_case(self, case: dict[str, Any]) -> None:
+        validate_notation_case(case, values=True)
         name = case["id"] + ".md"
         bootstrap = value_notation(case["aliases"])
         sources = {"data/preparsed/gencmu.json": bootstrap}
@@ -44,8 +114,10 @@ class NotationValues(unittest.TestCase):
             with self.assertRaises(GencmuError) as caught:
                 read_document(case["document"], name, sources=sources)
             expected = case["expect"]["error"]
-            self.assertEqual((caught.exception.line, caught.exception.column),
-                             (expected["line"], expected["column"]))
+            self.assertTrue(same_json([caught.exception.line, caught.exception.column],
+                                      [expected["line"], expected["column"]]))
+            if "message" in case["expect"]:
+                self.assertTrue(same_json(caught.exception.message, case["expect"]["message"]))
             return
         dom = read_document(case["document"], name, sources=sources)
         problem = mismatch(case["expect"], {"dom": dom})
@@ -65,7 +137,10 @@ def add_value_tests() -> None:
         return test
 
     for case in cases:
-        setattr(NotationValues, "test_" + case["id"].replace("-", "_"), test_for(case))
+        name = "test_" + case["id"].replace("-", "_")
+        if hasattr(NotationValues, name):
+            raise AssertionError(f"duplicate test name: {name}")
+        setattr(NotationValues, name, test_for(case))
 
 
 add_value_tests()

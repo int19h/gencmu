@@ -60,7 +60,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    A cmavo is a short structure word. A selma'o is a class of cmavo. A value is the string that exact comparisons read. The forms stage receives the phoneme values.
 
-   A classifier maps exact values to classes. A lexicon is the classifier that assigns selma'o. Classes start and end with capitals and never start with `_`.
+   A classifier maps exact values to classes. A lexicon is the classifier that assigns selma'o. Classes start and end with uppercase ASCII letters and never start with `_`.
 
    Append these rules to `grammars/lojban/examples/my-kihei/pipeline.md`:
 

@@ -1,3 +1,6 @@
+/** @type {(fault: string) => string[]} */
+export declare const sitesOf: (fault: string) => string[];
+export declare const FAULTS: string[];
 /** @type {Set<string>} */
 export declare const faults: Set<string>;
 /**
@@ -40,7 +43,6 @@ export type ElisionCheckRun = {
     recordAt: number[];
 };
 export type ElisionCheckWatch = {
-    marks: Map<import("./earley.js").Item, Set<number>> | null;
     ranked: (outcome: {
         ranking: import("./rank.js").Ranking | null;
         counted: boolean;
@@ -202,12 +204,8 @@ export type WorkKind = "boundaryRecords" | "familySummaries" | "familySteps" | "
  *   its synthetic token in R
  */
 /**
- * What the witness test hands back to the check: the marks of W(D)'s
- * edges, for each item the indices of the edges that W(D) uses, or null
- * where the chart does not hold W(D); and a callback that receives the
- * check's ranking, with whether its count counted W(D).
+ * The independent witness test's ranking observer.
  * @typedef {object} ElisionCheckWatch
- * @property {Map<import("./earley.js").Item, Set<number>> | null} marks
  * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
  */
 /**

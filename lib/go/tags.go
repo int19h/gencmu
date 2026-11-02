@@ -45,11 +45,6 @@ func (t *tagset) find(name string, c *workCount) bool {
 	return i < len(t.names) && t.names[i] == name
 }
 
-// list is the set's members in code point order, as the output lists them.
-func (t *tagset) list() []string {
-	return append([]string{}, t.names...)
-}
-
 type interner struct {
 	byKey       map[string]*tagset
 	all         []*tagset
@@ -297,8 +292,8 @@ func subset(a, b *tagset) bool {
 
 var nameSyntax = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]*$`)
 
-// isName says whether a string is a name, and so an identifier tag
-// (engine §1).
+// isName accepts an ASCII letter followed by ASCII letters, digits,
+// underscores, or hyphens (engine §9).
 func isName(s string) bool { return nameSyntax.MatchString(s) }
 
 // splitString is the value of split(s, delimiter) (engine §10): the pieces

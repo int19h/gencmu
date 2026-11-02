@@ -1,0 +1,11 @@
+{
+  "description": "Uncalled templates defer values that depend on a parameter.",
+  "grammar": "%const $Z \"z\"\n%rule unused(@X) @X..$Z\n%conditions \"a\" ∈ \"a\".split(@X), $ ≅ #(@X ∪ $Z..\"z\")\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "brackets": "a"
+  }
+}

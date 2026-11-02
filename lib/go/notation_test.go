@@ -2,11 +2,13 @@ package gencmu
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -16,6 +18,33 @@ func domValue(t testing.TB, d *domDoc) any {
 		t.Fatalf("the DOM's JSON does not parse: %v", err)
 	}
 	return v
+}
+
+type notationCase struct {
+	Description string `json:"description"`
+	CacheMisses bool   `json:"cacheMisses"`
+	Document    string `json:"document"`
+	Expect      struct {
+		Dom   *any `json:"dom"`
+		Error *struct {
+			Line    int     `json:"line"`
+			Column  int     `json:"column"`
+			Message *string `json:"message"`
+		} `json:"error"`
+	} `json:"expect"`
+}
+
+func decodeNotationCase(data []byte) (*notationCase, error) {
+	c := &notationCase{}
+	raw, err := decodeJSON(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := notationCaseSchema(raw); err != nil {
+		return nil, err
+	}
+	err = unmarshalJSON(data, c)
+	return c, err
 }
 
 func TestNotationCases(t *testing.T) {
@@ -32,19 +61,8 @@ func TestNotationCases(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var c struct {
-			Description string `json:"description"`
-			CacheMisses bool   `json:"cacheMisses"`
-			Document    string `json:"document"`
-			Expect      struct {
-				Dom   *any `json:"dom"`
-				Error *struct {
-					Line   int `json:"line"`
-					Column int `json:"column"`
-				} `json:"error"`
-			} `json:"expect"`
-		}
-		if err := unmarshalJSON(data, &c); err != nil {
+		c, err := decodeNotationCase(data)
+		if err != nil {
 			t.Fatal(err)
 		}
 		t.Run(strings.TrimSuffix(filepath.Base(f), ".json"), func(t *testing.T) {
@@ -54,8 +72,11 @@ func TestNotationCases(t *testing.T) {
 				if rerr == nil {
 					t.Fatalf("%s\nexpected an error at %d:%d, got %s", c.Description, c.Expect.Error.Line, c.Expect.Error.Column, dom.json())
 				}
-				if (c.Expect.Error.Line != 0 && rerr.Line != c.Expect.Error.Line) || (c.Expect.Error.Column != 0 && rerr.Column != c.Expect.Error.Column) {
+				if rerr.Line != c.Expect.Error.Line || rerr.Column != c.Expect.Error.Column {
 					t.Fatalf("%s\nexpected an error at %d:%d, got %v", c.Description, c.Expect.Error.Line, c.Expect.Error.Column, rerr)
+				}
+				if c.Expect.Error.Message != nil && rerr.Message != *c.Expect.Error.Message {
+					t.Fatalf("expected message %q, got %q", *c.Expect.Error.Message, rerr.Message)
 				}
 				return
 			}
@@ -72,6 +93,100 @@ func TestNotationCases(t *testing.T) {
 			if c.CacheMisses {
 				notationCacheCases(t, c.Document, dom, bundled.reader)
 			}
+		})
+	}
+}
+
+func TestRecipeSetOperatorsDescribeOperators(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	_, err := bundled.reader.read("```jbogenbau\n%rule r A := ∪ \"a\"\n```\n", "grammar.md")
+	if err == nil || !strings.Contains(err.Error(), "set operator") {
+		t.Fatalf("expected a set-operator error, got %v", err)
+	}
+}
+
+func TestRangeEmissionTargetReportsContentError(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	_, err := bundled.reader.read("```jbogenbau\n%rule r A %emits \"a\"..\"z\"\n```\n", "grammar.md")
+	if err == nil || !strings.Contains(err.Error(), "an emission target requires a capture or ε") {
+		t.Fatalf("expected an emission-target error, got %v", err)
+	}
+}
+
+func TestConstantNamePrecedesRequiredValue(t *testing.T) {
+	b := &domBuilder{doc: "g.md", gt: &grammarText{pos: [][2]int{{1, 1}}}, toks: []Token{{Value: "%const"}, {Value: "$bad"}}}
+	definer := &Node{Kind: KindRule, Rule: "constant-definer", Children: []*Node{{Kind: KindToken, Token: 0}}}
+	reference := &Node{Kind: KindRule, Rule: "constant-reference", Children: []*Node{{Kind: KindToken, Token: 1}}}
+	node := &Node{Kind: KindRule, Rule: "constant-definition", Children: []*Node{definer, reference}}
+	defer func() {
+		problem, ok := recover().(*Error)
+		if !ok || !strings.Contains(problem.Error(), "a constant requires a user name") {
+			t.Fatalf("expected the invalid name before the missing term, got %v", problem)
+		}
+	}()
+	b.constant(node)
+	t.Fatal("the invalid name was accepted")
+}
+
+func TestSuppliedIntersectionsNeedNoOperatorTokens(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	node := func(name string, children ...*Node) *Node {
+		return &Node{Kind: KindRule, Rule: name, Children: children}
+	}
+	for count := 2; count <= 4; count++ {
+		parts := make([]*Node, count)
+		tokens := make([]Token, count)
+		for i := range parts {
+			tokens[i] = Token{Value: "A"}
+			parts[i] = node("concatenation", node("term-atom", node("tag", &Node{Kind: KindToken, Token: i})))
+		}
+		b := &domBuilder{doc: "g.md", uni: bundled.uni, gt: &grammarText{pos: [][2]int{{1, 1}}}, types: newTypeMemo(), toks: tokens}
+		term := b.term(node("union", node("intersection", parts...)))
+		if term.Kind != tmIntersection || len(term.Items) != count {
+			t.Fatalf("%d operands: got %v", count, term)
+		}
+	}
+}
+
+func TestMalformedSuppliedConstructorsGiveDocumentErrors(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	node := func(name string, children ...*Node) *Node {
+		return &Node{Kind: KindRule, Rule: name, Children: children}
+	}
+	token := func(index int) *Node { return &Node{Kind: KindToken, Token: index} }
+	tag := func(index int) *Node {
+		return node("intersection", node("concatenation", node("term-atom", node("tag", token(index)))))
+	}
+	binding := node("rule", node("definer", token(0)), node("rule-name", token(1)), token(2))
+	atom := node("recipe-atom")
+	atom.Span = [2]int{999, 1000}
+	for _, item := range []struct {
+		name string
+		read func(*domBuilder)
+	}{
+		{"binding without a call", func(b *domBuilder) { b.rule(binding) }},
+		{"union without an operator", func(b *domBuilder) { b.term(node("union", tag(3), tag(4))) }},
+		{"recipe span outside the tokens", func(b *domBuilder) { b.recipe(node("recipe", atom)) }},
+		{"empty pattern atom", func(b *domBuilder) { b.run(&patternFrame{n: node("pattern-node", node("pattern-atom"))}) }},
+	} {
+		t.Run(item.name, func(t *testing.T) {
+			defer func() {
+				problem := recover()
+				if _, ok := problem.(*Error); !ok {
+					t.Fatalf("expected a document error, got %v", problem)
+				}
+			}()
+			b := &domBuilder{doc: "g.md", uni: bundled.uni, gt: &grammarText{pos: [][2]int{{1, 1}}}, types: newTypeMemo(), toks: []Token{{Value: "%rule"}, {Value: "r"}, {Value: "="}, {Value: "A"}, {Value: "B"}}}
+			item.read(b)
+			t.Fatal("the malformed constructor was accepted")
 		})
 	}
 }
@@ -95,9 +210,9 @@ func TestFixpoint(t *testing.T) {
 	}
 	// The repository's documents, each read with the bootstrap.
 	l := &loader{
-		read: func(p string) (string, bool) {
+		read: func(p string) (string, bool, *Error) {
 			text, err := os.ReadFile(filepath.Join("..", "..", filepath.FromSlash(p)))
-			return string(text), err == nil
+			return string(text), err == nil, nil
 		},
 		uni:     bundled.uni,
 		reader:  bundled.reader,
@@ -132,8 +247,8 @@ func TestFixpoint(t *testing.T) {
 		}
 	}
 	for path, entry := range b.Documents {
-		text, ok := l.read(path)
-		if !ok {
+		text, ok, readErr := l.read(path)
+		if readErr != nil || !ok {
 			t.Fatal(path)
 		}
 		fresh, err := bundled.reader.read(text, path)
@@ -218,7 +333,7 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		res, err := d.Parse(string(extractGrammarText(text).text), ParseOptions{})
+		res, err := d.Parse(string(extractGrammarText(text, bundled.uni).text), ParseOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -233,7 +348,7 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 	}
 	// A cache entry for a different bootstrap is a miss.
 	preparsedText, _ := bundledNamesText("data/preparsed/lojban.json")
-	if got := readPreparsed(preparsedText, "0000000000000000", bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
+	if got, _, _ := readPreparsedCache(preparsedText, "0000000000000000", bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
 		t.Error("data/preparsed/lojban.json was used with another bootstrap")
 	}
 }
@@ -301,20 +416,17 @@ func sameValue(a, b reflect.Value) bool {
 		}
 		return sameValue(a.Elem(), b.Elem())
 	case reflect.Struct:
-		// Source terms keep diagnostic locations that DOM 27 does not serialize.
-		// Constants retain their serialized reference positions.
-		if a.Type() == reflect.TypeOf(domCond{}) || a.Type() == reflect.TypeOf(domTerm{}) && a.FieldByName("Kind").String() != tmConst {
-			for i := range a.NumField() {
-				if a.Type().Field(i).Name == "At" {
-					continue
-				}
-				if !sameValue(a.Field(i), b.Field(i)) {
-					return false
-				}
-			}
-			return true
-		}
+		// Private reader positions do not belong to cached grammar identity.
+		// Parameter and constant reference positions remain public DOM members.
+		kind := a.Type()
 		for i := 0; i < a.NumField(); i++ {
+			field := kind.Field(i).Name
+			if kind == reflect.TypeOf(domAlt{}) && field == "rankedLocations" ||
+				kind == reflect.TypeOf(domExpr{}) && (field == "RankedAt" || field == "At" && a.FieldByName("Kind").String() != exParam) ||
+				kind == reflect.TypeOf(domCond{}) && field == "At" ||
+				kind == reflect.TypeOf(domTerm{}) && field == "At" && a.FieldByName("Kind").String() != tmConst && a.FieldByName("Kind").String() != tmParam {
+				continue
+			}
 			if !sameValue(a.Field(i), b.Field(i)) {
 				return false
 			}
@@ -553,10 +665,10 @@ func TestUnicodeTablePartial(t *testing.T) {
 			t.Errorf("U+%04X: category %s, want %s", c, got, want)
 		}
 	}
-	if !uni.hasProperty("Cn", 'a') || !uni.hasProperty("C", 'a') || uni.hasProperty("L", 'a') || uni.hasProperty("Cs", 'a') {
-		t.Error("hasProperty is wrong for an omitted scalar value")
+	if uni.category('a') != "Cn" {
+		t.Error("category is wrong for an omitted scalar value")
 	}
-	if uni.isWhiteSpace(' ') || uni.isWhiteSpace('\t') || uni.hasProperty("White_Space", ' ') {
+	if uni.isWhiteSpace(' ') || uni.isWhiteSpace('\t') {
 		t.Error("a table without white-space lines has White_Space")
 	}
 	if uni.isMark(0x301) {
@@ -619,12 +731,12 @@ func TestUnicodeTable(t *testing.T) {
 		t.Error("isMark disagrees with Mn")
 	}
 	for _, c := range []rune{9, 0x0D, ' ', 0x85, 0xA0, 0x2028, 0x3000} {
-		if !uni.hasProperty("White_Space", c) {
+		if !uni.isWhiteSpace(c) {
 			t.Errorf("U+%04X lacks White_Space", c)
 		}
 	}
-	if uni.hasProperty("White_Space", 0x200B) || !uni.hasProperty("L", 'é') || uni.hasProperty("L", '1') || !uni.hasProperty("Any", 0x378) {
-		t.Error("hasProperty is wrong")
+	if uni.isWhiteSpace(0x200B) || uni.category('é')[0] != 'L' || uni.category('1')[0] == 'L' || uni.category(0x378) != "Cn" {
+		t.Error("scalar properties are wrong")
 	}
 }
 
@@ -641,10 +753,10 @@ func TestFormat17Refused(t *testing.T) {
 	entry := func(format int, d string) string {
 		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
 	}
-	if got := readPreparsed(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 1 {
+	if got, _, _ := readPreparsedCache(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 1 {
 		t.Fatalf("a data/preparsed/lojban.json of format %d is not used", domFormat)
 	}
-	if got := readPreparsed(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
+	if got, _, _ := readPreparsedCache(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
 		t.Fatal("a data/preparsed/lojban.json of format 17 is used")
 	}
 	for _, d := range []string{dom(17, `{"repeat":{"ref":"A"}}`), dom(domFormat, `{"repeat":{"ref":"A"},"extra":true}`)} {
@@ -698,6 +810,266 @@ func TestRecipeConcatenationDiagnostics(t *testing.T) {
 		_, failure := bundled.reader.read("```jbogenbau\n"+body+"\n```", "ordinary.md")
 		if failure == nil || !strings.Contains(failure.Message, "++") || strings.Contains(strings.ToLower(failure.Message), "use ++") {
 			t.Fatalf("expected an ordinary type error: %v", failure)
+		}
+	}
+}
+
+func TestUnicodeProfilesShareSafely(t *testing.T) {
+	upper, err := parseUnicodeTable("category Lu 0041 0041\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	absent, err := parseUnicodeTable("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile := upper.profile('A')
+	if reflect.DeepEqual(profile, absent.profile('A')) {
+		t.Fatal("profiles crossed table identities")
+	}
+	var workers sync.WaitGroup
+	for range 4 {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			if other := upper.profile('A'); &profile[0] != &other[0] {
+				t.Error("the table did not share its profile")
+			}
+		}()
+	}
+	workers.Wait()
+	for code := range rune(5000) {
+		upper.profile(code)
+	}
+	if len(upper.profiles.entries) > 4096 {
+		t.Fatal("the profile cache exceeded its bound")
+	}
+	if !reflect.DeepEqual(profile, upper.profile('A')) {
+		t.Fatal("cache eviction changed the profile")
+	}
+}
+
+func TestDecoratedPatternMemberOrder(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	document := "```jbogenbau\n%const $P #·pair(\"a\")«»\n%rule f(@X) A %conditions $ ≅ #·@X«»\n```\n"
+	dom, err := bundled.reader.read(document, "order.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	json := string(dom.json())
+	for _, want := range []string{`"call":"pair","args":[{"string":"a"}],"exact":true,"children":[],"at":[2,13]`, `"param":"X","exact":true,"children":[],"at":[3,33]`} {
+		if !strings.Contains(json, want) {
+			t.Fatalf("missing %s in %s", want, json)
+		}
+	}
+}
+
+func TestFeatureConditionDepthLabel(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	document := "```jbogenbau\n%features f %conditions " + strings.Repeat("¬(", 300) + "$" + strings.Repeat(")", 300) + "\n```\n"
+	_, err := bundled.reader.read(document, "depth.md")
+	if err == nil || !strings.HasPrefix(err.Message, "%features: an expression, term or condition is nested") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestCanonicalDOMMemberOrder(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	dom, err := bundled.reader.read("```jbogenbau\n%rule f(@X) @X\n%extend-rule f(\"a\") A\n%features f %conditions $\n```\n", "order.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree, parseErr := templateFromJSON(dom.json())
+	if parseErr != nil {
+		t.Fatal(parseErr)
+	}
+	for _, text := range []string{string(dom.json()), string(templateJSON(tree))} {
+		for _, want := range []string{`"name":"f","params":["X"],"op":"define"`, `"name":"f","args":[{"string":"a"}],"op":"extend"`, `"name":"features","args":["f"],"at":[4,1],"conditions":[{"captured":""}]`} {
+			if !strings.Contains(text, want) {
+				t.Fatalf("missing %s in %s", want, text)
+			}
+		}
+	}
+}
+
+func TestAttachmentRejectsBareCaptureAfterStrayToken(t *testing.T) {
+	b := &domBuilder{doc: "g.md", gt: &grammarText{pos: [][2]int{{1, 1}}}, toks: []Token{{Value: "A"}, {Value: "$"}}}
+	n := &Node{Kind: KindRule, Rule: "capture-reference", Children: []*Node{{Kind: KindToken, Token: 0}, {Kind: KindToken, Token: 1}}}
+	defer func() {
+		if e, ok := recover().(*Error); !ok || e.Kind != ErrorGrammar {
+			t.Fatalf("expected a document error, got %v", e)
+		}
+	}()
+	b.attachment(n, n)
+}
+
+func TestGuardValidationFromSuppliedBootstrap(t *testing.T) {
+	t.Parallel()
+	bootstrap := bootstrapWithDOMChange(t, func(path string, dom map[string]any) {
+		if path != "grammars/gencmu/jbogenbau/lexical.md" {
+			return
+		}
+		for _, value := range dom["rules"].([]any) {
+			rule := value.(map[string]any)
+			var expr any
+			switch rule["name"] {
+			case "feature-character":
+				expr = map[string]any{"literal": map[string]any{"string": "_"}}
+			case "guard":
+				expr = map[string]any{"seq": []any{
+					map[string]any{"literal": map[string]any{"string": "¬"}},
+					map[string]any{"ref": "feature-name"},
+					map[string]any{"literal": map[string]any{"string": "!"}},
+				}}
+			default:
+				continue
+			}
+			rule["alternatives"] = append(rule["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": expr})
+		}
+	})
+	for _, c := range []struct {
+		grammar string
+		column  int
+	}{
+		{`%rule text bad_name? A`, 12},
+		{`%rule text bad_name? [A]="x"`, 12},
+		{"%classifier c bad_name? \"a\" ∈ A\n%rule text _", 15},
+		{`%rule text ¬fine! A`, 12},
+		{`%rule text ¬fine! [A]="x"`, 12},
+		{"%classifier c ¬fine! \"a\" ∈ A\n%rule text _", 15},
+	} {
+		t.Run(c.grammar, func(t *testing.T) {
+			_, err := LoadPipelineSources(sourcesWithBootstrap(c.grammar, bootstrap), "grammars/test/p.md")
+			var e *Error
+			if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/test/main.md" || e.Line != 3 || e.Column != c.column {
+				t.Fatalf("expected the guard at 3:%d, got %v", c.column, err)
+			}
+		})
+	}
+	// Capital-initial features, gates and ordinary warnings remain valid.
+	for _, grammar := range []string{`%rule text Cbm? A | ¬Cbm? B | fine! C`, "%classifier c Cbm? \"a\" ∈ A\n%rule text _"} {
+		if _, err := LoadPipelineSources(sourcesWithBootstrap(grammar, bootstrap), "grammars/test/p.md"); err != nil {
+			t.Fatalf("valid guards: %v", err)
+		}
+	}
+}
+
+func TestPropertyWrapperFromSuppliedBootstrap(t *testing.T) {
+	t.Parallel()
+	bootstrap := bootstrapWithDOMChange(t, func(path string, dom map[string]any) {
+		if path != "grammars/gencmu/jbogenbau/syntax.md" {
+			return
+		}
+		for _, value := range dom["rules"].([]any) {
+			rule := value.(map[string]any)
+			if rule["name"] != "untested-primary" {
+				continue
+			}
+			for _, alternative := range rule["alternatives"].([]any) {
+				expr := alternative.(map[string]any)["expr"].(map[string]any)
+				if expr["ref"] == "string-terminal" {
+					expr["ref"] = "property"
+				}
+			}
+		}
+		dom["rules"] = append(dom["rules"].([]any), map[string]any{
+			"name": "property", "op": "define", "flags": []any{},
+			"alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"ref": "string-terminal"}}},
+			"conditions":   []any{}, "at": []any{1, 1},
+		})
+	})
+	pipeline, err := LoadPipelineSources(sourcesWithBootstrap(`%rule text "a" %emits $`, bootstrap), "grammars/test/p.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := pipeline.Parse("a", ParseOptions{})
+	if err != nil || !result.OK {
+		t.Fatalf("wrapped string terminal: %v %+v", err, result)
+	}
+}
+
+func TestEmptyGuardWrapperValidation(t *testing.T) {
+	t.Parallel()
+	bootstrap := bootstrapWithDOMChange(t, func(path string, dom map[string]any) {
+		for _, value := range dom["rules"].([]any) {
+			rule := value.(map[string]any)
+			if path == "grammars/gencmu/jbogenbau/lexical.md" && rule["name"] == "feature-character" {
+				rule["alternatives"] = append(rule["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "_"}}})
+			}
+			if path == "grammars/gencmu/jbogenbau/syntax.md" && rule["name"] == "guard" {
+				rule["alternatives"].([]any)[0].(map[string]any)["expr"] = map[string]any{"seq": []any{map[string]any{"ref": "padding"}, map[string]any{"ref": "Guard"}}}
+			}
+		}
+		if path == "grammars/gencmu/jbogenbau/syntax.md" {
+			dom["rules"] = append(dom["rules"].([]any), map[string]any{"name": "padding", "op": "define", "flags": []any{}, "alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"empty": true}}}, "conditions": []any{}, "at": []any{1, 1}})
+		}
+	})
+	for _, c := range []struct {
+		grammar string
+		column  int
+	}{
+		{`%rule text bad_name? A`, 12},
+		{`%rule text bad_name? [A]="x"`, 12},
+		{"%classifier c bad_name? \"a\" ∈ A\n%rule text _", 15},
+	} {
+		t.Run(c.grammar, func(t *testing.T) {
+			_, err := LoadPipelineSources(sourcesWithBootstrap(c.grammar, bootstrap), "grammars/test/p.md")
+			var e *Error
+			if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/test/main.md" || e.Line != 3 || e.Column != c.column {
+				t.Fatalf("guard at 3:%d: %v", c.column, err)
+			}
+		})
+	}
+}
+
+func TestEmptyConstructorAnchorAtDocumentEnd(t *testing.T) {
+	t.Parallel()
+	gt := extractGrammarText(block("A"), &unicodeTable{})
+	end := len(gt.text)
+	b := &domBuilder{gt: gt, toks: []Token{{Source: [2]int{0, end}}}}
+	node := &Node{Kind: KindRule, Span: [2]int{1, 1}, Children: []*Node{{Kind: KindRule, Source: [2]int{0, 0}}}}
+	if got := b.at(node); got != gt.at(end) {
+		t.Fatalf("empty constructor anchor %v, want %v", got, gt.at(end))
+	}
+}
+
+func preparsedCacheForSources(t *testing.T, sources map[string]string) string {
+	t.Helper()
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	documents := map[string]any{}
+	for path, text := range sources {
+		dom, err := bundled.reader.readMode(text, path, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		documents[path] = map[string]any{"hash": fnv1a64(text), "dom": json.RawMessage(dom.json())}
+	}
+	raw, err := json.Marshal(map[string]any{"format": domFormat, "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]), "documents": documents})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
+}
+
+func TestNotationCaseSchemaRejectsInvalidMembers(t *testing.T) {
+	for _, raw := range []string{
+		`{"document":"","unknown":true,"expect":{"dom":{}}}`,
+		`{"document":"","expect":{"unknown":true}}`,
+		`{"document":"","expect":{"error":{"unknown":true}}}`,
+		`{"document":"","expect":{"dom":{},"error":{}}}`,
+		`{"document":"","expect":{"error":null}}`,
+		`{"document":"","expect":{"error":{"line":null}}}`,
+	} {
+		if _, err := decodeNotationCase([]byte(raw)); err == nil {
+			t.Errorf("accepted invalid case %s", raw)
 		}
 	}
 }

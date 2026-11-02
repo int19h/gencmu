@@ -1,13 +1,14 @@
 package gencmu
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 )
 
-// A stage's constants (engine §2): the loader gives each its value when it
-// stitches the stage, in the stitching order, and then gives every
-// reference in a rule the final value. A DOM never holds a value, so a
-// document shared by several stages or pipelines takes the values of each.
+// The loader records immutable constant versions, binds their dependency
+// graph, and evaluates that graph (engine §2). Rule references use final
+// bindings. A shared document retains independent values in each stage.
 
 // stageConst is a constant of a stage: its value now, with its type, and
 // the document of its last definition.
@@ -19,8 +20,22 @@ type stageConst struct {
 // constUser is a rule statement that holds references to constants, which
 // the loader checks once the constants have their final values.
 type constUser struct {
-	doc  string
-	rule *domRule
+	inspectionRun int
+	doc           string
+	rule          *domRule
+}
+
+// constArgument retains an unused argument term until the stage binds constants.
+type constArgument struct {
+	kind          int
+	inspectionRun int
+	position      [2]int
+	rule          *domRule
+	fragment      bool
+	doc           string
+	term          *domTerm
+	at            [2]int
+	tags          bool
 }
 
 // constantTypes gives the type of each constant of the stage now.
@@ -76,8 +91,10 @@ func (g *stageGrammar) addConstant(doc string, k *domConst) *Error {
 	return nil
 }
 func (g *stageGrammar) bindConstants() *Error {
+	versionsByName := map[string]int{}
 	for _, v := range g.constVersions {
-		v.references = userConstRefs(v.definition.Value)
+		versionsByName[v.definition.Name]++
+		v.references = constRefs(v.definition.Value)
 		for _, r := range v.references {
 			target, ok := g.constLatest[r.Str]
 			if r.Str == v.definition.Name && v.definition.Op == "redefine" {
@@ -107,11 +124,25 @@ func (g *stageGrammar) bindConstants() *Error {
 				f.next++
 				target := v.dependencies[i]
 				if state[target] == 1 {
-					var names []string
-					for _, e := range stack {
-						names = append(names, "$"+g.constVersions[e.id].definition.Name)
+					start := 0
+					for stack[start].id != target {
+						start++
 					}
-					names = append(names, "$"+g.constVersions[target].definition.Name)
+					cycle := append(append([]entry{}, stack[start:]...), entry{id: target})
+					ambiguous := false
+					for _, edge := range cycle {
+						ambiguous = ambiguous || versionsByName[g.constVersions[edge.id].definition.Name] > 1
+					}
+					var names []string
+					for _, edge := range cycle {
+						version := g.constVersions[edge.id]
+						name := "$" + version.definition.Name
+						if ambiguous {
+							at := version.definition.At
+							name += fmt.Sprintf(" [%s:%d:%d]", version.doc, at[0], at[1])
+						}
+						names = append(names, name)
+					}
 					return g.constError(v.doc, v.references[i].At, "constant dependency cycle: %s", strings.Join(names, " → "))
 				}
 				if state[target] == 0 {
@@ -169,7 +200,12 @@ func (g *stageGrammar) bindConstants() *Error {
 		}
 		if !ok {
 			kinds[k.Name] = ty
+			dependents := make([]int, 0, len(users[k.Name]))
 			for u := range users[k.Name] {
+				dependents = append(dependents, u)
+			}
+			sort.Ints(dependents)
+			for _, u := range dependents {
 				if !queued[u] {
 					queue = append(queue, u)
 					queued[u] = true
@@ -230,6 +266,9 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 	in := newInterner()
 	switch t.Kind {
 	case tmPattern:
+		if err := g.checkPatternDepth(doc, t, item); err != nil {
+			return nil, err
+		}
 		p, err := g.resolvePatternValue(doc, t.Pattern, item)
 		return &constValue{ty: tyPattern, pattern: p}, err
 	case tmString:
@@ -257,6 +296,9 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 	case tmUnion, tmIntersection, tmDifference:
 		ty, _ := termTypeIn(t, g.constantTypes())
 		if ty == tyPattern || len(expected) > 0 && expected[0] == tyPattern {
+			if err := g.checkPatternDepth(doc, t, item); err != nil {
+				return nil, err
+			}
 			var patterns []*domPattern
 			for _, it := range t.Items {
 				v, err := g.evaluateClosed(doc, it, item, tyPattern)
@@ -338,84 +380,17 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 // the types agree, and that a constant that split or tag reads directly is
 // a delimiter that is not empty, or a name (engine §2, §9, §10). Then it
 // gives every reference its final value.
-func (g *stageGrammar) resolveConstants() *Error {
+func (g *stageGrammar) resolveConstants(checks []func() *Error) *Error {
 	if err := g.bindConstants(); err != nil {
 		return err
 	}
-	types := g.constantTypes()
-	resolvedFeatures := newResolver(g.constants, g.uni)
-	for index, item := range g.features {
-		directive := item.directive
-		if directive.Conditions == nil {
-			continue
-		}
-		for _, ref := range constRefs(directive.Conditions) {
-			if g.constants[ref.Str] == nil {
-				return g.constError(item.doc, directive.At, "$%s is not defined in stage %s", ref.Str, g.name)
-			}
-		}
-		if problem := inputConditionsProblem(directive.Conditions); problem != "" {
-			return g.constError(item.doc, directive.At, "%s", problem)
-		}
-		for _, condition := range directive.Conditions {
-			if fault := condTypeFault(condition, types); fault != nil {
-				return g.constError(item.doc, directive.At, "%s", fault.problem)
-			}
-		}
-		if err := g.checkDelimiters(item.doc, &domRule{Conditions: directive.Conditions, At: directive.At}, true); err != nil {
-			err.Document, err.Line, err.Column = item.doc, directive.At[0], directive.At[1]
+	for _, check := range checks {
+		if err := check(); err != nil {
 			return err
 		}
-		copied := *directive
-		copied.Conditions = resolvedFeatures.condList(directive.Conditions)
-		g.features[index].directive = &copied
 	}
-	for _, u := range g.constUsers {
-		for _, ref := range constRefs(u.rule) {
-			if g.constants[ref.Str] == nil {
-				return g.constError(u.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
-			}
-		}
-		if err := g.validateStringUses(u.doc, u.rule); err != nil {
-			return err
-		}
-		if f := ruleTypeFault(u.rule, types); f != nil {
-			return g.faultError(u.doc, f.node, u.rule.At, f.problem)
-		}
-		var patternErr *Error
-		scan := func(p clausePart) bool {
-			if patternErr != nil {
-				return false
-			}
-			if p.t != nil && p.t.Kind == tmPattern {
-				_, patternErr = g.evaluateClosed(u.doc, p.t, u.rule.At)
-				return false
-			}
-			return true
-		}
-		for _, c := range u.rule.Conditions {
-			walkClause(clausePart{c: c}, scan)
-		}
-		for _, t := range ruleTagTerms(u.rule) {
-			walkClause(clausePart{t: t}, scan)
-		}
-		if patternErr != nil {
-			return patternErr
-		}
 
-		// The checks that simplification decides, which the reader left to
-		// the loader, now with the constants' values (§9).
-		if msg := definitionProblem(newResolver(g.constants, g.uni).rule(u.rule)); msg != "" {
-			if deferredEmissionProblem(msg) && ruleHasRanked(u.rule) {
-				g.deferredEmissions = append(g.deferredEmissions, g.constError(u.doc, u.rule.At, "%s", msg))
-			} else {
-				return g.constError(u.doc, u.rule.At, "%s", msg)
-			}
-		}
-		if err := g.checkDelimiters(u.doc, u.rule, false); err != nil {
-			return err
-		}
-	}
+	g.arguments = nil
 
 	// Each reference holds the final value. The DOM is shared by every
 	// stage and pipeline that includes its document, so the clauses are
@@ -451,74 +426,243 @@ func (g *stageGrammar) resolveConstants() *Error {
 	return nil
 }
 
-// checkDelimiters checks direct delimiters, or every closed feature delimiter.
-func (g *stageGrammar) checkDelimiters(doc string, rule *domRule, computed bool) *Error {
-	for _, call := range closedCalls(rule) {
-		delimiter := call.Items[1]
-		if !computed && delimiter.Kind != tmString && delimiter.Kind != tmConst {
+// checkValueUses applies all bound-value checks through one clause walk.
+func (g *stageGrammar) checkValueUses(doc string, root valuePart, at [2]int, computed bool) *Error {
+	return walkValues(root, func(part valuePart) *Error {
+		if part.expr != nil && part.expr.Kind == exRange {
+			if err := g.validateStringRange(doc, part.expr.Ends, at); err != nil {
+				return err
+			}
+		}
+		if t := part.term; t != nil {
+			if part.pattern || t.Kind == tmPattern {
+				if err := g.checkPatternUses(doc, t, at); err != nil {
+					return err
+				}
+			}
+			if t.Kind == tmCall && t.Str == "split" {
+				delimiter := t.Items[1]
+				if (!computed && delimiter.Kind != tmString && delimiter.Kind != tmConst) || openPart(delimiter) != nil {
+					return nil
+				}
+				value, err := g.evaluateClosed(doc, delimiter, at)
+				if err != nil {
+					return err
+				}
+				if value.s == "" {
+					return g.faultError(doc, delimiter, at, "split has an empty delimiter")
+				}
+			}
+		}
+		return nil
+	}, false)
+}
+
+// valueHasSource identifies values that still depend on template substitution.
+func valueHasSource(t *domTerm) bool {
+	pending := []clausePart{{t: t}}
+	for len(pending) > 0 {
+		part := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if unresolvedTerm(part.t) {
+			return true
+		}
+		if part.t != nil && part.t.Pattern != nil {
+			found := false
+			walkPattern(part.t.Pattern, func(p *domPattern) { found = found || p.Kind == "param" || p.Kind == "call" })
+			if found {
+				return true
+			}
+		}
+		pending = append(pending, part.children()...)
+	}
+	return false
+}
+
+// checkPatternUses inspects independent operands of an unresolved pattern.
+func (g *stageGrammar) checkPatternUses(doc string, t *domTerm, at [2]int) *Error {
+	if !valueHasSource(t) {
+		_, err := g.evaluateClosed(doc, t, at, tyPattern)
+		return err
+	}
+	if err := g.checkPatternDepth(doc, t, at); err != nil {
+		return err
+	}
+	if t.Call != nil {
+		return g.checkValueUses(doc, valuePart{call: t.Call}, at, false)
+	}
+	if t.Kind != tmPattern {
+		for _, child := range t.Items {
+			if err := g.checkPatternUses(doc, child, at); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	type part struct {
+		p *domPattern
+		t *domTerm
+	}
+	pending := []part{{p: t.Pattern}}
+	for len(pending) > 0 {
+		n := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if n.t != nil {
+			if err := g.checkValueUses(doc, valuePart{term: n.t}, at, false); err != nil {
+				return err
+			}
 			continue
 		}
-		if openPart(delimiter) != nil {
-			continue
+		p := n.p
+		if p.Call != nil {
+			if err := g.checkValueUses(doc, valuePart{call: p.Call}, at, false); err != nil {
+				return err
+			}
 		}
-		value, err := g.evaluateClosed(doc, delimiter, rule.At)
-		if err != nil {
-			return err
+		if p.Kind == "range" {
+			if err := g.validateStringRange(doc, p.Ends, p.At); err != nil {
+				return err
+			}
 		}
-		if value.s == "" {
-			return g.faultError(doc, delimiter, rule.At, "split has an empty delimiter")
+		for i := len(p.Attached) - 1; i >= 0; i-- {
+			pending = append(pending, part{p: p.Attached[i]})
+		}
+		for i := len(p.Requirements) - 1; i >= 0; i-- {
+			pending = append(pending, part{t: p.Requirements[i].Value})
+		}
+		if p.Value != nil {
+			pending = append(pending, part{t: p.Value})
+		}
+		for i := len(p.Items) - 1; i >= 0; i-- {
+			pending = append(pending, part{p: p.Items[i]})
 		}
 	}
 	return nil
 }
 
-// closedCalls lists split calls in a rule's clauses.
-func closedCalls(rule *domRule) []*domTerm {
-	var found []*domTerm
-	var term func(t *domTerm)
-	var cond func(c *domCond)
-	term = func(t *domTerm) {
-		if t == nil {
-			return
+// valuePart keeps the roles of declarations, expressions and clauses separate.
+type valuePart struct {
+	rule        *domRule
+	alt         *domAlt
+	expr        *domExpr
+	term        *domTerm
+	cond        *domCond
+	item        *domEmitItem
+	call        *domSourceCall
+	pattern     bool
+	patternNode *domPattern
+}
+
+func walkValues(root valuePart, visit func(valuePart) *Error, patterns bool) *Error {
+	pending := []valuePart{root}
+	for len(pending) > 0 {
+		part := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if err := visit(part); err != nil {
+			return err
 		}
-		if t.Kind == tmCall && t.Str == "split" {
-			found = append(found, t)
+		var children []valuePart
+		terms := func(values ...*domTerm) {
+			for _, t := range values {
+				if t != nil {
+					children = append(children, valuePart{term: t})
+				}
+			}
 		}
-		if t.Cond != nil {
-			cond(t.Cond)
+		expressions := func(values ...*domExpr) {
+			for _, e := range values {
+				if e != nil {
+					children = append(children, valuePart{expr: e})
+				}
+			}
 		}
-		for _, it := range t.Items {
-			term(it)
+		switch {
+		case part.call != nil:
+			for _, arg := range part.call.Args {
+				expressions(arg.Expr)
+				terms(arg.Term)
+				for _, r := range arg.Requirements {
+					terms(r.Value)
+				}
+				terms(arg.Targets...)
+			}
+		case part.patternNode != nil:
+			p := part.patternNode
+			if p.Call != nil {
+				children = append(children, valuePart{call: p.Call})
+			}
+			for _, item := range p.Items {
+				children = append(children, valuePart{patternNode: item})
+			}
+			terms(p.Ends[0], p.Ends[1], p.Value)
+			for _, r := range p.Requirements {
+				terms(r.Value)
+			}
+			for _, item := range p.Attached {
+				children = append(children, valuePart{patternNode: item})
+			}
+		case part.rule != nil:
+			r := part.rule
+			terms(r.Tags, r.Value, r.Image)
+			for _, a := range r.Alternatives {
+				children = append(children, valuePart{alt: a})
+			}
+			for _, c := range r.Conditions {
+				children = append(children, valuePart{cond: c})
+			}
+			if r.Emit != nil {
+				for _, item := range r.Emit.Items {
+					children = append(children, valuePart{item: item})
+				}
+			}
+		case part.alt != nil:
+			a := part.alt
+			expressions(a.Expr)
+			terms(a.Tags, a.Value, a.Image)
+		case part.item != nil:
+			terms(part.item.Tags, part.item.Value, part.item.Image)
+		case part.expr != nil:
+			e := part.expr
+			if e.Call != nil {
+				children = append(children, valuePart{call: e.Call})
+			}
+			expressions(e.Items...)
+			expressions(e.Inner, e.Sep)
+			for _, requirement := range e.Requirements {
+				terms(requirement.Value)
+			}
+			terms(e.Value, e.Ends[0], e.Ends[1])
+		case part.term != nil:
+			if part.term.Kind == tmPattern || part.pattern && !patterns {
+				if patterns && part.term.Pattern != nil {
+					children = append(children, valuePart{patternNode: part.term.Pattern})
+				}
+			} else {
+				if part.term.Call != nil {
+					children = append(children, valuePart{call: part.term.Call})
+				}
+				if c := part.term.Cond; c != nil {
+					children = append(children, valuePart{cond: c})
+				}
+				terms(part.term.Items...)
+			}
+		case part.cond != nil:
+			c := part.cond
+			if c.Kind == cdCompare && (c.Op == "≅" || c.Op == "≇") {
+				terms(c.Left)
+				children = append(children, valuePart{term: c.Right, pattern: true})
+			} else {
+				for _, p := range (clausePart{c: c}).children() {
+					children = append(children, valuePart{term: p.t, cond: p.c})
+				}
+				terms(c.Targets...)
+			}
+		}
+		for i := len(children) - 1; i >= 0; i-- {
+			pending = append(pending, children[i])
 		}
 	}
-	cond = func(c *domCond) {
-		if c == nil {
-			return
-		}
-		term(c.Left)
-		term(c.Right)
-		term(c.Span)
-		cond(c.Inner)
-		for _, it := range c.Items {
-			cond(it)
-		}
-	}
-	term(rule.Tags)
-	for _, a := range rule.Alternatives {
-		for _, t := range testsIn(a.Expr) {
-			term(t.Value)
-		}
-		term(a.Tags)
-	}
-	if rule.Emit != nil {
-		for _, it := range rule.Emit.Items {
-			term(it.Tags)
-		}
-	}
-	for _, c := range rule.Conditions {
-		cond(c)
-	}
-	return found
+	return nil
 }
 
 // resolver copies clauses with each reference to a constant holding its
@@ -580,6 +724,9 @@ func (r *resolver) term(t *domTerm) *domTerm {
 		w.clauseSteps.add("clause steps")
 	}
 	if t.Kind == tmPattern || (t.Kind == tmUnion || t.Kind == tmIntersection || t.Kind == tmDifference) && resolverHasPattern(r, t) {
+		if valueHasSource(t) {
+			return t
+		}
 		v := r.patternValue(t)
 		copied := &domTerm{Kind: tmPattern, Pattern: v}
 		r.terms[t] = copied
@@ -626,7 +773,7 @@ func (r *resolver) cond(c *domCond) *domCond {
 		w.clauseSteps.add("clause steps")
 	}
 	left, right, span := r.term(c.Left), r.term(c.Right), r.term(c.Span)
-	if (c.Op == "≅" || c.Op == "≇") && right.Kind != tmPattern {
+	if (c.Op == "≅" || c.Op == "≇") && right.Kind != tmPattern && !valueHasSource(c.Right) {
 		right = &domTerm{Kind: tmPattern, Pattern: r.patternValue(c.Right)}
 	}
 	inner := r.cond(c.Inner)
@@ -709,4 +856,173 @@ func (r *resolver) emit(e *domEmit) *domEmit {
 	}
 	r.emits[e] = out
 	return out
+}
+
+// resolveFeature checks one directive at its declaration slot.
+func (g *stageGrammar) resolveFeature(index, run int) *Error {
+	item := g.features[index]
+	types := g.constantTypes()
+	resolvedFeatures := newResolver(g.constants, g.uni)
+	directive := item.directive
+	if directive.Conditions == nil {
+		return nil
+	}
+	references := constRefs(directive.Conditions)
+	uses := g.arguments[argumentSite{run, item.doc, directive.At}]
+	for _, use := range uses {
+		if use.rule != nil {
+			references = append(references, constRefs(use.rule)...)
+		} else {
+			references = append(references, constRefs(use.term)...)
+		}
+	}
+	if len(uses) > 0 {
+		sort.SliceStable(references, func(i, j int) bool {
+			a, b := references[i].At, references[j].At
+			return a[0] < b[0] || a[0] == b[0] && a[1] < b[1]
+		})
+	}
+	for _, ref := range references {
+		if g.constants[ref.Str] == nil {
+			return g.constError(item.doc, directive.At, "$%s is not defined in stage %s", ref.Str, g.name)
+		}
+	}
+	if problem := inputConditionsProblem(directive.Conditions); problem != "" {
+		return g.constError(item.doc, directive.At, "%s", problem)
+	}
+	for _, condition := range directive.Conditions {
+		if fault := condTypeFault(condition, types); fault != nil {
+			return g.constError(item.doc, directive.At, "%s", fault.problem)
+		}
+	}
+	if err := g.checkValueUses(item.doc, valuePart{rule: &domRule{Conditions: directive.Conditions}}, directive.At, true); err != nil {
+		err.Document, err.Line, err.Column = item.doc, directive.At[0], directive.At[1]
+		return err
+	}
+	copied := *directive
+	copied.Conditions = resolvedFeatures.condList(directive.Conditions)
+	g.features[index].directive = &copied
+	return nil
+}
+
+func (g *stageGrammar) checkArguments(arguments []constArgument) *Error {
+	type reference struct {
+		term *domTerm
+		doc  string
+	}
+	var references []reference
+	for _, argument := range arguments {
+		var refs []*domTerm
+		if argument.rule != nil {
+			refs = constRefs(argument.rule)
+		} else {
+			refs = constRefs(argument.term)
+		}
+		for _, ref := range refs {
+			references = append(references, reference{ref, argument.doc})
+		}
+	}
+	sort.SliceStable(references, func(i, j int) bool {
+		a, b := references[i].term.At, references[j].term.At
+		return a[0] < b[0] || a[0] == b[0] && a[1] < b[1]
+	})
+	for _, ref := range references {
+		if g.constants[ref.term.Str] == nil {
+			return g.constError(ref.doc, ref.term.At, "$%s is not defined in stage %s", ref.term.Str, g.name)
+		}
+	}
+	types := g.constantTypes()
+	for phase := 0; phase < 2; phase++ {
+		var selected *Error
+		var selectedAt [2]int
+		for _, argument := range arguments {
+			var err *Error
+			if phase == 0 {
+				if argument.rule != nil {
+					if fault := ruleTypeFault(argument.rule, types); fault != nil {
+						err = g.faultError(argument.doc, fault.node, argument.at, fault.problem)
+					}
+				} else {
+					ty, fault := termTypeIn(argument.term, types)
+					if fault != nil {
+						err = g.faultError(argument.doc, fault.node, argument.at, fault.problem)
+					} else if argument.tags {
+						if problem := expectedProblem(ty, tyTags); problem != "" {
+							err = g.faultError(argument.doc, argument.term, argument.at, problem)
+						}
+					}
+				}
+			} else {
+				root := valuePart{term: argument.term, rule: argument.rule}
+				err = g.checkValueUses(argument.doc, root, argument.at, false)
+				if err == nil && argument.fragment {
+					resolved := newResolver(g.constants, g.uni).rule(argument.rule)
+					if argument.rule.Params != nil {
+						resolved = partialSourceRule(resolved)
+					}
+					if result := checkDefinition(resolved, true); result.problem != nil {
+						err = g.constError(argument.doc, argument.at, "%s", result.problem.message)
+					}
+				}
+			}
+			if err != nil {
+				at := [2]int{err.Line, err.Column}
+				if at == argument.at && argument.position != [2]int{} {
+					at = argument.position
+				}
+				if selected == nil || at[0] < selectedAt[0] || at[0] == selectedAt[0] && at[1] < selectedAt[1] {
+					selected, selectedAt = err, at
+				}
+			}
+		}
+		if selected != nil {
+			return selected
+		}
+	}
+	return nil
+}
+
+// checkConstantRule checks one definition after constant binding.
+func (g *stageGrammar) checkConstantRule(u constUser) *Error {
+	key := argumentSite{u.inspectionRun, u.doc, u.rule.At}
+	uses := g.arguments[key]
+	delete(g.arguments, key)
+	if len(uses) > 0 {
+		records := append([]constArgument{{doc: u.doc, at: u.rule.At, rule: u.rule}}, uses...)
+		if err := g.checkArguments(records); err != nil {
+			return err
+		}
+	} else {
+		for _, ref := range constRefs(u.rule) {
+			if g.constants[ref.Str] == nil {
+				return g.constError(u.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
+			}
+		}
+		if f := ruleTypeFault(u.rule, g.constantTypes()); f != nil {
+			return g.faultError(u.doc, f.node, u.rule.At, f.problem)
+		}
+		if err := g.checkValueUses(u.doc, valuePart{rule: u.rule}, u.rule.At, false); err != nil {
+			return err
+		}
+	}
+
+	// The checks that simplification decides, which the reader left to
+	// the loader, now with the constants' values (§9).
+	resolved := newResolver(g.constants, g.uni).rule(u.rule)
+	if u.rule.Params != nil {
+		resolved = partialSourceRule(resolved)
+	}
+	result := checkDefinition(resolved, true)
+	if result.problem != nil {
+		return g.constError(u.doc, u.rule.At, "%s", result.problem.message)
+	}
+	if result.deferred != nil {
+		err := g.constError(u.doc, u.rule.At, "%s", result.deferred.message)
+		if u.rule.Params != nil {
+			g.templateDeferred = append(g.templateDeferred, err)
+		} else {
+			g.deferredEmissions = append(g.deferredEmissions, err)
+		}
+	}
+	return nil
 }

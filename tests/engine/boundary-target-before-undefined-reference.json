@@ -1,0 +1,9 @@
+{
+  "description": "Boundary targets receive inspection before final rule references.",
+  "grammar": "%rule text missing\n%conditions $.preceded-by(unused)\n%rule unused \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "boundary target unused is unreachable"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "description": "An uncalled template retains the specific definition error.",
+  "document": "```jbogenbau\n%rule pair(@X) @X :: $y.tags\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1,
+      "message": "$y is captured by no alternative of pair"
+    }
+  }
+}

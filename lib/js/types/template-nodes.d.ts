@@ -1,3 +1,5 @@
+/** @param {any} node @returns {string[]} */
+export declare function sourceKeys(node: any): string[];
 /** @param {any} root @returns {boolean} */
 export declare function hasUnresolved(root: any): boolean;
 /** @param {any} expr @returns {any} */

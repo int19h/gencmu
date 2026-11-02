@@ -22,7 +22,7 @@ def line_column(text: str, index: int) -> tuple[int, int]:
     """The 1-based line and column of a code point index."""
     line = 1
     start = 0
-    for match in _LINE_BREAK.finditer(text, 0, index):
+    for match in _LINE_BREAK.finditer(text, 0, index + 1):
         if match.end() > index:
             break
         line += 1
@@ -49,8 +49,16 @@ INFO = "jbogenbau"
 """The info string of a fenced block that holds grammar text (engine §8)."""
 
 
-def jbogenbau_text(document: str) -> GrammarText:
+def jbogenbau_text(document: str, unicode) -> GrammarText:
     """Find the fenced ``jbogenbau`` blocks of a Markdown document (engine §8)."""
+    def trim(text):
+        start, end = 0, len(text)
+        while start < end and unicode.is_white_space(ord(text[start])):
+            start += 1
+        while end > start and unicode.is_white_space(ord(text[end - 1])):
+            end -= 1
+        return text[start:end]
+
     lines = split_lines(document)
     blocks: list[list[tuple[int, str]]] = []
     index = 0
@@ -63,23 +71,28 @@ def jbogenbau_text(document: str) -> GrammarText:
         if fence[0] == "`" and "`" in info:
             index += 1
             continue
-        closing = re.compile(r"^ {0,3}" + re.escape(fence[0]) + "{" + str(len(fence)) + r",}[ \t]*$")
+        closing = re.compile(r"^ {0,3}" + re.escape(fence[0]) + "{" + str(len(fence)) + r",}(.*)$")
         body: list[tuple[int, str]] = []
         opening = index + 1
+        column = match.start(1) + 1
         index += 1
-        while index < len(lines) and closing.match(lines[index]) is None:
+        while index < len(lines):
+            closer = closing.fullmatch(lines[index])
+            if closer is not None and trim(closer.group(1)) == "":
+                break
             body.append((index + 1, lines[index]))
             index += 1
-        if index >= len(lines) and info.strip() == INFO:
+        if index >= len(lines) and trim(info) == INFO:
             # A jbogenbau block that is never closed is an error; any other
             # runs to the end of the document, as in CommonMark (engine §8).
-            raise GencmuError(f"a {INFO} block is never closed", line=opening, column=1)
+            raise GencmuError(f"a {INFO} block that is never closed", line=opening, column=column)
         index += 1
-        if info.strip() == INFO:
+        if trim(info) == INFO:
             blocks.append(body)
     chars: list[str] = []
     positions: list[tuple[int, int]] = []
     last = (1, 1)
+    line_end = last
     for number, block in enumerate(blocks):
         if number > 0:
             chars.append("\n")
@@ -87,21 +100,22 @@ def jbogenbau_text(document: str) -> GrammarText:
         for row, (line_number, line) in enumerate(block):
             if row > 0:
                 chars.append("\n")
-                positions.append(last)
+                positions.append(line_end)
             for column, char in enumerate(line, 1):
                 chars.append(char)
                 positions.append((line_number, column))
-            last = (line_number, len(line) + 1)
+            line_end = (line_number, len(line) + 1)
+            if line or row > 0:
+                last = line_end
     positions.append(last)
     return GrammarText("".join(chars), positions)
 
 
-def resolve(base: str, target: str) -> str:
+def resolve(base: str, target: str, at: tuple[int, int] | None = None) -> str:
     """A path resolved against the path of the document it is in."""
-    joined = posixpath.join(posixpath.dirname(base), target) if not target.startswith("/") else target
+    if target.startswith("/"):
+        line, column = at or (None, None)
+        raise GencmuError("a path target must be relative", document=base, line=line, column=column)
+    joined = posixpath.join(posixpath.dirname(base), target)
     normalized = posixpath.normpath(joined)
-    # A path in memory is relative to the root of the documents; only the
-    # absolute path of a document on disk keeps its leading slash.
-    if normalized.startswith("/") and not base.startswith("/"):
-        normalized = normalized.lstrip("/")
-    return normalized
+    return "/" + normalized.lstrip("/") if normalized.startswith("/") else normalized

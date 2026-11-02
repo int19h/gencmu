@@ -12,23 +12,12 @@ from ._model import Tags
 EMPTY: Tags = frozenset()
 
 
-def tag_set(tags: Iterable[str] = ()) -> Tags:
-    return frozenset(tags)
-
-
-def union(left: Tags, right: Tags) -> Tags:
-    """Every tag of either."""
-    if not right:
-        return left
-    if not left:
-        return right
-    return left | right
-
-
 class Gathered:
-    """The union of many tag sets, added one at a time. A fold of
-    ``union`` copies the tags gathered so far at each set, so this grows
-    one mutable set, made only once a second set adds a tag."""
+    """Collects tags from many sets.
+
+    The collector allocates a mutable set when a second nonempty set arrives.
+    The caller receives an immutable set.
+    """
 
     __slots__ = ("first", "grown")
 
@@ -86,7 +75,7 @@ def is_tag(tag: object, unicode=None) -> bool:
 
 
 def is_class(tag: str) -> bool:
-    """Whether a tag's first character is ``A`` to ``Z`` (engine §10)."""
+    """Whether a tag starts and ends with an uppercase ASCII letter (engine §10)."""
     return bool(tag) and "A" <= tag[0] <= "Z" and "A" <= tag[-1] <= "Z"
 
 

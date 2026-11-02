@@ -1,0 +1,10 @@
+{
+  "description": "A range with an unresolved endpoint waits for substitution after the known endpoint passes inspection.",
+  "grammar": "%ambiguity-resolution greedy\n%const $GOOD \"z\"\n%rule g(@Q) \"a\"\n%rule unused(@P) g(@P..$GOOD)\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

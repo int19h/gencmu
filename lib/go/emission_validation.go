@@ -15,7 +15,7 @@ func (g *stageGrammar) validateEmissionOverlap() *Error {
 			return false
 		}
 		switch e.Kind {
-		case exLiteral, exRange, exWildcard, exTerminal:
+		case exLiteral, exRange, exWildcard:
 			return true
 		case exRef:
 			return isTerminalName(e.Name) || consuming[e.Name]
@@ -183,74 +183,4 @@ func (g *stageGrammar) validateAlternativeRecipeCycle(rule string, a *sAlt) *Err
 		}
 	}
 	return nil
-}
-
-func (g *stageGrammar) resolveClassifierKeys() *Error {
-	for index, item := range g.classifierSet.items {
-		copy := *item.classifier
-		copy.Entries = make([]*domEntry, len(item.classifier.Entries))
-		for i, e := range item.classifier.Entries {
-			entry := *e
-			copy.Entries[i] = &entry
-		}
-		item.classifier = &copy
-		g.classifierSet.items[index] = item
-		for _, entry := range item.classifier.Entries {
-			entry.Keys = nil
-			for _, key := range entry.KeyTerms {
-				for _, ref := range constRefs(key) {
-					if g.constants[ref.Str] == nil {
-						return g.constError(item.doc, ref.At, "unknown classifier string constant $%s", ref.Str)
-					}
-				}
-				if ty, f := termTypeIn(key, g.constantTypes()); f != nil {
-					return g.faultError(item.doc, f.node, entry.At, f.problem)
-				} else if ty != tyString {
-					return g.faultError(item.doc, key, entry.At, "classifier keys require strings")
-				}
-				value, err := g.evaluateClosed(item.doc, key, entry.At)
-				if err != nil {
-					return err
-				}
-				entry.Keys = append(entry.Keys, value.s)
-			}
-		}
-	}
-	return nil
-}
-
-// restoreRecipeLocations reads source positions only after a cached cycle
-// failure. It does not replace the cached definitions or their recipes (§8).
-func (nr *notationReader) restoreRecipeLocations(text, document string, cached *domDoc, names ...*namesScope) {
-	source, err := nr.readMode(text, document, true, names...)
-	if err != nil {
-		return
-	}
-	type declaration struct {
-		name, op string
-		at       [2]int
-	}
-	written := map[declaration]*domRule{}
-	for _, rule := range source.Rules {
-		written[declaration{rule.Name, rule.Op, rule.At}] = rule
-	}
-	copyPosition := func(recipe, original *domTerm) {
-		if recipe != nil && original != nil {
-			recipe.At = original.At
-		}
-	}
-	for _, rule := range cached.Rules {
-		original := written[declaration{rule.Name, rule.Op, rule.At}]
-		if original == nil {
-			continue
-		}
-		copyPosition(rule.Value, original.Value)
-		copyPosition(rule.Image, original.Image)
-		for index, alternative := range rule.Alternatives {
-			if index < len(original.Alternatives) {
-				copyPosition(alternative.Value, original.Alternatives[index].Value)
-				copyPosition(alternative.Image, original.Alternatives[index].Image)
-			}
-		}
-	}
 }

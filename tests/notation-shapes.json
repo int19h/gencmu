@@ -501,6 +501,27 @@
       "(q [t r])",
       "(q s)",
       "rejected"
+    ],
+    "pattern-exact-start": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "pattern-attached-start": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "pattern-adjacent-item": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
     ]
   },
   "extraParts": [
@@ -1378,6 +1399,515 @@
         "line": 3,
         "column": 15
       }
+    },
+    {
+      "description": "The final notation stage reports an emission error on an empty document.",
+      "find": "{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"optional\":{\"repeat\":{\"ref\":\"statement\"}}}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"optional\":{\"repeat\":{\"ref\":\"statement\"}}}}],\"conditions\":[],\"at\":[*],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"if\":{\"op\":\"∈\",\"left\":{\"string\":\"x\"},\"right\":{\"method\":\"split\",\"receiver\":{\"string\":\"x\"},\"args\":[{\"method\":\"value\",\"receiver\":{\"capture\":\"\"},\"args\":[]}]}},\"then\":{\"tag\":\"X\"}}}]}}",
+      "document": "",
+      "inputs": [
+        ""
+      ],
+      "expect": "grammar"
+    },
+    {
+      "description": "A captured tested symbol requires its primary before its tests.",
+      "find": "{\"seq\":[{\"ref\":\"untested-primary\"},{\"repeat\":{\"ref\":\"symbol-test\"}}]}",
+      "replace": "{\"literal\":{\"string\":\".\"}}",
+      "document": "```jbogenbau\n%rule text $x:.\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 15
+      }
+    },
+    {
+      "description": "An elidable tested head without a primary fails its form.",
+      "find": "{\"seq\":[{\"ref\":\"untested-primary\"},{\"repeat\":{\"ref\":\"symbol-test\"}}]}",
+      "replace": "{\"literal\":{\"string\":\".\"}}",
+      "document": "```jbogenbau\n%rule text [+. ]\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 12
+      }
+    },
+    {
+      "description": "A supplied ranked choice without conjunctions is a document error.",
+      "find": "{\"seq\":[{\"ref\":\"conjunction\"},{\"literal\":{\"string\":\"≻\"}},{\"repeat\":{\"ref\":\"conjunction\"},\"separator\":{\"literal\":{\"string\":\"≻\"}}}]}",
+      "replace": "{\"literal\":{\"string\":\".\"}}",
+      "document": "```jbogenbau\n%rule text .\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 12
+      }
+    },
+    {
+      "description": "A comparison requires its comparator before converting its operands.",
+      "find": "{\"name\":\"comparison\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"union\"},{\"ref\":\"comparator\"},{\"ref\":\"union\"}]}}],\"conditions\":[],\"at\":[528,1]}",
+      "replace": "{\"name\":\"comparison\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\".\"}},{\"ref\":\"union\"},{\"literal\":{\"string\":\",\"}},{\"ref\":\"union\"}]}}],\"conditions\":[],\"at\":[528,1]}",
+      "document": "```jbogenbau\n%rule text A %conditions . _Nope, A\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 26
+      }
+    },
+    {
+      "description": "A tree comparison requires its comparator before its bare-name check.",
+      "find": "{\"name\":\"tree-comparison\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"capture-reference\"},{\"ref\":\"tree-comparator\"},{\"ref\":\"union\"}]}}],\"conditions\":[],\"at\":[534,1]}",
+      "replace": "{\"name\":\"tree-comparison\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"capture-reference\"},{\"literal\":{\"string\":\":\"}},{\"ref\":\"union\"}]}}],\"conditions\":[],\"at\":[534,1]}",
+      "document": "```jbogenbau\n%rule text $x:A %conditions $x : B\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 29
+      }
+    },
+    {
+      "description": "A headless rule reports its missing rule-name.",
+      "find": "{\"name\":\"rule\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"definer\"},{\"optional\":{\"ref\":\"rule-flags\"}},{\"choice\":[{\"ref\":\"rule-name\"},{\"ref\":\"call\"}]},{\"choice\":[{\"seq\":[{\"literal\":{\"string\":\"=\"}},{\"ref\":\"call\"}]},{\"seq\":[{\"choice\":[{\"ref\":\"body\"},{\"seq\":[{\"ref\":\"clauses\"},{\"ref\":\"headed-body\"}]}]},{\"optional\":{\"ref\":\"conditions-clause\"}},{\"optional\":{\"ref\":\"output\"}}]}]}]}}],\"conditions\":[],\"at\":[55,1]}",
+      "replace": "{\"name\":\"rule\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"definer\"},{\"literal\":{\"string\":\".\"}},{\"ref\":\"body\"}]}}],\"conditions\":[],\"at\":[55,1]}",
+      "document": "```jbogenbau\n%rule . A\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 1
+      }
+    },
+    {
+      "description": "A direct constant primary becomes a literal.",
+      "find": "{\"name\":\"untested-primary\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"reference\"}},{\"guards\":[],\"expr\":{\"ref\":\"call\"}},{\"guards\":[],\"expr\":{\"ref\":\"parameter\"}},{\"guards\":[],\"expr\":{\"ref\":\"tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"string-terminal\"}},{\"guards\":[],\"expr\":{\"ref\":\"range\"}},{\"guards\":[],\"expr\":{\"ref\":\"wildcard\"}},{\"guards\":[],\"expr\":{\"ref\":\"group\"}},{\"guards\":[],\"expr\":{\"ref\":\"optional\"}},{\"guards\":[],\"expr\":{\"ref\":\"repetition\"}},{\"guards\":[],\"expr\":{\"ref\":\"empty\"}}],\"conditions\":[],\"at\":[191,1]}",
+      "replace": "{\"name\":\"untested-primary\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"constant-reference\"}}],\"conditions\":[],\"at\":[191,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%const $X \"a\"\n%rule text $X\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": [
+        "a"
+      ]
+    },
+    {
+      "description": "A capture can wrap a direct constant primary.",
+      "find": "{\"name\":\"untested-primary\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"reference\"}},{\"guards\":[],\"expr\":{\"ref\":\"call\"}},{\"guards\":[],\"expr\":{\"ref\":\"parameter\"}},{\"guards\":[],\"expr\":{\"ref\":\"tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"string-terminal\"}},{\"guards\":[],\"expr\":{\"ref\":\"range\"}},{\"guards\":[],\"expr\":{\"ref\":\"wildcard\"}},{\"guards\":[],\"expr\":{\"ref\":\"group\"}},{\"guards\":[],\"expr\":{\"ref\":\"optional\"}},{\"guards\":[],\"expr\":{\"ref\":\"repetition\"}},{\"guards\":[],\"expr\":{\"ref\":\"empty\"}}],\"conditions\":[],\"at\":[191,1]}",
+      "replace": "{\"name\":\"untested-primary\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"constant-reference\"}}],\"conditions\":[],\"at\":[191,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%const $X \"a\"\n%rule text $x:$X\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": [
+        "a"
+      ]
+    },
+    {
+      "description": "A term atom can contain another term atom.",
+      "find": "{\"name\":\"term-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"plain-term-atom\"}},{\"guards\":[],\"expr\":{\"ref\":\"method\"}}],\"conditions\":[],\"at\":[432,1]}",
+      "replace": "{\"name\":\"term-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"choice\":[{\"ref\":\"string\"},{\"seq\":[{\"literal\":{\"string\":\"(\"}},{\"ref\":\"term-atom\"},{\"literal\":{\"string\":\")\"}}]}]}}],\"conditions\":[],\"at\":[432,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%const $X (\"a\")\n%rule text $X\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": [
+        "a"
+      ]
+    },
+    {
+      "description": "A term atom can directly contain a union.",
+      "find": "{\"name\":\"term-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"plain-term-atom\"}},{\"guards\":[],\"expr\":{\"ref\":\"method\"}}],\"conditions\":[],\"at\":[432,1]}",
+      "replace": "{\"name\":\"term-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"plain-term-atom\"}},{\"guards\":[],\"expr\":{\"ref\":\"method\"}},{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\".\"}},{\"ref\":\"union\"}]}}],\"conditions\":[],\"at\":[432,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%const $X . \"a\"\n%rule text $X\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": [
+        "a"
+      ]
+    },
+    {
+      "description": "A term atom can directly contain a guarded term.",
+      "find": "{\"name\":\"term-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"plain-term-atom\"}},{\"guards\":[],\"expr\":{\"ref\":\"method\"}}],\"conditions\":[],\"at\":[432,1]}",
+      "replace": "{\"name\":\"term-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"plain-term-atom\"}},{\"guards\":[],\"expr\":{\"ref\":\"method\"}},{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\".\"}},{\"ref\":\"guarded-term\"}]}}],\"conditions\":[],\"at\":[432,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\" :: . $ ⟹ B\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": [
+        "a"
+      ]
+    },
+    {
+      "description": "A string terminal refuses a parameter constructor.",
+      "find": "{\"name\":\"string-terminal\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-reference\"}}],\"conditions\":[],\"at\":[201,1]}",
+      "replace": "{\"name\":\"string-terminal\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\".\"}},{\"ref\":\"parameter\"}]}}],\"conditions\":[],\"at\":[201,1]}",
+      "document": "```jbogenbau\n%rule f(@X) .@X\n%rule text f(\"a\")\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 13
+      }
+    },
+    {
+      "description": "A method converts its receiver before requiring selectors.",
+      "find": "{\"name\":\"method\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"method-receiver\"},{\"repeat\":{\"ref\":\"method-selector\"}}]}}],\"conditions\":[],\"at\":[438,1]}",
+      "replace": "{\"name\":\"method\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\".\"}},{\"ref\":\"method-receiver\"}]}}],\"conditions\":[],\"at\":[438,1]}",
+      "document": "```jbogenbau\n%const $X . _Nope\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 13
+      }
+    },
+    {
+      "description": "A pattern primary refuses a child-item constructor.",
+      "find": "{\"name\":\"pattern-primary\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"pattern-node\"}},{\"guards\":[],\"expr\":{\"ref\":\"pattern-bare\"}},{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"(\"}},{\"ref\":\"pattern-union\"},{\"literal\":{\"string\":\")\"}}]}}],\"conditions\":[],\"at\":[587,1]}",
+      "replace": "{\"name\":\"pattern-primary\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"pattern-node\"}},{\"guards\":[],\"expr\":{\"ref\":\"pattern-bare\"}},{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"(\"}},{\"ref\":\"pattern-union\"},{\"literal\":{\"string\":\")\"}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\".\"}},{\"ref\":\"child-item\"}]}}],\"conditions\":[],\"at\":[587,1]}",
+      "document": "```jbogenbau\n%const $P #.⋯\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 12
+      }
+    },
+    {
+      "description": "A union with two operands requires an operator.",
+      "find": "{\"name\":\"union\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"optional\":{\"literal\":{\"string\":\"∪\"}}},{\"repeat\":{\"ref\":\"intersection\"},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]}}]}}],\"conditions\":[],\"at\":[417,1]}",
+      "replace": "{\"name\":\"union\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\".\"}},{\"ref\":\"intersection\"},{\"literal\":{\"string\":\",\"}},{\"ref\":\"intersection\"}]}}],\"conditions\":[],\"at\":[417,1]}",
+      "document": "```jbogenbau\n%const $X . \"a\", \"b\"\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 11
+      }
+    },
+    {
+      "description": "A bare pattern terminal checks the engine-tag inventory.",
+      "find": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"choice\":[{\"ref\":\"pattern-name\"},{\"ref\":\"tag\"},{\"ref\":\"string\"},{\"ref\":\"range\"},{\"ref\":\"wildcard\"},{\"ref\":\"constant-reference\"}]},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}}],\"conditions\":[],\"at\":[602,1]}",
+      "replace": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"Engine-Tag\"}}],\"conditions\":[],\"at\":[602,1]}",
+      "document": "```jbogenbau\n%const $P #_Nope\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 12
+      }
+    },
+    {
+      "description": "A repeated pattern list uses its first part.",
+      "find": "{\"name\":\"pattern-node\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"optional\":{\"capture\":\"exact\",\"expr\":{\"literal\":{\"string\":\"·\"}}}},{\"capture\":\"atom\",\"expr\":{\"ref\":\"pattern-atom\"}},{\"optional\":{\"capture\":\"list\",\"expr\":{\"ref\":\"pattern-children\"}}}]}}],\"conditions\":[{\"if\":{\"captured\":\"exact\"},\"then\":{\"method\":\"begins\",\"receiver\":{\"method\":\"onward\",\"receiver\":{\"capture\":\"exact\"},\"args\":[]},\"args\":[{\"rule\":\"pattern-exact-start\"}]}},{\"if\":{\"captured\":\"list\"},\"then\":{\"method\":\"begins\",\"receiver\":{\"method\":\"onward\",\"receiver\":{\"capture\":\"atom\"},\"args\":[]},\"args\":[{\"rule\":\"pattern-attached-start\"}]}},{\"if\":{\"not\":{\"captured\":\"list\"}},\"then\":{\"not\":{\"method\":\"begins\",\"receiver\":{\"method\":\"onward\",\"receiver\":{\"capture\":\"atom\"},\"args\":[]},\"args\":[{\"rule\":\"pattern-attached-start\"}]}}}],\"at\":[590,1]}",
+      "replace": "{\"name\":\"pattern-node\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"pattern-atom\"},{\"ref\":\"pattern-children\"},{\"ref\":\"pattern-children\"}]}},{\"guards\":[],\"expr\":{\"ref\":\"pattern-atom\"}}],\"conditions\":[],\"at\":[590,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%const $P #r«»«_Nope»\n%rule r \"a\"\n%rule text r\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": [
+        "a"
+      ]
+    },
+    {
+      "description": "A binding requires its call before conversion.",
+      "find": "{\"name\":\"rule\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"definer\"},{\"optional\":{\"ref\":\"rule-flags\"}},{\"choice\":[{\"ref\":\"rule-name\"},{\"ref\":\"call\"}]},{\"choice\":[{\"seq\":[{\"literal\":{\"string\":\"=\"}},{\"ref\":\"call\"}]},{\"seq\":[{\"choice\":[{\"ref\":\"body\"},{\"seq\":[{\"ref\":\"clauses\"},{\"ref\":\"headed-body\"}]}]},{\"optional\":{\"ref\":\"conditions-clause\"}},{\"optional\":{\"ref\":\"output\"}}]}]}]}}],\"conditions\":[],\"at\":[55,1]}",
+      "replace": "{\"name\":\"rule\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"definer\"},{\"optional\":{\"ref\":\"rule-flags\"}},{\"choice\":[{\"ref\":\"rule-name\"},{\"ref\":\"call\"}]},{\"choice\":[{\"seq\":[{\"literal\":{\"string\":\"=\"}},{\"ref\":\"call\"}]},{\"seq\":[{\"choice\":[{\"ref\":\"body\"},{\"seq\":[{\"ref\":\"clauses\"},{\"ref\":\"headed-body\"}]}]},{\"optional\":{\"ref\":\"conditions-clause\"}},{\"optional\":{\"ref\":\"output\"}}]}]}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"definer\"},{\"ref\":\"rule-name\"},{\"literal\":{\"string\":\".\"}},{\"literal\":{\"string\":\"=\"}}]}}],\"conditions\":[],\"at\":[55,1]}",
+      "document": "```jbogenbau\n%rule text . =\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 1
+      }
+    },
+    {
+      "description": "A repeated binding call selects its first part.",
+      "find": "{\"name\":\"rule\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"definer\"},{\"optional\":{\"ref\":\"rule-flags\"}},{\"choice\":[{\"ref\":\"rule-name\"},{\"ref\":\"call\"}]},{\"choice\":[{\"seq\":[{\"literal\":{\"string\":\"=\"}},{\"ref\":\"call\"}]},{\"seq\":[{\"choice\":[{\"ref\":\"body\"},{\"seq\":[{\"ref\":\"clauses\"},{\"ref\":\"headed-body\"}]}]},{\"optional\":{\"ref\":\"conditions-clause\"}},{\"optional\":{\"ref\":\"output\"}}]}]}]}}],\"conditions\":[],\"at\":[55,1]}",
+      "replace": "{\"name\":\"rule\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"definer\"},{\"optional\":{\"ref\":\"rule-flags\"}},{\"choice\":[{\"ref\":\"rule-name\"},{\"ref\":\"call\"}]},{\"choice\":[{\"seq\":[{\"literal\":{\"string\":\"=\"}},{\"ref\":\"call\"}]},{\"seq\":[{\"choice\":[{\"ref\":\"body\"},{\"seq\":[{\"ref\":\"clauses\"},{\"ref\":\"headed-body\"}]}]},{\"optional\":{\"ref\":\"conditions-clause\"}},{\"optional\":{\"ref\":\"output\"}}]}]}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"definer\"},{\"ref\":\"rule-name\"},{\"literal\":{\"string\":\".\"}},{\"literal\":{\"string\":\"=\"}},{\"ref\":\"call\"},{\"literal\":{\"string\":\",\"}},{\"ref\":\"call\"}]}}],\"conditions\":[],\"at\":[55,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule f(@X) @X\n%rule g(@X) @X\n%rule text . = f(\"a\"), g(\"b\")\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": [
+        "a"
+      ]
+    },
+    {
+      "description": "A tokenless constructor at the input end uses the final token boundary.",
+      "find": "{\"name\":\"classifier-class\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"Identifier\"}},{\"guards\":[],\"expr\":{\"test\":\"≠\",\"value\":{\"string\":\"_\"},\"expr\":{\"ref\":\"Engine-Tag\"}}}],\"conditions\":[],\"at\":[772,1]}",
+      "replace": "{\"name\":\"classifier-class\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[772,1]}",
+      "document": "```jbogenbau\n%classifier c \"a\" ∈   \n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 20
+      }
+    },
+    {
+      "description": "A pattern union ignores a child-choice constructor instead of converting its item array.",
+      "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\"},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]}}}],\"conditions\":[],\"at\":[578,1]}",
+      "replace": "{\"name\":\"pattern-union\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-choice\"}}],\"conditions\":[],\"at\":[578,1]}",
+      "document": "```jbogenbau\n%const $P #(a)\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [],
+      "expect": "grammar"
+    },
+    {
+      "description": "A child choice requires child alternatives instead of a pattern predicate.",
+      "find": "{\"name\":\"child-choice\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-alternative\"},\"separator\":{\"literal\":{\"string\":\"|\"}}}}],\"conditions\":[],\"at\":[611,1]}",
+      "replace": "{\"name\":\"child-choice\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"pattern-intersection\"}}],\"conditions\":[],\"at\":[611,1]}",
+      "document": "```jbogenbau\n%const $P #« a »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [],
+      "expect": "grammar"
+    },
+    {
+      "description": "A child sequence requires child items instead of a pattern predicate.",
+      "find": "{\"name\":\"child-sequence\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[617,1]}",
+      "replace": "{\"name\":\"child-sequence\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"pattern-path\"}}],\"conditions\":[],\"at\":[617,1]}",
+      "document": "```jbogenbau\n%const $P #« a »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [],
+      "expect": "grammar"
+    },
+    {
+      "description": "A supplied ranked choice keeps its operands when its separator has another spelling.",
+      "find": "{\"name\":\"ranked-choice\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"conjunction\"},{\"literal\":{\"string\":\"≻\"}},{\"repeat\":{\"ref\":\"conjunction\"},\"separator\":{\"literal\":{\"string\":\"≻\"}}}]}}],\"conditions\":[],\"at\":[86,1]}",
+      "replace": "{\"name\":\"ranked-choice\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"conjunction\"},{\"literal\":{\"string\":\"∪\"}},{\"ref\":\"conjunction\"}]}}],\"conditions\":[],\"at\":[86,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text :: ∅ | \"a\" ∪ \"b\"\n```\n",
+      "inputs": [
+        "a",
+        "b"
+      ],
+      "expect": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "description": "A nested tested constructor cannot supply the base of an outer test.",
+      "find": "{\"name\":\"tested\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"untested-primary\"},{\"repeat\":{\"ref\":\"symbol-test\"}}]}}],\"conditions\":[],\"at\":[250,1]}",
+      "replace": "{\"name\":\"tested\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"choice\":[{\"seq\":[{\"literal\":{\"string\":\"(\"}},{\"ref\":\"tested\"},{\"literal\":{\"string\":\")\"}},{\"ref\":\"symbol-test\"}]},{\"seq\":[{\"ref\":\"tag\"},{\"ref\":\"symbol-test\"}]}]}}],\"conditions\":[],\"at\":[250,1]}",
+      "document": "```jbogenbau\n%rule text (A=\"a\")=\"b\"\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 12
+      }
+    },
+    {
+      "description": "A direct terminal after a nested tested constructor supplies the outer base.",
+      "find": "{\"name\":\"tested\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"untested-primary\"},{\"repeat\":{\"ref\":\"symbol-test\"}}]}}],\"conditions\":[],\"at\":[250,1]}",
+      "replace": "{\"name\":\"tested\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"choice\":[{\"seq\":[{\"literal\":{\"string\":\"(\"}},{\"ref\":\"tested\"},{\"literal\":{\"string\":\")\"}},{\"ref\":\"string-terminal\"},{\"ref\":\"symbol-test\"}]},{\"seq\":[{\"ref\":\"tag\"},{\"ref\":\"symbol-test\"}]}]}}],\"conditions\":[],\"at\":[250,1]}",
+      "document": "```jbogenbau\n%rule text (A=\"a\") \"b\"=\"b\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [
+        "b"
+      ],
+      "expect": [
+        "b"
+      ]
+    },
+    {
+      "description": "An attachment rejects a bare capture behind a stray token.",
+      "find": "{\"name\":\"capture-reference\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"Capture\"}}],\"conditions\":[],\"at\":[465,1]}",
+      "replace": "{\"name\":\"capture-reference\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"A\"}},{\"ref\":\"Capture\"}]}}],\"conditions\":[],\"at\":[465,1]}",
+      "document": "```jbogenbau\n%rule text $x:A %emits $x (A $)\n```\n",
+      "inputs": [],
+      "expect": "grammar"
+    },
+    {
+      "description": "A wildcard pattern requires its own token rather than a nested named empty constructor.",
+      "find": "{\"name\":\"wildcard\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"_\"}}}],\"conditions\":[],\"at\":[204,1]}",
+      "replace": "{\"name\":\"wildcard\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"empty\"}}],\"conditions\":[],\"at\":[204,1]}",
+      "document": "```jbogenbau\n%const $P #ε\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 12
+      }
+    },
+    {
+      "description": "A pattern union requires operators after converting its operands.",
+      "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\"},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]}}}],\"conditions\":[],\"at\":[578,1]}",
+      "replace": "{\"name\":\"pattern-union\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"pattern-intersection\"},{\"ref\":\"pattern-intersection\"}]}}],\"conditions\":[],\"at\":[578,1]}",
+      "document": "```jbogenbau\n%const $P #(a b)\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 13
+      }
+    },
+    {
+      "description": "A child set requires operators after converting its whole-pattern operands.",
+      "find": "{\"name\":\"child-alternative\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-sequence\"}},{\"guards\":[],\"expr\":{\"ref\":\"child-set\"}}],\"conditions\":[],\"at\":[614,1]},{\"name\":\"child-sequence\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[617,1]},{\"name\":\"child-set\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"},{\"optional\":{\"repeat\":{\"seq\":[{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"}]}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\"},{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"},{\"optional\":{\"repeat\":{\"seq\":[{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"}]}}}]}}],\"conditions\":[],\"at\":[620,1]}",
+      "replace": "{\"name\":\"child-alternative\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-set\"}}],\"conditions\":[],\"at\":[614,1]},{\"name\":\"child-sequence\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[617,1]},{\"name\":\"child-set\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"ref\":\"child-intersection\"}]}}],\"conditions\":[],\"at\":[620,1]}",
+      "document": "```jbogenbau\n%const $P #« a b »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 14
+      }
+    },
+    {
+      "description": "A stray punctuation token cannot replace a pattern union operator.",
+      "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\"},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]}}}],\"conditions\":[],\"at\":[578,1]}",
+      "replace": "{\"name\":\"pattern-union\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"pattern-intersection\"},{\"literal\":{\"string\":\",\"}},{\"ref\":\"pattern-intersection\"}]}}],\"conditions\":[],\"at\":[578,1]}",
+      "document": "```jbogenbau\n%const $P #(a,b)\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 13
+      }
+    },
+    {
+      "description": "A pattern operand error precedes a missing union operator.",
+      "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\"},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]}}}],\"conditions\":[],\"at\":[578,1]}",
+      "replace": "{\"name\":\"pattern-union\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"pattern-intersection\"},{\"ref\":\"pattern-intersection\"}]}}],\"conditions\":[],\"at\":[578,1]}",
+      "document": "```jbogenbau\n%const $P #(a _Nope)\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 15
+      }
+    },
+    {
+      "description": "A child operand error precedes a missing set operator.",
+      "find": "{\"name\":\"child-alternative\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-sequence\"}},{\"guards\":[],\"expr\":{\"ref\":\"child-set\"}}],\"conditions\":[],\"at\":[614,1]},{\"name\":\"child-sequence\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[617,1]},{\"name\":\"child-set\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"},{\"optional\":{\"repeat\":{\"seq\":[{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"}]}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\"},{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"},{\"optional\":{\"repeat\":{\"seq\":[{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"}]}}}]}}],\"conditions\":[],\"at\":[620,1]}",
+      "replace": "{\"name\":\"child-alternative\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-set\"}}],\"conditions\":[],\"at\":[614,1]},{\"name\":\"child-sequence\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[617,1]},{\"name\":\"child-set\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"ref\":\"child-intersection\"}]}}],\"conditions\":[],\"at\":[620,1]}",
+      "document": "```jbogenbau\n%const $P #« a _Nope »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 16
+      }
+    },
+    {
+      "description": "A child set with one operand still requires its operator.",
+      "find": "{\"name\":\"child-alternative\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-sequence\"}},{\"guards\":[],\"expr\":{\"ref\":\"child-set\"}}],\"conditions\":[],\"at\":[614,1]},{\"name\":\"child-sequence\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[617,1]},{\"name\":\"child-set\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"},{\"optional\":{\"repeat\":{\"seq\":[{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"}]}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\"},{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"},{\"optional\":{\"repeat\":{\"seq\":[{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"}]}}}]}}],\"conditions\":[],\"at\":[620,1]}",
+      "replace": "{\"name\":\"child-alternative\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-set\"}}],\"conditions\":[],\"at\":[614,1]},{\"name\":\"child-sequence\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[617,1]},{\"name\":\"child-set\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-intersection\"}}],\"conditions\":[],\"at\":[620,1]}",
+      "document": "```jbogenbau\n%const $P #« a »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 14
+      }
+    },
+    {
+      "description": "A child item cannot turn a pattern predicate into a child array.",
+      "find": "{\"name\":\"child-item\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-path\"}},{\"guards\":[],\"expr\":{\"ref\":\"pattern-brackets\"}},{\"guards\":[],\"expr\":{\"ref\":\"pattern-repeat\"}},{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"⋯\"}}}],\"conditions\":[{\"not\":{\"method\":\"begins\",\"receiver\":{\"method\":\"onward\",\"receiver\":{\"method\":\"last-token\",\"receiver\":{\"capture\":\"\"},\"args\":[]},\"args\":[]},\"args\":[{\"rule\":\"pattern-adjacent-item\"}]}}],\"at\":[627,1]}",
+      "replace": "{\"name\":\"child-item\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"pattern-path\"}}],\"conditions\":[],\"at\":[627,1]}",
+      "document": "```jbogenbau\n%const $P #« a »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [],
+      "expect": "grammar"
+    },
+    {
+      "description": "A pattern union requires intersection constructors rather than direct pattern paths.",
+      "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\"},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]}}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"pattern-union\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-path\"},\"separator\":{\"literal\":{\"string\":\"∪\"}}}}],\"conditions\":[],\"at\":[*]}",
+      "document": "```jbogenbau\n%const $P #(A ∪ B)\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 13
+      }
+    },
+    {
+      "description": "A pattern intersection requires pattern paths rather than child paths.",
+      "find": "{\"name\":\"pattern-intersection\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-path\"},\"separator\":{\"literal\":{\"string\":\"∩\"}}}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"pattern-intersection\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-path\"},\"separator\":{\"literal\":{\"string\":\"∩\"}}}}],\"conditions\":[],\"at\":[*]}",
+      "document": "```jbogenbau\n%const $P #(A ∩ B)\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 13
+      }
+    },
+    {
+      "description": "A child intersection requires child paths rather than pattern paths.",
+      "find": "{\"name\":\"child-intersection\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-path\"},\"separator\":{\"literal\":{\"string\":\"∩\"}}}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"child-intersection\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-path\"},\"separator\":{\"literal\":{\"string\":\"∩\"}}}}],\"conditions\":[],\"at\":[*]}",
+      "document": "```jbogenbau\n%const $P #« A ∪ B »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 14
+      }
+    },
+    {
+      "description": "A child set requires child constructors rather than pattern intersections.",
+      "find": "{\"name\":\"child-set\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"},{\"optional\":{\"repeat\":{\"seq\":[{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"}]}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\"},{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"},{\"optional\":{\"repeat\":{\"seq\":[{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"}]}}}]}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"child-set\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\"},\"separator\":{\"literal\":{\"string\":\"∪\"}}}}],\"conditions\":[],\"at\":[*]}",
+      "document": "```jbogenbau\n%const $P #« A ∪ B »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 2,
+        "column": 14
+      }
+    },
+    {
+      "description": "A child set accepts its child-intersection operand layer.",
+      "find": "{\"name\":\"child-set\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"},{\"optional\":{\"repeat\":{\"seq\":[{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"}]}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\"},{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"},{\"optional\":{\"repeat\":{\"seq\":[{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"}]}}}]}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"child-set\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-intersection\"},\"separator\":{\"literal\":{\"string\":\"∪\"}}}}],\"conditions\":[],\"at\":[*]}",
+      "document": "```jbogenbau\n%const $P #« A ∪ B »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": [
+        "a"
+      ]
+    },
+    {
+      "description": "A child set also accepts direct child-path operands.",
+      "find": "{\"name\":\"child-set\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"},{\"optional\":{\"repeat\":{\"seq\":[{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"}]}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\"},{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"},{\"optional\":{\"repeat\":{\"seq\":[{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"}]}}}]}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"child-set\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-path\"},\"separator\":{\"literal\":{\"string\":\"∪\"}}}}],\"conditions\":[],\"at\":[*]}",
+      "document": "```jbogenbau\n%const $P #« A ∪ B »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": [
+        "a"
+      ]
     }
   ]
 }

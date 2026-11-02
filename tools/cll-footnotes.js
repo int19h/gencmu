@@ -75,7 +75,7 @@ export function cllFootnoteProblems(markdown, file, index = pinned) {
     }
   }
   // Page/anchor labels cannot prove that prose says what a source says.
-  // These source-backed guards cover the reviewed placement mistakes.
+  // These source-backed guards cover citation placement mistakes.
   // Other claims still need a reader to compare the clause and source.
   const definitions = new Map(nodes.filter(({ node }) => node.type === "footnoteDefinition")
     .map(({ node }) => [node.identifier, node]));

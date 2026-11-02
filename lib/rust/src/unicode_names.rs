@@ -256,9 +256,7 @@ pub(crate) fn selected_names(
         if directive.name == "names" {
             let target = &directive.args[0];
             let resolved = resolve(path, target).ok_or_else(|| {
-                Error::grammar("the names path leaves the grammar resources")
-                    .in_document(path)
-                    .at(directive.at.0, directive.at.1)
+                Error::grammar("a path target must be relative").in_document(path).at(directive.at.0, directive.at.1)
             })?;
             paths.insert(resolved);
         }
@@ -290,7 +288,7 @@ pub(crate) struct NamesScope<'a> {
     extras: RefCell<BTreeSet<String>>,
     document: &'a str,
     resolve: ResolveNames<'a>,
-    tables: RefCell<Option<Vec<Names>>>,
+    tables: RefCell<Option<(Names, BTreeMap<String, u32>)>>,
     pub dependencies: RefCell<Option<BTreeMap<String, String>>>,
 }
 
@@ -329,13 +327,13 @@ impl<'a> NamesScope<'a> {
 
     pub fn add_path(&self, path: &str) -> Result<(), Error> {
         let resolved = (self.resolve)(self.document, path)
-            .ok_or_else(|| Error::grammar("the names path leaves the grammar resources").in_document(self.document))?;
+            .ok_or_else(|| Error::grammar("a path target must be relative").in_document(self.document))?;
         self.extras.borrow_mut().insert(resolved);
         Ok(())
     }
 
     fn need(&self, path: &str) -> Result<String, Error> {
-        (self.read)(path)?.ok_or_else(|| failure(path, None, "the names resource is missing"))
+        (self.read)(path)?.ok_or_else(|| failure(path, None, &format!("{path} was not found")))
     }
 
     fn load(&self) -> Result<(), Error> {
@@ -373,27 +371,26 @@ impl<'a> NamesScope<'a> {
             &pinned
         };
         base.inspect(inspection, &self.unicode.abbreviations, false)?;
-        let mut extras = Vec::new();
+        let mut combined = base.names.clone();
+        let mut formal = base.formal.clone();
         let mut dependencies = BTreeMap::from([("data/unicode/unicode-names.txt".into(), hash)]);
         for path in self.extras.borrow().iter() {
             let text = self.need(path)?;
             let names = Names::parse(&text, path, version)?;
             names.inspect(inspection, &self.unicode.abbreviations, true)?;
             for record in &names.records {
-                for earlier in std::iter::once(&base).chain(extras.iter()) {
-                    if earlier.lookup(&record.name).is_some_and(|code| code != record.code)
-                        || earlier.formal.get(&record.code).is_some_and(|name| name != &record.name)
-                    {
-                        return Err(failure(path, Some(record.line), "names resources conflict"));
-                    }
+                // inspect excludes every pinned algorithmic spelling and scalar first.
+                if combined.get(&record.name).is_some_and(|&code| code != record.code)
+                    || formal.get(&record.code).is_some_and(|name| name != &record.name)
+                {
+                    return Err(failure(path, Some(record.line), "names resources conflict"));
                 }
+                combined.insert(record.name.clone(), record.code);
+                formal.insert(record.code, record.name.clone());
             }
             dependencies.insert(path.clone(), fnv1a64(&text));
-            extras.push(names);
         }
-        let mut tables = vec![base];
-        tables.extend(extras);
-        *self.tables.borrow_mut() = Some(tables);
+        *self.tables.borrow_mut() = Some((base, combined));
         *self.dependencies.borrow_mut() = Some(dependencies);
         Ok(())
     }
@@ -410,7 +407,7 @@ impl<'a> NamesScope<'a> {
             .tables
             .borrow()
             .as_ref()
-            .and_then(|tables| tables.iter().find_map(|table| table.lookup(name)))
+            .and_then(|(base, combined)| combined.get(name).copied().or_else(|| base.lookup(name)))
             .and_then(char::from_u32))
     }
 

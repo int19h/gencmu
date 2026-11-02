@@ -1,0 +1,14 @@
+{
+  "description": "A compound pattern comparison reports its first missing constant.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $x:\"a\"\n%conditions $x ≇ ($FIRST ∪ $SECOND)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$FIRST is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 19
+    }
+  }
+}

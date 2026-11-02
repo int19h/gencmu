@@ -35,7 +35,6 @@ type slotLabels map[slotChoice]bool
 type slotMask map[int]bool
 type slotCount struct {
 	all int
-	w   bool
 }
 type slotCountKey struct {
 	it      *item
@@ -173,7 +172,7 @@ func (a *slotAdmission) edgeKeys(it *item, edge link, f forbidden) (slotCountKey
 }
 func (a *slotAdmission) value(key slotCountKey) slotCount {
 	if key.it == nil && key.sym == nil {
-		return slotCount{all: 1, w: true}
+		return slotCount{all: 1}
 	}
 	return a.counts[key]
 }
@@ -306,21 +305,19 @@ func (a *slotAdmission) compute(key slotCountKey) slotCount {
 		}
 		var out slotCount
 		for i, it := range s.items {
-			if rk.skips("lost:context", "members", i, len(s.items)) {
+			if rk.skips("lost:context", "admission-members", i, len(s.items)) {
 				continue
 			}
 			v := a.value(a.key(it, nil, f))
 			out.all = min(out.all+v.all, 2)
-			out.w = out.w || v.w
 		}
 		return out
 	}
 	it := key.it
 	if it.dot == 0 && !it.restores {
-		w := rk.slotMarks(it) != nil
-		return slotCount{1, w}
+		return slotCount{all: 1}
 	}
-	if it.restores && rk.rec.run.ps.fault("rank-restoration") {
+	if it.restores && rk.rec.run.ps.faultAt("rank-restoration", "admission") {
 		return slotCount{}
 	}
 	a.admit(key)
@@ -328,15 +325,13 @@ func (a *slotAdmission) compute(key slotCountKey) slotCount {
 	var out slotCount
 	f := a.contexts[key.context]
 	for index, edge := range it.links {
-		if rk.skips("lost:context", "links", index, len(it.links)) {
+		if rk.skips("lost:context", "admission-links", index, len(it.links)) {
 			continue
 		}
 		l, r := a.edgeCount(it, edge, f)
 		ways := min(l.all*r.all, 2)
-		w := rk.slotMarks(it)[edge] && (edge.prev == nil || l.w) && (edge.sym == nil || r.w)
 		if !filtered || mask[index] {
 			out.all = min(out.all+ways, 2)
-			out.w = out.w || ways > 0 && w
 		}
 	}
 	return out
@@ -390,12 +385,4 @@ func (a *slotAdmission) prepareRoots(top []*symNode) {
 	for _, s := range top {
 		a.prepare(a.key(nil, s, nil))
 	}
-}
-func (a *slotAdmission) rawWitnessCounted(top []*symNode) bool {
-	for _, s := range top {
-		if a.value(a.key(nil, s, nil)).w {
-			return true
-		}
-	}
-	return false
 }

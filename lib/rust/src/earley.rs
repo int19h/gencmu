@@ -20,8 +20,8 @@ use crate::unicode::Unicode;
 use crate::witness::{self, Fault};
 use crate::work::{self, Mutant, Work};
 
-/// How a terminal matches a token (engine §4): by a tag the token carries,
-/// or, for a range or a property, by one of its character tags.
+/// A tag matches a stored tag. Other terminals match stored values and
+/// never read synthetic tokens (engine §4).
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Matcher {
     Tag(TagId),
@@ -53,8 +53,7 @@ pub(crate) struct Tok {
     pub source: (usize, usize),
     /// What it shows to people (§5).
     pub image: String,
-    /// Its value in canonical form, for the sound tests of symbols and for
-    /// `value()`, computed when one first looks at the token (§4, §5).
+    /// Its exact stored value, cached for symbol tests and `value()` (§4, §5).
     pub sound: std::cell::OnceCell<Box<str>>,
     /// How many tokens from this one on, in its sequence, have no sound, so
     /// that a sound test skips them at once. Zero where it is not known,
@@ -75,17 +74,17 @@ impl Tok {
 
 impl Tok {
     /// The token's exact stored value, cached for repeated observations.
-    pub(crate) fn sound(&self, _unicode: &Unicode) -> &str {
+    pub(crate) fn sound(&self) -> &str {
         self.sound.get_or_init(|| self.value.as_str().into())
     }
 }
 
 /// Marks each token of a sequence with the run of tokens without sound that
 /// it begins (`Tok::quiet`).
-pub(crate) fn mark_quiet(tokens: &mut [Tok], unicode: &Unicode) {
+pub(crate) fn mark_quiet(tokens: &mut [Tok]) {
     let mut run = 0u32;
     for token in tokens.iter_mut().rev() {
-        run = if token.sound(unicode).is_empty() { run + 1 } else { 0 };
+        run = if token.sound().is_empty() { run + 1 } else { 0 };
         token.quiet = run;
     }
 }
@@ -93,7 +92,7 @@ pub(crate) fn mark_quiet(tokens: &mut [Tok], unicode: &Unicode) {
 /// Compare the exact concatenation of token values (§4, §5). Empty
 /// values contribute nothing. Runs of them are skipped whole, so the
 /// test costs the string length rather than the span length.
-fn sounds_like(tokens: &[Tok], unicode: &Unicode, sound: &str) -> bool {
+fn sounds_like(tokens: &[Tok], sound: &str) -> bool {
     let mut rest = sound;
     let mut at = 0;
     while let Some(token) = tokens.get(at) {
@@ -102,7 +101,7 @@ fn sounds_like(tokens: &[Tok], unicode: &Unicode, sound: &str) -> bool {
             at += token.quiet as usize;
             continue;
         }
-        match rest.strip_prefix(token.sound(unicode)) {
+        match rest.strip_prefix(token.sound()) {
             Some(after) => rest = after,
             None => return false,
         }
@@ -114,11 +113,11 @@ fn sounds_like(tokens: &[Tok], unicode: &Unicode, sound: &str) -> bool {
 /// Whether a test holds of a symbol's own span, `tokens`, and its own tags,
 /// `set`: a token's for a terminal, the completed item's for a reference
 /// (§4). A tag the table has never seen is in no set.
-pub(crate) fn test_holds(test: &SymbolTest, tokens: &[Tok], unicode: &Unicode, tags: &Tags, set: SetId) -> bool {
+pub(crate) fn test_holds(test: &SymbolTest, tokens: &[Tok], tags: &Tags, set: SetId) -> bool {
     let has = |tag: &String| tags.lookup(tag).is_some_and(|tag| tags.contains(set, tag));
     test.tags.iter().all(has)
         && !test.negative.iter().any(has)
-        && test.sound.as_ref().map_or(true, |value| sounds_like(tokens, unicode, value) == (test.op == TestOp::Is))
+        && test.sound.as_ref().map_or(true, |value| sounds_like(tokens, value) == (test.op == TestOp::Is))
 }
 
 /// A captured part: its span, relative to the parse's tokens, and its tag set.
@@ -329,7 +328,6 @@ pub(crate) struct Chart {
     pub completed_annotations: FxMap<(u32, Cap, u32), crate::boundary::Annotations>,
     pub sources: crate::boundary::Sources,
     pub boundary_failures: Vec<crate::boundary::Failure>,
-    boundary_seen: FxSet<u32>,
     pub boundaries: Option<Rc<RefCell<crate::boundary::Records>>>,
     /// The stage root settles its remaining boundary literals on completion.
     /// Queries settle selected witnesses after recognition instead.
@@ -342,6 +340,8 @@ pub(crate) struct Chart {
     pub helper_entries: FxMap<(u32, Item), u32>,
     pub machine: Option<Rc<RefCell<Machine>>>,
     pub terminal_states: FxMap<(u32, u32, bool), u32>,
+    /// Reconstruction and eligibility retain their actual recognition advances.
+    record_links: bool,
     pub links: FxMap<(u32, Item), Vec<(Item, Cap)>>,
     pub advances: FxMap<(Item, Cap), Item>,
     /// The sets the parse reached, and at most one empty set after them.
@@ -364,7 +364,6 @@ pub(crate) struct Chart {
 pub(crate) struct LexicalFrame {
     family: Option<(u32, u32)>,
     pub observes_closes: bool,
-    pub key: String,
     pub captures: std::collections::BTreeMap<String, Cap>,
     pub declared: Vec<String>,
     pub known_private: Vec<String>,
@@ -383,6 +382,24 @@ fn lexical_rule(rule: u32, lexical: u32, requested: bool) -> u64 {
 }
 
 impl Chart {
+    fn record_advance(&mut self, set: usize, item: Item, previous: Option<(Item, Cap)>) {
+        if !(self.record_links || self.machine.is_some() || self.boundaries.is_some()) {
+            return;
+        }
+        if let Some((before, cap)) = previous {
+            match self.advances.entry((before, cap)) {
+                std::collections::hash_map::Entry::Occupied(entry) => {
+                    debug_assert_eq!(*entry.get(), item, "an advance has one resulting item");
+                }
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    entry.insert(item);
+                    self.links.entry((set as u32, item)).or_default().push((before, cap));
+                    work::count(Work::PackedEdges, 1);
+                }
+            }
+        }
+    }
+
     pub(crate) fn lexical_frame(&self, id: u32) -> Option<&LexicalFrame> {
         id.checked_sub(1).map(|id| &self.lexical[id as usize])
     }
@@ -443,7 +460,7 @@ impl Chart {
             .unwrap_or_else(|| format!("parent{:?}", p.slot.as_ref().expect("a written source").source));
         let key = format!(
             "{:?}/{written:?}/{symbols:?}/{}/{}/{own:?}/{}/{:?}/{observing}/{}",
-            outer.map(|f| &f.key),
+            before.lexical,
             before.dot,
             before.origin,
             before.prefix,
@@ -520,7 +537,6 @@ impl Chart {
         self.lexical.push(LexicalFrame {
             family: self.family,
             observes_closes,
-            key: key.clone(),
             available: captures.keys().cloned().collect(),
             captures,
             declared: declared.into_iter().collect(),
@@ -677,12 +693,6 @@ impl Chart {
         id
     }
 
-    /// The sequence that extends a sequence by one part, if an item has it.
-    pub(crate) fn lookup_caps(&self, parent: u32, mut cap: Cap) -> Option<u32> {
-        cap.boundary = 0;
-        self.caps_index.get(&(parent, cap)).copied()
-    }
-
     /// Whether a completed item of `rule` spans the tokens to `end`. The
     /// chart stops at its first empty set, so the set there may not exist.
     pub(crate) fn accepts(&self, rule: u32, end: usize) -> bool {
@@ -701,12 +711,14 @@ pub(crate) struct EngineError {
 /// Within one parse the tokens do not change, so the place is everything
 /// they can tell a nested parse (§4).
 type Place = (u32, usize, usize);
+/// A query place, active queries, and optional family with candidate context.
+type QualificationKey = (Place, Vec<Place>, Option<(u32, u32)>);
 
 /// The longest span whose nested answers are remembered by content, so that
 /// a word repeated at many places is parsed once; a longer span is
 /// remembered by its place, since a key of content costs as much as the
-/// span is long, and the span of `from` or `after` runs to the end of the
-/// input (§4).
+/// span is long, and the span of `.onward` or `.following-tokens` runs to
+/// the context end (§4).
 const CONTENT_KEY_LIMIT: usize = 64;
 
 /// What a nested parse can observe of one token of its span.
@@ -804,7 +816,7 @@ enum NestedKey {
         match_end: usize,
         fixed_end: usize,
         observation: u32,
-        family: Option<u32>,
+        family: Option<(u32, u32)>,
         active: Vec<Place>,
     },
 }
@@ -813,7 +825,8 @@ enum NestedKey {
 /// text, and the memo of nested parses, which `next_stage` clears before a
 /// parse over other tokens or with other rules.
 pub(crate) struct Shared<'a> {
-    pub emission_boundaries: FxMap<(bool, u32), FxSet<String>>,
+    pub emission_boundaries: FxSet<(bool, u32, Sym)>,
+    pub emission_targets: FxMap<String, Sym>,
     pub boundaries: Option<Rc<RefCell<crate::boundary::Records>>>,
     pub machine: Option<Rc<RefCell<Machine>>>,
     close_demands: Arc<[crate::restoration::LocalDemand]>,
@@ -828,7 +841,7 @@ pub(crate) struct Shared<'a> {
     /// The contents that the keys of the memo and of `begins` number.
     contents: Contents,
     /// Original qualified witnesses, shared by alignment constraints and endpoints.
-    qualified: FxMap<(Place, Vec<Place>, Option<u32>), Vec<QualifiedWitness>>,
+    qualified: FxMap<QualificationKey, Vec<QualifiedWitness>>,
     /// What `begins` reads, apart, since it can hold where `matches` does
     /// not.
     begins: FxMap<NestedKey, bool>,
@@ -837,6 +850,7 @@ pub(crate) struct Shared<'a> {
     running: FxSet<Place>,
     suffix_keys: FxMap<SuffixKey, usize>,
     suffixes: Vec<SuffixState>,
+    suffix_active: usize,
     suffix_deps: FxMap<(usize, u32), bool>,
     /// Empty sets with room, kept from the charts of nested parses that
     /// finished, which later charts reuse.
@@ -849,7 +863,8 @@ impl<'a> Shared<'a> {
     pub(crate) fn new(unicode: &'a Unicode, text: &'a [char]) -> Shared<'a> {
         Shared {
             boundaries: None,
-            emission_boundaries: FxMap::default(),
+            emission_boundaries: FxSet::default(),
+            emission_targets: FxMap::default(),
             machine: None,
             close_demands: Arc::new([]),
             close_prefixes: Arc::new([]),
@@ -864,6 +879,7 @@ impl<'a> Shared<'a> {
             running: FxSet::default(),
             suffix_keys: FxMap::default(),
             suffixes: Vec::new(),
+            suffix_active: 0,
             suffix_deps: FxMap::default(),
             spare: Vec::new(),
             lists: Vec::new(),
@@ -894,6 +910,7 @@ impl<'a> Shared<'a> {
         self.machine = None;
         self.boundaries = None;
         self.emission_boundaries.clear();
+        self.emission_targets.clear();
         self.pattern_grammar = 0;
         self.memo.clear();
         self.contents.clear();
@@ -902,31 +919,26 @@ impl<'a> Shared<'a> {
         self.running.clear();
         self.suffix_keys.clear();
         self.suffixes.clear();
+        self.suffix_active = 0;
         self.suffix_deps.clear();
     }
 
-    /// Whether a terminal matches a token whose tags are `set` (§4). A
-    /// range or a property matches once, however many of its tags qualify.
+    /// Match stored tags or values. Only tag terminals read synthetic tokens (§4).
+    /// A range reads one scalar value, and a wildcard reads any ordinary token.
     #[inline]
-    pub(crate) fn reads(&self, matcher: Matcher, token: &Tok) -> bool {
+    pub(crate) fn reads(&self, matcher: Matcher, token: &Tok, synthetic: bool) -> bool {
+        if synthetic && !matches!(matcher, Matcher::Tag(_)) {
+            return false;
+        }
         match matcher {
             Matcher::Tag(tag) => self.tags.contains(token.tags, tag),
             Matcher::Value(value) => token.value.as_str() == self.tags.name(value),
-            Matcher::Characters(Characters::Property(crate::unicode::Property::Any)) => true,
+            Matcher::Characters(Characters::Any) => true,
             Matcher::Characters(Characters::Range(first, last)) => {
                 let mut chars = token.value.as_str().chars();
-                chars.next().is_some_and(|c| chars.next().is_none() && (first..=last).contains(&(c as u32)))
+                chars.next().is_some_and(|c| chars.next().is_none() && (first..=last).contains(&c))
             }
-            Matcher::Characters(characters) => self.carries(characters, token.tags),
         }
-    }
-
-    /// Whether a tag set holds a character tag of a range or a property.
-    fn carries(&self, characters: Characters, set: SetId) -> bool {
-        self.tags.list(set).iter().filter_map(|&tag| self.tags.code(tag)).any(|code| match characters {
-            Characters::Range(first, last) => (first..=last).contains(&code),
-            Characters::Property(property) => self.unicode.has(property, code),
-        })
     }
 
     /// The original source envelope of a token span.
@@ -1010,7 +1022,7 @@ enum Whose {
 type Bounds = (usize, usize, Whose);
 
 /// A span's bounds; `input` is where the input of the parse that evaluates
-/// it ends, which `from` and `after` run to (§10).
+/// it ends, which `.onward` and `.following-tokens` run to (§10).
 /// In the check of `elision-only`, the projection comes first, then the
 /// function (§7.5): a capture and `$` are projected to O, and the functions
 /// of a span work on the projected span.
@@ -1111,11 +1123,9 @@ impl Request<'_> {
     fn place(&self) -> Place {
         (self.rule, self.base + self.start, self.base + self.end)
     }
-    fn qualification_key(&self) -> (Place, Vec<Place>, Option<u32>) {
+    fn qualification_key(&self) -> QualificationKey {
         match &self.key {
-            NestedKey::Aligned { active, .. } => {
-                (self.place(), active.clone(), self.aligned.and_then(|a| a.family.map(|(_, context)| context)))
-            }
+            NestedKey::Aligned { active, .. } => (self.place(), active.clone(), self.aligned.and_then(|a| a.family)),
             _ => unreachable!("an aligned qualification key"),
         }
     }
@@ -1436,7 +1446,7 @@ struct Run<'t, 'g> {
 impl<'t, 'g> Run<'t, 'g> {
     /// A run that starts with `first`, an empty set, as its set 0.
     fn new(tokens: &'t [Tok], base: usize, start: u32, recon: Option<&'g Recon<'g>>, first: ESet) -> Run<'t, 'g> {
-        let mut chart = Chart { boundary_root: Some(start), ..Default::default() };
+        let mut chart = Chart { boundary_root: Some(start), record_links: recon.is_some(), ..Default::default() };
         chart.caps.push(CapEntry {
             parent: 0,
             jump: 0,
@@ -1479,6 +1489,7 @@ impl<'t, 'g> Run<'t, 'g> {
         let tokens = &request.tokens[request.start..request.end];
         let mut run = Run::new(tokens, request.base + request.start, request.rule, None, first);
         run.chart.boundary_root = None;
+        run.chart.record_links = true;
         run.chart.suffix = request.suffix.is_some();
         if run.chart.suffix {
             run.chart.positions.set(FxMap::default()).expect("an empty positions cache");
@@ -1659,7 +1670,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
         rules.iter().any(|rule| {
             let prefix = &self.shared.close_prefixes[*rule as usize];
-            prefix.nullable || prefix.first.iter().any(|t| self.shared.reads(self.matchers[*t as usize], &tokens[at]))
+            prefix.nullable
+                || prefix.first.iter().any(|t| self.shared.reads(self.matchers[*t as usize], &tokens[at], false))
         })
     }
     fn finish_structure(&self, family: Option<(u32, u32)>, item: &mut Item, set: usize, base: usize, tokens: &[Tok]) {
@@ -1796,7 +1808,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 .iter()
                 .map(|&t| self.shared.tags.name(t).to_owned())
                 .collect::<Vec<_>>();
-            m.node(None, empty, Some((name, token.sound(self.shared.unicode), &tags)))
+            m.node(None, empty, Some((name, token.sound(), &tags)))
         };
         if synthetic && m.observations.is_some() {
             let recon = self.recon.expect("synthetic provenance");
@@ -1827,6 +1839,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         self.prepare_patterns();
         let first = self.shared.fresh_set();
         let mut run = Run::new(tokens, base, start, self.recon, first);
+        // A non-stage root is a query whose completed items need eligibility.
+        run.chart.record_links |= start != self.g.start;
         run.chart.machine = self.shared.machine.clone();
         run.chart.boundaries = self.shared.boundaries.clone();
         Ok(self.drive(run)?.0)
@@ -1854,11 +1868,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         self.settle(request, &finished.chart)
                     });
                     let chart = if let Some(id) = suffix {
-                        let Run { chart, e, head, entered, scans, scan_index, .. } = finished;
-                        self.shared.suffixes[id].retained =
-                            Some(suffix::Retained { chart, e, head, entered, scans, scan_index });
-                        self.shared.suffixes[id].active = false;
-                        Chart::default()
+                        self.shared.suffix_active -= 1;
+                        if self.shared.suffixes[id].transient {
+                            debug_assert_eq!(id + 1, self.shared.suffixes.len());
+                            self.shared.suffixes.pop();
+                            finished.chart
+                        } else {
+                            let Run { chart, e, head, entered, scans, scan_index, .. } = finished;
+                            self.shared.suffixes[id].retained =
+                                Some(suffix::Retained { chart, e, head, entered, scans, scan_index });
+                            Chart::default()
+                        }
                     } else {
                         finished.chart
                     };
@@ -1886,12 +1906,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         for run in &runs {
             if let Some(request) = &run.request {
                 self.shared.running.remove(&request.place());
-                if let Some(id) = request.suffix {
-                    let state = &mut self.shared.suffixes[id];
-                    state.active = false;
-                    if let Err(error) = &outcome {
-                        state.error = Some(error.clone());
-                    }
+                if request.suffix.is_some() {
+                    self.shared.suffix_active -= 1;
                 }
             }
         }
@@ -1905,16 +1921,18 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// cannot hide a query about a span from inside its own parse (§4).
     fn start_query(&mut self, request: &Request) -> Result<(), EngineError> {
         if self.shared.running.insert(request.place()) {
+            if request.suffix.is_some() {
+                self.shared.suffix_active += 1;
+            }
             return Ok(());
         }
-        let text = self.text(request.tokens, request.start, request.end);
         let name = &self.g.rules[request.rule as usize].name;
         Err(EngineError {
             message: format!(
-                "a condition asks whether {text:?} parses as {name} from inside the parse of that span as {name}: \
+                "a condition asks whether its own span parses as {name} from inside the parse of that span as {name}: \
                  the grammar defines {name} in terms of itself over the same text"
             ),
-            rule: Some(request.rule),
+            rule: None,
         })
     }
 
@@ -1951,13 +1969,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             for w in witnesses {
                 accepted |= aligned(&w);
             }
-            self.shared.begins.insert(request.key, accepted);
+            if self.shared.suffix_active == 0 {
+                self.shared.begins.insert(request.key, accepted);
+            }
             return (accepted, 0);
         }
         let retained: Vec<_> = witnesses.iter().filter(aligned).collect();
         let list = union_all(retained.iter().map(|w| self.shared.tags.list(w.tags)));
         let answer = (!retained.is_empty(), self.shared.tags.set(list));
-        self.shared.memo.insert(request.key, answer);
+        if self.shared.suffix_active == 0 {
+            self.shared.memo.insert(request.key, answer);
+        }
         answer
     }
     fn settle(&mut self, request: Request, chart: &Chart) -> Answer {
@@ -1989,7 +2011,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .map(move |&index| (set as u32, index))
             })
             .collect();
-        let eligible = self.proofs(chart, tokens).eligible(&witnesses);
+        let eligible = self.proofs(chart).eligible(&witnesses);
         if request.aligned.is_some() {
             let qualified: Vec<_> = witnesses
                 .into_iter()
@@ -2023,21 +2045,27 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 .collect();
             let context = request.qualification_key();
             let answer = self.aligned_answer(request, &qualified);
-            self.shared.qualified.insert(context, qualified);
+            if self.shared.suffix_active == 0 {
+                self.shared.qualified.insert(context, qualified);
+            }
             return answer;
         }
         let retained: Vec<_> =
             witnesses.into_iter().zip(eligible).filter_map(|(witness, eligible)| eligible.then_some(witness)).collect();
         let accepted = !retained.is_empty();
         if request.begins {
-            self.shared.begins.insert(request.key, accepted);
+            if self.shared.suffix_active == 0 {
+                self.shared.begins.insert(request.key, accepted);
+            }
             return (accepted, 0);
         }
         let tags = &self.shared.tags;
         let list =
             union_all(retained.iter().map(|&(set, index)| tags.list(chart.sets[set as usize].tagset[index as usize])));
         let answer = (accepted, self.shared.tags.set(list));
-        self.shared.memo.insert(request.key, answer);
+        if self.shared.suffix_active == 0 {
+            self.shared.memo.insert(request.key, answer);
+        }
         answer
     }
 
@@ -2049,17 +2077,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     {
         let (tokens, base) = (run.tokens, run.base);
         loop {
-            if let Some(id) = run.request.as_ref().and_then(|r| r.suffix) {
-                let at = match &run.step {
-                    Step::Next => run.e,
-                    Step::Predict { e, .. }
-                    | Step::Empties { e, .. }
-                    | Step::Complete { e, .. }
-                    | Step::Waiters { e, .. } => *e,
-                    Step::Terminal { into, .. } => *into,
-                };
-                self.shared.suffixes[id].error_at = run.base + at;
-            }
             match &mut run.step {
                 Step::Next => {
                     if !self.next_entry(run) {
@@ -2257,7 +2274,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let chart = &mut run.chart;
         let g = self.g;
         let production = &g.prods[item.prod as usize];
-        if e < tokens.len() && self.shared.reads(self.matchers[terminal as usize], &tokens[e]) {
+        if e < tokens.len()
+            && self.shared.reads(
+                self.matchers[terminal as usize],
+                &tokens[e],
+                self.recon.is_some_and(|recon| recon.synthetic[e]),
+            )
+        {
             // A terminal that reads a synthetic token captures
             // no tags (§7.5).
             let synthetic = self.recon.is_some_and(|recon| recon.synthetic[e]);
@@ -2328,6 +2351,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     target.queue.push(index as u32 | AGAIN);
                 }
             }
+            chart.record_advance(set, item, previous);
             return Ok(());
         }
         if self.shared.boundaries.is_none() && target.failed.contains(&item) {
@@ -2343,6 +2367,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             production.conds_at(item.dot as usize)
         };
         if conds.is_empty() && self.shared.boundaries.is_none() {
+            chart.record_advance(set, item, previous);
             Self::insert(chart, item, set, strict, u32::MAX, self.recon.is_some());
             return Ok(());
         }
@@ -2565,22 +2590,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 }
             }
             item.boundary = record;
-            if chart.boundary_seen.insert(record) {
-                work::count(Work::BoundaryRecords, 1);
-            }
             if !annotations.start.is_empty() || !annotations.end.is_empty() {
                 let target = chart.annotations.entry((set as u32, item)).or_default();
                 chart.sources.merge(target, &annotations);
             }
         }
-        if let Some((previous, cap)) = state.previous.filter(|_| chart.boundaries.is_some()) {
-            let edges = chart.links.entry((set as u32, item)).or_default();
-            if !edges.contains(&(previous, cap)) {
-                work::count(Work::PackedEdges, 1);
-                edges.push((previous, cap));
-            }
-            chart.advances.insert((previous, cap), item);
-        }
+        chart.record_advance(set, item, state.previous);
         evals.spare = state.eval.tasks;
         if let Some(index) = chart.sets[set].find(&item) {
             if chart.sets[set].is_strict(index as usize) && !state.strict {
@@ -2727,7 +2742,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     before: vec![],
                     after: vec![],
                 };
-                if !test_holds(test, std::slice::from_ref(&synthetic), self.shared.unicode, &self.shared.tags, set) {
+                if !test_holds(test, std::slice::from_ref(&synthetic), &self.shared.tags, set) {
                     return Ok(());
                 }
             }
@@ -2748,9 +2763,20 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // A production that must first read a terminal the next token lacks
         // gives a dead item, so prediction skips it. The set records it, and
         // the rejection report adds back the terminal it expected.
-        if let (Some(Sym::T(terminal)), false, false) = (lowered.syms.first(), lowered.has_conds_at(0), chart.suffix) {
+        let has_conditions = chart.lexical_frame(lexical).map_or_else(
+            || lowered.has_conds_at(0),
+            |frame| {
+                !g.ranked.plans
+                    [&(production, frame.declared.clone(), frame.available.clone(), frame.known_private.clone())]
+                    .conditions[0]
+                    .is_empty()
+            },
+        );
+        if let (Some(Sym::T(terminal)), false, false) = (lowered.syms.first(), has_conditions, chart.suffix) {
             let matcher = self.matchers[*terminal as usize];
-            if e >= tokens.len() || !self.shared.reads(matcher, &tokens[e]) {
+            if e >= tokens.len()
+                || !self.shared.reads(matcher, &tokens[e], self.recon.is_some_and(|recon| recon.synthetic[e]))
+            {
                 if before.is_none() {
                     chart.sets[e].skipped.push(production);
                 }
@@ -2808,9 +2834,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         if let Some(test) = test {
             let test = &self.g.tests[test as usize];
             // A fault restores without the test (tests/README.md).
-            if !test_holds(test, std::slice::from_ref(token), self.shared.unicode, tags, token.tags)
-                && !witness::fault(Fault::Restore)
-            {
+            if !test_holds(test, std::slice::from_ref(token), tags, token.tags) && !witness::fault(Fault::Restore) {
                 return;
             }
         }
@@ -2881,16 +2905,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         if let Some(test) = g.test(item.prod, item.dot as usize) {
             let (start, end) = (cap.start as usize, cap.end as usize);
             let holds = match (production.syms[item.dot as usize], self.recon) {
-                (Sym::T(_), _) => {
-                    test_holds(test, &tokens[start..end], self.shared.unicode, &self.shared.tags, tokens[start].tags)
-                }
+                (Sym::T(_), _) => test_holds(test, &tokens[start..end], &self.shared.tags, tokens[start].tags),
                 (Sym::N(_), Some(recon)) => {
                     let span = &recon.observed[recon.project[start] as usize..recon.project[end] as usize];
-                    test_holds(test, span, self.shared.unicode, &self.shared.tags, cap.tags)
+                    test_holds(test, span, &self.shared.tags, cap.tags)
                 }
-                (Sym::N(_), None) => {
-                    test_holds(test, &tokens[start..end], self.shared.unicode, &self.shared.tags, cap.tags)
-                }
+                (Sym::N(_), None) => test_holds(test, &tokens[start..end], &self.shared.tags, cap.tags),
             };
             if !holds {
                 return Ok(());
@@ -2958,14 +2978,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             structure: u32::MAX,
         };
         self.finish_structure(chart.family, &mut next, into, base, tokens);
-        if chart.machine.is_some() && self.shared.boundaries.is_none() {
-            let edges = chart.links.entry((into as u32, next)).or_default();
-            if !edges.contains(&(item, cap)) {
-                work::count(Work::PackedEdges, 1);
-                edges.push((item, cap));
-            }
-            chart.advances.insert((item, cap), next);
-        }
         self.add(chart, evals, tokens, base, next, into, strict, Some((item, cap)))
     }
 
@@ -3106,9 +3118,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         NestedKey::Content(rule, shared.contents.number(&shared.text[low..high], span, low))
     }
 
-    /// The proof trees of a nested parse's chart over `tokens`, its span.
-    fn proofs<'c>(&'c self, chart: &'c Chart, tokens: &'c [Tok]) -> Proofs<'c> {
-        Proofs::new(self.g, chart, tokens, self.shared.unicode, &self.shared.tags)
+    /// The proof trees of a nested parse's chart, using its recorded advances.
+    fn proofs<'c>(&'c self, chart: &'c Chart) -> Proofs<'c> {
+        Proofs::new(self.g, chart)
     }
 
     // ---- terms and conditions
@@ -3125,7 +3137,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 at += token.quiet as usize;
                 continue;
             }
-            sound.push_str(token.sound(self.shared.unicode));
+            sound.push_str(token.sound());
             at += 1;
         }
         sound
@@ -3186,7 +3198,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
     }
 
-    /// The class tags of a list, those whose names begin with a capital.
+    /// Class names start and end with an uppercase ASCII letter.
     fn classes(&self, list: &TagList) -> Value {
         let tags = &self.shared.tags;
         // Each tag read counts.
@@ -3256,16 +3268,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             let observation = m.observation(self.span_structure(inner, frame));
             let family = family.map(|family| {
                 let Machine { observations, families, .. } = &mut *m;
-                (
-                    family,
-                    families.context(
-                        observations.as_ref().unwrap(),
-                        observation,
-                        base + start,
-                        base + fixed_end,
-                        family,
-                    ),
-                )
+                (family, families.context(observations.as_ref().unwrap(), observation, base + start, base + fixed_end))
             });
             Some(Alignment { observation, family, fixed_end: base + fixed_end, match_end: base + match_end })
         } else {
@@ -3288,17 +3291,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             if self.shared.running.contains(&place) {
                 return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
             }
-            let mut id = self.suffix_state(rule, base + start, base + end);
+            let id = if self.shared.suffix_active == 0 {
+                self.suffix_state(rule, base + start, base + end)
+            } else {
+                let id = self.shared.suffixes.len();
+                self.shared.suffixes.push(SuffixState { transient: true, ..SuffixState::default() });
+                id
+            };
             let state = &self.shared.suffixes[id];
-            if let Some(error) = state.error.as_ref().filter(|_| base + end >= state.error_at) {
-                return Err(Halt::Error(error.clone()));
-            }
             if let Some(&holds) = state.answers.get(&(base + end)) {
                 return Ok(Out::Bool(holds));
-            }
-            if state.active {
-                id = self.shared.suffixes.len();
-                self.shared.suffixes.push(SuffixState::default());
             }
             request.suffix = Some(id);
             eval.tasks.push(Task::Await(query));
@@ -3314,7 +3316,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 place: (rule, base + start, base + end),
                 match_end: a.match_end,
                 fixed_end: a.fixed_end,
-                family: a.family.map(|(_, context)| context),
+                family: a.family,
                 observation: self
                     .shared
                     .machine
@@ -3334,7 +3336,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             let request = Request { tokens, base, start, end, rule, key, begins, suffix: None, aligned };
             return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
         }
-        let known = if begins {
+        let known = if self.shared.suffix_active > 0 {
+            None
+        } else if begins {
             self.shared.begins.get(&key).map(|&holds| (holds, 0))
         } else {
             self.shared.memo.get(&key).copied()
@@ -3343,7 +3347,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             Some(answer) => Ok(query.out(answer, &self.shared.tags)),
             None => {
                 let request = Request { tokens, base, start, end, rule, key, begins, suffix: None, aligned };
-                if aligned.is_some() {
+                if aligned.is_some() && self.shared.suffix_active == 0 {
                     if let Some(qualified) = self.shared.qualified.remove(&request.qualification_key()) {
                         let context = request.qualification_key();
                         let answer = self.aligned_answer(request, &qualified);
@@ -3490,10 +3494,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             } else {
                                 let (start, end, _) = self.checked_bounds(span, frame, tokens.len())?;
                                 let at = if *forward { end } else { start };
-                                self.shared
-                                    .emission_boundaries
-                                    .get(&(*forward, at as u32))
-                                    .is_some_and(|offers| targets.iter().any(|n| offers.contains(n)))
+                                targets.iter().filter_map(|name| self.shared.emission_targets.get(name)).any(|symbol| {
+                                    self.shared.emission_boundaries.contains(&(*forward, at as u32, *symbol))
+                                })
                             };
                             Out::Bool(value)
                         }
@@ -3850,9 +3853,6 @@ mod tests {
     /// through as many tokens as the sound is long, not the suffix.
     #[test]
     fn sound_tests_skip_tokens_without_sound() {
-        let unicode =
-            crate::unicode::Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").expect("the table"))
-                .expect("the bundled table");
         for n in [1000, 4000] {
             let mut tokens: Vec<Tok> = (0..n)
                 .map(|index| Tok {
@@ -3867,13 +3867,13 @@ mod tests {
                     after: Vec::new(),
                 })
                 .collect();
-            mark_quiet(&mut tokens, &unicode);
+            mark_quiet(&mut tokens);
             reset();
             budget(Work::Sounded, 8 * n as u64);
             for start in 0..n {
-                assert!(sounds_like(&tokens[start..], &unicode, "a"));
-                assert!(sounds_like(&tokens[start..n - 1], &unicode, ""));
-                assert!(!sounds_like(&tokens[start..], &unicode, ""));
+                assert!(sounds_like(&tokens[start..], "a"));
+                assert!(sounds_like(&tokens[start..n - 1], ""));
+                assert!(!sounds_like(&tokens[start..], ""));
             }
             let steps = counted(Work::Sounded);
             assert!(steps <= 8 * n as u64, "{steps} steps for {n} tokens");
@@ -4322,7 +4322,7 @@ mod tests {
                     after: Vec::new(),
                 })
                 .collect();
-            mark_quiet(&mut tokens, &pipeline.unicode);
+            mark_quiet(&mut tokens);
             for start in 0..n {
                 assert_eq!(recognizer.value(&tokens, start, n), "a");
             }

@@ -23,16 +23,18 @@
     }
   };
 
-  // A path relative to a document, resolved and normalized, as the library
-  // resolves an %include.
+  // This synchronous classic script follows the module resolver's rule.
+  // Keep this rule in step with lib/js/src/markdown.js, engine §13.
   function resolvePath(from, relative) {
-    const parts = from.split("/").slice(0, -1);
-    for (const part of relative.split("/")) {
+    if (relative.startsWith("/")) throw new root.gencmu.GencmuError("grammar", "a path target must be relative", {document:from});
+    const absolute = from.startsWith("/");
+    const parts = [];
+    for (const part of [...from.split("/").slice(0, -1), ...relative.split("/")]) {
       if (part === "" || part === ".") continue;
-      if (part === "..") parts.pop();
-      else parts.push(part);
+      if (part === ".." && parts.length && parts.at(-1) !== "..") parts.pop();
+      else if (part !== ".." || !absolute) parts.push(part);
     }
-    return parts.join("/");
+    return (absolute ? "/" : "") + parts.join("/") || ".";
   }
 
   // The text of a document's jbogenbau blocks. A block that is never closed
@@ -43,6 +45,7 @@
     let keep = false;
     for (const line of markdown.split(/\r\n|\r|\n/)) {
       if (fence === null) {
+        kept.push("");
         const open = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
         if (open && !(open[1][0] === "`" && open[2].includes("`"))) {
           fence = open[1];
@@ -51,8 +54,10 @@
         continue;
       }
       const close = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(line);
-      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
-      else if (keep) kept.push(line);
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) {
+        fence = null;
+        kept.push("");
+      } else kept.push(keep ? line : "");
     }
     return kept.join("\n");
   }
@@ -92,7 +97,7 @@
         if (/^[A-Za-z]$/.test(cs[end])) {
           end++;
           while (end < cs.length && /^[-_A-Za-z0-9]$/.test(cs[end])) end++;
-          found.push({ kind: keyword ? "keyword" : "name", value: cs.slice(i, end).join("") });
+          found.push({ kind: keyword ? "keyword" : "name", value: cs.slice(i, end).join(""), offset:i });
           i = end;
         } else {
           found.push({ kind: "other", value: cs[i] });
@@ -109,13 +114,22 @@
   function directives(text) {
     const found = [];
     const all = tokens(text);
+    const chars = [...text];
+    let cursor = 0, line = 1, column = 1;
+    const position = (offset) => {
+      while (cursor < offset) {
+        if (chars[cursor++] === "\n") { line++; column = 1; }
+        else column++;
+      }
+      return [line, column];
+    };
     all.forEach((token, index) => {
       const next = all[index + 1];
       if (token.kind !== "keyword" || !next) return;
       if (["%stage", "%extend-stage", "%redefine-stage"].includes(token.value) && next.kind === "name")
-        found.push({ stage: next.value, kind: token.value });
-      if (token.value === "%include" && next.kind === "string" && !next.value.includes("‹")) found.push({ include: next.value });
-      if (token.value === "%names" && next.kind === "string" && !next.value.includes("‹")) found.push({ names: next.value });
+        found.push({ stage: next.value, kind: token.value, at:position(token.offset) });
+      if (token.value === "%include" && next.kind === "string" && !next.value.includes("‹")) found.push({ include: next.value, at:position(token.offset) });
+      if (token.value === "%names" && next.kind === "string" && !next.value.includes("‹")) found.push({ names: next.value, at:position(token.offset) });
     });
     return found;
   }
@@ -126,17 +140,33 @@
   // document's Markdown, or undefined when it does not exist.
   function pipelineStages(path, textOf, directivesOf = () => undefined) {
     const scans = new Map();
+    const errors = [];
+    const resolveDirective = (document, target, at) => {
+      try { return resolvePath(document, target); }
+      catch (error) {
+        if (error.kind !== "grammar") throw error;
+        const where = {document, ...(at ? {line:at[0], column:at[1]} : {})};
+        errors.push(new root.gencmu.GencmuError("grammar", error.message, where));
+        return undefined;
+      }
+    };
     const scan = (documentPath, inherited) => {
       const key = JSON.stringify([documentPath, inherited]);
       if (!scans.has(key)) {
         const markdown = textOf(documentPath);
         const parsed = directivesOf(documentPath, inherited);
         const decoded = parsed?.flatMap(directive => {
-          if (["stage", "extend-stage", "redefine-stage"].includes(directive.name)) return [{stage:directive.args[0], kind:"%"+directive.name}];
-          return directive.name === "include" ? [{include:directive.args[0]}] : directive.name === "names" ? [{names:directive.args[0]}] : [];
+          if (["stage", "extend-stage", "redefine-stage"].includes(directive.name)) return [{stage:directive.args[0], kind:"%"+directive.name, at:directive.at}];
+          return directive.name === "include" ? [{include:directive.args[0], at:directive.at}] : directive.name === "names" ? [{names:directive.args[0], at:directive.at}] : [];
         });
         const list = decoded ?? (markdown === undefined ? [] : directives(grammarText(markdown)));
-        const names = [...new Set([...inherited, ...list.filter(item => item.names !== undefined).map(item => resolvePath(documentPath, item.names))])].sort((a,b) => {
+        const local = [];
+        for (const item of list) {
+          if (item.names === undefined) continue;
+          const target = resolveDirective(documentPath, item.names, item.at);
+          if (target !== undefined) local.push(target);
+        }
+        const names = [...new Set([...inherited, ...local])].sort((a,b) => {
           const left = [...a], right = [...b];
           for (let i = 0; i < Math.min(left.length, right.length); i++) {
             const difference = left[i].codePointAt(0) - right[i].codePointAt(0);
@@ -181,14 +211,15 @@
         continue;
       }
       if (directive.names !== undefined) continue;
-      const target = resolvePath(frame.path, directive.include);
+      const target = resolveDirective(frame.path, directive.include, directive.at);
+      if (target === undefined) continue;
       (selected ? selected.documents : before).push(target);
       reached.add(target);
       if (including.has(target)) continue;
       including.add(target);
       frames.push({ path: target, ...scan(target, frame.names), next: 0 });
     }
-    return { before, stages, documents: [...reached] };
+    return { before, stages, documents: [...reached], ...(errors.length ? {errors} : {}) };
   }
 
   // The mentions of grammar documents in a text, as the expression

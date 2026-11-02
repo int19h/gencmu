@@ -7,11 +7,12 @@ from __future__ import annotations
 
 import json
 import unittest
+from unittest.mock import patch
 from typing import Any, Callable
 
 import gencmu
 
-from .shared import SHARED, REPOSITORY, find_places, load_json, read_json, substitute
+from .shared import SHARED, REPOSITORY, find_places, load_json, read_json, same_json, substitute
 
 SHAPES: dict[str, Any] = load_json(SHARED / "notation-shapes.json")
 with open(REPOSITORY / "data/preparsed/gencmu.json", encoding="utf-8") as _file:
@@ -33,7 +34,7 @@ def outcome(bootstrap: str, document: str | None = None, inputs: list[str] | Non
     except gencmu.GencmuError as error:
         if where is not None:
             found = {"document": error.document, "line": error.line, "column": error.column}
-            assert found == where, f"{error}: expected the error at {where}"
+            assert same_json(found, where), f"{error}: expected the error at {where}"
         return error.kind
     assert where is None, "the document loaded, but the item gives where its error stands"
     results = []
@@ -53,6 +54,39 @@ def with_syntax(change: Callable[[str], str]) -> str:
 
 
 class NotationShapes(unittest.TestCase):
+    def test_actual_error_coordinates_keep_their_json_types(self) -> None:
+        where = {"document": "g.md", "line": 1, "column": 1}
+        for line, column in ((1, 1), (True, 1), (1, True)):
+            error = gencmu.GencmuError("reason", document="g.md", line=line, column=column)
+            with self.subTest(line=line, column=column), patch.object(gencmu, "load_pipeline_sources", side_effect=error):
+                if type(line) is int and type(column) is int:
+                    self.assertEqual(outcome("", where=where), "grammar")
+                else:
+                    with self.assertRaises(AssertionError):
+                        outcome("", where=where)
+
+    def test_a_headless_rule_requires_its_rule_name(self) -> None:
+        case = next(item for item in SHAPES["extraParts"] if item["description"] == "A headless rule reports its missing rule-name.")
+        with self.assertRaisesRegex(gencmu.GencmuError, "the notation's rule has no rule-name"):
+            gencmu.load_pipeline_sources({
+                "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
+                "g.md": case["document"],
+                "data/preparsed/gencmu.json": BOOTSTRAP.replace(case["find"], case["replace"]),
+            }, "p.md")
+
+    def test_a_supplied_ranked_choice_error_has_no_syntax_code(self) -> None:
+        bootstrap = BOOTSTRAP.replace(
+            '{"seq":[{"ref":"conjunction"},{"literal":{"string":"≻"}},{"repeat":{"ref":"conjunction"},"separator":{"literal":{"string":"≻"}}}]}',
+            '{"literal":{"string":"."}}',
+        )
+        with self.assertRaises(gencmu.GencmuError) as caught:
+            gencmu.load_pipeline_sources({
+                "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
+                "g.md": '```jbogenbau\n%rule text .\n```\n',
+                "data/preparsed/gencmu.json": bootstrap,
+            }, "p.md")
+        self.assertIsNone(caught.exception.code)
+
     def test_an_empty_leading_wrapper_preserves_the_guard_position(self) -> None:
         parsed = json.loads(BOOTSTRAP)
         documents = {path:entry["dom"] for path,entry in parsed["documents"].items()}
@@ -79,7 +113,7 @@ class NotationShapes(unittest.TestCase):
         from gencmu._unicode import UnicodeTable
 
         tokens = [gencmu.Token("a", frozenset(), (0, 1), (0, 1)), gencmu.Token("b", frozenset(), (1, 2), (2, 3))]
-        builder = DomBuilder(tokens, jbogenbau_text('```jbogenbau\na b   \n```'), "g.md", UnicodeTable("unicode 0.0.0\n"))
+        builder = DomBuilder(tokens, jbogenbau_text('```jbogenbau\na b   \n```', UnicodeTable("unicode 0.0.0\n")), "g.md", UnicodeTable("unicode 0.0.0\n"), lambda *_: self.fail("the position test decodes no string"))
         for boundary, column in ((1, 3), (2, 4)):
             with self.subTest(boundary=boundary):
                 node = gencmu.Node("rule", (boundary, boundary), (0, 0), rule="padding")
@@ -120,12 +154,14 @@ class NotationShapes(unittest.TestCase):
         self.assertIn("lexical stage of the notation", raised.exception.message)
 
     def test_the_bundled_bootstrap_gives_the_control(self) -> None:
-        self.assertEqual(outcome(BOOTSTRAP), SHAPES["control"])
+        self.assertTrue(same_json(outcome(BOOTSTRAP), SHAPES["control"]))
 
     def test_a_wrapper_around_each_rule_changes_nothing(self) -> None:
+        self.assertTrue(NAMES, "the wrapper test selects no syntax rule")
         def wrap(syntax: str) -> str:
             for name in NAMES:
-                syntax = syntax.replace(f'{{"ref":"{name}"}}', f'{{"ref":"{name}-wrapper"}}')
+                for field in ("ref", "rule"):
+                    syntax = syntax.replace(f'"{field}":"{name}"', f'"{field}":"{name}-wrapper"')
             wrappers = "".join(
                 f'{{"name":"{name}-wrapper","op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],'
                 f'"conditions":[],"at":[{100000 + index},1]}},'
@@ -133,18 +169,19 @@ class NotationShapes(unittest.TestCase):
             )
             return syntax.replace('"rules":[', '"rules":[' + wrappers, 1)
 
-        self.assertEqual(outcome(with_syntax(wrap)), SHAPES["control"])
+        self.assertTrue(same_json(outcome(with_syntax(wrap)), SHAPES["control"]))
 
     def test_each_renamed_rule_gives_the_outcome_of_every_library(self) -> None:
         for name in NAMES:
 
             def rename(syntax: str, name: str = name) -> str:
-                return syntax.replace(f'"name":"{name}","op"', f'"name":"{name}x","op"').replace(
-                    f'{{"ref":"{name}"}}', f'{{"ref":"{name}x"}}'
-                )
+                syntax = syntax.replace(f'"name":"{name}","op"', f'"name":"{name}x","op"')
+                for field in ("ref", "rule"):
+                    syntax = syntax.replace(f'"{field}":"{name}"', f'"{field}":"{name}x"')
+                return syntax
 
             with self.subTest(rule=name):
-                self.assertEqual(outcome(with_syntax(rename)), SHAPES["loads"].get(name, "grammar"))
+                self.assertTrue(same_json(outcome(with_syntax(rename)), SHAPES["loads"].get(name, "grammar")))
         for name in SHAPES["loads"]:
             self.assertIn(name, NAMES)
 
@@ -153,4 +190,4 @@ class NotationShapes(unittest.TestCase):
             with self.subTest(item["description"]):
                 self.assertEqual(len(find_places(BOOTSTRAP, item["find"])), 1)
                 changed = substitute(BOOTSTRAP, item["find"], item["replace"])
-                self.assertEqual(outcome(changed, item["document"], item["inputs"], item.get("where")), item["expect"])
+                self.assertTrue(same_json(outcome(changed, item["document"], item["inputs"], item.get("where")), item["expect"]))

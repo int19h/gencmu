@@ -2,7 +2,6 @@ package gencmu
 
 import (
 	"fmt"
-	"strings"
 )
 
 // A rule's clauses against the captures of its alternatives (engine §3.6,
@@ -37,159 +36,235 @@ func isEmptySet(t *domTerm) bool {
 // left to evaluate; the one given is returned where nothing changed. A
 // reduced part is never evaluated (§10).
 func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
+	value, truth, _ := simplifyCondPartial(c, func(name string) truth {
+		if has(name) {
+			return alwaysTrue
+		}
+		return alwaysFalse
+	}, nil)
+	return value, truth
+}
+func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
+	value, _ := simplifyTermPartial(t, func(name string) truth {
+		if has(name) {
+			return alwaysTrue
+		}
+		return alwaysFalse
+	}, nil)
+	return value
+}
+
+// firstPresence retains the first unresolved guard in written order.
+func firstPresence(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
+}
+
+// Partial reducers return the next guard with the reduced clause.
+// A deciding or dropped part contributes no guard.
+func simplifyCondPartial(c *domCond, has func(string) truth, fixed map[clausePart]fixedReduction) (*domCond, truth, string) {
+	if known, ok := fixed[clausePart{c: c}]; ok {
+		if !known.ready {
+			known.value.c, known.truth, _ = simplifyCondPartial(c, has, nil)
+			known.ready = true
+			fixed[clausePart{c: c}] = known
+		}
+		return known.value.c, known.truth, ""
+	}
 	if w := work.Load(); w != nil {
 		w.readerSteps.add("reader steps")
 	}
 	switch c.Kind {
 	case cdCaptured:
-		if has(c.Rule) {
-			return nil, alwaysTrue
+		if value := has(c.Capture); value != open {
+			return nil, value, ""
 		}
-		return nil, alwaysFalse
+		return c, open, c.Capture
 	case cdNot:
-		inner, tv := simplifyCond(c.Inner, has)
+		inner, tv, guard := simplifyCondPartial(c.Inner, has, fixed)
 		switch tv {
 		case alwaysTrue:
-			return nil, alwaysFalse
+			return nil, alwaysFalse, ""
 		case alwaysFalse:
-			return nil, alwaysTrue
+			return nil, alwaysTrue, ""
 		}
 		if inner == c.Inner {
-			return c, open
+			return c, open, guard
 		}
-		return &domCond{Kind: cdNot, Inner: inner}, open
+		return &domCond{Kind: cdNot, Inner: inner}, open, guard
 	case cdAll, cdAny:
-		// A false part decides an all, a true part an any; the other
-		// constant is dropped.
 		decides, drops := alwaysFalse, alwaysTrue
 		if c.Kind == cdAny {
 			decides, drops = alwaysTrue, alwaysFalse
 		}
 		var items []*domCond
-		changed := false
+		changed, guard := false, ""
 		for _, it := range c.Items {
-			s, tv := simplifyCond(it, has)
+			value, tv, next := simplifyCondPartial(it, has, fixed)
 			switch tv {
 			case decides:
-				return nil, decides
+				return nil, decides, ""
 			case drops:
 				changed = true
 				continue
 			}
-			if s != it {
-				changed = true
-			}
-			items = append(items, s)
+			changed = changed || value != it
+			items = append(items, value)
+			guard = firstPresence(guard, next)
 		}
 		switch {
 		case len(items) == 0:
-			return nil, drops
+			return nil, drops, ""
 		case len(items) == 1:
-			return items[0], open
+			return items[0], open, guard
 		case !changed:
-			return c, open
+			return c, open, guard
 		}
-		return &domCond{Kind: c.Kind, Items: items}, open
+		return &domCond{Kind: c.Kind, Items: items}, open, guard
 	case cdIf:
-		premise, tv := simplifyCond(c.Items[0], has)
+		premise, tv, guard := simplifyCondPartial(c.Items[0], has, fixed)
 		if tv == alwaysFalse {
-			return nil, alwaysTrue
+			return nil, alwaysTrue, ""
 		}
-		then, ttv := simplifyCond(c.Items[1], has)
+		then, ttv, next := simplifyCondPartial(c.Items[1], has, fixed)
 		switch {
 		case tv == alwaysTrue:
-			return then, ttv
+			return then, ttv, next
 		case ttv == alwaysTrue:
-			return nil, alwaysTrue
+			return nil, alwaysTrue, ""
 		case ttv == alwaysFalse:
-			return &domCond{Kind: cdNot, Inner: premise}, open
+			return &domCond{Kind: cdNot, Inner: premise}, open, guard
 		case premise == c.Items[0] && then == c.Items[1]:
-			return c, open
+			return c, open, firstPresence(guard, next)
 		}
-		return &domCond{Kind: cdIf, Items: []*domCond{premise, then}}, open
+		return &domCond{Kind: cdIf, Items: []*domCond{premise, then}}, open, firstPresence(guard, next)
 	case cdCompare:
-		l, r := simplifyTerm(c.Left, has), simplifyTerm(c.Right, has)
-		if l == c.Left && r == c.Right {
-			return c, open
+		left, guard := simplifyTermPartial(c.Left, has, fixed)
+		right, next := simplifyTermPartial(c.Right, has, fixed)
+		if left == c.Left && right == c.Right {
+			return c, open, firstPresence(guard, next)
 		}
-		return &domCond{Kind: cdCompare, Op: c.Op, Left: l, Right: r}, open
+		return &domCond{Kind: cdCompare, Op: c.Op, Left: left, Right: right}, open, firstPresence(guard, next)
 	}
-	return c, open
+	return c, open, ""
 }
 
-// simplifyTerm simplifies a term for a production, as simplifyCond does a
-// condition: a guarded term is its term where its condition is true, and
-// the empty set where it is false or its term is empty; an empty set is
-// dropped from a union, a union of nothing else is empty, and so is an
-// intersection with one. A difference whose first part is empty is empty,
-// and one whose second part is empty is its first part.
-func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
+func simplifyTermPartial(t *domTerm, has func(string) truth, fixed map[clausePart]fixedReduction) (*domTerm, string) {
+	if known, ok := fixed[clausePart{t: t}]; ok {
+		if !known.ready {
+			known.value.t, _ = simplifyTermPartial(t, has, nil)
+			known.ready = true
+			fixed[clausePart{t: t}] = known
+		}
+		return known.value.t, ""
+	}
 	if w := work.Load(); w != nil {
 		w.readerSteps.add("reader steps")
 	}
 	if t == nil {
-		return nil
+		return nil, ""
 	}
 	switch t.Kind {
 	case tmIf:
-		cond, tv := simplifyCond(t.Cond, has)
+		cond, tv, guard := simplifyCondPartial(t.Cond, has, fixed)
 		switch tv {
 		case alwaysFalse:
-			return reducedEmpty
+			return reducedEmpty, ""
 		case alwaysTrue:
-			return simplifyTerm(t.Items[0], has)
+			return simplifyTermPartial(t.Items[0], has, fixed)
 		}
-		then := simplifyTerm(t.Items[0], has)
+		then, next := simplifyTermPartial(t.Items[0], has, fixed)
 		if isEmptySet(then) {
-			return reducedEmpty
+			return reducedEmpty, ""
 		}
 		if cond == t.Cond && then == t.Items[0] {
-			return t
+			return t, firstPresence(guard, next)
 		}
-		return &domTerm{Kind: tmIf, Cond: cond, Items: []*domTerm{then}}
+		return &domTerm{Kind: tmIf, Cond: cond, Items: []*domTerm{then}}, firstPresence(guard, next)
 	case tmDifference:
-		l, r := simplifyTerm(t.Items[0], has), simplifyTerm(t.Items[1], has)
+		left, guard := simplifyTermPartial(t.Items[0], has, fixed)
+		right, next := simplifyTermPartial(t.Items[1], has, fixed)
 		switch {
-		case isEmptySet(l):
-			return reducedEmpty
-		case isEmptySet(r):
-			return l
-		case l == t.Items[0] && r == t.Items[1]:
-			return t
+		case isEmptySet(left):
+			return reducedEmpty, ""
+		case isEmptySet(right):
+			return left, guard
+		case left == t.Items[0] && right == t.Items[1]:
+			return t, firstPresence(guard, next)
 		}
-		return &domTerm{Kind: tmDifference, Items: []*domTerm{l, r}}
+		return &domTerm{Kind: tmDifference, Items: []*domTerm{left, right}}, firstPresence(guard, next)
 	case tmUnion, tmIntersection, tmConcat, tmCall:
-		// An empty set, written ∅ or left by a guard, is dropped from a
-		// union and makes an intersection empty.
 		var items []*domTerm
-		changed := false
+		changed, guard := false, ""
 		for _, it := range t.Items {
-			s := simplifyTerm(it, has)
-			if s != it {
-				changed = true
-			}
-			if isEmptySet(s) {
+			value, next := simplifyTermPartial(it, has, fixed)
+			changed = changed || value != it
+			if isEmptySet(value) {
 				if t.Kind == tmIntersection {
-					return reducedEmpty
+					return reducedEmpty, ""
 				}
 				if t.Kind == tmUnion {
 					changed = true
 					continue
 				}
 			}
-			items = append(items, s)
+			items = append(items, value)
+			guard = firstPresence(guard, next)
 		}
 		switch {
 		case !changed:
-			return t
+			return t, guard
 		case t.Kind == tmUnion && len(items) == 0:
-			return reducedEmpty
+			return reducedEmpty, ""
 		case t.Kind == tmUnion && len(items) == 1:
-			return items[0]
+			return items[0], guard
 		}
-		return &domTerm{Kind: t.Kind, Str: t.Str, Items: items}
+		return &domTerm{Kind: t.Kind, Str: t.Str, Items: items}, guard
 	}
-	return t
+	return t, ""
+}
+
+// fixedReduction is computed once for a part without presence tests.
+type fixedReduction struct {
+	value clausePart
+	truth truth
+	ready bool
+}
+
+func fixedClauseParts(root clausePart) map[clausePart]fixedReduction {
+	type visit struct {
+		part  clausePart
+		ready bool
+	}
+	pending := []visit{{part: root}}
+	free := map[clausePart]bool{}
+	fixed := map[clausePart]fixedReduction{}
+	for len(pending) > 0 {
+		item := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if _, seen := free[item.part]; seen {
+			continue
+		}
+		children := item.part.children()
+		if !item.ready {
+			pending = append(pending, visit{part: item.part, ready: true})
+			for _, child := range children {
+				pending = append(pending, visit{part: child})
+			}
+		} else {
+			stable := item.part.c == nil || item.part.c.Kind != cdCaptured || item.part.c.Capture == ""
+			for _, child := range children {
+				stable = stable && free[child]
+			}
+			free[item.part] = stable
+			if stable {
+				fixed[item.part] = fixedReduction{}
+			}
+		}
+	}
+	return fixed
 }
 
 // termCaptures adds the captures a term uses, as values or spans, "" for $;
@@ -219,7 +294,7 @@ func termMentions(t *domTerm, into map[string]bool) {
 		case p.t != nil && p.t.Kind == tmCapture:
 			into[p.t.Str] = true
 		case p.c != nil && p.c.Kind == cdCaptured:
-			into[p.c.Rule] = true
+			into[p.c.Capture] = true
 		}
 		return true
 	})
@@ -231,7 +306,7 @@ func condMentions(c *domCond, into map[string]bool) {
 		case p.t != nil && p.t.Kind == tmCapture:
 			into[p.t.Str] = true
 		case p.c != nil && p.c.Kind == cdCaptured:
-			into[p.c.Rule] = true
+			into[p.c.Capture] = true
 		}
 		return true
 	})
@@ -245,22 +320,6 @@ func anyAltTags(r *domRule) bool {
 		}
 	}
 	return false
-}
-
-// altCaptures lists, for each production of an alternative, each capture
-// it reads with its place in the order read; $ is at -1 (engine §3.5).
-// Productions that read the same captures in the same order are one.
-func altCaptures(a *domAlt) []map[string]int {
-	seqs := captureSequences(a.Expr)
-	out := make([]map[string]int, len(seqs))
-	for i, seq := range seqs {
-		caps := map[string]int{"": -1}
-		for j, c := range seq {
-			caps[c.Name] = j
-		}
-		out[i] = caps
-	}
-	return out
 }
 
 // usesAll says whether a clause, simplified, uses only captures has has.
@@ -432,7 +491,7 @@ func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) o
 			switch p.c.Kind {
 			case cdCaptured:
 				o = outcome{kind: oFalse}
-				if has(p.c.Rule) {
+				if has(p.c.Capture) {
 					o = outcome{kind: oTrue}
 				}
 			case cdNot:
@@ -502,14 +561,43 @@ func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) o
 	return done[0]
 }
 
-// definitionProblem is why a definition, a rule's alternatives with the
-// clauses written with them, cannot be read (engine §9), or "". The DOM's
-// shape must already be sound.
-func definitionProblem(r *domRule) string {
+// Definition problem kinds determine which checks wait for ranked validation.
+type definitionKind uint8
+
+const (
+	definitionIndependent definitionKind = iota
+	definitionRecipeCapture
+	definitionEmptyEmission
+)
+
+type definitionIssue struct {
+	kind    definitionKind
+	message string
+}
+type definitionResult struct{ problem, deferred *definitionIssue }
+
+// checkDefinition retains deferred problems and continues all immediate checks.
+func checkDefinition(r *domRule, deferRanked bool) definitionResult {
+	result := definitionResult{}
+	deferRanked = deferRanked && ruleHasRanked(r)
+	result.problem = definitionFault(r, func(kind definitionKind, message string) bool {
+		if !deferRanked || kind != definitionRecipeCapture && kind != definitionEmptyEmission {
+			return false
+		}
+		if result.deferred == nil || result.deferred.kind == definitionEmptyEmission && kind == definitionRecipeCapture {
+			result.deferred = &definitionIssue{kind, message}
+		}
+		return true
+	})
+	return result
+}
+
+func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *definitionIssue {
+	immediate := func(message string) *definitionIssue { return &definitionIssue{definitionIndependent, message} }
 	// A definition with no clause has nothing to check about its captures,
 	// and its productions, whose number can be exponential, are not listed.
 	if r.Tags == nil && len(r.Conditions) == 0 && r.Emit == nil && !anyAltTags(r) && !hasRecipes(r) {
-		return ""
+		return nil
 	}
 	// A constant is its value in simplification (§3.6). A clause that holds
 	// a constant without one waits for the loader, which checks the
@@ -540,7 +628,7 @@ func definitionProblem(r *domRule) string {
 	}
 	capturedBy := map[string]int{}
 	for _, a := range r.Alternatives {
-		for _, caps := range altCaptures(a) {
+		for _, caps := range validationCaptures(r, a) {
 			prods = append(prods, prodCaptures{caps, a})
 			alts = append(alts, caps)
 			for name := range caps {
@@ -555,44 +643,45 @@ func definitionProblem(r *domRule) string {
 	}
 	// An erased definition cannot carry recipes or emission (engine §9).
 	if r.Erased && (hasRecipes(r) || r.Emit != nil) {
-		return "an erased definition cannot carry recipes or emission"
+		return immediate("an erased definition cannot carry recipes or emission")
 	}
 	// A capture no alternative captures, wherever it is mentioned.
-	mentioned := map[string]bool{}
-	termMentions(r.Tags, mentioned)
-	termMentions(r.Value, mentioned)
-	termMentions(r.Image, mentioned)
-	for _, c := range r.Conditions {
-		condMentions(c, mentioned)
+	var names []string
+	mention := func(part clausePart) {
+		walkClause(part, func(p clausePart) bool {
+			switch {
+			case p.t != nil && p.t.Kind == tmCapture:
+				names = append(names, p.t.Str)
+			case p.c != nil && p.c.Kind == cdCaptured:
+				names = append(names, p.c.Capture)
+			}
+			return true
+		})
+	}
+	for _, term := range []*domTerm{r.Tags, r.Value, r.Image} {
+		mention(clausePart{t: term})
 	}
 	for _, a := range r.Alternatives {
-		termMentions(a.Tags, mentioned)
-		termMentions(a.Value, mentioned)
-		termMentions(a.Image, mentioned)
-	}
-	// An emission item mentions its own capture and its attachments,
-	// whatever else it says.
-	for _, it := range items {
-		if !it.IsInsert {
-			mentioned[it.Capture] = true
-			for _, name := range it.attachments() {
-				mentioned[name] = true
-			}
+		for _, term := range []*domTerm{a.Tags, a.Value, a.Image} {
+			mention(clausePart{t: term})
 		}
-		termMentions(it.Tags, mentioned)
-		termMentions(it.Value, mentioned)
-		termMentions(it.Image, mentioned)
 	}
-	names := make([]string, 0, len(mentioned))
-	for name := range mentioned {
-		step()
-		names = append(names, name)
+	for _, c := range r.Conditions {
+		mention(clausePart{c: c})
 	}
-	sortStrings(names, readerCount(), "reader steps")
+	for _, item := range items {
+		if !item.IsInsert {
+			names = append(names, item.Capture)
+		}
+		for _, term := range []*domTerm{item.Tags, item.Value, item.Image} {
+			mention(clausePart{t: term})
+		}
+		names = append(names, item.attachments()...)
+	}
 	for _, name := range names {
 		step()
 		if capturedBy[name] == 0 {
-			return fmt.Sprintf("$%s is captured by no production of %s", name, r.Name)
+			return immediate(fmt.Sprintf("$%s is captured by no alternative of %s", name, r.Name))
 		}
 	}
 	// The clauses are split by the presence of captures once, so that the
@@ -616,7 +705,7 @@ func definitionProblem(r *domRule) string {
 		conds.see(namesOf(caps), hasIn(caps))
 	}
 	if conds.left > 0 {
-		return fmt.Sprintf("a condition of %s applies to no production", r.Name)
+		return immediate(fmt.Sprintf("a condition of %s applies to no production", r.Name))
 	}
 	unguarded := func(t *domTerm, has func(string) bool) string {
 		if t == nil || waits(t) {
@@ -659,12 +748,14 @@ func definitionProblem(r *domRule) string {
 		// The tags a production's constituent carries serve it.
 		for _, t := range []*domTerm{r.Tags, a.Tags} {
 			if msg := lacking(t, ns, has); msg != "" {
-				return msg
+				return immediate(msg)
 			}
 		}
 		for _, recipe := range effectiveRecipes(r, a) {
 			if msg := recipeCapturesProblem(recipe, has); msg != "" {
-				return msg
+				if !deferIssue(definitionRecipeCapture, msg) {
+					return &definitionIssue{definitionRecipeCapture, msg}
+				}
 			}
 		}
 		if r.Emit == nil {
@@ -679,7 +770,10 @@ func definitionProblem(r *domRule) string {
 		}
 		// An emission that loses every item is an error (engine §9).
 		if len(present) == 0 && len(items) > 0 {
-			return fmt.Sprintf("%%emits of %s leaves a production nothing to emit. A rule that erases its constituent uses %%erased", r.Name)
+			msg := fmt.Sprintf("%%emits of %s leaves a production nothing to emit. A rule that erases its constituent uses %%erased", r.Name)
+			if !deferIssue(definitionEmptyEmission, msg) {
+				return &definitionIssue{definitionEmptyEmission, msg}
+			}
 		}
 		// A production without an item's carrier lacks its attachments too
 		// (engine §9). The first such item in the order written gives the
@@ -691,7 +785,7 @@ func definitionProblem(r *domRule) string {
 				}
 				for _, name := range it.attachments() {
 					if has(name) {
-						return fmt.Sprintf("%%emits of %s attaches $%s in a production without its carrier $%s", r.Name, name, it.Capture)
+						return immediate(fmt.Sprintf("%%emits of %s attaches $%s in a production without its carrier $%s", r.Name, name, it.Capture))
 					}
 				}
 			}
@@ -710,19 +804,22 @@ func definitionProblem(r *domRule) string {
 					continue
 				}
 				if at < last {
-					return fmt.Sprintf("%%emits of %s lists captures out of the order they stand in", r.Name)
+					return immediate(fmt.Sprintf("%%emits of %s lists captures out of the order they stand in", r.Name))
 				}
 				last = at
 			}
 		}
 		for _, it := range present {
 			for _, recipe := range []*domTerm{it.Value, it.Image} {
-				if msg := recipeCapturesProblem(recipe, has); msg != "" {
-					return msg
+				if missing, found := firstAbsentRecipeCapture(recipe, has); found {
+					msg := fmt.Sprintf("an item recipe of %s uses absent capture $%s", r.Name, missing)
+					if !deferIssue(definitionRecipeCapture, msg) {
+						return &definitionIssue{definitionRecipeCapture, msg}
+					}
 				}
 			}
 			if msg := lacking(it.Tags, ns, has); msg != "" {
-				return msg
+				return immediate(msg)
 			}
 		}
 	}
@@ -736,10 +833,10 @@ func definitionProblem(r *domRule) string {
 		next := items[following[i]]
 		step()
 		if capturedBy[next.Capture] < len(alts) {
-			return fmt.Sprintf("%%emits of %s inserts a tag before $%s, which a production lacks", r.Name, next.Capture)
+			return immediate(fmt.Sprintf("%%emits of %s inserts a tag before $%s, which a production lacks", r.Name, next.Capture))
 		}
 	}
-	return ""
+	return nil
 }
 
 // nextCaptureItems gives, for each emitted item, the index of the first
@@ -787,13 +884,4 @@ func ruleHasRanked(r *domRule) bool {
 		pending = append(pending, e.Inner, e.Sep)
 	}
 	return false
-}
-
-func deferredEmissionProblem(message string) bool {
-	return strings.Contains(message, "leaves a production nothing to emit") || deferredRecipeProblem(message)
-}
-
-// Recipe absence waits for ranked name analysis, which precedes pruning (§11.4).
-func deferredRecipeProblem(message string) bool {
-	return strings.HasPrefix(message, "a selected recipe reads an absent capture $")
 }

@@ -1,7 +1,6 @@
 package gencmu
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
@@ -14,10 +13,10 @@ import (
 // memoRun is one run of tests/shared-memo.json (tests/README.md).
 type memoRun struct {
 	Pipeline string          `json:"pipeline"`
-	Grammar string          `json:"grammar"`
-	Texts   []string        `json:"texts"`
-	Inputs  [][]caseToken   `json:"inputs"`
-	Options []memoRunOption `json:"options"`
+	Grammar  string          `json:"grammar"`
+	Texts    []string        `json:"texts"`
+	Inputs   [][]caseToken   `json:"inputs"`
+	Options  []memoRunOption `json:"options"`
 }
 
 type memoRunOption struct {
@@ -40,13 +39,28 @@ func memoRuns(t *testing.T) []memoRun {
 	if err != nil {
 		t.Fatal(err)
 	}
+	runs, err := decodeMemoRuns(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return runs
+}
+
+func decodeMemoRuns(data []byte) ([]memoRun, error) {
+	raw, err := decodeJSON(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := memoRunsSchema(raw); err != nil {
+		return nil, err
+	}
 	var file struct {
 		Runs []memoRun `json:"runs"`
 	}
-	if err := json.Unmarshal(data, &file); err != nil {
-		t.Fatal(err)
+	if err := unmarshalJSON(data, &file); err != nil {
+		return nil, err
 	}
-	return file.Runs
+	return file.Runs, nil
 }
 
 // memoPipeline is a fresh pipeline of a run, with a bound on its shared
@@ -96,7 +110,16 @@ func memoParses(t *testing.T, run memoRun) []memoParse {
 	return out
 }
 
-func memoParseJSON(d *Pipeline, p memoParse) string {
+func memoParseJSON(t *testing.T, d *Pipeline, p memoParse) string {
+	t.Helper()
+	data, err := memoParseOutcome(d, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+func memoParseOutcome(d *Pipeline, p memoParse) (string, error) {
 	var res *ParseResult
 	var err error
 	if p.tokens == nil {
@@ -105,10 +128,13 @@ func memoParseJSON(d *Pipeline, p memoParse) string {
 		res, err = d.ParseTokens(p.text, inputTokensOf(p.tokens), p.options)
 	}
 	if err != nil {
-		return fmt.Sprintf("error %v", err)
+		if isGuardedCrash(err) {
+			return "", err
+		}
+		return fmt.Sprintf("error %v", err), nil
 	}
 	data, _ := MarshalResult(res)
-	return string(data)
+	return string(data), nil
 }
 
 // TestSharedMemoRuns runs every order of the parses of each run on one
@@ -121,7 +147,7 @@ func TestSharedMemoRuns(t *testing.T) {
 		cold := memoPipeline(t, run, 0)
 		reference := make([]string, len(parses))
 		for i, p := range parses {
-			reference[i] = memoParseJSON(cold, p)
+			reference[i] = memoParseJSON(t, cold, p)
 		}
 		for _, limit := range []int{defaultMemoLimit, 1} {
 			warm := memoPipeline(t, run, limit)
@@ -133,7 +159,7 @@ func TestSharedMemoRuns(t *testing.T) {
 			slices.Reverse(backward)
 			for _, o := range [][]int{order, backward, order} {
 				for _, i := range o {
-					if got := memoParseJSON(warm, parses[i]); got != reference[i] {
+					if got := memoParseJSON(t, warm, parses[i]); got != reference[i] {
 						t.Fatalf("%s%s parse %d with bound %d:\n%.400s\nnot\n%.400s", run.Pipeline, run.Grammar, i, limit, got, reference[i])
 					}
 				}
@@ -152,7 +178,7 @@ func TestConcurrentSharedMemo(t *testing.T) {
 		cold := memoPipeline(t, run, 0)
 		reference := make([]string, len(parses))
 		for i, p := range parses {
-			reference[i] = memoParseJSON(cold, p)
+			reference[i] = memoParseJSON(t, cold, p)
 		}
 		for _, limit := range []int{defaultMemoLimit, 1} {
 			shared := memoPipeline(t, run, limit)
@@ -164,15 +190,7 @@ func TestConcurrentSharedMemo(t *testing.T) {
 				visited[worker] = make([]bool, len(parses))
 				go func() {
 					defer wg.Done()
-					// Every parse of the run, from a starting place of
-					// the goroutine's own.
-					for step := 0; step < len(parses); step++ {
-						i := (step + worker*len(parses)/4) % len(parses)
-						visited[worker][i] = true
-						if got := memoParseJSON(shared, parses[i]); got != reference[i] {
-							failures <- fmt.Sprintf("parse %d with bound %d on goroutine %d", i, limit, worker)
-						}
-					}
+					memoWorker(shared, parses, reference, worker, limit, visited[worker], failures)
 				}()
 			}
 			wg.Wait()
@@ -185,6 +203,22 @@ func TestConcurrentSharedMemo(t *testing.T) {
 					t.Errorf("goroutine %d left a parse out", worker)
 				}
 			}
+		}
+	}
+}
+
+func memoWorker(shared *Pipeline, parses []memoParse, reference []string, worker, limit int, visited []bool, failures chan<- string) {
+	// Every parse of the run, from the worker's own starting place.
+	for step := 0; step < len(parses); step++ {
+		i := (step + worker*len(parses)/4) % len(parses)
+		visited[i] = true
+		got, err := memoParseOutcome(shared, parses[i])
+		if err != nil {
+			failures <- fmt.Sprintf("parse %d with bound %d on goroutine %d: %v", i, limit, worker, err)
+			continue
+		}
+		if got != reference[i] {
+			failures <- fmt.Sprintf("parse %d with bound %d on goroutine %d", i, limit, worker)
 		}
 	}
 }
@@ -221,7 +255,7 @@ func TestSharedMemoKeepsNoAlignedAnswer(t *testing.T) {
 		runs++
 		d := memoPipeline(t, run, defaultMemoLimit)
 		for _, p := range memoParses(t, run) {
-			memoParseJSON(d, p)
+			memoParseJSON(t, d, p)
 		}
 		// driver asks an aligned query, and wrap reads driver's answer
 		// from the memo of the parse.
@@ -267,7 +301,7 @@ func TestSharedMemoServesNothingWhileAligned(t *testing.T) {
 		d := memoPipeline(t, run, defaultMemoLimit)
 		parses := memoParses(t, run)
 		for _, p := range append(slices.Clone(parses), parses...) {
-			memoParseJSON(d, p)
+			memoParseJSON(t, d, p)
 		}
 	}
 	if active.Load() != 0 {
@@ -369,7 +403,7 @@ func TestSharedMemoMatchesAndTagsShareOneEntry(t *testing.T) {
 		}
 		d := memoPipeline(t, run, defaultMemoLimit)
 		for _, p := range memoParses(t, run) {
-			memoParseJSON(d, p)
+			memoParseJSON(t, d, p)
 		}
 		count := 0
 		for _, rule := range memoRules(d) {
@@ -414,5 +448,127 @@ func TestSharedMemoTwoPipelines(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestWarmMemoCannotHideSuffixRecursion(t *testing.T) {
+	runs := memoRuns(t)
+	pipeline := memoPipeline(t, runs[len(runs)-1], 1<<13)
+	first, err := pipeline.Parse("paa", ParseOptions{})
+	if err != nil || !first.OK {
+		t.Fatalf("warmup: %v %+v", err, first)
+	}
+	result, err := pipeline.Parse("qaa", ParseOptions{})
+	if err != nil || result.OK || result.Error == nil || result.Error.Kind != ErrorGrammar {
+		t.Fatalf("a warm cache hid recursion: %v %+v", err, result)
+	}
+}
+
+func TestSuffixCacheHitsPreserveAlignedDependencies(t *testing.T) {
+	c := loadCase(t, "../../tests/engine/retained-suffix-dependency.json")
+	pipeline := memoPipeline(t, memoRun{Grammar: *c.Grammar}, 1<<13)
+	result, err := pipeline.Parse("a", ParseOptions{})
+	if err != nil || !result.OK {
+		t.Fatalf("parse: %v %+v", err, result)
+	}
+	rules := memoRules(pipeline)
+	if !slices.Contains(rules, "plain") || slices.Contains(rules, "driver") || slices.Contains(rules, "wrap") {
+		t.Fatalf("retained suffix dependency: %v", rules)
+	}
+}
+
+func TestMemoRunSchemaRejectsInvalidMembers(t *testing.T) {
+	for _, token := range []string{
+		`{"text":"x","tags":["X"],"bogus":true}`,
+		`{"text":"x","tags":["X"],"before":[{"text":"x","tags":[],"nested-bogus":true}]}`,
+		`{"text":"x","tags":["X"],"after":[{"text":"x","tags":[],"nested-bogus":true}]}`,
+	} {
+		raw := `{"runs":[{"grammar":"%rule text X","inputs":[[` + token + `]],"options":[{}]}]}`
+		if _, err := decodeMemoRuns([]byte(raw)); err == nil {
+			t.Errorf("accepted unknown token member in %s", token)
+		}
+	}
+	for _, raw := range []string{
+		`{"runs":[{"grammar":"%rule text X","unknown":true,"options":[{}]}]}`,
+		`{"runs":[{"grammar":"%rule text X","options":[{"unknown":true}]}]}`,
+		`{"runs":[{"grammar":"%rule text X","inputs":[[{"text":"x","tags":null}]],"options":[{}]}]}`,
+	} {
+		if _, err := decodeMemoRuns([]byte(raw)); err == nil {
+			t.Errorf("accepted invalid memo input %s", raw)
+		}
+	}
+}
+
+func TestMemoRunSchemaKeepsTokenFields(t *testing.T) {
+	runs, err := decodeMemoRuns([]byte(`{"runs":[{"grammar":"%rule text X","inputs":[[{"text":"x","tags":["X"],"value":"","image":"image","span":[0,1],"source":[0,1],"before":[{"text":"b","tags":[]}],"after":[{"text":"a","tags":[]}]}]],"options":[{"features":["f"],"withoutFeatures":["g"],"until":"main","elisionOnly":false}]}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	token := runs[0].Inputs[0][0]
+	if token.Value == nil || *token.Value != "" || token.Before[0].Text != "b" || token.After[0].Text != "a" {
+		t.Fatalf("the decoder lost token fields: %+v", token)
+	}
+}
+
+func TestMemoRunsRejectParseCrashes(t *testing.T) {
+	c := loadCase(t, "../../tests/engine/without-elision-except-owner-choice.json")
+	d, err := casePipeline(c, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokens, text, err := caseTokens(c.Tokens)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := memoParse{text: text, tokens: tokens}
+	p.options.private = &privateOptions{familyOracle: func(*recognizer, *item) { panic("memo probe crash") }}
+	if data, err := memoParseOutcome(d, p); err == nil || !strings.Contains(err.Error(), "memo probe crash") {
+		t.Fatalf("crash counted as a memo outcome: %q, %v", data, err)
+	}
+}
+
+func TestMemoRunsKeepUsageErrors(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text \"a\""))
+	data, err := memoParseOutcome(d, memoParse{text: "a", options: ParseOptions{Until: "missing"}})
+	if err != nil || !strings.Contains(data, "missing") {
+		t.Fatalf("the memo runner lost a usage error: %q, %v", data, err)
+	}
+}
+
+func TestMemoWorkerReportsCrashesAndContinues(t *testing.T) {
+	c := loadCase(t, "../../tests/engine/without-elision-except-owner-choice.json")
+	d, err := casePipeline(c, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokens, text, err := caseTokens(c.Tokens)
+	if err != nil {
+		t.Fatal(err)
+	}
+	good := memoParse{text: text, tokens: tokens}
+	want, err := memoParseOutcome(d, good)
+	if err != nil {
+		t.Fatal(err)
+	}
+	crash := good
+	crash.options.private = &privateOptions{familyOracle: func(*recognizer, *item) { panic("worker probe crash") }}
+	visited := make([]bool, 2)
+	failures := make(chan string, 2)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		memoWorker(d, []memoParse{crash, good}, []string{"", want}, 0, 1, visited, failures)
+	}()
+	<-done
+	close(failures)
+	if slices.Contains(visited, false) {
+		t.Errorf("worker skipped parses after the crash: %v", visited)
+	}
+	var messages []string
+	for failure := range failures {
+		messages = append(messages, failure)
+	}
+	if len(messages) != 1 || !strings.Contains(messages[0], "worker probe crash") {
+		t.Errorf("worker lost the crash reason: %v", messages)
 	}
 }

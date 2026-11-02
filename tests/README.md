@@ -2,6 +2,42 @@
 
 Every gencmu library runs every shared case that its API can express. A library skips a usage case when its token or string types cannot express the invalid field. If a case fails in one library and passes in another, there is a bug. The bug is in the library that disagrees with `docs/engine.md`, or in the specification itself.
 
+A runner refuses unknown case members and control members with the wrong type. This includes configuration (`options`), parse lists (`parses`), and expectations (`expect`).
+
+A runner reads serialized results as JSON. Object member names need quotation marks, and `NaN` and `Infinity` are invalid JSON values.
+
+An expectation must apply to the actual outcome. Loading positions and diagnostic codes require a load error. Parse-time usage errors cannot satisfy result, rendering, warning, enabled-feature, or message expectations.
+
+Token payload fields remain an exception for usage cases. A runner passes each present field unchanged to the library and supplies defaults only for absent fields. Unknown token members still invalidate the case.
+
+Each element of an attachment list must be a token object, including in usage cases. Known fields inside that object can contain invalid payloads.
+
+## Fixture shapes
+
+`tools/fixture-shapes.js` defines the shared fixture shapes in one place. Each description lists required and optional members, their types, and the combinations that the fixture permits. `node tools/check-fixtures.js` inspects these shapes without running a grammar or a corpus case. `node tools/sync.js --check` runs the same check before generation checks.
+
+This check is the fixture contract. Library readers can trust the checked shapes. The main case runners retain their own checks, because those checks also expose faults in the runners. For engine and notation cases, the central check covers the documented members and controls. The main case runners retain deeper payload and outcome checks.
+
+A description follows the strictest library reader, except where this document makes a member optional.
+
+JSON and JSONL fixtures use UTF-8 without an initial byte order mark. The reader refuses an initial mark before it ignores blank JSONL lines.
+
+Blank JSONL lines contain only spaces, tabs, or carriage returns. A byte order mark outside a JSON string is invalid. The corpus reader, CLI, and corpus tools apply this rule to every line.
+
+JSON numbers use integer spellings without decimal points or exponents. They must fit in a signed 64-bit integer. This rule also applies inside payload objects. Strings preserve their embedded text, including malformed JSON and noninteger number spellings.
+
+Deliberately malformed grammar, DOM, notation, token, and result payloads remain library inputs. Their fixture wrappers still follow the declared shape. Text fixtures use their documented line or column formats. Source snapshots are opaque UTF-8 text. A new fixture file needs a shape description before a library reads it.
+
+Every file of cases contains at least one case. Each memo run has nonempty input and configuration lists.
+
+A test that selects fixtures by their names or contents must assert that its selection is not empty.
+
+## Source manifest: `text-sources/manifest.json`
+
+Each source names its HTML snapshot and extracted text with one file name inside `text-sources/`. Absolute paths and directory segments are invalid. Each file must exist. Its SHA-256 digest must equal `html_sha256` or `extracted_sha256`, respectively.
+
+Each variant lists at least one existing corpus case identifier. All listed cases share one text. The SHA-256 digest of that text must equal `text_sha256`. A variant with no changes uses the extracted text digest.
+
 ## Running the tests
 
 After a change to `grammars/` or `data/`, run `node tools/sync.js` from the repository root. Each library runs all of its tests and the corpus sample in `core.txt` by default. Use `GENCMU_CORPUS=full` to select the whole corpus.
@@ -27,13 +63,25 @@ The bundled grammars use the current notation. A case that loads a bundled pipel
 
 The corpus records full outcomes. These shared fixtures also express stage cutoffs and token metadata that the corpus cannot record. A description names the grammar documents when a case tests their rules.
 
-The cases in `parameters.json` use the same case shape. All four libraries run these shared parameter cases.
+The cases in `parameters.json` use the same case shape and require a string `name`. All four libraries run these shared parameter cases. The `name` member is valid only in this file, not in `engine/*.json`.
 
-The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries. Cases with `public:true` load complete pipelines through the public loader.
+The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries.
+
+Parameter-structure readers also preserve every present `dom` value. A cache fallback case passes that value to the cache unchanged.
 
 Each case supplies `grammar` source or a complete `dom`. The optional `argument` matches the last source rule's first call argument. `order` lists the expanded rule names. `instances` gives the instance count. `flags` maps rule names to their final flags.
 
 A `cacheFallback` case supplies valid source and a malformed cached DOM. Each library uses matching cache fingerprints and must parse `input` from the source.
+
+A `public:true` case loads a complete pipeline through the public loader. It requires `grammar` and `order`. It permits only `grammar`, `order`, and `instances` beside `name`, `public`, and `cacheFallback`.
+
+A `cacheFallback:true` case requires `grammar`, `dom`, and `input`. It forbids `argument`, `order`, `flags`, `instances`, and `public:true`. Only this mode permits `input`.
+
+A case with `flags` also requires `grammar`.
+
+An `instances` expectation compares the count even when it is zero. An `argument` expectation compares the argument even when the expected value is false or null.
+
+Without template expansion, `instances` is zero. The `order` lists distinct source rule names in their first declaration order.
 
 Each file is one case:
 
@@ -74,7 +122,7 @@ The condition-loading cases stop before the condition's stage, so a runtime fail
 
 `options.features` and `options.withoutFeatures` are the features the caller turns on and off (engine §13).
 
-`options.until`, when present, names the last stage to run (engine §13). A name that is not a stage of the pipeline is a `usage` error. No case gives an empty name, because Go cannot tell an empty name from no name (`docs/api.md`). Each library tests an empty name in its own tests.
+If `options.until` is present, it names the last stage to run (engine §13). A name that is not a stage of the pipeline is a `usage` error. No case gives an empty name, because Go cannot tell an empty name from no name (`docs/api.md`). The same restriction applies to memo configurations. Each library tests an empty name in its own tests.
 
 A pattern describes required result fields. `expect.result` is a pattern matched against the format 15 canonical result of `docs/output.md`. A pattern matches in these ways:
 
@@ -82,7 +130,11 @@ A pattern describes required result fields. `expect.result` is a pattern matched
 - An array matches when it has the same length and each element matches.
 - Anything else matches when it is equal.
 
-A pattern never pins the `message` of an error. Its wording is each library's own (`docs/output.md`), so the JavaScript runner refuses a case whose pattern holds one.
+`expect.error` accepts `grammar`, `usage`, `rejected`, `ambiguous`, or `feature-conflict`. `expect.message` requires `expect.error: "grammar"`. It pins an agreed error reason, without a resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors. The runtime comparison removes exactly the prefix built from the error's structured document, line, and column. It preserves the public result.
+
+The runner constructs that exact prefix from the originating error's document, line, and column. It preserves colons inside document names.
+
+A result pattern rejects error `message` assertions. Existing unit tests pin the common stitching and classifier messages specified in engine §2. Other wording stays library-specific.
 
 A pattern matches a result that has members beyond its own. So the invariants, and not the patterns, say that a tied stage has no output.
 
@@ -90,7 +142,17 @@ A pattern matches a result that has members beyond its own. So the invariants, a
 
 `expect.enabledFeatures` compares the result's enabled feature names as a complete list, outside canonical JSON (`docs/api.md`).
 
+`treeRendering` pins the JavaScript tree listing in `lib/js/test/output.test.js`. Its `aliases` list supplies alternative abbreviations for U+000A. Its `text` gives the expected listing, with `ALIAS` replaced by each abbreviation. Its `decodedError` gives the error kind for rendering a result decoded from JSON. Other libraries inspect this object's shape and run the rest of the case.
+
 `expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the pipeline (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
+
+Expectation comparisons distinguish booleans from numbers, as JSON does.
+
+This rule covers complete JSON values, nested members, scalar projections, DOMs, and serialization round trips. Numbers compare by value, so `1` and `1.0` are equal. Positive zero and negative zero are equal.
+
+An own element belongs to the array itself. Array comparisons require an own element at every index on both sides. An inherited element does not fill a missing slot.
+
+This rule includes actual line and column values in notation and loading diagnostics.
 
 A case can also parse its input several times with the one loaded pipeline. Then it has `parses`, a list of objects, each with its own `options` and `expect`, in place of the case's `options` and `expect`:
 
@@ -106,7 +168,7 @@ A load that fails gives only its error. Its kind is `grammar` for a grammar that
 
 For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings`, `features` or `enabledFeatures`, because only a loaded pipeline gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
 
-An error that lowering finds (engine §3), such as an item of braces that can match no tokens, is not a load error. The pipeline loads, and the parse gives a result whose error has the kind `grammar`, so a case expects it with `expect.error`. Its message, which names the definition at fault, is the library's own, so no case compares it.
+An error that lowering finds (engine §3), such as an item of braces that can match no tokens, is not a load error. The pipeline loads, and the parse gives a result whose error has the kind `grammar`, so a case expects it with `expect.error`. Its message names the definition at fault. Unit tests cover common messages, and shared cases compare the other result fields.
 
 `expect.where`, when present, is where the error of a grammar that cannot be loaded stands. It is only for an error of kind `grammar`. It names a document of the case and a line and a column in it. For a case with `grammar`, the document is `main.md`. Its fence is line 1, so the rules start on line 3, or on line 2 when they hold their own `%ambiguity-resolution`.
 
@@ -125,6 +187,7 @@ Cases preserve the shared pause and foreign readings for the seven No explicit r
 An invariant is a required property of every result. Every runner also makes sure that each canonical result meets these invariants, whatever the case expects. A case cannot turn them off, and its pattern need not repeat them:
 
 - An error of kind `ambiguous` has no member `token` and no member `source`.
+- An error has no member `cycle`, `conflict`, or `chosenReading`.
 - No stage has a member `tied`.
 - A stage whose verdict is `tie` has no member `output`, and it is the last stage of the result.
 - Such a result has `ok` false and `tree` null. Its error has kind `ambiguous`, reason `tie`, and that stage's name. It contains exactly two readings.
@@ -163,13 +226,21 @@ Each library also tests its recognizer on a capture of a rule that can end in ma
 A shared case shows that a library is wrong where it fails. It cannot show that a library is right. So each library also breaks itself on purpose, one fault at a time, and makes sure that the shared cases see the break. A fault is a private switch of the library's own tests, which the documented API does not name. Each one changes one path of the engine, mostly a path of the check of engine §7, in a way that the specification forbids.
 
 - The JavaScript library holds the full table. Its faults cover each observer of engine §7.5, the tags of synthetic tokens, and the routes and strictness of §7.4. They cover projection, queries (§7.6), cycles and ways to lose W(D). They also cover the order of steps 3 and 4 of §4. `lib/js/test/faults.json` names the cases that must catch each fault, and records every catch.
+
+  Fault F17 counts one derivation twice and reports a false ambiguity. The shared case `engine/reparse-strict-shared-prediction.json` must reject that faulty result without a crash.
+
 - Each other library has faults of its own paths. Some are paths that JavaScript does not have, such as a ranker that rebuilds the check's links from completed spans and applies the tests there. Others are paths that every library has in a form of its own. Examples are the strictness of route 3, a restoration's test, and the ways to lose W(D). Another is the processing again of an item that an ordinary step reaches after it was processed as strict. Its own tests name, for each fault, the shared cases that catch it.
+
+A defined library error counts as a result failure when the library raises or returns it instead of a result. Defined kinds include `grammar` and `usage`. An internal fault counts as a crash and fails the fault test, even when the library returns it as an error.
+
+JavaScript counts `GencmuError` as a library error, an error from the fault's recursion limit as `bound`, and any other exception as a crash. Python counts `GencmuError` as a library error and any other exception as a crash. Go counts an `*Error` whose message begins with `internal error: ` as a crash. Rust counts a panic as a crash.
 
 Each library's fault test must establish three facts about each fault:
 
-- How a case catches it: The test runs each named case twice. It examines the result alone and the witness hook alone, so each test stands on its own. The catch is `result` where only the result fails the case, `hook` where only the hook does, and `result+hook` where both do. Each library has a fault whose only catch is `hook`, a mutation that the result alone does not show. An example is a count that skips W(D)'s edge where its item has siblings.
+- How a case catches it: The test examines the result alone and the witness hook alone, so each test stands on its own. The catch is `result` where only the result fails the case, `hook` where only the hook does, and `result+hook` where both do. Each library has a fault whose only catch is `hook`, a mutation that the result alone does not show. An example is a count that skips W(D)'s edge where its item has siblings.
 
-  Each library also has a case where the hook catches candidates that skip W(D)'s edge. This tests the selection channel independently of the result. JavaScript labels a catch `bound` where the fault's own bound ends a recursion that it lets through.
+  Each library also has a case where the hook catches candidates that skip W(D)'s edge. This tests the selection channel independently of the result.
+
 - Its sites: A fault can have several places in the code. Each place is a declared site, and the test asserts that the named cases enter every declared site while the fault is on. So a case that catches a fault at one site does not hide a site that nothing reaches.
 - Completeness: The list of faults comes from the declarations, and every fault has an entry in the table.
 
@@ -185,9 +256,9 @@ Apart from the table, each library's own tests lose the witness on purpose after
 
 Each library reads the document as a grammar document (engine §8, §9). The reading makes a DOM (document object model), as `docs/output.md` describes. The library matches the DOM against the pattern, or it compares the position of the error with the expected position. The reader reports a syntax error at the first token that cannot continue the document. It reports an error of §9 at the first token of the offending construct.
 
-Message wording is not part of conformance. Error cases pin only their line and column.
+Every notation error expectation requires positive integer `line` and `column` members. The runner compares both coordinates exactly. A notation error can also specify `expect.error.message`. This member pins the diagnostic text without a location prefix. The reader diagnostics of engine §9.3 use this common text. Other error cases pin only their line and column.
 
-Every library also runs a notation case with `cacheMisses: true` through its document loader. The document first loads without a preparsed entry. A matching preparsed entry must give the same DOM.
+A notation case with `cacheMisses: true` requires a DOM expectation. Every library also runs that case through its document loader. The document first loads without a preparsed entry. A matching preparsed entry must give the same DOM.
 
 Four further loads each change one identity field. These fields are the document hash, the bootstrap fingerprint, the Unicode table hash, and the DOM format.
 
@@ -200,6 +271,18 @@ The JavaScript library also reads each cache case with the handwritten bootstrap
 Open names are names that grammar authors choose.
 
 The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin sign in each open name context. Their DOM patterns assert rule names, tags, constant names, features, classifier names, classes, and query arguments. Patterns and elidable terminators assert their own names. Captures require lowercase ASCII, and fixed keywords, methods, flags, and engine names have no Kelvin spelling.
+
+## Diagnostic notation: `diagnostic-notation.json`
+
+`lib/js/test/diagnostics.test.js` reads these printer cases. Each case gives a `description`, `grammar`, input `term`, and expected notation `text`. An optional `abbreviation` appends Unicode table text before loading. The runner compares `formatTerm` output with `text` and reads that text as a constant. Other libraries have no diagnostics printer for these cases.
+
+## Playground includes: `playground-includes.json`
+
+`lib/js/test/playground.test.js` reads these editor cases. Each case gives a `description`, a `sources` map, and an expected `documents` list. The map contains the root pipeline document `p.md`. An optional `stages` list gives each stage's `name` and ordered `documents`. The runner compares the editor's resolved paths and stages, then parses `a` through the pipeline.
+
+## Playground names paths: `playground-names-paths.json`
+
+`tools/smoke-playground.js` reads this list of resource paths in its browser tests. The list supplies resource path strings. The runner serves a names table at each path and loads a grammar that names it. These cases exercise URL escaping and literal path characters in the playground.
 
 ## Layered pattern conformance
 
@@ -217,7 +300,7 @@ Small native tests retain state-reuse bounds, walk order, and codec preservation
 
 Each case gives a document, lexical aliases, and a DOM pattern or an error expectation. Every library adds each alias as a rule in the lexical document of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. Its `leftmost-longest` flag selects it over ordinary lexical divisions. The library reads the document with this bootstrap and compares the DOM or error. A successful reading also exercises the cold, matching, and mismatched cache paths described above.
 
-An error expectation pins its line and column through `expect.error`. Message wording is not part of conformance. The invalid pattern-name cases cover constants, nested patterns and rule conditions.
+An error expectation in this file requires both `line` and `column` under `expect.error`. Each coordinate is a positive integer. Other members under `expect.error` are invalid. An `expect.error.message` member invalidates the case. Only `expect.message` pins an agreed reason. The invalid pattern-name cases cover constants, nested patterns and rule conditions.
 
 The canonical-name cases use canonically equivalent ASCII and Kelvin spellings. These aliases test captures and fixed names through a supplied notation. The invalid-name cases supply semantic values that the bundled notation cannot produce. These cases add no spelling to the bundled notation. The handwritten reader implements the bundled notation, so these cases apply to library readers.
 
@@ -229,7 +312,7 @@ Ordinary controls require the concatenation type error without a recipe instruct
 
 ## Bootstrap errors: `bootstrap-errors.json`
 
-Each case supplies the preparsed bootstrap file or replaces the first place of `find` with `replace` in the bundled bootstrap, as "Places in fixtures" says. Each library loads a simple pipeline with that bootstrap and requires a grammar error. The error must name `data/preparsed/gencmu.json`, including failures that arise when the loader constructs the stages. If a case supplies `line` and `column`, the error must keep that position. A case of the bundled bootstrap gives `at` instead, and the error must stand where `at` stands in the document `context`.
+Each case supplies the preparsed bootstrap file or replaces the first place of `find` with `replace` in the bundled bootstrap, as "Places in fixtures" says. Each library loads a simple pipeline with that bootstrap and requires a grammar error. The error must name `data/preparsed/gencmu.json`, including failures that arise when the loader constructs the stages. If a case supplies `line` and `column`, the error must keep that position. A case of the bundled bootstrap gives nonempty `at` instead, and the error must stand where `at` stands in the document `context`.
 
 ## Notation shapes: `notation-shapes.json`
 
@@ -243,9 +326,15 @@ A caller can supply its own `data/preparsed/gencmu.json` (`docs/api.md`). Its no
 - Then each rule of the bundled bootstrap's syntax document, except `text`, gets a wrapper: a new rule whose one alternative is a reference to it. Every reference to the rule in that document becomes a reference to its wrapper. The outcomes are `control` again.
 - Then each rule except `text` gets a name with `x` appended, in turn. The definition and every reference use that name. A rule named in `loads` gives a pipeline, and the outcomes are those of `loads`. Any other rule gives the load error `grammar`. No other error escapes the library.
 
+Both transformations include `ref` references and `rule` query arguments. A query argument follows the same renamed rule or wrapper as a direct reference.
+
 Each item of `extraParts` changes a rule of either notation stage. Its `find` stands once in the bundled bootstrap. The item's bootstrap has `replace` in that place ("Places in fixtures"). Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
 
 An extra part holds text that the reader refuses if it reads it. An outcome other than `expect` then shows that the library read it. Other items change constructor shapes or supply tokens that the bundled lexical stage refuses. These tokens test reader validation, including guard errors and their priority (engine §9.3). An item whose `expect` is a load error can give `where`, `{"document": "g.md", "line": 3, "column": 21}`, the place of that error in its document. The load must then fail there, as `expect.where` says for an engine case.
+
+## Disk names: `disk-names.json`
+
+Each case gives `description`, a `files` map of document names to source text, and an `error` object. The error requires `document`, `line`, and `column`. Both coordinates are positive integers.
 
 ## External JSON cases: `json-keys.json`
 
@@ -253,9 +342,13 @@ The shared cases exercise exact member names, escaped names, duplicate members, 
 
 Each cache case names its core Unicode table, `data/unicode/unicode.txt`, explicitly. Without a companion in `sources`, its properties fingerprint is `null`. Property cases compare exact companion text fingerprints, even when no grammar names an additional property. An absent properties member always gives a miss.
 
-Cache cases can supply resource text through `sources`. The value `@bundled-names@` selects pinned names text. The value `@unicode-16@` changes only the version line of the bundled `data/unicode/unicode.txt`. An `error` names the required resource position. A `portable` case also loads through the portable JavaScript entry point without bundled names text.
+Cache cases can supply resource text through `sources`. The value `@bundled-names@` selects pinned names text. The value `@unicode-16@` changes only the version line of the bundled `data/unicode/unicode.txt`.
 
-The `loads` and `cached` fields state the expected behavior. Rust rejects ignored integers outside signed 64-bit range because of a reader limit. For those cases, `rustLoads` and `rustCached` record the current Rust behavior, and each note names the limit.
+An `error` names the required resource position. It requires `document` and accepts optional positive `line` and `column` members. Every reader compares both coordinates. An omitted coordinate requires its absence from the reported error.
+
+A `portable` case also loads through the portable JavaScript entry point without bundled names text.
+
+The `loads` and `cached` fields state the expected behavior. A cache case can omit `cached` when it expects a load error through `error`. Rust rejects ignored integers outside signed 64-bit range because of a reader limit. For those cases, `rustLoads` and `rustCached` record the current Rust behavior, and each note names the limit.
 
 ## Places in fixtures
 
@@ -276,6 +369,10 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
 ```
 
 Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 40. The library tests it as a preparsed DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+
+Instead, an item can supply `dom`, the complete DOM envelope. This form can test the envelope and interactions between declarations. An optional `message` requires that the problem contains that agreed text. An optional `code` requires the problem code before its first colon.
+
+A runner uses a present `dom` unchanged, including `null`, `false`, zero, empty strings, empty arrays, and empty objects.
 
 An optional `unicode` member supplies the contents of `data/unicode/unicode.txt` for that case. Without it, the case uses the bundled table.
 
@@ -342,6 +439,10 @@ A tag projection keeps all user tags and the engine inventory before profiles. T
 The workload comparison uses this projection for equality against the baseline. It still compares parse outcomes, complete tree structure, values, images, sources, spans, and all retained user tags. A reviewed full-corpus change does not excuse different parse work in a timed workload. Separate conformance cases inspect complete unprojected profiles, generic set operations, and serialization.
 
 The harness records both revisions, environment, selection manifest, raw timings, medians, peak memory, serialization time, and full-corpus differences. It exits unsuccessfully for a timing failure, missing measurement, unexplained outcome change, or changed timed-workload result. CI requires this comparison for implementation changes that affect profiles. The gate cannot pass through omitted logical tags or reduced parse work.
+
+## JavaScript calls
+
+`lib/js/test/call-spreads.test.js` parses the libraries, tools, playground, and browser bundle. It refuses spread arguments in calls and constructors. It examines template expressions and optional calls. It also refuses calls to `apply`, including calls through a literal property name. Parentheses around a literal property name do not change this rule.
 
 ## Growth cases: `growth.json`
 
@@ -437,9 +538,9 @@ A close node stores an omitted terminator, a ranked seal, or a shared concatenat
 
 An aligned witness is a query proof with matching closes.
 
-The runners replace `r16` with the selected deepest rule and regenerate each doubled rule. Each runner also demands that rule as an aligned witness, so the bound exercises close concatenation.
+The runners replace `r16` with the selected deepest rule and regenerate each doubled rule. Each runner also demands that rule as an aligned witness, so the bound exercises close concatenation. A family entry with `itemsPerUnit` or `nodesPerDepth` also requires `slack`.
 
-`unusedCases` names ordinary fixtures that receive an unreachable facility rule. These fixtures must keep their expected results and allocate no close observations.
+`unusedCases` is a nonempty list of ordinary fixtures that receive an unreachable facility rule. These fixtures must keep their expected results and allocate no close observations.
 
 An observed capture retains close information for a query. A caller is a rule that uses another rule.
 
@@ -481,7 +582,7 @@ Within `overStrict`, a missing field is zero. An entry without `overStrict` has 
 
 Each mutant is a change to a canonical result that breaks an invariant (above). Every library runs the engine case `case` under `engine/`, and makes sure that its result keeps the invariants. Then it applies the change, and requires two refusals. The engine runner refuses the changed result, and so does the corpus runner.
 
-So the four runners hold the same invariants, and no library keeps a list of its own. Each runner requires at least one mutant, so an emptied file does not pass in silence. `node tools/sync.js --check` makes sure that the file and corpus meet their schemas (`tools/corpus-shape.js`).
+So the four runners hold the same invariants, and no library keeps a list of its own. Each runner requires at least one mutant, so an emptied file does not pass in silence. `node tools/sync.js --check` makes sure that the file and corpus meet their schemas (`tools/fixture-shapes.js`).
 
 `path` leads from the result to the member or element that changes. A step is a member name or an index into a list, and the index -1 is the last element. No other negative index is defined. The change is one of these:
 
@@ -517,20 +618,20 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
   An error with no position, such as an ambiguity, gives no `at`.
 - `error` is present exactly when the result's error is of kind `ambiguous`. It is `{"kind": "ambiguous", "reason": "tie"}`, or the same with the reason `elision-only` (engine §6, §7). A case with any other result has no `error`, a rejection or an error of the grammar included. A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed.
 - The `reason` inside `error` is the reason of the ambiguous error. It is a field of `error`, and it is not the case's own `reason`, which explains the expected verdict (below). A case can have both.
-- `ties`, when present, names the stage whose verdict is `tie`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
+- `ties`, when present, contains exactly one nonempty stage name. It requires `expect: "reject"`, and its name equals `stage`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
 - `words` records the words stage's output when that output is present. The case writes each token as its image (engine §5). The pipeline's grammar recipes supply pause spaces and verbatim text.
 
 A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. Some corpus texts tie in their pipeline, and those cases expect the tie. Each library also tests that its runner refuses the result mutants above. A case uses its pipeline declarations and the caller configuration. The case matches when every one of those fields that the case or the result of the library has is equal.
 
 Every runner compares all of these fields, `at` included.
 
-The runners differ on input that this format does not allow, such as a field whose value is null. So `node tools/sync.js --check` first makes sure that every case meets its schema (`tools/corpus-shape.js`). Each file is UTF-8, and each line is one JSON object. No object has a member name twice, at any depth, and every string is a sequence of Unicode scalar values, with no lone surrogate.
+The runners differ on input that this format does not allow, such as a field whose value is null. So `node tools/sync.js --check` first makes sure that every case meets its schema (`tools/fixture-shapes.js`). Each file is UTF-8, and each line is one JSON object. No object has a member name twice, at any depth, and every string is a sequence of Unicode scalar values, with no lone surrogate.
 
 A case has only the fields above, and none of them is null. An accepted case has `verdict` and `brackets`. A rejected case has `stage`, and it has `at` exactly when it has no `error`.
 
 The optional `seeded` field records a reference fixture's verdict, `"accept"` or `"reject"`. When gencmu expects a different verdict, `reason` explains that expectation in terms of its grammar. A case can also have `reason` without `seeded`, to explain a grammar change or a pipeline policy. `node tools/corpus-departures.js` lists every such case, grouped by reason. A change to the `words` or `brackets` of a case needs no field of its own. It is a change to what gencmu produces, made in the same commit as the grammar change that causes it.
 
-`core.txt` lists the ids of the sample that every library runs on each pull request. It holds every case that pins a text that a checked document quotes ("Quoted texts" below). So a change that makes such prose false fails in every library. On a pull request, the JavaScript and Rust libraries also run the whole corpus, and the others run it nightly. To run every case in JavaScript, run `GENCMU_CORPUS=full node --test test/corpus.test.js` in `lib/js/`.
+`core.txt` lists the ids of the sample that every library runs on each pull request. Each identifier must name an existing corpus case. It holds every case that pins a text that a checked document quotes ("Quoted texts" below). So a change that makes such prose false fails in every library. On a pull request, the JavaScript and Rust libraries also run the whole corpus, and the others run it nightly. To run every case in JavaScript, run `GENCMU_CORPUS=full node --test test/corpus.test.js` in `lib/js/`.
 
 ### CLL source identities
 

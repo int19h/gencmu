@@ -35,6 +35,11 @@ type parseState struct {
 	alignedAsked uint64
 	// alignedActive counts the aligned queries active now.
 	alignedActive int
+	// Nested requests bypass reusable caches while a suffix query is active.
+	suffixActive int
+	// The suspended caller consumes this result once. It is not a cache entry.
+	answerKey     nestedKey
+	answer        *nestedResult
 	queryContext  int
 	queryContexts map[activeQueryParent]int
 	// consts holds the tag set of each constant's value a term has read,
@@ -285,7 +290,7 @@ func (run *stageRun) actions(rec *recognizer, w [2]action) []Action {
 }
 
 // run runs one stage over its input (engine §4-§7, §11, §12).
-func (run *stageRun) run(g *lowered, elisionOnly bool) (out stageOutcome) {
+func (run *stageRun) run(g *lowered, elisionOnly bool, features map[string]bool) (out stageOutcome) {
 	out.stage = Stage{Name: run.name, Input: run.toks}
 	defer func() {
 		if x := recover(); x != nil {
@@ -305,7 +310,7 @@ func (run *stageRun) run(g *lowered, elisionOnly bool) (out stageOutcome) {
 	// An error of the grammar that lowering for these features found is a
 	// result like one found while parsing (§3).
 	if g.fault != "" {
-		panic(&parseFailure{message: g.fault, located: true})
+		panic(&parseFailure{message: g.fault})
 	}
 	start := g.byName["text"]
 	rec := run.recognize(g, start, 0, len(run.toks))
@@ -335,12 +340,12 @@ func (run *stageRun) run(g *lowered, elisionOnly bool) (out stageOutcome) {
 	// Only the chosen tree gives warnings: not the check of elision-only
 	// (§12).
 	if g.warns {
-		out.warnings = run.warnings(rec, res.first)
+		out.warnings = run.warnings(rec, res.first, features)
 	}
 	// The stage emits its tokens before the check of §7. An error found
 	// while emitting ends the stage before the check (§6).
 	out.stage.Output = run.emit(rec, res.first)
-	if elisionOnly && (res.verdict == VerdictResolved || res.verdict == VerdictUnique && len(elidedNodes(out.tree)) > 0) {
+	if elisionOnly && (res.verdict == VerdictResolved || res.verdict == VerdictUnique && hasElided(out.tree)) {
 		if err := run.checkElision(rec, res.first, out.tree); err != nil {
 			// The stage accepted its input and chose its derivation: it keeps
 			// its verdict, output and warnings, and the result has no tree
@@ -442,10 +447,7 @@ func (run *stageRun) rejectedAt(k int, expected []Expected) *ParseError {
 // failure is a grammar error found while parsing: its kind, stage and
 // message, and no position (§13).
 func (run *stageRun) failure(f *parseFailure) *ParseError {
-	if f.located {
-		return &ParseError{Kind: ErrorGrammar, Stage: run.name, Message: f.message}
-	}
-	return &ParseError{Kind: ErrorGrammar, Stage: run.name, Message: "stage " + run.name + ": " + f.message}
+	return &ParseError{Kind: ErrorGrammar, Stage: run.name, Message: f.message}
 }
 
 // writtenSymbol is a terminal as the diagnostics write it: its name,
@@ -487,6 +489,7 @@ func (run *stageRun) activateFeatures(items []stageFeature, features map[string]
 		off[name] = true
 	}
 	ev := run.evaluator(&lowered{stage: run.grammar}, func(name string) (spanVal, bool) { return spanVal{a: 0, b: len(run.toks)}, name == "" })
+	ev.stageInput = true
 	for _, item := range items {
 		directive := item.directive
 		held := true

@@ -1,0 +1,14 @@
+{
+  "description": "Definition rewriting precedes retained-argument inspection.",
+  "grammar": "%const $A \"a\"\n%rule atom(@X) @X\n%rule holder(@Y) @Y\n%rule bad1 atom\n%rule text holder(($A atom))",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 6,
+      "column": 1
+    },
+    "message": "a bare template reference must name one instance"
+  }
+}

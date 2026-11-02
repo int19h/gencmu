@@ -3,6 +3,7 @@ package gencmu
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -16,20 +17,38 @@ type rankedGroup struct {
 	final           bool
 }
 type rankedGroups struct {
-	groups       []*rankedGroup
-	expressions  map[*domExpr]*rankedGroup
-	owners       map[*domExpr]*rankedGroup
-	paths        map[*domExpr]string
-	clauseErrors map[*rankedGroup]*Error
-	sourceSites  map[*sAlt]GroupSite
+	groups               []*rankedGroup
+	expressions          map[*domExpr]*rankedGroup
+	owners               map[*domExpr]*rankedGroup
+	paths                map[*domExpr]string
+	sourceSites          map[*sAlt]GroupSite
+	analyses             map[*sAlt]*rankedClauseAnalysis
+	productive, nonempty map[string]bool
 }
+type rankedClauseAnalysis struct {
+	conditions  []map[string]bool
+	exports     map[string]bool
+	projections map[string][]rankedRoute
+}
+type rankedSpan struct{ productive, nonempty bool }
+
+func rankedJoinSpans(a, b rankedSpan) rankedSpan {
+	productive := a.productive && b.productive
+	return rankedSpan{productive, productive && (a.nonempty || b.nonempty)}
+}
+
 type rankedCapture struct {
-	node *domExpr
-	at   int
+	owner *rankedGroup
+	at    int
 }
-type rankedEnd struct{ at, option, start int }
+type rankedEnd struct {
+	at, option int
+	start      rankedSpan
+}
+
+// Route positions count relevant capture closes, independently of other symbols.
 type rankedRoute struct {
-	steps    []*domExpr
+	span     rankedSpan
 	bindings map[string]*rankedGroup
 	length   int
 	captures map[string]rankedCapture
@@ -37,12 +56,11 @@ type rankedRoute struct {
 }
 
 func rankedEmptyRoute() rankedRoute {
-	return rankedRoute{bindings: map[string]*rankedGroup{}, captures: map[string]rankedCapture{}, ends: map[*rankedGroup]rankedEnd{}}
+	return rankedRoute{span: rankedSpan{productive: true}, bindings: map[string]*rankedGroup{}, captures: map[string]rankedCapture{}, ends: map[*rankedGroup]rankedEnd{}}
 }
 func rankedJoin(left, right rankedRoute) rankedRoute {
 	out := rankedEmptyRoute()
-	out.length = left.length + right.length
-	out.steps = append(append([]*domExpr{}, left.steps...), right.steps...)
+	out.length, out.span = left.length+right.length, rankedJoinSpans(left.span, right.span)
 	for name, group := range left.bindings {
 		out.bindings[name] = group
 	}
@@ -61,81 +79,175 @@ func rankedJoin(left, right rankedRoute) rankedRoute {
 	}
 	for group, end := range right.ends {
 		end.at += left.length
-		end.start += left.length
+		end.start = rankedJoinSpans(left.span, end.start)
 		out.ends[group] = end
 	}
 	return out
 }
-func rankedProduct(left, right []rankedRoute) []rankedRoute {
-	out := []rankedRoute{}
-	for _, a := range left {
-		for _, b := range right {
-			out = append(out, rankedJoin(a, b))
+func rankedRouteKey(route rankedRoute) string {
+	var key strings.Builder
+	fmt.Fprintf(&key, "%d:%t:%t;", route.length, route.span.productive, route.span.nonempty)
+	names := []string{}
+	for name := range route.captures {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		capture := route.captures[name]
+		owner := -1
+		if capture.owner != nil {
+			owner = capture.owner.id
+		}
+		fmt.Fprintf(&key, "c%s:%d:%d;", name, owner, capture.at)
+	}
+	groups := []*rankedGroup{}
+	for group := range route.ends {
+		groups = append(groups, group)
+	}
+	sort.Slice(groups, func(i, j int) bool { return groups[i].id < groups[j].id })
+	for _, group := range groups {
+		end := route.ends[group]
+		fmt.Fprintf(&key, "g%d:%d:%d:%t:%t;", group.id, end.at, end.option, end.start.productive, end.start.nonempty)
+	}
+	names = names[:0]
+	for name := range route.bindings {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		fmt.Fprintf(&key, "b%s:%d;", name, route.bindings[name].id)
+	}
+	return key.String()
+}
+func rankedUnique(routes []rankedRoute) []rankedRoute {
+	seen, out := map[string]bool{}, []rankedRoute{}
+	for _, route := range routes {
+		key := rankedRouteKey(route)
+		if !seen[key] {
+			seen[key] = true
+			out = append(out, route)
 		}
 	}
 	return out
 }
-func (r *rankedGroups) routes(expr *domExpr) []rankedRoute {
+func rankedProduct(left, right []rankedRoute) []rankedRoute {
+	seen, out := map[string]bool{}, []rankedRoute{}
+	for _, a := range left {
+		for _, b := range right {
+			route := rankedJoin(a, b)
+			key := rankedRouteKey(route)
+			if !seen[key] {
+				seen[key] = true
+				out = append(out, route)
+			}
+		}
+	}
+	return out
+}
+func (r *rankedGroups) routes(g *stageGrammar, expr *domExpr, needed map[string]bool) []rankedRoute {
+	visit := func(child *domExpr) []rankedRoute { return r.routes(g, child, needed) }
 	switch expr.Kind {
 	case exEmpty:
 		return []rankedRoute{rankedEmptyRoute()}
 	case exSeq:
 		out := []rankedRoute{rankedEmptyRoute()}
 		for _, child := range expr.Items {
-			out = rankedProduct(out, r.routes(child))
+			out = rankedProduct(out, visit(child))
 		}
 		return out
 	case exChoice:
 		out := []rankedRoute{}
 		for _, child := range expr.Items {
-			out = append(out, r.routes(child)...)
+			out = append(out, visit(child)...)
 		}
-		return out
+		return rankedUnique(out)
 	case exRanked:
-		out := []rankedRoute{}
+		out, group := []rankedRoute{}, r.expressions[expr]
+		names := rankedPrivateNames(expr)
+		for name := range names {
+			if !needed[name] {
+				delete(names, name)
+			}
+		}
 		for option, child := range expr.Items {
-			for _, route := range r.routes(child) {
-				group := r.expressions[expr]
-				names := rankedPrivateNames(expr)
-				for nested := range route.ends {
-					for name := range rankedPrivateNames(nested.expr) {
-						delete(names, name)
+			for _, route := range visit(child) {
+				if len(names) > 0 {
+					for name := range names {
+						if route.bindings[name] == nil {
+							route.bindings[name] = group
+						}
 					}
+					route.ends[group] = rankedEnd{at: route.length, option: option, start: rankedSpan{productive: true}}
 				}
-				for name := range names {
-					route.bindings[name] = group
-				}
-				route.ends[group] = rankedEnd{route.length, option, 0}
 				out = append(out, route)
 			}
 		}
-		return out
+		return rankedUnique(out)
 	case exAnd:
-		out := []rankedRoute{}
-		for mask := 1; mask < 1<<len(expr.Items); mask++ {
-			route := []rankedRoute{rankedEmptyRoute()}
-			for index, child := range expr.Items {
-				if mask&(1<<index) != 0 {
-					route = rankedProduct(route, r.routes(child))
+		type selected struct {
+			mask  int
+			order []int
+			route rankedRoute
+		}
+		states := []selected{{route: rankedEmptyRoute()}}
+		for bit, child := range expr.Items {
+			parts, candidates := visit(child), append([]selected{}, states...)
+			for _, state := range states {
+				for index, part := range parts {
+					order := append(append([]int{}, state.order...), index)
+					candidates = append(candidates, selected{state.mask | (1 << bit), order, rankedJoin(state.route, part)})
 				}
 			}
-			out = append(out, route...)
+			sort.SliceStable(candidates, func(i, j int) bool {
+				a, b := candidates[i], candidates[j]
+				if a.mask != b.mask {
+					return a.mask < b.mask
+				}
+				for k := 0; k < len(a.order) && k < len(b.order); k++ {
+					if a.order[k] != b.order[k] {
+						return a.order[k] < b.order[k]
+					}
+				}
+				return len(a.order) < len(b.order)
+			})
+			states = nil
+			seen := map[string]bool{}
+			for _, state := range candidates {
+				key := fmt.Sprint(state.mask != 0) + rankedRouteKey(state.route)
+				if !seen[key] {
+					seen[key] = true
+					states = append(states, state)
+				}
+			}
 		}
-		return out
+		out := []rankedRoute{}
+		for _, state := range states {
+			if state.mask != 0 {
+				out = append(out, state.route)
+			}
+		}
+		return rankedUnique(out)
 	case exOptional:
-		return append([]rankedRoute{rankedEmptyRoute()}, r.routes(expr.Inner)...)
+		return rankedUnique(append([]rankedRoute{rankedEmptyRoute()}, visit(expr.Inner)...))
 	case exRepeat:
-		out := r.routes(expr.Inner)
+		items := visit(expr.Inner)
 		if expr.Sep != nil {
-			out = append(out, rankedProduct(out, r.routes(expr.Sep))...)
+			return rankedUnique(append(items, rankedProduct(items, visit(expr.Sep))...))
 		}
-		return out
+		return items
 	default:
 		route := rankedEmptyRoute()
-		route.length = 1
-		route.steps = []*domExpr{expr}
-		if expr.Kind == exCapture {
-			route.captures[expr.Name] = rankedCapture{expr, 1}
+		if expr.Kind == exCapture && needed[expr.Name] {
+			route.length = 1
+			route.captures[expr.Name] = rankedCapture{r.owners[expr], 1}
+		}
+		for expr.Kind == exCapture || expr.Kind == exTest {
+			expr = expr.Inner
+		}
+		if expr.Kind == exRef && g.byName[expr.Name] != nil {
+			route.span = rankedSpan{r.productive[expr.Name], r.nonempty[expr.Name]}
+		} else {
+			route.span = rankedSpan{true, true}
 		}
 		return []rankedRoute{route}
 	}
@@ -157,7 +269,7 @@ func rankedCondReads(cond *domCond, out map[string]bool) {
 		return
 	}
 	if cond.Kind == cdCaptured {
-		out[cond.Rule] = true
+		out[cond.Capture] = true
 	}
 	rankedTermReads(cond.Left, out)
 	rankedTermReads(cond.Right, out)
@@ -167,8 +279,8 @@ func rankedCondReads(cond *domCond, out map[string]bool) {
 		rankedCondReads(child, out)
 	}
 }
-func newRankedGroups(g *stageGrammar) (*rankedGroups, *Error) {
-	r := &rankedGroups{expressions: map[*domExpr]*rankedGroup{}, owners: map[*domExpr]*rankedGroup{}, paths: map[*domExpr]string{}, clauseErrors: map[*rankedGroup]*Error{}, sourceSites: map[*sAlt]GroupSite{}}
+func newRankedGroups(g *stageGrammar) *rankedGroups {
+	r := &rankedGroups{expressions: map[*domExpr]*rankedGroup{}, owners: map[*domExpr]*rankedGroup{}, paths: map[*domExpr]string{}, sourceSites: map[*sAlt]GroupSite{}, analyses: map[*sAlt]*rankedClauseAnalysis{}}
 	for _, rule := range g.rules {
 		for alternative, source := range rule.alts {
 			at := source.at
@@ -207,15 +319,52 @@ func newRankedGroups(g *stageGrammar) (*rankedGroups, *Error) {
 			visit(source.alt.Expr, "", true, nil)
 		}
 	}
-	for _, group := range r.groups {
-		if err := r.validateClauses(g, group, nil); err != nil {
-			r.clauseErrors[group] = err
+	return r
+}
+func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup) *Error {
+	analysis := r.analyses[group.source]
+	if analysis == nil {
+		analysis = &rankedClauseAnalysis{exports: rankedExportReads(group.source), projections: map[string][]rankedRoute{}}
+		for _, condition := range group.source.conds {
+			names := map[string]bool{}
+			rankedCondReads(condition, names)
+			analysis.conditions = append(analysis.conditions, names)
+		}
+		r.analyses[group.source] = analysis
+	}
+	private := rankedPrivateNames(group.expr)
+	needed := map[string]bool{}
+	for name := range analysis.exports {
+		if private[name] {
+			needed[name] = true
 		}
 	}
-	return r, nil
-}
-func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup, prefixCanRead func([]*domExpr) bool) *Error {
-	for _, route := range r.routes(group.source.alt.Expr) {
+	for _, names := range analysis.conditions {
+		if overlaps(names, private) {
+			for name := range names {
+				needed[name] = true
+			}
+		}
+	}
+	delete(needed, "")
+	if len(needed) == 0 {
+		return nil
+	}
+	names := []string{}
+	for name := range needed {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	key := strings.Join(names, ",")
+	paths := analysis.projections[key]
+	if paths == nil {
+		if r.productive == nil {
+			r.productive, r.nonempty = rankedWrittenSpans(g)
+		}
+		paths = r.routes(g, group.source.alt.Expr, needed)
+		analysis.projections[key] = paths
+	}
+	for _, route := range paths {
 		end, present := route.ends[group]
 		if !present {
 			continue
@@ -223,7 +372,7 @@ func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup, pref
 		has := func(name string) bool { _, present := route.captures[name]; return name == "" || present }
 		private := func(reads map[string]bool) bool {
 			for name := range reads {
-				if capture, present := route.captures[name]; present && r.owners[capture.node] == group {
+				if capture, present := route.captures[name]; present && capture.owner == group {
 					return true
 				}
 			}
@@ -260,7 +409,7 @@ func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup, pref
 				}
 			}
 			atom := firstBoundaryAtom(effective)
-			if atom != nil && atom.Op == "preceded-by" && atom.Span.Str == "" && prefixCanRead != nil && prefixCanRead(route.steps[:end.start]) {
+			if atom != nil && atom.Op == "preceded-by" && atom.Span.Str == "" && end.start.nonempty {
 				message := fmt.Sprintf("Condition %d of %s combines %s with a private capture in option %d. That option can start after the rule starts. Move the condition into a rule that starts with the ranked group, or test the private capture itself.", conditionIndex+1, group.parent, boundaryAtomText(atom), end.option+1)
 				return r.fail(g, group, "ranked-choice-boundary", message).rankedDetail(end.option, rankedWrittenClause(group.source, "conditions", conditionIndex))
 			}
@@ -280,8 +429,8 @@ func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup, pref
 			term *domTerm
 			key  string
 		}{
-			{group.source.ruleValue, "value"}, {group.source.ruleImage, "image"},
 			{group.source.alt.Value, "alternative-value"}, {group.source.alt.Image, "alternative-image"},
+			{group.source.ruleValue, "value"}, {group.source.ruleImage, "image"},
 		} {
 			reads := map[string]bool{}
 			rankedTermReads(recipe.term, reads)
@@ -359,7 +508,9 @@ func (r *rankedGroups) fail(g *stageGrammar, group *rankedGroup, code, message s
 	site := r.sourceSites[group.source]
 	site.Path = group.path
 	site.At = nil
-	if at, known := group.source.alt.rankedLocations[group.path]; known {
+	if at := group.expr.RankedAt; at != [2]int{} {
+		site.At = &at
+	} else if at, known := group.source.alt.rankedLocations[group.path]; known {
 		site.At = &at
 	}
 	at := [2]int{}
@@ -371,110 +522,79 @@ func (r *rankedGroups) fail(g *stageGrammar, group *rankedGroup, code, message s
 	err.Group = &site
 	return err
 }
-func (r *rankedGroups) validateTags(g *lowered) *Error {
-	var productive, nonempty []bool
-	prefixCanRead := func(steps []*domExpr) bool {
-		if len(steps) == 0 {
-			return false
-		}
-		if productive == nil {
-			productive, nonempty = structuralSpans(g)
-		}
-		reads := false
-		for _, step := range steps {
-			for step.Kind == exCapture || step.Kind == exTest {
-				step = step.Inner
-			}
-			if step.Kind == exRef && !isTerminalName(step.Name) {
-				id, ok := g.byName[step.Name]
-				if !ok || !productive[id] {
-					return false
-				}
-				reads = reads || nonempty[id]
-			} else {
-				reads = true
-			}
-		}
-		return reads
-	}
-	for _, group := range r.groups {
-		if err := r.validateClauses(g.stage, group, prefixCanRead); err != nil {
-			r.clauseErrors[group] = err
-		}
-	}
 
-	if g.fault != "" {
-		if g.faultLocation != nil {
-			return g.faultLocation
-		}
-		return grammarError("", [2]int{}, "%s", g.fault)
+// rankedExportReads includes written carriers before absent ones disappear.
+func rankedExportReads(source *sAlt) map[string]bool {
+	reads := map[string]bool{}
+	for _, term := range []*domTerm{source.alt.Tags, source.ruleTags, source.alt.Value, source.alt.Image, source.ruleValue, source.ruleImage} {
+		rankedTermReads(term, reads)
 	}
-	unsafe := map[int32]bool{}
-	users := map[int32][]*production{}
-	helpers := map[*rankedGroup]int32{}
-	for _, p := range g.prods {
-		// Query helpers have no written slot and never occur in a rule body.
-		if p.slot == nil {
-			continue
-		}
-		if p.slot.path != nil {
-			if group := r.expressions[p.slot.path]; group != nil {
-				helpers[group] = p.lhs
-			}
-		}
-		terms := p.slot.tags
-		if !p.helper {
-			terms = nil
-			for _, term := range []*domTerm{p.slot.source.alt.Tags, p.slot.source.ruleTags} {
-				if term != nil {
-					terms = append(terms, term)
+	if source.emit != nil {
+		for _, item := range source.emit.Items {
+			if !item.IsInsert {
+				for _, name := range item.captures() {
+					reads[name] = true
 				}
 			}
+			rankedTermReads(item.Tags, reads)
+			rankedTermReads(item.Value, reads)
+			rankedTermReads(item.Image, reads)
 		}
-		if len(terms) > 0 {
-			for _, term := range terms {
-				if !isEmptySet(term) {
-					unsafe[p.lhs] = true
-				}
-			}
-		} else if len(p.rhs) == 1 {
-			if p.rhs[0].term {
-				unsafe[p.lhs] = true
+	}
+	return reads
+}
+
+func (r *rankedGroups) validateTags(g *stageGrammar) *Error {
+	graph := newRankedTagGraph(g, r)
+	unsafe := make([]bool, len(graph.nodes))
+	users := make([][]int, len(graph.nodes))
+	for index, node := range graph.nodes {
+		for _, route := range node.routes {
+			if route.tagged {
+				unsafe[index] = unsafe[index] || route.unsafe
 			} else {
-				users[p.rhs[0].id] = append(users[p.rhs[0].id], p)
+				for _, child := range route.children {
+					if child < 0 {
+						unsafe[index] = true
+					} else {
+						users[child] = append(users[child], index)
+					}
+				}
 			}
 		}
 	}
-	pending := []int32{}
-	for rule := range unsafe {
-		pending = append(pending, rule)
+	pending := []int{}
+	for index, marked := range unsafe {
+		if marked {
+			pending = append(pending, index)
+		}
 	}
-	for at := 0; at < len(pending); at++ {
-		for _, p := range users[pending[at]] {
-			if !unsafe[p.lhs] {
-				unsafe[p.lhs] = true
-				pending = append(pending, p.lhs)
+	for i := 0; i < len(pending); i++ {
+		for _, parent := range users[pending[i]] {
+			if !unsafe[parent] {
+				unsafe[parent] = true
+				pending = append(pending, parent)
 			}
 		}
 	}
 	for _, group := range r.groups {
-		if err := r.clauseErrors[group]; err != nil {
+		if err := r.validateClauses(g, group); err != nil {
 			return err
 		}
-		helper, present := helpers[group]
-		if !present || !unsafe[helper] {
+		helper := graph.groups[group]
+		if !unsafe[helper] {
 			continue
 		}
-		outward := []int32{helper}
-		seen := map[int32]bool{helper: true}
-		for at := 0; at < len(outward); at++ {
-			for _, p := range users[outward[at]] {
-				if !p.helper && p.ruleName == group.parent {
-					return r.tagFailure(g, group, helper, unsafe)
+		outward, seen := []int{helper}, map[int]bool{helper: true}
+		for i := 0; i < len(outward); i++ {
+			for _, parent := range users[outward[i]] {
+				node := graph.nodes[parent]
+				if !node.helper && node.owner == group.parent {
+					return r.tagFailure(g, graph, group, helper, unsafe)
 				}
-				if p.helper && p.ruleName == group.parent && !seen[p.lhs] {
-					seen[p.lhs] = true
-					outward = append(outward, p.lhs)
+				if node.helper && node.owner == group.parent && !seen[parent] {
+					seen[parent] = true
+					outward = append(outward, parent)
 				}
 			}
 		}
@@ -482,59 +602,312 @@ func (r *rankedGroups) validateTags(g *lowered) *Error {
 	return nil
 }
 
-func (r *rankedGroups) tagFailure(g *lowered, group *rankedGroup, helper int32, unsafe map[int32]bool) *Error {
-	err := r.fail(g.stage, group, "ranked-choice-tags", "A ranked choice must discard its returned tags or return provably empty tags.")
+func (r *rankedGroups) tagFailure(g *stageGrammar, graph *rankedTagGraph, group *rankedGroup, helper int, unsafe []bool) *Error {
+	err := r.fail(g, group, "ranked-choice-tags", "A ranked choice must discard its returned tags or return provably empty tags.")
 	err.Expression = rankedWrittenExpression(group)
 	type state struct {
-		rule   int32
+		node   int
 		steps  []GroupSite
 		option *int
 	}
-	queue := []state{{helper, []GroupSite{*err.Group}, nil}}
-	seen := map[int32]bool{helper: true}
-	for at := 0; at < len(queue); at++ {
-		current := queue[at]
-		for _, p := range g.rules[current.rule].prods {
+	queue, seen := []state{{helper, []GroupSite{*err.Group}, nil}}, map[int]bool{helper: true}
+	for i := 0; i < len(queue); i++ {
+		current := queue[i]
+		for _, route := range graph.nodes[current.node].routes {
 			option := current.option
-			if option == nil && p.ranked != nil {
-				value := p.option
+			if option == nil && route.option >= 0 {
+				value := route.option
 				option = &value
 			}
 			steps := append([]GroupSite(nil), current.steps...)
-			if current.rule != helper {
-				site := r.sourceSites[p.slot.source]
-				site.Path = r.paths[p.slot.path]
+			if current.node != helper {
+				site := r.sourceSites[route.source]
+				site.Path = r.paths[route.expr]
 				steps = append(steps, site)
 			}
-			terms := p.slot.tags
-			if !p.helper {
-				terms = nil
-				for _, term := range []*domTerm{p.slot.source.alt.Tags, p.slot.source.ruleTags} {
-					if term != nil {
-						terms = append(terms, term)
-					}
+			source := route.unsafe
+			if !route.tagged {
+				for _, child := range route.children {
+					source = source || child < 0
 				}
 			}
-			source := len(terms) == 0 && len(p.rhs) == 1 && p.rhs[0].term
-			for _, term := range terms {
-				source = source || !isEmptySet(term)
-			}
 			if source {
-				err.Option = option
-				err.Inheritance = steps
+				err.Option, err.Inheritance = option, steps
 				return err
 			}
-			if len(terms) == 0 && len(p.rhs) == 1 && !p.rhs[0].term {
-				child := p.rhs[0].id
-				if unsafe[child] && !seen[child] {
-					seen[child] = true
-					queue = append(queue, state{child, steps, option})
+			if !route.tagged {
+				for _, child := range route.children {
+					if child >= 0 && unsafe[child] && !seen[child] {
+						seen[child] = true
+						queue = append(queue, state{child, steps, option})
+					}
 				}
 			}
 		}
 	}
 	return err
 }
+
+type rankedTagRoute struct {
+	source         *sAlt
+	expr           *domExpr
+	option         int
+	tagged, unsafe bool
+	children       []int
+}
+type rankedTagNode struct {
+	owner  string
+	helper bool
+	routes []rankedTagRoute
+}
+type rankedTagGraph struct {
+	nodes  []*rankedTagNode
+	groups map[*rankedGroup]int
+}
+type rankedUnary struct {
+	zero     bool
+	children []int
+}
+
+func (g *rankedTagGraph) node(owner string, helper bool) int {
+	g.nodes = append(g.nodes, &rankedTagNode{owner: owner, helper: helper})
+	return len(g.nodes) - 1
+}
+
+// newRankedTagGraph summarizes logical arity without production products.
+func newRankedTagGraph(g *stageGrammar, ranked *rankedGroups) *rankedTagGraph {
+	graph := &rankedTagGraph{groups: map[*rankedGroup]int{}}
+	named := map[string]int{}
+	for _, rule := range g.rules {
+		named[rule.name] = graph.node(rule.name, false)
+	}
+	captured := map[*domExpr]bool{}
+	var hasCapture func(*domExpr) bool
+	hasCapture = func(expr *domExpr) bool {
+		if value, ok := captured[expr]; ok {
+			return value
+		}
+		value := false
+		if expr.Kind != exRanked {
+			value = expr.Kind == exCapture
+			for _, child := range expr.Items {
+				value = value || hasCapture(child)
+			}
+			if expr.Inner != nil {
+				value = value || hasCapture(expr.Inner)
+			}
+			if expr.Sep != nil {
+				value = value || hasCapture(expr.Sep)
+			}
+		}
+		captured[expr] = value
+		return value
+	}
+	for _, rule := range g.rules {
+		for _, source := range rule.alts {
+			memo := map[*domExpr]rankedUnary{}
+			var describe func(*domExpr) rankedUnary
+			describe = func(expr *domExpr) rankedUnary {
+				if result, ok := memo[expr]; ok {
+					return result
+				}
+				result := rankedUnary{}
+				switch expr.Kind {
+				case exEmpty:
+					result.zero = true
+				case exSeq:
+					parts, blocking := []rankedUnary{}, 0
+					for _, child := range expr.Items {
+						part := describe(child)
+						parts = append(parts, part)
+						if !part.zero {
+							blocking++
+						}
+					}
+					result.zero = blocking == 0
+					for _, part := range parts {
+						others := blocking
+						if !part.zero {
+							others--
+						}
+						if others == 0 {
+							result.children = append(result.children, part.children...)
+						}
+					}
+				case exChoice, exAnd:
+					for _, child := range expr.Items {
+						part := describe(child)
+						result.zero = result.zero || part.zero
+						result.children = append(result.children, part.children...)
+					}
+				case exRanked, exOptional, exRepeat:
+					if expr.Kind == exOptional && !expr.Elidable && hasCapture(expr.Inner) {
+						result.children = describe(expr.Inner).children
+					} else {
+						helper := graph.node(rule.name, true)
+						result.children = []int{helper}
+						memo[expr] = result
+						if expr.Kind == exRanked {
+							graph.groups[ranked.expressions[expr]] = helper
+							for option, child := range expr.Items {
+								graph.nodes[helper].routes = append(graph.nodes[helper].routes, rankedTagRoute{source: source, expr: expr, option: option, children: describe(child).children})
+							}
+						} else {
+							graph.nodes[helper].routes = append(graph.nodes[helper].routes, rankedTagRoute{source: source, expr: expr, option: -1, children: describe(expr.Inner).children})
+						}
+						// Recursive repetition only adds a self edge.
+						if expr.Sep != nil {
+							describe(expr.Sep)
+						}
+					}
+				case exCapture, exTest:
+					result = describe(expr.Inner)
+				default:
+					child, ok := named[expr.Name]
+					if expr.Kind != exRef || !ok {
+						child = -1
+					}
+					result.children = []int{child}
+				}
+				memo[expr] = result
+				return result
+			}
+			expr := source.alt.Expr
+			body := rankedUnary{}
+			if isChain(expr) {
+				body = describe(expr.Inner)
+				if expr.Sep != nil {
+					describe(expr.Sep)
+				}
+			} else {
+				body = describe(expr)
+			}
+			route := rankedTagRoute{source: source, expr: expr, option: -1, children: body.children}
+			for _, term := range []*domTerm{source.alt.Tags, source.ruleTags} {
+				if term != nil {
+					route.tagged = true
+					route.unsafe = route.unsafe || !isEmptySet(term)
+				}
+			}
+			node := graph.nodes[named[rule.name]]
+			node.routes = append(node.routes, route)
+		}
+	}
+	return graph
+}
+
+// rankedWrittenSpans uses each written branch and concatenation once.
+func rankedWrittenSpans(g *stageGrammar) (map[string]bool, map[string]bool) {
+	type branch struct {
+		lhs int
+		rhs []int
+	}
+	named, memo := map[string]int{}, map[*domExpr]int{}
+	count, branches := len(g.rules)+1, []branch{}
+	for i, rule := range g.rules {
+		named[rule.name] = i + 1
+	}
+	var expression func(*domExpr) int
+	expression = func(expr *domExpr) int {
+		if id, ok := memo[expr]; ok {
+			return id
+		}
+		id := 0
+		switch expr.Kind {
+		case exCapture, exTest:
+			id = expression(expr.Inner)
+		case exRef:
+			id = named[expr.Name]
+		case exLiteral, exRange, exWildcard:
+		default:
+			id = count
+			count++
+			switch expr.Kind {
+			case exEmpty:
+				branches = append(branches, branch{id, nil})
+			case exSeq:
+				rhs := []int{}
+				for _, child := range expr.Items {
+					rhs = append(rhs, expression(child))
+				}
+				branches = append(branches, branch{id, rhs})
+			case exChoice, exRanked, exAnd:
+				for _, child := range expr.Items {
+					target := expression(child)
+					branches = append(branches, branch{id, []int{target}})
+				}
+			case exOptional:
+				child := expression(expr.Inner)
+				branches = append(branches, branch{id, nil}, branch{id, []int{child}})
+			case exRepeat:
+				item := expression(expr.Inner)
+				branches = append(branches, branch{id, []int{item}})
+				if expr.Sep != nil {
+					separator := expression(expr.Sep)
+					branches = append(branches, branch{id, []int{item, separator, item}})
+				}
+			}
+		}
+		memo[expr] = id
+		return id
+	}
+	for _, rule := range g.rules {
+		for _, source := range rule.alts {
+			rhs := expression(source.alt.Expr)
+			branches = append(branches, branch{named[rule.name], []int{rhs}})
+		}
+	}
+	users, remaining := make([][]int, count), make([]int, len(branches))
+	productive, nonempty := make([]bool, count), make([]bool, count)
+	productive[0], nonempty[0] = true, true
+	pending := []int{0}
+	for i, branch := range branches {
+		remaining[i] = len(branch.rhs)
+		if remaining[i] == 0 && !productive[branch.lhs] {
+			productive[branch.lhs] = true
+			pending = append(pending, branch.lhs)
+		}
+		for _, child := range branch.rhs {
+			users[child] = append(users[child], i)
+		}
+	}
+	for i := 0; i < len(pending); i++ {
+		for _, index := range users[pending[i]] {
+			remaining[index]--
+			lhs := branches[index].lhs
+			if remaining[index] == 0 && !productive[lhs] {
+				productive[lhs] = true
+				pending = append(pending, lhs)
+			}
+		}
+	}
+	pending = []int{0}
+	for i, branch := range branches {
+		if remaining[i] == 0 {
+			for _, child := range branch.rhs {
+				if nonempty[child] && !nonempty[branch.lhs] {
+					nonempty[branch.lhs] = true
+					pending = append(pending, branch.lhs)
+				}
+			}
+		}
+	}
+	for i := 0; i < len(pending); i++ {
+		for _, index := range users[pending[i]] {
+			lhs := branches[index].lhs
+			if remaining[index] == 0 && !nonempty[lhs] {
+				nonempty[lhs] = true
+				pending = append(pending, lhs)
+			}
+		}
+	}
+	p, n := map[string]bool{}, map[string]bool{}
+	for name, id := range named {
+		p[name], n[name] = productive[id], nonempty[id]
+	}
+	return p, n
+}
+
 func containsRanked(expr *domExpr) bool {
 	pending := []*domExpr{expr}
 	for len(pending) > 0 {
@@ -551,83 +924,12 @@ func containsRanked(expr *domExpr) bool {
 	}
 	return false
 }
-func restoreRankedLocations(dom *domDoc, tokens []Token, position func(int) [2]int) {
-	if restoreTemplateRankedLocations(dom, tokens, position) {
-		return
-	}
-	separators := [][2]int{}
-	for _, token := range tokens {
-		if token.Value == "≻" {
-			separators = append(separators, position(token.Source[0]))
-		}
-	}
-	index := 0
-	type task struct {
-		expr   *domExpr
-		path   string
-		action int
-	}
-	for _, rule := range dom.Rules {
-		for _, alternative := range rule.Alternatives {
-			locations := map[string][2]int{}
-			alternative.rankedLocations = locations
-			pending := []task{{alternative.Expr, "", 0}}
-			for len(pending) > 0 {
-				item := pending[len(pending)-1]
-				pending = pending[:len(pending)-1]
-				expr, path := item.expr, item.path
-				if item.action == 1 {
-					if index < len(separators) {
-						locations[path] = separators[index]
-					}
-					continue
-				}
-				if item.action == 2 {
-					index++
-					continue
-				}
-				if expr == nil {
-					continue
-				}
-				if expr.Kind == exRanked && len(expr.Items) > 0 {
-					for i := len(expr.Items) - 1; i > 0; i-- {
-						pending = append(pending, task{expr.Items[i], fmt.Sprintf("%s/ranked/%d", path, i), 0}, task{nil, "", 2})
-					}
-					pending = append(pending, task{nil, path, 1}, task{expr.Items[0], path + "/ranked/0", 0})
-					continue
-				}
-				switch expr.Kind {
-				case exOptional:
-					pending = append(pending, task{expr.Inner, path + "/optional", 0})
-				case exRepeat:
-					pending = append(pending, task{expr.Sep, path + "/separator", 0}, task{expr.Inner, path + "/repeat", 0})
-				case exCapture, exTest:
-					pending = append(pending, task{expr.Inner, path + "/expr", 0})
-				}
-				for i := len(expr.Items) - 1; i >= 0; i-- {
-					pending = append(pending, task{expr.Items[i], fmt.Sprintf("%s/%s/%d", path, expr.Kind, i), 0})
-				}
-			}
-		}
-	}
-	if index != len(separators) {
-		for _, rule := range dom.Rules {
-			for _, alternative := range rule.Alternatives {
-				alternative.rankedLocations = nil
-			}
-		}
-	}
-}
-func (nr *notationReader) restoreLocations(text string, dom *domDoc) {
-	gt := extractGrammarText(text)
-	ps := newParseState(nr.uni, gt.text)
-	if len(nr.stages) == 0 {
-		return
-	}
-	run := ps.newRun(nr.stages[0].name, nr.stages[0], ps.characterTokens())
-	out := run.run(nr.lowered[0], nr.stages[0].elisionOnly)
-	if out.err == nil {
-		restoreRankedLocations(dom, out.stage.Output, gt.at)
+
+// Recover metadata from the same source constructors used on a cache miss.
+func (nr *notationReader) restoreLocations(text, document string, cached *domDoc, names *namesScope) {
+	source, err := nr.readMode(text, document, true, names)
+	if err == nil {
+		restoreSourceLocations(cached, source)
 	}
 }
 func rankedSyntaxFailure(tokens []Token, at int) bool {

@@ -25,26 +25,19 @@ func templateSourceAt(n templateObject) [2]int {
 	}
 	return templateAt(n)
 }
-func templateSourceTerm(t *domTerm) templateObject {
-	n := templateWritten(t)
-	templateAnnotateTerm(n, t)
-	return n
-}
-func templateSourceCond(c *domCond) templateObject {
-	n := templateWritten(c)
-	templateAnnotateCond(n, c)
-	return n
-}
-func templateSourceExpr(e *domExpr) templateObject {
-	n := templateWritten(e)
-	templateAnnotateExpr(n, e)
-	return n
-}
 func templateAnnotateTerm(n templateObject, t *domTerm) {
 	if t == nil || n == nil {
 		return
 	}
 	templateLocate(n, t.At)
+	if t.Kind == tmSourceCall {
+		annotateSourceCall(n, t.Call)
+		return
+	}
+	if t.Kind == tmPattern {
+		annotateSourcePattern(templateObj(n["pattern"]), t.Pattern)
+		return
+	}
 	if t.Kind == tmCall {
 		templateAnnotateTerm(templateObj(n["receiver"]), t.Items[0])
 		for i, v := range templateList(n["args"]) {
@@ -91,6 +84,13 @@ func templateAnnotateExpr(n templateObject, e *domExpr) {
 	if e == nil || n == nil {
 		return
 	}
+	templateLocate(n, e.At)
+	if e.Kind == exCall {
+		annotateSourceCall(n, e.Call)
+	}
+	if e.RankedAt != [2]int{} {
+		n[templateSourceKey].(*templateSource).ranked = e.RankedAt
+	}
 	for i, v := range templateList(n[e.Kind]) {
 		if i < len(e.Items) {
 			templateAnnotateExpr(templateObj(v), e.Items[i])
@@ -107,26 +107,26 @@ func templateAnnotateExpr(n templateObject, e *domExpr) {
 }
 func templateSourceDocument(raw templateObject, d *domDoc) {
 	for i, r := range d.Rules {
-		if r.rawTemplate != nil {
-			templateList(raw["rules"])[i] = r.rawTemplate
-		} else {
-			templateNativeRuleSource(templateObj(templateList(raw["rules"])[i]), r)
+		n := templateObj(templateList(raw["rules"])[i])
+		templateNativeRuleSource(n, r)
+		annotateSourceArguments(templateList(n["args"]), r.Args)
+		if r.Instance != nil {
+			annotateSourceCall(templateObj(n["instance"]), r.Instance)
 		}
 	}
 	for i, r := range d.Constants {
-		if r.rawTemplate != nil {
-			templateList(raw["constants"])[i] = r.rawTemplate
-		}
+		templateAnnotateTerm(templateObj(templateObj(templateList(raw["constants"])[i])["value"]), r.Value)
 	}
 	for i, r := range d.Directives {
-		if r.rawTemplate != nil {
-			templateList(raw["directives"])[i] = r.rawTemplate
+		n := templateObj(templateList(raw["directives"])[i])
+		for j, condition := range r.Conditions {
+			templateAnnotateCond(templateObj(templateList(n["conditions"])[j]), condition)
 		}
 	}
 	for i, r := range d.Implications {
-		if r.rawTemplate != nil {
-			templateList(raw["implications"])[i] = r.rawTemplate
-		}
+		n := templateObj(templateList(raw["implications"])[i])
+		templateAnnotateTerm(templateObj(n["if"]), r.If)
+		templateAnnotateTerm(templateObj(n["then"]), r.Then)
 	}
 }
 func templateNativeRuleSource(raw templateObject, r *domRule) {
@@ -262,111 +262,4 @@ func restoreTemplateRuleLocations(r *domRule, raw templateObject) {
 			cond(c, templateObj(templateList(raw["conditions"])[i]))
 		}
 	}
-}
-
-func restoreTemplateRankedLocations(d *domDoc, tokens []Token, position func(int) [2]int) bool {
-	raw := false
-	for _, r := range d.Rules {
-		raw = raw || r.rawTemplate != nil
-	}
-	if !raw {
-		return false
-	}
-	separators := [][2]int{}
-	for _, t := range tokens {
-		if t.Value == "≻" {
-			separators = append(separators, position(t.Source[0]))
-		}
-	}
-	root, e := templateFromJSON(d.json())
-	if e != nil {
-		return true
-	}
-	templateSourceDocument(root, d)
-	index := 0
-	var visit func(any)
-	visit = func(v any) {
-		switch n := v.(type) {
-		case []any:
-			for _, c := range n {
-				visit(c)
-			}
-		case map[string]any:
-			if xs := templateList(n["ranked"]); len(xs) > 0 {
-				visit(xs[0])
-				if index < len(separators) {
-					s, _ := n[templateSourceKey].(*templateSource)
-					if s == nil {
-						s = &templateSource{}
-					} else {
-						copy := *s
-						s = &copy
-					}
-					s.ranked = separators[index]
-					n[templateSourceKey] = s
-				}
-				for _, c := range xs[1:] {
-					index++
-					visit(c)
-				}
-				return
-			}
-			if n["alternatives"] != nil {
-				visit(n["args"])
-				for i, a := range templateList(n["alternatives"]) {
-					alt := templateObj(a)
-					for _, k := range []string{"expr", "tags", "value", "image"} {
-						visit(alt[k])
-					}
-					if i == 0 {
-						for _, k := range []string{"tags", "value", "image", "conditions", "emit"} {
-							visit(n[k])
-						}
-					}
-				}
-				return
-			}
-			if n["method"] != nil {
-				visit(n["receiver"])
-				visit(n["args"])
-				return
-			}
-			if n["call"] != nil {
-				visit(n["args"])
-				return
-			}
-			for _, k := range templateOrderedKeys(n) {
-				if k != "at" {
-					visit(n[k])
-				}
-			}
-		}
-	}
-	for _, it := range itemsInOrder(d) {
-		var n templateObject
-		switch {
-		case it.rule != nil:
-			for i, r := range d.Rules {
-				if r == it.rule {
-					n = templateObj(templateList(root["rules"])[i])
-					break
-				}
-			}
-		case it.constant != nil:
-			n = it.constant.rawTemplate
-		case it.dir != nil:
-			n = it.dir.rawTemplate
-		case it.implication != nil:
-			n = it.implication.rawTemplate
-		}
-		if n != nil {
-			visit(n)
-		}
-	}
-	for i, r := range d.Rules {
-		if r.rawTemplate == nil {
-			restoreTemplateRuleLocations(r, templateObj(templateList(root["rules"])[i]))
-		}
-	}
-	return true
 }

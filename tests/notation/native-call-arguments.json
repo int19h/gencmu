@@ -1,0 +1,69 @@
+{
+  "description": "The ordinary reader preserves typed calls, parameters, bodies, requirements, and targets.",
+  "document": "```jbogenbau\n%rule f(@X,@R,@P) @X\n%rule text f((A B), <¬A>, atom | B)\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "f",
+          "params": [
+            "X",
+            "R",
+            "P"
+          ],
+          "alternatives": [
+            {
+              "expr": {
+                "param": "X"
+              }
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "alternatives": [
+            {
+              "expr": {
+                "call": "f",
+                "args": [
+                  {
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "A"
+                        },
+                        {
+                          "ref": "B"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "requirements": [
+                      {
+                        "negated": true,
+                        "value": {
+                          "tag": "A"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "targets": [
+                      {
+                        "rule": "atom"
+                      },
+                      {
+                        "terminal": "B"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -22,7 +22,7 @@ func TestGrowth(t *testing.T) {
 	}
 	var cases []struct {
 		Description string `json:"description"`
-		Pipeline     string `json:"pipeline"`
+		Pipeline    string `json:"pipeline"`
 		Text        string `json:"text"`
 		Link        string `json:"link"`
 		Small       int    `json:"small"`
@@ -147,9 +147,8 @@ func TestCaptureStorage(t *testing.T) {
 	}
 }
 
-// TestCaptureStorageMutation stores each entry's prefix again, as the
-// entries did before they shared their prefixes. The budget of entries
-// stops the recognition at the first entry past it, not after the parse.
+// TestCaptureStorageMutation stores each entry's prefix again. Recognition
+// stops at the first entry past the budget, before the parse ends.
 func TestCaptureStorageMutation(t *testing.T) {
 	const n = 100
 	recognize := captureStorageRun(t, n)
@@ -459,8 +458,8 @@ func TestIncludeChainDeep(t *testing.T) {
 	sources[fmt.Sprintf("d%d.md", n)] = block("%ambiguity-resolution greedy", "%rule text A")
 	defer debug.SetMaxStack(debug.SetMaxStack(1 << 20))
 	d := mustLoad(t, sources)
-	if got := strings.Join(d.StageNames(), " "); got != "main" {
-		t.Fatalf("stages %q", got)
+	if len(d.stages) != 1 || d.stages[0].name != "main" {
+		t.Fatalf("stages %+v", d.stages)
 	}
 }
 

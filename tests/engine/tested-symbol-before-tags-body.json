@@ -1,0 +1,14 @@
+{
+  "description": "A tested body symbol precedes its tag requirements during constant inspection.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $LEFT<$TAGS>",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$LEFT is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 12
+    }
+  }
+}

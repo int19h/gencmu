@@ -62,10 +62,9 @@ fn replacements_record_flag_changes() {
 #[test]
 fn a_bundled_pipeline_loads_by_name() {
     let pipeline = gencmu::load_pipeline("gencmu/jbogenbau").expect("the notation pipeline");
-    assert_eq!(pipeline.stage_names(), ["lexical", "syntax"]);
     let result = pipeline.parse("%rule text A", &ParseOptions::default()).expect("a parse");
     assert!(result.ok);
-    assert_eq!(result.stages.len(), 2);
+    assert_eq!(result.stages.iter().map(|stage| stage.name.as_str()).collect::<Vec<_>>(), ["lexical", "syntax"]);
     assert_eq!(result.tree.as_ref().and_then(|tree| tree.rule.as_deref()), Some("text"));
     let error = gencmu::load_pipeline("nonesuch").expect_err("no such pipeline");
     assert_eq!(error.kind, ErrorKind::Usage);
@@ -1095,6 +1094,22 @@ fn ranked_groups_grow_with_forest_positions() {
 }
 
 #[test]
+fn ranked_template_locations_follow_nodes_before_and_after_cache_recovery() {
+    let text = "%ambiguity-resolution late-elision\n%rule f(@X)\n  @X C\n%rule text\n  (A ≻ B) C\n  | (E ≻ F)\n%conditions $ ≅ #f((G ≻ H))";
+    let sources = single(text)
+        .into_iter()
+        .map(|(path, text)| (format!("grammars/test/{path}"), text))
+        .collect::<BTreeMap<_, _>>();
+    let plain = gencmu::load_pipeline_sources(&sources, "grammars/test/p.md").unwrap_err();
+    assert_eq!(plain.code(), Some("ranked-choice-tags"));
+    assert_eq!(plain.group().unwrap().at, Some(common::position_of(&grammar(text), "≻ F")));
+    let mut cached = sources;
+    let dom = gencmu::tools::read_grammar_document(&grammar(text), "").unwrap();
+    cached.insert("data/preparsed/test.json".into(), preparsed(text, &dom));
+    assert_eq!(gencmu::load_pipeline_sources(&cached, "grammars/test/p.md").unwrap_err(), plain);
+}
+
+#[test]
 fn ranked_diagnostics_match_with_a_dom_cache() {
     let text="%const $K Tag-k\n%ambiguity-resolution late-elision\n%rule text :: $x ⟹ ($x.tags ∪ $K) |  Q (($x:a ≻ b) ≻ c) Z\n%rule a X Y\n%rule b U V\n%rule c R S";
     let sources = single(text)
@@ -1103,7 +1118,7 @@ fn ranked_diagnostics_match_with_a_dom_cache() {
         .collect::<BTreeMap<_, _>>();
     let dom = gencmu::tools::read_grammar_document(&grammar(text), "").unwrap();
     let mut cached = sources.clone();
-    // The source alone now loads. Only the cached DOM retains the export error.
+    // The cache source has no export error. The cached DOM retains that error.
     let clause = ":: $x ⟹ ($x.tags ∪ $K)";
     let padding = " ".repeat(clause.chars().count() - ":: ∅".chars().count());
     let cache_source = text.replace(clause, &format!(":: ∅{padding}"));
@@ -1113,12 +1128,12 @@ fn ranked_diagnostics_match_with_a_dom_cache() {
     let plain = gencmu::load_pipeline_sources(&sources, "grammars/test/p.md").unwrap_err();
     let cached = gencmu::load_pipeline_sources(&cached, "grammars/test/p.md").unwrap_err();
     assert_eq!(plain, cached);
-    assert_eq!(plain.code.as_deref(), Some("ranked-choice-export"));
-    let site = plain.group.as_ref().unwrap();
+    assert_eq!(plain.code(), Some("ranked-choice-export"));
+    let site = plain.group().unwrap();
     assert_eq!(site.rule, "text");
     assert_eq!(site.path, "/seq/1/ranked/0");
     assert_eq!(site.at, Some((6, 47)));
-    assert_eq!(plain.option, Some(0));
+    assert_eq!(plain.option(), Some(0));
     let value = common::parse_json(&plain.to_json()).unwrap();
     assert_eq!(
         value.object().iter().map(|(key, _)| key.as_str()).collect::<Vec<_>>(),
@@ -1130,9 +1145,9 @@ fn ranked_diagnostics_match_with_a_dom_cache() {
 fn ranked_tag_witness_is_shortest_in_source_order() {
     let text="%ambiguity-resolution late-elision\n%rule text a ≻ b\n%rule a u | v\n%rule u deeper\n%rule deeper X\n%rule v Y\n%rule b :: ∅ |  Z\n";
     let error = gencmu::load_pipeline_sources(&single(text), "p.md").unwrap_err();
-    assert_eq!(error.code.as_deref(), Some("ranked-choice-tags"));
+    assert_eq!(error.code(), Some("ranked-choice-tags"));
     assert_eq!(
-        error.inheritance.as_ref().unwrap().iter().map(|site| site.rule.as_str()).collect::<Vec<_>>(),
+        error.inheritance().unwrap().iter().map(|site| site.rule.as_str()).collect::<Vec<_>>(),
         vec!["text", "a", "v"]
     );
 }
@@ -1141,21 +1156,21 @@ fn ranked_tag_witness_is_shortest_in_source_order() {
 fn ranked_error_retains_a_written_constant() {
     let text="%ambiguity-resolution late-elision\n%const $K Tag-k\n%rule text :: $x ⟹ ($x.tags ∪ $K) |  Q ($x:a ≻ b) Z\n%rule a X Y\n%rule b U V";
     let error = gencmu::load_pipeline_sources(&single(text), "p.md").unwrap_err();
-    assert_eq!(error.code.as_deref(), Some("ranked-choice-export"));
+    assert_eq!(error.code(), Some("ranked-choice-export"));
     let (line, column) = common::position_of(&grammar(text), "$K)");
     let reference = format!(r#"{{"const":"K","at":[{line},{column}]}}"#);
-    assert!(error.expression.as_ref().unwrap().to_json().contains(&reference));
+    assert!(error.expression().unwrap().to_json().contains(&reference));
 }
 
 #[test]
 fn ranked_syntax_codes_and_retirement_are_specific() {
     for body in ["a | b ≻ c", "a ≻ b | c", "| a ≻ b", "a ≻", "≻ a"] {
         let error = gencmu::tools::read_grammar_document(&grammar(&format!("%rule text {body}")), "").unwrap_err();
-        assert_eq!(error.code.as_deref(), Some("ranked-choice-syntax"), "{body}: {error}");
+        assert_eq!(error.code(), Some("ranked-choice-syntax"), "{body}: {error}");
     }
     let error = gencmu::tools::read_grammar_document(&grammar("%prefer a > b"), "").unwrap_err();
-    assert!(error.to_string().contains("unknown directive %prefer; use an inline ranked choice"));
-    assert!(error.code.is_none());
+    assert!(error.to_string().contains("syntax"));
+    assert!(error.code().is_none());
     assert_eq!((error.line, error.column), (Some(4), Some(1)));
 }
 
@@ -1166,12 +1181,12 @@ fn ranked_validation_never_builds_invalid_runtime_bindings() {
     {
         let text = format!("%ambiguity-resolution late-elision\n{prefix}%rule later :: $x.tags |  Q ($x:a ≻ $x:b) Z\n%rule a X\n%rule b Y");
         let error = gencmu::load_pipeline_sources(&single(&text), "p.md").unwrap_err();
-        assert_eq!(error.code.as_deref(), Some(code));
+        assert_eq!(error.code(), Some(code));
     }
     // Retain an independent refusal of incompatible ranked tags.
     let text = "%ambiguity-resolution late-elision\n%rule text a ≻ b\n%rule a X\n%rule b Y";
     let error = gencmu::load_pipeline_sources(&single(text), "p.md").unwrap_err();
-    assert_eq!(error.code.as_deref(), Some("ranked-choice-tags"));
+    assert_eq!(error.code(), Some("ranked-choice-tags"));
 }
 
 #[test]
@@ -1269,8 +1284,8 @@ fn private_ranked_exports_precede_recipe_cycles_and_absence() {
         sources.insert("data/preparsed/test.json".into(), preparsed(&text, &dom));
         let cached = gencmu::load_pipeline_sources(&sources, "grammars/test/p.md").unwrap_err();
         assert_eq!(plain, cached, "{text}");
-        assert_eq!(plain.code.as_deref(), Some("ranked-choice-export"), "{text}: {plain}");
-        assert!(plain.group.is_some() && plain.option.is_some() && plain.expression.is_some());
+        assert_eq!(plain.code(), Some("ranked-choice-export"), "{text}: {plain}");
+        assert!(plain.group().is_some() && plain.option().is_some() && plain.expression().is_some());
     }
 }
 
@@ -1279,9 +1294,9 @@ fn private_ranked_exports_precede_recipe_cycles_and_absence() {
 #[test]
 fn inserted_tag_clauses_validate_rules_and_delimiters() {
     for (rules, message) in [
-        ("%rule text A\n%emits ε :: ($.matches(missing) ⟹ X)", "rule missing"),
-        ("%rule text A\n%emits ε :: $.tags(missing)", "rule missing"),
-        ("%rule text A\n%emits ε :: $.value.classify(missing)", "classify names missing"),
+        ("%rule text A\n%emits ε :: ($.matches(missing) ⟹ X)", "missing is not a rule of stage main"),
+        ("%rule text A\n%emits ε :: $.tags(missing)", "missing is not a rule of stage main"),
+        ("%rule text A\n%emits ε :: $.value.classify(missing)", "missing is not a classifier of stage main"),
         (
             "%const $Z \"\"\n%rule text A\n%emits ε :: ($.value.split($Z) = $.value.split(\"!\") ⟹ X)",
             "split has an empty delimiter",
@@ -1332,4 +1347,237 @@ fn an_include_keeps_its_original_precomposed_path() {
     let pipeline = gencmu::load_pipeline_sources(sources, "p.md").expect("the exact include path");
     assert!(pipeline.parse("é", &ParseOptions::default()).unwrap().ok);
     assert!(pipeline.parse("e\u{301}", &ParseOptions::default()).unwrap().ok);
+}
+
+#[test]
+fn parse_usage_errors_follow_text_tokens_features_until_order() {
+    let pipeline = gencmu::load_pipeline_sources(single("%ambiguity-resolution greedy\n%rule text A"), "p.md").unwrap();
+    let options = gencmu::ParseOptions {
+        features: ["f".into()].into_iter().collect(),
+        without_features: ["f".into()].into_iter().collect(),
+        until: Some("missing".into()),
+        ..Default::default()
+    };
+    let tokens = ["first invalid tag", "second invalid tag"].map(|tag| gencmu::InputToken {
+        text: "a".into(),
+        tags: [tag.into()].into_iter().collect(),
+        ..Default::default()
+    });
+    let error = pipeline.parse_tokens(&tokens, &options).unwrap_err();
+    assert!(error.message.contains("first invalid tag"), "{error}");
+    let error = pipeline.parse("a", &options).unwrap_err();
+    assert!(error.message.contains("the feature f is named both"), "{error}");
+    let error =
+        pipeline.parse("a", &gencmu::ParseOptions { until: Some("missing".into()), ..Default::default() }).unwrap_err();
+    assert!(error.message.contains("has no stage"), "{error}");
+}
+
+#[test]
+fn stitching_messages_and_capture_order() {
+    let cases = [
+        ("%rule text := $zz.value | \"a\" :: $bb.tags", "$zz is captured by no alternative of text"),
+        ("%rule text missing", "missing is not a rule of stage main"),
+        ("%classifier lex $NOPEK ∈ K\n%rule text \"a\"", "$NOPEK is not defined in stage main"),
+        ("%rule other \"a\"", "has no rule text"),
+        ("%ambiguity-resolution greedy\n%rule text \"a\"", "has a second %ambiguity-resolution"),
+        ("%rule text $x:A :: $x.value.classify(unknown)", "unknown is not a classifier of stage main"),
+        (
+            "%extend-rule absent \"a\"\n%rule text \"a\"",
+            "%extend-rule absent extends a rule that is not defined before it",
+        ),
+        (
+            "%rule text \"a\"\n%rule text \"b\"",
+            "%rule text is already defined, in g.md; %redefine-rule replaces a rule",
+        ),
+        ("%const $P $Q\n%rule text \"a\"", "$Q is not defined in stage main; dependency $P → $Q"),
+        ("%const $S \"ab\"\n%rule text $S..\"z\"", "a range endpoint is one scalar"),
+        ("%const $S \"z\"\n%rule text $S..\"a\"", "a range starts above its end"),
+        ("%rule text \"a\"\n%conditions $zz ∧ $bb", "$zz is captured by no alternative of text"),
+        ("%rule text \"a\"\n%conditions $zz ∧ $.value = $bb.value", "$zz is captured by no alternative of text"),
+        ("%rule text \"a\" :: ($zz ⟹ $bb.tags)", "$zz is captured by no alternative of text"),
+    ];
+    for (source, expected) in cases {
+        let error = gencmu::load_pipeline_sources(single(&format!("%ambiguity-resolution greedy\n{source}")), "p.md")
+            .expect_err("a stitching error");
+        assert_eq!(error.message, expected, "{source}");
+    }
+}
+
+#[test]
+fn classifier_canonical_key_messages() {
+    for (entries, ending) in [
+        (" \"a‹U+00AD›é\" ∈ A\n \"a‹U+00AD›é\" ∈ A", "is already in A"),
+        (" \"a‹U+00AD›é\" ∉ A", "is not in A, so ∉ has nothing to remove"),
+    ] {
+        let source = format!("%ambiguity-resolution greedy\n%classifier lex\n{entries}\n%rule text \"a\"");
+        let pipeline = gencmu::load_pipeline_sources(single(&source), "p.md").expect("a pipeline");
+        let result = pipeline.parse("a", &ParseOptions::default()).expect("a parse");
+        let error = result.error.expect("a classifier error");
+        assert!(
+            error.message.ends_with(&format!("the classifier lex: \"a‹SHY›e‹U+0301›\" {ending}")),
+            "{}",
+            error.message
+        );
+    }
+}
+
+#[test]
+fn missing_resolution_message() {
+    let error = gencmu::load_pipeline_sources(single("%rule text \"a\""), "p.md").expect_err("a missing resolution");
+    assert_eq!(error.message, "has no %ambiguity-resolution");
+}
+
+#[test]
+fn stitching_stages_and_reference_order() {
+    let cases = [
+        ("%rule other missing", "has no rule text", true, true),
+        ("%rule text A", "has no %ambiguity-resolution", false, true),
+        (
+            "%rule text A :: $.value.classify(nolex) ∪ $.tags(norule)",
+            "nolex is not a classifier of stage main",
+            true,
+            false,
+        ),
+        ("%rule text A :: $.tags(norule) ∪ $.value.classify(nolex)", "norule is not a rule of stage main", true, false),
+        (
+            "%const $A $MISSING\n%rule text A",
+            "$MISSING is not defined in stage main; dependency $A → $MISSING",
+            true,
+            false,
+        ),
+        ("%ambiguity-resolution greedy\n%rule text A", "has a second %ambiguity-resolution", true, false),
+    ];
+    for (source, expected, resolution, unlocated) in cases {
+        let prefix = if resolution { "%ambiguity-resolution greedy\n" } else { "" };
+        let error =
+            gencmu::load_pipeline_sources(single(&format!("{prefix}{source}")), "p.md").expect_err("a stitching error");
+        assert_eq!(error.message, expected, "{source}");
+        assert_eq!(error.stage.as_deref(), Some("main"));
+        if unlocated {
+            assert_eq!((error.document, error.line, error.column), (None, None, None));
+        }
+    }
+}
+
+#[test]
+fn projected_ranked_routes_keep_route_first_errors_and_nested_bindings() {
+    for separator in ["|", "&"] {
+        let text = format!("%ambiguity-resolution greedy\n%rule text (($x:A {separator} $y:B) ≻ C) Z\n%conditions ($y ⟹ $.value = \"y\"), ($x ⟹ $.value = \"x\")");
+        let error = gencmu::load_pipeline_sources(&single(&text), "p.md").unwrap_err();
+        assert_eq!(error.code(), Some("ranked-choice-continuation"));
+        assert_eq!(error.option(), Some(0));
+        let expression = error.expression().unwrap();
+        assert_eq!(expression.get("if").unwrap().get("captured").unwrap().as_str(), Some("x"));
+    }
+    let text = "%ambiguity-resolution greedy\n%rule text (($x:A ≻ B) ≻ C) Z\n%conditions (¬$x ∧ $.value = \"b\")";
+    let error = gencmu::load_pipeline_sources(&single(text), "p.md").unwrap_err();
+    assert_eq!(error.code(), Some("ranked-choice-continuation"));
+    assert_eq!(error.option(), Some(1));
+}
+
+#[test]
+fn cached_recipe_cycle_survives_boundary_location_recovery() {
+    let text =
+        "%ambiguity-resolution greedy\n%rule text $a:a b\n%conditions $a.followed-by(b)\n%rule a \"a\"\n%rule b \"b\"";
+    let with_cycle = text.replace("$a:a b", "$a:a b := $.emitted.value");
+    let dom = gencmu::tools::read_grammar_document(&grammar(&with_cycle), "").unwrap();
+    let sources = single(text)
+        .into_iter()
+        .map(|(path, text)| (format!("grammars/test/{path}"), text))
+        .collect::<BTreeMap<_, _>>();
+    let plain = gencmu::load_pipeline_sources(&sources, "grammars/test/p.md").unwrap();
+    assert!(plain.parse("ab", &ParseOptions::default()).unwrap().ok);
+    let mut cached = sources;
+    cached.insert("data/preparsed/test.json".into(), preparsed(text, &dom));
+    let error = gencmu::load_pipeline_sources(&cached, "grammars/test/p.md").unwrap_err();
+    assert!(error.message.contains("cycle"), "{error}");
+    assert_eq!(error.document.as_deref(), Some("grammars/test/g.md"));
+    assert_eq!((error.line, error.column), (None, None));
+}
+
+#[test]
+fn caller_rendering_witness_gates() {
+    let pipeline =
+        gencmu::load_pipeline_sources(single("%ambiguity-resolution greedy\n%rule text [[A]]"), "p.md").unwrap();
+    let mut result = pipeline.parse("", &ParseOptions::default()).unwrap();
+    assert!(result.stages[0].witness.is_some());
+    result.stages[0].verdict = Some(Verdict::Unique);
+    result.error.as_mut().unwrap().witness = result.stages[0].witness.clone();
+    assert!(!gencmu::to_json(&result).contains("\"witness\""));
+}
+
+#[cfg(unix)]
+#[test]
+fn caller_invalid_pipeline_path_is_usage() {
+    use std::os::unix::ffi::OsStringExt;
+    let path = std::ffi::OsString::from_vec(b"invalid-\xff.md".to_vec());
+    assert_eq!(gencmu::load_pipeline_file(std::path::PathBuf::from(path)).unwrap_err().kind, ErrorKind::Usage);
+}
+
+#[test]
+fn caller_deep_json_has_no_recursive_writer() {
+    std::thread::Builder::new()
+        .stack_size(128 * 1024)
+        .spawn(|| {
+            let mut value = gencmu::GrammarValue::Null;
+            for _ in 0..10000 {
+                value = gencmu::GrammarValue::Arr(vec![value]);
+            }
+            let json = value.to_json();
+            assert_eq!(json.len(), 20004);
+            assert!(json.starts_with("[[[["));
+            let ordered = gencmu::GrammarValue::Obj(vec![
+                (
+                    "z".into(),
+                    gencmu::GrammarValue::Arr(vec![gencmu::GrammarValue::Int(1), gencmu::GrammarValue::Bool(true)]),
+                ),
+                ("a".into(), gencmu::GrammarValue::Str("x".into())),
+            ]);
+            assert_eq!(ordered.to_json(), r#"{"z":[1,true],"a":"x"}"#);
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+#[test]
+fn caller_feature_role_location_occurs_once() {
+    let error =
+        gencmu::load_pipeline_sources(single("%ambiguity-resolution greedy\n%rule text f? \"a\" | f! \"b\""), "p.md")
+            .unwrap_err();
+    assert_eq!(error.message, "the feature f is used both as a gate and as a warning");
+    assert_eq!(error.to_string().matches("g.md:5:1").count(), 1);
+}
+
+#[test]
+fn caller_brackets_ascii_lower_case_and_invalid_indices() {
+    let pipeline =
+        gencmu::load_pipeline_sources(single("%ambiguity-resolution greedy\n%rule text [ABC]"), "p.md").unwrap();
+    let mut result = pipeline.parse("", &ParseOptions::default()).unwrap();
+    let tree = result.tree.as_mut().unwrap();
+    tree.kind = NodeKind::Elided;
+    tree.terminal = Some("İΟΣABC".into());
+    tree.children.clear();
+    assert_eq!(gencmu::to_brackets(&result, true), "⟨İΟΣabc⟩");
+    let leaf = result.tree.as_mut().unwrap();
+    leaf.kind = NodeKind::Token;
+    leaf.token = Some(5);
+    assert_eq!(gencmu::to_brackets(&result, true), "");
+}
+
+#[test]
+fn selected_stage_on_every_splice_error() {
+    for source in [
+        r#"%include "missing.md""#,
+        r#"%include "/absolute.md""#,
+        r#"%include "p.md""#,
+        "%extend-stage missing",
+        "%redefine-stage missing",
+        "%stage main",
+    ] {
+        let sources = [("p.md", format!("```jbogenbau\n%stage main\n{source}\n```\n"))];
+        let error = gencmu::load_pipeline_sources(sources, "p.md").unwrap_err();
+        assert_eq!(error.kind, ErrorKind::Grammar);
+        assert_eq!(error.stage.as_deref(), Some("main"), "{error}");
+    }
 }

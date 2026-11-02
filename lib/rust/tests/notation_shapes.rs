@@ -12,6 +12,56 @@ fn read(path: &[&str]) -> String {
     std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
 }
 
+#[test]
+fn a_captured_tested_target_requires_its_primary_before_its_tests() {
+    let bootstrap = read(&["data", "preparsed", "gencmu.json"]).replace(
+        r#"{"seq":[{"ref":"untested-primary"},{"repeat":{"ref":"symbol-test"}}]}"#,
+        r#"{"literal":{"string":"+"}}"#,
+    );
+    let sources = [
+        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("g.md", "```jbogenbau\n%rule text $x:+\n```\n".to_string()),
+        ("data/preparsed/gencmu.json", bootstrap),
+    ];
+    let error = gencmu::load_pipeline_sources(sources, "p.md").expect_err("the missing primary");
+    assert_eq!(error.message, "the notation's tested has no primary");
+}
+
+#[test]
+fn a_supplied_ranked_choice_error_has_no_syntax_code() {
+    let bootstrap = read(&["data", "preparsed", "gencmu.json"]).replace(
+        r#"{"seq":[{"ref":"conjunction"},{"literal":{"string":"≻"}},{"repeat":{"ref":"conjunction"},"separator":{"literal":{"string":"≻"}}}]}"#,
+        r#"{"literal":{"string":"."}}"#,
+    );
+    let sources = [
+        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("g.md", "```jbogenbau\n%rule text .\n```\n".to_string()),
+        ("data/preparsed/gencmu.json", bootstrap),
+    ];
+    let error = gencmu::load_pipeline_sources(sources, "p.md").expect_err("the missing conjunctions");
+    assert_eq!(error.code(), None);
+}
+
+fn load_kind(kind: gencmu::ErrorKind) -> Value {
+    Value::String(
+        match kind {
+            gencmu::ErrorKind::Grammar => "grammar",
+            gencmu::ErrorKind::Usage => "usage",
+            _ => panic!("the notation runner must name every load error kind"),
+        }
+        .into(),
+    )
+}
+
+fn parse_kind(kind: gencmu::ParseErrorKind) -> Value {
+    Value::String(common::error_kind(kind).into())
+}
+
+#[test]
+fn error_kinds_use_shared_names() {
+    assert_eq!(parse_kind(gencmu::ParseErrorKind::FeatureConflict), Value::String("feature-conflict".into()));
+}
+
 fn outcome(shapes: &Value, bootstrap: String) -> Value {
     let place = shapes.get("where");
     let document = shapes.get("document").and_then(Value::str).expect("a document").to_string();
@@ -20,7 +70,6 @@ fn outcome(shapes: &Value, bootstrap: String) -> Value {
         ("g.md", document),
         ("data/preparsed/gencmu.json", bootstrap),
     ];
-    let kind = |debug: String| Value::String(debug.to_lowercase());
     let pipeline = match gencmu::load_pipeline_sources(sources, "p.md") {
         Ok(pipeline) => pipeline,
         Err(error) => {
@@ -32,7 +81,7 @@ fn outcome(shapes: &Value, bootstrap: String) -> Value {
                 );
                 assert_eq!((error.document.as_deref(), error.line, error.column), expected, "{error}");
             }
-            return kind(format!("{:?}", error.kind));
+            return load_kind(error.kind);
         }
     };
     assert!(place.is_none(), "the document loaded, but the item gives where its error stands");
@@ -44,7 +93,7 @@ fn outcome(shapes: &Value, bootstrap: String) -> Value {
                 let result = pipeline.parse(input.str().expect("an input"), &Default::default()).expect("a parse");
                 match &result.error {
                     None => Value::String(gencmu::to_brackets(&result, false)),
-                    Some(error) => kind(format!("{:?}", error.kind)),
+                    Some(error) => parse_kind(error.kind),
                 }
             })
             .collect(),
@@ -80,7 +129,9 @@ fn notation_shapes() {
     let wrapped = with_syntax(&|mut syntax: String| {
         let mut wrappers = String::new();
         for (index, name) in names.iter().enumerate() {
-            syntax = syntax.replace(&format!(r#"{{"ref":"{name}"}}"#), &format!(r#"{{"ref":"{name}-wrapper"}}"#));
+            for field in ["ref", "rule"] {
+                syntax = syntax.replace(&format!(r#""{field}":"{name}""#), &format!(r#""{field}":"{name}-wrapper""#));
+            }
             wrappers.push_str(&format!(
                 r#"{{"name":"{name}-wrapper","op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],"conditions":[],"at":[{},1]}},"#,
                 100_000 + index
@@ -93,9 +144,11 @@ fn notation_shapes() {
     let loads = shapes.get("loads").expect("loads");
     for name in &names {
         let renamed = with_syntax(&|syntax: String| {
+            let mut syntax = syntax.replace(&format!(r#""name":"{name}","op""#), &format!(r#""name":"{name}x","op""#));
+            for field in ["ref", "rule"] {
+                syntax = syntax.replace(&format!(r#""{field}":"{name}""#), &format!(r#""{field}":"{name}x""#));
+            }
             syntax
-                .replace(&format!(r#""name":"{name}","op""#), &format!(r#""name":"{name}x","op""#))
-                .replace(&format!(r#"{{"ref":"{name}"}}"#), &format!(r#"{{"ref":"{name}x"}}"#))
         });
         let expected = loads.get(name).cloned().unwrap_or_else(|| Value::String("grammar".to_string()));
         assert_eq!(outcome(&shapes, renamed), expected, "{name} renamed");

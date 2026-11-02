@@ -9,11 +9,12 @@ import (
 	"unicode/utf8"
 )
 
-// Error is a pipeline that cannot be loaded: a document is missing, does not
-// parse as the notation, or does not stitch into a valid grammar. Document,
-// Line and Column say where, when known; Line and Column count from 1, in
-// code points.
+// Error reports a loading failure or a caller's mistake. Kind is grammar
+// for a document that cannot be read, parsed or stitched, and usage for
+// invalid input or configuration. Document, Line and Column give the known
+// location. Line and Column count from 1, in code points.
 type Error struct {
+	spliceProblem    spliceProblem
 	boundaryLocation bool
 	recipeCycle      bool   // a failed cached cycle can recover its recipe position
 	Kind             string // "grammar" for a load error, "usage" for a caller's mistake
@@ -29,10 +30,14 @@ type Error struct {
 	Inheritance      []GroupSite
 }
 
+type spliceProblem uint8
+
+const (
+	emptyStageProblem spliceProblem = iota + 1
+	unreadableDocumentProblem
+)
+
 func (e *Error) Error() string {
-	if e.Document == "data/preparsed/gencmu.json" && strings.HasPrefix(e.Message, "data/preparsed/gencmu.json:") {
-		return e.Message
-	}
 	var b strings.Builder
 	if e.Document != "" {
 		b.WriteString(e.Document)
@@ -100,16 +105,17 @@ var fenceOpen = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})(.*)$")
 // jbogenbau and joins their contents with a newline between blocks. A
 // block's lines are joined with a newline too, so every line ending reads
 // as \n.
-func extractGrammarText(doc string) *grammarText {
+func extractGrammarText(doc string, uni *unicodeTable) *grammarText {
 	g := &grammarText{}
 	lines := splitLines(doc)
 	var fence string // the open fence, or "" outside a block
 	isGrammar, blocks, linesInBlock := false, 0, 0
 	lastEnd := [2]int{1, 1}
+	lineEnd := lastEnd
 	var opened [2]int
-	newline := func() {
+	newline := func(at [2]int) {
 		g.text = append(g.text, '\n')
-		g.pos = append(g.pos, lastEnd)
+		g.pos = append(g.pos, at)
 	}
 	for n, line := range lines {
 		if fence == "" {
@@ -117,23 +123,23 @@ func extractGrammarText(doc string) *grammarText {
 			if m == nil {
 				continue
 			}
-			info := strings.TrimSpace(m[2])
-			if m[1][0] == '`' && strings.Contains(info, "`") {
+			info := strings.TrimFunc(m[2], uni.isWhiteSpace)
+			if m[1][0] == '`' && strings.Contains(m[2], "`") {
 				continue
 			}
 			fence = m[1]
 			isGrammar = info == "jbogenbau"
-			opened = [2]int{n + 1, runeColumn(line, 0)}
+			opened = [2]int{n + 1, runeColumn(line, strings.Index(line, fence))}
 			if isGrammar {
 				if blocks > 0 {
-					newline()
+					newline(lastEnd)
 				}
 				blocks++
 				linesInBlock = 0
 			}
 			continue
 		}
-		if isClosingFence(line, fence) {
+		if isClosingFence(line, fence, uni) {
 			fence = ""
 			continue
 		}
@@ -141,7 +147,7 @@ func extractGrammarText(doc string) *grammarText {
 			continue
 		}
 		if linesInBlock > 0 {
-			newline()
+			newline(lineEnd)
 		}
 		linesInBlock++
 		col := 1
@@ -150,11 +156,14 @@ func extractGrammarText(doc string) *grammarText {
 			g.pos = append(g.pos, [2]int{n + 1, col})
 			col++
 		}
-		lastEnd = [2]int{n + 1, col}
+		lineEnd = [2]int{n + 1, col}
+		if col > 1 || linesInBlock > 1 {
+			lastEnd = lineEnd
+		}
 	}
 	g.pos = append(g.pos, lastEnd)
 	if fence != "" && isGrammar {
-		// Another unclosed block runs to the end, as in CommonMark; an
+		// Another unclosed block runs to the end, as in CommonMark. A
 		// jbogenbau block is an error at its fence (§8).
 		g.unclosed = &opened
 	}
@@ -162,8 +171,8 @@ func extractGrammarText(doc string) *grammarText {
 }
 
 // isClosingFence: a fence of the same character at least as long, indented
-// up to three spaces, followed by nothing but spaces.
-func isClosingFence(line, fence string) bool {
+// up to three spaces, followed by the configured table's White_Space.
+func isClosingFence(line, fence string, uni *unicodeTable) bool {
 	t := strings.TrimLeft(line, " ")
 	if len(line)-len(t) > 3 {
 		return false
@@ -172,7 +181,7 @@ func isClosingFence(line, fence string) bool {
 	for n < len(t) && t[n] == fence[0] {
 		n++
 	}
-	return n >= len(fence) && strings.TrimRight(t[n:], " \t") == ""
+	return n >= len(fence) && strings.TrimFunc(t[n:], uni.isWhiteSpace) == ""
 }
 
 func runeColumn(line string, byteOffset int) int {
@@ -181,8 +190,11 @@ func runeColumn(line string, byteOffset int) int {
 
 // resolvePath resolves an %include's path against the document holding it,
 // with . and .. normalized.
-func resolvePath(from, target string) string {
-	return path.Clean(path.Join(path.Dir(from), target))
+func resolvePath(from, target string, at [2]int) (string, *Error) {
+	if strings.HasPrefix(target, "/") {
+		return "", grammarError(from, at, "a path target must be relative")
+	}
+	return path.Clean(path.Join(path.Dir(from), target)), nil
 }
 
 // GroupSite identifies a written ranked group or inheritance step.

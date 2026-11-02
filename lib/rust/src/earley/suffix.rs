@@ -13,9 +13,7 @@ pub(super) struct SuffixKey {
 pub(super) struct SuffixState {
     pub(super) answers: FxMap<usize, bool>,
     pub(super) retained: Option<Retained>,
-    pub(super) active: bool,
-    pub(super) error_at: usize,
-    pub(super) error: Option<EngineError>,
+    pub(super) transient: bool,
 }
 
 pub(super) struct Retained {
@@ -36,6 +34,7 @@ fn reads_end(g: &Lowered, root: u32) -> bool {
         Span(&'a Span),
         Query(&'a Span, u32),
     }
+    let plans = crate::restoration::plans_by_production(g);
     let mut pending = vec![(root, false)];
     let mut seen = FxSet::default();
     while let Some((rule, nested)) = pending.pop() {
@@ -51,11 +50,9 @@ fn reads_end(g: &Lowered, root: u32) -> bool {
             }
             let mut nodes: Vec<_> = p.conds.iter().map(|(c, _)| Node::Cond(c)).collect();
             nodes.extend(p.tags.iter().map(Node::Term));
-            for (key, plan) in &g.ranked.plans {
-                if key.0 == id {
-                    nodes.extend(plan.conditions.iter().flatten().map(|(c, _)| Node::Cond(c)));
-                    nodes.extend(plan.whole_tags.iter().map(Node::Term));
-                }
+            for plan in &plans[id as usize] {
+                nodes.extend(plan.conditions.iter().flatten().map(|(c, _)| Node::Cond(c)));
+                nodes.extend(plan.whole_tags.iter().map(Node::Term));
             }
             while let Some(node) = nodes.pop() {
                 match node {
@@ -132,7 +129,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     pub(super) fn answering<'t>(&mut self, request: Request<'t>) -> Run<'t, 'g> {
         let retained = request.suffix.and_then(|id| {
             let state = &mut self.shared.suffixes[id];
-            state.active = true;
             state.retained.take()
         });
         if let Some(Retained { chart, e, head, entered, scans, scan_index }) = retained {
@@ -181,7 +177,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             })
             .map(|&k| (run.e as u32, k))
             .collect();
-        let holds = self.proofs(&run.chart, &run.tokens[..run.e]).eligible(&witnesses).into_iter().any(|yes| yes);
+        let holds = self.proofs(&run.chart).eligible(&witnesses).into_iter().any(|yes| yes);
         self.shared.suffixes[id].answers.insert(end, holds);
     }
 }

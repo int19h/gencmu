@@ -1,0 +1,14 @@
+{
+  "description": "The first template declaration determines the growing-cycle witness, before alphabetical name order.",
+  "grammar": "%rule zz(@X)\n  zz((@X @X))\n%rule aa(@X)\n  aa((@X @X))\n%rule text \"x\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "unbounded-instantiation",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 3
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "description": "Reader diagnostics use common text and retain their positions.",
+  "document": "```jbogenbau\n%const $C A.tags\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11,
+      "message": "a constant's value cannot read an input method"
+    }
+  }
+}

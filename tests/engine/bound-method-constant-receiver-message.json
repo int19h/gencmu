@@ -1,0 +1,14 @@
+{
+  "description": "Bound method inspection keeps the specified signature or independent operand diagnostic.",
+  "grammar": "%ambiguity-resolution greedy\n%const $T A\n%const $BAD $T.split(\"x\")\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "a method has the wrong receiver or arguments",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 13
+    }
+  }
+}

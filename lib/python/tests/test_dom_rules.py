@@ -18,7 +18,7 @@ from gencmu._model import Token
 from gencmu._validate import Marks
 from gencmu._validate import dom_problem as _dom_problem
 
-from .shared import read_json
+from .shared import read_json, same_json
 
 DOCUMENT = """```jbogenbau
 %ambiguity-resolution greedy
@@ -986,7 +986,9 @@ class PreparsedDomRules(unittest.TestCase):
             with self.subTest(items=items):
                 expected = (
                     "an emission lists a capture twice"
-                    if items in ([{"capture": "x", "after": ["a"]}, {"capture": "a"}], [{"capture": "x", "before": ["b", "b"]}])
+                    if any(same_json(items, duplicate) for duplicate in (
+                        [{"capture": "x", "after": ["a"]}, {"capture": "a"}], [{"capture": "x", "before": ["b", "b"]}],
+                    ))
                     else "a malformed insertion"
                     if "insert" in items[0]
                     else "a malformed attachment"
@@ -1131,6 +1133,11 @@ class CharacterClassLoading(unittest.TestCase):
 MIXED_DOCUMENT = '```jbogenbau\n%ambiguity-resolution greedy\n%rule text $x:A B\n%conditions $x.source-text = "ok"\n```\n'
 
 
+def _canonical_captured_value(dom: Dom) -> None:
+    """Use a canonical string as the captured value terminal."""
+    alt(dom)["expr"]["seq"][0]["expr"] = {"literal": {"string": "ab"}}
+
+
 def _mixed_changes() -> list[tuple[str, Callable[[Dom], None]]]:
     """Expressions and conditions that join the members of two forms, or
     that hold a value of the wrong kind, as changes to a DOM of ``$x:A B``
@@ -1200,7 +1207,6 @@ def _mixed_changes() -> list[tuple[str, Callable[[Dom], None]]]:
         ("a separated list with an unknown member", second({"repeat": b, "separator": c, "extra": False})),
         ("a reference that is not a name", second({"ref": "x y"})),
         ("a top-level sequence with a choice", beside("choice", [b, c])),
-        ("a captured terminal not in its canonical spelling", captured({"literal": {"string": "ab"}})),
         ("a captured reference with a terminal", captured({"ref": "A", "terminal": "A"})),
         ("a captured terminal with a reference", captured({"terminal": "A", "ref": "A"})),
         ("a captured reference that is not a name", captured({"ref": "x y"})),
@@ -1244,17 +1250,16 @@ class MixedFormLoading(unittest.TestCase):
         rule(control)["conditions"][0]["right"] = {"string": "no"}
         self.assertIsNone(dom_problem(control))
         self.assertNotEqual(parse(control), fresh)
+        literal_control = copy.deepcopy(control)
+        _canonical_captured_value(literal_control)
+        self.assertIsNone(dom_problem(literal_control))
+        self.assertNotEqual(parse(literal_control), fresh)
         for name, change in _mixed_changes():
             with self.subTest(refused=name):
                 dom = copy.deepcopy(control)
                 change(dom)
-                if name == "a captured terminal not in its canonical spelling":
-                    # Every scalar string is a legal value terminal now.
-                    self.assertIsNone(dom_problem(dom))
-                    self.assertNotEqual(parse(dom), fresh)
-                else:
-                    self.assertIsNotNone(dom_problem(dom))
-                    self.assertEqual(parse(dom), fresh)
+                self.assertIsNotNone(dom_problem(dom))
+                self.assertEqual(parse(dom), fresh)
 
     def test_a_bootstrap_node_of_two_forms_is_an_error(self) -> None:
         def with_rule(change: Callable[[Dom], None] | None) -> str:
@@ -1285,9 +1290,10 @@ class MixedFormLoading(unittest.TestCase):
             return False
 
         self.assertFalse(refused(with_rule(None)))
+        self.assertFalse(refused(with_rule(_canonical_captured_value)))
         for name, change in _mixed_changes():
             with self.subTest(refused=name):
-                self.assertEqual(refused(with_rule(change)), name != "a captured terminal not in its canonical spelling")
+                self.assertTrue(refused(with_rule(change)))
 
 
 CONSTANT_SOURCES = {
@@ -1299,6 +1305,13 @@ CONSTANT_SOURCES = {
 class Constants(unittest.TestCase):
     """A constant's definition and a reference to one in a preparsed or
     bootstrap DOM are checked as the reader checks them (engine §2, §9)."""
+
+    def test_absent_recipe_capture_order(self) -> None:
+        for recipe in ("$x.value ++ $y.value", "$y.value ++ $x.value"):
+            for grammar in (f"%rule text := {recipe} | [$x:A] [$y:B]", f"%rule text [$x:A] [$y:B] %emits $ := {recipe}"):
+                with self.assertRaises(gencmu.GencmuError) as raised:
+                    gencmu.load_pipeline_sources({"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n" + grammar + "\n```\n"}, "p.md")
+                self.assertIn("capture " + recipe[:2], raised.exception.message)
 
     @staticmethod
     def text(constants: list[Dom], conditions: list[Dom] | None = None) -> Dom:
@@ -1333,7 +1346,7 @@ class Constants(unittest.TestCase):
         self.assertEqual(dom_problem({"format": DOM_FORMAT, "rules": [], "directives": []}), f"not a DOM of format {DOM_FORMAT}")
         for extra in ({"name": "k"}, {"op": "extend"}, {"at": None}, {"extra": True}):
             with self.subTest(extra=extra):
-                expected = "a declaration requires a position" if "at" in extra else "a malformed constant"
+                expected = "a malformed declaration position" if "at" in extra else "a malformed constant"
                 self.assertEqual(dom_problem(text([constant({"tag": "A"}, **extra)])), expected)
         for value in (
             {"capture": "x"},
@@ -1359,7 +1372,7 @@ class Constants(unittest.TestCase):
         assert expected.tree is not None
         self.assertEqual(sorted(expected.tree.tags), ["A", "B"])
         dom = read_document(CONSTANT_SOURCES["grammars/test/g.md"], "grammars/test/g.md")
-        self.assertEqual(dom["constants"], [{"name": "K", "op": "define", "value": {"union": [{"tag": "A"}, {"tag": "B"}]}, "at": [3, 1]}])
+        self.assertTrue(same_json(dom["constants"], [{"name": "K", "op": "define", "value": {"union": [{"tag": "A"}, {"tag": "B"}]}, "at": [3, 1]}]))
         bootstrap_hash = fnv1a64(bundled_text("data/preparsed/gencmu.json") or "")
 
         def parse(entry: Dom) -> str:
@@ -1465,7 +1478,7 @@ class Constants(unittest.TestCase):
         self.assertEqual(outcome(empty, dom), ["Y"])
         # A hit: the entry, changed, is the one the parse sees.
         changed = json.loads(json.dumps(dom).replace('{"tag": "Y"}', '{"tag": "Z"}'))
-        self.assertNotEqual(changed, dom)
+        self.assertFalse(same_json(changed, dom))
         self.assertEqual(outcome(empty, changed), ["Z"])
         full = document("B ∖ B", "B")
         dom = read_document(full, "grammars/test/g.md")
@@ -1529,7 +1542,7 @@ class Classifiers(unittest.TestCase):
             dom_problem({"format": DOM_FORMAT, "rules": [], "directives": [], "constants": []}), f"not a DOM of format {DOM_FORMAT}"
         )
         for bad in [classifier([], name="Lex"), classifier([], at=None), classifier([], extra=True)]:
-            expected = "a declaration requires a position" if bad["at"] is None else "a malformed classifier"
+            expected = "a malformed declaration position" if bad["at"] is None else "a malformed classifier"
             self.assertEqual(dom_problem(dom([bad])), expected, json.dumps(bad))
         for bad_entry in [
             entry(guards=[{"feature": "f", "kind": "warning", "negated": False}]),
@@ -1542,16 +1555,16 @@ class Classifiers(unittest.TestCase):
             entry(**{"class": "/a/"}),
             entry(extra=True),
         ]:
-            if bad_entry["keys"] in ([{"string": "Mi"}], [{"string": "m,i"}]):
+            if any(same_json(bad_entry["keys"], keys) for keys in ([{"string": "Mi"}], [{"string": "m,i"}])):
                 self.assertIsNone(dom_problem(dom([classifier([bad_entry])])), json.dumps(bad_entry))
             else:
-                expected = "a malformed string" if bad_entry["keys"] == [1] else "a malformed classifier entry"
+                expected = "a malformed string" if same_json(bad_entry["keys"], [1]) else "a malformed classifier entry"
                 self.assertEqual(dom_problem(dom([classifier([bad_entry])])), expected, json.dumps(bad_entry))
 
     def test_a_preparsed_implication_is_checked(self) -> None:
         dom, implication = self.dom, self.implication
         self.assertIsNone(dom_problem(dom([], [implication(**{"if": {"union": [{"tag": "UI"}, {"const": "K", "at": [5, 15]}]}})])))
-        self.assertEqual(dom_problem(dom([], [implication(at=None)])), "a declaration requires a position")
+        self.assertEqual(dom_problem(dom([], [implication(at=None)])), "a malformed declaration position")
         self.assertEqual(dom_problem(dom([], [implication(extra=True)])), "a malformed implication")
         self.assertEqual(
             dom_problem(dom([], [implication(then={"capture": "x"})])), "an implication requires closed terms without engine-tag literals"
@@ -1579,7 +1592,7 @@ class Classifiers(unittest.TestCase):
 
         sound = {"method": "value", "args": [], "receiver": {"capture": "w"}}
         self.assertIsNone(dom_problem(call([sound, {"classifier": "lex"}])))
-        self.assertEqual(dom_problem(call([sound, {"rule": "lex"}])), "invalid receiver or arguments for .classify")
+        self.assertEqual(dom_problem(call([sound, {"rule": "lex"}])), "a method has the wrong receiver or arguments")
         self.assertEqual(dom_problem(call([sound, {"classifier": "Lex"}])), "a malformed method name argument")
         self.assertIsNone(dom_problem(call([{"capture": "w"}, {"classifier": "lex"}])))
 
@@ -1614,8 +1627,9 @@ class Classifiers(unittest.TestCase):
             "left": {"string": "a"},
             "right": {"method": "split", "args": [{"string": "."}], "receiver": {"string": "a.b"}},
         }
-        self.assert_refused(well_formed, misplaced[:1], "a malformed term")
-        self.assert_refused(well_formed, misplaced[1:], "a malformed term")
+        self.assert_refused(well_formed, misplaced[:1], "unknown method name")
+        self.assert_refused(well_formed, misplaced[1:2], "a malformed term")
+        self.assert_refused(well_formed, misplaced[2:], "a method has the wrong receiver or arguments")
 
     def test_a_gate_of_an_entry_names_a_feature(self) -> None:
         """A gate of a classifier's entry follows the notation's name syntax
@@ -1738,7 +1752,7 @@ class Classifiers(unittest.TestCase):
             with self.subTest(document=refused):
                 if refused in ('%classifier l "A" ∈ A', '%classifier l "a,b" ∈ A'):
                     dom = read_document("```jbogenbau\n" + refused + "\n```\n", "t.md")
-                    self.assertEqual(dom["classifiers"][0]["entries"][0]["keys"][0]["string"], "A" if '"A"' in refused else "a,b")
+                    self.assertTrue(same_json(dom["classifiers"][0]["entries"][0]["keys"][0]["string"], "A" if '"A"' in refused else "a,b"))
                 else:
                     with self.assertRaises(gencmu.GencmuError):
                         read_document("```jbogenbau\n" + refused + "\n```\n", "t.md")
@@ -1747,7 +1761,7 @@ class Classifiers(unittest.TestCase):
         from .shared import load_case_pipeline
         document = '%implies classify("a", l) ⟹ A'
         dom = read_document("```jbogenbau\n" + document + "\n```\n", "t.md")
-        self.assertEqual(dom['implications'][0]['if']['call'], 'classify')
+        self.assertTrue(same_json(dom['implications'][0]['if']['call'], 'classify'))
         pipeline, error = load_case_pipeline(dict(grammar=document + '\n%rule text "a"'))
         self.assertIsNone(pipeline)
         self.assertEqual(error.kind, 'grammar')

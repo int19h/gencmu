@@ -1,0 +1,10 @@
+{
+  "description": "A joined delimiter in an unused argument follows the ordinary condition policy.",
+  "grammar": "%const $S \"\"\n%rule f(@X) \"a\"\n%rule text f(\"x\".split($S ++ \"\"))",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

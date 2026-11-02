@@ -1,0 +1,14 @@
+{
+  "description": "An uncalled template keeps its declaration slot for immediate constant faults.",
+  "grammar": "%ambiguity-resolution greedy\n%rule unused(@X) $FIRST\n%rule text $SECOND",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$FIRST is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 18
+    }
+  }
+}

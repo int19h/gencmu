@@ -1,0 +1,14 @@
+{
+  "description": "A test operand precedes the next body symbol during constant inspection.",
+  "grammar": "%ambiguity-resolution greedy\n%const $LEFT \"a\"\n%rule text $LEFT = $VALUE $NEXT",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$VALUE is not defined in stage main",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 20
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "description": "A string run beside a set operator requires parentheses.",
+  "document": "```jbogenbau\n%const $X \"a\" \"b\" ∩ \"c\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11,
+      "message": "a string run beside intersection or difference requires parentheses"
+    }
+  }
+}

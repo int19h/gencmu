@@ -69,12 +69,10 @@ class GencmuError(Exception):
         return ":".join(parts) if parts else None
 
     def __str__(self) -> str:
-        if self.document == "data/preparsed/gencmu.json" and self.message.startswith("data/preparsed/gencmu.json:"):
-            return self.message
         where = self.where
         prefix = f"{where}: " if where else ""
-        stage = f" (stage {self.stage})" if self.stage and not where else ""
-        return f"{prefix}{self.message}{stage}"
+        stage = f"stage {self.stage}: " if self.stage else ""
+        return f"{prefix}{stage}{self.message}"
 
 
 @dataclass(frozen=True)

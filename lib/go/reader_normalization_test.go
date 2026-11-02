@@ -18,7 +18,7 @@ func notationCacheCases(t *testing.T, document string, expected *domDoc, reader 
 			if err != nil {
 				t.Fatal(err)
 			}
-			l.read = func(p string) (string, bool) { return document, p == path }
+			l.read = func(p string) (string, bool, *Error) { return document, p == path, nil }
 			l.reader = reader
 			l.bootstrapHash = reader.hash
 			l.preparsedRead = nil
@@ -34,9 +34,7 @@ func notationCacheCases(t *testing.T, document string, expected *domDoc, reader 
 						t.Fatal("cacheMisses requires a rule")
 					}
 					poison.Rules[0].Name = "cache-poison"
-					if poison.Rules[0].rawTemplate != nil {
-						poison.Rules[0].rawTemplate["name"] = "cache-poison"
-					}
+
 					raw = poison.json()
 					if _, err := decodeDOM(raw, l.uni); err != nil {
 						t.Fatalf("invalid cache poison: %v", err)
@@ -61,7 +59,7 @@ func notationCacheCases(t *testing.T, document string, expected *domDoc, reader 
 					t.Fatal(err)
 				}
 				l.preparsedRead = nil
-				l.preparsed = readPreparsed(string(envelope), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
+				l.preparsed, _, _ = readPreparsedCache(string(envelope), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
 				if mode == "matching" && len(l.preparsed) != 1 {
 					t.Fatal("matching cache not admitted")
 				}

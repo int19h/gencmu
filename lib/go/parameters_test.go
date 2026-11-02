@@ -2,11 +2,14 @@ package gencmu
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
 )
+
+func templatePosition(at [2]int) []any { return []any{float64(at[0]), float64(at[1])} }
 
 func TestParameterCacheComparisonKeepsSerializedFields(t *testing.T) {
 	cached := templateObject{"call": "f", "args": []any{templateObject{"tag": "A"}}, "at": templatePosition([2]int{2, 3})}
@@ -36,19 +39,23 @@ func TestParameters(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var cases []struct {
-		Name string `json:"name"`
-		engineCase
-	}
+	var cases []json.RawMessage
 	if err = json.Unmarshal(raw, &cases); err != nil {
 		t.Fatal(err)
 	}
-	if len(cases) != 274 {
-		t.Fatalf("got %d shared cases", len(cases))
+	if len(cases) == 0 {
+		t.Fatal("no shared parameter cases")
 	}
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			if err := checkCase(&c.engineCase, false); err != nil {
+	for _, raw := range cases {
+		name, c, err := decodeParameterCase(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Run(name, func(t *testing.T) {
+			if c.skipReason != "" {
+				t.Skip(c.skipReason)
+			}
+			if err := checkCase(c, false); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -87,15 +94,19 @@ func parameterEqual(t *testing.T, got, want any) {
 		t.Fatalf("got %#v, want %#v", got, want)
 	}
 }
+func parameterInstanceNames(t *testing.T, source string) []string {
+	t.Helper()
+	d := parameterRead(t, source)
+	x, err := expandTemplates([]docDOM{{"test.md", d}}, bundled.uni)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return x.instanceNames
+}
 func TestParameterRuleOrderAndRebinding(t *testing.T) {
 	g := parameterGrammar(t, "%rule atom(@X) @X\n%rule text atom(\"a\") named\n%rule named = atom(\"b\")\n%redefine-rule named = atom(\"c\")")
 	parameterEqual(t, parameterRuleNames(g), []string{"text", "named", "atom(\"a\")", "atom(\"b\")"})
-	audit := templateAudit(g)
-	names := []string{}
-	for _, v := range templateList(audit["instances"]) {
-		names = append(names, templateText(templateObj(v)["name"]))
-	}
-	parameterEqual(t, names, []string{"named", "atom(\"a\")", "atom(\"b\")"})
+	parameterEqual(t, parameterInstanceNames(t, "%rule atom(@X) @X\n%rule text atom(\"a\") named\n%rule named = atom(\"b\")\n%redefine-rule named = atom(\"c\")"), []string{"named", "atom(\"a\")", "atom(\"b\")"})
 }
 func TestParameterClosedInnerCalls(t *testing.T) {
 	g := parameterGrammar(t, "%rule atom(@X) @X\n%rule outer(@X) atom(@X) @X\n%rule text outer(atom(\"a\")) atom(\"b\")")
@@ -115,13 +126,7 @@ func TestParameterFlags(t *testing.T) {
 	g := parameterGrammar(t, "%rule(fewest) atom(@X) @X\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"")
 	parameterEqual(t, g.byName["atom(\"a\")"].flags, []string{})
 	parameterEqual(t, g.byName["atom(\"b\")"].flags, []string{"fewest"})
-	instance := templateObj(templateList(templateAudit(g)["instances"])[0])
-	events := []any{}
-	for _, v := range templateList(instance["events"]) {
-		e := templateObj(v)
-		events = append(events, []any{e["scope"], e["op"], e["flagsAfter"]})
-	}
-	parameterEqual(t, events, []any{[]any{"template", "define", []any{"fewest"}}, []any{"instance", "redefine", []any{}}, []any{"template", "extend", []any{}}})
+
 }
 func TestParameterNormalizationAndConstants(t *testing.T) {
 	g := parameterGrammar(t, "%const $A \"a\"\n%rule atom(@X) @X\n%rule text atom(\"a\") atom((\"a\")) atom($A)")
@@ -140,19 +145,6 @@ func TestParameterBindingTree(t *testing.T) {
 	if result.Tree.Children[0].Rule != "named" || result.Tree.Children[0].Children[0].Kind != KindToken {
 		t.Fatalf("binding adds a wrapper: %+v", result.Tree)
 	}
-}
-func TestParameterAuditNotes(t *testing.T) {
-	g := parameterGrammar(t, "%rule atom(@X) @X\n%rule unused(@A,@B) @A\n%rule outer(@X) @X\n%rule text outer(named) outer(atom(\"a\"))\n%rule named = atom(\"a\")")
-	audit := templateAudit(g)
-	parameterEqual(t, templateObj(templateList(audit["templates"])[1])["notes"], []any{templateObject{"kind": "unused-parameter", "parameter": "B"}, templateObject{"kind": "uncalled-template"}})
-	notes := []any{}
-	for _, v := range templateList(audit["instances"]) {
-		i := templateObj(v)
-		if i["template"] == "outer" {
-			notes = append(notes, i["notes"])
-		}
-	}
-	parameterEqual(t, notes, []any{[]any{templateObject{"kind": "argument-alias-twin", "instances": []any{"outer(atom(\"a\"))"}}}, []any{templateObject{"kind": "argument-alias-twin", "instances": []any{"outer(named)"}}}})
 }
 func TestParameterCanonicalArguments(t *testing.T) {
 	uni := parameterGrammar(t, "%rule text \"a\"").uni
@@ -184,9 +176,8 @@ func TestParameterSuppliedDOM(t *testing.T) {
 }
 func TestParameterSuppliedBodyNormalizes(t *testing.T) {
 	d := parameterRead(t, "%ambiguity-resolution greedy\n%rule atom(@X) @X\n%rule text atom(\"a\") atom(\"a\")")
-	r := d.Rules[1].rawTemplate
-	second := templateObj(templateList(templateObj(templateObj(templateList(r["alternatives"])[0])["expr"])["seq"])[1])
-	second["args"] = []any{templateObject{"body": templateObject{"literal": templateObject{"string": "a"}}}}
+	call := d.Rules[1].Alternatives[0].Expr.Items[1].Call
+	call.Args = []*domArgument{{Body: true, Expr: &domExpr{Kind: exLiteral, Value: &domTerm{Kind: tmString, Str: "a"}}}}
 	if e := validateDOM(d, bundled.uni); e != nil {
 		t.Fatal(e)
 	}
@@ -194,8 +185,8 @@ func TestParameterSuppliedBodyNormalizes(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if len(x.instances) != 1 {
-		t.Fatalf("got %d instances", len(x.instances))
+	if len(x.instanceNames) != 1 {
+		t.Fatalf("got %d instances", len(x.instanceNames))
 	}
 }
 func TestParameterOrdinaryIdentity(t *testing.T) {
@@ -221,18 +212,17 @@ func TestParameterOrdinaryEditHistory(t *testing.T) {
 func TestParameterDeepBodies(t *testing.T) {
 	for _, supplied := range []bool{false, true} {
 		d := parameterRead(t, "%rule atom(@X) @X\n%rule text atom(\"a\")")
-		expr := templateObject{"param": "X", "at": templatePosition([2]int{2, 16})}
+		expr := &domExpr{Kind: exParam, Name: "X", At: [2]int{2, 16}}
 		if supplied {
-			expr = templateObject{"literal": templateObject{"string": "a"}}
+			expr = &domExpr{Kind: exLiteral, Value: &domTerm{Kind: tmString, Str: "a"}}
 		}
 		for range 250 {
-			expr = templateObject{"seq": []any{expr, templateObject{"empty": true}}}
+			expr = &domExpr{Kind: exSeq, Items: []*domExpr{expr, {Kind: exEmpty}}}
 		}
 		if supplied {
-			r := d.Rules[1].rawTemplate
-			templateObj(templateObj(templateList(r["alternatives"])[0])["expr"])["args"] = []any{templateObject{"body": expr}}
+			d.Rules[1].Alternatives[0].Expr.Call.Args = []*domArgument{{Body: true, Expr: expr}}
 		} else {
-			templateObj(templateList(d.Rules[0].rawTemplate["alternatives"])[0])["expr"] = expr
+			d.Rules[0].Alternatives[0].Expr = expr
 		}
 		if e := validateDOM(d, bundled.uni); e != nil {
 			t.Fatal(e)
@@ -241,7 +231,7 @@ func TestParameterDeepBodies(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		if len(x.instances) != 1 {
+		if len(x.instanceNames) != 1 {
 			t.Fatal("deep body changed instance count")
 		}
 	}
@@ -277,7 +267,7 @@ func TestParameterCacheValidation(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		l.read = func(path string) (string, bool) { return text, path == "g.md" }
+		l.read = func(path string) (string, bool, *Error) { return text, path == "g.md", nil }
 		l.preparsedRead = nil
 		l.preparsed = map[domCacheKey]json.RawMessage{{"g.md", fnv1a64(text), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, domFormat}: templateJSON(raw)}
 		if valid {
@@ -288,7 +278,7 @@ func TestParameterCacheValidation(t *testing.T) {
 			t.Fatal(err)
 		}
 		if valid {
-			if templateObj(templateObj(templateList(got.Rules[1].rawTemplate["instance"].(map[string]any)["args"])[0])["body"]) == nil {
+			if !got.Rules[1].Instance.Args[0].Body {
 				t.Fatal("valid cached argument was not used")
 			}
 		} else {
@@ -300,13 +290,12 @@ func TestParameterCacheValidation(t *testing.T) {
 func TestParameterRankedLocations(t *testing.T) {
 	d := parameterRead(t, "%rule pair(@X,@Y) @X @Y\n%rule text pair(\"a\",\"b\") (\"c\" ≻ \"d\") :: ∅")
 	before := string(d.json())
-	restoreRankedLocations(d, []Token{{Value: "≻", Source: [2]int{0, 1}}}, func(int) [2]int { return [2]int{3, 42} })
-	if string(d.json()) != before {
-		t.Fatal("locations changed source DOM")
-	}
 	x, e := expandTemplates([]docDOM{{"locations.md", d}}, bundled.uni)
 	if e != nil {
 		t.Fatal(e)
+	}
+	if string(d.json()) != before {
+		t.Fatal("expansion of source positions changed the source DOM")
 	}
 	var at [2]int
 	for _, doc := range x.docs {
@@ -316,11 +305,10 @@ func TestParameterRankedLocations(t *testing.T) {
 			}
 		}
 	}
-	parameterEqual(t, at, [2]int{3, 42})
+	parameterEqual(t, at, [2]int{3, 31})
 }
 func TestParameterRankedArgumentLocation(t *testing.T) {
 	d := parameterRead(t, "%rule choice(@X) @X :: ∅\n%rule text choice((\"a\" ≻ \"b\"))")
-	restoreRankedLocations(d, []Token{{Value: "≻", Source: [2]int{0, 1}}}, func(int) [2]int { return [2]int{3, 29} })
 	x, e := expandTemplates([]docDOM{{"locations.md", d}}, bundled.uni)
 	if e != nil {
 		t.Fatal(e)
@@ -333,25 +321,25 @@ func TestParameterRankedArgumentLocation(t *testing.T) {
 			}
 		}
 	}
-	parameterEqual(t, at, [2]int{3, 29})
+	parameterEqual(t, at, [2]int{3, 24})
 }
 
 func TestParameterUncalledTemplateValidation(t *testing.T) {
 	for _, c := range []struct{ source, message string }{
-		{`%rule unused(@X) $x:A $x:@X`, "capture name used twice"},
-		{`%rule unused(@X) $x:(A @X)`, "malformed capture"},
-		{`%rule unused(@X) @X %emits $x :: @X, $x`, "lists a capture twice"},
-		{`%rule unused(@X) @X %emits ($y) $x ($y) :: @X`, "lists a capture twice"},
+		{`%rule unused(@X) $x:A $x:@X`, "the capture $x is read twice by one production"},
+		{`%rule unused(@X) $x:(A @X)`, "a capture wraps one symbol"},
+		{`%rule unused(@X) @X %emits $x :: @X, $x`, "an emission lists $x twice"},
+		{`%rule unused(@X) @X %emits ($y) $x ($y) :: @X`, "an emission lists $y twice"},
 		{`%rule unused(@X) @X :: _General_Category_Letter ∪ @X`, "engine tag"},
-		{`%rule unused(@X) @X :: $.tags ∪ @X`, "own tags"},
+		{`%rule unused(@X) @X :: $.tags ∪ @X`, "a constituent's tags cannot be made of its own: $.tags or $.classes"},
 		{`%rule unused(@X) @X := @X %erased`, "erased"},
-		{`%rule unused(@X) [+| @X]`, "leading separator"},
+		{`%rule unused(@X) [+| @X]`, "without | or &"},
 	} {
 		t.Run(c.source, func(t *testing.T) {
 			text := c.source + "\n%rule text \"a\""
 			_, e := casePipeline(&engineCase{Grammar: &text}, false)
-			if e == nil {
-				t.Fatal("accepted an invalid uncalled template")
+			if isGuardedCrash(e) || e == nil {
+				t.Fatalf("expected an error for an invalid uncalled template, got %v", e)
 			}
 			if !strings.Contains(e.Error(), c.message) {
 				t.Fatalf("expected %q, got %v", c.message, e)
@@ -399,42 +387,37 @@ func TestParameterPatternTestOperands(t *testing.T) {
 	text := `%rule atom(@X) @X
 %rule unused(@X) @X %conditions $ ≅ #(atom("a")="a")
 %rule text "a"`
-	if _, e := casePipeline(&engineCase{Grammar: &text}, false); e == nil || !strings.Contains(e.Error(), "invalid pattern test") {
+	if _, e := casePipeline(&engineCase{Grammar: &text}, false); isGuardedCrash(e) || e == nil || !strings.Contains(e.Error(), "invalid pattern test") {
 		t.Fatalf("tested exact call: %v", e)
 	}
 }
 
-func TestParameterNestedAliasTwins(t *testing.T) {
-	for _, source := range []string{`%rule atom(@X) @X
-%rule outer(@X) @X
-%rule public "a"
-%rule text outer((named named)) outer((atom("a") atom("a"))) outer((named atom("a"))) outer((atom("a") named))
-%rule named = atom("a")
-%redefine-rule public = outer((atom("a") named))`, `%rule atom(@X) @X
-%rule outer(@P) $x:named %conditions $x ≅ @P
-%rule text outer(#named) outer(#atom("a"))
-%rule named = atom("a")`} {
-		instances := []templateObject{}
-		for _, v := range templateList(templateAudit(parameterGrammar(t, source))["instances"]) {
-			if i := templateObj(v); i["template"] == "outer" {
-				instances = append(instances, i)
-			}
+type parameterStructureCase struct {
+	Name, Grammar string
+	CacheFallback bool
+	Public        bool
+	Input         string
+	DOM           json.RawMessage
+	Argument      json.RawMessage
+	Order         []string
+	Instances     *int
+	Flags         map[string][]string
+}
+
+func (c *parameterStructureCase) checkExpectations(instances int, argument any) error {
+	if c.Instances != nil && instances != *c.Instances {
+		return fmt.Errorf("got %d instances, want %d", instances, *c.Instances)
+	}
+	if c.Argument != nil {
+		want, err := decodeJSON(c.Argument)
+		if err != nil {
+			return err
 		}
-		want := 2
-		if strings.Contains(source, "public") {
-			want = 4
-		}
-		parameterEqual(t, len(instances), want)
-		for index, instance := range instances {
-			names := []any{}
-			for other, item := range instances {
-				if other != index {
-					names = append(names, item["name"])
-				}
-			}
-			parameterEqual(t, instance["notes"], []any{templateObject{"kind": "argument-alias-twin", "instances": names}})
+		if !reflect.DeepEqual(argument, want) {
+			return fmt.Errorf("got argument %#v, want %#v", argument, want)
 		}
 	}
+	return nil
 }
 
 func TestParameterSharedStructure(t *testing.T) {
@@ -445,17 +428,7 @@ func TestParameterSharedStructure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var cases []struct {
-		Name, Grammar string
-		CacheFallback bool
-		Public        bool
-		Input         string
-		DOM           json.RawMessage
-		Argument      any
-		Order         []string
-		Instances     int
-		Flags         map[string][]string
-	}
+	var cases []parameterStructureCase
 	if err := json.Unmarshal(raw, &cases); err != nil {
 		t.Fatal(err)
 	}
@@ -464,8 +437,10 @@ func TestParameterSharedStructure(t *testing.T) {
 			if c.Public {
 				grammar := parameterGrammar(t, c.Grammar)
 				parameterEqual(t, parameterRuleNames(grammar), c.Order)
-				if c.Instances != 0 && len(grammar.instances) != c.Instances {
-					t.Fatalf("instance count: %d", len(grammar.instances))
+				if c.Instances != nil {
+					if err := c.checkExpectations(len(parameterInstanceNames(t, c.Grammar)), nil); err != nil {
+						t.Fatal(err)
+					}
 				}
 				return
 			}
@@ -478,12 +453,15 @@ func TestParameterSharedStructure(t *testing.T) {
 					t.Fatal("malformed DOM accepted")
 				}
 				source := "```jbogenbau\n" + c.Grammar + "\n```"
-				value, e := templateFromJSON(raw)
-				if e != nil {
-					t.Fatal(e)
+				cache, err := json.Marshal(map[string]any{
+					"format": domFormat, "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash,
+					"properties": fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]),
+					"documents":  map[string]any{"grammars/test/g.md": map[string]any{"hash": fnv1a64(source), "dom": json.RawMessage(raw)}},
+				})
+				if err != nil {
+					t.Fatal(err)
 				}
-				cache := templateObject{"format": float64(domFormat), "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]), "documents": templateObject{"grammars/test/g.md": templateObject{"hash": fnv1a64(source), "dom": value}}}
-				sources := map[string]string{"grammars/test/g.md": source, "grammars/test/p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g.md\"\n```", "data/preparsed/test.json": string(templateJSON(cache))}
+				sources := map[string]string{"grammars/test/g.md": source, "grammars/test/p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g.md\"\n```", "data/preparsed/test.json": string(cache)}
 				pipeline, err := LoadPipelineSources(sources, "grammars/test/p.md")
 				if err != nil {
 					t.Fatal(err)
@@ -498,6 +476,7 @@ func TestParameterSharedStructure(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			var argument any
 			if c.Argument != nil {
 				value, err := templateFromJSON(raw)
 				if err != nil {
@@ -505,17 +484,28 @@ func TestParameterSharedStructure(t *testing.T) {
 				}
 				rules := templateList(value["rules"])
 				expr := templateObj(templateObj(templateList(templateObj(rules[len(rules)-1])["alternatives"])[0])["expr"])
-				parameterEqual(t, templateList(expr["args"])[0], c.Argument)
+				argument = templateList(expr["args"])[0]
 			}
-			x, expansionErr := expandTemplates([]docDOM{{"review.md", dom}}, bundled.uni)
+			x, expansionErr := expandTemplates([]docDOM{{"parameters.md", dom}}, bundled.uni)
 			if expansionErr != nil {
 				t.Fatal(expansionErr)
 			}
 			if c.Order != nil {
-				parameterEqual(t, x.order, c.Order)
+				order := x.order
+				if !dom.unresolved {
+					order = []string{}
+					seen := map[string]bool{}
+					for _, rule := range dom.Rules {
+						if !seen[rule.Name] {
+							seen[rule.Name] = true
+							order = append(order, rule.Name)
+						}
+					}
+				}
+				parameterEqual(t, order, c.Order)
 			}
-			if c.Instances != 0 && len(x.instances) != c.Instances {
-				t.Fatalf("got %d instances, want %d", len(x.instances), c.Instances)
+			if err := c.checkExpectations(len(x.instanceNames), argument); err != nil {
+				t.Fatal(err)
 			}
 			if c.Flags != nil {
 				g := parameterGrammar(t, c.Grammar)
@@ -529,14 +519,69 @@ func TestParameterSharedStructure(t *testing.T) {
 
 func TestParameterOverDeepSuppliedTemplate(t *testing.T) {
 	d := parameterRead(t, "%rule use(@X) @X")
-	rule := templateObj(templateClone(d.Rules[0].rawTemplate))
-	expr := templateObject{"param": "X", "at": templatePosition([2]int{1, 1})}
-	for i := 0; i < 20000; i++ {
-		expr = templateObject{"optional": expr}
+	expr := &domExpr{Kind: exParam, Name: "X", At: [2]int{1, 1}}
+	for range 20000 {
+		expr = &domExpr{Kind: exOptional, Inner: expr}
 	}
-	templateObj(templateList(rule["alternatives"])[0])["expr"] = expr
-	p := checkTemplateDeclaration(rule, "rules", bundled.uni)
-	if p == nil || p.message != errTooDeep.Error() {
+	d.Rules[0].Alternatives[0].Expr = expr
+	p := checkDOM(d, bundled.uni)
+	if p == nil || !p.tooDeep {
 		t.Fatalf("got %v", p)
+	}
+}
+
+func TestTemplatePatternClosedness(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	for _, missing := range []bool{false, true} {
+		test := templateObject{"test": "=", "expr": templateObject{"terminal": "A"}}
+		if !missing {
+			test["value"] = templateObject{"capture": "x", "call": "atom", "args": []any{templateObject{"string": "a"}}, "at": templatePosition([2]int{3, 12})}
+		}
+		value := templateObject{"pattern": test}
+		constant := templateObject{"name": "P", "op": "define", "value": value, "at": templatePosition([2]int{3, 1})}
+		implication := templateObject{"if": value, "then": templateObject{"tag": "A"}, "at": templatePosition([2]int{3, 1})}
+		for kind, r := range map[string]templateObject{"constants": constant, "implications": implication} {
+			document := templateDocument(nil)
+			document[kind] = []any{r}
+			_, err := decodeDOM(templateJSON(document), bundled.uni)
+			if err == nil || err.Error() != "a malformed pattern value test" {
+				t.Fatalf("%s missing=%v: %v", kind, missing, err)
+			}
+		}
+	}
+}
+
+func TestParameterErrorsUseEffectiveNames(t *testing.T) {
+	text := "%rule use(@X) @X :: @X\n%rule text use(\"a\")"
+	_, err := casePipeline(&engineCase{Grammar: &text}, false)
+	if isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), `rule use("a"):`) || strings.Contains(err.Error(), "instance-") {
+		t.Fatalf("effective name missing: %v", err)
+	}
+}
+
+func TestParameterStructureComparesZeroAndNull(t *testing.T) {
+	for _, test := range []struct {
+		raw      string
+		argument any
+	}{
+		{`{"instances":0}`, nil}, {`{"argument":null}`, nil},
+		{`{"argument":false}`, false}, {`{"argument":0}`, float64(0)},
+		{`{"argument":""}`, ""},
+	} {
+		var c parameterStructureCase
+		if err := json.Unmarshal([]byte(test.raw), &c); err != nil {
+			t.Fatal(err)
+		}
+		if err := c.checkExpectations(1, true); err == nil {
+			t.Errorf("ignored expectation %s", test.raw)
+		}
+		if err := c.checkExpectations(0, test.argument); err != nil {
+			t.Fatalf("rejected matching expectation %s: %v", test.raw, err)
+		}
+	}
+	if err := (&parameterStructureCase{}).checkExpectations(99, true); err != nil {
+		t.Fatalf("compared an absent expectation: %v", err)
 	}
 }

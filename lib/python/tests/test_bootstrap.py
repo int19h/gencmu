@@ -11,7 +11,7 @@ import gencmu
 from gencmu._pipeline import DOM_FORMAT, Dom, _bundled_root, _Loader, _resources, bundled_text, read_document
 from gencmu._hash import fnv1a64
 
-from .shared import REPOSITORY
+from .shared import REPOSITORY, same_json
 
 
 @functools.lru_cache(maxsize=None)
@@ -28,7 +28,7 @@ class Fixpoint(unittest.TestCase):
         with the bootstrap and splicing it reproduces the bootstrap's stages."""
         with open(REPOSITORY / "data/preparsed/gencmu.json", encoding="utf-8") as file:
             bootstrap = json.load(file)
-        self.assertEqual(bootstrap["format"], DOM_FORMAT)
+        self.assertTrue(same_json(bootstrap["format"], DOM_FORMAT))
 
         def lookup(path: str) -> str | None:
             try:
@@ -43,12 +43,12 @@ class Fixpoint(unittest.TestCase):
         ]
         entries = bootstrap["documents"]
         expected_names = [d["args"][0] for d in entries["grammars/gencmu/jbogenbau/pipeline.md"]["dom"]["directives"] if d["name"] == "stage"]
-        self.assertEqual([stage["name"] for stage in stages], expected_names)
+        self.assertTrue(same_json([stage["name"] for stage in stages], expected_names))
         for stage in stages:
             for document in stage["documents"]:
-                self.assertEqual(document["dom"],entries[document["path"]]["dom"])
+                self.assertTrue(same_json(document["dom"], entries[document["path"]]["dom"]))
         for path,entry in entries.items():
-            self.assertEqual(fresh_dom(path),entry["dom"])
+            self.assertTrue(same_json(fresh_dom(path), entry["dom"]))
 
     def test_bundled_copy_is_the_repository_grammars(self) -> None:
         for path in ("data/preparsed/gencmu.json", "grammars/gencmu/jbogenbau/lexical.md", "grammars/gencmu/jbogenbau/syntax.md", "data/unicode/unicode.txt", "data/preparsed/lojban.json"):
@@ -66,9 +66,9 @@ class Preparsed(unittest.TestCase):
     def test_keys(self) -> None:
         bootstrap = bundled_text("data/preparsed/gencmu.json")
         assert bootstrap is not None
-        self.assertEqual(self.preparsed["format"], DOM_FORMAT)
-        self.assertEqual(self.preparsed["bootstrap"], fnv1a64(bootstrap))
-        self.assertEqual(self.preparsed["unicode"], fnv1a64(bundled_text("data/unicode/unicode.txt") or ""))
+        self.assertTrue(same_json(self.preparsed["format"], DOM_FORMAT))
+        self.assertTrue(same_json(self.preparsed["bootstrap"], fnv1a64(bootstrap)))
+        self.assertTrue(same_json(self.preparsed["unicode"], fnv1a64(bundled_text("data/unicode/unicode.txt") or "")))
 
     def test_pipelines_with_and_without_the_cache(self) -> None:
         """Each cached document equals a fresh reading.
@@ -81,8 +81,8 @@ class Preparsed(unittest.TestCase):
             with self.subTest(document=path):
                 text = bundled_text(path)
                 assert text is not None
-                self.assertEqual(entry["hash"], fnv1a64(text))
-                self.assertEqual(fresh_dom(path), entry["dom"])
+                self.assertTrue(same_json(entry["hash"], fnv1a64(text)))
+                self.assertTrue(same_json(fresh_dom(path), entry["dom"]))
 
         names = sorted(path[len("grammars/"):-len("/pipeline.md")] for path in [*self.preparsed["documents"], *json.loads(bundled_text("data/preparsed/gencmu.json"))["documents"]] if path.endswith("/pipeline.md"))
         self.assertTrue(names)
@@ -91,7 +91,7 @@ class Preparsed(unittest.TestCase):
                 path = f"grammars/{name}/pipeline.md"
                 cached = _Loader(bundled_text, _resources())
                 uncached = _Loader(bundled_text, _resources(), use_cache=False)
-                uncached.dom = fresh_dom  # type: ignore[method-assign]
+                uncached.dom = lambda path, inherited=(), text=None: fresh_dom(path)  # type: ignore[method-assign]
                 with (
                     patch.object(cached.reader, "read", side_effect=AssertionError("preparsed grammar cache was bypassed")),
                     patch.object(cached.reader.doms, "get", side_effect=AssertionError("preparsed grammar cache was bypassed")),
@@ -99,9 +99,9 @@ class Preparsed(unittest.TestCase):
                     a = cached.load(path)
                 self.assertTrue(cached.preparsed)
                 b = uncached.load(path)
-                self.assertEqual(b.stage_names, a.stage_names)
-                self.assertEqual(b.grammars, a.grammars)
-                self.assertEqual((b.features, b.declared), (a.features, a.declared))
+                self.assertEqual(b._stage_names, a._stage_names)
+                self.assertEqual(b._grammars, a._grammars)
+                self.assertEqual((b.features, b._declared), (a.features, a._declared))
 
     def test_parsing_with_and_without_the_cache(self) -> None:
         cached = gencmu.load_pipeline("gencmu/jbogenbau")

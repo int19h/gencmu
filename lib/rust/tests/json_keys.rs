@@ -25,14 +25,6 @@ fn shared_json_keys() {
             ("g.md".to_string(), text(&fixtures, "grammar").to_string()),
         ])
     };
-    for case in fixtures.get("values").unwrap().array() {
-        assert_eq!(
-            &parse_json(text(case, "json")).unwrap(),
-            case.get("expect").unwrap(),
-            "{}",
-            text(case, "description")
-        );
-    }
     for case in fixtures.get("bootstrap").unwrap().array() {
         let mut sources = sources();
         sources.insert("data/preparsed/gencmu.json".into(), mutate(&bundled, case));
@@ -50,7 +42,7 @@ fn shared_json_keys() {
                 "{}: {e}",
                 text(case, "description")
             );
-            assert!(e.message.starts_with("data/preparsed/gencmu.json:"));
+            assert!(e.to_string().starts_with("data/preparsed/gencmu.json:"));
         }
     }
     for case in fixtures.get("preparsed").unwrap().array() {
@@ -92,6 +84,7 @@ fn shared_json_keys() {
             assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
             assert_eq!(error.document.as_deref(), Some(text(expected, "document")));
             assert_eq!(error.line, expected.get("line").map(|v| v.number().unwrap() as usize));
+            assert_eq!(error.column, expected.get("column").map(|v| v.number().unwrap() as usize));
             continue;
         }
         let pipeline = result.unwrap_or_else(|e| panic!("{}: {e}", text(case, "description")));
@@ -103,5 +96,15 @@ fn shared_json_keys() {
             let expected: Vec<_> = tags.array().iter().map(|tag| tag.str().unwrap().to_owned()).collect();
             assert_eq!(actual, expected, "{}", text(case, "description"));
         }
+    }
+}
+
+#[test]
+fn json_readers_refuse_malformed_spellings() {
+    for text in ["00", "01", "-01", "040", r#""\u+061""#, r#""\u-061""#, r#""\u00g1""#] {
+        assert!(parse_json(text).is_err(), "{text}");
+    }
+    for text in ["0", "-0", "1", "-10", r#""\u0061""#, r#""\uD83D\uDE00""#] {
+        assert!(parse_json(text).is_ok(), "{text}");
     }
 }

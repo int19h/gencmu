@@ -1,0 +1,10 @@
+{
+  "description": "A template keeps the ordinary position of a repeated body capture.",
+  "document": "```jbogenbau\n%rule r(@X) ($x:A | $y:B) ($y:C | $x:D)\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 28
+    }
+  }
+}

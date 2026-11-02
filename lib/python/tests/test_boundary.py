@@ -1,4 +1,5 @@
 """Finite boundary transfers and diagnostic annotations."""
+from .shared import same_json
 import unittest
 from gencmu._boundary import Records, Annotations, Source, dominates
 
@@ -17,7 +18,7 @@ class BoundaryTests(unittest.TestCase):
                 with self.subTest(boundary=boundary), count_work(calls(Records.__init__)) as work:
                     value, _, error = parse_case(pipeline, case)
                 self.assertIsNone(error)
-                self.assertTrue(value['ok'], value)
+                self.assertTrue(same_json(value['ok'], True), value)
                 self.assertEqual(work.count, 1)
 
     def test_empty_child_keeps_prefix_forward_literal(self):
@@ -76,7 +77,7 @@ class BoundaryTests(unittest.TestCase):
             errors.append(caught.exception)
         self.assertEqual(errors[0].code, 'ranked-choice-boundary')
         for field in ('code', 'group', 'option', 'expression', 'line', 'column'):
-            self.assertEqual(getattr(errors[0], field), getattr(errors[1], field))
+            self.assertTrue(same_json(getattr(errors[0], field), getattr(errors[1], field)))
 
     def test_equal_literals_keep_both_condition_sources(self):
         from gencmu._earley import Parser, StageContext
@@ -86,8 +87,8 @@ class BoundaryTests(unittest.TestCase):
         tokens, text = case_tokens({'tokens': [{'text': 'a', 'tags': ['A']}, {'text': 'b', 'tags': ['B']}]})
         for token in tokens:
             token.tags = frozenset(token.tags)
-        lowered = pipeline.lowered(0, frozenset())
-        forest = Parser(StageContext(lowered, tokens, text, pipeline.unicode)).parse(lowered.rule_ids['text'])
+        lowered = pipeline._lowered_grammar(0, frozenset())
+        forest = Parser(StageContext(lowered, tokens, text, pipeline._unicode)).parse(lowered.rule_ids['text'])
         sites = {(condition, rule) for _, _, _, source in forest.boundary_failures if source is not None
                  for order, condition, rule in source.sites}
         self.assertEqual(sites, {(0, 'r'), (1, 'r')})
@@ -118,4 +119,4 @@ class BoundaryTests(unittest.TestCase):
             self.assertIsNone(error)
             with self.subTest(query=query):
                 value, _, _ = parse_case(pipeline, {'tokens': [{'text': 'a', 'tags': ['A']}]})
-                self.assertTrue(value['ok'], value)
+                self.assertTrue(same_json(value['ok'], True), value)

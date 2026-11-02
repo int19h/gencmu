@@ -1,0 +1,13 @@
+{
+  "description": "A rule recipe reports its first absent capture in written order.",
+  "grammar": "%rule text := $y.value ++ $x.value | [$x:A] [$y:B]",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

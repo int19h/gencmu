@@ -7,7 +7,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
 use crate::dom::{dom_from_json, dom_problem, dom_to_json, Dom, DOM_FORMAT};
-use crate::error::{Error, ErrorKind};
+use crate::error::{Error, ErrorKind, SpliceProblem};
 use crate::grammar::stitch;
 use crate::json::{self, fnv1a64, Json};
 use crate::markdown::{grammar_text, resolve};
@@ -24,7 +24,8 @@ mod bundled {
 }
 
 pub(crate) fn bundled(path: &str) -> Option<&'static str> {
-    bundled::BUNDLED.iter().find(|(name, _)| *name == path).map(|(_, text)| *text)
+    static RESOURCES: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+    RESOURCES.get_or_init(|| bundled::BUNDLED.iter().copied().collect()).get(path).copied()
 }
 
 const BOOTSTRAP_PATH: &str = "data/preparsed/gencmu.json";
@@ -166,33 +167,14 @@ fn grammar_error(message: String) -> Error {
     }
 }
 
-fn unicode_error(message: String) -> Error {
-    let line =
-        message.strip_prefix("data/unicode/unicode.txt line ").and_then(|tail| tail.split(':').next()?.parse().ok());
-    let mut error = Error::grammar(message).in_document("data/unicode/unicode.txt");
-    error.line = line;
-    error
-}
-
 fn notation_pipeline(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Pipeline, Error> {
     build_notation_pipeline(bootstrap, unicode).map_err(|mut error| {
         if let Some(embedded) = &error.document {
-            if embedded != "data/preparsed/gencmu.json" && !error.message.contains(embedded) {
+            if embedded != "data/preparsed/gencmu.json" {
                 error.message.push_str(&format!(" (embedded document: {embedded})"));
             }
         }
         error.document = Some("data/preparsed/gencmu.json".to_string());
-        let mut location = "data/preparsed/gencmu.json".to_string();
-        if let Some(line) = error.line {
-            location.push_str(&format!(":{line}"));
-            if let Some(column) = error.column {
-                location.push_str(&format!(":{column}"));
-            }
-        }
-        if !error.message.starts_with(&format!("{location}: ")) {
-            let stage = error.stage.as_ref().map(|name| format!("stage {name}: ")).unwrap_or_default();
-            error.message = format!("{location}: {stage}{}", error.message);
-        }
         error
     })
 }
@@ -231,24 +213,17 @@ fn build_notation_pipeline(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Pip
     }
     let spliced =
         splice(NOTATION_PATH, &mut BootstrapDocuments { entries, unicode: &unicode }).map_err(|mut error| {
-            error.stage = None;
+            if let Some(stage) = error.stage.take() {
+                if error.splice_problem == Some(SpliceProblem::EmptyStage) {
+                    error.message = format!("stage {stage}: {}", error.message);
+                }
+            }
             error
         })?;
-    let inputs: Vec<_> = spliced
-        .stages
-        .into_iter()
-        .map(|stage| {
-            (stage.name, stage.documents.into_iter().map(|(path, dom)| (path, Arc::new(dom))).collect::<Vec<_>>())
-        })
-        .collect();
     let mut stages = Vec::new();
-    for (name, documents) in &inputs {
-        if !documents.iter().any(|(_, dom)| !dom.rules.is_empty()) {
-            return Err(Error::grammar(format!("stage {name} has no rules")).in_stage(name));
-        }
-    }
-    for (name, documents) in inputs {
-        stages.push(stitch(&name, &documents, &unicode).map_err(|error| error.in_stage(&name))?);
+    for stage in spliced.stages {
+        let documents: Vec<_> = stage.documents.into_iter().map(|(path, dom)| (path, Arc::new(dom))).collect();
+        stages.push(stitch(&stage.name, &documents, &unicode).map_err(|error| error.in_stage(&stage.name))?);
     }
     let pipeline = Pipeline::new(stages, spliced.features, unicode)?;
     pipeline.prepare_bootstrap()?;
@@ -257,37 +232,25 @@ fn build_notation_pipeline(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Pip
 
 impl Context {
     #[cfg(test)]
-    fn new(unicode: &str, bootstrap: &str, preparsed: &str) -> Result<Context, Error> {
-        let mut context = Self::with_properties(unicode, None, bootstrap, preparsed)?;
+    fn new(unicode: &str, bootstrap: &str) -> Result<Context, Error> {
+        let mut context = Self::with_properties(unicode, None, bootstrap)?;
         context.allow_families = false;
         Ok(context)
     }
 
-    fn with_properties(
-        unicode: &str,
-        properties: Option<&str>,
-        bootstrap: &str,
-        preparsed: &str,
-    ) -> Result<Context, Error> {
+    fn with_properties(unicode: &str, properties: Option<&str>, bootstrap: &str) -> Result<Context, Error> {
         let unicode_hash = fnv1a64(unicode);
-        let mut unicode = Unicode::parse(unicode).map_err(unicode_error)?;
+        let mut unicode = Unicode::parse(unicode)?;
         if let Some(properties) = properties {
             unicode.properties = crate::unicode_properties::read_properties(properties, &unicode)?;
             unicode.properties_fingerprint = Some(fnv1a64(properties));
         }
         let unicode = Arc::new(unicode);
         let notation = Arc::new(notation_pipeline(bootstrap, unicode.clone())?);
-        let preparsed = Preparsed::parse_implicit(
-            preparsed,
-            &fnv1a64(bootstrap),
-            &unicode_hash,
-            unicode.properties_fingerprint.as_deref(),
-            preparsed == bootstrap,
-        )?;
         Ok(Context {
             unicode,
             notation,
-            preparsed,
+            preparsed: Preparsed::default(),
             bootstrap_hash: fnv1a64(bootstrap),
             unicode_hash,
             allow_families: true,
@@ -306,7 +269,6 @@ impl Context {
                     file("data/unicode/unicode.txt")?,
                     Some(file("data/unicode/unicode-properties.txt")?),
                     file("data/preparsed/gencmu.json")?,
-                    "",
                 )
                 .map(Arc::new)
             })
@@ -335,20 +297,13 @@ impl Context {
         let mut dom = if let Some(dom) = preparsed.lookup(path, &fnv1a64(text), &self.unicode, names)? {
             dom
         } else {
-            read_document_named(&self.notation, text, true, names).map_err(|error| error.in_document(path))?
+            return read_document_named(&self.notation, text, true, names).map_err(|error| error.in_document(path));
         };
-        if diagnostic && (text.contains("followed-by") || text.contains("preceded-by")) {
-            return read_document_named(&self.notation, text, true, names).map_err(|e| e.in_document(path));
-        }
         if diagnostic {
             #[cfg(test)]
             LOCATION_RECOVERIES.with(|count| count.set(count.get() + 1));
-            let grammar = grammar_text(text)?;
-            let options = ParseOptions { until: Some("lexical".into()), ..ParseOptions::default() };
-            let result = self.notation.parse_chars(grammar.chars.clone(), &options)?;
-            if let Some(tokens) = result.stages.last().and_then(|stage| stage.output.as_ref()) {
-                crate::ranked::restore_locations(&mut dom, tokens, &|at| grammar.position(at));
-                crate::notation::restore_recipe_locations(&mut dom, tokens, &|at| grammar.position(at));
+            if let Ok(source) = read_document_named(&self.notation, text, true, names) {
+                crate::ranked::restore_locations(&mut dom, &source);
             }
         }
         Ok(dom)
@@ -358,7 +313,7 @@ impl Context {
 /// Reads a grammar document through the notation pipeline (engine §8, §9).
 pub(crate) fn read_document(notation: &Pipeline, text: &str, path: &str) -> Result<Dom, Error> {
     let names = NamesScope::new(&bundled_names, &notation.unicode, []).in_document(path, &crate::markdown::resolve);
-    read_document_named(notation, text, false, &names)
+    read_document_named(notation, text, false, &names).map_err(|error| error.in_document(path))
 }
 
 fn bundled_names(path: &str) -> Result<Option<String>, Error> {
@@ -367,17 +322,13 @@ fn bundled_names(path: &str) -> Result<Option<String>, Error> {
 }
 
 fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &NamesScope<'_>) -> Result<Dom, Error> {
-    let grammar = grammar_text(text)?;
+    let grammar = grammar_text(text, &notation.unicode)?;
     let position = |index: usize| grammar.position(index);
     let strings =
         DocumentStrings { unicode: &notation.unicode, names, position: &position, names_paths: Default::default() };
     let options = ParseOptions::default();
     let result = notation.parse_chars_inspected(grammar.chars.clone(), &options, |tokens| strings.inspect(tokens))?;
     let syntax_input = result.stages.iter().find(|stage| stage.name == "syntax").map(|stage| stage.input.as_slice());
-    if let Some(token) = syntax_input.and_then(|tokens| tokens.iter().find(|token| token.value == "%prefer")) {
-        let (line, column) = grammar.position(token.source.start);
-        return Err(Error::grammar("unknown directive %prefer; use an inline ranked choice (A ≻ B)").at(line, column));
-    }
     if let Some(error) = &result.error {
         // A tie has no single position, so the error names the document
         // alone (engine §8).
@@ -408,7 +359,7 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
             if let Some(tokens) = syntax_input {
                 let at = error.token.unwrap_or(0);
                 if crate::ranked::syntax_failure(tokens, at) {
-                    failure.code = Some("ranked-choice-syntax".into());
+                    failure = failure.coded("ranked-choice-syntax");
                 }
             }
         }
@@ -421,7 +372,11 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
     // and the DOM with explicit stacks, so a document of any depth reads
     // on the caller's thread (engine §9).
     let reader = Reader {
-        parameter_state: Default::default(),
+        unresolved_nodes: Default::default(),
+        parts_cache: Default::default(),
+        parameters: Default::default(),
+        reading_head: Default::default(),
+        unresolved: Default::default(),
         unicode: &notation.unicode,
         defer_emission: defer,
         feature_context: Default::default(),
@@ -449,20 +404,15 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
     // stack, at the first item in the order of the document that breaks
     // it: a DOM just read is as deep as its document nests, and the checks
     // below walk it by recursion.
-    let raw_deep = |at: &(usize, usize), kind: &str| {
-        dom.unresolved
-            .get(at)
-            .is_some_and(|raw| crate::parameters::declaration_problem(raw, kind, unicode) == Some("nested too deeply"))
-    };
     let mut deep: Vec<(usize, usize)> = dom
         .rules
         .iter()
-        .filter(|rule| crate::dom::rule_too_deep(rule) || raw_deep(&rule.at, "rules"))
+        .filter(|rule| crate::dom::rule_too_deep(rule))
         .map(|rule| rule.at)
         .chain(
             dom.constants
                 .iter()
-                .filter(|constant| crate::dom::term_too_deep(&constant.value) || raw_deep(&constant.at, "constants"))
+                .filter(|constant| crate::dom::term_too_deep(&constant.value))
                 .map(|constant| constant.at),
         )
         .chain(
@@ -471,17 +421,13 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
                 .filter(|implication| {
                     crate::dom::term_too_deep(&implication.antecedent)
                         || crate::dom::term_too_deep(&implication.consequent)
-                        || raw_deep(&implication.at, "implications")
                 })
                 .map(|implication| implication.at),
         )
         .chain(
             dom.directives
                 .iter()
-                .filter(|directive| {
-                    directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep)
-                        || raw_deep(&directive.at, "directives")
-                })
+                .filter(|directive| directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep))
                 .map(|directive| directive.at),
         )
         .chain(
@@ -505,7 +451,7 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
                 if problem == "nested too deeply" {
                     TOO_DEEP.to_string()
                 } else {
-                    problem.to_string()
+                    problem
                 }
             }),
             Err(message) if message.contains("nested too deeply") => Some(TOO_DEEP.to_string()),
@@ -543,10 +489,7 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
         )
         .collect();
     singles.sort_by_key(|(_, at)| *at);
-    for (mut single, at) in singles {
-        if let Some(raw) = dom.unresolved.get(&at) {
-            single.unresolved.insert(at, raw.clone());
-        }
+    for (single, at) in singles {
         if let Some(problem) = problem_of(&single) {
             return Err(grammar_error(problem).at(at.0, at.1));
         }
@@ -629,10 +572,11 @@ fn normalize(path: &Path) -> PathBuf {
 
 impl Sources for DiskSources {
     fn names_override(&self, path: &str) -> bool {
-        !matches!(std::fs::metadata(path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
+        !matches!(path, "data/unicode/unicode-names.txt" | "data/unicode/unicode-names-reference.txt")
+            && !matches!(std::fs::metadata(path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
     }
     fn names(&self, path: &str) -> Result<Option<String>, Error> {
-        if path == "data/unicode/unicode-names-reference.txt" {
+        if matches!(path, "data/unicode/unicode-names.txt" | "data/unicode/unicode-names-reference.txt") {
             return bundled_names(path);
         }
         match self.read(path)? {
@@ -649,7 +593,9 @@ impl Sources for DiskSources {
             Ok(bytes) => bytes,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(error) => {
-                return Err(Error::new(ErrorKind::Io, format!("cannot read {path}: {error}")).in_document(path));
+                let mut error = Error::grammar(format!("the document could not be read: {error}")).in_document(path);
+                error.splice_problem = Some(SpliceProblem::UnreadableDocument);
+                return Err(error);
             }
         };
         match String::from_utf8(bytes) {
@@ -663,11 +609,7 @@ impl Sources for DiskSources {
     }
 
     fn resolve(&self, base: &str, target: &str) -> Option<String> {
-        if target.contains("://") {
-            return None;
-        }
-        let directory = Path::new(base).parent().unwrap_or_else(|| Path::new(""));
-        Some(normalize(&directory.join(target)).to_string_lossy().into_owned())
+        resolve(base, target)
     }
 }
 
@@ -748,19 +690,14 @@ fn splice_pipeline(context: &Context, sources: &dyn Sources, path: &str) -> Resu
 fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result<Pipeline, Error> {
     match load_mode(context, sources, pipeline_path, None) {
         Err(error)
-            if error.code.as_deref().is_some_and(|code| code.starts_with("ranked-choice-"))
-                && error.group.as_ref().is_some_and(|group| group.at.is_none() && group.document.is_some()) =>
+            if error.code().is_some_and(|code| code.starts_with("ranked-choice-"))
+                && error.group().is_some_and(|group| group.at.is_none() && group.document.is_some()) =>
         {
             // Retry only a failed load, with locations for its diagnostic document.
-            let document = error.group.as_ref().and_then(|group| group.document.as_deref());
+            let document = error.group().and_then(|group| group.document.as_deref());
             load_mode(context, sources, pipeline_path, document)
         }
-        Err(error)
-            if error.message.starts_with("boundary target ") && error.line.is_none() && error.document.is_some() =>
-        {
-            load_mode(context, sources, pipeline_path, error.document.as_deref())
-        }
-        Err(error) if error.message.starts_with("a constituent recipe cycles:") && error.document.is_some() => {
+        Err(error) if error.location_recovery.is_some() && error.line.is_none() && error.document.is_some() => {
             load_mode(context, sources, pipeline_path, error.document.as_deref())
         }
         result => result,
@@ -832,18 +769,19 @@ pub fn bundled_pipelines() -> Vec<String> {
 /// grammars. Each document is known by its absolute path, so an error
 /// names the file wherever the process runs.
 pub fn load_pipeline_file(path: impl AsRef<Path>) -> Result<Pipeline, Error> {
-    let context = Context::bundled()?;
     let path = path.as_ref();
+    let spelling = path.to_str().ok_or_else(|| Error::usage("the pipeline path is not valid UTF-8"))?;
+    let context = Context::bundled()?;
     let absolute = if path.is_absolute() {
         normalize(path)
     } else {
         let directory = std::env::current_dir().map_err(|error| {
-            Error::new(ErrorKind::Io, format!("cannot find the working directory: {error}"))
-                .in_document(&path.to_string_lossy())
+            Error::grammar(format!("cannot find the working directory: {error}")).in_document(spelling)
         })?;
         normalize(&directory.join(path))
     };
-    load(&context, &DiskSources, &absolute.to_string_lossy())
+    let absolute = absolute.to_str().ok_or_else(|| Error::usage("the pipeline path is not valid UTF-8"))?;
+    load(&context, &DiskSources, &absolute.replace(std::path::MAIN_SEPARATOR, "/"))
 }
 
 /// Loads a pipeline from documents held in memory: a map from
@@ -879,7 +817,6 @@ where
             &pick("data/unicode/unicode.txt")?,
             properties.as_deref(),
             &pick("data/preparsed/gencmu.json")?,
-            "",
         )?)
     };
     load(&context, &MapSources { map }, pipeline)
@@ -890,8 +827,12 @@ where
 /// "A grammar DOM"). The path supplies the base for relative names resources.
 /// An empty path selects the resource root. For tests and tools.
 pub fn read_grammar_document(text: &str, path: &str) -> Result<String, Error> {
+    read_grammar_dom(text, path).map(|dom| dom_to_json(&dom))
+}
+
+pub(crate) fn read_grammar_dom(text: &str, path: &str) -> Result<Dom, Error> {
     let context = Context::bundled()?;
-    read_document(&context.notation, text, path).map(|dom| dom_to_json(&dom))
+    read_document(&context.notation, text, path)
 }
 
 /// Why a DOM, given as JSON, is malformed (engine §9), or `None` when it is
@@ -901,15 +842,15 @@ pub fn read_grammar_document(text: &str, path: &str) -> Result<String, Error> {
 pub fn check_dom(json: &str) -> Result<Option<String>, Error> {
     let context = Context::bundled()?;
     let value = crate::json::parse(json).map_err(grammar_error)?;
-    Ok(crate::dom::dom_problem(&value, &context.unicode).map(str::to_string))
+    Ok(crate::dom::dom_problem(&value, &context.unicode))
 }
 
 /// Why a supplied DOM is malformed with a caller's Unicode table.
 /// This uses the same validation as the preparsed cache. For tests and tools.
 pub fn check_dom_with_unicode(json: &str, table: &str) -> Result<Option<String>, Error> {
-    let unicode = Unicode::parse(table).map_err(unicode_error)?;
+    let unicode = Unicode::parse(table)?;
     let value = crate::json::parse(json).map_err(grammar_error)?;
-    Ok(crate::dom::dom_problem(&value, &unicode).map(str::to_string))
+    Ok(crate::dom::dom_problem(&value, &unicode))
 }
 
 /// Splices a bundled pipeline document (engine §13) and returns the result
@@ -1054,6 +995,23 @@ mod tests {
         }
     }
 
+    #[test]
+    fn nested_method_arguments_read_in_linear_work() {
+        let text = |n: usize| {
+            format!(
+                "```jbogenbau\n%features f %conditions {}\"a\"{} = \"a\"\n```\n",
+                "\"a\".split(".repeat(n),
+                ")".repeat(n)
+            )
+        };
+        let small = reading(&text(250), None);
+        let large = reading(&text(1000), Some(five_times(small)));
+        assert!(
+            large.iter().zip(five_times(small)).all(|(&large, most)| large <= most),
+            "{small:?} at 250, {large:?} at 1000"
+        );
+    }
+
     /// A call of many arguments reads in work that grows with its
     /// arguments, not with their square: the reader finds the call's parts
     /// once, not at each argument, before the arity error.
@@ -1175,6 +1133,18 @@ mod ranked_location_tests {
     }
 
     #[test]
+    fn located_recipe_cycles_never_recover_locations() {
+        let context = Context::bundled().unwrap();
+        let sources = MapSources { map: [("p.md".into(),
+            "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\" := $.emitted.image :- $.emitted.value\n```\n".into())].into() };
+        LOCATION_RECOVERIES.with(|count| count.set(0));
+        let error = load(&context, &sources, "p.md").unwrap_err();
+        assert!(error.message.contains("recipe cycles"), "{error}");
+        assert_eq!(error.line, Some(4));
+        LOCATION_RECOVERIES.with(|count| assert_eq!(count.get(), 0));
+    }
+
+    #[test]
     fn valid_cached_ranked_grammar_never_recovers_locations() {
         let bundled = Context::bundled().unwrap();
         let pipeline = "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n";
@@ -1184,7 +1154,11 @@ mod ranked_location_tests {
         let mut preparsed = Preparsed::default();
         for (path, text) in &sources.map {
             let dom = read_document(&bundled.notation, text, "").unwrap();
-            assert!(dom.rules.iter().all(|rule| rule.alternatives.iter().all(|alt| alt.ranked_locations.is_empty())));
+            let cached = dom_from_json(&json::parse(&dom_to_json(&dom)).unwrap(), &bundled.unicode).unwrap();
+            assert!(cached
+                .rules
+                .iter()
+                .all(|rule| rule.alternatives.iter().all(|alt| alt.ranked_locations.is_empty())));
             preparsed.by_path.insert(
                 path.clone(),
                 (
@@ -1381,41 +1355,132 @@ mod notation_cache_tests {
         bootstrap.to_json()
     }
 
+    fn run_supplied_notation_value(case: &Json) {
+        crate::test_common::case::notation_value(&parse_json(&case.to_json()).unwrap())
+            .unwrap_or_else(|problem| panic!("invalid supplied notation case: {problem}"));
+        let id = case.get("id").and_then(Json::as_str).unwrap();
+        let bootstrap = value_notation(case.get("aliases").and_then(Json::as_array).unwrap());
+        let context = Context::new(super::bundled("data/unicode/unicode.txt").unwrap(), &bootstrap).unwrap();
+        let text = case.get("document").and_then(Json::as_str).unwrap();
+        if let Some(expected) = case.get("expect").and_then(|value| value.get("error")) {
+            let error = read_document(&context.notation, text, "").expect_err("a bad name must fail");
+            assert_eq!(error.line, expected.get("line").and_then(Json::as_int).map(|n| n as usize), "{id}: {error}");
+            assert_eq!(
+                error.column,
+                expected.get("column").and_then(Json::as_int).map(|n| n as usize),
+                "{id}: {error}"
+            );
+            if let Some(message) = case.get("expect").and_then(|value| value.get("message")) {
+                assert_eq!(error.message, message.as_str().unwrap(), "{id}: the reader reason differs");
+            }
+            return;
+        }
+        let expected =
+            dom_to_json(&read_document(&context.notation, text, "").unwrap_or_else(|error| panic!("{id}: {error}")));
+        assert_pattern(case, &expected, id);
+        cache_paths(&context, &fnv1a64(&bootstrap), &format!("{id}.md"), text, &expected);
+        eprintln!("supplied notation values and cache paths: {id}");
+    }
+
     #[test]
     fn shared_supplied_notation_values_cover_names_and_cache_paths() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/notation-values.json");
         let fixture = json::parse(&std::fs::read_to_string(path).unwrap()).unwrap();
+        crate::test_common::case::notation_values_file(&parse_json(&fixture.to_json()).unwrap())
+            .unwrap_or_else(|problem| panic!("invalid supplied notation file: {problem}"));
         let cases = fixture.get("cases").and_then(Json::as_array).unwrap();
         assert!(!cases.is_empty(), "no supplied notation cases ran");
         let mut ids = std::collections::HashSet::new();
         for case in cases {
             let id = case.get("id").and_then(Json::as_str).unwrap();
             assert!(ids.insert(id), "duplicate case ID: {id}");
-            let bootstrap = value_notation(case.get("aliases").and_then(Json::as_array).unwrap());
-            let context =
-                Context::new(super::bundled("data/unicode/unicode.txt").unwrap(), &bootstrap, "null").unwrap();
-            let text = case.get("document").and_then(Json::as_str).unwrap();
-            if let Some(expected) = case.get("expect").and_then(|value| value.get("error")) {
-                let error = read_document(&context.notation, text, "").expect_err("a bad name must fail");
-                assert_eq!(
-                    error.line,
-                    expected.get("line").and_then(Json::as_int).map(|n| n as usize),
-                    "{id}: {error}"
-                );
-                assert_eq!(
-                    error.column,
-                    expected.get("column").and_then(Json::as_int).map(|n| n as usize),
-                    "{id}: {error}"
-                );
-                continue;
-            }
-            let expected = dom_to_json(
-                &read_document(&context.notation, text, "").unwrap_or_else(|error| panic!("{id}: {error}")),
-            );
-            assert_pattern(case, &expected, id);
-            cache_paths(&context, &fnv1a64(&bootstrap), &format!("{id}.md"), text, &expected);
-            eprintln!("supplied notation values and cache paths: {id}");
+            run_supplied_notation_value(case);
         }
+    }
+
+    #[test]
+    fn supplied_notation_refuses_ignored_expectations() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/notation-values.json");
+        let fixture = json::parse(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let base = fixture
+            .get("cases")
+            .and_then(Json::as_array)
+            .unwrap()
+            .iter()
+            .find(|case| case.get("expect").unwrap().get("error").is_some())
+            .unwrap();
+        let mut accepted = Vec::new();
+        for (name, nested) in [("message", true), ("message", false), ("unknown", false)] {
+            let mut case = base.clone();
+            let expectation = field(&mut case, "expect");
+            let target = if nested { field(expectation, "error") } else { expectation };
+            let Json::Obj(members) = target else { unreachable!() };
+            members.push((name.into(), Json::Str("not the reader reason".into())));
+            if std::panic::catch_unwind(|| run_supplied_notation_value(&case)).is_ok() {
+                accepted.push(format!("accepted {name}, nested={nested}"));
+            }
+        }
+        assert!(accepted.is_empty(), "{}", accepted.join("\n"));
+    }
+
+    #[test]
+    fn supplied_notation_compares_the_reader_reason() {
+        let mut case = json::parse(
+            r#"{"id":"reader-reason","aliases":[],"document":"```jbogenbau\n%rule\n```","expect":{"error":{}}}"#,
+        )
+        .unwrap();
+        let context = Context::bundled().unwrap();
+        let document = case.get("document").and_then(Json::as_str).unwrap();
+        let error = read_document(&context.notation, document, "").unwrap_err();
+        *field(&mut case, "expect") = object([
+            (
+                "error",
+                object([
+                    ("line", Json::Int(error.line.unwrap() as i64)),
+                    ("column", Json::Int(error.column.unwrap() as i64)),
+                ]),
+            ),
+            ("message", Json::Str(error.message)),
+        ]);
+        run_supplied_notation_value(&case);
+        *field(field(&mut case, "expect"), "message") = Json::Str(String::new());
+        assert!(
+            std::panic::catch_unwind(|| run_supplied_notation_value(&case)).is_err(),
+            "ignored an empty expected reason"
+        );
+    }
+
+    #[test]
+    fn supplied_notation_refuses_invalid_metadata_before_reading() {
+        let base =
+            parse_json(r#"{"id":"metadata","aliases":[],"document":"","expect":{"error":{"line":1,"column":1}}}"#)
+                .unwrap();
+        for change in [
+            r#"{"path":["expect","error","message"],"set":"nested"}"#,
+            r#"{"path":["expect","unknown"],"set":true}"#,
+            r#"{"path":["expect","error","line"],"set":true}"#,
+            r#"{"path":["expect","error","line"],"set":0}"#,
+            r#"{"path":["expect","error","column"],"remove":true}"#,
+            r#"{"path":["expect"],"set":{"dom":false}}"#,
+            r#"{"path":["expect","message"],"set":false}"#,
+            r#"{"path":["expect"],"set":{"dom":{},"message":"requires an error"}}"#,
+            r#"{"path":["expect","dom"],"set":{}}"#,
+            r#"{"path":["unknown"],"set":true}"#,
+            r#"{"path":["document"],"set":false}"#,
+            r#"{"path":["aliases"],"set":[{"spelling":"x","value":"y","tags":[],"unknown":true}]}"#,
+            r#"{"path":["aliases"],"set":[{"spelling":"x","value":"y","tags":[false]}]}"#,
+            r#"{"path":["aliases"],"set":[{"spelling":"x","tags":[]}]}"#,
+        ] {
+            let case = crate::test_common::apply_mutant(&base, &parse_json(change).unwrap());
+            assert!(crate::test_common::case::notation_value(&case).is_err(), "accepted invalid metadata: {change}");
+        }
+        let ordinary =
+            parse_json(r#"{"document":"","expect":{"error":{"line":1,"column":1,"message":"ordinary reason"}}}"#)
+                .unwrap();
+        assert!(
+            crate::test_common::case::notation(&ordinary).is_ok(),
+            "ordinary notation retains its nested message field"
+        );
     }
 }
 

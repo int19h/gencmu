@@ -4,8 +4,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 
 use crate::error::Error;
-use crate::json::{self, Json};
-use crate::unicode::Unicode;
+use crate::json;
+use crate::unicode::{ScalarProfile, Unicode};
 
 include!("unicode_property_catalog.rs");
 
@@ -26,9 +26,66 @@ pub(crate) struct PropertyData {
     line: usize,
 }
 
-fn catalog() -> &'static Json {
-    static DATA: OnceLock<Json> = OnceLock::new();
-    DATA.get_or_init(|| json::parse(PROPERTY_CATALOG).expect("the generated property catalog is JSON"))
+struct Catalog {
+    types: BTreeMap<String, String>,
+    values: BTreeMap<String, BTreeSet<String>>,
+    aliases: BTreeMap<String, String>,
+    tags: BTreeMap<String, (String, String)>,
+    core: BTreeSet<String>,
+    combining: Vec<String>,
+}
+
+fn catalog() -> &'static Catalog {
+    static DATA: OnceLock<Catalog> = OnceLock::new();
+    DATA.get_or_init(|| {
+        let data = json::parse(PROPERTY_CATALOG).expect("the generated property catalog is JSON");
+        let strings = |key| {
+            data.get(key)
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(key, value)| (key.clone(), value.as_str().unwrap().to_string()))
+                .collect()
+        };
+        let values = data
+            .get("values")
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .iter()
+            .map(|(key, values)| {
+                (
+                    key.clone(),
+                    values.as_array().unwrap().iter().map(|value| value.as_str().unwrap().to_string()).collect(),
+                )
+            })
+            .collect();
+        let tags = data
+            .get("tags")
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .iter()
+            .map(|(key, values)| {
+                let values = values.as_array().unwrap();
+                (key.clone(), (values[0].as_str().unwrap().to_string(), values[1].as_str().unwrap().to_string()))
+            })
+            .collect();
+        let core = data
+            .get("core")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|name| name.as_str().unwrap().to_string())
+            .collect();
+        let mut combining = vec![String::new(); 255];
+        for (class, value) in data.get("combining").unwrap().as_object().unwrap() {
+            combining[class.parse::<usize>().unwrap()] = value.as_str().unwrap().to_string();
+        }
+        Catalog { types: strings("types"), values, aliases: strings("aliases"), tags, core, combining }
+    })
 }
 
 fn error(line: Option<usize>) -> Error {
@@ -50,9 +107,6 @@ fn code(field: &str, line: usize) -> Result<u32, Error> {
 
 pub(crate) fn read_properties(text: &str, core: &Unicode) -> Result<BTreeMap<String, PropertyData>, Error> {
     let inventory = catalog();
-    let types = inventory.get("types").unwrap();
-    let core_names = inventory.get("core").and_then(Json::as_array).unwrap();
-    let domains = inventory.get("values").unwrap();
     let mut properties = BTreeMap::<String, PropertyData>::new();
     let mut pending = Vec::new();
     let mut header = false;
@@ -78,8 +132,8 @@ pub(crate) fn read_properties(text: &str, core: &Unicode) -> Result<BTreeMap<Str
             continue;
         }
         let Some(&name) = fields.get(1) else { return Err(error(Some(line))) };
-        let Some(expected) = types.get(name).and_then(Json::as_str) else { return Err(error(Some(line))) };
-        if core_names.iter().any(|value| value.as_str() == Some(name)) {
+        let Some(expected) = inventory.types.get(name).map(String::as_str) else { return Err(error(Some(line))) };
+        if inventory.core.contains(name) {
             return Err(error(Some(line)));
         }
         match fields[0] {
@@ -116,10 +170,7 @@ pub(crate) fn read_properties(text: &str, core: &Unicode) -> Result<BTreeMap<Str
         if fields[0] == "value" {
             if fields.len() != 3
                 || property.kind == "binary"
-                || !domains
-                    .get(fields[1])
-                    .and_then(Json::as_array)
-                    .is_some_and(|values| values.iter().any(|value| value.as_str() == Some(fields[2])))
+                || !inventory.values.get(fields[1]).is_some_and(|values| values.contains(fields[2]))
                 || !property.values.insert(fields[2].into())
             {
                 return Err(error(Some(line)));
@@ -148,7 +199,9 @@ pub(crate) fn read_properties(text: &str, core: &Unicode) -> Result<BTreeMap<Str
             property.ranges.push(PropertyRange { first, last, values, line });
         }
     }
-    for property in properties.values_mut() {
+    let mut declaration_order: Vec<_> = properties.values_mut().collect();
+    declaration_order.sort_by_key(|property| property.line);
+    for property in declaration_order {
         if property.defaults.iter().any(|value| !property.values.contains(value)) {
             return Err(error(Some(property.line)));
         }
@@ -176,77 +229,51 @@ pub(crate) fn read_properties(text: &str, core: &Unicode) -> Result<BTreeMap<Str
 }
 
 pub(crate) fn canonical(spelling: &str) -> Option<&'static str> {
-    static ALIASES: OnceLock<BTreeMap<String, String>> = OnceLock::new();
-    ALIASES
-        .get_or_init(|| {
-            catalog()
-                .get("aliases")
-                .unwrap()
-                .as_object()
-                .unwrap()
-                .iter()
-                .map(|(key, value)| (key.clone(), value.as_str().unwrap().to_string()))
-                .collect()
-        })
-        .get(spelling)
-        .map(String::as_str)
+    catalog().aliases.get(spelling).map(String::as_str)
 }
 
 pub(crate) fn identity(name: &str) -> Option<(&'static str, &'static str)> {
-    static TAGS: OnceLock<BTreeMap<String, (String, String)>> = OnceLock::new();
-    TAGS.get_or_init(|| {
-        catalog()
-            .get("tags")
-            .unwrap()
-            .as_object()
-            .unwrap()
-            .iter()
-            .map(|(key, value)| {
-                let xs = value.as_array().unwrap();
-                (key.clone(), (xs[0].as_str().unwrap().to_string(), xs[1].as_str().unwrap().to_string()))
-            })
-            .collect()
-    })
-    .get(name)
-    .map(|(p, v)| (p.as_str(), v.as_str()))
+    catalog().tags.get(name).map(|(property, value)| (property.as_str(), value.as_str()))
 }
 
 impl Unicode {
     pub(crate) fn canonical_tag(&self, spelling: &str) -> Option<&'static str> {
         let name = canonical(spelling)?;
         let (property, value) = identity(name)?;
-        if matches!(
-            property,
-            "General_Category" | "Canonical_Combining_Class" | "White_Space" | "Emoji_Presentation" | "Emoji_Component"
-        ) {
+        if catalog().core.contains(property) {
             return Some(name);
         }
         let data = self.properties.get(property)?;
         (data.kind == "binary" || data.values.contains(value)).then_some(name)
     }
 
-    pub(crate) fn profile(&self, code: u32) -> Vec<String> {
+    pub(crate) fn profile(&self, code: u32) -> ScalarProfile {
+        if let Some(profile) = self.profiles.lock().unwrap().get(&code) {
+            return profile.clone();
+        }
+        let profile = self.build_profile(code).into();
+        let mut profiles = self.profiles.lock().unwrap();
+        if profiles.len() >= 4096 {
+            profiles.clear();
+        }
+        profiles.entry(code).or_insert(profile).clone()
+    }
+
+    fn build_profile(&self, code: u32) -> Vec<String> {
         let category = self.category(code);
         let mut tags = vec![
             canonical(&format!("_{category}")).unwrap().to_string(),
             canonical(&format!("_{}", &category[..1])).unwrap().to_string(),
-            catalog()
-                .get("combining")
-                .unwrap()
-                .get(&self.combining_class(code).to_string())
-                .unwrap()
-                .as_str()
-                .unwrap()
-                .to_string(),
+            catalog().combining[self.combining_class(code) as usize].clone(),
         ];
         if self.is_white_space(code) {
             tags.push("_White_Space".into());
         }
-        for (prop, name) in [
-            (crate::unicode::Property::EmojiPresentation, "_Emoji_Presentation"),
-            (crate::unicode::Property::EmojiComponent, "_Emoji_Component"),
+        for (present, name) in [
+            (self.is_emoji_presentation(code), "_Emoji_Presentation"),
+            (self.is_emoji_component(code), "_Emoji_Component"),
         ] {
-            if self.has(prop, code) {
+            if present {
                 tags.push(name.into());
             }
         }
@@ -266,5 +293,30 @@ impl Unicode {
         }
         tags.sort();
         tags
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn profiles_share_safely_and_keep_table_identity() {
+        let upper = Unicode::parse("category Lu 0041 0041\n").unwrap();
+        let absent = Unicode::parse("").unwrap();
+        let profile = upper.profile(65);
+        assert!(profile.iter().any(|tag| tag == "_General_Category_Uppercase_Letter"));
+        assert_ne!(profile, absent.profile(65));
+        std::thread::scope(|scope| {
+            for _ in 0..4 {
+                scope.spawn(|| assert!(Arc::ptr_eq(&profile, &upper.profile(65))));
+            }
+        });
+        for code in 0..5000 {
+            upper.profile(code);
+        }
+        assert!(upper.profiles.lock().unwrap().len() <= 4096);
+        assert_eq!(profile, upper.profile(65));
     }
 }

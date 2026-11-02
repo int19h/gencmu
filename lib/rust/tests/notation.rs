@@ -4,7 +4,23 @@ mod common;
 
 use common::{case_files, matches, parse_json, Value};
 
+#[test]
+fn document_reader_errors_retain_the_document_name() {
+    for text in ["```jbogenbau\n%rule r A", "```jbogenbau\n%rule r $x:(A)\n```\n"] {
+        let error = gencmu::tools::read_grammar_document(text, "grammar.md").unwrap_err();
+        assert_eq!(error.document.as_deref(), Some("grammar.md"));
+    }
+}
+
+#[test]
+fn recipe_set_operator_errors_name_the_operator() {
+    let error =
+        gencmu::tools::read_grammar_document("```jbogenbau\n%rule r A := ∪ \"a\"\n```\n", "grammar.md").unwrap_err();
+    assert!(error.message.contains("set operator"), "{error}");
+}
+
 fn run(case: &Value) -> Result<(), String> {
+    common::case::notation(case)?;
     let document = case.get("document").and_then(Value::str).ok_or("a case without a document")?;
     let expect = case.get("expect").ok_or("a case without expect")?;
     match (gencmu::tools::read_grammar_document(document, ""), expect.get("dom"), expect.get("error")) {
@@ -13,9 +29,14 @@ fn run(case: &Value) -> Result<(), String> {
             matches(pattern, &dom, "dom").map_err(|problem| format!("{problem}\ndom: {json}"))
         }
         (Err(error), None, Some(position)) => {
+            if let Some(message) = position.get("message").and_then(Value::str) {
+                if error.message != message {
+                    return Err(format!("the message is {:?}, not {message:?}", error.message));
+                }
+            }
             let line = position.get("line").and_then(Value::number).map(|n| n as usize);
             let column = position.get("column").and_then(Value::number).map(|n| n as usize);
-            if (line.is_none() || error.line == line) && (column.is_none() || error.column == column) {
+            if error.line == line && error.column == column {
                 Ok(())
             } else {
                 Err(format!("the error is at {:?}:{:?}, not {line:?}:{column:?}: {error}", error.line, error.column))
@@ -66,7 +87,7 @@ fn tests_in_a_body_are_read_and_refused() {
         .collect();
     assert_eq!(tests, ["=", "=", "=", "=", "≠", "tags", "tags", "tags", "tags", "tags"], "{json}");
     assert!(dom.get("rules").is_some());
-    // The new value tests accept capitalization and tested capture targets.
+    // The value tests accept capitalization and tested capture targets.
     for accepted in [
         "%rule text A=\"A\"",
         "%rule text A=\"b,c\"",
@@ -248,4 +269,68 @@ fn every_recipe_position_instructs_the_author_to_use_concat() {
         assert!(error.message.contains("++"), "{body}: {error}");
         assert!(!error.message.to_lowercase().contains("use ++"), "{body}: {error}");
     }
+}
+
+#[test]
+fn decorated_pattern_member_order() {
+    let document = "```jbogenbau\n%const $P #·pair(\"a\")«»\n%rule f(@X) A %conditions $ ≅ #·@X«»\n```\n";
+    let json = gencmu::tools::read_grammar_document(document, "order.md").unwrap();
+    for want in [
+        r#""call":"pair","args":[{"string":"a"}],"exact":true,"children":[],"at":[2,13]"#,
+        r#""param":"X","exact":true,"children":[],"at":[3,33]"#,
+    ] {
+        assert!(json.contains(want), "missing {want} in {json}");
+    }
+}
+
+#[test]
+fn canonical_dom_member_order() {
+    let document = "```jbogenbau\n%rule f(@X) @X\n%extend-rule f(\"a\") A\n%features f %conditions $\n```\n";
+    let json = gencmu::tools::read_grammar_document(document, "order.md").unwrap();
+    for want in [
+        r#""name":"f","params":["X"],"op":"define""#,
+        r#""name":"f","args":[{"string":"a"}],"op":"extend""#,
+        r#""name":"features","args":["f"],"at":[4,1],"conditions":[{"captured":""}]"#,
+    ] {
+        assert!(json.contains(want), "missing {want} in {json}");
+    }
+}
+
+#[test]
+fn notation_expectations_select_one_outcome() {
+    let case =
+        parse_json(r#"{"document":"```jbogenbau\n%rule text \"a\"\n```","expect":{"dom":{},"error":{}}}"#).unwrap();
+    assert!(run(&case).is_err(), "both notation outcomes were accepted");
+}
+
+#[test]
+fn notation_cases_refuse_unknown_members() {
+    let case =
+        parse_json(r#"{"document":"```jbogenbau\n%rule text \"a\"\n```","expect":{"dom":{}},"unexpected":true}"#)
+            .unwrap();
+    assert!(run(&case).is_err(), "an unknown notation member was accepted");
+}
+
+#[test]
+fn shared_notation_metadata_is_well_formed() {
+    for file in case_files("notation") {
+        let case = parse_json(&std::fs::read_to_string(&file).unwrap()).unwrap();
+        common::case::notation(&case).unwrap_or_else(|error| panic!("{}: {error}", file.display()));
+    }
+}
+
+#[test]
+fn notation_error_positions_are_required() {
+    for position in [r#"{}"#, r#"{"line":2}"#, r#"{"column":15}"#, r#"{"line":0,"column":15}"#] {
+        let case = parse_json(&format!(r#"{{"document":"","expect":{{"error":{position}}}}}"#)).unwrap();
+        assert!(common::case::notation(&case).is_err(), "accepted incomplete position {position}");
+    }
+}
+
+#[test]
+fn fixture_options_require_a_stage_name() {
+    let options = parse_json(r#"{"until":""}"#).unwrap();
+    assert!(common::case::options(&options).is_err());
+    let options = parse_json(r#"{"until":"main"}"#).unwrap();
+    assert!(common::case::options(&options).is_ok());
 }

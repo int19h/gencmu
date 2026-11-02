@@ -33,6 +33,8 @@ from .shared import (
     result_problems,
     run_case,
     same_json,
+    validate_engine_case,
+    validate_engine_expect,
     witness_lost,
     write_json,
 )
@@ -43,6 +45,219 @@ AFTER_LOAD = ("result", "brackets", "warnings", "features", "enabledFeatures")
 
 
 class EngineCases(unittest.TestCase):
+    def test_name_is_required_only_for_parameter_cases(self) -> None:
+        base = {"grammar": '%rule text "a"', "input": "a", "expect": {}}
+        named = {**base, "name": "parameter control"}
+        validate_engine_case(base, complete=True)
+        validate_engine_case(named, complete=True, parameters=True)
+        self.check_fixture(named["name"], named, parameters=True)
+        for check in (lambda: validate_engine_case(named, complete=True), lambda: run_case(named),
+                      lambda: self.check_fixture("engine control", named)):
+            with self.subTest(check=check), self.assertRaisesRegex(AssertionError, "unknown members.*name"):
+                check()
+        for name in (None, 3, False, []):
+            with self.subTest(name=name), self.assertRaisesRegex(AssertionError, "case.name"):
+                validate_engine_case({**base, "name": name}, parameters=True)
+        with self.assertRaisesRegex(AssertionError, "missing members.*name"):
+            validate_engine_case(base, parameters=True)
+        with self.assertRaisesRegex(AssertionError, "missing members.*name"):
+            self.check_fixture("unnamed parameter", base, parameters=True)
+
+    def test_case_schema_refuses_unknown_members_and_wrong_metadata_types(self) -> None:
+        base = {"grammar": '%rule text "a"', "input": "a", "expect": {}}
+        changes = (
+            {"typo": True}, {"description": []}, {"name": 3}, {"grammar": []}, {"input": 7},
+            {"options": {"typo": True}}, {"options": []}, {"options": {"features": "f"}},
+            {"options": {"withoutFeatures": [False]}}, {"options": {"until": False}}, {"options": {"elisionOnly": 1}},
+            {"expect": {"typo": True}}, {"expect": []}, {"expect": {"brackets": False}},
+            {"expect": {"warnings": {}}}, {"expect": {"features": {}}}, {"expect": {"error": False}},
+            {"expect": {"enabledFeatures": "f"}}, {"expect": {"bundledPipelines": [3]}},
+            {"expect": {"diagnostic": 1}}, {"expect": {"message": None}},
+            {"expect": {"where": {"document": "main.md", "typo": 1}}},
+            {"expect": {"where": {"document": "main.md", "line": True}}},
+            {"expect": {"features": [{"name": "f", "kind": "gate", "default": 1}]}},
+            {"expect": {"warnings": [{"feature": "f", "typo": True}]}},
+            {"tokens": [{"text": "a", "tags": [], "typo": True}]},
+            {"tokens": [{"text": "a", "tags": "A"}]},
+            {"tokens": [{"text": "a", "tags": [], "source": [False, 1]}]},
+            {"tokens": [{"text": "a", "tags": [], "before": [{"text": "b", "tags": [], "typo": True}]}]},
+            {"tokens": [{"text": "a", "tags": [], "before": 1}]},
+            {"parses": []}, {"parses": {}}, {"documents": [], "pipelineDocument": "p.md"},
+            {"treeRendering": {"aliases": "LF", "text": "x", "decodedError": "usage"}},
+        )
+        for change in changes:
+            with self.subTest(change=change), self.assertRaises(AssertionError):
+                run_case({**base, **change})
+        for item in ({"options": {}, "expect": {}, "typo": True}, {"expect": []}, {"options": {}}):
+            with self.subTest(run=item), self.assertRaises(AssertionError):
+                validate_engine_case({"grammar": base["grammar"], "parses": [item]}, complete=True)
+        for case in ({"grammar": base["grammar"]}, {"expect": {}},
+                     {"documents": {"p.md": ""}, "expect": {}},
+                     {"grammar": base["grammar"], "pipeline": "lojban/cll", "expect": {}}):
+            with self.subTest(case=case), self.assertRaises(AssertionError):
+                validate_engine_case(case, complete=True)
+        # An invalid token value remains expressible in a usage case.
+        usage = {**base, "tokens": [{"text": 7, "tags": None}], "expect": {"error": "usage"}}
+        validate_engine_case(usage, complete=True)
+        for change in ({"expect": {"error": "usage", "typo": True}}, {"options": {"typo": 3}},
+                       {"tokens": [{"text": 7, "typo": True}]}):
+            with self.subTest(usage=change), self.assertRaises(AssertionError):
+                validate_engine_case({**usage, **change}, complete=True)
+
+    def test_usage_cases_refuse_malformed_control_members(self) -> None:
+        base = {"grammar": '%rule text "a"', "input": "a", "expect": {"error": "usage"}}
+        for options in ({"features": "f"}, {"features": 3}, {"features": [3]},
+                        {"withoutFeatures": "f"}, {"withoutFeatures": [False]},
+                        {"until": False}, {"until": None}, {"until": ""}, {"elisionOnly": 1}, {"elisionOnly": None}):
+            with self.subTest(options=options):
+                with self.assertRaisesRegex(AssertionError, "options\\."):
+                    run_case({**base, "options": options})
+                with self.assertRaisesRegex(AssertionError, "options\\."):
+                    validate_engine_case({"grammar": base["grammar"], "parses": [{"options": options, "expect": base["expect"]}]})
+                with self.assertRaisesRegex(AssertionError, "options\\."):
+                    parse_case(None, {**base, "options": options})
+                with self.assertRaisesRegex(AssertionError, "options\\."):
+                    parse_case(None, base, {"options": options, "expect": base["expect"]})
+        for value in (7, None, False, [], {}):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(AssertionError, "case.input"):
+                    run_case({**base, "input": value})
+                with self.assertRaisesRegex(AssertionError, "case.pipeline"):
+                    run_case({"pipeline": value, "expect": base["expect"]})
+                for field in ("input", "pipeline"):
+                    case = {field: value, "parses": [{"expect": base["expect"]}]}
+                    if field == "input":
+                        case["grammar"] = base["grammar"]
+                    with self.assertRaisesRegex(AssertionError, "case\\." + field):
+                        validate_engine_case(case)
+
+    def test_expectations_must_apply_to_the_actual_outcome(self) -> None:
+        base = {"grammar": '%rule text "a"', "input": "a"}
+        successful = run_case(base)
+        for expect in ({"where": {"document": "main.md"}}, {"diagnostic": "code"}, {"message": "reason"}, {"typo": True}):
+            with self.subTest(expect=expect), self.assertRaises(AssertionError):
+                self.check("successful parse", expect, *successful)
+        usage = run_case({**base, "options": {"until": "missing"}, "expect": {"error": "usage"}})
+        self.check("usage", {"error": "usage", "features": []}, *usage)
+        for field, value in (("result", {}), ("brackets", ""), ("warnings", []), ("enabledFeatures", []),
+                             ("where", {"document": "main.md"}), ("message", "reason"), ("diagnostic", "code")):
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                self.check("usage", {"error": "usage", field: value}, *usage)
+        load_usage = run_case({"grammar": '%rule text "\ud800"'})
+        for field, value in (("where", {"document": "main.md"}), ("message", load_usage[2].message), ("diagnostic", "code")):
+            with self.subTest(load_field=field), self.assertRaises(AssertionError):
+                self.check("load usage", {"error": "usage", field: value}, *load_usage)
+
+    def test_malformed_token_fields_reach_library_usage_validation(self) -> None:
+        for token in ({"text": 7, "tags": []}, {"tags": []}, {"text": "a"},
+                      {"text": "a", "tags": [], "before": 3}, {"text": "a", "tags": [], "after": "bad"},
+                      {"text": "a", "tags": [], "before": [{"text": 7, "tags": []}]},
+                      {"text": "a", "tags": [], "after": [{"text": "a"}]}):
+            for source in ({}, {"input": "a"}):
+                case = {"grammar": '%rule text "a"', "tokens": [token], "expect": {"error": "usage"}, **source}
+                with self.subTest(token=token, source=source):
+                    value, result, error, features = run_case(case)
+                    self.assertIsNone(value)
+                    self.assertIsNone(result)
+                    self.assertIsNotNone(features)
+                    self.assertEqual(error.kind, "usage")
+
+    def test_usage_fixtures_require_token_objects_in_attachment_lists(self) -> None:
+        for side in ("before", "after"):
+            for element in (None, False, 0, "bad", []):
+                token = {"text": "a", "tags": [], side: [element]}
+                for nested in (False, True):
+                    supplied = {"text": "a", "tags": [], side: [token]} if nested else token
+                    case = {"grammar": '%rule text "a"', "tokens": [supplied], "expect": {"error": "usage"}}
+                    with self.subTest(side=side, element=element, nested=nested), self.assertRaisesRegex(AssertionError, "token: expected an object"):
+                        self.check_fixture("attachment element", case)
+
+    def test_token_defaults_replace_only_absent_fields(self) -> None:
+        for field in ("text", "tags", "value", "image", "source", "span", "before", "after"):
+            spec = {"text": "a", "tags": [], field: None}
+            with self.subTest(field=field):
+                tokens, text = case_tokens({"tokens": [spec], "input": "original"})
+                self.assertIsNone(getattr(tokens[0], field))
+                self.assertEqual(text, "original")
+        tokens, _ = case_tokens({"tokens": [{"text": "a", "tags": [], "before": [{"text": "b", "tags": [], "span": [3, 4]}]}]})
+        self.assertEqual(tokens[0].before[0].span, [3, 4])
+        tokens, text = case_tokens({"tokens": [{"text": "ab", "tags": []}, {"text": "c", "tags": []}]})
+        self.assertEqual(text, "ab c")
+        self.assertEqual([(t.value, t.image, t.span, t.source, t.before, t.after) for t in tokens],
+                         [("ab", "ab", (0, 1), (0, 2), [], []), ("c", "c", (1, 2), (3, 4), [], [])])
+
+    def test_result_reader_refuses_invalid_json(self) -> None:
+        for text in ('{xok":true}', '{"a":1,xok":true}', 'NaN', 'Infinity', '-Infinity', '[NaN]'):
+            with self.subTest(text=text), self.assertRaises((AssertionError, ValueError)):
+                read_json(text)
+        self.assertTrue(same_json(read_json(' {"ok":true,"a":[null,1]} '), {"ok": True, "a": [None, 1]}))
+
+    def test_serialized_result_requires_quoted_member_names(self) -> None:
+        outcome = run_case({"grammar": '%rule text "a"', "input": "a"})
+        text = gencmu.to_json(outcome[1])
+        for name in ("ok", "stages"):
+            malformed = text.replace('"' + name + '"', 'x' + name + '"', 1)
+            self.assertNotEqual(malformed, text)
+            with self.subTest(name=name), patch.object(gencmu, "to_json", return_value=malformed), self.assertRaises(AssertionError):
+                self.check("invalid serialized member", {}, *outcome)
+
+    def test_feature_expectations_distinguish_booleans_from_numbers(self) -> None:
+        value, result, error, _ = run_case({"grammar": '%rule text "a"', "input": "a"})
+        for default in (False, True):
+            expected = [{"name": "f", "kind": "gate", "default": default}]
+            self.check("feature types", {"features": expected}, value, result, error, expected)
+            changed = [{**expected[0], "default": int(default)}]
+            with self.subTest(default=default), self.assertRaises(AssertionError):
+                self.check("feature types", {"features": expected}, value, result, error, changed)
+
+    def test_loading_positions_distinguish_booleans_from_numbers(self) -> None:
+        outcome = run_case({"grammar": "%rule text A\n%rule text A"})
+        error = outcome[2]
+        expect = {"error": "grammar", "where": {"document": error.document, "line": error.line, "column": error.column}}
+        self.check("loading position types", expect, *outcome)
+        self.assertEqual(error.column, 1)
+        error.column = True
+        with self.assertRaises(AssertionError):
+            self.check("loading position types", expect, *outcome)
+
+    def test_warning_expectations_distinguish_booleans_from_numbers(self) -> None:
+        value, result, error, features = run_case({"grammar": '%rule text "a"', "input": "a"})
+        warning = {"stage": "main", "feature": "f", "rule": "text", "span": [0, 1], "source": [0, 1]}
+        for field in ("span", "source"):
+            for changed in (warning, {**warning, field: [False, True]}):
+                actual = {**value, "warnings": [changed]}
+                with self.subTest(field=field, changed=changed), patch.object(gencmu, "to_json", return_value=write_json(actual)):
+                    if changed is warning:
+                        self.check("warning types", {"warnings": [warning]}, actual, result, error, features)
+                    else:
+                        with self.assertRaises(AssertionError):
+                            self.check("warning types", {"warnings": [warning]}, actual, result, error, features)
+
+    def test_json_comparisons_distinguish_booleans_from_numbers(self) -> None:
+        for left, right in ((True, 1), (False, 0), ({"a": [True]}, {"a": [1]})):
+            with self.subTest(left=left, right=right):
+                self.assertFalse(same_json(left, right))
+                self.assertFalse(same_json(right, left))
+                self.assertIsNotNone(mismatch(left, right))
+                self.assertIsNotNone(mismatch(right, left))
+        for left, right in ((1.0, 1), (0, -0.0), ({"a": [1.0]}, {"a": [1]})):
+            with self.subTest(left=left, right=right):
+                self.assertTrue(same_json(left, right))
+                self.assertTrue(same_json(right, left))
+                self.assertIsNone(mismatch(left, right))
+                self.assertIsNone(mismatch(right, left))
+
+    def test_result_patterns_refuse_error_messages_before_matching(self) -> None:
+        for pattern in (
+            {"error": {"message": "same"}},
+            {"ok": False, "error": {"message": "same"}},
+            {"stages": [{"error": {"details": [{"message": "same"}]}}]},
+        ):
+            for value in ({}, pattern):
+                with self.subTest(pattern=pattern, value=value), self.assertRaisesRegex(AssertionError, "error message"):
+                    mismatch(pattern, value)
+        self.assertIsNone(mismatch({"message": "ordinary"}, {"message": "ordinary"}))
+
     def test_whole_pipeline_cases_share_sources_but_load_fresh_pipelines(self) -> None:
         documents = {
             "memo-a.md": '```jbogenbau\n%include "../grammars/gencmu/jbogenbau/pipeline.md"\n```\n',
@@ -60,14 +275,14 @@ class EngineCases(unittest.TestCase):
             self.assertIs(load.call_args_list[1].args[0], load.call_args_list[0].args[0])
             other, error = load_case_pipeline({**case, "pipelineDocument": "memo-b.md"})
             self.assertIsNone(error)
-            self.assertNotEqual(other.stage_names, first.stage_names)
+            self.assertNotEqual(other._stage_names, first._stage_names)
             changed, error = load_case_pipeline({**case, "documents": {**documents, "memo-a.md": documents["memo-b.md"]}})
             self.assertIsNone(error)
-            self.assertEqual(changed.stage_names, other.stage_names)
+            self.assertEqual(changed._stage_names, other._stage_names)
             uncached, error = load_case_pipeline(case, use_cache=False)
             self.assertIsNone(error)
             self.assertIsNot(uncached, first)
-            self.assertEqual(uncached.stage_names, first.stage_names)
+            self.assertEqual(uncached._stage_names, first._stage_names)
             self.assertEqual(load.call_args.kwargs, {"use_cache": False})
 
     def test_cases_are_present(self) -> None:
@@ -80,20 +295,25 @@ class EngineCases(unittest.TestCase):
 
     def check_family_case(self, path: Path) -> None:
         with deadline(path.name):
-            case = load_case(path)
-            if "parses" in case:
-                # The case parses its input several times with the one
-                # loaded pipeline (tests/README.md).
-                pipeline, error = load_case_pipeline(case)
-                if pipeline is None:
-                    raise AssertionError(f"{path.name}: the pipeline did not load: {error}")
-                features = case_features(pipeline)
-                for index, run in enumerate(case["parses"]):
-                    value, result, error = parse_case(pipeline, case, run)
-                    self.check(f"{path.name} parse {index}", run["expect"], value, result, error, features)
-                return
-            value, result, error, features = run_case(case)
-            self.check(path.name, case["expect"], value, result, error, features)
+            self.check_fixture(path.name, load_case(path))
+
+    def check_fixture(self, name: str, case: dict[str, Any], *, parameters: bool = False) -> None:
+        # JavaScript checks treeRendering through its tree listing. Python
+        # checks that member's shape and runs the rest of the case.
+        validate_engine_case(case, complete=True, parameters=parameters)
+        if "parses" in case:
+            # The case parses its input several times with the one
+            # loaded pipeline (tests/README.md).
+            pipeline, error = load_case_pipeline(case)
+            if pipeline is None:
+                raise AssertionError(f"{name}: the pipeline did not load: {error}")
+            features = case_features(pipeline)
+            for index, run in enumerate(case["parses"]):
+                value, result, error = parse_case(pipeline, case, run)
+                self.check(f"{name} parse {index}", run["expect"], value, result, error, features)
+            return
+        value, result, error, features = run_case(case, parameters=parameters)
+        self.check(name, case["expect"], value, result, error, features)
 
     def check(
         self,
@@ -105,38 +325,47 @@ class EngineCases(unittest.TestCase):
         features: list[dict[str, Any]] | None,
     ) -> None:
         """Whether an outcome meets a case's expectation (tests/README.md)."""
+        validate_engine_expect(expect)
         if "bundledPipelines" in expect:
-            self.assertEqual(gencmu.bundled_pipelines(), expect["bundledPipelines"], label)
+            self.assertTrue(same_json(gencmu.bundled_pipelines(), expect["bundledPipelines"]), label)
         if features is None:
             # A pipeline that does not load gives the error alone, so a case
             # that expects anything that only a loaded pipeline gives fails
             # (tests/README.md).
             assert error is not None
-            self.assertEqual(error.kind, expect.get("error"), f"{label}: unexpected load error: {error}")
+            self.assertTrue(same_json(error.kind, expect.get("error")), f"{label}: unexpected load error: {error}")
             loaded_only = [name for name in AFTER_LOAD if name in expect]
             self.assertEqual(loaded_only, [], f"{label}: the pipeline did not load: {error}")
+            if error.kind != "grammar":
+                for field in ("message", "where", "diagnostic"):
+                    self.assertNotIn(field, expect, f"{label}: expect.{field} requires a grammar error")
+            if "message" in expect:
+                self.assertTrue(same_json(error.message, expect["message"]), label)
             if "diagnostic" in expect:
-                self.assertEqual(error.code, expect["diagnostic"], f"{label}: {error.message}")
+                self.assertTrue(same_json(error.code, expect["diagnostic"]), f"{label}: {error.message}")
             if "where" in expect:
                 # Where the error stands, in a document of the case, given
                 # only for a grammar error (tests/README.md).
-                self.assertEqual(error.kind, "grammar", f"{label}: expect.where is only for a grammar error")
-                self.assertEqual(
+                self.assertTrue(same_json(error.kind, "grammar"), f"{label}: expect.where is only for a grammar error")
+                self.assertTrue(same_json(
                     {"document": error.document, "line": error.line, "column": error.column},
                     {"line": None, "column": None, **expect["where"]},
-                    f"{label}: {error.message}",
-                )
+                ), f"{label}: {error.message}")
             return
+        for field in ("where", "diagnostic"):
+            self.assertNotIn(field, expect, f"{label}: expect.{field} requires a load error")
         if "features" in expect:
-            self.assertEqual(features, expect["features"], label)
+            self.assertTrue(same_json(features, expect["features"]), label)
         if error is not None:
             # A mistake of the caller is an error, not a result (engine §13).
-            self.assertEqual(expect.get("error"), "usage", f"{label}: unexpected usage error: {error}")
+            self.assertTrue(same_json(expect.get("error"), "usage"), f"{label}: unexpected usage error: {error}")
+            for field in ("result", "brackets", "warnings", "enabledFeatures", "message"):
+                self.assertNotIn(field, expect, f"{label}: expect.{field} requires a parse result")
             return
         assert value is not None and result is not None
         self.assertNotIn("features", value)
         if "enabledFeatures" in expect:
-            self.assertEqual(result.features, expect["enabledFeatures"], label)
+            self.assertTrue(same_json(result.features, expect["enabledFeatures"]), label)
         # A canonical result nests as deep as a case's attachments do
         # (attach-deep.json). So the runner reads, writes and compares it
         # with a list for a stack, as the library does, not with json and ==.
@@ -150,15 +379,22 @@ class EngineCases(unittest.TestCase):
         self.assertTrue(same_json(read_json(gencmu.to_json(result)), value), f"{label}: the canonical JSON reads back as another value")
         if "warnings" in expect:
             # Compared whole: [] says that there are none.
-            self.assertEqual(value.get("warnings", []), expect["warnings"], label)
+            self.assertTrue(same_json(value.get("warnings", []), expect["warnings"]), label)
         if "result" in expect:
             problem = mismatch(expect["result"], value)
             self.assertIsNone(problem, f"{label}: {problem}\n{text[:3000]}")
         if "brackets" in expect:
-            self.assertEqual(gencmu.to_brackets(result), expect["brackets"], label)
+            self.assertTrue(same_json(gencmu.to_brackets(result), expect["brackets"]), label)
+        if "message" in expect:
+            self.assertIsNotNone(value["error"], f"{label}: expect.message requires a grammar error")
+            self.assertTrue(same_json(value["error"]["kind"], "grammar"), f"{label}: expect.message requires a grammar error")
+            message = value["error"]["message"]
+            if result.error._grammar_location:
+                message = message.removeprefix(result.error._grammar_location + ": ")
+            self.assertTrue(same_json(message, expect["message"]), label)
         if "error" in expect:
             self.assertIsNotNone(value["error"], f"{label}: expected an error\n{text[:2000]}")
-            self.assertEqual(value["error"]["kind"], expect["error"], label)
+            self.assertTrue(same_json(value["error"]["kind"], expect["error"]), label)
         else:
             self.assertIsNone(value["error"], f"{label}: unexpected error\n{text[:2000]}")
 
@@ -222,6 +458,50 @@ class EngineCases(unittest.TestCase):
             self.assertTrue(same_json(load_case(path)["expect"]["result"], value))
         changed = apply_mutant({"error": None}, {"path": ["error"], "set": value})
         self.assertTrue(same_json(changed["error"], value))
+
+    def test_the_runner_refuses_wrong_agreed_error_reasons(self):
+        for name in ("unicode-categories-conflict.json", "suffix-recursion-local.json"):
+            fixture = load_case(Path(__file__).resolve().parents[3] / "tests" / "engine" / name)
+            outcome = run_case(fixture)
+            self.check(name, fixture["expect"], *outcome)
+            with self.assertRaises(AssertionError):
+                self.check(name, {**fixture["expect"], "message": "a wrong reason"}, *outcome)
+
+    def test_runtime_reasons_remove_only_the_structured_location(self) -> None:
+        reason = "an item of braces in text can match no tokens"
+        cases = [
+            {"grammar": "%rule text {ε}", "input": ""},
+            {"documents": {
+                "p.md": '```jbogenbau\n%stage main\n%include "g:7: part.md"\n```',
+                "g:7: part.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {ε}\n```",
+            }, "pipelineDocument": "p.md", "input": ""},
+        ]
+        for case in cases:
+            outcome = run_case(case)
+            value, result, _, _ = outcome
+            message = value["error"]["message"]
+            serialized = gencmu.to_json(result)
+            with self.subTest(case=case):
+                self.check("runtime reason", {"error": "grammar", "message": reason}, *outcome)
+                for wrong in (message, "a wrong reason"):
+                    with self.assertRaises(AssertionError):
+                        self.check("runtime reason", {"error": "grammar", "message": wrong}, *outcome)
+                self.assertEqual(result.error.message, message)
+                self.assertEqual(gencmu.to_json(result), serialized)
+                self.assertNotIn("document", value["error"])
+                self.assertNotIn("line", value["error"])
+                self.assertNotIn("column", value["error"])
+
+    def test_unlocated_runtime_reasons_keep_location_like_text(self) -> None:
+        fixture = load_case(Path(__file__).resolve().parents[3] / "tests/engine/split-empty-delimiter-runtime-message.json")
+        value, result, error, features = run_case(fixture)
+        for reason in ("split has an empty delimiter", "g:7: part.md:3:1: a reason"):
+            result.error.message = reason
+            value = gencmu.result_json(result)
+            self.check("unlocated reason", {"error": "grammar", "message": reason}, value, result, error, features)
+            for wrong in ("wrong reason", "a reason"):
+                with self.assertRaises(AssertionError):
+                    self.check("unlocated reason", {"error": "grammar", "message": wrong}, value, result, error, features)
 
     def test_a_load_error_meets_only_an_expectation_of_the_error(self) -> None:
         # The runner fails a case whose pipeline does not load, when the case

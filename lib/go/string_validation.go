@@ -4,59 +4,29 @@ import "unicode/utf8"
 
 // These checks use final constants, including declarations in replaced
 // definitions. The cached DOM retains its original unresolved terms.
-func (g *stageGrammar) validateStringUses(doc string, r *domRule) *Error {
-	stringUse := func(t *domTerm) *Error {
-		if ty, f := termTypeIn(t, g.constantTypes()); f != nil {
-			return g.faultError(doc, f.node, r.At, f.problem)
-		} else if ty != tyString {
-			return g.faultError(doc, t, r.At, "a string operand resolves to a non-string constant")
+func (g *stageGrammar) validateStringRange(doc string, terms [2]*domTerm, at [2]int) *Error {
+	var ends [2]rune
+	complete := true
+	for i, t := range terms {
+		if valueHasSource(t) {
+			complete = false
+			continue
 		}
-		return nil
+		value, err := g.evaluateClosed(doc, t, at)
+		if err != nil {
+			return err
+		}
+		if utf8.RuneCountInString(value.s) != 1 {
+			return g.faultError(doc, t, at, "a range endpoint is one scalar")
+		}
+		ends[i], _ = utf8.DecodeRuneInString(value.s)
 	}
-	for _, recipe := range ruleRecipes(r) {
-		for _, atom := range recipe.Items {
-			if stringTermShape(atom) {
-				if err := stringUse(atom); err != nil {
-					return err
-				}
-			}
+	if complete && ends[0] > ends[1] {
+		where := at
+		if references := constRefs(terms[0], terms[1]); len(references) > 0 {
+			where = references[0].At
 		}
-	}
-	for _, a := range r.Alternatives {
-		stack := []*domExpr{a.Expr}
-		for len(stack) > 0 {
-			e := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-			if e == nil {
-				continue
-			}
-			if e.Kind == exLiteral {
-				if err := stringUse(e.Value); err != nil {
-					return err
-				}
-			}
-			if e.Kind == exRange {
-				var ends [2]rune
-				for i, t := range e.Ends {
-					if err := stringUse(t); err != nil {
-						return err
-					}
-					v, err := g.evaluateClosed(doc, t, r.At)
-					if err != nil {
-						return err
-					}
-					if utf8.RuneCountInString(v.s) != 1 {
-						return g.faultError(doc, t, r.At, "a range endpoint resolves to more or fewer than one scalar")
-					}
-					ends[i], _ = utf8.DecodeRuneInString(v.s)
-				}
-				if ends[0] > ends[1] {
-					return g.faultError(doc, e.Ends[0], r.At, "a range starts above its end")
-				}
-			}
-			stack = append(stack, e.Inner, e.Sep)
-			stack = append(stack, e.Items...)
-		}
+		return g.constError(doc, where, "a range starts above its end")
 	}
 	return nil
 }

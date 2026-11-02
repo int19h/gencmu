@@ -8,7 +8,9 @@ JSON member names are case-sensitive. Names that differ in case are distinct mem
 
 ## Canonical JSON
 
-Canonical JSON is UTF-8 JSON with integers only. A library leaves out an optional member that is absent. It never writes `null` for it, unless this document says otherwise. Every library writes canonical JSON with its own code, because the Rust standard library has no JSON writer.
+Canonical JSON is UTF-8 JSON with integers only. An integer member has no fraction or exponent in its JSON spelling. A library leaves out an optional member that is absent. It never writes `null` for it, unless this document says otherwise. Every library writes canonical JSON with its own code, because the Rust standard library has no JSON writer.
+
+Serialization applies the witness gates even to caller-built results. An error witness requires both kind `ambiguous` and reason `elision-only`.
 
 Single-guillemet escapes belong to notation strings printed in names and diagnostics. JSON serialization still preserves the actual member values with ordinary JSON quoting. A notation string inside a JSON member therefore has both its notation spelling and the surrounding JSON string encoding.
 
@@ -82,6 +84,8 @@ The [pipeline guide](pipelines.md#phoneme-values-and-stress) describes the bundl
 
 A list that flat braces read has no node of its own. Each level of a chain is a `rule` node of the chain's rule (engine §12). So braces add no kind of node.
 
+The JSON value returned by a formatter owns its arrays independently of the input result.
+
 A token node's `token` indexes the stage-input token it reads. `terminal` records canonical terminal identity, such as `KOhA`, `"a"`, `"a".."z"`, or `_`. Tests do not change that identity. Constants expand to their string identity. Read witnesses and expected lists use the same spelling.
 
 An equality-tested elided node records the saved operand as `value`, after `source`. It preserves an explicit empty operand as `value:""`. All other nodes omit this member. Canonical tree comparisons include saved `value`. This metadata does not change the empty value that an omitted pattern leaf observes.
@@ -149,11 +153,11 @@ For example, `text → [[X]]` on the empty input ties, and both readings are `{"
 
 A mistake of the caller is not a result. It is an error of kind `usage` (engine §13).
 
-`line` and `column` count from 1, in code points. Lines end at `\n`, `\r\n` or `\r`.
+`line` and `column` count from 1, in code points. Lines end at `\n`, `\r\n` or `\r`. A position at the LF of a CRLF remains on the line that the pair ends. Its column counts the preceding CR.
 
 At the end of a stage's input, a rejection has `token` equal to the number of input tokens. Its `source` is `[S,S]`. `S` is the source end of the last stage-input token, or 0 if there are no input tokens. Its `line` and `column` locate `S` in the original text. The original text can continue after `S` (engine §4, §12).
 
-`expected` lists terminals in code point order. The library writes a tested terminal as the terminal followed by its test, as in `LE="la"`, and sorts it by that text. So `LE` comes before `LE="la"`, which comes before `LEhU`. Each terminal comes with the rules whose items can read it at that position, also in code point order. `message` is the description for people, and the shared tests do not compare its wording.
+`expected` lists terminals in code point order. The library writes a tested terminal as the terminal followed by its test, as in `LE="la"`, and sorts it by that text. So `LE` comes before `LE="la"`, which comes before `LEhU`. Each terminal comes with the rules whose items can read it at that position, also in code point order. `message` is the description for people. Shared cases can pin an agreed reason with `expect.message` (`tests/README.md`).
 
 Expected-terminal diagnostics use exact value tests and signed tag tests. Constants expand to resolved strings or requirements. Requirements sort by tag name in code point order. For one name, the positive requirement comes first. Duplicate requirements of one sign collapse.
 
@@ -164,6 +168,12 @@ Examples are `KOhA<UI Word>`, `KOhA<¬UI>`, `LE≠"lo"`, `X<¬A B>`, and `X<A>="
 ### Loading errors
 
 A grammar that fails to load produces an error alone, outside any parse result. Its kind is `grammar`. The error has `document`, `line`, and `column` where known. A tie in a notation stage has `document`, with no `line` or `column` (engine §8).
+
+Every error raised while splicing a selected stage carries that stage, including include and stage-selector errors. Every stitching error carries `stage`. Missing resolution and start rule errors have no document or position.
+
+An unreadable include with no source line reports the include directive's position. A positioned error keeps its location. Relocation preserves the other diagnostic fields.
+
+Engine §2 specifies common stitching and classifier messages. Existing unit tests pin those messages. Other wording stays library-specific unless this specification states otherwise.
 
 Ranked loading errors have these members, in this order:
 
@@ -189,9 +199,11 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. The per-family preparsed files hold this data, including the entries that bootstrap the notation reader.
 
-Its envelope is `{"format":40,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be positive integers.
+Its envelope is `{"format":40,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
 
 `format` is the version of the DOM, 40. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
+
+An optional member is absent only when its key is absent. A present `null` does not replace an omitted member. Every present member must satisfy its stated form, including exclusive targets and optional clauses.
 
 A written literal joins its decomposed text runs with exact decoded escapes. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9.
 
@@ -208,11 +220,13 @@ A rule has this form, in canonical member order:
 
 `flags` is `[]`, `["leftmost-longest"]` or `["fewest"]`. An extension always has `[]` in the document DOM, but inherits the stitched rule's flag (engine §2). Unknown values, duplicate flags and flags on extensions are errors. An item with `op: "define"` or `op: "redefine"` and `flags: []` gives the stitched rule no flags.
 
+Rules have no members beyond the forms shown here, including the template and instance forms below.
+
 `alternatives` is nonempty on body definitions. A rule name is lowercase or one valid emoji scalar (engine §9.1).
 
 A template body definition adds `"params":["Left","Right"]` immediately after `name`. The names exclude `@` and obey engine §2.3. A template has at least one distinct parameter. Its other fields follow the ordinary rule schema.
 
-An exact instance edit uses `"name":"pair","args":[ARG,ARG...]` instead of `params`. Its `op` is `redefine` or `extend`. A public-name edit uses the ordinary rule shape and resolves to that instance during stitching. Parameters and concrete arguments cannot mix in a head.
+An exact instance edit uses `"name":"pair","args":[ARG,ARG...]` instead of `params`. The `args` member also follows `name` immediately. Its `op` is `redefine` or `extend`. A public-name edit uses the ordinary rule shape and resolves to that instance during stitching. Parameters and concrete arguments cannot mix in a head.
 
 A binding has exactly this shape:
 
@@ -268,6 +282,8 @@ A requirement-list argument splices only into an unnegated requirement placehold
 These forms remain unresolved in document caches. Supplied, cached, and source DOMs undergo the same binder, argument, expansion, and ordinary validation. Calls add one depth level before their arguments. Category wrappers add no depth, and parameters are leaves. Expanded definitions also obey the depth limit.
 
 An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM,"value":RECIPE,"image":RECIPE}`. Its three clause members are optional. `guards` is present even when empty. A guard is `{"feature":"cbm","kind":"gate","negated":false}` or `{"feature":"y-cmavo","kind":"warning","negated":false}`. A gate can have `negated:true`. A warning cannot.
+
+Alternatives have no members beyond `guards`, `expr`, `tags`, `value`, and `image`.
 
 A guard's feature is a feature name as engine §9.1 defines it, and a guard has no member but these three. The first guard spells `cbm?`, and its negated form spells `¬cbm?`. The second spells `y-cmavo!`.
 
@@ -451,7 +467,7 @@ A constant is `{"name":"SU-STOPS","op":"define","value":TERM,"at":[line,column]}
 
 A classifier is `{"name":"lexicon","entries":[ENTRY...],"at":[line,column]}`. Its name begins with `a` to `z`. `entries` can be empty, for a `%classifier` with no entry.
 
-An entry is `{"guards":[GUARD...],"keys":[STRINGTERM...],"op":"∈","class":"KOhA","at":[line,column]}`. Guards are gates only. Keys are nonempty in count, but an individual string can be empty. Source classifier keys are string literals or string constants. The operator is `∈` or `∉`. The class starts and ends with capitals and never starts with `_`.
+An entry is `{"guards":[GUARD...],"keys":[STRINGTERM...],"op":"∈","class":"KOhA","at":[line,column]}`. Guards are gates only. Keys are nonempty in count, but an individual string can be empty. Source classifier keys are string literals or string constants. The operator is `∈` or `∉`. The class starts and ends with uppercase ASCII letters and never starts with `_`.
 
 An entry's `at` is the line and column of its first token, where the loader reports an error of the entry (engine §2).
 
@@ -463,7 +479,7 @@ A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`. A names 
 
 Directive names are `stage`, `extend-stage`, `redefine-stage`, `include`, `names`, `features`, and `ambiguity-resolution`. Stage selectors take one lowercase name. Includes and names declarations take one decoded path each. Names declarations precede all other kinds of statement in their document (engine §1). Features take at least one feature name as engine §9.1 defines it. Ambiguity resolution takes `greedy`, `lazy`, or `late-elision`, optionally followed by `elision-only`.
 
-A `features` directive can add `"conditions":[COND,COND...]`, with at least one condition. Other directives cannot have this member.
+A `features` directive can add `"conditions":[COND,COND...]`, with at least one condition. In canonical output, this member follows `at`. Other directives cannot have this member.
 
 An absent `conditions` member denotes an unconditional declaration. A present empty array is malformed.
 
@@ -476,6 +492,8 @@ A library ignores unknown members of a directive. Its known members, `name`, `ar
 DOMs store unresolved references and source positions, never stage-resolved constant or classifier values. Source, cached, and supplied DOMs obey the same arity, type, capture, clause, and depth rules.
 
 ### Pattern values
+
+Pattern tag requirements must resolve to tag sets, as ordinary symbol requirements do.
 
 PATTERN tests one structural tree. An item consumes part of an ordered list of siblings. A pattern term has exactly one member, `pattern`, whose value is a PATTERN. Pattern terms also support `const`, `union`, `intersection`, `difference`, and contextual `emptySet`. Mixed pattern and tag-set operations are malformed.
 
@@ -499,7 +517,9 @@ An undecorated node test has one of these forms:
 
 TERMINALATOM is an undecorated `terminal`, `literal`, `range`, `wildcard`, or string-valued `constant`. Before substitution, it can also be a declared `param` that must become a terminal atom. TESTTARGET is TERMINALATOM or exactly one tag test on TERMINALATOM. The source order is tag then value. These inner objects carry no `exact` or `children` fields.
 
-A node test can add `"exact":true`, then `"children":[ITEM...]` where permitted below. If the object has an `at` member, that member follows both additions. Both additions are optional. `exact` occurs only as true and suppresses the search for that node alone. `children` always records the written guillemets, including an empty or one-item array. Its absence imposes no child constraint.
+A node test can add `"exact":true`, then `"children":[ITEM...]` where permitted below. If the object has an `at` member, that member follows both additions. This order also applies to calls and parameters before expansion. Both additions are optional.
+
+`exact` occurs only as true and suppresses the search for that node alone. `children` always records the written guillemets, including an empty or one-item array. Its absence imposes no child constraint.
 
 Only `name`, `call`, and compatible `param` node tests accept `children`. A terminal, `wildcard`, tested atom, or string-valued `constant` cannot carry that member. Every node-test form can carry `exact:true`. On a tested atom, the exact prefix belongs to the outermost test object, never its inner `expr`.
 
@@ -626,6 +646,8 @@ The names dependency of a cached document is a resource map. If source conversio
 
 The required `gencmu.json` omits the `bootstrap` header member. The hash of its complete text supplies that fingerprint for every other family. The notation reader uses its required entries without checking their source text hashes. Ordinary cache lookups still compare all other applicable identity members. Each document key selects its own family's preparsed file (engine §8), besides the required `gencmu.json`. Missing or malformed optional files give cache misses.
 
+JSON integers have no leading zero except `0` and `-0`. A `\u` escape holds exactly four ASCII hexadecimal digits.
+
 For an ordinary entry, a library compares format, bootstrap fingerprint, core-table hash, properties fingerprint, and document hash. The bootstrap file supplies its own fingerprint implicitly. `properties` hashes the complete properties-file text. If a custom core has no companion, the fingerprint is `null`. Even for documents naming no additional property, the member is mandatory. A custom properties file causes unavoidable cache misses against bundled entries with a different fingerprint.
 
 `bundledNames` records the bundled standard names file and every bundled extra, with normalized paths in code-point order. Each value hashes the pinned resource text. Caller replacements never change this registry. Present resource keys require full comparison even if the supplied text matches a registered hash. Absent keys can use the registry even in a portable map.
@@ -652,7 +674,7 @@ A hollow rule node, such as an empty slot for a free modifier, has no token and 
 
 Tree patterns do not change bracket grouping. The renderer applies the rules below after it decides whether to show elided terminators. Brackets write the tree of the final stage as nested groups:
 
-1. The image of a token node is the image of its token (engine §5). Grammar image recipes supply pause spaces and verbatim quote spelling. An image can itself be empty, and the renderer keeps it. The image of an elided node is empty, unless elided terminators are shown. In that case, the image is the terminal in lower case between `⟨` and `⟩`.
+1. The image of a token node is the image of its token (engine §5). Grammar image recipes supply pause spaces and verbatim quote spelling. An image can itself be empty, and the renderer keeps it. A token index outside the stage input renders an empty leaf. The image of an elided node is empty, unless elided terminators are shown. In that case, the image is the terminal in ASCII lower case between `⟨` and `⟩`.
 2. A token node whose token has attachments renders as a group. Its members are the token's before-attachments, the token's image, and its after-attachments, in that order. Each attachment renders in the same way: as its image, or as a group if it has attachments of its own.
 3. The renderer renders the children of a rule node and drops the empty ones. An empty child is an elided node that is not shown, or a rule node that renders nothing. A token node is never empty.
 
@@ -671,7 +693,7 @@ The tree has one node per line, and children are indented two spaces under their
 - A token node is its terminal, then its image from above in quotes. The quoted image uses the canonical string escapes of engine §9.1. For example, a line feed is `‹LF›`.
 - The attachments of a token node follow it, each on a line of its own, indented two spaces more than the node. The before-attachments come first, each after `◂ `, and then the after-attachments, each after `▸ `. These marks differ from the ` › ` that joins a chain of rule nodes.
 
-  An attachment is its classes, then its image in quotes with the same escapes. Its classes are its tags that start and end with a capital and never start with `_`, in code point order, joined by ` ∪ `. An attachment with no class is its quoted image alone. Its own attachments follow it in the same way, indented two spaces more.
+  An attachment is its classes, then its image in quotes with the same escapes. A class tag starts and ends with an uppercase ASCII letter and never starts with `_`. Class tags appear in code point order, joined by ` ∪ `. An attachment with no class is its quoted image alone. Its own attachments follow it in the same way, indented two spaces more.
 - An elided node is its terminal in angle brackets.
 
 The tree renderer writes chains of rule nodes with one child on one line. It joins them with ` › `. So in the `lojban/cll` pipeline, the token node of `mi` in `mi ui nai klama` has these lines, at the indentation of the node:

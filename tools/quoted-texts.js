@@ -196,7 +196,7 @@ export function documentPipelines(base = root, doms = repositoryDoms(base)) {
       const directives = (doms.get(file) || { directives: [] }).directives;
       for (let index = directives.length - 1; index >= 0; index--) {
         // The path as the pipeline resolves it (lib/js/src/splice.js), so
-        // a `..` above the grammars drops out there as here.
+        // leading parent segments remain there as here.
         if (directives[index].name === "include") stack.push(resolvePath(file, directives[index].args[0]));
       }
     }
@@ -404,7 +404,7 @@ function corpusCases(base) {
   const corpus = path.join(base, "tests", "corpus");
   for (const file of fs.readdirSync(corpus).filter((name) => name.endsWith(".jsonl")).sort()) {
     for (const line of fs.readFileSync(path.join(corpus, file), "utf8").split("\n")) {
-      if (line.trim()) cases.push(JSON.parse(line));
+      if (!/^[ \t\r]*$/.test(line)) cases.push(JSON.parse(line));
     }
   }
   return cases;

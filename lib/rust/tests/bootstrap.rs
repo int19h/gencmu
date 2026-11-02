@@ -304,13 +304,22 @@ fn bootstrap_errors_name_the_bootstrap_document() {
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar, "{description}: {error}");
         assert_eq!(error.document.as_deref(), fixtures.get("document").and_then(Value::str), "{description}: {error}");
         let document = fixtures.get("document").and_then(Value::str).expect("document");
-        assert!(error.message.starts_with(&format!("{document}:")), "{description}: {error}");
-        assert_eq!(error.to_string(), error.message, "{description}");
+        assert!(error.to_string().starts_with(&format!("{document}:")), "{description}: {error}");
+        assert!(!error.message.starts_with(&format!("{document}:")), "{description}: {error}");
+        assert_eq!(error.to_string().matches(&format!("{document}:")).count(), 1);
+        if let Some(stage) = &error.stage {
+            assert!(error.to_string().contains(&format!("stage {stage}: ")));
+        }
         if let Some(context) = item.get("context").and_then(Value::str) {
             assert!(error.message.contains(context), "{description}: {error}");
         }
         if let Some(message) = item.get("message").and_then(Value::str) {
             assert!(error.message.contains(message), "{description}: {error}");
+        }
+        if item.get("stage").and_then(Value::str).is_none()
+            && !item.get("message").and_then(Value::str).unwrap_or("").starts_with("stage ")
+        {
+            assert!(!error.message.starts_with("stage "), "{description}: {error}");
         }
         assert_eq!(error.stage.as_deref(), item.get("stage").and_then(Value::str), "{description}: {error}");
         // The place of the error, by the text that stands there in its

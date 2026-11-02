@@ -246,7 +246,3 @@ func templateBodyText(n templateObject, uni *unicodeTable, parent string) string
 	}
 	return templateCanonical(n, uni)
 }
-
-func templatePatternText(n templateObject, uni *unicodeTable) string {
-	return layeredPatternText(n, func(n templateObject) string { return templateCanonical(n, uni) }, false)
-}

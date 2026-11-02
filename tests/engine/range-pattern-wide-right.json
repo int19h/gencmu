@@ -1,0 +1,13 @@
+{
+  "description": "range pattern wide right.",
+  "grammar": "%const $A \"a\"\n%const $B \"ab\"\n%const $P #$A..$B\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 16
+    }
+  }
+}
