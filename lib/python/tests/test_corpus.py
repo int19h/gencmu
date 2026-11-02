@@ -14,6 +14,7 @@ from pathlib import Path
 import sys
 import time
 import unittest
+from unittest.mock import patch
 from typing import Any, Callable
 
 from .shared import (
@@ -165,6 +166,8 @@ class Corpus(unittest.TestCase):
         corpus case, and refuses each shared mutant (tests/README.md,
         "Result mutants"). Each corpus case that expects a tie must also pass
         without a mutation."""
+        tied = [case for case in all_cases() if "ties" in case]
+        self.assertTrue(tied, "no corpus cases expect a tie")
         for mutant in result_mutants():
             with self.subTest(mutant=mutant["name"]):
                 pipeline, load_error = load_case_pipeline(mutant["engine_case"])
@@ -175,9 +178,12 @@ class Corpus(unittest.TestCase):
                 outcome({}, result=result)
                 with self.assertRaisesRegex(AssertionError, "breaks an invariant"):
                     outcome({}, lambda value: apply_mutant(value, mutant), result=result)
-        for case in all_cases():
-            if "ties" in case:
-                self.assertIsNone(mismatch(case, outcome(case)))
+        for case in tied:
+            self.assertIsNone(mismatch(case, outcome(case)))
+
+    def test_tie_control_selection_is_required(self) -> None:
+        with patch(__name__ + ".all_cases", return_value=[]), self.assertRaisesRegex(AssertionError, "no corpus cases expect a tie"):
+            self.test_a_result_that_breaks_an_invariant_is_refused()
 
     def test_the_runner_refuses_the_error_elision_witness_lost(self) -> None:
         """The runner fails a corpus case whose result is the error
