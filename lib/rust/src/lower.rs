@@ -2488,7 +2488,7 @@ mod tests {
     type ChoiceCase = (&'static str, Choice, [(Mutant, Work); 2]);
 
     /// The rules of the choices whose work grows with n and the output.
-    /// Each has the mutants that keep an old scan of every part or item
+    /// Each has the mutants that scan every part or item
     /// for each production, with the count that each stops at.
     fn choices() -> [ChoiceCase; 3] {
         [
@@ -2540,7 +2540,7 @@ mod tests {
         }
     }
 
-    /// Each old scan of every part or item for each production stops at
+    /// Each scan of every part or item for each production stops at
     /// the first count past the budget of the larger run.
     #[test]
     fn scans_of_every_part_for_each_production_stop_at_the_budget() {

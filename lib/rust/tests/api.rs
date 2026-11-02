@@ -1118,7 +1118,7 @@ fn ranked_diagnostics_match_with_a_dom_cache() {
         .collect::<BTreeMap<_, _>>();
     let dom = gencmu::tools::read_grammar_document(&grammar(text), "").unwrap();
     let mut cached = sources.clone();
-    // The source alone now loads. Only the cached DOM retains the export error.
+    // The cache source has no export error. The cached DOM retains that error.
     let clause = ":: $x ⟹ ($x.tags ∪ $K)";
     let padding = " ".repeat(clause.chars().count() - ":: ∅".chars().count());
     let cache_source = text.replace(clause, &format!(":: ∅{padding}"));
