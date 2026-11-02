@@ -191,6 +191,8 @@ A shared case shows that a library is wrong where it fails. It cannot show that 
 - The JavaScript library holds the full table. Its faults cover each observer of engine §7.5, the tags of synthetic tokens, and the routes and strictness of §7.4. They cover projection, queries (§7.6), cycles and ways to lose W(D). They also cover the order of steps 3 and 4 of §4. `lib/js/test/faults.json` names the cases that must catch each fault, and records every catch.
 - Each other library has faults of its own paths. Some are paths that JavaScript does not have, such as a ranker that rebuilds the check's links from completed spans and applies the tests there. Others are paths that every library has in a form of its own. Examples are the strictness of route 3, a restoration's test, and the ways to lose W(D). Another is the processing again of an item that an ordinary step reaches after it was processed as strict. Its own tests name, for each fault, the shared cases that catch it.
 
+A crash fails the fault test. It does not count as a catch through the result or the witness hook.
+
 Each library's fault test must establish three facts about each fault:
 
 - How a case catches it: The test runs each named case twice. It examines the result alone and the witness hook alone, so each test stands on its own. The catch is `result` where only the result fails the case, `hook` where only the hook does, and `result+hook` where both do. Each library has a fault whose only catch is `hook`, a mutation that the result alone does not show. An example is a count that skips W(D)'s edge where its item has siblings.
@@ -268,6 +270,8 @@ A caller can supply its own `data/preparsed/gencmu.json` (`docs/api.md`). Its no
 - With the bundled bootstrap, the outcomes are `control`.
 - Then each rule of the bundled bootstrap's syntax document, except `text`, gets a wrapper: a new rule whose one alternative is a reference to it. Every reference to the rule in that document becomes a reference to its wrapper. The outcomes are `control` again.
 - Then each rule except `text` gets a name with `x` appended, in turn. The definition and every reference use that name. A rule named in `loads` gives a pipeline, and the outcomes are those of `loads`. Any other rule gives the load error `grammar`. No other error escapes the library.
+
+Both transformations include `ref` references and `rule` query arguments. A query argument follows the same renamed rule or wrapper as a direct reference.
 
 Each item of `extraParts` changes a rule of either notation stage. Its `find` stands once in the bundled bootstrap. The item's bootstrap has `replace` in that place ("Places in fixtures"). Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
 
