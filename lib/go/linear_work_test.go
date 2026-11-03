@@ -282,6 +282,9 @@ func TestCaptureValidationPrefixMutation(t *testing.T) {
 // share, are checked and given their constants' values once, not once for
 // each alternative (engine §2, §9).
 func TestSharedClausesOnce(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
 	for _, n := range []int{100, 400} {
 		alts := strings.TrimSuffix(strings.Repeat(`{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}},`, n), ",")
 		conds := strings.TrimSuffix(strings.Repeat(`{"op":"=","left":{"method":"source-text","receiver":{"capture":"x"},"args":[]},"right":{"const":"K","at":[3,1]}},`, n), ",")

@@ -24,6 +24,8 @@ type production struct {
 	logicalGroups     []logicalGroup
 	helperExpression  *domExpr // the written helper site, shared by split routes
 	sourceAlternative *sAlt
+	treeRequested     bool
+	observesTrees     bool
 	closeRequested    bool
 	observesCloses    bool
 	base              *production
@@ -103,6 +105,8 @@ type lrule struct {
 }
 
 type lowered struct {
+	treeSites       []treeSite
+	treeDemands     map[*production]*treeDemand
 	profileOnce     sync.Once
 	profilePossible bool
 	stringsOnce     sync.Once
@@ -328,6 +332,10 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 	l.computeCycles()
 	l.elidable, l.anyElidable = elidableHelpers(l)
 	l.prepareRanked()
+	if g.treeComparisons {
+		l.prepareTreeDemands()
+		l.checkTreeCycles(lw.structural)
+	}
 	return l
 }
 

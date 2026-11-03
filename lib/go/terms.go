@@ -10,6 +10,8 @@ import (
 // Terms and conditions (engine §10).
 
 type spanVal struct {
+	tree         int
+	treeReader   func() int
 	rootName     string
 	rootPrefix   int
 	emitted      [2]string
@@ -68,6 +70,7 @@ func (ev *evaluator) in() *interner { return ev.run.ps.in }
 // tag term that gives them runs on first use, as part of the evaluation
 // that reads them, and only where a condition reads them (§4).
 type lazyTags struct {
+	tree        *treeState
 	parent      bool
 	r           *recognizer
 	p           *production
@@ -320,7 +323,7 @@ func (w *walk) fillLazy(s spanVal) bool {
 	case term != nil:
 		f := w.top()
 		f.c, f.t, f.lazy = nil, nil, lz
-		w.push(r.run.evaluator(r.g, r.captureFunc(p, lz.caps, lz.origin, lz.end, nil, lz.structure, lz.closes)), nil, term)
+		w.push(r.run.evaluator(r.g, r.captureFunc(p, lz.caps, lz.origin, lz.end, nil, lz.tree, lz.structure, lz.closes)), nil, term)
 		return true
 	case p.implicit && !lz.parent:
 		lz.tags = r.run.ps.in.all[lz.caps.at(p.capSlot[p.inheritIndex]).tags]
@@ -562,6 +565,18 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 	case cdCompare:
 		if c.Op == "≅" || c.Op == "≇" {
 			s := w.span(ev, c.Left)
+			if c.Right.Kind == tmCapture {
+				right := w.span(ev, c.Right)
+				leftIdentity, rightIdentity := s.tree, right.tree
+				if s.treeReader != nil {
+					leftIdentity = s.treeReader()
+				}
+				if right.treeReader != nil {
+					rightIdentity = right.treeReader()
+				}
+				w.endCond((leftIdentity != 0 && leftIdentity == rightIdentity) == (c.Op == "≅"))
+				return nil
+			}
 			p := c.Right.Pattern
 			if c.Right.Kind == tmConst {
 				p = c.Right.value.pattern
@@ -885,7 +900,7 @@ func (run *stageRun) qualifiedProofs(rec *recognizer) []qualifiedProof {
 	tags := map[*item]*tagset{}
 	for _, set := range rec.sets {
 		for key, c := range set.syms {
-			if key.rule == rec.query.start && key.origin == 0 && key.requested && (rec.boundaries == nil || rec.boundaries.accepts(c.boundary, func(*boundaryLiteral) {})) {
+			if key.rule == rec.query.start && key.origin == 0 && key.requested == closeObservation && (rec.boundaries == nil || rec.boundaries.accepts(c.boundary, func(*boundaryLiteral) {})) {
 				items = append(items, c.items...)
 				for _, it := range c.items {
 					tags[it] = c.tags

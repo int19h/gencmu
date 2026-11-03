@@ -2167,6 +2167,9 @@ func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 			return f
 		}
 		if c.Op == "≅" || c.Op == "≇" {
+			if right == tySpan && c.Right.Kind != tmCapture {
+				return &typeFault{"a tree comparison requires a pattern or a bare capture on its right", c.Right}
+			}
 			if c.Left.Kind == tmCapture && c.Right.Kind == tmCapture && c.Left.Str == c.Right.Str {
 				return &typeFault{"a constituent comparison requires two different captures", c}
 			}

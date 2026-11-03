@@ -349,7 +349,7 @@ func (r *recognizer) finishStringsIn(key *itemKey, end int32, enclosing func(str
 			} else {
 				capture := enclosing
 				if capture == nil {
-					capture = r.captureFunc(p, r.caps(key), key.origin, end, nil)
+					capture = r.captureFunc(p, r.caps(key), key.origin, end, nil, key.tree)
 				}
 				capture = withStringCapture(capture, get)
 				ev := r.run.evaluator(r.g, capture)
@@ -384,7 +384,7 @@ func (r *recognizer) conditionStrings(key itemKey, end int32) [2]string {
 		values[channel] += key.emitted[channel]
 	}
 	parent := itemKey{prod: &root, dot: int32(len(root.rhs)), origin: frame.origin, emitted: values}
-	capture := r.captureFunc(p, r.caps(&key), key.origin, end, nil)
+	capture := r.captureFunc(p, r.caps(&key), key.origin, end, nil, key.tree)
 	r.finishStringsIn(&parent, end, capture)
 	return parent.emitted
 }

@@ -346,11 +346,17 @@ func (r *recognizer) blockEvent(c *symNode) closeEvent {
 		var key strings.Builder
 		origin, _ := r.observed(f.origin, f.origin)
 		fmt.Fprintf(&key, "%q:%d:%d:%d:%q:%q:%q/", f.root.ruleName, origin, f.prefix, r.closes.semantic(f.closes), f.closeRoute, f.stringPrefix[0], f.stringPrefix[1])
+		if r.trees != nil {
+			key.WriteString(r.trees.sequenceSemantic(f.treePrefix))
+		}
 		for _, n := range names {
 			cv := f.captures[n]
 			x, y := r.observed(cv.start, cv.end)
 			sequence := r.closes.semantic(cv.closes)
 			fmt.Fprintf(&key, "%q:%d:%d:%q:%d:%d:%q:%q/", n, x, y, r.run.ps.in.all[cv.tags].key, cv.structure, sequence, cv.emitted[0], cv.emitted[1])
+			if r.trees != nil {
+				key.WriteString(r.trees.semantic(cv.tree))
+			}
 		}
 		entry = key.String()
 	}
@@ -510,7 +516,7 @@ func demandedCloses(g *lowered) map[int32]bool {
 
 type closeVariantKey struct {
 	p         *production
-	requested bool
+	requested observationKinds
 }
 type closeDemand struct {
 	whole     bool
@@ -568,12 +574,16 @@ func (r *recognizer) localCloseDemand(p *production) closeDemand {
 			walkClause(clausePart{t: e.Tags}, scan)
 		}
 	}
+	source := p.sourceAlternative
 	if p.slot != nil {
-		for _, c := range p.slot.source.conds {
+		source = p.slot.source
+	}
+	if source != nil {
+		for _, c := range source.conds {
 			walkClause(clausePart{c: c}, scan)
 		}
-		walkClause(clausePart{t: p.slot.source.alt.Tags}, scan)
-		walkClause(clausePart{t: p.slot.source.ruleTags}, scan)
+		walkClause(clausePart{t: source.alt.Tags}, scan)
+		walkClause(clausePart{t: source.ruleTags}, scan)
 	}
 	if r.closeDemands == nil {
 		r.closeDemands = map[*production]closeDemand{}
@@ -582,8 +592,8 @@ func (r *recognizer) localCloseDemand(p *production) closeDemand {
 	return d
 }
 
-func (r *recognizer) closeProduction(p *production, requested bool) *production {
-	if r.closes == nil {
+func (r *recognizer) closeProduction(p *production, requested observationKinds) *production {
+	if r.closes == nil && r.trees == nil {
 		return p
 	}
 	key := closeVariantKey{p, requested}
@@ -593,17 +603,26 @@ func (r *recognizer) closeProduction(p *production, requested bool) *production 
 	if r.closeVariants == nil {
 		r.closeVariants = map[closeVariantKey]*production{}
 	}
-	d := r.localCloseDemand(p)
+	d := closeDemand{}
+	if r.closes != nil {
+		d = r.localCloseDemand(p)
+	}
 	q := *p
 	q.base = baseProduction(p)
-	q.closeRequested = requested
-	q.observesCloses = requested || d.whole
+	q.closeRequested = requested&closeObservation != 0
+	q.observesCloses = q.closeRequested || d.whole
+	if r.trees != nil {
+		q.treeRequested = requested&treeObservation != 0
+		q.observesTrees = q.treeRequested || !p.helper && r.g.localTreeDemand(p).whole
+	}
 	r.closeVariants[key] = &q
-	r.closeDemands[&q] = d
+	if r.closes != nil {
+		r.closeDemands[&q] = d
+	}
 	return &q
 }
 
-func (r *recognizer) requestsChild(p *production, at, position int) bool {
+func (r *recognizer) requestsCloses(p *production, at, position int) bool {
 	if r.closes == nil {
 		return false
 	}
@@ -693,4 +712,12 @@ func queryPrefixes(g *lowered) []closePrefix {
 		}
 	}
 	return table
+}
+
+func (r *recognizer) requestsChild(p *production, at, position int) observationKinds {
+	kinds := closeKinds(r.requestsCloses(p, at, position))
+	if r.trees != nil && r.g.rankedHelpers[p.rhs[at].id] == nil && (p.observesTrees || r.g.localTreeDemand(p).positions[at]) {
+		kinds |= treeObservation
+	}
+	return kinds
 }

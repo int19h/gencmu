@@ -136,3 +136,27 @@ func TestStageInputPresenceKeepsEvaluationOrder(t *testing.T) {
 		t.Fatalf("an earlier runtime fault must precede a true presence test: %v %+v", err, result)
 	}
 }
+
+func TestUnusedTreeObservationsBuildNoRecords(t *testing.T) {
+	run := silentRun(t, 20)
+	g := lower(run.grammar, nil)
+	rec := run.recognize(g, g.byName["text"], 0, 20)
+	if len(rec.accepted(g.byName["text"])) == 0 {
+		t.Fatal("the control grammar rejects its input")
+	}
+	if g.stage.treeComparisons || g.treeDemands != nil || rec.trees != nil {
+		t.Fatal("a grammar without tree comparisons prepares tree observations")
+	}
+	for _, set := range rec.sets {
+		for _, item := range set.items {
+			if item.tree != nil || item.cap0.tree != 0 {
+				t.Fatal("an unobserved item holds a tree identity")
+			}
+		}
+	}
+	for _, node := range rec.capNodes {
+		if node.cv.tree != 0 {
+			t.Fatal("an unobserved capture holds a tree identity")
+		}
+	}
+}

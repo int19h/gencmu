@@ -8,28 +8,32 @@ import (
 
 // A frame retains written prefix values across generated helper boundaries.
 type rankedFrame struct {
-	stringPrefix       [2]string
-	id                 int32
-	captures           map[string]capVal
-	present            map[string]bool
-	knownPrivate       map[string]bool
-	root               *production
-	origin             int32
-	prefix, sealPrefix int
-	closes             int
-	closeRoute         string
-	sealCloses         int
-	sealOrigin         int32
-	sealGroup          *rankedGroup
-	sealEntry          *rankedFrame
-	inside             bool
+	treeBindings               map[string]symbol
+	identityPrefix             []int32
+	identitySealed             bool
+	treePrefix, treeSealPrefix int
+	stringPrefix               [2]string
+	id                         int32
+	captures                   map[string]capVal
+	present                    map[string]bool
+	knownPrivate               map[string]bool
+	root                       *production
+	origin                     int32
+	prefix, sealPrefix         int
+	closes                     int
+	closeRoute                 string
+	sealCloses                 int
+	sealOrigin                 int32
+	sealGroup                  *rankedGroup
+	sealEntry                  *rankedFrame
+	inside                     bool
 }
 type rankedProductionKey struct {
 	p     *production
 	frame *rankedFrame
 }
 type rankedPrediction struct {
-	requested bool
+	requested observationKinds
 	rule      int32
 	frame     *rankedFrame
 }
@@ -220,6 +224,7 @@ func (g *lowered) prepareRanked() {
 
 // Follow finite capture contexts through active lowered helpers.
 func (g *lowered) prepareRankedConditions() {
+	type treeBinding = symbol
 	type entry struct {
 		rule  int32
 		frame *rankedFrame
@@ -256,7 +261,33 @@ func (g *lowered) prepareRankedConditions() {
 					captures[n] = capVal{}
 				}
 			}
-			pending = append(pending, entry{symbol.id, &rankedFrame{present: present, captures: captures, knownPrivate: known}})
+			child := &rankedFrame{present: present, captures: captures, knownPrivate: known}
+			if g.stage.treeComparisons {
+				child.treeBindings = map[string]treeBinding{}
+				for name, binding := range f.treeBindings {
+					child.treeBindings[name] = binding
+				}
+				for name, at := range p.posOf {
+					if at < index {
+						child.treeBindings[name] = p.rhs[at]
+					}
+				}
+				child.identityPrefix = append([]int32(nil), f.identityPrefix...)
+				if !f.identitySealed {
+					seen := map[int32]bool{}
+					for _, rule := range child.identityPrefix {
+						seen[rule] = true
+					}
+					for _, previous := range p.rhs[:index] {
+						if !previous.term && g.rankedHelpers[previous.id] == nil && !seen[previous.id] {
+							child.identityPrefix = append(child.identityPrefix, previous.id)
+							seen[previous.id] = true
+						}
+					}
+				}
+				child.identitySealed = f.identitySealed || g.rankedHelpers[symbol.id] != nil
+			}
+			pending = append(pending, entry{symbol.id, child})
 		}
 	}
 	for _, p := range g.prods {
@@ -281,6 +312,12 @@ func (g *lowered) prepareRankedConditions() {
 		sort.Strings(ready)
 		sort.Strings(known)
 		key := fmt.Sprintf("%d/%q/%q/%q", e.rule, declared, ready, known)
+		if g.stage.treeComparisons {
+			for _, name := range ready {
+				key += fmt.Sprintf("/%q:%v", name, e.frame.treeBindings[name])
+			}
+			key += fmt.Sprintf("/%v/%t", e.frame.identityPrefix, e.frame.identitySealed)
+		}
 		if seen[key] {
 			continue
 		}
@@ -291,6 +328,24 @@ func (g *lowered) prepareRankedConditions() {
 			p.rankedConditions = append(p.rankedConditions, q.predictConds...)
 			for _, c := range q.conds {
 				p.rankedConditions = append(p.rankedConditions, c.cond)
+			}
+			if g.stage.treeComparisons {
+				bindings := map[string]symbol{}
+				for name, binding := range e.frame.treeBindings {
+					bindings[name] = binding
+				}
+				for name, at := range p.posOf {
+					bindings[name] = p.rhs[at]
+				}
+				roots := append([]*domCond(nil), q.predictConds...)
+				for _, c := range q.conds {
+					roots = append(roots, c.cond)
+				}
+				for _, c := range roots {
+					for _, comparison := range constituentComparisons(clausePart{c: c}) {
+						g.treeSites = append(g.treeSites, treeSite{comparison, p, bindings, e.frame.identityPrefix})
+					}
+				}
 			}
 			enter(p, e.frame)
 		}
@@ -318,6 +373,9 @@ func (r *recognizer) rankedPrefix(it *item) string {
 				sequence = r.closes.semantic(cv.closes)
 			}
 			key := fmt.Sprintf("%q/%d/%d/%d/%d/%d", n, cv.start, cv.end, cv.tags, cv.structure, sequence)
+			if r.trees != nil {
+				key += fmt.Sprintf("/t%d", cv.tree)
+			}
 			if r.g.stage.conditionStrings {
 				key += fmt.Sprintf("/%q/%q", cv.emitted[0], cv.emitted[1])
 			}
@@ -339,6 +397,9 @@ func (r *recognizer) rankedPrefix(it *item) string {
 	boundary := ""
 	if r.boundaries != nil && it.boundary != nil {
 		boundary = fmt.Sprintf("/b%d", it.boundary.id)
+	}
+	if r.trees != nil && it.tree != nil {
+		boundary += fmt.Sprintf("/t%d", it.tree.prefix)
 	}
 	return boundary + fmt.Sprintf("%s/%v/%q/%q/%d/%d/%d/%d/%q/%d/%t/%s", p.ruleName, p.at, path, symbols, it.dot, it.origin, it.prefix, sequence, captures, lexical, it.restores, p.rankedBindings)
 }
@@ -384,6 +445,15 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 		f.stringPrefix = it.emitted
 	}
 	f.closeRoute = r.closeEntryRoute(it)
+	if r.trees != nil {
+		if it.tree != nil {
+			f.treePrefix = it.tree.prefix
+		}
+		if outer != nil {
+			f.treePrefix = r.trees.concat(outer.treePrefix, f.treePrefix)
+		}
+		f.treeSealPrefix = f.treePrefix
+	}
 	if outer != nil {
 		for n, c := range outer.captures {
 			f.captures[n] = c
@@ -432,6 +502,7 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 	f.sealCloses, f.sealOrigin = f.closes, it.set
 	f.sealGroup, f.sealEntry = r.g.rankedHelpers[rule], f
 	if f.inside && outer != nil {
+		f.treeSealPrefix = outer.treeSealPrefix
 		f.sealPrefix = outer.sealPrefix
 		if outer.sealGroup != nil {
 			f.sealCloses, f.sealOrigin = outer.sealCloses, outer.sealOrigin
@@ -630,6 +701,10 @@ func (v *slotViews) rankedAncestry(scope *slotScope, r *recognizer) string {
 		if before == nil {
 			copy := *frame.parent
 			copy.dot = 0
+			if r.trees != nil {
+				copy.tree = nil
+				r.finishTree(&copy.itemKey)
+			}
 			if r.boundaries != nil {
 				copy.boundary = r.boundaries.empty
 			}

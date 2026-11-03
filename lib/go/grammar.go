@@ -27,6 +27,8 @@ type defaultUse struct {
 type stageGrammar struct {
 	defaults          []defaultUse
 	conditionStrings  bool
+	treeComparisons   bool
+	treeExpressions   bool
 	arguments         map[argumentSite][]constArgument
 	features          []stageFeature
 	families          map[string]map[string]bool
@@ -435,6 +437,19 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 			return nil, err
 		}
 	}
+	g.treeExpressions = checked.treeComparisons
+	if checked.treeComparisons {
+		for _, rule := range g.rules {
+			for _, alternative := range rule.alts {
+				if len(constituentComparisons(clausePart{t: alternative.ruleTags})) > 0 || len(constituentComparisons(clausePart{t: alternative.alt.Tags})) > 0 {
+					g.treeComparisons = true
+				}
+				for _, condition := range alternative.conds {
+					g.treeComparisons = g.treeComparisons || len(constituentComparisons(clausePart{c: condition})) > 0
+				}
+			}
+		}
+	}
 	g.prepareBoundarySites()
 	return g, nil
 }
@@ -514,6 +529,7 @@ func (g *stageGrammar) makeTests() *Error {
 // identity. The clauses of a rule statement are shared by its
 // alternatives, so each is walked once, not once for each alternative.
 type checkedClauses struct {
+	treeComparisons  bool
 	conditionStrings bool
 	terms            map[*domTerm]bool
 	conds            map[condListKey]bool
@@ -592,6 +608,9 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 		}
 		switch c.Kind {
 		case cdCompare:
+			if (c.Op == "≅" || c.Op == "≇") && c.Right.Kind == tmCapture {
+				checked.treeComparisons = true
+			}
 			if err := checkTerm(c.Left); err != nil {
 				return err
 			}

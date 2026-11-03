@@ -45,6 +45,8 @@ func (p *production) precedingLogicalOptional(dot int) *logicalGroup {
 // A later written route can forbid an earlier omission even when that
 // route never completes its named rule (engine §4).
 type logicalPrefixKey struct {
+	treePrefix       int
+	treeRequested    bool
 	boundary         *boundaryRecord
 	alternative      *sAlt
 	expression       *domExpr
@@ -127,6 +129,9 @@ func (l *logicalPriority) key(it, prefix *item) logicalPrefixKey {
 	for _, name := range names {
 		c := l.r.caps(&prefix.itemKey).at(prefix.prod.slotOf[name])
 		fmt.Fprintf(&captures, "%d:%s/%d/%d/%d/%d/%d;", len(name), name, c.start, c.end, c.tags, c.structure, c.closes)
+		if l.r.trees != nil {
+			fmt.Fprintf(&captures, "t%d/", c.tree)
+		}
 	}
 	// Split helpers of a logical parent share its written site. Named rules
 	// retain their rule identity. Both keep the proof's own prefix observations.
@@ -135,7 +140,11 @@ func (l *logicalPriority) key(it, prefix *item) logicalPrefixKey {
 	if parent != nil {
 		rule = -1
 	}
-	return logicalPrefixKey{boundary: prefix.boundary, alternative: it.prod.sourceAlternative, expression: g.expression, parent: parent, rule: rule, origin: it.origin, position: prefix.set, prefix: prefix.prefix, closes: prefix.closes, lexical: it.prod.lexical, requested: it.prod.closeRequested, captures: captures.String()}
+	treePrefix := 0
+	if prefix.tree != nil {
+		treePrefix = prefix.tree.prefix
+	}
+	return logicalPrefixKey{treePrefix: treePrefix, treeRequested: it.prod.treeRequested, boundary: prefix.boundary, alternative: it.prod.sourceAlternative, expression: g.expression, parent: parent, rule: rule, origin: it.origin, position: prefix.set, prefix: prefix.prefix, closes: prefix.closes, lexical: it.prod.lexical, requested: it.prod.closeRequested, captures: captures.String()}
 }
 
 func (l *logicalPriority) permits(it, prefix *item) bool {
