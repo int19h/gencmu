@@ -1480,7 +1480,7 @@ CIhAU follows the attitude conversion of dictionary definition 71992, with the C
 
 DAhO, FUhE, and FUhO require a written CIhAUhU before their external use. This explicit boundary is a deliberate restriction because the conversion proposal leaves their internal meaning unspecified.
 
-The inspected Zantufa grammar has no SOhOI, CAhEI, or CIhAU construction. These additions introduce no new category.
+The inspected Zantufa grammar has no SOhOI, CAhEI, or CIhAU construction. These additions add no ranking step.
 
 [^cll-s18-13]: [CLL 1.1, section 18.13](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-subscripts-math.html).
 
