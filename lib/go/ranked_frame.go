@@ -8,6 +8,7 @@ import (
 
 // A frame retains written prefix values across generated helper boundaries.
 type rankedFrame struct {
+	treeDemandKey              string
 	treeBindings               map[string]symbol
 	identityPrefix             []int32
 	identitySealed             bool

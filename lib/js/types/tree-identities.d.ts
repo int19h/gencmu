@@ -1,11 +1,15 @@
 /** @param {any} root @returns {any[]} */
 export declare function constituentComparisons(root: any): any[];
-/** @param {any} production */
-export declare function localTreeDemand(production: any): {
+export type TreeDemand = {
     whole: boolean;
-    parts: Set<any>;
-    names: Set<any>;
+    parts: Set<number>;
+    names: Set<string>;
+    outer: Set<string>;
+    parentPrefix: boolean;
+    prefixUntil: number;
 };
+/** @param {any} production @returns {TreeDemand} */
+export declare function localTreeDemand(production: any): TreeDemand;
 /** @param {any} lowered */
 export declare function prepareTreeDemands(lowered: any): void;
 export declare class TreeIdentities {

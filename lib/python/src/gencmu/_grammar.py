@@ -1270,6 +1270,8 @@ class Production:
     tree_conditions: ClassVar[Any] = None
     tree_requested: ClassVar[bool] = False
     observes_trees: ClassVar[bool] = False
+    walks_trees: ClassVar[bool] = False
+    tree_prefix_until: ClassVar[int] = 0
     close_requested: bool = field(default=False, repr=False, compare=False)
     observes_closes: bool = field(default=False, repr=False, compare=False)
     option: int = -1

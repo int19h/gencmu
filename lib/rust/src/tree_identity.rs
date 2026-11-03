@@ -138,6 +138,8 @@ pub(crate) struct Demand {
     pub whole: bool,
     pub captures: FxSet<u32>,
     pub lexical: BTreeSet<String>,
+    parent_prefix: bool,
+    pub prefix_until: usize,
 }
 
 pub(crate) fn comparisons<'a>(condition: &'a LCond, out: &mut Vec<(&'a Span, &'a Span)>) {
@@ -181,90 +183,204 @@ pub(crate) fn term_comparisons<'a>(term: &'a LTerm, out: &mut Vec<(&'a Span, &'a
     }
 }
 
-pub(crate) fn demands(g: &Lowered) -> Vec<Demand> {
-    let mut demands = vec![Demand::default(); g.prods.len()];
-    for (id, p) in g.prods.iter().enumerate() {
-        let mut reads = Vec::new();
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct DemandKey {
+    prod: u32,
+    declared: Vec<String>,
+    ready: Vec<String>,
+    known: Vec<String>,
+    sealed: bool,
+}
+
+impl DemandKey {
+    fn root(prod: u32) -> Self {
+        Self { prod, declared: vec![], ready: vec![], known: vec![], sealed: false }
+    }
+    fn context(prod: u32, ctx: &Context) -> Self {
+        Self {
+            prod,
+            declared: ctx.declared.iter().cloned().collect(),
+            ready: ctx.available.keys().cloned().collect(),
+            known: ctx.known.iter().cloned().collect(),
+            sealed: ctx.sealed,
+        }
+    }
+}
+
+struct DemandState {
+    prod: u32,
+    context: Context,
+    demand: Demand,
+    edges: Vec<(usize, usize)>,
+}
+
+fn demand_state(
+    g: &Lowered,
+    prod: u32,
+    ctx: Context,
+    states: &mut Vec<DemandState>,
+    indexed: &mut FxMap<DemandKey, usize>,
+) -> usize {
+    let key = DemandKey::context(prod, &ctx);
+    if let Some(&id) = indexed.get(&key) {
+        return id;
+    }
+    let p = &g.prods[prod as usize];
+    let mut reads = vec![];
+    if let Some(tags) = &p.tags {
+        term_comparisons(tags, &mut reads);
+    }
+    if g.ranked.contextual.contains(&p.rule) {
+        let plan = &g.ranked.plans[&(prod, key.declared.clone(), key.ready.clone(), key.known.clone())];
+        for (c, _) in plan.conditions.iter().flatten() {
+            comparisons(c, &mut reads);
+        }
+        if let Some(tags) = &plan.whole_tags {
+            term_comparisons(tags, &mut reads);
+        }
+    } else {
         for (c, _) in &p.conds {
             comparisons(c, &mut reads);
         }
-        if let Some(tags) = &p.tags {
-            term_comparisons(tags, &mut reads);
-        }
-        for ((prod, ..), plan) in &g.ranked.plans {
-            if *prod as usize != id {
-                continue;
-            }
-            for (c, _) in plan.conditions.iter().flatten() {
-                comparisons(c, &mut reads);
-            }
-            if let Some(tags) = &plan.whole_tags {
-                term_comparisons(tags, &mut reads);
-            }
-        }
-        for (a, b) in reads {
-            for span in [a, b] {
-                match span {
-                    Span::Whole => demands[id].whole = true,
-                    Span::Cap(slot) => {
-                        demands[id].captures.insert(*slot);
-                    }
-                    Span::Lexical(name) => {
-                        demands[id].lexical.insert(name.clone());
-                    }
-                    _ => unreachable!("a constituent comparison reads bare captures"),
+    }
+    let mut demand = Demand::default();
+    for (a, b) in reads {
+        for span in [a, b] {
+            match span {
+                Span::Whole => {
+                    demand.whole = true;
+                    demand.parent_prefix = g.rules[p.rule as usize].helper;
                 }
+                Span::Cap(slot) => {
+                    demand.captures.insert(*slot);
+                }
+                Span::Lexical(name) => {
+                    demand.lexical.insert(name.clone());
+                }
+                _ => unreachable!("a constituent comparison reads bare captures"),
             }
         }
     }
-    let mut outer = vec![BTreeSet::new(); g.rules.len()];
-    let mut whole = vec![false; g.rules.len()];
-    for (id, p) in g.prods.iter().enumerate().filter(|(_, p)| g.rules[p.rule as usize].helper) {
-        outer[p.rule as usize].extend(demands[id].lexical.iter().cloned());
-        whole[p.rule as usize] |= demands[id].whole;
+    let id = states.len();
+    indexed.insert(key, id);
+    states.push(DemandState { prod, context: ctx, demand, edges: vec![] });
+    id
+}
+
+pub(crate) fn demands(g: &Lowered) -> (Vec<Demand>, FxMap<DemandKey, usize>) {
+    let mut states = vec![];
+    let mut indexed = FxMap::default();
+    for (id, p) in g.prods.iter().enumerate() {
+        if !g.ranked.contextual.contains(&p.rule) {
+            demand_state(g, id as u32, Context::default(), &mut states, &mut indexed);
+        }
+    }
+    let mut at = 0;
+    while at < states.len() {
+        let prod = states[at].prod;
+        let ctx = states[at].context.clone();
+        for index in 0..g.prods[prod as usize].syms.len() {
+            if let Some(child) = child_context(g, prod, &ctx, index) {
+                for &q in &g.rules[child.rule as usize].prods {
+                    let target = demand_state(g, q, child.clone(), &mut states, &mut indexed);
+                    states[at].edges.push((index, target));
+                }
+            }
+        }
+        at += 1;
     }
     let mut changed = true;
     while changed {
         changed = false;
-        for p in g.prods.iter().filter(|p| g.rules[p.rule as usize].helper) {
-            for symbol in &p.syms {
-                let Sym::N(child) = *symbol else { continue };
-                if whole[child as usize] && !whole[p.rule as usize] {
-                    whole[p.rule as usize] = true;
-                    changed = true;
+        for id in 0..states.len() {
+            let p = &g.prods[states[id].prod as usize];
+            for (at, child) in states[id].edges.clone() {
+                let needs_prefix = states[child].demand.parent_prefix;
+                if needs_prefix {
+                    if g.rules[p.rule as usize].helper && !states[id].demand.parent_prefix {
+                        states[id].demand.parent_prefix = true;
+                        changed = true;
+                    }
+                    if !states[id].context.sealed && at > states[id].demand.prefix_until {
+                        states[id].demand.prefix_until = at;
+                        changed = true;
+                    }
                 }
-                let inherited = outer[child as usize].clone();
-                for name in inherited {
-                    if !p.names.contains_key(&name) {
-                        changed |= outer[p.rule as usize].insert(name);
+                for name in states[child].demand.lexical.clone() {
+                    if let Some(&slot) = p.names.get(&name).filter(|&&slot| p.cap_pos[slot as usize] < at) {
+                        changed |= states[id].demand.captures.insert(slot);
+                    } else if states[id].context.available.contains_key(&name) {
+                        changed |= states[id].demand.lexical.insert(name);
                     }
                 }
             }
         }
     }
-    for (id, p) in g.prods.iter().enumerate() {
-        for (index, symbol) in p.syms.iter().enumerate() {
-            let Sym::N(child) = *symbol else { continue };
-            demands[id].whole |= whole[child as usize];
-            for name in &outer[child as usize] {
-                if let Some(&slot) = p.names.get(name).filter(|&&slot| p.cap_pos[slot as usize] < index) {
-                    demands[id].captures.insert(slot);
-                }
-            }
-        }
-    }
-    demands
+    (states.into_iter().map(|s| s.demand).collect(), indexed)
 }
 
-pub(crate) fn terminal_demand(g: &Lowered, item: crate::earley::Item) -> bool {
+pub(crate) fn case_indices(
+    g: &Lowered,
+    rule: u32,
+    declared: &[String],
+    ready: &[String],
+    known: &[String],
+    inside: bool,
+) -> Option<FxMap<u32, usize>> {
+    if g.tree_demands.is_empty() {
+        return None;
+    }
+    let cases = g.tree_cases.as_ref().expect("tree demand cases");
+    Some(
+        g.rules[rule as usize]
+            .prods
+            .iter()
+            .map(|&prod| {
+                let key = DemandKey {
+                    prod,
+                    declared: declared.to_vec(),
+                    ready: ready.to_vec(),
+                    known: known.to_vec(),
+                    sealed: inside || g.ranked.slots.contains_key(&rule),
+                };
+                (prod, *cases.get(&key).expect("a helper has a tree demand case"))
+            })
+            .collect(),
+    )
+}
+
+pub(crate) fn demand<'a>(g: &'a Lowered, prod: u32, frame: Option<&crate::earley::LexicalFrame>) -> &'a Demand {
+    let id = frame.map_or_else(
+        || g.tree_cases.as_ref().expect("tree demand cases")[&DemandKey::root(prod)],
+        |f| f.tree_demands.as_ref().expect("frame demands")[&prod],
+    );
+    &g.tree_demands[id]
+}
+
+pub(crate) fn walks(g: &Lowered, item: crate::earley::Item, frame: Option<&crate::earley::LexicalFrame>) -> bool {
+    item.close_requested & TREE != 0
+        || !g.rules[g.prods[item.prod as usize].rule as usize].helper && demand(g, item.prod, frame).whole
+}
+
+pub(crate) fn prefix_demand(
+    g: &Lowered,
+    item: crate::earley::Item,
+    frame: Option<&crate::earley::LexicalFrame>,
+) -> bool {
+    walks(g, item, frame) || (item.dot as usize) < demand(g, item.prod, frame).prefix_until
+}
+
+pub(crate) fn terminal_demand(
+    g: &Lowered,
+    item: crate::earley::Item,
+    frame: Option<&crate::earley::LexicalFrame>,
+) -> bool {
     if g.tree_demands.is_empty() {
         return false;
     }
     let p = &g.prods[item.prod as usize];
-    let d = &g.tree_demands[item.prod as usize];
-    item.close_requested & TREE != 0
-        || !g.rules[p.rule as usize].helper && d.whole
-        || p.cap_at[item.dot as usize].is_some_and(|slot| d.captures.contains(&slot))
+    prefix_demand(g, item, frame)
+        || p.cap_at[item.dot as usize].is_some_and(|slot| demand(g, item.prod, frame).captures.contains(&slot))
 }
 
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
@@ -277,36 +393,42 @@ struct Context {
     sealed: bool,
 }
 
-fn enter(g: &Lowered, id: u32, context: &Context, queue: &mut Vec<Context>) {
+fn child_context(g: &Lowered, id: u32, context: &Context, index: usize) -> Option<Context> {
     let p = &g.prods[id as usize];
-    for (index, symbol) in p.syms.iter().enumerate() {
-        let Sym::N(rule) = *symbol else { continue };
-        if !g.ranked.contextual.contains(&rule) {
-            continue;
+    let Sym::N(rule) = p.syms[index] else { return None };
+    if !g.ranked.contextual.contains(&rule) {
+        return None;
+    }
+    let mut child = context.clone();
+    child.rule = rule;
+    if let Some((declared, known)) = g.ranked.bindings.get(&id) {
+        child.declared.extend(declared.iter().cloned());
+        child.known.extend(known.iter().cloned());
+    }
+    for (name, slot) in &p.names {
+        let at = p.cap_pos[*slot as usize];
+        if !name.is_empty() && at < index {
+            child.available.insert(name.clone(), p.syms[at]);
         }
-        let mut child = context.clone();
-        child.rule = rule;
-        if let Some((declared, known)) = g.ranked.bindings.get(&id) {
-            child.declared.extend(declared.iter().cloned());
-            child.known.extend(known.iter().cloned());
-        }
-        for (name, slot) in &p.names {
-            let at = p.cap_pos[*slot as usize];
-            if !name.is_empty() && at < index {
-                child.available.insert(name.clone(), p.syms[at]);
-            }
-        }
-        if !context.sealed {
-            for symbol in &p.syms[..index] {
-                if let Sym::N(rule) = *symbol {
-                    if !g.ranked.slots.contains_key(&rule) && !child.prefix.contains(&rule) {
-                        child.prefix.push(rule);
-                    }
+    }
+    if !context.sealed {
+        for symbol in &p.syms[..index] {
+            if let Sym::N(rule) = *symbol {
+                if !g.ranked.slots.contains_key(&rule) && !child.prefix.contains(&rule) {
+                    child.prefix.push(rule);
                 }
             }
         }
-        child.sealed |= g.ranked.slots.contains_key(&rule);
-        queue.push(child);
+    }
+    child.sealed |= g.ranked.slots.contains_key(&rule);
+    Some(child)
+}
+
+fn enter(g: &Lowered, id: u32, context: &Context, queue: &mut Vec<Context>) {
+    for index in 0..g.prods[id as usize].syms.len() {
+        if let Some(child) = child_context(g, id, context, index) {
+            queue.push(child);
+        }
     }
 }
 

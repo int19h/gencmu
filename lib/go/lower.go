@@ -26,6 +26,8 @@ type production struct {
 	sourceAlternative *sAlt
 	treeRequested     bool
 	observesTrees     bool
+	walksTrees        bool
+	treePrefixUntil   int
 	closeRequested    bool
 	observesCloses    bool
 	base              *production
@@ -106,7 +108,7 @@ type lrule struct {
 
 type lowered struct {
 	treeSites       []treeSite
-	treeDemands     map[*production]*treeDemand
+	treeDemands     map[treeDemandKey]*treeDemand
 	profileOnce     sync.Once
 	profilePossible bool
 	stringsOnce     sync.Once

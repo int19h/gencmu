@@ -332,6 +332,7 @@ pub(crate) struct Lowered {
     pub profile_possible: ProfilePossible,
     pub condition_strings: bool,
     pub tree_demands: Arc<[crate::tree_identity::Demand]>,
+    pub tree_cases: Option<Arc<FxMap<crate::tree_identity::DemandKey, usize>>>,
     pub tree_expressions: bool,
     pub unicode: Arc<crate::unicode::Unicode>,
     pub ranked: RankedRuntime,
@@ -1742,6 +1743,7 @@ pub(crate) fn lower(
         profile_possible: Default::default(),
         condition_strings: grammar.condition_strings,
         tree_demands: Arc::from([]),
+        tree_cases: None,
         tree_expressions: grammar.tree_expressions,
         unicode: grammar.unicode.clone(),
         close_families: grammar.close_families.clone(),
@@ -1761,7 +1763,9 @@ pub(crate) fn lower(
     };
     lowered.ranked = ranked_runtime(grammar, &lowered, &query_rules, &item_alts);
     if grammar.tree_comparisons {
-        lowered.tree_demands = crate::tree_identity::demands(&lowered).into();
+        let (demands, cases) = crate::tree_identity::demands(&lowered);
+        lowered.tree_demands = demands.into();
+        lowered.tree_cases = Some(Arc::new(cases));
         crate::tree_identity::check_cycles(&lowered, &sequences, &grammar.name)?;
     }
     Ok(lowered)

@@ -644,6 +644,8 @@ export type ReadyCondition = {
 export type Production = {
     treeRequested?: boolean;
     observesTrees?: boolean;
+    walksTrees?: boolean;
+    treePrefixUntil?: number;
     source?: import("./grammar.js").StitchedAlternative;
     logicalSource?: import("./grammar.js").StitchedAlternative;
     writtenExpression?: Expr;
@@ -1383,6 +1385,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} Production
  * @property {boolean} [treeRequested]
  * @property {boolean} [observesTrees]
+ * @property {boolean} [walksTrees]
+ * @property {number} [treePrefixUntil]
  * @property {import("./grammar.js").StitchedAlternative} [source]
  * @property {import("./grammar.js").StitchedAlternative} [logicalSource]
  * @property {Expr} [writtenExpression]

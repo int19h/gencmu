@@ -613,7 +613,10 @@ func (r *recognizer) closeProduction(p *production, requested observationKinds) 
 	q.observesCloses = q.closeRequested || d.whole
 	if r.trees != nil {
 		q.treeRequested = requested&treeObservation != 0
-		q.observesTrees = q.treeRequested || !p.helper && r.g.localTreeDemand(p).whole
+		d := r.g.localTreeDemand(p)
+		q.walksTrees = q.treeRequested || !p.helper && d.whole
+		q.treePrefixUntil = d.prefixUntil
+		q.observesTrees = q.walksTrees || q.treePrefixUntil > 0
 	}
 	r.closeVariants[key] = &q
 	if r.closes != nil {
@@ -716,7 +719,7 @@ func queryPrefixes(g *lowered) []closePrefix {
 
 func (r *recognizer) requestsChild(p *production, at, position int) observationKinds {
 	kinds := closeKinds(r.requestsCloses(p, at, position))
-	if r.trees != nil && r.g.rankedHelpers[p.rhs[at].id] == nil && (p.observesTrees || r.g.localTreeDemand(p).positions[at]) {
+	if r.trees != nil && r.g.rankedHelpers[p.rhs[at].id] == nil && (p.walksTrees || at < p.treePrefixUntil || r.g.localTreeDemand(p).positions[at]) {
 		kinds |= treeObservation
 	}
 	return kinds

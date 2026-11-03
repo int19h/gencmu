@@ -369,6 +369,7 @@ pub(crate) struct Chart {
 
 #[derive(Debug, Clone)]
 pub(crate) struct LexicalFrame {
+    pub tree_demands: Option<FxMap<u32, usize>>,
     pub emitted: u32,
     family: Option<(u32, u32)>,
     pub observes_closes: bool,
@@ -548,14 +549,23 @@ impl Chart {
         };
         let observes_closes = outer.map_or(observing, |f| f.observes_closes);
         let id = self.lexical.len() as u32 + 1;
+        let available: Vec<_> = captures.keys().cloned().collect();
+        let declared: Vec<_> = declared.into_iter().collect();
+        let known_private: Vec<_> = known.into_iter().collect();
+        let tree_demands = if g.tree_demands.is_empty() {
+            None
+        } else {
+            crate::tree_identity::case_indices(g, rule, &declared, &available, &known_private, inside)
+        };
         self.lexical.push(LexicalFrame {
+            tree_demands,
             emitted: string_prefix,
             family: self.family,
             observes_closes,
-            available: captures.keys().cloned().collect(),
+            available,
             captures,
-            declared: declared.into_iter().collect(),
-            known_private: known.into_iter().collect(),
+            declared,
+            known_private,
             root,
             origin,
             prefix,
@@ -1719,21 +1729,19 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 || prefix.first.iter().any(|t| self.shared.reads(self.matchers[*t as usize], &tokens[at], false))
         })
     }
-    fn observes_trees(&self, item: Item) -> bool {
-        !self.g.tree_demands.is_empty()
-            && (item.close_requested & crate::tree_identity::TREE != 0
-                || !self.g.rules[self.g.prods[item.prod as usize].rule as usize].helper
-                    && self.g.tree_demands[item.prod as usize].whole)
+    fn walks_trees(&self, item: Item, frame: Option<&LexicalFrame>) -> bool {
+        !self.g.tree_demands.is_empty() && crate::tree_identity::walks(self.g, item, frame)
     }
-    fn requests_child(&self, item: Item, tokens: &[Tok], at: usize) -> u8 {
+    fn requests_child(&self, chart: &Chart, item: Item, tokens: &[Tok], at: usize) -> u8 {
         let mut kinds = u8::from(self.requests_closes(item, tokens, at));
         let p = &self.g.prods[item.prod as usize];
         if !self.g.tree_demands.is_empty()
             && !matches!(p.syms[item.dot as usize],Sym::N(r) if self.g.ranked.slots.contains_key(&r))
         {
-            let demanded = p.cap_at[item.dot as usize]
-                .is_some_and(|slot| self.g.tree_demands[item.prod as usize].captures.contains(&slot));
-            if demanded || self.observes_trees(item) {
+            let frame = chart.lexical_frame(item.lexical);
+            let d = crate::tree_identity::demand(self.g, item.prod, frame);
+            let captured = p.cap_at[item.dot as usize].is_some_and(|slot| d.captures.contains(&slot));
+            if captured || crate::tree_identity::prefix_demand(self.g, item, frame) {
                 kinds |= crate::tree_identity::TREE;
             }
         }
@@ -1743,7 +1751,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         self.shared.machine.as_ref().is_some_and(|m| m.borrow().node_tags)
     }
 
-    fn finish_structure(&self, family: Option<(u32, u32)>, item: &mut Item, set: usize, base: usize, tokens: &[Tok]) {
+    fn finish_structure(
+        &self,
+        family: Option<(u32, u32)>,
+        lexical: Option<&LexicalFrame>,
+        item: &mut Item,
+        set: usize,
+        base: usize,
+        tokens: &[Tok],
+    ) {
         if let Some(machine) = &self.shared.machine {
             let g = self.g;
             let p = &g.prods[item.prod as usize];
@@ -1807,7 +1823,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 observation = m.observations.as_mut().unwrap().complete(observation, named, base + start, base + end);
                 structure = m.observing(structure, observation);
             }
-            if !g.tree_demands.is_empty() && self.observes_trees(*item) {
+            if !g.tree_demands.is_empty() && self.walks_trees(*item, lexical) {
                 let prefix = m.tree(item.prefix).unwrap_or_default().sequence;
                 let arena = m.trees.as_mut().expect("demanded tree identities");
                 let tree = if !rule.helper {
@@ -1835,7 +1851,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let mut m = machine.borrow_mut();
         frame.parent_prefix = frame.parent_structure;
         frame.parent_structure = m.node(Some(parent), frame.parent_structure, None);
-        if self.g.tree_demands.get(frame.prod as usize).is_some_and(|d| d.whole) {
+        if !self.g.tree_demands.is_empty() && crate::tree_identity::demand(self.g, frame.prod, frame.lexical).whole {
             let project = |at: u32| frame.project.map_or(at, |p| p[at as usize]) as usize;
             let values = tokens[project(lexical.seal_at)..project(frame.end)].iter().map(|t| t.value.clone()).collect();
             let prefix = m.tree(lexical.seal_prefix).unwrap_or_default().sequence;
@@ -1882,7 +1898,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         };
         let rule = &self.g.rules[self.g.prods[item.prod as usize].rule as usize];
         let omitted = synthetic && item.dot == 0 && rule.helper && rule.elided.is_some();
-        let trees = !self.g.tree_demands.is_empty() && crate::tree_identity::terminal_demand(self.g, item);
+        let trees = !self.g.tree_demands.is_empty()
+            && crate::tree_identity::terminal_demand(self.g, item, chart.lexical_frame(item.lexical));
         let key = (e as u32, terminal, omitted, trees);
         if let Some(&id) = chart.terminal_states.get(&key) {
             return id;
@@ -2215,7 +2232,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     while let Some(&(tags, structure, boundary, emitted)) = empties.get(*next) {
                         let cap = Cap {
                             emitted,
-                            close_requested: self.requests_child(*item, run.tokens, *e),
+                            close_requested: self.requests_child(&run.chart, *item, run.tokens, *e),
                             start: *e as u32,
                             end: *e as u32,
                             tags,
@@ -2359,7 +2376,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         self.observes_closes(item),
                         string_prefix,
                     );
-                    let requested = self.requests_child(item, run.tokens, e);
+                    let requested = self.requests_child(&run.chart, item, run.tokens, e);
                     let key = lexical_rule(rule, lexical, requested);
                     if !again {
                         run.chart.sets[e].waiting.entry(key).or_insert_with(|| self.shared.fresh_list()).push(k as u32);
@@ -2452,7 +2469,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     where
         'g: 't,
     {
-        self.finish_structure(chart.family, &mut item, set, base, tokens);
+        self.finish_structure(chart.family, chart.lexical_frame(item.lexical), &mut item, set, base, tokens);
         if self.g.condition_strings {
             self.finish_strings(chart, &mut item, set, tokens, base)?;
         }
@@ -3005,7 +3022,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             prefix: 0,
             structure: u32::MAX,
         };
-        self.finish_structure(chart.family, &mut item, e + 1, 0, tokens);
+        self.finish_structure(chart.family, chart.lexical_frame(item.lexical), &mut item, e + 1, 0, tokens);
         if self.g.condition_strings {
             self.finish_strings(chart, &mut item, e + 1, tokens, 0).expect("an omitted helper has a fixed default");
         }
@@ -3076,7 +3093,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
         }
         let reading_trees = !g.tree_demands.is_empty();
-        let observing_trees = reading_trees && self.observes_trees(item);
+        let observing_trees =
+            reading_trees && crate::tree_identity::prefix_demand(g, item, chart.lexical_frame(item.lexical));
         let caps =
             if production.cap_at[item.dot as usize].is_some() { chart.extend_caps(item.caps, cap) } else { item.caps };
         let prefix = self.shared.machine.as_ref().map_or(0, |m| {
@@ -3160,7 +3178,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             prefix,
             structure: u32::MAX,
         };
-        self.finish_structure(chart.family, &mut next, into, base, tokens);
+        self.finish_structure(chart.family, chart.lexical_frame(next.lexical), &mut next, into, base, tokens);
         if self.g.condition_strings {
             self.finish_strings(chart, &mut next, into, tokens, base)?;
         }

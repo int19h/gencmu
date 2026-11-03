@@ -355,7 +355,12 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                                 from,
                                 symbol,
                                 false,
-                                !g.tree_demands.is_empty() && crate::tree_identity::terminal_demand(g, item),
+                                !g.tree_demands.is_empty()
+                                    && crate::tree_identity::terminal_demand(
+                                        g,
+                                        item,
+                                        forest.chart.lexical_frame(item.lexical),
+                                    ),
                             ))
                             .copied()
                             .unwrap_or(u32::MAX);

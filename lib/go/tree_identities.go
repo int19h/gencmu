@@ -42,94 +42,172 @@ func constituentComparisons(root clausePart) []*domCond {
 }
 
 type treeDemand struct {
-	whole     bool
-	positions map[int]bool
-	names     map[string]bool
+	whole        bool
+	positions    map[int]bool
+	outer        map[string]bool
+	parentPrefix bool
+	prefixUntil  int
+}
+
+type treeDemandKey struct {
+	production *production
+	frame      string
+}
+
+func treeFrameKey(frame *rankedFrame) string {
+	if frame == nil {
+		return ""
+	}
+	if frame.treeDemandKey != "" {
+		return frame.treeDemandKey
+	}
+	declared, ready, known := []string{}, []string{}, []string{}
+	for name := range frame.present {
+		declared = append(declared, name)
+	}
+	for name := range frame.captures {
+		ready = append(ready, name)
+	}
+	for name := range frame.knownPrivate {
+		known = append(known, name)
+	}
+	sort.Strings(declared)
+	sort.Strings(ready)
+	sort.Strings(known)
+	frame.treeDemandKey = fmt.Sprintf("%q/%q/%q/%t", declared, ready, known, frame.inside)
+	return frame.treeDemandKey
 }
 
 func (g *lowered) localTreeDemand(p *production) *treeDemand {
-	p = baseProduction(p)
-	if previous := g.treeDemands[p]; previous != nil {
-		return previous
-	}
-	d := &treeDemand{positions: map[int]bool{}, names: map[string]bool{}}
-	collect := func(root clausePart) {
-		for _, c := range constituentComparisons(root) {
-			for _, t := range []*domTerm{c.Left, c.Right} {
-				d.names[t.Str] = true
-				if t.Str == "" {
-					d.whole = true
-				} else if at, found := p.posOf[t.Str]; found {
-					d.positions[at] = true
-				}
-			}
-		}
-	}
-	collect(clausePart{t: p.tags})
-	collect(clausePart{t: p.parentTags})
-	for _, c := range p.conds {
-		collect(clausePart{c: c.cond})
-	}
-	for _, c := range p.predictConds {
-		collect(clausePart{c: c})
-	}
-	for _, c := range p.rankedConditions {
-		collect(clausePart{c: c})
-	}
-	g.treeDemands[p] = d
-	return d
+	return g.treeDemands[treeDemandKey{baseProduction(p), treeFrameKey(p.lexical)}]
+}
+
+type treeDemandEdge struct {
+	at    int
+	child *treeDemandState
+}
+type treeDemandState struct {
+	p      *production
+	frame  *rankedFrame
+	demand *treeDemand
+	edges  []treeDemandEdge
 }
 
 func (g *lowered) prepareTreeDemands() {
-	g.treeDemands = map[*production]*treeDemand{}
-	outer := map[int32]map[string]bool{}
-	whole := map[int32]bool{}
-	for _, p := range g.prods {
-		d := g.localTreeDemand(p)
-		if !p.helper {
-			continue
+	g.treeDemands = map[treeDemandKey]*treeDemand{}
+	states := []*treeDemandState{}
+	indexed := map[treeDemandKey]*treeDemandState{}
+	binder := &recognizer{g: g}
+	state := func(p *production, frame *rankedFrame) *treeDemandState {
+		key := treeDemandKey{p, treeFrameKey(frame)}
+		if old := indexed[key]; old != nil {
+			return old
 		}
-		if outer[p.lhs] == nil {
-			outer[p.lhs] = map[string]bool{}
+		bound := p
+		if frame != nil {
+			bound = binder.rankedProduction(p, frame)
 		}
-		for name := range d.names {
-			if _, local := p.slotOf[name]; name != "" && !local {
-				outer[p.lhs][name] = true
-			}
-		}
-		whole[p.lhs] = whole[p.lhs] || d.whole
-	}
-	for changed := true; changed; {
-		changed = false
-		for _, p := range g.prods {
-			if !p.helper {
-				continue
-			}
-			for _, symbol := range p.rhs {
-				if symbol.term {
-					continue
-				}
-				if whole[symbol.id] && !whole[p.lhs] {
-					whole[p.lhs], changed = true, true
-				}
-				for name := range outer[symbol.id] {
-					if _, local := p.slotOf[name]; !local && !outer[p.lhs][name] {
-						outer[p.lhs][name], changed = true, true
+		d := &treeDemand{positions: map[int]bool{}, outer: map[string]bool{}}
+		collect := func(root clausePart) {
+			for _, comparison := range constituentComparisons(root) {
+				for _, term := range []*domTerm{comparison.Left, comparison.Right} {
+					if term.Str == "" {
+						d.whole = true
+						d.parentPrefix = p.helper
+					} else if at, found := p.posOf[term.Str]; found {
+						d.positions[at] = true
+					} else {
+						d.outer[term.Str] = true
 					}
 				}
 			}
 		}
+		collect(clausePart{t: bound.tags})
+		collect(clausePart{t: bound.parentTags})
+		for _, c := range bound.conds {
+			collect(clausePart{c: c.cond})
+		}
+		for _, c := range bound.predictConds {
+			collect(clausePart{c: c})
+		}
+		entry := &treeDemandState{p: p, frame: frame, demand: d}
+		states = append(states, entry)
+		indexed[key] = entry
+		g.treeDemands[key] = d
+		return entry
 	}
 	for _, p := range g.prods {
-		d := g.localTreeDemand(p)
+		if !p.contextual {
+			state(p, nil)
+		}
+	}
+	for at := 0; at < len(states); at++ {
+		entry := states[at]
+		p, f := entry.p, entry.frame
+		present, known := map[string]bool{}, map[string]bool{}
+		if f != nil {
+			for n := range f.present {
+				present[n] = true
+			}
+			for n := range f.knownPrivate {
+				known[n] = true
+			}
+		}
+		for n := range p.slotOf {
+			present[n] = true
+		}
+		for n := range p.privateNames {
+			known[n] = true
+		}
+		inside := p.ranked != nil || f != nil && f.inside
 		for index, symbol := range p.rhs {
-			if symbol.term {
+			if symbol.term || len(g.rules[symbol.id].prods) == 0 || !g.rules[symbol.id].prods[0].contextual {
 				continue
 			}
-			d.whole = d.whole || whole[symbol.id]
-			for name := range outer[symbol.id] {
-				if at, found := p.posOf[name]; found && at < index {
-					d.positions[at] = true
+			captures := map[string]capVal{}
+			if f != nil {
+				for n := range f.captures {
+					captures[n] = capVal{}
+				}
+			}
+			for n, pos := range p.posOf {
+				if pos < index {
+					captures[n] = capVal{}
+				}
+			}
+			child := &rankedFrame{present: present, knownPrivate: known, captures: captures, inside: inside}
+			for _, q := range g.rules[symbol.id].prods {
+				entry.edges = append(entry.edges, treeDemandEdge{index, state(q, child)})
+			}
+		}
+	}
+	for changed := true; changed; {
+		changed = false
+		for _, entry := range states {
+			for _, edge := range entry.edges {
+				d, child := entry.demand, edge.child.demand
+				if child.parentPrefix {
+					if entry.p.helper && !d.parentPrefix {
+						d.parentPrefix = true
+						changed = true
+					}
+					if entry.p.ranked == nil && (entry.frame == nil || !entry.frame.inside) && edge.at > d.prefixUntil {
+						d.prefixUntil = edge.at
+						changed = true
+					}
+				}
+				for name := range child.outer {
+					if at, found := entry.p.posOf[name]; found && at < edge.at {
+						if !d.positions[at] {
+							d.positions[at] = true
+							changed = true
+						}
+					} else if entry.frame != nil {
+						if _, found := entry.frame.captures[name]; found && !d.outer[name] {
+							d.outer[name] = true
+							changed = true
+						}
+					}
 				}
 			}
 		}
@@ -373,7 +451,8 @@ func (em *stringEmitter) treeIdentity(root *occurrence) int {
 
 func (r *recognizer) finishTree(key *itemKey) {
 	p := key.prod
-	if !p.observesTrees {
+	if !p.observesTrees || !p.walksTrees && int(key.dot) > p.treePrefixUntil {
+		key.tree = nil
 		return
 	}
 	state := treeState{}
@@ -381,7 +460,7 @@ func (r *recognizer) finishTree(key *itemKey) {
 		state.prefix = key.tree.prefix
 	}
 	state.sequence = state.prefix
-	if int(key.dot) == len(p.rhs) {
+	if int(key.dot) == len(p.rhs) && p.walksTrees {
 		if !p.helper {
 			state.identity = r.trees.intern(treeNodeKey{kind: "Rule", name: r.g.rules[p.lhs].name, children: state.prefix})
 			state.sequence = r.trees.append(0, state.identity)
@@ -413,7 +492,8 @@ func (r *recognizer) advanceTree(key *itemKey, it *item, cv *capVal, l link) {
 			cv.tree = r.terminalIdentity(r.g.terminals[l.term], l.tok)
 		}
 	}
-	if !p.observesTrees {
+	if !p.walksTrees && pos >= p.treePrefixUntil {
+		key.tree = nil
 		return
 	}
 	prefix := 0

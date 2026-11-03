@@ -20,7 +20,7 @@ from ._model import Range, Tags, Token
 from ._tags import EMPTY, Gathered, TagTable, difference, intersection, is_class, split_string, ngrams
 from ._trampoline import Walk, run
 from ._patterns import PatternMachine, observation_machine
-from ._tree_identities import TreeIdentities
+from ._tree_identities import TreeIdentities, frame_key
 from ._unicode import UnicodeTable
 from ._closes import Block, CloseMachine, InvalidObservation, RestoredSpan, needed, local_demand, query_prefixes
 from ._families import DEAD, IDENTITY, FamilyMatcher, Summary
@@ -1251,11 +1251,11 @@ class Parser:
         agenda: list[int] = []
 
         def tree_demand(production):
-            return tree_demands[production.real_id]
+            return tree_demands[production.real_id, frame_key(production.lexical)]
 
         def request_child(production, position, at):
             requested = int(request_closes(production, position, at))
-            if trees is not None and (production.observes_trees and production.rhs[position] not in lowered.ranked_helpers or position in tree_demand(production)[1]):
+            if trees is not None and ((production.walks_trees or position < production.tree_prefix_until) and production.rhs[position] not in lowered.ranked_helpers or position in tree_demand(production)[1]):
                 requested |= 2
             return requested
 
@@ -1277,10 +1277,10 @@ class Parser:
             return trees.seals[key]
 
         def tree_state(p, position, start, at, edge):
-            if not p.observes_trees:
+            if not p.observes_trees or not p.walks_trees and position > p.tree_prefix_until:
                 return None
             before, kind, child, terminal = edge
-            prefix = tree_prefixes[before] if before >= 0 else 0
+            prefix = tree_prefixes.get(before, 0) if before >= 0 else 0
             if before >= 0:
                 if kind == 2:
                     if p.rhs[position - 1] in lowered.ranked_helpers:
@@ -1290,7 +1290,7 @@ class Parser:
                 else:
                     prefix = trees.append(prefix, terminal_identity(terminal, child))
             identity, sequence = None, prefix
-            if position == len(p.rhs):
+            if position == len(p.rhs) and p.walks_trees:
                 if not p.helper:
                     identity = trees.rule(p.rule_name, prefix)
                     sequence = trees.append(0, identity)
@@ -1597,7 +1597,9 @@ class Parser:
                             observes_closes=closes is not None and (bool(requested & 1) or demand(p)[0]))
                 if trees is not None:
                     q.tree_requested = bool(requested & 2)
-                    q.observes_trees = q.tree_requested or not p.helper and tree_demand(p)[0]
+                    q.walks_trees = q.tree_requested or not p.helper and tree_demand(p)[0]
+                    q.tree_prefix_until = tree_demand(p)[4]
+                    q.observes_trees = q.walks_trees or q.tree_prefix_until > 0
                 productions.append(q)
                 demands[q.id] = demand(p)
                 variants[key] = q
@@ -1771,7 +1773,7 @@ class Parser:
             and then the item, if they all hold. Once the constituent is
             complete, $ has its tags, and the tag term runs only where a
             condition reads them (engine §4)."""
-            tree_identity = tree_state(production, position + 1, start, at, edge)[1] if trees is not None and production.observes_trees else None
+            tree_identity = tree_state(production, position + 1, start, at, edge)[1] if trees is not None and production.walks_trees else None
             known_tag = None
             complete = position + 1 == len(production.rhs)
             if complete and (production.whole_ready or boundaries is not None and production.tags_term is not None):
@@ -1811,7 +1813,7 @@ class Parser:
             # $ is bound for an empty production, whose span is empty at j.
             # Its tag term runs only where a condition reads $'s tags (engine
             # §4).
-            tree_identity = tree_state(production, 0, j, j, SEED)[1] if trees is not None and production.observes_trees else None
+            tree_identity = tree_state(production, 0, j, j, SEED)[1] if trees is not None and production.walks_trees else None
             structure = completed_structure(production, 0, 0, j, j)
             close_structure = completed_closes(production, 0, j, j, 0)
             known_tag = lazy_tag(production, NO_CAPS, j, j, structure, close_structure, tree_identity) if not production.rhs else None

@@ -116,35 +116,71 @@ def own_conditions(production):
             production.tree_conditions]
 
 
+def frame_key(frame):
+    if frame is None: return None
+    old = getattr(frame, "tree_demand_key", None)
+    if old is None:
+        old = frozenset(frame.present), frozenset(frame.captures), frozenset(frame.known_private), bool(frame.inside)
+        frame.tree_demand_key = old
+    return old
+
+
 def prepare(lowered):
-    demands = {}
-    outer, whole = {}, set()
+    from copy import copy
+    from types import SimpleNamespace
+    from ._ranked_frame import Frames
+    static = copy(lowered)
+    static.productions = list(lowered.productions)
+    frames = Frames(static, None)
+    states, indexed, demands = [], {}, {}
+    next_frame = 0
+
+    def state(p, frame):
+        key = p.real_id, frame_key(frame)
+        if key in indexed: return indexed[key]
+        bound = frames.production(p, frame) if frame is not None else p
+        names = {term["capture"] for c in comparisons([bound.tags_term, bound.parent_tags, bound.conds_predict, list(bound.conds_at.values())]) for term in (c["left"], c["right"])}
+        demand = ["" in names, {p.captures[n] for n in names if n in p.captures}, names - p.captures.keys() - {""}, bool(p.helper and "" in names), 0]
+        entry = SimpleNamespace(p=p, frame=frame, demand=demand, edges=[])
+        demands[key] = demand
+        indexed[key] = entry
+        states.append(entry)
+        return entry
+
     for p in lowered.productions:
-        names = {term["capture"] for c in comparisons(own_conditions(p)) for term in (c["left"], c["right"])}
-        demands[p.real_id] = ["" in names, {p.captures[n] for n in names if n in p.captures}]
-        if p.helper:
-            outer.setdefault(p.lhs, set()).update(names - p.captures.keys() - {""})
-            if "" in names: whole.add(p.lhs)
+        if not p.contextual: state(p, None)
+    at = 0
+    while at < len(states):
+        entry = states[at]
+        at += 1
+        p, frame = entry.p, entry.frame
+        present = (frame.present if frame else set()) | {n for n in p.captures if not n.startswith("\0")}
+        known = (frame.known_private if frame else set()) | p.private_names
+        inside = bool(p.ranked or frame and frame.inside)
+        for index, (terminal, symbol) in enumerate(zip(p.terminal, p.rhs)):
+            if terminal or not any(lowered.productions[i].contextual for i in lowered.rule_productions[symbol]): continue
+            captures = dict(frame.captures) if frame else {}
+            captures.update((name, None) for name, pos in p.captures.items() if pos < index and not name.startswith("\0"))
+            child = SimpleNamespace(id=next_frame, captures=captures, present=present, known_private=known, inside=inside)
+            next_frame += 1
+            for i in lowered.rule_productions[symbol]:
+                entry.edges.append((index, state(lowered.productions[i], child)))
     changed = True
     while changed:
         changed = False
-        for p in lowered.productions:
-            if not p.helper: continue
-            for terminal, symbol in zip(p.terminal, p.rhs):
-                if terminal: continue
-                if symbol in whole and p.lhs not in whole:
-                    whole.add(p.lhs)
-                    changed = True
-                names = outer.get(symbol, set()) - p.captures.keys() - outer[p.lhs]
-                if names:
-                    outer[p.lhs].update(names)
-                    changed = True
-    for p in lowered.productions:
-        demand = demands[p.real_id]
-        for index, (terminal, symbol) in enumerate(zip(p.terminal, p.rhs)):
-            if terminal: continue
-            if symbol in whole: demand[0] = True
-            demand[1].update(position for name, position in p.captures.items() if name in outer.get(symbol, ()) and position < index)
+        for entry in states:
+            p, frame, demand = entry.p, entry.frame, entry.demand
+            for index, child in entry.edges:
+                if child.demand[3]:
+                    if p.helper and not demand[3]: demand[3], changed = True, True
+                    if not p.ranked and not (frame and frame.inside) and index > demand[4]: demand[4], changed = index, True
+                for name in child.demand[2]:
+                    pos = p.captures.get(name)
+                    if pos is not None and pos < index:
+                        if pos not in demand[1]: demand[1].add(pos); changed = True
+                    elif frame and name in frame.captures and name not in demand[2]:
+                        demand[2].add(name)
+                        changed = True
     lowered.tree_demands = demands
 
 
