@@ -1,0 +1,30 @@
+{
+  "description": "In the eberban/refgram pipeline, native-delimiter reads a root as the closing delimiter. Its pair is delimiter-root-interior.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "co bjapta[x]bjapta",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "co bjapta[x]bjapta",
+              "image": "co bjapta[x]bjapta"
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": []
+  }
+}

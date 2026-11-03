@@ -1,0 +1,69 @@
+{
+  "description": "In the eberban/refgram pipeline, delimiter-shape reads zao before the hyphen and digit, so the quote closes at the first ]zao. Its pair is delimiter-hyphen-digit-closer.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "co zao[x]zao-1]zao-1",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "co zao[x]zao",
+              "image": "co zao[x]zao-"
+            },
+            {
+              "value": "te",
+              "image": "1"
+            },
+            {
+              "value": "zao",
+              "image": "zao"
+            },
+            {
+              "value": "te",
+              "image": "1"
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "stage": "forms",
+        "feature": "hyphen-misplaced",
+        "rule": "misplaced-hyphen",
+        "span": [
+          12,
+          13
+        ],
+        "source": [
+          12,
+          13
+        ]
+      },
+      {
+        "stage": "forms",
+        "feature": "hyphen-misplaced",
+        "rule": "misplaced-hyphen",
+        "span": [
+          18,
+          19
+        ],
+        "source": [
+          18,
+          19
+        ]
+      }
+    ]
+  }
+}

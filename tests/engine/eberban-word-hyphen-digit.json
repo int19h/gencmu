@@ -1,0 +1,27 @@
+{
+  "description": "In the eberban/refgram pipeline, a hyphen between a word and a digit is one misplaced hyphen.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "a mi bjan-1 mo",
+  "expect": {
+    "result": {
+      "ok": true,
+      "warnings": [
+        {
+          "stage": "forms",
+          "feature": "hyphen-misplaced",
+          "span": [
+            9,
+            10
+          ],
+          "source": [
+            9,
+            10
+          ]
+        }
+      ]
+    }
+  }
+}

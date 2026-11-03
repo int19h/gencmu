@@ -1,0 +1,34 @@
+{
+  "description": "In the eberban/refgram pipeline, delimiter-shape reads the same particle after an interior ], with the same value, so the quote closes at the first ]zao. Its pair is delimiter-particle-closer.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "co zao[x]zao]zao",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "co zao[x]zao",
+              "image": "co zao[x]zao"
+            },
+            {
+              "value": "zao",
+              "image": "zao"
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": []
+  }
+}

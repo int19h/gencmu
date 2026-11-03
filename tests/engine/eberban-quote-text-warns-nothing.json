@@ -1,0 +1,14 @@
+{
+  "description": "In the eberban/refgram pipeline, a digit and a hyphen inside a foreign quote are quoted text, so no warning marks them.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "a co [1-]",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

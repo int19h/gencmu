@@ -1,0 +1,28 @@
+{
+  "description": "In the eberban/refgram pipeline, a quote closes at its first ]bjapta, so y stands outside it and carries non-eberban-letter.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "a co bjapta[x]bjapta y]bjapta mo",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "forms",
+        "feature": "non-eberban-letter",
+        "rule": "space-unit",
+        "span": [
+          21,
+          22
+        ],
+        "source": [
+          21,
+          22
+        ]
+      }
+    ]
+  }
+}

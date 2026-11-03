@@ -1,0 +1,27 @@
+{
+  "description": "In the eberban/refgram pipeline, a hyphen between a digit and a vowel-initial word is one misplaced hyphen, as in the PEG.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "a mi 1-an mo",
+  "expect": {
+    "result": {
+      "ok": true,
+      "warnings": [
+        {
+          "stage": "forms",
+          "feature": "hyphen-misplaced",
+          "span": [
+            6,
+            7
+          ],
+          "source": [
+            6,
+            7
+          ]
+        }
+      ]
+    }
+  }
+}

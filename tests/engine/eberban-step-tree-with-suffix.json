@@ -1,0 +1,191 @@
+{
+  "description": "In the eberban/refgram pipeline, a step reads annotated-verb, which holds the verb and its free suffixes, as the PEG's ChainVerb does. step-tail holds only the binds and the rest of the chain.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "mi duna de ke",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "syntax",
+          "tree": {
+            "rule": "text",
+            "children": [
+              {
+                "rule": "paragraphs",
+                "children": [
+                  {
+                    "rule": "sentences",
+                    "children": [
+                      {
+                        "rule": "sentence",
+                        "children": [
+                          {
+                            "rule": "sentence-choice",
+                            "children": [
+                              {
+                                "rule": "sentence-body",
+                                "children": [
+                                  {
+                                    "rule": "a-sentence",
+                                    "children": [
+                                      {
+                                        "kind": "elided",
+                                        "terminal": "A"
+                                      },
+                                      {
+                                        "rule": "definition",
+                                        "children": [
+                                          {
+                                            "rule": "chain",
+                                            "children": [
+                                              {
+                                                "rule": "chain-inner",
+                                                "children": [
+                                                  {
+                                                    "rule": "step",
+                                                    "children": [
+                                                      {
+                                                        "rule": "plain-step",
+                                                        "children": [
+                                                          {
+                                                            "rule": "annotated-verb",
+                                                            "children": [
+                                                              {
+                                                                "rule": "verb",
+                                                                "children": [
+                                                                  {
+                                                                    "rule": "base-verb",
+                                                                    "children": [
+                                                                      {
+                                                                        "rule": "mi-free",
+                                                                        "children": [
+                                                                          {
+                                                                            "kind": "token",
+                                                                            "terminal": "MI"
+                                                                          }
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          },
+                                                          {
+                                                            "rule": "step-tail",
+                                                            "children": [
+                                                              {
+                                                                "rule": "chain-inner",
+                                                                "children": [
+                                                                  {
+                                                                    "rule": "step",
+                                                                    "children": [
+                                                                      {
+                                                                        "rule": "plain-step",
+                                                                        "children": [
+                                                                          {
+                                                                            "rule": "annotated-verb",
+                                                                            "children": [
+                                                                              {
+                                                                                "rule": "verb",
+                                                                                "children": [
+                                                                                  {
+                                                                                    "rule": "base-verb",
+                                                                                    "children": [
+                                                                                      {
+                                                                                        "rule": "definable-usage",
+                                                                                        "children": [
+                                                                                          {
+                                                                                            "rule": "definable-part",
+                                                                                            "children": [
+                                                                                              {
+                                                                                                "kind": "token",
+                                                                                                "terminal": "Root"
+                                                                                              }
+                                                                                            ]
+                                                                                          }
+                                                                                        ]
+                                                                                      }
+                                                                                    ]
+                                                                                  }
+                                                                                ]
+                                                                              },
+                                                                              {
+                                                                                "rule": "postfix",
+                                                                                "children": [
+                                                                                  {
+                                                                                    "rule": "interjection",
+                                                                                    "children": [
+                                                                                      {
+                                                                                        "kind": "token",
+                                                                                        "terminal": "DE"
+                                                                                      },
+                                                                                      {
+                                                                                        "rule": "verb",
+                                                                                        "children": [
+                                                                                          {
+                                                                                            "rule": "base-verb",
+                                                                                            "children": [
+                                                                                              {
+                                                                                                "kind": "token",
+                                                                                                "terminal": "KI"
+                                                                                              }
+                                                                                            ]
+                                                                                          }
+                                                                                        ]
+                                                                                      }
+                                                                                    ]
+                                                                                  }
+                                                                                ]
+                                                                              }
+                                                                            ]
+                                                                          },
+                                                                          {
+                                                                            "rule": "step-tail",
+                                                                            "children": []
+                                                                          }
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "warnings": []
+  }
+}

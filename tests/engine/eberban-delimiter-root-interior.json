@@ -1,0 +1,34 @@
+{
+  "description": "In the eberban/refgram pipeline, delimiter-shape reads the same root after an interior ], so the quote closes at the first ]bjapta. Its pair is delimiter-root-closer.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "co bjapta[x]bjapta]bjapta",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "co bjapta[x]bjapta",
+              "image": "co bjapta[x]bjapta"
+            },
+            {
+              "value": "bjapta",
+              "image": "bjapta"
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": []
+  }
+}

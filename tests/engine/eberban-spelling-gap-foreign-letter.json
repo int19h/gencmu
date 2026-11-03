@@ -1,0 +1,28 @@
+{
+  "description": "In the eberban/refgram pipeline, a foreign letter in a gap of a spelling quote carries non-eberban-letter, as in the PEG.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "a ce qba cei",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "forms",
+        "feature": "non-eberban-letter",
+        "rule": "space-unit",
+        "span": [
+          5,
+          6
+        ],
+        "source": [
+          5,
+          6
+        ]
+      }
+    ]
+  }
+}
