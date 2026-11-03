@@ -88,7 +88,7 @@ The JSON value returned by a formatter owns its arrays independently of the inpu
 
 A token node's `token` indexes the stage-input token it reads. `terminal` records canonical terminal identity, such as `KOhA`, `"a"`, `"a".."z"`, or `_`. Tests do not change that identity. Constants expand to their string identity. Read witnesses and expected lists use the same spelling.
 
-An elided node with a default value (engine §3.8) records it as `value`, after `source`. A default from `≝` or from an equality test counts, and an explicit empty operand gives `value:""`. All other nodes omit this member. Canonical tree comparisons include `value`. This metadata does not change the empty value that an omitted pattern leaf observes.
+An elided node with a default value (engine §3.8) records it as `value`, after `source`. A default from `≝` or from an equality test counts, and an explicit empty operand gives `value:""`. All other nodes omit this member. A canonical comparison of two result trees includes `value`. A comparison of two constituents in a condition (engine §10) does not read it. This metadata does not change the empty value that an omitted pattern leaf observes.
 
 ```json
 {"kind":"elided","terminal":"T","span":[1,1],"source":[1,1],"value":"saved"}
@@ -199,9 +199,9 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. The per-family preparsed files hold this data, including the entries that bootstrap the notation reader.
 
-Its envelope is `{"format":43,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
+Its envelope is `{"format":44,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
 
-`format` is the version of the DOM, 43. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
+`format` is the version of the DOM, 44. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
 
 An optional member is absent only when its key is absent. A present `null` does not replace an omitted member. Every present member must satisfy its stated form, including exclusive targets and optional clauses.
 
@@ -451,7 +451,7 @@ Conditions have these forms:
 {"captured":"x"}        {"if":COND,"then":COND}
 ```
 
-Comparators are `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, `≅`, and `≇`. Operand types follow engine §10. Tree comparison requires a bare capture on the left. A presence predicate uses `captured`, with an empty name for `$`.
+Comparators are `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, `≅`, and `≇`. Operand types follow engine §10. Tree comparison requires a bare capture or `$` on the left. Its right member is any term, and the loader checks its type (engine §10). A presence predicate uses `captured`, with an empty name for `$`.
 
 TARGET follows the definition after the ARG forms. A CAPTURE is `{"capture":"x"}`, with an empty name for `$`. A boundary atom is a condition, so `not`, `any`, `all` and `if` can hold it (engine §4.2).
 
@@ -517,15 +517,15 @@ An undecorated node test has one of these forms:
 
 TERMINALATOM is an undecorated `terminal`, `literal`, `range`, `wildcard`, or string-valued `constant`. Before substitution, it can also be a declared `param` that must become a terminal atom. TESTTARGET is TERMINALATOM or exactly one tag test on TERMINALATOM. The source order is tag then value. These inner objects carry no `exact` or `children` fields.
 
-A tag test can also take a rule atom, `{"test":"tags","requirements":[REQUIREMENT...],"expr":RULEATOM}`, where RULEATOM is an undecorated `name`, `call`, or a `param` that must become one. It reads the constituent's tags (engine §4.1). No value test takes a rule atom, and a tested rule atom carries no `children`.
+A tag test can also take a rule atom, `{"test":"tags","requirements":[REQUIREMENT...],"expr":RULEATOM}`, where RULEATOM is an undecorated `name`, `call`, or a `param` that must become one. It reads the constituent's tags (engine §4.1). A value test can take a rule atom or exactly one tag test on it, as in `{"test":"=","value":{"string":"mi"},"expr":{"name":"sumti"}}`. It reads the input value of the constituent's span. A tested rule atom carries no `children`.
 
-A tag-only test is `{"test":"tags","requirements":[REQUIREMENT...],"any":true}`. It matches any observable node by its tags, and a value test can take it as TESTTARGET. The mark `_Elided` is a REQUIREMENT only in a pattern tag test, and never without negation on a rule atom (engine §9.3).
+Every test takes an atom, so no test object stands alone. The mark `_Elided` is a REQUIREMENT only in a pattern tag test, and never without negation on a rule atom (engine §9.3).
 
 A node test can add `"exact":true`, then `"children":[ITEM...]` where permitted below. If the object has an `at` member, that member follows both additions. This order also applies to calls and parameters before expansion. Both additions are optional.
 
 `exact` occurs only as true and suppresses the search for that node alone. `children` always records the written guillemets, including an empty or one-item array. Its absence imposes no child constraint.
 
-Only `name`, `call`, and compatible `param` node tests accept `children`. A terminal, `wildcard`, tested atom, tag-only test, or string-valued `constant` cannot carry that member. Every node-test form can carry `exact:true`. On a tested atom, the exact prefix belongs to the outermost test object, never its inner `expr`.
+Only `name`, `call`, and compatible `param` node tests accept `children`. A terminal, `wildcard`, tested atom, or string-valued `constant` cannot carry that member. Every node-test form can carry `exact:true`. On a tested atom, the exact prefix belongs to the outermost test object, never its inner `expr`.
 
 A bare child list has exactly this form, with optional `exact` before `children`:
 
@@ -534,7 +534,7 @@ A bare child list has exactly this form, with optional `exact` before `children`
 {"any":true,"exact":true,"children":[ITEM...]}
 ```
 
-`any` requires `children`. It denotes an observable node, without a name or terminal test. It never matches a ranked seal. `_` instead uses `wildcard`, which tests only the wildcard terminal identity.
+`any` requires `children`. It denotes an observable node, without a name or terminal test. It never matches a ranked seal. `_` instead uses `wildcard`, which matches any written or omitted leaf, whatever terminal read it.
 
 PATTERN is a node test, a bare child list, or one of these compound forms:
 
@@ -622,9 +622,10 @@ A tree comparison uses the `op`, `left` and `right` members:
 ```json
 {"op":"≅","left":{"capture":"x"},"right":{"pattern":{"name":"sumti","at":[1,9]}}}
 {"op":"≇","left":{"capture":""},"right":{"const":"KE-UNIT","at":[1,7]}}
+{"op":"≅","left":{"capture":"v"},"right":{"capture":"e"}}
 ```
 
-These operators require a bare capture on the left and a pattern term on the right. Pattern equality and implicit string conversion are malformed. Text, cached DOMs and supplied DOMs use the same grouping, field, arity and type restrictions. Resolution covers patterns in replaced definitions too.
+These operators require a bare capture or `$` on the left. The right member is any term, and the loader checks its type after constants and template arguments resolve (engine §10). A right term of constituent type is a `capture` term, with an empty name for `$`. A right term of another type than pattern or constituent is a type error. Pattern equality and implicit string conversion are malformed. Text, cached DOMs and supplied DOMs use the same grouping, field, arity and type restrictions. Resolution covers patterns in replaced definitions too.
 
 Structural states and omission predicates remain internal derived state. Omitted pattern tags are the terminator tag and the mark `_Elided`, which no output field shows. Internal omission records retain `value` only for a default value, from `≝` or from equality, including an explicit empty string.
 
@@ -646,7 +647,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choice
 
 The names dependency of a cached document is a resource map. If source conversion loads no names data, the entry omits `names`.
 
-`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":43,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
+`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":44,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
 
 The required `gencmu.json` omits the `bootstrap` header member. The hash of its complete text supplies that fingerprint for every other family. The notation reader uses its required entries without checking their source text hashes. Ordinary cache lookups still compare all other applicable identity members. Each document key selects its own family's preparsed file (engine §8), besides the required `gencmu.json`. Missing or malformed optional files give cache misses.
 

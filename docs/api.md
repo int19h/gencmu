@@ -90,8 +90,6 @@ A feature is a named switch that the grammars of the pipeline test (engine §13)
 
 A loaded pipeline lists its features (engine §13), in code point order of the names. The list includes the gates of the entries of its classifiers. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name.
 
-A loaded pipeline also lists vocabulary warnings for its ranking steps (engine §9.3). JavaScript exposes `loadWarnings`. Python exposes `load_warnings`. Go exposes `LoadWarnings()`. Rust exposes `load_warnings()`. Each warning names the stage, the zero-based key step index, and the tested tag. These loading warnings are separate from parse warnings.
-
 The JavaScript audit gives the static ranking reports of `docs/design.md`. Python and Rust expose `ranking_reports()`. Go exposes `RankingReports()`. Python prints them through `format_ranking_reports()`. Go uses `FormatRankingReports`. Rust uses `format_ranking_reports`.
 
 Unconditional declarations, global or stage-local, set `default:true`. The inventory does not depend on the caller's last stage. Conditional declarations contribute feature names without defaults.
