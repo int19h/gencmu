@@ -139,12 +139,33 @@ pub(crate) fn simplify_value(term: &Term, has: &dyn Fn(&str) -> bool) -> Term {
 
 /// A part of a clause: a term or a condition.
 #[derive(Clone, Copy)]
-enum Part<'a> {
+pub(crate) enum Part<'a> {
     Term(&'a Term),
     Cond(&'a Cond),
 }
 
 impl<'a> Part<'a> {
+    pub(crate) fn children(self) -> Vec<Part<'a>> {
+        match self {
+            Part::Term(Term::Call(_, args)) | Part::Cond(Cond::SourceQuery(_, args, _)) => args
+                .iter()
+                .filter_map(|arg| match arg {
+                    Arg::Term(term) => Some(Part::Term(term)),
+                    _ => None,
+                })
+                .collect(),
+            Part::Cond(
+                Cond::Matches(term, _)
+                | Cond::Begins(term, _)
+                | Cond::Ends(term, _)
+                | Cond::Initial(term)
+                | Cond::Final(term)
+                | Cond::Boundary(_, term, _, _),
+            ) => vec![Part::Term(term)],
+            _ => self.reducing_children(),
+        }
+    }
+
     fn reducing_children(self) -> Vec<Part<'a>> {
         match self {
             Part::Term(Term::If(cond, then)) => vec![Part::Cond(cond), Part::Term(then)],

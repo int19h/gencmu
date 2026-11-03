@@ -102,6 +102,8 @@ export declare const boundaryDocumentErrors: WeakMap<object, {
     document: string;
     node: object;
 }>;
+/** @param {any} dom */
+export declare function needsTreeLocations(dom: any): boolean;
 /** Recover positions through the same reader as an uncached document.
  * @param {any} dom @param {any} source */
 export declare function restoreBoundaryLocations(dom: any, source: any): void;

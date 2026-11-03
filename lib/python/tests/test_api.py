@@ -144,6 +144,24 @@ class TestDefinitions(unittest.TestCase):
 
 
 class Loaders(unittest.TestCase):
+    def test_cached_tree_comparisons_keep_cycle_positions(self) -> None:
+        from gencmu._pipeline import read_document
+        from gencmu._hash import fnv1a64
+        source = '```jbogenbau\n%ambiguity-resolution greedy\n%rule text $x:w $y:w\n%conditions $x ≅ $y\n%rule w "a" | w\n```\n'
+        sources = {"grammars/test/p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "grammars/test/g.md": source}
+        cache = {
+            "format": DOM_FORMAT, "bootstrap": fnv1a64(bundled_text("data/preparsed/gencmu.json") or ""),
+            "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""),
+            "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""),
+            "documents": {"grammars/test/g.md": {"hash": fnv1a64(source), "dom": read_document(source, "grammars/test/g.md")}},
+        }
+        for cached in (False, True):
+            with self.subTest(cached=cached):
+                if cached: sources["data/preparsed/test.json"] = json.dumps(cache)
+                result = gencmu.load_pipeline_sources(sources, "grammars/test/p.md").parse("aa")
+                self.assertEqual(result.error.kind, "grammar")
+                self.assertTrue(result.error.message.startswith("grammars/test/g.md:4:13: "), result.error.message)
+
     def test_replacements_retain_ranking_steps(self) -> None:
         pipeline = gencmu.load_pipeline_sources({
             "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',

@@ -102,11 +102,12 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 	// includes is joined only for an error, so a deep chain costs its
 	// depth, not its square.
 	type spliceFrame struct {
-		unresolved bool
-		path       string
-		items      []docItem
-		next       int
-		names      []string
+		unresolved        bool
+		namesDependencies map[string]string
+		path              string
+		items             []docItem
+		next              int
+		names             []string
 	}
 	var through []*spliceFrame
 	inChain := map[string]bool{}
@@ -116,7 +117,7 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 		if err != nil {
 			return err
 		}
-		through = append(through, &spliceFrame{unresolved: dom.unresolved, path: docPath, items: itemsInOrder(dom), names: names})
+		through = append(through, &spliceFrame{namesDependencies: dom.namesDependencies, unresolved: dom.unresolved, path: docPath, items: itemsInOrder(dom), names: names})
 		inChain[docPath] = true
 		return nil
 	}
@@ -234,7 +235,7 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 					return grammarError(docPath, at, "%%%s stands before the first %%stage", item.dir.Name)
 				}
 				if run == nil || runPath != docPath {
-					run, runPath = &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}, Classifiers: []*domClassifier{}, Implications: []*domImplication{}}, docPath
+					run, runPath = &domDoc{namesDependencies: f.namesDependencies, Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}, Classifiers: []*domClassifier{}, Implications: []*domImplication{}}, docPath
 					s.documents = append(s.documents, docDOM{path: docPath, dom: run})
 				}
 				run.unresolved = run.unresolved || f.unresolved

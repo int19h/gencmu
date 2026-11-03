@@ -5,18 +5,47 @@ def children(node):
     return []
 
 
-def comparisons(root):
+def comparisons(root, *, constituents_only=True):
     result, pending, seen = [], [root], set()
     while pending:
         node = pending.pop()
         if not isinstance(node, (dict, list, tuple)) or id(node) in seen:
             continue
         seen.add(id(node))
-        if isinstance(node, dict) and node.get("op") in ("≅", "≇") and "capture" in node["right"]:
+        if isinstance(node, dict) and node.get("op") in ("≅", "≇") and (not constituents_only or "capture" in node["right"]):
             result.append(node)
         else:
             pending.extend(reversed(children(node)))
     return result
+
+
+def needs_locations(dom):
+    return any(not hasattr(node, "at") and ("capture" in node["right"] or "param" in node["right"])
+               for node in comparisons(dom["rules"], constituents_only=False))
+
+
+def restore_locations(dom, source):
+    from ._boundary import Located
+    originals = {tuple(rule["at"]): rule for rule in source["rules"]}
+    changed = False
+    for rule in dom["rules"]:
+        original = originals.get(tuple(rule["at"]))
+        if original is None: continue
+        found = comparisons(rule, constituents_only=False)
+        written = comparisons(original, constituents_only=False)
+        if len(found) != len(written): continue
+        positions = {id(node): origin.at for node, origin in zip(found, written) if hasattr(origin, "at")}
+        pending = [rule]
+        while pending:
+            parent = pending.pop()
+            entries = list(parent.items()) if isinstance(parent, dict) else enumerate(parent) if isinstance(parent, list) else ()
+            for key, node in entries:
+                if id(node) in positions:
+                    parent[key] = Located(node, positions[id(node)])
+                    changed = True
+                elif isinstance(node, (dict, list)):
+                    pending.append(node)
+    return changed
 
 
 class TreeIdentities:

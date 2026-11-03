@@ -1729,3 +1729,32 @@ func TestRankingReportsUseReachability(t *testing.T) {
 		}
 	}
 }
+
+func TestCachedTreeComparisonsKeepCyclePositions(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	source := block("%ambiguity-resolution greedy", "%rule text $x:w $y:w", "%conditions $x ≅ $y", `%rule w "a" | w`)
+	sources := map[string]string{"grammars/test/p.md": block("%stage main", `%include "g.md"`), "grammars/test/g.md": source}
+	dom, readErr := bundled.reader.readMode(source, "grammars/test/g.md", true)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	cache := `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/g.md":{"hash":"` + fnv1a64(source) + `","dom":` + string(dom.json()) + `}}}`
+	for _, cached := range []bool{false, true} {
+		if cached {
+			sources["data/preparsed/test.json"] = cache
+		}
+		pipeline, loadErr := LoadPipelineSources(sources, "grammars/test/p.md")
+		if loadErr != nil {
+			t.Fatal(loadErr)
+		}
+		result, parseErr := pipeline.Parse("aa", ParseOptions{})
+		if parseErr != nil {
+			t.Fatal(parseErr)
+		}
+		if result.Error == nil || result.Error.Kind != ErrorGrammar || !strings.HasPrefix(result.Error.Message, "grammars/test/g.md:4:13: ") {
+			t.Fatalf("cached=%v: %+v", cached, result.Error)
+		}
+	}
+}

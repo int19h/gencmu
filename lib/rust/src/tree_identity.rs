@@ -7,6 +7,39 @@ pub(crate) const CLOSE: u8 = 1;
 pub(crate) const TREE: u8 = 2;
 pub(crate) const ABSENT: u32 = u32::MAX;
 
+fn written_comparisons(root: crate::clauses::Part<'_>) -> Vec<Option<(usize, usize)>> {
+    use crate::clauses::Part;
+    let mut pending = vec![root];
+    let mut out = Vec::new();
+    while let Some(part) = pending.pop() {
+        if let Part::Cond(crate::dom::Cond::Compare(
+            op,
+            _,
+            crate::dom::Term::Capture(_) | crate::dom::Term::Source(_),
+            at,
+        )) = part
+        {
+            if matches!(op.as_str(), "≅" | "≇") {
+                out.push(*at);
+            }
+        }
+        pending.extend(part.children().into_iter().rev());
+    }
+    out
+}
+
+pub(crate) fn needs_locations(dom: &crate::dom::Dom) -> bool {
+    use crate::clauses::Part;
+    dom.rules.iter().any(|rule| {
+        rule.tags
+            .iter()
+            .map(Part::Term)
+            .chain(rule.alternatives.iter().flat_map(|alt| alt.tags.iter().map(Part::Term)))
+            .chain(rule.conditions.iter().map(Part::Cond))
+            .any(|root| written_comparisons(root).contains(&None))
+    })
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Node {
     Rule(String, u32),
@@ -434,7 +467,42 @@ fn enter(g: &Lowered, id: u32, context: &Context, queue: &mut Vec<Context>) {
     }
 }
 
-pub(crate) fn check_cycles(g: &Lowered, rows: &[(u32, Vec<Sym>)], stage: &str) -> Result<(), crate::lower::LowerError> {
+pub(crate) fn check_cycles(
+    g: &Lowered,
+    rows: &[(u32, Vec<Sym>)],
+    grammar: &crate::grammar::StageGrammar,
+) -> Result<(), crate::lower::LowerError> {
+    use crate::clauses::Part;
+    let stage = &grammar.name;
+    let mut order = FxMap::default();
+    let mut next_order = 0;
+    for (owner, rule) in grammar.rules.iter().enumerate() {
+        let mut groups = FxMap::<usize, Vec<_>>::default();
+        let mut definitions = Vec::new();
+        for alternative in &rule.alternatives {
+            let key = std::sync::Arc::as_ptr(&alternative.clauses) as usize;
+            if !groups.contains_key(&key) {
+                definitions.push(key);
+            }
+            groups.entry(key).or_default().push(alternative);
+        }
+        for key in definitions {
+            let alternatives = &groups[&key];
+            let clauses = &alternatives[0].clauses;
+            let roots = clauses
+                .tags
+                .iter()
+                .map(Part::Term)
+                .chain(alternatives.iter().flat_map(|alt| alt.alternative.tags.iter().map(Part::Term)))
+                .chain(clauses.conditions.iter().map(Part::Cond));
+            for root in roots {
+                for at in written_comparisons(root) {
+                    order.entry((owner as u32, alternatives[0].document.clone(), at)).or_insert(next_order);
+                    next_order += 1;
+                }
+            }
+        }
+    }
     let mut nullable = vec![false; g.rules.len()];
     let mut changed = true;
     while changed {
@@ -535,7 +603,11 @@ pub(crate) fn check_cycles(g: &Lowered, rows: &[(u32, Vec<Sym>)], stage: &str) -
             enter(g, id, &context, &mut queue);
         }
     }
-    sites.sort_by_key(|(id, _, _)| *id);
+    sites.sort_by_key(|(id, at, _)| {
+        let p = &g.prods[*id as usize];
+        let ordinal = p.document.as_ref().and_then(|document| order.get(&(p.owner, document.clone(), *at)));
+        (ordinal.copied().unwrap_or(next_order), *id)
+    });
     for (id, at, roots) in sites {
         let mut reachable = Vec::new();
         let mut known = FxSet::default();

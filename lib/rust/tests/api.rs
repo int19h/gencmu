@@ -1589,3 +1589,23 @@ fn ranking_reports_use_reachability() {
         if status.is_empty() { assert!(!gencmu::format_ranking_reports(&reports).contains("ranking step")); }
     }
 }
+
+#[test]
+fn cached_tree_comparisons_keep_cycle_positions() {
+    let rules = "%ambiguity-resolution greedy\n%rule text $x:w $y:w\n%conditions $x ≅ $y\n%rule w \"a\" | w";
+    let mut sources = single(rules)
+        .into_iter()
+        .map(|(path, text)| (format!("grammars/test/{path}"), text))
+        .collect::<BTreeMap<_, _>>();
+    let dom = gencmu::tools::read_grammar_document(&grammar(rules), "").unwrap();
+    for cached in [false, true] {
+        if cached {
+            sources.insert("data/preparsed/test.json".into(), preparsed(rules, &dom));
+        }
+        let pipeline = gencmu::load_pipeline_sources(&sources, "grammars/test/p.md").unwrap();
+        let result = pipeline.parse("aa", &ParseOptions::default()).unwrap();
+        let error = result.error.unwrap();
+        assert_eq!(error.kind, ParseErrorKind::Grammar);
+        assert!(error.message.starts_with("grammars/test/g.md:6:13: "), "cached={cached}: {}", error.message);
+    }
+}

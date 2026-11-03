@@ -500,7 +500,7 @@ A condition is a comparison, tree comparison, method, presence test, negation, o
 
 The flat implication list preserves every operand for the reader's grouping. This keeps recognition work proportional to the list rather than its nested completions.
 
-A tree comparison has a bare capture on the left and a pattern term on the right. `≇` negates the same candidate's `≅` answer.
+A tree comparison requires a bare capture on the left. On the right, a pattern tests structure, and a bare capture compares two trees.
 
 ```jbogenbau
 %rule implication

@@ -1766,7 +1766,7 @@ pub(crate) fn lower(
         let (demands, cases) = crate::tree_identity::demands(&lowered);
         lowered.tree_demands = demands.into();
         lowered.tree_cases = Some(Arc::new(cases));
-        crate::tree_identity::check_cycles(&lowered, &sequences, &grammar.name)?;
+        crate::tree_identity::check_cycles(&lowered, &sequences, grammar)?;
     }
     Ok(lowered)
 }

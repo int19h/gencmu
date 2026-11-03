@@ -162,35 +162,59 @@ func (g *stageGrammar) validateBoundaryTargets() *Error {
 	return nil
 }
 
-func restoreBoundaryLocations(to, from *domDoc) {
-	compared := func(doc *domDoc) []*domCond {
-		var out []*domCond
-		collect := func(root clausePart) {
-			walkClause(root, func(part clausePart) bool {
-				if c := part.c; c != nil && (c.Op == "≅" || c.Op == "≇") {
-					out = append(out, c)
-					return false
-				}
+func treeComparisonsInRule(rule *domRule) []*domCond {
+	var out []*domCond
+	collect := func(root clausePart) {
+		walkClause(root, func(part clausePart) bool {
+			if c := part.c; c != nil && (c.Op == "≅" || c.Op == "≇") {
+				out = append(out, c)
+				return false
+			}
+			return true
+		})
+	}
+	collect(clausePart{t: rule.Tags})
+	for _, alt := range rule.Alternatives {
+		collect(clausePart{t: alt.Tags})
+	}
+	for _, condition := range rule.Conditions {
+		collect(clausePart{c: condition})
+	}
+	return out
+}
+
+func treeLocationsMissing(doc *domDoc) bool {
+	for _, rule := range doc.Rules {
+		for _, c := range treeComparisonsInRule(rule) {
+			if c.Right.Kind == tmCapture && c.At == [2]int{} {
 				return true
-			})
-		}
-		for _, rule := range doc.Rules {
-			collect(clausePart{t: rule.Tags})
-			for _, alternative := range rule.Alternatives {
-				collect(clausePart{t: alternative.Tags})
-			}
-			for _, condition := range rule.Conditions {
-				collect(clausePart{c: condition})
 			}
 		}
-		return out
 	}
-	comparisons, originalsCompared := compared(to), compared(from)
-	if len(comparisons) == len(originalsCompared) {
-		for i, comparison := range comparisons {
-			comparison.At = originalsCompared[i].At
+	return false
+}
+
+func restoreTreeLocations(to, from *domDoc) {
+	originals := map[[2]int]*domRule{}
+	for _, rule := range from.Rules {
+		originals[rule.At] = rule
+	}
+	for _, rule := range to.Rules {
+		source := originals[rule.At]
+		if source == nil {
+			continue
+		}
+		found, written := treeComparisonsInRule(rule), treeComparisonsInRule(source)
+		if len(found) == len(written) {
+			for i, c := range found {
+				c.At = written[i].At
+			}
 		}
 	}
+}
+
+func restoreBoundaryLocations(to, from *domDoc) {
+	restoreTreeLocations(to, from)
 	for i, rule := range to.Rules {
 		if i >= len(from.Rules) {
 			break

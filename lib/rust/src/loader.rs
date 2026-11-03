@@ -735,9 +735,35 @@ fn load_mode(
     )?;
     let mut stages = Vec::new();
     for stage in pipeline.stages {
-        let documents: Vec<(Arc<str>, Arc<Dom>)> =
+        let mut documents: Vec<(Arc<str>, Arc<Dom>)> =
             stage.documents.into_iter().map(|(path, dom)| (path, Arc::new(dom))).collect();
-        stages.push(stitch(&stage.name, &documents, &context.unicode).map_err(|error| error.in_stage(&stage.name))?);
+        let mut grammar =
+            stitch(&stage.name, &documents, &context.unicode).map_err(|error| error.in_stage(&stage.name))?;
+        if grammar.tree_comparisons {
+            let mut located = false;
+            for (path, dom) in &mut documents {
+                if !crate::tree_identity::needs_locations(dom) {
+                    continue;
+                }
+                let Some(text) = sources.read(path)? else { continue };
+                let read_names = |name: &str| sources.names(name);
+                let names_override = |name: &str| sources.names_override(name);
+                let resolve = |base: &str, target: &str| sources.resolve(base, target);
+                let inherited = dom.names_dependencies.iter().flat_map(|deps| deps.keys().cloned());
+                let names = NamesScope::new(&read_names, &context.unicode, inherited)
+                    .in_document(path, &resolve)
+                    .with_overrides(&names_override);
+                if let Ok(source) = read_document_named(&context.notation, &text, true, &names) {
+                    crate::ranked::restore_locations(Arc::make_mut(dom), &source);
+                    located = true;
+                }
+            }
+            if located {
+                grammar =
+                    stitch(&stage.name, &documents, &context.unicode).map_err(|error| error.in_stage(&stage.name))?;
+            }
+        }
+        stages.push(grammar);
     }
     // A name used both as a gate and as a warning, in any of the stages, is
     // an error of the pipeline as a whole (engine §13).

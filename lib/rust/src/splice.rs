@@ -284,7 +284,10 @@ impl Splicer<'_> {
                     };
                     let continues = self.open_run && stage.documents.last().is_some_and(|(run, _)| run == path);
                     if !continues {
-                        stage.documents.push((path.clone(), Dom::default()));
+                        stage.documents.push((
+                            path.clone(),
+                            Dom { names_dependencies: dom.names_dependencies.clone(), ..Dom::default() },
+                        ));
                         self.open_run = true;
                     }
                     let (_, run) = stage.documents.last_mut().expect("a run");

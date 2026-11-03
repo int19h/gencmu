@@ -338,6 +338,33 @@ func (l *loader) loadMode(pipelinePath string) (*Pipeline, error) {
 		if err != nil {
 			return nil, err
 		}
+		if g.treeComparisons {
+			located := false
+			for _, document := range s.documents {
+				if !treeLocationsMissing(document.dom) {
+					continue
+				}
+				text, ok, readErr := l.read(document.path)
+				if readErr != nil || !ok {
+					continue
+				}
+				var inherited []string
+				for path := range document.dom.namesDependencies {
+					inherited = append(inherited, path)
+				}
+				names := newNamesScope(l.namesText, l.uni, inherited)
+				if source, readErr := l.reader.readMode(text, document.path, true, names); readErr == nil {
+					restoreTreeLocations(document.dom, source)
+					located = true
+				}
+			}
+			if located {
+				g, err = stitch(s.name, s.documents, l.uni)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
 		stages = append(stages, g)
 	}
 	pipeline, err := newPipeline(stages, p.features, l.uni)

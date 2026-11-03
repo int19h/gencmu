@@ -230,32 +230,9 @@ class NotationReader:
 
     def located(self, dom, text, path, names=None):
         from ._ranked import has_ranked, restore_locations
-        from ._tree_identities import children
-        from ._boundary import Located
-        def compared(root):
-            found, pending = [], [root]
-            while pending:
-                node = pending.pop()
-                if isinstance(node, dict) and node.get("op") in ("≅", "≇"):
-                    found.append(node)
-                else:
-                    pending.extend(children(node))
-            return found
-        comparisons = compared(dom["rules"])
-        if any(not hasattr(node, "at") for node in comparisons):
-            fresh = self.read(text, path, True, names)
-            originals = compared(fresh["rules"])
-            if len(comparisons) == len(originals):
-                positions = {id(node): original.at for node, original in zip(comparisons, originals) if hasattr(original, "at")}
-                pending = [dom["rules"]]
-                while pending:
-                    parent = pending.pop()
-                    entries = list(parent.items()) if isinstance(parent, dict) else enumerate(parent) if isinstance(parent, list) else ()
-                    for key, node in entries:
-                        if id(node) in positions:
-                            parent[key] = Located(node, positions[id(node)])
-                        elif isinstance(node, (dict, list)):
-                            pending.append(node)
+        from ._tree_identities import comparisons, restore_locations as restore_tree_locations
+        if any(not hasattr(node, "at") for node in comparisons(dom["rules"], constituents_only=False)):
+            restore_tree_locations(dom, self.read(text, path, True, names))
         from ._string_states import reads
         emitted = reads([rule.get("conditions", []) for rule in dom["rules"]])
         if any(not hasattr(read["receiver"], "at") for read in emitted):
@@ -560,7 +537,21 @@ class _Loader:
         stages: list[Grammar] = []
         for stage in pipeline.stages:
             try:
-                stages.append(stitch(stage.name, stage.documents, self.unicode))
+                grammar = stitch(stage.name, stage.documents, self.unicode)
+                if grammar.tree_comparisons:
+                    from ._tree_identities import needs_locations, restore_locations as restore_tree_locations
+                    located = False
+                    for path, dom in stage.documents:
+                        if not needs_locations(dom): continue
+                        try:
+                            names = NamesScope(self.names_text, self.unicode, self.inherited_names.get(path, ()))
+                            source = self.reader.read(self.text(path), path, True, names)
+                        except GencmuError:
+                            continue
+                        located |= restore_tree_locations(dom, source)
+                    if located:
+                        grammar = stitch(stage.name, stage.documents, self.unicode)
+                stages.append(grammar)
             except GencmuError as error:
                 if error.stage is None:
                     error.stage = stage.name
