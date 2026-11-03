@@ -1,6 +1,6 @@
 {
   "description": "A synthetic token makes no node for atoms (engine §4.2 and §6, case 23).",
-  "grammar": "%ambiguity-resolution late #·<_Elided>\n%elision-only\n%rule text a [b] | c\n%rule a A [+T]\n%rule b B\n%conditions ¬$.preceded-by(T)\n%rule c A [+U] B [+V]",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a [b] | c\n%rule a A [+T]\n%rule b B\n%conditions ¬$.preceded-by(T)\n%rule c A [+U] B [+V]",
   "tokens": [
     {
       "text": "a",

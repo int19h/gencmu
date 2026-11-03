@@ -1,6 +1,6 @@
 {
   "description": "A synthetic-only flagged occurrence has zero weight, so the canonical competing reading remains c (engine §7.10).",
-  "grammar": "%ambiguity-resolution leftmost-longest #(·w ∪ ·c ∪ ·d ∪ ·empty), late #·<_Elided>\n%elision-only\n%rule text (w ≻ missing) | c | d\n%rule w (X [+T]) | ([+U] X)\n               \n%rule missing (M N)\n%rule c (X T)\n               \n%rule d (X empty)\n               \n%rule empty T\n               ",
+  "grammar": "%ambiguity-resolution leftmost-longest #(·w ∪ ·c ∪ ·d ∪ ·empty), late #·_<_Elided>\n%elision-only\n%rule text (w ≻ missing) | c | d\n%rule w (X [+T]) | ([+U] X)\n               \n%rule missing (M N)\n%rule c (X T)\n               \n%rule d (X empty)\n               \n%rule empty T\n               ",
   "tokens": [
     {
       "text": "x",

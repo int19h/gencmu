@@ -2,7 +2,7 @@
 //! inputs, every derivation enumerated by brute force, and the verdict,
 //! first reading, second reading and witness computed straight from the
 //! definitions, compared with the library's. The rule of the ranking is
-//! `greedy`, `lazy` or `late #·<_Elided>`.
+//! `greedy`, `lazy` or `late #·_<_Elided>`.
 //!
 //! `GENCMU_PROPERTY_CASES` sets how many cases to run (default 3000) and
 //! `GENCMU_PROPERTY_SEED` the first seed; a failing case prints its seed,
@@ -144,7 +144,7 @@ fn generate(rng: &mut Rng) -> (Source, Input) {
     };
     let late = lean == Lean::LateElision;
     let elision_only = lean == Lean::Greedy && rng.chance(25);
-    // Under late #·<_Elided>, and now and then under another rule, a terminal
+    // Under late #·_<_Elided>, and now and then under another rule, a terminal
     // is elidable.
     let elidable = if !elision_only && (late || rng.chance(30)) { Some(rng.below(terminal_count)) } else { None };
     let sugar = elidable.is_some() || rng.chance(40);
@@ -391,7 +391,7 @@ fn steps(source: &Source) -> Vec<String> {
     steps.push(
         match source.lean {
             Lean::Lazy => "lazy",
-            Lean::LateElision => "late #·<_Elided>",
+            Lean::LateElision => "late #·_<_Elided>",
             _ => "greedy",
         }
         .into(),
@@ -1187,9 +1187,9 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         .or_default() += 1;
     if grammar.lean == Lean::LateElision {
         let stat = match expected.verdict {
-            "unique" => "(stat) late #·<_Elided> unique",
-            "resolved" => "(stat) late #·<_Elided> resolved",
-            _ => "(stat) late #·<_Elided> tie",
+            "unique" => "(stat) late #·_<_Elided> unique",
+            "resolved" => "(stat) late #·_<_Elided> resolved",
+            _ => "(stat) late #·_<_Elided> tie",
         };
         *findings.entry(stat).or_default() += 1;
     }

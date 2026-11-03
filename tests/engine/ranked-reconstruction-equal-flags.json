@@ -1,6 +1,6 @@
 {
   "description": "Two distinct flagged occurrences over one projected span each contribute weight (engine §7.10).",
-  "grammar": "%ambiguity-resolution leftmost-longest #(·w ∪ ·d ∪ ·c ∪ ·inner), late #·<_Elided>\n%elision-only\n%rule text (w ≻ missing) | d | c\n%rule w (X [+T]) | ([+U] X)\n               \n%rule missing (M N)\n%rule d (X T)\n               \n%rule c (inner T)\n               \n%rule inner X\n               ",
+  "grammar": "%ambiguity-resolution leftmost-longest #(·w ∪ ·d ∪ ·c ∪ ·inner), late #·_<_Elided>\n%elision-only\n%rule text (w ≻ missing) | d | c\n%rule w (X [+T]) | ([+U] X)\n               \n%rule missing (M N)\n%rule d (X T)\n               \n%rule c (inner T)\n               \n%rule inner X\n               ",
   "tokens": [
     {
       "text": "x",

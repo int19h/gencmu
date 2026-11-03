@@ -1,6 +1,6 @@
 {
-  "description": "A tag-only pattern on $ requests the root tags (engine §4).",
-  "grammar": "%rule text \"a\" :: T\n%conditions $ ≅ #·<T>",
+  "description": "A named pattern on $ requests the root tags (engine §4).",
+  "grammar": "%rule text \"a\" :: T\n%conditions $ ≅ #·text<T>",
   "input": "a",
   "expect": {
     "result": {

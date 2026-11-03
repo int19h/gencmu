@@ -1,6 +1,6 @@
 {
   "description": "This nested closes fixture bounds observation sharing with a close family (engine §4.1).",
-  "grammar": "%ambiguity-resolution late #·<_Elided>\n%rule text $c:candidate %conditions $c.without-elision-except(fam).matches(rival)\n%rule candidate c B\n%rule c X c [+T] | X [+T]\n%rule rival r B\n%rule r X r [+T] | X s [+T] | X [+T]\n%rule s X r [+T] | X s [+T] | X [+T]\n%rule fam r",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%rule text $c:candidate %conditions $c.without-elision-except(fam).matches(rival)\n%rule candidate c B\n%rule c X c [+T] | X [+T]\n%rule rival r B\n%rule r X r [+T] | X s [+T] | X [+T]\n%rule s X r [+T] | X s [+T] | X [+T]\n%rule fam r",
   "tokens": [
     {
       "text": "x",

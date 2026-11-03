@@ -1,6 +1,6 @@
 {
   "description": "A mixed step retains the counted rule inside a ranked option during reconstruction (engine §7.7).",
-  "grammar": "%ambiguity-resolution fewest #(·w ∪ ·d ∪ ·T<_Elided>), late #·<_Elided>\n%elision-only\n%rule text (w ≻ missing) | d\n%rule w X [+T]\n%rule missing M N\n%rule d X T",
+  "grammar": "%ambiguity-resolution fewest #(·w ∪ ·d ∪ ·T<_Elided>), late #·_<_Elided>\n%elision-only\n%rule text (w ≻ missing) | d\n%rule w X [+T]\n%rule missing M N\n%rule d X T",
   "input": "a",
   "tokens": [
     {

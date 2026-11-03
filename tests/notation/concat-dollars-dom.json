@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule text \"$(S)$$$\"\n```",
   "expect": {
     "dom": {
-      "format": 43,
+      "format": 44,
       "rules": [
         {
           "name": "text",

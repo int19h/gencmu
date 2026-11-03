@@ -5,7 +5,7 @@ random inputs whose tokens carry one tag or several. The reference
 enumerates every derivation, leaving out the cyclic ones as engine §4
 defines them. It computes the verdict, the first and the second reading
 and the witness straight from the definitions of §6, under greedy, lazy,
-no lean and late #·<_Elided>. The library computes them over the packed forest
+no lean and late #·_<_Elided>. The library computes them over the packed forest
 without enumerating. A grammar whose
 derivations exceed a budget is skipped rather than enumerated.
 
@@ -118,7 +118,7 @@ def reference(
     from the definitions. A production is its rule, its symbols (a string
     for a terminal, a number for a rule) and whether it is transparent.
     ``elided`` holds the empty productions of the helpers of elidable
-    optionals, whose closes ``late #·<_Elided>`` counts."""
+    optionals, whose closes ``late #·_<_Elided>`` counts."""
     n = len(tokens)
     by_rule: list[list[int]] = [[] for _ in range(rules)]
     for number, (lhs, _, _) in enumerate(productions):
@@ -189,7 +189,7 @@ def ranked(derivations: list[tuple[Any, ...]], lean: str, elided: frozenset[int]
 
     greatest = max(profile(sequence) for sequence in derivations)
     derivations = [sequence for sequence in derivations if profile(sequence) == greatest]
-    if lean == "late #·<_Elided>":
+    if lean == "late #·_<_Elided>":
         # Equal profiles use elision vectors, then no lean for diagnostics.
         def vector(sequence: tuple[Any, ...]) -> tuple[int, ...]:
             counts = [0] * (n + 1)
@@ -361,7 +361,7 @@ def library(lowered: Any, tokens: list[frozenset[str]], lean: str) -> dict[str, 
 
 def ranking_of(lean: str, lowered=None):
     steps = tuple((kind,pattern) for kind,pattern in lowered.steps if kind == 'leftmost-longest') if lowered is not None else ()
-    if lean == 'late #·<_Elided>':
+    if lean == 'late #·_<_Elided>':
         late = next((pattern for kind,pattern in lowered.steps if kind == 'late'), OMITTED) if lowered is not None else OMITTED
         return (*steps, ('late',late)), 'none'
     return steps, lean
@@ -554,12 +554,12 @@ def forest_derivations(forest: Forest, context: StageContext, budget: int) -> li
 def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool, list[str]]:
     """A random grammar like that of the JS property test: text and three
     rules, references now and then tested by their sound, the notation's
-    sugar, and under late #·<_Elided>, or now and then another rule, optionals
+    sugar, and under late #·_<_Elided>, or now and then another rule, optionals
     of the elidable T, often right after a rule reference. The grammar's DOM, the rule of the ranking, whether T is
     elidable, and the terminals."""
     pick = rng.random()
-    lean = "greedy" if pick < 0.3 else "lazy" if pick < 0.6 else "late #·<_Elided>" if pick < 0.85 else "none"
-    elidable = lean == "late #·<_Elided>" or rng.random() < 0.3
+    lean = "greedy" if pick < 0.3 else "lazy" if pick < 0.6 else "late #·_<_Elided>" if pick < 0.85 else "none"
+    elidable = lean == "late #·_<_Elided>" or rng.random() < 0.3
     terminals = ["A", "B", "T"] if elidable else ["A", "B", "C"]
     rules = ["t", "u", "v"]
 
@@ -629,7 +629,7 @@ def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool,
         }
         for number, (name, count) in enumerate(definitions)
     ]
-    steps = [{"step":"leftmost-longest","pattern":counted_pattern(counted)}, {"step":"late","pattern":OMITTED} if lean == "late #·<_Elided>" else {"step": "greedy" if lean == "none" else lean}]
+    steps = [{"step":"leftmost-longest","pattern":counted_pattern(counted)}, {"step":"late","pattern":OMITTED} if lean == "late #·_<_Elided>" else {"step": "greedy" if lean == "none" else lean}]
     directives: list[dict[str, Any]] = [{"name": "ambiguity-resolution", "steps": steps, "at": [1, 1]}]
     dom = {"format": DOM_FORMAT, "rules": dom_rules, "directives": directives, "constants": []}
     return dom, lean, elidable, terminals
@@ -679,7 +679,7 @@ class RankingProperty(unittest.TestCase):
                 self.assertGreater(ranking.first.vis, 2**n)
 
     def test_a_least_count_that_disagrees_is_an_internal_error(self) -> None:
-        """If the least count of late #·<_Elided> and the ranking with no lean
+        """If the least count of late #·_<_Elided> and the ranking with no lean
         over the best derivations ever disagree, the library fails with an
         internal error and does not pick a verdict. Here a least count
         capped at one stands for a defect of the count: the item of text
@@ -699,7 +699,7 @@ class RankingProperty(unittest.TestCase):
         lowered = lower(stitch("main", [("g.md", dom)], unicode), frozenset())
         context = StageContext(lowered, [Token("a", frozenset(["A"]), (0, 1), (0, 1))], "a", unicode)
         forest = Parser(context).parse(lowered.rule_ids["text"])
-        self.assertEqual(library_ranking(forest, "late #·<_Elided>")["verdict"], "tie")
+        self.assertEqual(library_ranking(forest, "late #·_<_Elided>")["verdict"], "tie")
         summary = Best.summary
 
         def one(self: Best) -> Any:
@@ -709,7 +709,7 @@ class RankingProperty(unittest.TestCase):
             return found
 
         with mock.patch.object(Best, "summary", one), self.assertRaisesRegex(RuntimeError, "internal error"):
-            rank(forest, *ranking_of("late #·<_Elided>",forest.lowered))
+            rank(forest, *ranking_of("late #·_<_Elided>",forest.lowered))
 
     def test_rules_against_enumeration(self) -> None:
         """Every rule of the ranking, over empty
@@ -836,7 +836,7 @@ class RankingProperty(unittest.TestCase):
         self.assertGreater(verdicts.get("tie", 0), 0)
 
     def test_late_elision_against_enumeration(self) -> None:
-        """late #·<_Elided> over grammars with an elidable terminator: the
+        """late #·_<_Elided> over grammars with an elidable terminator: the
         verdict from the elision vectors, and the readings of no lean over
         the derivations with the least vector (engine §6)."""
         cases = int(os.environ.get("GENCMU_PROPERTY_CASES", "1000")) // 2
@@ -860,17 +860,17 @@ class RankingProperty(unittest.TestCase):
             for _ in range(4):
                 tokens = random_tokens(plain_rules, rng)
                 try:
-                    expected = reference(productions, len(lowered.rule_names), tokens, "late #·<_Elided>", 20000, elided, flagged)
+                    expected = reference(productions, len(lowered.rule_names), tokens, "late #·_<_Elided>", 20000, elided, flagged)
                 except Budget:
                     skipped += 1
                     continue
                 assert expected is not None
-                found = library(lowered, tokens, "late #·<_Elided>")
+                found = library(lowered, tokens, "late #·_<_Elided>")
                 compared += 1
                 verdicts[expected["verdict"]] = verdicts.get(expected["verdict"], 0) + 1
                 self.assertEqual(found, expected, f"seed {20_000_000 + seed + number}, over {tokens}")
         if os.environ.get("GENCMU_PROPERTY_VERBOSE"):
-            print(f"\nlate #·<_Elided>: compared {compared}, skipped {skipped}, verdicts {verdicts}")
+            print(f"\nlate #·_<_Elided>: compared {compared}, skipped {skipped}, verdicts {verdicts}")
         self.assertGreater(verdicts.get("tie", 0), 0)
         self.assertGreater(verdicts.get("resolved", 0), 0)
 
@@ -973,7 +973,7 @@ class LongInputs(unittest.TestCase):
             tracemalloc.start()
             try:
                 with count_work(Watch(joins.calls, joins.codes, over)):
-                    ranking = rank(forest, *ranking_of("late #·<_Elided>",forest.lowered))
+                    ranking = rank(forest, *ranking_of("late #·_<_Elided>",forest.lowered))
                 found = tracemalloc.get_traced_memory()[1]
             finally:
                 tracemalloc.stop()

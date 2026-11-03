@@ -1,6 +1,6 @@
 {
-  "description": "A tag-only value test reads a leaf and rejects a constituent (engine §4).",
-  "grammar": "%rule text $x:A\n%conditions $x ≅ #·<T>=\"a\"",
+  "description": "A wildcard value test reads a leaf (engine §4).",
+  "grammar": "%rule text $x:A\n%conditions $x ≅ #·_<T>=\"a\"",
   "tokens": [
     {
       "text": "a",

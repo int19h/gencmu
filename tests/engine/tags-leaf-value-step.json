@@ -1,6 +1,6 @@
 {
   "description": "A tag-only value test counts matching reads and fails on constituents (engine §6).",
-  "grammar": "%ambiguity-resolution fewest #·<T>=\"a\"\n%rule text A | B",
+  "grammar": "%ambiguity-resolution fewest #·_<T>=\"a\"\n%rule text A | B",
   "tokens": [
     {
       "text": "a",

@@ -11,7 +11,7 @@ import (
 
 func TestRankedLinearForest(t *testing.T) {
 	t.Parallel()
-	d := mustLoad(t, oneStage("%ambiguity-resolution late #·<_Elided>\n%rule text {unit}\n%rule unit a ≻ b\n%rule a X Y\n%rule b X Y"))
+	d := mustLoad(t, oneStage("%ambiguity-resolution late #·_<_Elided>\n%rule text {unit}\n%rule unit a ≻ b\n%rule a X Y\n%rule b X Y"))
 	for _, n := range []int{1, 2, 4, 8, 16} {
 		tokens := make([]Token, n*2)
 		for i := range tokens {
@@ -30,7 +30,7 @@ func TestRankedLinearForest(t *testing.T) {
 }
 func TestRankedDOMCacheDiagnostics(t *testing.T) {
 	t.Parallel()
-	sources := oneStage("%const $K K\n%ambiguity-resolution late #·<_Elided>\n%rule text :: $x ⟹ ($x.tags ∪ $K) | Q (($x:a ≻ b) ≻ c) Z\n%rule a X Y\n%rule b U V\n%rule c R S")
+	sources := oneStage("%const $K K\n%ambiguity-resolution late #·_<_Elided>\n%rule text :: $x ⟹ ($x.tags ∪ $K) | Q (($x:a ≻ b) ≻ c) Z\n%rule a X Y\n%rule b U V\n%rule c R S")
 	sources = map[string]string{"grammars/test/p.md": sources["p.md"], "grammars/test/g.md": sources["g.md"]}
 	_, plain := LoadPipelineSources(sources, "grammars/test/p.md")
 	dom, e := bundled.reader.read(sources["grammars/test/g.md"], "grammars/test/g.md")
@@ -64,7 +64,7 @@ func TestRankedDOMCacheDiagnostics(t *testing.T) {
 }
 func TestRankedShortestTagWitness(t *testing.T) {
 	t.Parallel()
-	_, err := LoadPipelineSources(oneStage("%ambiguity-resolution late #·<_Elided>\n%rule text a ≻ b\n%rule a u | v\n%rule u deeper\n%rule deeper X\n%rule v Y\n%rule b :: ∅ | Z\n"), "p.md")
+	_, err := LoadPipelineSources(oneStage("%ambiguity-resolution late #·_<_Elided>\n%rule text a ≻ b\n%rule a u | v\n%rule u deeper\n%rule deeper X\n%rule v Y\n%rule b :: ∅ | Z\n"), "p.md")
 	if err == nil {
 		t.Fatal("grammar loaded")
 	}
@@ -99,7 +99,7 @@ func TestValidRankedCacheSkipsLocationRecovery(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	sources := oneStage("%ambiguity-resolution late #·<_Elided>\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y")
+	sources := oneStage("%ambiguity-resolution late #·_<_Elided>\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y")
 	documents := map[domCacheKey]json.RawMessage{}
 	for path, text := range sources {
 		dom, err := bundled.reader.read(text, path)

@@ -1,11 +1,10 @@
 {
-  "description": "The loader reports tested tags outside the vocabulary and includes optional heads (engine §9.3).",
-  "grammar": "%ambiguity-resolution fewest #·<END>\n%rule text \"a\" [+END]",
+  "description": "A wildcard step reads the omitted head tags (engine §6).",
+  "grammar": "%ambiguity-resolution fewest #·_<END>\n%rule text \"a\" [+END]",
   "input": "a",
   "expect": {
     "result": {
       "ok": true
-    },
-    "loadWarnings": []
+    }
   }
 }

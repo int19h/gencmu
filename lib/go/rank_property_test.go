@@ -893,7 +893,7 @@ func patternTextForTest(p *domPattern) string {
 	case "name":
 		return "#·" + p.Name
 	case "test":
-		return "#·<_Elided>"
+		return "#·_<_Elided>"
 	}
 	parts := []string{}
 	for _, child := range p.Items {

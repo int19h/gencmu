@@ -1,6 +1,6 @@
 {
   "description": "A union counts a matched node once, even when both operands match it (engine §6).",
-  "grammar": "%ambiguity-resolution fewest #(·a ∪ ·<T>)\n%rule text a | b\n%rule a A :: T\n%rule b A :: T",
+  "grammar": "%ambiguity-resolution fewest #(·a ∪ ·a<T> ∪ ·b<T>)\n%rule text a | b\n%rule a A :: T\n%rule b A :: T",
   "tokens": [
     {
       "text": "a",

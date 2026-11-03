@@ -57,8 +57,8 @@ func TestRankExponential(t *testing.T) {
 			{"%rule text rN | qN [+T]", VerdictResolved},
 			{"%rule text qN [+T] | [+T] rN", VerdictTie},
 		} {
-			if res := rankEmpty(t, doublingGrammar("late #·<_Elided>", n, true, tc.text)); res.verdict != tc.verdict {
-				t.Errorf("late #·<_Elided>, n = %d, %s: %s, want %s", n, tc.text, res.verdict, tc.verdict)
+			if res := rankEmpty(t, doublingGrammar("late #·_<_Elided>", n, true, tc.text)); res.verdict != tc.verdict {
+				t.Errorf("late #·_<_Elided>, n = %d, %s: %s, want %s", n, tc.text, res.verdict, tc.verdict)
 			}
 		}
 	}

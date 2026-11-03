@@ -1,6 +1,6 @@
 {
   "description": "Equal profiles retain the resolving stage preference (engine §6).",
-  "grammar": "%ambiguity-resolution leftmost-longest #·r, late #·<_Elided>\n%rule text r\n%rule r (\"a\" [+T] \"b\") | (\"a\" \"b\")\n               ",
+  "grammar": "%ambiguity-resolution leftmost-longest #·r, late #·_<_Elided>\n%rule text r\n%rule r (\"a\" [+T] \"b\") | (\"a\" \"b\")\n               ",
   "input": "ab",
   "expect": {
     "result": {

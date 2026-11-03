@@ -1,6 +1,6 @@
 {
   "description": "Reconstruction meets the same condition-before-tag order on a competing route. The $ condition fails before a tag query can reach its empty split delimiter, so the check passes (engine §4, §7.7, §10).",
-  "grammar": "%ambiguity-resolution late #·<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a (A [+T])\n%rule b (A [+T] [+T])\n%rule c (A x)\n%rule x T :: $.tokens-after-first.tags(migration-fault) %conditions $.source-text = \"q\"\n\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a (A [+T])\n%rule b (A [+T] [+T])\n%rule c (A x)\n%rule x T :: $.tokens-after-first.tags(migration-fault) %conditions $.source-text = \"q\"\n\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
   "tokens": [
     {
       "text": "a",

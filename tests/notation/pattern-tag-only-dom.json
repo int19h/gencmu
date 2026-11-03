@@ -1,6 +1,6 @@
 {
-  "description": "The notation retains the node pattern form in the DOM (output.md).",
-  "document": "```jbogenbau\n%rule text $x:w %conditions $x ≅ #·<T>\n```\n",
+  "description": "A tested wildcard retains its leaf pattern in the DOM (output.md).",
+  "document": "```jbogenbau\n%rule text $x:w %conditions $x ≅ #·_<T>\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -18,8 +18,10 @@
                       }
                     }
                   ],
-                  "any": true,
-                  "exact": true
+                  "exact": true,
+                  "expr": {
+                    "wildcard": true
+                  }
                 }
               }
             }

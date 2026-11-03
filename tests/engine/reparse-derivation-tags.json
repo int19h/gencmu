@@ -1,6 +1,6 @@
 {
   "description": "Each reading has its own tags: the chosen a has First and the competitor c has Second. The engine does not copy the chosen derivation's tags to another reading (engine §7.5, §7.10).",
-  "grammar": "%ambiguity-resolution late #·<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a ($x:A [+T]) :: First\n%rule b (A [+T] [+T])\n%rule c ($x:A T) :: Second",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a ($x:A [+T]) :: First\n%rule b (A [+T] [+T])\n%rule c ($x:A T) :: Second",
   "tokens": [
     {
       "text": "a",

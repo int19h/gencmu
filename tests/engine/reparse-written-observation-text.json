@@ -1,6 +1,6 @@
 {
   "description": "Nonempty text does not prove that T was written. During reparse, c reads synthetic T, then F through 🆓. The text of tt is \"f\", so tt receives Written and c supplies a second reading. A grammar that requires a written T observes its original token, as reparse-written-observation-head does (engine §7.5).",
-  "grammar": "%ambiguity-resolution late #·<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a (A [+T] f)\n%rule b (A [+T] [+T] f)\n%rule c (A $t:tt) %conditions Written ⊆ $t.tags\n\n%rule tt [+T 🆓] :: ($.source-text ≠ \"\" ⟹ Written)\n%rule 🆓 [{F}]\n%rule f F",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a (A [+T] f)\n%rule b (A [+T] [+T] f)\n%rule c (A $t:tt) %conditions Written ⊆ $t.tags\n\n%rule tt [+T 🆓] :: ($.source-text ≠ \"\" ⟹ Written)\n%rule 🆓 [{F}]\n%rule f F",
   "tokens": [
     {
       "text": "a",

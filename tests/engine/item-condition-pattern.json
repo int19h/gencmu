@@ -1,16 +1,20 @@
 {
-  "description": "An item capture cannot be compared with a tree pattern (engine §3.6, §9).",
+  "description": "An item capture compares with a tree pattern at its readiness point (engine §4).",
   "documents": {
     "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A}\n%conditions $c ≅ #A\n```\n"
   },
   "pipelineDocument": "main.md",
-  "input": "a",
   "expect": {
-    "error": "grammar",
-    "where": {
-      "document": "main.md",
-      "line": 4,
-      "column": 1
+    "result": {
+      "ok": true
     }
-  }
+  },
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ]
 }

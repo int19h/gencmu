@@ -1,10 +1,27 @@
 {
-  "description": "The mark and node tests obey their permitted positions (engine §9.3).",
+  "description": "A named pattern accepts a value test (engine §9.3).",
   "document": "```jbogenbau\n%rule text $x:w %conditions $x ≅ #w=\"a\"\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 36
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "test": "=",
+                  "value": {
+                    "string": "a"
+                  },
+                  "expr": {
+                    "name": "w"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
     }
   }
 }

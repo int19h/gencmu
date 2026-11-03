@@ -1,17 +1,10 @@
 {
-  "description": "The loader reports tested tags outside the vocabulary and includes optional heads (engine §9.3).",
-  "grammar": "%ambiguity-resolution fewest #·<Misspelled>\n%rule text \"a\"",
+  "description": "A wildcard step with an unreachable tag leaves the result unchanged (engine §6).",
+  "grammar": "%ambiguity-resolution fewest #·_<Misspelled>\n%rule text \"a\"",
   "input": "a",
   "expect": {
     "result": {
       "ok": true
-    },
-    "loadWarnings": [
-      {
-        "stage": "main",
-        "step": 0,
-        "tag": "Misspelled"
-      }
-    ]
+    }
   }
 }

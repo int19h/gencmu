@@ -1,6 +1,6 @@
 {
   "description": "An omitted leaf carries _Elided in ranking patterns (engine §6).",
-  "grammar": "%ambiguity-resolution late #·<_Elided>\n%rule text [[+JI]]",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%rule text [[+JI]]",
   "input": "",
   "expect": {
     "result": {

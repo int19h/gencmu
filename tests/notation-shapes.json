@@ -695,7 +695,7 @@
       "description": "A marker inside a wrapper rule is read through the wrapper: [+KU 'b'] is elidable, so x elides KU on a and y wins under late-elision. Read as a plain optional, it would tie (engine §9).",
       "find": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"[\"}},{\"optional\":{\"literal\":{\"string\":\"+\"}}},{\"ref\":\"choice\"},{\"literal\":{\"string\":\"]\"}}]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"[\"}},{\"optional\":{\"ref\":\"optional-mark-wrapper\"}},{\"ref\":\"choice\"},{\"literal\":{\"string\":\"]\"}}]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"optional-mark-wrapper\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"+\"}}}],\"conditions\":[],\"at\":[90000,1]}",
-      "document": "```jbogenbau\n%ambiguity-resolution late #·<_Elided>\n%rule text x | y\n%rule x (\"a\" [+KU \"b\"])\n%rule y \"a\"\n```\n",
+      "document": "```jbogenbau\n%ambiguity-resolution late #·_<_Elided>\n%rule text x | y\n%rule x (\"a\" [+KU \"b\"])\n%rule y \"a\"\n```\n",
       "inputs": [
         "a"
       ],

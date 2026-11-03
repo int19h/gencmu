@@ -1,6 +1,6 @@
 {
   "description": "A constituent tag term cannot request its own root tags (engine §9.3).",
-  "grammar": "%rule text \"a\" :: (($ ∨ $ ≅ #·<T>) ⟹ T)",
+  "grammar": "%rule text \"a\" :: (($ ∨ $ ≅ #·text<T>) ⟹ T)",
   "input": "a",
   "expect": {
     "error": "grammar"

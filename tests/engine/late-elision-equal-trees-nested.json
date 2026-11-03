@@ -1,6 +1,6 @@
 {
   "description": "text → [[X]] derives the empty input in two ways: the outer helper is empty, or the inner one is. Nothing is elided, so they tie under late-elision. Both readings are the same empty tree, and the witness names two productions (engine §6, docs/output.md).",
-  "grammar": "%ambiguity-resolution late #·<_Elided>\n%rule text [[X]]",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%rule text [[X]]",
   "tokens": [],
   "expect": {
     "result": {

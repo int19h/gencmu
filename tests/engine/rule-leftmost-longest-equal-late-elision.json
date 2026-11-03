@@ -1,6 +1,6 @@
 {
   "description": "Equal profiles from different flagged rules leave a tie for the stage preference (engine §6).",
-  "grammar": "%ambiguity-resolution leftmost-longest #(·r ∪ ·s), late #·<_Elided>\n%rule text r | s\n%rule r \"a\"\n               \n%rule s \"a\"\n               ",
+  "grammar": "%ambiguity-resolution leftmost-longest #(·r ∪ ·s), late #·_<_Elided>\n%rule text r | s\n%rule r \"a\"\n               \n%rule s \"a\"\n               ",
   "input": "a",
   "expect": {
     "result": {

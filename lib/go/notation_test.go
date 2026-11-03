@@ -551,7 +551,7 @@ func TestNotationTie(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bootstrap := `{"format":` + strconv.Itoa(domFormat) + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":43,"rules":[],"directives":[{"name":"stage","args":["syntax"],"at":[1,1]},{"name":"include","args":["../../../n.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"n.md":{"hash":"0","dom":` + string(notation.json()) + `}}}`
+	bootstrap := `{"format":` + strconv.Itoa(domFormat) + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":44,"rules":[],"directives":[{"name":"stage","args":["syntax"],"at":[1,1]},{"name":"include","args":["../../../n.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"n.md":{"hash":"0","dom":` + string(notation.json()) + `}}}`
 	tying, nerr := newNotationReader(bootstrap, bundled.uni)
 	if nerr != nil {
 		t.Fatal(nerr)
