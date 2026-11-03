@@ -3,12 +3,11 @@
   "document": "```jbogenbau\n%rule a $x:A%emits $x :: ∅\n```\n",
   "expect": {
     "dom": {
-      "format": 42,
+      "format": 43,
       "rules": [
         {
           "name": "a",
           "op": "define",
-          "categories": [],
           "alternatives": [
             {
               "guards": [],

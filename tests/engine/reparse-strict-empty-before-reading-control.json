@@ -1,6 +1,6 @@
 {
   "description": "As reparse-strict-empty-before-reading, without q. No symbol after p can read, so the strict item of r never advances over the empty p, and the condition on $x is never evaluated. The check passes (engine §7.4).",
-  "grammar": "%ambiguity-resolution late(elision)\n%elision-only\n%rule text a0 | c\n%rule a0 (A [+T] B)\n%rule c (A [+T r] B [+U])\n%rule r $x:p %conditions \"Z\" ∉ \"Z\".split($x.value)\n\n%rule p ε | B\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
+  "grammar": "%ambiguity-resolution late #·<_Elided>\n%elision-only\n%rule text a0 | c\n%rule a0 (A [+T] B)\n%rule c (A [+T r] B [+U])\n%rule r $x:p %conditions \"Z\" ∉ \"Z\".split($x.value)\n\n%rule p ε | B\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
   "tokens": [
     {
       "text": "a",

@@ -1,0 +1,17 @@
+{
+  "description": "A caller token cannot carry _Elided (engine §1).",
+  "grammar": "%rule text A",
+  "input": "a",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "_Elided"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "usage"
+  }
+}

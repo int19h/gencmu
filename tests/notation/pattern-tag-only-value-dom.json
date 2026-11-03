@@ -1,0 +1,29 @@
+{
+  "description": "The notation retains the node pattern form in the DOM (output.md).",
+  "document": "```jbogenbau\n%rule text $x:w %conditions $x ≅ #·<T>=\"a\"\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "test": "=",
+                  "value": {
+                    "string": "a"
+                  },
+                  "expr": {
+                    "test": "tags",
+                    "any": true
+                  },
+                  "exact": true
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

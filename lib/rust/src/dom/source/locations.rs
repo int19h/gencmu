@@ -304,7 +304,8 @@ fn restore(mut pending: Vec<Pair<'_>>) {
                     pending.push(Pair::Term(ta, fa));
                     pending.push(Pair::Term(tb, fb));
                 }
-                (Pattern::Test(_, tv, to), Pattern::Test(_, fv, from)) => {
+                (Pattern::Test(_, tv, to, to_at), Pattern::Test(_, fv, from, from_at)) => {
+                    *to_at = *from_at;
                     pending.push(Pair::Term(tv, fv));
                     pending.push(Pair::Pattern(to, from));
                 }

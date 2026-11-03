@@ -1,6 +1,6 @@
 {
   "description": "Each chain level counts once, so both counts are two (engine §4.2 and §6, case 59).",
-  "grammar": "%ambiguity-resolution fewest(few), greedy\n%rule text c | e\n%rule c {... A}\n%counts-as few\n%rule e f f\n%rule f A\n%counts-as few",
+  "grammar": "%ambiguity-resolution fewest #(·c ∪ ·f), greedy\n%rule text c | e\n%rule c {... A}\n              \n%rule e f f\n%rule f A\n              ",
   "tokens": [
     {
       "text": "a",

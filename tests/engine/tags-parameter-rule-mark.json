@@ -1,0 +1,13 @@
+{
+  "description": "A parameter that becomes a rule cannot require the omission mark (engine §9.3).",
+  "grammar": "%rule test(@X) @X\n%conditions $ ≅ #@X<_Elided>\n%rule w \"a\"\n%rule text test(w)",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 21
+    }
+  }
+}

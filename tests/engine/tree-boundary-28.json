@@ -1,6 +1,6 @@
 {
   "description": "Extensions inherit `fewest` (engine §4.2 and §6, case 28).",
-  "grammar": "%ambiguity-resolution fewest(few), greedy\n%rule text a | q\n%rule a A\n%counts-as few\n%extend-rule a B\n%rule q B",
+  "grammar": "%ambiguity-resolution fewest #·a, greedy\n%rule text a | q\n%rule a A\n              \n%extend-rule a B\n%rule q B",
   "tokens": [
     {
       "text": "b",

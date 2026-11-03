@@ -24,7 +24,7 @@ const feature = object({ name: string, kind: choice("gate", "warning"), default:
 const warning = object({ stage: string, feature: string, rule: string, span: pair, source: pair });
 const expectation = object({}, {
   result: record, error: choice("grammar", "usage", "rejected", "ambiguous", "feature-conflict"), where: position, diagnostic: string, message: string,
-  brackets: string, warnings: list(warning), features: list(feature), enabledFeatures: strings, bundledPipelines: strings,
+  brackets: string, warnings: list(warning), loadWarnings: list(object({stage:string,step:natural,tag:string})), features: list(feature), enabledFeatures: strings, bundledPipelines: strings,
 }, [(v) => (has(v, "where") || has(v, "diagnostic") || has(v, "message")) && v.error !== "grammar"
   ? ["where, diagnostic and message require a grammar error"] : []]);
 const parse = object({ expect: expectation }, { options });
@@ -59,21 +59,20 @@ const bootstrapCase = object({ description: string, stage: nullable(string) }, {
   (v) => (v.line === null) !== (v.column === null) ? ["line and column must both be null or both be numbers"] : [],
 ]);
 const parameterStructure = object({ name: string }, {
-  grammar: string, dom: any, argument: any, order: strings, categories: map(strings), instances: natural,
+  grammar: string, dom: any, argument: any, order: strings, instances: natural,
   cacheFallback: boolean, input: string, public: boolean,
 }, [(v) => v.cacheFallback === true
   ? (has(v, "grammar") && has(v, "dom") && has(v, "input") ? [] : ["cacheFallback requires grammar, dom and input"])
   : exactly("grammar", "dom")(v),
 (v) => v.public === true && (!has(v, "grammar") || !has(v, "order")) ? ["public requires grammar and order"] : [],
-(v) => has(v, "categories") && !has(v, "grammar") ? ["categories requires grammar"] : [],
 (v) => {
   const problems = [];
   if (v.public === true) {
     if (v.cacheFallback === true) problems.push("public forbids cacheFallback");
-    for (const key of ["argument", "categories", "input"]) if (has(v, key)) problems.push(`public forbids ${key}`);
+    for (const key of ["argument", "input"]) if (has(v, key)) problems.push(`public forbids ${key}`);
   }
   if (v.cacheFallback === true) {
-    for (const key of ["argument", "order", "categories", "instances"]) if (has(v, key)) problems.push(`cacheFallback forbids ${key}`);
+    for (const key of ["argument", "order", "instances"]) if (has(v, key)) problems.push(`cacheFallback forbids ${key}`);
   } else if (has(v, "input")) problems.push("input requires cacheFallback");
   return problems;
 }]);

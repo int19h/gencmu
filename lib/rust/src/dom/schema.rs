@@ -221,6 +221,17 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                     if !valid {
                         return Some("a malformed directive".into());
                     }
+                    if name == Some("ambiguity-resolution") {
+                        for step in item.get("steps").and_then(Json::as_array).unwrap() {
+                            if let Some(operand) = step.get("pattern") {
+                                pending.push((
+                                    if operand.get("const").is_some() { Part::Term } else { Part::Pattern },
+                                    operand,
+                                    0,
+                                ));
+                            }
+                        }
+                    }
                     if let Some(value) = item.get("conditions") {
                         let Some(conditions) = value.as_array().filter(|items| !items.is_empty()) else {
                             return Some("malformed feature conditions".into());
@@ -250,21 +261,12 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                     }
                     if !exact(
                         item,
-                        &["name", "op", "categories", "alternatives", "conditions", "at"],
+                        &["name", "op", "alternatives", "conditions", "at"],
                         &["tags", "value", "image", "emit", "erased", "params", "args"],
                     ) || !item.get("name").and_then(Json::as_str).is_some_and(rule)
                         || !matches!(item.get("op").and_then(Json::as_str), Some("define" | "extend" | "redefine"))
                     {
                         return Some("a malformed rule".into());
-                    }
-                    let categories = item.get("categories").and_then(Json::as_array);
-                    let names: Option<Vec<&str>> =
-                        categories.and_then(|items| items.iter().map(Json::as_str).collect());
-                    if !names.is_some_and(|names| {
-                        crate::dom::valid_categories(&names)
-                            && (names.is_empty() || item.get("op").and_then(Json::as_str) != Some("extend"))
-                    }) {
-                        return Some("a malformed rule category list".into());
                     }
                     if !matches!(item.get("erased"), None | Some(Json::Bool(true)))
                         || item.get("erased").is_some()
@@ -968,7 +970,10 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                 }
                 if value.get("test").and_then(Json::as_str) == Some("tags") {
                     for r in value.get("requirements").unwrap().as_array().unwrap() {
-                        pending.push((Part::Term, r.get("value").unwrap(), next));
+                        let operand = r.get("value").unwrap();
+                        if operand.get("tag").and_then(Json::as_str) != Some("_Elided") {
+                            pending.push((Part::Term, operand, next));
+                        }
                     }
                 } else if value.get("test").is_some() {
                     pending.push((Part::String, value.get("value").unwrap(), next));

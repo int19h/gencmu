@@ -65,23 +65,13 @@ type stageGrammar struct {
 // extended.
 type stitchChange struct {
 	rule, document, op string
-	categoryChange     *categoryChange
-}
-
-// categoryChange holds the categories before and after a replacement that
-// changes them.
-type categoryChange struct {
-	from, to []string
 }
 
 type sRule struct {
-	// categories are those of the rule's %counts-as clause (engine §2). An
-	// extension keeps them.
-	categories []string
-	name       string
-	alts       []*sAlt
-	doc        string
-	at         [2]int
+	name string
+	alts []*sAlt
+	doc  string
+	at   [2]int
 }
 
 // sAlt is an alternative with the clauses of the rule statement that wrote
@@ -241,7 +231,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 					if existing != nil {
 						return nil, fail(d.path, r.At, "%%rule %s is already defined, in %s; %%redefine-rule replaces a rule", r.Name, existing.doc)
 					}
-					nr := &sRule{categories: r.Categories, name: r.Name, alts: alts, doc: d.path, at: r.At}
+					nr := &sRule{name: r.Name, alts: alts, doc: d.path, at: r.At}
 					g.rules = append(g.rules, nr)
 					g.byName[r.Name] = nr
 				case "redefine":
@@ -252,11 +242,9 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 					}
 					// The replacement keeps the place of the rule it replaces.
 					change := stitchChange{rule: r.Name, document: d.path, op: "replace"}
-					if !slices.Equal(existing.categories, r.Categories) {
-						change.categoryChange = &categoryChange{from: slices.Clone(existing.categories), to: slices.Clone(r.Categories)}
-					}
+
 					g.changes = append(g.changes, change)
-					existing.alts, existing.doc, existing.at, existing.categories = alts, d.path, r.At, r.Categories
+					existing.alts, existing.doc, existing.at = alts, d.path, r.At
 				case "extend":
 					if existing == nil {
 						return nil, fail(d.path, r.At, "%%extend-rule %s extends a rule that is not defined before it", r.Name)
@@ -279,13 +267,43 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 					}
 					g.lean = ""
 					g.steps = nil
-					for _, step := range dir.Steps {
-						if step.HasCategory {
-							g.steps = append(g.steps, keyStep{step: step.Step, category: step.Category})
-						} else {
-							g.lean = step.Step
+					schedule(run, dir.At, 1, func() *Error {
+						for _, step := range dir.Steps {
+							if step.Pattern == nil {
+								g.lean = step.Step
+								continue
+							}
+							value, err := g.evaluateClosed(d.path, step.Pattern, dir.At, tyPattern)
+							if err != nil {
+								return err
+							}
+							position := step.Pattern.At
+							if position == [2]int{} {
+								position = dir.At
+							}
+							if value.ty != tyPattern {
+								return g.constError(d.path, position, "a ranking step requires a pattern")
+							}
+							pattern := value.pattern
+							if problem := rankingPatternProblem(pattern); problem != "" {
+								return g.constError(d.path, position, problem)
+							}
+							if step.Step == "leftmost-longest" && requiresElided(pattern) {
+								return g.constError(d.path, position, "leftmost-longest cannot require _Elided")
+							}
+							var fault *Error
+							walkPattern(pattern, func(node *domPattern) {
+								if fault == nil && node.Kind == "name" && g.byName[node.Name] == nil {
+									fault = g.constError(d.path, node.At, "%s is not defined in stage %s", node.Name, g.name)
+								}
+							})
+							if fault != nil {
+								return fault
+							}
+							g.steps = append(g.steps, keyStep{step: step.Step, pattern: pattern})
 						}
-					}
+						return nil
+					})
 				case "elision-only":
 					if g.elisionOnly {
 						return nil, fail(d.path, dir.At, "has a second %%elision-only")

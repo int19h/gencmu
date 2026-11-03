@@ -41,7 +41,7 @@ const LAYERED_SYMBOLS = new Set(["«", "»", "·"]);
 const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=",
   "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻", "≝"]);
 
-const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%conditions", "%counts-as", "%emits", "%erased",
+const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%conditions", "%emits", "%erased",
   "%ambiguity-resolution", "%elision-only", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
 
 // A syntax error: the text cannot be read as the notation at all, which the
@@ -363,24 +363,24 @@ class Parser {
     return { kind: "rule", rule: "text", children, span: [0, this.index] };
   }
 
-  // `%ambiguity-resolution` and its steps: a name, or a name with one
-  // category in parentheses, separated by commas.
-  rankingDirective() {
+  // Ranking steps take one pattern literal or constant after their name.
+  *rankingDirective() {
     const start = this.index;
-    const children = [this.tok(), this.rankingStep()];
-    while (this.is(",")) children.push(this.tok(), this.rankingStep());
+    const children = [this.tok(), yield this.rankingStep()];
+    while (this.is(",")) children.push(this.tok(), yield this.rankingStep());
     return this.node("ranking-directive", start, children);
   }
 
-  rankingStep() {
+  *rankingStep() {
     const start = this.index;
-    if (this.is("identifier")) return this.node("ranking-step", start, [this.tok()]);
-    if (!this.is("call-name")) this.fail("expected a ranking step");
-    return this.node("ranking-step", start, [this.tok(), this.expect("("), this.is("identifier") ? this.tok() : this.fail("expected a category"), this.expect(")")]);
+    const children = [this.is("identifier") ? this.tok() : this.fail("expected a ranking step")];
+    if (this.is("#")) children.push(yield this.layeredLiteral());
+    else if (this.is("constant")) children.push(this.leaf("constant-reference"));
+    return this.node("ranking-step", start, children);
   }
 
   *directive() {
-    if (this.is("%ambiguity-resolution")) return this.rankingDirective();
+    if (this.is("%ambiguity-resolution")) return yield this.rankingDirective();
     const start = this.index;
     const children = [this.tok()];
     while (this.peek() && !this.kindAt().startsWith("%") && this.kindAt() !== "keyword") {
@@ -471,12 +471,6 @@ class Parser {
       clause.push((yield this.implication()));
       while (this.is(",")) clause.push(this.tok(), (yield this.implication()));
       children.push(this.node("conditions-clause", at, clause));
-    }
-    if (this.is("%counts-as")) {
-      const at = this.index;
-      const clause = [this.tok(), this.is("identifier") ? this.leaf("category") : this.fail("expected a category")];
-      while (this.is(",")) clause.push(this.tok(), this.is("identifier") ? this.leaf("category") : this.fail("expected a category"));
-      children.push(this.node("counts-as-clause", at, clause));
     }
     if (this.is("%emits")) children.push((yield this.emitsClause()));
     else if (this.is("%erased")) children.push(this.leaf("erased-clause"));
@@ -949,12 +943,12 @@ class Parser {
     if ((this.is('string') || this.is('constant') || this.is('parameter')) && this.is('..',1)) children.push(yield this.range());
     else if (this.is('call-name')) children.push(yield this.call());
     else if (this.is('parameter')) children.push(this.leaf('parameter'));
-    else if (this.is('identifier') || this.is('emoji')) children.push(this.tok());
+    else if (this.is('identifier') || this.is('emoji')) children.push(this.node(isCapital(this.peek().value)?'tag':'name',this.index,[this.tok()]));
     else if (this.is('tag')) children.push(this.leaf('tag'));
     else if (this.is('string')) children.push(this.leaf('string'));
     else if (this.is('_')) children.push(this.leaf('wildcard'));
     else if (this.is('constant')) children.push(this.leaf('constant-reference'));
-    else return this.fail('expected a pattern node test');
+    else if (!this.is('<')) return this.fail('expected a pattern node test');
     while (TEST_COMPARATORS.has(this.kindAt())) children.push(yield this.test());
     return this.node('pattern-atom',start,children);
   }

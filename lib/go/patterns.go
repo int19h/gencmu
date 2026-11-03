@@ -193,7 +193,9 @@ func patternProblem(root *domPattern, depth int, check func(*domPattern, int) st
 		}
 		switch p.Kind {
 		case "path", "test":
-			push(p.Items[0], false)
+			if len(p.Items) > 0 {
+				push(p.Items[0], false)
+			}
 		case tmUnion, tmIntersection, tmDifference:
 			for _, v := range p.Items {
 				push(v, false)
@@ -250,6 +252,7 @@ type patternState struct {
 	empty                  bool
 }
 type patternMachine struct {
+	nodeTags    bool
 	predicates  []patternPredicate
 	machines    []patternNFA
 	ids         map[string]int
@@ -263,6 +266,7 @@ type patternMachine struct {
 func newPatternMachine(roots []*domPattern) *patternMachine {
 	m := &patternMachine{ids: map[string]int{}, rootIDs: map[*domPattern]int{}, stateIDs: map[string]int{}, transitions: map[string]int{}}
 	for _, p := range roots {
+		m.nodeTags = m.nodeTags || patternReadsNodeTags(p)
 		m.compile(p)
 	}
 	s := patternState{first: new(big.Int), last: new(big.Int), any: new(big.Int)}
@@ -465,7 +469,7 @@ func (m *patternMachine) node(name string, children int, terminal, sound string,
 		case "terminal":
 			holds = tags != nil && terminal == p.Name
 		case "test":
-			holds = tags != nil && patternLeafMatches(p, terminal, sound, tags)
+			holds = localNodeMatches(p, name, terminal, sound, tags)
 		case "any":
 			holds = name != "" || tags != nil
 		case "path":
@@ -558,7 +562,7 @@ func patternLiteral(v *constValue) *domTerm {
 func (g *stageGrammar) resolvePatternValue(doc string, p *domPattern, at [2]int) (*domPattern, *Error) {
 	if p.Kind == "test" {
 		base := p
-		for base.Kind == "test" {
+		for base.Kind == "test" && len(base.Items) > 0 {
 			base = base.Items[0]
 		}
 		if base.Kind == "constant" && g.constants[base.Name].value.ty != tyString {
@@ -646,6 +650,17 @@ func (g *stageGrammar) resolvePatternValue(doc string, p *domPattern, at [2]int)
 			v, err := g.evaluateClosed(doc, r.Value, at)
 			if err != nil {
 				return nil, err
+			}
+			if !r.Negated && len(n.Items) > 0 && n.Items[0].Kind == "name" {
+				for _, tag := range v.names {
+					if tag == "_Elided" {
+						position := r.Value.At
+						if position == [2]int{} {
+							position = at
+						}
+						return nil, g.constError(doc, position, "a rule pattern cannot require _Elided")
+					}
+				}
 			}
 			n.Requirements = append(n.Requirements, tagRequirement{Negated: r.Negated, Value: patternLiteral(v)})
 		}
@@ -791,7 +806,7 @@ func (r *recognizer) finishStructure(key *itemKey) {
 		return
 	}
 	if p.restoration() {
-		key.structure = r.machine.node("", r.machine.empty, p.elided, "", r.run.ps.in.single(p.elided))
+		key.structure = r.machine.node("", r.machine.empty, p.elided, "", r.run.ps.in.fromList([]string{p.elided, "_Elided"}))
 	} else if p.helper {
 		key.structure = key.prefix
 	} else {
@@ -805,7 +820,7 @@ func (r *recognizer) terminalStructure(p *production, dot, k int, term int32) in
 	terminal := r.g.terminals[term]
 	if rc := r.recon; rc != nil && rc.synthetic[k] {
 		if dot == 0 && r.elidableHeads[p.lhs] == terminal {
-			return r.machine.node("", r.machine.empty, terminal, "", r.run.ps.in.single(terminal))
+			return r.machine.node("", r.machine.empty, terminal, "", r.run.ps.in.fromList([]string{terminal, "_Elided"}))
 		}
 		return r.machine.empty
 	}
@@ -824,7 +839,7 @@ func (r *recognizer) omissionAllowed(p *production) bool {
 	}
 	t := p.elidedTest
 	sound := elidedValue(t)
-	return testHoldsOf(t, func(s string) bool { return s == sound }, r.run.ps.in.single(p.elided))
+	return testHoldsOf(t, func(s string) bool { return s == sound }, r.run.ps.in.fromList([]string{p.elided}))
 }
 func (r *recognizer) derivationStructure(d *dn) int {
 	if r.machine == nil {

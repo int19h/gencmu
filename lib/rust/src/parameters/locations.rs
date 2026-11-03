@@ -61,6 +61,7 @@ fn term(t: &mut dom::Term, n: &Json) {
             cond(c, get(n, "if"));
             term(t, get(n, "then"))
         }
+        Term::Pattern(pattern) => restore_pattern(pattern, get(n, "pattern")),
         Term::Call(_, args) => {
             if let Some(Arg::Term(receiver)) = args.first_mut() {
                 term(receiver, get(n, "receiver"))
@@ -302,7 +303,15 @@ fn annotate_pattern(pattern: &crate::patterns::Pattern, n: &mut Json) {
                 children(items, n);
             }
         }
-        Pattern::Test(kind, term, inner) => {
+        Pattern::Test(kind, term, inner, mark_at) => {
+            if let Some(at) = mark_at {
+                let mut source = get(n, SOURCE).clone();
+                if source.as_object().is_none() {
+                    source = obj([]);
+                }
+                set(&mut source, "mark", position(*at));
+                set(n, SOURCE, source);
+            }
             if kind != "tags" {
                 if let Some(n) = slot(n, "value") {
                     annotate_term(term, n);
@@ -686,5 +695,59 @@ pub(crate) fn restore_document(dom: &mut Dom, raw: &Json) {
                 cond(c, n)
             }
         }
+    }
+}
+
+fn restore_pattern(pattern: &mut crate::patterns::Pattern, n: &Json) {
+    use crate::patterns::{Children, Pattern};
+    fn children(items: &mut Children, n: &Json) {
+        match items {
+            Children::Node(p) => restore_pattern(p, get(n, "child")),
+            Children::Sequence(xs) => {
+                for (x, n) in xs.iter_mut().zip(list(n)) {
+                    children(x, n)
+                }
+            }
+            Children::Choice(xs) => {
+                for (x, n) in xs.iter_mut().zip(list(get(n, "choice"))) {
+                    children(x, n)
+                }
+            }
+            Children::Optional(x) => children(x, get(n, "optional")),
+            Children::Repeat(x, s) => {
+                children(x, get(n, "repeat"));
+                if let Some(s) = s {
+                    children(s, get(n, "separator"))
+                }
+            }
+            Children::Siblings => (),
+        }
+    }
+    match pattern {
+        Pattern::Test(_, _, inner, mark_at) => {
+            *mark_at = at(&obj([("at", get(get(n, SOURCE), "mark").clone())]));
+            restore_pattern(inner, get(n, "expr"));
+        }
+        Pattern::Node(inner, _, items) => {
+            restore_pattern(inner, n);
+            if let Some(items) = items {
+                children(items, get(n, "children"))
+            }
+        }
+        Pattern::Union(xs) | Pattern::Intersection(xs) => {
+            let key = if has(n, "union") { "union" } else { "intersection" };
+            for (p, n) in xs.iter_mut().zip(list(get(n, key))) {
+                restore_pattern(p, n)
+            }
+        }
+        Pattern::Difference(a, b) => {
+            let xs = list(get(n, "difference"));
+            if xs.len() == 2 {
+                restore_pattern(a, &xs[0]);
+                restore_pattern(b, &xs[1])
+            }
+        }
+        Pattern::Path(_, p) => restore_pattern(p, get(n, "pattern")),
+        _ => (),
     }
 }

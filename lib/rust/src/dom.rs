@@ -22,7 +22,10 @@ fn shape_problem(dom: &Json, unicode: &Unicode) -> Option<String> {
     for part in roots.iter().filter_map(|key| dom.get(key)).flat_map(crate::parameters::nodes) {
         for field in ["ref", "tag", "terminal"] {
             if let Some(name) = part.get(field).and_then(crate::json::Json::as_str) {
-                if name.starts_with('_') && unicode.canonical_tag(name) != Some(name) {
+                if name.starts_with('_')
+                    && !(field == "tag" && name == "_Elided")
+                    && unicode.canonical_tag(name) != Some(name)
+                {
                     return Some("unknown, unavailable, or noncanonical engine tag".into());
                 }
             }
@@ -68,7 +71,7 @@ use crate::tags::is_name;
 use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 42;
+pub const DOM_FORMAT: i64 = 43;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -152,8 +155,6 @@ pub(crate) struct RuleDef {
     pub emitted_locations: std::collections::BTreeMap<String, (usize, usize)>,
     pub name: String,
     pub op: Op,
-    /// The categories of the rule's occurrences (engine §2).
-    pub categories: Vec<String>,
     pub tags: Option<Term>,
     pub strings: Channels,
     pub alternatives: Vec<Alternative>,
@@ -354,44 +355,28 @@ pub(crate) struct Directive {
     pub at: (usize, usize),
 }
 
-/// One step of `%ambiguity-resolution`: a key step with its category, or a
+/// One step of `%ambiguity-resolution`: a key step with its pattern, or a
 /// lean with none (engine §6).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Step {
     pub step: String,
-    pub category: Option<String>,
+    pub pattern: Option<Term>,
+    pub operand_at: Option<(usize, usize)>,
 }
 
-/// The steps of `%ambiguity-resolution` that take a category (engine §6).
+/// The steps of `%ambiguity-resolution` that take a pattern (engine §6).
 pub(crate) const KEY_STEPS: &[&str] = &["leftmost-longest", "fewest", "most", "late", "early"];
 /// The steps of `%ambiguity-resolution` that compare actions (engine §6).
 pub(crate) const LEANS: &[&str] = &["greedy", "lazy"];
 
-/// Whether a name is a category name of a `%counts-as` clause or a key
-/// step: a lowercase letter, then lowercase letters, digits and hyphens
-/// (engine §9.1).
-pub(crate) fn is_category_name(name: &str) -> bool {
-    name.starts_with(|c: char| c.is_ascii_lowercase())
-        && name.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-')
-}
-
 /// Whether steps are a well-formed list: one or more, each a key step with
-/// a category or a lean, with a lean only last (engine §9.3).
+/// a pattern or a lean, with a lean only last (engine §9.3).
 pub(crate) fn valid_steps(steps: &[Step]) -> bool {
     !steps.is_empty()
-        && steps.iter().enumerate().all(|(index, step)| match &step.category {
-            Some(category) => KEY_STEPS.contains(&step.step.as_str()) && is_category_name(category),
+        && steps.iter().enumerate().all(|(index, step)| match &step.pattern {
+            Some(_) => KEY_STEPS.contains(&step.step.as_str()),
             None => LEANS.contains(&step.step.as_str()) && index == steps.len() - 1,
         })
-}
-
-/// Whether categories are a well-formed list of a rule's categories:
-/// distinct category names other than `elision` (engine §9.3).
-pub(crate) fn valid_categories(categories: &[&str]) -> bool {
-    categories
-        .iter()
-        .enumerate()
-        .all(|(index, name)| is_category_name(name) && *name != "elision" && !categories[..index].contains(name))
 }
 
 // ---- reading a DOM from JSON
@@ -606,12 +591,25 @@ pub(crate) fn steps_from_json(value: &Json) -> R<Vec<Step>> {
         .ok_or("malformed ranking steps")?
         .iter()
         .map(|step| {
+            if !step
+                .as_object()
+                .is_some_and(|fields| fields.iter().all(|(key, _)| matches!(key.as_str(), "step" | "pattern")))
+            {
+                return Err("a malformed ranking step".into());
+            }
             Ok(Step {
                 step: string(step, "step")?,
-                category: step
-                    .get("category")
-                    .map(|category| category.as_str().map(str::to_string).ok_or("a malformed ranking step"))
+                pattern: step
+                    .get("pattern")
+                    .map(|operand| {
+                        if operand.get("const").is_some() {
+                            term_from_json(operand)
+                        } else {
+                            crate::patterns::Pattern::from_json(operand).map(|p| Term::Pattern(Box::new(p)))
+                        }
+                    })
                     .transpose()?,
+                operand_at: None,
             })
         })
         .collect()
@@ -630,10 +628,6 @@ pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
         emitted_locations: Default::default(),
         name: string(value, "name")?,
         op,
-        categories: array(value, "categories")?
-            .iter()
-            .map(|name| name.as_str().map(str::to_string).ok_or_else(|| "a malformed rule category".to_string()))
-            .collect::<R<Vec<_>>>()?,
         tags: value.get("tags").map(term_from_json).transpose()?,
         strings: channels_from_json(value)?,
         alternatives: if value.get("instance").is_some() { &[] } else { array(value, "alternatives")? }
@@ -1228,9 +1222,13 @@ pub(crate) fn write_steps(out: &mut String, steps: &[Step]) {
         }
         out.push_str("{\"step\":");
         write_str(out, &step.step);
-        if let Some(category) = &step.category {
-            out.push_str(",\"category\":");
-            write_str(out, category);
+        if let Some(pattern) = &step.pattern {
+            out.push_str(",\"pattern\":");
+            if let Term::Pattern(p) = pattern {
+                p.write(out);
+            } else {
+                write_term(out, pattern);
+            }
         }
         out.push('}');
     }
@@ -1259,14 +1257,6 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
         Op::Redefine => ",\"op\":\"redefine\"",
         Op::Extend => ",\"op\":\"extend\"",
     });
-    out.push_str(",\"categories\":[");
-    for (index, category) in rule.categories.iter().enumerate() {
-        if index > 0 {
-            out.push(',');
-        }
-        write_str(out, category);
-    }
-    out.push(']');
     if let Some(tags) = &rule.tags {
         out.push_str(",\"tags\":");
         write_term(out, tags);
@@ -1637,7 +1627,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                         stack.push((Nested::Term(a), depth));
                         stack.push((Nested::Term(b), depth));
                     }
-                    Pattern::Test(_, value, inner) => {
+                    Pattern::Test(_, value, inner, _) => {
                         stack.push((Nested::Term(value), below));
                         stack.push((Nested::Pattern(inner), below));
                     }
@@ -2254,7 +2244,7 @@ impl crate::patterns::Pattern {
             P::Source(symbol) => symbol.take_parts(stack),
             P::Literal(value, _) => stack.push(term(value)),
             P::Range(a, b, _) => stack.extend([term(a), term(b)]),
-            P::Test(_, value, inner) => stack.extend([term(value), take(inner)]),
+            P::Test(_, value, inner, _) => stack.extend([term(value), take(inner)]),
             P::Path(_, inner) => stack.push(take(inner)),
             P::Node(inner, _, children) => {
                 stack.push(take(inner));

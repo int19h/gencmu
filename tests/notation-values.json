@@ -138,15 +138,11 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%rule text \"a\" %counts-as categoryK\n```",
+      "document": "```jbogenbau\n%rule text \"a\"                     \n```",
       "expect": {
         "dom": {
           "rules": [
-            {
-              "categories": [
-                "span"
-              ]
-            }
+            {}
           ]
         }
       }
@@ -421,15 +417,11 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%rule text \"a\" %counts-as categoryK\n```",
+      "document": "```jbogenbau\n%rule text \"a\"                     \n```",
       "expect": {
         "dom": {
           "rules": [
-            {
-              "categories": [
-                "span"
-              ]
-            }
+            {}
           ]
         }
       }

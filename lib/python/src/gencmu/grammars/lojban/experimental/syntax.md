@@ -43,33 +43,33 @@ The number and letter-string rules prevent a run from ending before a part that 
 
 A span is a range between input token boundaries. A ranked choice filters alternatives at one written position. An option qualifies when its complete reading passes the grammar's conditions. An earlier option can exclude a later option over the same span. The [notation document](../../../docs/notation.md#ranked-choices) defines when this occurs.
 
-A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage ranks admitted derivations by `leftmost-longest(unit)`, then `fewest(link)`, then `late(elision)`. After the first two steps tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
+A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage ranks admitted derivations by `leftmost-longest #(·tense-modal ∪ ·free)`, then `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)`, then `late #·<_Elided>`. After the first two steps tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
-`free` and `tense-modal` count as units. `leftmost-longest(unit)` compares the spans of every unit. Both rules contribute to one category, without priority by rule name. The earliest differing start decides, with longer spans first. A unit that prevents the full text from completing contributes nothing.
+The first step names `free` and `tense-modal`, and compares the spans of every occurrence of either. Both rules contribute to one count, without priority by rule name. The earliest differing start decides, with longer spans first. A unit that prevents the full text from completing contributes nothing.
 
-`bridi-tail-connective` and `gi-stag-connective` count as links, and `fewest(link)` counts them across the whole reading.
+The second step names `bridi-tail-connective` and `gi-stag-connective`, and counts their occurrences across the whole reading.
 
 After span ranking, a smaller count wins. Equal counts leave late elision to decide, which can keep the first description open. The same ranking applies to A, JA, JOI, and VUhU. Each family can connect sumti and bridi-tails. The step compares whole readings because their omitted terminators fall under different parents and at different boundaries.
 
 This favors sumti and term connections when they avoid a bridi-tail link. Such terms include terms marked with `fe` or `pu`, and bare `na ku` terms. Written `kei ku` after the first description selects parallel descriptions. A written `gi'e` explicitly marks a bridi-tail link. The closing section explains both choices with examples.
 
-`leftmost-longest(unit)` gives `to mi klama` the sentence `mi klama`, because the longer parenthesis wins. Late elision gives `lu mi klama` the sentence `mi klama` in its quote, because the other reading omits terminators earlier, after `mi`.
+The `leftmost-longest` step gives `to mi klama` the sentence `mi klama`, because the longer parenthesis wins. Late elision gives `lu mi klama` the sentence `mi klama` in its quote, because the other reading omits terminators earlier, after `mi`.
 
 The layer permits ambiguity beyond omitted terminators. It uses these rules to select a reading:
 
-- A free modifier's span is settled before the `fewest(link)` step. Its terminator can be omitted.
+- A free modifier's span is settled before the `fewest` step. Its terminator can be omitted.
 - In a tanru and between operators, `ke` directly after a joik, jek or ek opens the connective's own group. The selbri and mekso sections explain that choice.
 - A connection that can be a sumti connection is one ("Terms"). After span ranking, fewer bridi-tail links in the whole reading win. Equal counts leave late elision to decide.
 - A `be` group attaches to the tanru unit before it ("Selbri and tanru").
 - A subscript after a subscript nests. Any other free modifier after a subscript belongs to the word that the subscript marks ("Free modifiers, vocatives and indicators").
 
-`free` counts as a unit, so `leftmost-longest(unit)` settles a free modifier's span before the `fewest(link)` step. An omitted terminator therefore closes as late as the text allows. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis.
+The first step names `free`, so it settles a free modifier's span before the `fewest` step. An omitted terminator therefore closes as late as the text allows. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis.
 
 The experimental terminators `ku'au` and `ku'oi` are elidable: the rules below write them `[+KUhAU]` and `[+KUhOI]`.
 
 ```jbogenbau
 %ambiguity-resolution
-  leftmost-longest(unit), fewest(link), late(elision)
+  leftmost-longest #(·tense-modal ∪ ·free), fewest #(·gi-stag-connective ∪ ·bridi-tail-connective), late #·<_Elided>
 ```
 
 ## The text and its paragraphs
@@ -420,13 +420,9 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 
 %rule gi-stag-connective
   GI stag
-%counts-as
-  link
 
 %rule bridi-tail-connective
   gihek 🆓 | connective
-%counts-as
-  link
 
 ```
 
@@ -502,7 +498,7 @@ The same KU rule applies in lists and single-term positions. A written KU permit
 
 A connection that can form one sumti takes that reading. Each term connection tests its preceding part and the link after the connective. The condition refuses the link when both parts can form one sumti. Thus `mi .e do klama` and `mi .e bo do klama` join sumti. In `mi .e ca do klama`, `ca do` is a modal term, so the connective joins terms.
 
-After span ranking, `fewest(link)` also favors term connections over readings with more bridi-tail links in the whole reading. Equal counts leave closing boundaries to late elision.
+After span ranking, the `fewest` step also favors term connections over readings with more bridi-tail links in the whole reading. Equal counts leave closing boundaries to late elision.
 
 Three tags carry these facts through the tree. `Link-Extensible-End` marks a sumti that a plain connective can extend. `Bo-Extensible-End` marks one that a BO connective can extend. `Sumti-Start` marks a link that begins with a sumti. `$EXTENSIBLE-END` holds the two end tags.
 
@@ -510,11 +506,11 @@ Three tags carry these facts through the tree. `Link-Extensible-End` marks a sum
 
 A termset closed by written NUhU is not a sumti, and a link that starts with it has no `Sumti-Start` tag. Thus `mi .e ge do gi ti nu'u klama` joins terms. Without NUhU, `mi .e ge do gi ti klama` joins sumti.
 
-Each term level has its own link rules and sumti conditions. A BO group takes its start tag from its first term and its end tags from the group after BO. Neither `term-link` nor `term-bo-link` counts as a link. `term-bo-link` permits BO with or without a stag, as in `fa mi .e bo fe do klama`.
+Each term level has its own link rules and sumti conditions. A BO group takes its start tag from its first term and its end tags from the group after BO. Neither `term-link` nor `term-bo-link` is counted by the `fewest` step. `term-bo-link` permits BO with or without a stag, as in `fa mi .e bo fe do klama`.
 
 PEhE takes any statement connective. `terms-1` forms a left chain in ordinary terms and forethought branches alike. A SOI term contains a subsentence and ends with SEhU. The `soi-clause` feature enables it, and `fi'oi` belongs to SOI.
 
-A bare forethought termset needs no NUhI, and its branches can hold different numbers of terms. Its first branch ends in `termset-branch`, which elides NUhU before GI. A competing forethought sumti elides nothing there, so `late(elision)` prefers it.
+A bare forethought termset needs no NUhI, and its branches can hold different numbers of terms. Its first branch ends in `termset-branch`, which elides NUhU before GI. A competing forethought sumti elides nothing there, so `late #·<_Elided>` prefers it.
 
 Thus `ge mi gi do ce'e ti` contains a connected sumti followed by CEhE and another term. In `broda be ge mi gi do ce'e ti be'o`, BE instead takes a termset. Its single argument cannot continue with CEhE after a sumti.
 
@@ -542,7 +538,7 @@ Before the main predicate, an omitted KUhEI lets that predicate continue the eve
 
 In `mi klama ca'ei do cadzu ti`, the following `ti` stays inside the event clause. In `mi klama ca'ei do cadzu ku'ei ti`, it belongs to the main bridi.
 
-These terms count as neither a unit nor a link. Their contained predicates use the `fewest(link)` and `late(elision)` steps.
+No step names these terms. Their contained predicates use the `fewest` and `late` steps.
 
 ```jbogenbau
 %redefine-rule terms-1
@@ -1085,7 +1081,7 @@ A joik, jek, ek or VUhU connects tenses and modals, and `tag` is a left chain of
 
 `fa` is an atom too, and it is the only way a place marker enters the grammar. So `fa` alone matches `tag` wherever that rule can stand: before a sumti (`fa mi`), a selbri (`mi fa klama`) or `bo`, and after `jai` (`jai fa broda`). It can be converted like a modal (`se fa`) or joined to other atoms (`mi fa pu klama`).
 
-`tense-modal` counts as a unit, so the stage prefers the earliest, longest atom run among complete readings. Thus `pu ca gi` begins one gek instead of a separate PU term before `ca gi`.
+The first step names `tense-modal`, so the stage prefers the earliest, longest atom run among complete readings. Thus `pu ca gi` begins one gek instead of a separate PU term before `ca gi`.
 
 ```jbogenbau
 %redefine-rule tag
@@ -1096,8 +1092,6 @@ A joik, jek, ek or VUhU connects tenses and modals, and `tag` is a left chain of
 
 %redefine-rule tense-modal
   {tense-atom}
-%counts-as
-  unit
 
 %rule tense-atom
   | [NAhE] [SE] (BAI | CAhA | CUhE | KI | ZI | PU | VA | [MOhI] FAhA | ZEhA | VEhA | VIhA) 🆓
@@ -1143,7 +1137,7 @@ DOhOI supplies a listener through one raw quoted word. It takes the relative-cla
 
 A COI run can precede that quoted listener, as it can precede DOI. DOhOI takes no second listener argument.
 
-Its free modifier counts as a unit, so a complete longer vocative outranks a split into shorter modifiers. A written DOhU fixes its end.
+The first step names its free modifier, so a complete longer vocative outranks a split into shorter modifiers. A written DOhU fixes its end.
 
 ```jbogenbau
 %const $NON-XI-FREE #free ∖ #« XI ⋯ »
@@ -1163,8 +1157,6 @@ Its free modifier counts as a unit, so a complete longer vocative outranks a spl
   | ¬soi-clause? SOI 🆓 sumti [sumti] [+SEhU]
 %conditions
   $m ≇ $FREE-ENDING
-%counts-as
-  unit
 
 %redefine-rule vocative
   | {COI} :: ∅
@@ -1192,9 +1184,9 @@ Its free modifier counts as a unit, so a complete longer vocative outranks a spl
 
 ## Choosing among parses
 
-Where a text has more than one parse, the stage follows [the notation document](../../../docs/notation.md), under "Ranked choices", "Ambiguity", and "Elided terminators". A ranked choice filters alternatives at one written position. The stage ranks admitted derivations by `leftmost-longest(unit)`, then `fewest(link)`, then `late(elision)`. `late(elision)` counts the omitted terminators of each admitted derivation at each boundary. After the first two steps tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
+Where a text has more than one parse, the stage follows [the notation document](../../../docs/notation.md), under "Ranked choices", "Ambiguity", and "Elided terminators". A ranked choice filters alternatives at one written position. The stage ranks admitted derivations by `leftmost-longest #(·tense-modal ∪ ·free)`, then `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)`, then `late #·<_Elided>`. `late #·<_Elided>` counts the omitted terminators of each admitted derivation at each boundary. After the first two steps tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
-For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, whose `ku` is elided before `tavla`, and the selbri `tavla`. The other is a fragment, the single description `le sutra tavla`, whose `ku` is elided at the end. `late(elision)` takes the fragment.
+For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, whose `ku` is elided before `tavla`, and the selbri `tavla`. The other is a fragment, the single description `le sutra tavla`, whose `ku` is elided at the end. `late #·<_Elided>` takes the fragment.
 
 ## Differences from CLL and camxes-exp
 
@@ -1292,7 +1284,7 @@ Inside NUhI, this layer ranks the complete forethought body first. In `nu'i ge n
 
 camxes-exp excludes every bare NAhE operand that starts with a tense or modal because `na'e pu` matches `tag`. This layer excludes only one actual tagged term, whose tag reading duplicates it. A connection of terms remains possible, even with omitted KUs.
 
-After span ranking, `fewest(link)` counts links built by `bridi-tail-connective` and `gi-stag-connective` across the whole reading. The `gi-stag-connective` rule includes GI with a stag before BO or KE in that count. It favors sumti and term connections when these avoid a link. This includes terms marked with `fe` or `pu`, and bare `na ku` terms. The same ranking applies to A, JA, JOI, and VUhU. Equal counts leave late elision to decide, which can keep the first description open.
+After span ranking, the `fewest` step counts the occurrences of `bridi-tail-connective` and `gi-stag-connective` across the whole reading. The `gi-stag-connective` rule includes GI with a stag before BO or KE in that count. It favors sumti and term connections when these avoid a link. This includes terms marked with `fe` or `pu`, and bare `na ku` terms. The same ranking applies to A, JA, JOI, and VUhU. Equal counts leave late elision to decide, which can keep the first description open.
 
 Thus `mi nelci lo ka smuni .e lo ka pemci melbi` joins the two descriptions, as camxes-exp does. The step does not choose between two sumti connections with different scopes. Late elision still selects their closing boundaries.
 

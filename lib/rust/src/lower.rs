@@ -281,9 +281,6 @@ pub(crate) struct LRule {
     /// The rule's name, or for a helper the name of the rule that owns it.
     pub name: String,
     pub helper: bool,
-    /// The categories that a nonempty occurrence of the rule counts as
-    /// (engine §6), none for a helper.
-    pub categories: Vec<String>,
     pub prods: Vec<u32>,
     /// For the helper of an elidable optional, `[+T …]`: its
     /// terminator `T` (§3.8, §12).
@@ -331,6 +328,7 @@ impl Prod {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Lowered {
+    pub profile_possible: ProfilePossible,
     pub condition_strings: bool,
     pub unicode: Arc<crate::unicode::Unicode>,
     pub ranked: RankedRuntime,
@@ -365,6 +363,20 @@ pub(crate) struct Lowered {
     pub elides: bool,
     /// What recognitions of this grammar prepare from it, made at the first.
     pub prepared: Prepared,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct ProfilePossible(std::sync::OnceLock<bool>);
+impl Clone for ProfilePossible {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
+impl std::ops::Deref for ProfilePossible {
+    type Target = std::sync::OnceLock<bool>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 /// The preparation of a lowered grammar, made once. A copy of the grammar
@@ -1204,7 +1216,6 @@ pub(crate) fn lower(
             family: index as u32,
             name: rule.name.clone(),
             helper: false,
-            categories: rule.categories.clone(),
             prods: Vec::new(),
             elided: None,
             elided_test: None,
@@ -1219,7 +1230,6 @@ pub(crate) fn lower(
             family,
             name: grammar.rules[helper.owner as usize].name.clone(),
             helper: true,
-            categories: Vec::new(),
             prods: Vec::new(),
             elided: helper.elided.as_ref().map(|(name, _, _)| name.clone()),
             elided_test: helper.elided.as_ref().and_then(|(_, test, _)| *test),
@@ -1367,7 +1377,6 @@ pub(crate) fn lower(
             family: rule,
             name: format!("\0query:{terminal}"),
             helper: true,
-            categories: Vec::new(),
             prods: Vec::new(),
             elided: None,
             elided_test: None,
@@ -1724,6 +1733,7 @@ pub(crate) fn lower(
     let tests = std::mem::take(&mut lowerer.tests);
     let elides = rules.iter().any(|rule| rule.elided.is_some());
     let mut lowered = Lowered {
+        profile_possible: Default::default(),
         condition_strings: grammar.condition_strings,
         unicode: grammar.unicode.clone(),
         close_families: grammar.close_families.clone(),
@@ -2425,7 +2435,6 @@ mod tests {
                 emitted_locations: Default::default(),
                 name,
                 op: Op::Define,
-                categories: Vec::new(),
                 tags: None,
                 alternatives: alternatives
                     .into_iter()
@@ -2466,7 +2475,7 @@ mod tests {
                 conditions: None,
                 name: "ambiguity-resolution".into(),
                 args: Vec::new(),
-                steps: Some(vec![crate::dom::Step { step: "greedy".into(), category: None }]),
+                steps: Some(vec![crate::dom::Step { step: "greedy".into(), pattern: None, operand_at: None }]),
                 at: (0, 0),
             };
             let dom = Dom {
@@ -2517,7 +2526,6 @@ mod tests {
             emitted_locations: Default::default(),
             name: "text".into(),
             op: Op::Define,
-            categories: Vec::new(),
             tags: Some(Term::Union(guards.collect())),
             alternatives: vec![Alternative {
                 strings: Default::default(),
@@ -2541,7 +2549,7 @@ mod tests {
             conditions: None,
             name: "ambiguity-resolution".into(),
             args: Vec::new(),
-            steps: Some(vec![crate::dom::Step { step: "greedy".into(), category: None }]),
+            steps: Some(vec![crate::dom::Step { step: "greedy".into(), pattern: None, operand_at: None }]),
             at: (0, 0),
         };
         let dom = Dom {

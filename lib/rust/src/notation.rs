@@ -404,21 +404,31 @@ impl<'a> Reader<'a> {
     fn ranking_directive(&self, node: &'a Node) -> R<Directive> {
         let token = self.token(node)?;
         let mut steps = Vec::new();
-        for step in self.rules(node, "ranking-step") {
-            let words: Vec<&str> = self.tokens_of(step).map(|token| self.value(token)).collect();
-            steps.push(match words[..] {
-                [step] => crate::dom::Step { step: step.into(), category: None },
-                _ => crate::dom::Step {
-                    step: words.first().copied().unwrap_or_default().into(),
-                    category: Some(words.get(2).copied().unwrap_or_default().into()),
-                },
-            });
+        let nodes: Vec<_> = self.rules(node, "ranking-step").collect();
+        for (index, step) in nodes.iter().enumerate() {
+            let parts = self.parts(step);
+            let name = self.value(parts[0]).to_string();
+            let operand = parts.len() > 1;
+            if if operand {
+                !crate::dom::KEY_STEPS.contains(&name.as_str())
+            } else {
+                !crate::dom::LEANS.contains(&name.as_str()) || index + 1 != nodes.len()
+            } {
+                return Err(self.error(
+                    node,
+                    "%ambiguity-resolution requires a pattern for each key step and no operand on a final lean",
+                ));
+            }
+            let pattern = parts
+                .get(1)
+                .map(|operand| self.typed(Frame::Atom(Atom::new(operand, false))).map(|(term, _)| term))
+                .transpose()?;
+            steps.push(crate::dom::Step { step: name, pattern, operand_at: parts.get(1).map(|n| self.at(n)) });
         }
         if !crate::dom::valid_steps(&steps) {
             return Err(self.error(
                 node,
-                "%ambiguity-resolution takes leftmost-longest, fewest, most, late or early with a category, \
-                 then optionally greedy or lazy",
+                "%ambiguity-resolution requires a pattern for each key step and no operand on a final lean",
             ));
         }
         Ok(Directive {
@@ -428,34 +438,6 @@ impl<'a> Reader<'a> {
             conditions: None,
             at: self.at(token),
         })
-    }
-
-    /// The categories of a rule's `%counts-as` clause (engine §9.3).
-    pub(crate) fn counts_as(&self, node: &'a Node, op: Op) -> R<Vec<String>> {
-        let mut categories: Vec<String> = Vec::new();
-        let Some(clause) = self.rules(node, "counts-as-clause").next() else { return Ok(categories) };
-        if op == Op::Extend {
-            return Err(self.error(clause, "%extend-rule accepts no %counts-as clause"));
-        }
-        for category in self.some(clause, "category", 1)? {
-            let name = self.value(self.token(category)?);
-            if !crate::dom::is_category_name(name) {
-                return Err(self.error(
-                    category,
-                    "a category name starts with a lowercase letter and continues with lowercase letters, digits and hyphens",
-                ));
-            }
-            if name == "elision" {
-                return Err(
-                    self.error(category, "elision is the category of elided terminators, which no rule can count as")
-                );
-            }
-            if categories.iter().any(|known| known == name) {
-                return Err(self.error(category, format!("duplicate category {name}")));
-            }
-            categories.push(name.to_string());
-        }
-        Ok(categories)
     }
 
     fn rule(&self, node: &'a Node) -> R<RuleDef> {
@@ -526,7 +508,6 @@ impl<'a> Reader<'a> {
                 deferred_emission: None,
                 name,
                 op,
-                categories: Vec::new(),
                 tags: None,
                 strings: Default::default(),
                 alternatives: Vec::new(),
@@ -566,7 +547,6 @@ impl<'a> Reader<'a> {
             }
             self.in_condition.set(false);
         }
-        let categories = self.counts_as(node, op)?;
         let emit = match self.rules(node, "emits-clause").next() {
             Some(clause) => Some(self.emission(clause)?),
             None => None,
@@ -577,7 +557,6 @@ impl<'a> Reader<'a> {
             emitted_locations: std::mem::take(&mut *self.emitted_locations.borrow_mut()),
             name,
             op,
-            categories,
             tags,
             strings,
             alternatives,
@@ -1455,7 +1434,13 @@ impl<'a> Reader<'a> {
             }));
         }
         let node = frame.node;
-        let inner = self.inner(node, ATOMS)?;
+        let inner = if ATOMS.contains(&rule_name(node))
+            && !matches!(rule_name(node), "term" | "guarded-term" | "union" | "term-atom")
+        {
+            node
+        } else {
+            self.inner(node, ATOMS)?
+        };
         let token = || self.token(inner);
         let typed = |term: Term, ty: Type| Ok(Step::Done(Val::Term(term, ty)));
         match rule_name(inner) {
@@ -1548,6 +1533,7 @@ impl<'a> Reader<'a> {
                         | "constant-reference"
                         | "parameter"
                         | "call"
+                        | "tag-test"
                 ) || part.kind == NodeKind::Token
                     && (matches!(part.terminal.as_deref(), Some("Emoji-Name" | "Lowercase-Name"))
                         || self.unicode.is_emoji_name(self.value(part))
@@ -1560,22 +1546,11 @@ impl<'a> Reader<'a> {
     fn pattern_atom(&self, node: &'a Node, call: Option<SourceCall>) -> R<crate::patterns::Pattern> {
         use crate::patterns::Pattern as P;
         let first = self.pattern_atom_base(node)?;
-        let name = if matches!(rule_name(first), "name" | "reference") {
-            Some(self.token(first)?)
-        } else if first.kind == NodeKind::Token {
-            Some(first)
-        } else {
-            None
-        };
-        let testable = !Self::pattern_rule_name(first)
-            && (matches!(
-                rule_name(first),
-                "tag" | "string" | "string-terminal" | "wildcard" | "range" | "constant-reference" | "parameter"
-            ) || name.is_some_and(|name| is_capital(self.value(name)) || self.value(name).starts_with('_')));
-        self.pattern_test_nodes(node, testable)?;
+        self.pattern_test_nodes(node, true)?;
         let (pattern, tested) = match rule_name(first) {
             "parameter" => (P::Source(self.source_parameter(first)?), true),
             "call" => (P::Source(SourceSymbol::Call(call.expect("a pattern call reads its arguments first"))), false),
+            "tag-test" => (P::Any, true),
             "tag" => (P::Terminal(self.tag_of(self.token(first)?)?, self.first(first)), true),
             "string" => (P::Literal(self.string_term(self.token(first)?)?, self.first(first)), true),
             "string-terminal" => {
@@ -1631,7 +1606,7 @@ impl<'a> Reader<'a> {
         let mut value = false;
         for test in &tests {
             let tag = rule_name(test) == "tag-test";
-            if !testable || value || tag && tags {
+            if (!testable && !tag) || value || tag && tags {
                 return Err(self.error(test, "invalid pattern test target or order"));
             }
             if tag {
@@ -1651,14 +1626,40 @@ impl<'a> Reader<'a> {
     ) -> R<crate::patterns::Pattern> {
         let tests = self.pattern_test_nodes(node, testable)?;
         for test in tests {
+            if matches!(
+                &pattern,
+                crate::patterns::Pattern::Name(..) | crate::patterns::Pattern::Source(SourceSymbol::Call(_))
+            ) && rule_name(test) == "tag-test"
+            {
+                for requirement in self.rules(test, "tag-requirement") {
+                    let part = self.inner(self.one(requirement, "test-operand")?, ATOMS)?;
+                    if rule_name(part) == "tag"
+                        && self.value(self.token(part)?) == "_Elided"
+                        && !self.tokens_of(requirement).any(|t| self.value(t) == "¬")
+                    {
+                        return Err(self.error(self.token(part)?, "a rule pattern cannot require _Elided"));
+                    }
+                }
+            }
             let (op, operand) = if rule_name(test) == "tag-test" {
-                ("tags".into(), self.source_requirements(test, "invalid tag requirement")?)
+                ("tags".into(), self.pattern_requirements(test)?)
             } else {
                 let op = self.operator(self.token(self.one(test, "test")?)?).into();
                 let operand = self.one(test, "test-operand")?;
                 (op, self.value_test_operand(operand)?)
             };
-            pattern = crate::patterns::Pattern::Test(op, operand, Box::new(pattern));
+            let mark_at = if rule_name(test) == "tag-test" {
+                self.rules(test, "tag-requirement").find_map(|requirement| {
+                    let part = self.inner(self.one(requirement, "test-operand").ok()?, ATOMS).ok()?;
+                    (rule_name(part) == "tag"
+                        && self.value(self.token(part).ok()?) == "_Elided"
+                        && !self.tokens_of(requirement).any(|t| self.value(t) == "¬"))
+                    .then(|| self.at(part))
+                })
+            } else {
+                None
+            };
+            pattern = crate::patterns::Pattern::Test(op, operand, Box::new(pattern), mark_at);
         }
         Ok(pattern)
     }
@@ -2710,8 +2711,6 @@ const KNOWN: &[&str] = &[
     "constant-reference",
     "rule",
     "definer",
-    "counts-as-clause",
-    "category",
     "rule-name",
     "body",
     "alternative",
@@ -2891,6 +2890,12 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                     _ => None,
                 })),
                 Cond::Compare(op, left, right) => {
+                    if matches!(op.as_str(), "≅" | "≇")
+                        && matches!(left,Term::Capture(name) if name.is_empty())
+                        && matches!(right,Term::Pattern(p) if crate::patterns::reads_node_tags(p))
+                    {
+                        return true;
+                    }
                     if !matches!(op.as_str(), "≅" | "≇") {
                         stack.extend([Part::Term(left), Part::Term(right)]);
                     }

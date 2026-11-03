@@ -102,7 +102,7 @@ class Bound:
     part comes from one walk, so a term that reads them all walks them
     about twice at most. ``$`` is the whole constituent where it is known."""
 
-    __slots__ = ("production", "caps", "base", "project", "whole", "found", "all", "searched", "machine", "structure", "close_structure", "boundary_value", "boundary_test", "string_reader")
+    __slots__ = ("production", "caps", "base", "project", "whole", "found", "all", "searched", "machine", "structure", "close_structure", "boundary_value", "boundary_test", "string_reader", "root_pattern")
 
     def __init__(
         self,
@@ -115,6 +115,7 @@ class Bound:
         structure: int = 0,
         close_structure: int = 0,
     ) -> None:
+        self.root_pattern = None
         self.string_reader = None
         self.boundary_value = None
         self.boundary_test = None
@@ -275,6 +276,7 @@ class Forest:
     boundary_machine: Any = None
     boundary_annotations: list = field(default_factory=list)
     boundary_failures: list = field(default_factory=list)
+    tagtab: Any = None
 
 
 @dataclass
@@ -994,7 +996,13 @@ class Evaluator:
             op = dom["op"]
             if op in ("≅", "≇"):
                 machine = bound.machine
-                holds = machine is not None and machine.matches(bound.observation(dom["left"]["capture"]), dom["right"]["pattern"])
+                from ._patterns import reads_node_tags
+                observation = bound.observation(dom["left"]["capture"])
+                if machine is not None and dom["left"]["capture"] == WHOLE and bound.root_pattern is not None and reads_node_tags(dom["right"]["pattern"]):
+                    tags = yield self.walk_value({"method": "tags", "receiver": {"capture": WHOLE}, "args": []}, bound)
+                    name, prefix = bound.root_pattern
+                    observation = machine.node(name, prefix, tags=tags)
+                holds = machine is not None and machine.matches(observation, dom["right"]["pattern"])
                 return holds == (op == "≅")
             left = yield self.walk_value(dom["left"], bound)
             right = yield self.walk_value(dom["right"], bound)
@@ -1216,7 +1224,7 @@ class Parser:
             if machine is None or position != len(production.rhs):
                 return 0
             if production.elided is not None:
-                return machine.node(None, machine.empty, (production.elided, "", frozenset((production.elided,))))
+                return machine.node(None, machine.empty, (production.elided, "", frozenset((production.elided, "_Elided"))))
             if production.helper:
                 return prefix
             return machine.node(production.rule_name, prefix)
@@ -1226,7 +1234,7 @@ class Parser:
                 return 0
             if recon and synthetic[token]:
                 if position == 0 and elidable_heads.get(production.lhs) == terminal:
-                    return machine.node(None, machine.empty, (terminal, "", frozenset((terminal,))))
+                    return machine.node(None, machine.empty, (terminal, "", frozenset((terminal, "_Elided"))))
                 return machine.empty
             original = base + token if not recon else project[token]
             source = context if not recon else observed
@@ -1498,7 +1506,8 @@ class Parser:
                 variants[key] = q
             return variants[key]
 
-        def bound_for(production, captured, whole=None, structure=0, close_structure=0):
+        def bound_for(production, captured, whole=None, structure=0, close_structure=0, prefix=0):
+            root_pattern = (production.rule_name, prefix)
             frame = production.lexical
             if frame is not None and whole is not None:
                 start, at, own = whole
@@ -1517,8 +1526,11 @@ class Parser:
                 else:
                     whole = (frame.origin,at,tagtab.empty)
                 if machine is not None:
-                    structure = machine.node(frame.root.rule_name,machine.concat(frame.seal_prefix,machine.sealed()))
-            return evaluator.bind(production, captured, whole, structure, close_structure)
+                    root_pattern = (frame.root.rule_name, machine.concat(frame.seal_prefix,machine.sealed()))
+                    structure = machine.node(*root_pattern)
+            bound = evaluator.bind(production, captured, whole, structure, close_structure)
+            bound.root_pattern = root_pattern
+            return bound
 
         def constituent_tag(production: Production, captured: Caps) -> int:
             """The tag set of a completed item whose production has no tag
@@ -1661,7 +1673,7 @@ class Parser:
                 close_structure = completed_closes(production, position + 1, start, at, close_prefix)
                 known_tag = lazy_tag(production, captured, start, at, structure, close_structure)
             if production.whole_ready and complete:
-                bound = bound_for(production, captured, (start, at, known_tag), structure, close_structure)
+                bound = bound_for(production, captured, (start, at, known_tag), structure, close_structure, prefix)
             else:
                 bound = bound_for(production, captured)
             if reads_strings:
@@ -1892,6 +1904,8 @@ class Parser:
                         tag[item] = yield term_tag(production, caps[item], start, j, structures[item], close_structures[item] if closes is not None else 0)
                     except InvalidObservation:
                         continue
+                if machine is not None and machine.node_tags and not production.helper:
+                    structures[item] = machine.node(production.rule_name, prefixes[item], tags=tagtab.get(tag[item]))
                 lhs = production.lhs
                 part = (start, j, tag[item])
                 if start == j:
@@ -1999,7 +2013,7 @@ class Parser:
                 expected.setdefault(written_symbol(terminal, test), set()).add(production.rule_name)
         # The forest's tokens are those the parse read, before its furthest
         # set.
-        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if has_slots else [], strict if has_slots else [], close_structures, close_prefixes, closes, self.observe, family, family_prefixes, family_structures, records, boundaries, annotations, failures)
+        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if has_slots else [], strict if has_slots else [], close_structures, close_prefixes, closes, self.observe, family, family_prefixes, family_structures, records, boundaries, annotations, failures, tagtab=context.tagtab)
 
 
 def reading_last(lowered: Lowered) -> list[int]:

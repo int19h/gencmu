@@ -1,6 +1,6 @@
 {
   "description": "`fewest` breaks a tie (engine §4.2 and §6, case 17).",
-  "grammar": "%ambiguity-resolution fewest(few), greedy\n%rule text p | q\n%rule p A B\n%counts-as few\n%rule q A B",
+  "grammar": "%ambiguity-resolution fewest #·p, greedy\n%rule text p | q\n%rule p A B\n              \n%rule q A B",
   "tokens": [
     {
       "text": "a",

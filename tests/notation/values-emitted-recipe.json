@@ -2,12 +2,11 @@
   "document": "```jbogenbau\n%rule r :- $.emitted.image | A %emits\n```\n",
   "expect": {
     "dom": {
-      "format": 42,
+      "format": 43,
       "rules": [
         {
           "name": "r",
           "op": "define",
-          "categories": [],
           "alternatives": [
             {
               "guards": [],

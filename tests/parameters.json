@@ -646,8 +646,8 @@
     }
   },
   {
-    "name": "binding categories",
-    "grammar": "%rule use(@X) @X\n%rule text = use(\"a\")\n%counts-as few",
+    "name": "binding cannot define a body",
+    "grammar": "%rule use(@X) @X\n%rule text = use(\"a\") \"b\"",
     "input": "",
     "expect": {
       "error": "grammar"

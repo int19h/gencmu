@@ -16,7 +16,7 @@ pub(crate) enum Pattern {
     Range(Term, Term, (usize, usize)),
     Wildcard((usize, usize)),
     Constant(String, (usize, usize)),
-    Test(String, Term, Box<Pattern>),
+    Test(String, Term, Box<Pattern>, Option<(usize, usize)>),
     Node(Box<Pattern>, bool, Option<Children>),
     Any,
     Path(String, Box<Pattern>),
@@ -129,9 +129,9 @@ impl Pattern {
                         });
                     }
                 }
-                Part::Pattern(Self::Test(_, _, inner)) => {
+                Part::Pattern(Self::Test(_, _, inner, _)) => {
                     let mut base = inner.as_ref();
-                    while let Self::Test(_, _, nested) = base {
+                    while let Self::Test(_, _, nested, _) = base {
                         base = nested;
                     }
                     if let Self::Constant(name, at) = base {
@@ -183,7 +183,7 @@ impl Part<'_> {
                     push(Part::Term(b, None));
                     push(Part::Term(a, None));
                 }
-                Pattern::Test(op, term, inner) => {
+                Pattern::Test(op, term, inner, _) => {
                     push(Part::Term(term, Some(op)));
                     push(Part::Pattern(inner));
                 }
@@ -254,7 +254,9 @@ impl Pattern {
                 Self::Terminal(format!("{a}..{b}"), *at)
             }
             Self::Wildcard(a) => Self::Terminal("_".into(), *a),
-            Self::Test(op, v, n) => Self::Test(op.clone(), value(v, op)?, Box::new(n.map_values(constant, value)?)),
+            Self::Test(op, v, n, mark_at) => {
+                Self::Test(op.clone(), value(v, op)?, Box::new(n.map_values(constant, value)?), *mark_at)
+            }
             Self::Node(node, exact, children) => Self::Node(
                 Box::new(node.map_values(constant, value)?),
                 *exact,
@@ -336,7 +338,7 @@ struct Nfa {
 enum NodeTest {
     Name(String),
     Terminal(String),
-    Test(Vec<(String, Term)>, String),
+    Test(Pattern),
     Any,
 }
 #[derive(Debug)]
@@ -356,6 +358,7 @@ enum PatternItem {
 }
 #[derive(Debug)]
 pub(crate) struct Machine {
+    pub node_tags: bool,
     predicates: Vec<Predicate>,
     machines: Vec<Nfa>,
     ids: FxMap<String, usize>,
@@ -376,7 +379,7 @@ fn pattern_key(p: &Pattern) -> String {
             Pattern::Name(s, _) => Pattern::Name(s.clone(), (0, 0)),
             Pattern::Terminal(s, _) => Pattern::Terminal(s.clone(), (0, 0)),
             Pattern::Constant(s, _) => Pattern::Constant(s.clone(), (0, 0)),
-            Pattern::Test(op, v, n) => Pattern::Test(op.clone(), v.clone(), Box::new(plain(n))),
+            Pattern::Test(op, v, n, _) => Pattern::Test(op.clone(), v.clone(), Box::new(plain(n)), None),
             Pattern::Node(node, exact, attached) => {
                 Pattern::Node(Box::new(plain(node)), *exact, attached.as_ref().map(children))
             }
@@ -406,6 +409,7 @@ fn pattern_key(p: &Pattern) -> String {
 impl Machine {
     pub(crate) fn new(roots: &[Pattern]) -> Self {
         Self::build(|m| {
+            m.node_tags = roots.iter().any(reads_node_tags);
             for p in roots {
                 m.compile(p);
             }
@@ -413,6 +417,7 @@ impl Machine {
     }
     fn build(configure: impl FnOnce(&mut Self)) -> Self {
         let mut m = Self {
+            node_tags: false,
             predicates: vec![],
             machines: vec![],
             ids: FxMap::default(),
@@ -461,16 +466,7 @@ impl Machine {
             Pattern::Terminal(s, _) => {
                 Predicate::Node { test: NodeTest::Terminal(s.clone()), exact: false, children: None }
             }
-            Pattern::Test(..) => {
-                let mut tests = Vec::new();
-                let mut base = p;
-                while let Pattern::Test(op, value, inner) = base {
-                    tests.push((op.clone(), value.clone()));
-                    base = inner;
-                }
-                let Pattern::Terminal(terminal, _) = base else { unreachable!("a tested terminal atom") };
-                Predicate::Node { test: NodeTest::Test(tests, terminal.clone()), exact: false, children: None }
-            }
+            Pattern::Test(..) => Predicate::Node { test: NodeTest::Test(p.clone()), exact: false, children: None },
             Pattern::Path(path, p) => Predicate::Path(path.clone(), self.compile(p)),
             Pattern::Union(xs) => Predicate::Union(xs.iter().map(|p| self.compile(p)).collect()),
             Pattern::Intersection(xs) => Predicate::Intersection(xs.iter().map(|p| self.compile(p)).collect()),
@@ -489,16 +485,7 @@ impl Machine {
             Pattern::Name(name, _) => NodeTest::Name(name.clone()),
             Pattern::Terminal(name, _) => NodeTest::Terminal(name.clone()),
             Pattern::Any => NodeTest::Any,
-            Pattern::Test(..) => {
-                let mut tests = Vec::new();
-                let mut base = pattern;
-                while let Pattern::Test(op, value, inner) = base {
-                    tests.push((op.clone(), value.clone()));
-                    base = inner;
-                }
-                let Pattern::Terminal(terminal, _) = base else { unreachable!("a tested terminal atom") };
-                NodeTest::Test(tests, terminal.clone())
-            }
+            Pattern::Test(..) => NodeTest::Test(pattern.clone()),
             _ => unreachable!("a resolved node test"),
         }
     }
@@ -676,7 +663,16 @@ impl Machine {
         id
     }
     pub(crate) fn node(&mut self, name: Option<&str>, children: u32, leaf: Option<(&str, &str, &[String])>) -> u32 {
-        let key = format!("n{name:?}/{children}/{leaf:?}");
+        self.node_with_tags(name, children, leaf, leaf.map_or(&[], |(_, _, tags)| tags))
+    }
+    pub(crate) fn node_with_tags(
+        &mut self,
+        name: Option<&str>,
+        children: u32,
+        leaf: Option<(&str, &str, &[String])>,
+        tags: &[String],
+    ) -> u32 {
+        let key = format!("n{name:?}/{children}/{leaf:?}/{tags:?}");
         if let Some(&id) = self.transitions.get(&key) {
             return id;
         }
@@ -688,9 +684,7 @@ impl Machine {
                     let holds = match test {
                         NodeTest::Name(n) => name == Some(n),
                         NodeTest::Terminal(t) => leaf.is_some_and(|(n, _, _)| n == t),
-                        NodeTest::Test(tests, terminal) => leaf.is_some_and(|(name, value, tags)| {
-                            name == terminal && tests.iter().all(|(op, operand)| leaf_test(op, operand, value, tags))
-                        }),
+                        NodeTest::Test(pattern) => local_matches(pattern, name, leaf, tags),
                         NodeTest::Any => name.is_some() || leaf.is_some(),
                     };
                     holds
@@ -918,3 +912,66 @@ mod tests {
 #[cfg(test)]
 #[path = "patterns/layered_tests.rs"]
 mod layered_tests;
+
+pub(crate) fn local_matches(
+    pattern: &Pattern,
+    name: Option<&str>,
+    leaf: Option<(&str, &str, &[String])>,
+    tags: &[String],
+) -> bool {
+    match pattern {
+        Pattern::Node(inner, _, _) => local_matches(inner, name, leaf, tags),
+        Pattern::Name(rule, _) => name == Some(rule),
+        Pattern::Terminal(terminal, _) => leaf.is_some_and(|(read, _, _)| read == terminal),
+        Pattern::Any => name.is_some() || leaf.is_some(),
+        Pattern::Test(op, value, inner, _) => {
+            local_matches(inner, name, leaf, tags)
+                && if op == "tags" {
+                    leaf_test(op, value, "", tags)
+                } else {
+                    leaf.is_some_and(|(_, sound, _)| leaf_test(op, value, sound, tags))
+                }
+        }
+        Pattern::Union(items) => items.iter().any(|p| local_matches(p, name, leaf, tags)),
+        Pattern::Intersection(items) => items.iter().all(|p| local_matches(p, name, leaf, tags)),
+        Pattern::Difference(a, b) => local_matches(a, name, leaf, tags) && !local_matches(b, name, leaf, tags),
+        _ => false,
+    }
+}
+
+pub(crate) fn reads_node_tags(pattern: &Pattern) -> bool {
+    pattern.walk().any(|part|matches!(part,Part::Pattern(Pattern::Test(op,_,inner, _)) if op == "tags" && matches!(inner.as_ref(),Pattern::Name(..)|Pattern::Any|Pattern::Source(crate::dom::source::SourceSymbol::Call(_)))))
+}
+
+pub(crate) fn requires_elided(pattern: &Pattern) -> bool {
+    match pattern {
+        Pattern::Union(parts) => parts.iter().all(requires_elided),
+        Pattern::Intersection(parts) => parts.iter().any(requires_elided),
+        Pattern::Difference(a, _) | Pattern::Node(a, _, _) => requires_elided(a),
+        Pattern::Test(op, Term::Call(_, requirements), inner, _) if op == "tags" => {
+            requirements.iter().any(|r| matches!(r,Arg::Term(t) if positive_elided(t))) || requires_elided(inner)
+        }
+        Pattern::Test(_, _, inner, _) => requires_elided(inner),
+        _ => false,
+    }
+}
+fn positive_elided(term: &Term) -> bool {
+    match term {
+        Term::Tag(tag) => tag == "_Elided",
+        Term::Union(parts) => parts.iter().any(positive_elided),
+        _ => false,
+    }
+}
+
+pub(crate) fn ranking_problem(pattern: &Pattern) -> Option<&'static str> {
+    match pattern {
+        Pattern::Union(parts) | Pattern::Intersection(parts) => parts.iter().find_map(ranking_problem),
+        Pattern::Difference(a, b) => ranking_problem(a).or_else(|| ranking_problem(b)),
+        Pattern::Node(inner, true, None)
+            if matches!(inner.as_ref(), Pattern::Name(..) | Pattern::Terminal(..) | Pattern::Test(..)) =>
+        {
+            None
+        }
+        _ => Some("a ranking step requires an exact local node pattern"),
+    }
+}

@@ -473,7 +473,6 @@ mod tests {
                 emitted_locations: Default::default(),
                 name: "text".into(),
                 op: Op::Define,
-                categories: Vec::new(),
                 tags: None,
                 alternatives: vec![Alternative {
                     strings: Default::default(),

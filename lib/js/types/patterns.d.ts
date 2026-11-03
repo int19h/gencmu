@@ -1,5 +1,7 @@
 /** @param {any} test @param {string} input @param {Set<string>} tags @returns {boolean} */
 export declare function leafTest(test: any, input: string, tags: Set<string>): boolean;
+/** @param {any} pattern @param {string|null} name @param {Set<string>} tags @param {any} leaf @returns {boolean} */
+export declare function localNodeMatches(pattern: any, name: string | null, tags: Set<string>, leaf: any): boolean;
 /** @param {any} node @returns {any[]} */
 export declare function patternParts(node: any): any[];
 /**
@@ -27,6 +29,7 @@ export declare class PatternMachine {
     /** @type {any[]} */ states: any[];
     /** @type {Map<string,number>} */ stateIds: Map<string, number>;
     /** @type {Map<string,number>} */ transitions: Map<string, number>;
+    nodeTags: boolean;
     empty: number;
     seal: number;
     /** @param {any[]} roots */
@@ -44,7 +47,7 @@ export declare class PatternMachine {
     /** @param {bigint} bits @param {boolean} empty @returns {number} */
     nodeState(bits: bigint, empty: boolean): number;
     /** @param {string|null} name @param {number} children @param {any} [leaf] @returns {number} */
-    node(name: string | null, children: number, leaf?: any): number;
+    node(name: string | null, children: number, leaf?: any, tags?: Set<any>): number;
     /** @param {number} state @param {any} pattern @returns {boolean} */
     matches(state: number, pattern: any): boolean;
 }

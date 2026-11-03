@@ -1,27 +1,13 @@
 import type { GrammarDom } from "./types.js";
-/** The steps of `%ambiguity-resolution` that take a category (engine §6). */
+/** The steps of `%ambiguity-resolution` that take a pattern (engine §6). */
 export declare const KEY_STEPS: Set<string>;
 /** The steps of `%ambiguity-resolution` that compare actions (engine §6). */
 export declare const LEANS: Set<string>;
-/** A category name of a `%counts-as` clause (engine §9.1). */
-export declare const CATEGORY_NAME: RegExp;
-/**
- * Whether `steps` is a well-formed list of ranking steps: one or more, each
- * a key step with a category or a lean, with a lean only last (engine §9.3).
- * @param {unknown} steps
- * @returns {boolean}
- */
+/** @param {unknown} steps @returns {boolean} */
 export declare function validSteps(steps: unknown): boolean;
-/**
- * Whether `categories` is a well-formed list of a rule's categories:
- * distinct category names other than `elision` (engine §9.3).
- * @param {unknown} categories
- * @returns {boolean}
- */
-export declare function validCategories(categories: unknown): boolean;
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 42;
+export declare const DOM_FORMAT = 43;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
 export declare const TEST_OPS: Set<string>;

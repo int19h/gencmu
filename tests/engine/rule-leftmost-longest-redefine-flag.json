@@ -1,6 +1,6 @@
 {
   "description": "A flagged redefinition gives every replacement alternative the preference (engine §2, §6).",
-  "grammar": "%ambiguity-resolution leftmost-longest(span), lazy\n%rule text r | (r \"b\")\n%rule r \"a\"\n%redefine-rule r \"a\" | (\"a\" \"b\")\n%counts-as span",
+  "grammar": "%ambiguity-resolution leftmost-longest #·r, lazy\n%rule text r | (r \"b\")\n%rule r \"a\"\n%redefine-rule r \"a\" | (\"a\" \"b\")\n               ",
   "input": "ab",
   "expect": {
     "result": {

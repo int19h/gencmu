@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use crate::dom::{FeatureKind, Guard};
 use crate::earley::{matchers, Chart, EngineError, Matcher, Recognizer, Recon, Shared, Tok};
 use crate::error::Error;
-use crate::grammar::{Change, ClassifierTables, KeyStep, Lean, StageGrammar, ELISION};
+use crate::grammar::{Change, ClassifierTables, KeyStep, Lean, StageGrammar};
 use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest};
 use crate::rank::{Act, Ranker, Verdict as RankVerdict};
 use crate::recent::Recent;
@@ -166,6 +166,7 @@ pub struct Pipeline {
     pub(crate) changes: Vec<Change>,
     /// Each stage's lowered grammars and classifiers.
     caches: Vec<StageCache>,
+    load_warnings: Vec<crate::RankingVocabularyWarning>,
 }
 
 impl std::fmt::Debug for Pipeline {
@@ -277,6 +278,22 @@ pub(crate) fn line_column(text: &[char], offset: usize) -> (usize, usize) {
 }
 
 impl Pipeline {
+    /// The static reports for each stage's ranking steps.
+    pub fn ranking_reports(&self) -> Vec<crate::RankingReport> {
+        let mut vocabulary = BTreeSet::new();
+        self.stages
+            .iter()
+            .map(|g| {
+                let (report, next) = crate::ranking_audit::report(g, &vocabulary);
+                vocabulary = next;
+                report
+            })
+            .collect()
+    }
+    /// Loading warnings about tags outside a stage's vocabulary.
+    pub fn load_warnings(&self) -> &[crate::RankingVocabularyWarning] {
+        &self.load_warnings
+    }
     /// A pipeline of stitched stages, whose pipeline's `%features` turns
     /// on `declared`; a feature used both as a gate and as a warning is an
     /// error of the pipeline (engine §13).
@@ -288,7 +305,16 @@ impl Pipeline {
         let features = pipeline_features(&stages, &declared)?;
         let changes = stages.iter().flat_map(|stage| stage.changes.iter().cloned()).collect();
         let caches = stages.iter().map(StageCache::new).collect();
-        Ok(Pipeline { stages, declared, features, unicode, changes, caches })
+        let mut pipeline = Pipeline { stages, declared, features, unicode, changes, caches, load_warnings: Vec::new() };
+        if pipeline
+            .stages
+            .iter()
+            .any(|g| g.steps.iter().any(|s| crate::ranking_audit::custom_tag(&s.pattern, &g.unicode)))
+        {
+            pipeline.load_warnings =
+                pipeline.ranking_reports().into_iter().flat_map(|r| r.vocabulary_warnings).collect();
+        }
+        Ok(pipeline)
     }
 
     pub(crate) fn prepare_bootstrap(&self) -> Result<(), Error> {
@@ -880,9 +906,8 @@ impl Pipeline {
         matchers: &[Matcher],
         steps: &[KeyStep],
     ) -> Result<Check, EngineError> {
-        // The check ranks with the key steps without elision, and no lean
+        // The check ranks with every key step and no lean
         // (§7.7).
-        let steps: Vec<KeyStep> = steps.iter().filter(|step| step.category != ELISION).cloned().collect();
         // The restoration records (§7.2): the chosen tree's elided
         // terminators in the order of its leaves, each with its position,
         // the empty source of its elided node, and the string of its `=`
@@ -976,13 +1001,13 @@ impl Pipeline {
         let rooted = rooted && walk.is_some();
         let ranking = if rooted {
             let marks = walk.as_ref().map(|walk| &walk.marks);
-            let mut ranker = Ranker::new(g, &chart, &tokens, shared, &steps, Lean::Neither)
+            let mut ranker = Ranker::new(g, &chart, &tokens, shared, steps, Lean::Neither)
                 .observing(input, &recon.project)
                 .checking(marks);
-            let chosen_profile = ranker.tree_profile(chosen);
+            let chosen_profile = ranker.tree_profile(chosen, input);
             let preferred = !g.ranked.slots.is_empty();
             let raw_counted = if preferred {
-                Ranker::new_unfiltered(g, &chart, &tokens, shared, &steps, Lean::Neither)
+                Ranker::new_unfiltered(g, &chart, &tokens, shared, steps, Lean::Neither)
                     .observing(input, &recon.project)
                     .checking(marks)
                     .rank()

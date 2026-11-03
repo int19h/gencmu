@@ -1,0 +1,10 @@
+{
+  "description": "A rule tag test reads the completed constituent tags (engine §4.1).",
+  "grammar": "%rule text $x:w\n%conditions $x ≅ #·w<T>\n%rule w \"a\" :: T",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -10,6 +10,8 @@ import (
 // Terms and conditions (engine §10).
 
 type spanVal struct {
+	rootName     string
+	rootPrefix   int
 	emitted      [2]string
 	stringReader func(int) string
 	a, b         int // absolute token range in the stage input
@@ -563,6 +565,14 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 			p := c.Right.Pattern
 			if c.Right.Kind == tmConst {
 				p = c.Right.value.pattern
+			}
+			if s.machine != nil && s.rootName != "" && p != nil && c.Left.Kind == tmCapture && c.Left.Str == "" && patternReadsNodeTags(p) {
+				if f.at == 0 {
+					f.at = 1
+					w.push(ev, nil, &domTerm{Kind: tmCall, Str: "tags", Items: []*domTerm{{Kind: tmCapture, Str: ""}}})
+					return nil
+				}
+				s.structure = s.machine.node(s.rootName, s.rootPrefix, "", "", toSet(w.v))
 			}
 			holds := s.machine != nil && p != nil && s.machine.matches(s.structure, p)
 			w.endCond(holds == (c.Op == "≅"))

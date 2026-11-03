@@ -1,6 +1,6 @@
 {
   "description": "A nonempty flagged occurrence beats its absence, including through a transparent unary close (engine §6).",
-  "grammar": "%ambiguity-resolution leftmost-longest(span), greedy\n%rule text \"a\" | r\n%rule r \"a\"\n%counts-as span",
+  "grammar": "%ambiguity-resolution leftmost-longest #·r, greedy\n%rule text \"a\" | r\n%rule r \"a\"\n               ",
   "input": "a",
   "expect": {
     "result": {

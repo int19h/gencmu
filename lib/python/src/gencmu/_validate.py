@@ -22,7 +22,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 42
+FORMAT = 43
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -36,33 +36,19 @@ KEY_STEPS = frozenset(("leftmost-longest", "fewest", "most", "late", "early"))
 """The steps of ``%ambiguity-resolution`` that take a category (engine §6)."""
 LEANS = frozenset(("greedy", "lazy"))
 """The steps of ``%ambiguity-resolution`` that compare actions (engine §6)."""
-CATEGORY_NAME = re.compile(r"[a-z][a-z0-9-]*")
-"""A category name of a ``%counts-as`` clause (engine §9.1)."""
-
 
 def valid_steps(steps: Any) -> bool:
-    """Whether ``steps`` is a well-formed list of ranking steps: one or more,
-    each a key step with a category or a lean, with a lean only last
-    (engine §9.3)."""
     if not isinstance(steps, list) or not steps:
         return False
     for index, step in enumerate(steps):
         if not isinstance(step, dict) or not isinstance(step.get("step"), str):
             return False
         if step["step"] in LEANS:
-            if index != len(steps) - 1 or "category" in step:
+            if index != len(steps) - 1 or set(step) != {"step"}:
                 return False
-        elif step["step"] not in KEY_STEPS or not isinstance(step.get("category"), str) or CATEGORY_NAME.fullmatch(step["category"]) is None:
+        elif step["step"] not in KEY_STEPS or set(step) != {"step", "pattern"} or not isinstance(step["pattern"], dict):
             return False
     return True
-
-
-def valid_categories(categories: Any) -> bool:
-    """Whether ``categories`` is a well-formed list of a rule's categories:
-    distinct category names other than ``elision`` (engine §9.3)."""
-    return (isinstance(categories, list)
-            and all(isinstance(name, str) and CATEGORY_NAME.fullmatch(name) is not None and name != "elision" for name in categories)
-            and len(set(categories)) == len(categories))
 
 
 def _is_position(value: Any) -> bool:
@@ -146,7 +132,11 @@ def term_reads_own_tags(root: Any) -> bool:
         elif isinstance(node, dict):
             if node.get("method") in ("tags", "classes") and not node["args"] and node["receiver"] == {"capture": ""}:
                 return True
-            if node.get("op") not in ("≅", "≇"):
+            if node.get("op") in ("≅", "≇"):
+                from ._patterns import reads_node_tags
+                if node["left"] == {"capture": ""} and "pattern" in node["right"] and reads_node_tags(node["right"]["pattern"]):
+                    return True
+            else:
                 pending.extend(node.values())
     return False
 
@@ -197,7 +187,7 @@ def dom_problem(dom: Any, unicode: Marks, defer_emission: bool = True, expanded:
                 pending.extend(node)
             elif isinstance(node, dict):
                 for key, value in node.items():
-                    if key in ("ref", "tag", "terminal") and isinstance(value, str) and value.startswith("_") and unicode.canonical_tag(value) != value:
+                    if key in ("ref", "tag", "terminal") and isinstance(value, str) and value.startswith("_") and (value != "_Elided" or key != "tag") and unicode.canonical_tag(value) != value:
                         return "unknown, unavailable, or noncanonical engine tag"
                     pending.append(value)
         return None
@@ -249,8 +239,19 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             pending.extend(("condition", condition, 0, False, False) for condition in d["conditions"])
         name, args = d.get("name"), d.get("args")
         if name == "ambiguity-resolution":
-            if "args" in d or not valid_steps(d.get("steps")):
+            if set(d) != {"name", "steps", "at"} or not valid_steps(d.get("steps")):
                 return "a malformed directive"
+            for step in d["steps"]:
+                if "pattern" not in step:
+                    continue
+                operand = step["pattern"]
+                if "const" in operand:
+                    pending.append(("term", operand, 0, False, False))
+                else:
+                    problem = layered_pattern_problem(operand, name=rule_name, terminal=lambda name: name == "_Elided" or _tag(name))
+                    if problem:
+                        return problem
+                    pending.append(("pattern-part", operand, 0, False, False))
             continue
         if name not in _DIRECTIVES or not isinstance(args, list) or any(not isinstance(x, str) for x in args):
             return "a malformed directive"
@@ -317,7 +318,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             if 'param' in node and (not {'param', 'at'} <= set(node) or not set(node) <= {'param', 'at', 'exact', 'children'} or not _is_position(node['at']) or node['param'] not in params):
                 return 'an undeclared or malformed parameter'
         if 'instance' in r:
-            if set(r) != {'name', 'op', 'categories', 'instance', 'conditions', 'at'} or not isinstance(r['name'], str) or not rule_name(r['name']) or r['op'] not in ('define', 'redefine') or r['categories'] != [] or r['conditions'] != []:
+            if set(r) != {'name', 'op', 'instance', 'conditions', 'at'} or not isinstance(r['name'], str) or not rule_name(r['name']) or r['op'] not in ('define', 'redefine') or r['conditions'] != []:
                 return 'a malformed instance binding'
             pending.append(('call', r['instance'], 0, False, False))
             type_roots.append(r['instance'])
@@ -328,13 +329,10 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             pending.append(('call', dict(call=r['name'], args=r['args'], at=r['at']), 0, False, False))
             type_roots.append(pending[-1][1])
         if (
-            not set(r) <= {"name", "params", "args", "op", "categories", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
+            not set(r) <= {"name", "params", "args", "op", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
             or not isinstance(r.get("name"), str)
             or not rule_name(r["name"])
             or r.get("op") not in ("define", "redefine", "extend")
-            or not valid_categories(r.get("categories"))
-            or r["op"] == "extend"
-            and r["categories"]
             or not _items(r.get("alternatives"))
             or not isinstance(r.get("conditions"), list)
             or "erased" in r
@@ -503,7 +501,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                     return problem
                 pending.extend(('string', end, depth, False, False) for end in node['range'])
             if node.get('test') == 'tags':
-                pending.extend(('term', r['value'], below, False, False) for r in node['requirements'])
+                pending.extend(('term', r['value'], below, False, False) for r in node['requirements'] if r['value'] != {'tag': '_Elided'})
             elif 'test' in node:
                 pending.append(('string', node['value'], below, False, False))
             if 'expr' in node:
@@ -756,7 +754,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                 return "a malformed pattern term"
             problem = layered_pattern_problem(node['pattern'], depth=below,
                 name=lambda name: rule_name(name) and not _tag(name),
-                terminal=_tag)
+                terminal=lambda name: name == "_Elided" or _tag(name))
             if problem:
                 return problem
             pending.append(('pattern-part', node['pattern'], below, False, False))

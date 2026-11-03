@@ -265,7 +265,7 @@ async function main() {
     console.log(`decoded include paths match the editor in ${browser}`);
 
     const workerTrace = await run(() => new Promise((resolve, reject) => {
-      const source = '```jbogenbau\n%stage chars\n%ambiguity-resolution greedy\n%rule text "a" :: A %emits $\n%stage syntax\n%ambiguity-resolution late(elision)\n%elision-only\n%rule text a | b | c %emits $ :: A\n%rule a (A [+T])\n%rule b (A [+T] [+T])\n%rule c (A T)\n%stage tree\n%ambiguity-resolution greedy\n%rule text A\n```\n';
+      const source = '```jbogenbau\n%stage chars\n%ambiguity-resolution greedy\n%rule text "a" :: A %emits $\n%stage syntax\n%ambiguity-resolution late #·<_Elided>\n%elision-only\n%rule text a | b | c %emits $ :: A\n%rule a (A [+T])\n%rule b (A [+T] [+T])\n%rule c (A T)\n%stage tree\n%ambiguity-resolution greedy\n%rule text A\n```\n';
       const sources = {...self.gencmuGrammars, "grammars/lojban/cll/pipeline.md":source};
       const client = new self.ParserWorker(sources, message => {
         if (message.kind === "ready") client.run(1, {pipeline:"lojban/cll", text:"a", features:[], withoutFeatures:[], until:null,
@@ -305,8 +305,8 @@ async function main() {
       cache.bundledNames["grammars/test/smoke-extra-names.txt"] = g.fnv1a64("unicode-names 15.1.0\nname E000 SMOKE LETTER\n");
       const dependencies = { "data/unicode/unicode-names.txt":cache.bundledNames["data/unicode/unicode-names.txt"], "grammars/test/smoke-extra-names.txt":cache.bundledNames["grammars/test/smoke-extra-names.txt"] };
       cache.documents = {};
-      cache.documents["grammars/test/smoke-names.md"] = { hash:g.fnv1a64(source), names:dependencies, dom:{ format:42,
-        rules:[{name:"text",op:"define",categories:[],alternatives:[{guards:[],expr:{literal:{string:"b"}}}],conditions:[],at:[4,1]}],
+      cache.documents["grammars/test/smoke-names.md"] = { hash:g.fnv1a64(source), names:dependencies, dom:{ format:43,
+        rules:[{name:"text",op:"define",alternatives:[{guards:[],expr:{literal:{string:"b"}}}],conditions:[],at:[4,1]}],
         directives:[{name:"names",args:["smoke-extra-names.txt"],at:[1,1]},{name:"stage",args:["main"],at:[2,1]},
           {name:"ambiguity-resolution",steps:[{step:"greedy"}],at:[3,1]}],constants:[],classifiers:[],implications:[] } };
       const proof = (documents,text) => new Promise((resolve,reject) => {
@@ -395,8 +395,8 @@ async function main() {
       { label: "ME accepts a number (experimental)", output: /me-unit\n\s+ME "me"\n\s+mex[\s\S]*number-part · pa/,
         document: "grammars/lojban/experimental/syntax.md", rule: "%rule me-unit" },
       { label: "The earliest, longest tense wins (CLL)", output: /^\(mi \[viska \{\(pu va\) \(\[ca gi\] do gi \[la djan\]\)\}\]\)$/,
-        document: "grammars/lojban/cll/syntax.md", rule: "%rule simple-tense-modal", summary: /syntax resolved/,
-        edit: ["%counts-as\n  tense\n", ""], tie: true },
+        document: "grammars/lojban/cll/pipeline.md", rule: "%ambiguity-resolution", summary: /syntax resolved/,
+        edit: ["leftmost-longest #·simple-tense-modal, ", ""], tie: true },
       { label: "A rule with preferred options (notation)", output: /choice › ranked-choice/,
         inputEdit: ["≻", "|"], editedOutput: /choice\n/, absent: /ranked-choice/ },
       { label: "A rule with tree tests (notation)", output: /tree-comparison/,
@@ -465,14 +465,14 @@ async function main() {
           : !/^accepted/.test(edited.verdict) || !check.editedOutput.test(edited.output))) {
           throw new Error(`${check.label}: the edit did not show its claimed effect: ${JSON.stringify(edited)}`);
         }
-        if (check.rule === "%rule simple-tense-modal") {
+        if (check.document === "grammars/lojban/cll/pipeline.md") {
           await page.locator("#examples").selectOption(preset.value);
           await answerFor(text);
           const line = await run(() => {
             const editor = document.getElementById("doc-text");
             return editor.value.slice(editor.selectionStart).split("\n")[0];
           });
-          if (line !== "%rule simple-tense-modal") throw new Error("a changed clause prevented navigation to the definition");
+          if (line !== check.rule) throw new Error("a changed step prevented navigation to the directive");
         }
         await page.locator("#doc-reset").click();
         const reset = await answerFor(text);

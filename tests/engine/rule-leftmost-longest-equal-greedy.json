@@ -1,6 +1,6 @@
 {
   "description": "Equal profiles from different flagged rules leave a tie for the stage preference (engine §6).",
-  "grammar": "%ambiguity-resolution leftmost-longest(span), greedy\n%rule text r | s\n%rule r \"a\"\n%counts-as span\n%rule s \"a\"\n%counts-as span",
+  "grammar": "%ambiguity-resolution leftmost-longest #(·r ∪ ·s), greedy\n%rule text r | s\n%rule r \"a\"\n               \n%rule s \"a\"\n               ",
   "input": "a",
   "expect": {
     "result": {

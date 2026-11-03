@@ -24,6 +24,7 @@ from ._rank import (
     leaf,
     rank,
 )
+from ._ranking_patterns import can_count_profiles, requires_elided
 from ._trampoline import run
 from ._recipes import selected
 from ._unicode import UnicodeTable
@@ -686,17 +687,18 @@ class StageRunner:
         # An optional test hook observes the witness (tests/README.md).
         hook = _testing.elision_check
         watch = hook(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at)) if hook is not None else None
-        # The check ranks with the key steps without elision and no lean
+        # The check ranks with every key step and no lean
         # (engine §7.7).
-        steps = check_steps(lowered)
-        space = Profiles(steps)
+        steps = lowered.steps
+        space = Profiles(steps, main.tagtab, main.tokens)
         chosen_profile = space.zero
         walk = None
         protected = True
         if protected:
             from ._witness import walk_witness
 
-            chosen_profile = space.derivation_profile(chosen)
+            if can_count_profiles(lowered, steps) and not all(requires_elided(pattern) for _, pattern in steps):
+                chosen_profile = space.derivation_profile(chosen)
             walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
         marks = walk.marks if walk is not None else None
         preferred = bool(lowered.ranked_helpers)
@@ -786,16 +788,10 @@ def _reconstruct(context: StageContext) -> Forest:
     return Parser(context).parse(context.lowered.rule_ids["text"])
 
 
-def check_steps(lowered: Lowered) -> tuple[tuple[str, str], ...]:
-    """The key steps of the check of engine §7: the stage's key steps
-    without every step of ``elision``."""
-    return tuple(step for step in lowered.steps if step[1] != "elision")
-
-
 def _rank_check(forest: Forest, marks: dict[int, set[int]] | None = None) -> Ranking | None:
-    """Rank the reconstruction with the key steps without elision and no
+    """Rank the reconstruction with every key step and no
     lean (engine §7.7)."""
-    return rank(forest, check_steps(forest.lowered), "none", marks=marks, check=True)
+    return rank(forest, forest.lowered.steps, "none", marks=marks, check=True)
 
 
 def _map_back(

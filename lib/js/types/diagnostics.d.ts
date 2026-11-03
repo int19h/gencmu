@@ -89,6 +89,29 @@ export type Notation = {
  * @returns {string}
  */
 export declare function formatItem(production: Production, dot: number): string;
+export type RankingStepReport = {
+    step: number;
+    pattern: string;
+    status: "impossible" | "possible" | "unknown";
+};
+export type CountedRuleChange = import("./grammar.js").RuleChange & {
+    step: number;
+};
+export type RankingTagReport = {
+    rule: string;
+    step: number;
+    tags: string[];
+    unknown: boolean;
+    document?: string;
+    line?: number;
+    column?: number;
+};
+export type RankingVocabularyWarning = {
+    kind: "ranking-tag-vocabulary";
+    stage: string;
+    step: number;
+    tag: string;
+};
 export type StageAudit = {
     templates: any[];
     instances: any[];
@@ -105,16 +128,7 @@ export type StageAudit = {
      * rules no derivation of `text` can reach
      */
     unreachable: string[];
-    changes: {
-        kind: string;
-        rule: string;
-        document: string;
-        previous: string;
-        categoryChange?: {
-            from: string[];
-            to: string[];
-        };
-    }[];
+    changes: import("./grammar.js").RuleChange[];
     /**
      * rules marked `%erased` although nothing
      * under them could emit and no token could cover them
@@ -129,6 +143,11 @@ export type StageAudit = {
      * first entry that touches it
      */
     memberships: Membership[];
+    keySteps: RankingStepReport[];
+    countedChanges: CountedRuleChange[];
+    inheritedRankingTags: RankingTagReport[];
+    droppedRankingTags: RankingTagReport[];
+    vocabularyWarnings: RankingVocabularyWarning[];
 };
 export type PermittedOptional = {
     terminal: string;

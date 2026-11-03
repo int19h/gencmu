@@ -1,6 +1,6 @@
 {
   "description": "Queries retain both recognized tag sets. A flag changes selection without removing the rival from the query union (engine §4.1 and §10).",
-  "grammar": "%ambiguity-resolution leftmost-longest(span), greedy\n%rule text $x:A %conditions $x.tags(q) = (Tag-a ∪ Tag-b), $x.matches(q), $x.begins(q)\n\n%rule q a | b\n%rule a :: Tag-a | A\n%counts-as span\n\n%rule b :: Tag-b | A\n",
+  "grammar": "%ambiguity-resolution leftmost-longest #·a, greedy\n%rule text $x:A %conditions $x.tags(q) = (Tag-a ∪ Tag-b), $x.matches(q), $x.begins(q)\n\n%rule q a | b\n%rule a :: Tag-a | A\n               \n\n%rule b :: Tag-b | A\n",
   "tokens": [
     {
       "text": "a",

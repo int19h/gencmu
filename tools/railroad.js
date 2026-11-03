@@ -506,7 +506,7 @@ export function elisionOutcomes(loader, pipelines, documents) {
   // The grammar of no stage, for a value without constants: a stage needs
   // a rule text and its ambiguity resolution, and it holds nothing else.
   // Its Unicode table, for a range, is the one that every stage shares.
-  const stageless = new Grammar("diagrams", [{ path: "diagrams", dom: { format: DOM_FORMAT, rules: [{ name: "text", op: "define", categories: [], alternatives: [{ guards: [], expr: { empty: true } }], conditions: [], at: [1, 1] }], directives: [{ name: "ambiguity-resolution", steps: [{ step: "greedy" }], at: [1, 1] }], constants: [], classifiers: [], implications: [] } }], loader.unicode);
+  const stageless = new Grammar("diagrams", [{ path: "diagrams", dom: { format: DOM_FORMAT, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr: { empty: true } }], conditions: [], at: [1, 1] }], directives: [{ name: "ambiguity-resolution", steps: [{ step: "greedy" }], at: [1, 1] }], constants: [], classifiers: [], implications: [] } }], loader.unicode);
   for (const documentPath of pipelines) {
     const { stages } = loader.splice(documentPath);
     /** @type {{stages: {grammar: any}[]} | null} */

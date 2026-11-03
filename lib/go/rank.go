@@ -248,7 +248,7 @@ type ranker struct {
 	lean string
 	// space holds the key steps of the ranking, and profiles says whether
 	// they count anything: a step names elision, or a rule counts as a
-	// category a step names (engine §6).
+	// pattern of a key step (engine §6).
 	space    *profileSpace
 	profiles bool
 	items    map[*item]*itemRank
@@ -284,9 +284,16 @@ func newRanker(rec *recognizer, steps []keyStep, lean string) *ranker {
 // newUnfilteredRanker keeps the raw forest without ranked views or admission.
 func newUnfilteredRanker(rec *recognizer, steps []keyStep, lean string) *ranker {
 	rk := &ranker{rec: rec, lean: lean, space: newProfileSpace(steps), items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
-	rk.profiles = rk.space.elision
-	for _, r := range rec.g.rules {
-		rk.profiles = rk.profiles || rk.space.counts(r.categories)
+	rk.space.rec = rec
+	rk.profiles = rec.g.canCountProfiles(steps)
+	if rec.recon != nil {
+		onlyOmitted := true
+		for _, step := range steps {
+			onlyOmitted = onlyOmitted && requiresElided(step.pattern)
+		}
+		if onlyOmitted {
+			rk.profiles = false
+		}
 	}
 	return rk
 }
@@ -908,7 +915,21 @@ func (fr *itemFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 				continue
 			}
 			if l.sym == nil {
-				fr.child, fr.phase = &entry{cands: []*cand{{d: readNode(l.tok, l.term)}}, count: 1, least: 1}, linkSummarize
+				var profile profile
+				if rk.profiles {
+					a, b := l.tok, l.tok+1
+					if rc := rk.rec.recon; rc != nil {
+						a, b = int32(rc.project[a]), int32(rc.project[b])
+					}
+					if a < b {
+						index := rk.rec.base + int(l.tok)
+						if rc := rk.rec.recon; rc != nil {
+							index = rc.original[l.tok]
+						}
+						profile = rk.space.occurrence("", rk.rec.g.terminals[l.term], rk.rec.run.toks[index].Value, rk.rec.run.tagsets[index], a, b)
+					}
+				}
+				fr.child, fr.phase = &entry{cands: []*cand{{d: readNode(l.tok, l.term)}}, count: 1, least: 1, profile: profile}, linkSummarize
 				continue
 			}
 			var cf forbidden
@@ -1059,22 +1080,17 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 			continue
 		}
 		profile := e.profile
-		if rk.space.elision && c.prod.restoration() && !c.restores {
-			// The helper of an elidable optional that derives ε elides its
-			// terminator at its position: an occurrence of elision with
-			// the empty span (engine §6).
-			profile = rk.space.sum(rk.space.elisionAt(s.start), profile)
-		}
-		if categories := rk.rec.g.rules[s.rule].categories; rk.space.counts(categories) {
-			// A completed nonempty occurrence of the rule counts as each
-			// of its categories, before its children (engine §6). The check
-			// counts it over its original span (engine §7).
+		if rk.profiles {
+			if c.prod.restoration() && !c.restores && rk.rec.recon == nil {
+				tags := rk.rec.run.ps.in.fromList([]string{c.prod.elided, "_Elided"})
+				profile = rk.space.sum(rk.space.occurrence("", c.prod.elided, "", tags, s.start, s.start), profile)
+			}
 			a, b := s.start, s.end
 			if rc := rk.rec.recon; rc != nil {
 				a, b = int32(rc.project[a]), int32(rc.project[b])
 			}
-			if a < b {
-				profile = rk.space.sum(rk.space.occurrence(categories, a, b), profile)
+			if !rk.rec.g.rules[s.rule].helper && a < b {
+				profile = rk.space.sum(rk.space.occurrence(rk.rec.g.rules[s.rule].name, "", "", s.tags, a, b), profile)
 			}
 		}
 		// Faults of the check skip the last of two or more completed
@@ -1287,7 +1303,7 @@ func (s *summary) add(space *profileSpace, p profile, least, total int) {
 // §6), kept as the sequence of the starting positions of a derivation's
 // occurrences of c in text order: a leaf is one occurrence at its position,
 // and a pair is left followed by right. nil is the empty sequence. The
-// elision vector of late(elision) is one such sequence. The sequence of an edge is that of the item before
+// elision vector of late #·<_Elided> is one such sequence. The sequence of an edge is that of the item before
 // it followed by that of the child, so sequences built on one prefix share
 // it, and a comparison skips what both share.
 //
@@ -1417,7 +1433,8 @@ func (w *runWalk) runSize() count {
 // of one category: leftmost-longest, fewest, most, late or early (engine
 // §6).
 type keyStep struct {
-	step, category string
+	step    string
+	pattern *domPattern
 }
 
 // profileSpan is the count of the occurrences over one nonempty span.
@@ -1451,62 +1468,58 @@ func (p profile) at(i int) component {
 // profileSpace holds the key steps of one ranking: how they count
 // occurrences, add profiles and compare them (engine §6).
 type profileSpace struct {
-	steps []keyStep
-	// byCategory holds the steps that name each category.
-	byCategory map[string][]int
-	// elision says whether a step counts elided terminators.
-	elision bool
+	steps   []keyStep
+	answers map[rankingNodeKey]bool
+	values  []bool
+	rec     *recognizer
 	// leaves holds the one sequence of a single occurrence at each position.
 	leaves map[int32]*elSeq
 }
 
+type rankingNodeKey struct {
+	step                  int
+	name, terminal, value string
+	tags                  *tagset
+}
+
 func newProfileSpace(steps []keyStep) *profileSpace {
-	sp := &profileSpace{steps: steps, byCategory: map[string][]int{}, leaves: map[int32]*elSeq{}}
-	for i, step := range steps {
-		sp.byCategory[step.category] = append(sp.byCategory[step.category], i)
+	sp := &profileSpace{steps: steps, answers: map[rankingNodeKey]bool{}, leaves: map[int32]*elSeq{}}
+	for _, step := range steps {
+		sp.values = append(sp.values, patternHasValue(step.pattern))
 	}
-	_, sp.elision = sp.byCategory["elision"]
 	return sp
 }
 
-// counts says whether an occurrence of a rule with these categories counts.
-func (sp *profileSpace) counts(categories []string) bool {
-	for _, c := range categories {
-		if _, ok := sp.byCategory[c]; ok {
-			return true
-		}
-	}
-	return false
-}
-
-// occurrence is the profile of one occurrence over [p, q) of a rule with
-// these categories. An empty span counts nothing under leftmost-longest.
-func (sp *profileSpace) occurrence(categories []string, p, q int32) profile {
+func (sp *profileSpace) occurrence(name, terminal, value string, tags *tagset, p, q int32) profile {
 	var out profile
-	for _, c := range categories {
-		for _, i := range sp.byCategory[c] {
-			if out == nil {
-				out = make(profile, len(sp.steps))
+	for index, step := range sp.steps {
+		key := rankingNodeKey{step: index, name: name, terminal: terminal, tags: tags}
+		if sp.values[index] {
+			key.value = value
+		}
+		match, found := sp.answers[key]
+		if !found {
+			match = localNodeMatches(step.pattern, name, terminal, value, tags)
+			sp.answers[key] = match
+		}
+		if !match {
+			continue
+		}
+		if out == nil {
+			out = make(profile, len(sp.steps))
+		}
+		switch step.step {
+		case "leftmost-longest":
+			if p < q {
+				out[index].spans = []profileSpan{{p, q, countOne}}
 			}
-			switch sp.steps[i].step {
-			case "leftmost-longest":
-				if p < q {
-					out[i].spans = []profileSpan{{p, q, countOne}}
-				}
-			case "fewest", "most":
-				out[i].n = countOne
-			default:
-				out[i].seq = sp.leaf(p)
-			}
+		case "fewest", "most":
+			out[index].n = countOne
+		default:
+			out[index].seq = sp.leaf(p)
 		}
 	}
 	return out
-}
-
-// elisionAt is the profile of one elided terminator at p, an occurrence of
-// elision with the empty span (engine §6).
-func (sp *profileSpace) elisionAt(p int32) profile {
-	return sp.occurrence([]string{"elision"}, p, p)
 }
 
 func (sp *profileSpace) leaf(at int32) *elSeq {
@@ -1583,10 +1596,12 @@ func (sp *profileSpace) derivationProfile(g *lowered, d *dn) profile {
 		if n == nil {
 			continue
 		}
-		if n.kind == dClose && n.start < n.end {
-			if categories := g.rules[n.prod.lhs].categories; sp.counts(categories) {
-				out = sp.sum(out, sp.occurrence(categories, n.start, n.end))
-			}
+		if n.kind == dClose && !g.rules[n.prod.lhs].helper && n.start < n.end {
+			out = sp.sum(out, sp.occurrence(g.rules[n.prod.lhs].name, "", "", n.tags, n.start, n.end))
+		} else if n.kind == dRead {
+			rec := sp.rec
+			index := rec.base + int(n.tok)
+			out = sp.sum(out, sp.occurrence("", g.terminals[n.term], rec.run.toks[index].Value, rec.run.tagsets[index], n.tok, n.tok+1))
 		}
 		stack = append(stack, n.b, n.a)
 	}

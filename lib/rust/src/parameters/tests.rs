@@ -81,10 +81,10 @@ fn pinned_public_edits() {
     }
 }
 #[test]
-fn template_categories() {
-    let g=grammar("%ambiguity-resolution fewest(few), greedy\n%rule atom(@X) @X %counts-as few\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"");
-    assert!(g.rules[g.index["atom(\"a\")"]].categories.is_empty());
-    assert_eq!(g.rules[g.index["atom(\"b\")"]].categories, ["few"]);
+fn template_ranking_steps() {
+    let g=grammar("%ambiguity-resolution fewest #·atom, greedy\n%rule atom(@X) @X\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"");
+    assert_eq!(g.steps.len(), 1);
+    assert!(matches!(g.steps[0].pattern, crate::patterns::Pattern::Union(_)));
 }
 #[test]
 fn nominal_constants_and_group_normalization() {
@@ -461,15 +461,6 @@ fn shared_parameter_structure() {
         }
         if let Some(count) = case.get("instances") {
             assert_eq!(x.as_ref().map_or(0, |x| x.instance_names.len()), count.as_int().unwrap() as usize, "{name}");
-        }
-        if let Some(categories) = case.get("categories").and_then(Json::as_object) {
-            let g = grammar(text(get(case, "grammar")));
-            for (name, categories) in categories {
-                assert_eq!(
-                    g.rules[g.index[name]].categories,
-                    list(categories).iter().map(|n| text(n).to_string()).collect::<Vec<_>>()
-                );
-            }
         }
     }
 }

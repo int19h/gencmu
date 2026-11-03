@@ -28,7 +28,7 @@ pub(crate) enum Lean {
     Neither,
 }
 
-/// How a key step of `%ambiguity-resolution` compares its category's
+/// How a key step of `%ambiguity-resolution` compares its pattern's
 /// occurrences (engine §6).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum StepKind {
@@ -46,15 +46,12 @@ pub(crate) enum StepKind {
 }
 
 /// A key step of `%ambiguity-resolution`: how it compares, and the
-/// category whose occurrences it counts (engine §6).
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// pattern whose occurrences it counts (engine §6).
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct KeyStep {
     pub kind: StepKind,
-    pub category: String,
+    pub pattern: crate::patterns::Pattern,
 }
-
-/// The category of elided terminators (engine §6).
-pub(crate) const ELISION: &str = "elision";
 
 /// The clauses of a rule, which each of its alternatives shares, so that
 /// they are stored, substituted and checked once for the rule.
@@ -84,19 +81,9 @@ pub(crate) struct StitchedAlternative {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StitchedRule {
-    pub categories: Vec<String>,
     pub name: String,
     pub alternatives: Vec<StitchedAlternative>,
     pub document: Arc<str>,
-}
-
-/// The categories before and after a replacement that changes them.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CategoryChange {
-    /// The replaced rule's categories.
-    pub from: Vec<String>,
-    /// The replacement rule's categories.
-    pub to: Vec<String>,
 }
 
 /// One replacement or extension the loader recorded (engine §2).
@@ -111,9 +98,6 @@ pub struct Change {
     pub extension: bool,
     /// The document that made the change.
     pub document: String,
-    /// The categories before and after the replacement, only if they
-    /// differ.
-    pub category_change: Option<CategoryChange>,
 }
 
 #[derive(Debug, Clone)]
@@ -290,6 +274,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         Rule(&'a Arc<str>, &'a RuleDef),
         Arguments(&'a crate::parameters::expand::ArgumentUse),
         Feature(usize),
+        Ranking(&'a Arc<str>, &'a Directive),
         Classifier(usize),
         Implication(&'a Arc<str>, &'a ImplicationDef),
     }
@@ -379,7 +364,6 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                     text_order += rule.alternatives.len();
                     let error = |message: String| Err(located(message, document, rule.at));
                     let stitched = || StitchedRule {
-                        categories: rule.categories.clone(),
                         name: rule.name.clone(),
                         alternatives: alternatives.clone(),
                         document: document.clone(),
@@ -406,18 +390,12 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                             };
                             // The replacement keeps the place of the rule it
                             // replaces (§3, "Numbering").
-                            let previous_categories = &grammar.rules[index].categories;
-                            let category_change = (previous_categories != &rule.categories).then(|| CategoryChange {
-                                from: previous_categories.clone(),
-                                to: rule.categories.clone(),
-                            });
                             grammar.rules[index] = stitched();
                             grammar.changes.push(Change {
                                 stage: stage.to_string(),
                                 rule: rule.name.clone(),
                                 extension: false,
                                 document: document.to_string(),
-                                category_change,
                             });
                         }
                         Op::Extend => {
@@ -433,7 +411,6 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                                 rule: rule.name.clone(),
                                 extension: true,
                                 document: document.to_string(),
-                                category_change: None,
                             });
                         }
                     }
@@ -451,8 +428,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                             }
                             let refused = || {
                                 here(
-                                    "%ambiguity-resolution takes leftmost-longest, fewest, most, late or early with a \
-                             category, then optionally greedy or lazy"
+                                    "%ambiguity-resolution requires a pattern for each key step and no operand on a final lean"
                                         .to_string(),
                                 )
                             };
@@ -460,28 +436,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                             if !crate::dom::valid_steps(steps) {
                                 return Err(refused());
                             }
-                            grammar.lean = Lean::Neither;
-                            grammar.steps.clear();
-                            for step in steps {
-                                let kind = match step.step.as_str() {
-                                    "greedy" => {
-                                        grammar.lean = Lean::Greedy;
-                                        continue;
-                                    }
-                                    "lazy" => {
-                                        grammar.lean = Lean::Lazy;
-                                        continue;
-                                    }
-                                    "leftmost-longest" => StepKind::LeftmostLongest,
-                                    "fewest" => StepKind::Fewest,
-                                    "most" => StepKind::Most,
-                                    "late" => StepKind::Late,
-                                    "early" => StepKind::Early,
-                                    _ => return Err(refused()),
-                                };
-                                let category = step.category.clone().ok_or_else(refused)?;
-                                grammar.steps.push(KeyStep { kind, category });
-                            }
+                            checks.push((run, directive.at, 1, Check::Ranking(document, directive)));
                             resolution = Some((document.clone(), directive.at));
                         }
                         "elision-only" => {
@@ -533,6 +488,44 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                     arguments_by_site.remove(&(argument.inspection_run, argument.path.clone(), argument.at))
                 {
                     constants.check_arguments(&arguments, None)?;
+                }
+            }
+            Check::Ranking(document, directive) => {
+                grammar.lean = Lean::Neither;
+                for step in directive.steps.as_deref().unwrap_or_default() {
+                    let kind = match step.step.as_str() {
+                        "greedy" => {
+                            grammar.lean = Lean::Greedy;
+                            continue;
+                        }
+                        "lazy" => {
+                            grammar.lean = Lean::Lazy;
+                            continue;
+                        }
+                        "leftmost-longest" => StepKind::LeftmostLongest,
+                        "fewest" => StepKind::Fewest,
+                        "most" => StepKind::Most,
+                        "late" => StepKind::Late,
+                        "early" => StepKind::Early,
+                        _ => unreachable!("validated step"),
+                    };
+                    let operand = step.pattern.as_ref().expect("key operand");
+                    let at = step.operand_at.or_else(|| first_constant(operand)).unwrap_or(directive.at);
+                    let pattern = constants.evaluate_pattern(operand, document, at)?;
+                    if let Some(problem) = crate::patterns::ranking_problem(&pattern) {
+                        return Err(located(problem.into(), document, at));
+                    }
+                    if kind == StepKind::LeftmostLongest && crate::patterns::requires_elided(&pattern) {
+                        return Err(located("leftmost-longest cannot require _Elided".into(), document, at));
+                    }
+                    for part in pattern.walk() {
+                        if let crate::patterns::Part::Pattern(Pattern::Name(name, at)) = part {
+                            if !grammar.index.contains_key(name) {
+                                return Err(located(format!("{name} is not defined in stage {stage}"), document, *at));
+                            }
+                        }
+                    }
+                    grammar.steps.push(KeyStep { kind, pattern });
                 }
             }
             Check::Feature(index) => {
@@ -1309,7 +1302,7 @@ impl Constants<'_> {
                     push(Part::Pattern(b));
                     push(Part::Pattern(a));
                 }
-                Part::Pattern(Pattern::Path(_, inner) | Pattern::Test(_, _, inner)) => push(Part::Pattern(inner)),
+                Part::Pattern(Pattern::Path(_, inner) | Pattern::Test(_, _, inner, _)) => push(Part::Pattern(inner)),
                 Part::Children(Children::Node(inner)) => push(Part::Pattern(inner)),
                 Part::Children(Children::Sequence(items) | Children::Choice(items)) => {
                     for child in items.iter().rev() {
@@ -1404,6 +1397,18 @@ impl Constants<'_> {
             ),
             _ => unreachable!(),
         };
+        for part in pattern.walk() {
+            if let crate::patterns::Part::Pattern(test @ Pattern::Test(op, _, inner, mark_at)) = part {
+                if op == "tags" && matches!(inner.as_ref(), Pattern::Name(..)) && crate::patterns::requires_elided(test)
+                {
+                    return Err(located(
+                        "a rule pattern cannot require _Elided".into(),
+                        document,
+                        mark_at.unwrap_or(item),
+                    ));
+                }
+            }
+        }
         Ok(Value::Pattern(pattern))
     }
     fn evaluate_plain(&self, root: &Term, document: &str, item: (usize, usize)) -> Result<Value, Error> {
@@ -1651,6 +1656,11 @@ impl Constants<'_> {
         // The checks that simplification decides, which the reader left
         // to the loader, now with the constants' values (§9).
         let resolved = self.substitute_rule(rule);
+        for term in resolved.tags.iter().chain(resolved.alternatives.iter().filter_map(|a| a.tags.as_ref())) {
+            if crate::notation::reads_own_tags(term) {
+                return Err(located("a constituent reads its own tags".into(), document, rule.at));
+            }
+        }
         let projected;
         let checked = if rule.source.params.is_some() {
             projected = crate::dom::partial::rule(&resolved).map_err(|message| located(message, document, rule.at))?;
@@ -2555,7 +2565,6 @@ mod tests {
                 emitted_locations: Default::default(),
                 name: "text".into(),
                 op: Op::Define,
-                categories: Vec::new(),
                 tags: None,
                 alternatives: (0..n)
                     .map(|_| Alternative {
@@ -2575,7 +2584,7 @@ mod tests {
                 conditions: None,
                 name: "ambiguity-resolution".into(),
                 args: Vec::new(),
-                steps: Some(vec![crate::dom::Step { step: "greedy".into(), category: None }]),
+                steps: Some(vec![crate::dom::Step { step: "greedy".into(), pattern: None, operand_at: None }]),
                 at: (0, 0),
             };
             let dom = Dom {

@@ -88,6 +88,9 @@ export declare class Ranker {
     /** @type {(left: Item, right: Item) => boolean} */
     sameSpan: (left: Item, right: Item) => boolean;
     profiles: boolean;
+    configured: boolean;
+    /** @type {Set<Production>} */ profileProductions: Set<Production>;
+    /** @type {any} */ interner: any;
     /** @type {number[] | null} */
     profileProject: number[] | null;
     /** @type {Lean} */
@@ -301,13 +304,13 @@ export type Component = SpanVector | Count | ElisionSeq;
 export type Profile = Component[];
 /** @typedef {[number, number, Count][]} SpanVector */
 /**
- * One component of a profile: the counts of one key step's category over
+ * One component of a profile: the counts of one key step's pattern over
  * the spans, the sum of the counts, or the sequence of the starting
  * positions (engine §6).
  * @typedef {SpanVector | Count | ElisionSeq} Component
  */
 /**
- * A derivation's counts of every category that a key step names, one
+ * A derivation's counts of every pattern that a key step tests, one
  * component per key step, in the order of the steps (engine §6).
  * @typedef {Component[]} Profile
  */
@@ -317,38 +320,23 @@ export type Profile = Component[];
  */
 export declare class Profiles {
     steps: KeyStep[];
-    /** @type {Map<string, number[]>} the steps that name each category */
-    byCategory: Map<string, number[]>;
+    /** @type {any} */ tokens: any;
+    /** @type {any} */ interner: any;
+    /** @type {Map<string,boolean>} */ matches: Map<string, boolean>;
+    /** @type {WeakMap<object,number>} */ tagIds: WeakMap<object, number>;
+    nextTag: number;
+    valueTests: boolean[];
+    /** @type {Map<string,number>} */ tagKeys: Map<string, number>;
     /** @type {Profile} */
     zero: Profile;
-    /** Whether a step counts elided terminators. */
-    elision: boolean;
     /** @type {Map<number, ElisionSeq>} */
     leaves: Map<number, ElisionSeq>;
     /** @param {KeyStep[]} steps */
     constructor(steps: KeyStep[]);
-    /**
-     * Whether an occurrence of a rule with these categories counts.
-     * @param {string[]} categories
-     * @returns {boolean}
-     */
-    counts(categories: string[]): boolean;
-    /**
-     * The profile of one nonempty occurrence over `[p, q)` of a rule with
-     * these categories.
-     * @param {string[]} categories
-     * @param {number} p
-     * @param {number} q
-     * @returns {Profile}
-     */
-    occurrence(categories: string[], p: number, q: number): Profile;
-    /**
-     * The profile of one elided terminator at `p`, an occurrence of
-     * `elision` with the empty span (engine §6).
-     * @param {number} p
-     * @returns {Profile}
-     */
-    elisionAt(p: number): Profile;
+    /** @param {any} node @returns {boolean} */
+    possible(node: any): boolean;
+    /** @param {any} node @param {number} p @param {number} q @returns {Profile} */
+    occurrence(node: any, p: number, q: number): Profile;
     /**
      * One occurrence in the component of a step. An empty span counts
      * nothing under `leftmost-longest`.
@@ -384,8 +372,9 @@ export declare class Profiles {
      * Counts every completed nonempty occurrence in a chosen derivation,
      * and no elision (engine §7).
      * @param {Derivation} root
+     * @param {any} [tokens]
      * @returns {Profile}
      */
-    derivationProfile(root: Derivation): Profile;
+    derivationProfile(root: Derivation, tokens?: any): Profile;
 }
 export {};

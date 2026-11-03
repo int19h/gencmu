@@ -178,6 +178,20 @@ func restoreTemplateRuleLocations(r *domRule, raw templateObject) {
 		if at := templateSourceAt(n); at != [2]int{} {
 			t.At = at
 		}
+		if t.Kind == tmPattern {
+			walkSourcePattern(templateObj(n["pattern"]), t.Pattern, func(raw templateObject, p *domPattern) {
+				if at := templateSourceAt(raw); at != [2]int{} {
+					p.At = at
+				}
+				if p.Kind == "test" {
+					term(p.Value, templateObj(raw["value"]))
+					for i, r := range p.Requirements {
+						term(r.Value, templateObj(templateObj(templateList(raw["requirements"])[i])["value"]))
+					}
+				}
+			})
+			return
+		}
 		if t.Kind == tmCall {
 			term(t.Items[0], templateObj(n["receiver"]))
 			for i, a := range templateList(n["args"]) {

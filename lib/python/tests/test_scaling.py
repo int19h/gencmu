@@ -444,8 +444,7 @@ def emitting_rule(n: int) -> dict[str, Any]:
     return {
         "name": "text",
         "op": "define",
-        "categories": [],
-        "alternatives": [{"guards": [], "expr": {"seq": [{"capture": f"c{index}", "expr": {"ref": "A"}} for index in range(n)]}}],
+                "alternatives": [{"guards": [], "expr": {"seq": [{"capture": f"c{index}", "expr": {"ref": "A"}} for index in range(n)]}}],
         "emit": {"items": items},
         "conditions": [],
         "at": [2, 1],
@@ -508,8 +507,7 @@ class SharedClauses(Linear):
             rule = {
                 "name": "text",
                 "op": "define",
-                "categories": [],
-                "tags": {"union": [*({"tag": f"Y{index}"} for index in range(n)), {"const": "K", "at": [2, 1]}]},
+                                "tags": {"union": [*({"tag": f"Y{index}"} for index in range(n)), {"const": "K", "at": [2, 1]}]},
                 "alternatives": [{"guards": [], "expr": {"ref": "A"}} for _ in range(n)],
                 "conditions": [
                     {
@@ -546,8 +544,7 @@ class SharedClauses(Linear):
             rule = {
                 "name": "text",
                 "op": "define",
-                "categories": [],
-                "alternatives": [{"guards": [], "expr": expr}],
+                                "alternatives": [{"guards": [], "expr": expr}],
                 "conditions": [],
                 "at": [2, 1],
             }
@@ -635,8 +632,7 @@ class GuardedClauses(Linear):
         rule = {
             "name": "text",
             "op": "define",
-            "categories": [],
-            "alternatives": [{"guards": [], "expr": {"capture": f"c{index}", "expr": {"ref": "A"}}} for index in range(n)],
+                        "alternatives": [{"guards": [], "expr": {"capture": f"c{index}", "expr": {"ref": "A"}}} for index in range(n)],
             "conditions": [],
             "at": [3, 1],
             **clause(n),
@@ -759,7 +755,7 @@ def pipeline_dom(directives: list[dict[str, Any]], rules: int = 0) -> dict[str, 
     return {
         "format": DOM_FORMAT,
         "rules": [
-            {"name": "text", "op": "define", "categories": [], "alternatives": [], "conditions": [], "at": [line + 1, 9]}
+            {"name": "text", "op": "define", "alternatives": [], "conditions": [], "at": [line + 1, 9]}
             for line in range(len(directives), len(directives) + rules)
         ],
         "directives": [{**directive, "at": [line + 1, 1]} for line, directive in enumerate(directives)],

@@ -1,6 +1,6 @@
 {
   "description": "A lean before the last step is a document error (engine §9).",
-  "grammar": "%ambiguity-resolution greedy, late(elision)\n%rule text x\n%rule x A [ + T ]",
+  "grammar": "%ambiguity-resolution greedy, late #·<_Elided>\n%rule text x\n%rule x A [ + T ]",
   "tokens": [
     {
       "text": "a",

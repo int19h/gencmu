@@ -5,7 +5,7 @@ use crate::unicode::Unicode;
 
 pub(crate) mod expand;
 pub(crate) mod locations;
-mod print;
+pub(crate) mod print;
 #[cfg(test)]
 mod tests;
 pub(crate) use expand::expand;
@@ -251,13 +251,12 @@ pub(crate) fn clean(root: &Json) -> Json {
 pub(crate) fn canonical_source(root: &Json) -> Json {
     map_nodes(root, |mut n| {
         remove(&mut n, SOURCE);
-        let order: &[&str] = if has(&n, "name") && has(&n, "categories") {
+        let order: &[&str] = if has(&n, "name") && has(&n, "conditions") {
             &[
                 "name",
                 "params",
                 "args",
                 "op",
-                "categories",
                 "instance",
                 "tags",
                 "value",

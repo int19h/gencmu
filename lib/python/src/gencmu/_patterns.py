@@ -16,7 +16,7 @@ def pattern_parts(node):
         if key in node:
             return node[key]
     if 'test' in node:
-        return [node['expr']]
+        return [node['expr']] if 'expr' in node else []
     if 'path' in node:
         return [node['pattern']]
     if 'child' in node:
@@ -108,18 +108,31 @@ def leaf_test(node: Dom, value: str, tags: frozenset[str]) -> bool:
     return (value == node["value"]["string"]) == (node["test"] == "=")
 
 
-def terminal_predicate(node: Dom, leaf) -> bool:
-    while "test" in node:
-        if not leaf_test(node, leaf[1], leaf[2]):
-            return False
-        node = node["expr"]
-    return leaf[0] == node["terminal"]
+def local_node_matches(node, name, tags, leaf=None):
+    if "union" in node:
+        return any(local_node_matches(p, name, tags, leaf) for p in node["union"])
+    if "intersection" in node:
+        return all(local_node_matches(p, name, tags, leaf) for p in node["intersection"])
+    if "difference" in node:
+        return local_node_matches(node["difference"][0], name, tags, leaf) and not local_node_matches(node["difference"][1], name, tags, leaf)
+    if "test" in node:
+        return (node.get("any") or local_node_matches(node["expr"], name, tags, leaf)) and (leaf_test(node, "", tags) if node["test"] == "tags" else leaf is not None and leaf_test(node, leaf[1], tags))
+    if "name" in node:
+        return node["name"] == name
+    if "terminal" in node:
+        return leaf is not None and node["terminal"] == leaf[0]
+    return bool(node.get("any") and (name is not None or leaf is not None))
+
+
+def reads_node_tags(node):
+    return bool(node.get("test") == "tags" and (node.get("any") or "name" in node.get("expr", {}) or "call" in node.get("expr", {}))) or any(reads_node_tags(p) for p in pattern_parts(node))
 
 
 class PatternMachine:
     """A finite product of node predicates and child-sequence automata."""
 
     def __init__(self, roots: list[Dom]) -> None:
+        self.node_tags = any(map(reads_node_tags, roots))
         self.predicates: list[Dom] = []
         self.machines: list[Dom] = []
         self.ids: dict[tuple[Any, ...], int] = {}
@@ -268,8 +281,8 @@ class PatternMachine:
     def sealed(self) -> int:
         return self.seal
 
-    def node(self, name: str | None, children: int, leaf: tuple[str, str, frozenset[str]] | None = None) -> int:
-        key = ("node", name, children, leaf)
+    def node(self, name: str | None, children: int, leaf: tuple[str, str, frozenset[str]] | None = None, tags=frozenset()) -> int:
+        key = ("node", name, children, leaf, tags)
         old = self.transitions.get(key)
         if old is not None:
             return old
@@ -283,7 +296,7 @@ class PatternMachine:
             elif "terminal" in p:
                 holds = leaf is not None and leaf[0] == p["terminal"]
             elif "test" in p:
-                holds = leaf is not None and terminal_predicate(p, leaf)
+                holds = local_node_matches(p, name, leaf[2] if leaf else tags, leaf)
             elif "any" in p or "children" in p:
                 holds = (name is not None or leaf is not None) if "any" in p else True
             elif "path" in p:

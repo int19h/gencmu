@@ -1,3 +1,7 @@
+/** Source positions of pattern operands and tag requirements. */
+export declare const patternLocations: WeakMap<object, any>;
+/** @param {any} source @param {any} target */
+export declare function copyPatternLocation(source: any, target: any): void;
 /**
  * @param {any} root
  * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]

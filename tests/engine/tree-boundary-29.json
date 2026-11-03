@@ -1,13 +1,27 @@
 {
-  "description": "A rule names each category once, and a repeated name is an error at the repeated name (engine §2 and §9.3, case 29).",
-  "grammar": "%ambiguity-resolution leftmost-longest(x), greedy\n%rule text a\n%rule a A\n%counts-as x, x",
-  "tokens": [],
+  "description": "A union counts a matched node once, even when both operands match it (engine §6).",
+  "grammar": "%ambiguity-resolution fewest #(·a ∪ ·<T>)\n%rule text a | b\n%rule a A :: T\n%rule b A :: T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
   "expect": {
-    "error": "grammar",
-    "where": {
-      "document": "main.md",
-      "line": 5,
-      "column": 15
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie"
+      }
     }
   }
 }

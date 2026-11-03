@@ -111,6 +111,7 @@ pub fn expect(value: &Value) -> R {
             ("features", Array),
             ("enabledFeatures", Array),
             ("bundledPipelines", Array),
+            ("loadWarnings", Array),
             ("error", Text),
             ("message", Text),
             ("diagnostic", Text),
@@ -136,6 +137,18 @@ pub fn expect(value: &Value) -> R {
     for name in ["enabledFeatures", "bundledPipelines"] {
         if let Some(list) = value.get(name) {
             strings(list, &format!("expect.{name}"))?;
+        }
+    }
+    if let Some(warnings) = value.get("loadWarnings") {
+        for warning in warnings.array() {
+            fields(warning, "expect.loadWarnings[]", &[("stage", Text), ("step", Any), ("tag", Text)])?;
+            if !warning
+                .get("step")
+                .and_then(Value::number)
+                .is_some_and(|n| n >= 0.0 && n.fract() == 0.0 && n.is_finite())
+            {
+                return Err("a loading warning needs a natural step index".into());
+            }
         }
     }
     if let Some(features) = value.get("features") {

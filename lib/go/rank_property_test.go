@@ -18,7 +18,7 @@ import (
 // (cyclic ones excluded as engine §4 defines them), and the verdict, the
 // chosen derivation, the tied one and the witness computed from the
 // definitions and compared with the library's. Each directive has random
-// key steps over two categories that random rules count as, and a lean or
+// key steps over two random rule groups, and a lean or
 // none. A share of the cases also rank by a step over elision, with T
 // elidable. Without such a step too, T is now and then elidable. Rule
 // references are now and then tested by their sound, often right before an
@@ -126,12 +126,13 @@ func (g *genGrammar) grammar() *domDoc {
 	// leave out (engine §6).
 	kinds := []string{"leftmost-longest", "fewest", "most", "late", "early"}
 	var steps []domStep
+	groups := map[string][]*domPattern{}
 	for i := g.r.Intn(3); i > 0; i-- {
-		steps = append(steps, domStep{Step: kinds[g.r.Intn(len(kinds))], Category: []string{"x", "y"}[g.r.Intn(2)], HasCategory: true})
+		steps = append(steps, domStep{Step: kinds[g.r.Intn(len(kinds))], Pattern: &domTerm{Kind: tmPattern, Pattern: &domPattern{Kind: "name", Name: []string{"x", "y"}[g.r.Intn(2)]}}})
 	}
 	if g.late {
-		step := domStep{Step: kinds[g.r.Intn(len(kinds))], Category: "elision", HasCategory: true}
-		if g.r.Intn(2) == 0 {
+		step := domStep{Step: kinds[g.r.Intn(len(kinds))], Pattern: &domTerm{Kind: tmPattern, Pattern: &domPattern{Kind: "test", Op: "tags", Exact: true, Requirements: []tagRequirement{{Value: &domTerm{Kind: tmTag, Str: "_Elided"}}}}}}
+		if step.Step == "leftmost-longest" || g.r.Intn(2) == 0 {
 			step.Step = "late"
 		}
 		at := g.r.Intn(len(steps) + 1)
@@ -142,12 +143,12 @@ func (g *genGrammar) grammar() *domDoc {
 	}
 	d.Directives = []*domDirective{{Name: "ambiguity-resolution", Steps: steps}}
 	for _, name := range g.rules {
-		r := &domRule{Name: name, Op: "define", Categories: []string{}}
+		r := &domRule{Name: name, Op: "define"}
 		if k := g.r.Intn(100); k < 40 {
 			// z is a category that no step names, which counts nothing.
 			for _, category := range []string{"x", "y", "z"} {
 				if g.r.Intn(2) == 0 {
-					r.Categories = append(r.Categories, category)
+					groups[category] = append(groups[category], &domPattern{Kind: "name", Name: name, Exact: true, At: [2]int{1, 1}})
 				}
 			}
 		}
@@ -198,6 +199,20 @@ func (g *genGrammar) grammar() *domDoc {
 		}
 		d.Rules = append(d.Rules, r)
 	}
+	for i := range steps {
+		operand := steps[i].Pattern
+		if operand == nil || operand.Pattern.Kind != "name" {
+			continue
+		}
+		members := groups[operand.Pattern.Name]
+		if len(members) == 0 {
+			operand.Pattern = &domPattern{Kind: tmDifference, Items: []*domPattern{{Kind: "name", Name: "text", Exact: true, At: [2]int{1, 1}}, {Kind: "name", Name: "text", Exact: true, At: [2]int{1, 1}}}}
+		} else if len(members) == 1 {
+			operand.Pattern = members[0]
+		} else {
+			operand.Pattern = &domPattern{Kind: tmUnion, Items: members}
+		}
+	}
 	return d
 }
 
@@ -245,8 +260,8 @@ func domText(d *domDoc) string {
 	var b strings.Builder
 	var steps []string
 	for _, step := range d.Directives[0].Steps {
-		if step.HasCategory {
-			steps = append(steps, step.Step+"("+step.Category+")")
+		if step.Pattern != nil {
+			steps = append(steps, step.Step+" "+patternTextForTest(step.Pattern.Pattern))
 		} else {
 			steps = append(steps, step.Step)
 		}
@@ -266,11 +281,7 @@ func domText(d *domDoc) string {
 			}
 			alts = append(alts, text)
 		}
-		countsAs := ""
-		if len(r.Categories) > 0 {
-			countsAs = "\n  %counts-as " + strings.Join(r.Categories, ", ")
-		}
-		fmt.Fprintf(&b, "%%rule %s\n  %s%s\n", r.Name, strings.Join(alts, " | "), countsAs)
+		fmt.Fprintf(&b, "%%rule %s\n  %s\n", r.Name, strings.Join(alts, " | "))
 	}
 	return b.String()
 }
@@ -460,7 +471,7 @@ type bruteResult struct {
 // category, as dense counts that compare greater first. A nonempty close
 // of a rule that counts as the category is an occurrence over its span,
 // and an elided terminator an occurrence of elision at its boundary.
-func bruteProfile(whole []action, n int, steps []keyStep, categories map[string][]string) []int {
+func bruteProfile(whole []action, n int, steps []keyStep, _ map[string][]string) []int {
 	var profile []int
 	for _, step := range steps {
 		spans := make([][]int, n+1)
@@ -473,18 +484,22 @@ func bruteProfile(whole []action, n int, steps []keyStep, categories map[string]
 			if a.read {
 				continue
 			}
-			if step.category == "elision" {
-				if a.prod.helper && a.prod.elided != "" && len(a.prod.rhs) == 0 {
-					starts[a.start]++
-					total++
-				}
-				continue
+			match := false
+			if a.prod.helper && a.prod.elided != "" && len(a.prod.rhs) == 0 {
+				tags := (&interner{byKey: map[string]*tagset{}})
+				_ = tags
+				match = localNodeMatches(step.pattern, "", a.prod.elided, "", newInterner().fromList([]string{a.prod.elided, "_Elided"}))
+			} else if !a.prod.helper && a.start < a.end {
+				match = localNodeMatches(step.pattern, a.prod.ruleName, "", "", nil)
 			}
-			if !a.prod.helper && a.start < a.end && slices.Contains(categories[a.prod.ruleName], step.category) {
-				spans[a.start][a.end]++
+			if match {
+				if a.start < a.end {
+					spans[a.start][a.end]++
+				}
 				starts[a.start]++
 				total++
 			}
+
 		}
 		switch step.step {
 		case "leftmost-longest":
@@ -635,7 +650,7 @@ func TestRankBestCountAgreement(t *testing.T) {
 		{"unique forest with count two", "x", VerdictUnique, 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			d := mustLoad(t, oneStage("%ambiguity-resolution late(elision)\n%rule text w\n%rule w "+tc.body+"\n%rule x A\n%rule y A"))
+			d := mustLoad(t, oneStage("%ambiguity-resolution late #·text\n%rule text w\n%rule w "+tc.body+"\n%rule x A\n%rule y A"))
 			lg := d.lower(0, map[string]bool{})
 			tokens := []Token{{Text: "a", Value: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
 			ps := newParseState(d.uni, []rune("a"))
@@ -752,14 +767,10 @@ func TestRankingProperty(t *testing.T) {
 		if top := rec.accepted(lg.byName["text"]); len(top) > 0 {
 			got = rk.rank(top)
 		}
-		categories := map[string][]string{}
-		for _, definition := range dom.Rules {
-			categories[definition.Name] = definition.Categories
-		}
 		var ds []bderiv
 		for _, tr := range trees {
 			w := bnodeActions(tr, nil)
-			ds = append(ds, bderiv{whole: w, vis: visibleOnly(w), profile: bruteProfile(w, n, lg.steps, categories)})
+			ds = append(ds, bderiv{whole: w, vis: visibleOnly(w), profile: bruteProfile(w, n, lg.steps, nil)})
 		}
 		want, werr := bruteRank(rk, ds)
 		if printDerivations {
@@ -810,7 +821,7 @@ func TestRankingProperty(t *testing.T) {
 		if n == 0 {
 			empty++
 		}
-		if rk.space.elision {
+		if slices.ContainsFunc(lg.steps, func(step keyStep) bool { return requiresElided(step.pattern) }) {
 			late++
 		}
 		if got.verdict != want.verdict {
@@ -836,7 +847,7 @@ func TestRankingProperty(t *testing.T) {
 			}
 		} else if want.count > 1 {
 			resolved++
-			if rk.space.elision {
+			if slices.ContainsFunc(lg.steps, func(step keyStep) bool { return requiresElided(step.pattern) }) {
 				lateResolved++
 			}
 		}
@@ -875,4 +886,22 @@ func TestOracleRepeatedPartialItem(t *testing.T) {
 	if derr != nil || len(trees) != 3 {
 		t.Fatalf("%d derivations, %v", len(trees), derr)
 	}
+}
+
+func patternTextForTest(p *domPattern) string {
+	switch p.Kind {
+	case "name":
+		return "#·" + p.Name
+	case "test":
+		return "#·<_Elided>"
+	}
+	parts := []string{}
+	for _, child := range p.Items {
+		parts = append(parts, strings.TrimPrefix(patternTextForTest(child), "#"))
+	}
+	operator := " ∪ "
+	if p.Kind == tmDifference {
+		operator = " ∖ "
+	}
+	return "#(" + strings.Join(parts, operator) + ")"
 }

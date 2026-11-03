@@ -131,7 +131,7 @@ func (c *domChecker) sourceHead(r *domRule) {
 		c.sourceCall(&domSourceCall{Name: r.Name, Args: r.Args, At: r.At}, 0)
 	}
 	if r.Instance != nil {
-		if r.Op == "extend" || len(r.Categories) != 0 || len(r.Conditions) != 0 || len(r.Alternatives) != 0 ||
+		if r.Op == "extend" || len(r.Conditions) != 0 || len(r.Alternatives) != 0 ||
 			r.Tags != nil || r.Value != nil || r.Image != nil || r.Emit != nil || r.Erased {
 			c.fail("a malformed instance binding")
 		}

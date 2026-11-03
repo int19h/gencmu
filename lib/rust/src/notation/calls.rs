@@ -61,13 +61,23 @@ impl<'a> Reader<'a> {
         })))
     }
 
+    pub(super) fn pattern_requirements(&self, node: &'a Node) -> R<Term> {
+        self.requirements_in(node, "invalid tag requirement", true)
+    }
     pub(super) fn source_requirements(&self, node: &'a Node, invalid_operand: &str) -> R<Term> {
+        self.requirements_in(node, invalid_operand, false)
+    }
+    fn requirements_in(&self, node: &'a Node, invalid_operand: &str, pattern: bool) -> R<Term> {
         let mut args = Vec::new();
         for requirement in self.rules(node, "tag-requirement") {
             let operand = self.one(requirement, "test-operand")?;
             let part = self.inner(operand, ATOMS)?;
             let value = match rule_name(part) {
-                "tag" => Term::Tag(self.tag_of(self.token(part)?)?),
+                "tag" => Term::Tag(if pattern && self.value(self.token(part)?) == "_Elided" {
+                    "_Elided".into()
+                } else {
+                    self.tag_of(self.token(part)?)?
+                }),
                 "constant-reference" => self.constant_reference(self.token(part)?)?,
                 "parameter" => Term::Source(self.source_parameter(part)?),
                 _ => return Err(self.error(operand, invalid_operand)),

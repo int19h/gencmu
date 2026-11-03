@@ -1,10 +1,32 @@
 {
-  "description": "reader refuses #a<A>",
+  "description": "A rule pattern accepts one tag test (engine §9.3).",
   "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #a<A>\n```\n",
   "expect": {
-    "error": {
-      "line": 3,
-      "column": 19
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "test": "tags",
+                  "expr": {
+                    "name": "a"
+                  },
+                  "requirements": [
+                    {
+                      "negated": false,
+                      "value": {
+                        "tag": "A"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
     }
   }
 }

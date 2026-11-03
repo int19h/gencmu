@@ -1,0 +1,24 @@
+{
+  "description": "A caller attachment cannot carry _Elided (engine §1).",
+  "grammar": "%rule text A",
+  "input": "a",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "before": [
+        {
+          "text": "b",
+          "tags": [
+            "_Elided"
+          ]
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "error": "usage"
+  }
+}

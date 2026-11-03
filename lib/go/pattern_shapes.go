@@ -170,7 +170,7 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 		}
 		key, count := "", 0
 		for _, k := range []string{"name", "call", "param", "terminal", "literal", "range", "wildcard", "constant", "test", "any"} {
-			if layeredHas(n, k) {
+			if layeredHas(n, k) && !(k == "any" && n["test"] == "tags") {
 				key, count = k, count+1
 			}
 		}
@@ -193,10 +193,17 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 		switch key {
 		case "test":
 			if n["test"] == "tags" {
-				fields = append(fields, "requirements", "expr")
+				fields = append(fields, "requirements")
+				if n["any"] == true {
+					fields = append(fields, "any")
+				} else {
+					fields = append(fields, "expr")
+				}
 				a, ok := n["requirements"].([]any)
-				if !layeredTerminalAtom(n["expr"]) || !ok {
-					return "a pattern tag test requires a terminal atom"
+				expr := templateObj(n["expr"])
+				ruleAtom := (expr["name"] != nil || expr["call"] != nil || expr["param"] != nil) && !layeredHas(expr, "exact") && !layeredHas(expr, "children")
+				if !(n["any"] == true || layeredTerminalAtom(expr) || ruleAtom) || !ok {
+					return "a pattern tag test requires an undecorated atom"
 				}
 				for _, value := range a {
 					r := templateObj(value)
@@ -208,7 +215,7 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 			} else {
 				fields = append(fields, "value", "expr")
 				expr := templateObj(n["expr"])
-				if n["test"] != "=" && n["test"] != "≠" || !(layeredTerminalAtom(expr) || expr["test"] == "tags" && !layeredHas(expr, "exact") && !layeredHas(expr, "children") && layeredTerminalAtom(expr["expr"])) {
+				if n["test"] != "=" && n["test"] != "≠" || !(layeredTerminalAtom(expr) || expr["test"] == "tags" && !layeredHas(expr, "exact") && !layeredHas(expr, "children") && (layeredTerminalAtom(expr["expr"]) || expr["any"] == true)) {
 					return "a pattern value test requires a terminal atom"
 				}
 				if !layeredStringTerm(n["value"]) {
@@ -220,7 +227,9 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 					return problem
 				}
 			}
-			push(n["expr"], false, false, true)
+			if layeredHas(n, "expr") {
+				push(n["expr"], false, false, true)
+			}
 		case "any":
 			if n["any"] != true || !layeredHas(n, "children") {
 				return "a malformed bare child list"
@@ -387,7 +396,9 @@ func layeredPatternText(root templateObject, term func(templateObject) string, l
 				}
 				switch {
 				case layeredHas(n, "test"):
-					tasks = append(tasks, task{"pattern", n["expr"]})
+					if n["expr"] != nil {
+						tasks = append(tasks, task{"pattern", n["expr"]})
+					}
 					if n["test"] == "tags" {
 						tasks = append(tasks, task{"term", templateObject{"requirements": n["requirements"]}})
 					} else {

@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%const $LOW \"\" ++ \"a\"\n%const $HIGH \"\" ++ \"z\"\n%const $P #$LOW..$HIGH\n```\n",
   "expect": {
     "dom": {
-      "format": 42,
+      "format": 43,
       "rules": [],
       "directives": [],
       "constants": [

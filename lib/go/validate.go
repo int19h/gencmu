@@ -159,7 +159,7 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			return &domProblem{message: "a malformed rule"}
 		}
 		inspections = append(inspections, inspection{r.At, func() *domProblem {
-			if !validCategories(r.Categories) || r.Op == "extend" && len(r.Categories) > 0 || !(isRuleName(r.Name, uni) || expanded && strings.Contains(r.Name, "(") && strings.HasSuffix(r.Name, ")")) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || r.Instance == nil && len(r.Alternatives) == 0 {
+			if !(isRuleName(r.Name, uni) || expanded && strings.Contains(r.Name, "(") && strings.HasSuffix(r.Name, ")")) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || r.Instance == nil && len(r.Alternatives) == 0 {
 				return &domProblem{message: "a malformed rule"}
 			}
 
@@ -312,6 +312,25 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 					return &domProblem{message: "an implication: " + msg, implication: m}
 				}
 			}
+			return nil
+		}})
+	}
+	for _, dir := range d.Directives {
+		if dir.Name != "ambiguity-resolution" {
+			continue
+		}
+		inspections = append(inspections, inspection{dir.At, func() *domProblem {
+			c := &domChecker{uni: uni, label: "%ambiguity-resolution", expanded: expanded}
+			for _, step := range dir.Steps {
+				if step.Pattern != nil {
+					c.term(step.Pattern, 0, false)
+				}
+			}
+			if c.problem != nil {
+				c.problem.at = dir.At
+				return c.problem
+			}
+			d.unresolved = d.unresolved || c.unresolved
 			return nil
 		}})
 	}
@@ -1389,7 +1408,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 					if r.Value == nil || r.Value.Kind != tmTag && r.Value.Kind != tmConst && r.Value.Kind != tmParam {
 						return "a malformed tag requirement"
 					}
-					c.term(r.Value, d+1, false)
+					if r.Value.Kind != tmTag || r.Value.Str != "_Elided" {
+						c.term(r.Value, d+1, false)
+					}
 				}
 				return ""
 			}
@@ -1620,6 +1641,9 @@ func readsOwnTags(t *domTerm) bool {
 		stack = stack[:len(stack)-1]
 		if p.c != nil {
 			if p.c.Kind == cdCompare && (p.c.Op == "≅" || p.c.Op == "≇") {
+				if p.c.Left.Kind == tmCapture && p.c.Left.Str == "" && p.c.Right.Kind == tmPattern && patternReadsNodeTags(p.c.Right.Pattern) {
+					return true
+				}
 				continue
 			}
 			// .matches and .begins parse the tokens again, .starts-input

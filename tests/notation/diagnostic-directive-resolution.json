@@ -5,7 +5,7 @@
     "error": {
       "line": 2,
       "column": 1,
-      "message": "%ambiguity-resolution takes leftmost-longest, fewest, most, late or early with a category, then optionally greedy or lazy"
+      "message": "%ambiguity-resolution requires a pattern for each key step and no operand on a final lean"
     }
   }
 }

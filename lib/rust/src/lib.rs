@@ -63,6 +63,12 @@ mod parameters;
 mod patterns;
 mod pipeline;
 mod rank;
+mod ranking_audit;
+mod ranking_patterns;
+pub use ranking_audit::{
+    format_ranking_reports, CountedRuleChange, RankingReport, RankingStepReport, RankingTagReport,
+    RankingVocabularyWarning,
+};
 mod ranked;
 mod recent;
 mod restoration;
@@ -81,7 +87,7 @@ mod work;
 
 pub use dom::FeatureKind;
 pub use error::{Error, ErrorKind, GroupSite, RankedDiagnostic};
-pub use grammar::{CategoryChange, Change};
+pub use grammar::Change;
 pub use json::Json as GrammarValue;
 pub use loader::{bundled_pipelines, load_pipeline, load_pipeline_file, load_pipeline_sources};
 pub use output::{to_brackets, to_json};

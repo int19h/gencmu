@@ -621,7 +621,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		if problem := sourcePatternProblem(pattern); problem != "" {
 			b.fail(n, "%s", problem)
 		}
-		return give(&domTerm{Kind: tmPattern, Pattern: pattern})
+		return give(&domTerm{Kind: tmPattern, Pattern: pattern, At: b.at(n)})
 	}
 	b.fail(n, "unexpected %s in a term", n.Rule)
 	return readStep{}

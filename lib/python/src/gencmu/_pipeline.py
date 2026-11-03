@@ -697,6 +697,26 @@ class Pipeline:
         # the error that lowering found.
         self._lowered: list[Recent[frozenset[str], Lowered | ErrorData]] = [Recent(MAX_LOWERED) for _ in stages]
         self._lock = threading.Lock()
+        self.load_warnings = []
+        from ._patterns import pattern_parts
+        def custom_tag(pattern):
+            return any(not r['negated'] and any(t != '_Elided' and not (t.startswith('_') and unicode.canonical_tag(t) == t) for t in r['value']['set']) for r in pattern.get('requirements', ())) or any(map(custom_tag, pattern_parts(pattern)))
+        if any(custom_tag(p) for g in stages for _, p in g.steps):
+            self.load_warnings = [warning for report in self.ranking_reports() for warning in report['vocabularyWarnings']]
+
+    def ranking_reports(self):
+        """Return static reports for the ranking steps of each stage."""
+        from ._ranking_audit import ranking_audit
+        reports, vocabulary = [], frozenset()
+        for grammar in self._grammars:
+            report, vocabulary = ranking_audit(grammar, vocabulary)
+            reports.append(dict(name=grammar.stage, **report))
+        return reports
+
+    def format_ranking_reports(self):
+        """Return the ranking reports as text."""
+        from ._ranking_audit import format_ranking_reports
+        return format_ranking_reports(self.ranking_reports())
 
     @property
     def _stage_names(self) -> list[str]:

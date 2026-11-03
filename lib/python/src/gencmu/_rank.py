@@ -17,6 +17,8 @@ import math
 from typing import Any, Iterator, Optional, Union
 
 from . import _testing
+from ._patterns import local_node_matches
+from ._ranking_patterns import can_count_profiles, has_pattern_value, requires_elided
 from ._earley import RESTORE, Forest
 
 Count = float
@@ -863,12 +865,12 @@ Spans = tuple
 count)`` triples in increasing start and then decreasing end order."""
 
 Component = Union[Spans, int, Vector]
-"""One component of a profile: the counts of one key step's category over
+"""One component of a profile: the counts of one key step's pattern over
 the spans, the sum of the counts, or the sequence of the starting
 positions (engine §6)."""
 
 Profile = tuple
-"""A derivation's counts of every category that a key step names, one
+"""A derivation's counts of every pattern that a key step tests, one
 component per key step, in the order of the steps (engine §6)."""
 
 
@@ -912,38 +914,33 @@ class Profiles:
     """The profiles of one ranking: how the key steps of its directive count
     occurrences, add profiles and compare them (engine §6)."""
 
-    def __init__(self, steps: tuple[tuple[str, str], ...]) -> None:
+    def __init__(self, steps, tagtab=None, tokens=()) -> None:
         self.steps = tuple(steps)
         self.kinds = tuple(step for step, _ in self.steps)
-        # The steps that name each category.
-        self.by_category: dict[str, list[int]] = {}
-        for index, (_, category) in enumerate(self.steps):
-            self.by_category.setdefault(category, []).append(index)
+        self.tagtab = tagtab
+        self.tokens = tokens
+        self.values = tuple(has_pattern_value(pattern) for _, pattern in steps)
+        self.answers = {}
         self.zero: Profile = tuple(() if kind == "leftmost-longest" else 0 if kind in ("fewest", "most") else None for kind in self.kinds)
-        # Whether a step counts elided terminators.
-        self.elision = "elision" in self.by_category
-        # The one sequence of a single occurrence at each position.
         self.leaves: dict[int, Elided] = {}
 
-    def counts(self, categories: tuple[str, ...]) -> bool:
-        """Whether an occurrence of a rule with these categories counts."""
-        return any(category in self.by_category for category in categories)
-
-    def occurrence(self, categories: tuple[str, ...], p: int, q: int) -> Profile:
-        """The profile of one occurrence over ``[p, q)`` of a rule with these
-        categories. It counts once for each category that a step names."""
-        profile: list[Component] | None = None
-        for category in categories:
-            for index in self.by_category.get(category, ()):
+    def occurrence(self, name, tags, terminal, value, p, q) -> Profile:
+        profile = None
+        for index, (_, pattern) in enumerate(self.steps):
+            key = (index, name, terminal, tags, value if self.values[index] else None)
+            match = self.answers.get(key)
+            if match is None:
+                leaf = (terminal, value, tags) if terminal is not None else None
+                match = local_node_matches(pattern, name, tags, leaf)
+                self.answers[key] = match
+            if match:
                 if profile is None:
                     profile = list(self.zero)
                 profile[index] = self.one(index, p, q)
         return self.zero if profile is None else tuple(profile)
 
-    def elision_at(self, p: int) -> Profile:
-        """The profile of one elided terminator at ``p``, an occurrence of
-        ``elision`` with the empty span (engine §6)."""
-        return self.occurrence(("elision",), p, p)
+    def tags(self, identity):
+        return self.tagtab.get(identity) if self.tagtab is not None and identity is not None else frozenset()
 
     def one(self, index: int, p: int, q: int) -> Component:
         """One occurrence in the component of a step. An empty span counts
@@ -996,19 +993,19 @@ class Profiles:
         return 0
 
     def derivation_profile(self, root: Any) -> Profile:
-        """Counts every completed nonempty occurrence in a chosen
-        derivation, and no elision (engine §7). The derivation is walked in
-        text order, so that each occurrence's position follows those
-        before it."""
+        """Count the actual derivation over its nonempty projected spans."""
         profile = self.zero
         pending = [root]
         while pending:
             node = pending.pop()
             production = getattr(node, "production", None)
             if production is None:
+                if node.start < node.end:
+                    token = self.tokens[node.token]
+                    profile = self.sum(profile, self.occurrence(None, frozenset(token.tags), node.terminal, token.value, node.start, node.end))
                 continue
-            if node.start < node.end and self.counts(production.categories):
-                profile = self.sum(profile, self.occurrence(production.categories, node.start, node.end))
+            if not production.helper and node.start < node.end:
+                profile = self.sum(profile, self.occurrence(production.rule_name, self.tags(node.tag), None, None, node.start, node.end))
             pending.extend(reversed(node.children))
         return profile
 
@@ -1078,7 +1075,7 @@ class Profiled(Summaries):
         # is an elided terminator, which a step of elision counts (engine
         # §3.8, §6).
         self.elided = [
-            space.elision and production.helper and production.elided is not None and not production.rhs for production in self.productions
+            production.helper and production.elided is not None and not production.rhs for production in self.productions
         ]
 
     def compute(self, key: Key) -> Any:
@@ -1094,22 +1091,18 @@ class Profiled(Summaries):
                 return None
             profile = inner.profile
             production = self.productions[forest.prod[item]]
-            # A completed nonempty occurrence of the production's rule
-            # counts as each of its categories, before its children.
-            if production.categories and space.counts(production.categories):
-                start, end = forest.origin[item], forest.end[item]
-                project = forest.project
-                if project is not None:
-                    start, end = project[start], project[end]
-                if start < end:
-                    profile = space.sum(space.occurrence(production.categories, start, end), profile)
-            # A restoration elides nothing (engine §7.7).
-            if self.elided[forest.prod[item]] and forest.edges[item][0][1] != RESTORE:
-                profile = space.sum(profile, space.elision_at(forest.origin[item]))
+            start, end = forest.origin[item], forest.end[item]
+            if forest.project is not None:
+                start, end = forest.project[start], forest.project[end]
+            if not production.helper and start < end:
+                profile = space.sum(space.occurrence(production.rule_name, space.tags(forest.tag.get(item)), None, None, start, end), profile)
+            if self.elided[forest.prod[item]] and forest.project is None and forest.edges[item][0][1] != RESTORE:
+                terminal = production.elided
+                profile = space.sum(profile, space.occurrence(None, frozenset((terminal, "_Elided")), terminal, "", start, start))
             return Summary(inner.total, profile, inner.count, NO_EDGES)
         mask = self.admission.mask(key) if self.admission is not None else None
         every = Best(space)
-        for index, edge_kind, pred_key, child_key, a, _ in self.steps(key):
+        for index, edge_kind, pred_key, child_key, a, terminal in self.steps(key):
             if edge_kind == 0 or edge_kind == RESTORE:
                 total, profile, count = 1, space.zero, 1
             else:
@@ -1125,6 +1118,13 @@ class Profiled(Summaries):
                     total = min(total * child.total, 2)
                     profile = space.sum(profile, child.profile)
                     count = min(count * child.count, 2)
+                elif edge_kind == 1:
+                    start, end = a, a + 1
+                    if forest.project is not None:
+                        start, end = forest.project[start], forest.project[end]
+                    if start < end:
+                        token = forest.tokens[a]
+                        profile = space.sum(profile, space.occurrence(None, frozenset(token.tags), terminal, token.value, start, end))
             if mask is None or index in mask:
                 every.offer(index, total, profile, count)
         return every.summary()
@@ -1243,13 +1243,12 @@ def rank(forest: Forest, steps: tuple[tuple[str, str], ...], lean: str, marks=No
 def rank_original(forest: Forest, steps: tuple[tuple[str, str], ...], lean: str, marks=None, check=False, admission=None) -> Ranking | None:
     """Rank a forest's derivations by the key steps and then by the lean;
     ``None`` if the input has no derivation that counts. The profiles
-    decide when a step counts elisions or a production counts as a
-    category that a step names (engine §6)."""
+    decide when a step can match a reachable node (engine §6)."""
     if not forest.roots:
         return None
-    space = Profiles(steps)
+    space = Profiles(steps, forest.tagtab, forest.tokens)
     ranker: Profiled | Ranker
-    if space.elision or any(space.counts(production.categories) for production in forest.lowered.productions):
+    if can_count_profiles(forest.lowered, steps) and not (forest.project is not None and all(requires_elided(pattern) for _, pattern in steps)):
         ranker = Profiled(forest, space, lean)
     else:
         ranker = Ranker(forest, lean)

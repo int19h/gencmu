@@ -2385,7 +2385,6 @@ mod tests {
                 emitted_locations: Default::default(),
                 name: "r".into(),
                 op: Op::Define,
-                categories: Vec::new(),
                 tags: Some(tags),
                 alternatives: vec![Alternative {
                     strings: Default::default(),

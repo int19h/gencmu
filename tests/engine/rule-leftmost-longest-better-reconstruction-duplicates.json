@@ -1,6 +1,6 @@
 {
   "description": "Two better reconstructions retain the chosen witness in the diagnostic pair (engine §7).",
-  "grammar": "%ambiguity-resolution leftmost-longest(span), late(elision)\n%elision-only\n%rule text (r [+T] \"b\") | r | (\"a\" [+U] \"b\")\n%rule r \"a\" | (\"a\" T \"b\") | (\"a\" T \"b\")\n%counts-as span",
+  "grammar": "%ambiguity-resolution leftmost-longest #·r, late #·<_Elided>\n%elision-only\n%rule text (r [+T] \"b\") | r | (\"a\" [+U] \"b\")\n%rule r \"a\" | (\"a\" T \"b\") | (\"a\" T \"b\")\n               ",
   "input": "ab",
   "expect": {
     "result": {

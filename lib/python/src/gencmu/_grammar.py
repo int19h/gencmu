@@ -37,7 +37,8 @@ from ._types import (
     tests_in,
     type_name,
 )
-from ._validate import Marks
+from ._validate import Marks, term_reads_own_tags
+from ._ranking_patterns import ranking_pattern_problem, requires_elided
 from ._logical import Expansion, combine, optional, inherited
 from ._strings import literal_string, spelling, ENGINE_TAGS
 
@@ -79,15 +80,6 @@ class Rule:
     alternatives: list[Alternative]
     document: str
     at: tuple[int, int]
-    categories: list[str] = field(default_factory=list)
-
-
-@dataclass
-class CategoryChange:
-    """The categories before and after a replacement that changes them."""
-
-    from_categories: list[str]
-    to_categories: list[str]
 
 
 @dataclass
@@ -98,7 +90,6 @@ class Change:
     rule: str
     document: str
     previous: str
-    category_change: CategoryChange | None = None
 
 
 @dataclass(frozen=True)
@@ -130,8 +121,8 @@ class SymbolTest:
         raise AssertionError(f"unknown symbol test {op}")
 
 
-KeyStep = tuple[str, str]
-"""A key step of ``%ambiguity-resolution``: its name and its category
+KeyStep = tuple[str, dict[str, Any]]
+"""A key step of ``%ambiguity-resolution``: its name and its node pattern
 (engine §6)."""
 
 
@@ -409,12 +400,12 @@ class _Constants:
                 return {"terminal": spelling(constant.value, self.unicode), "at": root["at"], **({"exact": True} if root.get("exact") else {})}
             raise self.fault_error(path, root, at, "a pattern atom requires a string or pattern constant")
         if "test" in root:
-            base = root["expr"]
+            base = root.get("expr", {})
             while "test" in base:
-                base = base["expr"]
+                base = base.get("expr", {})
             if "constant" in base and self.values[base["constant"]].type == "pattern":
                 raise self.fault_error(path, base, at, "a tested pattern atom requires a string constant")
-        result = dict(root)
+        result = shallow_copy(root)
         for key in ("union", "intersection", "difference", "choice"):
             if key in root:
                 result[key] = []
@@ -427,12 +418,15 @@ class _Constants:
             if root["test"] == "tags":
                 result["requirements"] = []
                 for requirement in root["requirements"]:
-                    value = yield self._closed(path, requirement["value"], at)
+                    value = frozenset(("_Elided",)) if requirement["value"] == {"tag": "_Elided"} else (yield self._closed(path, requirement["value"], at))
+                    if not requirement["negated"] and "_Elided" in value and any(key in root.get("expr", {}) for key in ("name", "call")):
+                        raise _error("a rule pattern cannot require _Elided", path, getattr(requirement["value"], "at", None) or at, self.stage)
                     result["requirements"].append({"negated": requirement["negated"], "value": {"set": value}})
             else:
                 value = yield self._closed(path, root["value"], at)
                 result["value"] = {"string": value}
-            result["expr"] = yield self._closed_pattern(path, root["expr"], at)
+            if "expr" in root:
+                result["expr"] = yield self._closed_pattern(path, root["expr"], at)
         if any(key in root for key in ("literal", "range", "wildcard")):
             if "literal" in root:
                 value = yield self._closed(path, root["literal"], at)
@@ -586,7 +580,11 @@ class _Constants:
             if fault is not None:
                 raise self.fault_error(path, fault[1], rule['at'], fault[0])
             self.check_value_uses(path, rule, rule['at'])
-        result = check_definition(run(self.with_values(rule)), True)
+        resolved = run(self.with_values(rule))
+        for term in [resolved.get("tags"), *(alt.get("tags") for alt in resolved.get("alternatives", []))]:
+            if term is not None and term_reads_own_tags(term):
+                raise _error("a constituent reads its own tags", path, rule["at"], self.stage)
+        result = check_definition(resolved, True)
         if result.problem is not None:
             raise _error(result.problem.message, path, rule['at'], self.stage)
         if result.deferred is not None:
@@ -887,11 +885,9 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 elif op == "redefine":
                     if previous is None:
                         raise _error(f"%redefine-rule {name} replaces no rule defined before it", path, at, stage)
-                    categories = list(rule["categories"])
-                    category_change = CategoryChange(previous.categories.copy(), categories.copy()) if previous.categories != categories else None
-                    changes.append(Change("replace", name, path, previous.document, category_change))
+                    changes.append(Change("replace", name, path, previous.document))
                     # The rule keeps its place (engine §3, "Numbering").
-                    rules[name] = Rule(name, alternatives, path, at, list(rule["categories"]))
+                    rules[name] = Rule(name, alternatives, path, at)
                 else:
                     if previous is not None:
                         raise _error(
@@ -900,7 +896,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                             at,
                             stage,
                         )
-                    rules[name] = Rule(name, alternatives, path, at, list(rule["categories"]))
+                    rules[name] = Rule(name, alternatives, path, at)
             elif kind == "directives":
                 directive = item
                 name = directive["name"]
@@ -911,7 +907,9 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 elif name == "ambiguity-resolution":
                     if resolutions:
                         raise _error("has a second %ambiguity-resolution", path, at, stage)
+                    directive = {**directive, "steps": [dict(step) for step in directive["steps"]]}
                     resolutions.append((directive["steps"], path, at))
+                    checks.append((inspection_run, at, path, "ranking", directive))
                 elif name == "elision-only":
                     if elision_only:
                         raise _error("has a second %elision-only", path, at, stage)
@@ -940,7 +938,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     resolved_features = []
     resolved_classifiers = []
     implications = []
-    kinds = {"rule": 0, "arguments": 0, "deferred": 0, "features": 1, "classifier": 3, "implication": 4}
+    kinds = {"rule": 0, "arguments": 0, "deferred": 0, "features": 1, "ranking": 1, "classifier": 3, "implication": 4}
     checks.sort(key=lambda item: (item[0], tuple(item[1]), kinds[item[3]] if item[3] != 'arguments' else constants.arguments[item[4]][0]['kind']))
     for inspection_run, _, path, kind, item in checks:
         if kind == "rule":
@@ -951,6 +949,26 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 constants.check_arguments(uses)
         elif kind == "deferred":
             constants.deferred_emissions.append(item)
+        elif kind == "ranking":
+            for step in item["steps"]:
+                if "pattern" not in step:
+                    continue
+                operand = step["pattern"]
+                term = operand if "const" in operand else {"pattern": operand}
+                value = run(constants._closed(path, term, item["at"], "pattern"))
+                position = getattr(operand, "at", None) or operand.get("at", item["at"])
+                if not isinstance(value, dict) or "pattern" not in value:
+                    raise _error("a ranking step requires a pattern", path, position, stage)
+                pattern = value["pattern"]
+                problem = ranking_pattern_problem(pattern)
+                if problem:
+                    raise _error(problem, path, position, stage)
+                if step["step"] == "leftmost-longest" and requires_elided(pattern):
+                    raise _error("leftmost-longest cannot require _Elided", path, position, stage)
+                for node, _ in walk_pattern(pattern):
+                    if "name" in node and node["name"] not in rules:
+                        raise _error(f"{node['name']} is not defined in stage {stage}", path, node.get("at", position), stage)
+                step["pattern"] = pattern
         elif kind == "features":
             directive = item
             try:
@@ -991,7 +1009,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         raise GencmuError("has no %ambiguity-resolution", stage=stage)
     ranking_steps, _, _ = resolutions[0]
     lean = ranking_steps[-1]["step"] if ranking_steps[-1]["step"] in ("greedy", "lazy") else "none"
-    key_steps = tuple((step["step"], step["category"]) for step in (ranking_steps if lean == "none" else ranking_steps[:-1]))
+    key_steps = tuple((step["step"], step["pattern"]) for step in (ranking_steps if lean == "none" else ranking_steps[:-1]))
     if "text" not in rules:
         raise GencmuError("has no rule text", stage=stage)
     from ._boundary import validate_targets
@@ -1203,9 +1221,6 @@ class Production:
     terminal: tuple[bool, ...]
     rule_name: str
     helper: bool
-    # The categories of the production's rule; none for a helper
-    # (engine §3, §6).
-    categories: tuple[str, ...] = ()
     elided: str | None = None
     # The test of that terminator, if it is tested; a restored token
     # stores the string of its = test (engine §7).
@@ -1663,7 +1678,7 @@ class _Lowerer:
             terminal=terminal,
             rule_name=self.rule_display[lhs],
             helper=alt is None,
-            categories=tuple(self.grammar.rules[self.rule_names[lhs]].categories) if alt is not None else (),
+
             elided=elided[0] if elided is not None else None,
             elided_test=elided[1] if elided is not None else None,
             elided_owner=self.rule_display[lhs] if elided is not None else None,

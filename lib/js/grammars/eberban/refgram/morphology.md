@@ -26,7 +26,7 @@ The numbers chapter says that a `-` before or after a digit is a hyphen that is 
 
 ```jbogenbau
 %ambiguity-resolution
-  leftmost-longest(word), lazy
+  leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote), lazy
 
 %rule text
   [{item}]
@@ -95,7 +95,7 @@ The numbers chapter says that a `-` before or after a digit is a hyphen that is 
 
 The morphology chapter says that a bracket is a space outside the syntax of foreign quotes. Most brackets pass to the words stage, which reads the quotes. But a borrowing, a freeform variable and a spelling quote can hold spaces inside one token. Such a space is a gap: a run of spaces, brackets and hesitations. A gap counts as one space in the value of the token.
 
-The rules `borrowing`, `freeform-variable` and `spelling-quote` count as words, and the step `leftmost-longest(word)` ranks them. Where such a token can start, the parse that reads it wins. A parse that reads its first letters as junk or as a plain word loses. A parse where the token cannot form, as where its gap meets a closing bracket, keeps the other reading.
+The step `leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote)` names these three rules and ranks their occurrences. Where such a token can start, the parse that reads it wins. A parse that reads its first letters as junk or as a plain word loses. A parse where the token cannot form, as where its gap meets a closing bracket, keeps the other reading.
 
 The words stage reads a foreign quote from `co`, any spaces, hesitations and `]`, an optional delimiter, and a `[`. The rule `quote-start` reads the same shape up to that `[`. Its `n` is a hesitation only between spaces and closing brackets. Such a `[` opens a quote, so it is no space, and `free-open` refuses it. So `co ce[ba cei]ce` stays a quote with the delimiter `ce`, and no spelling quote takes its `[`.
 
@@ -605,15 +605,11 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
 ```jbogenbau
 %rule borrowing
   [misplaced-hyphen] Letter="u" prefix-gap $c:content [misplaced-hyphen] space-after :: Word ∪ Borrowing := "u" ++ $c.value
-%counts-as
-  word
 %emits
   $
 
 %rule freeform-variable
   [misplaced-hyphen] Letter="i" prefix-gap $c:content [misplaced-hyphen] space-after :: Word ∪ Freeform := "i" ++ $c.value
-%counts-as
-  word
 %emits
   $
 
@@ -732,8 +728,6 @@ The quote is a word that starts with `c`, so a run of words can hold it, as in `
 %rule spelling-quote
   ce-particle [misplaced-hyphen] units [gap] [misplaced-hyphen] cei-particle [misplaced-hyphen]
     :: Word ∪ Particle ∪ CE ∪ Quote :- $.source-text
-%counts-as
-  word
 %emits
   $
 

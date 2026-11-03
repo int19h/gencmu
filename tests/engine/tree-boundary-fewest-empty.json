@@ -1,6 +1,6 @@
 {
   "description": "An empty fewest occurrence adds zero, so the two empty readings tie.",
-  "grammar": "%ambiguity-resolution fewest(few), greedy\n%rule text p | q\n%rule p ε\n%counts-as few\n%rule q ε",
+  "grammar": "%ambiguity-resolution fewest #·p, greedy\n%rule text p | q\n%rule p ε\n              \n%rule q ε",
   "tokens": [],
   "expect": {
     "result": {

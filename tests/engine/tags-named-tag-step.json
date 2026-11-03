@@ -1,0 +1,17 @@
+{
+  "description": "A named rule tag test counts only its matching alternative (engine §6).",
+  "grammar": "%ambiguity-resolution fewest #·a<T>\n%rule text a | b\n%rule a \"a\" :: T\n%rule b \"a\" :: T",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "b"
+          }
+        ]
+      }
+    }
+  }
+}

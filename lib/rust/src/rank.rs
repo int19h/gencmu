@@ -22,7 +22,7 @@ use crate::fxhash::FxMap;
 use std::cmp::Ordering;
 
 use crate::earley::{test_holds, Cap, Chart, Item, Shared, Tok};
-use crate::grammar::{KeyStep, Lean, StepKind, ELISION};
+use crate::grammar::{KeyStep, Lean, StepKind};
 use crate::lower::{Lowered, Sym, NO_TEST};
 use crate::nat::Nat;
 use crate::tags::{SetId, Tags};
@@ -468,7 +468,7 @@ pub(crate) struct Ranking {
 
 /// The sequences of `late(c)` and `early(c)` (§6), each kept as the
 /// starting positions of the occurrences of `c` in text order. The elision
-/// vector of `late(elision)` is one such sequence. A vector is a node of a shared tree whose
+/// vector of `late #·<_Elided>` is one such sequence. A vector is a node of a shared tree whose
 /// leaves are runs, a position with the number of terminators elided there,
 /// so the vector of an edge is the two of its children joined, and vectors
 /// built on one part share it. A count at one boundary can be exponential
@@ -1121,10 +1121,10 @@ impl<'c> Ranker<'c> {
         lean: Lean,
     ) -> Ranker<'c> {
         // The profiles decide when a step counts elided terminators or a
-        // rule counts as a category that a step names. The readings then
+        // rule can match a step. The readings then
         // come from the forest of the best derivations (§6).
         let profiles = Profiles::new(steps);
-        let decide = profiles.elision || g.rules.iter().any(|rule| profiles.counts(&rule.categories));
+        let decide = crate::ranking_patterns::can_count(g, steps);
         let mut dag = Dag {
             g,
             chart,
@@ -1156,8 +1156,11 @@ impl<'c> Ranker<'c> {
     }
 
     /// The profile of a chosen tree in this ranking's profiles (§7).
-    pub(crate) fn tree_profile(&mut self, tree: &crate::tree::ITree) -> Profile {
-        self.profiles.tree_profile(self.dag.g, tree)
+    pub(crate) fn tree_profile(&mut self, tree: &crate::tree::ITree, input: &[Tok]) -> Profile {
+        if self.summaries.is_none() {
+            return Profile::ZERO;
+        }
+        self.profiles.tree_profile(self.dag.g, tree, input, self.dag.tags)
     }
 
     /// Compares two profiles of this ranking: `Less` when the left one is
@@ -1170,6 +1173,10 @@ impl<'c> Ranker<'c> {
     /// whose tests of references read the projected span in O (§7.5).
     pub(crate) fn observing(mut self, observed: &'c [Tok], project: &'c [u32]) -> Ranker<'c> {
         self.dag.projection = Some((observed, project));
+        // Every projected omission has an empty span, so these steps count nothing.
+        if self.profiles.patterns.iter().all(crate::patterns::requires_elided) {
+            self.summaries = None;
+        }
         self
     }
 
@@ -1592,7 +1599,29 @@ impl<'c> Ranker<'c> {
         let masks = self.admission.as_ref().and_then(|a| a.masks.get(&key)).cloned();
         let plain = |all: Least| Summary { all };
         match deps {
-            Deps::Leaf => plain(Least::one(Profile::ZERO)),
+            Deps::Leaf => {
+                let mut profile = Profile::ZERO;
+                if let Node::Read { tok, terminal } = node {
+                    let (p, q) = self
+                        .dag
+                        .projection
+                        .map_or((tok, tok + 1), |(_, project)| (project[tok as usize], project[tok as usize + 1]));
+                    if p < q {
+                        let token = &self.dag.tokens[tok as usize];
+                        profile = self.profiles.occurrence(
+                            None,
+                            Some(&self.dag.g.terminals[terminal as usize]),
+                            &token.value,
+                            token.tags,
+                            self.dag.tags,
+                            false,
+                            p,
+                            q,
+                        );
+                    }
+                }
+                plain(Least::one(profile))
+            }
             Deps::Close(None) => plain(Least::NONE),
             Deps::Close(Some(inner)) => {
                 let Node::Close { set, index } = node else { unreachable!("a close") };
@@ -1601,7 +1630,7 @@ impl<'c> Ranker<'c> {
                 let rule = &g.rules[production.rule as usize];
                 // The helper of an elidable optional that derives ε elides
                 // its terminator where it is empty: an occurrence of
-                // `elision` with the empty span.
+                // the omitted leaf with the empty span.
                 let elides = production.syms.is_empty() && rule.elided.is_some();
                 let origin = self.dag.chart.sets[set as usize].items[index as usize].origin;
                 let (p, q) = self
@@ -1615,14 +1644,14 @@ impl<'c> Ranker<'c> {
                 let (least, total) = (body.least, body.total);
                 let mut profile = body.profile.clone();
                 let profiles = &mut self.profiles;
-                if elides && profiles.elision {
-                    let elision = profiles.elision_at(set);
-                    profile = profiles.sum(&profile, &elision);
+                if elides && self.dag.projection.is_none() {
+                    let occurrence =
+                        profiles.occurrence(None, rule.elided.as_deref(), "", 0, self.dag.tags, true, p, p);
+                    profile = profiles.sum(&profile, &occurrence);
                 }
-                // A completed nonempty occurrence of the rule counts as each
-                // of its categories, before its children (§6).
-                if p < q && profiles.counts(&rule.categories) {
-                    let occurrence = profiles.occurrence(&rule.categories, p, q);
+                if p < q && !rule.helper {
+                    let tags = self.dag.chart.sets[set as usize].tagset[index as usize];
+                    let occurrence = profiles.occurrence(Some(&rule.name), None, "", tags, self.dag.tags, false, p, q);
                     profile = profiles.sum(&occurrence, &profile);
                 }
                 plain(Least { profile, least, total, kept: vec![0] })
@@ -1934,7 +1963,7 @@ pub(crate) fn restored_terminal(g: &Lowered, prod: u32) -> u32 {
         .expect("an elidable optional begins with its terminal")
 }
 
-/// One component of a profile: the counts of one key step's category over
+/// One component of a profile: the counts of one key step's pattern over
 /// the nonempty spans, in increasing start and decreasing end order, the
 /// sum of the counts, or the sequence of the starting positions (§6).
 #[derive(Debug, Clone, PartialEq)]
@@ -1944,7 +1973,7 @@ pub(crate) enum Component {
     Sequence(u32),
 }
 
-/// A derivation's counts of every category that a key step names, one
+/// A derivation's counts of every pattern that a key step tests, one
 /// component per key step, in the order of the steps (§6). The profile
 /// with no component counts nothing.
 #[derive(Debug, Clone, PartialEq)]
@@ -1956,25 +1985,31 @@ impl Profile {
 
 /// The profiles of one ranking: how the key steps of its directive count
 /// occurrences, add profiles and compare them (§6).
+#[derive(Hash, PartialEq, Eq)]
+struct RankingNodeKey {
+    step: usize,
+    name: Option<String>,
+    terminal: Option<String>,
+    value: Option<String>,
+    set: u32,
+    omitted: bool,
+}
+
 pub(crate) struct Profiles {
     steps: Vec<StepKind>,
-    /// The steps that name each category.
-    by_category: FxMap<String, Vec<usize>>,
-    /// Whether a step counts elided terminators.
-    pub elision: bool,
+    patterns: Vec<crate::patterns::Pattern>,
+    answers: FxMap<RankingNodeKey, bool>,
+    values: Vec<bool>,
     vectors: Vectors,
 }
 
 impl Profiles {
     pub(crate) fn new(steps: &[KeyStep]) -> Profiles {
-        let mut by_category: FxMap<String, Vec<usize>> = FxMap::default();
-        for (index, step) in steps.iter().enumerate() {
-            by_category.entry(step.category.clone()).or_default().push(index);
-        }
         Profiles {
             steps: steps.iter().map(|step| step.kind).collect(),
-            elision: by_category.contains_key(ELISION),
-            by_category,
+            patterns: steps.iter().map(|step|step.pattern.clone()).collect(),
+            answers: FxMap::default(),
+            values: steps.iter().map(|step|step.pattern.walk().any(|part| matches!(part,crate::patterns::Part::Pattern(crate::patterns::Pattern::Test(op,_,_, _)) if op != "tags"))).collect(),
             vectors: Vectors::new(),
         }
     }
@@ -1988,36 +2023,53 @@ impl Profiles {
         }
     }
 
-    /// Whether an occurrence of a rule with these categories counts.
-    pub(crate) fn counts(&self, categories: &[String]) -> bool {
-        categories.iter().any(|category| self.by_category.contains_key(category))
-    }
-
-    /// The profile of one occurrence over `[p, q)` of a rule with these
-    /// categories. An empty span counts nothing under `leftmost-longest`.
-    pub(crate) fn occurrence<S: AsRef<str>>(&mut self, categories: &[S], p: u32, q: u32) -> Profile {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn occurrence(
+        &mut self,
+        name: Option<&str>,
+        terminal: Option<&str>,
+        value: &str,
+        set: u32,
+        tags: &Tags,
+        omitted: bool,
+        p: u32,
+        q: u32,
+    ) -> Profile {
         let mut components: Option<Vec<Component>> = None;
-        for category in categories {
-            let Some(indices) = self.by_category.get(category.as_ref()) else { continue };
-            let indices = indices.clone();
-            let components =
-                components.get_or_insert_with(|| (0..self.steps.len()).map(|index| self.zero(index)).collect());
-            for index in indices {
-                components[index] = match self.steps[index] {
-                    StepKind::LeftmostLongest if p < q => Component::Spans(vec![(p, q, Nat::ONE)]),
-                    StepKind::LeftmostLongest => Component::Spans(Vec::new()),
-                    StepKind::Fewest | StepKind::Most => Component::Count(Nat::ONE),
-                    StepKind::Late | StepKind::Early => Component::Sequence(self.vectors.one(p)),
+        for index in 0..self.steps.len() {
+            let key = RankingNodeKey {
+                step: index,
+                name: name.map(str::to_owned),
+                terminal: terminal.map(str::to_owned),
+                value: self.values[index].then(|| value.to_owned()),
+                set,
+                omitted,
+            };
+            let matches = *self.answers.entry(key).or_insert_with(|| {
+                let names: Vec<String> = if omitted {
+                    vec![terminal.expect("omitted terminal").to_owned(), "_Elided".into()]
+                } else {
+                    tags.list(set).iter().map(|&id| tags.name(id).to_owned()).collect()
                 };
+                crate::patterns::local_matches(
+                    &self.patterns[index],
+                    name,
+                    terminal.map(|t| (t, value, names.as_slice())),
+                    &names,
+                )
+            });
+            if !matches {
+                continue;
             }
+            let components = components.get_or_insert_with(|| (0..self.steps.len()).map(|i| self.zero(i)).collect());
+            components[index] = match self.steps[index] {
+                StepKind::LeftmostLongest if p < q => Component::Spans(vec![(p, q, Nat::ONE)]),
+                StepKind::LeftmostLongest => Component::Spans(Vec::new()),
+                StepKind::Fewest | StepKind::Most => Component::Count(Nat::ONE),
+                StepKind::Late | StepKind::Early => Component::Sequence(self.vectors.one(p)),
+            };
         }
         components.map_or(Profile::ZERO, Profile)
-    }
-
-    /// The profile of one elided terminator at `p`, an occurrence of
-    /// `elision` with the empty span (§6).
-    pub(crate) fn elision_at(&mut self, p: u32) -> Profile {
-        self.occurrence(&[ELISION], p, p)
     }
 
     /// Adds profiles component by component. The positions of `left`
@@ -2071,22 +2123,40 @@ impl Profiles {
     /// Counts every completed nonempty occurrence in a chosen tree, and no
     /// elision (§7). The occurrences are added in the order of their
     /// starting positions, as the sequences of `late` and `early` need.
-    pub(crate) fn tree_profile(&mut self, g: &Lowered, tree: &crate::tree::ITree) -> Profile {
-        let mut occurrences: Vec<(u32, u32, &[String])> = tree
-            .nodes
-            .iter()
-            .filter_map(|node| match node.kind {
-                crate::tree::IKind::Close { prod, start, end, .. } => {
+    pub(crate) fn tree_profile(
+        &mut self,
+        g: &Lowered,
+        tree: &crate::tree::ITree,
+        tokens: &[Tok],
+        tags: &Tags,
+    ) -> Profile {
+        let mut occurrences = Vec::new();
+        for node in &tree.nodes {
+            match node.kind {
+                crate::tree::IKind::Close { prod, start, end, tags, .. } if start < end => {
                     let rule = &g.rules[g.prods[prod as usize].rule as usize];
-                    (start < end && self.counts(&rule.categories)).then_some((start, end, rule.categories.as_slice()))
+                    if !rule.helper {
+                        occurrences.push((start, end, Some(rule.name.as_str()), None, "", tags));
+                    }
                 }
-                _ => None,
-            })
-            .collect();
-        occurrences.sort_by_key(|&(start, _, _)| start);
+                crate::tree::IKind::Read { tok, terminal } => {
+                    let token = &tokens[tok as usize];
+                    occurrences.push((
+                        tok,
+                        tok + 1,
+                        None,
+                        Some(g.terminals[terminal as usize].as_str()),
+                        token.value.as_str(),
+                        token.tags,
+                    ));
+                }
+                _ => {}
+            }
+        }
+        occurrences.sort_by_key(|&(start, _, _, _, _, _)| start);
         let mut profile = Profile::ZERO;
-        for (start, end, categories) in occurrences {
-            let occurrence = self.occurrence(categories, start, end);
+        for (p, q, name, terminal, value, set) in occurrences {
+            let occurrence = self.occurrence(name, terminal, value, set, tags, false, p, q);
             profile = self.sum(&profile, &occurrence);
         }
         profile

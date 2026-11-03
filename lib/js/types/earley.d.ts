@@ -475,6 +475,7 @@ export type StepScope = {
     scope: ChartScope | null;
     emitted?: Record<string, string>;
     structure: number;
+    prefix?: number;
     observation: CloseObservation | null;
     obligations?: any[];
 };
@@ -483,6 +484,7 @@ declare class ChartScope implements Scope {
     context: ParseContext;
     production: Production;
     structure: number;
+    prefix: number;
     /** @type {Record<string,string>|undefined} */
     emitted: Record<string, string> | undefined;
     observation: CloseObservation | null;
@@ -508,8 +510,9 @@ declare class ChartScope implements Scope {
      * @param {number} end
      * @param {number} structure
      * @param {CloseObservation|null} [observation]
+     * @param {number} [prefix]
      */
-    constructor(context: ParseContext, production: Production, slots: Captured, origin: number, end: number, structure: number, observation?: CloseObservation | null);
+    constructor(context: ParseContext, production: Production, slots: Captured, origin: number, end: number, structure: number, observation?: CloseObservation | null, prefix?: number);
     /**
      * The constituent's tags, from its production's tag term, evaluated at
      * most once, or HALT where the term halts for a nested parse.

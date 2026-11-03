@@ -1,0 +1,19 @@
+{
+  "description": "A tag-only value test reads a leaf and rejects a constituent (engine §4).",
+  "grammar": "%rule text $x:A\n%conditions $x ≅ #·<T>=\"a\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ],
+      "value": "a"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

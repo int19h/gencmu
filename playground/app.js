@@ -74,8 +74,8 @@
       document: "grammars/lojban/experimental/syntax.md", rule: "me-unit",
       hint: "Here pa qualifies only as a mathematical expression. No sumti reads it with the same boundaries, so the condition permits mex." },
     { label: "The earliest, longest tense wins (CLL)", text: "mi viska pu va ca gi do gi la djan", pipeline: "lojban/cll",
-      document: "grammars/lojban/cll/syntax.md", rule: "simple-tense-modal",
-      hint: "The rule counts as a tense, and the stage prefers the leftmost and longest tenses, so the earlier tense pu va wins. Remove the %counts-as clause from the open rule to see a tie." },
+      document: "grammars/lojban/cll/pipeline.md", anchor: "%ambiguity-resolution\n  ",
+      hint: "The stage prefers the earliest and longest simple-tense-modal group, so pu va wins. Remove the leftmost-longest step from the pipeline directive to see a tie." },
     { label: "A rule with preferred options (notation)", text: "%rule text (a ≻ b ≻ c)", pipeline: "gencmu/jbogenbau", tab: "tree",
       hint: "The notation pipeline reads grammar source as text. The Tree tab shows ranked-choice. Change ≻ to | to see ordinary alternatives." },
     { label: "A rule with tree tests (notation)", pipeline: "gencmu/jbogenbau", tab: "tree",
@@ -1018,6 +1018,10 @@
       exampleRule = example.rule ? example : null;
       if (example.document) {
         openDocument(example.document, 1, 1);
+        if (example.anchor) {
+          const at = editor.value.indexOf(example.anchor);
+          if (at >= 0) jumpTo(editor.value.slice(0, at).split("\n").length, 1);
+        }
       } else {
         state.open = null;
         $("doc-editor").hidden = true;

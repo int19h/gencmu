@@ -1,6 +1,6 @@
 {
   "description": "A ranked error retains its separator position before a later ranked argument in a pattern call.",
-  "grammar": "%ambiguity-resolution late(elision)\n%rule f(@X)\n  @X C\n%rule text\n  (A ≻ B) C\n  | (E ≻ F)\n%conditions $ ≅ #f((G ≻ H))",
+  "grammar": "%ambiguity-resolution late #·<_Elided>\n%rule f(@X)\n  @X C\n%rule text\n  (A ≻ B) C\n  | (E ≻ F)\n%conditions $ ≅ #f((G ≻ H))",
   "input": "",
   "expect": {
     "error": "grammar",

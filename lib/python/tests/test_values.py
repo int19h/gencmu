@@ -14,7 +14,7 @@ class Values(unittest.TestCase):
         from .shared import calls, count_work
         n = 24
         names = [f"c{i}" for i in range(n)]
-        base = {"name": "r", "op": "define", "categories": [], "at": [1, 1], "conditions": [],
+        base = {"name": "r", "op": "define", "at": [1, 1], "conditions": [],
                 "alternatives": [{"guards": [], "expr": {"seq": [{"optional": {"capture": c, "expr": {"ref": "A"}}} for c in names]}}]}
         for clause in [
             {"conditions": [{"any": [{"captured": c} for c in names]}]},

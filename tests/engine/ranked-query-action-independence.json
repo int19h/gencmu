@@ -1,6 +1,6 @@
 {
   "description": "Raw queries retain the lower category after admission selects the higher option. Flags and action ranking do not change those answers (engine §2.1 and §6.1).",
-  "grammar": "%ambiguity-resolution leftmost-longest(span), lazy\n%rule text $q:query %conditions ($q.matches(low) ∧ $q.onward.begins(low) ∧ L ⊆ $q.tags(low))\n\n%rule query :: ∅ | (high ≻ low)\n\n%rule high :: H | (X Y)\n%counts-as span\n\n%rule low :: L | (X Y)\n",
+  "grammar": "%ambiguity-resolution leftmost-longest #·high, lazy\n%rule text $q:query %conditions ($q.matches(low) ∧ $q.onward.begins(low) ∧ L ⊆ $q.tags(low))\n\n%rule query :: ∅ | (high ≻ low)\n\n%rule high :: H | (X Y)\n               \n\n%rule low :: L | (X Y)\n",
   "tokens": [
     {
       "text": "x",

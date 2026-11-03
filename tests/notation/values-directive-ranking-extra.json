@@ -1,6 +1,6 @@
 {
   "description": "Engine §9.3 reports a lean before the last step at the directive.",
-  "document": "```jbogenbau\n%ambiguity-resolution fewest(x), greedy, late(elision)\n```\n",
+  "document": "```jbogenbau\n%ambiguity-resolution fewest #(·text ∖ ·text), greedy, late #·<_Elided>\n```\n",
   "expect": {
     "error": {
       "line": 2,

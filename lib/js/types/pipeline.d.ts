@@ -120,6 +120,7 @@ export declare class Loader {
 export declare class Pipeline {
     path: string;
     stages: Stage[];
+    /** @type {import("./diagnostics.js").RankingVocabularyWarning[]} */ loadWarnings: import("./diagnostics.js").RankingVocabularyWarning[];
     loader: Loader;
     declared: string[];
     /** @type {Feature[]} the pipeline's features, with their kinds and defaults */

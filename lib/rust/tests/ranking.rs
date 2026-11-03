@@ -2,7 +2,7 @@
 //! inputs, every derivation enumerated by brute force, and the verdict,
 //! first reading, second reading and witness computed straight from the
 //! definitions, compared with the library's. The rule of the ranking is
-//! `greedy`, `lazy` or `late(elision)`.
+//! `greedy`, `lazy` or `late #·<_Elided>`.
 //!
 //! `GENCMU_PROPERTY_CASES` sets how many cases to run (default 3000) and
 //! `GENCMU_PROPERTY_SEED` the first seed; a failing case prints its seed,
@@ -144,7 +144,7 @@ fn generate(rng: &mut Rng) -> (Source, Input) {
     };
     let late = lean == Lean::LateElision;
     let elision_only = lean == Lean::Greedy && rng.chance(25);
-    // Under late(elision), and now and then under another rule, a terminal
+    // Under late #·<_Elided>, and now and then under another rule, a terminal
     // is elidable.
     let elidable = if !elision_only && (late || rng.chance(30)) { Some(rng.below(terminal_count)) } else { None };
     let sugar = elidable.is_some() || rng.chance(40);
@@ -376,16 +376,26 @@ fn item_text(item: &Item) -> String {
 
 /// The steps of the directive: `leftmost-longest(span)` where a rule
 /// counts as `span`, then the rule of the case.
-fn steps(source: &Source) -> Vec<&'static str> {
+fn steps(source: &Source) -> Vec<String> {
     let mut steps = Vec::new();
-    if source.leftmost_longest.iter().any(|&counted| counted) {
-        steps.push("leftmost-longest(span)");
+    let names: Vec<_> = source
+        .leftmost_longest
+        .iter()
+        .enumerate()
+        .filter(|(_, counted)| **counted)
+        .map(|(index, _)| format!("·{}", RULES[index]))
+        .collect();
+    if !names.is_empty() {
+        steps.push(format!("leftmost-longest #({})", names.join(" ∪ ")));
     }
-    steps.push(match source.lean {
-        Lean::Lazy => "lazy",
-        Lean::LateElision => "late(elision)",
-        _ => "greedy",
-    });
+    steps.push(
+        match source.lean {
+            Lean::Lazy => "lazy",
+            Lean::LateElision => "late #·<_Elided>",
+            _ => "greedy",
+        }
+        .into(),
+    );
     steps
 }
 
@@ -399,7 +409,7 @@ fn grammar_text(source: &Source) -> String {
         Sym::N(n) => RULES[*n],
     };
     for (rule, alternatives) in source.rules.iter().enumerate() {
-        let counts = if source.leftmost_longest[rule] { " %counts-as span" } else { "" };
+        let counts = "";
         if let Some(chain) = source.chains[rule] {
             let (item, separator) = (name(&chain.item), name(&chain.separator));
             let body = if chain.left {
@@ -439,11 +449,10 @@ fn grammar_dom(source: &Source) -> String {
     let first_rule_line = if source.elision_only { 4 } else { 3 };
     let mut rules = Vec::new();
     for (rule, alternatives) in source.rules.iter().enumerate() {
-        let categories = if source.leftmost_longest[rule] { "[\"span\"]" } else { "[]" };
         if let Some(chain) = source.chains[rule] {
             let direction = if chain.left { "left" } else { "right" };
             rules.push(format!(
-                "{{\"name\":\"{}\",\"op\":\"define\",\"categories\":{categories},\"alternatives\":[{{\"guards\":[],\"expr\":{{\"repeat\":{},\"separator\":{},\"chain\":\"{direction}\"}}}}],\"conditions\":[],\"at\":[{},1]}}",
+                "{{\"name\":\"{}\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"repeat\":{},\"separator\":{},\"chain\":\"{direction}\"}}}}],\"conditions\":[],\"at\":[{},1]}}",
                 RULES[rule],
                 reference(&chain.item),
                 reference(&chain.separator),
@@ -484,7 +493,7 @@ fn grammar_dom(source: &Source) -> String {
             })
             .collect();
         rules.push(format!(
-            "{{\"name\":\"{}\",\"op\":\"define\",\"categories\":{categories},\"alternatives\":[{}],\"conditions\":[],\"at\":[{},1]}}",
+            "{{\"name\":\"{}\",\"op\":\"define\",\"alternatives\":[{}],\"conditions\":[],\"at\":[{},1]}}",
             RULES[rule],
             alternatives.join(","),
             rule + first_rule_line
@@ -492,11 +501,19 @@ fn grammar_dom(source: &Source) -> String {
     }
     let steps: Vec<String> = steps(source)
         .iter()
-        .map(|step| match step.split_once('(') {
-            Some((step, category)) => {
-                format!("{{\"step\":\"{step}\",\"category\":\"{}\"}}", category.trim_end_matches(')'))
-            }
-            None => format!("{{\"step\":\"{step}\"}}"),
+        .map(|step| {
+            if step.starts_with("leftmost-longest") {
+                let atoms:Vec<String> = source.leftmost_longest.iter().enumerate().filter(|(_,c)|**c).map(|(index,_)| {
+                    let line = format!("%ambiguity-resolution {}",steps(source).join(", "));
+                    let prefix = line.split(&format!("·{}",RULES[index])).next().unwrap();
+                    let column = prefix.chars().count()+2;
+                    format!("{{\"name\":\"{}\",\"exact\":true,\"at\":[2,{column}]}}",RULES[index])
+                }).collect();
+                let pattern = if atoms.len()==1 {atoms[0].clone()}else{format!("{{\"union\":[{}]}}",atoms.join(","))};
+                format!("{{\"step\":\"leftmost-longest\",\"pattern\":{pattern}}}")
+            } else if step.starts_with("late ") {
+                "{\"step\":\"late\",\"pattern\":{\"test\":\"tags\",\"requirements\":[{\"negated\":false,\"value\":{\"tag\":\"_Elided\"}}],\"any\":true,\"exact\":true}}".to_string()
+            } else {format!("{{\"step\":\"{step}\"}}")}
         })
         .collect();
     let mut directives =
@@ -1016,7 +1033,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
             counts
         })
         .collect();
-    // Count spans directly from source categories, without library profile operations.
+    // Count spans directly from the generated rule groups, without library profile operations.
     let profiles = full
         .iter()
         .map(|acts| {
@@ -1170,9 +1187,9 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         .or_default() += 1;
     if grammar.lean == Lean::LateElision {
         let stat = match expected.verdict {
-            "unique" => "(stat) late(elision) unique",
-            "resolved" => "(stat) late(elision) resolved",
-            _ => "(stat) late(elision) tie",
+            "unique" => "(stat) late #·<_Elided> unique",
+            "resolved" => "(stat) late #·<_Elided> resolved",
+            _ => "(stat) late #·<_Elided> tie",
         };
         *findings.entry(stat).or_default() += 1;
     }

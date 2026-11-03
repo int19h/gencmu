@@ -1,6 +1,6 @@
 {
   "description": "Reconstruction uses projected flags without the greedy directive or a diagnostic lean (engine §7.10).",
-  "grammar": "%ambiguity-resolution leftmost-longest(span), greedy\n%elision-only\n%rule text (w ≻ missing) | old | c\n%rule w (X [+T])\n%counts-as span\n%rule missing (M N)\n%rule old ([+U] X)\n%rule c (r T)\n%counts-as span\n%rule r (X e)\n%rule e ε",
+  "grammar": "%ambiguity-resolution leftmost-longest #(·w ∪ ·c), greedy\n%elision-only\n%rule text (w ≻ missing) | old | c\n%rule w (X [+T])\n               \n%rule missing (M N)\n%rule old ([+U] X)\n%rule c (r T)\n               \n%rule r (X e)\n%rule e ε",
   "tokens": [
     {
       "text": "x",

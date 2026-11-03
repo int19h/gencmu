@@ -11,7 +11,7 @@ The prose uses these Eberban terms:
 - A bind is an explicit binding of a place of a verb, opened by `VI` or `FI` and closed by `vei`.
 - An annotation is a free prefix or suffix with no logical effect.
 
-[The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars. An elided terminator is a closing word left unwritten. The pipeline ranks the parses with `late(elision)` after its two counting steps, so an elided terminator falls as late as the text allows.
+[The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars. An elided terminator is a closing word left unwritten. The pipeline ranks the parses with `late #·<_Elided>` after its two counting steps, so an elided terminator falls as late as the text allows.
 
 ## Texts and paragraphs
 
@@ -169,7 +169,7 @@ The chapter erases back to the start of the last sentence that was still grammat
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ni-sentence.svg" alt="Railroad diagram of the rule ni-sentence"></p>
 </details>
 
-An erased valid sentence is a sentence followed by one or more `ra`. Erased invalid text is one or more words up to the first `ra`. The words can be anything, so a stretch that the chapter calls one ungrammatical sentence can hold several sentences that look grammatical. `invalid-head` names its first word, so that the condition on a grammatical quote can test it. An empty erasure is a `ra` alone. Each word after the first is an `erased-word`, which counts as an erasure. The pipeline's first step is `fewest(erasure)`. So of two readings, the one that erases fewer words wins, as the chapter's "last sentence that was still grammatical" asks.
+An erased valid sentence is a sentence followed by one or more `ra`. Erased invalid text is one or more words up to the first `ra`. The words can be anything, so a stretch that the chapter calls one ungrammatical sentence can hold several sentences that look grammatical. `invalid-head` names its first word, so that the condition on a grammatical quote can test it. An empty erasure is a `ra` alone. Each word after the first is an `erased-word`. The pipeline's first step is `fewest #·erased-word`. So of two readings, the one that erases fewer words wins, as the chapter's "last sentence that was still grammatical" asks.
 
 The chapter says that `ra` "must be surrounded by spaces or pauses". The start of a text counts as a pause, as it does for hesitation in the [word forms](morphology.md). So a text can start with `ra`.
 
@@ -196,8 +196,6 @@ The PEG requires a written starter after an erasure, and states this rule in an 
 
 %rule erased-word
   _<¬RA>
-%counts-as
-  erasure
 
 %rule ra-run
   {RA}
@@ -298,7 +296,7 @@ A step is a verb with its binds, then the rest of the chain. The verb can take a
 
 `PA` resumes the bindings of a verb earlier in the chain. The book does not describe `pa`, so the dictionary and the PEG are the sources. The dictionary says that `pa` "resumes bindings to a matching verb higher in the chain". The speaker repeats the verb after `pa`, then adds binds or continues the chain. The PEG resumes the latest matching verb, the deepest one in the right-grouped chain.
 
-`passed-step` counts as a resumption, and the pipeline's step `fewest(resumption)` states that preference. A step that takes no resumption, but stands right before one, is a step that the resumption passed over. The parse with the fewest such steps attaches the resumption as deep as the matching verb allows. The two conditions with `followed-by` tell the two kinds of step apart, so every step is exactly one of them.
+The pipeline's step `fewest #·passed-step` states that preference. A step that takes no resumption, but stands right before one, is a step that the resumption passed over. The parse with the fewest such steps attaches the resumption as deep as the matching verb allows. The two conditions with `followed-by` tell the two kinds of step apart, so every step is exactly one of them.
 
 A step takes any number of resumptions in a row. The repeated verb can carry its own binds and continue the chain. The condition compares each repeated verb with the verb of the step.
 
@@ -319,8 +317,6 @@ An elided terminator adds its default value to the walk. The numbers chapter inf
   [si-free] verb step-tail
 %conditions
   $.followed-by(resume-head)
-%counts-as
-  resumption
 
 %rule resumed-step
   [si-free] $v:verb step-tail {resume-head $e:verb step-tail}

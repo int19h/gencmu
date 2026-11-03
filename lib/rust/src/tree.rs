@@ -751,6 +751,8 @@ pub(crate) fn emit(
                             unreachable!("an emission's constituent")
                         };
                         let frame = Frame {
+                            prefix: u32::MAX,
+                            parent_prefix: u32::MAX,
                             emitted: 0,
                             lexical: None,
                             parent_structure: u32::MAX,
@@ -811,6 +813,8 @@ pub(crate) fn emit(
                     unreachable!()
                 };
                 let frame = Frame {
+                    prefix: u32::MAX,
+                    parent_prefix: u32::MAX,
                     emitted: 0,
                     lexical: None,
                     parent_structure: u32::MAX,

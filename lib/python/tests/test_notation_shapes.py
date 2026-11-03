@@ -99,7 +99,7 @@ class NotationShapes(unittest.TestCase):
             "seq": [{"ref": "padding"}, {"ref": "Guard"}]
         }
         syntax["rules"].append({
-            "name": "padding", "op": "define", "categories": [],
+            "name": "padding", "op": "define",
             "alternatives": [{"guards": [], "expr": {"empty": True}}],
             "conditions": [], "at": [1, 1],
         })
@@ -162,7 +162,7 @@ class NotationShapes(unittest.TestCase):
                 for field in ("ref", "rule"):
                     syntax = syntax.replace(f'"{field}":"{name}"', f'"{field}":"{name}-wrapper"')
             wrappers = "".join(
-                f'{{"name":"{name}-wrapper","op":"define","categories":[],"alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],'
+                f'{{"name":"{name}-wrapper","op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],'
                 f'"conditions":[],"at":[{100000 + index},1]}},'
                 for index, name in enumerate(NAMES)
             )

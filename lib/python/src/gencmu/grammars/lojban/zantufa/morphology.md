@@ -56,7 +56,7 @@ Zantufa's Y is `y` and `ie'o`, and its `spaces` read both as space. So `ie'o` is
 
 ## The ra'oi quote
 
-`ra'oi` quotes a rafsi or gismu form from the letters after it, and the stage reads the rest of the run as words. The quote takes the longest rafsi or gismu form that permits a complete reading. The rule counts as a quote, and the step `leftmost-longest(quote)` of the forms stage states this preference. Stress separates a complete gismu from a rafsi of the same letters.
+`ra'oi` quotes a rafsi or gismu form from the letters after it, and the stage reads the rest of the run as words. The quote takes the longest rafsi or gismu form that permits a complete reading. The step `leftmost-longest #·rahoi-form` of the forms stage, in the pipeline document, states this preference. Stress separates a complete gismu from a rafsi of the same letters.
 
 The text `ra'oi broda` quotes the gismu `broda` because its `o` is stressed before the pause. The text `ra'oi brodami` quotes the rafsi `brod` and leaves `a` and `mi`. The form can follow `ra'oi` directly, as in `ra'oibroda`, or after a pause and any hesitation, as in `ra'oi .y. broda`. A run can hold several such quotes, as `ra'oi brodyra'oibroda` does.
 
@@ -174,8 +174,6 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   (* The quote takes the longest rafsi or gismu form in a complete reading. Stress separates
      equal-letter forms. *)
   y-rafsi | long-rafsi | y-less-rafsi | gismu
-%counts-as
-  quote
 %emits
   $ :: Rafsi-Form ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 ```
@@ -239,6 +237,6 @@ Erasure can observe this division. In `ra'oi brodyyyy si si`, the quoted `brody`
 
 The split before BU still separates the final y from its prefix. The words stage forms the letter word from that y and BU. The `Spacing` and `Y-Letters` tags preserve the existing space behavior.
 
-The quote after `ra'oi` takes the longest form within a complete reading. This replaces the reference's local commitment to its first matching form. If a longer form leaves no valid continuation, a shorter form can complete the text. This policy uses the step `leftmost-longest(quote)` and introduces no ordered choice.
+The quote after `ra'oi` takes the longest form within a complete reading. This replaces the reference's local commitment to its first matching form. If a longer form leaves no valid continuation, a shorter form can complete the text. This policy uses the step `leftmost-longest #·rahoi-form` and introduces no ordered choice.
 
 [^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).

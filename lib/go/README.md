@@ -50,7 +50,7 @@ A close family is a set of rules. `F` names that family through its written rule
 
 Boundary atoms `$x.followed-by(S)` and `$x.preceded-by(S)` read neighbors of the parse that the condition belongs to. These boundary conditions filter candidate derivations before ranking. In an emission item, they read the chosen tree. Their target accepts rule names and terminal names.
 
-`.ends-input` tests the end of the current input. The steps of `%ambiguity-resolution`, such as `leftmost-longest(c)` and `fewest(c)`, compare the occurrences of the categories that rules name with `%counts-as`. A rejected result can name its failed condition through `Error.Boundary`.
+`.ends-input` tests the end of the current input. The steps of `%ambiguity-resolution`, such as `leftmost-longest #·text` and `fewest #·<Link>`, compare nodes that match their patterns. A rejected result can name its failed condition through `Error.Boundary`.
 
 For tests and tools, `(*Pipeline).ParseTokens(text, tokens, options)` feeds `[]InputToken` to the first stage. `Value` and `Image` are optional `*string` fields. A nil pointer defaults to `Text`. A pointer to an empty string preserves that empty string.
 

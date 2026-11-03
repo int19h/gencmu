@@ -975,8 +975,7 @@ class PreparsedDomRules(unittest.TestCase):
                     {
                         "name": "text",
                         "op": "define",
-                        "categories": [],
-                        "alternatives": [{"guards": [], "expr": body}],
+                                                "alternatives": [{"guards": [], "expr": body}],
                         "emit": {"items": items},
                         "conditions": [],
                         "at": [1, 1],
@@ -1122,8 +1121,7 @@ class CharacterClassLoading(unittest.TestCase):
             added = {
                 "name": "unused-rule",
                 "op": "define",
-                "categories": [],
-                "alternatives": [{"guards": [], "expr": expr}],
+                                "alternatives": [{"guards": [], "expr": expr}],
                 "conditions": [],
                 "at": [100000, 1],
             }
@@ -1287,8 +1285,7 @@ class MixedFormLoading(unittest.TestCase):
             added = {
                 "name": "unused-rule",
                 "op": "define",
-                "categories": [],
-                "alternatives": [{"guards": [], "expr": expr}],
+                                "alternatives": [{"guards": [], "expr": expr}],
                 "conditions": [condition],
                 "at": [100000, 1],
             }
@@ -1337,8 +1334,7 @@ class Constants(unittest.TestCase):
                 {
                     "name": "text",
                     "op": "define",
-                    "categories": [],
-                    "alternatives": [{"guards": [], "expr": {"ref": "A"}}],
+                                        "alternatives": [{"guards": [], "expr": {"ref": "A"}}],
                     "conditions": conditions or [],
                     "at": [9, 1],
                 }
@@ -1603,7 +1599,7 @@ class Classifiers(unittest.TestCase):
             }
             return {
                 **self.dom([]),
-                "rules": [{"name": "text", "op": "define", "categories": [], "alternatives": [alternative], "conditions": [], "at": [1, 1]}],
+                "rules": [{"name": "text", "op": "define", "alternatives": [alternative], "conditions": [], "at": [1, 1]}],
             }
 
         sound = {"method": "value", "args": [], "receiver": {"capture": "w"}}
@@ -1696,7 +1692,7 @@ class Classifiers(unittest.TestCase):
             guards = [part] if slot == "alternative" else []
             alternative = {"guards": guards, "expr": {"capture": "x", "expr": {"ref": "A"}}}
             conditions = [part] if slot == "condition" else []
-            return {"name": name, "op": "define", "categories": [], "alternatives": [alternative], "conditions": conditions, "at": at or [3, 1]}
+            return {"name": name, "op": "define", "alternatives": [alternative], "conditions": conditions, "at": at or [3, 1]}
 
         def classifier(part: Dom, at: list[int]) -> Dom:
             guards = [part] if slot == "entry" else []

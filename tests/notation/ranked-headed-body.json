@@ -3,12 +3,11 @@
   "document": "```jbogenbau\n%rule text :: T := \"value\" :- \"image\"\n  | f? a ≻ b :: U\n```\n",
   "expect": {
     "dom": {
-      "format": 42,
+      "format": 43,
       "rules": [
         {
           "name": "text",
           "op": "define",
-          "categories": [],
           "tags": {
             "tag": "T"
           },

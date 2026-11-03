@@ -1,0 +1,21 @@
+{
+  "description": "An exact union pools rule occurrences once per node (engine §6).",
+  "grammar": "%ambiguity-resolution leftmost-longest #(·r ∪ ·s), lazy\n%rule text r | (r \"b\")\n%rule r \"a\" | (\"a\" \"b\")\n%rule s \"z\"",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "r",
+            "span": [
+              0,
+              2
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

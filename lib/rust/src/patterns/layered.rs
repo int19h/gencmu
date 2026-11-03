@@ -52,7 +52,9 @@ impl Pattern {
                     } else if node.get("path").is_some() {
                         tasks.push(Task::Pattern(node.get("pattern").unwrap()));
                     } else if node.get("test").is_some() {
-                        tasks.push(Task::Pattern(node.get("expr").unwrap()));
+                        if let Some(expr) = node.get("expr") {
+                            tasks.push(Task::Pattern(expr));
+                        }
                     }
                 }
                 Task::Items(items) => {
@@ -122,7 +124,16 @@ impl Pattern {
                         } else {
                             dom::term_from_json(field(node, "value")?)?
                         };
-                        Self::Test(string(node, "test")?, value, Box::new(values.pop().unwrap().pattern()))
+                        Self::Test(
+                            string(node, "test")?,
+                            value,
+                            Box::new(if node.get("expr").is_some() {
+                                values.pop().unwrap().pattern()
+                            } else {
+                                Self::Any
+                            }),
+                            None,
+                        )
                     } else if node.get("any").is_some() {
                         Self::Any
                     } else {
@@ -240,7 +251,7 @@ fn write_parts<'a>(out: &mut dom::writing::Pieces<'a>, root: Write<'a>) {
                         out.push_str("\"any\":true");
                         None
                     }
-                    Pattern::Test(op, value, _) => {
+                    Pattern::Test(op, value, inner, _) => {
                         out.push_str("\"test\":");
                         quote(out, op);
                         if op == "tags" {
@@ -250,7 +261,11 @@ fn write_parts<'a>(out: &mut dom::writing::Pieces<'a>, root: Write<'a>) {
                             out.push_str(",\"value\":");
                             out.term(value)
                         }
-                        out.push_str(",\"expr\":");
+                        if matches!(inner.as_ref(), Pattern::Any) {
+                            out.push_str(",\"any\":true");
+                        } else {
+                            out.push_str(",\"expr\":");
+                        }
                         None
                     }
                     _ => unreachable!("a node test cannot contain a compound predicate"),
@@ -263,8 +278,10 @@ fn write_parts<'a>(out: &mut dom::writing::Pieces<'a>, root: Write<'a>) {
                 if exact {
                     tasks.push(Write::Raw(",\"exact\":true".into()));
                 }
-                if let Pattern::Test(_, _, inner) = atom {
-                    tasks.push(Write::Pattern(inner));
+                if let Pattern::Test(_, _, inner, _) = atom {
+                    if !matches!(inner.as_ref(), Pattern::Any) {
+                        tasks.push(Write::Pattern(inner));
+                    }
                 }
             }
             Write::Items(children) => {

@@ -551,7 +551,7 @@ func TestNotationTie(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bootstrap := `{"format":` + strconv.Itoa(domFormat) + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":42,"rules":[],"directives":[{"name":"stage","args":["syntax"],"at":[1,1]},{"name":"include","args":["../../../n.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"n.md":{"hash":"0","dom":` + string(notation.json()) + `}}}`
+	bootstrap := `{"format":` + strconv.Itoa(domFormat) + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":43,"rules":[],"directives":[{"name":"stage","args":["syntax"],"at":[1,1]},{"name":"include","args":["../../../n.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"n.md":{"hash":"0","dom":` + string(notation.json()) + `}}}`
 	tying, nerr := newNotationReader(bootstrap, bundled.uni)
 	if nerr != nil {
 		t.Fatal(nerr)
@@ -748,7 +748,7 @@ func TestFormat17Refused(t *testing.T) {
 		t.Fatal(err)
 	}
 	dom := func(format int, expr string) string {
-		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","categories":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
+		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	entry := func(format int, d string) string {
 		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
@@ -979,7 +979,7 @@ func TestPropertyWrapperFromSuppliedBootstrap(t *testing.T) {
 			}
 		}
 		dom["rules"] = append(dom["rules"].([]any), map[string]any{
-			"name": "property", "op": "define", "categories": []any{},
+			"name": "property", "op": "define",
 			"alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"ref": "string-terminal"}}},
 			"conditions":   []any{}, "at": []any{1, 1},
 		})
@@ -1007,7 +1007,7 @@ func TestEmptyGuardWrapperValidation(t *testing.T) {
 			}
 		}
 		if path == "grammars/gencmu/jbogenbau/syntax.md" {
-			dom["rules"] = append(dom["rules"].([]any), map[string]any{"name": "padding", "op": "define", "categories": []any{}, "alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"empty": true}}}, "conditions": []any{}, "at": []any{1, 1}})
+			dom["rules"] = append(dom["rules"].([]any), map[string]any{"name": "padding", "op": "define", "alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"empty": true}}}, "conditions": []any{}, "at": []any{1, 1}})
 		}
 	})
 	for _, c := range []struct {

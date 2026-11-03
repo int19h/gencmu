@@ -281,9 +281,9 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
         tested = set()
         for node, _ in walk_pattern(term["pattern"]):
             if "test" in node:
-                base = node["expr"]
+                base = node.get("expr", {})
                 while "test" in base:
-                    base = base["expr"]
+                    base = base.get("expr", {})
                 tested.add(id(base))
         for node, _ in walk_pattern(term["pattern"]):
             operands = [node["literal"]] if "literal" in node else node.get("range", [])

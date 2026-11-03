@@ -22,7 +22,7 @@ CASE: dict[str, Any] = {
     "documents": {
         "p.md": """```jbogenbau
 %stage main
-%ambiguity-resolution late(elision)
+%ambiguity-resolution late #·<_Elided>
 %elision-only
 %rule text a | b
 %rule a w! A [+T="ta"] [+U] %emits $ :: X
@@ -153,7 +153,7 @@ class WitnessHook(unittest.TestCase):
             '%rule text a\n%rule a "a" [+T]',
             '%rule text (a ≻ b) ::∅\n%rule a "a" [+T]\n%rule b "a" [+T] [+U]',
         ]:
-            pipeline = gencmu.load_pipeline_sources({"p.md":'```jbogenbau\n%stage main\n%ambiguity-resolution late(elision)\n%elision-only\n'+body+'\n```'},"p.md")
+            pipeline = gencmu.load_pipeline_sources({"p.md":'```jbogenbau\n%stage main\n%ambiguity-resolution late #·<_Elided>\n%elision-only\n'+body+'\n```'},"p.md")
             original = _stage.rank
             def rank(forest, steps, lean, **options):
                 self.assertFalse(options.get("check",False))

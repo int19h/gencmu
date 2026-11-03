@@ -734,7 +734,7 @@ func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 		if r.g.stage.conditionStrings {
 			r.finishStrings(&key, int32(k))
 		}
-		capture := r.captureFunc(p, caps, int32(k), int32(k), tags, key.structure, key.closes)
+		capture := r.captureFunc(p, caps, int32(k), int32(k), tags, key.structure, key.closes, key.prefix)
 		if r.g.stage.conditionStrings {
 			capture = withStringCapture(capture, func(c int) string { return r.conditionStrings(key, int32(k))[c] })
 		}
@@ -974,6 +974,9 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	if p.ranked != nil {
 		option = p.option
 	}
+	if r.machine != nil && r.machine.nodeTags && !p.helper {
+		it.structure = r.machine.node(p.ruleName, it.prefix, "", "", ts)
+	}
 	key := symKey{emitted: it.emitted, boundary: it.boundary, requested: p.closeRequested, lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: it.closes, familySummary: it.familySummary}
 	c := s.syms[key]
 	if c != nil {
@@ -1123,7 +1126,7 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			if c.whole && whole == nil {
 				whole = r.lazyTags(p, caps, key.origin, int32(k), key.structure, key.closes)
 			}
-			capture := r.captureFunc(p, caps, key.origin, int32(k), whole, key.structure, key.closes)
+			capture := r.captureFunc(p, caps, key.origin, int32(k), whole, key.structure, key.closes, key.prefix)
 			if r.g.stage.conditionStrings {
 				capture = withStringCapture(capture, func(c int) string { return r.conditionStrings(key, int32(k))[c] })
 			}
@@ -1218,11 +1221,16 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 	if len(structure) > 1 {
 		closes = structure[1]
 	}
+	rootName, rootPrefix := p.ruleName, 0
+	if len(structure) > 2 {
+		rootPrefix = structure[2]
+	}
 	parentOrigin := origin
 	if lexical := p.lexical; lexical != nil {
 		parentOrigin = lexical.origin
 		if r.machine != nil {
-			state = r.machine.node(lexical.root.ruleName, r.machine.concat(lexical.sealPrefix, r.machine.sealed()), "", "", nil)
+			rootName, rootPrefix = lexical.root.ruleName, r.machine.concat(lexical.sealPrefix, r.machine.sealed())
+			state = r.machine.node(rootName, rootPrefix, "", "", nil)
 		}
 		if whole != nil {
 			// This lazy value belongs to the enclosing frame's $.
@@ -1262,7 +1270,7 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 			if p.lexical != nil && whole == nil {
 				tags = r.run.ps.in.empty()
 			}
-			return spanVal{a: a, b: b, whole: whole != nil || p.lexical != nil, tags: tags, lazy: whole, machine: r.machine, structure: state, arena: r.closes, closes: closes}, true
+			return spanVal{rootName: rootName, rootPrefix: rootPrefix, a: a, b: b, whole: whole != nil || p.lexical != nil, tags: tags, lazy: whole, machine: r.machine, structure: state, arena: r.closes, closes: closes}, true
 		}
 		slot, ok := p.slotOf[name]
 		if !ok {

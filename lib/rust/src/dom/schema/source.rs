@@ -43,9 +43,8 @@ pub(super) fn head<'a>(item: &'a Json, pending: &mut Vec<(Part, &'a Json, usize)
         pending.extend(args.iter().map(|arg| (Part::Argument, arg, 1)));
     }
     if let Some(call) = item.get("instance") {
-        if !exact(item, &["name", "op", "categories", "instance", "conditions", "at"], &[])
+        if !exact(item, &["name", "op", "instance", "conditions", "at"], &[])
             || item.get("op").and_then(Json::as_str) == Some("extend")
-            || item.get("categories").and_then(Json::as_array) != Some(&[])
             || item.get("conditions").and_then(Json::as_array) != Some(&[])
         {
             return Some("a malformed instance binding");

@@ -1,6 +1,6 @@
 {
   "description": "tt marks a written T through the first original token of its span. During reparse, c reads synthetic T, then F through 🆓. The head of tt is F, so tt lacks Written and c fails. The reparse passes (engine §7.4, §7.5). Compare reparse-written-observation-text.",
-  "grammar": "%ambiguity-resolution late(elision)\n%elision-only\n%rule text a | b | c\n%rule a (A [+T] f)\n%rule b (A [+T] [+T] f)\n%rule c (A $t:tt) %conditions Written ⊆ $t.tags\n\n%rule tt [+T 🆓] :: (T ⊆ $.first-token.tags ⟹ Written)\n%rule 🆓 [{F}]\n%rule f F",
+  "grammar": "%ambiguity-resolution late #·<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a (A [+T] f)\n%rule b (A [+T] [+T] f)\n%rule c (A $t:tt) %conditions Written ⊆ $t.tags\n\n%rule tt [+T 🆓] :: (T ⊆ $.first-token.tags ⟹ Written)\n%rule 🆓 [{F}]\n%rule f F",
   "tokens": [
     {
       "text": "a",

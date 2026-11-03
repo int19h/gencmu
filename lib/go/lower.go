@@ -94,24 +94,23 @@ type lcond struct {
 }
 
 type lrule struct {
-	// categories are the categories of the stitched rule's occurrences; a
-	// helper has none (engine §6).
-	categories []string
-	name       string
-	helper     bool
-	owner      string
-	prods      []*production
-	nullable   bool
-	scc        int // the index of its same-span cycle class, or -1 if it can never lie below itself
+	name     string
+	helper   bool
+	owner    string
+	prods    []*production
+	nullable bool
+	scc      int // the index of its same-span cycle class, or -1 if it can never lie below itself
 }
 
 type lowered struct {
-	stringsOnce   sync.Once
-	stringDemands map[int32]uint8 // Original production number to channel mask.
-	boundaryOnce  sync.Once
-	boundary      *boundaryMachine
-	prepareOnce   sync.Once
-	preparation   *preparation
+	profileOnce     sync.Once
+	profilePossible bool
+	stringsOnce     sync.Once
+	stringDemands   map[int32]uint8 // Original production number to channel mask.
+	boundaryOnce    sync.Once
+	boundary        *boundaryMachine
+	prepareOnce     sync.Once
+	preparation     *preparation
 	// memo keeps the answers of ordinary nested queries across parses
 	// (engine §4.3).
 	memo           sharedMemo
@@ -260,7 +259,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 	lw := &lowerer{helperNodes: map[int32]*helperNode{}, rankOptions: map[int32][]int{}, commonConds: map[*sAlt]map[string][]*domCond{}, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
-		l.rules = append(l.rules, &lrule{categories: r.categories, name: r.name, owner: r.name, scc: -1})
+		l.rules = append(l.rules, &lrule{name: r.name, owner: r.name, scc: -1})
 	}
 	for _, r := range g.rules {
 		if lw.lowerRule(r); l.fault != "" {

@@ -244,6 +244,7 @@ func (l *loader) documentText(p, text string, inherited []string) (*domDoc, *Err
 			}
 		}
 	}
+
 	return l.readSource(p, text, names)
 }
 
@@ -376,7 +377,22 @@ func newPipeline(stages []*stageGrammar, declared []string, uni *unicodeTable) (
 	if err != nil {
 		return nil, err
 	}
-	return &Pipeline{uni: uni, stages: stages, declared: declared, features: features}, nil
+	pipeline := &Pipeline{uni: uni, stages: stages, declared: declared, features: features}
+	tested := false
+	for _, g := range stages {
+		for _, step := range g.steps {
+			_, _, positive := rankingTested(step.pattern)
+			for tag := range positive {
+				tested = tested || (tag != "_Elided" && !(strings.HasPrefix(tag, "_") && engineTag(tag)))
+			}
+		}
+	}
+	if tested {
+		for _, report := range pipeline.RankingReports() {
+			pipeline.loadWarnings = append(pipeline.loadWarnings, report.VocabularyWarnings...)
+		}
+	}
+	return pipeline, nil
 }
 
 // pipelineFeatures lists names from guards and pipeline or stage-local
@@ -688,11 +704,12 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *P
 // several goroutines: every parse keeps its own state, and the grammars
 // lowered for a set of features are cached under a mutex.
 type Pipeline struct {
-	stages   []*stageGrammar
-	declared []string  // the features the pipeline's %features turns on
-	features []Feature // every feature, with its kind and default (§13)
-	uni      *unicodeTable
-	mu       sync.Mutex
+	loadWarnings []RankingVocabularyWarning
+	stages       []*stageGrammar
+	declared     []string  // the features the pipeline's %features turns on
+	features     []Feature // every feature, with its kind and default (§13)
+	uni          *unicodeTable
+	mu           sync.Mutex
 	// lowered holds each stage's lowered grammars, keyed by the guarded
 	// features that are on.
 	lowered []*recent[lowerKey, *lowerEntry]

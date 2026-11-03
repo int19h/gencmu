@@ -144,34 +144,15 @@ class TestDefinitions(unittest.TestCase):
 
 
 class Loaders(unittest.TestCase):
-    def test_replacements_record_category_changes(self) -> None:
-        from gencmu._grammar import CategoryChange
-
-        pipeline = gencmu.load_pipeline_sources(
-            {
-                "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
-                "g.md": """```jbogenbau
-%ambiguity-resolution leftmost-longest(span), greedy
-%rule text A
-%counts-as span
-%extend-rule text B
-%redefine-rule text C
-%redefine-rule text D
-%counts-as span
-%redefine-rule text E
-%counts-as span
-%redefine-rule text F
-%redefine-rule text G
-```
-""",
-            },
-            "p.md",
-        )
-        changes = pipeline._grammars[0].changes
-        removed = CategoryChange(["span"], [])
-        added = CategoryChange([], ["span"])
-        self.assertEqual([change.category_change for change in changes], [None, removed, added, None, removed, None])
-        for index, change in enumerate(changes):
+    def test_replacements_retain_ranking_steps(self) -> None:
+        pipeline = gencmu.load_pipeline_sources({
+            "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
+            "g.md": '```jbogenbau\n%ambiguity-resolution leftmost-longest #·text, greedy\n%rule text A\n%extend-rule text B\n%redefine-rule text C\n%redefine-rule text D\n```\n',
+        }, "p.md")
+        grammar = pipeline._grammars[0]
+        self.assertEqual(len(grammar.steps), 1)
+        self.assertEqual(grammar.steps[0][1]['name'], 'text')
+        for index, change in enumerate(grammar.changes):
             self.assertEqual((change.rule, change.document, change.previous), ("text", "g.md", "g.md"))
             self.assertEqual(change.kind, "extend" if index == 0 else "replace")
 
@@ -272,8 +253,21 @@ class Options(unittest.TestCase):
         with self.assertRaises(gencmu.GencmuError):
             self.pipeline.parse("mi", features="sa-su")
 
+    def test_ranking_reports_keep_computed_drops_unknown(self) -> None:
+        for term, tags, unknown, status in (("T", ["U"], False, "possible"), ("T ∪ $x.tags", [], True, "unknown")):
+            with self.subTest(term=term):
+                grammar = f"%ambiguity-resolution fewest #·wrap<T>\n%rule text wrap\n%rule wrap $x:child :: ({term})\n%rule child A :: U"
+                pipeline = gencmu.load_pipeline_sources({"p.md": "```jbogenbau\n%stage main\n" + grammar + "\n```"}, "p.md")
+                reports = pipeline.ranking_reports()
+                note = next(note for note in reports[0]['droppedRankingTags'] if note['rule'] == 'wrap')
+                self.assertEqual(note['tags'], tags)
+                self.assertEqual(note['unknown'], unknown)
+                self.assertEqual(reports[0]['keySteps'][0]['status'], status)
+                self.assertTrue(any(note['rule'] == 'text' and 'T' in note['tags'] for note in reports[0]['inheritedRankingTags']))
+                self.assertIn('dropped inherited tags: wrap', pipeline.format_ranking_reports())
+
     def test_pipeline_exposes_only_documented_members(self) -> None:
-        self.assertEqual({name for name in dir(self.pipeline) if not name.startswith("_")}, {"features", "parse", "parse_tokens"})
+        self.assertEqual({name for name in dir(self.pipeline) if not name.startswith("_")}, {"features", "parse", "parse_tokens", "load_warnings", "ranking_reports", "format_ranking_reports"})
 
     def test_pipeline_defaults_enable_features(self) -> None:
         sources = dict(SOURCES)

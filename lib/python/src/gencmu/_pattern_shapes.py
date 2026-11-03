@@ -105,7 +105,7 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
                 return "a malformed pattern path"
             push(node["pattern"], False, False)
             continue
-        forms = [k for k in ("name", "call", "param", "terminal", "literal", "range", "wildcard", "constant", "test", "any") if k in node]
+        forms = [k for k in ("name", "call", "param", "terminal", "literal", "range", "wildcard", "constant", "test", "any") if k in node and not (k == "any" and node.get("test") == "tags")]
         if len(forms) != 1:
             return "a malformed pattern node test"
         key = forms[0]
@@ -116,23 +116,26 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
         fields = {key} | (keys & {"exact", "children"})
         if key == "test":
             if node["test"] == "tags":
-                fields |= {"requirements", "expr"}
-                if not terminal_atom(node.get("expr")) or not isinstance(node.get("requirements"), list):
-                    return "a pattern tag test requires a terminal atom"
+                fields |= {"requirements", "any" if node.get("any") is True else "expr"}
+                expr = node.get("expr")
+                rule_atom = isinstance(expr, dict) and any(k in expr for k in ("name", "call")) and not {"exact", "children"} & expr.keys()
+                if not (node.get("any") is True or terminal_atom(expr) or rule_atom) or not isinstance(node.get("requirements"), list):
+                    return "a pattern tag test requires a node atom"
                 for requirement in node["requirements"]:
                     if not isinstance(requirement, dict) or set(requirement) != {"negated", "value"} or type(requirement["negated"]) is not bool or not requirement_term(requirement["value"]):
                         return "a malformed pattern requirement"
             else:
                 fields |= {"value", "expr"}
                 expr = node.get("expr")
-                if node["test"] not in ("=", "≠") or not (terminal_atom(expr) or isinstance(expr, dict) and expr.get("test") == "tags" and "exact" not in expr and "children" not in expr and terminal_atom(expr.get("expr"))):
+                if node["test"] not in ("=", "≠") or not (terminal_atom(expr) or isinstance(expr, dict) and expr.get("test") == "tags" and "exact" not in expr and "children" not in expr and (terminal_atom(expr.get("expr")) or expr.get("any") is True)):
                     return "a pattern value test requires a terminal atom"
                 if not _string_term(node.get("value")):
                     return "a malformed pattern value test"
             problem = test(node) if test else None
             if problem:
                 return problem
-            push(node["expr"], False, False, True)
+            if "expr" in node:
+                push(node["expr"], False, False, True)
         elif key == "any":
             if node["any"] is not True or "children" not in node:
                 return "a malformed bare child list"
@@ -151,6 +154,8 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
                 if not isinstance(node[key], str) or not (_IDENTIFIER if key == "param" else _CONSTANT).fullmatch(node[key]):
                     return "a malformed pattern reference"
             elif key == "terminal":
+                if node[key] == "_Elided":
+                    return "_Elided stands only in a pattern tag test"
                 if not terminal_name(node[key]):
                     return "a malformed pattern terminal"
             elif key == "wildcard":
@@ -245,7 +250,8 @@ def _print_layered(root, term, literal=True):
             if value.get("exact"):
                 tasks.append(("text", "·"))
             if "test" in value:
-                tasks.append(("pattern", value["expr"]))
+                if "expr" in value:
+                    tasks.append(("pattern", value["expr"]))
                 if value["test"] == "tags":
                     tasks.append(("term", {"requirements": value["requirements"]}))
                 else:

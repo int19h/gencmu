@@ -43,6 +43,20 @@ func annotateSourceArguments(raw []any, args []*domArgument) {
 }
 
 func annotateSourcePattern(raw templateObject, pattern *domPattern) {
+	walkSourcePattern(raw, pattern, func(n templateObject, p *domPattern) {
+		if p.Kind == "test" {
+			templateAnnotateTerm(templateObj(n["value"]), p.Value)
+			for i, r := range p.Requirements {
+				templateAnnotateTerm(templateObj(templateObj(templateList(n["requirements"])[i])["value"]), r.Value)
+			}
+		}
+		if p.Kind == "call" {
+			annotateSourceCall(n, p.Call)
+		}
+	})
+}
+
+func walkSourcePattern(raw templateObject, pattern *domPattern, visit func(templateObject, *domPattern)) {
 	type task struct {
 		raw     any
 		pattern *domPattern
@@ -56,6 +70,9 @@ func annotateSourcePattern(raw templateObject, pattern *domPattern) {
 			continue
 		}
 		n := templateObj(t.raw)
+		if n != nil {
+			visit(n, p)
+		}
 		switch p.Kind {
 		case "sequence":
 			for i, v := range templateList(t.raw) {
@@ -77,10 +94,9 @@ func annotateSourcePattern(raw templateObject, pattern *domPattern) {
 		case "path":
 			pending = append(pending, task{n["pattern"], p.Items[0]})
 		case "test":
-			pending = append(pending, task{n["expr"], p.Items[0]})
-			templateAnnotateTerm(templateObj(n["value"]), p.Value)
-		case "call":
-			annotateSourceCall(n, p.Call)
+			if len(p.Items) > 0 {
+				pending = append(pending, task{n["expr"], p.Items[0]})
+			}
 		}
 		if p.Attached != nil {
 			pending = append(pending, task{n["children"], &domPattern{Kind: "sequence", Items: p.Attached}})

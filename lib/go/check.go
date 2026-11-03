@@ -233,12 +233,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	if private.elisionCheck != nil {
 		watch = private.elisionCheck(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
 	}
-	steps := make([]keyStep, 0, len(g.steps))
-	for _, step := range g.steps {
-		if step.category != "elision" {
-			steps = append(steps, step)
-		}
-	}
+	steps := g.steps
 	marks, restored := walkWitness(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
 	if restored == nil {
 		top = nil

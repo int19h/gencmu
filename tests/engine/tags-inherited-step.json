@@ -1,0 +1,17 @@
+{
+  "description": "An untagged unary wrapper contributes another occurrence by its inherited tags (engine §3.7 and §6).",
+  "grammar": "%ambiguity-resolution fewest #·<T>\n%rule text a | b\n%rule a w\n%rule w \"a\" :: T\n%rule b \"a\" :: T",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "b"
+          }
+        ]
+      }
+    }
+  }
+}

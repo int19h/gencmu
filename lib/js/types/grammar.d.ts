@@ -30,17 +30,12 @@ export type StitchedRule = {
     document: string;
     at: ErrorLocation;
     alternatives: StitchedAlternative[];
-    categories: string[];
 };
 export type RuleChange = {
     kind: "replaced" | "extended";
     rule: string;
     document: string;
     previous: string;
-    categoryChange?: {
-        from: string[];
-        to: string[];
-    };
 };
 export type SequenceItem = {
     symbol: import("./types.js").GrammarSymbol;
@@ -88,6 +83,7 @@ export declare class Grammar {
     changes: RuleChange[];
     /** @type {Resolution | null} */
     resolution: Resolution | null;
+    /** @type {any} */ rankingReport: any;
     elisionOnly: boolean;
     /**
      * The stage's `%classifier` items in stitching order, each with its

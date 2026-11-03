@@ -1010,6 +1010,8 @@ pub(crate) struct Recognizer<'g, 's, 'a> {
 /// parts, and `$`, the whole constituent, from the item's origin to `end`.
 #[derive(Clone)]
 pub(crate) struct Frame<'c> {
+    pub prefix: u32,
+    pub parent_prefix: u32,
     pub emitted: u32,
     pub structure: u32,
     pub caps: Caps<'c>,
@@ -1370,6 +1372,8 @@ impl<'g> Held<'g> {
     /// The frame of the evaluation, over the captured parts of `search`.
     fn frame<'c>(&self, search: &'c CapSearch<'c>, project: Option<&'c [u32]>) -> Frame<'c> {
         Frame {
+            prefix: self.item.prefix,
+            parent_prefix: 0,
             emitted: self.item.emitted,
             structure: self.item.structure,
             caps: Caps::Chart(search),
@@ -1712,6 +1716,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 || prefix.first.iter().any(|t| self.shared.reads(self.matchers[*t as usize], &tokens[at], false))
         })
     }
+    fn node_tags(&self) -> bool {
+        self.shared.machine.as_ref().is_some_and(|m| m.borrow().node_tags)
+    }
+
     fn finish_structure(&self, family: Option<(u32, u32)>, item: &mut Item, set: usize, base: usize, tokens: &[Tok]) {
         if let Some(machine) = &self.shared.machine {
             let g = self.g;
@@ -1725,7 +1733,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             let mut structure = if rule.helper {
                 if p.syms.is_empty() {
                     if let Some(t) = &rule.elided {
-                        let tags = vec![t.clone()];
+                        let tags = vec![t.clone(), "_Elided".into()];
                         let empty = m.empty;
                         m.node(None, empty, Some((t, "", &tags)))
                     } else {
@@ -1785,6 +1793,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let rule = self.g.prods[lexical.root as usize].rule;
         let parent = &self.g.rules[rule as usize].name;
         let mut m = machine.borrow_mut();
+        frame.parent_prefix = frame.parent_structure;
         frame.parent_structure = m.node(Some(parent), frame.parent_structure, None);
         if !lexical.observes_closes || m.observations.is_none() {
             return;
@@ -1831,7 +1840,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let empty = m.empty;
         let name = &self.g.terminals[terminal as usize];
         let mut id = if omitted {
-            let tags = vec![name.clone()];
+            let tags = vec![name.clone(), "_Elided".into()];
             m.node(None, empty, Some((name, "", &tags)))
         } else if synthetic {
             empty
@@ -2426,7 +2435,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         } else {
             production.conds_at(item.dot as usize)
         };
-        if conds.is_empty() && self.shared.boundaries.is_none() {
+        if conds.is_empty()
+            && self.shared.boundaries.is_none()
+            && !(self.node_tags()
+                && !g.rules[production.rule as usize].helper
+                && item.dot as usize == production.syms.len())
+        {
             chart.record_advance(set, item, previous);
             Self::insert(chart, item, set, strict, u32::MAX, self.recon.is_some());
             return Ok(());
@@ -2508,9 +2522,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             return Ok(());
         }
         state.obligations.append(&mut state.eval.obligations);
-        let known = state.tags.or(frame.tags.get()).unwrap_or(u32::MAX);
+        let mut known = state.tags.or(frame.tags.get()).unwrap_or(u32::MAX);
         let p = &self.g.prods[item.prod as usize];
-        if self.shared.boundaries.is_some()
+        if (self.shared.boundaries.is_some() || self.node_tags() && !self.g.rules[p.rule as usize].helper)
             && !state.tags_mode
             && item.dot as usize == p.syms.len()
             && known == u32::MAX
@@ -2523,6 +2537,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
         }
         let mut item = item;
+        if self.node_tags() && !self.g.rules[p.rule as usize].helper && item.dot as usize == p.syms.len() {
+            if known == u32::MAX {
+                known = self.plain_tags(&frame.caps, item.prod);
+            }
+            let names: Vec<String> =
+                self.shared.tags.list(known).iter().map(|&id| self.shared.tags.name(id).to_owned()).collect();
+            let mut m = self.shared.machine.as_ref().expect("tag observations").borrow_mut();
+            let observation = m.observation(item.structure);
+            let structure = m.node_with_tags(Some(&self.g.rules[p.rule as usize].name), item.prefix, None, &names);
+            item.structure = m.observing(structure, observation);
+        }
         if let Some(machine) = &self.shared.boundaries {
             let mut m = machine.borrow_mut();
             let mut before = crate::boundary::Bits::new();
@@ -3048,7 +3073,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         if self.g.condition_strings {
             self.finish_strings(chart, &mut next, into, tokens, base)?;
         }
-        if chart.machine.is_some() && self.shared.boundaries.is_none() {
+        if chart.machine.is_some()
+            && self.shared.boundaries.is_none()
+            && !(self.node_tags()
+                && !g.rules[production.rule as usize].helper
+                && next.dot as usize == production.syms.len())
+        {
             let edges = chart.links.entry((into as u32, next)).or_default();
             if !edges.contains(&(item, cap)) {
                 work::count(Work::PackedEdges, 1);
@@ -3511,7 +3541,20 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     work::count(Work::Visits, 1);
                     match cond {
                         LCond::Tree(span, positive, p) => {
-                            let state = match span {
+                            let root_tags = if matches!(span, Span::Whole) && crate::patterns::reads_node_tags(p) {
+                                let mark = eval.tasks.len();
+                                eval.tasks.push(Task::Cond(cond));
+                                match self.whole(eval, frame, Wanted::Tags) {
+                                    None => continue,
+                                    Some(set) => {
+                                        eval.tasks.truncate(mark);
+                                        Some(set)
+                                    }
+                                }
+                            } else {
+                                None
+                            };
+                            let mut state = match span {
                                 Span::Whole => {
                                     if frame.lexical.is_some() {
                                         frame.parent_structure
@@ -3525,6 +3568,33 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                                 }
                                 _ => unreachable!("bare capture"),
                             };
+                            if let Some(set) = root_tags {
+                                let names: Vec<String> = self
+                                    .shared
+                                    .tags
+                                    .list(set)
+                                    .iter()
+                                    .map(|&id| self.shared.tags.name(id).to_owned())
+                                    .collect();
+                                let (name, prefix) = if let Some(lexical) = frame.lexical {
+                                    (
+                                        self.g.rules[self.g.prods[lexical.root as usize].rule as usize].name.as_str(),
+                                        frame.parent_prefix,
+                                    )
+                                } else {
+                                    (
+                                        self.g.rules[self.g.prods[frame.prod as usize].rule as usize].name.as_str(),
+                                        frame.prefix,
+                                    )
+                                };
+                                let mut m = self.shared.machine.as_ref().expect("demanded pattern").borrow_mut();
+                                let old = m.observation(state);
+                                if prefix != u32::MAX {
+                                    state = m.node_with_tags(Some(name), prefix, None, &names);
+                                }
+                                state = m.observing(state, old);
+                            }
+
                             Out::Bool(
                                 self.shared.machine.as_ref().expect("demanded pattern").borrow().matches(state, p)
                                     == *positive,
@@ -4016,6 +4086,8 @@ mod tests {
             let matchers = matchers(&g, &mut shared.tags);
             let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared, recon: None };
             let frame = Frame {
+                prefix: 0,
+                parent_prefix: 0,
                 emitted: 0,
                 lexical: None,
                 parent_structure: u32::MAX,
@@ -4099,6 +4171,8 @@ mod tests {
             let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
             let names: Vec<String> = (0..n).map(|i| format!("Tag-{i}")).collect();
             let frame = Frame {
+                prefix: 0,
+                parent_prefix: 0,
                 emitted: 0,
                 lexical: None,
                 parent_structure: u32::MAX,
@@ -4387,6 +4461,8 @@ mod tests {
             structure: u32::MAX,
         }];
         let frame = Frame {
+            prefix: 0,
+            parent_prefix: 0,
             emitted: 0,
             lexical: None,
             parent_structure: u32::MAX,
@@ -4487,6 +4563,8 @@ mod tests {
                 structure: u32::MAX,
             }];
             let frame = Frame {
+                prefix: 0,
+                parent_prefix: 0,
                 emitted: 0,
                 lexical: None,
                 parent_structure: u32::MAX,

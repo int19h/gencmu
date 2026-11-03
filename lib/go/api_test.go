@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime/debug"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,23 +34,21 @@ func oneStage(grammar string) map[string]string {
 	}
 }
 
-func TestReplacementsRecordCategoryChanges(t *testing.T) {
+func TestReplacementsRetainRankingSteps(t *testing.T) {
 	t.Parallel()
-	d := mustLoad(t, oneStage("%ambiguity-resolution leftmost-longest(span), greedy\n%rule text A\n%counts-as span\n%extend-rule text B\n%redefine-rule text C\n%redefine-rule text D\n%counts-as span\n%redefine-rule text E\n%counts-as span\n%redefine-rule text F\n%redefine-rule text G"))
+	d := mustLoad(t, oneStage("%ambiguity-resolution leftmost-longest #·text, greedy\n%rule text A\n%extend-rule text B\n%redefine-rule text C\n%redefine-rule text D\n%redefine-rule text E\n%redefine-rule text F\n%redefine-rule text G"))
 	changes := d.stages[0].changes
 	if len(changes) != 6 {
 		t.Fatalf("got %d changes, want 6", len(changes))
 	}
-	span := []string{"span"}
-	want := []*categoryChange{nil, {from: span, to: []string{}}, {from: []string{}, to: span}, nil, {from: span, to: []string{}}, nil}
+	if len(d.stages[0].steps) != 1 || d.stages[0].steps[0].pattern.Name != "text" {
+		t.Fatal("replacement changed the ranking step")
+	}
 	for i, change := range changes {
 		if change.rule != "text" || change.document != "g.md" || (change.op == "extend") != (i == 0) {
 			t.Fatalf("change %d: %+v", i, change)
 		}
-		got := change.categoryChange
-		if (got == nil) != (want[i] == nil) || got != nil && (!slices.Equal(got.from, want[i].from) || !slices.Equal(got.to, want[i].to)) {
-			t.Fatalf("category change %d: got %+v, want %+v", i, got, want[i])
-		}
+
 	}
 }
 
@@ -692,7 +689,7 @@ func TestMalformedPreparsed(t *testing.T) {
 	format := strconv.Itoa(domFormat)
 	var doms []string
 	for _, expr := range bad {
-		doms = append(doms, `{"format":`+format+`,"rules":[{"name":"text","op":"define","categories":[],"alternatives":[{"guards":[],"expr":`+expr+`}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`)
+		doms = append(doms, `{"format":`+format+`,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":`+expr+`}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`)
 	}
 	// Null in the rest of the DOM, where the other libraries refuse it too.
 	good := doms[0][:strings.Index(doms[0], `"expr":`)] + `"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[{"name":"K","op":"define","value":{"tag":"X"},"at":[3,1]}],"classifiers":[],"implications":[]}`
@@ -736,7 +733,7 @@ func TestMalformedPreparsed(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":42,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
+		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":43,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
 		_, err = LoadPipelineSources(src, "grammars/test/p.md")
 		var e *Error
 		if isGuardedCrash(err) || !errors.As(err, &e) || e.Kind != ErrorGrammar {
@@ -757,7 +754,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 	sources = map[string]string{"grammars/test/p.md": sources["p.md"], "grammars/test/g.md": gText}
 	format := strconv.Itoa(domFormat)
 	dom := func(expr string) string {
-		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","categories":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
+		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	preparsed := func(dom string) map[string]string {
 		src := map[string]string{}
@@ -772,7 +769,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":42,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
+		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":43,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
 		_, err := LoadPipelineSources(src, "grammars/test/p.md")
 		return err
 	}
@@ -1023,7 +1020,7 @@ func TestEmptyCharacterTag(t *testing.T) {
 		}
 	}
 	loadBundled()
-	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","categories":[],"alternatives":[{"guards":[],"expr":{"literal":{"string":""}}}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
+	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"literal":{"string":""}}}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	if _, err := decodeDOM([]byte(dom), bundled.uni); err != nil {
 		t.Fatal(err)
 	}
@@ -1712,5 +1709,38 @@ func TestMissingNamesFileUsesResolvedPath(t *testing.T) {
 func TestPipelinePublicMethodsExcludeStageNames(t *testing.T) {
 	if _, exported := reflect.TypeOf((*Pipeline)(nil)).MethodByName("StageNames"); exported {
 		t.Fatal("the pipeline exports StageNames outside the documented API")
+	}
+}
+
+func TestRankingReportsKeepComputedDropsUnknown(t *testing.T) {
+	for _, test := range []struct {
+		term    string
+		tags    []string
+		unknown bool
+		status  string
+	}{{"T", []string{"U"}, false, "possible"}, {"T ∪ $x.tags", []string{}, true, "unknown"}} {
+		pipeline := mustLoad(t, oneStage("%ambiguity-resolution fewest #·wrap<T>\n%rule text wrap\n%rule wrap $x:child :: ("+test.term+")\n%rule child A :: U"))
+		reports := pipeline.RankingReports()
+		found := false
+		for _, note := range reports[0].DroppedRankingTags {
+			if note.Rule == "wrap" {
+				found = true
+				if !reflect.DeepEqual(note.Tags, test.tags) || note.Unknown != test.unknown {
+					t.Fatalf("unexpected dropped tags: %+v", note)
+				}
+			}
+		}
+		if !found || reports[0].KeySteps[0].Status != test.status {
+			t.Fatalf("unexpected reports: %+v", reports)
+		}
+		inherited := false
+		for _, note := range reports[0].InheritedRankingTags {
+			for _, tag := range note.Tags {
+				inherited = inherited || note.Rule == "text" && tag == "T"
+			}
+		}
+		if !inherited || !strings.Contains(FormatRankingReports(reports), "dropped inherited tags: wrap") {
+			t.Fatalf("missing tag reports: %+v", reports)
+		}
 	}
 }

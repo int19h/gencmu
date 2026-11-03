@@ -374,7 +374,7 @@ fn a_guard_after_an_empty_wrapper_reports_its_first_token() {
             }
         }
         if padding {
-            rules.push(parse_json(r#"{"name":"padding","op":"define","categories":[],"alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[1,1]}"#).unwrap());
+            rules.push(parse_json(r#"{"name":"padding","op":"define","alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[1,1]}"#).unwrap());
         }
     }
     let error = load_with_bootstrap(

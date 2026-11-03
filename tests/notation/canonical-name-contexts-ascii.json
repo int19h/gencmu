@@ -3,12 +3,11 @@
   "document": "```jbogenbau\n%features K fK\n%stage sK\n%extend-stage sK\n%redefine-stage sK\n%const $K \"K\"\n%redefine-const $K $K\n%classifier cK\n fK? \"K\" \"K\" ∈ K\n%implies K Q ⟹ K Q\n%rule rK fK! K<K> :: K\n%extend-rule rK ¬fK? K\n%redefine-rule rK fK? K\n```",
   "expect": {
     "dom": {
-      "format": 42,
+      "format": 43,
       "rules": [
         {
           "name": "rK",
           "op": "define",
-          "categories": [],
           "alternatives": [
             {
               "guards": [
@@ -46,7 +45,6 @@
         {
           "name": "rK",
           "op": "extend",
-          "categories": [],
           "alternatives": [
             {
               "guards": [
@@ -70,7 +68,6 @@
         {
           "name": "rK",
           "op": "redefine",
-          "categories": [],
           "alternatives": [
             {
               "guards": [

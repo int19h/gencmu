@@ -164,7 +164,9 @@ The library loads the pipeline once, and then parses the input with each item's 
 
 A load that fails gives only its error. Its kind is `grammar` for a grammar that cannot be loaded. A caller's mistake at load gives `usage`. One example is an in-memory document that is not a sequence of Unicode scalar values (engine §1). A case expects such an error with `expect.error` of that kind.
 
-For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings`, `features` or `enabledFeatures`, because only a loaded pipeline gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
+`expect.loadWarnings` compares the loaded pipeline's vocabulary warnings. Each entry holds `stage`, a zero-based key step index `step`, and `tag`. The comparison uses these three fields in their report order. This expectation requires a loaded pipeline and is separate from `expect.warnings`.
+
+For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings`, `loadWarnings`, `features` or `enabledFeatures`, because only a loaded pipeline gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
 
 An error that lowering finds (engine §3), such as an item of braces that can match no tokens, is not a load error. The pipeline loads, and the parse gives a result whose error has the kind `grammar`, so a case expects it with `expect.error`. Its message names the definition at fault. Unit tests cover common messages, and shared cases compare the other result fields.
 

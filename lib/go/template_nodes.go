@@ -181,7 +181,7 @@ func writeTemplateJSON(w *jsonWriter, v any) {
 	switch n := v.(type) {
 	case map[string]any:
 		keys := templateKeys(n)
-		order := []string{"name", "params", "args", "op", "categories", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
+		order := []string{"name", "params", "args", "op", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
 		switch {
 		case n["name"] != nil && n["args"] != nil && n["op"] == nil:
 			order = []string{"name", "args", "at", "conditions"}

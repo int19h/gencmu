@@ -3,13 +3,11 @@ package gencmu
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
-	"slices"
 	"strings"
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 42
+const domFormat = 43
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what data/preparsed/gencmu.json and data/preparsed/FAMILY.json hold.
@@ -67,8 +65,7 @@ type domRule struct {
 	Instance         *domSourceCall
 	deferredEmission *definitionIssue
 	Name             string
-	Categories       []string // the names of its %counts-as clause (engine §2)
-	Op               string   // "define", "redefine" or "extend"
+	Op               string // "define", "redefine" or "extend"
 	Tags             *domTerm
 	Value, Image     *domTerm
 	Alternatives     []*domAlt
@@ -269,27 +266,22 @@ type domDirective struct {
 }
 
 // domStep is a step of %ambiguity-resolution: a key step, which compares
-// the occurrences of its category, or a lean, which has no category
+// the occurrences of its pattern, or a lean, which has no pattern
 // (engine §6).
 type domStep struct {
-	Step        string
-	Category    string
-	HasCategory bool
+	Step    string
+	Pattern *domTerm
 }
 
-// The steps of %ambiguity-resolution that take a category, and those that
+// The steps of %ambiguity-resolution that take a pattern, and those that
 // compare actions (engine §6).
 var (
 	keySteps = map[string]bool{"leftmost-longest": true, "fewest": true, "most": true, "late": true, "early": true}
 	leans    = map[string]bool{"greedy": true, "lazy": true}
 )
 
-// categoryName is the form of a category name of a %counts-as clause
-// (engine §9.1).
-var categoryName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
-
 // validSteps says whether steps is a well-formed list of ranking steps: one
-// or more, each a key step with a category or a lean, with a lean only last
+// or more, each a key step with a pattern or a lean, with a lean only last
 // (engine §9.3).
 func validSteps(steps []domStep) bool {
 	if len(steps) == 0 {
@@ -297,23 +289,12 @@ func validSteps(steps []domStep) bool {
 	}
 	for i, step := range steps {
 		if leans[step.Step] {
-			if i != len(steps)-1 || step.HasCategory {
+			if i != len(steps)-1 || step.Pattern != nil {
 				return false
 			}
 			continue
 		}
-		if !keySteps[step.Step] || !step.HasCategory || !categoryName.MatchString(step.Category) {
-			return false
-		}
-	}
-	return true
-}
-
-// validCategories says whether categories is a well-formed list of a rule's
-// categories: distinct category names other than elision (engine §9.3).
-func validCategories(categories []string) bool {
-	for i, name := range categories {
-		if !categoryName.MatchString(name) || name == "elision" || slices.Contains(categories[:i], name) {
+		if !keySteps[step.Step] || step.Pattern == nil {
 			return false
 		}
 	}
@@ -347,9 +328,13 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 				}
 				w.raw(`{"step":`)
 				w.str(step.Step)
-				if step.HasCategory {
-					w.raw(`,"category":`)
-					w.str(step.Category)
+				if step.Pattern != nil {
+					w.raw(`,"pattern":`)
+					if step.Pattern.Kind == tmPattern {
+						w.pattern(step.Pattern.Pattern)
+					} else {
+						step.Pattern.writeJSON(w)
+					}
 				}
 				w.raw("}")
 			}
@@ -480,14 +465,6 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 	}
 	w.raw(`,"op":`)
 	w.str(r.Op)
-	w.raw(`,"categories":[`)
-	for i, category := range r.Categories {
-		if i > 0 {
-			w.raw(",")
-		}
-		w.str(category)
-	}
-	w.raw("]")
 	if r.Instance != nil {
 		w.raw(`,"instance":`)
 		r.Instance.writeJSON(w)
@@ -833,7 +810,7 @@ func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domD
 				return nil, fmt.Errorf("a reserved DOM member")
 			}
 			for _, field := range []string{"ref", "tag", "terminal"} {
-				if name, ok := part[field].(string); ok && strings.HasPrefix(name, "_") && uni.canonicalTag(name) != name {
+				if name, ok := part[field].(string); ok && strings.HasPrefix(name, "_") && !(field == "tag" && name == "_Elided") && uni.canonicalTag(name) != name {
 					return nil, fmt.Errorf("unknown, unavailable, or noncanonical engine tag")
 				}
 			}
@@ -937,29 +914,34 @@ func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domD
 }
 
 // decodeStep reads a step of %ambiguity-resolution, an object with a
-// step and, for a key step, a category.
+// step and, for a key step, a pattern.
 func decodeStep(raw any) (domStep, error) {
 	o, err := domObjectOf(raw)
 	if err != nil {
 		return domStep{}, err
 	}
-	var step domStep
-	for key, value := range o {
-		switch key {
-		case "step":
-			step.Step, err = domString(value)
-		case "category":
-			step.Category, err = domString(value)
-			step.HasCategory = true
-		}
-		if err != nil {
-			return domStep{}, err
-		}
-	}
-	if _, ok := o["step"]; !ok {
+	if !onlyMembers(o, "step", "pattern") {
 		return domStep{}, fmt.Errorf("a malformed directive")
 	}
-	return step, nil
+	var step domStep
+	step.Step, err = domString(o["step"])
+	if err != nil {
+		return step, err
+	}
+	if operand, exists := o["pattern"]; exists {
+		dc := &domDecoder{}
+		if templateObj(operand)["const"] != nil {
+			step.Pattern, err = dc.decodeTermAt(operand, 0)
+		} else {
+			var pattern *domPattern
+			pattern, err = dc.decodeLayeredPattern(operand, 0)
+			step.Pattern = &domTerm{Kind: tmPattern, Pattern: pattern}
+		}
+		if err == nil {
+			err = dc.run()
+		}
+	}
+	return step, err
 }
 
 // decodeConst reads a constant's definition, which has exactly its name,
@@ -1082,7 +1064,7 @@ func (dc *domDecoder) decodeRule(raw any) (*domRule, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !onlyMembers(o, "name", "params", "args", "instance", "op", "categories", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at") {
+	if !onlyMembers(o, "name", "params", "args", "instance", "op", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at") {
 		return nil, fmt.Errorf("a malformed rule")
 	}
 	r := &domRule{}
@@ -1091,9 +1073,6 @@ func (dc *domDecoder) decodeRule(raw any) (*domRule, error) {
 	}
 	if r.Op, err = domString(o["op"]); err != nil {
 		return nil, err
-	}
-	if r.Categories, err = domList(o["categories"], domString); err != nil {
-		return nil, fmt.Errorf("a malformed rule")
 	}
 	if r.At, err = domPosition(o["at"]); err != nil {
 		return nil, fmt.Errorf("a malformed rule")
@@ -1112,7 +1091,7 @@ func (dc *domDecoder) decodeRule(raw any) (*domRule, error) {
 		}
 	}
 	if instance, ok := o["instance"]; ok {
-		if !hasOneForm(o, [][]string{{"name", "op", "categories", "instance", "conditions", "at"}}) {
+		if !hasOneForm(o, [][]string{{"name", "op", "instance", "conditions", "at"}}) {
 			return nil, fmt.Errorf("a malformed instance binding")
 		}
 		call, err := domObjectOf(instance)

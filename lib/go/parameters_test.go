@@ -122,11 +122,10 @@ func TestParameterPinnedPublicEdits(t *testing.T) {
 		parameterEqual(t, got, want)
 	}
 }
-func TestParameterCategories(t *testing.T) {
-	g := parameterGrammar(t, "%rule atom(@X) @X\n%counts-as few\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"")
-	parameterEqual(t, g.byName["atom(\"a\")"].categories, []string{})
-	parameterEqual(t, g.byName["atom(\"b\")"].categories, []string{"few"})
-
+func TestParameterRankingSteps(t *testing.T) {
+	g := parameterGrammar(t, "%ambiguity-resolution fewest #·atom\n%rule atom(@X) @X\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"")
+	parameterEqual(t, len(g.steps), 1)
+	parameterEqual(t, g.steps[0].pattern.Kind, "union")
 }
 func TestParameterNormalizationAndConstants(t *testing.T) {
 	g := parameterGrammar(t, "%const $A \"a\"\n%rule atom(@X) @X\n%rule text atom(\"a\") atom((\"a\")) atom($A)")
@@ -401,7 +400,6 @@ type parameterStructureCase struct {
 	Argument      json.RawMessage
 	Order         []string
 	Instances     *int
-	Categories    map[string][]string
 }
 
 func (c *parameterStructureCase) checkExpectations(instances int, argument any) error {
@@ -507,12 +505,7 @@ func TestParameterSharedStructure(t *testing.T) {
 			if err := c.checkExpectations(len(x.instanceNames), argument); err != nil {
 				t.Fatal(err)
 			}
-			if c.Categories != nil {
-				g := parameterGrammar(t, c.Grammar)
-				for name, categories := range c.Categories {
-					parameterEqual(t, g.byName[name].categories, categories)
-				}
-			}
+
 		})
 	}
 }

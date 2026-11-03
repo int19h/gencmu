@@ -1,0 +1,16 @@
+{
+  "description": "A root pattern requests its tags at the comparison that evaluates (engine §4).",
+  "grammar": "%rule text \"a\" :: (\"x\" ∈ \"x\".split($.tokens-after-first.value) ⟹ T)\n%conditions ($ ⟹ $ ≅ #·text<T>)",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": null
+        }
+      ]
+    }
+  }
+}

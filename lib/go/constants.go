@@ -1009,6 +1009,15 @@ func (g *stageGrammar) checkConstantRule(u constUser) *Error {
 	// The checks that simplification decides, which the reader left to
 	// the loader, now with the constants' values (§9).
 	resolved := newResolver(g.constants, g.uni).rule(u.rule)
+	terms := []*domTerm{resolved.Tags}
+	for _, alternative := range resolved.Alternatives {
+		terms = append(terms, alternative.Tags)
+	}
+	for _, term := range terms {
+		if term != nil && readsOwnTags(term) {
+			return g.constError(u.doc, u.rule.At, "a constituent reads its own tags")
+		}
+	}
 	if u.rule.Params != nil {
 		resolved = partialSourceRule(resolved)
 	}

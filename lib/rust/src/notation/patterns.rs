@@ -280,7 +280,7 @@ pub(super) fn source_pattern_problem(root: &Pattern) -> Option<&'static str> {
                     pending.push(Part::Pattern(inner));
                     pending.extend(children.as_ref().map(|children| Part::Children(children, false)));
                 }
-                Pattern::Test(_, _, inner) | Pattern::Path(_, inner) => pending.push(Part::Pattern(inner)),
+                Pattern::Test(_, _, inner, _) | Pattern::Path(_, inner) => pending.push(Part::Pattern(inner)),
                 Pattern::Union(items) | Pattern::Intersection(items) => {
                     pending.extend(items.iter().map(Part::Pattern));
                 }

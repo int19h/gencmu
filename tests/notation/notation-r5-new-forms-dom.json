@@ -4,12 +4,11 @@
   "cacheMisses": true,
   "expect": {
     "dom": {
-      "format": 42,
+      "format": 43,
       "rules": [
         {
           "name": "text",
           "op": "define",
-          "categories": [],
           "alternatives": [
             {
               "guards": [],
@@ -84,7 +83,6 @@
         {
           "name": "r",
           "op": "define",
-          "categories": [],
           "alternatives": [
             {
               "guards": [],
