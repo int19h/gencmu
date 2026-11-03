@@ -258,6 +258,7 @@ type recognizer struct {
 	rankedFrames                          map[string]*rankedFrame
 	rankedProductions                     map[rankedProductionKey]*production
 	machine                               *patternMachine
+	patternValues                         map[[2]int]string
 	elidableHeads                         map[int32]string
 	run                                   *stageRun
 	g                                     *lowered
@@ -625,7 +626,7 @@ func (r *recognizer) predictFrom(st *step) *nestedQuery {
 		if ok {
 			key := itemKey{prod: p, origin: int32(k)}
 			r.finishCloses(&key, int32(k))
-			r.finishStructure(&key)
+			r.finishStructure(&key, int32(k))
 			if q := r.finishTags(p, &key, int32(k), r.predictTags); q != nil {
 				return q
 			}
@@ -659,7 +660,7 @@ func (r *recognizer) restore(k int, p *production) {
 	if r.g.stage.conditionStrings {
 		r.finishStrings(&key, int32(k+1))
 	}
-	r.finishStructure(&key)
+	r.finishStructure(&key, int32(k+1))
 	r.finishCloses(&key, int32(k+1))
 	s := r.set(k + 1)
 	if s.index[key] != nil {
@@ -724,7 +725,7 @@ func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 		var caps itemCaps
 		var tags *lazyTags
 		key := itemKey{prod: p, origin: int32(k)}
-		r.finishStructure(&key)
+		r.finishStructure(&key, int32(k))
 		r.finishCloses(&key, int32(k))
 		if len(p.rhs) == 0 {
 			// The tag term runs only where a condition reads $'s tags (§4).
@@ -784,7 +785,7 @@ func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
 	if r.family != nil {
 		r.family.taking(key.familySummary)
 	}
-	r.finishStructure(&key)
+	r.finishStructure(&key, int32(k))
 	s := r.set(k)
 	if r.boundaries != nil {
 		if w := work.Load(); w != nil {
@@ -975,7 +976,7 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 		option = p.option
 	}
 	if r.machine != nil && r.machine.nodeTags && !p.helper {
-		it.structure = r.machine.node(p.ruleName, it.prefix, "", "", ts)
+		it.structure = r.machine.node(p.ruleName, it.prefix, "", r.patternValue(it.origin, int32(k)), ts)
 	}
 	key := symKey{emitted: it.emitted, boundary: it.boundary, requested: p.closeRequested, lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: it.closes, familySummary: it.familySummary}
 	c := s.syms[key]
@@ -1095,7 +1096,7 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			}
 			key.prefix = r.machine.concat(it.prefix, structure)
 		}
-		r.finishStructure(&key)
+		r.finishStructure(&key, int32(k))
 		if r.g.stage.conditionStrings {
 			r.finishStrings(&key, int32(k))
 		}
@@ -1230,7 +1231,7 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 		parentOrigin = lexical.origin
 		if r.machine != nil {
 			rootName, rootPrefix = lexical.root.ruleName, r.machine.concat(lexical.sealPrefix, r.machine.sealed())
-			state = r.machine.node(rootName, rootPrefix, "", "", nil)
+			state = r.machine.node(rootName, rootPrefix, "", r.patternValue(parentOrigin, end), nil)
 		}
 		if whole != nil {
 			// This lazy value belongs to the enclosing frame's $.

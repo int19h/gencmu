@@ -1468,10 +1468,12 @@ func (p profile) at(i int) component {
 // profileSpace holds the key steps of one ranking: how they count
 // occurrences, add profiles and compare them (engine §6).
 type profileSpace struct {
-	steps   []keyStep
-	answers map[rankingNodeKey]bool
-	values  []bool
-	rec     *recognizer
+	steps      []keyStep
+	answers    map[rankingNodeKey]bool
+	values     []bool
+	nodeValues bool
+	spanValues map[[2]int32]string
+	rec        *recognizer
 	// leaves holds the one sequence of a single occurrence at each position.
 	leaves map[int32]*elSeq
 }
@@ -1486,12 +1488,26 @@ func newProfileSpace(steps []keyStep) *profileSpace {
 	sp := &profileSpace{steps: steps, answers: map[rankingNodeKey]bool{}, leaves: map[int32]*elSeq{}}
 	for _, step := range steps {
 		sp.values = append(sp.values, patternHasValue(step.pattern))
+		sp.nodeValues = sp.nodeValues || patternReadsNodeValue(step.pattern)
 	}
 	return sp
 }
 
 func (sp *profileSpace) occurrence(name, terminal, value string, tags *tagset, p, q int32) profile {
 	var out profile
+	if name != "" && sp.nodeValues {
+		if sp.spanValues == nil {
+			sp.spanValues = map[[2]int32]string{}
+		}
+		key := [2]int32{p, q}
+		var found bool
+		value, found = sp.spanValues[key]
+		if !found {
+			a, b := sp.rec.observed(p, q)
+			value = sp.rec.run.spanValue(spanVal{a: a, b: b})
+			sp.spanValues[key] = value
+		}
+	}
 	for index, step := range sp.steps {
 		key := rankingNodeKey{step: index, name: name, terminal: terminal, tags: tags}
 		if sp.values[index] {

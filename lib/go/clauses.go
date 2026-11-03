@@ -663,11 +663,6 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 		if whole {
 			return fmt.Sprintf("a condition of %s reads $%s, an item capture, together with $, which is not complete at each item", r.Name, inside[0])
 		}
-		// A pattern comparison names no item capture: the constituent has
-		// no single part of that name.
-		if name := firstItem(patternComparisonNames(c)); name != "" {
-			return fmt.Sprintf("a condition of %s compares $%s, an item capture, with a pattern", r.Name, name)
-		}
 		// Like any condition, it must apply to some production. A
 		// condition that waits for its constants is checked once they have
 		// their values.

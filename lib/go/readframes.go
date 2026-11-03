@@ -719,7 +719,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			f.pass = true
 			return ask(&conditionFrame{n: b.knownOf(n, conditionRules)})
 		case "tree-comparison":
-			f.compare = &domCond{Kind: cdCompare, Left: &domTerm{Kind: tmCapture, Str: strings.TrimPrefix(b.tokenValue(b.token(b.only(n, "capture-reference"))), "$")}}
+			f.compare = &domCond{Kind: cdCompare, At: b.at(n), Left: &domTerm{Kind: tmCapture, Str: strings.TrimPrefix(b.tokenValue(b.token(b.only(n, "capture-reference"))), "$")}}
 			f.compare.Op = b.operator(b.token(b.only(n, "tree-comparator")))
 			right := b.only(n, "union")
 			b.patternOperand(right)
@@ -753,7 +753,11 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 	case "tree-comparison":
 		f.compare.Right = in.(*domTerm)
 		if fault := condTypeMemo(f.compare, nil, b.types); fault != nil && !b.featureContext {
-			b.fail(n, "%s", fault.problem)
+			where := n
+			if fault.node == f.compare.Right {
+				where = b.only(n, "union")
+			}
+			b.fail(where, "%s", fault.problem)
 		}
 		return give(f.compare)
 	case "comparison":

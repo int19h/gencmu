@@ -1830,8 +1830,8 @@ func comparisonProblem(op string, left, right termType) string {
 		if left != tySpan {
 			return "a tree comparison requires a bare capture on its left"
 		}
-		if right != tyPattern && right != tySet && right != tyAny {
-			return "a tree comparison requires a tree pattern on its right"
+		if right != tySpan && right != tyPattern && right != tySet && right != tyAny {
+			return "a tree comparison requires a pattern or a bare capture on its right"
 		}
 		return ""
 	}
@@ -2166,8 +2166,17 @@ func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 		if f != nil {
 			return f
 		}
+		if c.Op == "≅" || c.Op == "≇" {
+			if c.Left.Kind == tmCapture && c.Right.Kind == tmCapture && c.Left.Str == c.Right.Str {
+				return &typeFault{"a constituent comparison requires two different captures", c}
+			}
+		}
 		if problem := comparisonProblem(c.Op, left, right); problem != "" {
-			return &typeFault{problem, c}
+			node := any(c)
+			if (c.Op == "≅" || c.Op == "≇") && left == tySpan {
+				node = c.Right
+			}
+			return &typeFault{problem, node}
 		}
 	}
 	return nil

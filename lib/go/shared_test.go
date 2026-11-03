@@ -75,7 +75,6 @@ type caseOptions struct {
 // caseExpect is what a case expects. Result, Warnings and Features are
 // decoded JSON, nil where the case leaves them out.
 type caseExpect struct {
-	LoadWarnings     *any    `json:"loadWarnings"`
 	Message          *string `json:"message"`
 	BundledPipelines *any    `json:"bundledPipelines"`
 	Diagnostic       *string `json:"diagnostic"`
@@ -420,7 +419,7 @@ func checkLoadError(expect *caseExpect, err error) error {
 	if expect.Error != e.Kind {
 		return fmt.Errorf("unexpected load error: %v", err)
 	}
-	if expect.Result != nil || expect.Brackets != nil || expect.Warnings != nil || expect.Features != nil || expect.EnabledFeatures != nil || expect.LoadWarnings != nil {
+	if expect.Result != nil || expect.Brackets != nil || expect.Warnings != nil || expect.Features != nil || expect.EnabledFeatures != nil {
 		return fmt.Errorf("the pipeline did not load: %v", err)
 	}
 	// Where the error stands, in a document of the case, given only for a
@@ -452,15 +451,6 @@ func checkParse(d *Pipeline, c *engineCase, options *caseOptions, expect *caseEx
 		}
 	}
 
-	if expect.LoadWarnings != nil {
-		have := []any{}
-		for _, w := range d.LoadWarnings() {
-			have = append(have, map[string]any{"stage": w.Stage, "step": float64(w.Step), "tag": w.Tag})
-		}
-		if !equalJSON(have, *expect.LoadWarnings) {
-			return fmt.Errorf("loadWarnings: got %v, expected %v", have, *expect.LoadWarnings)
-		}
-	}
 	// The pipeline's features, compared whole.
 	if expect.Features != nil {
 		have := []any{}

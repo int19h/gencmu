@@ -1,0 +1,23 @@
+{
+  "description": "A private whole comparison reads a seal, so it demands no identity of an unobserved cyclic rule inside that seal.",
+  "grammar": "%rule text :: ∅\n | $x:A ($p:loop ≻ \"b\")\n%conditions $p ⟹ ($ ≇ $x)\n%rule loop \"a\" | loop",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

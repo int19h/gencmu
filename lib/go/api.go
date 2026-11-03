@@ -378,20 +378,6 @@ func newPipeline(stages []*stageGrammar, declared []string, uni *unicodeTable) (
 		return nil, err
 	}
 	pipeline := &Pipeline{uni: uni, stages: stages, declared: declared, features: features}
-	tested := false
-	for _, g := range stages {
-		for _, step := range g.steps {
-			_, _, positive := rankingTested(step.pattern)
-			for tag := range positive {
-				tested = tested || (tag != "_Elided" && !(strings.HasPrefix(tag, "_") && engineTag(tag)))
-			}
-		}
-	}
-	if tested {
-		for _, report := range pipeline.RankingReports() {
-			pipeline.loadWarnings = append(pipeline.loadWarnings, report.VocabularyWarnings...)
-		}
-	}
 	return pipeline, nil
 }
 
@@ -704,12 +690,11 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *P
 // several goroutines: every parse keeps its own state, and the grammars
 // lowered for a set of features are cached under a mutex.
 type Pipeline struct {
-	loadWarnings []RankingVocabularyWarning
-	stages       []*stageGrammar
-	declared     []string  // the features the pipeline's %features turns on
-	features     []Feature // every feature, with its kind and default (§13)
-	uni          *unicodeTable
-	mu           sync.Mutex
+	stages   []*stageGrammar
+	declared []string  // the features the pipeline's %features turns on
+	features []Feature // every feature, with its kind and default (§13)
+	uni      *unicodeTable
+	mu       sync.Mutex
 	// lowered holds each stage's lowered grammars, keyed by the guarded
 	// features that are on.
 	lowered []*recent[lowerKey, *lowerEntry]

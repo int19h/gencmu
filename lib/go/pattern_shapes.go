@@ -170,7 +170,7 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 		}
 		key, count := "", 0
 		for _, k := range []string{"name", "call", "param", "terminal", "literal", "range", "wildcard", "constant", "test", "any"} {
-			if layeredHas(n, k) && !(k == "any" && n["test"] == "tags") {
+			if layeredHas(n, k) {
 				key, count = k, count+1
 			}
 		}
@@ -194,15 +194,11 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 		case "test":
 			if n["test"] == "tags" {
 				fields = append(fields, "requirements")
-				if n["any"] == true {
-					fields = append(fields, "any")
-				} else {
-					fields = append(fields, "expr")
-				}
+				fields = append(fields, "expr")
 				a, ok := n["requirements"].([]any)
 				expr := templateObj(n["expr"])
 				ruleAtom := (expr["name"] != nil || expr["call"] != nil || expr["param"] != nil) && !layeredHas(expr, "exact") && !layeredHas(expr, "children")
-				if !(n["any"] == true || layeredTerminalAtom(expr) || ruleAtom) || !ok {
+				if !(layeredTerminalAtom(expr) || ruleAtom) || !ok {
 					return "a pattern tag test requires an undecorated atom"
 				}
 				for _, value := range a {
@@ -215,8 +211,13 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 			} else {
 				fields = append(fields, "value", "expr")
 				expr := templateObj(n["expr"])
-				if n["test"] != "=" && n["test"] != "≠" || !(layeredTerminalAtom(expr) || expr["test"] == "tags" && !layeredHas(expr, "exact") && !layeredHas(expr, "children") && (layeredTerminalAtom(expr["expr"]) || expr["any"] == true)) {
-					return "a pattern value test requires a terminal atom"
+				target := expr
+				if expr["test"] == "tags" && !layeredHas(expr, "exact") && !layeredHas(expr, "children") {
+					target = templateObj(expr["expr"])
+				}
+				ruleAtom := (target["name"] != nil || target["call"] != nil || target["param"] != nil) && !layeredHas(target, "exact") && !layeredHas(target, "children")
+				if n["test"] != "=" && n["test"] != "≠" || !(layeredTerminalAtom(target) || ruleAtom) {
+					return "a pattern value test requires an undecorated atom"
 				}
 				if !layeredStringTerm(n["value"]) {
 					return "a malformed pattern value test"

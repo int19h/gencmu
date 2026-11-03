@@ -253,6 +253,7 @@ type patternState struct {
 }
 type patternMachine struct {
 	nodeTags    bool
+	nodeValues  bool
 	predicates  []patternPredicate
 	machines    []patternNFA
 	ids         map[string]int
@@ -267,6 +268,7 @@ func newPatternMachine(roots []*domPattern) *patternMachine {
 	m := &patternMachine{ids: map[string]int{}, rootIDs: map[*domPattern]int{}, stateIDs: map[string]int{}, transitions: map[string]int{}}
 	for _, p := range roots {
 		m.nodeTags = m.nodeTags || patternReadsNodeTags(p)
+		m.nodeValues = m.nodeValues || patternReadsNodeValue(p)
 		m.compile(p)
 	}
 	s := patternState{first: new(big.Int), last: new(big.Int), any: new(big.Int)}
@@ -451,8 +453,8 @@ func (m *patternMachine) sealed() int { return m.seal }
 
 func (m *patternMachine) node(name string, children int, terminal, sound string, tags *tagset) int {
 	leaf := ""
-	if tags != nil {
-		leaf = terminal + "/" + strconv.Quote(sound) + "/" + tags.key
+	if tags != nil || name != "" && m.nodeValues {
+		leaf = terminal + "/" + strconv.Quote(sound) + "/" + patternTagsKey(tags)
 	}
 	key := "n" + strconv.Quote(name) + "/" + strconv.Itoa(children) + "/" + leaf
 	if id, ok := m.transitions[key]; ok {
@@ -467,7 +469,7 @@ func (m *patternMachine) node(name string, children int, terminal, sound string,
 		case "name":
 			holds = name == p.Name
 		case "terminal":
-			holds = tags != nil && terminal == p.Name
+			holds = terminal != "" && (p.Name == "_" || terminal == p.Name)
 		case "test":
 			holds = localNodeMatches(p, name, terminal, sound, tags)
 		case "any":
@@ -519,7 +521,7 @@ func ruleHasPattern(r *domRule) bool {
 		if p.t != nil && p.t.Kind == tmPattern {
 			found = true
 		}
-		if p.c != nil && (p.c.Op == "≅" || p.c.Op == "≇") {
+		if p.c != nil && (p.c.Op == "≅" || p.c.Op == "≇") && p.c.Right.Kind == tmPattern {
 			found = true
 		}
 		return true
@@ -727,7 +729,7 @@ func (g *lowered) prepared() *preparation {
 	g.prepareOnce.Do(func() {
 		var roots []*domPattern
 		scan := func(p clausePart) bool {
-			if p.c != nil && (p.c.Op == "≅" || p.c.Op == "≇") {
+			if p.c != nil && (p.c.Op == "≅" || p.c.Op == "≇") && p.c.Right.Kind == tmPattern {
 				roots = append(roots, p.c.Right.Pattern)
 			}
 			return true
@@ -796,7 +798,7 @@ func (r *recognizer) preparePatterns() {
 	}
 	r.elidableHeads = prepared.elidableHeads
 }
-func (r *recognizer) finishStructure(key *itemKey) {
+func (r *recognizer) finishStructure(key *itemKey, end int32) {
 	if r.machine == nil {
 		return
 	}
@@ -810,7 +812,7 @@ func (r *recognizer) finishStructure(key *itemKey) {
 	} else if p.helper {
 		key.structure = key.prefix
 	} else {
-		key.structure = r.machine.node(p.ruleName, key.prefix, "", "", nil)
+		key.structure = r.machine.node(p.ruleName, key.prefix, "", r.patternValue(key.origin, end), nil)
 	}
 }
 func (r *recognizer) terminalStructure(p *production, dot, k int, term int32) int {
@@ -864,4 +866,28 @@ func resolverHasPattern(r *resolver, t *domTerm) bool {
 		}
 	}
 	return false
+}
+
+func patternTagsKey(tags *tagset) string {
+	if tags == nil {
+		return ""
+	}
+	return tags.key
+}
+
+func (r *recognizer) patternValue(start, end int32) string {
+	if r.machine == nil || !r.machine.nodeValues {
+		return ""
+	}
+	a, b := r.observed(start, end)
+	key := [2]int{a, b}
+	if value, found := r.patternValues[key]; found {
+		return value
+	}
+	if r.patternValues == nil {
+		r.patternValues = map[[2]int]string{}
+	}
+	value := r.run.spanValue(spanVal{a: a, b: b})
+	r.patternValues[key] = value
+	return value
 }

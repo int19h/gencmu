@@ -572,7 +572,11 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 					w.push(ev, nil, &domTerm{Kind: tmCall, Str: "tags", Items: []*domTerm{{Kind: tmCapture, Str: ""}}})
 					return nil
 				}
-				s.structure = s.machine.node(s.rootName, s.rootPrefix, "", "", toSet(w.v))
+				sound := ""
+				if s.machine.nodeValues {
+					sound = ev.run.spanValue(s)
+				}
+				s.structure = s.machine.node(s.rootName, s.rootPrefix, "", sound, toSet(w.v))
 			}
 			holds := s.machine != nil && p != nil && s.machine.matches(s.structure, p)
 			w.endCond(holds == (c.Op == "≅"))

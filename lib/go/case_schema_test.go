@@ -93,15 +93,6 @@ var expectSchema = caseObject(map[string]caseSchema{
 	"message": caseString, "diagnostic": caseString, "error": caseString, "brackets": caseString,
 	"result":   func(value any, _ string) error { return resultPatternProblem(value) },
 	"warnings": caseArray(caseAny), "features": caseArray(caseAny),
-	"loadWarnings": caseArray(caseObject(map[string]caseSchema{"stage": caseString, "step": func(value any, path string) error {
-		if err := caseInteger(value, path); err != nil {
-			return err
-		}
-		if value.(float64) < 0 {
-			return fmt.Errorf("%s: expected a natural index", path)
-		}
-		return nil
-	}, "tag": caseString})),
 	"enabledFeatures": caseArray(caseString), "bundledPipelines": caseArray(caseString),
 	"where": caseObject(map[string]caseSchema{"document": caseString, "line": caseInteger, "column": caseInteger}),
 })

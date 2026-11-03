@@ -44,7 +44,7 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 	terminal := !named && (first.Rule == "parameter" || first.Rule == "tag" || first.Rule == "string-terminal" || first.Rule == "string" || first.Rule == "range" || first.Rule == "wildcard" || first.Rule == "constant-reference" || first.Kind == KindToken && (isCapital(name) || engineTag(name)))
 	tagSeen, valueSeen := false, false
 	for _, test := range tests {
-		if (!terminal && !named && first.Rule != "call" && first.Rule != "tag-test") || named && test.Rule == "value-test" || first.Rule == "call" && test.Rule == "value-test" || test.Rule == "tag-test" && (tagSeen || valueSeen) || test.Rule == "value-test" && valueSeen {
+		if (!terminal && !named && first.Rule != "call" && first.Rule != "tag-test") || test.Rule == "tag-test" && (tagSeen || valueSeen) || test.Rule == "value-test" && valueSeen {
 			b.fail(test, "invalid pattern test target or order")
 		}
 		if test.Rule == "tag-test" {
@@ -63,7 +63,7 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 	if !named {
 		switch first.Rule {
 		case "tag-test":
-			p.Kind = "any"
+			b.fail(first, "a pattern requires an atom before its tag test")
 		case "parameter":
 			parameter := b.parameter(first)
 			p.Kind, p.Name = "param", parameter.Str
@@ -109,9 +109,6 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 						panic(grammarError(b.doc, requirement.Value.At, "a rule pattern cannot require _Elided"))
 					}
 				}
-			}
-			if first.Rule == "tag-test" && p.Kind == "any" {
-				next.Items = nil
 			}
 		} else {
 			next.Op = b.operator(b.token(b.only(test, "test")))

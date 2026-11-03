@@ -24,7 +24,7 @@ func localNodeMatches(p *domPattern, name, terminal, value string, tags *tagset)
 			return false
 		}
 		if p.Op != "tags" {
-			return terminal != "" && (value == p.Value.Str) == (p.Op == "=")
+			return (name != "" || terminal != "") && (value == p.Value.Str) == (p.Op == "=")
 		}
 		for _, requirement := range p.Requirements {
 			pending := []*domTerm{requirement.Value}
@@ -41,7 +41,7 @@ func localNodeMatches(p *domPattern, name, terminal, value string, tags *tagset)
 	case "name":
 		return name == p.Name
 	case "terminal":
-		return terminal != "" && terminal == p.Name
+		return terminal != "" && (p.Name == "_" || terminal == p.Name)
 	case "any":
 		return name != "" || terminal != ""
 	}
@@ -52,7 +52,7 @@ func patternReadsNodeTags(p *domPattern) bool {
 	if p == nil {
 		return false
 	}
-	if p.Kind == "test" && p.Op == "tags" && (len(p.Items) == 0 || p.Items[0].Kind == "name" || p.Items[0].Kind == "call") {
+	if p.Kind == "test" && p.Op == "tags" && len(p.Items) > 0 && (p.Items[0].Kind == "name" || p.Items[0].Kind == "call") {
 		return true
 	}
 	for _, part := range p.Items {
@@ -181,9 +181,6 @@ func possibleNodeMatch(p *domPattern, name, terminal string, omitted bool, tags 
 			return 0
 		}
 		if p.Op != "tags" {
-			if name != "" {
-				return 0
-			}
 			return -1
 		}
 		if tags != nil {
@@ -212,7 +209,7 @@ func possibleNodeMatch(p *domPattern, name, terminal string, omitted bool, tags 
 			return 1
 		}
 	case "terminal":
-		if terminal == p.Name {
+		if terminal != "" && (p.Name == "_" || terminal == p.Name) {
 			return 1
 		}
 	}
@@ -312,4 +309,30 @@ func knownRankingTags(term *domTerm) *tagset {
 		list = append(list, tag)
 	}
 	return newInterner().fromList(list)
+}
+
+func patternReadsNodeValue(p *domPattern) bool {
+	if p == nil {
+		return false
+	}
+	if p.Kind == "test" && p.Op != "tags" && len(p.Items) > 0 {
+		atom := p.Items[0]
+		if atom.Kind == "test" && len(atom.Items) > 0 {
+			atom = atom.Items[0]
+		}
+		if atom.Kind == "name" || atom.Kind == "call" {
+			return true
+		}
+	}
+	for _, child := range p.Items {
+		if patternReadsNodeValue(child) {
+			return true
+		}
+	}
+	for _, child := range p.Attached {
+		if patternReadsNodeValue(child) {
+			return true
+		}
+	}
+	return false
 }

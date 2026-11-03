@@ -1597,7 +1597,7 @@ class Parser:
                             observes_closes=closes is not None and (bool(requested & 1) or demand(p)[0]))
                 if trees is not None:
                     q.tree_requested = bool(requested & 2)
-                    q.observes_trees = q.tree_requested or tree_demand(p)[0]
+                    q.observes_trees = q.tree_requested or not p.helper and tree_demand(p)[0]
                 productions.append(q)
                 demands[q.id] = demand(p)
                 variants[key] = q

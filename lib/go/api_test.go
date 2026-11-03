@@ -1712,35 +1712,20 @@ func TestPipelinePublicMethodsExcludeStageNames(t *testing.T) {
 	}
 }
 
-func TestRankingReportsKeepComputedDropsUnknown(t *testing.T) {
-	for _, test := range []struct {
-		term    string
-		tags    []string
-		unknown bool
-		status  string
-	}{{"T", []string{"U"}, false, "possible"}, {"T ∪ $x.tags", []string{}, true, "unknown"}} {
-		pipeline := mustLoad(t, oneStage("%ambiguity-resolution fewest #·wrap<T>\n%rule text wrap\n%rule wrap $x:child :: ("+test.term+")\n%rule child A :: U"))
+func TestRankingReportsUseReachability(t *testing.T) {
+	for _, test := range []struct{ source, status string }{
+		{"%ambiguity-resolution fewest #·_\n%rule text A", ""},
+		{"%ambiguity-resolution fewest #·dead\n%rule text A\n%rule dead B", "impossible"},
+		{"%ambiguity-resolution fewest #·wrap<T>\n%rule text wrap\n%rule wrap $x:child :: (T ∪ $x.tags)\n%rule child A :: U", ""},
+		{"%ambiguity-resolution fewest #·_<_Elided>\n%rule text [+END]", ""},
+	} {
+		pipeline := mustLoad(t, oneStage(test.source))
 		reports := pipeline.RankingReports()
-		found := false
-		for _, note := range reports[0].DroppedRankingTags {
-			if note.Rule == "wrap" {
-				found = true
-				if !reflect.DeepEqual(note.Tags, test.tags) || note.Unknown != test.unknown {
-					t.Fatalf("unexpected dropped tags: %+v", note)
-				}
-			}
-		}
-		if !found || reports[0].KeySteps[0].Status != test.status {
+		if len(reports) != 1 || len(reports[0].KeySteps) != 1 || reports[0].KeySteps[0].Status != test.status {
 			t.Fatalf("unexpected reports: %+v", reports)
 		}
-		inherited := false
-		for _, note := range reports[0].InheritedRankingTags {
-			for _, tag := range note.Tags {
-				inherited = inherited || note.Rule == "text" && tag == "T"
-			}
-		}
-		if !inherited || !strings.Contains(FormatRankingReports(reports), "dropped inherited tags: wrap") {
-			t.Fatalf("missing tag reports: %+v", reports)
+		if test.status == "" && strings.Contains(FormatRankingReports(reports), "ranking step") {
+			t.Fatalf("unexpected reachability label: %s", FormatRankingReports(reports))
 		}
 	}
 }
