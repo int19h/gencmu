@@ -998,11 +998,18 @@ The error has the kind `grammar` and the stage's name, and no position member, s
 
 Where a grammar has several errors of lowering, the parse reports one, in this order. Errors of classifiers come first. Then lowering takes the rules in order (§3.9). For each rule, it reports a chain beside another alternative (§3.3) before it lowers that rule's alternatives.
 
-An item of braces that can match no tokens (§3.3) comes last. Lowering decides nullability after it lowers all rules. It examines the surviving rules and their alternatives in order, and reports the first alternative that holds an empty item. The error names only the definition, so which empty item of that alternative it meets first is not observable.
+An item of braces that can match no tokens (§3.3) follows the chain errors and precedes the cycle error of a comparison. Lowering decides nullability after it lowers all rules. It examines the surviving rules and their alternatives in order, and reports the first alternative that holds an empty item. The error names only the definition, so which empty item of that alternative it meets first is not observable.
 
-The cycle error of a comparison of two constituents (§9.3) comes after an empty brace item. So its walk can rely on the braces rule. Lowering visits the surviving comparisons in order: rules in the order of §3.9, then each rule's tag terms and conditions in the written order of §2. It reports the first comparison whose demand graph holds a cycle of marked edges. From that comparison, the walk follows productions in number order and their symbols in written order, depth first. The reported cycle is the first one that this walk closes, listed from the first rule of the cycle that the walk reached.
+The cycle error of a comparison of two constituents (§9.3) comes last, after an empty brace item. So its walk can rely on the braces rule. Lowering visits the surviving comparisons in this order:
 
-This error is the one error of lowering that does not stand at a definition. Its message begins with the document, the line and the column of the first token of the comparison.
+- It takes the rules in the order of §3.9.
+- For each rule, it takes the definitions that remain after stitching, in stitching order.
+- In each definition, it takes the header tag term first. Then it takes each alternative in written order, with that alternative's own tag term. Then it takes the conditions of the definition in written order.
+- Within one tag term or condition, it takes the comparisons from left to right.
+
+An emission item's tag clause holds no comparison that recognition demands (§4.1), so the walk skips it. Lowering reports the first comparison whose demand graph holds a cycle of marked edges. From that comparison, the walk follows productions in number order and their symbols in written order, depth first. The reported cycle is the first one that this walk closes, listed from the first rule of the cycle that the walk reached.
+
+This error stands at the comparison, not at a definition. Its message begins with the document, the line and the column of the first token of the comparison.
 
 Lowering reports a chain beside another alternative before an empty brace item, whichever rules contain them. This order is the model of the diagnostic, not of the work. An implementation can meet the braces in another order internally, as long as it reports the same error.
 
