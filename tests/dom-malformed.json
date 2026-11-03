@@ -1297,7 +1297,7 @@
     "malformed": true
   },
   {
-    "description": "A tag-only pattern has any true.",
+    "description": "A pattern tag test requires an atom.",
     "directive": {
       "name": "ambiguity-resolution",
       "steps": [
