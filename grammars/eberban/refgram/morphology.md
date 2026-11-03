@@ -447,6 +447,8 @@ A run of words starts with any word and continues with words that begin with a n
 
 Each word emits one token tagged `Word` and its kind. A particle also carries `Particle` and its family. The image of a word is its value, so a hyphen inside a word never shows in it. A digit keeps the digit as its image, as the letters stage gives it.
 
+The morphology chapter says: "Spaces are only mandatory before words starting with a vowel or a sonorant." A digit is a word, so that rule holds after a digit too. So a word that starts with a vowel or `n` never stands right after a digit, with or without a hyphen between them. The rule `after-digit` names that place. The conditions on `ni-word`, `vowel-particle-word`, `first-prefix` and `freeform-word` refuse it. So `a mi 1an mo` and `a mi 1-an mo` have no parse, while `a mi 1 an mo` and `a mi 1mo` are texts. The erasers and hesitation already need a space before them.
+
 A `co` that a complete opener follows starts a foreign quote, so it is never a plain word. A complete opener is `co`, its optional gap and delimiter, and an opening bracket, and `quote-opener` reads it. The condition on `consonant-particle-word` states the bar. It tests only a particle of the `CO` family, so no other particle before a bracket is tested. The quote reads its own `co` through the particle rule, so the bar never meets the quote. The test reads the opener alone, not the whole quote. So an unclosed quote has no parse, as in `a mico [x`.
 
 ```jbogenbau
@@ -474,11 +476,15 @@ A `co` that a complete opener follows starts a foreign quote, so it is never a p
 
 %rule ni-word
   $p:ni-particle [misplaced-hyphen] :: Word ∪ Particle ∪ $p.tags
+%conditions
+  ¬$.preceding-tokens.ends(after-digit)
 %emits
   $ :- $.value
 
 %rule vowel-particle-word
   $p:vowel-particle [misplaced-hyphen] :: Word ∪ Particle ∪ $p.tags
+%conditions
+  ¬$.preceding-tokens.ends(after-digit)
 %emits
   $ :- $.value
 
@@ -489,9 +495,12 @@ A `co` that a complete opener follows starts a foreign quote, so it is never a p
 
 %rule quote-opener
   quote-co [opening-gap] [delimiter-shape] Open
+
+%rule after-digit
+  Digit [Hyphen]
 ```
 
-<details><summary>Railroad diagrams of the 9 rules from <code>word-run</code> to <code>quote-opener</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>word-run</code> to <code>after-digit</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/word-run.svg" alt="Railroad diagram of the rule word-run"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/run-close.svg" alt="Railroad diagram of the rule run-close"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/first-word.svg" alt="Railroad diagram of the rule first-word"></p>
@@ -501,6 +510,7 @@ A `co` that a complete opener follows starts a foreign quote, so it is never a p
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/vowel-particle-word.svg" alt="Railroad diagram of the rule vowel-particle-word"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/root-word.svg" alt="Railroad diagram of the rule root-word"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/quote-opener.svg" alt="Railroad diagram of the rule quote-opener"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/after-digit.svg" alt="Railroad diagram of the rule after-digit"></p>
 </details>
 
 ### Compound prefixes
@@ -517,6 +527,8 @@ Each prefix emits one token tagged `Prefix` and `E-PREFIX`, `EN-PREFIX` or `ER-P
 
 %rule first-prefix
   Letter="e" [[misplaced-hyphen] prefix-arity] :: Prefix ∪ $.value.classify(prefix-length) ∪ (¬$.following-tokens.begins(later-letter) ⟹ Standalone)
+%conditions
+  ¬$.preceding-tokens.ends(after-digit)
 %emits
   $ :- $.value
 
@@ -586,7 +598,8 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
 %rule freeform-word(@Prefix, @Tag)
   [misplaced-hyphen] $p:Letter prefix-gap $c:content [misplaced-hyphen] space-after :: Word ∪ @Tag := @Prefix ++ $c.value
 %conditions
-  $p.value = @Prefix
+  $p.value = @Prefix,
+  ¬$p.preceding-tokens.ends(after-digit)
 %emits
   $
 
@@ -814,7 +827,7 @@ The root branch reads its longest form and then tests the boundary. A root that 
 
 The particle branch reads only where no root word reads from the same start. A particle also refuses a medial pair right after its whole form, before any trailing hyphen, as `particle-end` says. So `nan` is no word before `pta`, and `zaostrah` reads the particle `zao`. The rule `particle-shape-of` reads the particle forms without their families, because a delimiter needs only its form and value.
 
-A digit is one `TI` particle, and a digit can be a delimiter. It needs no word boundary after it, as in the PEG's `TI` rule. It takes the same optional hyphens as a letter word, with one hyphen at most at each boundary.
+A digit is one `TI` particle, and a digit can be a delimiter. It needs no word boundary after it, as in the PEG's `TI` rule. A word that starts with a vowel or `n` still needs a space after it, as after any digit ("Runs of words" above). It takes the same optional hyphens as a letter word, with one hyphen at most at each boundary.
 
 ```jbogenbau
 %rule delimiter-of(@Hyphen)
@@ -914,6 +927,8 @@ The sentences chapter says that a `ra` inside a foreign quote erases a sentence 
 For the same reason, a quote is never a compound component here. The PEG reads `co` in a compound as a particle and the bracket after it as a space. So `e co [x] mi` is a compound there and has no parse here.
 
 The PEG reads only space characters between `co` and the `[` of the first form. So `a co n [x]` fails there. The quotes chapter lets spaces stand there, and the phonology chapter allows hesitation wherever spaces are allowed. This stage accepts it, because the grammar keeps one opening gap for both forms.
+
+The PEG reads no word boundary after a digit, so `a mi 1an mo` and `a mi 1-an mo` are texts there. The morphology chapter makes a space mandatory before a word that starts with a vowel or a sonorant, and a digit is a word. So this grammar rejects them, and a quote that a digit closes, as in `a co te[x]1an mo`, too.
 
 The PEG reads no digit as a delimiter. The book calls each digit a `TI` particle, and the quotes chapter lets any particle be a delimiter. So `a co 1[x]1 mo]1` closes at the first `]1` here, and the PEG rejects it.
 
