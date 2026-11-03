@@ -479,7 +479,7 @@ class _Loader:
             self.reader.doms.put(key, dom, len(text))
         return dom
 
-    def splice(self, pipeline_path: str, diagnostic_document: str | None = None) -> SplicedPipeline:
+    def splice(self, pipeline_path: str, diagnostic_document: str | None = None, texts=None) -> SplicedPipeline:
         """The stages of the pipeline document at ``pipeline_path``, each a
         list of runs of one document's items, and the features the pipeline
         turns on (engine §13)."""
@@ -490,6 +490,7 @@ class _Loader:
                 text = self.lookup(path)
                 if text is None:
                     return None
+                if texts is not None: texts[path] = text
                 dom = self.dom(path, inherited, text)
                 doms[key] = self.reader.located(dom, text, path, NamesScope(self.names_text, self.unicode, inherited)) if path == diagnostic_document else dom
             return doms[key]
@@ -524,30 +525,60 @@ class _Loader:
             return self._load(pipeline_path, error.group['document'])
 
     def _load(self, pipeline_path: str, diagnostic_document: str | None = None) -> Pipeline:
-        pipeline = self.splice(pipeline_path, diagnostic_document)
+        texts = {}
+        pipeline = self.splice(pipeline_path, diagnostic_document, texts)
         stages: list[Grammar] = []
         for stage in pipeline.stages:
             try:
                 grammar = stitch(stage.name, stage.documents, self.unicode)
                 if grammar.tree_comparisons:
-                    from ._tree_identities import needs_locations, restore_locations as restore_tree_locations
-                    located = False
-                    for path, dom in stage.documents:
-                        if not needs_locations(dom): continue
-                        try:
-                            names = NamesScope(self.names_text, self.unicode, self.inherited_names.get(path, ()))
-                            source = self.reader.read(self.text(path), path, True, names)
-                        except GencmuError:
-                            continue
-                        located |= restore_tree_locations(dom, source)
-                    if located:
-                        grammar = stitch(stage.name, stage.documents, self.unicode)
+                    grammar.recover_tree_error = self._tree_recovery(stage, texts)
                 stages.append(grammar)
             except GencmuError as error:
                 if error.stage is None:
                     error.stage = stage.name
                 raise
         return Pipeline(pipeline_path, pipeline, stages, self.unicode)
+
+
+    def _tree_recovery(self, stage, texts):
+        from copy import copy
+        from ._tree_identities import restore_locations
+
+        def clone(root):
+            result = copy(root)
+            pending = [(root, result)]
+            while pending:
+                old, new = pending.pop()
+                entries = old.items() if isinstance(old, dict) else enumerate(old)
+                for key, value in entries:
+                    if isinstance(value, (dict, list)):
+                        new[key] = child = copy(value)
+                        pending.append((value, child))
+            return result
+
+        def recover(features, error):
+            path = getattr(error, "_tree_location_document", None)
+            if path is None: return error
+            documents = []
+            located = False
+            for document, dom in stage.documents:
+                if document == path:
+                    try:
+                        inherited = getattr(dom, "names_dependencies", self.inherited_names.get(path, ()))
+                        source = self.reader.read(texts[path], path, True, NamesScope(self.names_text, self.unicode, inherited))
+                        dom = clone(dom)
+                        located |= restore_locations(dom, source)
+                    except GencmuError:
+                        pass
+                documents.append((document, dom))
+            if located:
+                try:
+                    lower(stitch(stage.name, documents, self.unicode), features)
+                except GencmuError as located_error:
+                    return located_error
+            return error
+        return recover
 
 
 def _resources(sources: Mapping[str, str] | None = None) -> _Resources:
@@ -742,6 +773,8 @@ class Pipeline:
             try:
                 found = lower(self._grammars[number], gates)
             except GencmuError as error:
+                recover = getattr(self._grammars[number], "recover_tree_error", None)
+                if recover is not None: error = recover(gates, error)
                 found = ErrorData.of(error)
             with self._lock:
                 self._lowered[number].put(key, found)

@@ -149,6 +149,12 @@ fn names_on(names: &[String], features: &BTreeSet<String>) -> Vec<String> {
     names.iter().filter(|name| features.contains(*name)).cloned().collect()
 }
 
+pub(crate) type TreeLocationRecovery = dyn Fn(&str, &BTreeSet<String>, Arc<ClassifierTables>) -> Option<crate::lower::LowerError>
+    + Send
+    + Sync
+    + std::panic::RefUnwindSafe
+    + std::panic::UnwindSafe;
+
 /// A loaded pipeline: a pipeline of stages, each a stitched grammar.
 ///
 /// A `Pipeline` is `Send` and `Sync`: one may be shared between threads and
@@ -166,6 +172,7 @@ pub struct Pipeline {
     pub(crate) changes: Vec<Change>,
     /// Each stage's lowered grammars and classifiers.
     caches: Vec<StageCache>,
+    pub(crate) tree_recovery: BTreeMap<usize, Arc<TreeLocationRecovery>>,
 }
 
 impl std::fmt::Debug for Pipeline {
@@ -292,7 +299,8 @@ impl Pipeline {
         let features = pipeline_features(&stages, &declared)?;
         let changes = stages.iter().flat_map(|stage| stage.changes.iter().cloned()).collect();
         let caches = stages.iter().map(StageCache::new).collect();
-        let pipeline = Pipeline { stages, declared, features, unicode, changes, caches };
+        let pipeline =
+            Pipeline { stages, declared, features, unicode, changes, caches, tree_recovery: BTreeMap::new() };
         Ok(pipeline)
     }
 
@@ -342,7 +350,15 @@ impl Pipeline {
             // The stage resolves its classifiers for the same features,
             // before it lowers its rules (§2, §3).
             let classifiers = self.classifiers(stage, &on)?;
-            lower(&self.stages[stage], &on, classifiers).map(Arc::new).map_err(|error| {
+            lower(&self.stages[stage], &on, classifiers.clone()).map(Arc::new).map_err(|error| {
+                let error = if error.recover_location {
+                    self.tree_recovery
+                        .get(&stage)
+                        .and_then(|recover| recover(&error.document, &on, classifiers))
+                        .unwrap_or(error)
+                } else {
+                    error
+                };
                 Error::grammar(error.message)
                     .in_document(&error.document)
                     .at(error.line, error.column)

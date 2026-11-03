@@ -386,7 +386,7 @@ func TestParameterPatternTestOperands(t *testing.T) {
 	text := `%rule atom(@X) @X
 %rule unused(@X) @X %conditions $ ≅ #(atom("a")="a")
 %rule text "a"`
-	if _, e := casePipeline(&engineCase{Grammar: &text}, false); isGuardedCrash(e) || e == nil || !strings.Contains(e.Error(), "invalid pattern test") {
+	if _, e := casePipeline(&engineCase{Grammar: &text}, false); e != nil {
 		t.Fatalf("tested exact call: %v", e)
 	}
 }

@@ -28,18 +28,6 @@ fn written_comparisons(root: crate::clauses::Part<'_>) -> Vec<Option<(usize, usi
     out
 }
 
-pub(crate) fn needs_locations(dom: &crate::dom::Dom) -> bool {
-    use crate::clauses::Part;
-    dom.rules.iter().any(|rule| {
-        rule.tags
-            .iter()
-            .map(Part::Term)
-            .chain(rule.alternatives.iter().flat_map(|alt| alt.tags.iter().map(Part::Term)))
-            .chain(rule.conditions.iter().map(Part::Cond))
-            .any(|root| written_comparisons(root).contains(&None))
-    })
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Node {
     Rule(String, u32),
@@ -654,7 +642,7 @@ pub(crate) fn check_cycles(
                         cycle.push(&g.rules[child as usize].name);
                     }
                     let p = &g.prods[id as usize];
-                    let error = crate::lower::LowerError::at(
+                    let mut error = crate::lower::LowerError::at(
                         stage,
                         p.document.as_deref().unwrap_or(""),
                         at.unwrap_or(p.at),
@@ -663,6 +651,7 @@ pub(crate) fn check_cycles(
                             cycle.join(" → ")
                         ),
                     );
+                    error.recover_location = at.is_none();
                     return Err(error);
                 }
                 stack.push((child, 0));

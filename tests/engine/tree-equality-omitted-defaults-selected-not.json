@@ -1,0 +1,8 @@
+{
+  "description": "Different defaults and tags do not make omitted trees unequal.",
+  "grammar": "%rule text $x:r<One> $y:r<Two>\n%conditions $x ≇ $y\n%rule r | [+JI ≝ \"one\"] :: One | [+JI ≝ \"two\"] :: Two",
+  "input": "",
+  "expect": {
+    "error": "rejected"
+  }
+}

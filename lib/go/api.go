@@ -328,7 +328,8 @@ func (l *loader) load(pipelinePath string) (*Pipeline, error) {
 }
 
 func (l *loader) loadMode(pipelinePath string) (*Pipeline, error) {
-	p, perr := l.splice(pipelinePath)
+	texts := map[string]string{}
+	p, perr := l.splice(pipelinePath, texts)
 	if perr != nil {
 		return nil, perr
 	}
@@ -338,38 +339,58 @@ func (l *loader) loadMode(pipelinePath string) (*Pipeline, error) {
 		if err != nil {
 			return nil, err
 		}
-		if g.treeComparisons && l.reader != nil {
+		stages = append(stages, g)
+	}
+	pipeline, err := newPipeline(stages, p.features, l.uni)
+	if err != nil {
+		return nil, err
+	}
+	for index, stage := range p.stages {
+		if !stages[index].treeComparisons {
+			continue
+		}
+		if pipeline.treeRecovery == nil {
+			pipeline.treeRecovery = map[int]func(*lowered, map[string]bool) *lowered{}
+		}
+		pipeline.treeRecovery[index] = func(original *lowered, features map[string]bool) *lowered {
+			failure := original.faultLocation
+			if failure == nil || !failure.treeLocation || l.reader == nil {
+				return original
+			}
+			documents := append([]docDOM(nil), stage.documents...)
 			located := false
-			for _, document := range s.documents {
-				if !treeLocationsMissing(document.dom) {
+			for i, document := range documents {
+				if document.path != failure.Document {
 					continue
 				}
-				text, ok, readErr := l.read(document.path)
-				if readErr != nil || !ok {
+				cached, err := decodeDOM(document.dom.json(), l.uni)
+				if err != nil {
 					continue
 				}
 				var inherited []string
 				for path := range document.dom.namesDependencies {
 					inherited = append(inherited, path)
 				}
-				names := newNamesScope(l.namesText, l.uni, inherited)
-				if source, readErr := l.reader.readMode(text, document.path, true, names); readErr == nil {
-					restoreTreeLocations(document.dom, source)
-					located = true
+				source, sourceErr := l.reader.readMode(texts[document.path], document.path, true, newNamesScope(l.namesText, l.uni, inherited))
+				if sourceErr != nil {
+					continue
 				}
+				cached.namesDependencies = document.dom.namesDependencies
+				restoreTreeLocations(cached, source)
+				documents[i].dom = cached
+				located = true
 			}
 			if located {
-				g, err = stitch(s.name, s.documents, l.uni)
-				if err != nil {
-					return nil, err
+				grammar, err := stitch(stage.name, documents, l.uni)
+				if err == nil {
+					candidate := lower(grammar, features)
+					if candidate.faultLocation != nil && !candidate.faultLocation.treeLocation {
+						return candidate
+					}
 				}
 			}
+			return original
 		}
-		stages = append(stages, g)
-	}
-	pipeline, err := newPipeline(stages, p.features, l.uni)
-	if err != nil {
-		return nil, err
 	}
 	return pipeline, nil
 }
@@ -377,7 +398,7 @@ func (l *loader) loadMode(pipelinePath string) (*Pipeline, error) {
 // splice splices the pipeline document at pipelinePath: its stages, each
 // a list of runs of one document's items, and the features it turns on
 // (engine §13). The DOM cache keys each path with its inherited names.
-func (l *loader) splice(pipelinePath string) (*splicedPipeline, *Error) {
+func (l *loader) splice(pipelinePath string, texts ...map[string]string) (*splicedPipeline, *Error) {
 	doms := map[string]*domDoc{}
 	return splicePipelineWithNames(pipelinePath, func(p string, names []string) (*domDoc, *Error) {
 		encoded, _ := json.Marshal(names)
@@ -388,6 +409,9 @@ func (l *loader) splice(pipelinePath string) (*splicedPipeline, *Error) {
 		text, ok, err := l.read(p)
 		if err != nil || !ok {
 			return nil, err
+		}
+		if len(texts) > 0 {
+			texts[0][p] = text
 		}
 		dom, err := l.documentText(p, text, names)
 		if err != nil {
@@ -727,7 +751,8 @@ type Pipeline struct {
 	lowered []*recent[lowerKey, *lowerEntry]
 	// memoLimit is the bound of the shared memos that the library's own
 	// tests set, 0 where they set none (memo.go).
-	memoLimit atomic.Int64
+	memoLimit    atomic.Int64
+	treeRecovery map[int]func(*lowered, map[string]bool) *lowered
 }
 
 type lowerKey struct {
@@ -791,7 +816,12 @@ func (d *Pipeline) lower(stage int, features map[string]bool) *lowered {
 	d.mu.Unlock()
 	// The first parse that needs it lowers it, outside the lock. So it does
 	// not hold up the parses that need other ones.
-	e.once.Do(func() { e.l = lower(g, on) })
+	e.once.Do(func() {
+		e.l = lower(g, on)
+		if recover := d.treeRecovery[stage]; recover != nil {
+			e.l = recover(e.l, on)
+		}
+	})
 	return e.l
 }
 

@@ -502,7 +502,8 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
 }
 
 /// Where a loader finds its documents.
-trait Sources {
+trait Sources: Send + Sync + std::panic::RefUnwindSafe + std::panic::UnwindSafe {
+    fn owned(&self) -> Arc<dyn Sources>;
     /// The text of the document at `path`, or `None` when there is none.
     fn read(&self, path: &str) -> Result<Option<String>, Error>;
     fn resolve(&self, base: &str, target: &str) -> Option<String>;
@@ -517,11 +518,15 @@ trait Sources {
     }
 }
 
+#[derive(Clone)]
 struct MapSources {
     map: HashMap<String, String>,
 }
 
 impl Sources for MapSources {
+    fn owned(&self) -> Arc<dyn Sources> {
+        Arc::new(self.clone())
+    }
     fn names_override(&self, path: &str) -> bool {
         self.map.contains_key(path)
     }
@@ -536,6 +541,9 @@ impl Sources for MapSources {
 
 struct BundledSources;
 impl Sources for BundledSources {
+    fn owned(&self) -> Arc<dyn Sources> {
+        Arc::new(Self)
+    }
     fn read(&self, path: &str) -> Result<Option<String>, Error> {
         Ok(bundled(path).map(str::to_string))
     }
@@ -575,6 +583,9 @@ fn normalize(path: &Path) -> PathBuf {
 }
 
 impl Sources for DiskSources {
+    fn owned(&self) -> Arc<dyn Sources> {
+        Arc::new(Self)
+    }
     fn names_override(&self, path: &str) -> bool {
         !matches!(path, "data/unicode/unicode-names.txt" | "data/unicode/unicode-names-reference.txt")
             && !matches!(std::fs::metadata(path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
@@ -623,6 +634,7 @@ struct Reading<'a> {
     sources: &'a dyn Sources,
     read: HashMap<(String, Vec<String>), Arc<Dom>>,
     diagnostic_document: Option<&'a str>,
+    texts: HashMap<String, String>,
     families: HashMap<String, Preparsed>,
 }
 
@@ -674,6 +686,7 @@ impl Documents for Reading<'_> {
             &names,
             preparsed,
         )?);
+        self.texts.insert(path.to_string(), text);
         self.read.insert(key, dom.clone());
         Ok(Some(dom))
     }
@@ -687,7 +700,14 @@ impl Documents for Reading<'_> {
 fn splice_pipeline(context: &Context, sources: &dyn Sources, path: &str) -> Result<Spliced, Error> {
     splice(
         path,
-        &mut Reading { context, sources, read: HashMap::new(), diagnostic_document: None, families: HashMap::new() },
+        &mut Reading {
+            context,
+            sources,
+            read: HashMap::new(),
+            texts: HashMap::new(),
+            diagnostic_document: None,
+            families: HashMap::new(),
+        },
     )
 }
 
@@ -722,45 +742,66 @@ fn load_mode(
     pipeline_path: &str,
     diagnostic_document: Option<&str>,
 ) -> Result<Pipeline, Error> {
-    let pipeline = splice(
-        pipeline_path,
-        &mut Reading { context, sources, read: HashMap::new(), diagnostic_document, families: HashMap::new() },
-    )?;
+    let mut reading = Reading {
+        context,
+        sources,
+        read: HashMap::new(),
+        texts: HashMap::new(),
+        diagnostic_document,
+        families: HashMap::new(),
+    };
+    let spliced = splice(pipeline_path, &mut reading)?;
+    let texts = Arc::new(reading.texts);
+    let mut owned_sources = None;
+    let mut recoveries = BTreeMap::new();
     let mut stages = Vec::new();
-    for stage in pipeline.stages {
-        let mut documents: Vec<(Arc<str>, Arc<Dom>)> =
+    for (index, stage) in spliced.stages.into_iter().enumerate() {
+        let documents: Vec<(Arc<str>, Arc<Dom>)> =
             stage.documents.into_iter().map(|(path, dom)| (path, Arc::new(dom))).collect();
-        let mut grammar =
-            stitch(&stage.name, &documents, &context.unicode).map_err(|error| error.in_stage(&stage.name))?;
+        let grammar = stitch(&stage.name, &documents, &context.unicode).map_err(|error| error.in_stage(&stage.name))?;
         if grammar.tree_comparisons {
-            let mut located = false;
-            for (path, dom) in &mut documents {
-                if !crate::tree_identity::needs_locations(dom) {
-                    continue;
-                }
-                let Some(text) = sources.read(path)? else { continue };
-                let read_names = |name: &str| sources.names(name);
-                let names_override = |name: &str| sources.names_override(name);
-                let resolve = |base: &str, target: &str| sources.resolve(base, target);
-                let inherited = dom.names_dependencies.iter().flat_map(|deps| deps.keys().cloned());
-                let names = NamesScope::new(&read_names, &context.unicode, inherited)
-                    .in_document(path, &resolve)
-                    .with_overrides(&names_override);
-                if let Ok(source) = read_document_named(&context.notation, &text, true, &names) {
-                    crate::ranked::restore_locations(Arc::make_mut(dom), &source);
-                    located = true;
-                }
-            }
-            if located {
-                grammar =
-                    stitch(&stage.name, &documents, &context.unicode).map_err(|error| error.in_stage(&stage.name))?;
-            }
+            let sources = owned_sources.get_or_insert_with(|| sources.owned()).clone();
+            let texts = texts.clone();
+            let notation = context.notation.clone();
+            let unicode = context.unicode.clone();
+            let recovery: Arc<crate::pipeline::TreeLocationRecovery> =
+                Arc::new(move |document, features, classifiers| {
+                    if notation.stages.is_empty() {
+                        return None;
+                    }
+                    let mut documents = documents.clone();
+                    let mut located = false;
+                    for (path, dom) in &mut documents {
+                        if path.as_ref() != document {
+                            continue;
+                        }
+                        let Some(text) = texts.get(path.as_ref()) else { continue };
+                        let read_names = |name: &str| sources.names(name);
+                        let names_override = |name: &str| sources.names_override(name);
+                        let resolve = |base: &str, target: &str| sources.resolve(base, target);
+                        let inherited = dom.names_dependencies.iter().flat_map(|deps| deps.keys().cloned());
+                        let names = NamesScope::new(&read_names, &unicode, inherited)
+                            .in_document(path, &resolve)
+                            .with_overrides(&names_override);
+                        if let Ok(source) = read_document_named(&notation, text, true, &names) {
+                            crate::ranked::restore_locations(Arc::make_mut(dom), &source);
+                            located = true;
+                        }
+                    }
+                    if !located {
+                        return None;
+                    }
+                    let grammar = stitch(&stage.name, &documents, &unicode).ok()?;
+                    crate::lower::lower(&grammar, features, classifiers).err().filter(|error| !error.recover_location)
+                });
+            recoveries.insert(index, recovery);
         }
         stages.push(grammar);
     }
-    // A name used both as a gate and as a warning, in any of the stages, is
-    // an error of the pipeline as a whole (engine §13).
-    Pipeline::new(stages, pipeline.features, context.unicode.clone()).map_err(|error| error.in_document(pipeline_path))
+    let mut pipeline = Pipeline::new(stages, spliced.features, context.unicode.clone())
+        .map_err(|error| error.in_document(pipeline_path))?;
+    pipeline.tree_recovery = recoveries;
+    Ok(pipeline)
 }
 
 /// Loads a bundled pipeline by name: the pipeline document
@@ -1196,7 +1237,7 @@ mod ranked_location_tests {
         let bundled = Context::bundled().unwrap();
         let pipeline = "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n";
         let grammar =
-            "```jbogenbau\n%ambiguity-resolution late #·<_Elided>\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y\n```\n";
+            "```jbogenbau\n%ambiguity-resolution late #·_<_Elided>\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y\n```\n";
         let sources = MapSources { map: [("p.md".into(), pipeline.into()), ("g.md".into(), grammar.into())].into() };
         let mut preparsed = Preparsed::default();
         for (path, text) in &sources.map {

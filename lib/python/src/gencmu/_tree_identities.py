@@ -19,11 +19,6 @@ def comparisons(root, *, constituents_only=True):
     return result
 
 
-def needs_locations(dom):
-    return any(not hasattr(node, "at") and ("capture" in node["right"] or "param" in node["right"])
-               for node in comparisons(dom["rules"], constituents_only=False))
-
-
 def restore_locations(dom, source):
     from ._boundary import Located
     originals = {tuple(rule["at"]): rule for rule in source["rules"]}
@@ -294,7 +289,10 @@ def check_cycles(lowered, structural):
                     source = p.source
                     at = getattr(comparison, "at", source.at)
                     place = f"{source.document}:{at[0]}:{at[1]}"
-                    raise GencmuError(f"{place}: tree comparison demands a cycle {' → '.join(cycle)} that can repeat a demanded rule over one span", document=source.document, line=at[0], column=at[1], stage=lowered.grammar.stage)
+                    error = GencmuError(f"{place}: tree comparison demands a cycle {' → '.join(cycle)} that can repeat a demanded rule over one span", document=source.document, line=at[0], column=at[1], stage=lowered.grammar.stage)
+                    if not hasattr(comparison, "at"):
+                        error._tree_location_document = source.document
+                    raise error
                 stack.append((child, 0))
 
 

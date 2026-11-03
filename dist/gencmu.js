@@ -430,7 +430,7 @@
       while(pending.length) {
         const node=pending.pop();
         if(node?.op==='≅' || node?.op==='≇')found.push(node);
-        else pending.push(...clauseChildren(node));
+        else for (const child of clauseChildren(node)) pending.push(child);
       }
       return found;
   }
@@ -8559,7 +8559,7 @@
           while(head.seq || head.capture || head.test) head=head.seq?.[0] ?? head.expr;
           if(head.ref) {omitted.add(head.ref);}
         }
-        for(const key of ['seq','choice','ranked','and']) if(expr[key]) pending.push(...expr[key]);
+        for(const key of ['seq','choice','ranked','and']) if(expr[key]) for (const child of expr[key]) pending.push(child);
         for(const key of ['expr','optional','repeat','separator']) if(expr[key]) pending.push(expr[key]);
       }
     };
@@ -8573,7 +8573,7 @@
       const name=pending.pop();
       if(reachable.has(name) || !rules.has(name)) continue;
       reachable.add(name);
-      pending.push(...rules.get(name).refs);
+      for (const child of rules.get(name).refs) pending.push(child);
     }
     // Keep terminal reachability separate from query-only references.
     const reachedTerminals=new Set(),reachedOmitted=new Set();
@@ -8598,14 +8598,16 @@
 
   /** @param {any} grammar @returns {any} */
   function rankingAudit(grammar) {
-    const data=observations(grammar),steps=grammar.resolution?.steps??[];
+    const steps=grammar.resolution?.steps??[];
+    if (!steps.length) return {keySteps:[],countedChanges:[]};
+    const data=observations(grammar);
     const reports=[],changes=[];
     for(let index=0;index<steps.length;index++) {
       const step=steps[index],named=new Set(),pending=[step.pattern];
       while(pending.length) {
         const pattern=pending.pop();
         if(pattern.name)named.add(pattern.name);
-        pending.push(...patternParts(pattern));
+        for (const child of patternParts(pattern)) pending.push(child);
       }
       reports.push({step:index,pattern:canonicalArgument({pattern:step.pattern},grammar.unicode),...(dead(step.pattern,data)?{status:'impossible'}:{})});
       for(const change of grammar.changes)if(named.has(change.rule))changes.push({...change,step:index});
@@ -8626,7 +8628,7 @@
       if(!node || typeof node!=='object' || seen.has(node)) continue;
       seen.add(node);
       if((node.op==='≅' || node.op==='≇') && typeof node.right?.capture==='string') result.push(node);
-      else pending.push(...clauseChildren(node).slice().reverse());
+      else for (const child of clauseChildren(node).slice().reverse()) pending.push(child);
     }
     return result;
   }
@@ -8865,8 +8867,8 @@
         const roots=[];
         for(const name of [comparison.left.capture,comparison.right.capture]) {
           if(name==='') {
-            roots.push(...prefix);
-            if(!production.helper)roots.push(...production.rhs.filter((/** @type {any} */ s)=>!s.terminal && !seals.has(s.name)).map((/** @type {any} */ s)=>s.name));
+            for (const name of prefix) roots.push(name);
+            if(!production.helper) for (const symbol of production.rhs) if (!symbol.terminal && !seals.has(symbol.name)) roots.push(symbol.name);
           } else {
             const binding=bindings.get(name);
             if(binding && !binding[0])roots.push(binding[1]);
@@ -10377,7 +10379,7 @@
                   while(pending.length) {
                     const node=pending.pop();
                     if(node.name && !this.rules.has(node.name)) throw this.documentError(path,node.at??location,`${node.name} is not a rule of stage ${this.stageName}`);
-                    pending.push(...patternParts(node));
+                    for (const child of patternParts(node)) pending.push(child);
                   }
                   step.pattern=pattern;
                 }
@@ -10957,6 +10959,12 @@
     }
 
     /**
+     * @internal
+     * @type {((features:Set<string>,error:GencmuError)=>GencmuError)|undefined}
+     */
+    recoverTreeError;
+
+    /**
      * The productions for a set of enabled features. The check of
      * elision-only reads the same productions in a mode of its own (engine
      * §3.8, §7.4).
@@ -10978,8 +10986,10 @@
           lowered = { ...new Lowering(this, on).run(), classifiers, implications: this.implications };
         } catch (error) {
           if (error instanceof GencmuError) {
-            if (error.where.stage !== this.stageName) error = error.withLocation({stage:this.stageName});
-            remember(this.lowered, key, error);
+            const recovered = this.recoverTreeError ? this.recoverTreeError(on,error) : error;
+            const located = recovered.where.stage === this.stageName ? recovered : recovered.withLocation({stage:this.stageName});
+            remember(this.lowered, key, located);
+            throw located;
           }
           throw error;
         }
@@ -11274,7 +11284,9 @@
           const source=cycle.production.logicalSource ?? cycle.production.source;
           const location=boundaryLocations.get(cycle.comparison)?.at;
           const at={...source.at,...(location ? {line:location[0],column:location[1]} : {})};
-          throw loweringError(at,`tree comparison demands a cycle ${cycle.cycle.join(" → ")} that can repeat a demanded rule over one span`);
+          const error = loweringError(at,`tree comparison demands a cycle ${cycle.cycle.join(" → ")} that can repeat a demanded rule over one span`);
+          if (!location) boundaryDocumentErrors.set(error,{document:source.document,node:cycle.comparison});
+          throw error;
         }
       }
       return {
@@ -14280,7 +14292,7 @@
         const captures = new Map(frame.captures);
         for (let part = this.slots; part; part = part.parent) captures.set(this.production.captures[part.index].name,part);
         const production = {...frame.root,tags:this.production.parentTags,lexicalFrame:{...frame,captures,parentWhole:true}};
-        const parent = new ChartScope(this.context,production,null,frame.namedOrigin,this.end,structure,observation);
+        const parent = new ChartScope(this.context,production,null,frame.namedOrigin,this.end,structure,observation,prefix);
         return {treeIdentity:this.context.trees ? this.context.trees.rule(frame.root.lhs,this.context.trees.append(frame.treeSealPrefix ?? 0,sealIdentity(this.context,frame.sealEntry.end,this.end))) : undefined,observation,structure,patterns:machine,start:frame.namedOrigin,end:this.end,space:this.space,
           patternName:frame.root.lhs,patternPrefix:prefix,get tags() {return /** @type {TagSet} */ (parent.constituent());}};
       }
@@ -22597,23 +22609,28 @@
       const pipeline = this.splice(path,documents);
       const build = () => {
         const stages = pipeline.stages.map((stage) => {
-          let grammar = new Grammar(stage.name, stage.documents, this.unicode);
-          if (grammar.treeComparisons) {
+          const grammar = new Grammar(stage.name, stage.documents, this.unicode);
+          if (grammar.treeComparisons && stage.documents.some(document=>needsTreeLocations(document.dom))) grammar.recoverTreeError = (features,error) => {
+            const missing = boundaryDocumentErrors.get(error);
+            if (!missing) return error;
             let located = false;
             for (const document of stage.documents) {
-              if (!needsTreeLocations(document.dom)) continue;
+              if (document.path !== missing.document) continue;
               const record = [...documents.values()].find(record=>record.path===document.path && document.dom.rules.some(rule=>record.dom.rules.includes(rule)));
               if (!record) continue;
               try {
-                const source = this.readDocument(record.text,record.path,true,record.inherited);
-                restoreBoundaryLocations(record.dom,source);
+                restoreBoundaryLocations(record.dom,this.readDocument(record.text,record.path,true,record.inherited));
                 located = true;
-              } catch (error) {
-                if (!(error instanceof GencmuError)) throw error;
+              } catch (failure) {
+                if (!(failure instanceof GencmuError)) throw failure;
               }
             }
-            if (located) grammar = new Grammar(stage.name, stage.documents, this.unicode);
-          }
+            if (located) {
+              try { new Grammar(stage.name,stage.documents,this.unicode).lower(features); }
+              catch (failure) { if (failure instanceof GencmuError) return failure; throw failure; }
+            }
+            return error;
+          };
           return new Stage(stage.name,grammar,stage.changes);
         });
         return new Pipeline(path, stages, this, pipeline.features);

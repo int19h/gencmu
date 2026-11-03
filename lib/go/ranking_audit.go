@@ -111,6 +111,9 @@ func rankingDead(p *domPattern, reachable, terminals map[string]bool) bool {
 	return false
 }
 func rankingStageReport(g *stageGrammar) RankingReport {
+	if len(g.steps) == 0 {
+		return RankingReport{Name: g.name, KeySteps: []RankingStepReport{}, CountedChanges: []CountedRuleChange{}}
+	}
 	type ruleData struct{ refs, terminals, omitted map[string]bool }
 	data := map[string]ruleData{}
 	for _, rule := range g.rules {

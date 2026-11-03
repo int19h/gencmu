@@ -183,17 +183,6 @@ func treeComparisonsInRule(rule *domRule) []*domCond {
 	return out
 }
 
-func treeLocationsMissing(doc *domDoc) bool {
-	for _, rule := range doc.Rules {
-		for _, c := range treeComparisonsInRule(rule) {
-			if c.Right.Kind == tmCapture && c.At == [2]int{} {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func restoreTreeLocations(to, from *domDoc) {
 	originals := map[[2]int]*domRule{}
 	for _, rule := range from.Rules {

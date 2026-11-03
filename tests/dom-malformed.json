@@ -379,8 +379,14 @@
                 }
               }
             ],
-            "any": true,
-            "exact": true
+            "exact": true,
+            "expr": {
+              "wildcard": true,
+              "at": [
+                1,
+                1
+              ]
+            }
           }
         },
         {
@@ -13156,7 +13162,7 @@
     "malformed": true
   },
   {
-    "description": "Unresolved leaf: call cannot replace pattern tags test operand",
+    "description": "Unresolved leaf: a call can be the operand of a pattern tags test",
     "rule": {
       "name": "use",
       "params": [
@@ -13217,7 +13223,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: param remains valid in pattern tags test operand",
@@ -13279,7 +13285,7 @@
     "malformed": false
   },
   {
-    "description": "Unresolved leaf: call cannot replace pattern = test operand",
+    "description": "Unresolved leaf: a call can be the operand of a pattern = test",
     "rule": {
       "name": "use",
       "params": [
@@ -13342,7 +13348,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: param remains valid in pattern = test operand",
@@ -13406,7 +13412,7 @@
     "malformed": false
   },
   {
-    "description": "Unresolved leaf: call cannot replace pattern ≠ test operand",
+    "description": "Unresolved leaf: a call can be the operand of a pattern ≠ test",
     "rule": {
       "name": "use",
       "params": [
@@ -13469,7 +13475,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: param remains valid in pattern ≠ test operand",

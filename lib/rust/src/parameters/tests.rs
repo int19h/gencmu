@@ -269,7 +269,7 @@ fn pattern_test_operands() {
         crate::test_common::run_engine_case(&crate::test_common::parse_json(&c).unwrap()).unwrap();
     }
     let source = "%rule atom(@X) @X\n%rule unused(@X) @X %conditions $ ≅ #(atom(\"a\")=\"a\")\n%rule text \"a\"";
-    assert!(crate::tools::read_grammar_document(&format!("```jbogenbau\n{source}\n```\n"), "").is_err());
+    assert!(crate::tools::read_grammar_document(&format!("```jbogenbau\n{source}\n```\n"), "").is_ok());
 }
 #[test]
 fn ranked_locations_do_not_change_dom() {

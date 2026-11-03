@@ -1009,9 +1009,6 @@ class Evaluator:
                     name, prefix = bound.root_pattern
                     part = bound.get(WHOLE)
                     observation = machine.node(name, prefix, tags=tags, value=self.input_value(part[0],part[1]) if machine.node_values else None)
-                if machine is not None and machine.node_values and dom["left"]["capture"] == WHOLE and bound.root_pattern is not None and not reads_node_tags(dom["right"]["pattern"]):
-                    part = bound.get(WHOLE)
-                    observation = machine.node(*bound.root_pattern, value=self.input_value(part[0], part[1]))
                 holds = machine is not None and machine.matches(observation, dom["right"]["pattern"])
                 return holds == (op == "≅")
             left = yield self.walk_value(dom["left"], bound)
@@ -1555,7 +1552,7 @@ class Parser:
                     whole = (frame.origin,at,tagtab.empty)
                 if machine is not None:
                     root_pattern = (frame.root.rule_name, machine.concat(frame.seal_prefix,machine.sealed()))
-                    structure = machine.node(*root_pattern)
+                    structure = machine.node(*root_pattern, value=input_value(frame.origin, at) if machine.node_values else None)
             bound = evaluator.bind(production, captured, whole, structure, close_structure)
             bound.root_pattern = root_pattern
             if trees is not None:
@@ -1572,13 +1569,13 @@ class Parser:
                 return captured[production.slots[production.inherited]][2]
             return tagtab.empty
 
-        def term_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0, close_structure: int = 0, tree_identity=None) -> Walk:
+        def term_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0, close_structure: int = 0, prefix: int = 0, tree_identity=None) -> Walk:
             """The tag set of a completed item from its production's tag
             term, which can ask nested parses (engine §4)."""
-            bound = bound_for(production, captured, (start, at, None), structure, close_structure, tree_identity=tree_identity)
+            bound = bound_for(production, captured, (start, at, None), structure, close_structure, prefix, tree_identity)
             return tagtab.intern(_as_set((yield evaluator.walk_value(production.tags_term, bound))))
 
-        def lazy_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0, close_structure: int = 0, tree_identity=None) -> Callable[[], Walk]:
+        def lazy_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0, close_structure: int = 0, prefix: int = 0, tree_identity=None) -> Callable[[], Walk]:
             """The walk of the tag set of a completing item, computed on
             first use (engine §4)."""
             memo: list[int] = []
@@ -1588,7 +1585,7 @@ class Parser:
                     if production.tags_term is None:
                         memo.append(constituent_tag(production, captured))
                     else:
-                        memo.append((yield term_tag(production, captured, start, at, structure, close_structure, tree_identity)))
+                        memo.append((yield term_tag(production, captured, start, at, structure, close_structure, prefix, tree_identity)))
                 return memo[0]
 
             return tag
@@ -1705,7 +1702,7 @@ class Parser:
             if complete and (production.whole_ready or boundaries is not None and production.tags_term is not None):
                 structure = completed_structure(production, position + 1, prefix, start, at)
                 close_structure = completed_closes(production, position + 1, start, at, close_prefix)
-                known_tag = lazy_tag(production, captured, start, at, structure, close_structure, tree_identity)
+                known_tag = lazy_tag(production, captured, start, at, structure, close_structure, prefix, tree_identity)
             if production.whole_ready and complete:
                 bound = bound_for(production, captured, (start, at, known_tag), structure, close_structure, prefix, tree_identity)
             else:
@@ -1739,7 +1736,7 @@ class Parser:
             tree_identity = tree_state(production, 0, j, j, SEED)[1] if trees is not None and production.walks_trees else None
             structure = completed_structure(production, 0, 0, j, j)
             close_structure = completed_closes(production, 0, j, j, 0)
-            known_tag = lazy_tag(production, NO_CAPS, j, j, structure, close_structure, tree_identity) if not production.rhs else None
+            known_tag = lazy_tag(production, NO_CAPS, j, j, structure, close_structure, tree_identity=tree_identity) if not production.rhs else None
             whole = (j, j, known_tag) if known_tag is not None else None
             bound = bound_for(production, NO_CAPS, whole, structure, close_structure, tree_identity=tree_identity)
             obligations = []
@@ -1930,7 +1927,7 @@ class Parser:
                     tag[item] = constituent_tag(production, caps[item])
                 else:
                     try:
-                        tag[item] = yield term_tag(production, caps[item], start, j, structures[item], close_structures[item] if closes is not None else 0, tree_ids.get(item) if trees is not None else None)
+                        tag[item] = yield term_tag(production, caps[item], start, j, structures[item], close_structures[item] if closes is not None else 0, prefixes[item] if machine is not None else 0, tree_ids.get(item) if trees is not None else None)
                     except InvalidObservation:
                         continue
                 if machine is not None and (machine.node_tags or machine.node_values) and not production.helper:

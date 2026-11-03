@@ -6,6 +6,8 @@ from ._templates import canonical_argument
 
 
 def ranking_audit(grammar):
+    if not grammar.steps:
+        return dict(keySteps=[], countedChanges=[])
     rules = {}
 
     def body(root):

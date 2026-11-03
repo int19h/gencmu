@@ -1083,6 +1083,7 @@ pub(crate) struct LowerError {
     pub line: usize,
     pub column: usize,
     pub stage: String,
+    pub recover_location: bool,
 }
 
 impl LowerError {
@@ -1093,6 +1094,7 @@ impl LowerError {
             line,
             column,
             stage: stage.to_string(),
+            recover_location: false,
         }
     }
 }

@@ -121,6 +121,9 @@ fn dead(p: &Pattern, reachable: &BTreeSet<String>, terms: &BTreeSet<String>) -> 
 }
 
 pub(crate) fn report(g: &StageGrammar) -> RankingReport {
+    if g.steps.is_empty() {
+        return RankingReport { name: g.name.clone(), key_steps: Vec::new(), counted_changes: Vec::new() };
+    }
     let bodies: Vec<_> = g
         .rules
         .iter()

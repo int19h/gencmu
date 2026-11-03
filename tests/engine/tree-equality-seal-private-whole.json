@@ -1,7 +1,7 @@
 {
-  "description": "Structural comparison: seal-private-whole.",
-  "grammar": "%rule text r\n%rule r :: ∅\n  | (\"a\" ≻ \"b\") | ($x:r ≻ \"c\")\n%conditions $ ≅ $x",
-  "input": "a",
+  "description": "A private whole comparison sees the enclosing prefix and its ranked seal.",
+  "grammar": "%rule text r\n%rule r :: ($ ≅ #(r=\"ab\" ∩ « \"a\" ⋯ ») ⟹ X)\n  | \"a\" ($x:r ≻ \"c\") | \"b\"\n%conditions $x ⟹ (X ⊆ $.tags ∧ $ ≇ $x)",
+  "input": "ab",
   "expect": {
     "result": {
       "ok": true

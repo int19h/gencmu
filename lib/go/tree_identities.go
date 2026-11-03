@@ -682,6 +682,9 @@ func (g *lowered) checkTreeCycles(rows []structuralProduction) {
 					err := grammarError(site.production.doc, at, "tree comparison demands a cycle %s that can repeat a demanded rule over one span", strings.Join(cycle, " → "))
 					err.Message = fmt.Sprintf("%s:%d:%d: %s", site.production.doc, at[0], at[1], err.Message)
 					err.Stage = g.stage.name
+					if site.comparison.At == [2]int{} {
+						err.treeLocation = true
+					}
 					g.fault, g.faultLocation = err.Message, err
 					return
 				}

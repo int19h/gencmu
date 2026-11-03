@@ -1626,7 +1626,7 @@ impl Preparation {
         }
         let observes = !crate::restoration::demanded(g).is_empty();
         Preparation {
-            machine: !(roots.is_empty() && g.ranked.slots.is_empty() && !observes) || !g.tree_demands.is_empty(),
+            machine: !(roots.is_empty() && g.ranked.slots.is_empty() && !observes && g.tree_demands.is_empty()),
             roots,
             observes,
             close_demands: crate::restoration::local_demands(g).into(),
@@ -1820,9 +1820,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let (Some(lexical), Some(machine)) = (frame.lexical, &self.shared.machine) else { return };
         let rule = self.g.prods[lexical.root as usize].rule;
         let parent = &self.g.rules[rule as usize].name;
+        let value = self.pattern_value(tokens, base, lexical.origin as usize, frame.end as usize);
         let mut m = machine.borrow_mut();
         frame.parent_prefix = frame.parent_structure;
-        frame.parent_structure = m.node(Some(parent), frame.parent_structure, None);
+        frame.parent_structure = m.node_with_value(Some(parent), frame.parent_structure, None, &[], value.as_deref());
         if !self.g.tree_demands.is_empty() && crate::tree_identity::demand(self.g, frame.prod, frame.lexical).whole {
             let project = |at: u32| frame.project.map_or(at, |p| p[at as usize]) as usize;
             let values = tokens[project(lexical.seal_at)..project(frame.end)].iter().map(|t| t.value.clone()).collect();
