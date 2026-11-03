@@ -180,6 +180,7 @@ export declare class Grammar {
      * @type {Map<string, LoweredGrammar | GencmuError>}
      */
     lowered: Map<string, LoweredGrammar | GencmuError>;
+    treeComparisons: boolean | undefined;
     /**
      * @param {string} stageName
      * @param {{path: string, dom: GrammarDom}[]} documents

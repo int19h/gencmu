@@ -445,20 +445,15 @@ export type PatternAtom = Parameter | PatternTerminal | {
     constant: string;
     at: Position;
 };
-export type PatternTagsOnly = {
-    test: "tags";
-    requirements: Requirement[];
-    any: true;
-};
-export type PatternTagTest = PatternTagsOnly | {
+export type PatternTagTest = {
     test: "tags";
     requirements: Requirement[];
     expr: PatternAtom | PatternRuleAtom;
 };
-export type PatternTestTarget = PatternAtom | PatternTagsOnly | {
+export type PatternTestTarget = PatternAtom | PatternRuleAtom | {
     test: "tags";
     requirements: Requirement[];
-    expr: PatternAtom;
+    expr: PatternAtom | PatternRuleAtom;
 };
 export type PatternChildren = PatternItem[];
 export type PatternItem = {
@@ -647,6 +642,8 @@ export type ReadyCondition = {
     wholeBoundary?: boolean;
 };
 export type Production = {
+    treeRequested?: boolean;
+    observesTrees?: boolean;
     source?: import("./grammar.js").StitchedAlternative;
     logicalSource?: import("./grammar.js").StitchedAlternative;
     writtenExpression?: Expr;
@@ -755,6 +752,7 @@ export type Resolution = {
     elisionOnly: boolean;
 };
 export type LoweredGrammar = {
+    treeComparisons: boolean;
     boundarySites: WeakMap<object, WeakMap<object, {
         rule: string;
         condition: number;
@@ -802,6 +800,7 @@ export type Captured = {
     tags: number;
     structure: number;
     observation: import("./close-observations.js").CloseObservation | null;
+    treeIdentity?: number;
     emitted?: Record<string, string>;
     id: number;
 } | null;
@@ -829,6 +828,7 @@ export type TermValue = {
     set: Set<string>;
 };
 export type SpanValue = {
+    treeIdentity?: number;
     patternName?: string;
     patternPrefix?: number;
     emitted?: Record<string, string>;
@@ -1268,9 +1268,8 @@ export type ParseContext = import("./earley.js").ParseContext;
 /** @typedef {{name:string,at:Position} | TemplateCall | Parameter} PatternRuleAtom */
 /** @typedef {{terminal:string, at:Position}} PatternTerminal */
 /** @typedef {Parameter | PatternTerminal | {literal:{string:string},at:Position} | {range:[Term,Term],at:Position} | {wildcard:true,at:Position} | {constant:string,at:Position}} PatternAtom */
-/** @typedef {{test:"tags",requirements:Requirement[],any:true}} PatternTagsOnly */
-/** @typedef {PatternTagsOnly | {test:"tags",requirements:Requirement[],expr:PatternAtom | PatternRuleAtom}} PatternTagTest */
-/** @typedef {PatternAtom | PatternTagsOnly | {test:"tags",requirements:Requirement[],expr:PatternAtom}} PatternTestTarget */
+/** @typedef {{test:"tags",requirements:Requirement[],expr:PatternAtom | PatternRuleAtom}} PatternTagTest */
+/** @typedef {PatternAtom | PatternRuleAtom | {test:"tags",requirements:Requirement[],expr:PatternAtom | PatternRuleAtom}} PatternTestTarget */
 /** @typedef {PatternItem[]} PatternChildren */
 /** @typedef {{child:Pattern} | {siblings:true} | {optional:PatternChildren} | {repeat:PatternChildren,separator?:PatternChildren} | {choice:PatternChildren[]}} PatternItem */
 /**
@@ -1382,6 +1381,8 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A production of a lowered grammar (engine §3).
  * @typedef {object} Production
+ * @property {boolean} [treeRequested]
+ * @property {boolean} [observesTrees]
  * @property {import("./grammar.js").StitchedAlternative} [source]
  * @property {import("./grammar.js").StitchedAlternative} [logicalSource]
  * @property {Expr} [writtenExpression]
@@ -1446,6 +1447,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A grammar lowered for one set of features.
  * @typedef {object} LoweredGrammar
+ * @property {boolean} treeComparisons
  * @property {WeakMap<object,WeakMap<object,{rule:string,condition:number,order:number}>>} boundarySites
  * @property {Production[]} productions
  * @property {Map<string, Production[]>} byLhs
@@ -1471,7 +1473,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * tag set, after the parts before it. A context makes each sequence once,
  * with its number (engine §4). `depth` counts the parts, and `jump` is an
  * earlier sequence that a search for a part can skip to.
- * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, emitted?: Record<string,string>, id: number} | null} Captured
+ * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, treeIdentity?:number, emitted?: Record<string,string>, id: number} | null} Captured
  */
 /**
  * How an item was built.
@@ -1488,6 +1490,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A span a term denotes, with the tags of the captured part when it is a
  * whole capture.
  * @typedef {object} SpanValue
+ * @property {number} [treeIdentity]
  * @property {string} [patternName]
  * @property {number} [patternPrefix]
  * @property {Record<string,string>} [emitted]

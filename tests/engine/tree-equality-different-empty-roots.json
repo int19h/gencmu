@@ -1,0 +1,10 @@
+{
+  "description": "Structural comparison: different-empty-roots.",
+  "grammar": "%rule text $x:a $y:b\n%conditions $x ≇ $y\n%rule a ε\n%rule b ε",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

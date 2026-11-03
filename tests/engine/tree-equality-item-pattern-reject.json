@@ -1,0 +1,8 @@
+{
+  "description": "Structural comparison: item-pattern-reject.",
+  "grammar": "%rule text {$x:r}\n%conditions $x ≅ #r=\"a\"\n%rule r \"a\" | \"b\"",
+  "input": "ab",
+  "expect": {
+    "error": "rejected"
+  }
+}

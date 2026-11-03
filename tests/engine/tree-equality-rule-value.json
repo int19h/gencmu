@@ -1,0 +1,10 @@
+{
+  "description": "tree-equality-rule-value",
+  "grammar": "%rule text $x:w\n%conditions $x ≅ #w=\"a\"\n%rule w \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

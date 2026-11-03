@@ -43,7 +43,7 @@ The number and letter-string rules prevent a run from ending before a part that 
 
 A span is a range between input token boundaries. A ranked choice filters alternatives at one written position. An option qualifies when its complete reading passes the grammar's conditions. An earlier option can exclude a later option over the same span. The [notation document](../../../docs/notation.md#ranked-choices) defines when this occurs.
 
-A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage ranks admitted derivations by `leftmost-longest #(·tense-modal ∪ ·free)`, then `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)`, then `late #·<_Elided>`. After the first two steps tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
+A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage ranks admitted derivations by `leftmost-longest #(·tense-modal ∪ ·free)`, then `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)`, then `late #·_<_Elided>`. After the first two steps tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
 The first step names `free` and `tense-modal`, and compares the spans of every occurrence of either. Both rules contribute to one count, without priority by rule name. The earliest differing start decides, with longer spans first. A unit that prevents the full text from completing contributes nothing.
 
@@ -69,7 +69,7 @@ The experimental terminators `ku'au` and `ku'oi` are elidable: the rules below w
 
 ```jbogenbau
 %ambiguity-resolution
-  leftmost-longest #(·tense-modal ∪ ·free), fewest #(·gi-stag-connective ∪ ·bridi-tail-connective), late #·<_Elided>
+  leftmost-longest #(·tense-modal ∪ ·free), fewest #(·gi-stag-connective ∪ ·bridi-tail-connective), late #·_<_Elided>
 ```
 
 ## The text and its paragraphs
@@ -510,7 +510,7 @@ Each term level has its own link rules and sumti conditions. A BO group takes it
 
 PEhE takes any statement connective. `terms-1` forms a left chain in ordinary terms and forethought branches alike. A SOI term contains a subsentence and ends with SEhU. The `soi-clause` feature enables it, and `fi'oi` belongs to SOI.
 
-A bare forethought termset needs no NUhI, and its branches can hold different numbers of terms. Its first branch ends in `termset-branch`, which elides NUhU before GI. A competing forethought sumti elides nothing there, so `late #·<_Elided>` prefers it.
+A bare forethought termset needs no NUhI, and its branches can hold different numbers of terms. Its first branch ends in `termset-branch`, which elides NUhU before GI. A competing forethought sumti elides nothing there, so `late #·_<_Elided>` prefers it.
 
 Thus `ge mi gi do ce'e ti` contains a connected sumti followed by CEhE and another term. In `broda be ge mi gi do ce'e ti be'o`, BE instead takes a termset. Its single argument cannot continue with CEhE after a sumti.
 
@@ -1184,9 +1184,9 @@ The first step names its free modifier, so a complete longer vocative outranks a
 
 ## Choosing among parses
 
-Where a text has more than one parse, the stage follows [the notation document](../../../docs/notation.md), under "Ranked choices", "Ambiguity", and "Elided terminators". A ranked choice filters alternatives at one written position. The stage ranks admitted derivations by `leftmost-longest #(·tense-modal ∪ ·free)`, then `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)`, then `late #·<_Elided>`. `late #·<_Elided>` counts the omitted terminators of each admitted derivation at each boundary. After the first two steps tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
+Where a text has more than one parse, the stage follows [the notation document](../../../docs/notation.md), under "Ranked choices", "Ambiguity", and "Elided terminators". A ranked choice filters alternatives at one written position. The stage ranks admitted derivations by `leftmost-longest #(·tense-modal ∪ ·free)`, then `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)`, then `late #·_<_Elided>`. `late #·_<_Elided>` counts the omitted terminators of each admitted derivation at each boundary. After the first two steps tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
-For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, whose `ku` is elided before `tavla`, and the selbri `tavla`. The other is a fragment, the single description `le sutra tavla`, whose `ku` is elided at the end. `late #·<_Elided>` takes the fragment.
+For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, whose `ku` is elided before `tavla`, and the selbri `tavla`. The other is a fragment, the single description `le sutra tavla`, whose `ku` is elided at the end. `late #·_<_Elided>` takes the fragment.
 
 ## Differences from CLL and camxes-exp
 

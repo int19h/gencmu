@@ -551,7 +551,7 @@ A tree comparison has a bare capture on the left and a pattern term on the right
 
 A pattern starts with `#` and one node test, bare child list, or grouped predicate. An exact prefix suppresses the node test's single-child search.
 
-A pattern atom is a name, a terminal or a constant with its tests, or tests alone. Tests alone make a node test on tags, as in `#<Tense>`, which the reader converts as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says. Guillemets enclose child items. A list directly after a pattern atom attaches to that atom. The reader keeps an attached list only on a rule name, emoji rule, template family, exact call, or compatible parameter.
+A pattern atom is a name, a terminal or a constant with its tests, or tests alone. Tests alone make a node test on tags, as in `#_<Tense>`, which the reader converts as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says. Guillemets enclose child items. A list directly after a pattern atom attaches to that atom. The reader keeps an attached list only on a rule name, emoji rule, template family, exact call, or compatible parameter.
 
 A bare list or an exact prefix needs whitespace or a comment after a node test, `»`, `]`, `}`, or a group's `)`. Thus `« a «b» »` has two items, while `« a«b» »` attaches the list to `a`. `« (a)«b» »` is an error. After `⋯` or `⋰`, no space is necessary.
 
@@ -596,8 +596,7 @@ Recognition admits repeated or reversed tests on node atoms. The reader restrict
   $exact ⟹ $exact.onward.begins(pattern-exact-start)
 
 %rule pattern-atom
-  | (pattern-name | tag | string | range | wildcard | constant-reference) [{symbol-test}]
-  | {symbol-test}
+  (pattern-name | tag | string | range | wildcard | constant-reference) [{symbol-test}]
 
 %rule pattern-name
   Lowercase-Name | Emoji-Name | call | parameter

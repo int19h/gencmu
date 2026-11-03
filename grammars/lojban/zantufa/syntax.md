@@ -51,7 +51,7 @@ A ranked choice filters alternatives at one written position. An option qualifie
 
 A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage has no `leftmost-longest` step.
 
-The stage first prefers fewer plain term links through `fewest #·term-link`. It then ranks admitted derivations by `late #·<_Elided>`. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
+The stage first prefers fewer plain term links through `fewest #·term-link`. It then ranks admitted derivations by `late #·_<_Elided>`. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
 The stage does not declare `%elision-only`. A PEG repetition reads as far as it can, and late elision usually selects the same reading. Each terminator marked `_elidible` in the reference is elidable here, with an optional such as `[+KU]`. The separators `cu` and `i'au` remain ordinary optionals.
 
@@ -59,7 +59,7 @@ The stage does not declare `%elision-only`. A PEG repetition reads as far as it 
 
 A witness is a reading that satisfies a query. A whole query uses `$x.without-elision.matches(r)`. An extended prefix uses `$x.without-elision.onward.begins(r)` and can read beyond the capture. Here `r` names a rule, while a capitalized identifier names a tag. Both forms keep following original words available to the witness's conditions.
 
-A query can elide terminators under written-terminator priority ([engine §4](../../../docs/engine.md#4-recognition)). It cannot omit a terminator where the same construction can read that terminator as written. The query does not select the final `late #·<_Elided>` winner. Category conditions preserve the actual candidate's closes. Structural conditions inspect its actual children.
+A query can elide terminators under written-terminator priority ([engine §4](../../../docs/engine.md#4-recognition)). It cannot omit a terminator where the same construction can read that terminator as written. The query does not select the final `late #·_<_Elided>` winner. Category conditions preserve the actual candidate's closes. Structural conditions inspect its actual children.
 
 `$x.without-elision-except(math)` also lets the witness omit KUhE inside the shared stretch. The rule `math` names the constructs that KUhE closes.
 
@@ -84,7 +84,7 @@ A following-input condition reserves words after a candidate for another constru
 
 ```jbogenbau
 %ambiguity-resolution
-  fewest #·term-link, late #·<_Elided>
+  fewest #·term-link, late #·_<_Elided>
 
 %rule 🆓
   [{free}]

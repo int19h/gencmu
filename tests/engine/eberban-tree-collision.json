@@ -1,0 +1,11 @@
+{
+  "description": "eberban-tree-collision",
+  "input": "a mi ca mi a mo cai meon pa ca mia mo cai vo mo",
+  "expect": {
+    "error": "rejected"
+  },
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md"
+}

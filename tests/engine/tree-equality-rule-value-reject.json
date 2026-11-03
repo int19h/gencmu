@@ -1,0 +1,8 @@
+{
+  "description": "tree-equality-rule-value-reject",
+  "grammar": "%rule text $x:w\n%conditions $x ≅ #w=\"b\"\n%rule w \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "rejected"
+  }
+}

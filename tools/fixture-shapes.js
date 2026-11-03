@@ -24,7 +24,7 @@ const feature = object({ name: string, kind: choice("gate", "warning"), default:
 const warning = object({ stage: string, feature: string, rule: string, span: pair, source: pair });
 const expectation = object({}, {
   result: record, error: choice("grammar", "usage", "rejected", "ambiguous", "feature-conflict"), where: position, diagnostic: string, message: string,
-  brackets: string, warnings: list(warning), loadWarnings: list(object({stage:string,step:natural,tag:string})), features: list(feature), enabledFeatures: strings, bundledPipelines: strings,
+  brackets: string, warnings: list(warning), features: list(feature), enabledFeatures: strings, bundledPipelines: strings,
 }, [(v) => (has(v, "where") || has(v, "diagnostic") || has(v, "message")) && v.error !== "grammar"
   ? ["where, diagnostic and message require a grammar error"] : []]);
 const parse = object({ expect: expectation }, { options });

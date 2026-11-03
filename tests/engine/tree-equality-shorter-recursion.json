@@ -1,0 +1,10 @@
+{
+  "description": "Structural comparison: shorter-recursion.",
+  "grammar": "%rule text $x:r \"|\" $y:r\n%conditions $x ≅ $y\n%rule r \"a\" [r]",
+  "input": "aa|aa",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

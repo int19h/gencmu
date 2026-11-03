@@ -1,0 +1,10 @@
+{
+  "description": "Structural comparison: item-pattern.",
+  "grammar": "%rule text {$x:r}\n%conditions $x ≅ #r=\"a\"\n%rule r \"a\" | \"b\"",
+  "input": "aa",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

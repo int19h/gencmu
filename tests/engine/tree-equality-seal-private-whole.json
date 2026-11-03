@@ -1,0 +1,10 @@
+{
+  "description": "Structural comparison: seal-private-whole.",
+  "grammar": "%rule text r\n%rule r :: ∅\n  | (\"a\" ≻ \"b\") | ($x:r ≻ \"c\")\n%conditions $ ≅ $x",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

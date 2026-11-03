@@ -326,6 +326,7 @@ export declare class Profiles {
     /** @type {WeakMap<object,number>} */ tagIds: WeakMap<object, number>;
     nextTag: number;
     valueTests: boolean[];
+    /** @type {Map<string,string>|null} */ spanValues: Map<string, string> | null;
     /** @type {Map<string,number>} */ tagKeys: Map<string, number>;
     /** @type {Profile} */
     zero: Profile;

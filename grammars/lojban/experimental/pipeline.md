@@ -141,7 +141,7 @@ A bridi-tail is a predicate with its following terms.
 
 A span is a range between input token boundaries.
 
-A ranked choice orders alternatives at one written position. An earlier option can exclude a later option over the same span. The [notation document](../../../docs/notation.md#ranked-choices) defines when this occurs. `leftmost-longest #(·tense-modal ∪ ·free)` prefers the reading whose free modifiers and tense-modals start earliest and run longest. `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)` next prefers fewer links across the whole reading. `late #·<_Elided>` ranks the remaining readings.
+A ranked choice orders alternatives at one written position. An earlier option can exclude a later option over the same span. The [notation document](../../../docs/notation.md#ranked-choices) defines when this occurs. `leftmost-longest #(·tense-modal ∪ ·free)` prefers the reading whose free modifiers and tense-modals start earliest and run longest. `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)` next prefers fewer links across the whole reading. `late #·_<_Elided>` ranks the remaining readings.
 
 The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing.
 

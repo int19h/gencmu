@@ -1,0 +1,8 @@
+{
+  "description": "tree-equality-cycle",
+  "grammar": "%rule text $x:w $y:w\n%conditions $x ≅ $y\n%rule w \"a\" | w",
+  "input": "aa",
+  "expect": {
+    "error": "grammar"
+  }
+}

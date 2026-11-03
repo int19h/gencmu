@@ -1,3 +1,4 @@
+import { TreeIdentities } from "./tree-identities.js";
 import { BoundaryAnnotations } from "./boundary-annotations.js";
 import { PatternMachine } from "./patterns.js";
 import { CloseObservations } from "./close-observations.js";
@@ -103,6 +104,8 @@ export declare class ParseContext {
     closeRules: Set<string>;
     /** @type {CloseObservations|null} */
     closes: CloseObservations | null;
+    /** @type {TreeIdentities|null} */ trees: TreeIdentities | null;
+    /** @type {Map<string,number>|null} */ treeSeals: Map<string, number> | null;
     tokens: Token[];
     /** Where each run of the tokens lies in the text (engine §1). */
     sources: Sources;
@@ -473,6 +476,7 @@ export declare function testHolds(context: ParseContext, test: SymbolTest, from:
 export declare function rootItems(chart: Chart, rule: string): Item[];
 export type StepScope = {
     scope: ChartScope | null;
+    tree?: any;
     emitted?: Record<string, string>;
     structure: number;
     prefix?: number;
@@ -482,6 +486,7 @@ export type StepScope = {
 /** @implements {Scope} */
 declare class ChartScope implements Scope {
     context: ParseContext;
+    treeIdentity: number | undefined;
     production: Production;
     structure: number;
     prefix: number;
