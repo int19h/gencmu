@@ -10,8 +10,8 @@ export type TreeDemand = {
 };
 /** @param {any} production @returns {TreeDemand} */
 export declare function localTreeDemand(production: any): TreeDemand;
-/** @param {any} lowered */
-export declare function prepareTreeDemands(lowered: any): void;
+/** @param {any} lowered @param {any} frames */
+export declare function prepareTreeDemands(lowered: any, frames: any): void;
 export declare class TreeIdentities {
     /** @type {Map<string,number>} */ ids: Map<string, number>;
     /** @type {{key:any[],empty:boolean}[]} */ nodes: {

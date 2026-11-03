@@ -1,0 +1,23 @@
+{
+  "description": "Distinct instances retain distinct rule identities when their children are equal (engine §4.1).",
+  "grammar": "%rule part(@Name) A\n%rule left = part(X)\n%rule right = part(Y)\n%rule text $x:left $y:right\n%conditions $x ≇ $y",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
