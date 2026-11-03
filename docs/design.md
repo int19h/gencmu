@@ -456,7 +456,7 @@ An elidable optional permits an omitted closing word. A grammar marks each elida
 
 A marked optional has one form, with a user tag or parameter directly after the marker. A parameter must become exactly one bare user tag after argument conversion. A group there, even `[+(KU) 🆓]`, is a document error. This gives one spelling for readers to inspect. A DOM does not preserve groups, so its reader tests only the normalized form. A wrong test on a terminator is also a document error.
 
-An omission has an elided node and contributes to its boundary's elision count. It does not record which constituent it closes. `elision-only` reconstructs its defined routes and preserves the exact value that an equality test saves. Query blockers instead read the preceding logical symbol, with plain optionals retained as helpers.
+An omission has an elided node and contributes to its boundary's elision count. It does not record which constituent it closes. `elision-only` reconstructs its defined routes and preserves the default value, from `≝` or from an equality test. Query blockers instead read the preceding logical symbol, with plain optionals retained as helpers.
 
 A capture can stand anywhere except inside a chain or inside an elidable optional. Inside flat braces it is an item capture. An alternative expands into productions, one per choice branch and subsequence of `&`. A plain optional with a capture expands into productions with and without the capture. A capture can therefore be present in some productions and absent in others.
 
@@ -767,7 +767,7 @@ A parse option overrides `elision-only` either way. A caller switches it on to r
 
 ### Syntax conventions
 
-The syntax stages of the bundled Lojban grammars end with `late elision`. The `lojban/cll` and `lojban/bpfk` pipelines also declare `%elision-only`.
+The syntax stages of the bundled Lojban grammars end with `late #·<_Elided>`. The `lojban/cll` and `lojban/bpfk` pipelines also declare `%elision-only`.
 
 The CLL grammar expresses the official lexer's `JOIK_KE` preference with a ranked choice. Its preferred option groups with `joik [stag] KE … KEhE`. Its plain option joins two units with `joik-jek`. The preferred option removes the plain reading only over the same span.
 
@@ -783,13 +783,13 @@ The `lojban/experimental` pipeline redefines `selbri-4` and `operator`, with the
 
 The pipeline also states three conventions as rules:
 
-- A sumti connection takes priority over a term connection. After span ranking, `fewest link` prefers fewer links that `bridi-tail-connective` and `gi-stag-connective` build across the whole reading. Equal counts leave late elision to decide, which can keep the first description open. This applies to A, JA, JOI, and VUhU, including terms marked with `fe` or `pu` and bare `na ku` terms.
+- A sumti connection takes priority over a term connection. After span ranking, `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)` prefers fewer occurrences of those two rules across the whole reading. Equal counts leave late elision to decide, which can keep the first description open. This applies to A, JA, JOI, and VUhU, including terms marked with `fe` or `pu` and bare `na ku` terms.
 - A `be` group attaches to the preceding unit when there is one.
 - A subscript after a subscript nests, as CLL 18.13 says.
 
 A preference for each connective or argument can misread natural texts. Form alone does not determine the intended meaning. The `lojban/experimental` pipeline keeps the whole-reading count. Written `kei ku` after the first description selects parallel descriptions, while `gi'e` explicitly marks a bridi-tail link. The [syntax closing section](../grammars/lojban/experimental/syntax.md#terms-and-descriptions) gives both choices and their written forms in plain words.
 
-`leftmost-longest unit` settles a free modifier's span before the `fewest link` step, since `free` counts as a unit. An omitted terminator therefore closes as late as the text allows. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis. The [experimental syntax document](../grammars/lojban/experimental/syntax.md) gives examples with omitted and written `toi`.
+The first step, `leftmost-longest #(·tense-modal ∪ ·free)`, names `free`, so it settles a free modifier's span before the `fewest` step. An omitted terminator therefore closes as late as the text allows. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis. The [experimental syntax document](../grammars/lojban/experimental/syntax.md) gives examples with omitted and written `toi`.
 
 The Zantufa grammar states its attachment conventions as rules, derived from its reference parser:
 
@@ -808,7 +808,7 @@ Zantufa marks neither `CU` nor `IAU` as elidable. CLL also leaves `CU` unmarked.
 
 ## Indivisible numbers and letter strings
 
-The `lojban/cll` and `lojban/bpfk` pipelines use `late elision` with `%elision-only`. Their numbers and letter strings cannot end before another continuation unit. A continuation unit is `PA` or a complete `lerfu-word`. It includes recursive LAU words and balanced TEI/FOI compounds. CLL 17.9 and 18.6 require `boi` between adjacent runs. CLL 17.14 lists what can follow a LAU cmavo.
+The `lojban/cll` and `lojban/bpfk` pipelines use `late #·<_Elided>` with `%elision-only`. Their numbers and letter strings cannot end before another continuation unit. A continuation unit is `PA` or a complete `lerfu-word`. It includes recursive LAU words and balanced TEI/FOI compounds. CLL 17.9 and 18.6 require `boi` between adjacent runs. CLL 17.14 lists what can follow a LAU cmavo.
 
 The conditions on `number` and `lerfu-string` test the completed run once, where it ends. The rules use brace notation.
 
@@ -862,7 +862,7 @@ Node
   children      for a rule node: nodes, in text order
   span          token range in the stage's input
   source        code-point range in the original text
-  value         for an equality-tested elided node: its saved string, including ""
+  value         for an elided node with a default value: that string, including ""
   tags          for a rule node: its tag set, a sorted list of tags
   token         for a token node: the index of the stage-input token it read
 ```
@@ -873,9 +873,9 @@ The engine splices out only one kind of node, because no author wrote it. That i
 
 An absent elidable optional leaves an `elided` node with an empty span, at the place of the missing terminator. Collapsing chains is a choice of the renderers, not of the tree. Ordinary nodes store no `text`, `value`, or `image`. The libraries compute them from tokens.
 
-An equality-tested elided node saves its restoration operand as `value`, including an explicit empty string. This member alone records the operand and whether an equality test exists. Other nodes omit this member. Omitted pattern leaves still observe empty strings.
+An elided node with a default value, from `≝` or from an equality test, records it as `value`, including an explicit empty string. This member alone records the default and whether one exists. Other nodes omit this member. Omitted pattern leaves still observe empty strings.
 
-Canonical JSON includes saved `value` for equality-tested elisions. This distinguishes their restoration data without changing what a pattern observes.
+Canonical JSON includes the `value` of an elided node with a default. This distinguishes their restoration data without changing what a pattern observes.
 
 Each library exposes this structure in the idiom of its language. JavaScript uses plain objects and arrays, and Python uses dataclasses. Go uses structs with slices, and Rust uses structs with `Vec` and owned `String`. These types let a result outlive the text and the pipeline that it came from.
 
@@ -932,7 +932,7 @@ The product provides these diagnostics and debugging tools:
   A stage with input and no verdict reports that it failed, with its diagnostic. A later stage without input is not reached.
 
   The trace position must be a finite integer. The trace clamps it to the stage's token boundaries. Printed conditions preserve method receivers with parentheses around compound terms.
-- The audit reports unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` covers text that can never emit a token and that no token can cover. The audit names each redefinition or extension of a counted rule, with the step that it affects. A counted rule is one that a key step names. A rule whose resolved tag terms hold a literal for a tested tag is counted too. Rules that can match a step only through an inherited, forwarded or computed tag set stand in a separate, marked section. The audit also labels each key step as impossible, possible or unknown for its stage. It lists each rule that can carry a tested tag without a literal for it. And it lists the inherited tags that a `::` clause drops on a rule with one logical symbol and a tested tag. A tested tag that no source of the stage can produce is a warning (engine §9.3). It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
+- The audit reports unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` covers text that can never emit a token and that no token can cover. The audit names each redefinition or extension of a counted rule, with the step that it affects. A counted rule is one that a key step names. A rule whose resolved tag terms hold a literal for a tested tag is counted too. Rules that can match a step only through an inherited, forwarded or computed tag set stand in a separate, marked section. The audit also labels each key step as impossible, possible or unknown for its stage. It decides reachability first. It walks body references from `text` through every alternative, including one behind a disabled gate. It does not add a rule that appears only as a query target. A terminal is unreachable when no rule on that walk reads it. Then a recursion over the resolved pattern decides whether the pattern is dead. A rule atom is dead when its rule or exact instance is unreachable. A family atom is dead when every instance is unreachable. A terminal atom is dead when its terminal is unreachable. A tag-only atom is never dead. A union is dead when every operand is, an intersection when any operand is, and a difference when its left operand is. A step with a dead pattern is impossible, whatever tag sets the stage has. Otherwise the tag sets decide. A step is impossible when its predicate holds on no tag set that a node of the stage can carry, while no node carries an inherited, forwarded or computed tag set. It is unknown when some rule or read carries such a set. Then the audit says that the step is unchecked, not that it is right. Every other step is possible. These labels are diagnostics only. The optimization of engine §6, which decides whether a stage builds profiles, errs toward yes on its own and does not use them. It lists each rule that can carry a tested tag without a literal for it. And it lists the inherited tags that a `::` clause drops on a rule with one logical symbol and a tested tag. A tested tag that no source of the stage can produce is a warning (engine §9.3). It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
 
   Its data lists the family's members in closure order. That order starts with the family rule and reads the members breadth first. It reads each member's alternatives in written order, and each alternative's member edges in written order. The data also lists the optionals that the family permits, each with its terminal and owning definition. They follow the members in closure order, and each member's optionals come in written order.
 

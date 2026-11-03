@@ -147,7 +147,7 @@ A rejection can also name a failed boundary condition:
 
   A defect found by the check of `elision-only` can have the member `code` with the value `elision-witness-lost` (engine §7.9). Such an error also has `chosen`, the chosen tree. It has `completion`, the terminators written back.
 
-  Each of them is `{"terminal":T,"at":N,"source":[S,S]}`. Only a terminator with an equality test adds `"value":"..."` last, including an empty equality operand. The members stand in the order `kind`, `stage`, `code`, `message`, `chosen`, `completion`. Other parse-result errors have no `code`. Structured loading errors use the separate schema below.
+  Each of them is `{"terminal":T,"at":N,"source":[S,S]}`. Only a terminator with a default value adds `"value":"..."` last, from `≝` or from an equality test, including an explicit empty string. The members stand in the order `kind`, `stage`, `code`, `message`, `chosen`, `completion`. Other parse-result errors have no `code`. Structured loading errors use the separate schema below.
 
 For example, `text → [[X]]` on the empty input ties, and both readings are `{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]}`. The stage's witness names two different productions of the helpers. An `&` that can match no tokens, such as `[A] & [B]`, gives such a tie too, with three derivations.
 

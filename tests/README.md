@@ -284,7 +284,7 @@ The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin si
 
 ## Layered pattern conformance
 
-The `notation/layered-pattern-*.json` cases use the public reader and format-42 DOM. They cover node decorations, item arrays, operator binding, grouping, source spacing, parameters, and source error positions.
+The `notation/layered-pattern-*.json` cases use the public reader and format-43 DOM. They cover node decorations, item arrays, operator binding, grouping, source spacing, parameters, and source error positions.
 
 The `engine/layered-pattern-*.json` cases use the public loader. They cover exact matching, independent child searches, empty lists, seals, choices, constant binding, template families, and error positions.
 
@@ -366,7 +366,7 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 42. The library tests it as a preparsed DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 43. The library tests it as a preparsed DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 Instead, an item can supply `dom`, the complete DOM envelope. This form can test the envelope and interactions between declarations. An optional `message` requires that the problem contains that agreed text. An optional `code` requires the problem code before its first colon.
 
