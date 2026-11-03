@@ -1,5 +1,5 @@
 {
-  "description": "A written item condition follows every outer capture binding.",
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
   "documents": {
     "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text ($flag:\"a\" $x:good | $x:bad) {$e:\"z\"}\n%conditions $flag ⟹ $x.emitted.value = $e.emitted.value\n%rule good \"g\" := \"z\"\n%rule bad \"b\" := $.verbatim-text\n```"
   },

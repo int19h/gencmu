@@ -1,10 +1,13 @@
 {
-  "description": "A guarded term inside a condition reads the captured emitted value.",
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
   "grammar": "%rule text $x:r\n%conditions ($x.emitted.value = \"yes\" ⟹ T) = T\n%rule r \"a\" := \"yes\"",
   "input": "a",
   "expect": {
-    "result": {
-      "ok": true
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 14
     }
   }
 }

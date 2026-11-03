@@ -176,11 +176,9 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			c.recipe(r.Value)
 			c.recipe(r.Image)
 			c.emission(r.Emit)
-			c.inConditions = true
 			for _, cond := range r.Conditions {
 				c.condition(cond, 0)
 			}
-			c.inConditions = false
 			for _, a := range r.Alternatives {
 				if a == nil || a.Guards == nil {
 					c.fail("a malformed alternative")
@@ -214,13 +212,11 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			d.unresolved = d.unresolved || c.unresolved
 			// A capture name stands at most once in each production (engine
 			// §3.5).
-			c.inConditions = false
 			for _, a := range r.Alternatives {
 				if twice := duplicateCaptures(a.Expr); len(twice) > 0 {
 					return &domProblem{message: fmt.Sprintf("rule %s: a capture name used twice in one production", r.Name), rule: r}
 				}
 			}
-			c.inConditions = false
 			for _, a := range r.Alternatives {
 				if repeatsItemCapture(a.Expr) {
 					return &domProblem{message: "the name of an item capture used twice in one alternative", rule: r}
@@ -440,7 +436,6 @@ func directiveOperandsOK(dir *domDirective) bool {
 }
 
 type domChecker struct {
-	inConditions    bool
 	expanded        bool
 	parameters      map[string]bool
 	unresolved      bool
@@ -1468,9 +1463,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		}
 		var ok bool
 		switch t.Str {
-		case "emitted":
-			ok = c.inConditions && len(args) == 1 && args[0] != nil && args[0].Kind == tmCapture
-		case "verbatim-text":
+		case "emitted", "verbatim-text":
 			ok = false
 		case "without-elision-except":
 			ok = len(args) == 2 && args[0] != nil && (args[0].Kind == tmCapture || unresolvedTerm(args[0])) && isRule(args[1])

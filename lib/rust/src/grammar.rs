@@ -57,7 +57,6 @@ pub(crate) struct KeyStep {
 /// they are stored, substituted and checked once for the rule.
 #[derive(Debug, Clone)]
 pub(crate) struct RuleClauses {
-    pub emitted_locations: std::collections::BTreeMap<String, (usize, usize)>,
     pub tags: Option<Term>,
     pub strings: Channels,
     pub emit: Option<Vec<EmitItem>>,
@@ -102,7 +101,6 @@ pub struct Change {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StageGrammar {
-    pub condition_strings: bool,
     pub tree_comparisons: bool,
     pub tree_expressions: bool,
     pub features: Vec<(Arc<str>, crate::dom::Directive)>,
@@ -257,7 +255,6 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         }
     }
     let mut grammar = StageGrammar {
-        condition_strings: false,
         tree_comparisons: false,
         tree_expressions: false,
         unicode: Arc::new(unicode.clone()),
@@ -326,7 +323,6 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                     // alternative. Each condition counts as it is copied.
                     let copy_clauses = || {
                         Arc::new(RuleClauses {
-                            emitted_locations: rule.emitted_locations.clone(),
                             tags: rule.tags.clone(),
                             strings: rule.strings.clone(),
                             emit: rule.emit.clone(),
@@ -560,15 +556,11 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     // Shared clauses are checked once, with the first alternative that
     // holds them.
     let mut checked: FxSet<*const RuleClauses> = FxSet::default();
-    let mut condition_strings = false;
     let mut tree_comparisons = false;
     let mut tree_expressions = false;
     for rule in &grammar.rules {
         for alternative in &rule.alternatives {
             let first = checked.insert(Arc::as_ptr(&alternative.clauses));
-            if first && !condition_strings {
-                condition_strings = crate::earley::has_condition_reads(&alternative.clauses.conditions);
-            }
             let (recognition, expressions) = check_alternative(&grammar, alternative, first)
                 .map_err(|message| located(message, &alternative.document, alternative.at))?;
             tree_comparisons |= recognition;
@@ -592,12 +584,8 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         recipe_cycles(alternative)?;
     }
     emission_overlap(&grammar)?;
-    grammar.condition_strings = condition_strings;
     grammar.tree_comparisons = tree_comparisons;
     grammar.tree_expressions = tree_expressions;
-    if condition_strings {
-        crate::earley::validate_condition_strings(&grammar)?;
-    }
     Ok(grammar)
 }
 
@@ -2581,7 +2569,6 @@ mod tests {
                 source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
-                emitted_locations: Default::default(),
                 name: "text".into(),
                 op: Op::Define,
                 tags: None,
@@ -2648,7 +2635,6 @@ mod tests {
             let entries =
                 (0..n).map(|index| entry(index, true)).chain((0..n).map(|index| entry(index, false))).collect();
             StageGrammar {
-                condition_strings: false,
                 tree_comparisons: false,
                 tree_expressions: false,
                 features: Vec::new(),

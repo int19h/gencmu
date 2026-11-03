@@ -140,7 +140,6 @@ class Grammar:
     unicode: Any = field(default=None, repr=False, compare=False)
     changes: list[Change] = field(default_factory=list)
     ranked: RankedGroups | None = field(default=None, repr=False, compare=False)
-    condition_strings: bool = False
     tree_comparisons: bool = False
     # The stage's %classifier items in stitching order, each with its
     # document (engine §2).
@@ -1030,7 +1029,6 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     # checked: an error in one would have stopped the first check, at the
     # same document and place.
     checked: set[int] = set()
-    has_emitted = False
     family_names: list[str] = []
     query_terminals: set[str] = set()
 
@@ -1066,7 +1064,6 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                             stage,
                         )
                     if "method" in value:
-                        has_emitted = has_emitted or value["method"] == "emitted"
                         if value["method"] in ("matches", "begins", "ends"):
                             query_terminals.update(arg["terminal"] for arg in value["args"] if "terminal" in arg)
                         # DOM object order does not change the written
@@ -1094,7 +1091,6 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         implications=implications,
         families=members(rules, family_names),
         query_terminals=frozenset(query_terminals),
-        condition_strings=has_emitted,
         tree_comparisons=has_trees,
     )
 
@@ -1128,9 +1124,6 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 field = next(name for name in ("value", "image", "rule_value", "rule_image") if getattr(alternative, name) is recipe)
                 error._recipe_location = alternative.at, alternative.index, field
             raise error
-    from ._string_states import validate_condition_strings
-    if has_emitted:
-        validate_condition_strings(grammar)
     from ._overlap import conflict
     faulty = conflict(grammar)
     if faulty is not None:
@@ -1245,7 +1238,6 @@ class Production:
     captures: dict[str, int] = field(default_factory=dict)
     slots: tuple[int, ...] = ()
     # Only contextual helpers allocate reduced string conditions.
-    string_conditions: list[Dom] | None = field(default=None, init=False, repr=False, compare=False)
     conds_predict: list[Dom] = field(default_factory=list)
     conds_at: dict[int, list[Dom]] = field(default_factory=dict)
     # Whether a condition at the last symbol reads ``$``, which then has the

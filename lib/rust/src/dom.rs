@@ -152,7 +152,6 @@ pub(crate) enum Op {
 pub(crate) struct RuleDef {
     pub source: SourceHead,
     pub deferred_emission: Option<crate::clauses::DefinitionIssue>,
-    pub emitted_locations: std::collections::BTreeMap<String, (usize, usize)>,
     pub name: String,
     pub op: Op,
     pub tags: Option<Term>,
@@ -625,7 +624,6 @@ pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
     Ok(RuleDef {
         source: SourceHead::from_json(value)?,
         deferred_emission: None,
-        emitted_locations: Default::default(),
         name: string(value, "name")?,
         op,
         tags: value.get("tags").map(term_from_json).transpose()?,

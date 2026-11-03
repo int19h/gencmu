@@ -187,11 +187,7 @@ impl<'a> Strings<'a> {
                             let production = &self.grammar.prods[prod as usize];
                             let rule = &self.grammar.rules[production.rule as usize];
                             if rule.elided.is_some() && production.syms.is_empty() {
-                                values.push(if matches!(channel, Channel::Value) {
-                                    rule.elided_value.clone().unwrap_or_default()
-                                } else {
-                                    String::new()
-                                });
+                                values.push(String::new());
                                 continue;
                             }
                             let production = &self.grammar.prods[prod as usize];

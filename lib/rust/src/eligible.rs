@@ -126,7 +126,6 @@ impl<'a> Proofs<'a> {
     fn cap(&self, place: Place) -> Cap {
         let item = self.item(place);
         Cap {
-            emitted: item.emitted,
             boundary: item.boundary,
             close_requested: item.close_requested,
             start: item.origin,

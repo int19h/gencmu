@@ -1,5 +1,5 @@
 {
-  "description": "A written whole read rejects a verbatim alternative before presence simplification.",
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
   "documents": {
     "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text\n  | $x:\"a\" := \"yes\"\n  | \"b\" := $.verbatim-text\n%conditions\n  $x ⟹ $.emitted.value = \"yes\"\n```"
   },

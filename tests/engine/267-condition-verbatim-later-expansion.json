@@ -1,5 +1,5 @@
 {
-  "description": "A later expansion can make an emitted read a load error.",
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
   "documents": {
     "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text ($x:good | $x:bad)\n%conditions $x.emitted.value ≠ \"\"\n%rule good \"a\" := \"a\"\n%rule bad \"b\" := $.verbatim-text\n```"
   },

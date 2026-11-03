@@ -256,10 +256,6 @@ export declare class Item {
     boundaryAnnotations: BoundaryAnnotations | null;
     prefix: number;
     structure: number;
-    /** @type {Record<string,string>|undefined} */
-    emitted: Record<string, string> | undefined;
-    /** @type {Record<string,string>|undefined} */
-    stringPrefix: Record<string, string> | undefined;
     /** @type {CloseObservation|null} */
     observationPrefix: CloseObservation | null;
     /** @type {CloseObservation|null} */
@@ -477,7 +473,6 @@ export declare function rootItems(chart: Chart, rule: string): Item[];
 export type StepScope = {
     scope: ChartScope | null;
     tree?: any;
-    emitted?: Record<string, string>;
     structure: number;
     prefix?: number;
     observation: CloseObservation | null;
@@ -490,8 +485,6 @@ declare class ChartScope implements Scope {
     production: Production;
     structure: number;
     prefix: number;
-    /** @type {Record<string,string>|undefined} */
-    emitted: Record<string, string> | undefined;
     observation: CloseObservation | null;
     invalidRestoration: boolean;
     slots: Captured;

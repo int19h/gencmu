@@ -109,5 +109,3 @@ export declare function needsTreeLocations(dom: any): boolean;
 export declare function restoreBoundaryLocations(dom: any, source: any): void;
 /** @param {any[]} productions */
 export declare function emissionTargets(productions: any[]): Set<string>;
-/** @param {any} node @returns {any[]} */
-export declare function emittedReads(node: any): any[];

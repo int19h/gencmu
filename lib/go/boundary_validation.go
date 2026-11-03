@@ -215,17 +215,6 @@ func restoreTreeLocations(to, from *domDoc) {
 
 func restoreBoundaryLocations(to, from *domDoc) {
 	restoreTreeLocations(to, from)
-	for i, rule := range to.Rules {
-		if i >= len(from.Rules) {
-			break
-		}
-		reads, originals := emittedStringReads(rule.Conditions, nil), emittedStringReads(from.Rules[i].Conditions, nil)
-		if len(reads) == len(originals) {
-			for j, read := range reads {
-				read.Items[0].At = originals[j].Items[0].At
-			}
-		}
-	}
 	collect := func(d *domDoc) []*domCond {
 		var out []*domCond
 		for _, r := range d.Rules {

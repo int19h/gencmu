@@ -86,7 +86,6 @@ enum Node {
     /// tag set `tags`, or any; and those that the test `test` holds of, or
     /// any where it is `NO_TEST`.
     Group {
-        emitted: u32,
         requested: u8,
         rule: u32,
         origin: u32,
@@ -185,7 +184,6 @@ fn slot_links(g: &Lowered, chart: &Chart, set: u32, item: Item) -> Vec<(Item, Ca
                 if child.close_requested == cap.close_requested
                     && child.lexical == lexical
                     && child.structure == cap.structure
-                    && child.emitted == cap.emitted
                     && child.boundary == cap.boundary
                     && chart.sets[set as usize].tagset[index as usize] == cap.tags
                 {
@@ -1310,7 +1308,6 @@ impl<'c> Ranker<'c> {
                             Sym::T(terminal) => (Node::Read { tok: m, terminal }, 0),
                             Sym::N(rule) => (
                                 Node::Group {
-                                    emitted: cap.emitted,
                                     requested: cap.close_requested,
                                     rule,
                                     origin: m,
@@ -1341,7 +1338,6 @@ impl<'c> Ranker<'c> {
                     item.caps
                 };
                 let pred = Item {
-                    emitted: 0,
                     boundary: 0,
                     close_requested: item.close_requested,
                     lexical: item.lexical,
@@ -1402,7 +1398,6 @@ impl<'c> Ranker<'c> {
                                 // the predecessor entered them in (§4).
                                 let before = self.dag.chart.sets[m as usize].items[p as usize];
                                 let child = Node::Group {
-                                    emitted: cap.emitted,
                                     requested: cap.close_requested,
                                     rule,
                                     origin: m,
@@ -1431,7 +1426,6 @@ impl<'c> Ranker<'c> {
                                 if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| passes) {
                                     let before = self.dag.chart.sets[m as usize].items[p as usize];
                                     let child = Node::Group {
-                                        emitted: ANY,
                                         requested: 0,
                                         rule,
                                         origin: m,
@@ -1461,7 +1455,7 @@ impl<'c> Ranker<'c> {
                 let inner = self.fset_with(fset, rule);
                 Deps::Close(Some((Node::Item { set, index }, inner)))
             }
-            Node::Group { emitted, requested, rule, origin, set, tags, test, structure, boundary, lexical, option } => {
+            Node::Group { requested, rule, origin, set, tags, test, structure, boundary, lexical, option } => {
                 let eset = &self.dag.chart.sets[set as usize];
                 // A fault applies no test in the check (tests/README.md).
                 let no_tests = self.dag.projection.is_some() && witness::fault_at(Fault::RankerTests, "group");
@@ -1482,7 +1476,6 @@ impl<'c> Ranker<'c> {
                                             == Some(&option))
                                     && (tags == ANY || eset.tagset[index as usize] == tags)
                                     && (structure == ANY || eset.items[index as usize].structure == structure)
-                                    && (emitted == ANY || eset.items[index as usize].emitted == emitted)
                                     && (boundary == ANY || eset.items[index as usize].boundary == boundary)
                             })
                             .filter(|&&index| {
@@ -1842,7 +1835,6 @@ impl<'c> Ranker<'c> {
         // edge of one root (§6).
         let root = (
             Node::Group {
-                emitted: ANY,
                 requested: self.dag.chart.close_requested,
                 rule: self.dag.g.start,
                 origin: 0,

@@ -765,10 +765,6 @@ export type LoweredGrammar = {
     resolution: Resolution;
     ranked: import("./ranked.js").RankedGroups;
     /**
-     * whether a condition reads emitted strings
-     */
-    conditionStrings?: boolean;
-    /**
      * whether a production is contextual, so that recognition keeps frames (engine §4)
      */
     contextual?: boolean;
@@ -803,7 +799,6 @@ export type Captured = {
     structure: number;
     observation: import("./close-observations.js").CloseObservation | null;
     treeIdentity?: number;
-    emitted?: Record<string, string>;
     id: number;
 } | null;
 export type Edge = {
@@ -833,7 +828,6 @@ export type SpanValue = {
     treeIdentity?: number;
     patternName?: string;
     patternPrefix?: number;
-    emitted?: Record<string, string>;
     observation?: import("./close-observations.js").CloseObservation | null;
     aligned?: AlignedSpan;
     structure?: number;
@@ -1457,7 +1451,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Map<string, Production[]>} byLhs
  * @property {Resolution} resolution
  * @property {import("./ranked.js").RankedGroups} ranked
- * @property {boolean} [conditionStrings] whether a condition reads emitted strings
  * @property {boolean} [contextual] whether a production is contextual, so that recognition keeps frames (engine §4)
  * @property {Map<string,Set<string>>} families static members from written rules
  * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
@@ -1477,7 +1470,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * tag set, after the parts before it. A context makes each sequence once,
  * with its number (engine §4). `depth` counts the parts, and `jump` is an
  * earlier sequence that a search for a part can skip to.
- * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, treeIdentity?:number, emitted?: Record<string,string>, id: number} | null} Captured
+ * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, treeIdentity?:number, id: number} | null} Captured
  */
 /**
  * How an item was built.
@@ -1497,7 +1490,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} [treeIdentity]
  * @property {string} [patternName]
  * @property {number} [patternPrefix]
- * @property {Record<string,string>} [emitted]
  * @property {import("./close-observations.js").CloseObservation|null} [observation]
  * @property {AlignedSpan} [aligned]
  * @property {number} [structure]

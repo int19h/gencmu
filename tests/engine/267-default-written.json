@@ -1,6 +1,6 @@
 {
-  "description": "default written.",
-  "grammar": "%rule text $x:r\n%conditions $x.emitted.value = \"tojie\"\n%rule r TO [+JI ≝ \"jie\"]",
+  "description": "A written terminator contributes its actual value and image (engine §11.2).",
+  "grammar": "%rule text $x:r\n%emits $\n%rule r TO [+JI ≝ \"jie\"]",
   "tokens": [
     {
       "text": "to",
@@ -17,7 +17,17 @@
   ],
   "expect": {
     "result": {
-      "ok": true
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "tojie",
+              "image": "tojie"
+            }
+          ]
+        }
+      ]
     }
   }
 }

@@ -160,7 +160,7 @@ func (r *recognizer) scan(k int, it *item) bool {
 	}
 	st := &r.step
 	st.kind, st.it, st.k, st.strict = stepTerminal, it, k+1, strict
-	st.cv = capVal{[2]string{}, int32(k), int32(k + 1), tags, r.terminalStructure(it.prod, int(it.dot), k, sym.id), r.terminalCloses(k, r.g.terminals[sym.id]), 0}
+	st.cv = capVal{int32(k), int32(k + 1), tags, r.terminalStructure(it.prod, int(it.dot), k, sym.id), r.terminalCloses(k, r.g.terminals[sym.id]), 0}
 	st.l = link{prev: it, tok: int32(k), term: sym.id}
 	return true
 }

@@ -345,7 +345,7 @@ func (r *recognizer) blockEvent(c *symNode) closeEvent {
 		sort.Strings(names)
 		var key strings.Builder
 		origin, _ := r.observed(f.origin, f.origin)
-		fmt.Fprintf(&key, "%q:%d:%d:%d:%q:%q:%q/", f.root.ruleName, origin, f.prefix, r.closes.semantic(f.closes), f.closeRoute, f.stringPrefix[0], f.stringPrefix[1])
+		fmt.Fprintf(&key, "%q:%d:%d:%d:%q/", f.root.ruleName, origin, f.prefix, r.closes.semantic(f.closes), f.closeRoute)
 		if r.trees != nil {
 			key.WriteString(r.trees.sequenceSemantic(f.treePrefix))
 		}
@@ -353,7 +353,7 @@ func (r *recognizer) blockEvent(c *symNode) closeEvent {
 			cv := f.captures[n]
 			x, y := r.observed(cv.start, cv.end)
 			sequence := r.closes.semantic(cv.closes)
-			fmt.Fprintf(&key, "%q:%d:%d:%q:%d:%d:%q:%q/", n, x, y, r.run.ps.in.all[cv.tags].key, cv.structure, sequence, cv.emitted[0], cv.emitted[1])
+			fmt.Fprintf(&key, "%q:%d:%d:%q:%d:%d/", n, x, y, r.run.ps.in.all[cv.tags].key, cv.structure, sequence)
 			if r.trees != nil {
 				key.WriteString(r.trees.semantic(cv.tree))
 			}

@@ -20,7 +20,6 @@ class Frame:
     seal_close_prefix: int = 0
     seal_group: object = None
     seal_start: int = 0
-    string_prefix: tuple = ()
     close_entry: tuple = ()
     seal_entry: tuple = ()
 
@@ -137,10 +136,6 @@ def prepare_ranked_conditions(lowered):
                 bindings = frame.captures | {name: (p.terminal[at], p.rhs[at]) for name, at in p.captures.items()}
                 for comparison in comparisons(conditions):
                     lowered.tree_sites.append((comparison, p, bindings, getattr(frame, "identity_prefix", ())))
-            if conditions and lowered.grammar.condition_strings:
-                if p.string_conditions is None:
-                    p.string_conditions = []
-                p.string_conditions.extend(conditions)
             if p.slot is not None:
                 p.slot.ranked_conditions.extend(conditions)
             enter(p, frame)
@@ -192,7 +187,7 @@ class Frames:
         # frames, by its number.
         self.prepared_items = {}
 
-    def entry(self, p, dot, origin, prefix, caps, rule, restores=False, close_prefix=0, at=0, boundary=None, strings=(), tree_prefix=0):
+    def entry(self, p, dot, origin, prefix, caps, rule, restores=False, close_prefix=0, at=0, boundary=None, tree_prefix=0):
         own = self.lowered.rule_productions[rule]
         if not own or not self.lowered.productions[own[0]].contextual:
             return None
@@ -200,8 +195,6 @@ class Frames:
         if outer is not None and p.lhs==rule:
             return outer
         key = (written_prefix(self.lowered,p,dot,origin,prefix,caps,restores), boundary.id if boundary is not None else None)
-        if self.lowered.grammar.condition_strings:
-            key += (strings,)
         if self.trees is not None: key += (tree_prefix,)
         if self.closes is not None:
             key = key, close_prefix
@@ -222,15 +215,10 @@ class Frames:
             frame.tree_prefix = self.trees.concat(getattr(outer, "tree_prefix", 0), tree_prefix)
             frame.tree_seal_prefix = outer.tree_seal_prefix if inside and outer else frame.tree_prefix
             frame.seal_start = outer.seal_start if inside and outer else at
-        if self.lowered.grammar.condition_strings:
-            values = dict(outer.string_prefix) if outer else {}
-            for channel, value in strings:
-                values[channel] = values.get(channel, "") + value
-            frame.string_prefix = tuple(sorted(values.items()))
         if self.closes is not None and p.lhs in self.lowered.close_rules:
             frame.close_prefix = self.closes.concat(outer.close_prefix, close_prefix) if outer else close_prefix
             frame.seal_close_prefix = outer.seal_close_prefix if inside and outer else frame.close_prefix
-            frame.close_entry = self.common_entry(p, dot, origin, prefix, caps, outer, frame.close_prefix, frame.string_prefix, frame.tree_prefix if self.trees is not None else 0)
+            frame.close_entry = self.common_entry(p, dot, origin, prefix, caps, outer, frame.close_prefix, frame.tree_prefix if self.trees is not None else 0)
             own_group = self.lowered.ranked_helpers.get(rule)
             frame.seal_group = outer.seal_group if inside and outer else own_group
             frame.seal_start = outer.seal_start if inside and outer else at
@@ -238,7 +226,7 @@ class Frames:
         self.frames[key] = frame
         return frame
 
-    def common_entry(self, p, dot, origin, prefix, caps, outer, close_prefix, strings, tree_prefix=0):
+    def common_entry(self, p, dot, origin, prefix, caps, outer, close_prefix, tree_prefix=0):
         """Use written control and public observations, without proof IDs."""
         lowered = self.lowered
         def symbol(value, terminal):
@@ -257,14 +245,10 @@ class Frames:
             observation = (name, self.project(start), self.project(end), tags,
                            part[3] if len(part) > 3 else 0,
                            self.closes.semantic(part[4]) if len(part) > 4 else 0)
-            if lowered.grammar.condition_strings:
-                observation += (part[5] if len(part) > 5 else (),)
-            if self.trees is not None: observation += (self.trees.semantic(part[6] if len(part)>6 else None),)
+            if self.trees is not None: observation += (self.trees.semantic(part[5] if len(part)>5 else None),)
             observations.append(observation)
         source = p.rule_name, *written_source(p), lowered.written_helpers.get(p.lhs)
         key = (outer.close_entry if outer else None, source, route, self.project(origin), prefix)
-        if lowered.grammar.condition_strings:
-            key += (strings,)
         if self.trees is not None: key += (self.trees.sequence_semantic(tree_prefix),)
         return (*key, tuple(observations), self.closes.semantic(close_prefix))
 

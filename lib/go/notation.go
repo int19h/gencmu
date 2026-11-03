@@ -270,7 +270,6 @@ type domBuilder struct {
 	// constant's value or a test's operand, or "" (§9, §10).
 	closedFor   string
 	inRecipe    bool
-	inCondition bool
 	defaultHead *Node
 	headDefault *domTerm
 	defaultNode *Node
@@ -826,12 +825,10 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		r.Alternatives = append(r.Alternatives, b.alternative(p))
 	}
 	if p := b.one(n, "conditions-clause"); p != nil {
-		b.inCondition = true
 		// Each item of the list is one condition (§9).
 		for _, c := range b.some(p, "implication", 1) {
 			r.Conditions = append(r.Conditions, b.implication(c))
 		}
-		b.inCondition = false
 	}
 	if p := b.one(n, "emits-clause"); p != nil {
 		r.Emit = b.emission(p)

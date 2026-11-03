@@ -1,11 +1,13 @@
 {
-  "description": "An item condition reads emitted values inside a right chain.",
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
   "grammar": "%ambiguity-resolution greedy\n%rule text {({$e:w} \" \") ... / \",\"}\n%conditions $e.emitted.value ≠ \"cd\"\n%rule w \"a\" \"b\" | \"c\" \"d\"",
   "input": "ab ,cd ",
   "expect": {
-    "result": {
-      "ok": false
-    },
-    "error": "rejected"
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 13
+    }
   }
 }

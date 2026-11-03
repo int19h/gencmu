@@ -322,7 +322,7 @@ class Emitter:
         if isinstance(part, DRead):
             return getattr(self.tokens[part.token], channel)
         if part.production.elided is not None and not part.children:
-            return (_restored_value(part.production.elided_test) or "") if channel == "value" else ""
+            return ""
         if part.production.erased:
             return ""
         if key in self.active:

@@ -98,7 +98,6 @@ class DomBuilder:
         # (engine §10).
         self.types: TypeMemo = {}
         self.recipe_context = False
-        self.condition_context = False
         self.default_head = None
         self.head_default = None
         self.default_node = None
@@ -459,9 +458,7 @@ class DomBuilder:
         ranked = self.one(body, "ranked-alternative")
         alternatives = [self.alternative(kid) for kid in ([ranked] if ranked is not None else self.some(body, "alternative"))]
         conditions_node = self.one(node, "conditions-clause")
-        self.condition_context = True
         conditions = [run(self._condition(item)) for item in self.some(conditions_node, "implication")] if conditions_node else []
-        self.condition_context = False
         emits_node = self.one(node, "emits-clause")
         dom = {"name": name, **head_fields, "op": op, **header, "alternatives": alternatives}
         if emits_node is not None:
@@ -1026,7 +1023,7 @@ class DomBuilder:
                     raise self.fail(node, "a method has the wrong receiver or arguments")
                 from ._boundary import Located
                 args[0] = Located({"classifier": args[0]["rule"]}, self.position(argument_nodes[0]))
-            if not self.recipe_context and (name == "verbatim-text" or name == "emitted" and not self.condition_context):
+            if not self.recipe_context and name in ("verbatim-text", "emitted"):
                 raise self.fail(node, "a method has the wrong receiver or arguments")
             dependent = self.has_unresolved(receiver) or self.has_unresolved(args)
             if self.feature_context or dependent:

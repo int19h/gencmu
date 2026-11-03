@@ -210,14 +210,6 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
         or any(not isinstance(dom.get(k), list) for k in arrays)
     ):
         return f"not a DOM of format {FORMAT}"
-    condition_nodes = set()
-    condition_stack = [rule.get("conditions", []) for rule in dom["rules"] if isinstance(rule, dict)]
-    while condition_stack:
-        part = condition_stack.pop()
-        if isinstance(part, list): condition_stack.extend(part)
-        elif isinstance(part, dict):
-            condition_nodes.add(id(part))
-            condition_stack.extend(part.values())
     positions = set()
     for key in arrays:
         for item in dom[key]:
@@ -404,7 +396,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             feature_nodes.extend(node)
     # Shape inspection collects type faults for each declaration.
     type_faults = []
-    problem = _walk(pending, unicode, deferred, rule_name, type_roots, type_faults, condition_nodes)
+    problem = _walk(pending, unicode, deferred, rule_name, type_roots, type_faults)
     if problem:
         return problem
     # Fault ownership keeps each declaration's semantic phases together.
@@ -455,7 +447,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
     return None
 
 
-def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: list, type_faults: list, condition_nodes: set[int]) -> str | None:
+def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: list, type_faults: list) -> str | None:
     types = {}
     root_order = {}
     root_nodes = {id(task[1]) for task in pending}
@@ -709,7 +701,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
             if kind != "condition" and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by"):
                 return "a predicate method cannot supply a value"
             if not recipe and (
-                node["method"] == "verbatim-text" or node["method"] == "emitted" and id(node) not in condition_nodes
+                node["method"] in ("verbatim-text", "emitted")
             ):
                 return "a recipe-only method outside a recipe"
             keep_type(None if id(node) in deferred else term_type_fault(node, memo=types)[1], node)

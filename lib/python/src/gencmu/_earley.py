@@ -14,7 +14,6 @@ from ._boundary import METHODS, Records, Annotations, atoms
 from ._clauses import WHOLE
 from ._eligible import eligible
 from ._errors import _GrammarFault
-from ._string_states import demanded_strings
 from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._model import Range, Tags, Token
 from ._tags import EMPTY, Gathered, TagTable, difference, intersection, is_class, split_string, ngrams
@@ -103,7 +102,7 @@ class Bound:
     part comes from one walk, so a term that reads them all walks them
     about twice at most. ``$`` is the whole constituent where it is known."""
 
-    __slots__ = ("production", "caps", "base", "project", "whole", "found", "all", "searched", "machine", "structure", "close_structure", "boundary_value", "boundary_test", "string_reader", "root_pattern", "tree_whole", "tree_reader")
+    __slots__ = ("production", "caps", "base", "project", "whole", "found", "all", "searched", "machine", "structure", "close_structure", "boundary_value", "boundary_test", "root_pattern", "tree_whole", "tree_reader")
 
     def __init__(
         self,
@@ -117,7 +116,6 @@ class Bound:
         close_structure: int = 0,
     ) -> None:
         self.root_pattern = None
-        self.string_reader = None
         self.boundary_value = None
         self.boundary_test = None
         self.production = production
@@ -181,7 +179,7 @@ class Bound:
         else:
             slot = self.production.slots[position]
             part = self.caps[slot] if 0 <= slot < len(self.caps) else None
-        return part[6] if part is not None and len(part) > 6 else None
+        return part[5] if part is not None and len(part) > 5 else None
 
     def observation(self, name: str) -> int:
         if name == WHOLE:
@@ -196,19 +194,6 @@ class Bound:
             return 0
         part = self.caps[slot]
         return part[3] if len(part) > 3 else 0
-
-    def emitted(self, name, channel):
-        if name == WHOLE:
-            return self.string_reader(channel) if self.string_reader else ""
-        position = self.production.captures.get(name)
-        if position is None:
-            frame = self.production.lexical
-            part = frame.captures.get(name) if frame else None
-        else:
-            slot = self.production.slots[position]
-            part = self.caps[slot] if 0 <= slot < len(self.caps) else None
-        values = part[5] if part and len(part) > 5 else ()
-        return dict(values).get(channel, "")
 
     def close_observation(self, name: str) -> int:
         if name == WHOLE:
@@ -973,8 +958,6 @@ class Evaluator:
                     return split_string(text, delimiter)
                 table = self.context.lowered.classifiers[args[0]["classifier"]]
                 return table.get(text, EMPTY)
-            if name in ("value", "image") and receiver.get("method") == "emitted":
-                return bound.emitted(receiver["receiver"]["capture"], name)
             span = yield self._span(receiver, bound)
             if name == "tags" and args:
                 if isinstance(span, RestoredSpan):
@@ -1443,58 +1426,9 @@ class Parser:
                         return None
             return record, notes
 
-        reads_strings = lowered.grammar.condition_strings
-        string_demands = demanded_strings(productions) if reads_strings else {}
-        string_prefixes, string_values = [], []
-
-        def string_state(p, position, start, at, captured, edge, enclosing_prefix=None, enclosing_bound=None):
-            channels = string_demands.get(p.real_id)
-            if not channels: return (), ()
-            previous = edge[0]
-            prefix = dict(enclosing_prefix) if enclosing_prefix is not None else dict(string_prefixes[previous]) if previous >= 0 else {}
-            for channel in (() if enclosing_prefix is not None else channels):
-                recipe = p.value if channel == "value" else p.image if p.image is not None else p.value
-                if p.erased or recipe is not None: continue
-                contribution = ""
-                if previous >= 0:
-                    contribution = dict(string_values[edge[2]]).get(channel, "") if edge[1] == 2 else getattr(tokens[edge[2]], channel)
-                prefix[channel] = prefix.get(channel, "") + contribution
-            values, active = {}, set()
-            if position == len(p.rhs):
-                bound = enclosing_bound or evaluator.bind(p, captured, (start, at, None))
-                def get(channel):
-                    if channel in values: return values[channel]
-                    if channel in active: raise _GrammarFault("a constituent recipe has a channel dependency cycle")
-                    active.add(channel)
-                    recipe = p.value if channel == "value" else p.image if p.image is not None else p.value
-                    result = ""
-                    if p.elided is not None and not p.rhs:
-                        result = ((tokens[edge[2]].value if edge[1] == RESTORE else p.elided_test.default_value or "") if p.elided_test else (tokens[edge[2]].value if edge[1] == RESTORE else "")) if channel == "value" else ""
-                    elif not p.erased:
-                        if recipe is None: result = prefix.get(channel, "")
-                        else:
-                            for atom in recipe["concat"]:
-                                result += run(evaluator.walk_value(atom, bound))
-                    active.remove(channel)
-                    values[channel] = result
-                    return result
-                bound.string_reader = get
-                for channel in channels: get(channel)
-            return tuple(sorted(prefix.items())), tuple(sorted(values.items()))
-
-        def condition_strings(p, captured, at, values):
-            frame=p.lexical
-            if frame is None:return dict(values)
-            prefix=dict(frame.string_prefix)
-            for channel,value in values:prefix[channel]=prefix.get(channel,"")+value
-            bound=evaluator.bind(p,captured,(frame.origin,at,None))
-            return dict(string_state(frame.root,len(frame.root.rhs),frame.origin,at,captured,SEED,prefix,bound)[1])
-
         def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False, prefix: int = 0, close_prefix: int = 0, family_prefix: Summary = IDENTITY, obligations=None, known_tag=None) -> None:
             if position == 0 and not productions[production].rhs:
                 known_tag = prediction_tags.pop((production, at), known_tag)
-            if reads_strings:
-                string_prefix, strings = string_state(productions[production], position, start, at, captured, edge)
             tree = tree_state(productions[production], position, start, at, edge) if trees is not None and productions[production].observes_trees else None
             bounded = None
             if boundaries is not None:
@@ -1505,8 +1439,6 @@ class Parser:
             structure = completed_structure(productions[production], position, prefix, start, at)
             key = (production, position, start, captured) + ((prefix, structure) if machine is not None else ())
             if tree is not None and productions[production].observes_trees: key += (tree[0], tree[1])
-            if reads_strings and productions[production].real_id in string_demands:
-                key += (strings if position == len(productions[production].rhs) else string_prefix,)
             if closes is not None:
                 close_prefix = closes.trim(close_prefix, original(start), original(at))
                 close_structure = completed_closes(productions[production], position, start, at, close_prefix)
@@ -1532,9 +1464,6 @@ class Parser:
                     annotations.append(bounded[1])
                 if known_tag is not None:
                     item_tags[found] = known_tag
-                if reads_strings:
-                    string_prefixes.append(string_prefix)
-                    string_values.append(strings)
                 if tree is not None:
                     tree_prefixes[found] = tree[0]
                     tree_ids[found] = tree[1]
@@ -1584,7 +1513,7 @@ class Parser:
             if frames is None:
                 return None
             p = productions[prod[item]]
-            return frames.entry(p, dot[item], origin[item], prefixes[item], caps[item], rule, any(edge[1] == RESTORE for edge in edges[item]), close_prefixes[item] if closes is not None else 0, end[item], records[item] if boundaries is not None else None, string_prefixes[item] if reads_strings else (), tree_prefixes.get(item, 0) if trees is not None else 0)
+            return frames.entry(p, dot[item], origin[item], prefixes[item], caps[item], rule, any(edge[1] == RESTORE for edge in edges[item]), close_prefixes[item] if closes is not None else 0, end[item], records[item] if boundaries is not None else None, tree_prefixes.get(item, 0) if trees is not None else 0)
 
         def candidate(p, frame, requested=False):
             p = frames.production(p, frame) if frames is not None else p
@@ -1737,12 +1666,9 @@ class Parser:
                 else:
                     part_summary = family.token(original(edge[2]))
                 family_prefix = family.join(family_prefixes[item], part_summary)
-            if reads_strings:
-                child_strings = string_values[edge[2]] if edge[1] == 2 else (("image", tokens[edge[2]].image), ("value", tokens[edge[2]].value))
-                part = (*part[:3], part_structure, part_closes, child_strings)
             if trees is not None and position in tree_demand(production)[1]:
                 identity = tree_ids[edge[2]] if edge[1] == 2 else terminal_identity(edge[3], edge[2])
-                part = (*part[:3], part_structure, part_closes, child_strings if reads_strings else (), identity)
+                part = (*part[:3], part_structure, part_closes, identity)
             captured = caps[item]
             if production.slots[position] >= 0:
                 step = (captured, part)
@@ -1784,9 +1710,6 @@ class Parser:
                 bound = bound_for(production, captured, (start, at, known_tag), structure, close_structure, prefix, tree_identity)
             else:
                 bound = bound_for(production, captured)
-            if reads_strings:
-                strings = string_state(production, position+1, start, at, captured, edge)[1]
-                bound.string_reader = lambda channel: condition_strings(production,captured,at,strings).get(channel, "")
             obligations = []
             try:
                 for condition in conditions or ():
@@ -1819,9 +1742,6 @@ class Parser:
             known_tag = lazy_tag(production, NO_CAPS, j, j, structure, close_structure, tree_identity) if not production.rhs else None
             whole = (j, j, known_tag) if known_tag is not None else None
             bound = bound_for(production, NO_CAPS, whole, structure, close_structure, tree_identity=tree_identity)
-            if reads_strings:
-                strings = string_state(production, 0, j, j, NO_CAPS, SEED)[1]
-                bound.string_reader = lambda channel: condition_strings(production,NO_CAPS,j,strings).get(channel, "")
             obligations = []
             try:
                 for condition in production.conds_predict:

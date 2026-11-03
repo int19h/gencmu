@@ -16,7 +16,6 @@ mod normalize;
 mod patterns;
 
 pub(crate) struct Reader<'a> {
-    pub emitted_locations: std::cell::RefCell<std::collections::BTreeMap<String, (usize, usize)>>,
     pub unresolved_nodes: std::cell::RefCell<FxMap<usize, bool>>,
     pub parts_cache: std::cell::RefCell<FxMap<usize, Vec<&'a Node>>>,
     pub parameters: std::cell::RefCell<FxSet<String>>,
@@ -44,7 +43,6 @@ pub(crate) struct Reader<'a> {
     /// The source identity of the current elidable head.
     pub default_head: std::cell::Cell<usize>,
     pub head_defaults: std::cell::RefCell<FxMap<usize, crate::dom::DefaultValue>>,
-    pub in_condition: std::cell::Cell<bool>,
     pub in_recipe: std::cell::Cell<bool>,
     /// The closed operand that the reader currently reads (engine §9, §10).
     pub closed_for: std::cell::Cell<Option<&'static str>>,
@@ -184,9 +182,6 @@ impl<'a> Reader<'a> {
                 return Err(self.error(node, "%names must precede every other statement"));
             }
             statement_seen |= !names;
-            if rule_name(node) == "rule" {
-                self.emitted_locations.borrow_mut().clear();
-            }
             if node.kind != NodeKind::Rule {
                 continue;
             }
@@ -504,7 +499,6 @@ impl<'a> Reader<'a> {
             source.instance = Some(self.source_call(self.one(node, "call")?)?);
             return Ok(RuleDef {
                 source,
-                emitted_locations: Default::default(),
                 deferred_emission: None,
                 name,
                 op,
@@ -541,11 +535,9 @@ impl<'a> Reader<'a> {
         // Each condition of the list is one condition (§9).
         let mut conditions = Vec::new();
         if let Some(clause) = self.rules(node, "conditions-clause").next() {
-            self.in_condition.set(true);
             for implication in self.some(clause, "implication", 1)? {
                 conditions.push(self.implication(implication)?);
             }
-            self.in_condition.set(false);
         }
         let emit = match self.rules(node, "emits-clause").next() {
             Some(clause) => Some(self.emission(clause)?),
@@ -554,7 +546,6 @@ impl<'a> Reader<'a> {
         let rule = RuleDef {
             source,
             deferred_emission: None,
-            emitted_locations: std::mem::take(&mut *self.emitted_locations.borrow_mut()),
             name,
             op,
             tags,
@@ -1804,18 +1795,8 @@ impl<'a> Reader<'a> {
             };
             return Err(self.error(frame.node, problem));
         }
-        if !self.in_recipe.get() && (name == "verbatim-text" || name == "emitted" && !self.in_condition.get()) {
+        if !self.in_recipe.get() && matches!(name, "verbatim-text" | "emitted") {
             return Err(self.error(frame.node, "a method has the wrong receiver or arguments"));
-        }
-        if self.in_condition.get() && matches!(name, "value" | "image") {
-            if let Term::Call(method, args) = &receiver {
-                if let ("emitted", [Arg::Term(Term::Capture(capture))]) = (method.as_str(), &args[..]) {
-                    self.emitted_locations
-                        .borrow_mut()
-                        .entry(format!("{capture}:{name}"))
-                        .or_insert(self.first(frame.node));
-                }
-            }
         }
         let mut args = vec![Arg::Term(receiver)];
         args.append(&mut frame.args);
@@ -3021,8 +3002,6 @@ fn call_name_lookup_precedes_argument_lookup() {
     let reader = Reader {
         head_defaults: Default::default(),
         default_head: Default::default(),
-        emitted_locations: Default::default(),
-        in_condition: Default::default(),
         unresolved_nodes: Default::default(),
         parts_cache: Default::default(),
         parameters: Default::default(),

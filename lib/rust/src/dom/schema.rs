@@ -556,18 +556,6 @@ pub(crate) fn names_problem(dom: &Json) -> Option<&'static str> {
 }
 
 fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expanded: bool) -> Option<String> {
-    let mut condition_nodes = FxSet::default();
-    let mut conditions: Vec<&Json> =
-        pending.iter().filter(|(kind, _, _)| matches!(kind, Part::Condition)).map(|(_, n, _)| *n).collect();
-    while let Some(n) = conditions.pop() {
-        condition_nodes.insert(n as *const Json as usize);
-        match n {
-            Json::Arr(items) => conditions.extend(items),
-            Json::Obj(items) => conditions.extend(items.iter().map(|(_, v)| v)),
-            _ => {}
-        }
-    }
-
     let rule = |name: &str| rule_name(name, unicode, expanded);
     while let Some((kind, value, depth)) = pending.pop() {
         if depth > DOM_MAX_DEPTH {
@@ -794,11 +782,7 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                         ("without-elision", []) => capture,
                         ("without-elision-except", [arg]) => capture && rule_arg(arg),
                         ("verbatim-text", []) => matches!(kind, Part::RecipeAtom) && capture,
-                        ("emitted", []) => {
-                            (matches!(kind, Part::RecipeAtom)
-                                || condition_nodes.contains(&(value as *const Json as usize)))
-                                && capture
-                        }
+                        ("emitted", []) => matches!(kind, Part::RecipeAtom) && capture,
                         ("value" | "image", []) => {
                             span(receiver) || receiver.get("method").and_then(Json::as_str) == Some("emitted")
                         }

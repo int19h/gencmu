@@ -1,5 +1,5 @@
 {
-  "description": "A verbatim dependency is a load error without ranked choices.",
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
   "documents": {
     "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:r\n%conditions $x.emitted.value = \"a\"\n%rule r \"a\" := $.verbatim-text\n```"
   },

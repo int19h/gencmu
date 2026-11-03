@@ -130,7 +130,6 @@ fn restore(mut pending: Vec<Pair<'_>>) {
     while let Some(pair) = pending.pop() {
         match pair {
             Pair::Rule(to, from) => {
-                to.emitted_locations.clone_from(&from.emitted_locations);
                 channels(&mut to.strings, &from.strings, &mut pending);
                 for (to, from) in to.tags.iter_mut().zip(&from.tags) {
                     pending.push(Pair::Term(to, from));

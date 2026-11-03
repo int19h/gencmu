@@ -1,5 +1,5 @@
 {
-  "description": "whole recipe.",
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
   "grammar": "%rule text A := \"kept\"\n%conditions $.emitted.value = \"kept\"",
   "tokens": [
     {
@@ -10,8 +10,11 @@
     }
   ],
   "expect": {
-    "result": {
-      "ok": true
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 13
     }
   }
 }

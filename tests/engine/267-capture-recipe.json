@@ -1,5 +1,5 @@
 {
-  "description": "capture recipe.",
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
   "grammar": "%rule text $a:r $b:r\n%conditions $a.emitted.value = $b.emitted.value\n%rule r [prefix] A\n%rule prefix P := \"\" :- \"\"",
   "tokens": [
     {
@@ -22,8 +22,11 @@
     }
   ],
   "expect": {
-    "result": {
-      "ok": true
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 13
     }
   }
 }

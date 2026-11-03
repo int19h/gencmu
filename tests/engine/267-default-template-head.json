@@ -1,5 +1,5 @@
 {
-  "description": "A template default from a head argument contributes only to the emitted value.",
+  "description": "A restoration default contributes no string in emission (engine §11.2).",
   "grammar": "%rule pair(@End)\n  \"t\" [+@End ≝ \"jie\"]\n%emits $\n%rule text = pair(JI)",
   "input": "t",
   "expect": {
@@ -9,7 +9,7 @@
         {
           "output": [
             {
-              "value": "tjie",
+              "value": "t",
               "image": "t"
             }
           ]

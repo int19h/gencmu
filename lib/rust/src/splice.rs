@@ -473,7 +473,6 @@ mod tests {
                 source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
-                emitted_locations: Default::default(),
                 name: "text".into(),
                 op: Op::Define,
                 tags: None,

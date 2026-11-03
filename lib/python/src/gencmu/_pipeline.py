@@ -233,15 +233,6 @@ class NotationReader:
         from ._tree_identities import comparisons, restore_locations as restore_tree_locations
         if any(not hasattr(node, "at") for node in comparisons(dom["rules"], constituents_only=False)):
             restore_tree_locations(dom, self.read(text, path, True, names))
-        from ._string_states import reads
-        emitted = reads([rule.get("conditions", []) for rule in dom["rules"]])
-        if any(not hasattr(read["receiver"], "at") for read in emitted):
-            fresh = self.read(text, path, True, names)
-            originals = reads([rule.get("conditions", []) for rule in fresh["rules"]])
-            if len(emitted) == len(originals):
-                from ._boundary import Located
-                for read, original in zip(emitted, originals):
-                    read["receiver"] = Located(read["receiver"], original["receiver"].at)
         from ._boundary import atoms, Located
         found = atoms([rule for rule in dom['rules']])
         if any(not hasattr(arg, 'at') for atom in found for arg in atom['args']):

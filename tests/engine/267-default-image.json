@@ -1,6 +1,6 @@
 {
-  "description": "default image.",
-  "grammar": "%rule text $x:r\n%conditions $x.emitted.image = \"to\"\n%rule r TO [+JI ≝ \"jie\"]",
+  "description": "An omitted default contributes no image or value to emission (engine §11.2).",
+  "grammar": "%rule text $x:r\n%emits $\n%rule r TO [+JI ≝ \"jie\"]",
   "tokens": [
     {
       "text": "to",
@@ -11,7 +11,17 @@
   ],
   "expect": {
     "result": {
-      "ok": true
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "to",
+              "image": "to"
+            }
+          ]
+        }
+      ]
     }
   }
 }

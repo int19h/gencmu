@@ -1,5 +1,5 @@
 {
-  "description": "A whole read follows every alternative, including extensions.",
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
   "documents": {
     "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\" := \"yes\"\n%conditions $.emitted.value = \"yes\"\n%extend-rule text \"b\" := $.verbatim-text\n```"
   },

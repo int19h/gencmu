@@ -14,7 +14,7 @@ pub(crate) fn record(terminal: String, at: usize, tokens: &[Tok], value: Option<
     Restoration { terminal, at, source: source..source, value }
 }
 
-type CapturedEntry = (String, usize, usize, u32, u32, u32, u32);
+type CapturedEntry = (String, usize, usize, u32, u32, u32);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct Entry {
@@ -25,7 +25,6 @@ pub(crate) struct Entry {
     pub dot: u32,
     pub control: u32,
     pub prefix: u32,
-    pub emitted: u32,
     pub structure: u32,
     pub captures: Vec<CapturedEntry>,
 }

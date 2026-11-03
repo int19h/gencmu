@@ -111,8 +111,6 @@ type lowered struct {
 	treeDemands     map[treeDemandKey]*treeDemand
 	profileOnce     sync.Once
 	profilePossible bool
-	stringsOnce     sync.Once
-	stringDemands   map[int32]uint8 // Original production number to channel mask.
 	boundaryOnce    sync.Once
 	boundary        *boundaryMachine
 	prepareOnce     sync.Once

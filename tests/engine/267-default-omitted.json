@@ -1,6 +1,6 @@
 {
-  "description": "default omitted.",
-  "grammar": "%rule text $x:r\n%conditions $x.emitted.value = \"tojie\"\n%rule r TO [+JI ≝ \"jie\"]",
+  "description": "An omitted terminator records its restoration default (output.md).",
+  "grammar": "%rule text $x:r\n%rule r TO [+JI ≝ \"jie\"]",
   "tokens": [
     {
       "text": "to",

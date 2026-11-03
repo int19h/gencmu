@@ -1,5 +1,5 @@
 {
-  "description": "default emission.",
+  "description": "A restoration default contributes no string in emission (engine §11.2).",
   "grammar": "%rule text TO [+JI ≝ \"jie\"]\n%emits $",
   "tokens": [
     {
@@ -16,7 +16,7 @@
         {
           "output": [
             {
-              "value": "tojie",
+              "value": "to",
               "image": "to"
             }
           ]

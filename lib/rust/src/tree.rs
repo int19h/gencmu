@@ -767,7 +767,6 @@ pub(crate) fn emit(
                         let frame = Frame {
                             prefix: u32::MAX,
                             parent_prefix: u32::MAX,
-                            emitted: 0,
                             lexical: None,
                             parent_structure: u32::MAX,
                             parent_tags: Cell::new(None),
@@ -848,7 +847,6 @@ pub(crate) fn emit(
                 let frame = Frame {
                     prefix: u32::MAX,
                     parent_prefix: u32::MAX,
-                    emitted: 0,
                     lexical: None,
                     parent_structure: u32::MAX,
                     parent_tags: Cell::new(None),

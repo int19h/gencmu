@@ -521,7 +521,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 		}
 		valid = name == "without-elision" && len(args) == 0 || name == "without-elision-except" && len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0]))
 	case methodRecipe:
-		valid = (b.inRecipe || name == "emitted" && b.inCondition) && len(args) == 0 && receiver.Kind == tmCapture
+		valid = b.inRecipe && len(args) == 0 && receiver.Kind == tmCapture
 	case methodTags:
 		valid = span && (len(args) == 0 || len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0])))
 	case methodBoundary:

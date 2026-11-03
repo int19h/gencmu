@@ -1,10 +1,13 @@
 {
-  "description": "An emitted condition keeps its clause context beside a template call.",
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
   "grammar": "%rule part(@X) @X\n%rule text $x:part(\"a\")\n%conditions $x.emitted.value = \"a\"",
   "input": "a",
   "expect": {
-    "result": {
-      "ok": true
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 13
     }
   }
 }

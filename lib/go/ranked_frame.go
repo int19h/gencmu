@@ -13,7 +13,6 @@ type rankedFrame struct {
 	identityPrefix             []int32
 	identitySealed             bool
 	treePrefix, treeSealPrefix int
-	stringPrefix               [2]string
 	id                         int32
 	captures                   map[string]capVal
 	present                    map[string]bool
@@ -377,9 +376,6 @@ func (r *recognizer) rankedPrefix(it *item) string {
 			if r.trees != nil {
 				key += fmt.Sprintf("/t%d", cv.tree)
 			}
-			if r.g.stage.conditionStrings {
-				key += fmt.Sprintf("/%q/%q", cv.emitted[0], cv.emitted[1])
-			}
 			captures = append(captures, key)
 		}
 	}
@@ -432,9 +428,6 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 		return outer
 	}
 	key := fmt.Sprintf("%s/%d/%d/%d", r.rankedPrefix(it), it.closes, it.cap0.closes, it.more)
-	if r.g.stage.conditionStrings {
-		key += fmt.Sprintf("/%q", it.emitted)
-	}
 	if r.rankedFrames == nil {
 		r.rankedFrames = map[string]*rankedFrame{}
 	}
@@ -442,9 +435,6 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 		return old
 	}
 	f := &rankedFrame{id: int32(len(r.rankedFrames) + 1), captures: map[string]capVal{}, present: map[string]bool{}, knownPrivate: map[string]bool{}, root: p, origin: it.origin, prefix: it.prefix, sealPrefix: it.prefix, closes: it.closes}
-	if r.g.stage.conditionStrings {
-		f.stringPrefix = it.emitted
-	}
 	f.closeRoute = r.closeEntryRoute(it)
 	if r.trees != nil {
 		if it.tree != nil {
@@ -466,11 +456,6 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 			f.present[n] = true
 		}
 		f.root, f.origin = outer.root, outer.origin
-		if r.g.stage.conditionStrings {
-			for channel := range f.stringPrefix {
-				f.stringPrefix[channel] = outer.stringPrefix[channel] + f.stringPrefix[channel]
-			}
-		}
 		f.closeRoute = outer.closeRoute + f.closeRoute
 		// The pattern machine exists where a pattern or a ranked group
 		// needs it; without it, a prefix is the item's own.

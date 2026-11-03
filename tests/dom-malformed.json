@@ -23403,5 +23403,47 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "An emitted read in a supplied condition is malformed (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "ref": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "value",
+            "receiver": {
+              "method": "emitted",
+              "receiver": {
+                "capture": "x"
+              },
+              "args": []
+            },
+            "args": []
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]

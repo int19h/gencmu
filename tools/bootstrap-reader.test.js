@@ -135,6 +135,7 @@ test("both readers reject invalid forms at the same specified position", () => {
     "%rule r ¬cbm! A", "%rule r ¬ cbm? A", '%const "‹U+0041›" "x"',
     '%rule r A := ∪ "a"', '%include "a.md" "b$c.md"',
     "%rule r $x:A %conditions $x ≅ #(sumti<B><C>)",
+    '%rule r $x:A %conditions $x.emitted.value = "a"',
     '%rule r A="x"<B>', "%rule r (A)<B>", "%rule r $x:[A]",
     "%rule r A<\"‹U+0041›\">", "%rule r :: _General_Category_Uppercase_Letter | A", "%rule r :: ∩ Word BY | A",
     "%stage _", "%rule r A %emits _", '%classifier c "a" ∈ _',

@@ -1,5 +1,5 @@
 {
-  "description": "distinct walks.",
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
   "grammar": "%rule text $x:r\n%conditions $x.emitted.value = \"yes\"\n%rule r A := \"no\" | A := \"yes\"",
   "tokens": [
     {
@@ -10,8 +10,11 @@
     }
   ],
   "expect": {
-    "result": {
-      "ok": true
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 13
     }
   }
 }

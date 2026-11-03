@@ -372,7 +372,6 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
     // and the DOM with explicit stacks, so a document of any depth reads
     // on the caller's thread (engine §9).
     let reader = Reader {
-        emitted_locations: Default::default(),
         unresolved_nodes: Default::default(),
         parts_cache: Default::default(),
         parameters: Default::default(),
@@ -391,7 +390,6 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
         position: &position,
         closed_for: Default::default(),
         in_recipe: Default::default(),
-        in_condition: Default::default(),
         head_defaults: Default::default(),
         default_head: Default::default(),
     };
@@ -705,11 +703,6 @@ fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result
         }
         Err(error)
             if error.message.starts_with("boundary target ") && error.line.is_none() && error.document.is_some() =>
-        {
-            load_mode(context, sources, pipeline_path, error.document.as_deref())
-        }
-        Err(error)
-            if error.message.starts_with("a condition walk cannot reach verbatim-text") && error.document.is_some() =>
         {
             load_mode(context, sources, pipeline_path, error.document.as_deref())
         }

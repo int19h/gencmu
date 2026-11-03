@@ -1,11 +1,13 @@
 {
-  "description": "An item condition rejects different emitted values in a flat list.",
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
   "grammar": "%ambiguity-resolution greedy\n%rule text $v:w {\" \" $e:w}\n%conditions\n  $v.emitted.value = $e.emitted.value\n%rule w\n  {\"a\"..\"z\"}",
   "input": "ab cd",
   "expect": {
-    "result": {
-      "ok": false
-    },
-    "error": "rejected"
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 3
+    }
   }
 }

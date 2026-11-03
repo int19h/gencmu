@@ -56,7 +56,6 @@ pub(crate) enum LTerm {
     /// The members of the first set that are not in the second.
     Diff(Box<LTerm>, Box<LTerm>),
     Value(Span),
-    Emitted(Span, bool),
     Image(Span),
     Text(Span),
     DecomposedText(Span),
@@ -330,7 +329,6 @@ impl Prod {
 #[derive(Debug, Clone)]
 pub(crate) struct Lowered {
     pub profile_possible: ProfilePossible,
-    pub condition_strings: bool,
     pub tree_demands: Arc<[crate::tree_identity::Demand]>,
     pub tree_cases: Option<Arc<FxMap<crate::tree_identity::DemandKey, usize>>>,
     pub tree_expressions: bool,
@@ -983,10 +981,6 @@ impl<'a> Scope<'a> {
                         })
                         .collect::<Result<Vec<_>, _>>()?,
                 ),
-                ("value" | "image", [Arg::Term(Term::Call(method, args))]) if method == "emitted" => {
-                    let [Arg::Term(receiver)] = &args[..] else { return Err(Missing) };
-                    LTerm::Emitted(self.span(receiver)?, name == "image")
-                }
                 ("value", [Arg::Term(span)]) => LTerm::Value(self.span(span)?),
                 ("image", [Arg::Term(span)]) => LTerm::Image(self.span(span)?),
                 ("source-text", [Arg::Term(span)]) => LTerm::Text(self.span(span)?),
@@ -1741,7 +1735,6 @@ pub(crate) fn lower(
     let elides = rules.iter().any(|rule| rule.elided.is_some());
     let mut lowered = Lowered {
         profile_possible: Default::default(),
-        condition_strings: grammar.condition_strings,
         tree_demands: Arc::from([]),
         tree_cases: None,
         tree_expressions: grammar.tree_expressions,
@@ -2448,7 +2441,6 @@ mod tests {
                 source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
-                emitted_locations: Default::default(),
                 name,
                 op: Op::Define,
                 tags: None,
@@ -2539,7 +2531,6 @@ mod tests {
             source: Default::default(),
             strings: Default::default(),
             deferred_emission: None,
-            emitted_locations: Default::default(),
             name: "text".into(),
             op: Op::Define,
             tags: Some(Term::Union(guards.collect())),
