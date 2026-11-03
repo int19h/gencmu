@@ -23,7 +23,7 @@ The prose uses these Eberban terms:
 
 The text is a sequence of items. An item is a space, a digit, a hesitation or an eraser. It can also be a borrowing, a freeform variable, a run of words, or a run that no rule reads. A run is a maximal stretch of letters and hyphens between two items that are not letters. Each rule that reads a run makes it maximal with a condition on the tokens after it. A foreign quote is the last part of its run, so a new run can start right after the quote. Otherwise two runs never stand side by side, and one run has one division. The ranked choice in `item` reads a run as junk only where no other item reads the same text.
 
-Four forms can hold a space inside one token: a borrowing, a freeform variable, a spelling quote and a foreign quote. The step `leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote ∪ ·foreign-quote)` names these four rules. At each free position, the stage takes the longest such form that starts there. The step chooses between forms by their start, then by their length. It never chooses where a foreign quote ends, because the quote rule fixes its end. So a spelling quote at `ce` wins over an inner `co` by its earlier start, and `a ce co [ba] cei` is one spelling quote.
+Four forms can hold a space inside one token: a borrowing, a freeform variable, a spelling quote and a foreign quote. The step `leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote ∪ ·foreign-quote)` names these four rules. At each free position, the stage takes the longest such form that starts there. The step chooses between forms by their start, then by their length. It never chooses where a foreign quote ends, because the quote rule fixes its end. The one exception is a trailing hyphen after a digit closer ("Delimiters" below). So a spelling quote at `ce` wins over an inner `co` by its earlier start, and `a ce co [ba] cei` is one spelling quote.
 
 The book allows a hyphen only at a syllable boundary inside a word. Each digit is a word of its own, so a hyphen beside a digit stands at a word boundary. So a run reads every hyphen, and `run-char` reads a hyphen as it reads a letter.
 
@@ -653,17 +653,21 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
 
 A digit is a number word of family `TI`. The numbers chapter says that a `-` before or after a digit is a hyphen, which is not allowed there. A digit is a word of its own, so such a hyphen stands at a word boundary, and it carries `hyphen-misplaced`. The node that holds the hyphen does not matter, only its warning. A word boundary holds at most one misplaced hyphen, as the PEG's `W_HyphenPostWord` reads exactly one. So the first two conditions of `digit-word` refuse a hyphen next to another hyphen. A row of two hyphens beside a digit then stays junk ("Runs that form no word" below).
 
-The numbers chapter also says that `+`, `*` and `/` are spaces, and that verbs express mathematical operations. The PEG warns about such a symbol after a digit, and `math-symbol` carries that warning here.
+The numbers chapter also says that `+`, `*` and `/` are spaces, and that verbs express mathematical operations. The PEG warns about such a symbol after a digit, and `math-symbol` carries that warning here. The rule `digit-math` reads that warning wherever a digit word ends, so a digit that closes a quote warns too.
 
 ```jbogenbau
 %rule digit-word
-  [$l:misplaced-hyphen] $d:Digit [$t:misplaced-hyphen] [$m:math-mark]
+  [$l:misplaced-hyphen] $d:Digit [$t:misplaced-hyphen] digit-math
 %conditions
   ¬$l.preceding-tokens.ends(Hyphen),
-  ¬$t.following-tokens.begins(Hyphen),
-  $m ∨ ¬$.following-tokens.begins(math-space)
+  ¬$t.following-tokens.begins(Hyphen)
 %emits
   $d :: Word ∪ Particle ∪ TI
+
+%rule digit-math
+  [$m:math-mark]
+%conditions
+  $m ∨ ¬$.following-tokens.begins(math-space)
 
 %rule math-mark
   math-symbol! ε
@@ -674,8 +678,9 @@ The numbers chapter also says that `+`, `*` and `/` are spaces, and that verbs e
   Space<Math-Symbol>
 ```
 
-<details><summary>Railroad diagrams of <code>digit-word</code>, <code>math-mark</code> and <code>math-space</code></summary>
+<details><summary>Railroad diagrams of <code>digit-word</code>, <code>digit-math</code>, <code>math-mark</code> and <code>math-space</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/digit-word.svg" alt="Railroad diagram of the rule digit-word"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/digit-math.svg" alt="Railroad diagram of the rule digit-math"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/math-mark.svg" alt="Railroad diagram of the rule math-mark"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/math-space.svg" alt="Railroad diagram of the rule math-space"></p>
 </details>
@@ -819,7 +824,7 @@ The quote emits one token tagged `Word`, `Particle`, `CO` and `Quote`. Its image
 
 ### Delimiters
 
-The quote reads a delimiter word in two ways. The opening and closing delimiters are Eberban words outside the quoted text, so `native-delimiter` reads them with the ordinary warnings. Inside the text, `delimiter-shape` reads the word after each `]` in silence, because quoted text runs no word rule. The two readers must accept the same spans as a complete first word, end at a word boundary and give the same value. Otherwise one reader can find a delimiter that the other misses, and the quote then has two ends. So both readers are instances of the template `delimiter-of`, over the same form templates. They differ only in their hyphen rule.
+The quote reads a delimiter word in two ways. The opening and closing delimiters are Eberban words outside the quoted text, so `native-delimiter` reads them with the ordinary warnings. Inside the text, `delimiter-shape` reads the word after each `]` in silence, because quoted text runs no word rule. The two readers must accept the same spans as a complete first word, end at a word boundary and give the same value. Otherwise one reader can find a delimiter that the other misses, and the quote then has two ends. So both readers are instances of the template `delimiter-of`, over the same form templates. They differ in their hyphen rule and in one more warning. After a digit, the ordinary reader reads `digit-math`, which reads no token, and the silent reader reads nothing there.
 
 A delimiter follows the PEG's `NativeWord`. It is the longest root or particle form that reads from its start, with a root before a particle, and a word boundary after it. The rule `word-boundary` holds at the end of the text, and before a non-sonorant consonant, a digit, a space or a bracket. It does not hold before a hyphen, so a second hyphen never ends a word. A trailing hyphen stays in the word where a word boundary follows it.
 
@@ -827,16 +832,16 @@ The root branch reads its longest form and then tests the boundary. A root that 
 
 The particle branch reads only where no root word reads from the same start. A particle also refuses a medial pair right after its whole form, before any trailing hyphen, as `particle-end` says. So `nan` is no word before `pta`, and `zaostrah` reads the particle `zao`. The rule `particle-shape-of` reads the particle forms without their families, because a delimiter needs only its form and value.
 
-A digit is one `TI` particle, and a digit can be a delimiter. It needs no word boundary after it, as in the PEG's `TI` rule. A word that starts with a vowel or `n` still needs a space after it, as after any digit ("Runs of words" above). It takes the same optional hyphens as a letter word, with one hyphen at most at each boundary.
+A digit is one `TI` particle, and a digit can be a delimiter. It needs no word boundary after it, as in the PEG's `TI` rule. A word that starts with a vowel or `n` still needs a space after it, as after any digit ("Runs of words" above). It takes the same optional hyphens as a letter word, with one hyphen at most at each boundary. With no word boundary after it, a digit closer can take a trailing hyphen or leave it. There the step of the stage takes the longer quote, so `a co te[x]1-an mo` holds the hyphen in its quote.
 
 ```jbogenbau
-%rule delimiter-of(@Hyphen)
+%rule delimiter-of(@Hyphen, @Math)
   | [@Hyphen] native-root-of(@Hyphen)
   | [@Hyphen] native-particle-of(@Hyphen)
-  | digit-form-of(@Hyphen)
+  | digit-form-of(@Hyphen) @Math
 
-%rule native-delimiter = delimiter-of(misplaced-hyphen)
-%rule delimiter-shape = delimiter-of(Hyphen)
+%rule native-delimiter = delimiter-of(misplaced-hyphen, digit-math)
+%rule delimiter-shape = delimiter-of(Hyphen, ε)
 
 %rule native-root-of(@Hyphen)
   $r:root-form-of(@Hyphen) [@Hyphen] word-boundary
@@ -888,15 +893,15 @@ A digit is one `TI` particle, and a digit can be a delimiter. It needs no word b
 
 A run that this grammar reads as no word is one `Junk` token. Its value is its source text. The syntax stage admits it in text that `ra` erases. The PEG reports an error for such a run, with a message about the letter, pair or ending at fault. Here the text fails later, where the junk stands.
 
-Two conditions keep junk from standing where a word reads. First, a run whose words end with the `co` of a complete opener is no junk. The rule `run-opener` reads the words of a run and then the opener. Its words are the forms without the word wrappers, because a wrapper carries the plain-word bar, which asks the same opener query again. So a run such as `ntco` before a bracket stays junk, because no word reading reaches its `co`. A quote never ends inside a junk run, so `a tkco [x] ra a mo` reads the junk `tkco`, then a gap.
+Two conditions keep junk from standing where a word reads. First, a run whose words end with the `co` of a complete opener is no junk. The rule `run-opener` reads the words of a run and then the opener. Its words are the forms without the word wrappers, because a wrapper carries the plain-word bar, which asks the same opener query again. So a run such as `ntco` before a bracket stays junk, because no word reading reaches its `co`. A quote never ends inside a junk run, so `a tkco [x] ra a mo` reads the junk `tkco`, then a gap. The query reads its words from the start of the run and cannot see what stands before the run. So the bar does not apply where a digit stands before a run that starts with a vowel or a sonorant, as `spaced-start` reads it. No word reading of that run exists, because such a word needs a space before it. So `a 1anco[x ra a mo` is junk that `ra` erases, while `a 1 anco[x ra a mo` has no parse.
 
-Second, a single hyphen beside a digit belongs to the digit word, so it is no junk. A row of hyphens beside a digit stays junk, so the syntax stage accepts it only where `ra` erases it. So `a mi 1--2 ra a mo` is a text, and `mi 1--2 bjan` is not. A hyphen with no digit beside it stays junk, so `a mi - bjan mo` has no parse.
+Second, a single hyphen beside a digit belongs to the digit word, so it is no junk. A row of hyphens beside a digit stays junk, so the syntax stage accepts it only where `ra` erases it. So `a mi 1--2 ra a mo` is a text, and `mi 1--2 bjan` is not. A hyphen with no digit beside it stays junk, so `a mi - bjan mo` has no parse. A hyphen that starts a longer junk run belongs to that run, as in `a mi 1-an mo`. So it carries no warning, and only the junk stops the text.
 
 ```jbogenbau
 %rule junk-run
   {run-char} run-end
 %conditions
-  ¬$.onward.begins(run-opener),
+  ¬$.onward.begins(run-opener) ∨ $.preceding-tokens.ends(after-digit) ∧ $.onward.begins(spaced-start),
   ¬$.matches(Hyphen) ∨ ¬$.preceding-tokens.ends(Digit) ∧ ¬$.following-tokens.begins(Digit)
 %emits
   $ :: Junk := $.decomposed-source-text :- $.source-text
@@ -906,12 +911,16 @@ Second, a single hyphen beside a digit belongs to the digit word, so it is no ju
 
 %rule word-form
   (prefixes | consonant-particle | vowel-particle | ni-particle | root-form | spelling-quote) [misplaced-hyphen]
+
+%rule spaced-start
+  [Hyphen] (vowel | sonorant)
 ```
 
-<details><summary>Railroad diagrams of <code>junk-run</code>, <code>run-opener</code> and <code>word-form</code></summary>
+<details><summary>Railroad diagrams of <code>junk-run</code>, <code>run-opener</code>, <code>word-form</code> and <code>spaced-start</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/junk-run.svg" alt="Railroad diagram of the rule junk-run"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/run-opener.svg" alt="Railroad diagram of the rule run-opener"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/word-form.svg" alt="Railroad diagram of the rule word-form"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/spaced-start.svg" alt="Railroad diagram of the rule spaced-start"></p>
 </details>
 
 ## Differences from the reference grammar and the PEG
@@ -931,6 +940,8 @@ The PEG reads only space characters between `co` and the `[` of the first form. 
 The PEG reads no word boundary after a digit, so `a mi 1an mo` and `a mi 1-an mo` are texts there. The morphology chapter makes a space mandatory before a word that starts with a vowel or a sonorant, and a digit is a word. So this grammar rejects them, and a quote that a digit closes, as in `a co te[x]1an mo`, too.
 
 The PEG reads no digit as a delimiter. The book calls each digit a `TI` particle, and the quotes chapter lets any particle be a delimiter. So `a co 1[x]1 mo]1` closes at the first `]1` here, and the PEG rejects it.
+
+An invalid cluster reads no word here. The PEG reads a pair with mismatched voicing or an invalid triplet as part of a longer word, and it queues an error. The book makes no such cluster part of a root. So a delimiter reader can end before such a cluster where the PEG reads on. In `a co bja[x]bjapsta]bja mo`, the PEG reads `bjapsta` and the text is a quote of `x]bjapsta` there. Here the root `bja` closes the quote at the first `]bja`, and `psta` is junk.
 
 The PEG warns about each misplaced hyphen with its own message. This grammar carries one warning, `hyphen-misplaced`, at the position of each such hyphen. The places below differ from the PEG.
 
