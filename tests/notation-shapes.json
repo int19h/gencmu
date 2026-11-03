@@ -1796,7 +1796,7 @@
     },
     {
       "description": "A bare pattern terminal checks the engine-tag inventory.",
-      "find": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"choice\":[{\"ref\":\"pattern-name\"},{\"ref\":\"tag\"},{\"ref\":\"string\"},{\"ref\":\"range\"},{\"ref\":\"wildcard\"},{\"ref\":\"constant-reference\"}]},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}},{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"symbol-test\"}}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"choice\":[{\"ref\":\"pattern-name\"},{\"ref\":\"tag\"},{\"ref\":\"string\"},{\"ref\":\"range\"},{\"ref\":\"wildcard\"},{\"ref\":\"constant-reference\"}]},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"Engine-Tag\"}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #_Nope\n```\n",
       "inputs": [],

@@ -512,7 +512,9 @@ fn grammar_dom(source: &Source) -> String {
                 let pattern = if atoms.len()==1 {atoms[0].clone()}else{format!("{{\"union\":[{}]}}",atoms.join(","))};
                 format!("{{\"step\":\"leftmost-longest\",\"pattern\":{pattern}}}")
             } else if step.starts_with("late ") {
-                "{\"step\":\"late\",\"pattern\":{\"test\":\"tags\",\"requirements\":[{\"negated\":false,\"value\":{\"tag\":\"_Elided\"}}],\"any\":true,\"exact\":true}}".to_string()
+                let line = format!("%ambiguity-resolution {}", steps(source).join(", "));
+                let column = line.split("_<_Elided>").next().unwrap().chars().count() + 1;
+                format!("{{\"step\":\"late\",\"pattern\":{{\"test\":\"tags\",\"requirements\":[{{\"negated\":false,\"value\":{{\"tag\":\"_Elided\"}}}}],\"expr\":{{\"wildcard\":true,\"at\":[2,{column}]}},\"exact\":true}}}}")
             } else {format!("{{\"step\":\"{step}\"}}")}
         })
         .collect();

@@ -338,7 +338,7 @@ func (l *loader) loadMode(pipelinePath string) (*Pipeline, error) {
 		if err != nil {
 			return nil, err
 		}
-		if g.treeComparisons {
+		if g.treeComparisons && l.reader != nil {
 			located := false
 			for _, document := range s.documents {
 				if !treeLocationsMissing(document.dom) {

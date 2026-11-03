@@ -329,7 +329,7 @@ def dom_of(rules: list[list[list[Any]]], names: list[str], lean: str) -> dict[st
     }
 
 
-OMITTED = {"test":"tags","requirements":[{"negated":False,"value":{"tag":"_Elided"}}],"any":True,"exact":True}
+OMITTED = {"test":"tags","requirements":[{"negated":False,"value":{"tag":"_Elided"}}],"expr":{"wildcard":True,"at":[1,1]},"exact":True}
 
 
 def counted_pattern(names):

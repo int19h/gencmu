@@ -404,7 +404,7 @@ func TestDOMRules(t *testing.T) {
 		directive(`{"name":"features","args":["f","g"],"at":[3,1]}`),
 		directive(`{"name":"elision-only","args":[],"at":[3,1]}`),
 		// Every key step and a final lean (engine §6).
-		strings.Replace(alt(good), `"steps":[{"step":"greedy"}]`, `"steps":[{"step":"leftmost-longest","pattern":{"name":"text","exact":true,"at":[1,1]}},{"step":"fewest","pattern":{"name":"text","exact":true,"at":[1,1]}},{"step":"most","pattern":{"name":"text","exact":true,"at":[1,1]}},{"step":"late","pattern":{"test":"tags","any":true,"requirements":[{"negated":false,"value":{"tag":"_Elided"}}],"exact":true}},{"step":"early","pattern":{"terminal":"A","exact":true}},{"step":"lazy"}]`, 1),
+		strings.Replace(alt(good), `"steps":[{"step":"greedy"}]`, `"steps":[{"step":"leftmost-longest","pattern":{"name":"text","exact":true,"at":[1,1]}},{"step":"fewest","pattern":{"name":"text","exact":true,"at":[1,1]}},{"step":"most","pattern":{"name":"text","exact":true,"at":[1,1]}},{"step":"late","pattern":{"test":"tags","expr":{"wildcard":true,"at":[1,1]},"requirements":[{"negated":false,"value":{"tag":"_Elided"}}],"exact":true}},{"step":"early","pattern":{"terminal":"A","exact":true,"at":[1,1]}},{"step":"lazy"}]`, 1),
 		// Braces, chains, marked optionals, and captures anywhere but in
 		// braces or an elidable optional, of any number (engine §3.5, §9).
 		alt(`{"repeat":{"literal":{"string":"a"}}}`), alt(`{"repeat":{"literal":{"string":"a"}},"separator":{"literal":{"string":"b"}}}`), alt(`{"optional":{"repeat":{"literal":{"string":"a"}}}}`),

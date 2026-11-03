@@ -131,7 +131,7 @@ func (g *genGrammar) grammar() *domDoc {
 		steps = append(steps, domStep{Step: kinds[g.r.Intn(len(kinds))], Pattern: &domTerm{Kind: tmPattern, Pattern: &domPattern{Kind: "name", Name: []string{"x", "y"}[g.r.Intn(2)]}}})
 	}
 	if g.late {
-		step := domStep{Step: kinds[g.r.Intn(len(kinds))], Pattern: &domTerm{Kind: tmPattern, Pattern: &domPattern{Kind: "test", Op: "tags", Exact: true, Requirements: []tagRequirement{{Value: &domTerm{Kind: tmTag, Str: "_Elided"}}}}}}
+		step := domStep{Step: kinds[g.r.Intn(len(kinds))], Pattern: &domTerm{Kind: tmPattern, Pattern: &domPattern{Kind: "test", Op: "tags", Exact: true, Items: []*domPattern{{Kind: "wildcard", At: [2]int{1, 1}}}, Requirements: []tagRequirement{{Value: &domTerm{Kind: tmTag, Str: "_Elided"}}}}}}
 		if step.Step == "leftmost-longest" || g.r.Intn(2) == 0 {
 			step.Step = "late"
 		}
