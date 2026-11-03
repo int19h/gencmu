@@ -551,7 +551,9 @@ A tree comparison requires a bare capture on the left. On the right, a pattern t
 
 A pattern starts with `#` and one node test, bare child list, or grouped predicate. An exact prefix suppresses the node test's single-child search.
 
-A pattern atom is a name, a terminal or a constant with its tests, or tests alone. Tests alone make a node test on tags, as in `#_<Tense>`, which the reader converts as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says. Guillemets enclose child items. A list directly after a pattern atom attaches to that atom. The reader keeps an attached list only on a rule name, emoji rule, template family, exact call, or compatible parameter.
+A pattern atom names a rule, terminal, constant, or wildcard. A tag test follows the atom, as in `#_<Tense>`. The reader converts it as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says.
+
+Guillemets enclose child items. A child list attaches to the preceding atom. Only a rule name, emoji rule, template family, exact call, or compatible parameter accepts an attached list.
 
 A bare list or an exact prefix needs whitespace or a comment after a node test, `»`, `]`, `}`, or a group's `)`. Thus `« a «b» »` has two items, while `« a«b» »` attaches the list to `a`. `« (a)«b» »` is an error. After `⋯` or `⋰`, no space is necessary.
 

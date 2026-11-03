@@ -647,9 +647,8 @@ pub(crate) fn check_cycles(
                     let mut cycle: Vec<_> = path[begin..]
                         .iter()
                         .chain(std::iter::once(&child))
-                        .filter_map(|rule| {
-                            (!g.rules[*rule as usize].helper).then(|| g.rules[*rule as usize].name.as_str())
-                        })
+                        .filter(|rule| !g.rules[**rule as usize].helper)
+                        .map(|rule| g.rules[*rule as usize].name.as_str())
                         .collect();
                     if cycle.is_empty() {
                         cycle.push(&g.rules[child as usize].name);
