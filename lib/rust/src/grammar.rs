@@ -2102,7 +2102,7 @@ impl Constants<'_> {
                 }
             }
             Cond::Compare(op, left, right) => {
-                if matches!(op.as_str(), "≅" | "≇") {
+                if matches!(op.as_str(), "≅" | "≇") && !matches!(right, Term::Capture(_)) {
                     if value_has_source(right) {
                         return;
                     }
@@ -2300,7 +2300,7 @@ impl<'a> Iterator for ValueParts<'a> {
                 })),
                 Cond::Compare(op, a, b) => {
                     children.push(ValuePart::Term(a));
-                    children.push(if matches!(op.as_str(), "≅" | "≇") {
+                    children.push(if matches!(op.as_str(), "≅" | "≇") && !matches!(b, Term::Capture(_)) {
                         ValuePart::Pattern(b)
                     } else {
                         ValuePart::Term(b)

@@ -359,6 +359,7 @@ enum PatternItem {
 #[derive(Debug)]
 pub(crate) struct Machine {
     pub node_tags: bool,
+    pub node_values: bool,
     predicates: Vec<Predicate>,
     machines: Vec<Nfa>,
     ids: FxMap<String, usize>,
@@ -410,6 +411,7 @@ impl Machine {
     pub(crate) fn new(roots: &[Pattern]) -> Self {
         Self::build(|m| {
             m.node_tags = roots.iter().any(reads_node_tags);
+            m.node_values = roots.iter().any(reads_node_values);
             for p in roots {
                 m.compile(p);
             }
@@ -418,6 +420,7 @@ impl Machine {
     fn build(configure: impl FnOnce(&mut Self)) -> Self {
         let mut m = Self {
             node_tags: false,
+            node_values: false,
             predicates: vec![],
             machines: vec![],
             ids: FxMap::default(),
@@ -672,7 +675,17 @@ impl Machine {
         leaf: Option<(&str, &str, &[String])>,
         tags: &[String],
     ) -> u32 {
-        let key = format!("n{name:?}/{children}/{leaf:?}/{tags:?}");
+        self.node_with_value(name, children, leaf, tags, None)
+    }
+    pub(crate) fn node_with_value(
+        &mut self,
+        name: Option<&str>,
+        children: u32,
+        leaf: Option<(&str, &str, &[String])>,
+        tags: &[String],
+        value: Option<&str>,
+    ) -> u32 {
+        let key = format!("n{name:?}/{children}/{leaf:?}/{tags:?}/{value:?}");
         if let Some(&id) = self.transitions.get(&key) {
             return id;
         }
@@ -683,8 +696,8 @@ impl Machine {
                 Predicate::Node { test, children, .. } => {
                     let holds = match test {
                         NodeTest::Name(n) => name == Some(n),
-                        NodeTest::Terminal(t) => leaf.is_some_and(|(n, _, _)| n == t),
-                        NodeTest::Test(pattern) => local_matches(pattern, name, leaf, tags),
+                        NodeTest::Terminal(t) => leaf.is_some_and(|(n, _, _)| t == "_" || n == t),
+                        NodeTest::Test(pattern) => local_matches_with_value(pattern, name, leaf, tags, value),
                         NodeTest::Any => name.is_some() || leaf.is_some(),
                     };
                     holds
@@ -919,28 +932,43 @@ pub(crate) fn local_matches(
     leaf: Option<(&str, &str, &[String])>,
     tags: &[String],
 ) -> bool {
+    local_matches_with_value(pattern, name, leaf, tags, None)
+}
+
+pub(crate) fn local_matches_with_value(
+    pattern: &Pattern,
+    name: Option<&str>,
+    leaf: Option<(&str, &str, &[String])>,
+    tags: &[String],
+    node_value: Option<&str>,
+) -> bool {
     match pattern {
-        Pattern::Node(inner, _, _) => local_matches(inner, name, leaf, tags),
+        Pattern::Node(inner, _, _) => local_matches_with_value(inner, name, leaf, tags, node_value),
         Pattern::Name(rule, _) => name == Some(rule),
-        Pattern::Terminal(terminal, _) => leaf.is_some_and(|(read, _, _)| read == terminal),
+        Pattern::Terminal(terminal, _) => leaf.is_some_and(|(read, _, _)| terminal == "_" || read == terminal),
         Pattern::Any => name.is_some() || leaf.is_some(),
         Pattern::Test(op, value, inner, _) => {
-            local_matches(inner, name, leaf, tags)
+            local_matches_with_value(inner, name, leaf, tags, node_value)
                 && if op == "tags" {
                     leaf_test(op, value, "", tags)
                 } else {
-                    leaf.is_some_and(|(_, sound, _)| leaf_test(op, value, sound, tags))
+                    leaf.map(|(_, sound, _)| sound)
+                        .or(node_value)
+                        .is_some_and(|sound| leaf_test(op, value, sound, tags))
                 }
         }
-        Pattern::Union(items) => items.iter().any(|p| local_matches(p, name, leaf, tags)),
-        Pattern::Intersection(items) => items.iter().all(|p| local_matches(p, name, leaf, tags)),
-        Pattern::Difference(a, b) => local_matches(a, name, leaf, tags) && !local_matches(b, name, leaf, tags),
+        Pattern::Union(items) => items.iter().any(|p| local_matches_with_value(p, name, leaf, tags, node_value)),
+        Pattern::Intersection(items) => items.iter().all(|p| local_matches_with_value(p, name, leaf, tags, node_value)),
+        Pattern::Difference(a, b) => {
+            local_matches_with_value(a, name, leaf, tags, node_value)
+                && !local_matches_with_value(b, name, leaf, tags, node_value)
+        }
         _ => false,
     }
 }
 
 pub(crate) fn reads_node_tags(pattern: &Pattern) -> bool {
-    pattern.walk().any(|part|matches!(part,Part::Pattern(Pattern::Test(op,_,inner, _)) if op == "tags" && matches!(inner.as_ref(),Pattern::Name(..)|Pattern::Any|Pattern::Source(crate::dom::source::SourceSymbol::Call(_)))))
+    pattern.walk().any(|part|matches!(part,Part::Pattern(Pattern::Test(op,_,inner, _)) if op == "tags" && matches!(inner.as_ref(),Pattern::Name(..)|Pattern::Source(crate::dom::source::SourceSymbol::Call(_)))))
 }
 
 pub(crate) fn requires_elided(pattern: &Pattern) -> bool {
@@ -974,4 +1002,17 @@ pub(crate) fn ranking_problem(pattern: &Pattern) -> Option<&'static str> {
         }
         _ => Some("a ranking step requires an exact local node pattern"),
     }
+}
+
+pub(crate) fn reads_node_values(pattern: &Pattern) -> bool {
+    pattern.walk().any(|part| match part {
+        Part::Pattern(Pattern::Test(op, _, inner, _)) if op != "tags" => {
+            let atom = match inner.as_ref() {
+                Pattern::Test(_, _, atom, _) => atom.as_ref(),
+                atom => atom,
+            };
+            matches!(atom, Pattern::Name(..) | Pattern::Source(crate::dom::source::SourceSymbol::Call(_)))
+        }
+        _ => false,
+    })
 }

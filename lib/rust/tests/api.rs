@@ -1575,20 +1575,17 @@ fn selected_stage_on_every_splice_error() {
 }
 
 #[test]
-fn ranking_reports_keep_computed_dropped_sets_unknown() {
-    for (term, tags, unknown, status) in [("T", vec!["U"], false, "possible"), ("T ∪ $x.tags", vec![], true, "unknown")]
-    {
-        let source=format!("%ambiguity-resolution fewest #·wrap<T>\n%rule text wrap\n%rule wrap $x:child :: ({term})\n%rule child A :: U");
-        let pipeline = gencmu::load_pipeline_sources(single(&source), "p.md").unwrap();
+fn ranking_reports_use_reachability() {
+    for (source, status) in [
+        ("%ambiguity-resolution fewest #·_\n%rule text A", ""),
+        ("%ambiguity-resolution fewest #·dead\n%rule text A\n%rule dead B", "impossible"),
+        ("%ambiguity-resolution fewest #·wrap<T>\n%rule text wrap\n%rule wrap $x:child :: (T ∪ $x.tags)\n%rule child A :: U", ""),
+        ("%ambiguity-resolution fewest #·_<_Elided>\n%rule text [+END]", ""),
+    ] {
+        let pipeline = gencmu::load_pipeline_sources(single(source), "p.md").unwrap();
         let reports = pipeline.ranking_reports();
-        let note = reports[0].dropped_ranking_tags.iter().find(|note| note.rule == "wrap").unwrap();
-        assert_eq!(note.tags, tags);
-        assert_eq!(note.unknown, unknown);
+        assert_eq!(reports.len(), 1);
         assert_eq!(reports[0].key_steps[0].status, status);
-        assert!(reports[0]
-            .inherited_ranking_tags
-            .iter()
-            .any(|note| note.rule == "text" && note.tags.iter().any(|tag| tag == "T")));
-        assert!(gencmu::format_ranking_reports(&reports).contains("dropped inherited tags: wrap"));
+        if status.is_empty() { assert!(!gencmu::format_ranking_reports(&reports).contains("ranking step")); }
     }
 }

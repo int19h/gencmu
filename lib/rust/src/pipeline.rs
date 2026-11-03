@@ -166,7 +166,6 @@ pub struct Pipeline {
     pub(crate) changes: Vec<Change>,
     /// Each stage's lowered grammars and classifiers.
     caches: Vec<StageCache>,
-    load_warnings: Vec<crate::RankingVocabularyWarning>,
 }
 
 impl std::fmt::Debug for Pipeline {
@@ -280,19 +279,7 @@ pub(crate) fn line_column(text: &[char], offset: usize) -> (usize, usize) {
 impl Pipeline {
     /// The static reports for each stage's ranking steps.
     pub fn ranking_reports(&self) -> Vec<crate::RankingReport> {
-        let mut vocabulary = BTreeSet::new();
-        self.stages
-            .iter()
-            .map(|g| {
-                let (report, next) = crate::ranking_audit::report(g, &vocabulary);
-                vocabulary = next;
-                report
-            })
-            .collect()
-    }
-    /// Loading warnings about tags outside a stage's vocabulary.
-    pub fn load_warnings(&self) -> &[crate::RankingVocabularyWarning] {
-        &self.load_warnings
+        self.stages.iter().map(crate::ranking_audit::report).collect()
     }
     /// A pipeline of stitched stages, whose pipeline's `%features` turns
     /// on `declared`; a feature used both as a gate and as a warning is an
@@ -305,15 +292,7 @@ impl Pipeline {
         let features = pipeline_features(&stages, &declared)?;
         let changes = stages.iter().flat_map(|stage| stage.changes.iter().cloned()).collect();
         let caches = stages.iter().map(StageCache::new).collect();
-        let mut pipeline = Pipeline { stages, declared, features, unicode, changes, caches, load_warnings: Vec::new() };
-        if pipeline
-            .stages
-            .iter()
-            .any(|g| g.steps.iter().any(|s| crate::ranking_audit::custom_tag(&s.pattern, &g.unicode)))
-        {
-            pipeline.load_warnings =
-                pipeline.ranking_reports().into_iter().flat_map(|r| r.vocabulary_warnings).collect();
-        }
+        let pipeline = Pipeline { stages, declared, features, unicode, changes, caches };
         Ok(pipeline)
     }
 

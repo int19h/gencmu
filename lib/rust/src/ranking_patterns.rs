@@ -22,7 +22,7 @@ pub(crate) fn possible(
     match pattern {
         Pattern::Node(inner, _, _) => possible(inner, name, terminal, omitted, tags),
         Pattern::Name(rule, _) => Some(name == Some(rule)),
-        Pattern::Terminal(read, _) => Some(terminal == Some(read)),
+        Pattern::Terminal(read, _) => Some(terminal.is_some() && (read == "_" || terminal == Some(read))),
         Pattern::Test(op, _, inner, _) => {
             let base = if matches!(inner.as_ref(), Pattern::Any) {
                 Some(true)
@@ -33,7 +33,7 @@ pub(crate) fn possible(
                 return base;
             }
             if op != "tags" {
-                return if name.is_some() { Some(false) } else { None };
+                return None;
             }
             if let Some(tags) = tags {
                 return Some(crate::patterns::local_matches(pattern, name, terminal.map(|t| (t, "", tags)), tags));

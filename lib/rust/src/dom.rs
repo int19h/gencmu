@@ -71,7 +71,7 @@ use crate::tags::is_name;
 use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 43;
+pub const DOM_FORMAT: i64 = 44;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -1884,8 +1884,10 @@ pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<St
     if matches!(op, "≅" | "≇") {
         return if left != Type::Span {
             Some("a tree comparison reads one bare capture".into())
+        } else if matches!(right, Type::Span | Type::Pattern | Type::Set | Type::Any) {
+            None
         } else {
-            expected_problem(right, Type::Pattern)
+            Some("a tree comparison requires a pattern or a bare capture on its right".into())
         };
     }
     if !matches!(op, "∈" | "∉")
@@ -2041,15 +2043,34 @@ pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<F
             if matches!(op.as_str(), "≅" | "≇") && !matches!(left, Term::Capture(_)) {
                 return Some(Fault::in_cond("a tree comparison requires a bare capture".into(), cond));
             }
-            let left = match term_type_in(left, constants) {
+            let left_type = match term_type_in(left, constants) {
                 Ok(ty) => ty,
                 Err(fault) => return Some(fault),
             };
-            let right = match term_type_in(right, constants) {
+            let right_type = match term_type_in(right, constants) {
                 Ok(ty) => ty,
                 Err(fault) => return Some(fault),
             };
-            comparison_problem(op, left, right).map(|problem| Fault::in_cond(problem, cond))
+            if matches!(op.as_str(), "≅" | "≇") {
+                if matches!((left, right), (Term::Capture(a), Term::Capture(b)) if a == b) {
+                    return Some(Fault::in_cond(
+                        "a constituent comparison requires two different captures".into(),
+                        cond,
+                    ));
+                }
+                if right_type == Type::Span && !matches!(right, Term::Capture(_)) {
+                    return Some(Fault::in_term(
+                        "a tree comparison requires a pattern or a bare capture on its right".into(),
+                        right,
+                    ));
+                }
+                if let Some(problem) = comparison_problem(op, left_type, right_type) {
+                    return Some(Fault::in_term(problem, right));
+                }
+                None
+            } else {
+                comparison_problem(op, left_type, right_type).map(|problem| Fault::in_cond(problem, cond))
+            }
         }
         Cond::Matches(span, _)
         | Cond::Begins(span, _)

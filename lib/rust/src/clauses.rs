@@ -1530,41 +1530,6 @@ fn read_product<'e>(left: Vec<Vec<Read<'e>>>, right: &[Vec<Read<'e>>]) -> Vec<Ve
     out
 }
 
-/// The captures that the pattern comparisons of a condition name, `≅` and
-/// `≇` with their operands (engine §3.6). A pattern comparison of an outer
-/// capture can stand in an item condition.
-fn pattern_comparison_names(cond: &Cond) -> Vec<&str> {
-    let mut names = Vec::new();
-    let mut stack = vec![Part::Cond(cond)];
-    while let Some(part) = stack.pop() {
-        work::count(Work::Walked, 1);
-        match part {
-            Part::Cond(compare @ Cond::Compare(op, left, right)) => {
-                if matches!(op.as_str(), "≅" | "≇") {
-                    names.extend(mentioned_in(Part::Cond(compare)));
-                    continue;
-                }
-                stack.extend([Part::Term(left), Part::Term(right)]);
-            }
-            Part::Cond(Cond::Not(inner)) => stack.push(Part::Cond(inner)),
-            Part::Cond(Cond::Any(items) | Cond::All(items)) => stack.extend(items.iter().map(Part::Cond)),
-            Part::Cond(Cond::If(antecedent, consequent)) => {
-                stack.extend([Part::Cond(antecedent), Part::Cond(consequent)]);
-            }
-            Part::Cond(_) => {}
-            Part::Term(Term::If(cond, then)) => stack.extend([Part::Cond(cond), Part::Term(then)]),
-            Part::Term(Term::Union(items) | Term::Intersection(items)) => stack.extend(items.iter().map(Part::Term)),
-            Part::Term(Term::Difference(left, right)) => stack.extend([Part::Term(left), Part::Term(right)]),
-            Part::Term(Term::Call(_, args)) => stack.extend(args.iter().filter_map(|arg| match arg {
-                Arg::Term(term) => Some(Part::Term(term)),
-                _ => None,
-            })),
-            Part::Term(_) => {}
-        }
-    }
-    names
-}
-
 /// Whether a condition applies to a production whose captures `has`
 /// answers: it does not simplify to true, and the production has every
 /// capture its simplified form uses (engine §3.6). One that simplifies to
@@ -1666,9 +1631,6 @@ fn item_capture_problem(rule: &RuleDef) -> Option<String> {
                 "a condition of {} reads ${first}, an item capture, together with $, which is not complete at each item",
                 rule.name
             ));
-        }
-        if let Some(name) = pattern_comparison_names(cond).into_iter().find(|name| is_item(name)) {
-            return Some(format!("a condition of {} compares ${name}, an item capture, with a pattern", rule.name));
         }
         // A condition that holds a constant waits for the loader (§9).
         let mut applies = cond_waits(cond);

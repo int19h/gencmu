@@ -165,7 +165,7 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
         }
         let forms = ["name", "call", "param", "terminal", "literal", "range", "wildcard", "constant", "test", "any"]
             .into_iter()
-            .filter(|k| has(n, k) && !(*k == "any" && get(n, "test").as_str() == Some("tags")))
+            .filter(|k| has(n, k))
             .collect::<Vec<_>>();
         if forms.len() != 1 {
             return Err("a malformed pattern node test".into());
@@ -186,11 +186,10 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
         }
         if key == "test" {
             if get(n, "test").as_str() == Some("tags") {
-                fields.extend(["requirements", if get(n, "any").as_bool() == Some(true) { "any" } else { "expr" }]);
+                fields.extend(["requirements", "expr"]);
                 let Some(requirements) = get(n, "requirements").as_array().filter(|_| {
                     let e = get(n, "expr");
-                    get(n, "any").as_bool() == Some(true)
-                        || terminal_atom(e)
+                    terminal_atom(e)
                         || ["name", "call", "param"].iter().any(|key| has(e, key))
                             && !has(e, "exact")
                             && !has(e, "children")
@@ -208,14 +207,17 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
             } else {
                 fields.extend(["value", "expr"]);
                 let expr = get(n, "expr");
-                if !matches!(get(n, "test").as_str(), Some("=" | "≠"))
-                    || !(terminal_atom(expr)
-                        || get(expr, "test").as_str() == Some("tags")
-                            && !has(expr, "exact")
-                            && !has(expr, "children")
-                            && (terminal_atom(get(expr, "expr")) || get(expr, "any").as_bool() == Some(true)))
-                {
-                    return Err("a pattern value test requires a terminal atom".into());
+                let target =
+                    if get(expr, "test").as_str() == Some("tags") && !has(expr, "exact") && !has(expr, "children") {
+                        get(expr, "expr")
+                    } else {
+                        expr
+                    };
+                let rule_atom = ["name", "call", "param"].iter().any(|key| has(target, key))
+                    && !has(target, "exact")
+                    && !has(target, "children");
+                if !matches!(get(n, "test").as_str(), Some("=" | "≠")) || !(terminal_atom(target) || rule_atom) {
+                    return Err("a pattern value test requires an undecorated atom".into());
                 }
                 if !string_term(get(n, "value")) {
                     return Err("a malformed pattern value test".into());

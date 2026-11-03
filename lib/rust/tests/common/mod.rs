@@ -775,7 +775,7 @@ fn run_engine_case_inner(case: &Value) -> Result<(), String> {
 }
 
 /// The members of `expect` that only a loaded pipeline can meet.
-const AFTER_LOAD: [&str; 6] = ["result", "brackets", "warnings", "features", "enabledFeatures", "loadWarnings"];
+const AFTER_LOAD: [&str; 5] = ["result", "brackets", "warnings", "features", "enabledFeatures"];
 
 /// Holds the error of a pipeline that did not load to `expect`. The error is
 /// the whole outcome, so a case that expects anything that only a loaded
@@ -973,22 +973,6 @@ fn check_parse(pipeline: &gencmu::Pipeline, case: &Value, run: &Value, expect: &
         same(expected, &names, "bundledPipelines")?;
     }
 
-    if let Some(expected) = expect.get("loadWarnings") {
-        let found = Value::Array(
-            pipeline
-                .load_warnings()
-                .iter()
-                .map(|w| {
-                    Value::Object(vec![
-                        ("stage".into(), Value::String(w.stage.clone())),
-                        ("step".into(), Value::Number(w.step as f64)),
-                        ("tag".into(), Value::String(w.tag.clone())),
-                    ])
-                })
-                .collect(),
-        );
-        same(expected, &found, "loadWarnings")?;
-    }
     let mut problems = String::new();
     if let Some(expected) = expect.get("features") {
         let found = Value::Array(pipeline.features().iter().map(feature_value).collect());

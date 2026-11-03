@@ -113,7 +113,7 @@ impl<'a> Reader<'a> {
             None => {
                 let base = self.pattern_atom_base(node)?;
                 if rule_name(base) == "call" {
-                    self.pattern_test_nodes(node, false)?;
+                    self.pattern_test_nodes(node, true)?;
                     return Ok(Step::Call(Frame::SourceCall(CallFrame::new(base))));
                 }
                 None

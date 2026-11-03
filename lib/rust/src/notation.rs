@@ -1549,8 +1549,8 @@ impl<'a> Reader<'a> {
         self.pattern_test_nodes(node, true)?;
         let (pattern, tested) = match rule_name(first) {
             "parameter" => (P::Source(self.source_parameter(first)?), true),
-            "call" => (P::Source(SourceSymbol::Call(call.expect("a pattern call reads its arguments first"))), false),
-            "tag-test" => (P::Any, true),
+            "call" => (P::Source(SourceSymbol::Call(call.expect("a pattern call reads its arguments first"))), true),
+            "tag-test" => return Err(self.error(first, "a pattern requires an atom before its tag test")),
             "tag" => (P::Terminal(self.tag_of(self.token(first)?)?, self.first(first)), true),
             "string" => (P::Literal(self.string_term(self.token(first)?)?, self.first(first)), true),
             "string-terminal" => {
@@ -1587,7 +1587,7 @@ impl<'a> Reader<'a> {
                     {
                         return Err(self.error(token, "a malformed pattern rule name"));
                     }
-                    (P::Name(name.into(), self.at(token)), false)
+                    (P::Name(name.into(), self.at(token)), true)
                 }
             }
             _ => return Err(self.shape_error(node, "pattern atom")),
@@ -2034,10 +2034,21 @@ impl<'a> Reader<'a> {
                 }
                 let (left, left_type) = frame.left.take().expect("the left side");
                 // The two sides fit the comparator (engine §10).
-                if let Some(problem) =
-                    comparison_problem(&frame.op, left_type, ty).filter(|_| !self.feature_context.get())
-                {
-                    return Err(self.error(inner, problem));
+                if !self.feature_context.get() {
+                    let tree = matches!(frame.op.as_str(), "≅" | "≇");
+                    if tree && matches!((&left, &term), (Term::Capture(a), Term::Capture(b)) if a == b) {
+                        return Err(self.error(inner, "a constituent comparison requires two different captures"));
+                    }
+                    if tree && ty == Type::Span && !matches!(term, Term::Capture(_)) {
+                        return Err(self.error(
+                            self.one(inner, "union")?,
+                            "a tree comparison requires a pattern or a bare capture on its right",
+                        ));
+                    }
+                    if let Some(problem) = comparison_problem(&frame.op, left_type, ty) {
+                        let at = if tree && left_type == Type::Span { self.one(inner, "union")? } else { inner };
+                        return Err(self.error(at, problem));
+                    }
                 }
                 Ok(Step::Done(Val::Cond(Cond::Compare(std::mem::take(&mut frame.op), left, term))))
             }

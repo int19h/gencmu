@@ -1651,7 +1651,18 @@ impl<'c> Ranker<'c> {
                 }
                 if p < q && !rule.helper {
                     let tags = self.dag.chart.sets[set as usize].tagset[index as usize];
-                    let occurrence = profiles.occurrence(Some(&rule.name), None, "", tags, self.dag.tags, false, p, q);
+                    let tokens = self.dag.projection.map_or(self.dag.tokens, |(observed, _)| observed);
+                    let value = profiles.node_value(tokens, p, q);
+                    let occurrence = profiles.occurrence(
+                        Some(&rule.name),
+                        None,
+                        value.as_deref().unwrap_or(""),
+                        tags,
+                        self.dag.tags,
+                        false,
+                        p,
+                        q,
+                    );
                     profile = profiles.sum(&occurrence, &profile);
                 }
                 plain(Least { profile, least, total, kept: vec![0] })
@@ -2000,6 +2011,8 @@ pub(crate) struct Profiles {
     patterns: Vec<crate::patterns::Pattern>,
     answers: FxMap<RankingNodeKey, bool>,
     values: Vec<bool>,
+    node_values: bool,
+    span_values: FxMap<(u32, u32), std::rc::Rc<str>>,
     vectors: Vectors,
 }
 
@@ -2010,8 +2023,34 @@ impl Profiles {
             patterns: steps.iter().map(|step|step.pattern.clone()).collect(),
             answers: FxMap::default(),
             values: steps.iter().map(|step|step.pattern.walk().any(|part| matches!(part,crate::patterns::Part::Pattern(crate::patterns::Pattern::Test(op,_,_, _)) if op != "tags"))).collect(),
+            node_values: steps.iter().any(|step| crate::patterns::reads_node_values(&step.pattern)),
+            span_values: FxMap::default(),
             vectors: Vectors::new(),
         }
+    }
+
+    fn node_value(&mut self, tokens: &[Tok], start: u32, end: u32) -> Option<std::rc::Rc<str>> {
+        if !self.node_values {
+            return None;
+        }
+        if let Some(value) = self.span_values.get(&(start, end)) {
+            return Some(value.clone());
+        }
+        let mut sound = String::new();
+        let mut at = start as usize;
+        while at < end as usize {
+            work::count(Work::Spanned, 1);
+            let token = &tokens[at];
+            if token.quiet > 0 {
+                at += token.quiet as usize;
+                continue;
+            }
+            sound.push_str(token.sound());
+            at += 1;
+        }
+        let value: std::rc::Rc<str> = sound.into();
+        self.span_values.insert((start, end), value.clone());
+        Some(value)
     }
 
     /// The component of a step that counts nothing.
@@ -2051,11 +2090,12 @@ impl Profiles {
                 } else {
                     tags.list(set).iter().map(|&id| tags.name(id).to_owned()).collect()
                 };
-                crate::patterns::local_matches(
+                crate::patterns::local_matches_with_value(
                     &self.patterns[index],
                     name,
                     terminal.map(|t| (t, value, names.as_slice())),
                     &names,
+                    name.map(|_| value),
                 )
             });
             if !matches {
@@ -2156,6 +2196,8 @@ impl Profiles {
         occurrences.sort_by_key(|&(start, _, _, _, _, _)| start);
         let mut profile = Profile::ZERO;
         for (p, q, name, terminal, value, set) in occurrences {
+            let node_value = if name.is_some() { self.node_value(tokens, p, q) } else { None };
+            let value = node_value.as_deref().unwrap_or(value);
             let occurrence = self.occurrence(name, terminal, value, set, tags, false, p, q);
             profile = self.sum(&profile, &occurrence);
         }

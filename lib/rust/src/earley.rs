@@ -838,6 +838,7 @@ enum NestedKey {
 /// text, and the memo of nested parses, which `next_stage` clears before a
 /// parse over other tokens or with other rules.
 pub(crate) struct Shared<'a> {
+    pattern_values: RefCell<FxMap<(usize, usize, usize), Rc<str>>>,
     string_states: Vec<[String; 2]>,
     string_sources: Vec<(usize, usize)>,
     string_ids: FxMap<[String; 2], u32>,
@@ -878,6 +879,7 @@ pub(crate) struct Shared<'a> {
 impl<'a> Shared<'a> {
     pub(crate) fn new(unicode: &'a Unicode, text: &'a [char]) -> Shared<'a> {
         Shared {
+            pattern_values: RefCell::new(FxMap::default()),
             string_states: vec![[String::new(), String::new()]],
             string_sources: Vec::new(),
             string_ids: FxMap::default(),
@@ -1729,6 +1731,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 return;
             }
             let rule = &g.rules[p.rule as usize];
+            let value = if rule.helper { None } else { self.pattern_value(tokens, base, item.origin as usize, set) };
             let mut m = machine.borrow_mut();
             let mut structure = if rule.helper {
                 if p.syms.is_empty() {
@@ -1743,7 +1746,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     item.prefix
                 }
             } else {
-                m.node(Some(&rule.name), item.prefix, None)
+                m.node_with_value(Some(&rule.name), item.prefix, None, &[], value.as_deref())
             };
             if m.observations.is_some() && self.observes_closes(*item) {
                 let original = |at: usize| self.recon.map_or(at, |r| r.project[at] as usize);
@@ -2543,9 +2546,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
             let names: Vec<String> =
                 self.shared.tags.list(known).iter().map(|&id| self.shared.tags.name(id).to_owned()).collect();
+            let value = self.pattern_value(tokens, base, item.origin as usize, set);
             let mut m = self.shared.machine.as_ref().expect("tag observations").borrow_mut();
             let observation = m.observation(item.structure);
-            let structure = m.node_with_tags(Some(&self.g.rules[p.rule as usize].name), item.prefix, None, &names);
+            let structure = m.node_with_value(
+                Some(&self.g.rules[p.rule as usize].name),
+                item.prefix,
+                None,
+                &names,
+                value.as_deref(),
+            );
             item.structure = m.observing(structure, observation);
         }
         if let Some(machine) = &self.shared.boundaries {
@@ -3236,6 +3246,21 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     // ---- terms and conditions
 
+    fn pattern_value(&self, tokens: &[Tok], base: usize, start: usize, end: usize) -> Option<Rc<str>> {
+        if !self.shared.machine.as_ref().is_some_and(|m| m.borrow().node_values) {
+            return None;
+        }
+        let (observed, project) = self.observed(tokens);
+        let (start, end) = project.map_or((start, end), |p| (p[start] as usize, p[end] as usize));
+        let key = (self.g as *const Lowered as usize, base + start, base + end);
+        if let Some(value) = self.shared.pattern_values.borrow().get(&key) {
+            return Some(value.clone());
+        }
+        let value: Rc<str> = self.value(observed, start, end).into();
+        self.shared.pattern_values.borrow_mut().insert(key, value.clone());
+        Some(value)
+    }
+
     /// The exact input value of the span (§5). Runs of empty values
     /// are skipped whole, as in a value test.
     fn value(&self, tokens: &[Tok], start: usize, end: usize) -> String {
@@ -3587,10 +3612,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                                         frame.prefix,
                                     )
                                 };
+                                let value = self.pattern_value(
+                                    tokens,
+                                    base,
+                                    frame.lexical.map_or(frame.origin, |f| f.origin) as usize,
+                                    frame.end as usize,
+                                );
                                 let mut m = self.shared.machine.as_ref().expect("demanded pattern").borrow_mut();
                                 let old = m.observation(state);
                                 if prefix != u32::MAX {
-                                    state = m.node_with_tags(Some(name), prefix, None, &names);
+                                    state = m.node_with_value(Some(name), prefix, None, &names, value.as_deref());
                                 }
                                 state = m.observing(state, old);
                             }
