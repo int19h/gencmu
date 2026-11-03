@@ -87,7 +87,7 @@ pub(crate) enum CmpOp {
 #[derive(Debug, Clone)]
 pub(crate) enum LCond {
     Tree(Span, bool, crate::patterns::Pattern),
-    SameTree(Span, bool, Span),
+    SameTree(Span, bool, Span, Option<(usize, usize)>),
     Cmp(CmpOp, LTerm, LTerm),
     Matches(Span, u32),
     /// `begins(s, R)`: whether a prefix of the span, possibly empty, parses
@@ -1019,13 +1019,13 @@ impl<'a> Scope<'a> {
     fn cond(&mut self, cond: &Cond) -> Result<LCond, Missing> {
         Ok(match cond {
             Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
-            Cond::Compare(op, left, Term::Pattern(p)) if matches!(op.as_str(), "≅" | "≇") => {
+            Cond::Compare(op, left, Term::Pattern(p), _) if matches!(op.as_str(), "≅" | "≇") => {
                 LCond::Tree(self.span(left)?, op == "≅", (**p).clone())
             }
-            Cond::Compare(op, left, right) if matches!(op.as_str(), "≅" | "≇") => {
-                LCond::SameTree(self.span(left)?, op == "≅", self.span(right)?)
+            Cond::Compare(op, left, right, location) if matches!(op.as_str(), "≅" | "≇") => {
+                LCond::SameTree(self.span(left)?, op == "≅", self.span(right)?, *location)
             }
-            Cond::Compare(op, left, right) => {
+            Cond::Compare(op, left, right, _) => {
                 let op = match op.as_str() {
                     "=" => CmpOp::Eq,
                     "≠" => CmpOp::Ne,
@@ -2368,7 +2368,7 @@ fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
                 Cond::Matches(_, targets) | Cond::Begins(_, targets) | Cond::Ends(_, targets) => {
                     result.extend(targets.iter().filter(|s| is_terminal_name(s)).cloned())
                 }
-                Cond::Compare(_, a, b) => stack.extend([Part::T(a), Part::T(b)]),
+                Cond::Compare(_, a, b, _) => stack.extend([Part::T(a), Part::T(b)]),
                 Cond::Not(c) => stack.push(Part::C(c)),
                 Cond::Any(cs) | Cond::All(cs) => stack.extend(cs.iter().map(Part::C)),
                 Cond::If(a, b) => stack.extend([Part::C(a), Part::C(b)]),
@@ -2593,7 +2593,7 @@ mod tests {
         rule.conditions = (0..n)
             .map(|index| {
                 let text = Term::Call("source-text".into(), vec![Arg::Term(Term::Capture(format!("c{index}")))]);
-                Cond::Compare("=".into(), text, Term::Str("a".into()))
+                Cond::Compare("=".into(), text, Term::Str("a".into()), Default::default())
             })
             .collect();
         rule

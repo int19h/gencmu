@@ -230,6 +230,32 @@ class NotationReader:
 
     def located(self, dom, text, path, names=None):
         from ._ranked import has_ranked, restore_locations
+        from ._tree_identities import children
+        from ._boundary import Located
+        def compared(root):
+            found, pending = [], [root]
+            while pending:
+                node = pending.pop()
+                if isinstance(node, dict) and node.get("op") in ("≅", "≇"):
+                    found.append(node)
+                else:
+                    pending.extend(children(node))
+            return found
+        comparisons = compared(dom["rules"])
+        if any(not hasattr(node, "at") for node in comparisons):
+            fresh = self.read(text, path, True, names)
+            originals = compared(fresh["rules"])
+            if len(comparisons) == len(originals):
+                positions = {id(node): original.at for node, original in zip(comparisons, originals) if hasattr(original, "at")}
+                pending = [dom["rules"]]
+                while pending:
+                    parent = pending.pop()
+                    entries = list(parent.items()) if isinstance(parent, dict) else enumerate(parent) if isinstance(parent, list) else ()
+                    for key, node in entries:
+                        if id(node) in positions:
+                            parent[key] = Located(node, positions[id(node)])
+                        elif isinstance(node, (dict, list)):
+                            pending.append(node)
         from ._string_states import reads
         emitted = reads([rule.get("conditions", []) for rule in dom["rules"]])
         if any(not hasattr(read["receiver"], "at") for read in emitted):

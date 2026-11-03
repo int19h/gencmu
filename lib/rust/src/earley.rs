@@ -3664,7 +3664,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Task::Cond(cond) => {
                     work::count(Work::Visits, 1);
                     match cond {
-                        LCond::SameTree(left, positive, right) => {
+                        LCond::SameTree(left, positive, right, _) => {
                             let m = self.shared.machine.as_ref().expect("demanded identities").borrow();
                             let a = m.tree(self.span_structure(left, frame)).map(|tree| tree.identity);
                             let b = m.tree(self.span_structure(right, frame)).map(|tree| tree.identity);

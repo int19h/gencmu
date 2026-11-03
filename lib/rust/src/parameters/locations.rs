@@ -83,7 +83,8 @@ fn cond(c: &mut dom::Cond, n: &Json) {
             location.targets = list(get(n, "args")).iter().filter_map(source_at).collect();
             term(receiver, get(n, "receiver"))
         }
-        Cond::Compare(_, a, b) => {
+        Cond::Compare(_, a, b, location) => {
+            *location = source_at(n);
             term(a, get(n, "left"));
             term(b, get(n, "right"))
         }
@@ -448,7 +449,8 @@ pub(crate) fn annotate_condition(c: &dom::Cond, n: &mut Json) {
                 }
             }
         }
-        Cond::Compare(_, a, b) => {
+        Cond::Compare(_, a, b, location) => {
+            locate(n, *location);
             if let Some(n) = slot(n, "left") {
                 annotate_term(a, n)
             }

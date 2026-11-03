@@ -355,7 +355,7 @@ fn emit_cond<'a>(out: &mut Pieces<'a>, cond: &'a Cond) {
             }
             out.push_str("]}");
         }
-        Cond::Compare(op, left, right) => {
+        Cond::Compare(op, left, right, _) => {
             out.push_str("{\"op\":");
             write_str(out, op);
             out.push_str(",\"left\":");

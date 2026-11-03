@@ -243,7 +243,8 @@ fn restore(mut pending: Vec<Pair<'_>>) {
                         pending.push(Pair::Term(to, from));
                     }
                 }
-                (Cond::Compare(_, ta, tb), Cond::Compare(_, fa, fb)) => {
+                (Cond::Compare(_, ta, tb, tl), Cond::Compare(_, fa, fb, fl)) => {
+                    *tl = *fl;
                     pending.push(Pair::Term(ta, fa));
                     pending.push(Pair::Term(tb, fb));
                 }

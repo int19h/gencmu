@@ -644,7 +644,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
                 _ => {}
             },
             Part::Cond(condition) => match condition {
-                Cond::Compare(_, a, b) => pending.extend([Part::Term(a), Part::Term(b)]),
+                Cond::Compare(_, a, b, _) => pending.extend([Part::Term(a), Part::Term(b)]),
                 Cond::Matches(t, _)
                 | Cond::Begins(t, _)
                 | Cond::Ends(t, _)
@@ -2111,7 +2111,7 @@ impl Constants<'_> {
                     }
                 }
             }
-            Cond::Compare(op, left, right) => {
+            Cond::Compare(op, left, right, _) => {
                 if matches!(op.as_str(), "≅" | "≇") && !matches!(right, Term::Capture(_)) {
                     if value_has_source(right) {
                         return;
@@ -2308,7 +2308,7 @@ impl<'a> Iterator for ValueParts<'a> {
                         None
                     }
                 })),
-                Cond::Compare(op, a, b) => {
+                Cond::Compare(op, a, b, _) => {
                     children.push(ValuePart::Term(a));
                     children.push(if matches!(op.as_str(), "≅" | "≇") && !matches!(b, Term::Capture(_)) {
                         ValuePart::Pattern(b)
@@ -2520,7 +2520,7 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond, compared: &mut bool) -> Resul
     work::count(Work::Stitched, 1);
     match cond {
         Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
-        Cond::Compare(op, left, right) => {
+        Cond::Compare(op, left, right, _) => {
             *compared |= matches!(op.as_str(), "≅" | "≇") && matches!(right, Term::Capture(_));
             if !matches!(op.as_str(), "=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "≅" | "≇") {
                 return Err(format!("an unknown comparison {op}"));
@@ -2574,7 +2574,9 @@ mod tests {
         let unicode =
             Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").expect("the table")).expect("the table");
         let dom = |n: usize| {
-            let same = || Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()));
+            let same = || {
+                Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()), Default::default())
+            };
             let rule = RuleDef {
                 source: Default::default(),
                 strings: Default::default(),

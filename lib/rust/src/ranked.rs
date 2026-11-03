@@ -184,7 +184,7 @@ fn capture_reads(start: ReadPart<'_>, out: &mut BTreeSet<String>) {
                 Cond::Captured(name) => {
                     out.insert(name.clone());
                 }
-                Cond::Compare(_, a, b) => stack.extend([ReadPart::Term(a), ReadPart::Term(b)]),
+                Cond::Compare(_, a, b, _) => stack.extend([ReadPart::Term(a), ReadPart::Term(b)]),
                 Cond::Matches(t, _)
                 | Cond::Begins(t, _)
                 | Cond::Ends(t, _)

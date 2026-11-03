@@ -113,7 +113,7 @@ pub(super) fn document(dom: &mut Dom) {
                 }
                 Cond::Not(c) => stack.push(Part::Cond(c)),
                 Cond::If(a, b) => stack.extend([Part::Cond(a), Part::Cond(b)]),
-                Cond::Compare(_, a, b) => stack.extend([Part::Term(a), Part::Term(b)]),
+                Cond::Compare(_, a, b, _) => stack.extend([Part::Term(a), Part::Term(b)]),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter_mut().filter_map(|arg| {
                     if let Arg::Term(t) = arg {
                         Some(Part::Term(t))

@@ -142,9 +142,11 @@ pub(crate) struct Demand {
     pub prefix_until: usize,
 }
 
-pub(crate) fn comparisons<'a>(condition: &'a LCond, out: &mut Vec<(&'a Span, &'a Span)>) {
+type Comparison<'a> = (&'a Span, &'a Span, Option<(usize, usize)>);
+
+pub(crate) fn comparisons<'a>(condition: &'a LCond, out: &mut Vec<Comparison<'a>>) {
     match condition {
-        LCond::SameTree(a, _, b) => out.push((a, b)),
+        LCond::SameTree(a, _, b, at) => out.push((a, b, *at)),
         LCond::Not(c) => comparisons(c, out),
         LCond::Any(items) | LCond::All(items) => {
             for c in items {
@@ -163,7 +165,7 @@ pub(crate) fn comparisons<'a>(condition: &'a LCond, out: &mut Vec<(&'a Span, &'a
     }
 }
 
-pub(crate) fn term_comparisons<'a>(term: &'a LTerm, out: &mut Vec<(&'a Span, &'a Span)>) {
+pub(crate) fn term_comparisons<'a>(term: &'a LTerm, out: &mut Vec<Comparison<'a>>) {
     match term {
         LTerm::If(c, t) => {
             comparisons(c, out);
@@ -244,7 +246,7 @@ fn demand_state(
         }
     }
     let mut demand = Demand::default();
-    for (a, b) in reads {
+    for (a, b, _) in reads {
         for span in [a, b] {
             match span {
                 Span::Whole => {
@@ -461,9 +463,9 @@ pub(crate) fn check_cycles(g: &Lowered, rows: &[(u32, Vec<Sym>)], stage: &str) -
         }
     }
     let mut sites = Vec::new();
-    let mut collect = |id: u32, reads: Vec<(&Span, &Span)>, context: &Context| {
+    let mut collect = |id: u32, reads: Vec<Comparison<'_>>, context: &Context| {
         let p = &g.prods[id as usize];
-        for (a, b) in reads {
+        for (a, b, at) in reads {
             let mut roots = Vec::new();
             for span in [a, b] {
                 match span {
@@ -489,7 +491,7 @@ pub(crate) fn check_cycles(g: &Lowered, rows: &[(u32, Vec<Sym>)], stage: &str) -
                     _ => unreachable!("a constituent comparison reads bare captures"),
                 }
             }
-            sites.push((id, roots));
+            sites.push((id, at, roots));
         }
     };
     let mut queue = Vec::new();
@@ -533,8 +535,8 @@ pub(crate) fn check_cycles(g: &Lowered, rows: &[(u32, Vec<Sym>)], stage: &str) -
             enter(g, id, &context, &mut queue);
         }
     }
-    sites.sort_by_key(|(id, _)| *id);
-    for (id, roots) in sites {
+    sites.sort_by_key(|(id, _, _)| *id);
+    for (id, at, roots) in sites {
         let mut reachable = Vec::new();
         let mut known = FxSet::default();
         let mut pending: Vec<_> = roots.into_iter().rev().collect();
@@ -581,15 +583,16 @@ pub(crate) fn check_cycles(g: &Lowered, rows: &[(u32, Vec<Sym>)], stage: &str) -
                         cycle.push(&g.rules[child as usize].name);
                     }
                     let p = &g.prods[id as usize];
-                    return Err(crate::lower::LowerError::at(
+                    let error = crate::lower::LowerError::at(
                         stage,
                         p.document.as_deref().unwrap_or(""),
-                        p.at,
+                        at.unwrap_or(p.at),
                         format!(
                             "tree comparison demands a cycle {} that can repeat a demanded rule over one span",
                             cycle.join(" → ")
                         ),
-                    ));
+                    );
+                    return Err(error);
                 }
                 stack.push((child, 0));
             }
@@ -688,7 +691,7 @@ pub(crate) fn emission_scope(
         machine.get_or_insert_with(|| std::rc::Rc::new(std::cell::RefCell::new(crate::patterns::Machine::new(&[]))));
     let mut m = machine.borrow_mut();
     m.trees.get_or_insert_with(Arena::new);
-    for (a, b) in reads {
+    for (a, b, _) in reads {
         for span in [a, b] {
             let node = match span {
                 Span::Whole => owner,

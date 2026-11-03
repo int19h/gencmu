@@ -80,8 +80,8 @@ pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
                 Simple::Cond(consequent) => Simple::Cond(Cond::If(Box::new(antecedent), Box::new(consequent))),
             }
         }
-        Cond::Compare(op, left, right) => {
-            Simple::Cond(Cond::Compare(op.clone(), simplify_value(left, has), simplify_value(right, has)))
+        Cond::Compare(op, left, right, location) => {
+            Simple::Cond(Cond::Compare(op.clone(), simplify_value(left, has), simplify_value(right, has), *location))
         }
         Cond::Matches(..)
         | Cond::Begins(..)
@@ -155,7 +155,7 @@ impl<'a> Part<'a> {
             Part::Cond(Cond::If(antecedent, consequent)) => {
                 vec![Part::Cond(antecedent), Part::Cond(consequent)]
             }
-            Part::Cond(Cond::Compare(_, left, right)) => vec![Part::Term(left), Part::Term(right)],
+            Part::Cond(Cond::Compare(_, left, right, _)) => vec![Part::Term(left), Part::Term(right)],
             _ => Vec::new(),
         }
     }
@@ -200,7 +200,7 @@ fn walk_captures<'a>(start: Part<'a>, values: bool, presences: bool, out: &mut V
                         out.push(name);
                     }
                 }
-                Cond::Compare(_, left, right) => stack.extend([Part::Term(right), Part::Term(left)]),
+                Cond::Compare(_, left, right, _) => stack.extend([Part::Term(right), Part::Term(left)]),
                 Cond::Matches(span, _)
                 | Cond::Begins(span, _)
                 | Cond::Ends(span, _)
@@ -2153,6 +2153,7 @@ mod tests {
                                         "=".into(),
                                         Term::Call("value".into(), vec![Arg::Term(Term::Capture(name.clone()))]),
                                         Term::Str("x".into()),
+                                        Default::default(),
                                     )),
                                 )
                             })

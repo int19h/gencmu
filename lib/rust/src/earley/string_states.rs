@@ -417,7 +417,7 @@ fn emitted_reads(conditions: &[crate::dom::Cond], recipe: Option<&Term>) -> Vec<
     fn condition(c: &crate::dom::Cond, out: &mut Vec<(String, bool)>) {
         use crate::dom::Cond;
         match c {
-            Cond::Compare(_, a, b) => {
+            Cond::Compare(_, a, b, _) => {
                 term(a, out);
                 term(b, out);
             }

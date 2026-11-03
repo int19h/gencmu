@@ -406,7 +406,7 @@ impl<'a> PartialClause<'a> {
                     first(left, right)
                 }
             }
-            Part::Cond(Cond::Compare(_, _, _)) => first(child(0), child(1)),
+            Part::Cond(Cond::Compare(_, _, _, _)) => first(child(0), child(1)),
             _ => unreachable!("a variable clause node"),
         }
     }

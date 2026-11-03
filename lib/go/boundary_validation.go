@@ -163,6 +163,34 @@ func (g *stageGrammar) validateBoundaryTargets() *Error {
 }
 
 func restoreBoundaryLocations(to, from *domDoc) {
+	compared := func(doc *domDoc) []*domCond {
+		var out []*domCond
+		collect := func(root clausePart) {
+			walkClause(root, func(part clausePart) bool {
+				if c := part.c; c != nil && (c.Op == "≅" || c.Op == "≇") {
+					out = append(out, c)
+					return false
+				}
+				return true
+			})
+		}
+		for _, rule := range doc.Rules {
+			collect(clausePart{t: rule.Tags})
+			for _, alternative := range rule.Alternatives {
+				collect(clausePart{t: alternative.Tags})
+			}
+			for _, condition := range rule.Conditions {
+				collect(clausePart{c: condition})
+			}
+		}
+		return out
+	}
+	comparisons, originalsCompared := compared(to), compared(from)
+	if len(comparisons) == len(originalsCompared) {
+		for i, comparison := range comparisons {
+			comparison.At = originalsCompared[i].At
+		}
+	}
 	for i, rule := range to.Rules {
 		if i >= len(from.Rules) {
 			break

@@ -288,7 +288,7 @@ pub(crate) struct BoundaryLocation {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Cond {
     SourceQuery(String, Vec<Arg>, BoundaryLocation),
-    Compare(String, Term, Term),
+    Compare(String, Term, Term, Option<(usize, usize)>),
     Matches(Term, Vec<String>),
     /// `begins(s, R)`: whether a prefix of the span, possibly empty, parses
     /// as `R`.
@@ -889,6 +889,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     string(value, "op")?,
                     operands.next().unwrap().term(),
                     operands.next().unwrap().term(),
+                    Default::default(),
                 ),
                 "method" => {
                     let receiver = operands.next().unwrap().term();
@@ -1466,7 +1467,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                     Arg::Term(term) => Some(Nested::Term(term)),
                     _ => None,
                 })),
-                Cond::Compare(_, left, right) => stack.extend([Nested::Term(right), Nested::Term(left)]),
+                Cond::Compare(_, left, right, _) => stack.extend([Nested::Term(right), Nested::Term(left)]),
                 Cond::Not(inner) => stack.push(Nested::Cond(inner)),
                 Cond::Any(items) | Cond::All(items) => stack.extend(items.iter().rev().map(Nested::Cond)),
                 Cond::If(antecedent, consequent) => stack.extend([Nested::Cond(consequent), Nested::Cond(antecedent)]),
@@ -1682,7 +1683,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                 | Cond::Initial(span)
                 | Cond::Final(span)
                 | Cond::Boundary(_, span, _, _) => stack.push((Nested::Term(span), below)),
-                Cond::Compare(_, left, right) => {
+                Cond::Compare(_, left, right, _) => {
                     stack.push((Nested::Term(left), below));
                     stack.push((Nested::Term(right), below));
                 }
@@ -2039,7 +2040,7 @@ pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<F
         Cond::If(antecedent, consequent) => {
             cond_type_fault(antecedent, constants).or_else(|| cond_type_fault(consequent, constants))
         }
-        Cond::Compare(op, left, right) => {
+        Cond::Compare(op, left, right, _) => {
             if matches!(op.as_str(), "≅" | "≇") && !matches!(left, Term::Capture(_)) {
                 return Some(Fault::in_cond("a tree comparison requires a bare capture".into(), cond));
             }
@@ -2397,7 +2398,7 @@ impl Cond {
                     _ => None,
                 }));
             }
-            Cond::Compare(_, left, right) => {
+            Cond::Compare(_, left, right, _) => {
                 stack.push(Dropping::Term(std::mem::replace(left, Term::EmptySet)));
                 stack.push(Dropping::Term(std::mem::replace(right, Term::EmptySet)));
             }

@@ -2050,7 +2050,10 @@ impl<'a> Reader<'a> {
                         return Err(self.error(at, problem));
                     }
                 }
-                Ok(Step::Done(Val::Cond(Cond::Compare(std::mem::take(&mut frame.op), left, term))))
+                let at = (matches!(frame.op.as_str(), "≅" | "≇")
+                    && matches!(&term, Term::Capture(_) | Term::Source(_)))
+                .then(|| self.first(inner));
+                Ok(Step::Done(Val::Cond(Cond::Compare(std::mem::take(&mut frame.op), left, term, at))))
             }
             "negation" => {
                 let Val::Cond(cond) = value else { unreachable!("a negation holds a condition") };
@@ -2900,7 +2903,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                     Arg::Term(term) => Some(Part::Term(term)),
                     _ => None,
                 })),
-                Cond::Compare(op, left, right) => {
+                Cond::Compare(op, left, right, _) => {
                     if matches!(op.as_str(), "≅" | "≇")
                         && matches!(left,Term::Capture(name) if name.is_empty())
                         && matches!(right,Term::Pattern(p) if crate::patterns::reads_node_tags(p))
