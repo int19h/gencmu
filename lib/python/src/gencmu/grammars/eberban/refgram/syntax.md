@@ -7,15 +7,15 @@ The stage reads the words of the [words stage](stream.md). Each word carries its
 The prose uses these Eberban terms:
 
 - A verb is a predicate word or construct in a chain. Every word of Eberban is a predicate.
-- A chain is a sequence of verbs. The chapter on [chaining](https://eberban.github.io/eberban/logic/chaining.html) groups it from the right.
+- A chain is a sequence of verbs. The chapter on [chaining](https://eberban.github.io/eberban/books/refgram/book/logic/chaining.html) groups it from the right.
 - A bind is an explicit binding of a place of a verb, opened by `VI` or `FI` and closed by `vei`.
 - An annotation is a free prefix or suffix with no logical effect.
 
-[The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars. An elided terminator is a closing word left unwritten. The pipeline ranks the parses with `late #·<_Elided>` after its two counting steps, so an elided terminator falls as late as the text allows.
+[The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars. An elided terminator is a closing word left unwritten. The pipeline ranks the parses with `late #·_<_Elided>` after its two counting steps, so an elided terminator falls as late as the text allows.
 
 ## Texts and paragraphs
 
-A text is language flags, then paragraphs. An empty text is valid. The [sentences chapter](https://eberban.github.io/eberban/logic/sentences.html) marks a new paragraph with `PO`. The first paragraph can lack it. A paragraph is a sentence and any number of further sentences. A further sentence starts with a sentence starter, a particle of family `A`, `O` or `NI`, or it is ungrammatical text that `ra` erases. The text rules are templates. Their parameter names what blocks an erasure at the start of a paragraph, as "Sentences and erasure" explains. `text` and its rules serve the whole text, a parenthetical and a quote with a written `cai`. `open-quote-text` and its rules serve a quote whose `cai` is left out.
+A text is language flags, then paragraphs. An empty text is valid. The [sentences chapter](https://eberban.github.io/eberban/books/refgram/book/logic/sentences.html) marks a new paragraph with `PO`. The first paragraph can lack it. A paragraph is a sentence and any number of further sentences. A further sentence starts with a sentence starter, a particle of family `A`, `O` or `NI`, or it is ungrammatical text that `ra` erases. The text rules are templates. Their parameter names what blocks an erasure at the start of a paragraph, as "Sentences and erasure" explains. `text` and its rules serve the whole text, a parenthetical and a quote with a written `cai`. `open-quote-text` and its rules serve a quote whose `cai` is left out.
 
 The sentences chapter starts every sentence with a starter, and lets the first sentence of a paragraph leave it out. So a further sentence without a starter is always ungrammatical. `invalid-tail` reads it as erased text, even where it would be a sentence at the start of a paragraph. A further sentence cannot start with a paragraph mark or the end of a parenthesis, because those end the paragraph. Erased text after a complete sentence cannot start with a closer, `FI`, `VEI`, `PEI`, `BU`, `PA` or `cai`, unless a `ra` comes right before it. Such a closer belongs to the sentence before it, which is then ungrammatical, so the erasure starts at that sentence.
 
@@ -96,9 +96,10 @@ The sentences chapter starts every sentence with a starter, and lets the first s
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/open-quote-sentence.svg" alt="Railroad diagram of the rule open-quote-sentence"></p>
 </details>
 
+
 ## Sentences and erasure
 
-A sentence starts with `A`, `O` or `NI`. An `A` sentence is an inner predicate, which is a chain with an optional arguments list. An `O` sentence names a definable word, then an inner predicate. An `NI` sentence names a definable word alone. The first sentence of a paragraph can leave its `a` out.
+A sentence starts with `A`, `O` or `NI`. An `A` sentence is an inner predicate, which is a chain with an optional arguments list. An `O` sentence names a definable word, then an inner predicate. An `NI` sentence names a definable word alone. The first sentence of a paragraph can leave its `a` out. An elidable optional starts with its terminator, so no free prefix can stand before an elided `a`. So the second alternative of `a-sentence` reads one or more prefixes before a written `a`.
 
 A sentence ends where the next sentence, paragraph, quote end, parenthesis end or eraser begins, or at the end of the text. A particle that closes an outer construct ends the sentence too: `FI`, `VEI`, `PEI`, `BU` or `PA`. Such a particle ends a quote whose `cai` is left out, together with its last sentence. The rule `sentence-end` names these ends, and `sentence-choice` requires one after the sentence. `sentence-closer` names the closing particles. A free prefix can stand before `cai`, `fi` or `bu`, as in `ca mo di cai`, because the rules that read those particles allow one. An open sentence is one that ends at the next sentence, paragraph or eraser, or at the end of the text. No enclosing construct has to claim what follows it, so it is grammatical wherever it stands. `open-sentence` and `open-end` name it.
 
@@ -169,6 +170,7 @@ The chapter erases back to the start of the last sentence that was still grammat
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ni-sentence.svg" alt="Railroad diagram of the rule ni-sentence"></p>
 </details>
 
+
 An erased valid sentence is a sentence followed by one or more `ra`. Erased invalid text is one or more words up to the first `ra`. The words can be anything, so a stretch that the chapter calls one ungrammatical sentence can hold several sentences that look grammatical. `invalid-head` names its first word, so that the condition on a grammatical quote can test it. An empty erasure is a `ra` alone. Each word after the first is an `erased-word`. The pipeline's first step is `fewest #·erased-word`. So of two readings, the one that erases fewer words wins, as the chapter's "last sentence that was still grammatical" asks.
 
 The chapter says that `ra` "must be surrounded by spaces or pauses". The start of a text counts as a pause, as it does for hesitation in the [word forms](morphology.md). So a text can start with `ra`.
@@ -215,11 +217,12 @@ The PEG requires a written starter after an erasure, and states this rule in an 
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/after-erasure.svg" alt="Railroad diagram of the rule after-erasure"></p>
 </details>
 
+
 ## Definable words and inner predicates
 
 A definable word is a root, a compound, a freeform variable or a `GI` variable, each with optional annotations before it. The chapter on sentences lets a namespace precede it: a definable word or `MI` particle, then `pi`. A definable word for `O` and `NI` cannot start with an `MI` particle.
 
-An inner predicate is a chain, with an optional arguments list before it. The arguments list is zero or more `KI`, `GI` or `BA` variables ended by `be`, as the [explicit binding chapter](https://eberban.github.io/eberban/logic/explicit_binding.html) says.
+An inner predicate is a chain, with an optional arguments list before it. The arguments list is zero or more `KI`, `GI` or `BA` variables ended by `be`. A `BA` variable can take free prefixes, as everywhere else, as the [explicit binding chapter](https://eberban.github.io/eberban/books/refgram/book/logic/explicit_binding.html) says.
 
 ```jbogenbau
 %rule definable
@@ -243,7 +246,7 @@ An inner predicate is a chain, with an optional arguments list before it. The ar
   [arguments-list] chain
 
 %rule arguments-list
-  [{KI | GI | BA}] BE
+  [{KI | GI | ba-free}] BE
 ```
 
 <details><summary>Railroad diagrams of the 7 rules from <code>definable</code> to <code>arguments-list</code></summary>
@@ -256,11 +259,12 @@ An inner predicate is a chain, with an optional arguments list before it. The ar
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/arguments-list.svg" alt="Railroad diagram of the rule arguments-list"></p>
 </details>
 
+
 ## Chains
 
-A chain is one or more steps, grouped from the right. `ri` erases the chain read so far, and the chain starts again after it. `bi` before a chain negates the whole of it, as the chapter on [transformations](https://eberban.github.io/eberban/logic/transformations.html) says.
+A chain is one or more steps, grouped from the right. `ri` erases the chain read so far, and the chain starts again after it. `bi` before a chain negates the whole of it, as the chapter on [transformations](https://eberban.github.io/eberban/books/refgram/book/logic/transformations.html) says.
 
-A step is a verb with its binds, then the rest of the chain. The verb can take an `SI` particle before it, which selects its places. An `SI` can also follow each `ZI` modifier of the verb.
+A step is a verb with its free suffixes and binds, then the rest of the chain. The verb can take an `SI` particle before it, which selects its places. An `SI` can also follow each `ZI` modifier of the verb. The rule `annotated-verb` reads the verb with its free suffixes, as the PEG's `ChainVerb` does.
 
 ```jbogenbau
 %rule chain
@@ -279,18 +283,23 @@ A step is a verb with its binds, then the rest of the chain. The verb can take a
 %rule verb
   [{zi-free [si-free]}] base-verb
 
+%rule annotated-verb
+  verb [{postfix}]
+
 %rule zi-free
   [{prefix}] ZI
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>chain</code> to <code>zi-free</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>chain</code> to <code>zi-free</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain.svg" alt="Railroad diagram of the rule chain"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-inner.svg" alt="Railroad diagram of the rule chain-inner"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/bi-free.svg" alt="Railroad diagram of the rule bi-free"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/si-free.svg" alt="Railroad diagram of the rule si-free"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/verb.svg" alt="Railroad diagram of the rule verb"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/annotated-verb.svg" alt="Railroad diagram of the rule annotated-verb"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/zi-free.svg" alt="Railroad diagram of the rule zi-free"></p>
 </details>
+
 
 ### Resuming a verb
 
@@ -300,31 +309,29 @@ The pipeline's step `fewest #·passed-step` states that preference. A step that 
 
 A step takes any number of resumptions in a row. The repeated verb can carry its own binds and continue the chain. The condition compares each repeated verb with the verb of the step.
 
-The condition compares the string walks of the two verbs. A walk joins the values of the words, and recipes can change it. The empty recipe on `prefix` leaves out every free prefix, because the annotations chapter gives annotations no logical effect. The walk still covers the verb's `ZI` modifiers and the `SI` after each modifier. The `SI` before the verb stands outside it, so that `SI` can differ. Free suffixes stand in `step-tail`, after the verb, so the comparison leaves them out too.
-
-An elided terminator adds its default value to the walk. The numbers chapter infers `jie` where a number leaves out its `JI`, so an elided `JI` has the default value `jie`. An elided `pei` and an elided `be` have their own spellings as default values. So a written closer and an elided one give the same walk. A quote keeps its text as written, as "Quotes" explains.
+A resumption matches the words of the two verbs, as the PEG does. The condition `$v ≅ $e` compares the two verbs as trees. Two trees are equal where they have the same rules and the same words in the same order. So the free prefixes and suffixes of the verb count, and so do its `ZI` modifiers and the `SI` after each modifier. The `SI` before the verb stands outside it, so that `SI` can differ, as in the PEG. A written terminator never equals an elided one, so `to jie` and `to` are two verbs. A word compares by its value, which is its canonical word. So the two spellings of a compound, and a digit and its `TI` word, resume each other. `$e` is an item capture, so the condition holds of each resumption in the list.
 
 ```jbogenbau
 %rule step
   plain-step | passed-step | resumed-step
 
 %rule plain-step
-  [si-free] verb step-tail
+  [si-free] annotated-verb step-tail
 %conditions
   ¬$.followed-by(resume-head)
 
 %rule passed-step
-  [si-free] verb step-tail
+  [si-free] annotated-verb step-tail
 %conditions
   $.followed-by(resume-head)
 
 %rule resumed-step
-  [si-free] $v:verb step-tail {resume-head $e:verb step-tail}
+  [si-free] $v:annotated-verb step-tail {resume-head $e:annotated-verb step-tail}
 %conditions
-  $v.emitted.value = $e.emitted.value
+  $v ≅ $e
 
 %rule step-tail
-  [{postfix}] [{bind-group}] [chain-inner]
+  [{bind-group}] [chain-inner]
 
 %rule resume-head
   PA [si-free]
@@ -338,6 +345,7 @@ An elided terminator adds its default value to the walk. The numbers chapter inf
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/step-tail.svg" alt="Railroad diagram of the rule step-tail"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/resume-head.svg" alt="Railroad diagram of the rule resume-head"></p>
 </details>
+
 
 ## Binds
 
@@ -368,6 +376,7 @@ An elided terminator adds its default value to the walk. The numbers chapter inf
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/fi-free.svg" alt="Railroad diagram of the rule fi-free"></p>
 </details>
 
+
 ## Verbs
 
 A verb is a definable word with its namespace, or an inline assignment with `bo`. It can also be a `KI`, `BA` or `MI` particle, a quote, an enumeration, a borrowing group or a number. A `KI` carries no annotations. The others take free prefixes.
@@ -391,17 +400,18 @@ A verb is a definable word with its namespace, or an inline assignment with `bo`
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ba-free.svg" alt="Railroad diagram of the rule ba-free"></p>
 </details>
 
+
 ### Quotes
 
-The [quotes chapter](https://eberban.github.io/eberban/grammar/quotes.html) gives four quotes. `ca` quotes a grammatical text up to `cai`. The text can be empty. `ci` quotes one word. `ce` spells a text up to `cei`, which the forms stage reads as one word. `co` quotes foreign text, which the words stage reads as one word, and `coi` stands for a quote whose content the speaker cannot read.
+The [quotes chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/quotes.html) gives four quotes. `ca` quotes a grammatical text up to `cai`. The text can be empty. `ci` quotes one word: a particle, a root, a compound or a borrowing. A spelling quote and a foreign quote are words of their own, so `ci` does not quote them. A digit is a particle, so `ci` quotes it. `ce` spells a text up to `cei`, which the forms stage reads as one word. `co` quotes foreign text, which the forms stage also reads as one word, and `coi` stands for a quote whose content the speaker cannot read.
 
 The chapter does not say that `cai` can be left out. The PEG lets the speaker leave it out where the quoted text can end, and this grammar follows the PEG.
 
 A quote with a written `cai` reads `text`, like the whole text, because no closer inside it can end it. In a quote whose `cai` is left out, a particle that closes an outer construct ends the quoted text instead of starting erasable text. The second and third alternatives read such a quote. Their first two conditions require that the `cai` is left out. The next two require that the text holds no erased invalid stretch that starts with such a particle.
 
-A quote repeats words, so a resumed verb that is a quote compares the quoted text as written. Each alternative's value recipe joins the opener, the input value of the quoted text and `cai`. So the free prefixes and elided terminators inside the quoted text count as written. The prefixes before `CA` and before `cai` annotate the quote itself, so the recipe leaves them out. A `cai` left out still counts as `cai`, because it closes the quote and is no part of the quoted text.
+An elidable optional cannot hold a capture, so no capture can say whether `cai` is written. The first two conditions ask it with a tree pattern on `$`: the last leaf is an elided `CAI`.
 
-The PEG warns when a quote of several sentences leaves out its `cai` before the end of the text. The end of the quote is then hard to see. The third alternative carries that warning as `multi-sentence-cai-elided`. A quote holds several sentences when it has several paragraphs, or when its first paragraph has more than one sentence that is not erased. `$SEVERAL-SENTENCES` states that. The last three conditions send each such quote to exactly one of the two alternatives.
+The PEG warns when a quote of several sentences leaves out its `cai` before the end of the text. The end of the quote is then hard to see. The third alternative carries that warning as `multi-sentence-cai-elided`. A quote holds several sentences when it has several paragraphs, or when its first paragraph has more than one sentence that is not erased. `$SEVERAL-SENTENCES` states that. An erased sentence is a node that holds the sentence and its `ra`. So the single-child search of the pattern stops there, and the sentence does not count. The last three conditions send each such quote to exactly one of the two alternatives.
 
 ```jbogenbau
 %const $SEVERAL-SENTENCES
@@ -409,9 +419,9 @@ The PEG warns when a quote of several sentences leaves out its `cai` before the 
   ∪ #« ⋯ open-quote-paragraphs« [po-head] open-quote-sentences« ⋯ sentence-choice ⋯ sentence-choice ⋯ » ⋯ » »
 
 %rule grammatical-quote
-  | [{prefix}] $o:CA $t:text [{prefix}] CAI := $o.value ++ $t.value ++ "cai"
-  | [{prefix}] $o:CA $q:open-quote-text [+CAI] := $o.value ++ $q.value ++ "cai"
-  | multi-sentence-cai-elided! [{prefix}] $o:CA $l:open-quote-text [+CAI] := $o.value ++ $l.value ++ "cai"
+  | [{prefix}] CA text [{prefix}] CAI
+  | [{prefix}] CA $q:open-quote-text [+CAI]
+  | multi-sentence-cai-elided! [{prefix}] CA $l:open-quote-text [+CAI]
 %conditions
   $q ⟹ $ ≅ #(⋱ CAI=""),
   $l ⟹ $ ≅ #(⋱ CAI=""),
@@ -422,7 +432,7 @@ The PEG warns when a quote of several sentences leaves out its `cai` before the 
   $l ⟹ ¬$.following-tokens.begins(end-of-text)
 
 %rule word-quote
-  [{prefix}] CI (Word<Particle> | Root | Compound | Borrowing)
+  [{prefix}] CI (Word<Particle ¬Quote> | Root | Compound | Borrowing)
 
 %rule spelling-quote
   [{prefix}] CE<Quote>
@@ -438,19 +448,20 @@ The PEG warns when a quote of several sentences leaves out its `cai` before the 
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/foreign-quote.svg" alt="Railroad diagram of the rule foreign-quote"></p>
 </details>
 
+
 ### Enumerations
 
-The [enumeration chapter](https://eberban.github.io/eberban/grammar/enum.html) gives two forms. In the separator form, `PE` takes chains separated by `bu`. In the prefix form, `bu` follows `PE` directly, and each item is one verb with its binds. `pei` closes the enumeration, and the speaker can leave it out at the end of a sentence.
+The [enumeration chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/enum.html) gives two forms. In the separator form, `PE` takes chains separated by `bu`. In the prefix form, `bu` follows `PE` directly, and each item is one verb with its binds. `pei` closes the enumeration, and the speaker can leave it out at the end of a sentence.
 
 ```jbogenbau
 %rule enumeration
-  [{prefix}] PE [{postfix}] (prefix-form | separator-form) [+PEI ≝ "pei"]
+  [{prefix}] PE [{postfix}] (prefix-form | separator-form) [+PEI]
 
 %rule prefix-form
   bu-free [{[bi-free] enumerated-verb}]
 
 %rule enumerated-verb
-  [si-free] verb [{postfix}] [{bind-group}]
+  [si-free] annotated-verb [{bind-group}]
 
 %rule separator-form
   [arguments-list] {chain / bu-free}
@@ -467,61 +478,57 @@ The [enumeration chapter](https://eberban.github.io/eberban/grammar/enum.html) g
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/bu-free.svg" alt="Railroad diagram of the rule bu-free"></p>
 </details>
 
+
 ### Borrowing groups and numbers
 
-Consecutive borrowings form one group, which `be` can close. The [borrowings chapter](https://eberban.github.io/eberban/grammar/borrowings.html) needs the `be` only between two groups.
+Consecutive borrowings form one group, which `be` can close. The [borrowings chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/borrowings.html) needs the `be` only between two groups, because consecutive borrowings always fuse. So a group whose `be` is left out ends only where no borrowing follows, as the condition on `borrowing-group` says. Then a run of borrowings has one division.
 
-A number is digits with separators, as the [numbers chapter](https://eberban.github.io/eberban/grammar/numbers.html) lays them out. Its parts are a base and `ju`, an integer part, `jo` and a fractional part, `ja` and a repeated part, and `je` and a magnitude. A `JI` particle ends it, and the speaker can leave that out. The repeated part needs the fractional separator before it. The number needs a digit in one of its parts, or a magnitude. The alternatives of `integer-body` and `fraction-body` list the parts that can come first. The chapter makes `jie` mandatory between two numbers, so a number with its `JI` left out cannot stand directly before another number. The condition on `number` states that with a tree pattern: either the last child is a written `JI`, or no number part follows.
+A number is digits with separators, as the [numbers chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/numbers.html) lays them out. Its parts are a base and `ju`, an integer part, `jo` and a fractional part, `ja` and a repeated part, and `je` and a magnitude. A `JI` particle ends it, and the speaker can leave that out. The repeated part needs the fractional separator before it. The number needs a digit in one of its parts, or a magnitude. The alternatives of `number-body` list the parts that can come first. Any `JI` can end any number, as in the PEG. The chapter makes `jie` mandatory between two numbers, so a number with its `JI` left out cannot stand directly before another number. An elidable optional cannot hold a capture, so the condition on `number` states that with a tree pattern. Either the last child is a written `JI`, or no number part follows.
 
-The chapter says that `jie` "is inferred if omitted", and that a `JI` other than `jie` "must follow positive integer (no fractional part)". So a number with `jo` or `joi` takes only `jie`, even where its fractional part is empty, as in `to jo`. A negative magnitude with `jei` divides the number by a power of the base, so such a number takes only `jie` too. Whether such a division leaves an integer depends on the digits, so the rule covers every `jei`. `fraction-body` lists these numbers, and the test `JI="jie"` in the second alternative of `number` restricts them. A `JI` left out there stands for `jie`. The chapter counts list members from zero with `jiu`, so this grammar reads "positive" as "not negative", and zero takes any `JI`.
+The chapter says that a `JI` other than `jie` "must follow positive integer (no fractional part)". That rule concerns the value of the number, and the closing section says why the grammar does not check it.
 
 ```jbogenbau
 %rule borrowing-group
-  {Borrowing} [+BE ≝ "be"]
+  {Borrowing} [+BE]
+%conditions
+  $ ≅ #« ⋯ BE<¬_Elided> » ∨ ¬$.following-tokens.begins(Borrowing)
 
 %rule number
-  | [TI JU] integer-body [+JI ≝ "jie"]
-  | [TI JU] fraction-body [+JI="jie"]
+  [TI JU] number-body [+JI]
 %conditions
-  $ ≅ #« ⋯ JI≠"" » ∨ ¬$.following-tokens.begins(number-start)
+  $ ≅ #« ⋯ JI<¬_Elided> » ∨ ¬$.following-tokens.begins(number-start)
 
 %rule number-start
   TI | JU | JO | JA | JE
 
-%rule integer-body
-  | digits [JE≠"jei" digits]
-  | JE≠"jei" digits
-
-%rule fraction-body
+%rule number-body
+  | digits [JE digits]
   | digits JO [digits] [JA digits] [JE digits]
   | JO digits [JA digits] [JE digits]
   | JO JA digits [JE digits]
   | JO JE digits
-  | digits JE="jei" digits
-  | JE="jei" digits
+  | JE digits
 
 %rule digits
   {TI}
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>borrowing-group</code> to <code>digits</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>borrowing-group</code> to <code>digits</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/borrowing-group.svg" alt="Railroad diagram of the rule borrowing-group"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number.svg" alt="Railroad diagram of the rule number"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-start.svg" alt="Railroad diagram of the rule number-start"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/integer-body.svg" alt="Railroad diagram of the rule integer-body"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/fraction-body.svg" alt="Railroad diagram of the rule fraction-body"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-body.svg" alt="Railroad diagram of the rule number-body"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/digits.svg" alt="Railroad diagram of the rule digits"></p>
 </details>
 
+
 ## Annotations
 
-The [annotations chapter](https://eberban.github.io/eberban/grammar/annotations.html) gives free prefixes and suffixes. A prefix is a `DI` particle, with an optional `DU` scope before it. A suffix is `DE` with one verb, or a parenthetical text between `da` and `dai`. The chapter allows any valid text in a parenthetical, and an empty text is valid. So `da dai` is a parenthetical.
-
-A prefix has the empty value recipe, so the string walk leaves it out. Only a resumption reads that walk ("Resuming a verb").
+The [annotations chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/annotations.html) gives free prefixes and suffixes. A prefix is a `DI` particle, with an optional `DU` scope before it. A suffix is `DE` with one verb, or a parenthetical text between `da` and `dai`. The chapter allows any valid text in a parenthetical, and an empty text is valid. So `da dai` is a parenthetical.
 
 ```jbogenbau
-%rule prefix := ""
-  | [DU] DI
+%rule prefix
+  [DU] DI
 
 %rule postfix
   interjection | parenthetical
@@ -540,15 +547,17 @@ A prefix has the empty value recipe, so the string walk leaves it out. Only a re
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/parenthetical.svg" alt="Railroad diagram of the rule parenthetical"></p>
 </details>
 
+
 ## Differences from the reference grammar and the PEG
 
-The PEG compares the repeated verb of a resumption with the earlier verb as written. Its comparison covers the free prefixes and suffixes of the verb, and the spelling of each word except the hyphens that its word forms drop. This grammar compares the string walks of the two verbs. The walk leaves out free prefixes, because the annotations chapter says that an annotation has no logical effect. Free suffixes stand after the verb. So `a mi di duna meon pa duna vo mo` is a text here and not in the PEG.
+The dictionary says that `pa` resumes the bindings of "a matching verb", and the book does not describe `pa`. Only the PEG defines the match. Its `same_structure` compares the trees of the two verbs, with their free prefixes and suffixes. This grammar follows that model with the tree comparison `$v ≅ $e`. So `a mi di duna meon pa duna vo mo` and `a mi to jie meon pa to vo mo` are no texts, as in the PEG. The match departs from the PEG in two places, because a word compares by its canonical value.
 
-The numbers chapter infers `jie` where a number leaves out its `JI`, so `to` and `to jie` are the same number. The PEG compares the two spellings as different verbs. This grammar gives an elided `JI` the default value `jie`. So `a mi to jie meon pa to vo mo` and `a mi pe to pei meon pa pe to jie pei vo mo` are texts here and not in the PEG. An elided `pei` or `be` also counts as its written form.
+- A nested compound matches its other spelling, as `pa e e ber ban ban` after `ei ber ban ban`. Both spellings have one value here, and the PEG fails to resume. [The word stream](stream.md#differences-from-the-reference-grammar-and-the-peg) explains the choice.
+- A digit matches its spelled `TI` word, so `a mi 3 meon pa to vo mo` is a text here. The PEG's digit node holds a `symbol` field where a spelled particle holds a `word`, so the two spellings differ there. The numbers chapter makes each digit the same particle as its word.
 
-A resumption also matches a nested compound that repeats the verb in its other spelling. An example is `pa e e ber ban ban` after `ei ber ban ban`. Both spellings have one value here, and the PEG fails to resume. [The word stream](stream.md#differences-from-the-reference-grammar-and-the-peg) explains the choice.
+The numbers chapter says that a `JI` other than `jie` must follow a positive integer, with no fractional part. Whether a number is a positive integer depends on its value, as `to jei ti` shows. The parser does not check values, so this grammar accepts any `JI` after any number, as the PEG does. So `a to jo te ji mian` is a text here. This departs from the book's usage rule, not from the PEG.
 
-The PEG accepts any `JI` after any number. This grammar follows the numbers chapter. So `a to jo te ji mian`, `a to joi ji mian` and `a to jei te ji mian` have no parse.
+The PEG's `ci` reads a native word, a compound or a borrowing, so it reads no digit. A digit is a particle here, so `a ci 1 mian` is a text here and not in the PEG. The PEG's `ci` reads `co` as a particle and its brackets as spaces. A quote is one word here, so `a ci co [x] mian` is a text in the PEG and not here.
 
 After an erasure, the PEG queues its message about the starter, unless a starter, a paragraph mark or the end of the whole text follows. It applies that rule inside a quote or a parenthesis too. A later `ra` that erases ungrammatical text discards the message. So erased text can follow an erasure in the PEG, as it can here. This grammar also accepts the end of an enclosing quote or parenthesis after an erasure. So `a mi da a mo ra dai` is a text here and not in the PEG.
 

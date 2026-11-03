@@ -424,12 +424,25 @@
   /** A cached document needs source positions only when it raises an error.
    * @type {WeakMap<object,{document:string,node:object}>} */
   const boundaryDocumentErrors = new WeakMap();
+  /** @param {any} document @returns {any[]} */
+  function writtenTreeComparisons(document) {
+      const found=[], pending=document.rules.flatMap((/** @type {any} */ rule)=>[rule.conditions,rule.tags,...(rule.alternatives ?? []).map((/** @type {any} */ alt)=>alt.tags)]);
+      while(pending.length) {
+        const node=pending.pop();
+        if(node?.op==='≅' || node?.op==='≇')found.push(node);
+        else pending.push(...clauseChildren(node));
+      }
+      return found;
+  }
+  /** @param {any} dom */
+  function needsTreeLocations(dom) {
+    return writtenTreeComparisons(dom).some(node=>(typeof node.right?.capture==='string' || node.right?.param) && !boundaryLocations.has(node));
+  }
   /** Recover positions through the same reader as an uncached document.
    * @param {any} dom @param {any} source */
   function restoreBoundaryLocations(dom,source) {
-    const reads = dom.rules.flatMap((/** @type {any} */ rule)=>emittedReads(rule.conditions));
-    const sources = source.rules.flatMap((/** @type {any} */ rule)=>emittedReads(rule.conditions));
-    if (reads.length === sources.length) reads.forEach((/** @type {any} */ read,/** @type {number} */ index)=>copyBoundaryLocation(sources[index],read));
+    const compared=writtenTreeComparisons(dom), originalsCompared=writtenTreeComparisons(source);
+    if(compared.length===originalsCompared.length)compared.forEach((/** @type {any} */ node,/** @type {number} */ index)=>copyBoundaryLocation(originalsCompared[index],node));
     const atoms = dom.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([rule.conditions,rule.emit]));
     const originals = source.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([rule.conditions,rule.emit]));
     if (atoms.length !== originals.length) return;
@@ -450,13 +463,6 @@
       emissionDemands.set(productions,names);
     }
     return names;
-  }
-
-  /** @param {any} node @returns {any[]} */
-  function emittedReads(node) {
-    if (!node || typeof node !== "object") return [];
-    const found = node.method === "emitted" ? [node] : [];
-    return found.concat(Object.values(node).flatMap(emittedReads));
   }
 
   // ---- result-context.js
@@ -3802,7 +3808,7 @@
     const old = localDemands.get(base);
     if (old) return old;
     const result = {whole:false, parts:new Set(), queries:new Map()};
-    const stack = [...productionClauses(base).slice(0, -1), base.source?.clauses.conditions];
+    const stack = [...productionClauses(base).slice(0, -1), (base.source ?? base.logicalSource)?.clauses.conditions];
     const seen = new Set();
     while (stack.length) {
       const node = /** @type {any} */ (stack.pop());
@@ -3980,7 +3986,7 @@
         push(n.pattern,false,false);
         continue;
       }
-      const form = ['name','call','param','terminal','literal','range','wildcard','constant','test','any'].filter(k => k in n && !(k === 'any' && n.test === 'tags'));
+      const form = ['name','call','param','terminal','literal','range','wildcard','constant','test','any'].filter(k => k in n);
       if (form.length !== 1) return 'a malformed pattern node test';
       const key = form[0];
       if ('exact' in n && (n.exact !== true || inner)) return 'a malformed exact pattern prefix';
@@ -3988,15 +3994,15 @@
       let fields = [key, ...('exact' in n ? ['exact'] : []), ...('children' in n ? ['children'] : [])];
       if (key === 'test') {
         if (n.test === 'tags') {
-          fields.push('requirements', n.any === true ? 'any' : 'expr');
+          fields.push('requirements', 'expr');
           const ruleAtom = object(n.expr) && ['name','call'].some(k => k in n.expr) && !('exact' in n.expr || 'children' in n.expr);
-          if (!(n.any === true || terminalAtom(n.expr) || ruleAtom) || !Array.isArray(n.requirements)) return 'a pattern tag test requires a node atom';
+          if (!(terminalAtom(n.expr) || ruleAtom) || !Array.isArray(n.requirements)) return 'a pattern tag test requires a node atom';
           for (const requirement of n.requirements) {
             if (!object(requirement) || Object.keys(requirement).length !== 2 || !('value' in requirement) || typeof requirement.negated !== 'boolean' || !requirementTerm(requirement.value)) return 'a malformed pattern requirement';
           }
         } else {
           fields.push('value','expr');
-          if (!['=','≠'].includes(n.test) || !(terminalAtom(n.expr) || object(n.expr) && n.expr.test === 'tags' && !('exact' in n.expr || 'children' in n.expr) && (terminalAtom(n.expr.expr) || n.expr.any === true))) return 'a pattern value test requires a terminal atom';
+          if (!['=','≠'].includes(n.test) || !(terminalAtom(n.expr) || object(n.expr) && ['name','call'].some(k => k in n.expr) || object(n.expr) && n.expr.test === 'tags' && !('exact' in n.expr || 'children' in n.expr) && (terminalAtom(n.expr.expr) || object(n.expr.expr) && ['name','call'].some(k => k in n.expr.expr)))) return 'a pattern value test requires a node atom';
           if (!stringTerm(n.value)) return 'a malformed pattern value test';
         }
         const problem = inspect.test?.(n);
@@ -4162,15 +4168,15 @@
     return true;
   }
 
-  /** @param {any} pattern @param {string|null} name @param {Set<string>} tags @param {any} leaf @returns {boolean} */
-  function localNodeMatches(pattern,name,tags,leaf) {
-    if (pattern.union) return pattern.union.some((/** @type {any} */ p)=>localNodeMatches(p,name,tags,leaf));
-    if (pattern.intersection) return pattern.intersection.every((/** @type {any} */ p)=>localNodeMatches(p,name,tags,leaf));
-    if (pattern.difference) return localNodeMatches(pattern.difference[0],name,tags,leaf) && !localNodeMatches(pattern.difference[1],name,tags,leaf);
-    if (pattern.test) return (pattern.any || localNodeMatches(pattern.expr,name,tags,leaf)) &&
-      (pattern.test === 'tags' ? leafTest(pattern,'',tags) : !!leaf && leafTest(pattern,leaf.value,tags));
+  /** @param {any} pattern @param {string|null} name @param {Set<string>} tags @param {any} leaf @param {string|undefined} [value] @returns {boolean} */
+  function localNodeMatches(pattern,name,tags,leaf,value=leaf?.value) {
+    if (pattern.union) return pattern.union.some((/** @type {any} */ p)=>localNodeMatches(p,name,tags,leaf,value));
+    if (pattern.intersection) return pattern.intersection.every((/** @type {any} */ p)=>localNodeMatches(p,name,tags,leaf,value));
+    if (pattern.difference) return localNodeMatches(pattern.difference[0],name,tags,leaf,value) && !localNodeMatches(pattern.difference[1],name,tags,leaf,value);
+    if (pattern.test) return localNodeMatches(pattern.expr,name,tags,leaf,value) &&
+      (pattern.test === 'tags' ? leafTest(pattern,'',tags) : value !== undefined && leafTest(pattern,value,tags));
     if (pattern.name) return name === pattern.name;
-    if (pattern.terminal) return !!leaf && leaf.terminal === pattern.terminal;
+    if (pattern.terminal) return !!leaf && (pattern.terminal === '_' || leaf.terminal === pattern.terminal);
     return !!pattern.any && (name !== null || !!leaf);
   }
 
@@ -4306,7 +4312,7 @@
 
   /** @param {any} pattern @returns {boolean} */
   function machineReadsNodeTags(pattern) {
-    return pattern.test === 'tags' && (pattern.any || pattern.expr?.name || pattern.expr?.call) || patternParts(pattern).some(machineReadsNodeTags);
+    return pattern.test === 'tags' && (pattern.expr?.name || pattern.expr?.call) || patternParts(pattern).some(machineReadsNodeTags);
   }
 
   class PatternMachine {
@@ -4319,6 +4325,7 @@
       /** @type {Map<string,number>} */ this.stateIds = new Map();
       /** @type {Map<string,number>} */ this.transitions = new Map();
       this.nodeTags = roots.some(machineReadsNodeTags);
+      this.nodeValues = roots.some(function reads(n) {return (n.test === "=" || n.test === "≠") && !!(n.expr?.name || n.expr?.expr?.name) || patternParts(n).some(reads);});
       roots.forEach(n => this.compile(n));
       this.empty = this.intern({count:0, first:0n,last:0n,any:0n, relations:this.machines.map(m => m.epsilon)});
       // A seal contributes one nameless child even over an empty interval.
@@ -4394,15 +4401,15 @@
       return this.intern({bits,empty,count:empty?0:1,first:empty?0n:bits,last:empty?0n:bits,any:empty?0n:bits,relations:empty?zero.relations:relations});
     }
     /** @param {string|null} name @param {number} children @param {any} [leaf] @returns {number} */
-    node(name,children,leaf=null,tags=new Set()) {
-      const key=`n${name}/${children}/${leaf?JSON.stringify([leaf.terminal,leaf.value,[...leaf.tags].sort()]):JSON.stringify([...tags].sort())}`;
+    node(name,children,leaf=null,tags=new Set(),value=leaf?.value) {
+      const key=`n${name}/${children}/${JSON.stringify(value)}/${leaf?JSON.stringify([leaf.terminal,leaf.value,[...leaf.tags].sort()]):JSON.stringify([...tags].sort())}`;
       const old=this.transitions.get(key);if(old!==undefined)return old;
       const s=this.states[children];let bits=0n;
       this.predicates.forEach((p,i) => {
         const bit=1n<<BigInt(i);let holds=false;
         if (p.name) holds=name===p.name;
-        else if(p.terminal) holds=leaf?.terminal===p.terminal;
-        else if(p.test) holds=localNodeMatches(p,name,leaf?.tags ?? tags,leaf);
+        else if(p.terminal) holds=!!leaf && (p.terminal==='_' || leaf.terminal===p.terminal);
+        else if(p.test) holds=localNodeMatches(p,name,leaf?.tags ?? tags,leaf,value);
         else if(p.any || p.children) holds=p.any ? name!==null || leaf!==null : true;
         else if(p.path) {
           holds=!!(bits&(1n<<BigInt(p.child)));
@@ -4459,7 +4466,7 @@
 
   /** @param {any} pattern @returns {boolean} */
   function readsNodeTags(pattern) {
-    if (pattern.test === 'tags' && (pattern.any || pattern.expr?.name || pattern.expr?.call)) return true;
+    if (pattern.test === 'tags' && (pattern.expr?.name || pattern.expr?.call)) return true;
     return patternParts(pattern).some(readsNodeTags);
   }
 
@@ -4474,15 +4481,15 @@
       return and([possibleNodeMatch(pattern.difference[0],node),right === null?null:!right]);
     }
     if (pattern.test) {
-      const base=pattern.any?true:possibleNodeMatch(pattern.expr,node);
+      const base=possibleNodeMatch(pattern.expr,node);
       if (base === false) return false;
-      if (pattern.test !== 'tags') return node.name?false:and([base,node.value === undefined?null:localNodeMatches(pattern,null,node.tags??new Set(),node)]);
-      if (node.tags) return and([base,localNodeMatches({...pattern,any:true},null,node.tags,node)]);
+      if (pattern.test !== 'tags') return and([base,node.value === undefined?null:localNodeMatches(pattern,node.name??null,node.tags??new Set(),node.name?null:node,node.value)]);
+      if (node.tags) return and([base,localNodeMatches(pattern,node.name??null,node.tags,node.terminal?node:null,node.value)]);
       if (pattern.requirements.some((/** @type {any} */ r)=>!r.negated && r.value.set.has('_Elided'))) return false;
       return and([base,pattern.requirements.length?null:true]);
     }
     if (pattern.name) return pattern.name === node.name;
-    if (pattern.terminal) return pattern.terminal === node.terminal;
+    if (pattern.terminal) return pattern.terminal === "_" ? !!node.terminal : pattern.terminal === node.terminal;
     return false;
   }
 
@@ -4720,7 +4727,7 @@
     } else if (name === "classify") {
       if (!string || args.length !== 1 || typeof args[0].classifier !== "string") return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "emitted") {
-      if (args.length || typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) return "emitted requires a bare capture in a recipe or condition";
+      if (!recipe || args.length || typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) return "emitted requires a bare capture in a recipe";
     } else if (name === "verbatim-text") {
       if (!recipe || !span || args.length) return "verbatim-text requires a capture in a recipe";
     } else if (!span && !(type === "emitted" && (name === "value" || name === "image"))) {
@@ -4789,7 +4796,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 43;
+  const DOM_FORMAT = 44;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
   // A classifier name starts with a lowercase letter. A class name starts
@@ -4984,7 +4991,7 @@
       if (rule.value !== undefined) push("recipe", rule.value);
       if (rule.image !== undefined) push("recipe", rule.image);
       if (rule.emit !== undefined) push("emission", rule.emit, 0, { owner: rule });
-      for (const condition of rule.conditions) push("condition", condition, 0, {condition:true});
+      for (const condition of rule.conditions) push("condition", condition, 0, {});
       for (const alternative of rule.alternatives) {
         if (!exact(alternative, ["guards", "expr", "tags", "value", "image"]) || !guards(alternative.guards)) return "a malformed alternative";
         push("expr", alternative.expr, 0, { whole: true });
@@ -5003,7 +5010,7 @@
       if (depth > DOM_MAX_DEPTH) return "nested too deeply";
       if (!object(value)) return `a malformed ${kind}`;
       /** @type {(kind: string, value: any, context?: any) => void} */
-      const child = (kind, value, context = {}) => push(kind, value, depth + 1, {params:task.params,condition:task.condition,...context});
+      const child = (kind, value, context = {}) => push(kind, value, depth + 1, {params:task.params,...context});
       const fields = Object.keys(value);
       if (kind === "pattern") {
         const problem = layeredPatternProblem(value, {depth, name:name=>ruleName(name) && !tag(name), terminal:name=>name === "_Elided" || tag(name)});
@@ -5154,7 +5161,7 @@
         }
       } else if (kind === "condition") {
         if (!hasOneForm(value, [["method", "receiver", "args"], ["op", "left", "right"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"]])) return "a malformed condition";
-        if ("method" in value) { if (!QUERY_METHODS.has(value.method)) return "a malformed query"; push("term", value, depth, { query: true, condition:task.condition }); }
+        if ("method" in value) { if (!QUERY_METHODS.has(value.method)) return "a malformed query"; push("term", value, depth, { query: true }); }
         else if (value.op) {
           if (!DOM_COMPARATORS.has(value.op) || ["≅", "≇"].includes(value.op) && !(typeof value.left?.capture === "string" && Object.keys(value.left).length === 1)) return "a malformed comparison";
           child("term", value.left); child("term", value.right);
@@ -5175,9 +5182,9 @@
         else if ("capture" in value) { if (typeof value.capture !== "string" || value.capture !== "" && !CAPTURE_NAME.test(value.capture)) return "a malformed capture reference"; }
         else if ("method" in value) {
           if (["classify","ngrams"].includes(value.method) && Array.isArray(value.args) && value.args.some(hasUnresolved)) return "a parameter cannot replace a classifier name or integer argument";
-          if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && (value.method === "verbatim-text" || value.method === "emitted" && !task.condition)) || (!task.query && QUERY_METHODS.has(value.method))) return "a malformed method";
+          if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && (value.method === "verbatim-text" || value.method === "emitted")) || (!task.query && QUERY_METHODS.has(value.method))) return "a malformed method";
           push("method-shape", value, depth, { recipe: task.recipe });
-          child("term", value.receiver, { recipe: task.recipe, condition:task.condition });
+          child("term", value.receiver, { recipe: task.recipe });
           for (const arg of value.args) {
             if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "ends", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return "a malformed rule argument"; }
             else if (object(arg) && typeof arg.terminal === "string") { if (Object.keys(arg).length !== 1 || !TARGET_METHODS.has(value.method) || !/^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return "a malformed boundary target"; }
@@ -5187,13 +5194,13 @@
           }
         } else if (value.concat) {
           if (!Array.isArray(value.concat) || value.concat.length < 2) return "a malformed concatenation";
-          for (const segment of value.concat) child("term", segment, {condition:task.condition});
+          for (const segment of value.concat) child("term", segment, {});
         } else if (value.pattern) child("pattern", value.pattern);
         else if (value.if) { child("condition", value.if); child("term", value.then); }
         else {
           const items = value.union ?? value.intersection ?? value.difference;
           if (!Array.isArray(items) || items.length < 2 || value.difference && items.length !== 2) return "a malformed set operation";
-          for (const item of items) child("term", item, {condition:task.condition});
+          for (const item of items) child("term", item, {});
         }
       }
     }
@@ -5992,8 +5999,6 @@
       const inside = mentioned.filter((name) => itemNames.has(name));
       if (inside.length === 0) continue;
       if (mentioned.includes("")) return `a condition of ${rule.name} reads $${inside[0]}, an item capture, together with $, which is not complete at each item`;
-      const pattern = patternComparisonNames(condition).find((name) => itemNames.has(name));
-      if (pattern !== undefined) return `a condition of ${rule.name} compares $${pattern}, an item capture, with a pattern`;
       const prepared = waits(condition) ? null : prepareClause(condition);
       let applies = prepared === null;
       for (const [index, alternative] of rule.alternatives.entries()) {
@@ -6064,27 +6069,6 @@
       const simple = simplifyFor(prepared, has, captures);
       return simple !== DOM_TRUE && capturesUsed(simple).every(has);
     });
-  }
-
-  /**
-   * The captures that the pattern comparisons of a condition name, `≅` and
-   * `≇` with their operands (engine §3.6).
-   * @param {any} condition
-   * @returns {string[]}
-   */
-  function patternComparisonNames(condition) {
-    /** @type {string[]} */
-    const names = [];
-    const stack = [condition];
-    for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
-      if (!isDomObject(current) && !Array.isArray(current)) continue;
-      if (isDomObject(current) && (current.op === "≅" || current.op === "≇")) {
-        for (const name of capturesMentioned(current)) names.push(name);
-        continue;
-      }
-      for (const value of clauseChildren(current)) if (value && typeof value === "object") stack.push(value);
-    }
-    return names;
   }
 
   /**
@@ -7078,8 +7062,11 @@
       if ("problem" in left) return left;
       const right = /** @type {{type: TermType} | TypeFault} */ (yield typing(condition.right, constants));
       if ("problem" in right) return right;
+      if ((condition.op === "≅" || condition.op === "≇") && typeof condition.right.capture === "string") {
+        return condition.left.capture === condition.right.capture ? {problem:"a tree comparison cannot compare a capture with itself",node:condition} : null;
+      }
       const problem = comparisonProblem(condition.op, left.type, right.type);
-      return problem ? { problem, node: condition } : null;
+      return problem ? { problem, node: ["≅","≇"].includes(condition.op) ? condition.right : condition } : null;
     }
     return null;
   }
@@ -8551,51 +8538,9 @@
 
 
 
-
-  /** @param {any} term @param {any} grammar @returns {Set<string>} */
-  function literals(term,grammar) {
-    const result=new Set(),pending=[term],seen=new Set();
-    while(pending.length) {
-      const n=pending.pop();
-      if(!n || typeof n!=='object' || seen.has(n)) continue;
-      seen.add(n);
-      if(n.const) pending.push(grammar.constants.get(n.const)?.value);
-      if(n.tag) result.add(n.tag);
-      if(n.set instanceof Set) for(const tag of n.set) result.add(tag);
-      for(const value of Object.values(n)) if(value && typeof value==='object') pending.push(value);
-    }
-    return result;
-  }
-
-  /** @param {number} a @param {number} b @returns {number} */
-  function rankingWidthsTogether(a,b) {
-    let result=0;
-    for(let i=0;i<3;i++) for(let j=0;j<3;j++) if(a & (1<<i)) if(b & (1<<j)) result |= 1<<Math.min(2,i+j);
-    return result;
-  }
-  /** @param {any} expr @returns {number} */
-  function rankingWidths(expr) {
-    if(expr.empty) return 1;
-    if(expr.capture || expr.test) return rankingWidths(expr.expr);
-    if(expr.seq) return expr.seq.reduce((/** @type {number} */ mask,/** @type {any} */ part)=>rankingWidthsTogether(mask,rankingWidths(part)),1);
-    if(expr.choice || expr.ranked) return (expr.choice??expr.ranked).reduce((/** @type {number} */ mask,/** @type {any} */ part)=>mask | rankingWidths(part),0);
-    if(expr.and) return 7;
-    return 2;
-  }
-  /** @param {any} expr @returns {any|null} */
-  function sole(expr) {
-    if(!(rankingWidths(expr)&2)) return null;
-    if(expr.capture || expr.test) return sole(expr.expr);
-    if(expr.seq) {
-      const parts=expr.seq.filter((/** @type {any} */ part)=>rankingWidths(part)!==1);
-      return parts.length===1?sole(parts[0]):undefined;
-    }
-    return expr.choice || expr.ranked || expr.and ? undefined : expr;
-  }
-
   /** @param {any} grammar @returns {any} */
   function observations(grammar) {
-    const rules=new Map(),terminals=new Set(),omitted=new Set(),vocabulary=new Set(['_Elided']);
+    const rules=new Map(),terminals=new Set(),omitted=new Set();
     const body=(/** @type {any} */ root,/** @type {Set<string>} */ refs)=>{
       const pending=[root];
       while(pending.length) {
@@ -8612,32 +8557,17 @@
         if(expr.optional && expr.elidable) {
           let head=expr.optional;
           while(head.seq || head.capture || head.test) head=head.seq?.[0] ?? head.expr;
-          if(head.ref) {omitted.add(head.ref);vocabulary.add(head.ref);}
+          if(head.ref) {omitted.add(head.ref);}
         }
         for(const key of ['seq','choice','ranked','and']) if(expr[key]) pending.push(...expr[key]);
         for(const key of ['expr','optional','repeat','separator']) if(expr[key]) pending.push(expr[key]);
       }
     };
     for(const rule of grammar.rules.values()) {
-      const refs=new Set(),own=new Set(),sets=[],unary=[];
-      let unknown=false;
-      for(const alternative of rule.alternatives) {
-        body(alternative.expr,refs);
-        const terms=[alternative.tags,alternative.clauses.tags].filter((/** @type {any} */ term)=>term!==undefined);
-        for(const term of terms) for(const tag of literals(term,grammar)) {own.add(tag);vocabulary.add(tag);}
-        for(const item of alternative.clauses.emit?.items??[]) for(const tag of literals(item.tags,grammar)) vocabulary.add(tag);
-        const child=sole(alternative.expr);
-        if(child !== null) unary.push({child:child??{},terms,alternative});
-        if(terms.length) {
-          const tags=knownTags(terms.length===1?terms[0]:{union:terms});
-          if(tags) sets.push(tags);else unknown=true;
-        } else if(child !== null) unknown=true;
-        else sets.push(new Set());
-      }
-      rules.set(rule.name,{refs,own,sets,unknown,unary});
+      const refs=new Set();
+      for(const alternative of rule.alternatives) body(alternative.expr,refs);
+      rules.set(rule.name,{refs});
     }
-    for(const {implication} of grammar.implicationItems) for(const tag of literals(implication.then,grammar)) vocabulary.add(tag);
-    for(const {classifier} of grammar.classifierItems) for(const entry of classifier.entries) vocabulary.add(entry.class);
     const reachable=new Set(),pending=['text'];
     while(pending.length) {
       const name=pending.pop();
@@ -8652,7 +8582,7 @@
     for(const name of reachable) for(const alternative of grammar.rules.get(name).alternatives) body(alternative.expr,new Set());
     for(const terminal of terminals) reachedTerminals.add(terminal);
     for(const terminal of omitted) reachedOmitted.add(terminal);
-    return {rules,reachable,terminals:reachedTerminals,omitted:reachedOmitted,vocabulary,allTerminals,allOmitted};
+    return {rules,reachable,terminals:reachedTerminals,omitted:reachedOmitted,allTerminals,allOmitted};
   }
 
   /** @param {any} pattern @param {any} data @returns {boolean} */
@@ -8662,205 +8592,333 @@
     if(pattern.difference) return dead(pattern.difference[0],data);
     if(pattern.test) return pattern.any?false:dead(pattern.expr,data);
     if(pattern.name) return !data.reachable.has(pattern.name);
-    if(pattern.terminal) return !data.terminals.has(pattern.terminal) && !data.omitted.has(pattern.terminal);
+    if(pattern.terminal) return pattern.terminal === '_' ? !data.terminals.size && !data.omitted.size : !data.terminals.has(pattern.terminal) && !data.omitted.has(pattern.terminal);
     return false;
   }
 
-  /** @param {any} grammar @param {Set<string>} [previous] @returns {any} */
-  function rankingAudit(grammar,previous=new Set()) {
+  /** @param {any} grammar @returns {any} */
+  function rankingAudit(grammar) {
     const data=observations(grammar),steps=grammar.resolution?.steps??[];
-    const vocabulary=new Set([...previous,...data.vocabulary]);
-    const reports=[],changes=[],inherited=[],dropped=[],warnings=[];
+    const reports=[],changes=[];
     for(let index=0;index<steps.length;index++) {
-      const step=steps[index],positive=new Set(),tested=new Set(),named=new Set(),pending=[step.pattern];
+      const step=steps[index],named=new Set(),pending=[step.pattern];
       while(pending.length) {
-        const p=pending.pop();
-        if(p.name) named.add(p.name);
-        for(const r of p.requirements??[]) for(const tag of r.value.set) {tested.add(tag);if(!r.negated) positive.add(tag);}
-        pending.push(...patternParts(p));
+        const pattern=pending.pop();
+        if(pattern.name)named.add(pattern.name);
+        pending.push(...patternParts(pattern));
       }
-      let possible=false,unknown=false;
-      const observe=(/** @type {any} */ node)=>{
-        const answer=possibleNodeMatch(step.pattern,node);
-        possible ||= answer===true;
-        unknown ||= answer===null;
-      };
-      const counted=new Set();
-      for(const [name,rule] of data.rules) {
-        if(named.has(name) || [...rule.own].some(tag=>tested.has(tag))) counted.add(name);
-        const forwarded=[...tested].filter(tag=>tag!=='_Elided' && !rule.own.has(tag));
-        const carried=forwarded.filter(tag=>rule.unknown || rule.sets.some((/** @type {Set<string>} */ tags)=>tags.has(tag)));
-        if(carried.length) inherited.push({rule:name,step:index,tags:carried,unknown:rule.unknown});
-        for(const {child,terms,alternative} of rule.unary) {
-          if(!terms.some((/** @type {any} */ term)=>[...literals(term,grammar)].some(tag=>tested.has(tag)))) continue;
-          const source=child.ref && data.rules.get(child.ref);
-          const explicit=knownTags(terms.length===1?terms[0]:{union:terms});
-          const lost=new Set();
-          if(source && explicit) for(const tags of source.sets) for(const tag of tags) if(!explicit?.has(tag)) lost.add(tag);
-          dropped.push({rule:name,step:index,tags:[...lost],unknown:!source || source.unknown || explicit===null,document:alternative.document,...alternative.at});
-        }
-        if(!data.reachable.has(name)) continue;
-        for(const tags of rule.sets) observe({name,tags});
-        if(rule.unknown) observe({name});
-      }
-      for(const terminal of data.terminals) observe({terminal});
-      for(const terminal of data.omitted) observe({terminal,tags:new Set([terminal,'_Elided']),value:''});
-      reports.push({step:index,pattern:canonicalArgument({pattern:step.pattern},grammar.unicode),status:dead(step.pattern,data)?'impossible':unknown?'unknown':possible?'possible':'impossible'});
-      for(const change of grammar.changes) {
-        if(counted.has(change.rule)) changes.push({...change,step:index});
-      }
-      for(const tag of [...positive].sort(compareCodePoints)) if(!vocabulary.has(tag) && !(tag.startsWith('_') && grammar.unicode.canonicalTag(tag)===tag)) warnings.push({kind:'ranking-tag-vocabulary',stage:grammar.stageName,step:index,tag});
+      reports.push({step:index,pattern:canonicalArgument({pattern:step.pattern},grammar.unicode),...(dead(step.pattern,data)?{status:'impossible'}:{})});
+      for(const change of grammar.changes)if(named.has(change.rule))changes.push({...change,step:index});
     }
-    return {keySteps:reports,countedChanges:changes,inheritedRankingTags:inherited,droppedRankingTags:dropped,vocabularyWarnings:warnings,vocabulary};
+    return {keySteps:reports,countedChanges:changes};
   }
 
-  // ---- string-demands.js
+  // ---- tree-identities.js
+  // Exact structural observations for compared occurrences (engine §4.1).
 
 
 
-  /** @import {Production} from "./types.js" */
-
-  /** @type {WeakMap<Production[],Map<number,Set<string>>>} */
-  const stringDemands = new WeakMap();
-  /** @param {Production[]} productions @returns {Map<number,Set<string>>} */
-  function demandedStrings(productions) {
-    const known = stringDemands.get(productions);
-    if (known) return known;
-    const bindings = new Map();
-    for (const p of productions) {
-      let names = bindings.get(p.logicalSource ?? p.owner);
-      if (!names) bindings.set(p.logicalSource ?? p.owner,names=new Map());
-      for (const capture of p.captures) {
-        const symbol = p.rhs[capture.index];
-        if (symbol.terminal) continue;
-        let targets = names.get(capture.name);
-        if (!targets) names.set(capture.name,targets=new Set());
-        targets.add(symbol.name);
-      }
-    }
-    const demands = new Map();
-    const byRule = new Map();
-    for (const p of productions) {
-      let entries = byRule.get(p.lhs);
-      if (!entries) byRule.set(p.lhs,entries=[]);
-      entries.push(p);
-    }
-    let changed = false;
-    const add = (/** @type {Production} */ production, /** @type {string} */ channel) => {
-      let channels = demands.get(production.id);
-      if (!channels) demands.set(production.id, channels = new Set());
-      if (!channels.has(channel)) { channels.add(channel); changed = true; }
-    };
-    const child = (/** @type {string} */ name, /** @type {string} */ channel) => {
-      for (const p of byRule.get(name) ?? []) add(p,channel);
-    };
-    const reads = (/** @type {any} */ term, /** @type {Production} */ production, own = false) => {
-      const pending = [term];
-      while (pending.length) {
-        const part = pending.pop();
-        if (!part || typeof part !== "object") continue;
-        if (["value","image"].includes(part.method) && part.receiver?.method === "emitted") {
-          const name = part.receiver.receiver.capture;
-          const slot = production.captureSlot.get(name);
-          const symbol = slot === undefined ? null : production.rhs[production.captures[slot].index];
-          if (name === "") {
-            if (own || !production.helper) add(production,part.method);
-            else for (const p of productions) if (!p.helper && p.logicalSource === production.logicalSource) add(p,part.method);
-          } else if (symbol && !symbol.terminal) child(symbol.name,part.method);
-          else for (const target of bindings.get(production.logicalSource ?? production.owner)?.get(name) ?? []) child(target,part.method);
-        }
-        for (const value of Object.values(part)) if (value && typeof value === "object") { for (const child of Array.isArray(value) ? value : [value]) pending.push(child); }
-      }
-    };
-    for (const p of productions) {
-      for (const c of [...p.conditions,...p.rankedConditions ?? []]) reads(c.condition,p);
-    }
-    do {
-      changed = false;
-      for (const p of productions) for (const channel of demands.get(p.id) ?? []) {
-        if (p.erased) continue;
-        const recipe = channel === "value" ? p.value : p.image ?? p.value;
-        if (recipe) reads(recipe,p,true);
-        else for (const symbol of p.rhs) if (!symbol.terminal) child(symbol.name,channel);
-      }
-    } while (changed);
-    stringDemands.set(productions,demands);
-    return demands;
-  }
-
-
-  /** @param {any} node @returns {any[]} */
-  function emittedStrings(node) {
-    const result = [], pending = [node];
-    while (pending.length) {
-      const part = pending.pop();
-      if (!part || typeof part !== "object") continue;
-      if (["value","image"].includes(part.method) && part.receiver?.method === "emitted") result.push(part);
-      else { for (const child of Object.values(part).reverse()) pending.push(child); }
+  /** @param {any} root @returns {any[]} */
+  function constituentComparisons(root) {
+    const result=[], pending=[root], seen=new Set();
+    while(pending.length) {
+      const node=pending.pop();
+      if(!node || typeof node!=='object' || seen.has(node)) continue;
+      seen.add(node);
+      if((node.op==='≅' || node.op==='≇') && typeof node.right?.capture==='string') result.push(node);
+      else pending.push(...clauseChildren(node).slice().reverse());
     }
     return result;
   }
 
-  /** @param {Map<string,any>} rules */
-  function validateConditionStrings(rules) {
-    const definitions = new Map(), bodies = new Map();
-    const definition = (/** @type {any} */ rule, /** @type {any} */ alt) => JSON.stringify([rule.name,alt.document,alt.at.line,alt.at.column]);
-    const references = (/** @type {any} */ expr) => {
-      const names = new Set(), pending = [expr];
-      while (pending.length) {
-        const part = pending.pop();
-        if (rules.has(part.ref)) names.add(part.ref);
-        for (const child of expressionChildren(part)) pending.push(child);
-      }
-      return names;
-    };
-    for (const rule of rules.values()) for (const alt of rule.alternatives) {
-      bodies.set(alt,references(alt.expr));
-      const key = definition(rule,alt);
-      if (!definitions.has(key)) definitions.set(key,new Map());
-      const bindings = definitions.get(key), pending = [alt.expr];
-      while (pending.length) {
-        const part = pending.pop();
-        if (typeof part.capture === "string") {
-          if (!bindings.has(part.capture)) bindings.set(part.capture,new Set());
-          for (const name of references(part.expr)) bindings.get(part.capture).add(name);
-        }
-        for (const child of expressionChildren(part)) pending.push(child);
-      }
-    }
-    const targets = (/** @type {any} */ rule, /** @type {any} */ alt, /** @type {any} */ read) => {
-      const capture = read.receiver.receiver.capture;
-      return capture === "" ? [rule.name] : definitions.get(definition(rule,alt)).get(capture) ?? [];
-    };
-    const reachesVerbatim = (/** @type {any} */ rule, /** @type {any} */ alt, /** @type {any} */ read) => {
-      const pending = [...targets(rule,alt,read)].map(name => [name,read.method]);
-      const seen = new Set();
-      while (pending.length) {
-        const [name,channel] = /** @type {any[]} */ (pending.pop());
-        const key = JSON.stringify([name,channel]);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const current = rules.get(name);
-        for (const variant of current.alternatives) {
-          if (variant.clauses.erased) continue;
-          const value = variant.value ?? variant.clauses.value;
-          const recipe = channel === "value" ? value : variant.image ?? variant.clauses.image ?? value;
-          if (recipe) {
-            if (recipe.concat.some((/** @type {any} */ atom) => atom.method === "verbatim-text")) return true;
-            for (const atom of emittedStrings(recipe)) for (const target of targets(current,variant,atom)) pending.push([target,atom.method]);
-          } else for (const target of bodies.get(variant)) pending.push([target,channel]);
+  /**
+   * @typedef {object} TreeDemand
+   * @property {boolean} whole
+   * @property {Set<number>} parts
+   * @property {Set<string>} names
+   * @property {Set<string>} outer
+   * @property {boolean} parentPrefix
+   * @property {number} prefixUntil
+   */
+  /** @type {WeakMap<object,Map<string,TreeDemand>>} */
+  const local=new WeakMap();
+  /** @type {WeakMap<object,string>} */
+  const frameKeys=new WeakMap();
+  /** @param {any} frame */
+  function frameKey(frame) {
+    if(!frame)return '';
+    let key=frameKeys.get(frame);
+    if(key===undefined) {key=JSON.stringify([[...frame.present].sort(),[...frame.captures.keys()].sort(),[...frame.knownPrivate].sort(),!!frame.inside]);frameKeys.set(frame,key);}
+    return key;
+  }
+  /** @param {any} production @returns {TreeDemand} */
+  function localTreeDemand(production) {
+    const found=local.get(production.baseProduction ?? production)?.get(frameKey(production.lexicalFrame));
+    if(!found)throw new Error('a production has no tree demand case');
+    return found;
+  }
+
+  /** @param {any} lowered @param {any} frames */
+  function prepareTreeDemands(lowered, frames) {
+    const byKey=new Map();
+    /** @type {any[]} */
+    const states=[];
+    let nextFrame=0;
+    const contextual=new Set(lowered.productions.filter((/** @type {any} */ p)=>p.contextual).map((/** @type {any} */ p)=>p.lhs));
+    const state=(/** @type {any} */ p,/** @type {any} */ frame)=> {
+      const key=p.id+'/'+frameKey(frame);
+      if(byKey.has(key))return byKey.get(key);
+      const bound=frame ? frames.production(p,frame) : p;
+      const result={whole:false,parts:new Set(),names:new Set(),outer:new Set(),parentPrefix:false,prefixUntil:0};
+      for(const comparison of constituentComparisons([bound.conditions,bound.tags,bound.parentTags]))for(const name of [comparison.left.capture,comparison.right.capture]) {
+        result.names.add(name);
+        if(name==='') {result.whole=true;result.parentPrefix=!!p.helper;}
+        else {
+          const capture=p.captures.find((/** @type {any} */ c)=>c.name===name);
+          if(capture)result.parts.add(capture.index);else result.outer.add(name);
         }
       }
-      return false;
+      const entry={p,frame,demand:result,edges:[]};
+      const demands=local.get(p)??new Map();demands.set(frameKey(frame),result);local.set(p,demands);
+      states.push(entry);byKey.set(key,entry);return entry;
     };
-    for (const rule of rules.values()) for (const alt of rule.alternatives) {
-      for (const read of emittedStrings(alt.clauses.conditions)) if (reachesVerbatim(rule,alt,read)) {
-        const at = boundaryLocations.get(read.receiver)?.at;
-        const error = new GencmuError("grammar","a condition walk cannot reach verbatim-text",{document:alt.document,...(at ? {line:at[0],column:at[1]} : {})});
-        boundaryDocumentErrors.set(error,{document:alt.document,node:read.receiver});
-        throw error;
+    for(const p of lowered.productions)if(!p.contextual)state(p,null);
+    for(let at=0;at<states.length;at++) {
+      const entry=states[at],{p,frame}=entry;
+      const present=new Set([...frame?.present??[],...p.captures.map((/** @type {any} */ c)=>c.name)]);
+      const knownPrivate=new Set([...frame?.knownPrivate??[],...p.rankedPrivate??[]]);
+      const inside=!!frame?.inside||!!p.rankedGroup;
+      p.rhs.forEach((/** @type {any} */ symbol,/** @type {number} */ index)=> {
+        if(symbol.terminal||!contextual.has(symbol.name))return;
+        const captures=new Map(frame?.captures??[]);
+        for(const capture of p.captures)if(capture.index<index)captures.set(capture.name,null);
+        const child={id:nextFrame++,present,knownPrivate,captures,inside};
+        for(const q of lowered.byLhs.get(symbol.name)??[])entry.edges.push({index,child:state(q,child)});
+      });
+    }
+    let changed=true;
+    while(changed) {
+      changed=false;
+      for(const entry of states)for(const edge of entry.edges) {
+        const d=entry.demand, child=edge.child.demand;
+        if(child.parentPrefix) {
+          if(entry.p.helper&&!d.parentPrefix) {d.parentPrefix=true;changed=true;}
+          if(!entry.frame?.inside&&!entry.p.rankedGroup&&edge.index>d.prefixUntil) {d.prefixUntil=edge.index;changed=true;}
+        }
+        for(const name of child.outer) {
+          const capture=entry.p.captures.find((/** @type {any} */ c)=>c.name===name&&c.index<edge.index);
+          if(capture) {if(!d.parts.has(capture.index)) {d.parts.add(capture.index);changed=true;}}
+          else if(entry.frame?.captures.has(name)&&!d.outer.has(name)) {d.outer.add(name);changed=true;}
+        }
       }
     }
+  }
+
+  class TreeIdentities {
+    constructor() {
+      /** @type {Map<string,number>} */ this.ids=new Map();
+      /** @type {{key:any[],empty:boolean}[]} */ this.nodes=[];
+      /** @type {Map<number,string>} */ this.semanticNodes=new Map();
+      /** @type {Map<number,string>} */ this.semanticSequences=new Map();
+      /** @type {[number,number][]} */ this.sequences=[[0,-1]];
+      /** @type {Map<string,number>} */ this.sequenceIds=new Map();
+      /** @type {Map<string,number>} */ this.concatenations=new Map();
+      this.emptyProjection=this.intern(['EmptyProjection'],true);
+    }
+    /** @param {any[]} key @param {boolean} [empty] */
+    intern(key,empty=false) {
+      const text=JSON.stringify(key), old=this.ids.get(text);if(old!==undefined)return old;
+      const id=this.nodes.length;this.ids.set(text,id);this.nodes.push({key,empty});return id;
+    }
+    /** @param {number} prefix @param {number} node */
+    append(prefix,node) {
+      if(this.nodes[node].empty)return prefix;
+      const key=`${prefix}/${node}`,old=this.sequenceIds.get(key);if(old!==undefined)return old;
+      const id=this.sequences.length;this.sequences.push([prefix,node]);this.sequenceIds.set(key,id);return id;
+    }
+    /** @param {number} left @param {number} right */
+    concat(left,right) {
+      if(!left)return right;if(!right)return left;
+      const key=`${left}/${right}`,old=this.concatenations.get(key);if(old!==undefined)return old;
+      const pending=[];for(let at=right;at;at=this.sequences[at][0])pending.push(this.sequences[at][1]);
+      let result=left;while(pending.length)result=this.append(result,/** @type {number} */(pending.pop()));
+      this.concatenations.set(key,result);return result;
+    }
+    /** @param {number} sequence @returns {number[]} */
+    elements(sequence) {
+      const nodes=[];
+      for(let at=sequence;at;at=this.sequences[at][0])nodes.push(this.sequences[at][1]);
+      return nodes.reverse();
+    }
+    /** @param {number|undefined} identity @returns {string|null} */
+    semantic(identity) {
+      if(identity === undefined || identity < 0)return null;
+      const pending=[identity];
+      while(pending.length) {
+        const node=pending[pending.length-1];
+        if(this.semanticNodes.has(node)) {pending.pop();continue;}
+        const key=this.nodes[node].key;
+        if(key[0] !== 'Rule') {this.semanticNodes.set(node,JSON.stringify(key));continue;}
+        const children=this.elements(key[2]);
+        const missing=children.find(child=>!this.semanticNodes.has(child));
+        if(missing!==undefined) {pending.push(missing);continue;}
+        this.semanticNodes.set(node,'["Rule",'+JSON.stringify(key[1])+',['+children.map(child=>this.semanticNodes.get(child)).join(',')+']]');
+      }
+      return /** @type {string} */ (this.semanticNodes.get(identity));
+    }
+    /** @param {number} sequence @returns {string} */
+    sequenceSemantic(sequence) {
+      let value=this.semanticSequences.get(sequence);
+      if(value===undefined) {value='['+this.elements(sequence).map(node=>this.semantic(node)).join(',')+']';this.semanticSequences.set(sequence,value);}
+      return value;
+    }
+    /** @param {string} name @param {number} children */
+    rule(name,children) {return this.intern(['Rule',name,children],children===0);}
+    /** @param {string} terminal @param {string} value */
+    written(terminal,value) {return this.intern(['Written',terminal,value]);}
+    /** @param {string} terminal */
+    omitted(terminal) {return this.intern(['Omitted',terminal]);}
+    /** @param {string[]} values */
+    seal(values) {return this.intern(['Seal',values]);}
+  }
+
+  /** @param {any} context @param {string} terminal @param {number} at */
+  function terminalIdentity(context,terminal,at) {
+    if(context.recon && !context.recon.raw) {
+      if(context.synthetic?.[at])return context.trees.emptyProjection;
+      return context.trees.written(terminal,context.recon.observed.tokens[context.recon.project[at]].value);
+    }
+    return context.trees.written(terminal,context.tokens[at].value);
+  }
+
+  /** @param {any} context @param {number} start @param {number} end */
+  function sealIdentity(context,start,end) {
+    const key=`${start}/${end}`;
+    const old=context.treeSeals.get(key);if(old!==undefined)return old;
+    const observed=context.recon && !context.recon.raw ? context.recon.observed : context;
+    if(observed!==context) { start=context.recon.project[start];end=context.recon.project[end]; }
+    const values=[];for(let i=start;i<end;i++)values.push(observed.tokens[i].value);
+    const result=context.trees.seal(values);context.treeSeals.set(key,result);return result;
+  }
+
+  /** @param {any} context @param {any} production @param {number} dot @param {any} previous @param {any} child @param {number} end */
+  function treeStep(context,production,dot,previous,child,end) {
+    if(!context.trees || !production.observesTrees || !production.walksTrees && dot>production.treePrefixUntil)return null;
+    const m=context.trees;
+    let prefix=previous?.treePrefix ?? 0;
+    if(previous) {
+      const symbol=production.rhs[dot-1];
+      if(symbol.slot)prefix=m.append(prefix,sealIdentity(context,child.origin,child.end));
+      else if(child)prefix=m.concat(prefix,child.treeSequence);
+      else prefix=m.append(prefix,terminalIdentity(context,symbol.name,end-1));
+    }
+    let identity=-1,sequence=prefix;
+    if(dot===production.rhs.length && production.walksTrees) {
+      if(!production.helper) { identity=m.rule(production.lhs,prefix);sequence=m.append(0,identity); }
+      else if(production.elided!==null && production.rhs.length===0) { identity=m.omitted(production.elided);sequence=m.append(0,identity); }
+    }
+    return {treePrefix:prefix,treeIdentity:identity,treeSequence:sequence};
+  }
+
+  /** @param {any} lowered @returns {{comparison:any,production:any,cycle:string[]}|null} */
+  function treeIdentityCycle(lowered) {
+    const rows=lowered.structural, byName=new Map(), nullable=new Set();
+    for(const row of rows) {const list=byName.get(row.lhs) ?? [];list.push(row);byName.set(row.lhs,list);}
+    let changed=true;
+    while(changed) {
+      changed=false;
+      for(const row of rows)if(!nullable.has(row.lhs) && row.rhs.every((/** @type {any} */ s)=>!s.terminal && nullable.has(s.name))) {nullable.add(row.lhs);changed=true;}
+    }
+    const seals=new Set(lowered.grammar.ranked.groups.map((/** @type {any} */ g)=>g.helper));
+    const edges=new Map();
+    for(const [name,productions] of byName) {
+      /** @type {any[]} */ const out=[];
+      for(const production of productions) production.rhs.forEach((/** @type {any} */ symbol,/** @type {number} */ index)=> {
+        if(!symbol.terminal && !seals.has(symbol.name))out.push({name:symbol.name,marked:production.rhs.every((/** @type {any} */ other,/** @type {number} */ i)=>i===index || !other.terminal && nullable.has(other.name))});
+      });
+      edges.set(name,out);
+    }
+    const sites=[...lowered.treeSites];
+    for(const production of lowered.productions) {
+      const bindings=new Map(production.captures.map((/** @type {any} */ c)=>[c.name,[production.rhs[c.index].terminal,production.rhs[c.index].name]]));
+      for(const comparison of constituentComparisons([production.tags,production.parentTags,production.conditions]))sites.push({comparison,production,bindings,prefix:[]});
+    }
+    const order=new Map(), hints=new Map();
+    let nextOrder=0;
+    for(const rule of lowered.grammar.rules.values()) {
+      const definitions=new Map();
+      for(const source of rule.alternatives) {
+        const alternatives=definitions.get(source.clauses)??[];alternatives.push(source);definitions.set(source.clauses,alternatives);
+      }
+      for(const [clauses,alternatives] of definitions)for(const root of [clauses.tags,...alternatives.map((/** @type {any} */ a)=>a.tags),clauses.conditions]) {
+        for(const comparison of constituentComparisons(root)) {
+          const number=nextOrder++;
+          order.set(comparison,number);
+          const key=JSON.stringify([alternatives[0].document,boundaryLocations.get(comparison)?.at,comparison]);
+          if(!hints.has(key))hints.set(key,number);
+        }
+      }
+    }
+    const ordinal=(/** @type {any} */ site)=>order.get(site.comparison)??hints.get(JSON.stringify([(site.production.logicalSource??site.production.source)?.document,boundaryLocations.get(site.comparison)?.at,site.comparison]))??nextOrder;
+    sites.sort((a,b)=>ordinal(a)-ordinal(b)||a.production.id-b.production.id);
+    for(const {comparison,production,bindings,prefix} of sites) {
+        const roots=[];
+        for(const name of [comparison.left.capture,comparison.right.capture]) {
+          if(name==='') {
+            roots.push(...prefix);
+            if(!production.helper)roots.push(...production.rhs.filter((/** @type {any} */ s)=>!s.terminal && !seals.has(s.name)).map((/** @type {any} */ s)=>s.name));
+          } else {
+            const binding=bindings.get(name);
+            if(binding && !binding[0])roots.push(binding[1]);
+          }
+        }
+        const reachable=[],known=new Set(),todo=roots.slice().reverse();
+        while(todo.length) {const name=todo.pop();if(known.has(name))continue;known.add(name);reachable.push(name);for(const edge of (edges.get(name)??[]).slice().reverse())todo.push(edge.name);}
+        const done=new Set(),active=new Map();
+        /** @type {string[]} */ const path=[];
+        for(const root of reachable) {
+          if(done.has(root))continue;
+          const stack=[{name:root,next:0}];
+          while(stack.length) {
+            const frame=stack[stack.length-1];
+            if(!active.has(frame.name)) {active.set(frame.name,path.length);path.push(frame.name);}
+            const out=edges.get(frame.name)??[];
+            const edge=out[frame.next++];
+            if(!edge) {path.pop();active.delete(frame.name);done.add(frame.name);stack.pop();continue;}
+            if(!edge.marked || done.has(edge.name))continue;
+            if(active.has(edge.name)) {
+              const cycle=path.slice(active.get(edge.name)).concat(edge.name).filter(name=>!name.startsWith('\u0000'));
+              return {comparison,production,cycle};
+            }
+            stack.push({name:edge.name,next:0});
+          }
+        }
+    }
+    return null;
+  }
+
+  /** @param {any} context @param {any} root @returns {number} */
+  function derivationIdentity(context,root) {
+    context.emissionTrees ??= new TreeIdentities();
+    context.emissionTreeValues ??= new WeakMap();
+    const m=context.emissionTrees, memo=context.emissionTreeValues,pending=[root];
+    while(pending.length) {
+      const node=pending[pending.length-1];
+      if(memo.has(node)) {pending.pop();continue;}
+      if(node.read) {const identity=m.written(node.read.terminal,context.tokens[node.start].value);memo.set(node,{identity,sequence:m.append(0,identity)});continue;}
+      const child=node.children.find((/** @type {any} */ c,/** @type {number} */ i)=>!node.production.rhs[i]?.slot && !memo.has(c));
+      if(child) {pending.push(child);continue;}
+      let sequence=0;
+      node.children.forEach((/** @type {any} */ c,/** @type {number} */ i)=> {
+        if(node.production.rhs[i]?.slot) sequence=m.append(sequence,m.seal(context.tokens.slice(c.start,c.end).map((/** @type {any} */ token)=>token.value)));
+        else sequence=m.concat(sequence,memo.get(c).sequence);
+      });
+      let identity=-1;
+      if(!node.production.helper) {identity=m.rule(node.production.lhs,sequence);sequence=m.append(0,identity);}
+      else if(!node.children.length && node.production.elided!==null) {identity=m.omitted(node.production.elided);sequence=m.append(0,identity);}
+      memo.set(node,{identity,sequence});
+    }
+    return memo.get(root).identity;
   }
 
   // ---- family-summaries.js
@@ -9672,6 +9730,7 @@
 
   // ---- ranked-frame.js
 
+
   // Lexical entry state for transparent helpers in a ranked alternative.
 
 
@@ -9744,15 +9803,19 @@
       p.rhs.forEach((/** @type {any} */ symbol, /** @type {number} */ index) => {
         if (symbol.terminal || !contextual.has(symbol.name)) return;
         const captures = new Map(frame.captures);
-        for (const capture of p.captures) if (capture.index < index) captures.set(capture.name, null);
-        pending.push({name:symbol.name, present, captures, knownPrivate});
+        for (const capture of p.captures) if (capture.index < index) captures.set(capture.name, lowered.grammar.treeComparisons ? [p.rhs[capture.index].terminal,p.rhs[capture.index].name] : null);
+        const child={name:symbol.name, present, captures, knownPrivate};
+        if(lowered.grammar.treeComparisons)Object.assign(child,{
+          identityPrefix:frame.sealed ? frame.identityPrefix : [...frame.identityPrefix??[],...p.rhs.slice(0,index).filter((/** @type {any} */ s)=>!s.terminal && !s.slot).map((/** @type {any} */ s)=>s.name)],
+          sealed:frame.sealed || !!symbol.slot});
+        pending.push(child);
       });
     };
     for (const p of lowered.productions) if (!p.helper) enter(p, {present:new Set(), captures:new Map(), knownPrivate:new Set()});
     const seen = new Set();
     for (let at = 0; at < pending.length; at++) {
       const frame = pending[at];
-      const key = JSON.stringify([frame.name, [...frame.present].sort(), [...frame.captures.keys()].sort(), [...frame.knownPrivate].sort()]);
+      const key = JSON.stringify([frame.name, [...frame.present].sort(), [...frame.captures.keys()].sort(), [...frame.knownPrivate].sort(), ...(lowered.grammar.treeComparisons ? [[...frame.captures],frame.identityPrefix,frame.sealed] : [])]);
       if (seen.has(key)) continue;
       seen.add(key);
       for (const p of lowered.byLhs.get(frame.name) ?? []) {
@@ -9762,6 +9825,11 @@
           ...frameConditions(clauses, present, {...p,lexicalFrame:frame}, frame.captures, p.rankedGroup?.final ?? false),
           ...itemFrameConditions(p.itemConditions ?? [], present, p, frame.captures),
         ];
+        if(lowered.grammar.treeComparisons) {
+          const bindings=new Map(frame.captures);
+          for(const capture of p.captures)bindings.set(capture.name,[p.rhs[capture.index].terminal,p.rhs[capture.index].name]);
+          for(const comparison of constituentComparisons(conditions))lowered.treeSites.push({comparison,production:p,bindings,prefix:frame.identityPrefix??[]});
+        }
         p.rankedConditions ??= [];
         for (const condition of conditions) p.rankedConditions.push(condition);
         enter(p, frame);
@@ -9813,11 +9881,11 @@
         const name = item.production.captures[part.index].name;
         if (!name.startsWith('\u0000')) {
           captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id]);
-          if (context.lowered.conditionStrings) captures[captures.length-1].push(part.emitted);
+          if(context.trees)captures[captures.length-1].push(part.treeIdentity);
         }
       }
       const key = [written(item.production),item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,captures.reverse(),item.restores,item.production.rankedBindings,item.observationPrefix?.id];
-      if (context.lowered.conditionStrings) key.push(item.stringPrefix);
+      if(context.trees)key.push(item.treePrefix);
       return key;
     };
     return {
@@ -9847,16 +9915,13 @@
           ? context.closes.concat(outer?.observationPrefix ?? context.closes.empty,item.observationPrefix ?? context.closes.empty)
           : null;
         const sealObservationPrefix = inside && outer ? outer.sealObservationPrefix : observationPrefix;
+        const treePrefix=context.trees ? context.trees.concat(outer?.treePrefix ?? 0,item.treePrefix ?? 0) : undefined;
+        const treeSealPrefix=inside && outer ? outer.treeSealPrefix : treePrefix;
         const sealGroup = inside && outer ? outer.sealGroup : context.lowered.ranked?.groups.find((/** @type {any} */ group) => group.helper === name) ?? null;
         const sealEntry = inside && outer ? outer.sealEntry : item;
         const knownPrivate = new Set([...outer?.knownPrivate ?? [],...item.production.rankedPrivate ?? []]);
-        let stringPrefix;
-        if (context.lowered.conditionStrings) {
-          stringPrefix = {...outer?.stringPrefix};
-          for (const [channel,value] of Object.entries(item.stringPrefix ?? {})) stringPrefix[channel] = (stringPrefix[channel] ?? "") + value;
-        }
-        const frame = {id:next++,key,captures,root,namedOrigin,prefix,stringPrefix,inside,sealPrefix,present,knownPrivate,
-          observationPrefix,sealObservationPrefix,sealGroup,sealEntry};
+        const frame = {id:next++,key,captures,root,namedOrigin,prefix,inside,sealPrefix,present,knownPrivate,
+          observationPrefix,sealObservationPrefix,sealGroup,sealEntry,treePrefix,treeSealPrefix};
         frames.set(key,frame);
         return frame;
       },
@@ -10045,7 +10110,6 @@
      */
     constructor(stageName, documents, unicode) {
       try {
-        this.conditionStrings = false;
         this.stageName = stageName;
         this.unicode = unicode;
         /** @type {Map<string, StageConstant>} */
@@ -10210,7 +10274,6 @@
           validateRecipeCycles(alternative.value ?? alternative.clauses.value,alternative.image ?? alternative.clauses.image,alternative.document);
         }
         validateEmissionOverlap(this.rules);
-        if (this.conditionStrings) validateConditionStrings(this.rules);
         /**
          * The features that gate an alternative or an entry of a classifier.
          * Only these change a lowered grammar. A warning keeps its alternative
@@ -10252,7 +10315,6 @@
           if (deferredEmissionProblem(rule) || deferredRecipeProblem(rule)) this.emissionUsers.push({path, rule, run:inspectionRun});
           const at = { document: path, line: rule.at[0], column: rule.at[1] };
           const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], erased: rule.erased === true, value:rule.value, image:rule.image };
-          this.conditionStrings ||= emittedReads(clauses.conditions).length > 0;
           const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path, at, order:this.alternativeOrder++ }));
           const previous = this.rules.get(rule.name);
           if (rule.op === "define") {
@@ -10634,8 +10696,11 @@
     /** @param {any} node @param {string} path @param {[number,number]} at @returns {any} */
     resolvePatterns(node, path, at) {
       const patterns = new Map();
-      for (const part of valueParts(node)) if (part.pattern && !hasUnresolved(part.node)) {
+      for (const part of valueParts(node)) {
+        if ((part.node.op === "≅" || part.node.op === "≇") && typeof part.node.right?.capture === "string" && constituentComparisons([node.tags,node.conditions,...(node.alternatives ?? []).map((/** @type {any} */ alternative)=>alternative.tags)]).length) this.treeComparisons = true;
+        if (part.pattern && !hasUnresolved(part.node)) {
         patterns.set(part.node, this.evaluateClosed(path,part.node,at,undefined,"pattern"));
+        }
       }
       /** @param {any} source @returns {any} */
       const copy = source => {
@@ -10937,7 +11002,7 @@
       yield part;
       if (part.pattern || node.pattern) continue;
       if (node.op === "≅" || node.op === "≇") {
-        pending.push({node:node.right,pattern:true},{node:node.left,pattern:false});
+        pending.push({node:node.right,pattern:!(typeof node.right?.capture === "string")},{node:node.left,pattern:false});
         continue;
       }
       const expressions = expressionChildren(node);
@@ -11132,6 +11197,7 @@
       this.features = features;
       /** @type {Production[]} */
       this.productions = [];
+      /** @type {any[]|undefined} */ this.treeSites = undefined;
       /** @type {Map<string, Production[]>} */
       this.byLhs = new Map();
       this.helperCount = 0;
@@ -11199,11 +11265,22 @@
       }
       this.checkBraceItems();
       this.contextual = this.productions.some((production) => production.contextual);
+      if(this.grammar.treeComparisons)this.treeSites=[];
       prepareRankedFrames(this,this.grammar.ranked);
+      if(this.grammar.treeComparisons) {
+        prepareTreeDemands(this,rankedFrameTable({lowered:this}));
+        const cycle=treeIdentityCycle(this);
+        if(cycle) {
+          const source=cycle.production.logicalSource ?? cycle.production.source;
+          const location=boundaryLocations.get(cycle.comparison)?.at;
+          const at={...source.at,...(location ? {line:location[0],column:location[1]} : {})};
+          throw loweringError(at,`tree comparison demands a cycle ${cycle.cycle.join(" → ")} that can repeat a demanded rule over one span`);
+        }
+      }
       return {
         productions: this.productions,
         contextual: this.contextual || this.grammar.ranked.groups.length > 0,
-        conditionStrings: this.grammar.conditionStrings,
+        treeComparisons: !!this.grammar.treeComparisons,
         byLhs: this.byLhs,
         resolution: /** @type {Resolution} */ (this.grammar.resolution),
         ranked: this.grammar.ranked,
@@ -11855,9 +11932,9 @@
 
 
 
+
   // Recognition (engine §4) and the terms and conditions it evaluates
   // (engine §10).
-
 
 
 
@@ -11991,7 +12068,7 @@
         const value = /** @type {any} */ (stack.pop());
         if (!value || typeof value !== "object" || seen.has(value)) continue;
         seen.add(value);
-        if (value.op === "≅" || value.op === "≇") found.push(value.right.pattern);
+        if (value.op === "≅" || value.op === "≇") { if (value.right.pattern) found.push(value.right.pattern); }
         else for (const child of clauseChildren(value)) stack.push(child);
       }
     }
@@ -11999,44 +12076,14 @@
     return found;
   }
 
-  /** @param {ParseContext} context @param {Production} production @param {number} dot @param {number} origin @param {number} end @param {Captured} slots @param {Item|null} previous @param {Item|null} child @param {Record<string,string>} [enclosingPrefix] @returns {{prefix:Record<string,string>,value:Record<string,string>}|null} */
-  function stringStep(context, production, dot, origin, end, slots, previous, child, enclosingPrefix) {
-    if (!context.lowered.conditionStrings) return null;
-    const channels = demandedStrings(context.lowered.productions).get(production.id);
-    if (!channels) return null;
-    const prefix = {...(enclosingPrefix ?? previous?.stringPrefix)};
-    for (const channel of enclosingPrefix ? [] : channels) {
-      const recipe = channel === "value" ? production.value : production.image ?? production.value;
-      if (production.erased || recipe) continue;
-      const contribution = previous ? child ? child.emitted?.[channel] ?? "" : context.tokens[end-1][/** @type {"value"|"image"} */ (channel)] : "";
-      prefix[channel] = (prefix[channel] ?? "") + contribution;
-    }
-    /** @type {Record<string,string>} */
-    const value = {};
-    if (dot === production.rhs.length) {
-      const scope = new ChartScope(context,production,slots,origin,end,-1);
-      const active = new Set();
-      const get = (/** @type {string} */ channel) => {
-        if (Object.prototype.hasOwnProperty.call(value,channel)) return value[channel];
-        if (active.has(channel)) throw new GencmuError("grammar","a selected string recipe has a dependency cycle");
-        active.add(channel);
-        const recipe = channel === "value" ? production.value : production.image ?? production.value;
-        let result = "";
-        if (production.elided !== null && production.rhs.length === 0) result = channel === "value" ? context.synthetic?.[origin] && end > origin ? context.tokens[origin].value : production.elidedValue ?? "" : "";
-        else if (!production.erased) {
-          if (recipe) for (const atom of recipe.concat) {
-            const found = settled(()=>evaluate(context,atom,scope));
-            result += "string" in found ? found.string : "";
-          }
-          else result = prefix[channel] ?? "";
-        }
-        active.delete(channel);
-        return value[channel] = result;
-      };
-      scope.emitted = new Proxy({}, {get:(_,key)=>get(String(key))});
-      for (const channel of channels) get(channel);
-    }
-    return {prefix,value};
+  /** @param {any} context @param {number} start @param {number} end @returns {string} */
+  function patternValue(context,start,end) {
+    if(context.recon && !context.recon.raw) {start=context.recon.project[start];end=context.recon.project[end];context=context.recon.observed;}
+    const values=context.patternValues ??= new Map();
+    const key=`${start}/${end}`;
+    let value=values.get(key);
+    if(value===undefined) {value=context.tokens.slice(start,end).map((/** @type {any} */ token)=>token.value).join("");values.set(key,value);}
+    return value;
   }
 
   /** @param {Pick<Production,"elided"|"elidedTest"|"elidedValue">} production @returns {boolean} */
@@ -12090,7 +12137,7 @@
     const prefix = previous ? machine.concat(previous.prefix, child ? production.rhs[dot - 1].slot ? machine.seal : child.structure : terminalState(context, production, dot - 1, end - 1)) : machine.empty;
     let structure = prefix;
     if (dot === production.rhs.length) {
-      if (!production.helper) structure = machine.node(production.lhs, prefix);
+      if (!production.helper) structure = machine.node(production.lhs, prefix,null,undefined,machine.nodeValues ? patternValue(context,previous?.origin ?? end,end) : undefined);
       else if (production.rhs.length === 0 && production.elided !== null) structure = omittedState(context, production.elided);
     }
     return { prefix, structure };
@@ -12224,7 +12271,7 @@
         ? context.closes.identity(part.observation) : null;
       captures.push([name, originalPosition(context, part.start), originalPosition(context, part.end),
         tagKey(context.interner.get(part.tags)), structuralKey(context, part.structure), closes]);
-      if (context.lowered.conditionStrings) captures[captures.length-1].push(part.emitted);
+      if(context.trees)captures[captures.length-1].push(context.trees.semantic(part.treeIdentity));
     }
     const frame = before.production.lexicalFrame;
     const prefix = frame && context.patterns ? context.patterns.concat(frame.prefix, before.prefix) : before.prefix;
@@ -12238,7 +12285,7 @@
       originalPosition(context, frame?.namedOrigin ?? before.origin), writtenPrefixKey(context, before.production),
       before.production.rhs.slice(0, before.dot).map(symbol => prefixSymbolKey(context, symbol)),
       structuralKey(context, prefix), captures, closePrefix && context.closes ? context.closes.identity(closePrefix) : null];
-    if (context.lowered.conditionStrings) key.push(frame?.stringPrefix, before.stringPrefix);
+    if(context.trees)key.push(context.trees.sequenceSemantic(context.trees.concat(frame?.treePrefix ?? 0,/** @type {any} */ (before).treePrefix ?? 0)));
     return JSON.stringify(key);
   }
 
@@ -12343,6 +12390,8 @@
       this.closeRules = closeDemands(lowered);
       /** @type {CloseObservations|null} */
       this.closes = this.closeRules.size ? new CloseObservations() : null;
+      /** @type {TreeIdentities|null} */ this.trees = lowered.treeComparisons ? new TreeIdentities() : null;
+      /** @type {Map<string,number>|null} */ this.treeSeals = this.trees ? new Map() : null;
       this.tokens = tokens;
       /** Where each run of the tokens lies in the text (engine §1). */
       this.sources = new Sources(tokens);
@@ -12464,10 +12513,6 @@
       this.boundaryAnnotations = null;
       this.prefix = -1;
       this.structure = -1;
-      /** @type {Record<string,string>|undefined} */
-      this.emitted = undefined;
-      /** @type {Record<string,string>|undefined} */
-      this.stringPrefix = undefined;
       /** @type {CloseObservation|null} */
       this.observationPrefix = null;
       /** @type {CloseObservation|null} */
@@ -12980,21 +13025,25 @@
     // parenthesis also splits unrelated paragraphs into all close sequences.
     /** @type {Map<string,Production>} */
     const variants = new Map();
-    /** @param {Production} production @param {boolean} requested @returns {Production} */
+    /** @param {Production} production @param {number|boolean} requested @returns {Production} */
     const variant = (production, requested) => {
-      if (!context.closes) return production;
+      if (!context.closes && !context.trees) return production;
       const key = `${production.id}/${production.lexicalFrame?.id ?? -1}/${requested}`;
       let found = variants.get(key);
       if (found) return found;
       found = {...production, baseProduction:production.baseProduction ?? production,
-        closeRequested:requested,
-        observesCloses:requested || localCloseDemand(production).whole};
+        closeRequested:!!(Number(requested)&1),
+        treeRequested:!!(Number(requested)&2),
+        walksTrees:!!context.trees && (!!(Number(requested)&2) || !production.helper && localTreeDemand(production).whole),
+        treePrefixUntil:context.trees ? localTreeDemand(production).prefixUntil : 0,
+        observesTrees:!!context.trees && (!!(Number(requested)&2) || !production.helper && localTreeDemand(production).whole || localTreeDemand(production).prefixUntil>0),
+        observesCloses:!!context.closes && (!!(Number(requested)&1) || localCloseDemand(production).whole)};
       variants.set(key, found);
       return found;
     };
     const prefixTable = context.closes ? queryPrefixes(lowered) : null;
     /** @param {Item} item @returns {boolean} */
-    const requestChild = item => {
+    const requestCloses = item => {
       if (!context.closes) return false;
       if (item.production.observesCloses) return true;
       const demand = localCloseDemand(item.production);
@@ -13010,9 +13059,15 @@
       }
       return false;
     };
-    /** @param {string} name @param {any} frame @param {boolean|undefined} requested */
+    /** @param {Item} item */
+    const requestChild = context.trees ? (/** @type {Item} */ item) => {
+      const symbol=item.production.rhs[item.dot];
+      const tree=!!context.trees && ((item.production.walksTrees || item.dot<(item.production.treePrefixUntil??0)) && !symbol.slot || localTreeDemand(item.production).parts.has(item.dot));
+      return Number(requestCloses(item)) | (tree ? 2 : 0);
+    } : requestCloses;
+    /** @param {string} name @param {any} frame @param {number|boolean|undefined} requested */
     const demandKey = (name, frame, requested) =>
-      (frame ? `${name}/${frame.id}` : name) + (requested ? "/observed" : "");
+      (frame ? `${name}/${frame.id}` : name) + (requested ? `/observed${Number(requested)}` : "");
     const lexical = lowered.ranked?.groups.length || lowered.contextual ? rankedFrameTable(context) : null;
     /** @param {Item} item */
     const waitingKey = item => {
@@ -13021,7 +13076,7 @@
       return demandKey(name,frame,requestChild(item));
     };
     /** @param {Production} production */
-    const completionKey = production => demandKey(production.lhs,production.lexicalFrame,production.closeRequested);
+    const completionKey = production => demandKey(production.lhs,production.lexicalFrame,Number(production.closeRequested) | (production.treeRequested ? 2 : 0));
 
     // The reconstruction mode of engine §7.4, or the old contract's
     // mandatory optionals (a fault); null for the ordinary mode of §4.
@@ -13046,14 +13101,14 @@
             const edge = boundary.start & literal.bit ? "start" : "end";
             fail(literal,edge === "start" ? origin : set.position,bounded?.annotations[edge].get(literal.bit));
           })) return;
-      const strings = context.lowered.conditionStrings ? stringStep(context,production,dot,origin,set.position,slots,previous,child) : null;
       const projected = structuralStep(context, production, dot, previous, child, set.position);
-      if(context.patterns?.nodeTags && !production.helper && dot === production.rhs.length) projected.structure = context.patterns.node(production.lhs,projected.prefix,null,context.interner.get(tagId));
+      if((context.patterns?.nodeTags || context.patterns?.nodeValues) && !production.helper && dot === production.rhs.length) projected.structure = context.patterns.node(production.lhs,projected.prefix,null,context.interner.get(tagId),context.patterns.nodeValues ? patternValue(context,origin,set.position) : undefined);
+      const tree = context.trees ? treeStep(context,production,dot,previous,child,set.position) : null;
       const close = closeStep(context,production,dot,origin,previous,child,set.position);
       const summary = familyStep(context, family, members, production, dot, origin, previous, child, set.position, close);
       let key = itemKey((production.id * dots + dot) * width + origin - start, slots);
-      if (strings) key = `${key}/s${JSON.stringify(dot === production.rhs.length ? strings.value : strings.prefix)}`;
-      if (production.closeRequested) key = `${key}/observed`;
+      if (tree) key += `/t${tree.treePrefix}/${tree.treeIdentity}`;
+      if (production.closeRequested || production.treeRequested) key = `${key}/observed${Number(production.closeRequested) | (production.treeRequested ? 2 : 0)}`;
       if (production.lexicalFrame) key = `${key}/f${production.lexicalFrame.id}`;
       if (context.patterns) key = `${key}/${projected.prefix}/${projected.structure}`;
       if (close) key = `${key}/c${close.prefix.id}/${close.observation.id}`;
@@ -13115,11 +13170,8 @@
       }
       item.boundary = boundary;
       if (bounded) item.boundaryAnnotations = bounded.annotations;
-      if (strings) {
-        item.emitted = strings.value;
-        item.stringPrefix = strings.prefix;
-      }
       item.prefix = projected.prefix;
+      if(tree)Object.assign(item,tree);
       item.structure = projected.structure;
       item.observationPrefix = close?.prefix ?? null;
       item.observation = close?.observation ?? null;
@@ -13178,8 +13230,9 @@
       if (test && !fault("F11", "restore") && !testHolds(context, test, position, position + 1, token.tags)) return;
       const target = setAt(position + 1);
       const structure = omittedState(context, production.elided);
+      const tree = context.trees ? treeStep(context,production,0,null,null,position) : null;
       let key = itemKey((production.id * dots) * width + position - start, null);
-      if (production.closeRequested) key = `${key}/observed`;
+      if (production.closeRequested || production.treeRequested) key = `${key}/observed${Number(production.closeRequested) | (production.treeRequested ? 2 : 0)}`;
       if (production.lexicalFrame) key = `${key}/f${production.lexicalFrame.id}`;
       if (context.patterns) key = `${key}/${context.patterns.empty}/${structure}`;
       const observation = restoredClose(context,production,position);
@@ -13188,6 +13241,7 @@
       // lookup counts, so that a search slower than the index fails a budget.
       if (hooks.work) countWork(hooks.work, "edgeChecks");
       if (context.boundaries) key = `${key}/b${context.boundaries.empty.id}`;
+      if(tree)key += `/t${tree.treePrefix}/${tree.treeIdentity}`;
       if (target.index.has(key)) return;
       const item = new Item(production, 0, position, null, null, null);
       item.boundary = context.boundaries?.empty ?? null;
@@ -13195,8 +13249,8 @@
       item.structure = structure;
       item.observationPrefix = context.closes?.empty ?? null;
       item.observation = observation;
+      if(tree)Object.assign(item,tree);
       item.restores = true;
-      item.emitted = context.lowered.conditionStrings ? stringStep(context,production,0,position,position+1,null,null,null)?.value : undefined;
       if (hooks.work) { countWork(hooks.work, "items"); countWork(hooks.work, "packedEdges"); }
       item.end = position + 1;
       // It has the tags of the empty production, none, unless a fault gives
@@ -13214,7 +13268,7 @@
     /** @type {ChartSet} */
     let predictSet = /** @type {any} */ (null);
     let predictName = "";
-    let predictCloses = false;
+    let predictCloses = 0;
     let predictStrict = false;
     /** @type {any} */
     let predictFrame = null;
@@ -13224,8 +13278,8 @@
     let predictSkipped = false;
 
     // Begins the prediction of a rule in a set: false when it adds nothing.
-    /** @type {(set: ChartSet, name: string, strict?: boolean, frame?: any, requested?: boolean) => boolean} */
-    const beginPredict = (set, name, strict = false, frame = null, requested = false) => {
+    /** @type {(set: ChartSet, name: string, strict?: boolean, frame?: any, requested?: number|boolean) => boolean} */
+    const beginPredict = (set, name, strict = false, frame = null, requested = 0) => {
       const key = demandKey(name,frame,requested);
       // A rule's productions are the same at every prediction in one set:
       // predicting them again would only rebuild items that already exist. A
@@ -13237,7 +13291,7 @@
       if (before === false || (before === true && (strict || fault("F32:predict")))) return false;
       set.predicted.set(key, strict);
       predictFrame = frame;
-      predictCloses = requested;
+      predictCloses = Number(requested);
       predictSet = set;
       predictName = name;
       predictStrict = strict;
@@ -13277,7 +13331,8 @@
         // One scope for the step, which evaluates the tag term at most once
         // (engine §4).
         /** @type {StepScope} */
-        const step = { scope: null, emitted:context.lowered.conditionStrings ? stringStep(context,production,0,set.position,set.position,null,null,null)?.value : undefined, ...structuralStep(context, production, 0, null, null, set.position), observation: closeStep(context,production,0,set.position,null,null,set.position)?.observation ?? null };
+        const step = { scope: null, ...structuralStep(context, production, 0, null, null, set.position), observation: closeStep(context,production,0,set.position,null,null,set.position)?.observation ?? null };
+        if(context.trees)step.tree=treeStep(context,production,0,null,null,set.position);
         // The tag term comes after the conditions (engine §4), unless a
         // fault evaluates it first (order:tags).
         if (production.rhs.length === 0 && fault("order:tags", "predict")) {
@@ -13353,11 +13408,12 @@
         // production that inherits from the terminal (F7:capture).
         const tags = child ? child.tagId
           : context.interner.intern(synthetic !== null && synthetic[from] && !rawObservations(context) && !fault("F7:capture") ? tagSet() : tokens[from].tags);
-        slots = captureAfter(context, slots, captureIndex, from, to, tags, child ? child.structure : terminalState(context, production, item.dot, from), child ? closeChild(context,item,child) : terminalObservation(context,production.rhs[item.dot].name,from), context.lowered.conditionStrings ? child ? child.emitted : {value:tokens[from].value,image:tokens[from].image} : undefined);
+        slots = captureAfter(context, slots, captureIndex, from, to, tags, child ? child.structure : terminalState(context, production, item.dot, from), child ? closeChild(context,item,child) : terminalObservation(context,production.rhs[item.dot].name,from), context.trees && localTreeDemand(production).parts.has(item.dot) ? child ? /** @type {any} */ (child).treeIdentity : terminalIdentity(context,production.rhs[item.dot].name,from) : undefined);
       }
       if (hooks.work) countWork(hooks.work, "captureLookups");
       /** @type {StepScope} */
-      const step = { scope: null, emitted:context.lowered.conditionStrings ? stringStep(context,production,item.dot+1,item.origin,to,slots,item,child)?.value : undefined, ...structuralStep(context, production, item.dot + 1, item, child, to), observation: closeStep(context,production,item.dot+1,item.origin,item,child,to)?.observation ?? null };
+      const step = { scope: null, ...structuralStep(context, production, item.dot + 1, item, child, to), observation: closeStep(context,production,item.dot+1,item.origin,item,child,to)?.observation ?? null };
+      if(context.trees)step.tree=treeStep(context,production,item.dot+1,item,child,to);
       if (item.dot + 1 === production.rhs.length && fault("order:tags", "advance")) {
         if (completeTags(context, production, slots, item.origin, to, step) === HALT) {
           return pause(() => advanceFrom(item, to, slots, step, PART_CONDITIONS, null));
@@ -13977,12 +14033,12 @@
    * @param {number} tags
    * @param {number} structure
    * @param {CloseObservation|null} observation
-   * @param {Record<string,string>} [emitted]
+   * @param {number} [treeIdentity]
    * @returns {Captured}
    */
-  function captureAfter(context, parent, index, start, end, tags, structure, observation, emitted) {
+  function captureAfter(context, parent, index, start, end, tags, structure, observation, treeIdentity) {
     let key = (parent === null ? "" : parent.id) + ":" + index + ":" + start + ":" + end + ":" + tags + ":" + structure + ":" + (observation?.id ?? "");
-    if (context.lowered.conditionStrings) key += JSON.stringify(emitted ?? null);
+    if(treeIdentity !== undefined)key += `/t${treeIdentity}`;
     let found = context.captured.get(key);
     if (!found) {
       // The jumps of a skew-binary list: a sequence jumps to its parent's
@@ -13993,7 +14049,8 @@
       const skip = parent !== null && parent.jump !== null &&
         parent.depth - parent.jump.depth === parent.jump.depth - (parent.jump.jump === null ? 0 : parent.jump.jump.depth);
       const jump = skip ? /** @type {NonNullable<Captured>} */ (/** @type {NonNullable<Captured>} */ (parent).jump).jump : parent;
-      found = { parent, jump, depth, index, start, end, tags, structure, observation, emitted, id: context.captured.size };
+      found = { parent, jump, depth, index, start, end, tags, structure, observation, id: context.captured.size };
+      if(treeIdentity !== undefined)found.treeIdentity=treeIdentity;
       context.captured.set(key, found);
       if (hooks.work) countWork(hooks.work, "captures");
     }
@@ -14091,7 +14148,7 @@
       const { condition, readyAt: at } = conditions[index];
       if (at !== readyAt) continue;
       const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure,step.observation,step.prefix);
-      scope.emitted = step.emitted;
+      scope.treeIdentity = step.tree?.treeIdentity;
       const atom = firstBoundaryAtom(condition);
       const held = atom ? boundaryCondition(scope.observing,condition,scope,atom,step,conditions[index].wholeBoundary !== false) : restorationStep(() => holds(scope.observing, condition, scope), () => false);
       if (held === HALT) return pause((/** @type {boolean} */ value) => value && !scope.invalidRestoration ? failedFrom(context, production, conditions, index + 1, readyAt, slots, origin, end, step) : condition);
@@ -14112,6 +14169,7 @@
    */
   function completeTags(context, production, slots, origin, end, step) {
     const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure,step.observation,step.prefix);
+    scope.treeIdentity = step.tree?.treeIdentity;
     const tags = restorationStep(() => scope.constituent(), () => tagSet());
     if (tags === HALT) return pause((/** @type {TagSet} */ value) => context.interner.intern(value));
     return context.interner.intern(tags);
@@ -14122,7 +14180,7 @@
    * between its conditions and its tag term, so that the tag term runs at
    * most once in the step. This saves time only: how many times a step
    * evaluates its tag term is not observable (engine §4).
-   * @typedef {{scope: ChartScope | null, emitted?:Record<string,string>, structure: number, prefix?:number, observation: CloseObservation|null, obligations?:any[]}} StepScope
+   * @typedef {{scope: ChartScope | null, tree?:any, structure: number, prefix?:number, observation: CloseObservation|null, obligations?:any[]}} StepScope
    */
 
   /** @type {WeakMap<Production, Map<string, number>>} */
@@ -14158,11 +14216,10 @@
      */
     constructor(context, production, slots, origin, end, structure, observation = null, prefix = -1) {
       this.context = context;
+      if(context.trees) this.treeIdentity = -1;
       this.production = production;
       this.structure = structure;
       this.prefix = prefix;
-      /** @type {Record<string,string>|undefined} */
-      this.emitted = undefined;
       this.observation = observation;
       this.invalidRestoration = false;
       this.slots = slots;
@@ -14224,13 +14281,7 @@
         for (let part = this.slots; part; part = part.parent) captures.set(this.production.captures[part.index].name,part);
         const production = {...frame.root,tags:this.production.parentTags,lexicalFrame:{...frame,captures,parentWhole:true}};
         const parent = new ChartScope(this.context,production,null,frame.namedOrigin,this.end,structure,observation);
-        let emitted;
-        if (this.context.lowered.conditionStrings) {
-          const strings = {...frame.stringPrefix};
-          for (const [channel,value] of Object.entries(this.emitted ?? {})) strings[channel] = (strings[channel] ?? "") + value;
-          emitted = stringStep(this.context,production,production.rhs.length,frame.namedOrigin,this.end,null,null,null,strings)?.value;
-        }
-        return {emitted,observation,structure,patterns:machine,start:frame.namedOrigin,end:this.end,space:this.space,
+        return {treeIdentity:this.context.trees ? this.context.trees.rule(frame.root.lhs,this.context.trees.append(frame.treeSealPrefix ?? 0,sealIdentity(this.context,frame.sealEntry.end,this.end))) : undefined,observation,structure,patterns:machine,start:frame.namedOrigin,end:this.end,space:this.space,
           patternName:frame.root.lhs,patternPrefix:prefix,get tags() {return /** @type {TagSet} */ (parent.constituent());}};
       }
       if (name === "") {
@@ -14238,7 +14289,7 @@
         return {
           patternName:this.production.lhs,
           patternPrefix:this.prefix,
-          emitted:this.emitted,
+          treeIdentity:this.treeIdentity,
           observation: this.observation,
           structure: this.structure,
           patterns: this.context.patterns,
@@ -14256,7 +14307,7 @@
       // about twice at most.
       if ((!this.production.captureSlot.has(name) || this.production.lexicalFrame?.parentWhole) && this.production.lexicalFrame?.captures.has(name)) {
         const found = this.production.lexicalFrame.captures.get(name);
-        return {emitted:found.emitted,observation:found.observation,structure:found.structure,patterns:this.context.patterns,start:found.start,end:found.end,tags:this.context.interner.get(found.tags),space:this.space};
+        return {treeIdentity:found.treeIdentity,observation:found.observation,structure:found.structure,patterns:this.context.patterns,start:found.start,end:found.end,tags:this.context.interner.get(found.tags),space:this.space};
       }
       const last = /** @type {NonNullable<Captured>} */ (this.slots);
       const index = captureIndex(this.production, name);
@@ -14270,7 +14321,7 @@
       let found;
       if (this.parts !== null) found = this.parts[index];
       else found = capturedPart(last, index, this);
-      return { emitted:found.emitted, observation:found.observation, structure: found.structure, patterns: this.context.patterns, start: found.start, end: found.end, tags: this.context.interner.get(found.tags), space: this.space };
+      return { treeIdentity:found.treeIdentity,  observation:found.observation, structure: found.structure, patterns: this.context.patterns, start: found.start, end: found.end, tags: this.context.interner.get(found.tags), space: this.space };
     }
   }
 
@@ -14655,7 +14706,6 @@
       const args = term.args;
       switch (term.method) {
         case "value": case "image": {
-          if ("method" in receiver && receiver.method === "emitted") return {string:scope.capture(/** @type {{capture:string}} */ (receiver.receiver).capture).emitted?.[term.method] ?? ""};
           const where = observe(context, spanOf(context, receiver, scope), scope, term.method);
           return { string: where.context.tokens.slice(where.start, where.end).map(token => token[/** @type {"value" | "image"} */ (term.method)]).join("") };
         }
@@ -14921,15 +14971,24 @@
     const comparison = condition;
     if (comparison.op === "≅" || comparison.op === "≇") {
       const captured = scope.capture(/** @type {{capture:string}} */ (comparison.left).capture);
+      if ("capture" in comparison.right) {
+        const treeScope=/** @type {any} */ (scope);
+        const left=treeScope.treeIdentityOf ? treeScope.treeIdentityOf(/** @type {{capture:string}} */ (comparison.left).capture) : captured.treeIdentity;
+        const right=treeScope.treeIdentityOf ? treeScope.treeIdentityOf(comparison.right.capture) : scope.capture(comparison.right.capture).treeIdentity;
+        return (left === right) === (comparison.op === "≅");
+      }
       const pattern = /** @type {{pattern:any}} */ (comparison.right).pattern;
       const match = (/** @type {any} */ tags) => {
         const machine = /** @type {PatternMachine} */ (captured.patterns);
-        const state = tags && captured.patternPrefix !== undefined ? machine.node(/** @type {any} */ (captured).patternName,/** @type {any} */ (captured).patternPrefix,null,tags) : captured.structure;
+        const state = tags && captured.patternPrefix !== undefined ? machine.node(/** @type {any} */ (captured).patternName,/** @type {any} */ (captured).patternPrefix,null,tags,machine.nodeValues ? patternValue(/** @type {any} */ (scope).context ?? context,captured.start,captured.end) : undefined) : captured.structure;
         return machine.matches(/** @type {number} */ (state),pattern) === (comparison.op === "≅");
       };
       if (/** @type {any} */ (comparison.left).capture === "" && readsNodeTags(pattern)) {
         const tags = /** @type {any} */ (captured).tags;
         return tags === HALT ? pause(match) : match(tags);
+      }
+      if (context.patterns?.nodeValues && captured.patternPrefix !== undefined) {
+        captured.structure=context.patterns.node(captured.patternName ?? null,captured.patternPrefix,null,undefined,patternValue(/** @type {any} */ (scope).context ?? context,captured.start,captured.end));
       }
       return match(null);
     }
@@ -16022,10 +16081,8 @@
     }
   }
 
-  /** @typedef {{step:number,pattern:string,status:"impossible"|"possible"|"unknown"}} RankingStepReport */
+  /** @typedef {{step:number,pattern:string,status?:"impossible"}} RankingStepReport */
   /** @typedef {import("./grammar.js").RuleChange & {step:number}} CountedRuleChange */
-  /** @typedef {{rule:string,step:number,tags:string[],unknown:boolean,document?:string,line?:number,column?:number}} RankingTagReport */
-  /** @typedef {{kind:"ranking-tag-vocabulary",stage:string,step:number,tag:string}} RankingVocabularyWarning */
 
   /**
    * @typedef {object} StageAudit
@@ -16046,9 +16103,6 @@
    *   first entry that touches it
    * @property {RankingStepReport[]} keySteps
    * @property {CountedRuleChange[]} countedChanges
-   * @property {RankingTagReport[]} inheritedRankingTags
-   * @property {RankingTagReport[]} droppedRankingTags
-   * @property {RankingVocabularyWarning[]} vocabularyWarnings
    */
 
   /** @typedef {{terminal:string, owner:string, document:string, line:number, column:number}} PermittedOptional */
@@ -16468,11 +16522,9 @@
    * @returns {StageAudit[]}
    */
   function audit(pipeline) {
-    let previousVocabulary = new Set();
     return pipeline.stages.map((stage) => {
       const grammar = stage.grammar;
-      const {vocabulary,...ranking}=rankingAudit(grammar,previousVocabulary);
-      previousVocabulary=vocabulary;
+      const ranking=rankingAudit(grammar);
       const resolution = grammar.resolution;
       /** @type {CaptureScopes} */
       const scopes = new WeakMap();
@@ -16614,11 +16666,8 @@
       for (const change of stage.changes) {
         lines.push(`  ${change.rule} ${change.kind} by ${change.document} (defined in ${change.previous})`);
       }
-      for(const step of stage.keySteps??[]) lines.push(`  ranking step ${step.step+1}: ${step.status}`);
+      for(const step of stage.keySteps??[]) if(step.status) lines.push(`  ranking step ${step.step+1}: ${step.status}`);
       for(const change of stage.countedChanges??[]) lines.push(`  counted rule ${change.rule}: ${change.kind}, step ${change.step+1}`);
-      for(const note of stage.inheritedRankingTags??[]) lines.push(`  ranking tags without a literal: ${note.rule}, step ${note.step+1}, ${note.tags.join(', ')}${note.unknown?' (unknown)':''}`);
-      for(const note of stage.droppedRankingTags??[]) lines.push(`  dropped inherited tags: ${note.rule}, step ${note.step+1}, ${note.tags.join(', ') || 'none'}${note.unknown?' (unknown)':''}`);
-      for(const warning of stage.vocabularyWarnings??[]) lines.push(`  warning: ranking step ${warning.step+1} tests ${warning.tag}, outside the stage vocabulary`);
       for (const note of stage.boundaryNotes) {
         if (note.kind === "query-rule") lines.push(`  boundary note: ${note.rule} is reached by ${note.query} in ${note.document}:${note.line}:${note.column}`);
         else {
@@ -17347,6 +17396,7 @@
       this.tokens = tokens;
       /** @type {Profiles} */
       this.space = new Profiles(steps);
+      this.space.tokens = tokens;
       /** @type {(left: Item, right: Item) => boolean} */
       this.sameSpan = project === null
         ? (left, right) => left.origin === right.origin && left.end === right.end
@@ -17497,7 +17547,7 @@
             total = Math.min(2, before.total * child.total);
           }
           // A completed nonempty occurrence of the production's rule counts
-          // as each of its categories, before its children (engine §6).
+          // when the step matches it, before its children (engine §6).
           if (current.dot === current.production.rhs.length && !current.production.helper) {
             const p = this.profileProject?.[current.origin] ?? current.origin;
             const q = this.profileProject?.[current.end] ?? current.end;
@@ -18312,6 +18362,7 @@
       /** @type {WeakMap<object,number>} */ this.tagIds = new WeakMap();
       this.nextTag = 0;
       this.valueTests=steps.map(step=>hasPatternValue(step.pattern));
+      /** @type {Map<string,string>|null} */ this.spanValues=this.valueTests.some(Boolean) ? new Map() : null;
       /** @type {Map<string,number>} */ this.tagKeys = new Map();
       /** @type {Profile} */
       this.zero = steps.map((step) => step.step === "leftmost-longest" ? [] : step.step === "fewest" || step.step === "most" ? 0 : NO_ELISIONS);
@@ -18337,11 +18388,17 @@
         this.tagIds.set(node.tags,/** @type {number} */ (tagId));
       }
       let profile=null;
+      if(node.name && this.spanValues) {
+        const key=`${p}/${q}`;
+        let value=this.spanValues.get(key);
+        if(value===undefined) {value=this.tokens.slice(p,q).map((/** @type {any} */ token)=>token.value).join("");this.spanValues.set(key,/** @type {string} */ (value));}
+        node={...node,value};
+      }
       this.steps.forEach((step,index)=>{
         const key=JSON.stringify([index,node.name??null,node.terminal??null,tagId,this.valueTests[index]?node.value??null:null]);
         let match=this.matches.get(key);
         if (match === undefined) {
-          match=localNodeMatches(step.pattern,node.name??null,node.tags,node.terminal?node:null);
+          match=localNodeMatches(step.pattern,node.name??null,node.tags,node.terminal?node:null,node.value);
           this.matches.set(key,match);
         }
         if (match && (p<q || step.step!=='leftmost-longest')) {
@@ -18618,12 +18675,14 @@
         const captures = [];
         for (let part = item.slots; part; part = part.parent) {
           const name = item.production.captures[part.index].name;
-          if (!name.startsWith('\u0000')) captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id]);
+          if (!name.startsWith('\u0000')) {captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id]);if(chart.context.trees)captures[captures.length-1].push(part.treeIdentity);}
         }
-        return [item.production.lexicalFrame?.id ?? null,written(item.production),item.origin,
+        const key=[item.production.lexicalFrame?.id ?? null,written(item.production),item.origin,
           item.production.rhs.slice(0,item.dot).map((/** @type {any} */ s) => [helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test]),
           item.production.rhs.slice(item.dot).map((/** @type {any} */ s) => [helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test]),
           item.prefix,captures.reverse(),item.strict,item.restores,item.boundary?.id ?? null,item.observationPrefix?.id];
+        if(chart.context.trees)key.push(item.treePrefix);
+        return key;
       };
       for (const set of (this.forest?.chart ?? chart).sets) if (set) for (const item of set.items) {
         this.stats.chartFacts++;
@@ -18987,7 +19046,7 @@
       if ("channel" in request) {
         if ("read" in node) return this.context.tokens[node.read.token][request.channel];
         const production = node.production;
-        if (production.elided !== null && node.children.length === 0) return request.channel === "value" ? production.elidedValue ?? "" : "";
+        if (production.elided !== null && node.children.length === 0) return "";
         if (production.erased) return "";
         const recipe = request.channel === "value" ? production.value : production.image ?? production.value;
         if (recipe) return yield {node, recipe};
@@ -19065,6 +19124,7 @@
   // ---- stage.js
 
 
+
   // Running one stage: recognition, the choice of a parse, the result tree
   // (engine §12), emission (engine §11) and elision-only (engine §7).
 
@@ -19100,7 +19160,7 @@
     ranker.configured = true;
     ranker.interner = chart.context.interner;
     ranker.space.interner = chart.context.interner;
-    ranker.space.tokens = tokens;
+    ranker.space.tokens = chart.context.recon && !chart.context.recon.raw ? chart.context.recon.observed.tokens : tokens;
     if (chart.context.lowered.ranked?.groups.length) ranker.admission = new RankedAdmission(chart,chart.context.lowered.ranked);
     return ranker;
   }
@@ -19631,6 +19691,12 @@
       this.node = node;
       this.context = context;
     }
+    /** @param {string} name */
+    treeIdentityOf(name) {
+      if(name === "")return derivationIdentity(this.context,this.node);
+      const capture=this.node.production.captures[/** @type {number} */ (this.node.production.captureSlot.get(name))];
+      return derivationIdentity(this.context,this.node.children[capture.index]);
+    }
     /** @param {any} atom */
     boundary(atom) {
       const span = this.capture(atom.receiver.capture);
@@ -20141,7 +20207,6 @@
     const braces = [];
     let marked = 0;
     let recipeContext = false;
-    let conditionContext = false;
     /** @type {RuleNode|undefined} */
     let defaultHead;
     /** @type {Term|undefined} */
@@ -20354,9 +20419,7 @@
       /** @type {Condition[]} */
       const conditions = [];
       if (conditionsClause) {
-        conditionContext = true;
         for (const condition of some(conditionsClause, "implication")) conditions.push(yield readImplication(condition));
-        conditionContext = false;
       }
       const emits = one(node, "emits-clause");
       const emit = emits ? /** @type {Emission} */ (yield readEmission(emits)) : undefined;
@@ -20882,9 +20945,11 @@
           }
           const right = /** @type {Term} */ (yield readTerm(rightNode));
           const found = termType(right);
-          const problem = "problem" in found ? found.problem : expectedProblem(found.type,"pattern");
-          if (problem && !featureContext) fail(problem,inner);
-          return {op,left,right};
+          const problem = typeof /** @type {any} */ (right).capture === "string" ? left.capture === /** @type {any} */ (right).capture ? "a tree comparison cannot compare a capture with itself" : null : "problem" in found ? found.problem : expectedProblem(found.type,"pattern");
+          if (problem && !featureContext) fail(problem,typeof /** @type {any} */ (right).capture === "string" ? inner : rightNode);
+          const comparison={op,left,right};
+          boundaryLocations.set(comparison,{tree:inner,at:at(inner)});
+          return comparison;
         }
         case "comparison": {
           const op = /** @type {Comparator} */ (operator(token(only(inner, "comparator"))));
@@ -21179,25 +21244,14 @@
           first.kind === "token" && ["Lowercase-Name", "Emoji-Name"].includes(first.terminal);
         const tests = inner.filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
         const testsOnly = ["tag-test", "value-test"].includes(ruleOf(first));
-        const testable = !named && (first.kind === "token" ? isCapital(valueOf(first)) || valueOf(first).startsWith("_")
-          : ["tag", "string", "string-terminal", "range", "wildcard", "constant-reference"].includes(ruleOf(first)));
         checkTestOrder(tests, true);
-        if (!testable && !testsOnly && ruleOf(first) !== "parameter") {
-          const value = tests.find(test => ruleOf(test) === "value-test");
-          if (value) fail("a pattern value test requires a terminal atom", value);
-        }
         if (named || ruleOf(first) === "call") for (const test of tests) if (ruleOf(test) === "tag-test") {
           for (const requirement of ofRule(test,"tag-requirement")) {
             const inner = knownOf(only(requirement,"test-operand"),ATOMS);
             if (ruleOf(inner) === "tag" && valueOf(token(inner)) === "_Elided" && !parts(requirement).some(child=>tokenValue(child) === "¬")) fail("a rule pattern cannot require _Elided",token(inner));
           }
         }
-        if (testsOnly) {
-          if (ruleOf(first) !== "tag-test") fail("a tag-only pattern starts with a tag test", first);
-          let expr = {...(yield readTest(first, true)), any:true};
-          for (const test of tests.slice(1)) expr = {...(yield readTest(test, true)), expr};
-          return {node:expr};
-        }
+        if (testsOnly) fail("a pattern test requires an atom", first);
         if (["call", "parameter"].includes(ruleOf(first))) {
           let expr = ruleOf(first) === "call" ? yield readCall(first) : readParameter(first);
           for (const test of tests) expr = {...(yield readTest(test, true)),expr};
@@ -21243,7 +21297,7 @@
       let receiver = yield readTerm(only(only(node, "method-receiver"), "term-atom"), true);
       for (const selector of some(node, "method-selector")) {
         const name = valueOf(token(only(selector, "method-name")));
-        if (name === "emitted" && !recipeContext && !conditionContext) fail("a method has the wrong receiver or arguments", node);
+        if (name === "emitted" && !recipeContext) fail("a method has the wrong receiver or arguments", node);
         if(!METHODS.has(name)) fail(`unknown method ${name}`,node);
         if (closedFor && !["split", "ngrams"].includes(name)) fail(`${closedFor} cannot read an input method`, node);
         /** @type {any[]} */
@@ -22277,8 +22331,6 @@
 
 
 
-
-
   // Pipelines: loading pipeline documents and their grammars, reading grammar
   // documents with the notation pipeline (engine §8), and running a text
   // through the stages (engine §13).
@@ -22544,7 +22596,26 @@
       const documents = new Map();
       const pipeline = this.splice(path,documents);
       const build = () => {
-        const stages = pipeline.stages.map((stage) => new Stage(stage.name, new Grammar(stage.name, stage.documents, this.unicode), stage.changes));
+        const stages = pipeline.stages.map((stage) => {
+          let grammar = new Grammar(stage.name, stage.documents, this.unicode);
+          if (grammar.treeComparisons) {
+            let located = false;
+            for (const document of stage.documents) {
+              if (!needsTreeLocations(document.dom)) continue;
+              const record = [...documents.values()].find(record=>record.path===document.path && document.dom.rules.some(rule=>record.dom.rules.includes(rule)));
+              if (!record) continue;
+              try {
+                const source = this.readDocument(record.text,record.path,true,record.inherited);
+                restoreBoundaryLocations(record.dom,source);
+                located = true;
+              } catch (error) {
+                if (!(error instanceof GencmuError)) throw error;
+              }
+            }
+            if (located) grammar = new Grammar(stage.name, stage.documents, this.unicode);
+          }
+          return new Stage(stage.name,grammar,stage.changes);
+        });
         return new Pipeline(path, stages, this, pipeline.features);
       };
       try { return build(); } catch (error) {
@@ -22692,24 +22763,6 @@
     constructor(path, stages, loader, declared = []) {
       this.path = path;
       this.stages = stages;
-      /** @type {import("./diagnostics.js").RankingVocabularyWarning[]} */ this.loadWarnings = [];
-      const tested = stages.some(stage=>stage.grammar.resolution?.steps.some(step=>{
-        /** @type {any[]} */ const pending=[step.pattern];
-        while(pending.length) {
-          const node=pending.pop();
-          if(node.test==='tags' && node.requirements.some((/** @type {any} */ r)=>!r.negated && [...r.value.set].some(tag=>tag!=='_Elided' && !(tag.startsWith('_') && loader.unicode.canonicalTag(tag)===tag)))) return true;
-          pending.push(...patternParts(node));
-        }
-        return false;
-      }));
-      if(tested) {
-        let vocabulary = new Set();
-        for(const stage of stages) {
-          const report=rankingAudit(stage.grammar,vocabulary);
-          vocabulary=report.vocabulary;
-          this.loadWarnings.push(...report.vocabularyWarnings);
-        }
-      }
       this.loader = loader;
       this.declared = declared;
       /** @type {Feature[]} the pipeline's features, with their kinds and defaults */
@@ -23520,9 +23573,8 @@
   /** @typedef {{name:string,at:Position} | TemplateCall | Parameter} PatternRuleAtom */
   /** @typedef {{terminal:string, at:Position}} PatternTerminal */
   /** @typedef {Parameter | PatternTerminal | {literal:{string:string},at:Position} | {range:[Term,Term],at:Position} | {wildcard:true,at:Position} | {constant:string,at:Position}} PatternAtom */
-  /** @typedef {{test:"tags",requirements:Requirement[],any:true}} PatternTagsOnly */
-  /** @typedef {PatternTagsOnly | {test:"tags",requirements:Requirement[],expr:PatternAtom | PatternRuleAtom}} PatternTagTest */
-  /** @typedef {PatternAtom | PatternTagsOnly | {test:"tags",requirements:Requirement[],expr:PatternAtom}} PatternTestTarget */
+  /** @typedef {{test:"tags",requirements:Requirement[],expr:PatternAtom | PatternRuleAtom}} PatternTagTest */
+  /** @typedef {PatternAtom | PatternRuleAtom | {test:"tags",requirements:Requirement[],expr:PatternAtom | PatternRuleAtom}} PatternTestTarget */
   /** @typedef {PatternItem[]} PatternChildren */
   /** @typedef {{child:Pattern} | {siblings:true} | {optional:PatternChildren} | {repeat:PatternChildren,separator?:PatternChildren} | {choice:PatternChildren[]}} PatternItem */
 
@@ -23653,6 +23705,10 @@
   /**
    * A production of a lowered grammar (engine §3).
    * @typedef {object} Production
+   * @property {boolean} [treeRequested]
+   * @property {boolean} [observesTrees]
+   * @property {boolean} [walksTrees]
+   * @property {number} [treePrefixUntil]
    * @property {import("./grammar.js").StitchedAlternative} [source]
    * @property {import("./grammar.js").StitchedAlternative} [logicalSource]
    * @property {Expr} [writtenExpression]
@@ -23721,12 +23777,12 @@
   /**
    * A grammar lowered for one set of features.
    * @typedef {object} LoweredGrammar
+   * @property {boolean} treeComparisons
    * @property {WeakMap<object,WeakMap<object,{rule:string,condition:number,order:number}>>} boundarySites
    * @property {Production[]} productions
    * @property {Map<string, Production[]>} byLhs
    * @property {Resolution} resolution
    * @property {import("./ranked.js").RankedGroups} ranked
-   * @property {boolean} [conditionStrings] whether a condition reads emitted strings
    * @property {boolean} [contextual] whether a production is contextual, so that recognition keeps frames (engine §4)
    * @property {Map<string,Set<string>>} families static members from written rules
    * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
@@ -23748,7 +23804,7 @@
    * tag set, after the parts before it. A context makes each sequence once,
    * with its number (engine §4). `depth` counts the parts, and `jump` is an
    * earlier sequence that a search for a part can skip to.
-   * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, emitted?: Record<string,string>, id: number} | null} Captured
+   * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, treeIdentity?:number, id: number} | null} Captured
    */
 
   /**
@@ -23768,9 +23824,9 @@
    * A span a term denotes, with the tags of the captured part when it is a
    * whole capture.
    * @typedef {object} SpanValue
+   * @property {number} [treeIdentity]
    * @property {string} [patternName]
    * @property {number} [patternPrefix]
-   * @property {Record<string,string>} [emitted]
    * @property {import("./close-observations.js").CloseObservation|null} [observation]
    * @property {AlignedSpan} [aligned]
    * @property {number} [structure]
