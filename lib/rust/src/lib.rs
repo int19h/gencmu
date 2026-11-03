@@ -65,6 +65,7 @@ mod pipeline;
 mod rank;
 mod ranking_audit;
 mod ranking_patterns;
+mod tree_identity;
 pub use ranking_audit::{format_ranking_reports, CountedRuleChange, RankingReport, RankingStepReport};
 mod ranked;
 mod recent;

@@ -315,6 +315,7 @@ fn merge(a: &[u64], b: &[u64]) -> Bits {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct State {
+    tree: u32,
     observation: u32,
     family: u32,
     oracle: u32,
@@ -358,6 +359,7 @@ enum PatternItem {
 }
 #[derive(Debug)]
 pub(crate) struct Machine {
+    pub trees: Option<crate::tree_identity::Arena>,
     pub node_tags: bool,
     pub node_values: bool,
     predicates: Vec<Predicate>,
@@ -419,6 +421,7 @@ impl Machine {
     }
     fn build(configure: impl FnOnce(&mut Self)) -> Self {
         let mut m = Self {
+            trees: None,
             node_tags: false,
             node_values: false,
             predicates: vec![],
@@ -436,6 +439,7 @@ impl Machine {
         let zero = vec![0; m.predicates.len().div_ceil(64)];
         let relations = m.machines.iter().map(|n| n.epsilon.clone()).collect();
         m.empty = m.intern(State {
+            tree: 0,
             observation: 0,
             family: 0,
             oracle: 0,
@@ -612,6 +616,7 @@ impl Machine {
             })
             .collect();
         let id = self.intern(State {
+            tree: 0,
             observation: 0,
             family: 0,
             oracle: 0,
@@ -638,7 +643,12 @@ impl Machine {
             Some(observations) => observations.join(a.observation, b.observation),
             None => 0,
         };
+        let tree = match self.trees.as_mut() {
+            Some(trees) if a.tree != 0 || b.tree != 0 => trees.join(a.tree, b.tree),
+            _ => 0,
+        };
         let s = State {
+            tree,
             observation,
             family: {
                 let family = self.families.join(a.family, b.family);
@@ -747,6 +757,7 @@ impl Machine {
         };
         let zero = vec![0; bits.len()];
         let state = State {
+            tree: 0,
             observation: s.observation,
             family: s.family,
             oracle: s.oracle,
@@ -761,6 +772,35 @@ impl Machine {
         let id = self.intern(state);
         self.transitions.insert(key, id);
         id
+    }
+    pub(crate) fn tree_state(&self, state: u32) -> u32 {
+        self.states[state as usize].tree
+    }
+    pub(crate) fn tree(&self, state: u32) -> Option<crate::tree_identity::Tree> {
+        if state == u32::MAX {
+            return None;
+        }
+        self.trees.as_ref().and_then(|arena| arena.get(self.states[state as usize].tree))
+    }
+    pub(crate) fn with_tree(&mut self, state: u32, tree: u32) -> u32 {
+        if self.states[state as usize].tree == tree {
+            return state;
+        }
+        let mut state = self.states[state as usize].clone();
+        state.tree = tree;
+        self.intern(state)
+    }
+    pub(crate) fn select(&mut self, state: u32, closes: bool, trees: bool) -> u32 {
+        let mut state = self.states[state as usize].clone();
+        if !closes {
+            state.observation = 0;
+            state.family = 0;
+            state.oracle = 0;
+        }
+        if !trees {
+            state.tree = 0;
+        }
+        self.intern(state)
     }
     pub(crate) fn observation(&self, state: u32) -> u32 {
         self.states[state as usize].observation
@@ -785,6 +825,7 @@ impl Machine {
         s.observation = 0;
         s.family = 0;
         s.oracle = 0;
+        s.tree = 0;
         self.intern(s)
     }
     pub(crate) fn block(&mut self, block: crate::restoration::Block, child: u32) -> u32 {

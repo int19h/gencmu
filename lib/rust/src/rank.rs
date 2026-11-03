@@ -87,7 +87,7 @@ enum Node {
     /// any where it is `NO_TEST`.
     Group {
         emitted: u32,
-        requested: bool,
+        requested: u8,
         rule: u32,
         origin: u32,
         set: u32,
@@ -1432,7 +1432,7 @@ impl<'c> Ranker<'c> {
                                     let before = self.dag.chart.sets[m as usize].items[p as usize];
                                     let child = Node::Group {
                                         emitted: ANY,
-                                        requested: false,
+                                        requested: 0,
                                         rule,
                                         origin: m,
                                         set,

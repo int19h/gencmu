@@ -87,6 +87,7 @@ pub(crate) enum CmpOp {
 #[derive(Debug, Clone)]
 pub(crate) enum LCond {
     Tree(Span, bool, crate::patterns::Pattern),
+    SameTree(Span, bool, Span),
     Cmp(CmpOp, LTerm, LTerm),
     Matches(Span, u32),
     /// `begins(s, R)`: whether a prefix of the span, possibly empty, parses
@@ -330,6 +331,8 @@ impl Prod {
 pub(crate) struct Lowered {
     pub profile_possible: ProfilePossible,
     pub condition_strings: bool,
+    pub tree_demands: Arc<[crate::tree_identity::Demand]>,
+    pub tree_expressions: bool,
     pub unicode: Arc<crate::unicode::Unicode>,
     pub ranked: RankedRuntime,
     pub close_families: Arc<Vec<FxSet<u32>>>,
@@ -1018,6 +1021,9 @@ impl<'a> Scope<'a> {
             Cond::Compare(op, left, Term::Pattern(p)) if matches!(op.as_str(), "≅" | "≇") => {
                 LCond::Tree(self.span(left)?, op == "≅", (**p).clone())
             }
+            Cond::Compare(op, left, right) if matches!(op.as_str(), "≅" | "≇") => {
+                LCond::SameTree(self.span(left)?, op == "≅", self.span(right)?)
+            }
             Cond::Compare(op, left, right) => {
                 let op = match op.as_str() {
                     "=" => CmpOp::Eq,
@@ -1085,7 +1091,7 @@ pub(crate) struct LowerError {
 }
 
 impl LowerError {
-    fn at(stage: &str, document: &str, (line, column): (usize, usize), message: String) -> LowerError {
+    pub(crate) fn at(stage: &str, document: &str, (line, column): (usize, usize), message: String) -> LowerError {
         LowerError {
             message: format!("{document}:{line}:{column}: {message}"),
             document: document.to_string(),
@@ -1735,6 +1741,8 @@ pub(crate) fn lower(
     let mut lowered = Lowered {
         profile_possible: Default::default(),
         condition_strings: grammar.condition_strings,
+        tree_demands: Arc::from([]),
+        tree_expressions: grammar.tree_expressions,
         unicode: grammar.unicode.clone(),
         close_families: grammar.close_families.clone(),
         ranked: RankedRuntime::default(),
@@ -1752,6 +1760,10 @@ pub(crate) fn lower(
         prepared: Prepared::default(),
     };
     lowered.ranked = ranked_runtime(grammar, &lowered, &query_rules, &item_alts);
+    if grammar.tree_comparisons {
+        lowered.tree_demands = crate::tree_identity::demands(&lowered).into();
+        crate::tree_identity::check_cycles(&lowered, &sequences, &grammar.name)?;
+    }
     Ok(lowered)
 }
 

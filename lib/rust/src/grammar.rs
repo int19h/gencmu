@@ -103,6 +103,8 @@ pub struct Change {
 #[derive(Debug, Clone)]
 pub(crate) struct StageGrammar {
     pub condition_strings: bool,
+    pub tree_comparisons: bool,
+    pub tree_expressions: bool,
     pub features: Vec<(Arc<str>, crate::dom::Directive)>,
     pub unicode: Arc<Unicode>,
     pub name: String,
@@ -256,6 +258,8 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     }
     let mut grammar = StageGrammar {
         condition_strings: false,
+        tree_comparisons: false,
+        tree_expressions: false,
         unicode: Arc::new(unicode.clone()),
         name: stage.to_string(),
         rules: Vec::new(),
@@ -557,14 +561,18 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     // holds them.
     let mut checked: FxSet<*const RuleClauses> = FxSet::default();
     let mut condition_strings = false;
+    let mut tree_comparisons = false;
+    let mut tree_expressions = false;
     for rule in &grammar.rules {
         for alternative in &rule.alternatives {
             let first = checked.insert(Arc::as_ptr(&alternative.clauses));
             if first && !condition_strings {
                 condition_strings = crate::earley::has_condition_reads(&alternative.clauses.conditions);
             }
-            check_alternative(&grammar, alternative, first)
+            let (recognition, expressions) = check_alternative(&grammar, alternative, first)
                 .map_err(|message| located(message, &alternative.document, alternative.at))?;
+            tree_comparisons |= recognition;
+            tree_expressions |= expressions;
         }
     }
     grammar.close_families = Arc::new(close_families(&grammar));
@@ -585,6 +593,8 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     }
     emission_overlap(&grammar)?;
     grammar.condition_strings = condition_strings;
+    grammar.tree_comparisons = tree_comparisons;
+    grammar.tree_expressions = tree_expressions;
     if condition_strings {
         crate::earley::validate_condition_strings(&grammar)?;
     }
@@ -2326,27 +2336,33 @@ impl<'a> Iterator for ValueParts<'a> {
 
 /// Checks an alternative, and its rule's clauses where `clauses` says that
 /// no alternative before it shared them.
-fn check_alternative(grammar: &StageGrammar, alternative: &StitchedAlternative, clauses: bool) -> Result<(), String> {
+fn check_alternative(
+    grammar: &StageGrammar,
+    alternative: &StitchedAlternative,
+    clauses: bool,
+) -> Result<(bool, bool), String> {
+    let mut compared = false;
     check_expr(grammar, &alternative.alternative.expr)?;
     for term in alternative.alternative.tags.iter() {
-        check_term(grammar, term)?;
+        check_term(grammar, term, &mut compared)?;
     }
     if !clauses {
-        return Ok(());
+        return Ok((compared, compared));
     }
     let clauses = &alternative.clauses;
     for term in clauses.tags.iter() {
-        check_term(grammar, term)?;
+        check_term(grammar, term, &mut compared)?;
     }
     for cond in &clauses.conditions {
-        check_cond(grammar, cond)?;
+        check_cond(grammar, cond, &mut compared)?;
     }
+    let recognition = compared;
     for item in clauses.emit.iter().flatten() {
         if let EmitItem::Capture(_, Some(term), ..) | EmitItem::Insert(Some(term), _) = item {
-            check_term(grammar, term)?;
+            check_term(grammar, term, &mut compared)?;
         }
     }
-    Ok(())
+    Ok((recognition, compared))
 }
 
 fn check_rule(grammar: &StageGrammar, name: &str) -> Result<(), String> {
@@ -2409,25 +2425,25 @@ fn check_span_references(grammar: &StageGrammar, term: &Term) -> Result<(), Stri
     }
 }
 
-fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
+fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Result<(), String> {
     match term {
         Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
         // Stitching has checked every constant (engine §2).
         Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => Ok(()),
         Term::Union(items) | Term::Intersection(items) => {
             for item in items {
-                check_term(grammar, item)?;
+                check_term(grammar, item, compared)?;
             }
             Ok(())
         }
         Term::Difference(left, right) => {
-            check_term(grammar, left)?;
-            check_term(grammar, right)
+            check_term(grammar, left, compared)?;
+            check_term(grammar, right, compared)
         }
         Term::Capture(_) => Ok(()),
         Term::If(cond, then) => {
-            check_cond(grammar, cond)?;
-            check_term(grammar, then)
+            check_cond(grammar, cond, compared)?;
+            check_term(grammar, then, compared)
         }
         Term::Call(name, args) => match (name.as_str(), &args[..]) {
             ("value" | "image", [Arg::Term(Term::Call(method, args))]) if method == "emitted" => {
@@ -2445,16 +2461,16 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 check_rule(grammar, rule)
             }
             ("ngrams", [Arg::Term(string), Arg::Integer(n)]) if crate::dom::valid_integer(n) => {
-                check_term(grammar, string)
+                check_term(grammar, string, compared)
             }
             ("split", [Arg::Term(string), Arg::Term(delimiter)]) => {
-                check_term(grammar, string)?;
-                check_term(grammar, delimiter)
+                check_term(grammar, string, compared)?;
+                check_term(grammar, delimiter, compared)
             }
             ("concat", args) => {
                 for arg in args {
                     if let Arg::Term(term) = arg {
-                        check_term(grammar, term)?;
+                        check_term(grammar, term, compared)?;
                     }
                 }
                 Ok(())
@@ -2462,7 +2478,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             ("verbatim-text" | "emitted", [Arg::Term(span)]) => check_span_references(grammar, span),
             // A classifier that classify names belongs to the stage (§2).
             ("classify", [Arg::Term(string), Arg::Classifier(classifier)]) => {
-                check_term(grammar, string)?;
+                check_term(grammar, string, compared)?;
                 if grammar.classifiers.iter().any(|(_, item)| item.name == *classifier) {
                     Ok(())
                 } else {
@@ -2500,16 +2516,17 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
     }
 }
 
-fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
+fn check_cond(grammar: &StageGrammar, cond: &Cond, compared: &mut bool) -> Result<(), String> {
     work::count(Work::Stitched, 1);
     match cond {
         Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
         Cond::Compare(op, left, right) => {
+            *compared |= matches!(op.as_str(), "≅" | "≇") && matches!(right, Term::Capture(_));
             if !matches!(op.as_str(), "=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "≅" | "≇") {
                 return Err(format!("an unknown comparison {op}"));
             }
-            check_term(grammar, left)?;
-            check_term(grammar, right)
+            check_term(grammar, left, compared)?;
+            check_term(grammar, right, compared)
         }
         Cond::Matches(span, rule) | Cond::Begins(span, rule) | Cond::Ends(span, rule) => {
             if matches!(cond, Cond::Ends(..)) && crate::dom::restored_span(span) {
@@ -2524,15 +2541,15 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
             Ok(())
         }
         Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => check_span_references(grammar, span),
-        Cond::Not(inner) => check_cond(grammar, inner),
+        Cond::Not(inner) => check_cond(grammar, inner, compared),
         Cond::Captured(_) => Ok(()),
         Cond::If(antecedent, consequent) => {
-            check_cond(grammar, antecedent)?;
-            check_cond(grammar, consequent)
+            check_cond(grammar, antecedent, compared)?;
+            check_cond(grammar, consequent, compared)
         }
         Cond::Any(items) | Cond::All(items) => {
             for item in items {
-                check_cond(grammar, item)?;
+                check_cond(grammar, item, compared)?;
             }
             Ok(())
         }
@@ -2630,6 +2647,8 @@ mod tests {
                 (0..n).map(|index| entry(index, true)).chain((0..n).map(|index| entry(index, false))).collect();
             StageGrammar {
                 condition_strings: false,
+                tree_comparisons: false,
+                tree_expressions: false,
                 features: Vec::new(),
                 unicode: std::sync::Arc::new(
                     crate::unicode::Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").unwrap())

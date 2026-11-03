@@ -180,7 +180,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let empty = Cap {
             emitted: 0,
             boundary: 0,
-            close_requested: false,
+            close_requested: 0,
             start: frame.origin,
             end: frame.origin,
             tags: 0,
@@ -203,7 +203,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let mut item = Item {
             emitted: self.intern_strings(values),
             boundary: 0,
-            close_requested: false,
+            close_requested: 0,
             lexical: 1,
             prod: enclosing.root,
             dot: root.syms.len() as u32,

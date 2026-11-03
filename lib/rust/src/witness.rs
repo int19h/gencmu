@@ -348,8 +348,17 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                 let mut caps = Vec::new();
                 match (&chosen.nodes[child as usize].kind, production.syms[position]) {
                     (IKind::Read { tok, terminal }, Sym::T(symbol)) if *terminal == symbol => {
-                        let structure =
-                            forest.chart.terminal_states.get(&(from, symbol, false)).copied().unwrap_or(u32::MAX);
+                        let structure = forest
+                            .chart
+                            .terminal_states
+                            .get(&(
+                                from,
+                                symbol,
+                                false,
+                                !g.tree_demands.is_empty() && crate::tree_identity::terminal_demand(g, item),
+                            ))
+                            .copied()
+                            .unwrap_or(u32::MAX);
                         let token = &forest.tokens[forest.original_at[*tok as usize] as usize];
                         let tags = token.tags;
                         let boundary = forest
@@ -360,7 +369,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                         caps.push(Cap {
                             emitted: forest.chart.token_strings.get(&from).copied().unwrap_or(0),
                             boundary,
-                            close_requested: false,
+                            close_requested: 0,
                             start: from,
                             end: to,
                             tags,

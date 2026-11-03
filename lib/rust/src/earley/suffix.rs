@@ -79,6 +79,7 @@ fn reads_end(g: &Lowered, root: u32) -> bool {
                         _ => {}
                     },
                     Node::Cond(c) => match c {
+                        LCond::SameTree(..) => (),
                         LCond::Final(_) | LCond::Boundary(true, ..) if !nested => return true,
                         LCond::Matches(s, r) | LCond::Begins(s, r) | LCond::Ends(s, r) => {
                             nodes.push(Node::Query(s, *r))
@@ -168,7 +169,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             .filter(|((r, _), _)| *r == rule)
             .flat_map(|(_, items)| items)
             .filter(|&&k| {
-                !set.items[k as usize].close_requested
+                set.items[k as usize].close_requested == 0
                     && run
                         .chart
                         .boundaries
