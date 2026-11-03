@@ -511,13 +511,14 @@ An undecorated node test has one of these forms:
 {"wildcard":true,"at":[line,column]}
 {"constant":"LETTER","at":[line,column]}
 {"test":"tags","requirements":[REQUIREMENT...],"expr":TERMINALATOM}
+{"test":"tags","requirements":[REQUIREMENT...],"expr":RULEATOM}
 {"test":"=","value":STRINGTERM,"expr":TESTTARGET}
 {"test":"≠","value":STRINGTERM,"expr":TESTTARGET}
 ```
 
-TERMINALATOM is an undecorated `terminal`, `literal`, `range`, `wildcard`, or string-valued `constant`. Before substitution, it can also be a declared `param` that must become a terminal atom. TESTTARGET is TERMINALATOM or exactly one tag test on TERMINALATOM. The source order is tag then value. These inner objects carry no `exact` or `children` fields.
+TERMINALATOM is an undecorated `terminal`, `literal`, `range`, `wildcard`, or string-valued `constant`. Before substitution, it can also be a declared `param` that must become a terminal atom. RULEATOM is an undecorated `name`, `call`, or a `param` that must become one. TESTTARGET is TERMINALATOM or RULEATOM, or exactly one tag test on either. The source order is tag then value. These inner objects carry no `exact` or `children` fields.
 
-A tag test can also take a rule atom, `{"test":"tags","requirements":[REQUIREMENT...],"expr":RULEATOM}`, where RULEATOM is an undecorated `name`, `call`, or a `param` that must become one. It reads the constituent's tags (engine §4.1). A value test can take a rule atom or exactly one tag test on it, as in `{"test":"=","value":{"string":"mi"},"expr":{"name":"sumti"}}`. It reads the input value of the constituent's span. A tested rule atom carries no `children`.
+A tag test on a rule atom reads the constituent's tags (engine §4.1). A value test on a rule atom, as in `{"test":"=","value":{"string":"mi"},"expr":{"name":"sumti"}}`, reads the input value of the constituent's span. A tested rule atom carries no `children`.
 
 Every test takes an atom, so no test object stands alone. The mark `_Elided` is a REQUIREMENT only in a pattern tag test, and never without negation on a rule atom (engine §9.3).
 

@@ -673,7 +673,7 @@ flowchart TB
 | `#« [P Q] »` | An optional sequence of those two children |
 | `#« a b \| c »` | Either the children a then b, or one child c |
 
-A capitalized or engine tag denotes its tag terminal. A string literal, string constant, range, or `_` denotes its terminal identity. Other names, including `🆓`, denote named rules. A pattern constant denotes its predicate.
+A capitalized or engine tag denotes its tag terminal. A string literal, string constant, or range denotes its terminal identity. In a pattern, `_` denotes any written or omitted leaf. In a body, `_` keeps its wildcard terminal identity. Other names, including `🆓`, denote named rules. A pattern constant denotes its predicate.
 
 A node test names one rule, emoji rule, template family, exact call, parameter, or terminal. Terminal forms include tags, strings, string constants, ranges, and `_`. `_` matches every leaf, but it does not match every node. A pattern constant denotes a whole predicate rather than a node test.
 
@@ -745,7 +745,7 @@ The right operand takes its type by these rules:
 
 The compared tree is the structural tree above. Helpers are flattened, chain levels are kept, and a ranked group is one seal. Equality compares the two trees from their roots, child by child in order. It does not follow a single child, as a node test does. Two trees are equal by these rules:
 
-- If two rule nodes have the same rule and equal children in order, they are equal. Two template instances are two rules. A parent drops a structurally empty child from its sequence. A directly captured empty named rule keeps its root, with no children. So two captures of different empty rules are not equal.
+- If two rule nodes have the same rule and equal children in order, they are equal. Each template instance is a rule of its own. So nodes of two different instances are not equal, and nodes of one instance compare by their children. A parent drops a structurally empty child from its sequence. A directly captured empty named rule keeps its root, with no children. So two captures of different empty rules are not equal.
 - If one terminal read two written leaves and their tokens have equal values, the leaves are equal. A literal, an escaped literal and an equal string constant are one terminal. The tags, image and attachments of the token take no part.
 - If two omitted leaves have equal terminators, they are equal. An omitted leaf never equals a written leaf. The default value of the terminator takes no part (see "Elided terminators").
 - If the token values of the spans of two seals are equal sequences, the seals are equal. The sequence has one value for each original token of the span, in order, and an empty value is an element. The option that the group chose, its private captures, its tags and its omissions take no part. A seal of an empty span is still a seal.
@@ -1371,7 +1371,7 @@ A directive is a keyword and its operands. By convention each stands in a block 
 - `%names "PATH"` adds a names resource for the current document and its nested includes. These directives precede every other statement.
 - `%stage NAME`, `%extend-stage NAME`, `%redefine-stage NAME`, `%include "PATH"` and `%features NAME…` build a pipeline, as the next section says.
 
-A document that holds `%ambiguity-resolution` or `%elision-only` states that policy for every pipeline that includes it. Where pipelines differ in a policy, the shared document holds no such directive, and each pipeline document states its own. No form adds to a directive or replaces it. A layer changes what a step counts by `%redefine-const` of a pattern constant that a step names, where the base chose to name one. For example, the Lojban words stages share `%ambiguity-resolution lazy` in `grammars/lojban/common/stream.md`. Each syntax pipeline states its own directive.
+A document that holds `%ambiguity-resolution` or `%elision-only` states that policy for every pipeline that includes it. Where pipelines differ in a policy, the shared document holds no such directive, and each pipeline document states its own. No form adds to a directive or replaces it. A `%redefine-stage` clears the directives with the other items of the stage, so the redefined stage states its own. A layer changes what a step counts by `%redefine-const` of a pattern constant that a step names, where the base chose to name one. For example, the Lojban words stages share `%ambiguity-resolution lazy` in `grammars/lojban/common/stream.md`. Each syntax pipeline states its own directive.
 
 ## Pipelines
 
