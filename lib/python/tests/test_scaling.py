@@ -352,6 +352,7 @@ class ConditionStrings(unittest.TestCase):
                 pipeline, error = load_case_pipeline({"grammar": '%ambiguity-resolution greedy\n' + grammar})
                 assert pipeline is not None, error
                 self.assertFalse(pipeline._lowered_grammar(0, frozenset()).grammar.condition_strings)
+                self.assertFalse(pipeline._lowered_grammar(0, frozenset()).grammar.tree_comparisons)
                 items = 0
 
                 def profile(frame: FrameType, event: str, arg: Any) -> None:
@@ -360,11 +361,14 @@ class ConditionStrings(unittest.TestCase):
                         return
                     name = frame.f_code.co_name
                     if event == "call":
-                        self.assertNotIn(name, ("string_state", "condition_strings"))
+                        self.assertNotIn(name, ("string_state", "condition_strings", "tree_state", "terminal_identity", "seal_identity"))
                     if event == "return" and name == "add":
                         items += 1
                         self.assertEqual(frame.f_locals["string_prefixes"], [])
                         self.assertEqual(frame.f_locals["string_values"], [])
+                        self.assertIsNone(frame.f_locals["tree_prefixes"])
+                        self.assertIsNone(frame.f_locals["tree_ids"])
+                        self.assertIsNone(frame.f_locals["tree_sequences"])
                     if name in ("checked", "allowed") and "bound" in frame.f_locals:
                         self.assertIsNone(frame.f_locals["bound"].string_reader)
 

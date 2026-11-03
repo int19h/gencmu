@@ -41,22 +41,20 @@ def possible_node_match(pattern, name=None, terminal=None, tags=None, value=None
         right = match(pattern["difference"][1])
         return conjunction([match(pattern["difference"][0]), None if right is None else not right])
     if "test" in pattern:
-        base = True if pattern.get("any") else match(pattern["expr"])
+        base = match(pattern["expr"])
         if base is False:
             return False
         if pattern["test"] != "tags":
-            if name is not None:
-                return False
-            return None if value is None else conjunction([base, local_node_matches(pattern, name, tags or frozenset(), (terminal, value, tags or frozenset()))])
+            return None if value is None else conjunction([base, local_node_matches(pattern, name, tags or frozenset(), (terminal, value, tags or frozenset()) if terminal else None, value)])
         if tags is not None:
-            return conjunction([base, local_node_matches(dict(pattern, any=True), name, tags, (terminal, value, tags or frozenset()) if terminal else None)])
+            return conjunction([base, local_node_matches(pattern, name, tags, (terminal, value, tags or frozenset()) if terminal else None)])
         if any(not r["negated"] and "_Elided" in r["value"]["set"] for r in pattern["requirements"]):
             return False
         return conjunction([base, None if pattern["requirements"] else True])
     if "name" in pattern:
         return pattern["name"] == name
     if "terminal" in pattern:
-        return pattern["terminal"] == terminal
+        return terminal is not None if pattern["terminal"] == "_" else pattern["terminal"] == terminal
     return False
 
 

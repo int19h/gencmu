@@ -20,6 +20,7 @@ from ._model import Range, Tags, Token
 from ._tags import EMPTY, Gathered, TagTable, difference, intersection, is_class, split_string, ngrams
 from ._trampoline import Walk, run
 from ._patterns import PatternMachine, observation_machine
+from ._tree_identities import TreeIdentities
 from ._unicode import UnicodeTable
 from ._closes import Block, CloseMachine, InvalidObservation, RestoredSpan, needed, local_demand, query_prefixes
 from ._families import DEAD, IDENTITY, FamilyMatcher, Summary
@@ -102,7 +103,7 @@ class Bound:
     part comes from one walk, so a term that reads them all walks them
     about twice at most. ``$`` is the whole constituent where it is known."""
 
-    __slots__ = ("production", "caps", "base", "project", "whole", "found", "all", "searched", "machine", "structure", "close_structure", "boundary_value", "boundary_test", "string_reader", "root_pattern")
+    __slots__ = ("production", "caps", "base", "project", "whole", "found", "all", "searched", "machine", "structure", "close_structure", "boundary_value", "boundary_test", "string_reader", "root_pattern", "tree_whole", "tree_reader")
 
     def __init__(
         self,
@@ -166,6 +167,21 @@ class Bound:
             result = (start+self.base,end+self.base,tag) if self.project is None else (self.project[start],self.project[end],tag)
         self.found[name] = result
         return result
+
+    def tree_identity(self, name):
+        reader = getattr(self, "tree_reader", None)
+        if reader is not None:
+            return reader(name)
+        if name == WHOLE:
+            return getattr(self, "tree_whole", None)
+        position = self.production.captures.get(name)
+        if position is None:
+            frame = self.production.lexical
+            part = frame.captures.get(name) if frame else None
+        else:
+            slot = self.production.slots[position]
+            part = self.caps[slot] if 0 <= slot < len(self.caps) else None
+        return part[6] if part is not None and len(part) > 6 else None
 
     def observation(self, name: str) -> int:
         if name == WHOLE:
@@ -466,6 +482,7 @@ class StageContext:
         self.machine = self.observed.machine if self.observed is not None else observation_machine(self.lowered)
         self.close_rules = self.observed.close_rules if self.observed is not None else needed(self.lowered)
         self.closes = self.observed.closes if self.observed is not None else CloseMachine() if self.close_rules else None
+        self.trees = TreeIdentities() if self.lowered.grammar.tree_comparisons else None
         boundaries = Records(self.lowered.productions)
         if boundaries.forward or boundaries.backward:
             self.boundary_machine = boundaries
@@ -995,13 +1012,23 @@ class Evaluator:
         if "op" in dom:
             op = dom["op"]
             if op in ("≅", "≇"):
+                if "capture" in dom["right"]:
+                    left = bound.tree_identity(dom["left"]["capture"])
+                    right = bound.tree_identity(dom["right"]["capture"])
+                    if left is None or right is None:
+                        raise _GrammarFault("a constituent comparison lacks a demanded tree identity")
+                    return (left == right) == (op == "≅")
                 machine = bound.machine
                 from ._patterns import reads_node_tags
                 observation = bound.observation(dom["left"]["capture"])
                 if machine is not None and dom["left"]["capture"] == WHOLE and bound.root_pattern is not None and reads_node_tags(dom["right"]["pattern"]):
                     tags = yield self.walk_value({"method": "tags", "receiver": {"capture": WHOLE}, "args": []}, bound)
                     name, prefix = bound.root_pattern
-                    observation = machine.node(name, prefix, tags=tags)
+                    part = bound.get(WHOLE)
+                    observation = machine.node(name, prefix, tags=tags, value=self.input_value(part[0],part[1]) if machine.node_values else None)
+                if machine is not None and machine.node_values and dom["left"]["capture"] == WHOLE and bound.root_pattern is not None and not reads_node_tags(dom["right"]["pattern"]):
+                    part = bound.get(WHOLE)
+                    observation = machine.node(*bound.root_pattern, value=self.input_value(part[0], part[1]))
                 holds = machine is not None and machine.matches(observation, dom["right"]["pattern"])
                 return holds == (op == "≅")
             left = yield self.walk_value(dom["left"], bound)
@@ -1117,7 +1144,7 @@ class Parser:
         # ranked alternatives, and those of alternatives with item captures
         # (engine §4). It adds the productions it binds to frames to a copy.
         framed = ranked_groups or lowered.contextual
-        if framed or context.closes is not None:
+        if framed or context.closes is not None or context.trees is not None:
             lowered = replace(lowered,productions=list(lowered.productions))
         productions = lowered.productions
         # The stage's tokens, read from base on: a copy of the rest of a long
@@ -1158,12 +1185,15 @@ class Parser:
         family_structures: list[Summary] = []
         machine = context.machine
         closes = context.closes
+        trees = context.trees
+        tree_prefixes, tree_ids, tree_sequences = ({}, {}, {}) if trees is not None else (None, None, None)
+        tree_demands = context.lowered.tree_demands if trees is not None else None
         def original(position):
             return project[position] if project is not None else base + position
         from ._ranked_frame import Frames
-        frames = Frames(lowered, machine, closes, original) if framed else None
+        frames = Frames(lowered, machine, closes, original, trees) if framed else None
         def prediction_key(rule, frame=None, requested=False):
-            if closes is not None:
+            if closes is not None or trees is not None:
                 return rule, frame.id if frame else 0, requested
             return (rule, frame.id if frame else 0) if frames is not None else rule
         variants = {}
@@ -1172,7 +1202,7 @@ class Parser:
             if production.id not in demands:
                 demands[production.id] = local_demand(production)
             return demands[production.id]
-        def request_child(production, position, at):
+        def request_closes(production, position, at):
             if closes is None:
                 return False
             if production.observes_closes:
@@ -1220,14 +1250,72 @@ class Parser:
         restorations: list[int] = []
         agenda: list[int] = []
 
-        def completed_structure(production: Production, position: int, prefix: int) -> int:
+        def tree_demand(production):
+            return tree_demands[production.real_id]
+
+        def request_child(production, position, at):
+            requested = int(request_closes(production, position, at))
+            if trees is not None and (production.observes_trees and production.rhs[position] not in lowered.ranked_helpers or position in tree_demand(production)[1]):
+                requested |= 2
+            return requested
+
+        if trees is None: request_child = request_closes
+
+        def terminal_identity(terminal, position):
+            if recon and synthetic[position]:
+                return trees.empty_projection
+            source = observed if recon else context
+            index = project[position] if recon else base + position
+            return trees.written(terminal, source.tokens[index].value)
+
+        def seal_identity(start, at):
+            start, at = original(start), original(at)
+            key = start, at
+            if key not in trees.seals:
+                source = observed if recon else context
+                trees.seals[key] = trees.seal(token.value for token in source.tokens[start:at])
+            return trees.seals[key]
+
+        def tree_state(p, position, start, at, edge):
+            if not p.observes_trees:
+                return None
+            before, kind, child, terminal = edge
+            prefix = tree_prefixes[before] if before >= 0 else 0
+            if before >= 0:
+                if kind == 2:
+                    if p.rhs[position - 1] in lowered.ranked_helpers:
+                        prefix = trees.append(prefix, seal_identity(origin[child], end[child]))
+                    else:
+                        prefix = trees.concat(prefix, tree_sequences[child])
+                else:
+                    prefix = trees.append(prefix, terminal_identity(terminal, child))
+            identity, sequence = None, prefix
+            if position == len(p.rhs):
+                if not p.helper:
+                    identity = trees.rule(p.rule_name, prefix)
+                    sequence = trees.append(0, identity)
+                elif p.elided is not None:
+                    identity = trees.omitted(p.elided)
+                    sequence = trees.append(0, identity)
+            return prefix, identity, sequence
+
+        value_cache = {} if machine is not None and machine.node_values else None
+        def input_value(start, at):
+            first, last = original(start), original(at)
+            key = first, last
+            if key not in value_cache:
+                source = observed if recon else context
+                value_cache[key] = "".join(token.value for token in source.tokens[first:last])
+            return value_cache[key]
+
+        def completed_structure(production: Production, position: int, prefix: int, start=0, at=0) -> int:
             if machine is None or position != len(production.rhs):
                 return 0
             if production.elided is not None:
                 return machine.node(None, machine.empty, (production.elided, "", frozenset((production.elided, "_Elided"))))
             if production.helper:
                 return prefix
-            return machine.node(production.rule_name, prefix)
+            return machine.node(production.rule_name, prefix, value=input_value(start, at) if machine.node_values else None)
 
         def terminal_structure(production: Production, position: int, token: int, terminal: str) -> int:
             if machine is None:
@@ -1407,14 +1495,16 @@ class Parser:
                 known_tag = prediction_tags.pop((production, at), known_tag)
             if reads_strings:
                 string_prefix, strings = string_state(productions[production], position, start, at, captured, edge)
+            tree = tree_state(productions[production], position, start, at, edge) if trees is not None and productions[production].observes_trees else None
             bounded = None
             if boundaries is not None:
                 obligations = prediction_obligations.pop((production, at), []) if obligations is None else obligations
                 bounded = boundary_step(productions[production], position, start, at, edge, obligations)
                 if bounded is None:
                     return
-            structure = completed_structure(productions[production], position, prefix)
+            structure = completed_structure(productions[production], position, prefix, start, at)
             key = (production, position, start, captured) + ((prefix, structure) if machine is not None else ())
+            if tree is not None and productions[production].observes_trees: key += (tree[0], tree[1])
             if reads_strings and productions[production].real_id in string_demands:
                 key += (strings if position == len(productions[production].rhs) else string_prefix,)
             if closes is not None:
@@ -1445,6 +1535,10 @@ class Parser:
                 if reads_strings:
                     string_prefixes.append(string_prefix)
                     string_values.append(strings)
+                if tree is not None:
+                    tree_prefixes[found] = tree[0]
+                    tree_ids[found] = tree[1]
+                    tree_sequences[found] = tree[2]
                 prod.append(production)
                 dot.append(position)
                 origin.append(start)
@@ -1490,23 +1584,26 @@ class Parser:
             if frames is None:
                 return None
             p = productions[prod[item]]
-            return frames.entry(p, dot[item], origin[item], prefixes[item], caps[item], rule, any(edge[1] == RESTORE for edge in edges[item]), close_prefixes[item] if closes is not None else 0, end[item], records[item] if boundaries is not None else None, string_prefixes[item] if reads_strings else ())
+            return frames.entry(p, dot[item], origin[item], prefixes[item], caps[item], rule, any(edge[1] == RESTORE for edge in edges[item]), close_prefixes[item] if closes is not None else 0, end[item], records[item] if boundaries is not None else None, string_prefixes[item] if reads_strings else (), tree_prefixes.get(item, 0) if trees is not None else 0)
 
         def candidate(p, frame, requested=False):
             p = frames.production(p, frame) if frames is not None else p
-            if closes is None:
+            if closes is None and trees is None:
                 return p
             key = p.id, requested
             if key not in variants:
                 q = replace(p, id=len(productions), base_id=p.real_id,
-                            close_requested=requested,
-                            observes_closes=requested or demand(p)[0])
+                            close_requested=bool(requested & 1),
+                            observes_closes=closes is not None and (bool(requested & 1) or demand(p)[0]))
+                if trees is not None:
+                    q.tree_requested = bool(requested & 2)
+                    q.observes_trees = q.tree_requested or tree_demand(p)[0]
                 productions.append(q)
                 demands[q.id] = demand(p)
                 variants[key] = q
             return variants[key]
 
-        def bound_for(production, captured, whole=None, structure=0, close_structure=0, prefix=0):
+        def bound_for(production, captured, whole=None, structure=0, close_structure=0, prefix=0, tree_identity=None):
             root_pattern = (production.rule_name, prefix)
             frame = production.lexical
             if frame is not None and whole is not None:
@@ -1530,6 +1627,11 @@ class Parser:
                     structure = machine.node(*root_pattern)
             bound = evaluator.bind(production, captured, whole, structure, close_structure)
             bound.root_pattern = root_pattern
+            if trees is not None:
+                if frame is not None and whole is not None:
+                    sequence = trees.append(getattr(frame, "tree_seal_prefix", 0), seal_identity(frame.seal_start, whole[1]))
+                    tree_identity = trees.rule(frame.root.rule_name, sequence)
+                bound.tree_whole = tree_identity
             return bound
 
         def constituent_tag(production: Production, captured: Caps) -> int:
@@ -1539,13 +1641,13 @@ class Parser:
                 return captured[production.slots[production.inherited]][2]
             return tagtab.empty
 
-        def term_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0, close_structure: int = 0) -> Walk:
+        def term_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0, close_structure: int = 0, tree_identity=None) -> Walk:
             """The tag set of a completed item from its production's tag
             term, which can ask nested parses (engine §4)."""
-            bound = bound_for(production, captured, (start, at, None), structure, close_structure)
+            bound = bound_for(production, captured, (start, at, None), structure, close_structure, tree_identity=tree_identity)
             return tagtab.intern(_as_set((yield evaluator.walk_value(production.tags_term, bound))))
 
-        def lazy_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0, close_structure: int = 0) -> Callable[[], Walk]:
+        def lazy_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0, close_structure: int = 0, tree_identity=None) -> Callable[[], Walk]:
             """The walk of the tag set of a completing item, computed on
             first use (engine §4)."""
             memo: list[int] = []
@@ -1555,7 +1657,7 @@ class Parser:
                     if production.tags_term is None:
                         memo.append(constituent_tag(production, captured))
                     else:
-                        memo.append((yield term_tag(production, captured, start, at, structure, close_structure)))
+                        memo.append((yield term_tag(production, captured, start, at, structure, close_structure, tree_identity)))
                 return memo[0]
 
             return tag
@@ -1636,6 +1738,9 @@ class Parser:
             if reads_strings:
                 child_strings = string_values[edge[2]] if edge[1] == 2 else (("image", tokens[edge[2]].image), ("value", tokens[edge[2]].value))
                 part = (*part[:3], part_structure, part_closes, child_strings)
+            if trees is not None and position in tree_demand(production)[1]:
+                identity = tree_ids[edge[2]] if edge[1] == 2 else terminal_identity(edge[3], edge[2])
+                part = (*part[:3], part_structure, part_closes, child_strings if reads_strings else (), identity)
             captured = caps[item]
             if production.slots[position] >= 0:
                 step = (captured, part)
@@ -1666,14 +1771,15 @@ class Parser:
             and then the item, if they all hold. Once the constituent is
             complete, $ has its tags, and the tag term runs only where a
             condition reads them (engine §4)."""
+            tree_identity = tree_state(production, position + 1, start, at, edge)[1] if trees is not None and production.observes_trees else None
             known_tag = None
             complete = position + 1 == len(production.rhs)
             if complete and (production.whole_ready or boundaries is not None and production.tags_term is not None):
-                structure = completed_structure(production, position + 1, prefix)
+                structure = completed_structure(production, position + 1, prefix, start, at)
                 close_structure = completed_closes(production, position + 1, start, at, close_prefix)
-                known_tag = lazy_tag(production, captured, start, at, structure, close_structure)
+                known_tag = lazy_tag(production, captured, start, at, structure, close_structure, tree_identity)
             if production.whole_ready and complete:
-                bound = bound_for(production, captured, (start, at, known_tag), structure, close_structure, prefix)
+                bound = bound_for(production, captured, (start, at, known_tag), structure, close_structure, prefix, tree_identity)
             else:
                 bound = bound_for(production, captured)
             if reads_strings:
@@ -1705,11 +1811,12 @@ class Parser:
             # $ is bound for an empty production, whose span is empty at j.
             # Its tag term runs only where a condition reads $'s tags (engine
             # §4).
-            structure = completed_structure(production, 0, 0)
+            tree_identity = tree_state(production, 0, j, j, SEED)[1] if trees is not None and production.observes_trees else None
+            structure = completed_structure(production, 0, 0, j, j)
             close_structure = completed_closes(production, 0, j, j, 0)
-            known_tag = lazy_tag(production, NO_CAPS, j, j, structure, close_structure) if not production.rhs else None
+            known_tag = lazy_tag(production, NO_CAPS, j, j, structure, close_structure, tree_identity) if not production.rhs else None
             whole = (j, j, known_tag) if known_tag is not None else None
-            bound = bound_for(production, NO_CAPS, whole, structure, close_structure)
+            bound = bound_for(production, NO_CAPS, whole, structure, close_structure, tree_identity=tree_identity)
             if reads_strings:
                 strings = string_state(production, 0, j, j, NO_CAPS, SEED)[1]
                 bound.string_reader = lambda channel: condition_strings(production,NO_CAPS,j,strings).get(channel, "")
@@ -1901,17 +2008,17 @@ class Parser:
                     tag[item] = constituent_tag(production, caps[item])
                 else:
                     try:
-                        tag[item] = yield term_tag(production, caps[item], start, j, structures[item], close_structures[item] if closes is not None else 0)
+                        tag[item] = yield term_tag(production, caps[item], start, j, structures[item], close_structures[item] if closes is not None else 0, tree_ids.get(item) if trees is not None else None)
                     except InvalidObservation:
                         continue
-                if machine is not None and machine.node_tags and not production.helper:
-                    structures[item] = machine.node(production.rule_name, prefixes[item], tags=tagtab.get(tag[item]))
+                if machine is not None and (machine.node_tags or machine.node_values) and not production.helper:
+                    structures[item] = machine.node(production.rule_name, prefixes[item], tags=tagtab.get(tag[item]), value=input_value(start, j) if machine.node_values else None)
                 lhs = production.lhs
                 part = (start, j, tag[item])
                 if start == j:
-                    empty_done[j].setdefault(prediction_key(lhs,production.lexical,production.close_requested), []).append(item)
+                    empty_done[j].setdefault(prediction_key(lhs,production.lexical,int(production.close_requested) | (2 if production.tree_requested else 0)), []).append(item)
                     if recon:
-                        for waiter in list(waiting[start].get(prediction_key(lhs,production.lexical,production.close_requested), ())):
+                        for waiter in list(waiting[start].get(prediction_key(lhs,production.lexical,int(production.close_requested) | (2 if production.tree_requested else 0)), ())):
                             if not strict[waiter]:
                                 walk = advance(waiter, part, j, (waiter, 2, item, 0))
                                 if walk is not None:
@@ -1924,7 +2031,7 @@ class Parser:
                                 if walk is not None:
                                     yield walk
                         continue
-                for waiter in list(waiting[start].get(prediction_key(lhs,production.lexical,production.close_requested), ())):
+                for waiter in list(waiting[start].get(prediction_key(lhs,production.lexical,int(production.close_requested) | (2 if production.tree_requested else 0)), ())):
                     walk = advance(waiter, part, j, (waiter, 2, item, 0))
                     if walk is not None:
                         yield walk
@@ -1932,7 +2039,7 @@ class Parser:
                 witnesses = [item for item in sets[j].values() if item in tag
                              and productions[prod[item]].lhs == start_rule
                              and dot[item] == len(productions[prod[item]].rhs)
-                             and not productions[prod[item]].close_requested]
+                             and not productions[prod[item]].close_requested and not productions[prod[item]].tree_requested]
                 if proofs is None:
                     # Eligibility observes item coordinates and never reads tokens.
                     proofs = Forest([], lowered, prod, dot, origin, end, caps, edges, tag, [], j, {},
@@ -1940,6 +2047,7 @@ class Parser:
                                     strict if has_slots else [], close_structures, close_prefixes, closes,
                                     False, family, family_prefixes, family_structures, records, boundaries,
                                     annotations, failures)
+                if trees is not None: proofs.tree_prefix = tree_prefixes
                 proofs.furthest = j
                 suffix.answers[base + j] = bool(eligible(proofs,boundary_witnesses(proofs,witnesses)))
                 if base + j == self.end:
@@ -1989,14 +2097,14 @@ class Parser:
             item
             for item in final.values()
             if item in tag and origin[item] == 0 and productions[prod[item]].lhs == start_rule and dot[item] == len(productions[prod[item]].rhs)
-            and productions[prod[item]].close_requested == self.observe
+            and productions[prod[item]].close_requested == self.observe and not productions[prod[item]].tree_requested
         ]
         expected: dict[str, set[str]] = {}
         here = tokens[base + furthest].tags if furthest < n else {}
         here_tag = token_tags[base + furthest] if furthest < n else None
         for prediction in predicted[furthest]:
-            rule = prediction[0] if frames is not None or closes is not None else prediction
-            requested = prediction[2] if closes is not None else False
+            rule = prediction[0] if frames is not None or closes is not None or trees is not None else prediction
+            requested = prediction[2] if closes is not None or trees is not None else False
             frame = next((f for f in frames.frames.values() if f.id==prediction[1]),None) if frames is not None else None
             for terminal, numbers in itertools.chain(by_first[rule].items(), by_first_characters[rule].items()):
                 if here_tag is not None and (carries(terminal, base + furthest) if terminal in characters else terminal in here):
@@ -2013,7 +2121,13 @@ class Parser:
                 expected.setdefault(written_symbol(terminal, test), set()).add(production.rule_name)
         # The forest's tokens are those the parse read, before its furthest
         # set.
-        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if has_slots else [], strict if has_slots else [], close_structures, close_prefixes, closes, self.observe, family, family_prefixes, family_structures, records, boundaries, annotations, failures, tagtab=context.tagtab)
+        result = Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if has_slots else [], strict if has_slots else [], close_structures, close_prefixes, closes, self.observe, family, family_prefixes, family_structures, records, boundaries, annotations, failures, tagtab=context.tagtab)
+        if context.observed is not None: result.original_tokens = context.observed.tokens
+        if trees is not None:
+            result.tree_prefix = tree_prefixes
+            result.tree_identity = tree_ids
+            result.tree_sequence = tree_sequences
+        return result
 
 
 def reading_last(lowered: Lowered) -> list[int]:

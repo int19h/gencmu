@@ -334,10 +334,10 @@ def local_demand(production):
     whole, positions, queries = False, set(), {}
     stack = [production.conds_predict, production.conds_at, production.items.conditions if production.items else None,
              production.tags_term, production.emit, production.parent_tags]
-    if production.slot is not None:
+    if production.slot is not None or production.source is not None:
         # Deferred option gates can consume earlier public captures.
         # A private whole capture also names the written alternative.
-        source = production.slot.source
+        source = production.slot.source if production.slot is not None else production.source
         stack.extend((source.conditions, source.tags, source.rule_tags))
     seen = set()
     while stack:

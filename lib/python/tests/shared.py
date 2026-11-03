@@ -760,7 +760,7 @@ def case_value(value: Any, kind: str, where: str) -> None:
 
 
 def validate_engine_expect(expect: Any) -> None:
-    case_object(expect, "result brackets warnings features enabledFeatures error where message diagnostic bundledPipelines loadWarnings", "expect")
+    case_object(expect, "result brackets warnings features enabledFeatures error where message diagnostic bundledPipelines", "expect")
     for field in ("brackets", "error", "message", "diagnostic"):
         if field in expect:
             case_value(expect[field], "string", "expect." + field)
@@ -771,11 +771,6 @@ def validate_engine_expect(expect: Any) -> None:
         case_object(expect["where"], "document line column", "expect.where", "document")
         for field, value in expect["where"].items():
             case_value(value, "string" if field == "document" else "position", "expect.where." + field)
-    if "loadWarnings" in expect:
-        assert isinstance(expect["loadWarnings"],list)
-        for warning in expect["loadWarnings"]:
-            case_object(warning,"stage step tag","expect.loadWarnings[]","stage step tag")
-            assert isinstance(warning['stage'],str) and isinstance(warning['tag'],str) and type(warning['step']) is int and warning['step'] >= 0
     if "features" in expect:
         assert isinstance(expect["features"], list), "expect.features: expected an array"
         for feature in expect["features"]:

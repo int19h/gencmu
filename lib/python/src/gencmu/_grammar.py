@@ -7,7 +7,7 @@ import itertools
 import threading
 from dataclasses import dataclass, field, replace
 from copy import copy as shallow_copy
-from typing import AbstractSet, Any, Union
+from typing import AbstractSet, Any, Union, ClassVar
 
 from ._clauses import WHOLE, Emission, Prepared, captures_in, check_definition, rule_has_ranked, prepare, prepare_conditions, simplify_term, item_captures, mentioned_in
 from ._errors import ErrorData, GencmuError
@@ -141,6 +141,7 @@ class Grammar:
     changes: list[Change] = field(default_factory=list)
     ranked: RankedGroups | None = field(default=None, repr=False, compare=False)
     condition_strings: bool = False
+    tree_comparisons: bool = False
     # The stage's %classifier items in stitching order, each with its
     # document (engine §2).
     classifier_items: list[tuple[str, Dom]] = field(default_factory=list)
@@ -690,7 +691,7 @@ class _Constants:
         if isinstance(node.get("const"), str):
             constant = self.values[node["const"]]
             return constant.value if constant.type == "pattern" else {"string": constant.value} if constant.type == "string" else {"const": node["const"], "at": node["at"], "value": constant.value}
-        if node.get("op") in ("≅", "≇") and not has_unresolved(node["right"]):
+        if node.get("op") in ("≅", "≇") and "capture" not in node["right"] and not has_unresolved(node["right"]):
             return {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
         copy: dict[str, Any] = {}
         for key, value in node.items():
@@ -727,7 +728,12 @@ class _Constants:
                 constant = self.values[node["const"]]
                 copy = constant.value if constant.type == "pattern" else {"string": constant.value} if constant.type == "string" else {"const": node["const"], "at": node["at"], "value": constant.value}
             elif node.get("op") in ("≅", "≇"):
-                copy = {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
+                if "capture" in node["right"]:
+                    self.seen_trees = True
+                    copy = node
+                else:
+                    copy = shallow_copy(node)
+                    copy["right"] = yield self._closed("", node["right"], None, "pattern")
             else:
                 values: dict[str, Any] = {}
                 for key, value in node.items():
@@ -779,7 +785,7 @@ def _value_parts(root: Any):
         if pattern or "pattern" in node:
             continue
         if node.get("op") in ("≅", "≇"):
-            pending.extend(((node["right"], True), (node["left"], False)))
+            pending.extend(((node["right"], "capture" not in node["right"]), (node["left"], False)))
             continue
         if "alternatives" in node:
             keys = ("tags", "value", "image", "alternatives", "conditions", "emit")
@@ -1004,6 +1010,11 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
             implications.append(constants.implication(path,item))
     classifier_items = resolved_classifiers
     constants.resolve(rules)
+    if getattr(constants, "seen_trees", False):
+        from ._tree_identities import comparisons
+        has_trees = any(comparisons([alt.tags, alt.rule_tags, alt.conditions]) for rule in rules.values() for alt in rule.alternatives)
+    else:
+        has_trees = False
     default_nodes = _resolve_tests(rules, constants)
     if not resolutions:
         raise GencmuError("has no %ambiguity-resolution", stage=stage)
@@ -1084,6 +1095,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         families=members(rules, family_names),
         query_terminals=frozenset(query_terminals),
         condition_strings=has_emitted,
+        tree_comparisons=has_trees,
     )
 
     grammar.ranked = RankedGroups(stage, rules)
@@ -1255,6 +1267,9 @@ class Production:
     base_id: int | None = field(default=None,repr=False,compare=False)
     lexical: Any = field(default=None,repr=False,compare=False)
     ranked: Any = field(default=None,repr=False,compare=False)
+    tree_conditions: ClassVar[Any] = None
+    tree_requested: ClassVar[bool] = False
+    observes_trees: ClassVar[bool] = False
     close_requested: bool = field(default=False, repr=False, compare=False)
     observes_closes: bool = field(default=False, repr=False, compare=False)
     option: int = -1
@@ -1884,7 +1899,12 @@ class _Lowerer:
             contextual=self.contextual,
         )
         from ._ranked_frame import prepare_ranked
+        if self.grammar.tree_comparisons: lowered.tree_sites = []
         prepare_ranked(lowered)
+        if self.grammar.tree_comparisons:
+            from ._tree_identities import prepare, check_cycles
+            prepare(lowered)
+            check_cycles(lowered, self.structural)
         return lowered
 
     def check_brace_items(self) -> None:

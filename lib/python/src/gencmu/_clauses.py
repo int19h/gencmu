@@ -420,23 +420,6 @@ def _index(sequence: list[Any], wanted: Any) -> int:
     return -1
 
 
-def _pattern_comparison_names(condition: Any) -> set[str]:
-    """The captures that the pattern comparisons of a condition name, ``≅``
-    and ``≇`` with their own operands (engine §3.6)."""
-    names: set[str] = set()
-    stack = [condition]
-    while stack:
-        value = stack.pop()
-        if isinstance(value, dict):
-            if value.get("op") in ("≅", "≇"):
-                names |= mentioned_in(value)
-                continue
-            stack.extend(value.values())
-        elif isinstance(value, list):
-            stack.extend(value)
-    return names
-
-
 def _brace_helper_sequences(braces: Dom) -> list[set[str]]:
     """The captures of each production of the helper of flat braces: each
     item, and each separator followed by an item (engine §3.2). The item
@@ -484,11 +467,6 @@ def _item_capture_problem(rule: Dom, places: dict[int, dict[str, ItemCapture]], 
             continue
         if WHOLE in mentioned:
             return f"a condition of {rule['name']} reads ${inside[0]}, an item capture, together with $, which is not complete at each item"
-        pattern = next((name for name in sorted(_pattern_comparison_names(condition)) if name in item_names), None)
-        if pattern is not None:
-            return f"a condition of {rule['name']} compares ${pattern}, an item capture, with a pattern"
-        # A condition that holds a constant without its value waits for the
-        # loader, which checks the definition again (engine §9).
         prepared = None if waits(condition) else prepare(condition, True)
         applies = prepared is None
         for alternative in alternatives:

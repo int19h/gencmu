@@ -105,7 +105,7 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
                 return "a malformed pattern path"
             push(node["pattern"], False, False)
             continue
-        forms = [k for k in ("name", "call", "param", "terminal", "literal", "range", "wildcard", "constant", "test", "any") if k in node and not (k == "any" and node.get("test") == "tags")]
+        forms = [k for k in ("name", "call", "param", "terminal", "literal", "range", "wildcard", "constant", "test", "any") if k in node]
         if len(forms) != 1:
             return "a malformed pattern node test"
         key = forms[0]
@@ -116,10 +116,10 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
         fields = {key} | (keys & {"exact", "children"})
         if key == "test":
             if node["test"] == "tags":
-                fields |= {"requirements", "any" if node.get("any") is True else "expr"}
+                fields |= {"requirements", "expr"}
                 expr = node.get("expr")
                 rule_atom = isinstance(expr, dict) and any(k in expr for k in ("name", "call")) and not {"exact", "children"} & expr.keys()
-                if not (node.get("any") is True or terminal_atom(expr) or rule_atom) or not isinstance(node.get("requirements"), list):
+                if not (terminal_atom(expr) or rule_atom) or not isinstance(node.get("requirements"), list):
                     return "a pattern tag test requires a node atom"
                 for requirement in node["requirements"]:
                     if not isinstance(requirement, dict) or set(requirement) != {"negated", "value"} or type(requirement["negated"]) is not bool or not requirement_term(requirement["value"]):
@@ -127,8 +127,8 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
             else:
                 fields |= {"value", "expr"}
                 expr = node.get("expr")
-                if node["test"] not in ("=", "≠") or not (terminal_atom(expr) or isinstance(expr, dict) and expr.get("test") == "tags" and "exact" not in expr and "children" not in expr and (terminal_atom(expr.get("expr")) or expr.get("any") is True)):
-                    return "a pattern value test requires a terminal atom"
+                if node["test"] not in ("=", "≠") or not (terminal_atom(expr) or isinstance(expr, dict) and ("name" in expr or "call" in expr) or isinstance(expr, dict) and expr.get("test") == "tags" and "exact" not in expr and "children" not in expr and (terminal_atom(expr.get("expr")) or isinstance(expr.get("expr"), dict) and ("name" in expr["expr"] or "call" in expr["expr"]))):
+                    return "a pattern value test requires a node atom"
                 if not _string_term(node.get("value")):
                     return "a malformed pattern value test"
             problem = test(node) if test else None

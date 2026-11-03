@@ -253,21 +253,25 @@ class Options(unittest.TestCase):
         with self.assertRaises(gencmu.GencmuError):
             self.pipeline.parse("mi", features="sa-su")
 
-    def test_ranking_reports_keep_computed_drops_unknown(self) -> None:
-        for term, tags, unknown, status in (("T", ["U"], False, "possible"), ("T ∪ $x.tags", [], True, "unknown")):
-            with self.subTest(term=term):
-                grammar = f"%ambiguity-resolution fewest #·wrap<T>\n%rule text wrap\n%rule wrap $x:child :: ({term})\n%rule child A :: U"
-                pipeline = gencmu.load_pipeline_sources({"p.md": "```jbogenbau\n%stage main\n" + grammar + "\n```"}, "p.md")
-                reports = pipeline.ranking_reports()
-                note = next(note for note in reports[0]['droppedRankingTags'] if note['rule'] == 'wrap')
-                self.assertEqual(note['tags'], tags)
-                self.assertEqual(note['unknown'], unknown)
-                self.assertEqual(reports[0]['keySteps'][0]['status'], status)
-                self.assertTrue(any(note['rule'] == 'text' and 'T' in note['tags'] for note in reports[0]['inheritedRankingTags']))
-                self.assertIn('dropped inherited tags: wrap', pipeline.format_ranking_reports())
+    def test_ranking_reports_label_only_unreachable_patterns(self) -> None:
+        for grammar, pattern, impossible in (
+            ('%rule text A', '#·_', False),
+            ('%rule text [+END]', '#·_<_Elided>', False),
+            ('%rule text ε', '#·_', True),
+            ('%rule text wrap\n%rule wrap $x:child :: (T ∪ $x.tags)\n%rule child A :: U', '#·wrap<T>', False),
+        ):
+            with self.subTest(pattern=pattern, grammar=grammar):
+                source = '%ambiguity-resolution fewest ' + pattern + '\n' + grammar
+                pipeline = gencmu.load_pipeline_sources({'p.md': '```jbogenbau\n%stage main\n' + source + '\n```'}, 'p.md')
+                report = pipeline.ranking_reports()[0]
+                self.assertEqual(report['keySteps'][0].get('status'), 'impossible' if impossible else None)
+                self.assertNotIn('droppedRankingTags', report)
+                self.assertNotIn('inheritedRankingTags', report)
+                self.assertNotIn('vocabularyWarnings', report)
+                self.assertEqual('ranking step 1: impossible' in pipeline.format_ranking_reports(), impossible)
 
     def test_pipeline_exposes_only_documented_members(self) -> None:
-        self.assertEqual({name for name in dir(self.pipeline) if not name.startswith("_")}, {"features", "parse", "parse_tokens", "load_warnings", "ranking_reports", "format_ranking_reports"})
+        self.assertEqual({name for name in dir(self.pipeline) if not name.startswith("_")}, {"features", "parse", "parse_tokens", "ranking_reports", "format_ranking_reports"})
 
     def test_pipeline_defaults_enable_features(self) -> None:
         sources = dict(SOURCES)

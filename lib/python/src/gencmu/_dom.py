@@ -929,11 +929,14 @@ class DomBuilder:
                 raise self.fail(name, f"tree comparison requires a pattern; write #{text}, not {text}")
             right = yield self._term(operand)
             kind, problem = term_type(right, memo=self.types)
-            if problem is None:
+            if "capture" in right:
+                problem = "a tree comparison cannot compare a capture with itself" if left == right else None
+            elif problem is None:
                 problem = comparison_problem(op, "capture", kind)
             if problem is not None and not self.feature_context:
-                raise self.fail(node, problem)
-            return {"op":op, "left":left, "right":right}
+                raise self.fail(node if "capture" in right else operand, problem)
+            from ._boundary import Located
+            return Located({"op":op, "left":left, "right":right}, self.position(node))
         if node.rule == "comparison":
             op = self.operator(self.token(self.only(node, "comparator")))
             terms = self.some(node, "union", 2)
@@ -1088,14 +1091,8 @@ class DomBuilder:
         # Inspect all tests before converting their operands.
         self.test_order(tests, True)
         tests_only = first.rule in ("tag-test", "value-test")
-        if not valid and not tests_only and first.rule != "parameter":
-            value_test = next((test for test in tests if test.rule == "value-test"), None)
-            if value_test is not None:
-                raise self.fail(value_test, "a pattern value test requires a terminal atom")
         if tests_only:
-            if first.rule != "tag-test":
-                raise self.fail(first, "a tag-only pattern starts with a tag test")
-            return {"node": (yield self._wrap_tests({"any": True}, tests, True))}
+            raise self.fail(first, "a pattern test requires an atom")
         if named or first.rule == "call":
             for test in tests:
                 if test.rule != "tag-test":

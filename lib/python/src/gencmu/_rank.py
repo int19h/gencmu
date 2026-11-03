@@ -920,18 +920,23 @@ class Profiles:
         self.tagtab = tagtab
         self.tokens = tokens
         self.values = tuple(has_pattern_value(pattern) for _, pattern in steps)
+        self.span_values = {} if any(self.values) else None
         self.answers = {}
         self.zero: Profile = tuple(() if kind == "leftmost-longest" else 0 if kind in ("fewest", "most") else None for kind in self.kinds)
         self.leaves: dict[int, Elided] = {}
 
     def occurrence(self, name, tags, terminal, value, p, q) -> Profile:
+        if name is not None and self.span_values is not None:
+            key = p, q
+            if key not in self.span_values: self.span_values[key] = "".join(token.value for token in self.tokens[p:q])
+            value = self.span_values[key]
         profile = None
         for index, (_, pattern) in enumerate(self.steps):
             key = (index, name, terminal, tags, value if self.values[index] else None)
             match = self.answers.get(key)
             if match is None:
                 leaf = (terminal, value, tags) if terminal is not None else None
-                match = local_node_matches(pattern, name, tags, leaf)
+                match = local_node_matches(pattern, name, tags, leaf, value)
                 self.answers[key] = match
             if match:
                 if profile is None:
@@ -1246,7 +1251,7 @@ def rank_original(forest: Forest, steps: tuple[tuple[str, str], ...], lean: str,
     decide when a step can match a reachable node (engine §6)."""
     if not forest.roots:
         return None
-    space = Profiles(steps, forest.tagtab, forest.tokens)
+    space = Profiles(steps, forest.tagtab, getattr(forest, "original_tokens", forest.tokens))
     ranker: Profiled | Ranker
     if can_count_profiles(forest.lowered, steps) and not (forest.project is not None and all(requires_elided(pattern) for _, pattern in steps)):
         ranker = Profiled(forest, space, lean)

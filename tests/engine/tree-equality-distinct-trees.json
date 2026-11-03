@@ -1,0 +1,31 @@
+{
+  "description": "Structural comparison: distinct-trees.",
+  "grammar": "%ambiguity-resolution fewest #·l\n%rule text $x:w \";\" $y:w\n%conditions $x ≅ $y\n%rule w $c:l | \"a\"\n%conditions $.starts-input ∨ $c\n%rule l \"a\"",
+  "input": "a;a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "w",
+            "children": [
+              {
+                "rule": "l"
+              }
+            ]
+          },
+          {},
+          {
+            "rule": "w",
+            "children": [
+              {
+                "rule": "l"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

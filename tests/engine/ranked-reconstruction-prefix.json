@@ -1,6 +1,6 @@
 {
   "description": "Reconstruction preserves written helper entries, common captures, and raw query evidence before admission (engine §7.10).",
-  "grammar": "%ambiguity-resolution late #·<_Elided>\n%elision-only\n%rule text ($p:Q ($x:a ≻ b)) %conditions ($x ⟹ $p.source-text = \"q\")\n\n%rule a (X T)\n%rule b (X [+T]) | ([+U] X)",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text ($p:Q ($x:a ≻ b)) %conditions ($x ⟹ $p.source-text = \"q\")\n\n%rule a (X T)\n%rule b (X [+T]) | ([+U] X)",
   "tokens": [
     {
       "text": "q",

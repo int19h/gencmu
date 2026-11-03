@@ -432,6 +432,9 @@ class Emitter:
                      else self.boundary_last.get(part.start, ()))
             return any(arg.get("rule", arg.get("terminal")) in names for arg in atom["args"])
         bound.boundary_test = boundary_test
+        from ._tree_identities import comparisons, derivation_identity
+        if comparisons(term):
+            bound.tree_reader = lambda name: derivation_identity(self.context, self.capture(node, name))
         return self.evaluator.tags(term, bound)
 
     def emit_item(self, node: DNode, item: tuple, out: list[Token]) -> None:

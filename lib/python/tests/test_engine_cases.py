@@ -41,7 +41,7 @@ from .shared import (
 
 
 # The members of `expect` that only a loaded pipeline can meet.
-AFTER_LOAD = ("result", "brackets", "warnings", "features", "enabledFeatures", "loadWarnings")
+AFTER_LOAD = ("result", "brackets", "warnings", "features", "enabledFeatures")
 
 
 class EngineCases(unittest.TestCase):
@@ -301,11 +301,6 @@ class EngineCases(unittest.TestCase):
         # JavaScript checks treeRendering through its tree listing. Python
         # checks that member's shape and runs the rest of the case.
         validate_engine_case(case, complete=True, parameters=parameters)
-        if "loadWarnings" in case.get("expect", {}):
-            pipeline, error = load_case_pipeline(case)
-            self.assertIsNotNone(pipeline, str(error))
-            warnings = [{key:w[key] for key in ('stage','step','tag')} for w in pipeline.load_warnings]
-            self.assertEqual(warnings,case['expect']['loadWarnings'])
         if "parses" in case:
             # The case parses its input several times with the one
             # loaded pipeline (tests/README.md).

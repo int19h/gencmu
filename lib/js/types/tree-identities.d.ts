@@ -10,9 +10,12 @@ export declare function localTreeDemand(production: any): {
 export declare function prepareTreeDemands(lowered: any): void;
 export declare class TreeIdentities {
     /** @type {Map<string,number>} */ ids: Map<string, number>;
-    /** @type {{empty:boolean}[]} */ nodes: {
+    /** @type {{key:any[],empty:boolean}[]} */ nodes: {
+        key: any[];
         empty: boolean;
     }[];
+    /** @type {Map<number,string>} */ semanticNodes: Map<number, string>;
+    /** @type {Map<number,string>} */ semanticSequences: Map<number, string>;
     /** @type {[number,number][]} */ sequences: [number, number][];
     /** @type {Map<string,number>} */ sequenceIds: Map<string, number>;
     /** @type {Map<string,number>} */ concatenations: Map<string, number>;
@@ -24,6 +27,12 @@ export declare class TreeIdentities {
     append(prefix: number, node: number): number;
     /** @param {number} left @param {number} right */
     concat(left: number, right: number): number;
+    /** @param {number} sequence @returns {number[]} */
+    elements(sequence: number): number[];
+    /** @param {number|undefined} identity @returns {string|null} */
+    semantic(identity: number | undefined): string | null;
+    /** @param {number} sequence @returns {string} */
+    sequenceSemantic(sequence: number): string;
     /** @param {string} name @param {number} children */
     rule(name: string, children: number): number;
     /** @param {string} terminal @param {string} value */

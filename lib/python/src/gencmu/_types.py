@@ -429,8 +429,10 @@ def _condition_typing_once(condition: Any, constants: ConstantTypes, memo: Memo)
         right, fault = yield _term_typing(condition["right"], constants, memo)
         if fault is not None:
             return fault
+        if condition["op"] in ("≅", "≇") and "capture" in condition["right"]:
+            return ("a tree comparison cannot compare a capture with itself", condition) if condition["left"]["capture"] == condition["right"]["capture"] else None
         problem = comparison_problem(condition["op"], left, right)
-        return (problem, condition) if problem is not None else None
+        return (problem, condition["right"] if condition["op"] in ("≅", "≇") else condition) if problem is not None else None
     if "method" in condition:
         kind, fault = yield _term_typing(condition, constants, memo)
         if fault:
