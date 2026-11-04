@@ -2,9 +2,11 @@
 
 This document opens the forms stage of the [Eberban pipeline](pipeline.md). A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The stage reads the letter tokens of the [letters stage](letters.md). It is the one stage that reads words and quotes from letters. It divides the letters into words and foreign quotes and tags each word with its family. A tag marks a token by an identifier. The stage hands the words to the words stage, [stream.md](stream.md), with a space token for each gap between them.
+The stage reads the letter tokens of the [letters stage](letters.md). It is the one stage that reads words and quotes from letters. It divides the letters into words and quotes, and tags each token with its family. A compound is one word, and a spelling quote and a foreign quote are each one quote unit. A tag marks a token by an identifier. The stage hands the words to the words stage, [stream.md](stream.md), with a space token for each gap between them.
 
-The reference grammar's [morphology chapter](https://eberban.github.io/eberban/books/refgram/book/morphonology/morphology.html) states the word shapes. Eberban has a self-segregating morphology. A stream of letters divides into words in one way only. The chapter gives the reasoning. Outside borrowings and freeform variables, a non-sonorant consonant begins a word, unless a medial pair or a triplet starts with it. A word that begins with a vowel or a sonorant needs a space before it. So the rules below never look past a word to decide where it ends. The next word begins where a non-sonorant consonant stands outside a cluster, or after a space.
+The reference grammar's [morphology chapter](https://eberban.github.io/eberban/books/refgram/book/morphonology/morphology.html) states the word shapes. Eberban has a self-segregating morphology. A stream of letters divides into words in one way only. The chapter gives the reasoning.
+
+Outside borrowings and freeform variables, a non-sonorant consonant begins a word, except as the first letter of a medial pair or a triplet. A word that begins with a vowel or a sonorant needs a space before it. So the rules below never look past a word to decide where it ends. The next word begins where a non-sonorant consonant stands outside a cluster, or after a space.
 
 The prose uses these Eberban terms:
 
@@ -21,22 +23,26 @@ The prose uses these Eberban terms:
 
 ## The text
 
-The text is a sequence of items. An item is a space, a digit, a hesitation or an eraser. It can also be a borrowing, a freeform variable, a run of words, or a run that no rule reads. A run is a maximal stretch of letters and hyphens between two items that are not letters. Each rule that reads a run makes it maximal with a condition on the tokens after it. A foreign quote is the last part of its run, so a new run can start right after the quote. Otherwise two runs never stand side by side, and one run has one division. The ranked choice in `item` reads a run as junk only where no other item reads the same text.
+The text is a sequence of items. An item is a space, a digit, a hesitation or an eraser. It can also be a borrowing, a freeform variable, a run of words, or a run that no rule reads. A compound is an item too, and it can stretch over several runs and the gaps between them.
 
-Four forms can hold a space inside one token: a borrowing, a freeform variable, a spelling quote and a foreign quote. The step `leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote ∪ ·foreign-quote)` names these four rules. At each free position, the stage takes the longest such form that starts there. The step chooses between forms by their start, then by their length. It never chooses where a foreign quote ends, because the quote rule fixes its end. The one exception is a trailing hyphen after a digit closer ("Delimiters" below). So a spelling quote at `ce` wins over an inner `co` by its earlier start, and `a ce co [ba] cei` is one spelling quote.
+A run is a maximal stretch of letters and hyphens between two items that are not letters. Each rule that reads a run makes it maximal with a condition on the tokens after it. A foreign quote is the last part of its run, so a new run can start right after the quote. Otherwise two runs never stand side by side, and one run has one division. The ranked choice in `item` reads a run as junk only where no other item reads the same text.
+
+Five forms can hold a space inside one token: a borrowing, a freeform variable, a compound, a spelling quote and a foreign quote. An unfinished compound also reaches over spaces, but it emits several tokens. The step `leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote ∪ ·foreign-quote ∪ ·compound ∪ ·open-compound)` names the five rules and `open-compound`, the unfinished compound. At each free position, the stage takes the longest such form that starts there. The step chooses between forms by their start, then by their length.
+
+It never chooses where a foreign quote ends, because the quote rule fixes its end. The one exception is a trailing hyphen after a digit closer ("Delimiters" below). So a spelling quote at `ce` wins over an inner `co` by its earlier start, and `a ce co [ba] cei` is one spelling quote. In the same way, an unfinished compound wins over a quote in one of its slots. A complete compound wins over an unfinished one ("Unfinished compounds" below).
 
 The book allows a hyphen only at a syllable boundary inside a word. Each digit is a word of its own, so a hyphen beside a digit stands at a word boundary. So a run reads every hyphen, and `run-char` reads a hyphen as it reads a letter.
 
 ```jbogenbau
 %ambiguity-resolution
-  leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote ∪ ·foreign-quote), lazy
+  leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote ∪ ·foreign-quote ∪ ·compound ∪ ·open-compound), lazy
 
 %rule text
   [{item}]
 
 %rule item
   | space | digit-word | borrowing | freeform-variable
-  | ((hesitation | eraser-run | word-run) ≻ junk-run)
+  | ((hesitation | eraser-run | word-run | compound-run | stray-compound) ≻ junk-run)
 
 %rule run-char
   Letter | Hyphen
@@ -58,11 +64,13 @@ The book allows a hyphen only at a syllable boundary inside a word. Each digit i
 
 ### Gaps
 
-The morphology chapter says that a bracket is a space outside the syntax of foreign quotes. So a bracket that no quote reads is a space here, and so is a foreign letter. A gap is a run of such spaces. Between two items, `space` reads the whole gap and emits one `Space` token with the value of one space. So the words stage sees no bracket, and a gap of brackets alone still stands between two words. The words stage reads spaces to find the ends of compounds and borrowings.
+The morphology chapter says that a bracket is a space outside the syntax of foreign quotes. So a bracket that no quote reads is a space here, and so is a foreign letter. A gap is a run of such spaces. Between two items, `space` reads the whole gap and emits one `Space` token with the value of one space. So the words stage sees no bracket, and a gap of brackets alone still stands between two words.
 
 The book says that `q`, `w`, `x` and `y` are spaces. The PEG warns about each of them where no foreign quote holds it. So `space-unit` reads one space token, and it carries the warning `non-eberban-letter` for a foreign letter. Every gap reads its spaces through `space-unit`, so each foreign letter in a gap warns once. A foreign quote reads its text as quoted characters, so a foreign letter in the text warns nothing.
 
-A borrowing, a freeform variable and a spelling quote can hold a gap inside one token. Such a gap can also hold hesitation. The rule `gap` reads it, and it counts as one space in the value of the token.
+A borrowing, a freeform variable, a compound and a spelling quote can hold a gap inside one token. Such a gap can also hold hesitation. The rule `gap` reads it. Each such token builds its value from its parts, so the gap adds nothing to the value.
+
+An unfinished compound holds gaps between its tokens. There `gap` emits one `Space` token, as `space` does between items. Inside a token, the emission of the token replaces it.
 
 The rules `space-before` and `space-after` hold beside a space, a bracket of a gap or an edge of the text. Hesitation, erasers and the end of a borrowing need them. They test the neighboring node of the parse, so a bracket that a foreign quote reads is no space. So `co [x]ra` holds no eraser, and an `n` right before the `[` of a quote is no hesitation.
 
@@ -85,7 +93,9 @@ The rules `space-before` and `space-after` hold beside a space, a bracket of a g
   Close
 
 %rule gap
-  {space-unit | space-open | space-close | hesitation} := " "
+  {space-unit | space-open | space-close | hesitation}
+%emits
+  $ :: Space := " "
 
 %rule space-before
   ε
@@ -204,7 +214,9 @@ The morphology chapter lists the consonant pairs. An initial pair can begin a wo
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/medial-pair.svg" alt="Railroad diagram of the rule medial-pair"></p>
 </details>
 
-A triplet is three consonants `XYZ` between vowels. In a root it has one of two shapes. Either `XY` is a medial pair and `YZ` an initial pair, as in `pks`. Or `XY` is a medial or initial pair, `Y` is neither `m` nor a sonorant, and `Z` is a liquid, as in `str`. A freeform variable or borrowing has a third shape: `X` is a sonorant and `YZ` is an initial pair or a consonant-sonorant medial pair. A consonant-sonorant medial pair starts with a non-sonorant consonant, so `nrn` is no triplet. Four consonants in a row form no word.
+A triplet is three consonants `XYZ` between vowels. In a root it has one of two shapes. Either `XY` is a medial pair and `YZ` an initial pair, as in `pks`. Or `XY` is a medial or initial pair, `Y` is neither `m` nor a sonorant, and `Z` is a liquid, as in `str`.
+
+A freeform variable or borrowing has a third shape: `X` is a sonorant and `YZ` is an initial pair or a consonant-sonorant medial pair. A consonant-sonorant medial pair starts with a non-sonorant consonant, so `nrn` is no triplet. Four consonants in a row form no word.
 
 ```jbogenbau
 %rule root-triplet-of(@Hyphen)
@@ -443,19 +455,23 @@ A root starts with a non-sonorant consonant or an initial pair. After its first 
 
 ## Runs of words
 
-A run of words starts with any word and continues with words that begin with a non-sonorant consonant. A word that begins with a vowel or `n` can only begin a run. Compound prefixes also begin a run, and a vowel-initial particle or a borrowing can follow them directly, as the [compounds chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/compounds.html) allows. A spelling quote starts with `ce`, so it can stand anywhere a word that starts with `c` can. A foreign quote is the last part that a run can have, because the end of the quote ends the run. A run can also be a foreign quote alone. A hyphen at the start of a run, after the prefixes or at the end of a word is a warning.
+A run of words starts with any word and continues with words that begin with a non-sonorant consonant. A word that begins with a vowel or `n` can only begin a run. A spelling quote starts with `ce`, so it can stand anywhere a word that starts with `c` can. A foreign quote is the last part that a run can have, because the end of the quote ends the run. A run can also be a foreign quote alone.
+
+A run that starts with compound prefixes starts a compound ("Compounds" below). Where the compound is not complete, its prefixes are junk and its components stay words. A vowel-initial particle or a borrowing can follow the prefixes directly, as the [compounds chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/compounds.html) allows. A hyphen at the start of a run, after the prefixes or at the end of a word is a warning.
 
 Each word emits one token tagged `Word` and its kind. A particle also carries `Particle` and its family. The image of a word is its value, so a hyphen inside a word never shows in it. A digit keeps the digit as its image, as the letters stage gives it.
 
-The morphology chapter says: "Spaces are only mandatory before words starting with a vowel or a sonorant." A digit is a word, so that rule holds after a digit too. So a word that starts with a vowel or `n` never stands right after a digit, with or without a hyphen between them. The rule `after-digit` names that place. The conditions on `ni-word`, `vowel-particle-word`, `first-prefix` and `freeform-word` refuse it. So `a mi 1an mo` and `a mi 1-an mo` have no parse, while `a mi 1 an mo` and `a mi 1mo` are texts. The erasers and hesitation already need a space before them.
+The morphology chapter says: "Spaces are only mandatory before words starting with a vowel or a sonorant." A digit is a word, so that rule holds after a digit too. So a word that starts with a vowel or `n` never stands right after a digit, with or without a hyphen between them. The rule `after-digit` names that place.
 
-A `co` that a complete opener follows starts a foreign quote, so it is never a plain word. A complete opener is `co`, its optional gap and delimiter, and an opening bracket, and `quote-opener` reads it. The condition on `consonant-particle-word` states the bar. It tests only a particle of the `CO` family, so no other particle before a bracket is tested. The quote reads its own `co` through the particle rule, so the bar never meets the quote. The test reads the opener alone, not the whole quote. So an unclosed quote has no parse, as in `a mico [x`.
+The conditions on `ni-word`, `vowel-particle-word`, `first-prefix` and `freeform-word` refuse it. So `a mi 1an mo` and `a mi 1-an mo` have no parse, while `a mi 1 an mo` and `a mi 1mo` are texts. The erasers and hesitation already need a space before them.
+
+A `co` that a complete opener follows starts a foreign quote, so it is never a plain word. A complete opener is `co`, its optional gap and delimiter, and an opening bracket, and `quote-opener` reads it. The condition on `consonant-particle-word` states the bar. It tests only a particle of the `CO` family, so no other particle before a bracket is tested.
+
+The quote reads its own `co` through the particle rule, so the bar never meets the quote. A compound reads its components without the bar ("Compounds" below). The test reads the opener alone, not the whole quote. So an unclosed quote has no parse, as in `a mico [x`.
 
 ```jbogenbau
 %rule word-run
   | [misplaced-hyphen] first-word [{consonant-word}] run-close
-  | [misplaced-hyphen] prefixes [misplaced-hyphen] [vowel-particle-word [{consonant-word}] | consonant-word [{consonant-word}]] run-close
-  | [misplaced-hyphen] prefixes borrowing
   | [misplaced-hyphen] foreign-quote
 
 %rule run-close
@@ -513,80 +529,11 @@ A `co` that a complete opener follows starts a foreign quote, so it is never a p
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/after-digit.svg" alt="Railroad diagram of the rule after-digit"></p>
 </details>
 
-### Compound prefixes
-
-A compound starts with `e`, `en` or `er`, for two, three or more components. A nested compound that is the first component of another can attach its prefix to the outer prefix. The compounds chapter spells the attached prefix `i` after `e`, because `ee` collapses to `e`, and `e` after `n` or `r`. So `ein` is `e` and `en`, and `ene` is `en` and `e`. An attached `i` after `n` or `r` is accepted with the warning `prefix-i-after-sonorant`.
-
-A hyphen inside a prefix, between two prefixes or after the last prefix carries `hyphen-misplaced`, as in the PEG. Such a hyphen has an empty value, so the rules `after-e` and `after-arity` look past it to the letter before an attached `i`.
-
-Each prefix emits one token tagged `Prefix` and `E-PREFIX`, `EN-PREFIX` or `ER-PREFIX` by its length. A prefix that stands as a run of its own also carries `Standalone`, even with a hyphen after it. The words stage reads a standalone `e` as the end of an `er` compound.
-
-```jbogenbau
-%rule prefixes
-  first-prefix [{[misplaced-hyphen] attached-prefix}]
-
-%rule first-prefix
-  Letter="e" [[misplaced-hyphen] prefix-arity] :: Prefix ∪ $.value.classify(prefix-length) ∪ (¬$.following-tokens.begins(later-letter) ⟹ Standalone)
-%conditions
-  ¬$.preceding-tokens.ends(after-digit)
-%emits
-  $ :- $.value
-
-%rule later-letter
-  [Hyphen] Letter
-
-%rule attached-prefix
-  | Letter="e" [[misplaced-hyphen] prefix-arity] :: Prefix ∪ $.value.classify(prefix-length)
-  | $i:Letter="i" :: Prefix ∪ E-PREFIX := "e"
-  | $i:Letter="i" [misplaced-hyphen] $r:prefix-arity :: Prefix ∪ ("e" ++ $r.value).classify(prefix-length) := "e" ++ $r.value
-%conditions
-  $i.preceding-tokens.ends(after-e)
-%emits
-  $ :- $.value
-
-%rule after-e
-  Letter="e" [Hyphen]
-
-%rule prefix-arity
-  Letter="n" | Letter="r"
-
-%classifier prefix-length
-  "e" ∈ E-PREFIX
-  "en" ∈ EN-PREFIX
-  "er" ∈ ER-PREFIX
-```
-
-<details><summary>Railroad diagrams of the 6 rules from <code>prefixes</code> to <code>prefix-arity</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/prefixes.svg" alt="Railroad diagram of the rule prefixes"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/first-prefix.svg" alt="Railroad diagram of the rule first-prefix"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/later-letter.svg" alt="Railroad diagram of the rule later-letter"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/attached-prefix.svg" alt="Railroad diagram of the rule attached-prefix"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/after-e.svg" alt="Railroad diagram of the rule after-e"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/prefix-arity.svg" alt="Railroad diagram of the rule prefix-arity"></p>
-</details>
-
-
-```jbogenbau
-%extend-rule attached-prefix
-  | prefix-i-after-sonorant! $i:Letter="i" :: Prefix ∪ E-PREFIX := "e"
-  | prefix-i-after-sonorant! $i:Letter="i" [misplaced-hyphen] $r:prefix-arity :: Prefix ∪ ("e" ++ $r.value).classify(prefix-length) := "e" ++ $r.value
-%conditions
-  $i.preceding-tokens.ends(after-arity)
-%emits
-  $ :- $.value
-
-%rule after-arity
-  prefix-arity [Hyphen]
-```
-
-<details><summary>Railroad diagrams of <code>attached-prefix</code> and <code>after-arity</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/attached-prefix.2.svg" alt="Railroad diagram of the rule attached-prefix"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/after-arity.svg" alt="Railroad diagram of the rule after-arity"></p>
-</details>
-
 ## Borrowings and freeform variables
 
-A borrowing is `u`, then its content. The book says that spaces must follow a borrowing. So `space-after` ends it, and a bracket of a gap or the end of the text also counts. A freeform variable is the same with `i`. The template `freeform-word` reads both. The content has looser rules than a root. An initial pair can stand in the middle, and a medial pair at the start. A sonorant or `m` before a consonant counts as a pair. A sonorant before an initial pair or a consonant-sonorant medial pair counts as a triplet. The content can start with a vowel, a consonant, a pair, a triplet or `h`. It ends with a vowel or with one consonant.
+A borrowing is `u`, then its content. The book says that spaces must follow a borrowing. So `space-after` ends it, and a bracket of a gap or the end of the text also counts. A freeform variable is the same with `i`. The template `freeform-word` reads both.
+
+The content has looser rules than a root. An initial pair can stand in the middle, and a medial pair at the start. A sonorant or `m` before a consonant counts as a pair. A sonorant before an initial pair or a consonant-sonorant medial pair counts as a triplet. The content can start with a vowel, a consonant, a pair, a triplet or `h`. It ends with a vowel or with one consonant.
 
 The PEG lets a gap stand between the prefix and the content. The book writes content that starts with `u` after `u'`, and the apostrophe is a space. Two copies of the prefix letter merge into one letter, so a gap must stand there.
 
@@ -651,7 +598,9 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
 
 ## Digits, hesitation and erasers
 
-A digit is a number word of family `TI`. The numbers chapter says that a `-` before or after a digit is a hyphen, which is not allowed there. A digit is a word of its own, so such a hyphen stands at a word boundary, and it carries `hyphen-misplaced`. The node that holds the hyphen does not matter, only its warning. A word boundary holds at most one misplaced hyphen, as the PEG's `W_HyphenPostWord` reads exactly one. So the first two conditions of `digit-word` refuse a hyphen next to another hyphen. A row of two hyphens beside a digit then stays junk ("Runs that form no word" below).
+A digit is a number word of family `TI`. The numbers chapter says that a `-` before or after a digit is a hyphen, which is not allowed there. A digit is a word of its own, so such a hyphen stands at a word boundary, and it carries `hyphen-misplaced`.
+
+The node that holds the hyphen does not matter, only its warning. A word boundary holds at most one misplaced hyphen, as the PEG's `W_HyphenPostWord` reads exactly one. So the first two conditions of `digit-word` refuse a hyphen next to another hyphen. A row of two hyphens beside a digit then stays junk ("Runs that form no word" below).
 
 The numbers chapter also says that `+`, `*` and `/` are spaces, and that verbs express mathematical operations. The PEG warns about such a symbol after a digit, and `math-symbol` carries that warning here. The rule `digit-math` reads that warning wherever a digit word ends, so a digit that closes a quote warns too.
 
@@ -688,7 +637,9 @@ The numbers chapter also says that `+`, `*` and `/` are spaces, and that verbs e
 
 The [phonology chapter](https://eberban.github.io/eberban/books/refgram/book/morphonology/phonology.html) says that where spaces are allowed, a speaker can hesitate with one or more `n` surrounded by spaces. So the letter `n` alone is hesitation where a space, a bracket of a gap or an edge of the text stands on each side. The stage drops it. A gap can hold hesitation too.
 
-The words `ra` and `ri` are the erasers of the [sentences chapter](https://eberban.github.io/eberban/books/refgram/book/logic/sentences.html). They start with `r`, so no particle or root has their shape. The chapter says that `ra` must stand between spaces or pauses. The PEG reads `ri` the same way. A run of `ra` is one eraser per `ra`. The syntax stage applies them. A hyphen after the `r` carries `hyphen-misplaced`, as after the first consonant of any particle.
+The words `ra` and `ri` are the erasers of the [sentences chapter](https://eberban.github.io/eberban/books/refgram/book/logic/sentences.html). They start with `r`, so no particle or root has their shape. The chapter says that `ra` must stand between spaces or pauses. The PEG reads `ri` the same way.
+
+A run of `ra` is one eraser per `ra`. The syntax stage applies them. A hyphen after the `r` carries `hyphen-misplaced`, as after the first consonant of any particle.
 
 ```jbogenbau
 %rule hesitation
@@ -717,67 +668,386 @@ The words `ra` and `ri` are the erasers of the [sentences chapter](https://eberb
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/ri-word.svg" alt="Railroad diagram of the rule ri-word"></p>
 </details>
 
+## Compounds
+
+The [compounds chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/compounds.html) makes one word from several. The prefix `e` takes two components, `en` three, and `er` any number up to a standalone `e`. A component is a particle, a root, a borrowing or a nested compound. A digit is a `TI` particle, so it can be a component.
+
+Words and quotes are read before the syntax stage parses them, as [the pipeline](pipeline.md#differences-from-the-reference-grammar-and-the-peg) says. A compound is a word unit made of actual words, and its components lose their usual special meaning. A quote is one unit, but it is no word unit. So this stage reads each compound from its letters, and no quote starts in a component slot of an open compound. So `a en ce bu cei` is a compound of the three particles `ce`, `bu` and `cei`, and `a e cei co` is a compound too. A quote can start after a complete compound, as in `a e ber ban ce bu cei`.
+
+An eraser keeps its meaning inside a compound. It is no component, so it ends a compound that is not complete. The sentences chapter lets `ra` erase ungrammatical text, and such a compound is ungrammatical. So `a e mi ra a mo` is a text, and its `ra` erases the first sentence with the unfinished compound. Hesitation is dropped as part of a gap, so `a e mi n bjan` is the compound of `mi` and `bjan`.
+
+### Prefixes
+
+A compound starts with `e`, `en` or `er`, for two, three or more components. A nested compound that is the first component of another can attach its prefix to the outer prefix. The compounds chapter spells the attached prefix `i` after `e`, because `ee` collapses to `e`. It spells it `e` after `n`, `r` or an attached `i`. So `ein` is `e` and `en`, `ene` is `en` and `e`, and `eie` is `e`, `e` and `e`. An attached `i` after `n` or `r` is accepted with the warning `prefix-i-after-sonorant`.
+
+A hyphen inside a prefix, between two prefixes or after the last prefix carries `hyphen-misplaced`, as in the PEG. Such a hyphen has an empty value. So the rules `after-e`, `after-i` and `after-arity` look past it to the letter before an attached prefix.
+
+The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` reads one that follows another prefix in the same run. Their conditions keep each to its place, so `prefix` reads each prefix in one way only. Each prefix carries `E-PREFIX`, `EN-PREFIX` or `ER-PREFIX` by its length. A first prefix that is a run of its own also carries `Standalone`, even with a hyphen after it.
+
+```jbogenbau
+%rule prefix
+  first-prefix | attached-prefix
+
+%rule first-prefix
+  Letter="e" [[misplaced-hyphen] prefix-arity] :: $.value.classify(prefix-length) ∪ (¬$.following-tokens.begins(later-letter) ⟹ Standalone)
+%conditions
+  ¬$.preceding-tokens.ends(after-digit),
+  ¬$.preceding-tokens.ends(after-letter)
+
+%rule later-letter
+  [Hyphen] Letter
+
+%rule after-letter
+  Letter [Hyphen]
+
+%rule attached-prefix
+  | $e:Letter="e" [[misplaced-hyphen] prefix-arity] :: $.value.classify(prefix-length)
+  | $i:Letter="i" :: E-PREFIX
+  | $i:Letter="i" [misplaced-hyphen] $r:prefix-arity :: ("e" ++ $r.value).classify(prefix-length)
+%conditions
+  $e.preceding-tokens.ends(after-e | after-i | after-arity),
+  $i.preceding-tokens.ends(after-e)
+
+%rule after-e
+  Letter="e" [Hyphen]
+
+%rule after-i
+  Letter="i" [Hyphen]
+
+%rule prefix-arity
+  Letter="n" | Letter="r"
+
+%classifier prefix-length
+  "e" ∈ E-PREFIX
+  "en" ∈ EN-PREFIX
+  "er" ∈ ER-PREFIX
+```
+
+<details><summary>Railroad diagrams of the 8 rules from <code>prefix</code> to <code>prefix-arity</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/prefix.svg" alt="Railroad diagram of the rule prefix"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/first-prefix.svg" alt="Railroad diagram of the rule first-prefix"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/later-letter.svg" alt="Railroad diagram of the rule later-letter"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/after-letter.svg" alt="Railroad diagram of the rule after-letter"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/attached-prefix.svg" alt="Railroad diagram of the rule attached-prefix"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/after-e.svg" alt="Railroad diagram of the rule after-e"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/after-i.svg" alt="Railroad diagram of the rule after-i"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/prefix-arity.svg" alt="Railroad diagram of the rule prefix-arity"></p>
+</details>
+
+```jbogenbau
+%extend-rule attached-prefix
+  | prefix-i-after-sonorant! $i:Letter="i" :: E-PREFIX
+  | prefix-i-after-sonorant! $i:Letter="i" [misplaced-hyphen] $r:prefix-arity :: ("e" ++ $r.value).classify(prefix-length)
+%conditions
+  $i.preceding-tokens.ends(after-arity)
+
+%rule after-arity
+  prefix-arity [Hyphen]
+```
+
+<details><summary>Railroad diagrams of <code>attached-prefix</code> and <code>after-arity</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/attached-prefix.2.svg" alt="Railroad diagram of the rule attached-prefix"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/after-arity.svg" alt="Railroad diagram of the rule after-arity"></p>
+</details>
+
+The rule `prefixes` reads the prefixes at the start of a run as one form. The junk rules use it ("Runs that form no word" below).
+
+```jbogenbau
+%rule prefixes
+  first-prefix [{[misplaced-hyphen] attached-prefix}]
+```
+
+<details><summary>Railroad diagram of <code>prefixes</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/prefixes.svg" alt="Railroad diagram of the rule prefixes"></p>
+</details>
+
+### Components
+
+The rule `compound-run` reads a compound at the start of a run. The run can go on after the compound with more words, as in `eberbanmi`. The rules `first-slot` and `later-slot` read a component with what joins it to the part before it. `first-slot` follows a prefix, and `later-slot` follows a component. Both read the gap between two parts, which holds spaces, brackets and hesitation. A gap holds no eraser, so an eraser ends the compound.
+
+Without a gap, a component must be able to stand where it stands in a run of words. After a prefix, it can start with a vowel, as in `ea mi`, or it can be a borrowing. After another component, it starts with a non-sonorant consonant or it is a digit. An `NI` particle and a nested compound later in the compound need a gap before them. A word that starts with a vowel needs a space after a digit, as the conditions of the word rules say.
+
+A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as in a run of words. A word component reads the hyphen after it, as a word of a run does. A digit and a borrowing read their own hyphens, so `first-slot` reads no hyphen before them. After a word component, a hyphen before a digit can belong to either word. There the lazy step of the stage gives it to the digit, with the same warning.
+
+`component-particle` reads a particle that starts with a consonant without the bar of `consonant-particle-word`. So `co` and `ce` start no quote in a component slot. It emits a word token, as `root-word` does, which an unfinished compound hands on. Inside a complete compound, the token of the compound replaces it.
+
+```jbogenbau
+%rule compound-run
+  [misplaced-hyphen] compound [{consonant-word}] run-close
+
+%rule first-slot := $c.emitted.value
+  | [misplaced-hyphen] $c:attached-first
+  | $c:digit-word
+  | $c:borrowing
+  | [misplaced-hyphen] gap $c:spaced-component
+
+%rule later-slot :: $c.tags ∩ Spaced-E := $c.emitted.value
+  | $c:attached-later
+  | gap $c:spaced-later
+
+%rule prefix-join
+  [misplaced-hyphen] [gap [misplaced-hyphen]]
+
+%rule attached-first
+  vowel-particle-word | component-particle | root-word
+
+%rule attached-later
+  component-particle | root-word | digit-word
+
+%rule spaced-component
+  | [misplaced-hyphen] (component-particle | root-word | vowel-particle-word | ni-word)
+  | digit-word | borrowing
+
+%rule spaced-later
+  | spaced-component
+  | [misplaced-hyphen] $n:compound :: $n.tags
+
+%rule component-particle
+  $p:consonant-particle [misplaced-hyphen] :: Word ∪ Particle ∪ $p.tags
+%emits
+  $ :- $.value
+```
+
+<details><summary>Railroad diagrams of the 9 rules from <code>compound-run</code> to <code>component-particle</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/compound-run.svg" alt="Railroad diagram of the rule compound-run"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/first-slot.svg" alt="Railroad diagram of the rule first-slot"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/later-slot.svg" alt="Railroad diagram of the rule later-slot"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/prefix-join.svg" alt="Railroad diagram of the rule prefix-join"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/attached-first.svg" alt="Railroad diagram of the rule attached-first"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/attached-later.svg" alt="Railroad diagram of the rule attached-later"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/spaced-component.svg" alt="Railroad diagram of the rule spaced-component"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/spaced-later.svg" alt="Railroad diagram of the rule spaced-later"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/component-particle.svg" alt="Railroad diagram of the rule component-particle"></p>
+</details>
+
+### Compound values
+
+A compound emits one token tagged `Word` and `Compound`. Its value is the compound in the shortest canonical form of the compounds chapter, which the dictionary uses. When a nested compound is the first component of another, their prefixes join into one unit. The joined prefix spells its vowel `i` after `e` and `e` after `n` or `r`. So `e e ber ban ban` and `ei ber ban ban` both have the value `ei ber ban ban`. Single spaces separate the other parts.
+
+A component keeps its word value, so a digit stands as its `TI` word. The image of the compound is the same as its value.
+
+The rule `compound-tail` reads a compound and gives its value without the vowel of its own prefix. A compound puts `e` in front of its tail. A compound whose first component is a nested compound reads that component as a tail after `prefix-join`. It joins the tail with the vowel that the chapter gives.
+
+That vowel depends on the letter before it, so a tail comes in two kinds. `compound-tail` follows a vowel written `e`, and `joined-tail` follows one written `i`. The rule `fixed-tail` holds the alternatives that are the same in both kinds. `first-slot` holds no compound, so each first component has one reading. Each `er-component` adds a space and its value to the value of the list.
+
+```jbogenbau
+%rule compound
+  $t:compound-tail :: Word ∪ Compound ∪ $t.tags := "e" ++ $t.emitted.value
+%emits
+  $
+
+%rule compound-tail
+  | $t:fixed-tail :: $t.tags := $t.emitted.value
+  | $p:prefix<E-PREFIX> prefix-join $n:joined-tail $b:later-slot
+      :: (Standalone ⊆ $p.tags ⟹ Spaced-E) := "i" ++ $n.emitted.value ++ " " ++ $b.emitted.value
+
+%rule joined-tail
+  | $t:fixed-tail :: $t.tags := $t.emitted.value
+  | $p:prefix<E-PREFIX> prefix-join $n:compound-tail $b:later-slot
+      :: (Standalone ⊆ $p.tags ⟹ Spaced-E) := "e" ++ $n.emitted.value ++ " " ++ $b.emitted.value
+
+%rule fixed-tail
+  | $p:prefix<E-PREFIX> $a:first-slot $b:later-slot
+      :: (Standalone ⊆ $p.tags ⟹ Spaced-E) := " " ++ $a.emitted.value ++ " " ++ $b.emitted.value
+  | prefix<EN-PREFIX> $a:first-slot $b:later-slot $c:later-slot
+      := "n " ++ $a.emitted.value ++ " " ++ $b.emitted.value ++ " " ++ $c.emitted.value
+  | prefix<EN-PREFIX> prefix-join $n:compound-tail $b:later-slot $c:later-slot
+      := "ne" ++ $n.emitted.value ++ " " ++ $b.emitted.value ++ " " ++ $c.emitted.value
+  | prefix<ER-PREFIX> $l:er-components er-closer
+      := "r" ++ $l.emitted.value ++ " e"
+  | compound-size! prefix<ER-PREFIX> $l:few-er-components er-closer
+      := "r" ++ $l.emitted.value ++ " e"
+```
+
+<details><summary>Railroad diagrams of <code>compound</code>, <code>compound-tail</code>, <code>joined-tail</code> and <code>fixed-tail</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/compound.svg" alt="Railroad diagram of the rule compound"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/compound-tail.svg" alt="Railroad diagram of the rule compound-tail"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/joined-tail.svg" alt="Railroad diagram of the rule joined-tail"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fixed-tail.svg" alt="Railroad diagram of the rule fixed-tail"></p>
+</details>
+
+### The end of an `er` compound
+
+The compounds chapter says that an `er` compound stops at a single `e` with a space before it. `er-closer` reads such an `e` as a run of its own, after a gap. A nested compound whose own prefix is a standalone `e` carries `Spaced-E`, and no `er` component can carry it. So the first standalone `e` that is no component's own prefix ends the compound. A nested compound with an attached prefix, as in `eberban`, can stand there.
+
+The rules test only the direct components of the `er` compound, as the PEG does. A standalone `e` deeper inside a nested compound does not end it, so `a er mi en e ber ban ban ban e` is a text. Issue [#273](https://github.com/int19h/gencmu/issues/273) asks the designer whether the end reaches every depth.
+
+The PEG warns about an `er` compound of one, two or three components. A single word needs no compound, and `e` and `en` spell two and three. The warning `compound-size` marks such a compound here. The rule `few-er-components` reads one to three components, and `er-components` reads four or more. Their bodies show the bounds.
+
+```jbogenbau
+%rule er-first
+  | $c:first-slot := " " ++ $c.emitted.value
+  | prefix-join $n:compound-tail<¬Spaced-E> := "e" ++ $n.emitted.value
+
+%rule er-component
+  $c:later-slot<¬Spaced-E> := " " ++ $c.emitted.value
+
+%rule few-er-components
+  er-first [er-component [er-component]]
+
+%rule er-components
+  er-first er-component er-component er-component [{er-component}]
+
+%rule er-closer
+  gap [misplaced-hyphen] Letter="e" [misplaced-hyphen] run-end
+```
+
+<details><summary>Railroad diagrams of the 5 rules from <code>er-first</code> to <code>er-closer</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/er-first.svg" alt="Railroad diagram of the rule er-first"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/er-component.svg" alt="Railroad diagram of the rule er-component"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/few-er-components.svg" alt="Railroad diagram of the rule few-er-components"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/er-components.svg" alt="Railroad diagram of the rule er-components"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/er-closer.svg" alt="Railroad diagram of the rule er-closer"></p>
+</details>
+
+### Unfinished compounds
+
+An unfinished level of a compound lacks a required component, holds an unfinished component, or lacks its required closer. A compound with an unfinished level is unfinished. Its prefixes are no words, so they are junk. Its components are actual words, so they stay words. The sentences chapter lets `ra` erase ungrammatical text, and an unfinished compound is ungrammatical. So `ra` erases the first sentence of `a e mi ra a mo`.
+
+As in a complete compound, no quote starts in a component slot of an unfinished one. An eraser is no component, so it ends the compound. So in `a e co [ra a mo`, `co` is a plain particle and the bracket is a gap. Then `ra` erases the unfinished compound, and the text keeps `a mo`.
+
+The rule `open-compound` reads an unfinished compound. It follows `compound` level by level, with the same slot rules. Each level that it reads is unfinished, as defined above. An `e` level needs two components, and an `en` level needs three. An `er` level needs its closing `e`, which this rule never reads. So the rule counts the open slots of every prefix at every depth.
+
+So in `a ei mi co [ra a mo`, the inner `i` has its two components `mi` and `co`. The outer `e` still lacks its second component, so `co` starts no quote. In the same way, `a ene mi mo co [ra a ke` reads `e mi mo` and `co` as the first two components of `en`. The third is missing.
+
+At an `er` level, no component carries `Spaced-E`, as in a complete compound ("The end of an `er` compound" above). So a standalone `e` ends the level, and an unfinished reading never reaches past the end of a complete `er` compound.
+
+`stray-compound` reads an unfinished compound as an item of the text. `stray-prefix` emits a `Junk` token for each prefix of an unfinished level. Each simple component emits its word token, and a complete nested compound emits its compound token. A gap between them emits a `Space` token, and a foreign letter in it warns, as in any gap. So `a eco [x] ra a mo` reads the junk `e`, the particle `co` and a gap that warns about `x`.
+
+The step `leftmost-longest` names `open-compound`. An unfinished compound starts at its prefixes, so it wins over a quote that starts in one of its slots. A complete compound on the same start is always longer, because the unfinished one stops at a slot that it lacks. So the complete compound wins, and a quote after it still starts, as in `a e ber ban ce bu ra cei`.
+
+The step names `open-compound` and not `stray-compound`, because a hyphen before the prefixes belongs to the item. A complete compound starts after that hyphen too, so both readings start at the same letter, as in `a -e 2 mi`. The ranked choice of `item` prefers the unfinished compound to junk over the same run.
+
+A reader can expect each quote rule to test the letters before it for an unfinished compound instead. Such a backward test needs the same counts as `open-compound`. Both quote rules and the bar on `co` then read it. The test also has to find where the compound starts. Otherwise the `en` at the end of `ben` in `a ben ce bu cei` counts as a prefix. The forward rule needs none of this, because `first-prefix` starts a compound only at the start of a run.
+
+```jbogenbau
+%rule stray-compound
+  [misplaced-hyphen] open-compound run-end
+
+%rule open-compound
+  | $p:stray-prefix<E-PREFIX> [open-first | first-component [open-later]]
+      :: (Standalone ⊆ $p.tags ⟹ Spaced-E)
+  | stray-prefix<EN-PREFIX> [open-first | first-component [later-slot] [open-later]]
+  | stray-prefix<ER-PREFIX> [open-first<¬Spaced-E> | first-component<¬Spaced-E> [{er-component}] [open-later<¬Spaced-E>]]
+
+%rule stray-prefix
+  $p:prefix :: $p.tags
+%emits
+  $ :: Junk := $.decomposed-source-text :- $.source-text
+
+%rule first-component
+  | first-slot
+  | prefix-join $n:compound :: $n.tags ∩ Spaced-E
+
+%rule open-first
+  prefix-join $o:open-compound :: $o.tags ∩ Spaced-E
+
+%rule open-later
+  gap [misplaced-hyphen] $o:open-compound :: $o.tags ∩ Spaced-E
+```
+
+<details><summary>Railroad diagrams of the 6 rules from <code>stray-compound</code> to <code>open-later</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/stray-compound.svg" alt="Railroad diagram of the rule stray-compound"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/open-compound.svg" alt="Railroad diagram of the rule open-compound"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/stray-prefix.svg" alt="Railroad diagram of the rule stray-prefix"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/first-component.svg" alt="Railroad diagram of the rule first-component"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/open-first.svg" alt="Railroad diagram of the rule open-first"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/open-later.svg" alt="Railroad diagram of the rule open-later"></p>
+</details>
+
 ## Spelling quotes
 
-The [quotes chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/quotes.html) spells a text with units between `ce` and `cei`. A unit is a consonant or an initial pair, or nothing, followed by vhowels. The chapter says that spaces between units are optional, except before a unit that starts with a vowel. Here a gap stands between two units, so a bracket or a hesitation can stand there too. The units are letters, not words, so this stage reads the whole quote as one token. The token carries `CE`, `Quote`, `Word` and `Particle`. Each gap counts as one space in its value, and its image is the written text.
+The [quotes chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/quotes.html) spells a text with units between `ce` and `cei`. A unit is a consonant or an initial pair, or nothing, followed by vhowels. The chapter says that spaces between units are optional, except before a unit that starts with a vowel. Here a gap stands between two units, so a bracket or a hesitation can stand there too. The units are letters, not words, so this stage reads the whole quote as one token.
 
-The quote is a word that starts with `c`, so a run of words can hold it, as in `mice bu cei`. The `ce` is a complete particle, so a word must be able to end after it. After a gap, the first unit can start with any consonant, as the book spells `nu`, `ri` and `lu`. Without a gap, the first unit starts with a non-sonorant consonant, which can begin a word. So `a cenu cei` reads the root `cenu`, and `a ce nu cei` reads a quote of `nu`. A unit that starts with a vowel needs a gap before it. A hyphen before `cei` carries `hyphen-misplaced`, as at the start of any word. A `ce` particle that no `cei` closes is an ordinary word. The syntax stage has no use for it, so such a text fails there.
+The token carries `CE`, `Quote`, `Word` and `Particle`. Its image is the written text. Its value is the opening particle, the units and `cei`, with one space between each two, whatever spaces the text writes. So `ce bu nu cei` and `ce bunu cei` have one value, and a `pa` resumption can repeat either spelling. A different division into units gives another value, as `ce ti i a nu cei` and `ce ti ia nu cei` show. The rules `first-unit` and `later-unit` give each unit its place in the value.
+
+The quote is one unit that starts with `c`, so a run of words can hold it, as in `mice bu cei`. The `ce` is a complete particle, so a word must be able to end after it. After a gap, the first unit can start with any consonant, as the book spells `nu`, `ri` and `lu`. Without a gap, the first unit starts with a non-sonorant consonant, which can begin a word. So `a cenu cei` reads the root `cenu`, and `a ce nu cei` reads a quote of `nu`.
+
+A unit that starts with a vowel needs a gap before it. The quote ends at the first complete `cei` particle, which `complete-cei` reads with a word boundary after it, as the PEG's `CEI` does. So a unit can be `cei` where no word boundary follows it, as in `a ce bu ceinu cei`. A `ce` particle that no `cei` closes is an ordinary word. The syntax stage has no use for it, so such a text fails there.
+
+The morphology chapter allows a hyphen at a syllable boundary. A consonant unit starts a syllable, so a hyphen right before it is silent, as in `a ce bu-nu cei`. Inside a unit, the hyphen rules of the words apply, so `a ce b-u cei` carries `hyphen-misplaced`. A hyphen beside a gap, after `ce` or before `cei` stands at the edge of a word, so it carries the warning too.
 
 ```jbogenbau
 %rule spelling-quote
-  ce-particle [misplaced-hyphen] units [gap] [misplaced-hyphen] cei-particle [misplaced-hyphen]
-    :: Word ∪ Particle ∪ CE ∪ Quote :- $.source-text
+  $s:ce-particle $u:units unit-join $e:cei-particle [misplaced-hyphen]
+    :: Word ∪ Particle ∪ CE ∪ Quote := $s.value ++ " " ++ $u.emitted.value ++ " " ++ $e.value :- $.source-text
 %emits
   $
 
 %rule units
-  | first-unit [{later-unit}]
-  | gap vowel-unit [{later-unit}]
+  first-unit [{later-unit}]
 
-%rule first-unit
-  | gap consonant-unit
-  | $u:consonant-unit
+%rule first-unit := $u.value
+  | [misplaced-hyphen] $u:attached-unit
+  | spelling-gap $u:unit
+
+%rule later-unit := " " ++ $u.value
+  | [Hyphen] $u:consonant-unit
+  | spelling-gap $u:unit
+
+%rule unit-join
+  [misplaced-hyphen] | spelling-gap
+
+%rule spelling-gap
+  [misplaced-hyphen] gap [misplaced-hyphen]
+
+%rule unit
+  consonant-unit | vowel-unit
+
+%rule attached-unit
+  $u:consonant-unit
 %conditions
   Sonorant ⊈ $u.first-token.tags
-
-%rule later-unit
-  [gap] consonant-unit | gap vowel-unit
 
 %rule consonant-unit
   $u:unit-letters
 %conditions
-  $u.value ≠ "cei"
+  ¬$u.onward.begins(complete-cei)
 
 %rule vowel-unit
   vhowels
 
 %rule unit-letters
-  (initial-pair | consonant) vhowels
+  (initial-pair | consonant) [misplaced-hyphen] vhowels
+
+%rule complete-cei
+  cei-particle particle-end [Hyphen] word-boundary
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>spelling-quote</code> to <code>unit-letters</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>spelling-quote</code> to <code>complete-cei</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/spelling-quote.svg" alt="Railroad diagram of the rule spelling-quote"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/units.svg" alt="Railroad diagram of the rule units"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/first-unit.svg" alt="Railroad diagram of the rule first-unit"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/later-unit.svg" alt="Railroad diagram of the rule later-unit"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/unit-join.svg" alt="Railroad diagram of the rule unit-join"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/spelling-gap.svg" alt="Railroad diagram of the rule spelling-gap"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/unit.svg" alt="Railroad diagram of the rule unit"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/attached-unit.svg" alt="Railroad diagram of the rule attached-unit"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/consonant-unit.svg" alt="Railroad diagram of the rule consonant-unit"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/vowel-unit.svg" alt="Railroad diagram of the rule vowel-unit"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/unit-letters.svg" alt="Railroad diagram of the rule unit-letters"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/complete-cei.svg" alt="Railroad diagram of the rule complete-cei"></p>
 </details>
 
 ## Foreign quotes
 
 The [quotes chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/quotes.html) gives `co` two forms. If a `[` follows `co`, the quote holds everything up to the next `]`. Otherwise a delimiter and then a `[` follow `co`. That quote holds everything up to the first `]` that the delimiter follows. The delimiter is any particle or root form. The book says that the delimiter appears again prefixed by `]`, so the closing delimiter follows the closing bracket.
 
-A quote is one word unit, so this stage reads it whole, and no later rule sees its text. The rule `foreign-quote` reads `co`, an optional opening gap, then the quoted text. Every particle of the `CO` family opens a quote, so `coa` and `coho` open quotes too. `coi` stands in place of a quote. It reads no bracket and passes as a plain word, so `a coi [x]` reads `coi`, then a gap with one warning for `x`.
+A quote is one quote unit, so this stage reads it whole, and no later rule sees its text. The rule `foreign-quote` reads `co`, an optional opening gap, then the quoted text. Every particle of the `CO` family opens a quote, so `coa` and `coho` open quotes too. In a component slot of a compound, `co` is a plain particle ("Compounds" above). `coi` stands in place of a quote. It reads no bracket and passes as a plain word, so `a coi [x]` reads `coi`, then a gap with one warning for `x`.
 
-The chapter lets spaces stand before the `[` of the first form. The [phonology chapter](https://eberban.github.io/eberban/books/refgram/book/morphonology/phonology.html) allows hesitation wherever spaces are allowed. The morphology chapter makes a bracket a space outside the syntax of foreign quotes. So `opening-gap` reads spaces, closing brackets and hesitation after `co`, in both forms. It reads its spaces through `space-unit`, so a foreign letter there warns. It holds no `[`, because the first `[` after `co` opens the quote. The delimiter stands directly before its `[`, as in the PEG.
+The chapter lets spaces stand before the `[` of the first form. The [phonology chapter](https://eberban.github.io/eberban/books/refgram/book/morphonology/phonology.html) allows hesitation wherever spaces are allowed. The morphology chapter makes a bracket a space outside the syntax of foreign quotes.
+
+So `opening-gap` reads spaces, closing brackets and hesitation after `co`, in both forms. It reads its spaces through `space-unit`, so a foreign letter there warns. It holds no `[`, because the first `[` after `co` opens the quote. The quotes chapter puts no space between the delimiter and its `[`, so `co bu [x]bu` is no quote.
 
 The `co` of a quote is a complete particle, so a word boundary follows it, as it follows a delimiter (below). A hyphen between `co` and its delimiter is a misplaced hyphen at that boundary, as in `co-zao[x]`. So a delimiter with no gap before it starts with a non-sonorant consonant or a digit. A delimiter that starts with a vowel or `n` needs a gap.
 
-The text of the first form is every letter token up to the first `]`. So a digit, a hyphen and a `[` are text, and `a co [1-]` warns nothing. In the second form, `$d` is the opening delimiter and `$e` the closing one. A `]` inside the text ends the quote only where the delimiter follows it as a complete word. So `shaped-close` reads a `]` and the complete word after it, which `delimiter-shape` reads as `$c`. Its condition requires another value than the delimiter's. A `]` with no complete word after it is `$k`, and its condition makes sure that no word follows. So the quote ends at the first `]` that the delimiter follows. The text can be empty.
+The text of the first form is every letter token up to the first `]`. So a digit, a hyphen and a `[` are text, and `a co [1-]` warns nothing. The text of either form can be empty.
 
-The quote emits one token tagged `Word`, `Particle`, `CO` and `Quote`. Its image is the written text from `co` to the end of the quote. Quoted text has no canonical word, so the value keeps it exactly as written, with its case, spacing and any `n`. The value is the `co` word, a space and the text from `[` to `]`. In the second form, the delimiter stands before and after the text. A delimiter is an Eberban word, so it takes its word value. So `co [Mi Nu]` and `co n  [Mi Nu]` both have the value `co [Mi Nu]`, and `co Zao[x]ZAO` has the value `co zao[x]zao`. The rules `quote-char` and `shaped-close` give the value the written text of each quoted token.
+In the second form, `$d` is the opening delimiter and `$e` the closing one. A `]` inside the text ends the quote only where the delimiter follows it as a complete word. So `shaped-close` reads a `]` and the complete word after it, which `delimiter-shape` reads as `$c`. Its condition requires another value than the delimiter's. A `]` with no complete word after it is `$k`, and its condition makes sure that no word follows. So the quote ends at the first `]` that the delimiter follows.
+
+The quote emits one token tagged `Word`, `Particle`, `CO` and `Quote`. Its image is the written text from `co` to the end of the quote. Quoted text has no canonical word, so the value keeps it exactly as written, with its case, spacing and any `n`.
+
+The value is the `co` word, a space and the text from `[` to `]`. In the second form, the delimiter stands before and after the text. A delimiter is an Eberban word, so it takes its word value. So `co [Mi Nu]` and `co n  [Mi Nu]` both have the value `co [Mi Nu]`, and `co Zao[x]ZAO` has the value `co zao[x]zao`. The rules `quote-char` and `shaped-close` give the value the written text of each quoted token.
 
 ```jbogenbau
 %rule foreign-quote
@@ -824,7 +1094,9 @@ The quote emits one token tagged `Word`, `Particle`, `CO` and `Quote`. Its image
 
 ### Delimiters
 
-The quote reads a delimiter word in two ways. The opening and closing delimiters are Eberban words outside the quoted text, so `native-delimiter` reads them with the ordinary warnings. Inside the text, `delimiter-shape` reads the word after each `]` in silence, because quoted text runs no word rule. The two readers must accept the same spans as a complete first word, end at a word boundary and give the same value. Otherwise one reader can find a delimiter that the other misses, and the quote then has two ends. So both readers are instances of the template `delimiter-of`, over the same form templates. They differ in their hyphen rule and in one more warning. After a digit, the ordinary reader reads `digit-math`, which reads no token, and the silent reader reads nothing there.
+The quote reads a delimiter word in two ways. The opening and closing delimiters are Eberban words outside the quoted text, so `native-delimiter` reads them with the ordinary warnings. Inside the text, `delimiter-shape` reads the word after each `]` in silence, because quoted text runs no word rule. The two readers must accept the same spans as a complete first word, end at a word boundary and give the same value. Otherwise one reader can find a delimiter that the other misses, and the quote then has two ends.
+
+So both readers are instances of the template `delimiter-of`, over the same form templates. They differ in their hyphen rule and in one more warning. After a digit, the ordinary reader reads `digit-math`, which reads no token, and the silent reader reads nothing there.
 
 A delimiter follows the PEG's `NativeWord`. It is the longest root or particle form that reads from its start, with a root before a particle, and a word boundary after it. The rule `word-boundary` holds at the end of the text, and before a non-sonorant consonant, a digit, a space or a bracket. It does not hold before a hyphen, so a second hyphen never ends a word. A trailing hyphen stays in the word where a word boundary follows it.
 
@@ -891,9 +1163,11 @@ A digit is one `TI` particle, and a digit can be a delimiter. It needs no word b
 
 ## Runs that form no word
 
-A run that this grammar reads as no word is one `Junk` token. Its value is its source text. The syntax stage admits it in text that `ra` erases. The PEG reports an error for such a run, with a message about the letter, pair or ending at fault. Here the text fails later, where the junk stands.
+A run that this grammar reads as no word is one `Junk` token. Its value is its source text. The syntax stage admits it in text that `ra` erases. The PEG reports an error for such a run, with a message about the letter, pair or ending at fault. Here the text fails later, where the junk stands. Where a compound begins at a run, complete or not, the stage prefers it to junk ("Unfinished compounds" above).
 
-Two conditions keep junk from standing where a word reads. First, a run whose words end with the `co` of a complete opener is no junk. The rule `run-opener` reads the words of a run and then the opener. Its words are the forms without the word wrappers, because a wrapper carries the plain-word bar, which asks the same opener query again. So a run such as `ntco` before a bracket stays junk, because no word reading reaches its `co`. A quote never ends inside a junk run, so `a tkco [x] ra a mo` reads the junk `tkco`, then a gap. The query reads its words from the start of the run and cannot see what stands before the run. So the bar does not apply where a digit stands before a run that starts with a vowel or a sonorant, as `spaced-start` reads it. No word reading of that run exists, because such a word needs a space before it. So `a 1anco[x ra a mo` is junk that `ra` erases, while `a 1 anco[x ra a mo` has no parse.
+Two conditions keep junk from standing where a word reads. First, a run whose words end with the `co` of a complete opener is no junk. The rule `run-opener` reads the words of a run and then the opener. Its words are the forms without the word wrappers, because a wrapper carries the plain-word bar, which asks the same opener query again. So a run such as `ntco` before a bracket stays junk, because no word reading reaches its `co`. A quote never ends inside a junk run, so `a tkco [x] ra a mo` reads the junk `tkco`, then a gap.
+
+The query reads its words from the start of the run and cannot see what stands before the run. So the bar does not apply where a digit stands before a run that starts with a vowel or a sonorant, as `spaced-start` reads it. No word reading of that run exists, because such a word needs a space before it. So `a 1anco[x ra a mo` is junk that `ra` erases, while `a 1 anco[x ra a mo` has no parse.
 
 Second, a single hyphen beside a digit belongs to the digit word, so it is no junk. A row of hyphens beside a digit stays junk, so the syntax stage accepts it only where `ra` erases it. So `a mi 1--2 ra a mo` is a text, and `mi 1--2 bjan` is not. A hyphen with no digit beside it stays junk, so `a mi - bjan mo` has no parse. A hyphen that starts a longer junk run belongs to that run, as in `a mi 1-an mo`. So it carries no warning, and only the junk stops the text.
 
@@ -925,15 +1199,29 @@ Second, a single hyphen beside a digit belongs to the digit word, so it is no ju
 
 ## Differences from the reference grammar and the PEG
 
-The book says that a particle can start with a sonorant or a vowel. The PEG reads only `n`, `a` and `o`, and this grammar does the same. The sentences chapter names A, O and NI as the particles that start with `a`, `o` and `n`. The vowels `e`, `i` and `u` open compounds, freeform variables and borrowings. The book gives no other family that starts with `r` or `l`. So `ra` and `ri` are the only words that start with `r`, and no word starts with `l`.
+The book says that a particle can start with a sonorant or a vowel. The PEG reads only `n`, `a` and `o`, and this grammar does the same. The morphology chapter says that a word that starts with `n`, `a` or `o` is always a particle. Two sonorants never follow each other in such a word, so `a mi anra` has no parse. The sentences chapter names A, O and NI as the particles that start with `a`, `o` and `n`.
 
-The annotations chapter says that the families DA and DAI have the single members `da` and `dai`. The PEG reads every other `d` and vhowels that start with `a` as DA, and this grammar does the same. The shapes of the morphology chapter make such a word a particle, and the book gives it no other family.
+The vowels `e`, `i` and `u` open compounds, freeform variables and borrowings. The book gives no other family that starts with `r` or `l`. So `ra` and `ri` are the only words that start with `r`, and no word starts with `l`.
+
+The annotations chapter says that the families DA and DAI have the single members `da` and `dai`. The sentences chapter gives PI the single member `pi` and PO the members `po` and `poi`. The enumeration chapter makes `bu` the only member of BU. The PEG gives every word of the shape of these families its family, and this grammar does the same. The shapes of the morphology chapter make such a word a particle, and the book gives it no other family. This is the interim choice of issue [#274](https://github.com/int19h/gencmu/issues/274), which asks the designer whether these lists are closed.
 
 The PEG reads hesitation only after a space character, so a text that starts with `n` fails there. The PEG accepts hesitation at the end of the text. This grammar also accepts it at the start, which is the symmetric choice.
 
-The sentences chapter says that a `ra` inside a foreign quote erases a sentence that was already ungrammatical. It describes the PEG, which reads a foreign quote only where the syntax expects a verb. When a sentence is ungrammatical, the PEG reads its characters again as erasable text and ignores quotes. mia, who designed Eberban, considers this a limitation of the PEG. Her intent is that words and quotes are read first and parsed after. This stage does that. A closed quote is one word wherever it stands, so a `ra` inside it is quoted text. A `co` and opener that no closer follows is an unclosed quote, and the text has no parse. The PEG reads such text again as erasable characters, so `a sune co [mi ra a sunu` and `a co [x ra a mo` are texts there.
+The sentences chapter says that a `ra` inside a foreign quote erases a sentence that was already ungrammatical. It describes the PEG, which reads a foreign quote only where the syntax expects a verb. When a sentence is ungrammatical, the PEG reads its characters again as erasable text and ignores quotes. mia, who designed Eberban, considers this a limitation of the PEG.
 
-For the same reason, a quote is never a compound component here. The PEG reads `co` in a compound as a particle and the bracket after it as a space. So `e co [x] mi` is a compound there and has no parse here.
+Her intent is that words and quotes are read first and parsed after. This stage does that. A closed quote is one unit wherever it stands, so a `ra` inside it is quoted text. A `co` and opener that no closer follows is an unclosed quote, and the text has no parse. The PEG reads such text again as erasable characters, so `a sune co [mi ra a sunu` and `a co [x ra a mo` are texts there.
+
+Both parsers read `u ra` as a borrowing, so its `ra` is content and no eraser. So `a e u ra` has no parse here, because nothing erases the unfinished compound. The PEG reads the characters of an ungrammatical sentence again, finds the `ra` there and erases `a e u`. The same holds inside a nested compound, as in `a e e-nu ra a mo`, whose nested `en` holds the borrowing `ura`. Both parsers accept `a u ra` and `a e u ra a mo`.
+
+The PEG ends an `er` compound only at an `e` with spaces before it and spaces or the end of the text after it. So `a er mi bjan sa ta e1` fails there. The compounds chapter asks only for a space before the `e`. This stage ends the compound at any `e` that is a run of its own, so a digit can follow it.
+
+The PEG also rejects two adjacent closers, as in `a er er mi e e`. Its inner `CompoundNEnd` takes the space before the outer `e`, so the outer compound finds no closer. The compounds chapter asks for a space before each closing `e`, and the text has one for each. So this stage reads one compound with `compound-size`, while `a er er mi e mo e` is a text in both parsers.
+
+The PEG reads no digit as a compound component, so `a e 1 mi` fails there. The book calls each digit a `TI` particle, and the compounds chapter lets a particle be a component. So this stage reads that compound.
+
+The PEG reads an `NI` particle right after a compound prefix as a component, as in `a enun mi` and `a en-nu ban ban`. The compounds chapter says that an `NI` particle needs a pause or a space before it. Otherwise it can be confused with the start of `en`. A hyphen is no space, so this stage reads such a run as junk, and both texts have no parse.
+
+The PEG records each prefix as the text writes it. So `ei ber ban ban` has the inner prefix `i`, and `e e ber ban ban` has `e`. Two spellings of one compound then differ, and a `pa` resumption that repeats the verb in the other spelling fails there. The compounds chapter calls the joined prefix a shorthand for the spaced one. This stage gives both spellings one value, in the shortest canonical form that the chapter says the dictionary uses.
 
 The PEG reads only space characters between `co` and the `[` of the first form. So `a co n [x]` fails there. The quotes chapter lets spaces stand there, and the phonology chapter allows hesitation wherever spaces are allowed. This stage accepts it, because the grammar keeps one opening gap for both forms.
 
@@ -943,9 +1231,13 @@ The PEG reads no digit as a delimiter. The book calls each digit a `TI` particle
 
 An invalid cluster reads no word here. The PEG reads a pair with mismatched voicing or an invalid triplet as part of a longer word, and it queues an error. The book makes no such cluster part of a root. So a delimiter reader can end before such a cluster where the PEG reads on. In `a co bja[x]bjapsta]bja mo`, the PEG reads `bjapsta` and the text is a quote of `x]bjapsta` there. Here the root `bja` closes the quote at the first `]bja`, and `psta` is junk.
 
+In a borrowing, the PEG tests a sonorant triplet with the pair shapes, without their voicing. So it accepts `a unsba`, where the voicing of `s` and `b` does not match. The morphology chapter makes voicing agree in every pair, so this grammar rejects the text.
+
 The PEG warns about each misplaced hyphen with its own message. This grammar carries one warning, `hyphen-misplaced`, at the position of each such hyphen. The places below differ from the PEG.
 
 - Inside a borrowing, a hyphen before a cluster that splits inside carries the warning, as in `ua-msa`. So does a hyphen after such a cluster in the middle of a borrowing, as in `uapts-a`. The PEG rejects these, because its content rule then reads a final consonant and reports two consonants at the end. Such a hyphen is misplaced like any other, so this grammar warns.
+- Inside a spelling quote, a hyphen before a consonant unit is silent, as in `a ce bu-nu cei`. A hyphen inside a unit carries the warning, as in `a ce b-u cei`. The PEG reads no hyphen between two units or inside a unit, so it rejects both texts. It reads `cei` as a particle, so `a ce bu-cei` warns in both parsers. Each unit has its syllables, and the morphology chapter allows a hyphen at a syllable boundary.
+- A hyphen before the prefix of a nested compound after a gap carries the warning. Examples are `a e mi -e ber ban` and `a e -e mi bjan mo`. The PEG reads such a hyphen before a compound of its own, but its rule for a nested component reads none. So it rejects both texts. Such a hyphen stands at the edge of a word, as any misplaced hyphen does, so this grammar warns.
 - A hyphen inside `ra` or `ri`, as in `r-a`, carries the warning. The PEG reads no hyphen there and rejects the text. This grammar treats the hyphen as it does after the first consonant of any particle.
 - An attached `i` after `n-` or `r-`, as in `en-iber`, carries `prefix-i-after-sonorant` as well as `hyphen-misplaced`. The PEG tests the letter right before the `i`, so the hyphen hides the `n` there. The hyphen has an empty value, so the letter before the `i` is still `n`. The compounds chapter spells the vowel `e` after it.
 

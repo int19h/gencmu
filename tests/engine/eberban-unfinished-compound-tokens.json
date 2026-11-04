@@ -1,0 +1,76 @@
+{
+  "description": "In the eberban/refgram pipeline, the forms stage reads the unfinished compound of a ei mi co [x] ra a mo as the junk prefix e, then the complete nested compound with its canonical value, then a gap. The co opens no quote.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "a ei mi co [x] ra a mo",
+  "options": {
+    "until": "forms"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {
+          "name": "forms",
+          "output": [
+            {
+              "value": "a"
+            },
+            {
+              "value": " "
+            },
+            {
+              "value": "e",
+              "tags": [
+                "Junk"
+              ]
+            },
+            {
+              "value": "e mi co",
+              "tags": [
+                "Compound",
+                "Word"
+              ]
+            },
+            {
+              "value": " "
+            },
+            {
+              "value": "ra"
+            },
+            {
+              "value": " "
+            },
+            {
+              "value": "a"
+            },
+            {
+              "value": " "
+            },
+            {
+              "value": "mo"
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "stage": "forms",
+        "feature": "non-eberban-letter",
+        "rule": "space-unit",
+        "span": [
+          12,
+          13
+        ],
+        "source": [
+          12,
+          13
+        ]
+      }
+    ]
+  }
+}

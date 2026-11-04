@@ -8687,14 +8687,15 @@
     for(const p of lowered.productions)if(!p.contextual)state(p,null);
     for(let at=0;at<states.length;at++) {
       const entry=states[at],{p,frame}=entry;
-      const present=new Set([...frame?.present??[],...p.captures.map((/** @type {any} */ c)=>c.name)]);
+      const captures=p.captures.filter((/** @type {any} */ c)=>!c.name.startsWith('\u0000'));
+      const present=new Set([...frame?.present??[],...captures.map((/** @type {any} */ c)=>c.name)]);
       const knownPrivate=new Set([...frame?.knownPrivate??[],...p.rankedPrivate??[]]);
       const inside=!!frame?.inside||!!p.rankedGroup;
       p.rhs.forEach((/** @type {any} */ symbol,/** @type {number} */ index)=> {
         if(symbol.terminal||!contextual.has(symbol.name))return;
-        const captures=new Map(frame?.captures??[]);
-        for(const capture of p.captures)if(capture.index<index)captures.set(capture.name,null);
-        const child={id:nextFrame++,present,knownPrivate,captures,inside};
+        const ready=new Map(frame?.captures??[]);
+        for(const capture of captures)if(capture.index<index)ready.set(capture.name,null);
+        const child={id:nextFrame++,present,knownPrivate,captures:ready,inside};
         for(const q of lowered.byLhs.get(symbol.name)??[])entry.edges.push({index,child:state(q,child)});
       });
     }
