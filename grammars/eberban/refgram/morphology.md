@@ -888,40 +888,61 @@ The PEG warns about an `er` compound of one, two or three components. A single w
 
 ## Spelling quotes
 
-The [quotes chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/quotes.html) spells a text with units between `ce` and `cei`. A unit is a consonant or an initial pair, or nothing, followed by vhowels. The chapter says that spaces between units are optional, except before a unit that starts with a vowel. Here a gap stands between two units, so a bracket or a hesitation can stand there too. The units are letters, not words, so this stage reads the whole quote as one token. The token carries `CE`, `Quote`, `Word` and `Particle`. Each gap counts as one space in its value, and its image is the written text.
+The [quotes chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/quotes.html) spells a text with units between `ce` and `cei`. A unit is a consonant or an initial pair, or nothing, followed by vhowels. The chapter says that spaces between units are optional, except before a unit that starts with a vowel. Here a gap stands between two units, so a bracket or a hesitation can stand there too. The units are letters, not words, so this stage reads the whole quote as one token.
 
-The quote is a word that starts with `c`, so a run of words can hold it, as in `mice bu cei`. The `ce` is a complete particle, so a word must be able to end after it. After a gap, the first unit can start with any consonant, as the book spells `nu`, `ri` and `lu`. Without a gap, the first unit starts with a non-sonorant consonant, which can begin a word. So `a cenu cei` reads the root `cenu`, and `a ce nu cei` reads a quote of `nu`. A unit that starts with a vowel needs a gap before it. A hyphen before `cei` carries `hyphen-misplaced`, as at the start of any word. A `ce` particle that no `cei` closes is an ordinary word. The syntax stage has no use for it, so such a text fails there.
+The token carries `CE`, `Quote`, `Word` and `Particle`. Its image is the written text. Its value is the opening particle, the units and `cei`, with one space between each two, whatever spaces the text writes. So `ce bu nu cei` and `ce bunu cei` have one value, and a `pa` resumption can repeat either spelling. A different division into units gives another value, as `ce ti i a nu cei` and `ce ti ia nu cei` show. The rules `first-unit` and `later-unit` give each unit its place in the value.
+
+The quote is a word that starts with `c`, so a run of words can hold it, as in `mice bu cei`. The `ce` is a complete particle, so a word must be able to end after it. After a gap, the first unit can start with any consonant, as the book spells `nu`, `ri` and `lu`. Without a gap, the first unit starts with a non-sonorant consonant, which can begin a word. So `a cenu cei` reads the root `cenu`, and `a ce nu cei` reads a quote of `nu`.
+
+A unit that starts with a vowel needs a gap before it. The quote ends at the first complete `cei` particle, which `complete-cei` reads with a word boundary after it, as the PEG's `CEI` does. So a unit can be `cei` where no word boundary follows it, as in `a ce bu ceinu cei`. A `ce` particle that no `cei` closes is an ordinary word. The syntax stage has no use for it, so such a text fails there.
+
+The morphology chapter allows a hyphen at a syllable boundary. A consonant unit starts a syllable, so a hyphen right before it is silent, as in `a ce bu-nu cei`. Inside a unit, the hyphen rules of the words apply, so `a ce b-u cei` carries `hyphen-misplaced`. A hyphen beside a gap, after `ce` or before `cei` stands at the edge of a word, so it carries the warning too.
 
 ```jbogenbau
 %rule spelling-quote
-  ce-particle [misplaced-hyphen] units [gap] [misplaced-hyphen] cei-particle [misplaced-hyphen]
-    :: Word ∪ Particle ∪ CE ∪ Quote :- $.source-text
+  $s:ce-particle $u:units unit-join $e:cei-particle [misplaced-hyphen]
+    :: Word ∪ Particle ∪ CE ∪ Quote := $s.value ++ " " ++ $u.emitted.value ++ " " ++ $e.value :- $.source-text
 %emits
   $
 
 %rule units
-  | first-unit [{later-unit}]
-  | gap vowel-unit [{later-unit}]
+  first-unit [{later-unit}]
 
-%rule first-unit
-  | gap consonant-unit
-  | $u:consonant-unit
+%rule first-unit := $u.value
+  | [misplaced-hyphen] $u:attached-unit
+  | spelling-gap $u:unit
+
+%rule later-unit := " " ++ $u.value
+  | [Hyphen] $u:consonant-unit
+  | spelling-gap $u:unit
+
+%rule unit-join
+  [misplaced-hyphen] | spelling-gap
+
+%rule spelling-gap
+  [misplaced-hyphen] gap [misplaced-hyphen]
+
+%rule unit
+  consonant-unit | vowel-unit
+
+%rule attached-unit
+  $u:consonant-unit
 %conditions
   Sonorant ⊈ $u.first-token.tags
-
-%rule later-unit
-  [gap] consonant-unit | gap vowel-unit
 
 %rule consonant-unit
   $u:unit-letters
 %conditions
-  $u.value ≠ "cei"
+  ¬$u.onward.begins(complete-cei)
 
 %rule vowel-unit
   vhowels
 
 %rule unit-letters
-  (initial-pair | consonant) vhowels
+  (initial-pair | consonant) [misplaced-hyphen] vhowels
+
+%rule complete-cei
+  cei-particle particle-end [Hyphen] word-boundary
 ```
 
 <details><summary>Railroad diagrams of the 7 rules from <code>spelling-quote</code> to <code>unit-letters</code></summary>

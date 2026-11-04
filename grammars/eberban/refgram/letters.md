@@ -292,7 +292,7 @@ The numbers chapter says that `+`, `*` and `/` are spaces, and that verbs expres
 
 A hyphen can stand at a syllable boundary to make the syllable stand out, and it lets a word continue on the next line. The book names the hyphen-minus `-`. The PEG also reads U+2010, the hyphen of Unicode, and this stage does the same. An em dash is a space. A hyphen token has an empty value, so it never changes the value of a word. Its image is `-`.
 
-The line breaks after a hyphen belong to its token. The [new course](https://eberban.github.io/eberban/books/new_course/book/02_01_morphology.html) allows spaces on the new line before the rest of the word. So the spaces and tabs after those line breaks belong to the token too. Then `bja-` and an indented `n` on the next line form `bjan`. A word that starts with a vowel needs a space before it, so the token stops before an indent that a vowel follows. Then `mi-` and an indented `a` on the next line are two words, with a space between them.
+The line breaks after a hyphen belong to its token. The [new course](https://eberban.github.io/eberban/books/new_course/book/02_01_morphology.html) allows spaces on the new line before the rest of the word. So the spaces and tabs after those line breaks belong to the token too. Then `bja-` and an indented `n` on the next line form `bjan`. In the same way, `mi-` and an indented `an` on the next line form `mian`. The letters after the indent continue the word, whatever letter starts them.
 
 ```jbogenbau
 %rule hyphen
@@ -303,7 +303,7 @@ The line breaks after a hyphen belong to its token. The [new course](https://ebe
 %rule indent
   {indent-char}
 %conditions
-  ¬$.following-tokens.begins(indent-char | i | e | a | o | u)
+  ¬$.following-tokens.begins(indent-char)
 
 %rule hyphen-char
   "-" | "‹U+2010›"
@@ -365,4 +365,4 @@ The book names only the hyphen-minus `-`. The PEG also reads U+2010 as a hyphen,
 
 The PEG reads only the ASCII letters as letters, and so does this stage. The engine decomposes the text first, so the template `plain` checks the source of each letter. A precomposed `é` is then a space, as in the PEG and the book. Where the text writes `e` and then a separate combining accent, `e` is a letter and the accent is a space, as in the PEG.
 
-The new course says that spaces can stand on the new line before the rest of a word. The PEG keeps only the line breaks after a hyphen. It reads `bja-` and an indented `n` on the next line as `bja` and a hesitation. This stage follows the new course and reads `bjan`. Before a vowel, the indent stays a space, as in the PEG, because a word that starts with a vowel needs a space before it.
+The new course says that spaces can stand on the new line before the rest of a word. The PEG keeps only the line breaks after a hyphen. It reads `bja-` and an indented `n` on the next line as `bja` and a hesitation. It reads `mi-` and an indented `a mo` as two sentences. This stage follows the new course and reads `bjan`, and `mia mo` as one sentence.

@@ -17,7 +17,13 @@ The prose uses these Eberban terms:
 
 A text is language flags, then paragraphs. An empty text is valid. The [sentences chapter](https://eberban.github.io/eberban/books/refgram/book/logic/sentences.html) marks a new paragraph with `PO`. The first paragraph can lack it. A paragraph is a sentence and any number of further sentences. A further sentence starts with a sentence starter, a particle of family `A`, `O` or `NI`, or it is ungrammatical text that `ra` erases. The text rules are templates. Their parameter names what blocks an erasure at the start of a paragraph, as "Sentences and erasure" explains. `text` and its rules serve the whole text, a parenthetical and a quote with a written `cai`. `open-quote-text` and its rules serve a quote whose `cai` is left out.
 
-The sentences chapter starts every sentence with a starter, and lets the first sentence of a paragraph leave it out. So a further sentence without a starter is always ungrammatical. `invalid-tail` reads it as erased text, even where it would be a sentence at the start of a paragraph. A further sentence cannot start with a paragraph mark or the end of a parenthesis, because those end the paragraph. Erased text after a complete sentence cannot start with a closer, `FI`, `VEI`, `PEI`, `BU`, `PA` or `cai`, unless a `ra` comes right before it. Such a closer belongs to the sentence before it, which is then ungrammatical, so the erasure starts at that sentence.
+The chapter says that where several prefixes stand in a row, `PO` is the first of them. So `po-head` reads no free prefix before `PO`, and `di po a mi` has no parse. A free prefix can follow it, as in `po di a mi`.
+
+The text rules are templates. Their parameter names what blocks an erasure at the start of a paragraph, as "Sentences and erasure" explains. `text` and its rules serve the whole text, a parenthetical and a quote with a written `cai`. `open-quote-text` and its rules serve a quote whose `cai` is left out.
+
+The sentences chapter starts every sentence with a starter, and lets the first sentence of a paragraph leave it out. So a further sentence without a starter is always ungrammatical. `invalid-tail` reads it as erased text, even where the same words form a sentence at the start of a paragraph.
+
+A further sentence cannot start with a paragraph mark or the end of a parenthesis, because those end the paragraph. If no `ra` comes right before it, erased text after a complete sentence cannot start with a closer. A closer is `FI`, `VEI`, `PEI`, `BU`, `PA` or `cai`. Such a closer belongs to the sentence before it, which is then ungrammatical, so the erasure starts at that sentence.
 
 ```jbogenbau
 %rule text-of(@Open)
@@ -27,7 +33,7 @@ The sentences chapter starts every sentence with a starter, and lets the first s
   [po-head] sentences-of(@Open) [{po-head sentences-of(@Open)}]
 
 %rule po-head
-  [{prefix}] PO [{postfix}]
+  PO [{postfix}]
 
 %rule sentences-of(@Open)
   sentence-of(@Open) [{tail-sentence-of(@Open)}]
@@ -51,7 +57,7 @@ The sentences chapter starts every sentence with a starter, and lets the first s
   [{prefix}] (A | O | NI)
 
 %rule po-or-dai
-  [{prefix}] PO | DAI
+  PO | DAI
 
 %rule closer
   elider-word | CAI
@@ -134,7 +140,7 @@ The chapter erases back to the start of the last sentence that was still grammat
   $s.following-tokens.begins(open-end)
 
 %rule open-end
-  starter-head | [{prefix}] PO | RA | end-of-text
+  starter-head | PO | RA | end-of-text
 
 %rule elider-word
   FI | VEI | PEI | BU | PA
@@ -203,7 +209,7 @@ The PEG requires a written starter after an erasure, and states this rule in an 
   {RA}
 
 %rule after-erasure
-  | starter-head | [{prefix}] PO | erased-invalid
+  | starter-head | PO | erased-invalid
   | sentence-closer | end-of-text
 ```
 
@@ -264,11 +270,18 @@ An inner predicate is a chain, with an optional arguments list before it. The ar
 
 A chain is one or more steps, grouped from the right. `ri` erases the chain read so far, and the chain starts again after it. `bi` before a chain negates the whole of it, as the chapter on [transformations](https://eberban.github.io/eberban/books/refgram/book/logic/transformations.html) says.
 
+After `bi`, `ri` erases the chain that the `bi` negates, and the `bi` stays. So `a mi bi mo ri ke` negates `ke`, as in the PEG. The chain after `bi` can read the `ri` itself, so the rule `erased-chain` refuses an erased item that ends in a `bi` chain. Without that condition, each such text has two readings.
+
 A step is a verb with its free suffixes and binds, then the rest of the chain. The verb can take an `SI` particle before it, which selects its places. An `SI` can also follow each `ZI` modifier of the verb. The rule `annotated-verb` reads the verb with its free suffixes, as the PEG's `ChainVerb` does.
 
 ```jbogenbau
 %rule chain
-  [{chain-inner RI}] chain-inner
+  [{erased-chain RI}] chain-inner
+
+%rule erased-chain
+  chain-inner
+%conditions
+  $ ≇ #(⋱ chain-inner« bi-free chain »)
 
 %rule chain-inner
   | bi-free chain
@@ -407,9 +420,9 @@ The [quotes chapter](https://eberban.github.io/eberban/books/refgram/book/gramma
 
 The chapter does not say that `cai` can be left out. The PEG lets the speaker leave it out where the quoted text can end, and this grammar follows the PEG.
 
-A quote with a written `cai` reads `text`, like the whole text, because no closer inside it can end it. In a quote whose `cai` is left out, a particle that closes an outer construct ends the quoted text instead of starting erasable text. The second and third alternatives read such a quote. Their first two conditions require that the `cai` is left out. The next two require that the text holds no erased invalid stretch that starts with such a particle.
+A quote with a written `cai` reads `text`, like the whole text, because no closer inside it can end it. In a quote whose `cai` is left out, a particle that closes an outer construct ends the quoted text instead of starting erasable text. The second and third alternatives read such a quote. Their terminator `[+CAI=""]` allows only the omitted `cai`, because a written `cai` has the value `cai`. Their first two conditions require that the text holds no erased invalid stretch that starts with such a particle.
 
-An elidable optional cannot hold a capture, so no capture can say whether `cai` is written. The first two conditions ask it with a tree pattern on `$`: the last leaf is an elided `CAI`.
+Where a quote of several sentences leaves out its `cai` before the end of the text, the PEG warns. The end of the quote is then hard to see. The third alternative carries that warning as `multi-sentence-cai-elided`.
 
 The PEG warns when a quote of several sentences leaves out its `cai` before the end of the text. The end of the quote is then hard to see. The third alternative carries that warning as `multi-sentence-cai-elided`. A quote holds several sentences when it has several paragraphs, or when its first paragraph has more than one sentence that is not erased. `$SEVERAL-SENTENCES` states that. An erased sentence is a node that holds the sentence and its `ra`. So the single-child search of the pattern stops there, and the sentence does not count. The last three conditions send each such quote to exactly one of the two alternatives.
 
@@ -420,11 +433,9 @@ The PEG warns when a quote of several sentences leaves out its `cai` before the 
 
 %rule grammatical-quote
   | [{prefix}] CA text [{prefix}] CAI
-  | [{prefix}] CA $q:open-quote-text [+CAI]
-  | multi-sentence-cai-elided! [{prefix}] CA $l:open-quote-text [+CAI]
+  | [{prefix}] CA $q:open-quote-text [+CAI=""]
+  | multi-sentence-cai-elided! [{prefix}] CA $l:open-quote-text [+CAI=""]
 %conditions
-  $q ⟹ $ ≅ #(⋱ CAI=""),
-  $l ⟹ $ ≅ #(⋱ CAI=""),
   $q ≇ #(⋮ erased-invalid« elider-word ⋯ »),
   $l ≇ #(⋮ erased-invalid« elider-word ⋯ »),
   $q ≅ $SEVERAL-SENTENCES ⟹ $.following-tokens.begins(end-of-text),
