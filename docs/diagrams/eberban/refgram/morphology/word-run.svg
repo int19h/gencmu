@@ -28,13 +28,13 @@
 <path d="M231 110H251"/>
 <path d="M60 110a10 10 0 0 0 10 -10V98a10 10 0 0 1 10 -10H231a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
 <path d="M251 110h10"/>
-<g class="rule"><rect x="261" y="98" width="84" height="24" rx="0"/><text x="303" y="115" textLength="67.2" lengthAdjust="spacingAndGlyphs">prefixes</text></g>
-<path d="M345 110h10"/>
-<path d="M355 110h20"/>
-<g class="rule"><rect x="375" y="98" width="151" height="24" rx="0"/><text x="450.5" y="115" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
-<path d="M526 110H546"/>
-<path d="M355 110a10 10 0 0 0 10 -10V98a10 10 0 0 1 10 -10H526a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
-<path d="M546 110H642a10 10 0 0 1 10 10V122a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V164a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="261" y="98" width="134" height="24" rx="0"/><text x="328" y="115" textLength="117.6" lengthAdjust="spacingAndGlyphs">stray-prefixes</text></g>
+<path d="M395 110h10"/>
+<path d="M405 110h20"/>
+<g class="rule"><rect x="425" y="98" width="151" height="24" rx="0"/><text x="500.5" y="115" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<path d="M576 110H596"/>
+<path d="M405 110a10 10 0 0 0 10 -10V98a10 10 0 0 1 10 -10H576a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
+<path d="M596 110H642a10 10 0 0 1 10 10V122a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V164a10 10 0 0 0 10 10"/>
 <path d="M60 174h20"/>
 <path d="M80 174h20"/>
 <g class="rule"><rect x="100" y="162" width="176" height="24" rx="0"/><text x="188" y="179" textLength="159.6" lengthAdjust="spacingAndGlyphs">vowel-particle-word</text></g>
@@ -70,10 +70,10 @@
 <path d="M211 282H231"/>
 <path d="M40 282a10 10 0 0 0 10 -10V270a10 10 0 0 1 10 -10H211a10 10 0 0 1 10 10V272a10 10 0 0 0 10 10"/>
 <path d="M231 282h10"/>
-<g class="rule"><rect x="241" y="270" width="84" height="24" rx="0"/><text x="283" y="287" textLength="67.2" lengthAdjust="spacingAndGlyphs">prefixes</text></g>
-<path d="M325 282h10"/>
-<g class="rule"><rect x="335" y="270" width="92" height="24" rx="0"/><text x="381" y="287" textLength="75.6" lengthAdjust="spacingAndGlyphs">borrowing</text></g>
-<path d="M427 282H667a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="241" y="270" width="134" height="24" rx="0"/><text x="308" y="287" textLength="117.6" lengthAdjust="spacingAndGlyphs">stray-prefixes</text></g>
+<path d="M375 282h10"/>
+<g class="rule"><rect x="385" y="270" width="92" height="24" rx="0"/><text x="431" y="287" textLength="75.6" lengthAdjust="spacingAndGlyphs">borrowing</text></g>
+<path d="M477 282H667a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
 <path d="M20 56a10 10 0 0 1 10 10V316a10 10 0 0 0 10 10"/>
 <path d="M40 326h20"/>
 <g class="rule"><rect x="60" y="314" width="151" height="24" rx="0"/><text x="135.5" y="331" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
