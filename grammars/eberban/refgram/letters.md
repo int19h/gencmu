@@ -323,7 +323,9 @@ The line breaks after a hyphen belong to its token. The [new course](https://ebe
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/indent-char.svg" alt="Railroad diagram of the rule indent-char"></p>
 </details>
 
-The [numbers chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/numbers.html) accepts the digit characters `0` to `9` as `TI` particles, so `42` is `tu ta`. A token's value is the canonical word, and the spelling stays in its image. So the stage emits each digit as a `Digit` token whose value is its `TI` word and whose image is the digit. The words are those of the chapter's table. The digits 0 to 4 are `ti`, `te`, `ta`, `to` and `tu`. The digits 5 to 9 are `tie`, `tia`, `tio`, `tiu` and `tei`. So an exact comparison sees `1` and `te` as one word, as speech does.
+The [numbers chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/numbers.html) accepts the digit characters `0` to `9` as `TI` particles, so `42` is `tu ta`. A token's value is the canonical word, and the spelling stays in its image. So the stage emits each digit as a `Digit` token whose value is its `TI` word and whose image is the digit. The words are those of the chapter's table.
+
+The digits 0 to 4 are `ti`, `te`, `ta`, `to` and `tu`. The digits 5 to 9 are `tie`, `tia`, `tio`, `tiu` and `tei`. So an exact comparison sees `1` and `te` as one word, as speech does.
 
 The brackets `[` and `]` delimit foreign quotes. Outside a quote they are spaces, which the forms stage decides.
 
@@ -363,6 +365,6 @@ The brackets `[` and `]` delimit foreign quotes. Outside a quote they are spaces
 
 The book names only the hyphen-minus `-`. The PEG also reads U+2010 as a hyphen, and this stage follows it, because U+2010 is the hyphen of Unicode.
 
-The PEG reads only the ASCII letters as letters, and so does this stage. The engine decomposes the text first, so the template `plain` checks the source of each letter. A precomposed `é` is then a space, as in the PEG and the book. Where the text writes `e` and then a separate combining accent, `e` is a letter and the accent is a space, as in the PEG.
+The PEG reads only the ASCII letters as letters, and so does this stage. The engine decomposes the text first, so the template `plain` tests the source of each letter. A precomposed `é` is then a space, as in the PEG and the book. Where the text writes `e` and then a separate combining accent, `e` is a letter and the accent is a space, as in the PEG.
 
 The new course says that spaces can stand on the new line before the rest of a word. The PEG keeps only the line breaks after a hyphen. It reads `bja-` and an indented `n` on the next line as `bja` and a hesitation. It reads `mi-` and an indented `a mo` as two sentences. This stage follows the new course and reads `bjan`, and `mia mo` as one sentence.

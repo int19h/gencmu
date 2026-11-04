@@ -1,6 +1,6 @@
 # The Eberban reference grammar
 
-Eberban is a logical constructed language by mia. This pipeline reads Eberban as [the reference grammar](https://eberban.github.io/eberban/) describes it. The reference grammar is a book with chapters on morphology, chaining, binding, sentences and the smaller constructs. The executable baseline is `eberban.peggy`, the parsing expression grammar (PEG) of the language at [commit `7a3ec1ae`](https://github.com/eberban/eberban/blob/7a3ec1ae4f208d2994c42561b1cad0d23358206f/web/src/grammar/eberban.peggy). The book decides. The PEG is supporting evidence, and the closing section of each document lists the departures from it.
+Eberban is a logical constructed language by mia. This pipeline reads Eberban as [the reference grammar](https://eberban.github.io/eberban/) describes it. The reference grammar is a book with chapters on morphology, chaining, binding, sentences and the smaller constructs. The executable baseline is `eberban.peggy`, the parsing expression grammar (PEG) of the language at [commit `f10f86a0`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy), version 0.67.5. The book decides. The PEG is supporting evidence, and the closing section of each document lists the departures from it.
 
 A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. [The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars.
 
@@ -73,7 +73,7 @@ The stage builds the tree of the text. An elided terminator is a closing word le
 
 Each stage document closes with its own list. The pipeline as a whole departs from the PEG in two policies.
 
-The PEG reports a custom message for each mistake it recognizes. It keeps the first message queued even when the reading that queued it fails, and the queued message then rejects the text. Around a few speculative attempts, it saves the queued message and restores it when it discards the attempt. A later `ra` that erases ungrammatical text discards the queued message. This pipeline reports only that a text has no parse and where the parse stops. Its grammar states the rule behind each message. A reading that fails here leaves nothing behind, so only the readings that succeed decide. A text that the PEG rejects with a message has no parse here. The exceptions are the departures that the stage documents list, and a message that a failed reading left queued.
+The PEG reports a custom message for each mistake it recognizes. A reading can queue a message and then fail. The first message still stays queued, and it then rejects the text. Around a few speculative attempts, it saves the queued message. If it discards the attempt, it restores the message. A later `ra` that erases ungrammatical text discards the queued message.
 
 This pipeline reports only that a text has no parse and where the parse stops. Its grammar states the rule behind each message. A reading that fails here leaves nothing behind, so only the readings that succeed decide. A text that the PEG rejects with a message has no parse here. The exceptions are the departures that the stage documents list, and a message that a failed reading left queued.
 
