@@ -31,12 +31,12 @@ The stage reads the characters of the text. It hands the forms stage one token p
 %stage forms
 ```
 
-- [Word forms](morphology.md): the self-segregating morphology, particle families, roots, borrowings, freeform variables, compound prefixes, spelling quotes and foreign quotes
+- [Word forms](morphology.md): the self-segregating morphology, particle families, roots, borrowings, freeform variables, compounds, spelling quotes and foreign quotes
   ```jbogenbau
   %include "morphology.md"
   ```
 
-The stage divides the letters into words and foreign quotes and tags each word with its family. It hands on one space token for each gap and drops hesitation.
+The stage divides the letters into words and tags each word with its family. A compound, a spelling quote and a foreign quote are each one word. The stage hands on one space token for each gap and drops hesitation.
 
 ## Stage 3: words
 
@@ -44,12 +44,12 @@ The stage divides the letters into words and foreign quotes and tags each word w
 %stage words
 ```
 
-- [The word stream](stream.md): compounds and spacing
+- [The word stream](stream.md): spacing
   ```jbogenbau
   %include "stream.md"
   ```
 
-The stage assembles compounds into single tokens and drops the spaces. It hands the syntax stage a stream of words.
+The stage drops the spaces and hands the syntax stage a stream of words.
 
 ## Stage 4: syntax
 
@@ -75,4 +75,8 @@ Each stage document closes with its own list. The pipeline as a whole departs fr
 
 The PEG reports a custom message for each mistake it recognizes. It keeps the first message queued even when the reading that queued it fails, and the queued message then rejects the text. Around a few speculative attempts, it saves the queued message and restores it when it discards the attempt. A later `ra` that erases ungrammatical text discards the queued message. This pipeline reports only that a text has no parse and where the parse stops. Its grammar states the rule behind each message. A reading that fails here leaves nothing behind, so only the readings that succeed decide. A text that the PEG rejects with a message has no parse here. The exceptions are the departures that the stage documents list, and a message that a failed reading left queued.
 
-The sentences chapter says that a `ra` inside a foreign quote erases an ungrammatical sentence. That passage describes the PEG. The PEG reads the characters of such a sentence again, without regard to quotes. mia, who designed Eberban, considers it a limitation of the PEG. Her intent is that words and quotes are read first and parsed after. This pipeline does that, so a `ra` inside a quote is always quoted text. [The word forms](morphology.md#differences-from-the-reference-grammar-and-the-peg) give the details.
+This pipeline reports only that a text has no parse and where the parse stops. Its grammar states the rule behind each message. A reading that fails here leaves nothing behind, so only the readings that succeed decide. A text that the PEG rejects with a message has no parse here. The exceptions are the departures that the stage documents list, and a message that a failed reading left queued.
+
+The sentences chapter says that a `ra` inside a foreign quote erases an ungrammatical sentence. That passage describes the PEG. The PEG reads the characters of such a sentence again, without regard to quotes.
+
+mia, who designed Eberban, considers that reading a limitation of the PEG. Her intent is that words and quotes are read first and parsed after. This pipeline does that, so a `ra` inside a quote is always quoted text. A compound is a word unit too, so no quote starts inside a compound that is not complete. [The word forms](morphology.md#differences-from-the-reference-grammar-and-the-peg) give the details.
