@@ -284,7 +284,10 @@ impl Splicer<'_> {
                     };
                     let continues = self.open_run && stage.documents.last().is_some_and(|(run, _)| run == path);
                     if !continues {
-                        stage.documents.push((path.clone(), Dom::default()));
+                        stage.documents.push((
+                            path.clone(),
+                            Dom { names_dependencies: dom.names_dependencies.clone(), ..Dom::default() },
+                        ));
                         self.open_run = true;
                     }
                     let (_, run) = stage.documents.last_mut().expect("a run");
@@ -423,8 +426,20 @@ mod tests {
             let mut documents = Failing {
                 top: Arc::new(Dom {
                     directives: vec![
-                        Directive { name: "stage".into(), args: vec!["main".into()], at: (1, 1), conditions: None },
-                        Directive { name: "include".into(), args: vec!["g.md".into()], at: (2, 1), conditions: None },
+                        Directive {
+                            steps: None,
+                            name: "stage".into(),
+                            args: vec!["main".into()],
+                            at: (1, 1),
+                            conditions: None,
+                        },
+                        Directive {
+                            steps: None,
+                            name: "include".into(),
+                            args: vec!["g.md".into()],
+                            at: (2, 1),
+                            conditions: None,
+                        },
                     ],
                     ..Dom::default()
                 }),
@@ -439,8 +454,13 @@ mod tests {
     /// and the features are checked by sets, not scans.
     #[test]
     fn a_long_include_chain_splices_in_linear_work() {
-        let directive =
-            |name: &str, args: Vec<String>| Directive { conditions: None, name: name.into(), args, at: (1, 1) };
+        let directive = |name: &str, args: Vec<String>| Directive {
+            conditions: None,
+            name: name.into(),
+            args,
+            steps: None,
+            at: (1, 1),
+        };
         let held = move |n: usize| {
             let mut documents: HashMap<String, Arc<Dom>> = (0..n - 1)
                 .map(|index| {
@@ -455,7 +475,6 @@ mod tests {
                 deferred_emission: None,
                 name: "text".into(),
                 op: Op::Define,
-                flags: Vec::new(),
                 tags: None,
                 alternatives: vec![Alternative {
                     strings: Default::default(),

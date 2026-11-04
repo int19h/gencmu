@@ -93,7 +93,8 @@ SOURCES = {"pipeline.md": PIPELINE, "sounds.md": SOUNDS, "words.md": WORDS, "syn
 ELIDING = {
     "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
     "g.md": """```jbogenbau
-%ambiguity-resolution greedy elision-only
+%ambiguity-resolution greedy
+%elision-only
 %rule text s [+KU] | s B [+KU]
 %rule s A [B]
 ```
@@ -143,45 +144,33 @@ class TestDefinitions(unittest.TestCase):
 
 
 class Loaders(unittest.TestCase):
-    def test_source_maps_reject_every_non_scalar_resource_before_parsing(self):
-        for path in ("data/unicode/unicode.txt", "data/unicode/unicode-properties.txt", "data/unicode/unicode-names.txt",
-                     "data/unicode/unicode-names-reference.txt", "extra-names.txt", "data/preparsed/gencmu.json",
-                     "data/preparsed/test.json", "unused.md"):
-            with self.subTest(path=path), self.assertRaises(gencmu.GencmuError) as caught:
-                gencmu.load_pipeline_sources({path: "header\n\ud800"}, "missing.md")
-            self.assertEqual(caught.exception.kind, "usage")
-            self.assertEqual(caught.exception.document, path)
-            self.assertIsNone(caught.exception.line)
-            self.assertIsNone(caught.exception.column)
-        with self.assertRaises(gencmu.GencmuError) as caught:
-            gencmu.load_pipeline_sources({"z": "\ud800", "a": "\ud800"}, "missing.md")
-        self.assertEqual(caught.exception.document, "a")
+    def test_cached_tree_comparisons_keep_cycle_positions(self) -> None:
+        from gencmu._pipeline import read_document
+        from gencmu._hash import fnv1a64
+        source = '```jbogenbau\n%ambiguity-resolution greedy\n%rule text $x:w $y:w\n%conditions $x ≅ $y\n%rule w "a" | w\n```\n'
+        sources = {"grammars/test/p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "grammars/test/g.md": source}
+        cache = {
+            "format": DOM_FORMAT, "bootstrap": fnv1a64(bundled_text("data/preparsed/gencmu.json") or ""),
+            "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""),
+            "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""),
+            "documents": {"grammars/test/g.md": {"hash": fnv1a64(source), "dom": read_document(source, "grammars/test/g.md")}},
+        }
+        for cached in (False, True):
+            with self.subTest(cached=cached):
+                if cached: sources["data/preparsed/test.json"] = json.dumps(cache)
+                result = gencmu.load_pipeline_sources(sources, "grammars/test/p.md").parse("aa")
+                self.assertEqual(result.error.kind, "grammar")
+                self.assertTrue(result.error.message.startswith("grammars/test/g.md:4:13: "), result.error.message)
 
-    def test_replacements_record_flag_changes(self) -> None:
-        from gencmu._grammar import FlagChange
-
-        pipeline = gencmu.load_pipeline_sources(
-            {
-                "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
-                "g.md": """```jbogenbau
-%ambiguity-resolution greedy
-%rule(leftmost-longest) text A
-%extend-rule text B
-%redefine-rule text C
-%redefine-rule(leftmost-longest) text D
-%redefine-rule(leftmost-longest) text E
-%redefine-rule text F
-%redefine-rule text G
-```
-""",
-            },
-            "p.md",
-        )
-        changes = pipeline._grammars[0].changes
-        removed = FlagChange(["leftmost-longest"], [])
-        added = FlagChange([], ["leftmost-longest"])
-        self.assertEqual([change.flag_change for change in changes], [None, removed, added, None, removed, None])
-        for index, change in enumerate(changes):
+    def test_replacements_retain_ranking_steps(self) -> None:
+        pipeline = gencmu.load_pipeline_sources({
+            "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
+            "g.md": '```jbogenbau\n%ambiguity-resolution leftmost-longest #·text, greedy\n%rule text A\n%extend-rule text B\n%redefine-rule text C\n%redefine-rule text D\n```\n',
+        }, "p.md")
+        grammar = pipeline._grammars[0]
+        self.assertEqual(len(grammar.steps), 1)
+        self.assertEqual(grammar.steps[0][1]['name'], 'text')
+        for index, change in enumerate(grammar.changes):
             self.assertEqual((change.rule, change.document, change.previous), ("text", "g.md", "g.md"))
             self.assertEqual(change.kind, "extend" if index == 0 else "replace")
 
@@ -282,8 +271,25 @@ class Options(unittest.TestCase):
         with self.assertRaises(gencmu.GencmuError):
             self.pipeline.parse("mi", features="sa-su")
 
+    def test_ranking_reports_label_only_unreachable_patterns(self) -> None:
+        for grammar, pattern, impossible in (
+            ('%rule text A', '#·_', False),
+            ('%rule text [+END]', '#·_<_Elided>', False),
+            ('%rule text ε', '#·_', True),
+            ('%rule text wrap\n%rule wrap $x:child :: (T ∪ $x.tags)\n%rule child A :: U', '#·wrap<T>', False),
+        ):
+            with self.subTest(pattern=pattern, grammar=grammar):
+                source = '%ambiguity-resolution fewest ' + pattern + '\n' + grammar
+                pipeline = gencmu.load_pipeline_sources({'p.md': '```jbogenbau\n%stage main\n' + source + '\n```'}, 'p.md')
+                report = pipeline.ranking_reports()[0]
+                self.assertEqual(report['keySteps'][0].get('status'), 'impossible' if impossible else None)
+                self.assertNotIn('droppedRankingTags', report)
+                self.assertNotIn('inheritedRankingTags', report)
+                self.assertNotIn('vocabularyWarnings', report)
+                self.assertEqual('ranking step 1: impossible' in pipeline.format_ranking_reports(), impossible)
+
     def test_pipeline_exposes_only_documented_members(self) -> None:
-        self.assertEqual({name for name in dir(self.pipeline) if not name.startswith("_")}, {"features", "parse", "parse_tokens"})
+        self.assertEqual({name for name in dir(self.pipeline) if not name.startswith("_")}, {"features", "parse", "parse_tokens", "ranking_reports", "format_ranking_reports"})
 
     def test_pipeline_defaults_enable_features(self) -> None:
         sources = dict(SOURCES)
@@ -333,7 +339,7 @@ class Options(unittest.TestCase):
         self.assertEqual(declared.error.kind, "ambiguous")
         self.assertEqual(len(declared.error.readings or []), 2)
         self.assertTrue(pipeline.parse_tokens(tokens, text, elision_only=False).ok)
-        plain = gencmu.load_pipeline_sources({**ELIDING, "g.md": ELIDING["g.md"].replace(" elision-only", "")}, "p.md")
+        plain = gencmu.load_pipeline_sources({**ELIDING, "g.md": ELIDING["g.md"].replace("\n%elision-only", "")}, "p.md")
         self.assertTrue(plain.parse_tokens(tokens, text).ok)
         self.assertFalse(plain.parse_tokens(tokens, text, elision_only=True).ok)
 

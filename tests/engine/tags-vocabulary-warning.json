@@ -1,0 +1,10 @@
+{
+  "description": "A wildcard step with an unreachable tag leaves the result unchanged (engine §6).",
+  "grammar": "%ambiguity-resolution fewest #·_<Misspelled>\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

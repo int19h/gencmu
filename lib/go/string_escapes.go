@@ -17,7 +17,7 @@ type documentStrings struct {
 	namesPaths map[int]bool
 }
 
-var namesStatementKeywords = []string{"%names", "%rule", "%redefine-rule", "%extend-rule", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features", "%ambiguity-resolution", "%const", "%redefine-const", "%classifier", "%implies"}
+var namesStatementKeywords = []string{"%names", "%rule", "%redefine-rule", "%extend-rule", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features", "%ambiguity-resolution", "%elision-only", "%const", "%redefine-const", "%classifier", "%implies"}
 
 func (d *documentStrings) inspect(tokens []Token) *Error {
 	quoted := func(token Token) bool {

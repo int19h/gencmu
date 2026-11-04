@@ -41,6 +41,7 @@ pub(super) fn document(dom: &mut Dom) {
         }
     }
     for directive in &mut dom.directives {
+        stack.extend(directive.steps.iter_mut().flatten().filter_map(|step| step.pattern.as_mut()).map(Part::Term));
         stack.extend(directive.conditions.iter_mut().flatten().map(Part::Cond));
     }
     stack.extend(dom.constants.iter_mut().map(|c| Part::Term(&mut c.value)));
@@ -59,7 +60,11 @@ pub(super) fn document(dom: &mut Dom) {
                 Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
                     stack.extend(xs.iter_mut().map(Part::Expr))
                 }
-                Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(Part::Expr(inner)),
+                Expr::Optional(inner, _, default) => {
+                    stack.push(Part::Expr(inner));
+                    stack.extend(default.iter_mut().map(|d| Part::Term(&mut d.term)));
+                }
+                Expr::Capture(_, inner) => stack.push(Part::Expr(inner)),
                 Expr::Repeat(inner, separator, _) => {
                     stack.push(Part::Expr(inner));
                     stack.extend(separator.iter_mut().map(|s| Part::Expr(s)));
@@ -108,7 +113,7 @@ pub(super) fn document(dom: &mut Dom) {
                 }
                 Cond::Not(c) => stack.push(Part::Cond(c)),
                 Cond::If(a, b) => stack.extend([Part::Cond(a), Part::Cond(b)]),
-                Cond::Compare(_, a, b) => stack.extend([Part::Term(a), Part::Term(b)]),
+                Cond::Compare(_, a, b, _) => stack.extend([Part::Term(a), Part::Term(b)]),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter_mut().filter_map(|arg| {
                     if let Arg::Term(t) = arg {
                         Some(Part::Term(t))
@@ -154,7 +159,7 @@ pub(super) fn document(dom: &mut Dom) {
                 Pattern::Source(s) => stack.push(Part::Symbol(s)),
                 Pattern::Literal(t, _) => stack.push(Part::Term(t)),
                 Pattern::Range(a, b, _) => stack.extend([Part::Term(a), Part::Term(b)]),
-                Pattern::Test(_, t, p) => stack.extend([Part::Term(t), Part::Pattern(p)]),
+                Pattern::Test(_, t, p, _) => stack.extend([Part::Term(t), Part::Pattern(p)]),
                 Pattern::Path(_, p) => stack.push(Part::Pattern(p)),
                 Pattern::Node(p, _, children) => {
                     stack.push(Part::Pattern(p));

@@ -1,0 +1,31 @@
+{
+  "description": "A tested wildcard retains its leaf pattern in the DOM (output.md).",
+  "document": "```jbogenbau\n%rule text $x:w %conditions $x ≅ #·_<T>=\"a\"\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "test": "=",
+                  "value": {
+                    "string": "a"
+                  },
+                  "expr": {
+                    "test": "tags",
+                    "expr": {
+                      "wildcard": true
+                    }
+                  },
+                  "exact": true
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

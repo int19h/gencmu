@@ -1,0 +1,20 @@
+{
+  "description": "An item capture compares with a tree pattern at its readiness point (engine §4).",
+  "documents": {
+    "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A}\n%conditions $c ≅ #A\n```\n"
+  },
+  "pipelineDocument": "main.md",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ]
+}

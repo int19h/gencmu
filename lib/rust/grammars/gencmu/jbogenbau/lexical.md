@@ -351,7 +351,7 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
 ```jbogenbau
 %const $KEYWORDS
   "rule" "redefine-rule" "extend-rule" "conditions"
-  "emits" "erased" "ambiguity-resolution" "stage"
+  "emits" "erased" "ambiguity-resolution" "elision-only" "stage"
   "extend-stage" "redefine-stage" "include" "features"
   "const" "redefine-const" "classifier" "implies" "names"
 
@@ -363,6 +363,7 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
   | "%" whole-name="emits" :: KW-EMITS
   | "%" whole-name="erased" :: KW-ERASED
   | "%" whole-name="ambiguity-resolution" :: KW-AMBIGUITY-RESOLUTION
+  | "%" whole-name="elision-only" :: KW-ELISION-ONLY
   | "%" whole-name="stage" :: KW-STAGE
   | "%" whole-name="extend-stage" :: KW-EXTEND-STAGE
   | "%" whole-name="redefine-stage" :: KW-REDEFINE-STAGE
@@ -394,14 +395,14 @@ A symbol is punctuation that no larger lexical form contains. Symbols preserve t
 
 The greedy reading keeps `...`, `..`, `++`, `::`, `:=`, and `:-` together as compound tokens. `#` and `(` remain separate tokens.
 
-`≻` separates ranked options. `/` separates a repetition's item and separator. Pattern paths and comparisons retain their own punctuation tokens.
+`≻` separates ranked options. `≝` gives an elided terminator its default value. `/` separates a repetition's item and separator. Pattern paths and comparisons retain their own punctuation tokens.
 
 ```jbogenbau
 %rule symbol
   | "«" | "»" | "·"
   | "|" | "&" | "(" | ")" | "[" | "]" | "{" | "}" | "/" | "+" | "<" | ">" | "#" | "ε" | ","
   | "∧" | "∨" | "⟹" | "=" | "∈" | "⊆" | "∪" | "∩" | "∖" | "∅"
-  | "≅" | "⋯" | "⋮" | "⋰" | "⋱" | "≻" | ":" | "."
+  | "≅" | "≝" | "⋯" | "⋮" | "⋰" | "⋱" | "≻" | ":" | "."
   | "+" "+" | "." "." "." | "." "." | ":" ":" | ":" "=" | ":" "-"
   | ("=" | "∈" | "⊆" | "≅") "‹U+0338›"
 %emits

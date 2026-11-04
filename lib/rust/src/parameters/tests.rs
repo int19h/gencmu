@@ -32,7 +32,9 @@ fn located(s: &str) -> Dom {
     crate::loader::read_grammar_dom(&format!("```jbogenbau\n{s}\n```\n"), "").unwrap()
 }
 fn grammar(s: &str) -> crate::grammar::StageGrammar {
-    let d = read(&format!("%ambiguity-resolution greedy\n{s}"));
+    // A grammar without its own directive ranks with `greedy`.
+    let d =
+        if s.contains("%ambiguity-resolution") { read(s) } else { read(&format!("%ambiguity-resolution greedy\n{s}")) };
     crate::grammar::stitch("main", &[(Arc::from("grammars/test/test.md"), Arc::new(d))], &unicode()).unwrap()
 }
 fn names(g: &crate::grammar::StageGrammar) -> Vec<String> {
@@ -79,10 +81,10 @@ fn pinned_public_edits() {
     }
 }
 #[test]
-fn template_flags() {
-    let g=grammar("%rule(fewest) atom(@X) @X\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"");
-    assert!(g.rules[g.index["atom(\"a\")"]].flags.is_empty());
-    assert_eq!(g.rules[g.index["atom(\"b\")"]].flags, ["fewest"]);
+fn template_ranking_steps() {
+    let g=grammar("%ambiguity-resolution fewest #·atom, greedy\n%rule atom(@X) @X\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"");
+    assert_eq!(g.steps.len(), 1);
+    assert!(matches!(g.steps[0].pattern, crate::patterns::Pattern::Union(_)));
 }
 #[test]
 fn nominal_constants_and_group_normalization() {
@@ -267,7 +269,7 @@ fn pattern_test_operands() {
         crate::test_common::run_engine_case(&crate::test_common::parse_json(&c).unwrap()).unwrap();
     }
     let source = "%rule atom(@X) @X\n%rule unused(@X) @X %conditions $ ≅ #(atom(\"a\")=\"a\")\n%rule text \"a\"";
-    assert!(crate::tools::read_grammar_document(&format!("```jbogenbau\n{source}\n```\n"), "").is_err());
+    assert!(crate::tools::read_grammar_document(&format!("```jbogenbau\n{source}\n```\n"), "").is_ok());
 }
 #[test]
 fn ranked_locations_do_not_change_dom() {
@@ -385,8 +387,10 @@ fn shared_parameter_structure() {
     for case in list(&cases) {
         let name = text(get(case, "name"));
         if get(case, "public") == &Json::Bool(true) {
-            let source =
-                format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n{}\n```", text(get(case, "grammar")));
+            let grammar = text(get(case, "grammar"));
+            let directive =
+                if grammar.contains("%ambiguity-resolution") { "" } else { "%ambiguity-resolution greedy\n" };
+            let source = format!("```jbogenbau\n%stage main\n{directive}{grammar}\n```");
             let pipeline = crate::load_pipeline_sources([("grammars/test/p.md", source)], "grammars/test/p.md")
                 .unwrap_or_else(|e| panic!("{name}: {e}"));
             let g = &pipeline.stages[0];
@@ -457,15 +461,6 @@ fn shared_parameter_structure() {
         }
         if let Some(count) = case.get("instances") {
             assert_eq!(x.as_ref().map_or(0, |x| x.instance_names.len()), count.as_int().unwrap() as usize, "{name}");
-        }
-        if let Some(flags) = case.get("flags").and_then(Json::as_object) {
-            let g = grammar(text(get(case, "grammar")));
-            for (name, flags) in flags {
-                assert_eq!(
-                    g.rules[g.index[name]].flags,
-                    list(flags).iter().map(|n| text(n).to_string()).collect::<Vec<_>>()
-                );
-            }
         }
     }
 }

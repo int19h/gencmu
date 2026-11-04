@@ -1,0 +1,25 @@
+{
+  "description": "One token read as A or B contributes by its reading terminal (engine §6).",
+  "grammar": "%ambiguity-resolution fewest #·A\n%rule text x | y\n%rule x A\n%rule y B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "y"
+          }
+        ]
+      }
+    }
+  }
+}

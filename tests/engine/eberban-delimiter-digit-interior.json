@@ -1,0 +1,34 @@
+{
+  "description": "In the eberban/refgram pipeline, delimiter-shape reads the digit after an interior ] with the value te, so the quote closes at the first ]1. Its pair is delimiter-digit-closer.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "co te[x]1]1",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "co te[x]te",
+              "image": "co te[x]1"
+            },
+            {
+              "value": "te",
+              "image": "1"
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": []
+  }
+}

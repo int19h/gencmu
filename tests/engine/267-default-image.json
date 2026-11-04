@@ -1,0 +1,27 @@
+{
+  "description": "An omitted default contributes no image or value to emission (engine §11.2).",
+  "grammar": "%rule text $x:r\n%emits $\n%rule r TO [+JI ≝ \"jie\"]",
+  "tokens": [
+    {
+      "text": "to",
+      "tags": [
+        "TO"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "to",
+              "image": "to"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "description": "A capture inside a ranked group outside braces is an ordinary capture, and a ranked group inside braces without a capture is valid (engine §3.5).",
+  "document": "```jbogenbau\n%rule a ( $c:Y ≻ V ) { X ( Y ≻ V ) }\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "a",
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "ranked": [
+                      {
+                        "capture": "c",
+                        "expr": {
+                          "ref": "Y"
+                        }
+                      },
+                      {
+                        "ref": "V"
+                      }
+                    ]
+                  },
+                  {
+                    "repeat": {
+                      "seq": [
+                        {
+                          "ref": "X"
+                        },
+                        {
+                          "ranked": [
+                            {
+                              "ref": "Y"
+                            },
+                            {
+                              "ref": "V"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

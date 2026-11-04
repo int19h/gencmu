@@ -489,6 +489,8 @@ In contrast, `:: _General_Category_Uppercase_Letter` and `:: ($x ⟹ _General_Ca
 
 A tag-set constant cannot hold an engine-tag literal, even inside a filter. Classifiers cannot assign them because engine tags are not classes. Neither side of `%implies` can name one. An engine tag cannot mark an omission. Disabled gates excuse none of these document errors. Pattern constants and tests can read engine tags.
 
+The mark `_Elided` is not an engine tag, although it is spelled like one. It is a pattern mark: an omitted terminator's leaf has the pattern tags `{T, _Elided}` (§4.1), and nothing else carries it. No token, synthetic token or constituent has it, no tag term can give it, and the registry of §1 does not hold it. It is legal only in the tag test of a pattern (§9.3). The API refuses a caller token or attachment that carries it, as a usage error.
+
 Caller tokens bypass stage-zero character construction. Caller tokens also skip canonical decomposition, and the text beside them is not decomposed. Their values and images default independently to text, with explicit empty strings preserved. The engine adds no tags or normalization.
 
 The caller can supply engine tags to represent earlier stages. Each supplied property tag requires an accepted spelling and support in the configured table. The API normalizes aliases before using the token. Its membership need not agree with the supplied value. Nonempty supplied attachments remain a usage error.
@@ -554,11 +556,7 @@ To stitch a stage's items, the loader reads them in order, whatever documents th
 
 When `%extend-rule` extends a rule, each appended alternative carries the extension's own clauses: its rule-level tags, recipes, conditions, and output. These clauses apply to the appended alternatives alone, and the base rule's clauses do not apply to them. The earlier alternatives keep their own clauses. So a script document can add letters to a rule without restating its clauses, and its own clauses do not leak into the base rule. A definition is a `%rule`, `%redefine-rule` or `%extend-rule` statement: its alternatives and the clauses written with them. The loader records every replacement and extension.
 
-A rule flag gives a rule a preference. Two flags exist, `leftmost-longest` and `fewest`, and a rule carries at most one. `%rule(F)` defines a flagged rule, and `%redefine-rule(F)` replaces its body and flag. A `%rule` or `%redefine-rule` without parentheses gives the rule no flags. `%extend-rule` accepts no flags and inherits the stitched rule's flag for all added alternatives. Flags belong to the rule, while clauses belong to each definition.
-
-Rule flags follow the same reader checks in ordinary rules, templates, calls, and patterns. An unknown flag fails at that flag. A repeated flag fails at the repetition. Two different flags fail at the second flag.
-
-Parentheses follow the keyword and precede the name. Their only accepted content is one flag name, `leftmost-longest` or `fewest`, with optional surrounding spaces. Empty parentheses, duplicates, unknown flags, arguments and parentheses on `%extend-rule` are errors of the document. Section 9 gives their priority and positions.
+A key step of `%ambiguity-resolution` names the nodes that it counts in a node pattern (§6, §9.3). A rule name in that pattern must be defined in the stage, as a name in a body must. A step that names a rule counts the stitched rule, so it counts the alternatives of a redefinition and of every extension. A tag test on a rule atom reads each node's own tag set (§3.7). So an alternative that an extension adds passes the test where its own clauses or its inheritance give the tag. A layer changes what a step counts by `%redefine-const` of a pattern constant that a step names, where the base chose to name one.
 
 The loader collects directives from all the stage's items. `%stage`, `%extend-stage`, `%redefine-stage`, and `%include` shape the pipeline (§13). Global `%features` also shapes the pipeline. Local `%features` and `%ambiguity-resolution` belong to a stage.
 
@@ -610,7 +608,7 @@ A call `a.classify(classifier)` names that classifier (§10). A `classify` whose
 
 A stage also has implications. An item `%implies A ⟹ B` (`implication`) adds one. `A` and `B` are closed terms (§10) whose type is a tag set. A constant in them has the value that the last definition of the stage gives it, as in a rule. After the loader stitches the stage, it makes sure that their types agree, as it does for a rule (§9). §11 says how the stage applies its implications.
 
-A stage has exactly one `%ambiguity-resolution L [elision-only]`, or it is an error naming the stage. `L` is `greedy`, `lazy` or `late-elision` (§6).
+A stage has exactly one `%ambiguity-resolution` directive, or it is an error naming the stage. The directive lists one or more steps (§6). A stage has at most one `%elision-only` directive, which turns on the check of §7 for the stage. A second one is an error naming the stage. No form adds to either directive or replaces it. A document that holds one states that policy for every pipeline that includes it. Where pipelines differ in the policy, each pipeline document states its own directive.
 
 No directive names elidable terminators. A rule marks each elidable optional in its body, as `[+T …]`. Whether an optional is elidable is a property of the optional itself. It is the same in every stage that includes its document.
 
@@ -697,7 +695,7 @@ The loader visits final expanded rules in the order of §2.3, and each rule's al
 A template is a rule with load-time parameters. An instance is one template with concrete arguments. Expansion replaces parameter nodes with argument nodes before ordinary rule validation and lowering.
 
 ```jbogenbau
-%rule(fewest) pair(@Left, @Right)
+%rule pair(@Left, @Right)
   @Left @Right
 
 %rule named-pair = pair("a", "b")
@@ -774,7 +772,7 @@ An exact prefix requires an argument without an exact prefix. An attached list r
 
 An expanded use must satisfy the original position's syntax and type rules. For example, `$x:@P` requires one capturable symbol. A sequence or choice cannot acquire a hidden wrapper rule. A value-test operand still requires a string literal or string constant.
 
-A parameter cannot construct a name or occupy a declaration name, flag, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head directly after `[+` can be a user tag or parameter. That parameter's argument must become exactly one bare user-tag atom after argument conversion. Rules, sequences, tested arguments, constants, and tag-set expressions are invalid there. A parenthesized single tag, such as `(KU)`, reads as that tag.
+A parameter cannot construct a name or occupy a declaration name, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head directly after `[+` can be a user tag or parameter. That parameter's argument must become exactly one bare user-tag atom after argument conversion. Rules, sequences, tested arguments, constants, and tag-set expressions are invalid there. A parenthesized single tag, such as `(KU)`, reads as that tag.
 
 Only two positions splice an argument's children into the surrounding list:
 
@@ -838,7 +836,7 @@ A public name cannot equal a template name.
 
 An edit written with NAME applies to the key bound at that statement's source position. Earlier edits remain on the old key after rebinding. Later edits by NAME apply to the new key. Every reference to NAME, except the head of an edit, uses its final binding. Exact calls continue to name their own instance keys.
 
-A binding accepts no flags, clauses, conditions, or output directive. Flags on a recognized binding are validity errors. A `%conditions` or `%emits` clause after a binding is a syntax error. The validity ban also applies to supplied binding DOMs.
+A binding accepts no clauses, conditions, or output directive. A `%conditions` or `%emits` clause after a binding is a syntax error. The validity ban applies to supplied binding DOMs.
 
 An instance receives these from its effective definition. Instance-specific edits use a later ordinary body statement.
 
@@ -882,15 +880,15 @@ Read-back inspection also descends through every argument and target inside a pa
 
 The effective name appears in trees, display JSON, canonical JSON, `insertedBy`, warnings, expected lists, witnesses, diagrams, and audit records. Such names are strings and can contain emoji, punctuation, spaces, and quotes. Runtime nodes need no extra template field.
 
-#### Source order and flags
+#### Source order
 
-Template declarations and edits use parameter heads. `%redefine-rule f(@X)` replaces the template body and flag. `%extend-rule f(@X)` appends alternatives with that statement's own clauses. Both require an earlier template with the same arity. Parameter names can change because binding is positional.
+Template declarations and edits use parameter heads. `%redefine-rule f(@X)` replaces the template body. `%extend-rule f(@X)` appends alternatives with that statement's own clauses. Both require an earlier template with the same arity. Parameter names can change because binding is positional.
 
 A closed call contains no parameter references. An instance-specific edit names its public name or its exact closed call. An edit by public name requires an earlier binding in the stage. Before that binding, a defined ordinary name still addresses its ordinary rule. A future binding cannot make an undefined earlier edit valid.
 
-`%redefine-rule f(a)` replaces that instance's body and flag. `%extend-rule f(a)` appends alternatives to that instance alone. The earlier template declaration is sufficient to create the addressed instance. A prior body call is unnecessary.
+`%redefine-rule f(a)` replaces that instance's body. `%extend-rule f(a)` appends alternatives to that instance alone. The earlier template declaration is sufficient to create the addressed instance. A prior body call is unnecessary.
 
-The loader applies template-wide and instance-specific events in source order for every instance. It replays earlier events even for an instance first discovered later. A later template redefinition replaces earlier local bodies, extensions, clauses, and flags. A later template extension reaches every instance, including one with an earlier local redefinition. A later local edit changes only its addressed instance.
+The loader applies template-wide and instance-specific events in source order for every instance. It replays earlier events even for an instance first discovered later. A later template redefinition replaces earlier local bodies, extensions and clauses. A later template extension reaches every instance, including one with an earlier local redefinition. A later local edit changes only its addressed instance.
 
 For example, the later template redefinition removes the earlier local extension:
 
@@ -900,7 +898,7 @@ For example, the later template redefinition removes the earlier local extension
 %rule named-slot = slot("a")
 %extend-rule named-slot
   "b"
-%redefine-rule(fewest) slot(@Unit)
+%redefine-rule slot(@Unit)
   @Unit "c"
 %extend-rule named-slot
   "d"
@@ -908,9 +906,9 @@ For example, the later template redefinition removes the earlier local extension
   "e"
 ```
 
-The final named instance reads `"a" "c"`, `"d"`, or `"e"`, with flag `fewest`. Another instance `slot("x")` reads `"x" "c"` or `"e"`, with the same flag.
+The final named instance reads `"a" "c"`, `"d"`, or `"e"`. Another instance `slot("x")` reads `"x" "c"` or `"e"`.
 
-A template flag becomes the ordinary flag of each instance. Extensions keep the instance's current flag. Redefinitions replace it, and a redefinition without a flag removes it. Bindings add no flag. Instances contribute actual nonempty constituents to the shared profiles of §6, with no new ranking tier.
+A ranking step's pattern can name a template family, which matches the constituents of every instance (§6). It can also name one exact instance, by its call or its public name. A binding adds no node and no occurrence.
 
 #### Patterns and exact targets
 
@@ -970,7 +968,7 @@ An error at a parameter use names the template definition and the originating ca
 
 The audit determines each event's scope from the template's recorded event indexes. It indexes expanded rule positions before sorting instances.
 
-The audit lists templates, instance keys, effective names, first calls, bindings, flags, unused parameters, and uncalled templates. It records all applicable template and local events in source order, including events later replaced. Rule and instance lists use the expanded order defined below. Template order follows declaration order. The audit also notes argument-alias twins, as `docs/design.md` defines them.
+The audit lists templates, instance keys, effective names, first calls, bindings, unused parameters, and uncalled templates. It records all applicable template and local events in source order, including events later replaced. Rule and instance lists use the expanded order defined below. Template order follows declaration order. The audit also notes argument-alias twins, as `docs/design.md` defines them.
 
 #### Expanded rule order
 
@@ -986,7 +984,7 @@ This section writes productions as `lhs → symbols`. This is not jbogenbau, the
 
 Lowering turns a grammar, given the set of enabled features, into a context-free grammar of productions. The lowered grammar is what the parser runs. Lowering decides nothing that a user can observe, except through §4 to §6 and its errors. For the same features, the stage also resolves its classifiers (§2).
 
-Every production of a named rule records the stitched rule's flags. Productions from extensions, expanded alternatives and recursive chain levels all carry them. Helpers carry no flags. Flags change no recognition, nullability, symbol test or default tag. A close of a flagged production with one logical symbol does not affect the action comparison. Its occurrence still contributes to the rule profile (§6), in the part of its flag.
+Every production of a named rule records its rule. Productions from extensions, expanded alternatives and recursive chain levels all belong to the rule. So a ranking step that names the rule counts their nonempty constituents (§6). Helpers belong to no named rule. A close of a production with one logical symbol does not affect the action comparison. Its constituent is still a node that a step can count (§6).
 
 A stage lowers its grammar when a parse gives it the enabled features. So a pipeline whose documents read and stitch loads, whatever errors lowering finds for some features. An error that lowering finds is an error of the grammar for the features of that parse. It ends the stage as the stage's result, as other parsing errors do. The stage has no verdict, no tree and no output, and no later stage runs.
 
@@ -1000,7 +998,18 @@ The error has the kind `grammar` and the stage's name, and no position member, s
 
 Where a grammar has several errors of lowering, the parse reports one, in this order. Errors of classifiers come first. Then lowering takes the rules in order (§3.9). For each rule, it reports a chain beside another alternative (§3.3) before it lowers that rule's alternatives.
 
-An item of braces that can match no tokens (§3.3) comes last. Lowering decides nullability after it lowers all rules. It examines the surviving rules and their alternatives in order, and reports the first alternative that holds an empty item. The error names only the definition, so which empty item of that alternative it meets first is not observable.
+An item of braces that can match no tokens (§3.3) follows the chain errors and precedes the cycle error of a comparison. Lowering decides nullability after it lowers all rules. It examines the surviving rules and their alternatives in order, and reports the first alternative that holds an empty item. The error names only the definition, so which empty item of that alternative it meets first is not observable.
+
+The cycle error of a comparison of two constituents (§9.3) comes last, after an empty brace item. So its walk can rely on the braces rule. Lowering visits the surviving comparisons in this order:
+
+- It takes the rules in the order of §3.9.
+- For each rule, it takes the definitions that remain after stitching, in stitching order.
+- In each definition, it takes the header tag term first. Then it takes each alternative in written order, with that alternative's own tag term. Then it takes the conditions of the definition in written order.
+- Within one tag term or condition, it takes the comparisons from left to right.
+
+An emission item's tag clause holds no comparison that recognition demands (§4.1), so the walk skips it. Lowering reports the first comparison whose demand graph holds a cycle of marked edges. From that comparison, the walk follows productions in number order and their symbols in written order, depth first. The reported cycle is the first one that this walk closes, listed from the first rule of the cycle that the walk reached.
+
+This error stands at the comparison, not at a definition. Its message begins with the document, the line and the column of the first token of the comparison.
 
 Lowering reports a chain beside another alternative before an empty brace item, whichever rules contain them. This order is the model of the diagnostic, not of the work. An implementation can meet the braces in another order internally, as long as it reports the same error.
 
@@ -1022,7 +1031,7 @@ A plain optional whose captures occur only inside ranked groups uses a separate 
 
 The engine names the helpers, and it never shows their names. A helper is a production whose left side is a helper name.
 
-An elidable optional `[+T x]` is always a helper `h → ε | T x`, since it never holds a capture. Flat braces are a helper too. `{x}` is `h → x | h x`, and `{x / s}` is `h → x | h s x`. So `[{x}]` is a helper `o → ε | h` around the helper `h` of `{x}`. Lowering expands `x` and `s` in place in these productions, as anywhere in an alternative. So a sequence or a choice there needs no helper of its own.
+An elidable optional `[+T x]` is always a helper `h → ε | T x`, since it never holds a capture. Flat braces are a helper too. `{x}` is `h → x | h x`, and `{x / s}` is `h → x | h s x`. So `[{x}]` is a helper `o → ε | h` around the helper `h` of `{x}`. Lowering expands `x` and `s` in place in these productions, as anywhere in an alternative. So a sequence or a choice there needs no helper of its own. A capture inside `x` or `s` is an item capture (§3.5). It binds to the helper's productions that read it, and the helper is contextual (§4).
 
 `A₁ & … & Aₙ` has at most 16 items. More is an error of the document (§9), since the expansions number 2ⁿ−1. It expands to every non-empty subsequence that keeps their order. The subsequences come in the order of the binary numbers 1 to 2ⁿ−1, with `A₁` as the lowest bit. `ε` is the empty sequence. A sequence's expansions are the products of its items' expansions, the first item varying slowest.
 
@@ -1054,7 +1063,7 @@ A rule that `text` cannot reach counts too, and lowering makes sure that all rem
 
 A separator can derive the empty sequence. So a list or a chain never has a derivation that repeats an empty item, and `[{x}]` derives the empty sequence in exactly one way.
 
-Lowering finds both errors of this subsection when it lowers the grammar for features that make them. It reports each one at the definition that wrote the alternative, as for any error of lowering. The order is the one that the start of this section gives. A gate or a `%extend-rule` can make either error depend on the features, and a warning guard never removes an alternative.
+Lowering finds both errors of this subsection when it lowers the grammar for features that make them. It reports each one at the definition that wrote the alternative, as for any error of lowering. The order is the one that the start of this section gives. A gate or a `%extend-rule` can make either error depend on the features, and a warning guard never removes an alternative. Lowering finds the cycle error of a comparison of two constituents in the same way (§9.3).
 
 A flat list is one helper, so its closes are transparent (§6), and the clauses of its rule apply only to the rule's whole constituent. Some grammars need each prefix of a list as a constituent, which the ranking and the rule's conditions see. Such a grammar writes a chain or explicit recursion.
 
@@ -1064,11 +1073,11 @@ A ranked expression lowers to one transparent helper with ordered options. Every
 
 Conditions keep the named scope for `$`, `.onward`, `.preceding-tokens`, and `.following-tokens`. Private bindings leave the continuation environment after ready gates. Proofs retain them for output and diagnostics.
 
-Number ranked options in source order before later siblings. No ranked helper gains a flag. Ordinary parentheses keep their expansion behavior.
+Number ranked options in source order before later siblings. No ranked helper is a named rule, so no step counts its close (§6). Ordinary parentheses keep their expansion behavior.
 
 ### 3.5 Captures
 
-A capture `$x:s` must wrap a single symbol `s`, which can be tested. It can stand anywhere in the expression of an alternative, at any depth. That includes a group, a choice, an item of `&` and a plain optional. It must not stand inside braces, flat or chain, or inside an elidable optional (§3.8), at any depth (§9).
+A capture `$x:s` must wrap a single symbol `s`, which can be tested. It can stand anywhere in the expression of an alternative, at any depth. That includes a group, a choice, an item of `&` and a plain optional. It must not stand inside a chain or inside an elidable optional (§3.8), at any depth (§9). A capture inside flat braces is an item capture. It binds to the productions of the braces' helper that read it, as a capture of those productions, and the production of the enclosing alternative lacks it. An item capture belongs to the innermost flat braces around it, and its name stands nowhere else in the alternative (§9). It must not stand inside a ranked group (§9).
 
 A capture names the matched symbol in each production that reads it. A production has the capture `x` exactly when its expansion reads the symbol that `$x` wraps. The other productions of the alternative lack it, and the missing-capture rules of §3.6 apply to them.
 
@@ -1098,6 +1107,10 @@ Since the engine never evaluates a reduced part, the reduction is part of the or
 - A condition applies to a production if it did not simplify to true and the production has every capture that it uses. Otherwise lowering drops it for that production. A condition that simplifies to false applies, and removes the production. So `%conditions $x` keeps the alternatives that capture `x` and removes the others.
 - Lowering drops an emission item whose carrier (§11) the production lacks from that production's emission. It also drops each attachment capture that the production lacks from its item.
 - An alternative or definition tag term with a missing capture is a document error.
+
+A condition that uses an item capture is an item condition. Its other captures are outer captures. Every production of the alternative that reads the helper binds them before the helper's symbol, and a frame supplies them at recognition (§4). The item condition goes to every production of that capture's helper, with the clauses of the enclosing alternative's definition. It is simplified for each production and frame as above, where the production has its own captures and the frame's outer captures. It then applies or drops by the first attachment rule above, which looks at the captures of the simplified condition. So `{A | $c:B}` with `$c ∨ $o.value = "x"` constrains the `A` items too, since the condition simplifies there to `$o.value = "x"`. The recursive production of the helper reads the item or the separator too, so the condition goes to it as well.
+
+Lowering checks an item condition in each alternative whose item captures it uses. There, an item condition that uses `$`, item captures of two helpers, or an outer capture that some production of the alternative binds after the braces, is an error of the document (§9). In an alternative that has none of its item captures, it is an ordinary condition. An item condition, like any condition, must apply to some production. A helper production applies it when that production and the captures bound before the braces have every capture that the simplified condition uses. Braces inside a chain's item or separator have no captures bound before them, since a chain holds no capture. A condition that applies nowhere is an error of the document. An item capture that a tag term, a recipe or an emission item names is an error of the document too. A comparison with `≅` or `≇` can name an item capture on either side. It is then an item condition, and the rules of this paragraph apply to it.
 
 Recipe capture validation follows §11 after absent-item pruning. A rule-level recipe is checked only on channels where its production uses it. An alternative override can suppress one or both channels. An unknown or private capture remains an error before that pruning.
 
@@ -1129,9 +1142,11 @@ Every well-typed test on the elidable terminal is legal. The omission predicate 
 
 Lowering records whether each helper represents an elidable optional. For an elidable helper, it also records the terminal `T`, its test and the optional's owner (§2.2). The rest of this document says "elidable optional" of these helpers.
 
-Before predicting an empty elidable production, the recognizer requires its omission predicate to hold. The predicate tests `(s,{T})` for equality `=s`, and `("",{T})` otherwise. Without a test, it is true. This condition applies in main recognition, nested queries and reconstruction.
+The default value d of an elidable optional is the string of its head's `≝`. Without `≝`, d is the string s of an equality test `=s`, or else the empty string. A default resolves after template substitution, and it must be one string. d is the restoration default only. Restoration (§7.2) uses d, and the string walk (§11.2) does not.
 
-A false predicate creates no omitted node, elision count or restoration record. It causes no declaration error or warning. Written productions remain available.
+Before predicting an empty elidable production, the recognizer requires its omission predicate to hold. The predicate tests `(d,{T})` against the head's tests. Without a test, it is true. A default whose predicate is false is a document error at its `≝` (§9.3). This condition applies in main recognition, nested queries and reconstruction.
+
+A false predicate creates no omitted node, elision count or restoration record. Without `≝`, it causes no declaration error or warning. Written productions remain available.
 
 ### 3.9 Numbering
 
@@ -1157,7 +1172,7 @@ Every expansion of the alternative that goes through a helper's place shares tha
 
 ### 3.10 Query helpers
 
-For each distinct tag named by `matches`, `begins`, or `ends`, stage lowering creates one query helper. Every occurrence of that terminal target shares the helper. Its single production reads one token through that terminal. The helper has no flags, symbol tests, conditions, or written clauses. It inherits the token's tags.
+For each distinct tag named by `matches`, `begins`, or `ends`, stage lowering creates one query helper. Every occurrence of that terminal target shares the helper. Its single production reads one token through that terminal. The helper has no symbol tests, conditions, or written clauses. It inherits the token's tags.
 
 Query helpers follow every production from the written grammar, including its helpers, in tag-name order. No body can name a query helper. Query helpers appear in no grammar DOM, written-grammar analysis, output tree, or audit.
 
@@ -1165,19 +1180,19 @@ Query helpers follow every production from the written grammar, including its he
 
 The parser is an Earley recognizer, a parser for any context-free grammar, over the lowered grammar. The set of items that it produces specifies it, and any algorithm that produces that set is correct. The recognizer builds one set of items for each position in the input.
 
-An item has a production, dot position, origin, structural prefix state, and demanded restoration observations (§4.1). Each capture before the dot retains its span, tags, structural state, and demanded close observation. Completed items retain the corresponding observations of their constituent. Two items merge only when all these values agree. Their proof edges remain distinct.
+An item has a production, dot position, origin, structural prefix state, demanded restoration observations and demanded tree identities (§4.1). Each capture before the dot retains its span, tags, structural state, demanded close observation and demanded tree identity. A completed item also has its constituent's tag set, so two completions with different tag sets are two items. This holds also where a production inherits its tags from one symbol that no capture names (§3.7). Completed items retain the corresponding observations of their constituent. Two items merge only when all these values agree. Their proof edges remain distinct.
 
 Eligibility and witness reconstruction walk the advances that recognition records. They do not repeat symbol tests or synthesize missing chart items. Charts retain these links when either consumer needs them.
 
 Duplicate detection uses an index after any fixed-size initial scan. Distinct recorded advances retain their first insertion order. Witness reconstruction indexes each needed chart set at most once for seed and restoration lookup. The index retains all observation and lexical states.
 
-Fix a production, dot position, origin, input position and structural prefix state. Fix every captured part's tag set and structural state. Fix every demanded restoration observation too.
+Fix a production, dot position, origin, input position and structural prefix state. Fix every captured part's tag set and structural state. Fix every demanded restoration observation and tree identity too.
 
 Captures then add items only where their spans can vary. For example, with `t → $l:t $r:t | A`, a completed item over one span exists once for each position where `$l` can end. Without the captures, it exists once.
 
 Captured spans increase the item count, and the notation sets no limit on the number of captures. A captured part's span before the dot is part of an item's identity. The recognizer does not merge items that differ only in where a captured part began or ended. It also keeps their summaries of §6 and their query eligibility states separate.
 
-Take one production, dot position, origin and input position. Each captured part before the dot can multiply the number of its items by the number of its possible spans. Let N be the length of the input. The factor is up to N + 1 for each end of the part that nothing else fixes. The origin, the input position or a neighboring captured part can fix an end. Its tag sets, structural states, and demanded restoration observations can multiply the items again.
+Take one production, dot position, origin and input position. Each captured part before the dot can multiply the number of its items by the number of its possible spans. Let N be the length of the input. The factor is up to N + 1 for each end of the part that nothing else fixes. The origin, the input position or a neighboring captured part can fix an end. Its tag sets, structural states, demanded restoration observations and demanded tree identities can multiply the items again.
 
 A capture of a terminal, or of a part whose length is fixed, costs little, since its start fixes its end. A capture of a rule that can end in many places, such as a list, costs the most. The span of `$` needs no extra coordinates. Its demanded restoration observations can still distinguish items.
 
@@ -1203,11 +1218,17 @@ The test does not stop the conditions that run earlier. These are the conditions
 
 The test is not part of the terminal's identity. A tested terminal `T="s"` is the terminal `T` for the actions of §6. It is also `T` in the tree's token nodes (§12) and in the witness. The test only removes matches.
 
-When an item completes, its constituent's tags are its production's tag terms evaluated over its captured parts (§10) and joined as §3.7 says. A completed item has exactly one tag set. So two derivations of one production over one span that are one item have equal tag sets. Two such derivations with different tag sets differ in a captured part, so they are two items.
+When an item completes, its constituent's tags are its production's tag terms evaluated over its captured parts (§10) and joined as §3.7 says. A completed item has exactly one tag set. So two derivations of one production over one span that are one item have equal tag sets. Two such derivations with different tag sets are two items, because a completed item's identity includes its tag set.
 
 The recognizer evaluates a condition, as simplified for its production (§3.6), as soon as the item reads the last capture that it uses. It evaluates a condition that uses `$` as soon as the item is complete. At that point, `$` spans from the item's origin to the set that the item completes in. It has the tags that its production's tag term gives it. If the condition fails, the recognizer does not produce the advanced item.
 
 A skipped lookahead prediction retains its lexical conditions for rejection diagnostics. A condition that fails before prediction contributes no expected terminal.
+
+A helper of flat braces whose productions have item captures (§3.5) is contextual. The recognizer predicts it from an enclosing item in a frame. The frame holds the enclosing item's frame. It also holds the demanded observations of each captured part before the dot that an item condition of the helper reads. These are its span, tags, structural state and demanded close observation. An item condition can compare it with another constituent, through `≅` or `≇` with a right operand of constituent type. Then the frame also holds its tree identity (§4.1). A pattern comparison needs only the structural state. A captured part that no item condition reads is not in the frame, so it does not split the helper's items. Items of a contextual helper carry their frame, and two merge only when their frames agree. A completed item of a contextual helper advances only the enclosing items whose frame it carries. The recursive production of the helper, which reads the helper itself, keeps the frame of its entry.
+
+An item condition evaluates when its production reads the last item capture that it uses, as any condition does. Its outer captures are the frame's. So the condition holds of each item of the list, with the enclosing item's captures as they stood before the braces. A frame changes no tags, no output, no action of §6 and no omission. A contextual helper has one set of items for each frame, so its cost multiplies by the number of distinct frames.
+
+An item condition that compares two constituents follows the same rule. It runs at the advance over the last item capture that it uses. The frame supplies its outer captures, each with its tree identity. Later symbols of the item do not delay it.
 
 The recognizer evaluates a condition that uses no capture when it predicts the item. It does the same with a condition that uses only `$` in a production with no symbols, over the empty span there. So a rule whose only production has no symbols and the condition `$.starts-input` completes only at the start of the input. Anywhere else, the recognizer never advances an alternative that begins with that rule, and that alternative predicts nothing after the rule.
 
@@ -1216,7 +1237,7 @@ A step of the recognizer is an advance of one item, or the prediction of one pro
 1. In the check of §7, the step drops an additional item that is strict and stands at the end of its production (§7.4).
 2. The test of the symbol that the step advances over, where that symbol has one.
 3. The conditions that the step makes ready, in their written order. A condition on captures and a condition on `$` that become ready at one advance keep that order. Each one stops early as §10 says. The first that fails drops the item.
-4. Where the step completes the item, its production's tag term. The recognizer evaluates it where a condition of step 3 first reads `$.tags` or `$.classes`. Otherwise it evaluates it once every ready condition holds. Completion reuses the result when a ready condition already computed it. Boundary processing shares that same result.
+4. Where the step completes the item, its production's tag term. The recognizer evaluates it where a condition of step 3 first reads `$.tags` or `$.classes`. It also evaluates it where a condition first compares `$` with a pattern that tests rule tags (§4.1). That is a tag test on a rule, emoji, family or call atom. Such a comparison triggers it whatever atoms the match visits. A value test, a terminal test and a test on `_` read no rule tags, so they trigger nothing. A comparison of two constituents reads no tags and triggers nothing either. A comparison that §10 skips triggers nothing. Otherwise it evaluates it once every ready condition holds. Completion reuses the result when a ready condition already computed it. Boundary processing shares that same result.
 
    So a failing condition that does not read them stops the tag term. This holds also for a production with no symbols at its prediction. How many times the step evaluates the tag term is not observable.
 5. The boundary rules of §4.2. They run last, so a test, condition or tag term that drops the item first leaves no obligation.
@@ -1330,7 +1351,7 @@ Qualification uses original eligible proofs before applying the alignment filter
 
 A terminal target has a witness with one original token and no close or block records. Restored queries apply the same alignment test to this witness. A retained candidate record in the comparison therefore prevents a terminal target from succeeding. With no such record, a matching original token supplies a positive terminal witness.
 
-A synthetic token supplies evidence for an omission, rather than an additional mandatory word. It cannot satisfy a bare terminal in the witness. An omitted optional keeps its omission predicate and does not require its remaining content. Alignment compares terminal identity and boundary, without comparing the candidate's saved equality-test value. For candidate `X [+T="a"]` and rival `X [+T="b"]` on X, both omission predicates hold and alignment succeeds.
+A synthetic token supplies evidence for an omission, rather than an additional mandatory word. It cannot satisfy a bare terminal in the witness. An omitted optional keeps its omission predicate and does not require its remaining content. Alignment compares terminal identity and boundary, without comparing the candidate's default value (§3.8). For candidate `X [+T="a"]` and rival `X [+T="b"]` on X, both omission predicates hold and alignment succeeds.
 
 These four probes distinguish aligned queries from literal replay:
 
@@ -1347,7 +1368,7 @@ All observations inside a witness use its own projected original spans and trees
 
 When `$y` extends into the suffix, its later omissions enter that additional constraint. No token is restored twice.
 
-Every query retains its caller's lowered grammar, features, constants, classifiers, and Unicode data. No morphology, emission, implication, stage lean, or rule-profile ranking runs inside it. A rule flag cannot turn existence into a best-reading test.
+Every query retains its caller's lowered grammar, features, constants, classifiers, and Unicode data. No morphology, emission, implication, lean, or profile ranking runs inside it. A ranking step cannot turn existence into a best-reading test.
 
 Aligned query answers need separate memo keys from ordinary queries. The keys include the original context and source observations, start, context end, match window, and whole or prefix mode. They include the ordered close groups, opaque blocks, common entry observations, lowered grammar, features, and family. They also include any cycle context on which a cached proof summary depends. A synthetic-token view keeps saved value where recognition values use it. Saved value never becomes part of close equality.
 
@@ -1405,7 +1426,7 @@ For example, take `text → [X] body="y"`, `body → X Y | Y` and the input `X Y
 
 A tag test works in the same way. Take `text → [X] body<B>` and `body → X Y | Y`, where the second production of `body` has the tag term `B`. Only the `body` over `Y` carries `B`, so again `[X]` reads `X`.
 
-In a derivation, an empty elidable helper supplies one omission at its input boundary. Its record holds the terminal, boundary, source, and saved equality value. It does not record which constituent it closes. Late-elision reads omission counts. Aligned queries read their owned ordered close records.
+In a derivation, an empty elidable helper supplies one omission at its input boundary. Its record holds the terminal, boundary, source, and default value. It does not record which constituent it closes. The step `late #·_<_Elided>` reads omission counts. Aligned queries read their owned ordered close records.
 
 The query blocker relation uses the logical preceding symbol described above. Braces use their expanded logical productions. Production start, a preceding terminal, and an initial recursive self-reference retain their immediate-prefix treatment.
 
@@ -1419,7 +1440,7 @@ A rejection at the end of a stage's input has an empty source at the source end 
 
 A structural state is a finite summary of demanded tree predicates. Compile only patterns that conditions demand, and their dependencies. Reuse identical subpatterns. Intern states so equivalent observations share one state. A tree pointer in every item does not provide the required forest sharing.
 
-Patterns observe the structural tree defined in `docs/notation.md`. Rule names and terminal identities form a finite alphabet for a lowered stage. A leaf transition records terminal identity and demanded value-test and tag-test answers. An omitted T has empty observed value, empty image, and pattern tags `{T}`. These leaf observations never replace constituent tags.
+Patterns observe the structural tree defined in `docs/notation.md`. Rule names, terminal identities and demanded test answers form a finite alphabet for a lowered stage. A leaf transition records terminal identity and demanded value-test and tag-test answers. A named completion records the answers of the tag tests and value tests that a demanded pattern asks of that node. It reads the tags from the completed item's one tag set (§4), and the value from the input value of its span. An omitted T has empty observed value, empty image, and pattern tags `{T, _Elided}`. These leaf observations never replace constituent tags. The pattern atom `_` matches every written or omitted leaf, whatever terminal read it, and no rule node or seal.
 
 Compile each child-sequence expression into a finite sequence machine. Prefix states advance as children complete. Ellipses permit arbitrary sibling gaps, and flat repetitions use sequence loops. Helpers concatenate their child sequences without a named constructor. Named completion adds its own constructor transition, including named chain levels. Empty named children disappear from parent sequences, but their directly captured roots remain observable.
 
@@ -1435,7 +1456,9 @@ Descendant paths combine local and child answers. First and last paths use only 
 
 The state retains more than final Boolean answers. It includes sequence prefixes, leaf tests and child observations that later transitions need. Intersections and differences use correlated product states. They never combine facts from different packed edges.
 
-An advance keeps its structural prefix and each captured child's completed state. A condition on a capture reads that state when the constituent completes. A condition on `$` reads the candidate completion state before ordinary tag evaluation. These conditions never run an additional recognizer or inspect ranking.
+An advance keeps its structural prefix and each captured child's completed state. A condition on a capture reads that state when the constituent completes.
+
+A condition on `$` reads the candidate completion state. Where its pattern tests the tags of a rule, emoji, family or call atom, the tag term runs first (§4, step 4). The recognizer then records the root's answers from the resulting tag set, and the pattern tests the root with them. These conditions never run an additional recognizer or inspect ranking.
 
 At a ranked group completion, the structural sequence machine receives one fixed sealed leaf. Every option and proof supplies the same leaf. It has no name, terminal identity, value, tags or children. Every node test fails on a seal, including bare lists and exact empty lists. Paths stop there, while sibling ellipses consume it as one child.
 
@@ -1465,7 +1488,7 @@ A dead summary never removes an item, its advances or its conditions. The item s
 
 The number of summaries of one raw item depends on the candidate's group sizes at the item's ends. It does not depend on the witness's own groups. The grammar alone does not bound it, because a larger candidate group can need more summaries. Different close observations never merge into one captured value. Equal observations can share proof states, while their derivation edges remain distinct.
 
-A caller consumes a constituent in a rule occurrence. An observed caller retains its item's closes for either restoration method. A capture or an enclosing observed caller can demand those closes. The recognizer separates ordinary and observed caller modes. Prediction and completion keys retain that mode. A demanded capture can observe a rule without splitting unrelated callers of that rule.
+A caller consumes a constituent in a rule occurrence. The recognizer separates ordinary and observed caller modes. An observed mode is a set of demanded observation kinds. One kind is the closes that either restoration method reads. The other is the tree identity that a comparison of two constituents reads (below). A capture or an enclosing observed caller can demand either kind. So an occurrence can demand closes, tree identities, or both, and its prediction and completion keys hold that set. A close demand alone starts no identity, and an identity demand alone retains no closes. An occurrence that demands both retains both. A demanded capture can observe a rule without splitting unrelated callers of that rule.
 
 An implementation can test possible first terminals before it retains a capture's close sequences. If no witness can begin at that token, the capture's own query needs no close observation. An enclosing observed capture still needs every close inside that capture.
 
@@ -1480,6 +1503,38 @@ Candidates and aligned witnesses use finite noncyclic observation proofs. Named-
 If a reached restoration lacks a finite noncyclic observation proof, the current step drops immediately. No later operand or condition of that step runs. In a boundary condition, only the current Boolean assignment fails, and the other assignment still runs.
 
 The engine shares candidate and witness proof states with their relevant cycle contexts. It cannot enumerate every complete tree before evaluating a captured condition. It cannot impose an arbitrary limit on restoration length. Nullable recursive omission lists, such as `r → r [+T] | X`, must reach a finite shared construction.
+
+A comparison of two constituents (§10) reads tree identities. A comparison in a `%conditions` clause, or in a rule or alternative tag term, runs during recognition and demands them. A comparison in an emission item's tag clause reads the chosen derivation and demands nothing. Only a comparison whose right operand has constituent type demands identities. A pattern comparison keeps its finite structural state and starts no identity.
+
+Demand is by occurrence, through the observed caller modes above. The occurrence of a compared capture demands the identity of the constituent that it reads. An item carries an identity only where a demanding occurrence predicted it, directly or through its descendants. So the demand follows the structural tree down from each compared occurrence. It enters every rule that the body can build there, through helpers and chain levels, and it stops at a seal. The identity of a parent reads a seal as its sequence of token values, so it needs nothing inside the group. A private comparison inside an option of a ranked group starts its own demand there. A rule that no demanding occurrence reaches keeps no identity and costs nothing. So the four libraries compute one demand set.
+
+A production's own comparisons apply under every caller mode, at their ordinary readiness points. A comparison that uses `$` needs the complete child sequence of the production and its root identity. So that production carries its partial sequence under every caller, and the comparison runs at completion. A comparison that uses only captures demands identities at those capture occurrences and below them. It demands nothing for the other children and nothing for the root. It runs where the item reads the later capture, as §4 says for every condition. The item keeps the identity of the earlier capture in that child's completed state, beside the rest of that state. So two items with different identities for it do not merge. The mode of a caller decides only whether the identity of a completed constituent stays in the item that advances over it.
+
+In Eberban, `$v ≅ $e` in `resumed-step` runs at the advance over `$e`, before `step-tail`. It demands nothing of `step-tail` or `resume-head`. Its two `annotated-verb` occurrences demand. The recognizer predicts `resumed-step` at every step start, before it sees any `pa`. So every verb at the start of a step carries identities. Inside that operand, demand reaches every observable descendant up to a seal. That includes the chains, steps, `step-tail` and bind groups inside an enumeration, a quote or a parenthetical in the verb. The `step-tail` of the enclosing step, its binds and the top-level `text` stand outside the operand and carry none.
+
+For each demanded occurrence, a completed item carries the identity of its tree. A partial item carries the ordered sequence of the identities of its children so far. Two equal trees share an identity, and two different trees do not. A library interns identities bottom-up from a tagged key, with one constructor for each kind of node:
+
+```text
+Rule(rule identity, child identity sequence)
+Written(terminal identity, input value)
+Omitted(terminal identity)
+Seal(original token-value sequence)
+EmptyProjection
+```
+
+The rule identity names the resolved rule or template instance, not a production and not a helper. The terminal identity is the one of §9. The child sequence comes after helper flattening and after the removal of structurally empty children. So two groupings of helpers give one identity. A seal's key is built once per span in one recognition and shared. An exact comparison of keys resolves a hash collision. The interned parts are shared, because a copy of the tree in each item breaks forest sharing. Two items with different identities, or with different partial sequences, do not merge. In the same way, two items with different structural states do not merge. An interner number is private to one recognition and is no persistent key. Spans, tags, restoration defaults and production numbers do not enter a key.
+
+An item capture can be compared with an outer capture. Then the frame of §4 holds the identity of the outer capture, beside the other demanded observations of that capture. Items merge only where frames agree. So the helper repeats once for each distinct identity of the outer capture. In `resumed-step`, each distinct tree of the outer verb is one frame.
+
+The demanded identities of one span need a finite domain, and recognition does not give one by itself. §4 excludes a cyclic derivation from the counted derivations. But the chart builds items before it counts any derivation, and a rule can wrap itself over one span without end. For `s → "a" | s`, the span of `a` has the trees `s(a)`, `s(s(a))` and so on. Each tree has its own identity and its own item, so the chart never closes. The lowering check of §9.3 excludes such a cycle under a comparison.
+
+The engine does not take an identity from one noncyclic proof at the condition instead. Conditions run during recognition, before the ranking contexts of §6 exist. Such a rule needs cycle contexts, memo keys and a failure rule under negation, and the engine has none of them.
+
+The same rules apply in the main recognition, in a nested query and in the reconstruction of §7. In Eberban, `sentence-of` asks `$i.onward.begins(@Open)`. That query parses chains with `resumed-step` and its comparison, so the query builds identities too.
+
+Under the check of §9.3, one rule has a finite number of distinct identities over one span. That number can grow exponentially with the span. `s → s s | "a"` has Catalan-many trees over a growing input. Exact identities tell them all apart, while structural states merge them. The cost counts distinct completed identities, distinct partial sequences, distinct seal spans, packed edges and frame combinations. It falls only on the demanded occurrences and the trees below them. A grammar without a comparison of two constituents pays nothing.
+
+In Eberban, the cost is the tree of each verb at the start of a step. A quote, an enumeration or a parenthetical inside that verb splits its items by its inner tree, the binds inside it included. The binds of the enclosing step do not. The recognizer also reads the same verb in ordinary mode, from `plain-step` and `passed-step`. So it reads the verb subtrees of a step twice. The items of the ordinary mode are the items of a grammar without the comparison. The items of the observed mode are a second set, and no factor bounds it against the first. One ordinary item can stand for many trees, and the observed mode gives each distinct tree its own item. The total is the sum of the two modes. This is the reason for demand by occurrence. With demand by rule, the `step-tail` of every step splits by its nested binds, and the number of items doubles with each bind.
 
 ### 4.2 Boundary obligations
 
@@ -1622,7 +1677,7 @@ The method holds when some permitted completion has an eligible proof tree. A nu
 
 On the two tokens with values `b` and `a`, `.ends(start-a)` is false. The target starts after the fixed window's beginning. Parsing the final token alone with `.matches(start-a)` instead holds.
 
-All target starts belong to one recognition computation. Written-terminator priority and finite eligible proofs follow §4. Ranked admission, rule flags, and stage preferences do not rank query proofs.
+All target starts belong to one recognition computation. Written-terminator priority and finite eligible proofs follow §4. Ranked admission, ranking steps, and stage preferences do not rank query proofs.
 
 The query selects no longest suffix. A grammar error that this computation reaches remains an error even when another suffix succeeds. Within one shared recognition, an error first raised at input boundary p fails its requests ending at p or later. It does not fail a request ending before p.
 
@@ -1682,19 +1737,27 @@ In §7, `.value`, `.image`, `.source-text`, and `.decomposed-source-text` read p
 
 Section 6.1 admits derivations before this ranker when a ranked group can apply. This ranker is the same either way.
 
-A stage ranks its admitted derivations (§6.1). A flagged occurrence is a flagged rule's constituent. A rule profile has two parts. Its span vector counts `leftmost-longest` occurrences over nonempty spans. Its fewest count is the number of nonempty `fewest` occurrences.
+A stage ranks its admitted derivations (§6.1) by the steps of its `%ambiguity-resolution` directive (§2). A step is `leftmost-longest P`, `fewest P`, `most P`, `late P` or `early P`, where `P` is a node pattern, or it is `greedy` or `lazy`. The last two are leans. A directive has one or more steps, and a lean can stand only last. The steps other than a lean are the key steps.
 
-`leftmost-longest` compares complete parses by span vectors, with earlier starts first, longer spans next, and larger counts preferred at the first difference. With equal span vectors, the smaller fewest count wins.
+An occurrence of a key step is a node of the derivation that its pattern `P` matches (§4.1, `docs/notation.md`). The nodes are the rule constituents, the written leaves and the omitted terminators (§3.8) of the actual derivation. They include the nodes inside ranked options, because a seal is a view of condition patterns only. A helper is not a node, and an empty rule constituent is not an occurrence. The occurrence of a constituent or a written leaf has its span. The occurrence of an omitted terminator has the empty span at its boundary. A node is one occurrence of a step, however many operands of `P` match it. Every nonempty constituent that `P` matches counts, including each named chain level and each constituent with one symbol. Equal spans count separately, including nested occurrences. Names give no priority: two rules that `P` matches pool their occurrences, and neither declaration order, production number nor source matters.
 
-One rule profile is greater than another when it wins this comparison. Equal span vectors and equal counts make equal rule profiles. Every passage of this document that compares rule profiles, or calls one greater, uses this order.
+`P` is an exact local predicate (§9.3). Each node test of it carries `exact`. So a node matches by its own name or terminal, its own tags and its own value. The value of a rule node is the input value of its span, and the value of a leaf is its token's value. The answer for a node is then a function of the node alone. Its inputs are the rule or terminal identity, the tag set of the completed item (§4), the span and the token. A rule node's tags are its constituent tags, inherited ones included (§3.7). A written leaf matches by the terminal that read it. That terminal can differ between two derivations of one token, as rule 1 of the lean says. Its tags and value are the same in every derivation, so a test on `_` never separates two derivations at a written leaf. An omitted terminator is a leaf with the pattern tags `{T, _Elided}` (§4.1), and the mark `_Elided` is what `late #·_<_Elided>` counts.
 
-All `leftmost-longest` rules contribute to the span vector together, and all `fewest` rules to the count. Neither part gives priority by name, declaration order, production number, tags or source. Equal spans count separately, including nested occurrences. Each nonempty occurrence of a flagged rule counts, including each named chain level and each constituent with one symbol. Empty occurrences contribute nothing, and helpers carry no flags. Both flags rank before the stage directive.
+For N input tokens, the pairs of boundaries are `0 ≤ p ≤ q ≤ N`. `G_D(P,p,q)` counts D's occurrences of the step over `[p,q)`. Every occurrence contributes once, however many symbols its production has. The occurrences of constituents and written leaves have `p < q`, and the omitted terminators have `p = q`.
 
-An empty `fewest` occurrence adds zero to the count. During reconstruction (§7), an occurrence that reads only synthetic tokens remains empty after projection and also adds zero.
+Each key step compares two derivations by its counts:
 
-Of two derivations with different rule profiles, the one with the greater rule profile beats the other. Of two with equal rule profiles, the one that the directive prefers beats the other. A derivation is best if no other derivation beats it.
+- `leftmost-longest P`: compare the components with `p < q` by increasing `p` and, within one `p`, decreasing `q`. At the first differing count, the greater count wins. An omitted terminator has `p = q`, so it never counts here, and the loader refuses a pattern that requires `_Elided` in this step (§9.3).
+- `fewest P`: the smaller sum of all components wins. `most P`: the greater sum wins.
+- `late P`: for each boundary `p` from 0 to N, take the sum of `G_D(P,p,q)` over every `q`. At the first boundary where the sums differ, the smaller sum wins. `early P`: the greater sum wins.
 
-The directive (§2) is `greedy`, `lazy` or `late-elision`. The verdict is one of these:
+The profile of a derivation is its counts for every key step. Of two derivations, the first key step whose comparison decides says which has the greater profile. Equal counts at every key step make equal profiles. Every passage of this document that compares profiles, or calls one greater, uses this order.
+
+So a nonempty `leftmost-longest` occurrence beats its absence, and equal spans count separately. A nonempty `fewest` occurrence loses to its absence. With no key step, every profile is empty and the lean alone ranks.
+
+Of two derivations with different profiles, the one with the greater profile beats the other. Of two with equal profiles, the one that the lean prefers beats the other. Without a lean, neither beats the other. A derivation is best if no other derivation beats it.
+
+The verdict is one of these:
 
 - `unique` if the input has one admitted derivation
 - `resolved` if it has several admitted derivations, and exactly one of them is best
@@ -1702,15 +1765,9 @@ The directive (§2) is `greedy`, `lazy` or `late-elision`. The verdict is one of
 
 Under `unique` and `resolved`, the chosen derivation is the one best derivation. Under `resolved`, it beats every other derivation (below). A tie is an error, and the stage then has no chosen derivation. The production numbers of §3 never decide which derivation a stage chooses.
 
-For N input tokens, the pairs of boundaries are `0 ≤ p < q ≤ N`. `G_D(p,q)` counts D's `leftmost-longest` occurrences over `[p,q)`. Every nonempty such occurrence contributes once, however many symbols its production has. `F_D` counts D's nonempty `fewest` occurrences.
+Only an occurrence makes a component nonzero. A sparse map stores only nonzero components. A shared sorted list with one entry per occurrence is another representation, since equal spans count separately. With no key step, one shared empty profile serves every derivation.
 
-Compare components by increasing p and, within one p, decreasing q. At the first differing count, the greater count wins. With equal vectors, the smaller `F_D` wins. Equal vectors and equal `F_D` give equal rule profiles. Every two rule profiles are equal or one of them wins. Distinct derivations can share one rule profile.
-
-Only a `leftmost-longest` occurrence makes a component nonzero. A sparse map stores only nonzero components. A shared sorted list with one entry per occurrence is another representation, since equal spans count separately. With no flagged rule, one shared zero profile serves every derivation, with a zero count.
-
-A nonempty `leftmost-longest` occurrence beats its absence, and equal spans count separately. A nonempty `fewest` occurrence loses to its absence, among equal span vectors. With no flagged rule, every rule profile is zero, so the directive alone ranks.
-
-The stage retains every derivation with the greatest rule profile before applying its directive. The admitted total, before rule-profile selection, determines `unique`. The remaining comparison of actions and elisions applies within that retained forest.
+The stage retains every derivation with the greatest profile before applying its lean. The admitted total, before profile selection, determines `unique`. The remaining comparison of actions and elisions applies within that retained forest.
 
 A derivation is read as its sequence of actions in bottom-up order. An action is a read of a token as a terminal, or a close of a production over a span. Closes of helper productions and of productions with exactly one logical symbol are transparent. They are part of the sequence, but two sequences never differ at one. The other actions are visible.
 
@@ -1718,15 +1775,15 @@ So the closes of flat braces are transparent. The close of a chain's level is vi
 
 Two reads are the same action when they read the same token as the same terminal. Two closes are the same when they close the same production over the same span.
 
-Transparency removes a close from the comparison, but it does not merge derivations. Two derivations that differ only at transparent closes are still two derivations. With equal rule profiles, `greedy` and `lazy` tie them. Under `late-elision`, their counts of elided terminators still decide (below).
+Transparency removes a close from the comparison, but it does not merge derivations. Two derivations that differ only at transparent closes are still two derivations. With equal profiles, a lean ties them. A step `late #·_<_Elided>` tells them apart where their elided terminators differ (below).
 
-For example, `text → [[X]]` derives the empty input in two ways. The outer helper derives ε itself, or through the inner helper. `text → [A] & [B]` derives it in three ways, through the expansions of its `&` (§3.2). These use `[A]` alone, `[B]` alone, or both. All have the same empty tree, and all three ranking rules report a tie. The error of such a tie can carry two equal trees, while its witness names two different productions.
+For example, `text → [[X]]` derives the empty input in two ways. The outer helper derives ε itself, or through the inner helper. `text → [A] & [B]` derives it in three ways, through the expansions of its `&` (§3.2). These use `[A]` alone, `[B]` alone, or both. All have the same empty tree, and every directive reports a tie. The error of such a tie can carry two equal trees, while its witness names two different productions.
 
-`text → [[+KU]]` also derives the empty input in two ways. The outer helper is empty, which elides nothing, or the inner one is, which elides `KU`. Their vectors are (0) and (1). So the input ties under `greedy` and `lazy`, and it is `resolved` under `late-elision`.
+`text → [[+KU]]` also derives the empty input in two ways. The outer helper is empty, which elides nothing, or the inner one is, which elides `KU`. Their elision counts at boundary 0 are 0 and 1. So the input ties under `greedy` or `lazy` alone, and it is `resolved` under `late #·_<_Elided>`.
 
 The engine does not merge derivations whose trees are equal either. Such derivations can still differ in what the stage does with them. Two definitions of `text → A` give equal trees, but their emission clauses can emit different tokens. Their alternatives can also differ in their warning guards, or in their recipes.
 
-Under `greedy` and `lazy`, the stage compares two derivations of the same input at their first differing visible action:
+A lean compares two derivations with equal profiles at their first differing visible action:
 
 1. If both read the same token as different terminals, they are tied.
 2. If one reads and the other closes, `greedy` prefers the read, and `lazy` the close.
@@ -1734,49 +1791,41 @@ Under `greedy` and `lazy`, the stage compares two derivations of the same input 
 
 If the visible sequences are equal, or one is a proper prefix of the other, the two are tied. For the witness below, their first difference is the first pair of differing actions of the whole sequences, transparent ones included. A derivation whose visible sequence is a proper prefix of the other's differs from it where the shorter ends.
 
-Among equal rule profiles, a ranking with no lean compares two derivations in the same way, but rule 2 ties them too. Any two remaining derivations that differ are tied. The check of §7 uses no lean after rule profiles. So do the readings of a tie under `late-elision` (below). A directive cannot name it. In the check, a restoration is a read of its synthetic token and then the close of its empty production (§7.4, §7.7).
+Among equal profiles, a ranking with no lean compares two derivations in the same way, but rule 2 ties them too. Any two remaining derivations that differ are tied. A directive without a lean ranks so, and so does the check of §7 after profiles. In the check, a restoration is a read of its synthetic token and then the close of its empty production (§7.4, §7.7).
 
-Among equal rule profiles, `late-elision` compares only the elided terminators (§4). Let the input have N tokens. A boundary is a position from 0 to N. The elision vector of a derivation has one component for each boundary. The component at boundary `p` is the number of the derivation's elided terminators at position `p`.
-
-The vector counts each elided terminator once, whatever its terminal or depth. So two terminators elided at one position count two, also when they are of different terminals. An ordinary empty optional, such as an empty `[{x}]`, and a close of any other production count nothing.
-
-The markers of §3.8 alone decide what counts. They also decide which empty optionals become `elided` nodes (§12) and what §7 restores.
+`late #·_<_Elided>` compares only the elided terminators, because only an omitted leaf carries the mark (§4.1). The markers of §3.8 alone decide which leaves carry it. They also decide which empty optionals become `elided` nodes (§12) and what §7 restores. The counts of this step at each boundary form the derivation's elision vector. The vector counts each elided terminator once, whatever its terminal or depth. So two terminators elided at one position count two, also when they are of different terminals. An ordinary empty optional, such as an empty `[{x}]`, and a close of any other production count nothing.
 
 An optional that is not elidable (§3.8), such as an optional separator, can still be empty. Its absence counts nothing and leaves no node. The ranking knows no particular terminal. A grammar that excludes a separator from the count writes it as a plain optional, `[CU 🆓]`.
 
-Among equal rule profiles, `late-elision` prefers a derivation whose elision vector is less. The stage compares two vectors from boundary 0 to boundary N. At the first boundary where they differ, the vector with the smaller count is less. Derivations with equal rule profiles and equal elision vectors tie, even where their trees differ. Without flagged rules, several derivations that elide nothing always tie.
-
-The same comparison can be read as actions. Project a derivation's sequence of actions in this way:
+The comparison of a `late` step whose pattern matches omitted leaves alone, such as `late #·_<_Elided>`, can be read as actions. Project a derivation's sequence of actions in this way:
 
 - A close of the helper of an elidable optional that derives ε becomes `elide(p)`, where `p` is its position.
 - A read of token `p` becomes `read(p)`, whatever the terminal that reads it.
 - The projection drops every other close, and it ends with `end(N)`.
 
-At the first differing pair of projected actions, `read(p)` and `end(N)` beat `elide(p)`. Two `elide(p)` actions at one boundary are equal, as are two reads of one token. Each elided terminator adds its own `elide(p)`, and the projection never merges equal actions. So two elisions at `p` lose to one, because the second `elide(p)` meets `read(p)` or `end(N)`. In plain words, at the first place where two readings differ in leaving out a terminator, `late-elision` prefers the reading that reads on.
+At the first differing pair of projected actions, `read(p)` and `end(N)` beat `elide(p)`. Two `elide(p)` actions at one boundary are equal, as are two reads of one token. Each elided terminator adds its own `elide(p)`, and the projection never merges equal actions. So two elisions at `p` lose to one, because the second `elide(p)` meets `read(p)` or `end(N)`. In plain words, at the first place where two readings differ in leaving out a terminator, such a step prefers the reading that reads on.
 
-So under `late-elision`, a token read as two terminals does not stop the comparison, as rule 1 does. Two different closes do not stop it either, as rule 3 does. The preference does not depend on the age, the nesting or the name of a terminator.
+So under `late #·_<_Elided>`, a token read as two terminals does not stop the comparison, as rule 1 does. Two different closes do not stop it either, as rule 3 does. The preference does not depend on the age, the nesting or the name of a terminator.
 
-The stage puts the derivations in a canonical order, *T*. *T* orders the ambiguity diagnostics. The canonical tie-break keys never turn a tie into an accepted reading. First, *T* puts greater rule profiles before lesser ones. Within an equal rule profile, `greedy`, `lazy` and no lean compare visible sequences:
+The stage puts the derivations in a canonical order, *T*. *T* orders the ambiguity diagnostics. The canonical tie-break keys never turn a tie into an accepted reading. First, *T* puts greater profiles before lesser ones. Within an equal profile, a lean or no lean compares visible sequences:
 
 - *T* compares them at their first differing visible pair, by rules 1 to 3 where those decide, and otherwise by the canonical keys. The canonical keys put a read before a close. They order two reads by terminal, in code point order. They order two closes by production number, then span start, then span end.
 - If one visible sequence is a proper prefix of the other, the shorter comes first.
 - If the visible sequences are equal, *T* compares them at the first differing pair of the whole sequences, by the canonical keys. If one whole sequence is a prefix of the other, the shorter comes first.
 
-Within an equal rule profile, `late-elision` compares elision vectors in *T*, the lesser first. It orders two derivations with equal vectors as it does under no lean.
+*T* compares profiles, then visible sequences and whole sequences. So it is a total order. The first reading, `m`, is its least element, whatever the verdict.
 
-*T* compares rule profiles, then elision vectors under `late-elision`, then visible sequences and whole sequences. So it is a total order. The first reading, `m`, is its least element, whatever the verdict.
+Every derivation that beats another precedes it in *T*. This holds for a greater profile and for the lean's preference within equal profiles. Nothing precedes `m`, so nothing beats it. So `m` is best.
 
-Every derivation that beats another precedes it in *T*. This holds for a greater rule profile and for the directive's preference within equal rule profiles. Nothing precedes `m`, so nothing beats it. So `m` is best.
-
-A distinct derivation `d` is tied with `m` when `m` does not beat `d`. So `m` is never tied with itself. Under `greedy` and `lazy`, a best derivation other than `m` is tied with `m`, since its first difference with `m` is a tie. The converse does not hold. Under `late-elision`, the derivations tied with `m` are exactly the other best derivations.
+A distinct derivation `d` is tied with `m` when `m` does not beat `d`. So `m` is never tied with itself. With a lean, a best derivation other than `m` is tied with `m`, since its first difference with `m` is a tie. The converse does not hold. Without a lean, the derivations tied with `m` are exactly the other best derivations.
 
 For example, take `text → A C D | p D | B q`, `p → B C` and `q → C D`, over the tokens `A B`, `C` and `D`. Under `greedy`, `m` reads the first token as `A`. The derivation through `p` is tied with it, but loses to the one through `q`, which reads `D` where it closes `p`.
 
 Of the distinct derivations tied with `m`, the second reading is the one that diverges from `m` earliest. It has the fewest visible actions before its first visible difference with `m`. A derivation whose visible sequence is a proper prefix or an extension of `m`'s diverges where the shorter ends. One whose visible sequence equals `m`'s diverges last. *T* orders those that diverge at the same point. That derivation, `t`, is best.
 
-Since `m` does not beat `t`, both have the same rule profile. A derivation with a greater rule profile than `t` also precedes `m` in *T*. Nothing precedes `m`, so no such derivation exists.
+Since `m` does not beat `t`, both have the same profile. A derivation with a greater profile than `t` also precedes `m` in *T*. Nothing precedes `m`, so no such derivation exists.
 
-Under `late-elision`, `t` is best because its rule profile and elision vector equal those of `m`. Under `greedy` and `lazy`, the proof is as follows. Suppose that another derivation beats `t`. It is not `m`, since `m` does not beat `t`.
+Without a lean, `t` is best because its profile equals that of `m`. With a lean, the proof is as follows. Suppose that another derivation beats `t`. It is not `m`, since `m` does not beat `t`.
 
 If it beats `t` before `t` diverges from `m`, it beats `m`, which nothing does. If it beats `t` later, it shares `t`'s divergence from `m`. If it beats `t` exactly where `t` diverges, it beats `m` there too, or it is tied with `m` there. This is because an action that beats one tied with `m`'s cannot lose to `m`'s. Either way, it is a distinct derivation tied with `m`, diverges no later than `t`, and precedes `t` in *T*.
 
@@ -1800,7 +1849,7 @@ Only a rule that can complete again below the child over that span matters. Such
 
 A summary describes the derivations of one item in one context. So an implementation keeps one summary for each combination of item and cycle context that some edge needs. The cycle context is reduced as above. This reduction removes context differences caused by ancestors outside the child's cyclic group. Different ancestor sets within that group can still need different summaries. Two summaries of one item can differ, and a summary keyed by the item alone can lose a reading.
 
-For example, take `text → b | a`, `a → b` and `b → a | A`, over the token `A`. The input has two derivations that are not cyclic, through `text → b` and through `text → a`. With equal rule profiles, they tie under every stage rule. Beneath `b` over the same span, `a` has no derivation that counts, since `a → b` repeats `b`. Directly under `text`, `a` has one, so a summary of `a` that ignores its context loses a reading of the root.
+For example, take `text → b | a`, `a → b` and `b → a | A`, over the token `A`. The input has two derivations that are not cyclic, through `text → b` and through `text → a`. With equal profiles, they tie under every stage rule. Beneath `b` over the same span, `a` has no derivation that counts, since `a → b` repeats `b`. Directly under `text`, `a` has one, so a summary of `a` that ignores its context loses a reading of the root.
 
 The derivations of the input are those of every completed item of `text` that spans it (§4). The implementation combines the summaries of all these items as the edges of one root.
 
@@ -1808,25 +1857,23 @@ Under every ranking rule, the verdict needs the total, the number of admitted no
 
 The implementation can keep the total in each summary, or compute it apart with the same rules. Either way, it computes the total before it drops any losing edge. A ranking of the best derivations alone cannot give the total.
 
-A rule profile composes by addition, in each of its parts. An edge adds its children's rule profiles and its own completed nonempty flagged occurrence, if any, to the part of its flag. Adding a common rule profile preserves comparison and equality. Each summary retains its greatest rule profile and every edge that attains it, with the same cycle context. The total remains separate from the count of best derivations.
+A profile composes by addition, in each of its counts. A completion edge adds its children's profiles and, for each step whose pattern matches the completed nonempty constituent, one occurrence over its span. A read edge adds one occurrence for each step whose pattern matches the leaf. The helper of an elidable optional that derives ε at `p` adds one occurrence at `p` for each step whose pattern matches the omitted leaf. Adding a common profile preserves comparison and equality, because every key step compares counts by component or by sum. Each summary retains its greatest profile and every edge that attains it, with the same cycle context. The total remains separate from the count of best derivations.
 
-For `greedy` and `lazy`, the action summaries of this section run over the forest of greatest rule profiles. For `late-elision`, each summary compares one key, the pair of its rule profile and elision vector. Compare the pair by its rule profile first, with the greater rule profile preferred. Within an equal rule profile, prefer the lesser elision vector. The count of preferred derivations and the retained edges follow this pair. Diagnostic selection uses no lean over the retained forest.
-
-Under `greedy`, `lazy` and no lean, both `m` and the earliest-diverging tied derivation compose over the retained forest. An implementation keeps, in each summary, its *T*-least derivation and the earliest-diverging derivations tied with it. It keeps several candidates side by side while their order is not yet settled, since what follows decides. Their order is not settled while one's visible sequence is a prefix of another's. It is also not settled while their visible sequences are equal and one whole sequence is a prefix of the other.
+With a lean, the action summaries of this section run over the forest of greatest profiles. With or without a lean, both `m` and the earliest-diverging tied derivation compose over the retained forest. An implementation keeps, in each summary, its *T*-least derivation and the earliest-diverging derivations tied with it. It keeps several candidates side by side while their order is not yet settled, since what follows decides. Their order is not settled while one's visible sequence is a prefix of another's. It is also not settled while their visible sequences are equal and one whole sequence is a prefix of the other.
 
 One candidate can beat another under `greedy` or `lazy`. Then the loser's tied derivation stays tied with the winner exactly when it diverged from the loser before the point where the winner beat it. One that diverged there is beaten there too. So the number of derivations, which can be exponential, never matters.
 
-Under `late-elision`, elision vectors compose by addition. The vector of a derivation through an edge is the sum, component by component, of the vectors of the derivations of its children. A completed helper of an elidable optional that derives ε at `p` has the vector that is one at `p` and zero elsewhere. Adding one vector to two others keeps their order. Adding a common rule profile also keeps rule profile order. So in a best derivation, each child has the best rule profile and elision pair that its context allows.
+The best count counts derivations attaining the greatest profile. The count stops at two. A summary holds its greatest profile and its best count. Within one edge, the children's profiles add, and their best counts multiply. The edge adds its own completed occurrences, if any. Over one summary's edges, keep the greater profile or add best counts where the profiles are equal.
 
-The best count counts derivations attaining this pair. The count stops at two. A `late-elision` summary holds its best rule profile and elision pair and its best count. Within one edge, the children's rule profiles and elision vectors add, and their best counts multiply. The edge adds its own completed occurrence and elision, if any. Over one summary's edges, keep the preferred pair or add best counts where the pairs are equal.
+The root compares its items by the same profile. Without a lean, a total of two with a best count of one is `resolved`, and a best count of two is a tie. This holds also when two items of `text` each have one derivation with the same greatest profile.
 
-The root compares its items by the same rule profile and elision pair. A total of two with a best count of one is `resolved`. A best count of two is a tie. This holds also when two items of `text` each have one derivation with the same best pair.
+The best derivations form a smaller forest. For each summary, the implementation keeps the edges that attain its greatest profile. Each kept edge leads to the summaries of its children, in their own contexts. The stage finds `m` and `t` by a ranking with no lean over that forest. That ranking keeps the same contexts, so it reaches a child only through the summary that its context allows.
 
-The best derivations form a smaller forest. For each summary, the implementation keeps the edges that attain its best rule profile and elision pair. Each kept edge leads to the summaries of its children, in their own contexts. The stage finds `m` and `t` by a ranking with no lean over that forest. That ranking keeps the same contexts, so it reaches a child only through the summary that its context allows.
+A step has up to N + 1 boundaries and N(N + 1)/2 spans. So a sparse vector, or a shared sequence of occurrences, keeps the cost of each addition and comparison small.
 
-A vector has N + 1 components. So a sparse vector, or a shared sequence of elisions, keeps the cost of each addition and comparison small.
+Whether a step's pattern matches a node is a function of the step, the kind of node, its rule or terminal identity and its interned tag set. Where the step has a value test, the node's value joins these. An implementation can memoize the answer by that key. Before it ranks, it can decide for each step whether any node of the stage can match it. A rule atom can match only nodes of its rule. With a tag test, it can match where the test can hold for some tag set that the rule can carry. A rule with an inherited, forwarded or computed tag term can carry any set. A tag test that holds on the empty set, such as the `<¬Link>` of `#·sumti<¬Link>`, holds wherever its rule can have empty tags. The complete atom still requires a `sumti` node. A value test on a rule atom can hold on some input, so the decision keeps such a step. The same decision is made per terminal for reads and per elidable helper for omitted leaves. A stage none of whose key steps can match any node needs no profiles. A wrong "no" changes the chosen derivation, so the decision errs toward "yes".
 
-Structural state forms part of each summary's item identity. Ranked admission keeps query eligibility and same-span cycle contexts separate (§6.1). A summary cannot substitute an edge from another structural state. Count admitted noncyclic derivations before ranking, capped at two. Equal observations do not reduce that count. Rule profiles and elision vectors compose within each full state and context.
+Structural state forms part of each summary's item identity. Ranked admission keeps query eligibility and same-span cycle contexts separate (§6.1). A summary cannot substitute an edge from another structural state. Count admitted noncyclic derivations before ranking, capped at two. Equal observations do not reduce that count. Profiles compose within each full state and context.
 
 For k independent Boolean observations, a product can contain up to `2^k` states. Sequence prefixes and captures add further factors. Finite sharing does not imply constant memory use.
 
@@ -1849,9 +1896,9 @@ A prefix context records state before a ranked group. An admission instance is o
 | Cycles | Enclosing named-rule context for relevant spans. |
 | Reconstruction | Strictness, restoration, and projection state where recognition depends on them. |
 
-The prefix includes bound common captures, their values, structural state, and its boundary record (§4.2). It also includes each common capture's close observations and the accumulated common prefix's close observations. Control positions refer to the common group entry. Generated helpers retain their written paths. Option indexes and generated option-production identities do not distinguish entry contexts.
+The prefix includes bound common captures, their values, structural state, and its boundary record (§4.2). It also includes each common capture's close observations and the accumulated common prefix's close observations. It also includes each demanded tree identity of a common capture and the demanded partial sequence of the prefix (§4.1). A private identity inside an option stays out of the key. So two prefixes with different trees never share an admission group, and the continuation after the group can compare the identity with `≅`. Control positions refer to the common group entry. Generated helpers retain their written paths. Option indexes and generated option-production identities do not distinguish entry contexts.
 
-The key excludes private captures, returned option tags, private pattern states, proof identities, and the option's open boundary facts. It also excludes omission vectors, flagged profiles, diagnostic ordering, and caller demand contexts. Equal-state prefix proofs remain distinct derivations for ordinary ranking.
+The key excludes private captures, returned option tags, private pattern states, proof identities, and the option's open boundary facts. It also excludes profiles, diagnostic ordering, and caller demand contexts. Equal-state prefix proofs remain distinct derivations for ordinary ranking.
 
 An invocation is a recognition state, rather than a call-stack identity. Different callers share admission when all key components agree. Different continuations remain separate. Equal spelling at another location does not establish equal spans. Empty spans participate.
 
@@ -1869,11 +1916,11 @@ For `a ≻ b ≻ c`, qualified `a` removes `c` when its open facts dominate, eve
 
 A candidate must pass its tests and ready conditions in the requested recognition and cycle context. A disabled feature, failed gate, or unavailable cyclic proof supplies no witness.
 
-The summaries compose over admitted edges. Their totals count admitted derivations, capped at two, before rule-profile selection. Rank by rule profile, its span vector first and its fewest count second, then by the stage directive. With no flagged rule, the stage directive alone ranks admitted derivations.
+The summaries compose over admitted edges. Their totals count admitted derivations, capped at two, before profile selection. Rank by profile, then by the lean. With no key step, the lean alone ranks admitted derivations.
 
-Candidate construction visits only edges that admission and profile selection retain. Profile summaries run for flagged rules under every stage directive. Their internal names and failure messages identify profile summaries. Under late-elision, they also compare elision vectors. Admission needs existence counts. The separate ranking pass supplies witness membership where reconstruction requires it.
+Candidate construction visits only edges that admission and profile selection retain. Profile summaries run when a key step can count an occurrence. Their internal names and failure messages identify profile summaries. Admission needs existence counts. The separate ranking pass supplies witness membership where reconstruction requires it.
 
-Under late-elision, a least count of two agrees exactly with a second tied derivation. A disagreement is a library defect. Admission records each group that retains a lower proof beside a qualified higher proof at most once per ranking. Recording that fact takes constant expected time per group.
+Without a lean, a best count of two agrees exactly with a second tied derivation. A disagreement is a library defect. Admission records each group that retains a lower proof beside a qualified higher proof at most once per ranking. Recording that fact takes constant expected time per group.
 
 Outside observations of either restoration method retain the same opaque group block for every option. Private captures keep their real closes only for ready conditions within the option. The admission key includes demanded common restoration observations and excludes all private closes. Thus an aligned outside condition gives the same answer for each admitted proof of one block.
 
@@ -1891,11 +1938,11 @@ The tag closure uses linear work in productions and inheritance edges.
 
 ### 7.1 When the check runs
 
-The check is on where the stage's directive has `elision-only` or the caller asks for it. When it is on, it runs for `resolved`. It also runs for `unique` when the chosen tree holds an elided node. A resolved stage runs the enabled check even when its chosen tree elides nothing. The check runs after the stage emits its tokens (§6, §11).
+The check is on where the stage declares `%elision-only` or the caller asks for it. When it is on, it runs for `resolved`. It also runs for `unique` when the chosen tree holds an elided node. A resolved stage runs the enabled check even when its chosen tree elides nothing. The check runs after the stage emits its tokens (§6, §11).
 
 A tie never reaches it, because a tie ends the stage first. It skips a unique tree with no elided node. An error of the grammar found while emitting ends the stage before it. A caller can switch the check off for a stage that declares it.
 
-Uniqueness concerns the original input. Restoration can create another derivation. For `text → "a" [+T] | "a" T`, input `a` has one derivation, with `T` elided. After restoration, the optional and the bare `T` both read the synthetic token. Their rule profiles are equal, so the check fails.
+Uniqueness concerns the original input. Restoration can create another derivation. For `text → "a" [+T] | "a" T`, input `a` has one derivation, with `T` elided. After restoration, the optional and the bare `T` both read the synthetic token. Their profiles are equal, so the check fails.
 
 The check follows the decision order of §7.10. It chooses no replacement derivation and examines no other restoration.
 
@@ -1907,11 +1954,11 @@ Aligned queries reuse this section's synthetic-token representation and projecti
 
 Let O be the stage's input, N tokens long. Here the input is what this stage reads: the output of the stage before it, or, for the first stage, stage-zero or caller-supplied tokens. Let G be the grammar lowered for the main parse, and D the chosen derivation.
 
-Take D's elided terminators (§4, §12) in leaf order, from left to right. Keep this order for terminators at one position. Each one gives a restoration record. The record holds the terminal, its position `p` in O and the empty source of its elided node (§12). For a terminator with an `=` test, it also holds that test's string, its saved value.
+Take D's elided terminators (§4, §12) in leaf order, from left to right. Keep this order for terminators at one position. Each one gives a restoration record. The record holds the terminal, its position `p` in O and the empty source of its elided node (§12). For a terminator with a default value (§3.8), from `≝` or from an equality test, it also holds that value.
 
 The reconstructed input R is O with one synthetic token for each record. The synthetic token stands before the input token at `p`, or at the end for `p` = N. Records at one position keep their order. Every token of O stands in R once, in its order, with all its fields unchanged.
 
-A synthetic token has recognition tags and a recognition value. Its recognition tags are its terminal alone. Its recognition value is its saved value, an exact string. Without a saved value, its recognition value is the empty string. Its synthetic image is empty.
+A synthetic token has recognition tags and a recognition value. Its recognition tags are its terminal alone. Its recognition value is the default value of its record (§3.8). Without a default value, its recognition value is the empty string. Its synthetic image is empty.
 
 A synthetic token has no attachments. It is not emitted, so no implication applies to it (§11). An original token's recognition tags and value are its stored tags and value (§5).
 
@@ -1996,6 +2043,8 @@ The rules of §4.2 use projected spans too. A constituent is empty for rules 2 t
 
 The projection comes first, then the method. So `s.first-token` is the first original token of `s`, not the first token of `s` with a synthetic one removed. A span method never carries a capture's constituent tags: `$x.first-token.tags` reads tokens even where `$x.first-token` is all of `$x`.
 
+A comparison of two constituents (§10) compares their projected trees. A restoration is an omitted leaf, and a bare synthetic read is absent. A directly captured synthetic read in an ordinary production has the empty projection. Such a capture is present, and in the child sequence of a parent the read has no entry. No node test matches the empty projection. A written leaf keeps its projected original value. A seal's sequence holds the values of the projected original tokens of its span, so a synthetic token adds nothing. The check builds the projected identity of each candidate from that candidate. It never copies the identity of D. So two different words stay different in the check, and W(D) compares as D did.
+
 A capture whose span holds only synthetic tokens is present, and `$x` holds as a condition. Its text, value, and image are empty, and the union of its tokens' tags is empty. It still has its constituent's own tags. So `$x.tags` can hold `Mark` while `$x.first-token.tags` is empty.
 
 A constituent's tags are its production's tag terms, evaluated over its own captures (§4). A synthetic token gives a constituent no tag. A capture of a terminal that read a synthetic token has no tags. A production that inherits from one logical symbol (§3.7) inherits none from such a terminal. A restoration has none, as its empty production has none. A tag term can still give a constituent tags of its own, such as `:: Mark`, also where its span projects to empty.
@@ -2012,9 +2061,9 @@ Presence tests `$x`, feature guards, closed terms and constants mean what they m
 
 This close observation differs from pattern projection, which removes bare synthetic structural leaves. It never copies D's chosen close list. Nested aligned queries receive the candidate's close observation and original context. No restoration record is duplicated.
 
-Patterns compute each reconstruction candidate's projected structure over O and never copy the chosen original tree's observations. A restoration helper contributes exactly one omitted-T marker. Its synthetic terminal read contributes no second child. A synthetic read in an ordinary production contributes no observable child. Named constructors remain, subject to empty-child removal. Original terminal reads remain written.
+Patterns compute each reconstruction candidate's projected structure over O and never copy the chosen original tree's observations. A value test on a rule atom reads the projected span, as a test of a reference does. A restoration helper contributes exactly one omitted-T marker. Its synthetic terminal read contributes no second child. A synthetic read in an ordinary production contributes no observable child. Named constructors remain, subject to empty-child removal. Original terminal reads remain written.
 
-An omitted final terminator still stops the last-child path. Its pattern value and image remain empty even when its body equality saved nonempty restoration value. Its pattern tags remain `{T}`. Body tests read synthetic recognition values, while pattern tests read projected leaf observations. The reconstructed witness preserves these observations through helpers, named constructors, empty children and unary transitions.
+An omitted final terminator still stops the last-child path. Its pattern value and image remain empty even when its default value is nonempty. Its pattern tags remain `{T, _Elided}`. Body tests read synthetic recognition values, while pattern tests read projected leaf observations. The reconstructed witness preserves these observations through helpers, named constructors, empty children and unary transitions.
 
 ### 7.6 Nested queries
 
@@ -2040,15 +2089,15 @@ Cycles are found over spans of R, as §4 says. Two constituents of one rule whos
 
 If reconstruction has no root or no walk for W(D), the check reports witness loss without preparing admission or ranking.
 
-Locate raw W(D) before applying ranked admission. Admission groups options by their physical spans in R, including synthetic tokens. The reconstruction rules, including the omission ban and strictness test of §7.4, still apply. Equal projected O spans do not establish equal admission spans. Rank admitted derivations by rule profiles over projected spans `[π(a),π(b))` in O.
+Locate raw W(D) before applying ranked admission. Admission groups options by their physical spans in R, including synthetic tokens. The reconstruction rules, including the omission ban and strictness test of §7.4, still apply. Equal projected O spans do not establish equal admission spans. Rank admitted derivations by profiles over projected spans `[π(a),π(b))` in O.
 
-No stage directive or diagnostic lean applies. Elision vectors are all zero. A flagged occurrence whose projected span is empty contributes nothing to either part of the rule profile. Distinct occurrences with equal nonempty projected spans each contribute separately. Reconstruction admission has its own cache and preserves restoration, strictness and projection rules.
+No lean applies, whatever the directive ends with. An occurrence whose projected span is empty contributes nothing, in every step. So a restoration and a bare synthetic read count nothing, whatever pattern matches them. A step that matches omitted leaves alone decides nothing in the check. The check ranks a traversal of the actual admitted derivation over projected spans, without the seals of condition patterns. So every nonempty rule node and original read inside a ranked option keeps its contribution. Distinct occurrences with equal nonempty projected spans each contribute separately. Reconstruction admission has its own cache and preserves restoration, strictness and projection rules.
 
 A restoration's read of its synthetic token is a read action, and its close is the close of a helper, which is transparent. Section 7.10 selects the error's readings. The canonical keys never turn a tie into a pass. Derivations whose trees are equal over O are still distinct derivations.
 
 An error of the grammar met while the check recognizes R is the result's error, as one met while emitting is (§11). This includes an error in a competing derivation that only the check reaches. The stage keeps its verdict and warnings, but it has no output.
 
-W(D), the restored witness (§7.8), has the rule profile of D. That is both its span vector `G_D` and its fewest count `F_D`, because each occurrence projects to its original span. Section 7.10 gives the decisions for witness loss and competing readings.
+W(D), the restored witness (§7.8), has the profile of D in every step, apart from the occurrences with an empty projected span. The check counts those in neither. Every other occurrence projects to its original span. Section 7.10 gives the decisions for witness loss and competing readings.
 
 ### 7.8 The witness
 
@@ -2093,7 +2142,7 @@ The stage's name stands for `syntax` in `stage` and in `message`. `chosen` is D'
 - `terminal`, the terminal.
 - `at`, its position in O.
 - `source`, the empty source of its elided node.
-- `value`, the saved value, only where the terminator has an `=` test.
+- `value`, the default value, only where the terminator has one (§3.8), from `≝` or from an equality test.
 
 The error has no `token`, `source`, `line`, `column`, `expected`, `reason` or `readings`.
 
@@ -2103,7 +2152,7 @@ The message is the same in every library. Section 7.10 gives witness loss priori
 
 ### 7.10 Readings
 
-This policy applies to every grammar, including grammars without ranked groups or flagged rules. Raw witness membership tests the concrete derivation. A competitor is a best admitted derivation other than W(D).
+This policy applies to every grammar, including grammars without ranked groups or key steps. Raw witness membership tests the concrete derivation. A competitor is a best admitted derivation other than W(D).
 
 Runtime witness tracking is mandatory. An optional observer only inspects the result and never supplies the runtime witness marks.
 
@@ -2111,7 +2160,7 @@ If recognition ends without a grammar error, decide in this order.
 
 1. Locate W(D) in the raw reconstruction forest. If it is absent, report `elision-witness-lost` (§7.9).
 2. Apply ranked admission without preserving W(D) artificially.
-3. Rank admitted readings by projected rule profiles with no stage lean.
+3. Rank admitted readings by projected profiles with no lean.
 4. If W(D) is admitted and is the sole best admitted derivation, preserve the main result.
 5. Otherwise, report `ambiguous` with reason `elision-only`, with W(D) first and one competitor second.
 
@@ -2202,7 +2251,7 @@ These locations concern embedded definitions, not lines of the bootstrap JSON. T
 
 The final notation stage emits before its elision-only check, as every other stage does.
 
-Each stage of the notation runs as any stage does (§4 to §7, §11, §12). So each notation stage runs the check of §7 where its own directive declares `elision-only`. The bundled notation declares it in no stage, but a caller's own bootstrap can (`docs/api.md`). An ambiguity that the check finds is an error of the document in the same way as a tie. The error names the document and the notation stage, with no line or column. The caller's option for the check (`docs/api.md`) does not reach a notation stage, so it neither switches the check on there nor off.
+Each stage of the notation runs as any stage does (§4 to §7, §11, §12). So each notation stage runs the check of §7 where it declares `%elision-only`. The bundled notation declares it in no stage, but a caller's own bootstrap can (`docs/api.md`). An ambiguity that the check finds is an error of the document in the same way as a tie. The error names the document and the notation stage, with no line or column. The caller's option for the check (`docs/api.md`) does not reach a notation stage, so it neither switches the check on there nor off.
 
 Each family has one preparsed file, `data/preparsed/FAMILY.json`, for the documents below `grammars/FAMILY/`. The required `gencmu.json` supplies the bootstrap. A loader reads only the optional file that each document key selects, besides that required file. Missing, malformed, or mismatched optional files give cache misses.
 
@@ -2312,11 +2361,10 @@ Recognition productions:
 
 ```text
 document = {statement}
-statement = rule | directive | constant-definition | classifier | implication-declaration
-rule = definer [flags] rule-head ("=" call
+statement = rule | ranking-directive | directive | constant-definition | classifier | implication-declaration
+rule = definer rule-head ("=" call
        | (body | clauses headed-body) [conditions] [output])
 definer = "%rule" | "%redefine-rule" | "%extend-rule"
-flags = "(" name {"," name} ")"
 rule-head = rule-name | call
 rule-name = name | emoji-name
 call = call-name "(" call-argument {"," call-argument} ")"
@@ -2354,10 +2402,11 @@ group = "(" choice ")"
 optional = "[" ["+"] choice "]"
 repetition = "{" ["..."] choice ["/" choice] "}"
            | "{" choice "..." ["/" choice] "}"
-symbol-test = tag-test | value-test
+symbol-test = tag-test | value-test | default-value
 tag-test = "<" {requirement} ">"
 requirement = ["¬"] test-operand
 value-test = test test-operand
+default-value = "≝" test-operand
 test = "=" | "≠"
 test-operand = parameter | call | string-literal | constant-reference | reference | tag | range
              | capture-reference | method-chain | "∅" | pattern-literal | "(" term ")"
@@ -2420,8 +2469,10 @@ child-primary = pattern-node | pattern-bare | "(" child-choice ")"
 pattern-brackets = "[" child-choice "]"
 pattern-repeat = "{" child-choice ["/" child-choice] "}"
 directive = directive-name {directive-argument} [conditions]
+ranking-directive = "%ambiguity-resolution" ranking-step {"," ranking-step}
+ranking-step = name [pattern-literal | constant-reference]
 directive-name = "%stage" | "%extend-stage" | "%redefine-stage"
-               | "%include" | "%names" | "%features" | "%ambiguity-resolution"
+               | "%include" | "%names" | "%features" | "%elision-only"
 directive-argument = argument-word | argument-string | argument-tag | argument-term
 argument-word = name
 argument-string = string-literal | include-path
@@ -2455,7 +2506,7 @@ Recognition names describe productions. The following mapping specifies the name
 | Recognition part | Constructor parts |
 | --- | --- |
 | `document` | Root `text` |
-| `flags` and its names | `rule-flags` with `rule-flag` parts |
+| `ranking-directive` and its steps | `ranking-directive` with `ranking-step` parts |
 | `captured` | `capture` with a binder token and `primary` |
 | `capture-binder` | Direct prefixed-name token, checked as a capture name |
 | `tested` | `tested` with an unwrapped base constructor and the written tests |
@@ -2487,7 +2538,7 @@ Thus `%include "a.md" "b$c.md"` reports the wrong count at `%include`. With no o
 
 Recognition accepts a constant token as a capture binder before `:`. The reader rejects its capitalized or engine name at that binder. This is a reader error, so an earlier reader error wins after syntax recognition succeeds.
 
-Recognition admits captures of groups, optionals, repeats, empty expressions, and captures, including `$` as a binder. It admits captures inside braces and marked optionals. It admits invalid marked-optional contents and chains inside other expressions. Section 9.3 rejects these forms at the capture, optional, or repetition that it specifies.
+Recognition admits captures of groups, optionals, repeats, empty expressions, and captures, including `$` as a binder. It admits captures inside chains and marked optionals. It admits invalid marked-optional contents and chains inside other expressions. Section 9.3 rejects these forms at the capture, optional, or repetition that it specifies.
 
 Recognition admits arbitrary test operands, grouped terms included, so the reader can report an invalid operand at that operand. Pattern names can carry repeated or reversed tests too. Recognition also admits ranges in terms, nonclosed constant values and implications, and methods with invalid names, receivers, or arguments. Section 9.3 imposes their type and position rules.
 
@@ -2497,9 +2548,9 @@ Directive recognition reads each name as its own operand. It admits methods, ref
 
 An include path is not a method receiver. Directive recognition does not constrain operand counts or types. The reader reports every wrong operand at the directive. Thus `%stage $X` fails at `%stage`, column 1.
 
-Flags and classifier entries admit values that §9.3 rejects, including warning guards on entries.
+Classifier entries admit values that §9.3 rejects, including warning guards on entries.
 
-Empty flags or method arguments, mixed choice operators, repeated clauses, and misplaced clauses fail syntax recognition. The syntax stage admits at most one optional marker and one chain marker, with neither marker in a separator. Section 9.3 also defines errors for additional markers in trees that another bootstrap supplies.
+Empty clauses or method arguments, mixed choice operators, repeated clauses, and misplaced clauses fail syntax recognition. The syntax stage admits at most one optional marker and one chain marker, with neither marker in a separator. Section 9.3 also defines errors for additional markers in trees that another bootstrap supplies.
 
 Valid-form productions:
 
@@ -2519,7 +2570,7 @@ recipe-string = string-literal | string-constant | parameter | capture-string-me
 capture-string-method = capture-reference "." string-method
 string-method = "value" | "image" | "source-text" | "decomposed-source-text" | "verbatim-text"
               | "emitted.value" | "emitted.image"
-pattern-atom = rule-name | call | parameter [tag-test] [value-test]
+pattern-atom = (rule-name | call | parameter) [tag-test] [value-test]
              | terminal [tag-test] [value-test] | constant-reference [tag-test] [value-test]
 ```
 
@@ -2537,7 +2588,7 @@ A choice level cannot mix `|` and `≻`. Groups, plain optionals, and flat repea
 
 Its remainder is a sequence of primaries. It cannot contain captures.
 
-Flat repetition is `{body}` or `{body / body}`. A chain places one `...` immediately after `{` or after the whole item. A chain is the whole alternative expression. Captures cannot occur inside either repetition form. Tests cannot follow a group, capture, optional, repeat, or `ε`.
+Flat repetition is `{body}` or `{body / body}`. A chain places one `...` immediately after `{` or after the whole item. A chain is the whole alternative expression. A capture cannot occur inside a chain. A capture inside flat braces is an item capture (§3.5), and no capture can wrap either repetition form. Tests cannot follow a group, capture, optional, repeat, or `ε`.
 
 The reader checks each recipe atom in its written form, before folding or removing operators. Any operator token except `++`, including a leading no-op `∪` or `∩`, is an error at the atom. Thus `%rule r A := ∪ "a"` fails at `∪`, column 14. Recipe atoms have no grouping or method-chain extension. The `++` operators join those atoms.
 
@@ -2547,7 +2598,7 @@ Only the methods listed above are legal. A bare capture, guarded term, set opera
 
 Pattern productions use the grouping and binding rules of `docs/notation.md`. `#A<B>` converts exactly as `#(A<B>)`. A pattern constant denotes a predicate. A string constant denotes a terminal. A tag-set or string-set constant cannot serve as a pattern atom. A tested user constant atom must resolve to a string, otherwise loading reports a document error at the constant reference.
 
-Rule atoms and pattern-valued constant atoms accept no tests.
+Pattern-valued constant atoms accept no tests. A rule atom accepts one tag test followed by one value test, with either absent.
 
 An attached list requires a rule-name test, template family, exact call, or parameter that becomes one of these. A terminal, `_`, tested atom, or string-valued constant in that position is a document error. If substitution reveals the error, the reader reports it at the parameter use. Otherwise, it reports the error at `«`. Bare lists remain valid without a name test. Their children retain their own searches and exact prefixes.
 
@@ -2597,6 +2648,8 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | --- | --- | --- |
 | The root | Declaration constructors in source order | Five ordered item arrays, including empty arrays. A known non-declaration part is an error. |
 | `directive` | Keyword token, then argument parts in order | Validate written operand count and types before converting terms. Report every wrong operand at the directive. Produce `name` and valid argument values as `args`. A following `conditions-clause` gives optional `conditions` only for `%features`. |
+| `ranking-directive` | Keyword token, then `ranking-step` parts in order | Produce `name` and the steps as `steps`. Report every wrong step at the directive. |
+| `ranking-step` | One name token, alone or followed by one `pattern-literal` or constant reference | A lean `{"step":NAME}`, or `{"step":NAME,"pattern":P}` where P is the PATTERN or the `const` term |
 | `argument-word` | One name token | Name string |
 | `argument-string` | One quoted operand | Only the first `%include` or `%names` operand uses literal path decoding. Other quoted operands follow ordinary lexical forms and fail operand validation at the directive. |
 | `argument-tag` | One tag token or range | Tag identifier or range operand for validation at the directive |
@@ -2610,7 +2663,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `constant-definition` | `constant-definer`, `constant-reference`, `term` | Operation, user name, unresolved value |
 | `constant-definer` | One `%const` or `%redefine-const` token | `define` or `redefine` |
 | `constant-reference` | One user constant reference token | `const`, name without `$`, and reference `at` |
-| `rule` | Definer, plain or call-shaped head, flags, then binding call or header clauses and body | Ordinary definition, template with `params`, instance edit with `args`, or named `instance` binding. Bindings return before header clauses and body lookup. |
+| `rule` | Definer, plain or call-shaped head, then binding call or header clauses, body and clauses | Ordinary definition, template with `params`, instance edit with `args`, or named `instance` binding. Bindings return before header clauses and body lookup. |
 | `call` | Call-name token, then ordered `call-argument` parts | `call`, ordered `args`, and call `at` |
 | `parameter` | One parameter token | `param` without `@`, and its `at` |
 | `call-argument` | Requirement argument, target argument, body argument, symbol argument, or term | ARG from `docs/output.md`, preserving its category |
@@ -2620,8 +2673,6 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `symbol-argument` | One tested symbol, range, or wildcard | Convert the expression to its common ARG atom, preserving tests. |
 | `definer` | One definition keyword token | `define`, `redefine`, or `extend` |
 | `rule-name` | One rule-name token | Lowercase name or valid emoji scalar |
-| `rule-flags` | One or more `rule-flag` parts | Ordered flags. Reject extension flags before reading flag tokens. |
-| `rule-flag` | One flag token | Flag string. Unknown precedes duplicate-value error. |
 | `body` | One or more `alternative`, or one `ranked-alternative` | Ordered alternative list |
 | `headed-body` | One or more `alternative`, or one `ranked-alternative` | Ordered alternative list, like `body` |
 | `alternative` | Guards, conjunction, then tag, value, image clauses | `guards`, `expr`, and optional channel or tag members |
@@ -2641,6 +2692,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `tag-test` | Zero or more `tag-requirement` parts | Ordered requirements, including an empty array |
 | `tag-requirement` | Optional `¬` token, then one operand | Require a tag, tag-set constant, or parameter. Produce `negated` and unresolved `value`. |
 | `value-test` | `test`, then `test-operand` | Comparator and string operand |
+| `default-value` | `≝` token, then `test-operand` | The default value of the elidable optional whose head carries it |
 | `test` | One `=` or `≠` token | Precomposed value comparator from the token value |
 | `test-operand` | One recognized operand | Require a string literal, string constant, or declared parameter for a value test. Produce unresolved STRINGTERM. |
 | `capture` | Capture token, then `primary` | `capture` name without `$`, then `expr`. The base accepts every rule reference or call, including emoji rules. |
@@ -2685,7 +2737,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `comparator` | One ordinary comparison token | Precomposed comparator from the token value |
 | `negation` | One `condition` | `not` |
 | `presence` | One capture token | `captured`, with empty name for `$` |
-| `tree-comparison` | Capture reference, tree comparator, union | `op`, capture `left`, pattern `right` |
+| `tree-comparison` | Capture reference, tree comparator, union | `op`, capture `left`, and a `right` term whose type the loader checks after resolution |
 | `tree-comparator` | One `≅` or `≇` token | Precomposed comparator from the token value |
 | `pattern-literal` | One `pattern-primary` | Pattern term containing that whole pattern |
 | `pattern-union` | One or more `pattern-intersection`, with operators | Fold union and difference left. Flatten every union operand that is itself a union. |
@@ -2693,7 +2745,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `pattern-primary` | Node, bare list, or grouped `pattern-union` | Delegate without a grouping wrapper |
 | `pattern-node` | One atom, optional adjacent prefix, optional adjacent list | Atom with optional `exact:true` and `children` array |
 | `pattern-bare` | One list and optional adjacent prefix | `any:true`, optional `exact:true`, and required `children` array |
-| `pattern-atom` | Name, call, parameter, terminal, or constant, with written tests | Require a terminal, string constant, or unresolved parameter for tests. Preserve tag then value order. |
+| `pattern-atom` | Name, call, parameter, terminal, or constant, with written tests | A tag test and a value test take any atom. A tested constant must resolve to a string after binding. Preserve tag then value order. |
 | `pattern-children` | Optional `child-choice` | Item array, including empty or singleton |
 | `child-choice` | One or more `child-alternative` parts | Sole array, or one choice item. Flatten singleton choice alternatives. |
 | `child-alternative` | First `child-sequence`, otherwise required `child-set` | Item array, with a set wrapped as one `child` |
@@ -2774,9 +2826,9 @@ A document can hold several errors. The reader reports one, and every reader cho
    Ordinary escape inspection then visits string and path tokens in source order. It applies the same restricted decoder to every `%names` path, even a misplaced one. It examines each token's original escapes from left to right. The first malformed, nonscalar, or unknown escape fails at its opening `‹`. The step precedes every syntax or reader error. Section 1 defines operand boundaries and preamble order.
 
 3. Syntax recognition runs next, over the complete token sequence. A syntax error stands at the furthest token reached and precedes every reader error. Unknown directives follow this same rule. The hand-written bootstrap reader follows the same lexical, escape, and syntax steps.
-4. Within a rule, the reader reads the definer, name, flags, and header tag, value, and image clauses before the body. At each construct in an alternative's expression, the reader makes sure that its form meets the rules. It examines constructs in text order, each form before its contents. So it reports the first error of the first construct in the text that has one, with these steps for each construct:
+4. Within a rule, the reader reads the definer, name, and header tag, value, and image clauses before the body. At each construct in an alternative's expression, the reader makes sure that its form meets the rules. It examines constructs in text order, each form before its contents. So it reports the first error of the first construct in the text that has one, with these steps for each construct:
    - A tested primary: first the target and test order, at the first test that is not allowed there. A repeated kind or a tag test after a value test is an error at that later test. These checks precede the primary's contents and all test operands. So `{$c:B}="b"` and `[+KU $x:A]="a"` are errors at the test.
-   - A capture: first a capture inside braces, then one inside an elidable optional, then `$` that wraps something. Then come a name that is not all lower case and a capture that wraps anything but one symbol. Each stands at the capture, before what it wraps.
+   - A capture: first a capture inside a chain, then one inside an elidable optional, then `$` that wraps something. Then come a name that is not all lower case and a capture that wraps anything but one symbol. Each stands at the capture, before what it wraps.
    - An optional: first two markers, at the second. Then an elidable optional that is not of the form below, at its `[`. Last, what it holds through the ordinary symbol-test rules. So `[+KU | $x:A]` is an error at the `[`, and `[+KU≠"ku" $x:A]` at the `$x`.
    - An `&`: more than 16 items, at the `&` construct, that is, at its first item. This comes before any of its items, since the bound is its own form. So an `&` of 17 items is an error at its first item, whatever error a later item holds.
    - Braces: first two markers, at the second, or a marker after the separator, at that marker. Then a chain that is not the whole expression of its alternative, at its `{`. Last, the item and the separator. So `A {$c:B ... / S}` is an error at the `{`, although its marker follows the capture.
@@ -2833,13 +2885,11 @@ A tree from a bootstrap of another notation can also lack a part that a construc
 
   A repeated parameter fails at its second occurrence, even when parentheses surround that occurrence. A closed head on `%rule` fails at the head call because only an edit can select an instance.
 
-  Next, read its optional `rule-flags`. If flags exist, first reject them on an extension. Then require one or more `rule-flag` parts. Read each flag's token in text order. Reject an unknown value before a repeated value.
-
   If the rule has an `=` token, require a plain head and then read the right-hand `call`. Return that named instance binding without reading header clauses or looking up a body.
 
   Otherwise, read header tags, value, and image clauses, in that order. Next, look up `body`, or require `headed-body` if `body` is absent, and read its alternatives. Trailing conditions and emission or erasure come last.
 - A `tested`: require at least one test, then look up tag and value tests in that order. Retain all tests in written order, including repeated kinds. Next look up its `primary`. Check the target and test order before reading the symbol, then read requirements and operands. A missing required part is reported when its lookup occurs.
-- A `capture`: the checks of its place (inside braces, inside an elidable optional), then its token and its `primary`. Then come the checks of `$` and of the name. Last come the one known part of the primary, the base-symbol check, and that symbol. For a tested target, inspect only its base primary. The `tested` constructor checks its tests.
+- A `capture`: the checks of its place (inside a chain, inside an elidable optional), then its token and its `primary`. Then come the checks of `$` and of the name. Last come the one known part of the primary, the base-symbol check, and that symbol. For a tested target, inspect only its base primary. The `tested` constructor checks its tests.
 
   If a tested target lacks its primary, report `the notation's tested has no primary` before inspecting its tests.
 - An `optional`: its `choice`, then its markers, then the form of an elidable optional, and then its content through the ordinary symbol-test rules. So an `optional` with two markers and no `choice` is an error at the `optional`.
@@ -2852,9 +2902,9 @@ Inline `++` in body terminals, value tests, pattern terminals, range endpoints, 
 
 The grammar does not state the restrictions below. Each of these is an error of the document. The reader reports it at the first token of the offending construct, unless the item names another place.
 
-- A rule flag other than `leftmost-longest` or `fewest` is an error at the flag. Two different flags on one rule are an error at the second flag. A repeated flag is an error at the repeated flag. Parentheses on `%extend-rule` are an error at their opening parenthesis. These examples start at column 1. So `%rule(lazy)`, `%rule(leftmost-longest,leftmost-longest)` and `%extend-rule(leftmost-longest)` report columns 7, 24 and 13, respectively.
+- The mark `_Elided` is legal only in the tag test of a pattern, including a pattern inside a constant or a template argument. Elsewhere it is an error at the mark. That covers a body terminal, a body tag test, a tag term, a tag-set term, a tag-set constant, a condition's tag-set term, and either side of `%implies`. In a pattern tag test it can stand without negation only on a terminal atom, `_` included. On a rule, emoji, family or call atom it is an error at the mark, because no constituent carries it.
 
-  Empty parentheses and arguments fail before the reader reads a tree. Empty parentheses report the closing `)`, column 7 in `%rule()` and column 16 in `%redefine-rule()`. `%rule(leftmost-longest(1))` fails the syntax stage at `(`, column 23. A parenthesized argument made of valid tokens fails the syntax stage at its opening `(`. A supplied notation tree with no `rule-flag` reports its missing part at `rule-flags`, after the extension check.
+  Parentheses after the definer fail the syntax stage at `(`, column 6 in `%rule(x) r A`, since nothing stands between the definer and the name.
 - A rule name that is neither a valid emoji scalar nor a name beginning with `a` to `z` is an error at the name. Thus `%rule Foo A` fails at `Foo`, column 7.
 - A capture that wraps anything but one symbol is an error, `$x:(B)`, `$x:(A | B)` and `$x:[B]` included. A symbol is a rule reference, call, parameter, tag terminal, string terminal, range, wildcard, or a tested form of one. The capture check ignores the target's test count and order. The `tested` constructor reports any test-order error.
 
@@ -2868,11 +2918,12 @@ The grammar does not state the restrictions below. Each of these is an error of 
   The productions are the expansions of §3.2, taken before any gate applies. So the error does not depend on the features: `f? [$x:A] $x:B` is an error with `f` off too. A name in two branches of a choice is no error, since no expansion reads both, as in `A ($x:B | $x:C)`. A name in two items of `&`, or in an optional and beside it, is an error, since some expansion reads both.
 - A test requires a rule reference, call, terminal, or parameter whose argument is one symbol. Other targets cause an error at the test. So a test after a group, an optional, braces, a capture, or `ε` is an error. The syntax grammar permits tests after any primary, in any number and order. After a capture binder, source tests belong to its target. Only a supplied notation tree can test the capture itself.
 
-  A symbol accepts one tag test followed by one value test, with either test absent. Every other sequence fails at its first disallowed test. A repeated kind or a tag test after a value test therefore fails at the second test.
+  A symbol accepts one tag test, then one value test, with either absent. On the head of an elidable optional, one default value can follow them. Every other sequence fails at its first disallowed test. A repeated kind, or a test after a later kind, therefore fails at the second one. So `[+T ≝ "t" ="t"]` fails at `=`.
 
-  Pattern atoms use the same target and order checks as a tested primary. Both checks stand at the first test that is not allowed there. Thus `%rule r $c:A %conditions $c ≅ #(sumti="x")` fails at `=`, column 38. In `#(sumti<B><C>)`, the target check fails at the first `<`.
+  A pattern atom accepts the tests of §4.1. A terminal atom accepts one tag test and then one value test. A rule, emoji, family or call atom accepts the same two tests. Its tag test reads the constituent's tags, and its value test reads the input value of its span. A test needs an atom, so a test alone, as `#<T>` or `#=""`, is an error at the test. Both checks stand at the first test that is not allowed there. Thus `%rule r $c:A %conditions $c ≅ #(sumti="x"<B>)` fails at `<`, column 42. In `#(sumti<B><C>)`, the order check fails at the second `<`.
 - A `repetition` with two or more markers is an error, reported at the second marker. A marker after its second `choice` is an error, reported at that marker, since the separator has no marker. The bundled syntax grammar never gives such a node, but a bootstrap of another notation can (`docs/api.md`). So every reader decides these cases the same way, and never by which marker it meets first.
-- A capture inside braces is an error, reported at the capture. A capture that wraps braces is an error by the first item of this list.
+- A capture inside a chain is an error, reported at the capture. So is an item capture inside a ranked group, with the group anywhere between the braces and the capture. A capture that wraps braces is an error by the first item of this list. A capture inside flat braces is an item capture (§3.5). Its name stands nowhere else in the alternative's expression. A second capture of its name, inside the braces or outside them, is an error at the later one in the text. This check runs with the repeated-name check, after the whole expression. The check of a DOM refuses such a repeat as a duplicate capture.
+- A clause other than a condition that names an item capture is an error at the clause. So is a condition that reads an item capture together with `$`, with an item capture of other braces, or with a capture that a production of the alternative binds after those braces. The reader finds these when it validates the rule's clauses, after the alternatives.
 - A capture inside an elidable optional, an `optional` with a marker, is an error at any depth, reported at the capture.
 - An `optional` with two or more markers is an error, reported at the second marker. The bundled syntax grammar never gives such a node, but a bootstrap of another notation can.
 - An elidable optional that is not of the form of §3.8 is an error, reported at its `[`. Before the reader drops groups, it makes sure that the notation tree meets this rule. The hand-written bootstrap reader builds the same tree, so it makes the same check. The `optional`'s `choice` must be one `conjunction` of one `sequence`, with no leading `|` before the conjunction and no leading `&` before the sequence. This is the one place where a leading separator is not allowed: `[+| KU]` and `[+& KU]` are errors. A choice in parentheses later in the optional can still begin with `|`, as in `[+KU (| A | B)]`.
@@ -2901,6 +2952,9 @@ The grammar does not state the restrictions below. Each of these is an error of 
   A method's receiver and arguments must meet §10's signature after method selection. The reader reports a wrong receiver or arity at the method. A classifier or rule name is legal only in its corresponding argument position. A string constant can resolve a string argument after stitching.
 - A `split` whose delimiter is the string literal `""` is an error, reported at the call.
 - A `.verbatim-text` or `.emitted` read outside a recipe is a document error. A recipe accepts only the seven string methods and string atoms of §11.
+- A `default-value` that does not stand on the head of an elidable optional is an error at its `≝`. So is a second one on the same head. Its operand follows the value-test rules, and must resolve to one string. A default value whose omission predicate (§3.8) is false is an error at its `≝`, after template substitution.
+- A comparison of a capture or `$` with itself is an error at the comparison. The forms are `$x ≅ $x`, `$x ≇ $x`, `$ ≅ $` and `$ ≇ $`. The loader tests the resolved capture terms. The error stands where the left term and the right term are the same term, and the empty name of `$` is such a term. Two distinct captures of one rule are not reflexive. The loader reports no other fixed answer of a comparison. `$ ≅ $x` can hold through a seal (`docs/notation.md`). Two captures of different rules can be a legal instance of a general template. Two terminal captures can both have the empty projection in the check of §7. So those comparisons stay legal, and a false answer is a sound outcome there.
+- The right operand of `≅` or `≇` must have pattern type or constituent type after constants and template arguments resolve (§10). A term of any other type is a type error at the term, as in other typed positions. A string, a string set, a tag set, a span and a guarded term are such terms.
 - A constant declaration requires a capitalized constant name. A string in that position is a document error.
 - A constant's value that is not a closed term (§10) is an error, reported at the first part that is not closed. Captures, `$`, guarded terms, and input methods such as `.value`, `.source-text`, `.tags`, `.classes`, or `.classify` are errors there.
 - An engine-tag literal in a constant's value, outside a pattern literal, is an error at that literal. Reject it during conversion, before reading the next part.
@@ -2971,9 +3025,11 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An attachment (§11) that holds `$` is an error, reported at the attachment. An attachment holds a named capture.
 - An attachment on a `$` item or on an inserted item is an error, reported at the item. Only a named capture carries attachments. So a constituent never attaches to itself.
 - A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
-- A rule's or an alternative's tag term cannot read the tags that it defines. A read of `$.tags` or `$.classes` in that term is an error. `$.first-token.tags` and the like read the tokens' tags, not the constituent's, and are allowed, as is `$.tags(R)`. Bare `$` in a guard reads the constituent's input value.
+- A rule's or an alternative's tag term cannot read the tags that it defines. A read of `$.tags` or `$.classes` in that term is an error. So is a comparison of `$` with a pattern that tests rule tags, after constants and template arguments resolve. Such a pattern has a tag test on a rule, emoji, family or call atom. A value test, a terminal test, a test on `_` and a comparison of two constituents read no rule tags, so the rule allows them. `$.first-token.tags` and the like read the tokens' tags, not the constituent's, and are allowed, as is `$.tags(R)` and a pattern on a captured part. An emission item's tag clause and a `%conditions` clause define no constituent tags, so the rule does not bind them. Bare `$` in a guard reads the constituent's input value.
 - An unknown directive or keyword is an error. The syntax grammar already refuses it.
-- A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` and `%names` take one path each, and `%features` takes one or more feature names as §9.1 defines them. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`.
+- A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` and `%names` take one path each, and `%features` takes one or more feature names as §9.1 defines them. `%elision-only` takes no operand. `%ambiguity-resolution` takes one or more steps, separated by commas: `leftmost-longest`, `fewest`, `most`, `late` or `early`, each followed by one operand, or `greedy` or `lazy` without one. The operand is a pattern literal or a constant reference, and a constant there must resolve to a pattern. A key step without an operand, or a lean with one, is an error at the directive. A lean, `greedy` or `lazy`, can stand only as the last step. A step with the wrong form, a lean elsewhere than last, or two leans is an error at the directive. A directive with no step fails the syntax stage at the token after it, as in `%ambiguity-resolution` alone.
+
+  The pattern of a key step is exact and local, after constants and template arguments resolve. It is made of node tests that each carry `exact`, with their tests, joined by union, intersection and difference. A child list, a path, a bare list or a node test without `exact` in it is an error at the pattern. A rule name in it must be defined in the stage, as in a body. An atom requires `_Elided` when its tag test holds the mark without negation. A union requires it when every operand does, an intersection when any operand does, and a difference when its left operand does. A `leftmost-longest` pattern that requires the mark is an error at the pattern, because the step never counts an omitted terminator (§6). The loader does not ask which derivations exist for any of these checks.
 
 Feature conditions receive syntax and DOM-shape analysis before stitching. Their semantic analysis applies only to surviving stage declarations (§13).
 
@@ -3074,18 +3130,17 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - Two of its items share a position.
 - A template, binding, call, parameter, or argument violates the forms of §2.3 or `docs/output.md`.
 - A rule's name is neither a valid emoji scalar nor a name beginning with `a` to `z`.
-- A rule lacks `flags`, or its value is none of `[]`, `["leftmost-longest"]` and `["fewest"]`. An `extend` rule must have `[]`.
 - It has an expression, a term or a condition with members of two forms, or with a member that its form lacks (`docs/output.md`).
 - It has a `ref` that is neither a valid name nor a valid emoji scalar.
 - An expression has only `ranked`, whose value is not an array of at least two expressions. Report `ranked-choice-syntax`.
 - An expression combines `ranked` with another member, or contains a malformed option. Report an ordinary malformed-DOM error.
 - Its `chain` is neither `left` nor `right`, or its chain repeat does not occupy the complete alternative expression.
 - It has an `optional` with an `elidable` member whose value is not `true`. It has an elidable `optional` whose expression the reader refuses (above).
-- It has a capture that the reader refuses. That is one that wraps anything but a symbol, or one inside a `repeat` or inside an elidable `optional`. It is also a name that some expansion of an alternative holds twice (above), or a name that is not all lower case.
+- It has a capture that the reader refuses. That is one that wraps anything but a symbol, or one that wraps a `repeat`. It is also one inside a chain or inside an elidable `optional`, or an item capture with a ranked group between it and its braces. A capture inside flat braces is an item capture and is valid (§3.5). It is also a name that some expansion of an alternative holds twice (above), or a name that is not all lower case.
 - It has an emission with a member other than `items`, or an erased definition with a recipe or emission.
 - It has an alternative guard whose feature is not a feature name as §9.1 defines it. Or the guard has members beyond its feature, kind, and negation state.
-- It has a directive whose name is not `ambiguity-resolution`, `stage`, `extend-stage`, `redefine-stage`, `include`, `names` or `features`.
-- It has an `ambiguity-resolution`, `stage`, `extend-stage`, `redefine-stage`, `include`, `names` or `features` directive whose operands the reader refuses.
+- It has a directive whose name is not `ambiguity-resolution`, `elision-only`, `stage`, `extend-stage`, `redefine-stage`, `include`, `names` or `features`.
+- It has a `stage`, `extend-stage`, `redefine-stage`, `include`, `names`, `features` or `elision-only` directive whose operands the reader refuses. Or it has an `ambiguity-resolution` directive whose `steps` the reader refuses, or that has `args`.
 - It has an unsupported test position or comparator, an ill-typed string operand, or an invalid signed requirement. A value test can wrap a tag test. Repeated test kinds and reversed nesting are malformed. All scalar string values remain legal.
 - It has a tag or tag-terminal `ref` outside the identifier rules of §1, or a tag clause with nonempty `lit` (§1).
 - Its range does not contain two string terms resolving to ordered single-scalar endpoints.
@@ -3118,11 +3173,28 @@ For `$x ≅ NAME`, report at NAME: `tree comparison requires a pattern; write #N
 
 Source captures, guards, elision markers, and chain repetitions inside patterns fail syntax recognition. A tree comparison with a non-capture left operand also fails syntax recognition. Supplied trees and DOMs still undergo the stated reader restrictions.
 
-Readers reject missing parts, unknown members and invalid arities. Tests require terminal atoms and ordinary closed operands. Captures, guards, emissions, alternative tags, elision markers and chain repetitions cannot occur in patterns. Every repeat body contains a child pattern under these restrictions.
+Readers reject missing parts, unknown members and invalid arities. A tag test and a value test take a terminal, rule, emoji, family or call atom (§4.1, `docs/output.md`). Both take ordinary closed operands. Captures, guards, emissions, alternative tags, elision markers and chain repetitions cannot occur in patterns. Every repeat body contains a child pattern under these restrictions.
 
 Child arrays retain their context throughout unresolved inspection. An optional accepts no `separator`, and only a repeat accepts that member. A sibling ellipsis cannot occur at a repeat's sibling level, including through optional, choice, or repeat wrappers. A `child` pattern starts another node and therefore another sibling level for its own child list. Supplied DOMs obey the same restrictions. Stage resolution includes every pattern in replaced definitions and uncalled templates.
 
 If X is declared, `#« A @X »` and `#« ⋯ @X »` remain valid. Their closed items remain child items beside the parameter. A parameter postpones only the type or binding that its value determines. It never postpones the surrounding field, arity, context, or forbidden-gap rules. Source, supplied, and cached patterns all obey the exact schema in `docs/output.md`.
+
+A comparison of two constituents needs a finite domain of tree identities (§4.1). Lowering checks this on the lowered grammar of each feature set, as it checks braces and chains in §3.3. So the gates apply, and only conditions and tests are not trusted. The nodes of the check are rules and template instances. For each recognition-time comparison whose right operand has constituent type, lowering builds the dependency graph of its demanded identities. An edge goes from a rule to each named rule whose identity its children need, through helpers and chain levels. The walk stops at a seal.
+
+Lowering marks an edge where the child can cover the complete span of the parent. Structural nullability decides that. It is a least fixed point over the lowered productions, as §3.3 defines it for the braces check:
+
+- `ε` is nullable, and a terminal is not.
+- If every symbol of a sequence is nullable, the sequence is nullable.
+- If one production of a rule, a choice or a helper is nullable, that rule, choice or helper is nullable.
+- Parentheses keep the nullability of their contents.
+- An optional and an elidable optional are nullable.
+- A repetition is not nullable, because the reader refuses braces whose item can match no tokens.
+
+Each mark belongs to one production. Where every other symbol of the production is nullable, the edge to the child is marked. Helper productions are nodes of the computation. By the braces rule none of them is cyclic over one span, so the named rules on a cycle report it. A cycle of marked edges is an error of the grammar at the comparison. Lowering finds it for the features that make it, as it finds the errors of §3.3. §3 gives its order and its location. The diagnostic names the comparison and the cycle. It says that the cycle can repeat a demanded rule over one span.
+
+There is no forwarding exception, because a named wrapper changes the tree. Recursion over a shorter span is legal. A cycle that no comparison demands keeps its behavior, and ordinary queries keep their proof policy. The check is conservative on purpose. So `s → ε | s` under a comparison is an error, although its trees collapse.
+
+The Eberban grammar passes the check. Every path from `verb` back to `verb` reads a token first, such as `CA`, `PE`, `DA`, `DE` or `BU`. So the inner span is smaller by construction. `annotated-verb` adds one marked edge to `verb`, because every postfix can be absent, and that edge stands in no cycle.
 
 ## 10. Terms and conditions
 
@@ -3160,7 +3232,7 @@ Terms include strings, string sets, tag sets, patterns, captures, and ordinary o
 | `s.tags(R)` | tag set | the union of the tag sets of the completed items of `R` over `s` with an eligible proof tree (§4), or empty |
 | `s.classes` | tag set | the tags of `s.tags` whose names start and end with an uppercase ASCII letter and never start with `_` |
 | `a.classify(classifier)` | tag set | the classes that `classifier` gives the string `a`, for the features of the parse (§2), empty if no entry names `a` |
-| `$x`, `$`, `s.first-token`, and the other span methods | capture or span | A method receiver or argument, converted to input value when a string is required |
+| `$x`, `$`, `s.first-token`, and the other span methods | capture or span | A method receiver or argument, converted to input value when a string is required. On the right of `≅` or `≇`, a bare capture or `$` has constituent type (below). |
 
 In the check of §7, ordinary span methods read their receivers' projected spans. `.without-elision` and `.without-elision-except(F)` also retain the candidate's projected omission events. The input of `.starts-input`, `.onward`, `.preceding-tokens`, and `.following-tokens` is the stage's input, or the query's span of it (§7.5).
 
@@ -3240,11 +3312,18 @@ Within a term, the engine evaluates operands, method receivers, and arguments fr
 
 `A ⟹ t`, where `A` is a condition and `t` a tag set or string set, is `t` where `A` holds. Where `A` does not hold, it is the empty set of the same kind. A guarded term binds looser than `∪`, `∩` and `∖`, so it stands in parentheses inside any of them. Its condition must be well typed even when presence simplification removes it. A scalar string consequent converts to a singleton. An untyped `∅` consequent retains its context's set kind.
 
-A tree comparison has operator `≅` or `≇`, a bare capture on the left and a pattern term on the right. Missing-capture simplification follows §3.6. After simplification, `≇` negates the same candidate's `≅` answer. A pattern literal is closed, and its value tests use string literals or constants, and its tag tests use tag sets.
+A tree comparison has operator `≅` or `≇`, a bare capture or `$` on the left and a term on the right. The type of the right term decides the comparison, after constants and template arguments resolve:
+
+- A bare capture and `$` have constituent type. In this position they denote the constituent itself, not its span. Then the comparison tests the two structural trees for equality (`docs/notation.md`).
+- A pattern literal and contextual `∅` have pattern type. If all operands of a union, an intersection or a difference have pattern type, the operation has pattern type. Parentheses keep the type. Then the comparison tests the left constituent against the pattern.
+- A constant or a parameter has the type of its value. No template argument reads a capture, so no parameter has constituent type.
+- Every other term is a type error at the term. A guarded term gives a set, so it is such an error. No method gives constituent type, so a span, a restored span, a string, a string set and a tag set are such errors. The implicit string conversion of `=` does not apply before the type is chosen. So `$x ≅ $y.value` is a type error. A set operation with an operand of another type is a type error at the operation.
+
+Missing-capture simplification follows §3.6. A comparison of two captures uses both, as any condition with two captures does. Its capture analysis inspects both operands after their types resolve. That covers presence, readiness, item scope, frame demand and the privacy rules of ranked captures. After simplification, `≇` negates the `≅` answer in both uses. A pattern literal is closed, and its value tests use string literals or constants, and its tag tests use tag sets.
 
 Pattern union, intersection and difference combine predicates. Contextual `∅` supplies the always-false predicate. Pattern values do not support ordinary equality or implicit string conversion.
 
-For a bare name after either tree comparator, use the diagnostic of §9.3. Other wrong operand types receive the ordinary expected-pattern error at the complete tree comparison.
+For a bare name after either tree comparator, use the diagnostic of §9.3. A right term of any other wrong type receives a type error at the term (§9.3).
 
 ### Method signatures
 
@@ -3268,7 +3347,7 @@ For a bare name after either tree comparator, use the diagnostic of §9.3. Other
 | `.without-elision` | Bare capture only | Restored span |
 | `.without-elision-except(F)` | Bare capture only, with one ordinary rule name or exact instance | Restored span with a close family |
 | `.verbatim-text` | Bare capture only, in a recipe | String (§11) |
-| `.emitted.value`, `.emitted.image` | Bare capture only, in a recipe | Reconstructed string (§11) |
+| `.emitted.value`, `.emitted.image` | Bare capture or `$`, in a recipe | String walk of the receiver's own derivation (§11) |
 
 ### Method selection and juxtaposition
 
@@ -3364,7 +3443,7 @@ A later stage that forwards a token keeps its source, because a token over one i
 
 ### 11.2 The string walk
 
-The string walk builds a value or image from the selected occurrence. A directly read input token supplies its stored channel. An erased constituent supplies the empty string and stops descent. Another constituent uses its selected recipe, or concatenates its children's contributions in order.
+The string walk builds a value or image from the selected occurrence. A directly read input token supplies its stored channel. An elided terminator supplies the empty string on both channels, whatever its default value (§3.8). An erased constituent supplies the empty string and stops descent. Another constituent uses its selected recipe, or concatenates its children's contributions in order.
 
 The walk enters constituents with `%emits`, but never executes their emission items. A child item recipe therefore affects only a token that that item directly emits. A child constituent recipe also applies inside a parent's covering token. Unlisted input symbols still count unless an erased constituent excludes them.
 
@@ -3394,7 +3473,7 @@ Input methods read the original projected span. `.emitted` reads the string walk
 
 Evaluation identity includes the selected constituent occurrence and requested channel. Item evaluation also identifies its item position and override context. Equal productions or equal spans in different tree occurrences do not merge these identities. A value dependency and an image dependency remain separate unless they select the same recipe expression.
 
-A selected recipe runs only when an emitted string or another evaluated recipe needs it. An unused weaker recipe runs neither its methods nor its descendant walks. An explicit image recipe can therefore suppress all recursive descendant image recipes while value concatenation still enters those children.
+A selected recipe runs only for an emitted string or for another evaluated recipe that needs its result. An unused weaker recipe runs neither its methods nor its descendant walks. An explicit image recipe can therefore suppress all recursive descendant image recipes while value concatenation still enters those children.
 
 ```jbogenbau
 %rule r := $.emitted.image :- "x"
@@ -3488,7 +3567,7 @@ The result's tree comes from the chosen derivation, and each reading of an `ambi
 - A level of a chain is a closed production of its rule (§3.3), so each level is a `rule` node, and the levels nest.
 - An elidable optional (§3.8) that is absent becomes an `elided` node for its terminal `T`. In a reading of the check of §7, a read of a synthetic token also becomes an `elided` node, as §7.10 says. This holds also on route 3 and for a bare terminal. The node has an empty span at the position where the optional is empty.
 
-  The node of a terminator with an `=` test records the test's string, for the synthetic token of §7. Canonical output records it as `value` (`docs/output.md`). The readings of the check of §7 map the reconstructed input back to the stage's input, as §7.10 says.
+  The node of a terminator with a default value records it, for the synthetic token of §7. Canonical output records it as `value` (`docs/output.md`). The readings of the check of §7 map the reconstructed input back to the stage's input, as §7.10 says.
 
 The input token of a token node can carry attachments (§11). The node does not hold them, and the renderings take them from the token (`docs/output.md`). The two readings of an `ambiguous` error read the same input tokens, so they show the same attachments.
 

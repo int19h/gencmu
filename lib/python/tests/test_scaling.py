@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import linecache
 import re
+import sys
 import unittest
 from types import FrameType
 from typing import Any, Callable, ContextManager
@@ -245,7 +246,7 @@ class Closures(Linear):
         # a pass over the list in order finds one new link at a time.
         def make(n: int) -> Callable[[], object]:
             chain = [(frozenset({f"T{index}"}), frozenset({f"T{index + 1}"})) for index in reversed(range(n))]
-            lowered = Lowered(None, [], [], {}, [], [], "", implications=chain)  # type: ignore[arg-type]
+            lowered = Lowered(None, [], [], {}, [], [], (), "", implications=chain)  # type: ignore[arg-type]
             start = frozenset({"T0"})
 
             def work() -> None:
@@ -264,7 +265,7 @@ class Closures(Linear):
             names = [f"r{index}" for index in range(n + 1)]
 
             def work() -> None:
-                lowered = Lowered(None, productions, names, {}, [], [], "")  # type: ignore[arg-type]
+                lowered = Lowered(None, productions, names, {}, [], [], (), "")  # type: ignore[arg-type]
                 assert reading_last(lowered)[0] == 0
 
             return work
@@ -340,6 +341,46 @@ def unit_chain(n: int) -> Forest:
     return Parser(context).parse(context.lowered.rule_ids["text"])
 
 
+class TreeObservations(unittest.TestCase):
+    def test_unused_tree_observations_keep_no_item_records(self) -> None:
+        for grammar, text in (
+            ('%rule text {"a"}', 'a' * 40),
+            ('%rule text $x:w\n%conditions $x.value = "a"\n%rule w "a"', 'a'),
+            ('%rule text :: ∅ | ("a" ≻ "b")', 'a'),
+        ):
+            with self.subTest(grammar=grammar):
+                pipeline, error = load_case_pipeline({"grammar": '%ambiguity-resolution greedy\n' + grammar})
+                assert pipeline is not None, error
+                self.assertFalse(pipeline._lowered_grammar(0, frozenset()).grammar.tree_comparisons)
+                items = 0
+
+                def profile(frame: FrameType, event: str, arg: Any) -> None:
+                    nonlocal items
+                    if frame.f_code.co_filename != Parser.walk.__code__.co_filename:
+                        return
+                    name = frame.f_code.co_name
+                    if event == "call":
+                        self.assertNotIn(name, ("string_state", "condition_strings", "tree_state", "terminal_identity", "seal_identity"))
+                    if event == "return" and name == "add":
+                        items += 1
+                        self.assertNotIn("string_prefixes", frame.f_locals)
+                        self.assertNotIn("string_values", frame.f_locals)
+                        self.assertIsNone(frame.f_locals["tree_prefixes"])
+                        self.assertIsNone(frame.f_locals["tree_ids"])
+                        self.assertIsNone(frame.f_locals["tree_sequences"])
+                    if name in ("checked", "allowed") and "bound" in frame.f_locals:
+                        self.assertFalse(hasattr(frame.f_locals["bound"], "string_reader"))
+
+                previous = sys.getprofile()
+                sys.setprofile(profile)
+                try:
+                    result = pipeline.parse(text)
+                finally:
+                    sys.setprofile(previous)
+                self.assertTrue(result.ok)
+                self.assertGreater(items, 0)
+
+
 class ItemAdds(Linear):
     # The item that a step makes is found by its key in its set, and a
     # step that reaches an item again adds one edge to it. The recognizer's
@@ -406,8 +447,7 @@ def emitting_rule(n: int) -> dict[str, Any]:
     return {
         "name": "text",
         "op": "define",
-        "flags": [],
-        "alternatives": [{"guards": [], "expr": {"seq": [{"capture": f"c{index}", "expr": {"ref": "A"}} for index in range(n)]}}],
+                "alternatives": [{"guards": [], "expr": {"seq": [{"capture": f"c{index}", "expr": {"ref": "A"}} for index in range(n)]}}],
         "emit": {"items": items},
         "conditions": [],
         "at": [2, 1],
@@ -470,8 +510,7 @@ class SharedClauses(Linear):
             rule = {
                 "name": "text",
                 "op": "define",
-                "flags": [],
-                "tags": {"union": [*({"tag": f"Y{index}"} for index in range(n)), {"const": "K", "at": [2, 1]}]},
+                                "tags": {"union": [*({"tag": f"Y{index}"} for index in range(n)), {"const": "K", "at": [2, 1]}]},
                 "alternatives": [{"guards": [], "expr": {"ref": "A"}} for _ in range(n)],
                 "conditions": [
                     {
@@ -486,7 +525,7 @@ class SharedClauses(Linear):
             dom = {
                 "format": DOM_FORMAT,
                 "rules": [rule],
-                "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
+                "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}],
                 "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
                 "classifiers": [],
                 "implications": [],
@@ -508,15 +547,14 @@ class SharedClauses(Linear):
             rule = {
                 "name": "text",
                 "op": "define",
-                "flags": [],
-                "alternatives": [{"guards": [], "expr": expr}],
+                                "alternatives": [{"guards": [], "expr": expr}],
                 "conditions": [],
                 "at": [2, 1],
             }
             dom = {
                 "format": DOM_FORMAT,
                 "rules": [rule],
-                "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
+                "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}],
                 "constants": [],
                 "classifiers": [],
                 "implications": [],
@@ -597,8 +635,7 @@ class GuardedClauses(Linear):
         rule = {
             "name": "text",
             "op": "define",
-            "flags": [],
-            "alternatives": [{"guards": [], "expr": {"capture": f"c{index}", "expr": {"ref": "A"}}} for index in range(n)],
+                        "alternatives": [{"guards": [], "expr": {"capture": f"c{index}", "expr": {"ref": "A"}}} for index in range(n)],
             "conditions": [],
             "at": [3, 1],
             **clause(n),
@@ -606,7 +643,7 @@ class GuardedClauses(Linear):
         dom = {
             "format": DOM_FORMAT,
             "rules": [rule],
-            "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
+            "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}],
             "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
             "classifiers": [],
             "implications": [],
@@ -721,7 +758,7 @@ def pipeline_dom(directives: list[dict[str, Any]], rules: int = 0) -> dict[str, 
     return {
         "format": DOM_FORMAT,
         "rules": [
-            {"name": "text", "op": "define", "flags": [], "alternatives": [], "conditions": [], "at": [line + 1, 9]}
+            {"name": "text", "op": "define", "alternatives": [], "conditions": [], "at": [line + 1, 9]}
             for line in range(len(directives), len(directives) + rules)
         ],
         "directives": [{**directive, "at": [line + 1, 1]} for line, directive in enumerate(directives)],

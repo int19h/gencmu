@@ -45,7 +45,7 @@ A left chain, `{... x / s}`, groups from the left, and each level of it is a nod
 
 This document writes the grammar literately: each block of rules follows the prose that explains it, and the blocks together are the grammar. The prose says what each construct is for and how the rules do it. Footnotes link to the CLL sources.
 
-A rule flag is a named parsing preference. ["Tenses and modals"](#tenses-and-modals) explains this grammar's flag. Each pipeline states the remaining ranking policy after this document. The `lojban/cll` and `lojban/bpfk` pipelines state their policies in their pipeline documents. The experimental layer (a document that changes earlier rules) states its policy itself.
+A step of the stage directive counts the occurrences of a rule that it names in a node pattern. ["Tenses and modals"](#tenses-and-modals) explains the one rule that this grammar's pipelines count. Each pipeline states the ranking steps after this document. The `lojban/cll` and `lojban/bpfk` pipelines state their policies in their pipeline documents. The experimental layer (a document that changes earlier rules) states its policy itself.
 
 CLL marks a terminator as elidable by writing it between slashes, `/KU/`, or `/KU#/` when its free-modifier slot goes with it. Here each is an elidable optional, marked in its place: `[+KU]`, or `[+KU 🆓]`. An absent one shows in the parse tree as that terminator, elided. Every terminator between slashes in the printed grammar is marked so, and no other optional is.
 
@@ -159,11 +159,11 @@ The bridi-tail levels state how sentences share a head under a gihek, the connec
 
 `bridi-tail` at the top lets a gihek be followed by `ke ... ke'e`. The brackets group the tails inside them against the tail to the left. The tail terms after each selbri belong to that selbri. The written or elided `vau` closes them.
 
-`late-elision` prefers parses with later omitted terminators. ["Choosing among parses"](#choosing-among-parses) defines this ranking.
+`late #·_<_Elided>` prefers parses with later omitted terminators. ["Choosing among parses"](#choosing-among-parses) defines this ranking.
 
 After a plain gihek, `ke` can begin either a group of tails or a tanru unit of the next tail. Elided terminators cannot reliably choose between those readings.
 
-In `mi broda gi'e ke brode`, both parses elide the same terminators at the same places, so they tie. In `mi broda gi'e ke brode ke'e`, the group elides the `vau` of `brode` before `ke'e`. The tanru parse elides nothing there, so `late-elision` takes it. The condition removes that plain reading, so both texts have one parse, the group.
+In `mi broda gi'e ke brode`, both parses elide the same terminators at the same places, so they tie. In `mi broda gi'e ke brode ke'e`, the group elides the `vau` of `brode` before `ke'e`. The tanru parse elides nothing there, so `late #·_<_Elided>` takes it. The condition removes that plain reading, so both texts have one parse, the group.
 
 CLL groups tails with `ke` after a gihek, with any tense before `ke` on the connective.[^cll-s14-10][^cll-s14-18] With no free modifier after a plain gihek, a condition on the last tail removes the plain reading. `$KE-TAIL` tests the structure of that actual tail. A structural pattern describes a node or its children. Patterns pass through single-child wrappers and retain written or omitted terminator nodes.
 
@@ -171,7 +171,7 @@ CLL groups tails with `ke` after a gihek, with any tense before `ke` on the conn
 
 The condition stands in `bridi-tail-1-final`, the form of `bridi-tail` without the `ke` group of tails. It separates the last plain connection from the earlier connections in `bridi-tail-1`. Only that connection can compete with the `ke` form of `bridi-tail`. The grouped form reads one `ke` group last, followed by one run of tail terms.
 
-A ranked choice over the whole `bridi-tail` span filters readings before `late-elision` ranks them. It removes the reading that keeps the connection inside an abstraction, as in `mi broda be le nu brodi gi'e ke brodo ke'e`. This grammar uses an ordinary choice there. The condition applies only to the last plain connection, so `late-elision` still sees that reading. This grammar reads it as `(mi [broda {be (le [nu {brodi gi'e ke brodo ke'e}])}])`.
+A ranked choice over the whole `bridi-tail` span filters readings before `late #·_<_Elided>` ranks them. It removes the reading that keeps the connection inside an abstraction, as in `mi broda be le nu brodi gi'e ke brodo ke'e`. This grammar uses an ordinary choice there. The condition applies only to the last plain connection, so `late #·_<_Elided>` still sees that reading. This grammar reads it as `(mi [broda {be (le [nu {brodi gi'e ke brodo ke'e}])}])`.
 
 Unlike a whole `bridi-tail` choice, the `selbri-4` and `operator` choices share their left operand, so they cannot move connections outside it.
 
@@ -187,7 +187,7 @@ The tree still shows the whole left grouping of plain giheks[^cll-s14-10], since
 
 A lookahead tests the input that follows a construct. The condition needs no lookahead. The last tail has no following gihek in the same bridi-tail. The condition first tests whether a free modifier is present. Otherwise, it tests that tail's structure and the text of its tail terms. The `elision-only` test writes back elided terminators, but these tests still read the original words.
 
-In `mi klama lo nu broda gi'e ke brode ke'e gi'a brodi`, this grammar keeps plain `gi'e` inside the `nu`. The condition applies only to the last tail, so it leaves this earlier connection alone. `late-elision` then keeps `gi'a brodi` inside the abstraction.
+In `mi klama lo nu broda gi'e ke brode ke'e gi'a brodi`, this grammar keeps plain `gi'e` inside the `nu`. The condition applies only to the last tail, so it leaves this earlier connection alone. `late #·_<_Elided>` then keeps `gi'a brodi` inside the abstraction.
 
 In `mi klama lo nu broda gi'e ke brode ke'e`, the group stays inside the `nu`. In `mi broda gi'e pu ke me le le brodi brodo ku me'u ke'e`, the inner `ku` is elided. The `lojban/cll` and `lojban/bpfk` pipelines still read one `ke` group, so `pu` stays on the connective.
 
@@ -658,7 +658,7 @@ The `sumti` and `operand` rules also allow an ek or joik followed by `ke`. No pl
 
 A gek is a forethought logical connective, a joik used in forethought with `gi`, or a tense with `gi` (`pu gi ... gi`). A gik separates the two halves: `gi`, optionally negated. A guhek is the forethought connective of tanru units.
 
-["Tenses and modals"](#tenses-and-modals) explains the flag that settles competing divisions before `gi`.
+["Tenses and modals"](#tenses-and-modals) explains the step that settles competing divisions before `gi`.
 
 ```jbogenbau
 %rule ek
@@ -727,11 +727,11 @@ A time tense contains these parts in this order[^cll-s10-4][^cll-s10-9]:
 
 A space tense is likewise a `va` distance, `fa'a`-family offsets, a space interval, and a `mo'i` movement. A space interval is `ve'a` or `vi'a` or both, with an optional direction, and then interval properties. Either of those two parts can stand alone, as in `mi ve'a klama` and `mi fe'e ta'e klama`. `fe'e` before an interval property applies that property to space rather than time. An interval property is `roi` with a number, `ta'e` and the others of TAhE, or a ZAhO event contour. Each can take `nai`.
 
-This base grammar flags simple tense-modal groups. The [experimental tense layer](../experimental/syntax.md#tenses-and-modals) replaces these rules and their grouping preference.
+This base grammar counts simple tense-modal groups as tenses. The [experimental tense layer](../experimental/syntax.md#tenses-and-modals) replaces these rules and their grouping preference.
 
-The `leftmost-longest` flag prefers the earliest simple tense-modal group, then the longest one at that start. It ranks complete parses before the pipeline compares elided terminators. A longer group cannot win when it leaves no complete parse.
+The step `leftmost-longest #·simple-tense-modal` of the pipeline directive prefers the earliest simple tense-modal group, then the longest one at that start. It ranks complete parses before the pipeline compares elided terminators. A longer group cannot win when it leaves no complete parse.
 
-The rules can divide words before `gi` between an outer tag and the connective's stag in several ways. Those parses elide the same terminators, so `late-elision` ties them. The flag settles this tie.
+The rules can divide words before `gi` between an outer tag and the connective's stag in several ways. Those parses elide the same terminators, so `late #·_<_Elided>` ties them. The tense step settles this tie.
 
 In this base grammar, `pu ca gi` forms one connective in `mi viska pu ca gi do gi la djan`. In `mi viska pu va ca gi do gi la djan`, `pu va` stays outside the connective `ca gi`.
 
@@ -747,7 +747,7 @@ In this base grammar, `mi viska ba'o pu gi do gi la djan` gives `ba'o` a tag ove
 %rule tense-modal
   simple-tense-modal 🆓 | FIhO 🆓 selbri [+FEhU 🆓]
 
-%rule(leftmost-longest) simple-tense-modal
+%rule simple-tense-modal
   [NAhE] [SE] BAI [NAI] [KI] | [NAhE] ((time [space] | space [time]) & CAhA) [KI] | KI | CUhE
 
 %rule time
@@ -838,9 +838,9 @@ The indicator stage attaches later indicator runs to their preceding words. This
 
 ## Choosing among parses
 
-Because terminators can be omitted, some texts have more than one parse. The stage chooses among them by the rule that [the notation document](../../../docs/notation.md) states under "Ambiguity" and "Elided terminators", with the resolution that each pipeline declares. The `lojban/cll` and `lojban/bpfk` pipelines declare `late-elision elision-only`. The experimental layer declares `late-elision` and adds a `fewest` ranking step.
+Because terminators can be omitted, some texts have more than one parse. The stage chooses among them by the rule that [the notation document](../../../docs/notation.md) states under "Ambiguity" and "Elided terminators", with the resolution that each pipeline declares. The `lojban/cll` and `lojban/bpfk` pipelines rank with `leftmost-longest #·simple-tense-modal, late #·_<_Elided>` and declare `%elision-only`. The experimental layer ranks its own rules before `late #·_<_Elided>`.
 
-In this base grammar, the flag described under ["Tenses and modals"](#tenses-and-modals) applies first. `late-elision` then compares parses with equal flagged groups. It prefers the parse that omits a terminator later. Equal flagged groups and equal elision counts at every position leave a tie, which is an error.
+In this base grammar, the tense step described under ["Tenses and modals"](#tenses-and-modals) applies first. `late #·_<_Elided>` then compares parses with equal tense groups. It prefers the parse that omits a terminator later. Equal tense groups and equal elision counts at every position leave a tie, which is an error.
 
 The [experimental layer](../experimental/syntax.md#the-experimental-grammar) instead ranks spans, counted connective links and elision boundaries, in that order.
 
@@ -850,7 +850,7 @@ In `lojban/cll` and `lojban/bpfk`, an elided terminator can end its constituent 
 
 For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, its `ku` elided before `tavla`, and the selbri `tavla`. The other is a fragment that consists of the single description `le sutra tavla`. The fragment elides its `ku` only at the end of the text.
 
-`late-elision` takes the parse that elides a terminator later, so `le sutra tavla` is a fragment. A speaker who means the statement says `le sutra cu tavla` or `le sutra ku tavla`.
+`late #·_<_Elided>` takes the parse that elides a terminator later, so `le sutra tavla` is a fragment. A speaker who means the statement says `le sutra cu tavla` or `le sutra ku tavla`.
 
 ## Differences from the printed CLL grammar
 
@@ -881,21 +881,21 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
 7. Without a free modifier after the gihek, the last tail in `bridi-tail-1-final` cannot be one `ke` group with one run of tail terms. Those are the words that the `ke` form of `bridi-tail` can read as a group of tails.
 
-   `bridi-tail-1-final` separates the last plain connection of the printed `bridi-tail-1`, so its condition needs no lookahead. `$KE-TAIL` tests the actual last tail. The exception requires written KEhE, its own written VAU, and nonempty following tail terms. This rule uses a condition because a ranked choice removes readings inside abstractions before `late-elision` can rank them.
+   `bridi-tail-1-final` separates the last plain connection of the printed `bridi-tail-1`, so its condition needs no lookahead. `$KE-TAIL` tests the actual last tail. The exception requires written KEhE, its own written VAU, and nonempty following tail terms. This rule uses a condition because a ranked choice removes readings inside abstractions before `late #·_<_Elided>` can rank them.
 
-   The printed grammar reads `mi broda gi'e ke brode ke'e` in two ways. One is a `ke` group of tails after `gi'e` (rule 50). The other is a plain `gi'e` (rule 51) before a tail whose selbri is a `ke` tanru unit. Without the condition, both parses tie when `ke'e` is elided at the end. When `ke'e` is written, `late-elision` takes the tanru. The condition removes this plain reading, so each text has only the group parse.
+   The printed grammar reads `mi broda gi'e ke brode ke'e` in two ways. One is a `ke` group of tails after `gi'e` (rule 50). The other is a plain `gi'e` (rule 51) before a tail whose selbri is a `ke` tanru unit. Without the condition, both parses tie when `ke'e` is elided at the end. When `ke'e` is written, `late #·_<_Elided>` takes the tanru. The condition removes this plain reading, so each text has only the group parse.
 
    CLL[^cll-s14-10] groups tails with `ke` after a gihek. CLL[^cll-s14-18] puts a tense between a gihek and `ke`, which the tanru parse moves onto the selbri. The lexer of the official parser makes `gi'e ke` one token, `GIhEK_KE`, so it reads only the group. That lexer also rejects `mi broda gi'e ke brode ke'e brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
 
    With a tense, the competing parses differ in its scope. In `mi klama gi'e pu ke cadzu ke'e`, this grammar puts `pu` on the connective. The plain tanru reading puts it on the selbri `ke cadzu ke'e`. The CLL example[^cll-e14-164] puts the tense between the gihek and `ke`.
 
-   In `mi klama lo nu broda gi'e ke brode ke'e gi'a brodi`, this grammar keeps the plain `gi'e` inside the abstraction. Only the last tail receives the condition, and `late-elision` keeps the final connection inside `nu`. The official parser uses rule 50's tail group and closes `nu` before `gi'a`. That connective then applies to the outer `klama`.
+   In `mi klama lo nu broda gi'e ke brode ke'e gi'a brodi`, this grammar keeps the plain `gi'e` inside the abstraction. Only the last tail receives the condition, and `late #·_<_Elided>` keeps the final connection inside `nu`. The official parser uses rule 50's tail group and closes `nu` before `gi'a`. That connective then applies to the outer `klama`.
 
    In the shorter `mi klama lo nu broda gi'e ke brode ke'e`, both parsers keep the group inside `nu`. The official parser therefore agrees when the text ends at `ke'e`.
 
    The official lexer makes `gi'e ke` one token in the plain-reading cases under ["Sentences and bridi-tails"](#sentences-and-bridi-tails). The free-modifier case is the exception. The lexer rejects the other plain-reading cases. This grammar follows the printed grammar there, and accepts them.
 
-8. The `leftmost-longest` flag on `simple-tense-modal` settles the printed grammar's tied divisions before `gi`, as ["Tenses and modals"](#tenses-and-modals) explains.
+8. The step `leftmost-longest #·simple-tense-modal` settles the printed grammar's tied divisions before `gi`, as ["Tenses and modals"](#tenses-and-modals) explains.
 
 9. Numbers and letter strings are indivisible. The printed repetition permits shorter prefixes, but CLL requires `boi` between adjacent runs in sections 17.9[^cll-s17-9] and 18.6[^cll-s18-6]. The conditions reject a boundary before another complete continuation unit.
 
@@ -996,7 +996,7 @@ The tense rules retain four printed forms that differ from the CLL prose or the 
 - A tense can hold a string of interval properties, as `time` (rule 1030) repeats them. CLL[^cll-s10-21] says that a single tense can hold "strings of interval properties and event contours", as in the example[^cll-e10-161], `mi reroi ca'o xaroi darxi le damri`. The official lexer reads `mi ta'e di'i klama` as two tenses.
 - A ZAhO event contour can come before a TAhE or ROI interval property, as in `mi co'a ta'e klama`. CLL[^cll-s10-10] says that the TAhE or ROI comes first when a tense has both. But the example[^cll-e10-161] puts the ZAhO `ca'o` before the ROI `xaroi`, and the printed rules allow either order. The official parser accepts both of these texts.
 
-The official parser binary gives the same groupings as the `leftmost-longest` flag on `simple-tense-modal` for `mi viska pu ca gi do gi la djan` and `mi viska pu va ca gi do gi la djan`.
+The official parser binary gives the same groupings as the step `leftmost-longest #·simple-tense-modal` for `mi viska pu ca gi do gi la djan` and `mi viska pu va ca gi do gi la djan`.
 
 ### Elision policy and CLL advice
 

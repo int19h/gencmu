@@ -61,6 +61,7 @@ fn term(t: &mut dom::Term, n: &Json) {
             cond(c, get(n, "if"));
             term(t, get(n, "then"))
         }
+        Term::Pattern(pattern) => restore_pattern(pattern, get(n, "pattern")),
         Term::Call(_, args) => {
             if let Some(Arg::Term(receiver)) = args.first_mut() {
                 term(receiver, get(n, "receiver"))
@@ -82,7 +83,8 @@ fn cond(c: &mut dom::Cond, n: &Json) {
             location.targets = list(get(n, "args")).iter().filter_map(source_at).collect();
             term(receiver, get(n, "receiver"))
         }
-        Cond::Compare(_, a, b) => {
+        Cond::Compare(_, a, b, location) => {
+            *location = source_at(n);
             term(a, get(n, "left"));
             term(b, get(n, "right"))
         }
@@ -107,6 +109,7 @@ pub(crate) fn restore_rule(rule: &mut dom::RuleDef, n: &Json) {
     channels(&mut rule.strings, n);
     for (alt, n) in rule.alternatives.iter_mut().zip(list(get(n, "alternatives"))) {
         expression(get(n, "expr"), String::new(), &mut alt.ranked_locations);
+        restore_defaults(&mut alt.expr, get(n, "expr"));
         channels(&mut alt.strings, n);
         if let Some(t) = &mut alt.tags {
             term(t, get(n, "tags"))
@@ -217,7 +220,10 @@ fn annotate_expr(expr: &dom::Expr, n: &mut Json) {
                 }
             }
         }
-        Expr::Optional(inner, _) | Expr::Repeat(inner, _, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => {
+        Expr::Optional(inner, _, _)
+        | Expr::Repeat(inner, _, _)
+        | Expr::Capture(_, inner)
+        | Expr::Tested(_, _, inner) => {
             let key = match expr {
                 Expr::Optional(..) => "optional",
                 Expr::Repeat(..) => "repeat",
@@ -288,7 +294,15 @@ fn annotate_pattern(pattern: &crate::patterns::Pattern, n: &mut Json) {
                 children(items, n);
             }
         }
-        Pattern::Test(kind, term, inner) => {
+        Pattern::Test(kind, term, inner, mark_at) => {
+            if let Some(at) = mark_at {
+                let mut source = get(n, SOURCE).clone();
+                if source.as_object().is_none() {
+                    source = obj([]);
+                }
+                set(&mut source, "mark", position(*at));
+                set(n, SOURCE, source);
+            }
             if kind != "tags" {
                 if let Some(n) = slot(n, "value") {
                     annotate_term(term, n);
@@ -425,7 +439,8 @@ pub(crate) fn annotate_condition(c: &dom::Cond, n: &mut Json) {
                 }
             }
         }
-        Cond::Compare(_, a, b) => {
+        Cond::Compare(_, a, b, location) => {
+            locate(n, *location);
             if let Some(n) = slot(n, "left") {
                 annotate_term(a, n)
             }
@@ -470,7 +485,82 @@ fn annotate_channels(c: &dom::Channels, n: &mut Json) {
         locate(v, c.image_at)
     }
 }
-fn annotate_rule(rule: &dom::RuleDef, n: &mut Json) {
+fn restore_defaults(expr: &mut dom::Expr, n: &Json) {
+    use dom::Expr;
+    match expr {
+        Expr::Optional(inner, _, default) => {
+            if let (Some(default), Some(value)) = (default, n.get("default")) {
+                default.at = source_at(value);
+            }
+            if let Some(n) = n.get("optional") {
+                restore_defaults(inner, n);
+            }
+        }
+        Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
+            let key = ["seq", "choice", "ranked", "and"].into_iter().find(|key| has(n, key)).unwrap();
+            if let Some(Json::Arr(ns)) = n.get(key) {
+                for (x, n) in xs.iter_mut().zip(ns) {
+                    restore_defaults(x, n);
+                }
+            }
+        }
+        Expr::Capture(_, x) | Expr::Tested(_, _, x) => {
+            if let Some(n) = n.get("expr") {
+                restore_defaults(x, n);
+            }
+        }
+        Expr::Repeat(x, separator, _) => {
+            if let Some(n) = n.get("repeat") {
+                restore_defaults(x, n);
+            }
+            if let (Some(x), Some(n)) = (separator, n.get("separator")) {
+                restore_defaults(x, n);
+            }
+        }
+        _ => {}
+    }
+}
+fn annotate_defaults(expr: &dom::Expr, n: &mut Json) {
+    use dom::Expr;
+    match expr {
+        Expr::Optional(inner, _, default) => {
+            if let (Some(default), Some(value)) = (default, slot(n, "default")) {
+                locate(value, default.at);
+            }
+            if let Some(n) = slot(n, "optional") {
+                annotate_defaults(inner, n);
+            }
+        }
+        Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
+            let key = match expr {
+                Expr::Seq(_) => "seq",
+                Expr::Choice(_) => "choice",
+                Expr::Ranked(_, _) => "ranked",
+                _ => "and",
+            };
+            if let Some(Json::Arr(ns)) = slot(n, key) {
+                for (x, n) in xs.iter().zip(ns) {
+                    annotate_defaults(x, n);
+                }
+            }
+        }
+        Expr::Capture(_, x) | Expr::Tested(_, _, x) => {
+            if let Some(n) = slot(n, "expr") {
+                annotate_defaults(x, n);
+            }
+        }
+        Expr::Repeat(x, separator, _) => {
+            if let Some(n) = slot(n, "repeat") {
+                annotate_defaults(x, n);
+            }
+            if let (Some(x), Some(n)) = (separator, slot(n, "separator")) {
+                annotate_defaults(x, n);
+            }
+        }
+        _ => {}
+    }
+}
+pub(crate) fn annotate_rule(rule: &dom::RuleDef, n: &mut Json) {
     if let Some(args) = &rule.source.args {
         annotate_arguments(args, n);
     }
@@ -487,6 +577,7 @@ fn annotate_rule(rule: &dom::RuleDef, n: &mut Json) {
         for (alt, n) in rule.alternatives.iter().zip(alts) {
             if let Some(n) = slot(n, "expr") {
                 annotate_expr(&alt.expr, n);
+                annotate_defaults(&alt.expr, n);
             }
             annotate_channels(&alt.strings, n);
             if let Some(t) = &alt.tags {
@@ -570,5 +661,59 @@ pub(crate) fn restore_document(dom: &mut Dom, raw: &Json) {
                 cond(c, n)
             }
         }
+    }
+}
+
+fn restore_pattern(pattern: &mut crate::patterns::Pattern, n: &Json) {
+    use crate::patterns::{Children, Pattern};
+    fn children(items: &mut Children, n: &Json) {
+        match items {
+            Children::Node(p) => restore_pattern(p, get(n, "child")),
+            Children::Sequence(xs) => {
+                for (x, n) in xs.iter_mut().zip(list(n)) {
+                    children(x, n)
+                }
+            }
+            Children::Choice(xs) => {
+                for (x, n) in xs.iter_mut().zip(list(get(n, "choice"))) {
+                    children(x, n)
+                }
+            }
+            Children::Optional(x) => children(x, get(n, "optional")),
+            Children::Repeat(x, s) => {
+                children(x, get(n, "repeat"));
+                if let Some(s) = s {
+                    children(s, get(n, "separator"))
+                }
+            }
+            Children::Siblings => (),
+        }
+    }
+    match pattern {
+        Pattern::Test(_, _, inner, mark_at) => {
+            *mark_at = at(&obj([("at", get(get(n, SOURCE), "mark").clone())]));
+            restore_pattern(inner, get(n, "expr"));
+        }
+        Pattern::Node(inner, _, items) => {
+            restore_pattern(inner, n);
+            if let Some(items) = items {
+                children(items, get(n, "children"))
+            }
+        }
+        Pattern::Union(xs) | Pattern::Intersection(xs) => {
+            let key = if has(n, "union") { "union" } else { "intersection" };
+            for (p, n) in xs.iter_mut().zip(list(get(n, key))) {
+                restore_pattern(p, n)
+            }
+        }
+        Pattern::Difference(a, b) => {
+            let xs = list(get(n, "difference"));
+            if xs.len() == 2 {
+                restore_pattern(a, &xs[0]);
+                restore_pattern(b, &xs[1])
+            }
+        }
+        Pattern::Path(_, p) => restore_pattern(p, get(n, "pattern")),
+        _ => (),
     }
 }

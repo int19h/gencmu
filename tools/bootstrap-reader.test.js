@@ -108,6 +108,7 @@ test("both readers admit written forms, including plain dollar text", () => {
     '%rule r A %emits ε :: ∅ := "x"',
     '%rule r $a:A $b:B %emits ($a) $b :- $b.image',
     '%rule r $x:A %conditions $x.value = "X,Y", $x.image ≠ ""',
+    "%rule r $x:A %conditions $x ≅ #(sumti=\"x\")",
     '%rule r $l:A $r:B %conditions $l.value ++ $r.value ∈ "ab".split(" "), ($l.value ++ $r.value) = "ab"',
     '%rule r $x:A %conditions $x.without-elision.onward.begins(next)',
     "%rule r $x:A %conditions $x ≅ #A<B>=\"x\"",
@@ -133,8 +134,8 @@ test("both readers reject invalid forms at the same specified position", () => {
     "%rule r $X:A", "%rule r $Foo:A", "%rule r \"‹U+0041›\":A", "%rule a $x:(B) %rule r $Foo:A", "%rule r $x:A<B><C>", "%stage $X", "%rule Foo A",
     "%rule r ¬cbm! A", "%rule r ¬ cbm? A", '%const "‹U+0041›" "x"',
     '%rule r A := ∪ "a"', '%include "a.md" "b$c.md"',
-    "%rule r $x:A %conditions $x ≅ #(sumti=\"x\")",
     "%rule r $x:A %conditions $x ≅ #(sumti<B><C>)",
+    '%rule r $x:A %conditions $x.emitted.value = "a"',
     '%rule r A="x"<B>', "%rule r (A)<B>", "%rule r $x:[A]",
     "%rule r A<\"‹U+0041›\">", "%rule r :: _General_Category_Uppercase_Letter | A", "%rule r :: ∩ Word BY | A",
     "%stage _", "%rule r A %emits _", '%classifier c "a" ∈ _',
@@ -179,8 +180,9 @@ function notationLoader() {
 
 test("wrong directive names and operand counts retain the directive position", () => {
   const loader = notationLoader();
-  for (const source of ["%ambiguity-resolution", "%ambiguity-resolution unknown", "%ambiguity-resolution greedy lazy",
-    "%ambiguity-resolution greedy elision-only extra", "%stage First", "%extend-stage First",
+  for (const source of ["%ambiguity-resolution unknown", "%ambiguity-resolution greedy, lazy",
+    "%ambiguity-resolution fewest #·x, greedy, late #·_<_Elided>", "%ambiguity-resolution lazy #·x", "%ambiguity-resolution lazy #_Nope", "%ambiguity-resolution fewest",
+    "%elision-only on", "%stage First", "%extend-stage First",
     "%redefine-stage First", "%features a_b"]) {
     const document = "```jbogenbau\n" + source + "\n```";
     for (const reader of [readDocument, loader.readDocument.bind(loader)]) {

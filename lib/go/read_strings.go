@@ -29,32 +29,13 @@ func (b *domBuilder) tagRun(n *Node) *domTerm {
 	return t
 }
 
-func patternLeafMatches(p *domPattern, terminal, value string, tags *tagset) bool {
-	for p.Kind == "test" {
-		if p.Op == "tags" {
-			for _, r := range p.Requirements {
-				stack := []*domTerm{r.Value}
-				for len(stack) > 0 {
-					t := stack[len(stack)-1]
-					stack = stack[:len(stack)-1]
-					if t.Kind == tmTag && tags.has(t.Str) == r.Negated {
-						return false
-					}
-					stack = append(stack, t.Items...)
-				}
-			}
-		} else if (value == p.Value.Str) != (p.Op == "=") {
-			return false
-		}
-		p = p.Items[0]
-	}
-	return p.Kind == "terminal" && terminal == p.Name
-}
-
 func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 	var tests []*Node
 	for _, p := range b.ruleParts(n) {
-		if p.Rule == "tag-test" || p.Rule == "value-test" {
+		if p.Rule == "default-value" {
+			b.fail(p, "a default stands only on an elidable optional head")
+		}
+		if p.Rule == "tag-test" || p.Rule == "value-test" || p.Rule == "default-value" {
 			tests = append(tests, p)
 		}
 	}
@@ -63,7 +44,7 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 	terminal := !named && (first.Rule == "parameter" || first.Rule == "tag" || first.Rule == "string-terminal" || first.Rule == "string" || first.Rule == "range" || first.Rule == "wildcard" || first.Rule == "constant-reference" || first.Kind == KindToken && (isCapital(name) || engineTag(name)))
 	tagSeen, valueSeen := false, false
 	for _, test := range tests {
-		if !terminal || test.Rule == "tag-test" && (tagSeen || valueSeen) || test.Rule == "value-test" && valueSeen {
+		if (!terminal && !named && first.Rule != "call" && first.Rule != "tag-test") || test.Rule == "tag-test" && (tagSeen || valueSeen) || test.Rule == "value-test" && valueSeen {
 			b.fail(test, "invalid pattern test target or order")
 		}
 		if test.Rule == "tag-test" {
@@ -78,34 +59,37 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 			b.fail(first, "a malformed pattern rule name")
 		}
 		p.Kind, p.Name = "name", name
-		return p
 	}
-	switch first.Rule {
-	case "parameter":
-		parameter := b.parameter(first)
-		p.Kind, p.Name = "param", parameter.Str
-	case "call":
-		p.Kind = "call"
-		p.Call = b.run(&sourceCallFrame{n: first}).(*domSourceCall)
-	case "tag":
-		p.Kind, p.Name = "terminal", b.tagOf(b.token(first))
-	case "string-terminal":
-		part := b.knownOf(first, []string{"string", "constant-reference"})
-		p.Kind, p.Value = "literal", b.term(part)
-	case "string":
-		p.Kind, p.Value = "literal", b.term(first)
-	case "wildcard":
-		b.token(first)
-		p.Kind = "wildcard"
-	case "range":
-		p.Kind, p.Ends = "range", b.stringRange(first)
-	case "constant-reference":
-		t := b.constantRef(first)
-		p.Kind, p.Name = "constant", t.Str
-	default:
-		p.Kind, p.Name = "name", name
-		if terminal {
-			p.Kind = "terminal"
+	if !named {
+		switch first.Rule {
+		case "tag-test":
+			b.fail(first, "a pattern requires an atom before its tag test")
+		case "parameter":
+			parameter := b.parameter(first)
+			p.Kind, p.Name = "param", parameter.Str
+		case "call":
+			p.Kind = "call"
+			p.Call = b.run(&sourceCallFrame{n: first}).(*domSourceCall)
+		case "tag":
+			p.Kind, p.Name = "terminal", b.tagOf(b.token(first))
+		case "string-terminal":
+			part := b.knownOf(first, []string{"string", "constant-reference"})
+			p.Kind, p.Value = "literal", b.term(part)
+		case "string":
+			p.Kind, p.Value = "literal", b.term(first)
+		case "wildcard":
+			b.token(first)
+			p.Kind = "wildcard"
+		case "range":
+			p.Kind, p.Ends = "range", b.stringRange(first)
+		case "constant-reference":
+			t := b.constantRef(first)
+			p.Kind, p.Name = "constant", t.Str
+		default:
+			p.Kind, p.Name = "name", name
+			if terminal {
+				p.Kind = "terminal"
+			}
 		}
 	}
 	if p.Kind == "literal" && p.Value.Kind == tmConst {
@@ -118,7 +102,14 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 		next := &domPattern{Kind: "test", Items: []*domPattern{p}}
 		if test.Rule == "tag-test" {
 			next.Op = "tags"
-			next.Requirements = b.requirements(test)
+			next.Requirements = b.patternRequirements(test)
+			if named || first.Rule == "call" {
+				for _, requirement := range next.Requirements {
+					if !requirement.Negated && requirement.Value.Kind == tmTag && requirement.Value.Str == "_Elided" {
+						panic(grammarError(b.doc, requirement.Value.At, "a rule pattern cannot require _Elided"))
+					}
+				}
+			}
 		} else {
 			next.Op = b.operator(b.token(b.only(test, "test")))
 			operand := b.only(test, "test-operand")
@@ -240,7 +231,7 @@ func (b *domBuilder) testBase(n *Node) *Node {
 func (b *domBuilder) tested(n *Node) *domExpr {
 	var tests []*Node
 	for _, p := range b.ruleParts(n) {
-		if p.Rule == "tag-test" || p.Rule == "value-test" {
+		if p.Rule == "tag-test" || p.Rule == "value-test" || p.Rule == "default-value" {
 			tests = append(tests, p)
 		}
 	}
@@ -251,6 +242,9 @@ func (b *domBuilder) tested(n *Node) *domExpr {
 	valid := capturedRules[base.Rule] && base.Rule != "tested"
 	seenTags, seenValue := false, false
 	for _, test := range tests {
+		if test.Rule == "default-value" {
+			continue
+		}
 		if !valid || test.Rule == "tag-test" && (seenTags || seenValue) || test.Rule == "value-test" && seenValue {
 			b.fail(test, "invalid test target or order")
 		}
@@ -262,6 +256,21 @@ func (b *domBuilder) tested(n *Node) *domExpr {
 	}
 	expr := b.expr(base)
 	for _, test := range tests {
+		if test.Rule == "default-value" {
+			if n != b.defaultHead {
+				b.fail(test, "a default stands only on an elidable optional head")
+			}
+			if b.headDefault != nil {
+				b.fail(test, "an elidable head has one default at most")
+			}
+			operand := b.only(test, "test-operand")
+			part := b.knownOf(operand, atomRules)
+			if part.Rule != "string" && part.Rule != "constant-reference" && part.Rule != "parameter" {
+				b.fail(operand, "a default requires one string")
+			}
+			b.headDefault, b.defaultNode = b.term(part), test
+			continue
+		}
 		e := &domExpr{Kind: exTest, Inner: expr}
 		if test.Rule == "tag-test" {
 			e.Op = "tags"
@@ -503,7 +512,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	switch sourceMethods[name] {
 	case methodSpan:
 		valid = len(args) == 0 && span
-		if b.inRecipe && receiver.Kind == tmCall && receiver.Str == "emitted" {
+		if receiver.Kind == tmCall && receiver.Str == "emitted" {
 			valid = len(args) == 0 && (name == "value" || name == "image")
 		}
 	case methodRestored:
@@ -589,4 +598,29 @@ func (b *domBuilder) sourceSyntaxUnresolved(n *Node) bool {
 		}
 	}
 	return b.unresolvedNodes[n]
+}
+
+func (b *domBuilder) patternRequirements(n *Node) []tagRequirement {
+	out := []tagRequirement{}
+	for _, p := range b.ofRule(n, "tag-requirement") {
+		operand := b.only(p, "test-operand")
+		part := b.knownOf(operand, atomRules)
+		if part.Rule != "tag" && part.Rule != "constant-reference" && part.Rule != "name" && part.Rule != "parameter" {
+			b.fail(operand, "a tag requirement requires a tag or tag-set constant")
+		}
+		var value *domTerm
+		if b.tokenValue(b.token(part)) == "_Elided" {
+			value = &domTerm{Kind: tmTag, Str: "_Elided", At: b.at(part)}
+		} else {
+			value = b.term(part)
+		}
+		requirement := tagRequirement{Value: value}
+		for _, token := range b.parts(p) {
+			if token.Kind == KindToken && b.tokenValue(token) == "¬" {
+				requirement.Negated = true
+			}
+		}
+		out = append(out, requirement)
+	}
+	return out
 }

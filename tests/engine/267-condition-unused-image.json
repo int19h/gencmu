@@ -1,0 +1,13 @@
+{
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
+  "grammar": "%rule text $x:r\n%conditions $x.emitted.value = \"b\"\n%rule r child\n%rule child \"b\" :- $.verbatim-text",
+  "input": "b",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 13
+    }
+  }
+}

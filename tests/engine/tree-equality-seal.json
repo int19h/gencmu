@@ -1,0 +1,10 @@
+{
+  "description": "Structural comparison: seal.",
+  "grammar": "%rule text $x:r \"|\" $y:r\n%conditions $x ≅ $y\n%rule r :: ∅\n  | (\"a\" ≻ \"b\")",
+  "input": "a|a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -53,7 +53,7 @@ pub(crate) fn problem(conditions: &[Cond]) -> Result<(), String> {
     }
     fn cond(value: &Cond) -> Result<(), String> {
         match value {
-            Cond::Compare(op, left, right) if !matches!(op.as_str(), "≅" | "≇") => {
+            Cond::Compare(op, left, right, _) if !matches!(op.as_str(), "≅" | "≇") => {
                 term(left)?;
                 term(right)
             }
@@ -258,7 +258,7 @@ impl Input<'_> {
                 held
             }
             Cond::If(left, right) => !self.condition(left)? || self.condition(right)?,
-            Cond::Compare(op, left, right) => {
+            Cond::Compare(op, left, right, _) => {
                 let left = self.value(left)?;
                 let right = self.value(right)?;
                 match op.as_str() {

@@ -1,6 +1,6 @@
 {
   "description": "Ranked admission removes `q` before the fewest count ranks (engine §4.2 and §6, case 58).",
-  "grammar": "%rule text (p ≻ q) :: ∅\n%rule(fewest) p A\n%rule q A",
+  "grammar": "%ambiguity-resolution fewest #·p, greedy\n%rule text (p ≻ q) :: ∅\n%rule p A\n              \n%rule q A",
   "tokens": [
     {
       "text": "a",

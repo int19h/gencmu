@@ -1,0 +1,24 @@
+{
+  "description": "A tested wildcard counts matching reads and fails on rule nodes (engine §6).",
+  "grammar": "%ambiguity-resolution fewest #·_<T>=\"a\"\n%rule text A | B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "B",
+        "T"
+      ],
+      "value": "a"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

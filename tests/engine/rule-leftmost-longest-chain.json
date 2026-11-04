@@ -1,6 +1,6 @@
 {
   "description": "Every recursive chain level contributes its flagged span, including unary base levels (engine §3, §6).",
-  "grammar": "%ambiguity-resolution lazy\n%rule text r | (r \"b\")\n%rule (leftmost-longest) r {... (\"a\" | \"b\")}",
+  "grammar": "%ambiguity-resolution leftmost-longest #·r, lazy\n%rule text r | (r \"b\")\n%rule r {... (\"a\" | \"b\")}\n               ",
   "input": "ab",
   "expect": {
     "result": {

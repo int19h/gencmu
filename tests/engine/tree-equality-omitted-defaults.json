@@ -1,0 +1,8 @@
+{
+  "description": "Structural comparison: omitted-defaults.",
+  "grammar": "%rule text $x:r $y:r\n%conditions $x ≅ $y\n%rule r [+JI ≝ \"one\"] | [+JI ≝ \"two\"]",
+  "input": "",
+  "expect": {
+    "error": "ambiguous"
+  }
+}

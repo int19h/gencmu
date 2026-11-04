@@ -1,0 +1,23 @@
+{
+  "description": "A whole-rule value test in a tag clause retains its child observations.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text :: ($ ≅ #(text=\"a\" ∩ « A ») ⟹ X)\n  | A",
+  "tokens": [
+    {
+      "text": "a",
+      "value": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "tags": [
+          "X"
+        ]
+      }
+    }
+  }
+}

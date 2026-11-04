@@ -40,19 +40,9 @@ fn changed_dom(rules: &str, from: &str, to: &str) -> String {
 }
 
 #[test]
-fn replacements_record_flag_changes() {
-    let pipeline = gencmu::load_pipeline_sources(
-        &single("%ambiguity-resolution greedy\n%rule(leftmost-longest) text A\n%extend-rule text B\n%redefine-rule text C\n%redefine-rule(leftmost-longest) text D\n%redefine-rule(leftmost-longest) text E\n%redefine-rule text F\n%redefine-rule text G"),
-        "p.md",
-    )
-    .unwrap();
-    let flag = vec!["leftmost-longest".to_string()];
-    let removed = gencmu::FlagChange { from: flag.clone(), to: vec![] };
-    let added = gencmu::FlagChange { from: vec![], to: flag };
-    assert_eq!(
-        pipeline.changes().iter().map(|change| change.flag_change.clone()).collect::<Vec<_>>(),
-        vec![None, Some(removed.clone()), Some(added), None, Some(removed), None]
-    );
+fn replacements_retain_ranking_steps() {
+    let pipeline = gencmu::load_pipeline_sources(&single("%ambiguity-resolution leftmost-longest #·text, greedy\n%rule text A\n%extend-rule text B\n%redefine-rule text C\n%redefine-rule text D\n%redefine-rule text E"),"p.md").unwrap();
+    assert_eq!(pipeline.changes().len(), 4);
     for (index, change) in pipeline.changes().iter().enumerate() {
         assert_eq!((&*change.stage, &*change.rule, &*change.document), ("main", "text", "g.md"));
         assert_eq!(change.extension, index == 0);
@@ -195,7 +185,7 @@ fn until_features_and_elision_only() {
     assert_eq!(error.kind, ErrorKind::Usage);
 
     let ambiguous = gencmu::load_pipeline_sources(
-        single("%ambiguity-resolution greedy elision-only\n%rule text s | s \"b\" %rule s \"a\" [\"b\"]"),
+        single("%ambiguity-resolution greedy\n%elision-only\n%rule text s | s \"b\" %rule s \"a\" [\"b\"]"),
         "p.md",
     )
     .unwrap();
@@ -980,8 +970,8 @@ fn doubling(rule: &str, depth: usize, text: &str) -> gencmu::Pipeline {
 #[test]
 fn exponentially_long_derivations_keep_exact_counts() {
     for depth in [32, 100] {
-        // Under late-elision, the empty reading elides nothing and wins.
-        let pipeline = doubling("late-elision", depth, &format!("ε | r{depth}"));
+        // Under late #·_<_Elided>, the empty reading elides nothing and wins.
+        let pipeline = doubling("late #·_<_Elided>", depth, &format!("ε | r{depth}"));
         let result = pipeline.parse_tokens(&[], &ParseOptions::default()).unwrap();
         assert!(result.ok, "{depth}");
         assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved), "{depth}");
@@ -1071,7 +1061,9 @@ fn the_witness_lost_error_writes_its_members_in_order() {
 #[test]
 fn ranked_groups_grow_with_forest_positions() {
     let pipeline = gencmu::load_pipeline_sources(
-        &single("%ambiguity-resolution late-elision\n%rule text {unit}\n%rule unit a ≻ b\n%rule a X Y\n%rule b X Y"),
+        &single(
+            "%ambiguity-resolution late #·_<_Elided>\n%rule text {unit}\n%rule unit a ≻ b\n%rule a X Y\n%rule b X Y",
+        ),
         "p.md",
     )
     .unwrap();
@@ -1095,7 +1087,7 @@ fn ranked_groups_grow_with_forest_positions() {
 
 #[test]
 fn ranked_template_locations_follow_nodes_before_and_after_cache_recovery() {
-    let text = "%ambiguity-resolution late-elision\n%rule f(@X)\n  @X C\n%rule text\n  (A ≻ B) C\n  | (E ≻ F)\n%conditions $ ≅ #f((G ≻ H))";
+    let text = "%ambiguity-resolution late #·_<_Elided>\n%rule f(@X)\n  @X C\n%rule text\n  (A ≻ B) C\n  | (E ≻ F)\n%conditions $ ≅ #f((G ≻ H))";
     let sources = single(text)
         .into_iter()
         .map(|(path, text)| (format!("grammars/test/{path}"), text))
@@ -1111,7 +1103,7 @@ fn ranked_template_locations_follow_nodes_before_and_after_cache_recovery() {
 
 #[test]
 fn ranked_diagnostics_match_with_a_dom_cache() {
-    let text="%const $K Tag-k\n%ambiguity-resolution late-elision\n%rule text :: $x ⟹ ($x.tags ∪ $K) |  Q (($x:a ≻ b) ≻ c) Z\n%rule a X Y\n%rule b U V\n%rule c R S";
+    let text="%const $K Tag-k\n%ambiguity-resolution late #·_<_Elided>\n%rule text :: $x ⟹ ($x.tags ∪ $K) |  Q (($x:a ≻ b) ≻ c) Z\n%rule a X Y\n%rule b U V\n%rule c R S";
     let sources = single(text)
         .into_iter()
         .map(|(path, text)| (format!("grammars/test/{path}"), text))
@@ -1143,7 +1135,7 @@ fn ranked_diagnostics_match_with_a_dom_cache() {
 
 #[test]
 fn ranked_tag_witness_is_shortest_in_source_order() {
-    let text="%ambiguity-resolution late-elision\n%rule text a ≻ b\n%rule a u | v\n%rule u deeper\n%rule deeper X\n%rule v Y\n%rule b :: ∅ |  Z\n";
+    let text="%ambiguity-resolution late #·_<_Elided>\n%rule text a ≻ b\n%rule a u | v\n%rule u deeper\n%rule deeper X\n%rule v Y\n%rule b :: ∅ |  Z\n";
     let error = gencmu::load_pipeline_sources(&single(text), "p.md").unwrap_err();
     assert_eq!(error.code(), Some("ranked-choice-tags"));
     assert_eq!(
@@ -1154,7 +1146,7 @@ fn ranked_tag_witness_is_shortest_in_source_order() {
 
 #[test]
 fn ranked_error_retains_a_written_constant() {
-    let text="%ambiguity-resolution late-elision\n%const $K Tag-k\n%rule text :: $x ⟹ ($x.tags ∪ $K) |  Q ($x:a ≻ b) Z\n%rule a X Y\n%rule b U V";
+    let text="%ambiguity-resolution late #·_<_Elided>\n%const $K Tag-k\n%rule text :: $x ⟹ ($x.tags ∪ $K) |  Q ($x:a ≻ b) Z\n%rule a X Y\n%rule b U V";
     let error = gencmu::load_pipeline_sources(&single(text), "p.md").unwrap_err();
     assert_eq!(error.code(), Some("ranked-choice-export"));
     let (line, column) = common::position_of(&grammar(text), "$K)");
@@ -1179,12 +1171,12 @@ fn ranked_validation_never_builds_invalid_runtime_bindings() {
     // Engine §2.1 keeps the first group ahead of later private exports.
     for (prefix, code) in [("%rule text later\n", "ranked-choice-export"), ("%rule text a ≻ b\n", "ranked-choice-tags")]
     {
-        let text = format!("%ambiguity-resolution late-elision\n{prefix}%rule later :: $x.tags |  Q ($x:a ≻ $x:b) Z\n%rule a X\n%rule b Y");
+        let text = format!("%ambiguity-resolution late #·_<_Elided>\n{prefix}%rule later :: $x.tags |  Q ($x:a ≻ $x:b) Z\n%rule a X\n%rule b Y");
         let error = gencmu::load_pipeline_sources(&single(&text), "p.md").unwrap_err();
         assert_eq!(error.code(), Some(code));
     }
     // Retain an independent refusal of incompatible ranked tags.
-    let text = "%ambiguity-resolution late-elision\n%rule text a ≻ b\n%rule a X\n%rule b Y";
+    let text = "%ambiguity-resolution late #·_<_Elided>\n%rule text a ≻ b\n%rule a X\n%rule b Y";
     let error = gencmu::load_pipeline_sources(&single(text), "p.md").unwrap_err();
     assert_eq!(error.code(), Some("ranked-choice-tags"));
 }
@@ -1579,5 +1571,41 @@ fn selected_stage_on_every_splice_error() {
         let error = gencmu::load_pipeline_sources(sources, "p.md").unwrap_err();
         assert_eq!(error.kind, ErrorKind::Grammar);
         assert_eq!(error.stage.as_deref(), Some("main"), "{error}");
+    }
+}
+
+#[test]
+fn ranking_reports_use_reachability() {
+    for (source, status) in [
+        ("%ambiguity-resolution fewest #·_\n%rule text A", ""),
+        ("%ambiguity-resolution fewest #·dead\n%rule text A\n%rule dead B", "impossible"),
+        ("%ambiguity-resolution fewest #·wrap<T>\n%rule text wrap\n%rule wrap $x:child :: (T ∪ $x.tags)\n%rule child A :: U", ""),
+        ("%ambiguity-resolution fewest #·_<_Elided>\n%rule text [+END]", ""),
+    ] {
+        let pipeline = gencmu::load_pipeline_sources(single(source), "p.md").unwrap();
+        let reports = pipeline.ranking_reports();
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].key_steps[0].status, status);
+        if status.is_empty() { assert!(!gencmu::format_ranking_reports(&reports).contains("ranking step")); }
+    }
+}
+
+#[test]
+fn cached_tree_comparisons_keep_cycle_positions() {
+    let rules = "%ambiguity-resolution greedy\n%rule text $x:w $y:w\n%conditions $x ≅ $y\n%rule w \"a\" | w";
+    let mut sources = single(rules)
+        .into_iter()
+        .map(|(path, text)| (format!("grammars/test/{path}"), text))
+        .collect::<BTreeMap<_, _>>();
+    let dom = gencmu::tools::read_grammar_document(&grammar(rules), "").unwrap();
+    for cached in [false, true] {
+        if cached {
+            sources.insert("data/preparsed/test.json".into(), preparsed(rules, &dom));
+        }
+        let pipeline = gencmu::load_pipeline_sources(&sources, "grammars/test/p.md").unwrap();
+        let result = pipeline.parse("aa", &ParseOptions::default()).unwrap();
+        let error = result.error.unwrap();
+        assert_eq!(error.kind, ParseErrorKind::Grammar);
+        assert!(error.message.starts_with("grammars/test/g.md:6:13: "), "cached={cached}: {}", error.message);
     }
 }

@@ -1,0 +1,35 @@
+{
+  "description": "A presence test of an item capture decides per expansion of the item: the condition $c removes the item expansion A, so only B items remain (engine §3.5, §3.6).",
+  "grammar": "%rule text {A | $c:B}\n%conditions $c",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 0
+      }
+    },
+    "error": "rejected"
+  }
+}

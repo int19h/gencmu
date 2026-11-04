@@ -73,17 +73,21 @@ type exprFrame struct {
 	// What its value is made of: a list's kind, parts and items; or the
 	// construct it passes on; or the capture, the test or the optional
 	// that wraps what it asked for.
-	kind    string
-	parts   []*Node
-	items   []*domExpr
-	inWhole bool
-	pass    bool
-	capture string
-	marked  bool
-	elide   *domExpr
-	repeat  *domExpr
-	choices []*Node
-	call    bool
+	kind                string
+	parts               []*Node
+	items               []*domExpr
+	inWhole             bool
+	pass                bool
+	capture             string
+	marked              bool
+	previousHead        *Node
+	previousDefault     *domTerm
+	previousDefaultNode *Node
+	defaultNode         *Node
+	elide               *domExpr
+	repeat              *domExpr
+	choices             []*Node
+	call                bool
 }
 
 func (f *exprFrame) resume(b *domBuilder, in any) readStep {
@@ -111,8 +115,26 @@ func (f *exprFrame) resume(b *domBuilder, in any) readStep {
 	case f.elide != nil:
 		if f.marked {
 			b.marked--
+			f.elide.Default = b.headDefault
+			f.defaultNode = b.defaultNode
+			if b.defaultNode != nil {
+				f.elide.DefaultAt = b.at(b.defaultNode)
+			}
+			b.defaultHead, b.headDefault, b.defaultNode = f.previousHead, f.previousDefault, f.previousDefaultNode
 		}
 		f.elide.Inner = in.(*domExpr)
+		if value := f.elide.Default; value != nil && value.Kind == tmString {
+			head := f.elide.Inner
+			if head.Kind == exSeq {
+				head = head.Items[0]
+			}
+			for head.Kind == exTest {
+				if head.Op != "tags" && head.Value.Kind == tmString && ((value.Str == head.Value.Str) != (head.Op == "=")) {
+					b.fail(f.defaultNode, "a default fails its head test")
+				}
+				head = head.Inner
+			}
+		}
 		return give(f.elide)
 	case f.repeat != nil:
 		if f.repeat.Inner == nil {
@@ -123,7 +145,7 @@ func (f *exprFrame) resume(b *domBuilder, in any) readStep {
 		} else {
 			f.repeat.Sep = in.(*domExpr)
 		}
-		b.braces--
+		b.braces = b.braces[:len(b.braces)-1]
 		return give(f.repeat)
 	}
 	panic("an expression frame resumed with nothing to do")
@@ -137,6 +159,9 @@ func (f *exprFrame) next(b *domBuilder) readStep {
 			return ask(&exprFrame{n: b.knownOf(p, primaryRules), whole: f.inWhole})
 		}
 		return ask(&exprFrame{n: p, whole: f.inWhole})
+	}
+	if f.kind == exRanked && len(b.braces) > 0 {
+		b.braces[len(b.braces)-1].ranked--
 	}
 	if len(f.items) == 1 {
 		return give(f.items[0])
@@ -193,6 +218,10 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 		if f.kind == exAnd && len(f.parts) > maxAnd {
 			b.fail(n, "an & joins at most %d items, since it expands to 2ⁿ−1 sequences", maxAnd)
 		}
+		// An item capture cannot stand inside a ranked group (engine §3.5).
+		if f.kind == exRanked && len(b.braces) > 0 {
+			b.braces[len(b.braces)-1].ranked++
+		}
 		return f.next(b)
 	case "repetition":
 		return f.startRepetition(b)
@@ -213,8 +242,17 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 	case "capture":
 		// Its place, then $, its name and its symbol, each at the capture,
 		// before what it wraps (engine §9).
-		if b.braces > 0 {
-			b.fail(n, "a capture cannot stand inside braces, whose parts repeat: name the list as a rule, and capture that")
+		// Inside flat braces it is an item capture, and the innermost
+		// braces decide; an item capture stands in no ranked group
+		// (engine §3.5).
+		if len(b.braces) > 0 {
+			inner := b.braces[len(b.braces)-1]
+			if inner.chain {
+				b.fail(n, "a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level")
+			}
+			if inner.ranked > 0 {
+				b.fail(n, "an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule")
+			}
 		}
 		if b.marked > 0 {
 			b.fail(n, "a capture cannot stand inside an elidable optional, which elision restores as one unit")
@@ -305,6 +343,8 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 	case !isTerminal(head):
 		b.fail(n, form)
 	}
+	f.previousHead, f.previousDefault, f.previousDefaultNode = b.defaultHead, b.headDefault, b.defaultNode
+	b.defaultHead, b.headDefault, b.defaultNode = head, nil, nil
 	b.marked++
 	f.marked = true
 	f.elide = &domExpr{Kind: exOptional, Elidable: true}
@@ -356,7 +396,7 @@ func (f *exprFrame) startRepetition(b *domBuilder) readStep {
 	if e.Chain != "" && !f.whole {
 		b.fail(n, "a chain is the whole expression of its alternative: name it as a rule to use it here")
 	}
-	b.braces++
+	b.braces = append(b.braces, bracesEntry{chain: e.Chain != ""})
 	f.repeat = e
 	f.choices = choices
 	return ask(&exprFrame{n: choices[0]})
@@ -581,7 +621,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		if problem := sourcePatternProblem(pattern); problem != "" {
 			b.fail(n, "%s", problem)
 		}
-		return give(&domTerm{Kind: tmPattern, Pattern: pattern})
+		return give(&domTerm{Kind: tmPattern, Pattern: pattern, At: b.at(n)})
 	}
 	b.fail(n, "unexpected %s in a term", n.Rule)
 	return readStep{}
@@ -679,7 +719,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			f.pass = true
 			return ask(&conditionFrame{n: b.knownOf(n, conditionRules)})
 		case "tree-comparison":
-			f.compare = &domCond{Kind: cdCompare, Left: &domTerm{Kind: tmCapture, Str: strings.TrimPrefix(b.tokenValue(b.token(b.only(n, "capture-reference"))), "$")}}
+			f.compare = &domCond{Kind: cdCompare, At: b.at(n), Left: &domTerm{Kind: tmCapture, Str: strings.TrimPrefix(b.tokenValue(b.token(b.only(n, "capture-reference"))), "$")}}
 			f.compare.Op = b.operator(b.token(b.only(n, "tree-comparator")))
 			right := b.only(n, "union")
 			b.patternOperand(right)
@@ -713,7 +753,11 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 	case "tree-comparison":
 		f.compare.Right = in.(*domTerm)
 		if fault := condTypeMemo(f.compare, nil, b.types); fault != nil && !b.featureContext {
-			b.fail(n, "%s", fault.problem)
+			where := n
+			if fault.node == f.compare.Right {
+				where = b.only(n, "union")
+			}
+			b.fail(where, "%s", fault.problem)
 		}
 		return give(f.compare)
 	case "comparison":

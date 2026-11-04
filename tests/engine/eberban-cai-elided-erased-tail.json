@@ -1,0 +1,14 @@
+{
+  "description": "In the eberban/refgram pipeline, erased text is not a sentence, so a quote with one sentence and an erased stretch carries no cai warning. The PEG warns here.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "a mi pe ca a mo ra ke ra a ke bu ke",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

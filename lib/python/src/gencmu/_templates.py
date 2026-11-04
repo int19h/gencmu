@@ -12,6 +12,21 @@ from ._strings import spelling
 from ._template_nodes import argument_of_expression, source_keys, has_unresolved, identity, nodes, normalize_argument, pattern_term, pattern_constant_names
 
 
+def distribute_family_test(test):
+    for key in ('union', 'intersection', 'difference'):
+        if key in test.get('expr', {}):
+            result = copy(test)
+            result.clear()
+            members = []
+            for part in test['expr'][key]:
+                member = copy(test)
+                member['expr'] = part
+                members.append(distribute_family_test(member))
+            result[key] = members
+            return result
+    return test
+
+
 def key_of(value):
     return json.dumps(identity(value), ensure_ascii=False, separators=(",", ":"))
 
@@ -54,6 +69,8 @@ def _print_join(items, unicode, printer, separator, parent=None):
 
 
 def _print_argument(n, unicode):
+    if 'set' in n:
+        return ' '.join(sorted(n['set'])) or '∅'
     if 'call' in n:
         args = yield _print_join(n['args'], unicode, _print_argument, ', ')
         return n['call'] + '(' + args + ')'
@@ -77,6 +94,9 @@ def _print_argument(n, unicode):
     if 'requirements' in n and 'test' not in n:
         parts = []
         for entry in n['requirements']:
+            if 'set' in entry['value']:
+                parts.extend(('¬' if entry['negated'] else '') + tag for tag in sorted(entry['value']['set']))
+                continue
             value = yield _print_argument(entry['value'], unicode)
             parts.append(('¬' if entry['negated'] else '') + value)
         return '<' + ' '.join(parts) + '>'
@@ -145,7 +165,12 @@ def _print_body(n, unicode, parent=''):
             text = yield _print_join(n[key], unicode, _print_body, op, key)
             return '(' + text + ')' if parent and priority[key] <= priority[parent] else text
     if 'optional' in n:
-        return '[' + ('+' if n.get('elidable') else '') + (yield _print_body(n['optional'], unicode)) + ']'
+        parts = n['optional'].get('seq', [n['optional']])
+        head = yield _print_body(parts[0], unicode)
+        if 'default' in n: head += ' ≝ ' + (yield _print_argument(n['default'], unicode))
+        texts = [head]
+        for part in parts[1:]: texts.append((yield _print_body(part, unicode)))
+        return '[' + ('+' if n.get('elidable') else '') + ' '.join(texts) + ']'
     if 'repeat' in n:
         text = yield _print_body(n['repeat'], unicode)
         separator = ' / ' + (yield _print_body(n['separator'], unicode)) if 'separator' in n else ''
@@ -562,12 +587,14 @@ def expand_templates(documents, unicode):
                 if 'children' in root:
                     member['children'] = yield rewrite_walk(root['children'], event, 'pattern-item')
                 members.append(member)
-            return members[0] if len(members) == 1 else dict(union=members) if members else dict(difference=[dict(name='text', at=root['at']), dict(name='text', at=root['at'])])
+            return members[0] if len(members) == 1 else dict(union=members) if members else dict(difference=[dict(name='text', at=root['at'], **({'exact': True} if root.get('exact') else {})), dict(name='text', at=root['at'], **({'exact': True} if root.get('exact') else {}))])
         if root.get('ref') in templates or root.get('rule') in templates:
             fail(event, root, 'a bare template reference must name one instance')
         result = copy(root)
         for key, value in root.items():
             result[key] = value if key == 'at' else (yield rewrite_walk(value, event, child_position(key, position)))
+        if position == 'pattern' and 'test' in result:
+            return distribute_family_test(result)
         if position == 'pattern':
             for key in ('union', 'intersection'):
                 if key in result:
@@ -590,7 +617,7 @@ def expand_templates(documents, unicode):
 
         arg = normalize(argument)
         if any(k in arg for k in ('body', 'test', 'range', 'wildcard')):
-            rule = dict(name='text' if event['index'] in extra_indexes else event['rule']['name'], op='define', flags=[], conditions=[],
+            rule = dict(name='text' if event['index'] in extra_indexes else event['rule']['name'], op='define', conditions=[],
                         alternatives=[dict(guards=[], expr=rewrite(arg.get('body', arg), event, 'expr'))], at=event['rule']['at'])
             if any('param' in n for n in parts):
                 rule['params'] = event['rule']['params']
@@ -659,7 +686,7 @@ def child_position(key, position):
         return 'pattern-item'
     if position == 'pattern' and key in ('union', 'intersection', 'difference'):
         return 'pattern'
-    if key in ('alternatives', 'conditions', 'emit', 'tags', 'value', 'image', 'requirements', 'range', 'literal', 'concat', 'union', 'intersection', 'difference', 'left', 'right', 'receiver', 'if', 'then', 'not', 'all', 'any', 'args'):
+    if key in ('alternatives', 'conditions', 'emit', 'tags', 'value', 'image', 'default', 'requirements', 'range', 'literal', 'concat', 'union', 'intersection', 'difference', 'left', 'right', 'receiver', 'if', 'then', 'not', 'all', 'any', 'args'):
         return 'term'
     if key in ('seq', 'choice', 'ranked', 'and', 'optional', 'repeat', 'separator', 'expr') and position != 'pattern':
         return 'expr'

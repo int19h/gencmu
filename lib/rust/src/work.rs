@@ -336,6 +336,47 @@ mod tests {
         sources
     }
 
+    #[test]
+    fn unused_tree_observations_build_no_records() {
+        for rules in ["%rule text {A}", "%rule text $x:list\n%conditions $x ≅ #list\n%rule list {A}"] {
+            let pipeline =
+                crate::load_pipeline_sources(single(&format!("%ambiguity-resolution greedy\n{rules}")), "p.md")
+                    .unwrap();
+            let g = pipeline.lowered_stage(0);
+            let text = vec!['a'; 20];
+            let mut shared = crate::earley::Shared::new(&pipeline.unicode, &text);
+            let input: Vec<_> = (0..20)
+                .map(|at| crate::earley::Tok {
+                    text: "a".into(),
+                    value: "a".into(),
+                    image: "a".into(),
+                    tags: shared.tags.set_of(["A"]),
+                    source: (at, at + 1),
+                    quiet: 0,
+                    sound: Default::default(),
+                    before: vec![],
+                    after: vec![],
+                })
+                .collect();
+            let matchers = crate::earley::matchers(&g, &mut shared.tags);
+            let chart = crate::earley::Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None }
+                .recognize(&input, 0, g.start)
+                .unwrap();
+            assert!(chart.sets[20].completed.contains_key(&(g.start, 0)));
+            assert!(g.tree_demands.is_empty());
+            if let Some(machine) = &chart.machine {
+                let m = machine.borrow();
+                assert!(m.trees.is_none());
+                for item in chart.sets.iter().flat_map(|set| &set.items) {
+                    assert_eq!(m.tree_state(item.prefix), 0);
+                    if item.structure != u32::MAX {
+                        assert_eq!(m.tree_state(item.structure), 0);
+                    }
+                }
+            }
+        }
+    }
+
     /// The shared cases of `tests/growth.json` (tests/README.md): the work
     /// of the bundled grammars on long texts. A condition that parses a
     /// whole prefix again at each step makes a long text cost more than its
@@ -389,7 +430,7 @@ mod tests {
     #[test]
     fn cycle_contexts_keep_only_the_rules_of_their_cycle() {
         let depth = 15;
-        let mut grammar = format!("%ambiguity-resolution late-elision\n%rule text ε | r{depth}\n%rule r0 [+T]\n");
+        let mut grammar = format!("%ambiguity-resolution late #·_<_Elided>\n%rule text ε | r{depth}\n%rule r0 [+T]\n");
         for i in 1..=depth {
             let below = i - 1;
             grammar
@@ -465,7 +506,7 @@ mod tests {
                 let names: Vec<String> = (0..n).map(|index| format!("r{index}")).collect();
                 let rules: Vec<String> = (0..n).map(|index| format!("%rule r{index} A [+KU] [+KU] B{index}")).collect();
                 let grammar = format!(
-                    "%ambiguity-resolution late-elision elision-only\n%rule text {}\n{}",
+                    "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text {}\n{}",
                     names.join(" | "),
                     rules.join("\n")
                 );

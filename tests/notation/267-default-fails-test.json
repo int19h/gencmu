@@ -1,0 +1,10 @@
+{
+  "description": "The reader refuses this default or emitted read.",
+  "document": "```jbogenbau\n%rule text [+JI=\"jie\" ≝ \"jei\"]\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 23
+    }
+  }
+}

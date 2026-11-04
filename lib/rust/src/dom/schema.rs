@@ -3,9 +3,21 @@
 use super::*;
 mod source;
 
+/// Where an expression stands, as far as a capture may stand there (engine
+/// §3.5, §9): inside an elidable optional, which seals everything in it,
+/// inside a chain, inside flat braces, where a capture is an item capture,
+/// and inside a ranked group since the innermost flat braces.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct ExprFlags {
+    pub sealed: bool,
+    pub chain: bool,
+    pub item: bool,
+    pub ranked: bool,
+}
+
 #[derive(Clone, Copy)]
 pub(crate) enum Part {
-    Expr { whole: bool, sealed: bool },
+    Expr { whole: bool, flags: ExprFlags },
     Term,
     RecipeAtom,
     Condition,
@@ -184,25 +196,41 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
             }
             match name {
                 "directives" => {
-                    let Some(args) = item.get("args").and_then(Json::as_array) else {
-                        return Some("a malformed directive".into());
-                    };
-                    let args: Option<Vec<_>> = args.iter().map(Json::as_str).collect();
-                    let Some(args) = args else { return Some("a malformed directive".into()) };
-                    let valid = match item.get("name").and_then(Json::as_str) {
-                        Some("stage" | "extend-stage" | "redefine-stage") => {
-                            matches!(&args[..], [name] if name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name))
+                    let name = item.get("name").and_then(Json::as_str);
+                    let valid = if name == Some("ambiguity-resolution") {
+                        item.get("args").is_none()
+                            && item.get("steps").is_some_and(|steps| {
+                                crate::dom::steps_from_json(steps).is_ok_and(|steps| crate::dom::valid_steps(&steps))
+                            })
+                    } else {
+                        let Some(args) = item.get("args").and_then(Json::as_array) else {
+                            return Some("a malformed directive".into());
+                        };
+                        let args: Option<Vec<_>> = args.iter().map(Json::as_str).collect();
+                        let Some(args) = args else { return Some("a malformed directive".into()) };
+                        match name {
+                            Some("stage" | "extend-stage" | "redefine-stage") => {
+                                matches!(&args[..], [name] if name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name))
+                            }
+                            Some("include" | "names") => args.len() == 1,
+                            Some("features") => !args.is_empty() && args.iter().all(|name| feature(name)),
+                            Some("elision-only") => args.is_empty(),
+                            _ => false,
                         }
-                        Some("include" | "names") => args.len() == 1,
-                        Some("features") => !args.is_empty() && args.iter().all(|name| feature(name)),
-                        Some("ambiguity-resolution") => matches!(
-                            &args[..],
-                            ["greedy" | "lazy" | "late-elision"] | ["greedy" | "lazy" | "late-elision", "elision-only"]
-                        ),
-                        _ => false,
                     };
                     if !valid {
                         return Some("a malformed directive".into());
+                    }
+                    if name == Some("ambiguity-resolution") {
+                        for step in item.get("steps").and_then(Json::as_array).unwrap() {
+                            if let Some(operand) = step.get("pattern") {
+                                pending.push((
+                                    if operand.get("const").is_some() { Part::Term } else { Part::Pattern },
+                                    operand,
+                                    0,
+                                ));
+                            }
+                        }
                     }
                     if let Some(value) = item.get("conditions") {
                         let Some(conditions) = value.as_array().filter(|items| !items.is_empty()) else {
@@ -233,21 +261,12 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                     }
                     if !exact(
                         item,
-                        &["name", "op", "flags", "alternatives", "conditions", "at"],
+                        &["name", "op", "alternatives", "conditions", "at"],
                         &["tags", "value", "image", "emit", "erased", "params", "args"],
                     ) || !item.get("name").and_then(Json::as_str).is_some_and(rule)
                         || !matches!(item.get("op").and_then(Json::as_str), Some("define" | "extend" | "redefine"))
                     {
                         return Some("a malformed rule".into());
-                    }
-                    let flags = item.get("flags").and_then(Json::as_array);
-                    if !flags.is_some_and(|flags| {
-                        flags.is_empty()
-                            || flags.len() == 1
-                                && matches!(flags[0].as_str(), Some("leftmost-longest" | "fewest"))
-                                && item.get("op").and_then(Json::as_str) != Some("extend")
-                    }) {
-                        return Some("a malformed rule flag".into());
                     }
                     if !matches!(item.get("erased"), None | Some(Json::Bool(true)))
                         || item.get("erased").is_some()
@@ -278,7 +297,11 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                         if item.get("erased").is_some() && ["value", "image"].iter().any(|key| alt.get(key).is_some()) {
                             return Some("an erased rule has a recipe".into());
                         }
-                        pending.push((Part::Expr { whole: true, sealed: false }, alt.get("expr").unwrap(), 0));
+                        pending.push((
+                            Part::Expr { whole: true, flags: ExprFlags::default() },
+                            alt.get("expr").unwrap(),
+                            0,
+                        ));
                         for key in ["tags", "value", "image"] {
                             if let Some(value) = alt.get(key) {
                                 pending.push((if key == "tags" { Part::Term } else { Part::Recipe }, value, 0));
@@ -431,7 +454,10 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
                 if rule.source.instance.is_some() {
                     continue;
                 }
-                if rule.alternatives.iter().any(|a| !crate::clauses::duplicate_captures(&a.expr).is_empty()) {
+                if rule.alternatives.iter().any(|a| {
+                    !crate::clauses::duplicate_captures(&a.expr).is_empty()
+                        || crate::clauses::repeats_item_capture(&a.expr)
+                }) {
                     return Some("a production captures a name twice".into());
                 }
                 let projected;
@@ -583,8 +609,8 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     pending.push((Part::Term, term, depth));
                 }
             }
-            Part::Expr { whole, sealed } => {
-                let expression = |value, sealed| (Part::Expr { whole: false, sealed }, value, next);
+            Part::Expr { whole, flags } => {
+                let expression = |value, flags| (Part::Expr { whole: false, flags }, value, next);
                 if base(value, unicode, expanded) {
                     if value.get("ref").and_then(Json::as_str).is_some_and(|name| !rule(name) && !tag(name)) {
                         return Some("a malformed reference".into());
@@ -604,16 +630,22 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     }
                 } else if exact(value, &["empty"], &[]) && is_true(value.get("empty")) {
                 } else if let Some(inner) = value.get("capture") {
-                    if sealed
+                    // A chain holds no capture, and an elidable optional
+                    // seals everything inside it. Flat braces hold item
+                    // captures, also inside a chain, but not inside a ranked
+                    // group (engine §3.5).
+                    if flags.sealed
+                        || flags.chain
+                        || flags.item && flags.ranked
                         || !exact(value, &["capture", "expr"], &[])
                         || !inner.as_str().is_some_and(is_capture_name)
                         || !value.get("expr").is_some_and(|value| tested_base(value, unicode, expanded))
                     {
                         return Some("a malformed capture".into());
                     }
-                    pending.push(expression(value.get("expr").unwrap(), sealed));
+                    pending.push(expression(value.get("expr").unwrap(), flags));
                 } else if let Some(inner) = value.get("optional") {
-                    if !exact(value, &["optional"], &["elidable"])
+                    if !exact(value, &["optional"], &["elidable", "default"])
                         || !matches!(value.get("elidable"), None | Some(Json::Bool(true)))
                     {
                         return Some("a malformed optional".into());
@@ -621,7 +653,18 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     if value.get("elidable").is_some() && !source::elidable(inner) {
                         return Some("a malformed elidable optional".into());
                     }
-                    pending.push(expression(inner, sealed || value.get("elidable").is_some()));
+                    if let Some(default) = value.get("default") {
+                        if value.get("elidable") != Some(&Json::Bool(true))
+                            || !(default.get("string").is_some()
+                                || default.get("const").is_some()
+                                || default.get("param").is_some())
+                        {
+                            return Some("a malformed default".into());
+                        }
+                        pending.push((Part::String, default, depth + 1));
+                    }
+                    let sealed = flags.sealed || value.get("elidable").is_some();
+                    pending.push(expression(inner, ExprFlags { sealed, ..flags }));
                 } else if let Some(inner) = value.get("repeat") {
                     if !exact(value, &["repeat"], &["separator", "chain"])
                         || value
@@ -630,15 +673,17 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     {
                         return Some("a malformed repeat".into());
                     }
-                    pending.push(expression(inner, true));
+                    let chain = value.get("chain").is_some();
+                    let inside = ExprFlags { sealed: flags.sealed, chain, item: !chain, ranked: false };
+                    pending.push(expression(inner, inside));
                     if let Some(separator) = value.get("separator") {
-                        pending.push(expression(separator, true));
+                        pending.push(expression(separator, inside));
                     }
                 } else if value.get("test").is_some() {
                     if !tested_base(value, unicode, expanded) {
                         return Some("a malformed test target or order".into());
                     }
-                    pending.push(expression(value.get("expr").unwrap(), sealed));
+                    pending.push(expression(value.get("expr").unwrap(), flags));
                     match value.get("test").and_then(Json::as_str) {
                         Some("=" | "≠") if exact(value, &["test", "value", "expr"], &[]) => {
                             pending.push((Part::String, value.get("value").unwrap(), next))
@@ -670,7 +715,8 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                             .into(),
                         );
                     };
-                    pending.extend(items.iter().map(|item| expression(item, sealed)));
+                    let inside = ExprFlags { ranked: flags.ranked || key == "ranked", ..flags };
+                    pending.extend(items.iter().map(|item| expression(item, inside)));
                 }
             }
             Part::Recipe => {
@@ -735,11 +781,10 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     let valid = match (name, args) {
                         ("without-elision", []) => capture,
                         ("without-elision-except", [arg]) => capture && rule_arg(arg),
-                        ("verbatim-text" | "emitted", []) => matches!(kind, Part::RecipeAtom) && capture,
+                        ("verbatim-text", []) => matches!(kind, Part::RecipeAtom) && capture,
+                        ("emitted", []) => matches!(kind, Part::RecipeAtom) && capture,
                         ("value" | "image", []) => {
-                            span(receiver)
-                                || matches!(kind, Part::RecipeAtom)
-                                    && receiver.get("method").and_then(Json::as_str) == Some("emitted")
+                            span(receiver) || receiver.get("method").and_then(Json::as_str) == Some("emitted")
                         }
                         (
                             "source-text"
@@ -909,7 +954,10 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                 }
                 if value.get("test").and_then(Json::as_str) == Some("tags") {
                     for r in value.get("requirements").unwrap().as_array().unwrap() {
-                        pending.push((Part::Term, r.get("value").unwrap(), next));
+                        let operand = r.get("value").unwrap();
+                        if operand.get("tag").and_then(Json::as_str) != Some("_Elided") {
+                            pending.push((Part::Term, operand, next));
+                        }
                     }
                 } else if value.get("test").is_some() {
                     pending.push((Part::String, value.get("value").unwrap(), next));

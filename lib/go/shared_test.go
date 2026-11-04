@@ -664,6 +664,10 @@ func TestEngineRunnerAgreedReasons(t *testing.T) {
 func TestEngineRunnerLoadError(t *testing.T) {
 	t.Parallel()
 	grammar := "%rule text A\n%rule text A"
+	runtimeGrammar := "%rule text {ε}"
+	if _, err := casePipeline(&engineCase{Grammar: &runtimeGrammar}, true); err != nil {
+		t.Fatalf("the runtime fixture must load: %v", err)
+	}
 	brackets := ""
 	decoded := func(v any) *any { return &v }
 	// "\xed\xa0\x80" encodes the surrogate U+D800, so this document held in
@@ -681,6 +685,8 @@ func TestEngineRunnerLoadError(t *testing.T) {
 		pass    bool
 	}{
 		{"grammar", &grammar, caseExpect{Error: ErrorGrammar}, true},
+		{"runtime grammar", &runtimeGrammar, caseExpect{Error: ErrorGrammar}, true},
+		{"runtime grammar with where", &runtimeGrammar, caseExpect{Error: ErrorGrammar, Where: where}, false},
 		{"usage", &grammar, caseExpect{Error: ErrorUsage}, false},
 		{"none", &grammar, caseExpect{}, false},
 		{"result", &grammar, caseExpect{Error: ErrorGrammar, Result: decoded(map[string]any{})}, false},
@@ -814,7 +820,7 @@ func decodedResult(t testing.TB, data []byte) map[string]any {
 // The runner fails a case that does not finish in time.
 func TestEngineRunnerTimeout(t *testing.T) {
 	t.Parallel()
-	grammar := doublingGrammar("late-elision", 25, false, "%rule text ε | rN")
+	grammar := doublingGrammar("late #·_<_Elided>", 25, false, "%rule text ε | rN")
 	c := &engineCase{Grammar: &grammar, Tokens: []caseToken{}, Expect: caseExpect{}}
 	if err := checkCaseWithin(c, time.Nanosecond); err == nil || !strings.Contains(err.Error(), "did not finish") {
 		t.Fatalf("the runner gave %v", err)

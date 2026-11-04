@@ -3,12 +3,11 @@
   "document": "```jbogenbau\n%rule a ($x:\"‹U+005C›\" \"{\" _L \"}\") %conditions $x.source-text = (\"a\" ++ \"‹U+005C›\" ++ \"b\")\n\n```\n",
   "expect": {
     "dom": {
-      "format": 40,
+      "format": 44,
       "rules": [
         {
           "name": "a",
           "op": "define",
-          "flags": [],
           "alternatives": [
             {
               "guards": [],

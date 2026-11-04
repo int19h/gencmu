@@ -1,6 +1,6 @@
 {
   "description": "The production that the main parse would choose has a failing `$` condition and a tag term that would be an error of the grammar. The condition fails first, so the main parse loses that production and rejects the text, and the check never runs (engine §4).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | c\n%rule a (A [+T]) :: $.tokens-after-first.tags(migration-fault) %conditions $.source-text = \"q\"\n\n%rule c (A T)\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | c\n%rule a (A [+T]) :: $.tokens-after-first.tags(migration-fault) %conditions $.source-text = \"q\"\n\n%rule c (A T)\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
   "tokens": [
     {
       "text": "a",

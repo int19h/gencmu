@@ -1,0 +1,10 @@
+{
+  "description": "A lean takes no category, so one is an error at the directive (engine §9.3).",
+  "document": "```jbogenbau\n%ambiguity-resolution greedy #·text\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

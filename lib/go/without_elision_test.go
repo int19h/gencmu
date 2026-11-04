@@ -13,7 +13,7 @@ import (
 
 func TestWithoutElisionEmission(t *testing.T) {
 	grammar := "%rule text $x:candidate\n%emits $x:: $x.without-elision.tags(rival)\n%rule candidate X [+T]\n%rule rival X [+T] :: Aligned"
-	d := mustLoad(t, oneStage("%ambiguity-resolution late-elision\n"+grammar))
+	d := mustLoad(t, oneStage("%ambiguity-resolution late #·_<_Elided>\n"+grammar))
 	res, err := d.parseStoredTokens("x", []Token{{Text: "x", Tags: []string{"X"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}, ParseOptions{})
 	if err != nil || !res.OK || len(res.Stages[0].Output) != 1 {
 		t.Fatalf("emission: %v, %+v", err, res)
@@ -25,7 +25,7 @@ func TestWithoutElisionEmission(t *testing.T) {
 
 func TestWithoutElisionOriginalEmptySource(t *testing.T) {
 	grammar := "%rule text $x:candidate Y\n%conditions $x.without-elision.matches(rival)\n%rule candidate X [+T=\"a\"]\n%rule rival X [+T=\"b\"]\n%conditions $.source-text = \"\", $.value = \"a\", $.starts-input, $.following-tokens.begins(suffix)\n%rule suffix Y"
-	d := mustLoad(t, oneStage("%ambiguity-resolution late-elision\n"+grammar))
+	d := mustLoad(t, oneStage("%ambiguity-resolution late #·_<_Elided>\n"+grammar))
 	tokens := []Token{
 		{Text: "", Value: "a", Tags: []string{"X"}, Span: [2]int{0, 1}, Source: [2]int{0, 0}},
 		{Text: "y", Tags: []string{"Y"}, Span: [2]int{1, 2}, Source: [2]int{0, 1}},
@@ -38,7 +38,7 @@ func TestWithoutElisionOriginalEmptySource(t *testing.T) {
 
 func TestWithoutElisionCommonEntryValue(t *testing.T) {
 	grammar := "%rule text Q $x:choice\n%conditions $x.without-elision.matches(choice)\n%rule choice $p:prefix (a ≻ b)\n%rule prefix t | u\n%rule t X [+T=\"a\"]\n%conditions ¬$.starts-input\n%rule u X [+T=\"b\"]\n%conditions $.starts-input\n%rule a Y [+U]\n%rule b Y [+V]"
-	d := mustLoad(t, oneStage("%ambiguity-resolution late-elision\n"+grammar))
+	d := mustLoad(t, oneStage("%ambiguity-resolution late #·_<_Elided>\n"+grammar))
 	tokens := []Token{}
 	for i, tag := range []string{"Q", "X", "Y"} {
 		tokens = append(tokens, Token{Text: strings.ToLower(tag), Tags: []string{tag}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}})
@@ -153,7 +153,7 @@ func TestWithoutElisionParserGrowth(t *testing.T) {
 	}
 	for name, grammar := range grammars {
 		t.Run(name, func(t *testing.T) {
-			d := mustLoad(t, oneStage("%ambiguity-resolution late-elision\n"+grammar))
+			d := mustLoad(t, oneStage("%ambiguity-resolution late #·_<_Elided>\n"+grammar))
 			var previousItems, previousLinks int64
 			for _, n := range []int{12, 24, 48} {
 				tokens := make([]Token, n)

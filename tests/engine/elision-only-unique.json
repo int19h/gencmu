@@ -1,6 +1,6 @@
 {
   "description": "A unique parse with an elided node needs the check. On A, only the marked optional parses. Restoring T also enables z, so elision-only reports ambiguity with verdict unique.",
-  "grammar": "%ambiguity-resolution greedy elision-only\n%rule text (A [+T]) | (A z)\n%rule z T",
+  "grammar": "%ambiguity-resolution greedy\n%elision-only\n%rule text (A [+T]) | (A z)\n%rule z T",
   "tokens": [
     {
       "text": "a",

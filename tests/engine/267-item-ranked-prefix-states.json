@@ -1,0 +1,13 @@
+{
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $v:w (\" \" $e:q ≻ \" \" $e:q)\n%conditions\n  $v.emitted.value ≠ \"unused\" ∧\n  $v.emitted.value = $e.emitted.value\n%rule w \"a\" := \"no\" | \"a\" := \"yes\"\n%rule q \"a\" := \"yes\"",
+  "input": "a a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 3
+    }
+  }
+}

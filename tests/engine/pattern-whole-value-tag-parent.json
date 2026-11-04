@@ -1,0 +1,28 @@
+{
+  "description": "A lazy tag clause retains children when a parent condition requires its tag.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $x:r\n%conditions X ⊆ $x.tags\n%rule r :: ($ ≅ #(r=\"a\" ∩ « A ») ⟹ X)\n  | A\n%conditions $.tags = X",
+  "tokens": [
+    {
+      "text": "a",
+      "value": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "r",
+            "tags": [
+              "X"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

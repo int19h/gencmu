@@ -16,7 +16,7 @@ pub(crate) enum Pattern {
     Range(Term, Term, (usize, usize)),
     Wildcard((usize, usize)),
     Constant(String, (usize, usize)),
-    Test(String, Term, Box<Pattern>),
+    Test(String, Term, Box<Pattern>, Option<(usize, usize)>),
     Node(Box<Pattern>, bool, Option<Children>),
     Any,
     Path(String, Box<Pattern>),
@@ -129,9 +129,9 @@ impl Pattern {
                         });
                     }
                 }
-                Part::Pattern(Self::Test(_, _, inner)) => {
+                Part::Pattern(Self::Test(_, _, inner, _)) => {
                     let mut base = inner.as_ref();
-                    while let Self::Test(_, _, nested) = base {
+                    while let Self::Test(_, _, nested, _) = base {
                         base = nested;
                     }
                     if let Self::Constant(name, at) = base {
@@ -183,7 +183,7 @@ impl Part<'_> {
                     push(Part::Term(b, None));
                     push(Part::Term(a, None));
                 }
-                Pattern::Test(op, term, inner) => {
+                Pattern::Test(op, term, inner, _) => {
                     push(Part::Term(term, Some(op)));
                     push(Part::Pattern(inner));
                 }
@@ -254,7 +254,9 @@ impl Pattern {
                 Self::Terminal(format!("{a}..{b}"), *at)
             }
             Self::Wildcard(a) => Self::Terminal("_".into(), *a),
-            Self::Test(op, v, n) => Self::Test(op.clone(), value(v, op)?, Box::new(n.map_values(constant, value)?)),
+            Self::Test(op, v, n, mark_at) => {
+                Self::Test(op.clone(), value(v, op)?, Box::new(n.map_values(constant, value)?), *mark_at)
+            }
             Self::Node(node, exact, children) => Self::Node(
                 Box::new(node.map_values(constant, value)?),
                 *exact,
@@ -313,6 +315,7 @@ fn merge(a: &[u64], b: &[u64]) -> Bits {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct State {
+    tree: u32,
     observation: u32,
     family: u32,
     oracle: u32,
@@ -336,7 +339,7 @@ struct Nfa {
 enum NodeTest {
     Name(String),
     Terminal(String),
-    Test(Vec<(String, Term)>, String),
+    Test(Pattern),
     Any,
 }
 #[derive(Debug)]
@@ -356,6 +359,9 @@ enum PatternItem {
 }
 #[derive(Debug)]
 pub(crate) struct Machine {
+    pub trees: Option<crate::tree_identity::Arena>,
+    pub node_tags: bool,
+    pub node_values: bool,
     predicates: Vec<Predicate>,
     machines: Vec<Nfa>,
     ids: FxMap<String, usize>,
@@ -376,7 +382,7 @@ fn pattern_key(p: &Pattern) -> String {
             Pattern::Name(s, _) => Pattern::Name(s.clone(), (0, 0)),
             Pattern::Terminal(s, _) => Pattern::Terminal(s.clone(), (0, 0)),
             Pattern::Constant(s, _) => Pattern::Constant(s.clone(), (0, 0)),
-            Pattern::Test(op, v, n) => Pattern::Test(op.clone(), v.clone(), Box::new(plain(n))),
+            Pattern::Test(op, v, n, _) => Pattern::Test(op.clone(), v.clone(), Box::new(plain(n)), None),
             Pattern::Node(node, exact, attached) => {
                 Pattern::Node(Box::new(plain(node)), *exact, attached.as_ref().map(children))
             }
@@ -406,6 +412,8 @@ fn pattern_key(p: &Pattern) -> String {
 impl Machine {
     pub(crate) fn new(roots: &[Pattern]) -> Self {
         Self::build(|m| {
+            m.node_tags = roots.iter().any(reads_node_tags);
+            m.node_values = roots.iter().any(reads_node_values);
             for p in roots {
                 m.compile(p);
             }
@@ -413,6 +421,9 @@ impl Machine {
     }
     fn build(configure: impl FnOnce(&mut Self)) -> Self {
         let mut m = Self {
+            trees: None,
+            node_tags: false,
+            node_values: false,
             predicates: vec![],
             machines: vec![],
             ids: FxMap::default(),
@@ -428,6 +439,7 @@ impl Machine {
         let zero = vec![0; m.predicates.len().div_ceil(64)];
         let relations = m.machines.iter().map(|n| n.epsilon.clone()).collect();
         m.empty = m.intern(State {
+            tree: 0,
             observation: 0,
             family: 0,
             oracle: 0,
@@ -461,16 +473,7 @@ impl Machine {
             Pattern::Terminal(s, _) => {
                 Predicate::Node { test: NodeTest::Terminal(s.clone()), exact: false, children: None }
             }
-            Pattern::Test(..) => {
-                let mut tests = Vec::new();
-                let mut base = p;
-                while let Pattern::Test(op, value, inner) = base {
-                    tests.push((op.clone(), value.clone()));
-                    base = inner;
-                }
-                let Pattern::Terminal(terminal, _) = base else { unreachable!("a tested terminal atom") };
-                Predicate::Node { test: NodeTest::Test(tests, terminal.clone()), exact: false, children: None }
-            }
+            Pattern::Test(..) => Predicate::Node { test: NodeTest::Test(p.clone()), exact: false, children: None },
             Pattern::Path(path, p) => Predicate::Path(path.clone(), self.compile(p)),
             Pattern::Union(xs) => Predicate::Union(xs.iter().map(|p| self.compile(p)).collect()),
             Pattern::Intersection(xs) => Predicate::Intersection(xs.iter().map(|p| self.compile(p)).collect()),
@@ -489,16 +492,7 @@ impl Machine {
             Pattern::Name(name, _) => NodeTest::Name(name.clone()),
             Pattern::Terminal(name, _) => NodeTest::Terminal(name.clone()),
             Pattern::Any => NodeTest::Any,
-            Pattern::Test(..) => {
-                let mut tests = Vec::new();
-                let mut base = pattern;
-                while let Pattern::Test(op, value, inner) = base {
-                    tests.push((op.clone(), value.clone()));
-                    base = inner;
-                }
-                let Pattern::Terminal(terminal, _) = base else { unreachable!("a tested terminal atom") };
-                NodeTest::Test(tests, terminal.clone())
-            }
+            Pattern::Test(..) => NodeTest::Test(pattern.clone()),
             _ => unreachable!("a resolved node test"),
         }
     }
@@ -622,6 +616,7 @@ impl Machine {
             })
             .collect();
         let id = self.intern(State {
+            tree: 0,
             observation: 0,
             family: 0,
             oracle: 0,
@@ -648,7 +643,12 @@ impl Machine {
             Some(observations) => observations.join(a.observation, b.observation),
             None => 0,
         };
+        let tree = match self.trees.as_mut() {
+            Some(trees) if a.tree != 0 || b.tree != 0 => trees.join(a.tree, b.tree),
+            _ => 0,
+        };
         let s = State {
+            tree,
             observation,
             family: {
                 let family = self.families.join(a.family, b.family);
@@ -676,7 +676,26 @@ impl Machine {
         id
     }
     pub(crate) fn node(&mut self, name: Option<&str>, children: u32, leaf: Option<(&str, &str, &[String])>) -> u32 {
-        let key = format!("n{name:?}/{children}/{leaf:?}");
+        self.node_with_tags(name, children, leaf, leaf.map_or(&[], |(_, _, tags)| tags))
+    }
+    pub(crate) fn node_with_tags(
+        &mut self,
+        name: Option<&str>,
+        children: u32,
+        leaf: Option<(&str, &str, &[String])>,
+        tags: &[String],
+    ) -> u32 {
+        self.node_with_value(name, children, leaf, tags, None)
+    }
+    pub(crate) fn node_with_value(
+        &mut self,
+        name: Option<&str>,
+        children: u32,
+        leaf: Option<(&str, &str, &[String])>,
+        tags: &[String],
+        value: Option<&str>,
+    ) -> u32 {
+        let key = format!("n{name:?}/{children}/{leaf:?}/{tags:?}/{value:?}");
         if let Some(&id) = self.transitions.get(&key) {
             return id;
         }
@@ -687,10 +706,8 @@ impl Machine {
                 Predicate::Node { test, children, .. } => {
                     let holds = match test {
                         NodeTest::Name(n) => name == Some(n),
-                        NodeTest::Terminal(t) => leaf.is_some_and(|(n, _, _)| n == t),
-                        NodeTest::Test(tests, terminal) => leaf.is_some_and(|(name, value, tags)| {
-                            name == terminal && tests.iter().all(|(op, operand)| leaf_test(op, operand, value, tags))
-                        }),
+                        NodeTest::Terminal(t) => leaf.is_some_and(|(n, _, _)| t == "_" || n == t),
+                        NodeTest::Test(pattern) => local_matches_with_value(pattern, name, leaf, tags, value),
                         NodeTest::Any => name.is_some() || leaf.is_some(),
                     };
                     holds
@@ -740,6 +757,7 @@ impl Machine {
         };
         let zero = vec![0; bits.len()];
         let state = State {
+            tree: 0,
             observation: s.observation,
             family: s.family,
             oracle: s.oracle,
@@ -754,6 +772,35 @@ impl Machine {
         let id = self.intern(state);
         self.transitions.insert(key, id);
         id
+    }
+    pub(crate) fn tree_state(&self, state: u32) -> u32 {
+        self.states[state as usize].tree
+    }
+    pub(crate) fn tree(&self, state: u32) -> Option<crate::tree_identity::Tree> {
+        if state == u32::MAX {
+            return None;
+        }
+        self.trees.as_ref().and_then(|arena| arena.get(self.states[state as usize].tree))
+    }
+    pub(crate) fn with_tree(&mut self, state: u32, tree: u32) -> u32 {
+        if self.states[state as usize].tree == tree {
+            return state;
+        }
+        let mut state = self.states[state as usize].clone();
+        state.tree = tree;
+        self.intern(state)
+    }
+    pub(crate) fn select(&mut self, state: u32, closes: bool, trees: bool) -> u32 {
+        let mut state = self.states[state as usize].clone();
+        if !closes {
+            state.observation = 0;
+            state.family = 0;
+            state.oracle = 0;
+        }
+        if !trees {
+            state.tree = 0;
+        }
+        self.intern(state)
     }
     pub(crate) fn observation(&self, state: u32) -> u32 {
         self.states[state as usize].observation
@@ -778,6 +825,7 @@ impl Machine {
         s.observation = 0;
         s.family = 0;
         s.oracle = 0;
+        s.tree = 0;
         self.intern(s)
     }
     pub(crate) fn block(&mut self, block: crate::restoration::Block, child: u32) -> u32 {
@@ -918,3 +966,94 @@ mod tests {
 #[cfg(test)]
 #[path = "patterns/layered_tests.rs"]
 mod layered_tests;
+
+pub(crate) fn local_matches(
+    pattern: &Pattern,
+    name: Option<&str>,
+    leaf: Option<(&str, &str, &[String])>,
+    tags: &[String],
+) -> bool {
+    local_matches_with_value(pattern, name, leaf, tags, None)
+}
+
+pub(crate) fn local_matches_with_value(
+    pattern: &Pattern,
+    name: Option<&str>,
+    leaf: Option<(&str, &str, &[String])>,
+    tags: &[String],
+    node_value: Option<&str>,
+) -> bool {
+    match pattern {
+        Pattern::Node(inner, _, _) => local_matches_with_value(inner, name, leaf, tags, node_value),
+        Pattern::Name(rule, _) => name == Some(rule),
+        Pattern::Terminal(terminal, _) => leaf.is_some_and(|(read, _, _)| terminal == "_" || read == terminal),
+        Pattern::Any => name.is_some() || leaf.is_some(),
+        Pattern::Test(op, value, inner, _) => {
+            local_matches_with_value(inner, name, leaf, tags, node_value)
+                && if op == "tags" {
+                    leaf_test(op, value, "", tags)
+                } else {
+                    leaf.map(|(_, sound, _)| sound)
+                        .or(node_value)
+                        .is_some_and(|sound| leaf_test(op, value, sound, tags))
+                }
+        }
+        Pattern::Union(items) => items.iter().any(|p| local_matches_with_value(p, name, leaf, tags, node_value)),
+        Pattern::Intersection(items) => items.iter().all(|p| local_matches_with_value(p, name, leaf, tags, node_value)),
+        Pattern::Difference(a, b) => {
+            local_matches_with_value(a, name, leaf, tags, node_value)
+                && !local_matches_with_value(b, name, leaf, tags, node_value)
+        }
+        _ => false,
+    }
+}
+
+pub(crate) fn reads_node_tags(pattern: &Pattern) -> bool {
+    pattern.walk().any(|part|matches!(part,Part::Pattern(Pattern::Test(op,_,inner, _)) if op == "tags" && matches!(inner.as_ref(),Pattern::Name(..)|Pattern::Source(crate::dom::source::SourceSymbol::Call(_)))))
+}
+
+pub(crate) fn requires_elided(pattern: &Pattern) -> bool {
+    match pattern {
+        Pattern::Union(parts) => parts.iter().all(requires_elided),
+        Pattern::Intersection(parts) => parts.iter().any(requires_elided),
+        Pattern::Difference(a, _) | Pattern::Node(a, _, _) => requires_elided(a),
+        Pattern::Test(op, Term::Call(_, requirements), inner, _) if op == "tags" => {
+            requirements.iter().any(|r| matches!(r,Arg::Term(t) if positive_elided(t))) || requires_elided(inner)
+        }
+        Pattern::Test(_, _, inner, _) => requires_elided(inner),
+        _ => false,
+    }
+}
+fn positive_elided(term: &Term) -> bool {
+    match term {
+        Term::Tag(tag) => tag == "_Elided",
+        Term::Union(parts) => parts.iter().any(positive_elided),
+        _ => false,
+    }
+}
+
+pub(crate) fn ranking_problem(pattern: &Pattern) -> Option<&'static str> {
+    match pattern {
+        Pattern::Union(parts) | Pattern::Intersection(parts) => parts.iter().find_map(ranking_problem),
+        Pattern::Difference(a, b) => ranking_problem(a).or_else(|| ranking_problem(b)),
+        Pattern::Node(inner, true, None)
+            if matches!(inner.as_ref(), Pattern::Name(..) | Pattern::Terminal(..) | Pattern::Test(..)) =>
+        {
+            None
+        }
+        _ => Some("a ranking step requires an exact local node pattern"),
+    }
+}
+
+pub(crate) fn reads_node_values(pattern: &Pattern) -> bool {
+    pattern.walk().any(|part| match part {
+        Part::Pattern(Pattern::Test(op, _, inner, _)) if op != "tags" => {
+            let atom = match inner.as_ref() {
+                Pattern::Test(_, _, atom, _) => atom.as_ref(),
+                atom => atom,
+            };
+            matches!(atom, Pattern::Name(..) | Pattern::Source(crate::dom::source::SourceSymbol::Call(_)))
+        }
+        _ => false,
+    })
+}

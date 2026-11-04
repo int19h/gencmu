@@ -71,7 +71,7 @@ class NotationShapes(unittest.TestCase):
             gencmu.load_pipeline_sources({
                 "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
                 "g.md": case["document"],
-                "data/preparsed/gencmu.json": BOOTSTRAP.replace(case["find"], case["replace"]),
+                "data/preparsed/gencmu.json": substitute(BOOTSTRAP, case["find"], case["replace"]),
             }, "p.md")
 
     def test_a_supplied_ranked_choice_error_has_no_syntax_code(self) -> None:
@@ -99,7 +99,7 @@ class NotationShapes(unittest.TestCase):
             "seq": [{"ref": "padding"}, {"ref": "Guard"}]
         }
         syntax["rules"].append({
-            "name": "padding", "op": "define", "flags": [],
+            "name": "padding", "op": "define",
             "alternatives": [{"guards": [], "expr": {"empty": True}}],
             "conditions": [], "at": [1, 1],
         })
@@ -123,7 +123,7 @@ class NotationShapes(unittest.TestCase):
 
     def test_a_notation_stage_that_declares_elision_only_runs_the_check(self) -> None:
         """Each notation stage runs the check of elision-only where its own
-        directive declares it (engine §8). With greedy and elision-only on
+        %elision-only declares it (engine §8). With greedy and elision-only on
         the lexical stage, the check finds the ambiguity that greedy settled
         in `...`, which is also three `.`, and the document does not load."""
         parsed = json.loads(BOOTSTRAP)
@@ -132,11 +132,10 @@ class NotationShapes(unittest.TestCase):
             {"guards": [], "expr": {"literal": {"string": "."}}}
         )
         bootstrap = json.dumps(parsed, separators=(",", ":"), ensure_ascii=False)
-        directive = '"name":"ambiguity-resolution","args":["greedy"]'
-        lexical = bootstrap.index('"grammars/gencmu/jbogenbau/lexical.md":')
-        at = bootstrap.index(directive)
-        self.assertTrue(lexical < at < bootstrap.index('"grammars/gencmu/jbogenbau/syntax.md":'), "the first directive is the lexical stage's")
-        elision = bootstrap.replace(directive, '"name":"ambiguity-resolution","args":["greedy","elision-only"]', 1)
+        directive = next(item for item in lexical_dom["directives"] if item["name"] == "ambiguity-resolution")
+        self.assertEqual(directive["steps"], [{"step": "greedy"}])
+        lexical_dom["directives"].append({"name": "elision-only", "args": [], "at": [directive["at"][0], directive["at"][1] + 40]})
+        elision = json.dumps(parsed, separators=(",", ":"), ensure_ascii=False)
 
         def sources(bootstrap: str) -> dict[str, str]:
             return {
@@ -163,7 +162,7 @@ class NotationShapes(unittest.TestCase):
                 for field in ("ref", "rule"):
                     syntax = syntax.replace(f'"{field}":"{name}"', f'"{field}":"{name}-wrapper"')
             wrappers = "".join(
-                f'{{"name":"{name}-wrapper","op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],'
+                f'{{"name":"{name}-wrapper","op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],'
                 f'"conditions":[],"at":[{100000 + index},1]}},'
                 for index, name in enumerate(NAMES)
             )
@@ -188,6 +187,14 @@ class NotationShapes(unittest.TestCase):
     def test_a_part_that_the_reader_does_not_read_is_ignored(self) -> None:
         for item in SHAPES["extraParts"]:
             with self.subTest(item["description"]):
-                self.assertEqual(len(find_places(BOOTSTRAP, item["find"])), 1)
-                changed = substitute(BOOTSTRAP, item["find"], item["replace"])
-                self.assertTrue(same_json(outcome(changed, item["document"], item["inputs"], item.get("where")), item["expect"]))
+                # A find and a replace can be arrays of pairs, applied in
+                # order (tests/README.md).
+                finds, replaces = item["find"], item["replace"]
+                if isinstance(finds, str):
+                    finds, replaces = [finds], [replaces]
+                self.assertEqual(len(finds), len(replaces))
+                changed = BOOTSTRAP
+                for find, replace in zip(finds, replaces):
+                    self.assertEqual(len(find_places(changed, find)), 1)
+                    changed = substitute(changed, find, replace)
+                self.assertEqual(outcome(changed, item["document"], item["inputs"], item.get("where")), item["expect"])

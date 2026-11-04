@@ -156,6 +156,14 @@ fn harness_detects_a_wrong_expectation() {
     assert!(placed(r#"{"document": "main.md", "line": 4, "column": 1}"#).is_ok());
     assert!(placed(r#"{"document": "main.md", "line": 3, "column": 1}"#).is_err());
     assert!(placed(r#"{"document": "pipeline.md", "line": 4, "column": 1}"#).is_err());
+    let (documents, path) = common::case_documents(&parse_json(r#"{"grammar":"%rule text {ε}","input":""}"#).unwrap());
+    gencmu::load_pipeline_sources(documents, &path).expect("the runtime fixture loads");
+    let runtime = |expect: &str| {
+        let case = format!(r#"{{"grammar":"%rule text {{ε}}","input":"","expect":{expect}}}"#);
+        run_engine_case(&parse_json(&case).unwrap())
+    };
+    assert!(runtime(r#"{"error":"grammar"}"#).is_ok());
+    assert!(runtime(r#"{"error":"grammar","where":{"document":"main.md"}}"#).is_err());
     // A load error meets only an expectation of that kind of error, with
     // nothing that only a loaded pipeline gives.
     let unloaded = |expect: &str| {
@@ -250,7 +258,7 @@ fn a_check_that_loses_its_witness_is_the_grammar_error_elision_witness_lost() {
     use common::{result_problems, witness_problem, Value};
     use gencmu::tools::{losing_witness, with_elision_checks, Loss};
     let case = parse_json(
-        r#"{"documents": {"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ :: Tag-x\n%rule b A [+T=\"ta\"] [+U] [+U]\n%stage later\n%ambiguity-resolution greedy\n%rule text Tag-x\n```\n"},
+        r#"{"documents": {"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ :: Tag-x\n%rule b A [+T=\"ta\"] [+U] [+U]\n%stage later\n%ambiguity-resolution greedy\n%rule text Tag-x\n```\n"},
             "pipelineDocument": "p.md", "tokens": [{"text": "a", "tags": ["A"]}], "options": {"features": ["w"]}}"#,
     )
     .unwrap();

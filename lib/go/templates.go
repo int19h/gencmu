@@ -430,7 +430,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			if extraIndexes[event.index] {
 				name = "text"
 			}
-			rule := templateObject{"name": name, "op": "define", "flags": []any{}, "conditions": []any{}, "alternatives": []any{templateObject{"guards": []any{}, "expr": x.rewrite(body, event, "expr")}}, "at": event.rule["at"]}
+			rule := templateObject{"name": name, "op": "define", "conditions": []any{}, "alternatives": []any{templateObject{"guards": []any{}, "expr": x.rewrite(body, event, "expr")}}, "at": event.rule["at"]}
 			if open {
 				rule["params"] = event.rule["params"]
 			}
@@ -1018,7 +1018,11 @@ func (x *templateExpander) rewrite(root any, e *templateEvent, position string) 
 			if len(members) > 0 {
 				return templateObject{"union": members}
 			}
-			return templateObject{"difference": []any{templateObject{"name": "text", "at": n["at"]}, templateObject{"name": "text", "at": n["at"]}}}
+			left, right := templateObject{"name": "text", "at": n["at"]}, templateObject{"name": "text", "at": n["at"]}
+			if n["exact"] == true {
+				left["exact"], right["exact"] = true, true
+			}
+			return templateObject{"difference": []any{left, right}}
 		}
 		if x.templates[templateText(n["ref"])] != nil || x.templates[templateText(n["rule"])] != nil {
 			x.fail(e, n, "a bare template reference must name one instance")
@@ -1028,6 +1032,9 @@ func (x *templateExpander) rewrite(root any, e *templateEvent, position string) 
 			if k != "at" && k != templateSourceKey {
 				r[k] = x.rewrite(v, e, templateChildPosition(k, position))
 			}
+		}
+		if position == "pattern" && r["test"] != nil {
+			return distributeFamilyTest(r)
 		}
 		if position == "pattern" {
 			for _, key := range []string{"union", "intersection"} {
@@ -1060,4 +1067,23 @@ func (x *templateExpander) inspectDefinition(e *templateEvent) {
 	if problem := checkDOMMode(dom, x.uni, true); problem != nil {
 		x.fail(e, e.rule, problem.message)
 	}
+}
+
+func distributeFamilyTest(test templateObject) templateObject {
+	for _, key := range []string{"union", "intersection", "difference"} {
+		if parts := templateList(templateObj(test["expr"])[key]); parts != nil {
+			members := make([]any, 0, len(parts))
+			for _, part := range parts {
+				member := templateCopy(test)
+				member["expr"] = part
+				members = append(members, distributeFamilyTest(member))
+			}
+			out := templateObject{key: members}
+			if source, ok := test[templateSourceKey]; ok {
+				out[templateSourceKey] = source
+			}
+			return out
+		}
+	}
+	return test
 }

@@ -317,7 +317,7 @@ func (run *stageRun) run(g *lowered, elisionOnly bool, features map[string]bool)
 	top := rec.accepted(start)
 	var res *rankResult
 	if len(top) > 0 {
-		res = newRanker(rec, g.lean).rank(top)
+		res = newRanker(rec, g.steps, g.lean).rank(top)
 	}
 	if res == nil {
 		if out.err == nil {
@@ -462,16 +462,16 @@ func writtenSymbol(name string, t *symTest) string {
 // elidedValue is the string of an elided terminator's = test, which a
 // restored token sounds like (§7), or "".
 func elidedValue(t *symTest) string {
-	if t == nil || t.op != "=" {
+	if t == nil || t.defaultValue == nil {
 		return ""
 	}
-	return t.sound
+	return *t.defaultValue
 }
 
 // elidedTested says whether an elided terminator has an = test, whose
 // string is its saved sound (§7.2).
 func elidedTested(t *symTest) bool {
-	return t != nil && t.op == "="
+	return t != nil && t.defaultValue != nil
 }
 
 func (run *stageRun) activateFeatures(items []stageFeature, features map[string]bool, disabled []string) (failure *ParseError) {

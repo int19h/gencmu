@@ -1,0 +1,30 @@
+{
+  "description": "In the eberban/refgram pipeline, native-delimiter reads a digit with the value te as the closing delimiter of te. Its pair is delimiter-digit-interior.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "co te[x]1",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "co te[x]te",
+              "image": "co te[x]1"
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": []
+  }
+}

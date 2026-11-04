@@ -1,0 +1,128 @@
+{
+  "description": "A ranking directive gives its key steps and its lean in order (engine §9.2, output.md).",
+  "document": "```jbogenbau\n%ambiguity-resolution leftmost-longest #(·text ∖ ·text), fewest #(·text ∖ ·text), most #(·text ∖ ·text), early #(·text ∖ ·text), late #·_<_Elided>, lazy\n```\n",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "leftmost-longest",
+              "pattern": {
+                "difference": [
+                  {
+                    "name": "text",
+                    "exact": true,
+                    "at": [
+                      2,
+                      43
+                    ]
+                  },
+                  {
+                    "name": "text",
+                    "exact": true,
+                    "at": [
+                      2,
+                      51
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "step": "fewest",
+              "pattern": {
+                "difference": [
+                  {
+                    "name": "text",
+                    "exact": true,
+                    "at": [
+                      2,
+                      68
+                    ]
+                  },
+                  {
+                    "name": "text",
+                    "exact": true,
+                    "at": [
+                      2,
+                      76
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "step": "most",
+              "pattern": {
+                "difference": [
+                  {
+                    "name": "text",
+                    "exact": true,
+                    "at": [
+                      2,
+                      91
+                    ]
+                  },
+                  {
+                    "name": "text",
+                    "exact": true,
+                    "at": [
+                      2,
+                      99
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "step": "early",
+              "pattern": {
+                "difference": [
+                  {
+                    "name": "text",
+                    "exact": true,
+                    "at": [
+                      2,
+                      115
+                    ]
+                  },
+                  {
+                    "name": "text",
+                    "exact": true,
+                    "at": [
+                      2,
+                      123
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "step": "late",
+              "pattern": {
+                "test": "tags",
+                "requirements": [
+                  {
+                    "negated": false,
+                    "value": {
+                      "tag": "_Elided"
+                    }
+                  }
+                ],
+                "exact": true,
+                "expr": {
+                  "wildcard": true
+                }
+              }
+            },
+            {
+              "step": "lazy"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

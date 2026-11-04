@@ -1,0 +1,13 @@
+{
+  "description": "A step constant must resolve to a pattern (engine §9.3).",
+  "grammar": "%const $P \"a\"\n%ambiguity-resolution fewest $P\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 30
+    }
+  }
+}

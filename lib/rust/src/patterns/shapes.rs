@@ -94,7 +94,8 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
     let name = inspect.name.unwrap_or(&rule_name);
     let terminal = inspect.terminal.unwrap_or(&terminal_name);
     let requirement_term = |n: &Json| {
-        string_term(n) && !has(n, "string") || only(n, &["tag"]) && get(n, "tag").as_str().is_some_and(terminal)
+        string_term(n) && !has(n, "string")
+            || only(n, &["tag"]) && get(n, "tag").as_str().is_some_and(|name| name == "_Elided" || terminal(name))
     };
     let mut pending = vec![Frame { node: root, item: false, repeated: false, inner: false, depth: inspect.depth }];
     while let Some(t) = pending.pop() {
@@ -186,9 +187,14 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
         if key == "test" {
             if get(n, "test").as_str() == Some("tags") {
                 fields.extend(["requirements", "expr"]);
-                let Some(requirements) = get(n, "requirements").as_array().filter(|_| terminal_atom(get(n, "expr")))
-                else {
-                    return Err("a pattern tag test requires a terminal atom".into());
+                let Some(requirements) = get(n, "requirements").as_array().filter(|_| {
+                    let e = get(n, "expr");
+                    terminal_atom(e)
+                        || ["name", "call", "param"].iter().any(|key| has(e, key))
+                            && !has(e, "exact")
+                            && !has(e, "children")
+                }) else {
+                    return Err("a pattern tag test requires an undecorated atom".into());
                 };
                 for requirement in requirements {
                     if !only(requirement, &["value", "negated"])
@@ -201,14 +207,17 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
             } else {
                 fields.extend(["value", "expr"]);
                 let expr = get(n, "expr");
-                if !matches!(get(n, "test").as_str(), Some("=" | "≠"))
-                    || !(terminal_atom(expr)
-                        || get(expr, "test").as_str() == Some("tags")
-                            && !has(expr, "exact")
-                            && !has(expr, "children")
-                            && terminal_atom(get(expr, "expr")))
-                {
-                    return Err("a pattern value test requires a terminal atom".into());
+                let target =
+                    if get(expr, "test").as_str() == Some("tags") && !has(expr, "exact") && !has(expr, "children") {
+                        get(expr, "expr")
+                    } else {
+                        expr
+                    };
+                let rule_atom = ["name", "call", "param"].iter().any(|key| has(target, key))
+                    && !has(target, "exact")
+                    && !has(target, "children");
+                if !matches!(get(n, "test").as_str(), Some("=" | "≠")) || !(terminal_atom(target) || rule_atom) {
+                    return Err("a pattern value test requires an undecorated atom".into());
                 }
                 if !string_term(get(n, "value")) {
                     return Err("a malformed pattern value test".into());
@@ -217,7 +226,9 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
             if let Some(problem) = inspect.test.and_then(|test| test(n)) {
                 return Err(problem);
             }
-            pending.push(t.child(get(n, "expr"), false, false, true));
+            if let Some(expr) = n.get("expr") {
+                pending.push(t.child(expr, false, false, true));
+            }
         } else if key == "any" {
             if get(n, "any").as_bool() != Some(true) || !has(n, "children") {
                 return Err("a malformed bare child list".into());
@@ -251,7 +262,7 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
                         return Err("a malformed pattern reference".into());
                     }
                 }
-                "terminal" if !value.as_str().is_some_and(terminal) => {
+                "terminal" if !value.as_str().is_some_and(|name| name != "_Elided" && terminal(name)) => {
                     return Err("a malformed pattern terminal".into())
                 }
                 "wildcard" if value.as_bool() != Some(true) => return Err("a malformed pattern wildcard".into()),
@@ -380,7 +391,9 @@ pub(crate) fn text(root: &Json, term: &dyn Fn(&Json) -> String, literal: bool) -
                         tasks.push(Task::Text("·"));
                     }
                     if let Some(test) = n.get("test").and_then(Json::as_str) {
-                        tasks.push(Task::Pattern(get(n, "expr")));
+                        if let Some(expr) = n.get("expr") {
+                            tasks.push(Task::Pattern(expr));
+                        }
                         if test == "tags" {
                             let requirements = Json::Obj(vec![("requirements".into(), get(n, "requirements").clone())]);
                             tasks.push(Task::Term(Cow::Owned(requirements)));

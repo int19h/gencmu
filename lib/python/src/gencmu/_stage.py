@@ -9,22 +9,22 @@ from typing import Any, Union
 
 from ._earley import RESTORE, Evaluator, Forest, Parser, Sources, StageContext
 from ._errors import _GrammarFault
-from ._grammar import Lowered, Production, SymbolTest
+from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._markdown import line_column
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Restoration, Tags, Token
 from ._rank import (
     Act,
-    Profile,
+    Profiles,
+    Ranker,
     Ranking,
     Rope,
     actions,
-    compare_profiles,
     concat,
     first_difference,
     leaf,
     rank,
-    sum_profiles,
 )
+from ._ranking_patterns import can_count_profiles, requires_elided
 from ._trampoline import run
 from ._recipes import selected
 from ._unicode import UnicodeTable
@@ -84,7 +84,7 @@ def derivation(forest: Forest, rope: Rope | None) -> DNode:
 def _restored_value(test: SymbolTest | None) -> str | None:
     """A restored terminator's value: the string of its = test,
     or nothing (engine §7)."""
-    return test.value if test is not None and test.op == "=" else None
+    return test.default_value if test is not None else None
 
 
 def _range_source(sources: Sources, start: int, end: int) -> Range:
@@ -321,6 +321,8 @@ class Emitter:
             return self.channels[key]
         if isinstance(part, DRead):
             return getattr(self.tokens[part.token], channel)
+        if part.production.elided is not None and not part.children:
+            return ""
         if part.production.erased:
             return ""
         if key in self.active:
@@ -430,6 +432,9 @@ class Emitter:
                      else self.boundary_last.get(part.start, ()))
             return any(arg.get("rule", arg.get("terminal")) in names for arg in atom["args"])
         bound.boundary_test = boundary_test
+        from ._tree_identities import comparisons, derivation_identity
+        if comparisons(term):
+            bound.tree_reader = lambda name: derivation_identity(self.context, self.capture(node, name))
         return self.evaluator.tags(term, bound)
 
     def emit_item(self, node: DNode, item: tuple, out: list[Token]) -> None:
@@ -601,7 +606,7 @@ class StageRunner:
         context = StageContext(lowered, self.tokens, self.text, self.unicode)
         start = lowered.rule_ids["text"]
         forest = Parser(context).parse(start)
-        ranking = rank(forest, lowered.lean)
+        ranking = rank(forest, lowered.steps, lowered.lean)
         if ranking is None:
             if forest.roots:
                 forest.furthest = len(self.tokens)
@@ -685,35 +690,31 @@ class StageRunner:
         # An optional test hook observes the witness (tests/README.md).
         hook = _testing.elision_check
         watch = hook(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at)) if hook is not None else None
-        # The reconstruction ranks with no stage policy, and
-        # they rank with no lean (engine §7.7).
-        chosen_profile = ()
-        from ._witness import walk_witness
+        # The check ranks with every key step and no lean
+        # (engine §7.7).
+        steps = lowered.steps
+        space = Profiles(steps, main.tagtab, main.tokens)
+        chosen_profile = space.zero
+        walk = None
+        protected = True
+        if protected:
+            from ._witness import walk_witness
 
-        if any(production.leftmost_longest or production.fewest for production in lowered.productions):
-            pending = [chosen]
-            while pending:
-                node = pending.pop()
-                if isinstance(node, DRead):
-                    continue
-                if node.production.leftmost_longest and node.start < node.end:
-                    chosen_profile = sum_profiles(chosen_profile, ((node.start, node.end, 1),))
-                if node.production.fewest and node.start < node.end:
-                    chosen_profile = Profile(chosen_profile, getattr(chosen_profile, "fewest", 0) + 1)
-                pending.extend(node.children)
-        walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
+            if can_count_profiles(lowered, steps) and not all(requires_elided(pattern) for _, pattern in steps):
+                chosen_profile = space.derivation_profile(chosen)
+            walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
         marks = walk.marks if walk is not None else None
         preferred = bool(lowered.ranked_helpers)
         raw_counted = True
         if preferred and walk is not None:
-            raw = rank(forest, "none", marks=marks, check=True, unfiltered=True)
+            raw = rank(forest, steps, "none", marks=marks, check=True, unfiltered=True)
             raw_counted = raw is not None and raw.witness_counted is True
         ranking = _rank_check(forest, marks) if walk is not None else None
         better = False
         watched_selection = False
         if ranking is not None:
             assert walk is not None
-            order = compare_profiles(ranking.profile, chosen_profile)
+            order = space.compare(ranking.profile, chosen_profile)
             if not raw_counted or not preferred and ranking.witness_counted is not True:
                 ranking = None
             else:
@@ -791,8 +792,9 @@ def _reconstruct(context: StageContext) -> Forest:
 
 
 def _rank_check(forest: Forest, marks: dict[int, set[int]] | None = None) -> Ranking | None:
-    """Rank reconstruction with no stage policy."""
-    return rank(forest, "none", marks=marks, check=True)
+    """Rank the reconstruction with every key step and no
+    lean (engine §7.7)."""
+    return rank(forest, forest.lowered.steps, "none", marks=marks, check=True)
 
 
 def _map_back(

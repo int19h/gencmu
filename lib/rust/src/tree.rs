@@ -256,10 +256,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                             span: start..start,
                             source: source_of(originals, start, start),
                             tags: crate::result::Tags::new(),
-                            value: rule.elided_test.and_then(|id| {
-                                let test = &context.g.tests[id as usize];
-                                (test.op == crate::lower::TestOp::Is).then(|| test.sound.clone()).flatten()
-                            }),
+                            value: rule.elided_value.clone(),
                             children: Vec::new(),
                         }],
                         _ => children,
@@ -660,6 +657,7 @@ pub(crate) fn emit(
     let mut forwarding = Forwarding { on: tokens.iter().any(Tok::has_attachments), inherited: FxSet::default() };
     // The output positions of the marks of the items being emitted.
     let mut marks: Vec<usize> = Vec::new();
+    let mut identity_memo = FxMap::default();
     let mut stack = vec![Work::Visit(0)];
     while let Some(work) = stack.pop() {
         match work {
@@ -753,12 +751,31 @@ pub(crate) fn emit(
                         let IKind::Close { prod, start, end, tags, caps } = &tree.nodes[owner as usize].kind else {
                             unreachable!("an emission's constituent")
                         };
+                        let identity_scope = if g.tree_expressions {
+                            crate::tree_identity::emission_scope(
+                                g,
+                                tree,
+                                owner,
+                                term,
+                                tokens,
+                                &mut recognizer.shared.machine,
+                                &mut identity_memo,
+                            )
+                        } else {
+                            None
+                        };
                         let frame = Frame {
+                            prefix: u32::MAX,
+                            parent_prefix: u32::MAX,
                             lexical: None,
                             parent_structure: u32::MAX,
                             parent_tags: Cell::new(None),
-                            structure: tree.nodes[owner as usize].structure,
-                            caps: Caps::All(caps),
+                            structure: identity_scope
+                                .as_ref()
+                                .map_or(tree.nodes[owner as usize].structure, |scope| scope.structure),
+                            caps: Caps::All(
+                                identity_scope.as_ref().map_or(caps.as_slice(), |scope| scope.caps.as_slice()),
+                            ),
                             prod: *prod,
                             origin: *start,
                             end: *end,
@@ -812,12 +829,31 @@ pub(crate) fn emit(
                 let IKind::Close { prod, start, end, tags, caps } = &tree.nodes[node as usize].kind else {
                     unreachable!()
                 };
+                let identity_scope = if g.tree_expressions {
+                    tag.and_then(|term| {
+                        crate::tree_identity::emission_scope(
+                            g,
+                            tree,
+                            node,
+                            term,
+                            tokens,
+                            &mut recognizer.shared.machine,
+                            &mut identity_memo,
+                        )
+                    })
+                } else {
+                    None
+                };
                 let frame = Frame {
+                    prefix: u32::MAX,
+                    parent_prefix: u32::MAX,
                     lexical: None,
                     parent_structure: u32::MAX,
                     parent_tags: Cell::new(None),
-                    structure: tree.nodes[node as usize].structure,
-                    caps: Caps::All(caps),
+                    structure: identity_scope
+                        .as_ref()
+                        .map_or(tree.nodes[node as usize].structure, |scope| scope.structure),
+                    caps: Caps::All(identity_scope.as_ref().map_or(caps.as_slice(), |scope| scope.caps.as_slice())),
                     prod: *prod,
                     origin: *start,
                     end: *end,

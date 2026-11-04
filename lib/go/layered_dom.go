@@ -106,7 +106,7 @@ func (dc *domDecoder) decodeLayeredPattern(raw any, depth int) (*domPattern, err
 			p.Ends, err = dc.decodeStringRange(n["range"], d)
 		case n["wildcard"] != nil:
 			p.Kind, p.At = "wildcard", templateAt(n)
-		case n["any"] != nil:
+		case n["any"] != nil && n["test"] == nil:
 			p.Kind = "any"
 		case n["test"] != nil:
 			p.Kind, p.Op = "test", templateText(n["test"])
@@ -115,8 +115,10 @@ func (dc *domDecoder) decodeLayeredPattern(raw any, depth int) (*domPattern, err
 			} else {
 				p.Value, err = dc.decodeTermAt(n["value"], d+1)
 			}
-			p.Items = []*domPattern{{}}
-			pending = append(pending, task{templateObj(n["expr"]), p.Items[0], false, d + 1})
+			if n["expr"] != nil {
+				p.Items = []*domPattern{{}}
+				pending = append(pending, task{templateObj(n["expr"]), p.Items[0], false, d + 1})
+			}
 		case n["path"] != nil:
 			p.Kind, p.Name = "path", templateText(n["path"])
 			p.Items = []*domPattern{{}}
@@ -241,7 +243,11 @@ func writeLayeredPattern(w *jsonWriter, root *domPattern) {
 				w.raw(`,"value":`)
 				p.Value.writeJSON(w)
 			}
-			w.raw(`,"expr":`)
+			if len(p.Items) > 0 {
+				w.raw(`,"expr":`)
+			} else {
+				w.raw(`,"any":true`)
+			}
 		case "path":
 			w.str(p.Name)
 			w.raw(`,"pattern":`)
@@ -273,7 +279,9 @@ func writeLayeredPattern(w *jsonWriter, root *domPattern) {
 		}
 		switch p.Kind {
 		case "test", "path":
-			pending = append(pending, task{p.Items[0], "pattern", ""})
+			if len(p.Items) > 0 {
+				pending = append(pending, task{p.Items[0], "pattern", ""})
+			}
 		case tmUnion, tmIntersection, tmDifference:
 			pending = append(pending, task{kind: "raw", raw: "]"})
 			for i := len(p.Items) - 1; i >= 0; i-- {

@@ -1,0 +1,10 @@
+{
+  "description": "Structural comparison: reverse.",
+  "grammar": "%rule text $x:w $y:w\n%conditions $y ≅ $x\n%rule w \"a\"",
+  "input": "aa",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

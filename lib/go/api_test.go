@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime/debug"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,23 +34,21 @@ func oneStage(grammar string) map[string]string {
 	}
 }
 
-func TestReplacementsRecordFlagChanges(t *testing.T) {
+func TestReplacementsRetainRankingSteps(t *testing.T) {
 	t.Parallel()
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule(leftmost-longest) text A\n%extend-rule text B\n%redefine-rule text C\n%redefine-rule(leftmost-longest) text D\n%redefine-rule(leftmost-longest) text E\n%redefine-rule text F\n%redefine-rule text G"))
+	d := mustLoad(t, oneStage("%ambiguity-resolution leftmost-longest #·text, greedy\n%rule text A\n%extend-rule text B\n%redefine-rule text C\n%redefine-rule text D\n%redefine-rule text E\n%redefine-rule text F\n%redefine-rule text G"))
 	changes := d.stages[0].changes
 	if len(changes) != 6 {
 		t.Fatalf("got %d changes, want 6", len(changes))
 	}
-	flag := []string{"leftmost-longest"}
-	want := []*flagChange{nil, {from: flag}, {to: flag}, nil, {from: flag}, nil}
+	if len(d.stages[0].steps) != 1 || d.stages[0].steps[0].pattern.Name != "text" {
+		t.Fatal("replacement changed the ranking step")
+	}
 	for i, change := range changes {
 		if change.rule != "text" || change.document != "g.md" || (change.op == "extend") != (i == 0) {
 			t.Fatalf("change %d: %+v", i, change)
 		}
-		got := change.flagChange
-		if (got == nil) != (want[i] == nil) || got != nil && (!slices.Equal(got.from, want[i].from) || !slices.Equal(got.to, want[i].to)) {
-			t.Fatalf("flag change %d: got %+v, want %+v", i, got, want[i])
-		}
+
 	}
 }
 
@@ -692,17 +689,17 @@ func TestMalformedPreparsed(t *testing.T) {
 	format := strconv.Itoa(domFormat)
 	var doms []string
 	for _, expr := range bad {
-		doms = append(doms, `{"format":`+format+`,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":`+expr+`}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`)
+		doms = append(doms, `{"format":`+format+`,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":`+expr+`}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`)
 	}
 	// Null in the rest of the DOM, where the other libraries refuse it too.
-	good := doms[0][:strings.Index(doms[0], `"expr":`)] + `"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[{"name":"K","op":"define","value":{"tag":"X"},"at":[3,1]}],"classifiers":[],"implications":[]}`
+	good := doms[0][:strings.Index(doms[0], `"expr":`)] + `"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[{"name":"K","op":"define","value":{"tag":"X"},"at":[3,1]}],"classifiers":[],"implications":[]}`
 	if _, err := decodeDOM([]byte(good), bundled.uni); err != nil {
 		t.Fatalf("the DOM the null cases change is refused: %v", err)
 	}
 	for _, change := range [][2]string{
 		{`"name":"text"`, `"name":null`}, {`"op":"define"`, `"op":null`}, {`"conditions":[]`, `"conditions":null`},
-		{`"conditions":[],"at":[1,1]`, `"conditions":[],"at":[null,1]`}, {`"args":["greedy"]`, `"args":[null]`},
-		{`"args":["greedy"],"at":[2,1]`, `"args":["greedy"],"at":[2,null]`}, {`"directives":[{`, `"directives":null,"x":[{`},
+		{`"conditions":[],"at":[1,1]`, `"conditions":[],"at":[null,1]`}, {`"steps":[{"step":"greedy"}]`, `"steps":[{"step":null}]`},
+		{`"steps":[{"step":"greedy"}],"at":[2,1]`, `"steps":[{"step":"greedy"}],"at":[2,null]`}, {`"directives":[{`, `"directives":null,"x":[{`},
 		{`"rules":[{`, `"rules":null,"x":[{`}, {`"constants":[{`, `"constants":null,"x":[{`},
 		{`"name":"K"`, `"name":null`}, {`"op":"define","value"`, `"op":null,"value"`}, {`"value":{"tag":"X"}`, `"value":null`},
 		{`"value":{"tag":"X"},"at":[3,1]`, `"value":{"tag":"X"},"at":[3,null]`},
@@ -736,7 +733,7 @@ func TestMalformedPreparsed(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
+		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":44,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
 		_, err = LoadPipelineSources(src, "grammars/test/p.md")
 		var e *Error
 		if isGuardedCrash(err) || !errors.As(err, &e) || e.Kind != ErrorGrammar {
@@ -757,7 +754,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 	sources = map[string]string{"grammars/test/p.md": sources["p.md"], "grammars/test/g.md": gText}
 	format := strconv.Itoa(domFormat)
 	dom := func(expr string) string {
-		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
+		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	preparsed := func(dom string) map[string]string {
 		src := map[string]string{}
@@ -772,7 +769,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
+		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":44,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
 		_, err := LoadPipelineSources(src, "grammars/test/p.md")
 		return err
 	}
@@ -1023,7 +1020,7 @@ func TestEmptyCharacterTag(t *testing.T) {
 		}
 	}
 	loadBundled()
-	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"literal":{"string":""}}}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
+	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"literal":{"string":""}}}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	if _, err := decodeDOM([]byte(dom), bundled.uni); err != nil {
 		t.Fatal(err)
 	}
@@ -1712,5 +1709,52 @@ func TestMissingNamesFileUsesResolvedPath(t *testing.T) {
 func TestPipelinePublicMethodsExcludeStageNames(t *testing.T) {
 	if _, exported := reflect.TypeOf((*Pipeline)(nil)).MethodByName("StageNames"); exported {
 		t.Fatal("the pipeline exports StageNames outside the documented API")
+	}
+}
+
+func TestRankingReportsUseReachability(t *testing.T) {
+	for _, test := range []struct{ source, status string }{
+		{"%ambiguity-resolution fewest #·_\n%rule text A", ""},
+		{"%ambiguity-resolution fewest #·dead\n%rule text A\n%rule dead B", "impossible"},
+		{"%ambiguity-resolution fewest #·wrap<T>\n%rule text wrap\n%rule wrap $x:child :: (T ∪ $x.tags)\n%rule child A :: U", ""},
+		{"%ambiguity-resolution fewest #·_<_Elided>\n%rule text [+END]", ""},
+	} {
+		pipeline := mustLoad(t, oneStage(test.source))
+		reports := pipeline.RankingReports()
+		if len(reports) != 1 || len(reports[0].KeySteps) != 1 || reports[0].KeySteps[0].Status != test.status {
+			t.Fatalf("unexpected reports: %+v", reports)
+		}
+		if test.status == "" && strings.Contains(FormatRankingReports(reports), "ranking step") {
+			t.Fatalf("unexpected reachability label: %s", FormatRankingReports(reports))
+		}
+	}
+}
+
+func TestCachedTreeComparisonsKeepCyclePositions(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	source := block("%ambiguity-resolution greedy", "%rule text $x:w $y:w", "%conditions $x ≅ $y", `%rule w "a" | w`)
+	sources := map[string]string{"grammars/test/p.md": block("%stage main", `%include "g.md"`), "grammars/test/g.md": source}
+	dom, readErr := bundled.reader.readMode(source, "grammars/test/g.md", true)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	cache := `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/g.md":{"hash":"` + fnv1a64(source) + `","dom":` + string(dom.json()) + `}}}`
+	for _, cached := range []bool{false, true} {
+		if cached {
+			sources["data/preparsed/test.json"] = cache
+		}
+		pipeline, loadErr := LoadPipelineSources(sources, "grammars/test/p.md")
+		if loadErr != nil {
+			t.Fatal(loadErr)
+		}
+		result, parseErr := pipeline.Parse("aa", ParseOptions{})
+		if parseErr != nil {
+			t.Fatal(parseErr)
+		}
+		if result.Error == nil || result.Error.Kind != ErrorGrammar || !strings.HasPrefix(result.Error.Message, "grammars/test/g.md:4:13: ") {
+			t.Fatalf("cached=%v: %+v", cached, result.Error)
+		}
 	}
 }

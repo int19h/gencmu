@@ -1,0 +1,19 @@
+{
+  "description": "A resolved rule atom accepts a value test after its tag test.",
+  "grammar": "%rule family(@X, @Tag) @X :: @Tag\n%rule text $x:family(\"a\", T) | $x:family(\"a\", U)\n%conditions $x ≅ #·family<T>=\"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "tags": [
+              "T"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

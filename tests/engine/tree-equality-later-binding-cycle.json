@@ -1,0 +1,8 @@
+{
+  "description": "Structural comparison: later-binding-cycle.",
+  "grammar": "%rule text ($x:good | $x:bad) $y:good\n%conditions $x ≅ $y\n%rule good \"a\"\n%rule bad \"a\" | bad",
+  "input": "aa",
+  "expect": {
+    "error": "grammar"
+  }
+}

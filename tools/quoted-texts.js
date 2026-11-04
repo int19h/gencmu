@@ -41,6 +41,7 @@ export const UNCHECKED = {
   "grammars/lojban/experimental/pipeline.md": "the experimental pipeline: its texts are not pinned yet",
   "grammars/lojban/zantufa/pipeline.md": "the Zantufa pipeline: its texts are not pinned yet",
   "grammars/gencmu/jbogenbau/pipeline.md": "the notation pipeline reads jbogenbau, not Lojban",
+  "grammars/eberban/refgram/pipeline.md": "the Eberban pipeline reads Eberban, not Lojban, and tests/corpus/eberban.jsonl pins its texts",
 };
 
 /** The least number of words that makes a code span a quoted text. */

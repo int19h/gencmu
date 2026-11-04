@@ -24,6 +24,10 @@ type production struct {
 	logicalGroups     []logicalGroup
 	helperExpression  *domExpr // the written helper site, shared by split routes
 	sourceAlternative *sAlt
+	treeRequested     bool
+	observesTrees     bool
+	walksTrees        bool
+	treePrefixUntil   int
 	closeRequested    bool
 	observesCloses    bool
 	base              *production
@@ -31,37 +35,44 @@ type production struct {
 	ranked            *rankedGroup
 	option            int
 	contextual        bool
-	privateNames      map[string]bool
-	rankedBindings    string
-	parentTags        *domTerm
-	slot              *slotMetadata
-	num               int
-	lhs               int32
-	rhs               []symbol
-	tests             []*symTest // per position: the test its symbol must pass, or nil; nil when no symbol is tested (§4)
-	capName           []string   // per position: the capture's name, or ""
-	capSlot           []int32    // per position: the item's capture slot, or -1
-	nslots            int
-	slotOf            map[string]int32 // capture name → slot
-	posOf             map[string]int   // capture name → its first position
-	tags              *domTerm         // nil: default tags (§4)
-	inheritIndex      int
-	logicalCount      int
-	implicit          bool // one symbol and no tags: the constituent has its symbol's tags (§3.7)
-	conds             []lcond
-	condFrom          []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
-	predictConds      []*domCond // conditions using no capture but $ of an empty production, checked at prediction
-	rankedConditions  []*domCond // effective conditions across static ranked entry contexts
-	emit              *domEmit   // as dropped and simplified for the production (§3.6)
-	nothing           bool       // %erased: the constituent emits nothing and does not count (§11)
-	value, image      *domTerm
-	transparent       bool
-	helper            bool
-	elided            string   // for the ε production of an optional beginning with an elidable terminal
-	elidedTest        *symTest // the test of that terminal, if it is tested; a restored token sounds like the string of an = test (§7)
-	ruleName          string   // the rule the author wrote (for a helper, the one it serves)
-	doc               string
-	at                [2]int
+	// itemConds are the conditions of the alternative that read an item
+	// capture of this helper of flat braces, as written; a frame
+	// simplifies them for each production in it (engine §3.6, §4).
+	itemConds []*domCond
+	// altItems are the item captures of a helper's alternative, which no
+	// condition of the helper's ranked group reads (§3.6).
+	altItems         map[string]bool
+	privateNames     map[string]bool
+	rankedBindings   string
+	parentTags       *domTerm
+	slot             *slotMetadata
+	num              int
+	lhs              int32
+	rhs              []symbol
+	tests            []*symTest // per position: the test its symbol must pass, or nil; nil when no symbol is tested (§4)
+	capName          []string   // per position: the capture's name, or ""
+	capSlot          []int32    // per position: the item's capture slot, or -1
+	nslots           int
+	slotOf           map[string]int32 // capture name → slot
+	posOf            map[string]int   // capture name → its first position
+	tags             *domTerm         // nil: default tags (§4)
+	inheritIndex     int
+	logicalCount     int
+	implicit         bool // one symbol and no tags: the constituent has its symbol's tags (§3.7)
+	conds            []lcond
+	condFrom         []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
+	predictConds     []*domCond // conditions using no capture but $ of an empty production, checked at prediction
+	rankedConditions []*domCond // effective conditions across static ranked entry contexts
+	emit             *domEmit   // as dropped and simplified for the production (§3.6)
+	nothing          bool       // %erased: the constituent emits nothing and does not count (§11)
+	value, image     *domTerm
+	transparent      bool
+	helper           bool
+	elided           string   // for the ε production of an optional beginning with an elidable terminal
+	elidedTest       *symTest // the test of that terminal, if it is tested; a restored token sounds like the string of an = test (§7)
+	ruleName         string   // the rule the author wrote (for a helper, the one it serves)
+	doc              string
+	at               [2]int
 	// warnings holds every written warning name of the alternative, in
 	// written order. Output selects enabled names for the chosen tree (§12).
 	// A helper has none.
@@ -87,21 +98,23 @@ type lcond struct {
 }
 
 type lrule struct {
-	leftmostLongest bool
-	fewest          bool
-	name            string
-	helper          bool
-	owner           string
-	prods           []*production
-	nullable        bool
-	scc             int // the index of its same-span cycle class, or -1 if it can never lie below itself
+	name     string
+	helper   bool
+	owner    string
+	prods    []*production
+	nullable bool
+	scc      int // the index of its same-span cycle class, or -1 if it can never lie below itself
 }
 
 type lowered struct {
-	boundaryOnce sync.Once
-	boundary     *boundaryMachine
-	prepareOnce  sync.Once
-	preparation  *preparation
+	treeSites       []treeSite
+	treeDemands     map[treeDemandKey]*treeDemand
+	profileOnce     sync.Once
+	profilePossible bool
+	boundaryOnce    sync.Once
+	boundary        *boundaryMachine
+	prepareOnce     sync.Once
+	preparation     *preparation
 	// memo keeps the answers of ordinary nested queries across parses
 	// (engine §4.3).
 	memo           sharedMemo
@@ -116,7 +129,8 @@ type lowered struct {
 	// characters it matches; nil for a terminal that is a tag (§4).
 	classes    []*charClass
 	prods      []*production
-	lean       string // "greedy", "lazy", "late-elision", or "" for no lean (§6, §7)
+	steps      []keyStep // the key steps of the stage's directive (§6)
+	lean       string    // "greedy", "lazy", or "" for no lean (§6, §7)
 	sccMembers [][]int32
 	// fault is an error of the grammar that lowering for these features
 	// found (§3), or "": parsing with it is a result with that error.
@@ -149,6 +163,7 @@ type slot struct {
 // symTest is a test of a symbol in a body (engine §2, §4) with its value:
 // an exact string for = or ≠, or signed stored-tag requirements.
 type symTest struct {
+	defaultValue *string
 	op           string
 	other        *symTest
 	requirements []resolvedRequirement
@@ -171,13 +186,18 @@ type lowerer struct {
 	rankOptions map[int32][]int
 	commonConds map[*sAlt]map[string][]*domCond
 	currentExpr *domExpr
-	g           *stageGrammar
-	l           *lowered
-	features    map[string]bool
-	helpers     int
-	memo        map[*domExpr][][]slot // expansions of one alternative, by place
-	tests       map[*domExpr]*symTest // the tests of that alternative with their values
-	into        *[]*helperNode        // where a new helper goes
+	// itemNames are the item captures of the alternative being lowered,
+	// and altConds its conditions less the item conditions, which attach
+	// to the helpers of their braces instead (engine §3.5, §3.6).
+	itemNames map[string]bool
+	altConds  []*domCond
+	g         *stageGrammar
+	l         *lowered
+	features  map[string]bool
+	helpers   int
+	memo      map[*domExpr][][]slot // expansions of one alternative, by place
+	tests     map[*domExpr]*symTest // the tests of that alternative with their values
+	into      *[]*helperNode        // where a new helper goes
 	// structural is every production that the gates and the expansion
 	// make, before a false condition removes any (§3.3).
 	structural []structuralProduction
@@ -227,7 +247,7 @@ type helperNode struct {
 // lower lowers a stage's grammar for a set of features. The check of
 // elision-only reads the same productions in a mode of its own (§3.8, §7.4).
 func lower(g *stageGrammar, features map[string]bool) *lowered {
-	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean}
+	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, steps: g.steps, lean: g.lean}
 	// The stage resolves its classifiers for the same features, before it
 	// lowers its rules; an error there ends the stage as an error of
 	// lowering does (§2, §3).
@@ -243,7 +263,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 	lw := &lowerer{helperNodes: map[int32]*helperNode{}, rankOptions: map[int32][]int{}, commonConds: map[*sAlt]map[string][]*domCond{}, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
-		l.rules = append(l.rules, &lrule{leftmostLongest: len(r.flags) > 0 && r.flags[0] == "leftmost-longest", fewest: len(r.flags) > 0 && r.flags[0] == "fewest", name: r.name, owner: r.name, scc: -1})
+		l.rules = append(l.rules, &lrule{name: r.name, owner: r.name, scc: -1})
 	}
 	for _, r := range g.rules {
 		if lw.lowerRule(r); l.fault != "" {
@@ -312,6 +332,10 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 	l.computeCycles()
 	l.elidable, l.anyElidable = elidableHelpers(l)
 	l.prepareRanked()
+	if g.treeComparisons {
+		l.prepareTreeDemands()
+		l.checkTreeCycles(lw.structural)
+	}
 	return l
 }
 
@@ -388,6 +412,20 @@ func (lw *lowerer) guardsHold(a *domAlt) bool {
 	return true
 }
 
+// mentionsItem says whether a condition mentions an item capture of the
+// alternative being lowered: it is then an item condition (§3.6).
+func (lw *lowerer) mentionsItem(c *domCond) bool {
+	if len(lw.itemNames) == 0 {
+		return false
+	}
+	for _, name := range orderedMentions(clausePart{c: c}) {
+		if lw.itemNames[name] {
+			return true
+		}
+	}
+	return false
+}
+
 func (lw *lowerer) lowerRule(r *sRule) {
 	var alts []*sAlt
 	for _, a := range r.alts {
@@ -412,6 +450,23 @@ func (lw *lowerer) lowerRule(r *sRule) {
 			lw.tests[t] = a.tests[i]
 		}
 		lw.into = &helpers
+		lw.itemNames = map[string]bool{}
+		if places := itemCaptures(a.alt.Expr); len(places) > 0 {
+			for name := range places {
+				lw.itemNames[name] = true
+			}
+		}
+		// An item condition attaches to the helper of its braces, not to
+		// the productions of the alternative (engine §3.6).
+		lw.altConds = a.conds
+		if len(lw.itemNames) > 0 {
+			lw.altConds = nil
+			for _, c := range a.conds {
+				if !lw.mentionsItem(c) {
+					lw.altConds = append(lw.altConds, c)
+				}
+			}
+		}
 		if e := a.alt.Expr; isChain(e) {
 			// A chain is recursion on the rule itself, with no helper: its
 			// base productions first, one for each expansion of the item,
@@ -454,16 +509,41 @@ func (lw *lowerer) lowerRule(r *sRule) {
 					continue
 				}
 				numbered[h.rule] = true
+				ranked := lw.g.ranked != nil && len(lw.g.ranked.groups) > 0
+				// The item captures that any production of the helper
+				// reads: every production of the helper then carries the
+				// item conditions that read them, as the productions of a
+				// rule carry its conditions (engine §3.6).
+				var helperItems map[string]bool
+				var itemConds []*domCond
+				if len(lw.itemNames) > 0 {
+					helperItems = map[string]bool{}
+					for _, b := range h.bodies {
+						for _, s := range b {
+							if s.capture != "" && lw.itemNames[s.capture] {
+								helperItems[s.capture] = true
+							}
+						}
+					}
+					for _, c := range h.owner.conds {
+						for _, name := range orderedMentions(clausePart{c: c}) {
+							if helperItems[name] {
+								itemConds = append(itemConds, c)
+								break
+							}
+						}
+					}
+				}
 				for optionIndex, b := range h.bodies {
 					lw.structural = append(lw.structural, structuralProduction{h.rule, symbolsOf(b)})
 					p := lw.newProduction(h.rule, b)
 					p.sourceAlternative = h.owner
 					p.helperExpression = h.path
 					b, _, _ = logicalBody(b)
-					if lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
+					if ranked || len(lw.itemNames) > 0 {
 						p.slot = &slotMetadata{source: h.owner, path: h.path}
 					}
-					if lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
+					if ranked || len(lw.itemNames) > 0 {
 						p.posOf = map[string]int{}
 						p.nslots = 0
 						for i, s := range b {
@@ -480,10 +560,26 @@ func (lw *lowerer) lowerRule(r *sRule) {
 							p.capSlot[p.inheritIndex] = int32(p.nslots)
 							p.nslots++
 						}
+					}
+					if p.implicit && p.capSlot[p.inheritIndex] < 0 {
+						p.capSlot[p.inheritIndex] = int32(p.nslots)
+						p.nslots++
+					}
+					if ranked {
 						if group := lw.g.ranked.expressions[h.path]; group != nil {
 							p.ranked = group
 							p.option = lw.rankOptions[h.rule][optionIndex]
 						}
+					}
+					// Every helper of an alternative with item captures is
+					// contextual, so that a frame reaches the braces' helper
+					// through the helpers around it, and its item conditions
+					// read the enclosing item's captures from the frame
+					// (engine §4).
+					if len(lw.itemNames) > 0 {
+						p.contextual = true
+						p.itemConds = itemConds
+						p.altItems = lw.itemNames
 					}
 					p.helper = true
 					p.transparent = true
@@ -514,6 +610,11 @@ func holdsCapture(e *domExpr, includeRanked bool) bool {
 		return false
 	}
 	if e.Kind == exRanked && !includeRanked {
+		return false
+	}
+	// An item capture binds to the helper of its braces, not to the
+	// enclosing production (§3.5).
+	if e.Kind == exRepeat {
 		return false
 	}
 	if e.Kind == exCapture {
@@ -933,16 +1034,7 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		// Any other optional is a helper, and a marked one is elidable,
 		// with the terminal that its marker names
 		// (§3.8).
-		elide := ""
-		var elideT *symTest
-		if e.Elidable {
-			if t, tested := elidableTerminal(inner); t != "" {
-				elide = t
-				if tested != nil {
-					elideT = lw.boundTest(tested)
-				}
-			}
-		}
+		elide, elideT := lw.elision(e, a)
 		out := lw.helper(a, ruleName, elide, elideT, func(int32) [][]slot {
 			return append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
 		})
@@ -1252,4 +1344,46 @@ func (l *lowered) computeCycles() {
 			}
 		}
 	}
+}
+
+func (lw *lowerer) elision(e *domExpr, a *sAlt) (string, *symTest) {
+	elide := ""
+	var elideT *symTest
+	if e.Elidable {
+		if t, tested := elidableTerminal(e.Inner); t != "" {
+			elide = t
+			if tested != nil {
+				elideT = lw.boundTest(tested)
+			}
+		}
+	}
+	if e.Elidable {
+		var value *string
+		if e.Default != nil {
+			resolved, err := lw.g.evaluateClosed(a.doc, e.Default, a.at)
+			if err != nil || resolved.ty != tyString {
+				lw.loweringFault(a, "a default requires one string")
+				return "", nil
+			}
+			d := resolved.s
+			value = &d
+		} else if elideT != nil && elideT.op == "=" {
+			d := elideT.sound
+			value = &d
+		}
+		if value != nil {
+			if e.Default != nil && elideT != nil && !testHoldsOf(elideT, func(s string) bool { return s == *value }, newInterner().single(elide)) {
+				lw.loweringFault(a, "a default fails its head test")
+				lw.l.faultLocation.Line = e.DefaultAt[0]
+				lw.l.faultLocation.Column = e.DefaultAt[1]
+				lw.l.faultLocation.defaultLocation = true
+			}
+			if elideT == nil {
+				elideT = &symTest{op: "tags"}
+			}
+			elideT.defaultValue = value
+		}
+	}
+
+	return elide, elideT
 }

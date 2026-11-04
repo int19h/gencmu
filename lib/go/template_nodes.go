@@ -181,7 +181,7 @@ func writeTemplateJSON(w *jsonWriter, v any) {
 	switch n := v.(type) {
 	case map[string]any:
 		keys := templateKeys(n)
-		order := []string{"name", "params", "args", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
+		order := []string{"name", "params", "args", "op", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
 		switch {
 		case n["name"] != nil && n["args"] != nil && n["op"] == nil:
 			order = []string{"name", "args", "at", "conditions"}
@@ -275,7 +275,7 @@ func templateChildPosition(key, position string) string {
 	if position == "pattern" && (key == "union" || key == "intersection" || key == "difference") {
 		return "pattern"
 	}
-	if strings.Contains("|alternatives|conditions|emit|tags|value|image|requirements|range|literal|concat|union|intersection|difference|left|right|receiver|if|then|not|all|any|args|", "|"+key+"|") {
+	if strings.Contains("|alternatives|conditions|emit|tags|value|image|default|requirements|range|literal|concat|union|intersection|difference|left|right|receiver|if|then|not|all|any|args|", "|"+key+"|") {
 		return "term"
 	}
 	if position != "pattern" && strings.Contains("|seq|choice|ranked|and|optional|repeat|separator|expr|", "|"+key+"|") {

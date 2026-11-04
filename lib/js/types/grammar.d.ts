@@ -30,17 +30,12 @@ export type StitchedRule = {
     document: string;
     at: ErrorLocation;
     alternatives: StitchedAlternative[];
-    flags: string[];
 };
 export type RuleChange = {
     kind: "replaced" | "extended";
     rule: string;
     document: string;
     previous: string;
-    flagChange?: {
-        from: string[];
-        to: string[];
-    };
 };
 export type SequenceItem = {
     symbol: import("./types.js").GrammarSymbol;
@@ -55,6 +50,7 @@ export type PendingHelper = {
     name: string;
     build: (where: Where) => SequenceItem[][];
     elided: string | null;
+    elidedValue?: string;
     elidedTest: SymbolTest | null;
 };
 export declare class Grammar {
@@ -86,6 +82,8 @@ export declare class Grammar {
     changes: RuleChange[];
     /** @type {Resolution | null} */
     resolution: Resolution | null;
+    /** @type {any} */ rankingReport: any;
+    elisionOnly: boolean;
     /**
      * The stage's `%classifier` items in stitching order, each with its
      * document (engine §2).
@@ -165,6 +163,8 @@ export declare class Grammar {
             atom: any;
         }[];
     };
+    /** @type {any[]} */
+    defaultValues: any[];
     families: Map<string, Set<string>>;
     ranked: RankedGroups;
     /**
@@ -179,6 +179,7 @@ export declare class Grammar {
      * @type {Map<string, LoweredGrammar | GencmuError>}
      */
     lowered: Map<string, LoweredGrammar | GencmuError>;
+    treeComparisons: boolean | undefined;
     /**
      * @param {string} stageName
      * @param {{path: string, dom: GrammarDom}[]} documents

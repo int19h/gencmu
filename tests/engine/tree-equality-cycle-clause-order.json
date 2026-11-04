@@ -1,0 +1,9 @@
+{
+  "description": "The header tag term precedes alternative tags in the cycle error order (engine §3).",
+  "grammar": "%rule text :: ($a ≅ $b ⟹ T) |\n  $a:x $b:x $c:y $d:y :: ($c ≅ $d ⟹ U)\n%rule x \"a\" | x\n%rule y \"b\" | y",
+  "input": "aabb",
+  "expect": {
+    "error": "grammar",
+    "message": "tree comparison demands a cycle x → x that can repeat a demanded rule over one span"
+  }
+}

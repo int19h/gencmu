@@ -174,9 +174,14 @@ fn restore(mut pending: Vec<Pair<'_>>) {
                 | (Expr::And(to), Expr::And(from)) => {
                     pending.extend(to.iter_mut().zip(from).map(|(to, from)| Pair::Expr(to, from)));
                 }
-                (Expr::Optional(to, _), Expr::Optional(from, _)) | (Expr::Capture(_, to), Expr::Capture(_, from)) => {
-                    pending.push(Pair::Expr(to, from))
+                (Expr::Optional(to, _, td), Expr::Optional(from, _, fd)) => {
+                    pending.push(Pair::Expr(to, from));
+                    for (to, from) in td.iter_mut().zip(fd) {
+                        to.at = from.at;
+                        pending.push(Pair::Term(&mut to.term, &from.term));
+                    }
                 }
+                (Expr::Capture(_, to), Expr::Capture(_, from)) => pending.push(Pair::Expr(to, from)),
                 (Expr::Repeat(to, ts, _), Expr::Repeat(from, fs, _)) => {
                     pending.push(Pair::Expr(to, from));
                     for (to, from) in ts.iter_mut().zip(fs) {
@@ -237,7 +242,8 @@ fn restore(mut pending: Vec<Pair<'_>>) {
                         pending.push(Pair::Term(to, from));
                     }
                 }
-                (Cond::Compare(_, ta, tb), Cond::Compare(_, fa, fb)) => {
+                (Cond::Compare(_, ta, tb, tl), Cond::Compare(_, fa, fb, fl)) => {
+                    *tl = *fl;
                     pending.push(Pair::Term(ta, fa));
                     pending.push(Pair::Term(tb, fb));
                 }
@@ -298,7 +304,8 @@ fn restore(mut pending: Vec<Pair<'_>>) {
                     pending.push(Pair::Term(ta, fa));
                     pending.push(Pair::Term(tb, fb));
                 }
-                (Pattern::Test(_, tv, to), Pattern::Test(_, fv, from)) => {
+                (Pattern::Test(_, tv, to, to_at), Pattern::Test(_, fv, from, from_at)) => {
+                    *to_at = *from_at;
                     pending.push(Pair::Term(tv, fv));
                     pending.push(Pair::Pattern(to, from));
                 }

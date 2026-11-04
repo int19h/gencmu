@@ -3,12 +3,11 @@
   "document": "```jbogenbau\n%const $LOW \"\" ++ \"a\"\n%const $HIGH \"\" ++ \"z\"\n%rule text $LOW..$HIGH\n```\n",
   "expect": {
     "dom": {
-      "format": 40,
+      "format": 44,
       "rules": [
         {
           "name": "text",
           "op": "define",
-          "flags": [],
           "alternatives": [
             {
               "guards": [],

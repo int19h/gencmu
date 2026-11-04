@@ -14,6 +14,8 @@ pub(crate) fn record(terminal: String, at: usize, tokens: &[Tok], value: Option<
     Restoration { terminal, at, source: source..source, value }
 }
 
+type CapturedEntry = (String, usize, usize, u32, u32, u32);
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct Entry {
     pub parent: Option<u32>,
@@ -24,7 +26,7 @@ pub(crate) struct Entry {
     pub control: u32,
     pub prefix: u32,
     pub structure: u32,
-    pub captures: Vec<(String, usize, usize, u32, u32, u32)>,
+    pub captures: Vec<CapturedEntry>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -437,6 +439,7 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
     }
     fn cond(c: &LCond, p: &Prod, w: &mut FxSet<u32>, todo: &mut Vec<u32>) {
         match c {
+            LCond::SameTree(..) => (),
             LCond::Matches(s, r) | LCond::Begins(s, r) | LCond::Ends(s, r) => query(s, *r, p, w, todo),
             LCond::Initial(s) | LCond::Final(s) | LCond::Boundary(_, s, _, _, _) | LCond::Tree(s, _, _) => {
                 span(s, p, w)
@@ -779,6 +782,7 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
     }
     fn cond(c: &LCond, out: &mut LocalDemand) {
         match c {
+            LCond::SameTree(..) => (),
             LCond::Matches(s, rule) | LCond::Begins(s, rule) | LCond::Ends(s, rule) => {
                 let aligned = if let Span::From(inner) = s { &**inner } else { s };
                 if let Span::WithoutElision(inner, _) = aligned {

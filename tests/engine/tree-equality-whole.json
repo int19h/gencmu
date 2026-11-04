@@ -1,0 +1,8 @@
+{
+  "description": "Structural comparison: whole.",
+  "grammar": "%rule text $x:r\n%rule r $y:r | \"a\"\n%conditions $ ≅ $y",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

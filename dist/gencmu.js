@@ -134,7 +134,7 @@
    */
   function productionClauses(production) {
     return [production.conditions, production.tags, production.emit,
-      production.rankedDeferred, production.parentTags,
+      production.rankedDeferred, production.parentTags, production.itemConditions,
       production.source?.clauses];
   }
 
@@ -424,9 +424,25 @@
   /** A cached document needs source positions only when it raises an error.
    * @type {WeakMap<object,{document:string,node:object}>} */
   const boundaryDocumentErrors = new WeakMap();
+  /** @param {any} document @returns {any[]} */
+  function writtenTreeComparisons(document) {
+      const found=[], pending=document.rules.flatMap((/** @type {any} */ rule)=>[rule.conditions,rule.tags,...(rule.alternatives ?? []).map((/** @type {any} */ alt)=>alt.tags)]);
+      while(pending.length) {
+        const node=pending.pop();
+        if(node?.op==='≅' || node?.op==='≇')found.push(node);
+        else for (const child of clauseChildren(node)) pending.push(child);
+      }
+      return found;
+  }
+  /** @param {any} dom */
+  function needsTreeLocations(dom) {
+    return writtenTreeComparisons(dom).some(node=>(typeof node.right?.capture==='string' || node.right?.param) && !boundaryLocations.has(node));
+  }
   /** Recover positions through the same reader as an uncached document.
    * @param {any} dom @param {any} source */
   function restoreBoundaryLocations(dom,source) {
+    const compared=writtenTreeComparisons(dom), originalsCompared=writtenTreeComparisons(source);
+    if(compared.length===originalsCompared.length)compared.forEach((/** @type {any} */ node,/** @type {number} */ index)=>copyBoundaryLocation(originalsCompared[index],node));
     const atoms = dom.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([rule.conditions,rule.emit]));
     const originals = source.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([rule.conditions,rule.emit]));
     if (atoms.length !== originals.length) return;
@@ -3792,7 +3808,7 @@
     const old = localDemands.get(base);
     if (old) return old;
     const result = {whole:false, parts:new Set(), queries:new Map()};
-    const stack = [...productionClauses(base).slice(0, -1), base.source?.clauses.conditions];
+    const stack = [...productionClauses(base).slice(0, -1), (base.source ?? base.logicalSource)?.clauses.conditions];
     const seen = new Set();
     while (stack.length) {
       const node = /** @type {any} */ (stack.pop());
@@ -3876,6 +3892,653 @@
     }
     prefixes.set(grammar,table);
     return table;
+  }
+
+  // ---- pattern-shapes.js
+  /** Source positions of pattern operands and tag requirements. */
+  const patternLocations = new WeakMap();
+  /** @param {any} source @param {any} target */
+  function copyPatternLocation(source,target) {
+    const position=patternLocations.get(source);
+    if(position) patternLocations.set(target,position);
+  }
+
+  // Layered pattern constructors (docs/output.md, "Pattern values").
+  // This walk keeps pattern and item positions distinct before substitution.
+
+  /**
+   * @param {any} root
+   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
+   * @returns {string|null}
+   */
+  function layeredPatternProblem(root, inspect = {}) {
+    return inspectPattern(root, inspect, false);
+  }
+
+  /**
+   * @internal
+   * @param {any} root
+   * @param {Parameters<typeof layeredPatternProblem>[1]} [inspect]
+   * @returns {string|null}
+   */
+  function sourcePatternProblem(root, inspect = {}) {
+    return inspectPattern(root, inspect, true);
+  }
+
+  /**
+   * @param {any} root
+   * @param {NonNullable<Parameters<typeof layeredPatternProblem>[1]>} inspect
+   * @param {boolean} deferGroups
+   * @returns {string|null}
+   */
+  function inspectPattern(root, inspect, deferGroups) {
+    const stack = [{node:root,item:false,repeated:false,depth:inspect.depth ?? 0,inner:false}];
+    const object = (/** @type {any} */ n) => n && typeof n === 'object' && !Array.isArray(n);
+    const position = (/** @type {any} */ n) => Array.isArray(n) && n.length === 2 && n.every((/** @type {any} */ x) => Number.isSafeInteger(x) && x > 0);
+    const stringTerm = (/** @type {any} */ n) => object(n) && (
+      Object.keys(n).length === 1 && typeof n.string === 'string' && [...n.string].every(c => c.codePointAt(0) < 0xd800 || c.codePointAt(0) > 0xdfff)
+      || Object.keys(n).length === 2 && position(n.at) && (typeof n.const === 'string' && /^[A-Z][A-Za-z0-9_-]*$/.test(n.const) || typeof n.param === 'string' && /^[A-Za-z][A-Za-z0-9_-]*$/.test(n.param))
+    );
+    const requirementTerm = (/** @type {any} */ n) => stringTerm(n) && !('string' in n) || object(n) && Object.keys(n).length === 1 && typeof n.tag === 'string' && (inspect.terminal ? inspect.terminal(n.tag) : /^[A-Z][A-Za-z0-9_-]*$/.test(n.tag) || n.tag.startsWith('_'));
+    const ruleName = (/** @type {any} */ name) => typeof name === 'string' && (inspect.name ? inspect.name(name) : /^[a-z][A-Za-z0-9_-]*$/.test(name) || [...name].length === 1 && (name.codePointAt(0) ?? 0) > 127);
+    const terminalAtom = (/** @type {any} */ n) => object(n) && ['terminal','literal','range','wildcard','constant','param'].some(k => k in n) && !('exact' in n || 'children' in n);
+    while (stack.length) {
+      const {node:n,item,repeated,depth,inner} = /** @type {any} */ (stack.pop());
+      if (!inspect.deferDepth && depth > 256) return 'nested too deeply';
+      if (!object(n)) return 'a malformed pattern';
+      const keys = Object.keys(n);
+      const exact = (/** @type {string[]} */ fields) => keys.length === fields.length && fields.every(k => k in n);
+      const push = (/** @type {any} */ node, isItem = false, inRepeat = repeated, isInner = false) => stack.push({node,item:isItem,repeated:inRepeat,depth:depth+1,inner:isInner});
+      const items = (/** @type {any} */ array, inRepeat = repeated, empty = false) => {
+        if (!Array.isArray(array) || !empty && !array.length) return false;
+        for (const node of array) push(node,true,inRepeat);
+        return true;
+      };
+      if (item) {
+        if (deferGroups && exact(['sequence'])) {
+          if (!items(n.sequence)) return 'a malformed pattern sequence';
+        } else if (exact(['child'])) push(n.child,false,false);
+        else if (exact(['siblings'])) {
+          if (n.siblings !== true) return 'a malformed sibling ellipsis';
+          if (repeated) return 'a sibling ellipsis cannot be a repeat item or separator';
+        } else if (exact(['optional'])) {
+          if (!items(n.optional)) return 'a malformed pattern optional';
+        } else if (exact(['repeat']) || exact(['repeat','separator'])) {
+          if (!items(n.repeat,true) || 'separator' in n && !items(n.separator,true)) return 'a malformed pattern repeat';
+        } else if (exact(['choice'])) {
+          if (!Array.isArray(n.choice) || n.choice.length < 2) return 'a malformed pattern choice';
+          for (const arm of n.choice) {
+            if (!items(arm) || !deferGroups && arm.length === 1 && object(arm[0]) && 'choice' in arm[0]) return 'a malformed pattern choice';
+          }
+        } else return 'a malformed pattern child item';
+        continue;
+      }
+      const compound = ['union','intersection','difference'].find(k => k in n);
+      if (compound) {
+        const operands = n[compound];
+        if (!exact([compound]) || !Array.isArray(operands) || operands.length < 2 || compound === 'difference' && operands.length !== 2) return 'a malformed pattern';
+        if (!deferGroups && compound !== 'difference' && operands.some((/** @type {any} */ x) => object(x) && compound in x)) return 'a nested pattern set must be flat';
+        for (const node of operands) push(node,false,false);
+        continue;
+      }
+      if ('path' in n) {
+        if (!exact(['path','pattern']) || !['descendant','first','last'].includes(n.path)) return 'a malformed pattern path';
+        push(n.pattern,false,false);
+        continue;
+      }
+      const form = ['name','call','param','terminal','literal','range','wildcard','constant','test','any'].filter(k => k in n);
+      if (form.length !== 1) return 'a malformed pattern node test';
+      const key = form[0];
+      if ('exact' in n && (n.exact !== true || inner)) return 'a malformed exact pattern prefix';
+      if ('children' in n && (inner || !['name','call','param','any'].includes(key))) return 'a child list requires a rule test';
+      let fields = [key, ...('exact' in n ? ['exact'] : []), ...('children' in n ? ['children'] : [])];
+      if (key === 'test') {
+        if (n.test === 'tags') {
+          fields.push('requirements', 'expr');
+          const ruleAtom = object(n.expr) && ['name','call'].some(k => k in n.expr) && !('exact' in n.expr || 'children' in n.expr);
+          if (!(terminalAtom(n.expr) || ruleAtom) || !Array.isArray(n.requirements)) return 'a pattern tag test requires a node atom';
+          for (const requirement of n.requirements) {
+            if (!object(requirement) || Object.keys(requirement).length !== 2 || !('value' in requirement) || typeof requirement.negated !== 'boolean' || !requirementTerm(requirement.value)) return 'a malformed pattern requirement';
+          }
+        } else {
+          fields.push('value','expr');
+          if (!['=','≠'].includes(n.test) || !(terminalAtom(n.expr) || object(n.expr) && ['name','call'].some(k => k in n.expr) || object(n.expr) && n.expr.test === 'tags' && !('exact' in n.expr || 'children' in n.expr) && (terminalAtom(n.expr.expr) || object(n.expr.expr) && ['name','call'].some(k => k in n.expr.expr)))) return 'a pattern value test requires a node atom';
+          if (!stringTerm(n.value)) return 'a malformed pattern value test';
+        }
+        const problem = inspect.test?.(n);
+        if (problem) return problem;
+        if ("expr" in n) push(n.expr,false,false,true);
+      } else if (key === 'any') {
+        if (n.any !== true || !('children' in n)) return 'a malformed bare child list';
+      } else {
+        fields.push('at');
+        if (!position(n.at)) return 'a malformed pattern position';
+        if (key === 'call') {
+          fields.push('args');
+          if (!ruleName(n.call) || !Array.isArray(n.args) || !n.args.length || n.args.some((/** @type {any} */ x) => !object(x))) return 'a malformed pattern call';
+        } else if (key === 'name') {
+          if (!ruleName(n.name)) return 'a malformed pattern rule name';
+        } else if (key === 'param' || key === 'constant') {
+          if (typeof n[key] !== 'string' || !(key === 'param' ? /^[A-Za-z][A-Za-z0-9_-]*$/ : /^[A-Z][A-Za-z0-9_-]*$/).test(n[key])) return 'a malformed pattern reference';
+        } else if (key === 'terminal') {
+          if (n.terminal === '_Elided') return '_Elided stands only in a pattern tag test';
+          if (typeof n.terminal !== 'string' || !(inspect.terminal ? inspect.terminal(n.terminal) : /^[A-Z][A-Za-z0-9_-]*$/.test(n.terminal) || n.terminal.startsWith('_'))) return 'a malformed pattern terminal';
+        } else if (key === 'wildcard') {
+          if (n.wildcard !== true) return 'a malformed pattern wildcard';
+        } else if (key === 'literal') {
+          if (!stringTerm(n.literal) || !('string' in n.literal)) return 'a malformed pattern literal';
+        } else if (key === 'range') {
+          if (!Array.isArray(n.range) || n.range.length !== 2 || n.range.some((/** @type {any} */ x) => !stringTerm(x))) return 'a malformed pattern range';
+        }
+      }
+      if (!exact(fields)) return 'a malformed pattern node test';
+      if ('children' in n && !items(n.children,false,true)) return 'a malformed pattern child list';
+    }
+    return null;
+  }
+
+  /**
+   * @param {any} root
+   * @param {(term:any)=>string} term
+   * @param {boolean} [literal]
+   * @returns {string}
+   */
+  function layeredPatternText(root, term, literal = true) {
+    const atom = (/** @type {any} */ n) => !['union','intersection','difference','path'].some(k => k in n);
+    const set = (/** @type {any} */ n) => ['union','intersection','difference'].some(k => k in n);
+    /** @type {(items:any[])=>string} */
+    const items = array => array.map(n => {
+      let text;
+      if (n.child) text = pattern(n.child);
+      else if (n.siblings) return '⋯';
+      else if (n.optional) return '['+items(n.optional)+']';
+      else if (n.repeat) return '{'+items(n.repeat)+(n.separator?' / '+items(n.separator):'')+'}';
+      else text = n.choice.map(items).join(' | ');
+      return array.length > 1 && (n.choice || n.child && set(n.child)) ? '('+text+')' : text;
+    }).join(' ');
+    const children = (/** @type {any[]} */ array) => array.length ? '« '+items(array)+' »' : '«»';
+    /** @type {(n:any)=>string} */
+    const pattern = n => {
+      if (n.path) {
+        const operand = atom(n.pattern) ? pattern(n.pattern) : '('+pattern(n.pattern)+')';
+        return n.path === 'first' ? operand+' ⋰' : (n.path === 'last' ? '⋱ ' : '⋮ ')+operand;
+      }
+      if (set(n)) {
+        const key = n.union ? 'union' : n.intersection ? 'intersection' : 'difference';
+        return n[key].map((/** @type {any} */ x,/** @type {number} */ i) => {
+          const grouped = key === 'intersection' && (x.union || x.difference)
+            || key === 'difference' && i === 1 && (x.union || x.difference)
+            || key === 'union' && i > 0 && x.difference;
+          const text = pattern(x);
+          return grouped ? '('+text+')' : text;
+        }).join(key === 'union' ? ' ∪ ' : key === 'intersection' ? ' ∩ ' : ' ∖ ');
+      }
+      let text;
+      if (n.test) text = (n.any ? '' : pattern(n.expr))+(n.test === 'tags' ? term({requirements:n.requirements}) : n.test+term(n.value));
+      else if (n.any) text = '';
+      else if (n.literal) text = term(n.literal);
+      else if (n.range) text = n.range.map(term).join('..');
+      else if (n.wildcard) text = '_';
+      else if (n.constant) text = '$'+n.constant;
+      else text = term(n);
+      return (n.exact ? '·' : '')+text+('children' in n ? children(n.children) : '');
+    };
+    const text = pattern(root);
+    return literal ? '#'+(atom(root) ? text : '('+text+')') : text;
+  }
+
+  // ---- trampoline.js
+  // Runs mutually recursive readers and walks without the call stack, so a
+  // document's nesting cannot exhaust it (engine §9).
+
+  /**
+   * A step of a reader written as a generator: it yields the generator of
+   * each call it would make, and receives that call's result in its place,
+   * or the call's error, thrown at the yield.
+   * @typedef {Generator<any, any, any>} Step
+   */
+
+
+
+  // Each step of a run counts as walkSteps of `hooks.work` while a test sets
+  // it, and so does each node that a walk with an explicit stack meets. The
+  // tests of growth compare the steps across depths of nesting
+  // (tests/README.md).
+
+  /**
+   * Runs a reader to its result, keeping the chain of its calls in an
+   * explicit stack.
+   * @template T
+   * @param {Generator<any, T, any>} root
+   * @returns {T}
+   */
+  function run(root) {
+    /** @type {Step[]} */
+    const stack = [root];
+    /** @type {any} */
+    let value;
+    let failed = false;
+    /** @type {unknown} */
+    let error = null;
+    while (stack.length > 0) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      const top = stack[stack.length - 1];
+      let step;
+      try {
+        step = failed ? top.throw(error) : top.next(value);
+      } catch (thrown) {
+        // A count past a test's budget leaves at once, so the test sees the
+        // first count past it, not a later count of the unwinding steps.
+        if (thrown instanceof WorkBudget) throw thrown;
+        stack.pop();
+        failed = true;
+        error = thrown;
+        continue;
+      }
+      failed = false;
+      error = null;
+      if (step.done) {
+        stack.pop();
+        value = step.value;
+      } else {
+        stack.push(step.value);
+        value = undefined;
+      }
+    }
+    if (failed) throw error;
+    return value;
+  }
+
+  // ---- patterns.js
+
+  // Finite observations of structural trees (engine §4.1). A helper carries
+  // a sequence monoid: its relations concatenate without retaining trees.
+
+
+
+
+
+  /** @param {any} test @param {string} input @param {Set<string>} tags @returns {boolean} */
+  function leafTest(test, input, tags) {
+    if (test.test === "=") return input === test.value.string;
+    if (test.test === "≠") return input !== test.value.string;
+    for (const requirement of test.requirements) for (const tag of requirement.value.set) {
+      if (tags.has(tag) === requirement.negated) return false;
+    }
+    return true;
+  }
+
+  /** @param {any} pattern @param {string|null} name @param {Set<string>} tags @param {any} leaf @param {string|undefined} [value] @returns {boolean} */
+  function localNodeMatches(pattern,name,tags,leaf,value=leaf?.value) {
+    if (pattern.union) return pattern.union.some((/** @type {any} */ p)=>localNodeMatches(p,name,tags,leaf,value));
+    if (pattern.intersection) return pattern.intersection.every((/** @type {any} */ p)=>localNodeMatches(p,name,tags,leaf,value));
+    if (pattern.difference) return localNodeMatches(pattern.difference[0],name,tags,leaf,value) && !localNodeMatches(pattern.difference[1],name,tags,leaf,value);
+    if (pattern.test) return localNodeMatches(pattern.expr,name,tags,leaf,value) &&
+      (pattern.test === 'tags' ? leafTest(pattern,'',tags) : value !== undefined && leafTest(pattern,value,tags));
+    if (pattern.name) return name === pattern.name;
+    if (pattern.terminal) return !!leaf && (pattern.terminal === '_' || leaf.terminal === pattern.terminal);
+    return !!pattern.any && (name !== null || !!leaf);
+  }
+
+  /** @param {any} node @returns {any[]} */
+  function patternParts(node) {
+    if (Array.isArray(node)) return node;
+    if (node.union || node.intersection || node.difference) return node.union ?? node.intersection ?? node.difference;
+    if (node.path) return [node.pattern];
+    if (node.test) return node.expr ? [node.expr] : [];
+    if (node.child) return [node.child];
+    if (node.choice) return node.choice.flat();
+    return [...(node.children ?? []), ...(node.optional ?? node.repeat ?? []), ...(node.separator ?? [])];
+  }
+
+  /**
+   * Inspect substitution before copying values. The cache records the greatest
+   * depth already visited for each shared node and flattening context.
+   * @param {any} term
+   * @param {(name:string) => any} constant
+   * @returns {{at?:[number,number]}|null}
+   */
+  function patternDepthProblem(term, constant) {
+    const all = {any:true,children:[{siblings:true}]};
+    const empty = {difference:[all,all]};
+    /** @type {{node:any,depth:number,parent:string,term:boolean,at?:[number,number]}[]} */
+    const pending = [{node:term, depth:1, parent:"", term:true, at:undefined}];
+    /** @type {WeakMap<object,Map<string,number>>} */
+    const seen = new WeakMap();
+    while (pending.length) {
+      const entry = /** @type {{node:any,depth:number,parent:string,term:boolean,at?:[number,number]}} */ (pending.pop());
+      const {node,depth,parent,at} = entry;
+      if (Array.isArray(node)) {
+        for (let i=node.length-1;i>=0;i--) pending.push({...entry,node:node[i]});
+        continue;
+      }
+      const name = entry.term ? node.const : node.constant;
+      if (name) {
+        const value = constant(name);
+        if ("pattern" in value) pending.push({...entry,node:value.pattern,term:false,at:at ?? node.at});
+        else if (entry.term && "set" in value && value.set.size === 0) pending.push({...entry,node:empty,term:false,at:at ?? node.at});
+        else if (depth > 256) return {at};
+        continue;
+      }
+      if (entry.term && node.emptySet) {
+        pending.push({...entry,node:empty,term:false});
+        continue;
+      }
+      if (entry.term && node.pattern) {
+        pending.push({...entry,node:node.pattern,term:false});
+        continue;
+      }
+      const operation = ["union","intersection","difference"].find(key => node[key]);
+      const flat = operation !== undefined && operation !== "difference" && operation === parent;
+      if (!flat && depth > 256) return {at};
+      let visits = seen.get(node);
+      if (!visits) seen.set(node,visits=new Map());
+      const context = `${entry.term}:${parent}`;
+      if ((visits.get(context) ?? -1) >= depth) continue;
+      visits.set(context,depth);
+      if (operation) {
+        pending.push({...entry,node:node[operation],depth:depth+(flat?0:1),parent:operation});
+      } else if (!entry.term) {
+        const children = node.path ? [node.pattern] : patternParts(node);
+        pending.push({...entry,node:children,depth:depth+1,parent:""});
+      }
+    }
+    return null;
+  }
+
+  /**
+   * @param {any} root
+   * @param {(name:string, at:[number,number]) => any} constant
+   * @param {(term:any, test:any) => any} value
+   * @param {import("./unicode.js").UnicodeTable} unicode
+   * @returns {any}
+   */
+  function resolvePattern(root, constant, value, unicode) {
+    /** @param {any} atom @param {string} message @returns {never} */
+    const fault=(atom,message)=>{throw new GencmuError('grammar',message,{line:atom.at?.[0],column:atom.at?.[1]});};
+    /** @param {any} node @returns {Generator<any,any,any>} */
+    function* resolve(node) {
+      if (Array.isArray(node)) {
+        const items=[];
+        for(const child of node) items.push(yield resolve(child));
+        return items;
+      }
+      let result={...node};
+      if (node.constant) {
+        const resolved=constant(node.constant,node.at);
+        if ('pattern' in resolved) {
+          if (node.exact || node.children) return fault(node,'a pattern-valued constant cannot carry node decorations');
+          return resolved.pattern;
+        }
+        result={terminal:stringName(resolved.string,unicode),at:node.at,...(node.exact?{exact:true}:{})};
+      } else if (node.literal || node.range || node.wildcard) {
+        const terminal=node.literal ? stringName(value(node.literal,node).string,unicode)
+          : node.range ? node.range.map((/** @type {any} */ end)=>stringName(value(end,node).string,unicode)).join('..') : '_';
+        result={terminal,at:node.at,...(node.exact?{exact:true}:{})};
+      } else if (node.test) {
+        let base=node.expr;
+        while(base?.test) base=base.expr;
+        if(base?.constant && 'pattern' in constant(base.constant,base.at)) return fault(base,'a tested pattern atom requires a string constant');
+        if (node.expr) result.expr=yield resolve(node.expr);
+        if (node.test==='tags') result.requirements=node.requirements.map((/** @type {any} */ requirement)=>({...requirement,value:value(requirement.value,node)}));
+        else result.value=value(node.value,node);
+        if (node.test === 'tags' && result.expr?.name) for(let i=0;i<result.requirements.length;i++) {
+          const requirement=result.requirements[i];
+          if (!requirement.negated && requirement.value.set.has('_Elided')) {
+            const at=patternLocations.get(node.requirements[i].value) ?? result.expr.at;
+            throw new GencmuError('grammar','a rule pattern cannot require _Elided',{line:at?.[0],column:at?.[1]});
+          }
+        }
+        copyPatternLocation(node,result);
+        return result;
+      }
+      for(const key of ['union','intersection','difference','choice','pattern','children','child','optional','repeat','separator']) {
+        if(node[key]) result[key]=yield resolve(node[key]);
+      }
+      for(const key of ['union','intersection']) if(result[key]) result[key]=result[key].flatMap((/** @type {any} */ part)=>part[key]??[part]);
+      copyPatternLocation(node,result);
+      return result;
+    }
+    return run(resolve(root));
+  }
+
+  /** @param {any} value @returns {any} */
+  function patternKey(value) {
+    if (value instanceof Set) return [...value].sort();
+    if (Array.isArray(value)) return value.map(patternKey);
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'at').map(([key,val]) => [key,patternKey(val)]));
+  }
+
+  /** @param {any} pattern @returns {boolean} */
+  function machineReadsNodeTags(pattern) {
+    return pattern.test === 'tags' && (pattern.expr?.name || pattern.expr?.call) || patternParts(pattern).some(machineReadsNodeTags);
+  }
+
+  class PatternMachine {
+    /** @param {any[]} roots */
+    constructor(roots) {
+      /** @type {any[]} */ this.predicates = [];
+      /** @type {any[]} */ this.machines = [];
+      /** @type {Map<string,number>} */ this.ids = new Map();
+      /** @type {any[]} */ this.states = [];
+      /** @type {Map<string,number>} */ this.stateIds = new Map();
+      /** @type {Map<string,number>} */ this.transitions = new Map();
+      this.nodeTags = roots.some(machineReadsNodeTags);
+      this.nodeValues = roots.some(function reads(n) {return (n.test === "=" || n.test === "≠") && !!(n.expr?.name || n.expr?.expr?.name) || patternParts(n).some(reads);});
+      roots.forEach(n => this.compile(n));
+      this.empty = this.intern({count:0, first:0n,last:0n,any:0n, relations:this.machines.map(m => m.epsilon)});
+      // A seal contributes one nameless child even over an empty interval.
+      this.seal = this.nodeState(0n,false);
+    }
+    /** @param {any} n @returns {number} */
+    compile(n) {
+      const key = JSON.stringify(patternKey(n));
+      const old = this.ids.get(key); if (old !== undefined) return old;
+      const p = {...n};
+      if (n.path) p.child = this.compile(n.pattern);
+      for (const k of ['union','intersection','difference']) if (n[k]) p.operands = n[k].map((/** @type {any} */ x) => this.compile(x));
+      if (n.children) { const m = this.sequence(n.children); p.machine = this.machines.length; this.machines.push(m); }
+      const id = this.predicates.length;
+      this.predicates.push(p); this.ids.set(key,id); return id;
+    }
+    /** @param {any} body @returns {any} */
+    sequence(body) {
+      /** @type {{from:number,to:number,predicate:number | null}[]} */ const edges=[];
+      let size=0;
+      const state=() => size++;
+      const edge=(/** @type {number} */ from,/** @type {number} */ to,/** @type {number|null} */ predicate=null) => edges.push({from,to,predicate});
+      const build=(/** @type {any} */ n,/** @type {number} */ from,/** @type {number} */ to) => {
+        if (Array.isArray(n)) {
+          if (!n.length) edge(from,to);
+          let a=from;
+          n.forEach((x,i) => { const b=i===n.length-1?to:state(); build(x,a,b);a=b; });
+        } else if (n.child) edge(from,to,this.compile(n.child));
+        else if (n.siblings) { const gap=state(); edge(from,gap); edge(gap,gap,-1); edge(gap,to); }
+        else if (n.choice) n.choice.forEach((/** @type {any} */ arm) => build(arm,from,to));
+        else if (n.optional) { edge(from,to); build(n.optional,from,to); }
+        else if (n.repeat) {
+          const a=state(),b=state(); edge(from,a); build(n.repeat,a,b); edge(b,to);
+          if (n.separator) build(n.separator,b,a); else edge(b,a);
+        }
+      };
+      const start=state(),end=state(); build(body,start,end);
+      const epsilon=Array.from({length:size},(_,i) => 1n<<BigInt(i));
+      edges.filter(e => e.predicate===null).forEach(e => epsilon[e.from] |= 1n<<BigInt(e.to));
+      for (let k=0;k<size;k++) for (let i=0;i<size;i++) if (epsilon[i] & (1n<<BigInt(k))) epsilon[i] |= epsilon[k];
+      return {size,start,end,edges,epsilon};
+    }
+    /** @param {any} s @returns {number} */
+    intern(s) {
+      const key = `${s.count}/${s.first}/${s.last}/${s.any}/${s.relations.map((/** @type {bigint[]} */ r) => r.join(',')).join(';')}/${s.bits??''}/${s.empty??''}`;
+      const old=this.stateIds.get(key);if(old!==undefined)return old;
+      if (hooks.work) countWork(hooks.work, "structuralStates");
+      const id=this.states.length;this.states.push(s);this.stateIds.set(key,id);return id;
+    }
+    /** @param {bigint[]} a @param {bigint[]} b @returns {bigint[]} */
+    compose(a,b) {
+      return a.map(row => { let out=0n;for(let k=0;k<b.length;k++)if(row&(1n<<BigInt(k)))out|=b[k];return out; });
+    }
+    /** @param {number} left @param {number} right @returns {number} */
+    concat(left,right) {
+      const key=`c${left},${right}`;const old=this.transitions.get(key);if(old!==undefined)return old;
+      const a=this.states[left],b=this.states[right];
+      const id=this.intern({count:Math.min(2,a.count+b.count),first:a.count?a.first:b.first,last:b.count?b.last:a.last,any:a.any|b.any,
+        relations:a.relations.map((/** @type {bigint[]} */ r,/** @type {number} */ i) => this.compose(r,b.relations[i]))});
+      if (hooks.work) countWork(hooks.work, "structuralTransitions");
+      this.transitions.set(key,id);return id;
+    }
+    /** @param {bigint} bits @param {boolean} empty @returns {number} */
+    nodeState(bits,empty) {
+      const relations=this.machines.map(m => {
+        const move=Array.from({length:m.size},() => 0n);
+        m.edges.forEach((/** @type {any} */ e) => { if(e.predicate!==null&&(e.predicate===-1||(bits&(1n<<BigInt(e.predicate)))))move[e.from]|=1n<<BigInt(e.to); });
+        return this.compose(this.compose(m.epsilon,move),m.epsilon);
+      });
+      // A node state retains its own bits even when empty. Its sequence
+      // contribution is empty in that case, so captures retain root names.
+      const zero=this.states[this.empty];
+      return this.intern({bits,empty,count:empty?0:1,first:empty?0n:bits,last:empty?0n:bits,any:empty?0n:bits,relations:empty?zero.relations:relations});
+    }
+    /** @param {string|null} name @param {number} children @param {any} [leaf] @returns {number} */
+    node(name,children,leaf=null,tags=new Set(),value=leaf?.value) {
+      const key=`n${name}/${children}/${JSON.stringify(value)}/${leaf?JSON.stringify([leaf.terminal,leaf.value,[...leaf.tags].sort()]):JSON.stringify([...tags].sort())}`;
+      const old=this.transitions.get(key);if(old!==undefined)return old;
+      const s=this.states[children];let bits=0n;
+      this.predicates.forEach((p,i) => {
+        const bit=1n<<BigInt(i);let holds=false;
+        if (p.name) holds=name===p.name;
+        else if(p.terminal) holds=!!leaf && (p.terminal==='_' || leaf.terminal===p.terminal);
+        else if(p.test) holds=localNodeMatches(p,name,leaf?.tags ?? tags,leaf,value);
+        else if(p.any || p.children) holds=p.any ? name!==null || leaf!==null : true;
+        else if(p.path) {
+          holds=!!(bits&(1n<<BigInt(p.child)));
+          const child=p.path==='descendant'?s.any:p.path==='first'?s.first:s.last;
+          holds=holds||!!(child&bit);
+        } else if(p.union) holds=p.operands.some((/** @type {number} */ j) => !!(bits&(1n<<BigInt(j))));
+        else if(p.intersection) holds=p.operands.every((/** @type {number} */ j) => !!(bits&(1n<<BigInt(j))));
+        else if(p.difference) holds=!!(bits&(1n<<BigInt(p.operands[0])))&&! (bits&(1n<<BigInt(p.operands[1])));
+        if (p.children) {
+          const m=this.machines[p.machine];
+          holds=holds&&!!(s.relations[p.machine][m.start]&(1n<<BigInt(m.end)));
+        }
+        if ((p.name||p.terminal||p.test||p.any||p.children)&&!p.exact&&s.count===1) holds=holds||!!(s.first&bit);
+        if(holds)bits|=bit;
+      });
+      const id=this.nodeState(bits,!leaf&&s.count===0);
+      if (hooks.work) countWork(hooks.work, "structuralTransitions");
+      this.transitions.set(key,id);return id;
+    }
+    /** @param {number} state @param {any} pattern @returns {boolean} */
+    matches(state,pattern) {
+      const id=this.ids.get(JSON.stringify(patternKey(pattern)));
+      if(id===undefined)throw new Error('undemanded structural pattern');
+      return !!((this.states[state].bits ?? 0n)&(1n<<BigInt(id)));
+    }
+  }
+
+
+  // ---- ranking-patterns.js
+  // Local node predicates for ranking (engine §6 and §9.3).
+
+
+  /** @param {any} pattern @returns {boolean} */
+  function requiresElided(pattern) {
+    if (pattern.union) return pattern.union.every(requiresElided);
+    if (pattern.intersection) return pattern.intersection.some(requiresElided);
+    if (pattern.difference) return requiresElided(pattern.difference[0]);
+    if (pattern.test === 'tags' && pattern.requirements.some((/** @type {any} */ r)=>!r.negated && r.value.set.has('_Elided'))) return true;
+    return !!pattern.expr && requiresElided(pattern.expr);
+  }
+
+  /** @param {any} pattern @returns {string|null} */
+  function rankingPatternProblem(pattern) {
+    if (pattern.union || pattern.intersection || pattern.difference) {
+      for (const operand of pattern.union ?? pattern.intersection ?? pattern.difference) {
+        const problem=rankingPatternProblem(operand);
+        if (problem) return problem;
+      }
+      return null;
+    }
+    if (!pattern.exact || pattern.children || pattern.path || pattern.any && !pattern.test) return 'a ranking step requires an exact local node pattern';
+    return null;
+  }
+
+  /** @param {any} pattern @returns {boolean} */
+  function readsNodeTags(pattern) {
+    if (pattern.test === 'tags' && (pattern.expr?.name || pattern.expr?.call)) return true;
+    return patternParts(pattern).some(readsNodeTags);
+  }
+
+  /** @param {any} pattern @param {any} node @returns {boolean|null} */
+  function possibleNodeMatch(pattern,node) {
+    const and=(/** @type {(boolean|null)[]} */ values)=>values.includes(false)?false:values.includes(null)?null:true;
+    const or=(/** @type {(boolean|null)[]} */ values)=>values.includes(true)?true:values.includes(null)?null:false;
+    if (pattern.union) return or(pattern.union.map((/** @type {any} */ p)=>possibleNodeMatch(p,node)));
+    if (pattern.intersection) return and(pattern.intersection.map((/** @type {any} */ p)=>possibleNodeMatch(p,node)));
+    if (pattern.difference) {
+      const right=possibleNodeMatch(pattern.difference[1],node);
+      return and([possibleNodeMatch(pattern.difference[0],node),right === null?null:!right]);
+    }
+    if (pattern.test) {
+      const base=possibleNodeMatch(pattern.expr,node);
+      if (base === false) return false;
+      if (pattern.test !== 'tags') return and([base,node.value === undefined?null:localNodeMatches(pattern,node.name??null,node.tags??new Set(),node.name?null:node,node.value)]);
+      if (node.tags) return and([base,localNodeMatches(pattern,node.name??null,node.tags,node.terminal?node:null,node.value)]);
+      if (pattern.requirements.some((/** @type {any} */ r)=>!r.negated && r.value.set.has('_Elided'))) return false;
+      return and([base,pattern.requirements.length?null:true]);
+    }
+    if (pattern.name) return pattern.name === node.name;
+    if (pattern.terminal) return pattern.terminal === "_" ? !!node.terminal : pattern.terminal === node.terminal;
+    return false;
+  }
+
+  /** @param {any} pattern @returns {boolean} */
+  function hasPatternValue(pattern) {
+    return pattern.test === '=' || pattern.test === '≠' || patternParts(pattern).some(hasPatternValue);
+  }
+
+  /** @param {any} term @returns {Set<string>|null} */
+  function knownTags(term) {
+    if (!term || term.if || term.method) return null;
+    if (term.tag) return new Set([term.tag]);
+    if (term.set instanceof Set) return term.set;
+    if (term.emptySet) return new Set();
+    const parts=term.union ?? term.intersection ?? term.difference;
+    if (!parts) return null;
+    const values=parts.map(knownTags);
+    if (values.some((/** @type {any} */ value)=>value === null)) return null;
+    const [first,...rest]=values;
+    if (term.union) return new Set(values.flatMap((/** @type {Set<string>} */ value)=>[...value]));
+    return new Set([...first].filter(tag=>term.intersection?rest.every((/** @type {Set<string>} */ value)=>value.has(tag)):!rest[0].has(tag)));
+  }
+
+  /** @type {WeakMap<object,boolean>} */
+  const profileDecisions=new WeakMap();
+  /** @param {any} lowered @returns {boolean} */
+  function canCountProfiles(lowered) {
+    const steps=lowered.resolution.steps;
+    if (!steps.length) return false;
+    const cached=profileDecisions.get(lowered);
+    if (cached !== undefined) return cached;
+    const pending=['text'],seen=new Set();
+    let possible=false;
+    const test=(/** @type {any} */ node)=>steps.some((/** @type {any} */ step)=>possibleNodeMatch(step.pattern,node)!==false);
+    while(pending.length) {
+      const name=pending.pop();
+      if(seen.has(name)) continue;
+      seen.add(name);
+      for(const p of lowered.byLhs.get(name)??[]) {
+        if(!p.helper) possible ||= test({name:p.lhs,tags:p.tags?knownTags(p.tags):new Set()});
+        if(p.elided && !p.rhs.length) possible ||= test({terminal:p.elided,tags:new Set([p.elided,'_Elided']),value:''});
+        for(const symbol of p.rhs) {
+          if(symbol.terminal) possible ||= test({terminal:symbol.name});
+          else pending.push(symbol.name);
+        }
+      }
+    }
+    profileDecisions.set(lowered,possible);
+    return possible;
   }
 
   // ---- template-nodes.js
@@ -4013,8 +4676,9 @@
     else if (name === "followed-by" || name === "preceded-by") valid = bare && args.length > 0 && args.every(arg => rule(arg) || named(arg, "terminal"));
     else if (name === "without-elision-except") valid = bare && args.length === 1 && rule(args[0]);
     else if (name === "without-elision") valid = bare && args.length === 0;
-    else if (name === "verbatim-text" || name === "emitted") valid = recipe && bare && args.length === 0;
-    else valid = args.length === 0 && (span || recipe && receiver.method === "emitted" && (name === "value" || name === "image"));
+    else if (name === "verbatim-text") valid = recipe && bare && args.length === 0;
+    else if (name === "emitted") valid = bare && args.length === 0;
+    else valid = args.length === 0 && (span || receiver.method === "emitted" && (name === "value" || name === "image"));
     return valid ? null : METHOD_SIGNATURE_PROBLEM;
   }
 
@@ -4063,10 +4727,10 @@
     } else if (name === "classify") {
       if (!string || args.length !== 1 || typeof args[0].classifier !== "string") return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "emitted") {
-      if (!recipe || args.length || typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) return METHOD_SIGNATURE_PROBLEM;
+      if (!recipe || args.length || typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) return "emitted requires a bare capture in a recipe";
     } else if (name === "verbatim-text") {
-      if (!recipe || !span || args.length) return METHOD_SIGNATURE_PROBLEM;
-    } else if (!span && !(recipe && type === "emitted" && (name === "value" || name === "image"))) {
+      if (!recipe || !span || args.length) return "verbatim-text requires a capture in a recipe";
+    } else if (!span && !(type === "emitted" && (name === "value" || name === "image"))) {
       return METHOD_SIGNATURE_PROBLEM;
     } else if (args.length) return METHOD_SIGNATURE_PROBLEM;
     return null;
@@ -4093,519 +4757,8 @@
     return receiver?.method === "without-elision" || receiver?.method === "without-elision-except";
   }
 
-  // ---- trampoline.js
-  // Runs mutually recursive readers and walks without the call stack, so a
-  // document's nesting cannot exhaust it (engine §9).
-
-  /**
-   * A step of a reader written as a generator: it yields the generator of
-   * each call it would make, and receives that call's result in its place,
-   * or the call's error, thrown at the yield.
-   * @typedef {Generator<any, any, any>} Step
-   */
-
-
-
-  // Each step of a run counts as walkSteps of `hooks.work` while a test sets
-  // it, and so does each node that a walk with an explicit stack meets. The
-  // tests of growth compare the steps across depths of nesting
-  // (tests/README.md).
-
-  /**
-   * Runs a reader to its result, keeping the chain of its calls in an
-   * explicit stack.
-   * @template T
-   * @param {Generator<any, T, any>} root
-   * @returns {T}
-   */
-  function run(root) {
-    /** @type {Step[]} */
-    const stack = [root];
-    /** @type {any} */
-    let value;
-    let failed = false;
-    /** @type {unknown} */
-    let error = null;
-    while (stack.length > 0) {
-      if (hooks.work) countWork(hooks.work, "walkSteps");
-      const top = stack[stack.length - 1];
-      let step;
-      try {
-        step = failed ? top.throw(error) : top.next(value);
-      } catch (thrown) {
-        // A count past a test's budget leaves at once, so the test sees the
-        // first count past it, not a later count of the unwinding steps.
-        if (thrown instanceof WorkBudget) throw thrown;
-        stack.pop();
-        failed = true;
-        error = thrown;
-        continue;
-      }
-      failed = false;
-      error = null;
-      if (step.done) {
-        stack.pop();
-        value = step.value;
-      } else {
-        stack.push(step.value);
-        value = undefined;
-      }
-    }
-    if (failed) throw error;
-    return value;
-  }
-
-  // ---- patterns.js
-  // Finite observations of structural trees (engine §4.1). A helper carries
-  // a sequence monoid: its relations concatenate without retaining trees.
-
-
-
-
-
-  /** @param {any} test @param {string} input @param {Set<string>} tags @returns {boolean} */
-  function leafTest(test, input, tags) {
-    if (test.test === "=") return input === test.value.string;
-    if (test.test === "≠") return input !== test.value.string;
-    for (const requirement of test.requirements) for (const tag of requirement.value.set) {
-      if (tags.has(tag) === requirement.negated) return false;
-    }
-    return true;
-  }
-
-  /** @param {any} pattern @param {any} leaf @returns {boolean} */
-  function leafMatches(pattern,leaf) {
-    if (!leaf) return false;
-    if (pattern.test) return leafMatches(pattern.expr,leaf) && leafTest(pattern,leaf.value,leaf.tags);
-    return pattern.terminal === leaf.terminal;
-  }
-
-  /** @param {any} node @returns {any[]} */
-  function patternParts(node) {
-    if (Array.isArray(node)) return node;
-    if (node.union || node.intersection || node.difference) return node.union ?? node.intersection ?? node.difference;
-    if (node.path) return [node.pattern];
-    if (node.test) return [node.expr];
-    if (node.child) return [node.child];
-    if (node.choice) return node.choice.flat();
-    return [...(node.children ?? []), ...(node.optional ?? node.repeat ?? []), ...(node.separator ?? [])];
-  }
-
-  /**
-   * Inspect substitution before copying values. The cache records the greatest
-   * depth already visited for each shared node and flattening context.
-   * @param {any} term
-   * @param {(name:string) => any} constant
-   * @returns {{at?:[number,number]}|null}
-   */
-  function patternDepthProblem(term, constant) {
-    const all = {any:true,children:[{siblings:true}]};
-    const empty = {difference:[all,all]};
-    /** @type {{node:any,depth:number,parent:string,term:boolean,at?:[number,number]}[]} */
-    const pending = [{node:term, depth:1, parent:"", term:true, at:undefined}];
-    /** @type {WeakMap<object,Map<string,number>>} */
-    const seen = new WeakMap();
-    while (pending.length) {
-      const entry = /** @type {{node:any,depth:number,parent:string,term:boolean,at?:[number,number]}} */ (pending.pop());
-      const {node,depth,parent,at} = entry;
-      if (Array.isArray(node)) {
-        for (let i=node.length-1;i>=0;i--) pending.push({...entry,node:node[i]});
-        continue;
-      }
-      const name = entry.term ? node.const : node.constant;
-      if (name) {
-        const value = constant(name);
-        if ("pattern" in value) pending.push({...entry,node:value.pattern,term:false,at:at ?? node.at});
-        else if (entry.term && "set" in value && value.set.size === 0) pending.push({...entry,node:empty,term:false,at:at ?? node.at});
-        else if (depth > 256) return {at};
-        continue;
-      }
-      if (entry.term && node.emptySet) {
-        pending.push({...entry,node:empty,term:false});
-        continue;
-      }
-      if (entry.term && node.pattern) {
-        pending.push({...entry,node:node.pattern,term:false});
-        continue;
-      }
-      const operation = ["union","intersection","difference"].find(key => node[key]);
-      const flat = operation !== undefined && operation !== "difference" && operation === parent;
-      if (!flat && depth > 256) return {at};
-      let visits = seen.get(node);
-      if (!visits) seen.set(node,visits=new Map());
-      const context = `${entry.term}:${parent}`;
-      if ((visits.get(context) ?? -1) >= depth) continue;
-      visits.set(context,depth);
-      if (operation) {
-        pending.push({...entry,node:node[operation],depth:depth+(flat?0:1),parent:operation});
-      } else if (!entry.term) {
-        const children = node.path ? [node.pattern] : patternParts(node);
-        pending.push({...entry,node:children,depth:depth+1,parent:""});
-      }
-    }
-    return null;
-  }
-
-  /**
-   * @param {any} root
-   * @param {(name:string, at:[number,number]) => any} constant
-   * @param {(term:any, test:any) => any} value
-   * @param {import("./unicode.js").UnicodeTable} unicode
-   * @returns {any}
-   */
-  function resolvePattern(root, constant, value, unicode) {
-    /** @param {any} atom @param {string} message @returns {never} */
-    const fault=(atom,message)=>{throw new GencmuError('grammar',message,{line:atom.at?.[0],column:atom.at?.[1]});};
-    /** @param {any} node @returns {Generator<any,any,any>} */
-    function* resolve(node) {
-      if (Array.isArray(node)) {
-        const items=[];
-        for(const child of node) items.push(yield resolve(child));
-        return items;
-      }
-      let result={...node};
-      if (node.constant) {
-        const resolved=constant(node.constant,node.at);
-        if ('pattern' in resolved) {
-          if (node.exact || node.children) return fault(node,'a pattern-valued constant cannot carry node decorations');
-          return resolved.pattern;
-        }
-        result={terminal:stringName(resolved.string,unicode),at:node.at,...(node.exact?{exact:true}:{})};
-      } else if (node.literal || node.range || node.wildcard) {
-        const terminal=node.literal ? stringName(value(node.literal,node).string,unicode)
-          : node.range ? node.range.map((/** @type {any} */ end)=>stringName(value(end,node).string,unicode)).join('..') : '_';
-        result={terminal,at:node.at,...(node.exact?{exact:true}:{})};
-      } else if (node.test) {
-        let base=node.expr;
-        while(base.test) base=base.expr;
-        if(base.constant && 'pattern' in constant(base.constant,base.at)) return fault(base,'a tested pattern atom requires a string constant');
-        result.expr=yield resolve(node.expr);
-        if (node.test==='tags') result.requirements=node.requirements.map((/** @type {any} */ requirement)=>({...requirement,value:value(requirement.value,node)}));
-        else result.value=value(node.value,node);
-        return result;
-      }
-      for(const key of ['union','intersection','difference','choice','pattern','children','child','optional','repeat','separator']) {
-        if(node[key]) result[key]=yield resolve(node[key]);
-      }
-      for(const key of ['union','intersection']) if(result[key]) result[key]=result[key].flatMap((/** @type {any} */ part)=>part[key]??[part]);
-      return result;
-    }
-    return run(resolve(root));
-  }
-
-  /** @param {any} value @returns {any} */
-  function patternKey(value) {
-    if (value instanceof Set) return [...value].sort();
-    if (Array.isArray(value)) return value.map(patternKey);
-    if (!value || typeof value !== 'object') return value;
-    return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'at').map(([key,val]) => [key,patternKey(val)]));
-  }
-
-  class PatternMachine {
-    /** @param {any[]} roots */
-    constructor(roots) {
-      /** @type {any[]} */ this.predicates = [];
-      /** @type {any[]} */ this.machines = [];
-      /** @type {Map<string,number>} */ this.ids = new Map();
-      /** @type {any[]} */ this.states = [];
-      /** @type {Map<string,number>} */ this.stateIds = new Map();
-      /** @type {Map<string,number>} */ this.transitions = new Map();
-      roots.forEach(n => this.compile(n));
-      this.empty = this.intern({count:0, first:0n,last:0n,any:0n, relations:this.machines.map(m => m.epsilon)});
-      // A seal contributes one nameless child even over an empty interval.
-      this.seal = this.nodeState(0n,false);
-    }
-    /** @param {any} n @returns {number} */
-    compile(n) {
-      const key = JSON.stringify(patternKey(n));
-      const old = this.ids.get(key); if (old !== undefined) return old;
-      const p = {...n};
-      if (n.path) p.child = this.compile(n.pattern);
-      for (const k of ['union','intersection','difference']) if (n[k]) p.operands = n[k].map((/** @type {any} */ x) => this.compile(x));
-      if (n.children) { const m = this.sequence(n.children); p.machine = this.machines.length; this.machines.push(m); }
-      const id = this.predicates.length;
-      this.predicates.push(p); this.ids.set(key,id); return id;
-    }
-    /** @param {any} body @returns {any} */
-    sequence(body) {
-      /** @type {{from:number,to:number,predicate:number | null}[]} */ const edges=[];
-      let size=0;
-      const state=() => size++;
-      const edge=(/** @type {number} */ from,/** @type {number} */ to,/** @type {number|null} */ predicate=null) => edges.push({from,to,predicate});
-      const build=(/** @type {any} */ n,/** @type {number} */ from,/** @type {number} */ to) => {
-        if (Array.isArray(n)) {
-          if (!n.length) edge(from,to);
-          let a=from;
-          n.forEach((x,i) => { const b=i===n.length-1?to:state(); build(x,a,b);a=b; });
-        } else if (n.child) edge(from,to,this.compile(n.child));
-        else if (n.siblings) { const gap=state(); edge(from,gap); edge(gap,gap,-1); edge(gap,to); }
-        else if (n.choice) n.choice.forEach((/** @type {any} */ arm) => build(arm,from,to));
-        else if (n.optional) { edge(from,to); build(n.optional,from,to); }
-        else if (n.repeat) {
-          const a=state(),b=state(); edge(from,a); build(n.repeat,a,b); edge(b,to);
-          if (n.separator) build(n.separator,b,a); else edge(b,a);
-        }
-      };
-      const start=state(),end=state(); build(body,start,end);
-      const epsilon=Array.from({length:size},(_,i) => 1n<<BigInt(i));
-      edges.filter(e => e.predicate===null).forEach(e => epsilon[e.from] |= 1n<<BigInt(e.to));
-      for (let k=0;k<size;k++) for (let i=0;i<size;i++) if (epsilon[i] & (1n<<BigInt(k))) epsilon[i] |= epsilon[k];
-      return {size,start,end,edges,epsilon};
-    }
-    /** @param {any} s @returns {number} */
-    intern(s) {
-      const key = `${s.count}/${s.first}/${s.last}/${s.any}/${s.relations.map((/** @type {bigint[]} */ r) => r.join(',')).join(';')}/${s.bits??''}/${s.empty??''}`;
-      const old=this.stateIds.get(key);if(old!==undefined)return old;
-      if (hooks.work) countWork(hooks.work, "structuralStates");
-      const id=this.states.length;this.states.push(s);this.stateIds.set(key,id);return id;
-    }
-    /** @param {bigint[]} a @param {bigint[]} b @returns {bigint[]} */
-    compose(a,b) {
-      return a.map(row => { let out=0n;for(let k=0;k<b.length;k++)if(row&(1n<<BigInt(k)))out|=b[k];return out; });
-    }
-    /** @param {number} left @param {number} right @returns {number} */
-    concat(left,right) {
-      const key=`c${left},${right}`;const old=this.transitions.get(key);if(old!==undefined)return old;
-      const a=this.states[left],b=this.states[right];
-      const id=this.intern({count:Math.min(2,a.count+b.count),first:a.count?a.first:b.first,last:b.count?b.last:a.last,any:a.any|b.any,
-        relations:a.relations.map((/** @type {bigint[]} */ r,/** @type {number} */ i) => this.compose(r,b.relations[i]))});
-      if (hooks.work) countWork(hooks.work, "structuralTransitions");
-      this.transitions.set(key,id);return id;
-    }
-    /** @param {bigint} bits @param {boolean} empty @returns {number} */
-    nodeState(bits,empty) {
-      const relations=this.machines.map(m => {
-        const move=Array.from({length:m.size},() => 0n);
-        m.edges.forEach((/** @type {any} */ e) => { if(e.predicate!==null&&(e.predicate===-1||(bits&(1n<<BigInt(e.predicate)))))move[e.from]|=1n<<BigInt(e.to); });
-        return this.compose(this.compose(m.epsilon,move),m.epsilon);
-      });
-      // A node state retains its own bits even when empty. Its sequence
-      // contribution is empty in that case, so captures retain root names.
-      const zero=this.states[this.empty];
-      return this.intern({bits,empty,count:empty?0:1,first:empty?0n:bits,last:empty?0n:bits,any:empty?0n:bits,relations:empty?zero.relations:relations});
-    }
-    /** @param {string|null} name @param {number} children @param {any} [leaf] @returns {number} */
-    node(name,children,leaf=null) {
-      const key=`n${name}/${children}/${leaf?JSON.stringify([leaf.terminal,leaf.value,[...leaf.tags].sort()]):''}`;
-      const old=this.transitions.get(key);if(old!==undefined)return old;
-      const s=this.states[children];let bits=0n;
-      this.predicates.forEach((p,i) => {
-        const bit=1n<<BigInt(i);let holds=false;
-        if (p.name) holds=name===p.name;
-        else if(p.terminal) holds=leaf?.terminal===p.terminal;
-        else if(p.test) holds=leafMatches(p,leaf);
-        else if(p.any || p.children) holds=p.any ? name!==null || leaf!==null : true;
-        else if(p.path) {
-          holds=!!(bits&(1n<<BigInt(p.child)));
-          const child=p.path==='descendant'?s.any:p.path==='first'?s.first:s.last;
-          holds=holds||!!(child&bit);
-        } else if(p.union) holds=p.operands.some((/** @type {number} */ j) => !!(bits&(1n<<BigInt(j))));
-        else if(p.intersection) holds=p.operands.every((/** @type {number} */ j) => !!(bits&(1n<<BigInt(j))));
-        else if(p.difference) holds=!!(bits&(1n<<BigInt(p.operands[0])))&&! (bits&(1n<<BigInt(p.operands[1])));
-        if (p.children) {
-          const m=this.machines[p.machine];
-          holds=holds&&!!(s.relations[p.machine][m.start]&(1n<<BigInt(m.end)));
-        }
-        if ((p.name||p.terminal||p.test||p.any||p.children)&&!p.exact&&s.count===1) holds=holds||!!(s.first&bit);
-        if(holds)bits|=bit;
-      });
-      const id=this.nodeState(bits,!leaf&&s.count===0);
-      if (hooks.work) countWork(hooks.work, "structuralTransitions");
-      this.transitions.set(key,id);return id;
-    }
-    /** @param {number} state @param {any} pattern @returns {boolean} */
-    matches(state,pattern) {
-      const id=this.ids.get(JSON.stringify(patternKey(pattern)));
-      if(id===undefined)throw new Error('undemanded structural pattern');
-      return !!((this.states[state].bits ?? 0n)&(1n<<BigInt(id)));
-    }
-  }
-
-
-  // ---- pattern-shapes.js
-  // Layered pattern constructors (docs/output.md, "Pattern values").
-  // This walk keeps pattern and item positions distinct before substitution.
-
-  /**
-   * @param {any} root
-   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
-   * @returns {string|null}
-   */
-  function layeredPatternProblem(root, inspect = {}) {
-    return inspectPattern(root, inspect, false);
-  }
-
-  /**
-   * @internal
-   * @param {any} root
-   * @param {Parameters<typeof layeredPatternProblem>[1]} [inspect]
-   * @returns {string|null}
-   */
-  function sourcePatternProblem(root, inspect = {}) {
-    return inspectPattern(root, inspect, true);
-  }
-
-  /**
-   * @param {any} root
-   * @param {NonNullable<Parameters<typeof layeredPatternProblem>[1]>} inspect
-   * @param {boolean} deferGroups
-   * @returns {string|null}
-   */
-  function inspectPattern(root, inspect, deferGroups) {
-    const stack = [{node:root,item:false,repeated:false,depth:inspect.depth ?? 0,inner:false}];
-    const object = (/** @type {any} */ n) => n && typeof n === 'object' && !Array.isArray(n);
-    const position = (/** @type {any} */ n) => Array.isArray(n) && n.length === 2 && n.every((/** @type {any} */ x) => Number.isSafeInteger(x) && x > 0);
-    const stringTerm = (/** @type {any} */ n) => object(n) && (
-      Object.keys(n).length === 1 && typeof n.string === 'string' && [...n.string].every(c => c.codePointAt(0) < 0xd800 || c.codePointAt(0) > 0xdfff)
-      || Object.keys(n).length === 2 && position(n.at) && (typeof n.const === 'string' && /^[A-Z][A-Za-z0-9_-]*$/.test(n.const) || typeof n.param === 'string' && /^[A-Za-z][A-Za-z0-9_-]*$/.test(n.param))
-    );
-    const requirementTerm = (/** @type {any} */ n) => stringTerm(n) && !('string' in n) || object(n) && Object.keys(n).length === 1 && typeof n.tag === 'string' && (inspect.terminal ? inspect.terminal(n.tag) : /^[A-Z][A-Za-z0-9_-]*$/.test(n.tag) || n.tag.startsWith('_'));
-    const ruleName = (/** @type {any} */ name) => typeof name === 'string' && (inspect.name ? inspect.name(name) : /^[a-z][A-Za-z0-9_-]*$/.test(name) || [...name].length === 1 && (name.codePointAt(0) ?? 0) > 127);
-    const terminalAtom = (/** @type {any} */ n) => object(n) && ['terminal','literal','range','wildcard','constant','param'].some(k => k in n) && !('exact' in n || 'children' in n);
-    while (stack.length) {
-      const {node:n,item,repeated,depth,inner} = /** @type {any} */ (stack.pop());
-      if (!inspect.deferDepth && depth > 256) return 'nested too deeply';
-      if (!object(n)) return 'a malformed pattern';
-      const keys = Object.keys(n);
-      const exact = (/** @type {string[]} */ fields) => keys.length === fields.length && fields.every(k => k in n);
-      const push = (/** @type {any} */ node, isItem = false, inRepeat = repeated, isInner = false) => stack.push({node,item:isItem,repeated:inRepeat,depth:depth+1,inner:isInner});
-      const items = (/** @type {any} */ array, inRepeat = repeated, empty = false) => {
-        if (!Array.isArray(array) || !empty && !array.length) return false;
-        for (const node of array) push(node,true,inRepeat);
-        return true;
-      };
-      if (item) {
-        if (deferGroups && exact(['sequence'])) {
-          if (!items(n.sequence)) return 'a malformed pattern sequence';
-        } else if (exact(['child'])) push(n.child,false,false);
-        else if (exact(['siblings'])) {
-          if (n.siblings !== true) return 'a malformed sibling ellipsis';
-          if (repeated) return 'a sibling ellipsis cannot be a repeat item or separator';
-        } else if (exact(['optional'])) {
-          if (!items(n.optional)) return 'a malformed pattern optional';
-        } else if (exact(['repeat']) || exact(['repeat','separator'])) {
-          if (!items(n.repeat,true) || 'separator' in n && !items(n.separator,true)) return 'a malformed pattern repeat';
-        } else if (exact(['choice'])) {
-          if (!Array.isArray(n.choice) || n.choice.length < 2) return 'a malformed pattern choice';
-          for (const arm of n.choice) {
-            if (!items(arm) || !deferGroups && arm.length === 1 && object(arm[0]) && 'choice' in arm[0]) return 'a malformed pattern choice';
-          }
-        } else return 'a malformed pattern child item';
-        continue;
-      }
-      const compound = ['union','intersection','difference'].find(k => k in n);
-      if (compound) {
-        const operands = n[compound];
-        if (!exact([compound]) || !Array.isArray(operands) || operands.length < 2 || compound === 'difference' && operands.length !== 2) return 'a malformed pattern';
-        if (!deferGroups && compound !== 'difference' && operands.some((/** @type {any} */ x) => object(x) && compound in x)) return 'a nested pattern set must be flat';
-        for (const node of operands) push(node,false,false);
-        continue;
-      }
-      if ('path' in n) {
-        if (!exact(['path','pattern']) || !['descendant','first','last'].includes(n.path)) return 'a malformed pattern path';
-        push(n.pattern,false,false);
-        continue;
-      }
-      const form = ['name','call','param','terminal','literal','range','wildcard','constant','test','any'].filter(k => k in n);
-      if (form.length !== 1) return 'a malformed pattern node test';
-      const key = form[0];
-      if ('exact' in n && (n.exact !== true || inner)) return 'a malformed exact pattern prefix';
-      if ('children' in n && (inner || !['name','call','param','any'].includes(key))) return 'a child list requires a rule test';
-      let fields = [key, ...('exact' in n ? ['exact'] : []), ...('children' in n ? ['children'] : [])];
-      if (key === 'test') {
-        if (n.test === 'tags') {
-          fields.push('requirements','expr');
-          if (!terminalAtom(n.expr) || !Array.isArray(n.requirements)) return 'a pattern tag test requires a terminal atom';
-          for (const requirement of n.requirements) {
-            if (!object(requirement) || Object.keys(requirement).length !== 2 || !('value' in requirement) || typeof requirement.negated !== 'boolean' || !requirementTerm(requirement.value)) return 'a malformed pattern requirement';
-          }
-        } else {
-          fields.push('value','expr');
-          if (!['=','≠'].includes(n.test) || !(terminalAtom(n.expr) || object(n.expr) && n.expr.test === 'tags' && !('exact' in n.expr || 'children' in n.expr) && terminalAtom(n.expr.expr))) return 'a pattern value test requires a terminal atom';
-          if (!stringTerm(n.value)) return 'a malformed pattern value test';
-        }
-        const problem = inspect.test?.(n);
-        if (problem) return problem;
-        push(n.expr,false,false,true);
-      } else if (key === 'any') {
-        if (n.any !== true || !('children' in n)) return 'a malformed bare child list';
-      } else {
-        fields.push('at');
-        if (!position(n.at)) return 'a malformed pattern position';
-        if (key === 'call') {
-          fields.push('args');
-          if (!ruleName(n.call) || !Array.isArray(n.args) || !n.args.length || n.args.some((/** @type {any} */ x) => !object(x))) return 'a malformed pattern call';
-        } else if (key === 'name') {
-          if (!ruleName(n.name)) return 'a malformed pattern rule name';
-        } else if (key === 'param' || key === 'constant') {
-          if (typeof n[key] !== 'string' || !(key === 'param' ? /^[A-Za-z][A-Za-z0-9_-]*$/ : /^[A-Z][A-Za-z0-9_-]*$/).test(n[key])) return 'a malformed pattern reference';
-        } else if (key === 'terminal') {
-          if (typeof n.terminal !== 'string' || !(inspect.terminal ? inspect.terminal(n.terminal) : /^[A-Z][A-Za-z0-9_-]*$/.test(n.terminal) || n.terminal.startsWith('_'))) return 'a malformed pattern terminal';
-        } else if (key === 'wildcard') {
-          if (n.wildcard !== true) return 'a malformed pattern wildcard';
-        } else if (key === 'literal') {
-          if (!stringTerm(n.literal) || !('string' in n.literal)) return 'a malformed pattern literal';
-        } else if (key === 'range') {
-          if (!Array.isArray(n.range) || n.range.length !== 2 || n.range.some((/** @type {any} */ x) => !stringTerm(x))) return 'a malformed pattern range';
-        }
-      }
-      if (!exact(fields)) return 'a malformed pattern node test';
-      if ('children' in n && !items(n.children,false,true)) return 'a malformed pattern child list';
-    }
-    return null;
-  }
-
-  /**
-   * @param {any} root
-   * @param {(term:any)=>string} term
-   * @param {boolean} [literal]
-   * @returns {string}
-   */
-  function layeredPatternText(root, term, literal = true) {
-    const atom = (/** @type {any} */ n) => !['union','intersection','difference','path'].some(k => k in n);
-    const set = (/** @type {any} */ n) => ['union','intersection','difference'].some(k => k in n);
-    /** @type {(items:any[])=>string} */
-    const items = array => array.map(n => {
-      let text;
-      if (n.child) text = pattern(n.child);
-      else if (n.siblings) return '⋯';
-      else if (n.optional) return '['+items(n.optional)+']';
-      else if (n.repeat) return '{'+items(n.repeat)+(n.separator?' / '+items(n.separator):'')+'}';
-      else text = n.choice.map(items).join(' | ');
-      return array.length > 1 && (n.choice || n.child && set(n.child)) ? '('+text+')' : text;
-    }).join(' ');
-    const children = (/** @type {any[]} */ array) => array.length ? '« '+items(array)+' »' : '«»';
-    /** @type {(n:any)=>string} */
-    const pattern = n => {
-      if (n.path) {
-        const operand = atom(n.pattern) ? pattern(n.pattern) : '('+pattern(n.pattern)+')';
-        return n.path === 'first' ? operand+' ⋰' : (n.path === 'last' ? '⋱ ' : '⋮ ')+operand;
-      }
-      if (set(n)) {
-        const key = n.union ? 'union' : n.intersection ? 'intersection' : 'difference';
-        return n[key].map((/** @type {any} */ x,/** @type {number} */ i) => {
-          const grouped = key === 'intersection' && (x.union || x.difference)
-            || key === 'difference' && i === 1 && (x.union || x.difference)
-            || key === 'union' && i > 0 && x.difference;
-          const text = pattern(x);
-          return grouped ? '('+text+')' : text;
-        }).join(key === 'union' ? ' ∪ ' : key === 'intersection' ? ' ∩ ' : ' ∖ ');
-      }
-      let text;
-      if (n.any) text = '';
-      else if (n.test) text = pattern(n.expr)+(n.test === 'tags' ? term({requirements:n.requirements}) : n.test+term(n.value));
-      else if (n.literal) text = term(n.literal);
-      else if (n.range) text = n.range.map(term).join('..');
-      else if (n.wildcard) text = '_';
-      else if (n.constant) text = '$'+n.constant;
-      else text = term(n);
-      return (n.exact ? '·' : '')+text+('children' in n ? children(n.children) : '');
-    };
-    const text = pattern(root);
-    return literal ? '#'+(atom(root) ? text : '('+text+')') : text;
-  }
-
   // ---- dom.js
+
 
 
   // Validate source, cached, supplied, and expanded grammar DOMs before use.
@@ -4622,7 +4775,20 @@
 
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇"]);
   // The directives of the notation (engine §9).
-  const DIRECTIVE_NAMES = new Set(["ambiguity-resolution", "stage", "extend-stage", "redefine-stage", "include", "names", "features"]);
+  const DIRECTIVE_NAMES = new Set(["ambiguity-resolution", "elision-only", "stage", "extend-stage", "redefine-stage", "include", "names", "features"]);
+  /** The steps of `%ambiguity-resolution` that take a pattern (engine §6). */
+  const KEY_STEPS = new Set(["leftmost-longest", "fewest", "most", "late", "early"]);
+  /** The steps of `%ambiguity-resolution` that compare actions (engine §6). */
+  const LEANS = new Set(["greedy", "lazy"]);
+  /** @param {unknown} steps @returns {boolean} */
+  function validSteps(steps) {
+    if (!Array.isArray(steps) || !steps.length) return false;
+    return steps.every((step,index) => {
+      if (!isDomObject(step) || typeof step.step !== "string") return false;
+      if (LEANS.has(step.step)) return index === steps.length-1 && Object.keys(step).length === 1;
+      return KEY_STEPS.has(step.step) && Object.keys(step).length === 2 && "pattern" in step && isDomObject(step.pattern);
+    });
+  }
   // A capture's name is all lower case (engine §9).
   const CAPTURE_NAME = /^[a-z][a-z0-9_-]*$/;
   // The nesting the notation allows (engine §9): deeper than any grammar a
@@ -4630,7 +4796,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 40;
+  const DOM_FORMAT = 44;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
   // A classifier name starts with a lowercase letter. A class name starts
@@ -4776,10 +4942,19 @@
         if (name !== "features" || !Array.isArray(directive.conditions) || !directive.conditions.length) return "malformed feature conditions";
         for (const condition of directive.conditions) push("condition", condition);
       }
-      if (!DIRECTIVE_NAMES.has(name) || !Array.isArray(args) || args.some(arg => typeof arg !== "string")) return "a malformed directive";
+      if (!DIRECTIVE_NAMES.has(name)) return "a malformed directive";
+      if (name === "ambiguity-resolution") {
+        if ("args" in directive || !validSteps(directive.steps)) return "a malformed directive";
+        for (const step of directive.steps) if ("pattern" in step) {
+          if (Object.hasOwn(step.pattern,"const")) push("term",step.pattern);
+          else push("pattern",step.pattern);
+        }
+        continue;
+      }
+      if (!Array.isArray(args) || args.some(arg => typeof arg !== "string")) return "a malformed directive";
+      if (name === "elision-only" && args.length !== 0) return "a malformed directive";
       if (["stage", "extend-stage", "redefine-stage"].includes(name) && !(args.length === 1 && CLASSIFIER_NAME.test(args[0]))) return "a malformed directive";
       if ((name === "include" || name === "names") && args.length !== 1 || name === "features" && !(args.length > 0 && args.every(arg => FEATURE_NAME.test(arg)))) return "a malformed directive";
-      if (name === "ambiguity-resolution" && !(args.length >= 1 && args.length <= 2 && ["greedy", "lazy", "late-elision"].includes(args[0]) && (args.length === 1 || args[1] === "elision-only"))) return "a malformed directive";
     }
     const firstStatement = [...dom.rules,...dom.constants,...dom.classifiers,...dom.implications,...dom.directives.filter((/** @type {any} */ d) => d.name !== "names")].map(item => item.at).sort((a,b) => a[0]-b[0] || a[1]-b[1])[0];
     if (firstStatement && dom.directives.some((/** @type {any} */ d) => d.name === "names" && (d.at[0] > firstStatement[0] || d.at[0] === firstStatement[0] && d.at[1] > firstStatement[1]))) return "%names must precede every other statement";
@@ -4802,7 +4977,7 @@
       activeParams = new Set(Array.isArray(rule.params) ? rule.params : []);
       if ("params" in rule && (!Array.isArray(rule.params) || !rule.params.length || rule.params.some((/** @type {any} */ p) => typeof p !== "string" || !/^[A-Za-z][A-Za-z0-9_-]*$/.test(p)) || activeParams.size !== rule.params.length || "args" in rule)) return "malformed template parameters";
       if (rule.instance) {
-        if (!exact(rule,["name","op","flags","instance","conditions","at"]) || !ruleName(rule.name) || !["define","redefine"].includes(rule.op) || !Array.isArray(rule.flags) || rule.flags.length || !Array.isArray(rule.conditions) || rule.conditions.length) return "a malformed instance binding";
+        if (!exact(rule,["name","op","instance","conditions","at"]) || !ruleName(rule.name) || !["define","redefine"].includes(rule.op) || !Array.isArray(rule.conditions) || rule.conditions.length) return "a malformed instance binding";
         push("call",rule.instance);
         continue;
       }
@@ -4810,13 +4985,13 @@
         if (!["redefine","extend"].includes(rule.op)) return "an instance head requires an edit";
         push("call",{call:rule.name,args:rule.args,at:rule.at});
       }
-      if (!exact(rule, ["name", "params", "args", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"]) || !(typeof rule.name === "string" && ruleName(rule.name)) || !["define", "redefine", "extend"].includes(rule.op) || !Array.isArray(rule.flags) || rule.flags.length > 1 || rule.flags.some((/** @type {string} */ flag) => !["leftmost-longest", "fewest"].includes(flag)) || (rule.op === "extend" && rule.flags.length) || !Array.isArray(rule.alternatives) || !rule.alternatives.length || !Array.isArray(rule.conditions)) return "a malformed rule";
+      if (!exact(rule, ["name", "params", "args", "op",  "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"]) || !(typeof rule.name === "string" && ruleName(rule.name)) || !["define", "redefine", "extend"].includes(rule.op) || !Array.isArray(rule.alternatives) || !rule.alternatives.length || !Array.isArray(rule.conditions)) return "a malformed rule";
       if ("erased" in rule && (rule.erased !== true || rule.emit || rule.value || rule.image)) return "a malformed erased rule";
       if (rule.tags !== undefined) push("tags", rule.tags, 0, { constituent: true, owner: rule });
       if (rule.value !== undefined) push("recipe", rule.value);
       if (rule.image !== undefined) push("recipe", rule.image);
       if (rule.emit !== undefined) push("emission", rule.emit, 0, { owner: rule });
-      for (const condition of rule.conditions) push("condition", condition);
+      for (const condition of rule.conditions) push("condition", condition, 0, {});
       for (const alternative of rule.alternatives) {
         if (!exact(alternative, ["guards", "expr", "tags", "value", "image"]) || !guards(alternative.guards)) return "a malformed alternative";
         push("expr", alternative.expr, 0, { whole: true });
@@ -4838,7 +5013,7 @@
       const child = (kind, value, context = {}) => push(kind, value, depth + 1, {params:task.params,...context});
       const fields = Object.keys(value);
       if (kind === "pattern") {
-        const problem = layeredPatternProblem(value, {depth, name:name=>ruleName(name) && !tag(name), terminal:tag});
+        const problem = layeredPatternProblem(value, {depth, name:name=>ruleName(name) && !tag(name), terminal:name=>name === "_Elided" || tag(name)});
         if (problem) return problem;
         push("pattern-part",value,depth,{params:task.params});
         continue;
@@ -4860,7 +5035,7 @@
           const problem = rangeProblem(value.range); if (problem) return problem;
           for (const endpoint of value.range) push("term",endpoint,depth,{params:task.params});
         }
-        if (value.test === "tags") for (const requirement of value.requirements) child("term",requirement.value);
+        if (value.test === "tags") for (const requirement of value.requirements) child("term",requirement.value,{patternTag:true});
         else if (value.test) child("term",value.value);
         if (value.expr) child("pattern-part",value.expr);
         if (value.path) child("pattern-part",value.pattern);
@@ -4917,7 +5092,7 @@
       } else if (kind === "expr") {
         if (value.test) {
           if (!TEST_OPS.has(value.test) || !exact(value, value.test === "tags" ? ["test", "requirements", "expr"] : ["test", "value", "expr"]) || !(value.test === "tags" ? base(value.expr) : target(value.expr))) return "a malformed test";
-          child("expr", value.expr, { sealed: task.sealed });
+          child("expr", value.expr, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked });
           if (value.test === "tags") {
             if (!Array.isArray(value.requirements)) return "a malformed tag test";
             for (const requirement of value.requirements) {
@@ -4926,20 +5101,28 @@
             }
           } else { if (!stringTerm(value.value)) return "a malformed value test"; child("term", value.value); }
         } else if ("capture" in value) {
-          if (!exact(value, ["capture", "expr"]) || !(typeof value.capture === "string" && CAPTURE_NAME.test(value.capture)) || task.sealed || !(target(value.expr) || ["=", "≠"].includes(value.expr?.test) && target(value.expr.expr))) return "a malformed capture";
-          child("expr", value.expr, { sealed: task.sealed });
+          if (!exact(value, ["capture", "expr"]) || !(typeof value.capture === "string" && CAPTURE_NAME.test(value.capture)) || task.sealed || task.chain || task.item && task.ranked || !(target(value.expr) || ["=", "≠"].includes(value.expr?.test) && target(value.expr.expr))) return "a malformed capture";
+          child("expr", value.expr, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked });
         } else if (["seq", "choice", "ranked", "and"].some(key => key in value)) {
           if (fields.length !== 1) return "a malformed expression";
           const key = fields[0];
           if (!Array.isArray(value[key]) || value[key].length < 2 || key === "and" && value[key].length > 16) return key === "ranked" ? "ranked-choice-syntax: a ranked expression requires two options" : "a malformed expression";
-          for (const item of value[key]) child("expr", item, { sealed: task.sealed });
+          for (const item of value[key]) child("expr", item, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked || key === "ranked" });
         } else if ("optional" in value) {
-          if (!exact(value, ["optional", "elidable"]) || "elidable" in value && (value.elidable !== true || !elidableHead(value.optional))) return "a malformed optional";
-          child("expr", value.optional, { sealed: task.sealed || value.elidable });
+          if (!exact(value, ["optional", "elidable", "default"]) || "elidable" in value && (value.elidable !== true || !elidableHead(value.optional))) return "a malformed optional";
+          if ("default" in value) {
+            if (value.elidable !== true || !stringTerm(value.default)) return "a malformed default";
+            child("term", value.default);
+          }
+          child("expr", value.optional, { sealed: task.sealed || value.elidable, chain: task.chain, item: task.item, ranked: task.ranked });
         } else if ("repeat" in value) {
           if (!exact(value, ["repeat", "separator", "chain"]) || "chain" in value && (!task.whole || !["left", "right"].includes(value.chain))) return "a malformed repetition";
-          child("expr", value.repeat, { sealed: true });
-          if ("separator" in value) child("expr", value.separator, { sealed: true });
+          // A chain holds no capture, and the braces of a flat list hold item
+          // captures, also inside a chain, but not inside a ranked group
+          // (engine §3.5). An elidable optional seals everything inside it.
+          const inside = { sealed: task.sealed, chain: "chain" in value, item: !("chain" in value), ranked: false };
+          child("expr", value.repeat, inside);
+          if ("separator" in value) child("expr", value.separator, inside);
         } else if ("literal" in value) { if (fields.length !== 1 || !stringTerm(value.literal)) return "a malformed literal"; push("term", value.literal, depth); }
         else if ("range" in value) {
           if (fields.length !== 1 || !Array.isArray(value.range) || value.range.length !== 2 || !value.range.every(stringTerm)) return "a malformed range";
@@ -4993,13 +5176,13 @@
       } else {
         if (!hasOneForm(value, [["string"], ["concat"], ["tag"], ["const", "at"], ["emptySet"], ["capture"], ["method", "receiver", "args"], ["union"], ["intersection"], ["difference"], ["if", "then"], ["pattern"]])) return "a malformed term";
         if ("string" in value) { if (typeof value.string !== "string" || /[\uD800-\uDFFF]/u.test(value.string)) return "a malformed scalar string"; }
-        else if (value.tag) { if (!tag(value.tag)) return "a malformed tag"; }
+        else if (value.tag) { if (!(task.patternTag && value.tag === "_Elided") && !tag(value.tag)) return "a malformed tag"; }
         else if (value.const) { if (!constant(value.const) || !position(value.at)) return "a malformed constant reference"; }
         else if ("emptySet" in value) { if (value.emptySet !== true) return "a malformed empty set"; }
         else if ("capture" in value) { if (typeof value.capture !== "string" || value.capture !== "" && !CAPTURE_NAME.test(value.capture)) return "a malformed capture reference"; }
         else if ("method" in value) {
           if (["classify","ngrams"].includes(value.method) && Array.isArray(value.args) && value.args.some(hasUnresolved)) return "a parameter cannot replace a classifier name or integer argument";
-          if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && ["emitted", "verbatim-text"].includes(value.method)) || (!task.query && QUERY_METHODS.has(value.method))) return "a malformed method";
+          if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && (value.method === "verbatim-text" || value.method === "emitted")) || (!task.query && QUERY_METHODS.has(value.method))) return "a malformed method";
           push("method-shape", value, depth, { recipe: task.recipe });
           child("term", value.receiver, { recipe: task.recipe });
           for (const arg of value.args) {
@@ -5011,13 +5194,13 @@
           }
         } else if (value.concat) {
           if (!Array.isArray(value.concat) || value.concat.length < 2) return "a malformed concatenation";
-          for (const segment of value.concat) child("term", segment);
+          for (const segment of value.concat) child("term", segment, {});
         } else if (value.pattern) child("pattern", value.pattern);
         else if (value.if) { child("condition", value.if); child("term", value.then); }
         else {
           const items = value.union ?? value.intersection ?? value.difference;
           if (!Array.isArray(items) || items.length < 2 || value.difference && items.length !== 2) return "a malformed set operation";
-          for (const item of items) child("term", item);
+          for (const item of items) child("term", item, {});
         }
       }
     }
@@ -5035,7 +5218,7 @@
           if (engineLiterals(value).size) return "a tag clause introduces an engine tag";
         }
         if (rule.instance) continue;
-        if (rule.alternatives.some((/** @type {any} */ alternative) => duplicateCaptures(alternative.expr).length)) return "a duplicate capture";
+        if (rule.alternatives.some((/** @type {any} */ alternative) => duplicateCaptures(alternative.expr).length || repeatsItemCapture(alternative.expr))) return "a duplicate capture";
         const problem = boundaryProblem(rule)?.problem || definitionProblem(rule, deferEmission) || ruleTypeProblem(rule); if (problem) return problem;
       } else if (kind === "constant") {
         if (openPart(value.value)) return "a constant is not closed";
@@ -5122,7 +5305,10 @@
         for (const arg of /** @type {any} */ (Array.isArray(current.args) ? current.args : [])) stack.push(arg);
         continue;
       }
-      if (current.op === "≅" || current.op === "≇") continue;
+      if (current.op === "≅" || current.op === "≇") {
+        if(/** @type {any} */ (current).left?.capture === "" && /** @type {any} */ (current).right?.pattern && readsNodeTags(/** @type {any} */ (current).right.pattern)) return true;
+        continue;
+      }
       const key = ["union", "intersection", "difference", "concat", "any", "all"].find((name) => Array.isArray(current[name]));
       if (key) for (const item of /** @type {unknown[]} */ (current[key])) stack.push(item);
       else for (const name of ["left", "right", "not", "if", "then"]) stack.push(current[name]);
@@ -5653,6 +5839,355 @@
   }
 
   /**
+   * The item captures of an expression: the captures inside flat braces, each
+   * with the innermost flat braces around it and the outermost ones (engine
+   * §3.5). The production of the alternative reads the outermost braces as
+   * one symbol, so the check of item conditions places them among its
+   * captures. A chain holds no capture, which the reader makes sure of, so a
+   * capture inside a chain's braces is not listed.
+   * @param {any} expr
+   * @returns {Map<string, {braces: any, outer: any}>} name to its innermost
+   *   and outermost flat braces
+   */
+  function itemCaptures(expr) {
+    /** @type {Map<string, {braces: any, outer: any}>} */
+    const found = new Map();
+    // A loop rather than recursion, since the reader calls this on every
+    // alternative, however deeply it nests (engine §9).
+    /** @type {[any, {braces: any, outer: any} | null][]} */
+    const stack = [[expr, null]];
+    for (let top = stack.pop(); top !== undefined; top = stack.pop()) {
+      const [node, place] = top;
+      if (!isDomObject(node)) continue;
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      if (typeof node.capture === "string") {
+        if (place !== null && !found.has(node.capture)) found.set(node.capture, place);
+        stack.push([node.expr, place]);
+        continue;
+      }
+      if ("repeat" in node) {
+        const inner = node.chain === undefined ? { braces: node, outer: place ? place.outer : node } : place;
+        if (node.separator !== undefined) stack.push([node.separator, inner]);
+        stack.push([node.repeat, inner]);
+        continue;
+      }
+      const children = expressionChildren(/** @type {any} */ (node));
+      for (let index = children.length - 1; index >= 0; index--) stack.push([children[index], place]);
+    }
+    return found;
+  }
+
+  /**
+   * Whether the name of an item capture stands more than once in an
+   * expression, inside its braces or outside them (engine §3.5, §9).
+   * @param {any} expr
+   * @returns {boolean}
+   */
+  function repeatsItemCapture(expr) {
+    const items = itemCaptures(expr);
+    if (items.size === 0) return false;
+    /** @type {Set<string>} */
+    const seen = new Set();
+    const stack = [expr];
+    for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
+      if (!isDomObject(node)) continue;
+      if (typeof node.capture === "string" && items.has(node.capture)) {
+        if (seen.has(node.capture)) return true;
+        seen.add(node.capture);
+      }
+      for (const child of expressionChildren(/** @type {any} */ (node))) stack.push(child);
+    }
+    return false;
+  }
+
+  /**
+   * The sequences of captures that the productions of an expression read, as
+   * `captureSequences` lists them, with each pair of flat braces that the
+   * production reads as the braces node itself. The item captures inside the
+   * braces stay out, as in every production. The check of item conditions
+   * compares the place of the braces with the places of the captures a
+   * condition reads (engine §3.6).
+   * @param {any} expr
+   * @returns {unknown[][]}
+   */
+  function bracesSequences(expr) {
+    /** @type {(node: any) => unknown[][]} */
+    const visit = (node) => {
+      if (!isDomObject(node)) return [[]];
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      if (typeof node.capture === "string") return [[node.capture]];
+      if ("repeat" in node) {
+        if (node.chain === undefined) return [[node]];
+        // A chain holds no capture, and its levels read its item and
+        // separator, with any flat braces inside them (engine §3.3).
+        const items = visit(node.repeat);
+        if (node.separator === undefined) return items;
+        const separators = visit(node.separator);
+        return [...items, ...separators.flatMap((left) => items.map((right) => [...left, ...right]))];
+      }
+      if (Array.isArray(node.seq)) {
+        /** @type {unknown[][]} */
+        let sequences = [[]];
+        for (const item of node.seq) {
+          const next = visit(item);
+          sequences = sequences.flatMap((left) => next.map((right) => [...left, ...right]));
+        }
+        return sequences;
+      }
+      if (Array.isArray(node.choice) || Array.isArray(node.ranked)) return /** @type {unknown[]} */ (node.choice ?? node.ranked).flatMap(visit);
+      if (Array.isArray(node.and)) {
+        const parts = node.and.map(visit);
+        /** @type {unknown[][]} */
+        const result = [];
+        for (let mask = 1; mask < 1 << parts.length; mask++) {
+          /** @type {unknown[][]} */
+          let sequences = [[]];
+          parts.forEach((/** @type {unknown[][]} */ part, /** @type {number} */ index) => {
+            if (mask & (1 << index)) sequences = sequences.flatMap((left) => part.map((right) => [...left, ...right]));
+          });
+          for (const sequence of sequences) result.push(sequence);
+        }
+        return result;
+      }
+      if ("optional" in node) {
+        if (node.elidable === true) return [[]];
+        return [[], ...visit(node.optional)];
+      }
+      return [[]];
+    };
+    return visit(expr);
+  }
+
+  /**
+   * Why the item captures of a definition cannot be read (engine §3.6, §9),
+   * or null. Only a condition reads an item capture. In each alternative
+   * whose item captures it reads, such a condition reads the item captures
+   * of one pair of braces, no `$`, and no capture that a production binds
+   * after those braces. A pattern comparison names no item capture. Like
+   * any condition, an item condition must apply to some production: here a
+   * production of its braces' helper, with the captures that the enclosing
+   * production binds before the braces.
+   * @param {any} rule
+   * @param {(clause: unknown) => boolean} waits whether a clause waits for
+   *   the value of a constant
+   * @returns {string | null}
+   */
+  function itemCaptureProblem(rule, waits) {
+    const places = rule.alternatives.map((/** @type {any} */ alternative) => itemCaptures(alternative.expr));
+    /** @type {Set<string>} */
+    const itemNames = new Set(places.flatMap((/** @type {Map<string, {braces: any, outer: any}>} */ place) => [...place.keys()]));
+    if (itemNames.size === 0) return null;
+    const emitted = rule.emit ? rule.emit.items : [];
+    const named = emitted.flatMap((/** @type {any} */ item) => (typeof item.capture === "string" ? [item.capture, ...attachmentsOf(item)] : []));
+    /** @type {[string, unknown][]} */
+    const others = [
+      ...[rule.tags, rule.value, rule.image].map((clause) => /** @type {[string, unknown]} */ (["a clause", clause])),
+      ...rule.alternatives.flatMap((/** @type {any} */ a) => [a.tags, a.value, a.image].map((clause) => /** @type {[string, unknown]} */ (["a clause", clause]))),
+      ...emitted.map((/** @type {unknown} */ item) => /** @type {[string, unknown]} */ (["%emits", item])),
+    ];
+    for (const [kind, clause] of others) {
+      if (clause === undefined) continue;
+      const item = [...(kind === "%emits" ? named : []), ...capturesMentioned(clause)].find((name) => itemNames.has(name));
+      if (item !== undefined) return `${kind} of ${rule.name} names $${item}, an item capture, which only a condition reads`;
+    }
+    /** @type {Map<any, unknown[][]>} */
+    const sequences = new Map();
+    /** @type {Map<any, string[][]>} */
+    const helperSequences = new Map();
+    for (const condition of rule.conditions) {
+      const mentioned = [...new Set(capturesMentioned(condition))];
+      const inside = mentioned.filter((name) => itemNames.has(name));
+      if (inside.length === 0) continue;
+      if (mentioned.includes("")) return `a condition of ${rule.name} reads $${inside[0]}, an item capture, together with $, which is not complete at each item`;
+      const prepared = waits(condition) ? null : prepareClause(condition);
+      let applies = prepared === null;
+      for (const [index, alternative] of rule.alternatives.entries()) {
+        const place = places[index];
+        const here = inside.filter((name) => place.has(name));
+        if (here.length === 0) {
+          // The condition reads no item capture of this alternative, so
+          // here it is an ordinary condition of the alternative's
+          // productions.
+          if (!applies) applies = ordinaryApplies(prepared, alternative);
+          continue;
+        }
+        const first = /** @type {{braces: any, outer: any}} */ (place.get(here[0]));
+        const other = here.find((name) => /** @type {{braces: any}} */ (place.get(name)).braces !== first.braces);
+        if (other !== undefined) return `a condition of ${rule.name} reads $${here[0]} and $${other}, item captures of two pairs of braces`;
+        const outer = mentioned.filter((name) => !place.has(name));
+        let listed = sequences.get(alternative);
+        if (!listed) sequences.set(alternative, (listed = bracesSequences(alternative.expr)));
+        let helper = helperSequences.get(first.braces);
+        if (!helper) helperSequences.set(first.braces, (helper = braceHelperSequences(first.braces)));
+        for (const sequence of listed) {
+          const at = sequence.indexOf(first.outer);
+          if (at === -1) continue;
+          const late = outer.find((name) => sequence.indexOf(name) > at);
+          if (late !== undefined) return `a condition of ${rule.name} reads $${late} with the item capture $${here[0]}, but a production binds $${late} after the braces`;
+          if (applies) continue;
+          // The frame holds the captures bound before the braces (engine §4).
+          const before = /** @type {string[]} */ (sequence.slice(0, at).filter((name) => typeof name === "string"));
+          for (const items of helper) {
+            /** @type {Map<string, number>} */
+            const captures = new Map([["", -1]]);
+            before.forEach((name) => captures.set(name, -1));
+            items.forEach((name, position) => captures.set(name, position));
+            const has = (/** @type {string} */ name) => captures.has(name);
+            const simple = simplifyFor(/** @type {any} */ (prepared), has, captures);
+            if ((applies = simple !== DOM_TRUE && capturesUsed(simple).every(has))) break;
+          }
+        }
+      }
+      if (!applies) return `a condition of ${rule.name} applies to no production`;
+    }
+    return null;
+  }
+
+  /**
+   * The capture sequences of the productions of a flat list's helper: each
+   * item, and each separator followed by an item (engine §3.2).
+   * @param {any} braces
+   * @returns {string[][]}
+   */
+  function braceHelperSequences(braces) {
+    const items = captureSequences(braces.repeat);
+    if (braces.separator === undefined) return items;
+    const separators = captureSequences(braces.separator);
+    return [...items, ...separators.flatMap((left) => items.map((right) => [...left, ...right]))];
+  }
+
+  /**
+   * Whether a prepared condition applies to some production of an
+   * alternative, as an ordinary condition (engine §3.6).
+   * @param {any} prepared
+   * @param {any} alternative
+   * @returns {boolean}
+   */
+  function ordinaryApplies(prepared, alternative) {
+    return alternativeCaptures(alternative).some((captures) => {
+      const has = (/** @type {string} */ name) => captures.has(name);
+      const simple = simplifyFor(prepared, has, captures);
+      return simple !== DOM_TRUE && capturesUsed(simple).every(has);
+    });
+  }
+
+  /**
+   * The captures of each production of an alternative, name to its place in
+   * the order that the production reads them, with `$` at -1 (engine §3.5).
+   * @param {any} alternative
+   * @returns {Map<string, number>[]}
+   */
+  function alternativeCaptures(alternative) {
+    return captureSequences(alternative.expr).map((sequence) => {
+      /** @type {Map<string, number>} */
+      const captures = new Map([["", -1]]);
+      sequence.forEach((name, index) => captures.set(name, index));
+      return captures;
+    });
+  }
+
+  /**
+   * A sequence of capture names, as a node of a trie of all the sequences
+   * of one expression: one node for each distinct sequence, which shares its
+   * prefix with the sequences it extends.
+   * @typedef {{parent: CaptureNode | null, name: string, length: number, children: Map<string, CaptureNode> | null}} CaptureNode
+   */
+
+  /**
+   * The distinct sequences of captures that the productions of an expression
+   * read, each in the order read (engine §3.2, §3.5): a choice gives each
+   * branch's, an `&` each subsequence's, a plain optional none or its
+   * content's, and braces and an elidable optional none. Productions that
+   * read the same names in the same order are one sequence. Gates do not
+   * matter, since they drop whole alternatives.
+   *
+   * The sequences are nodes of a trie, so that extending one by a capture
+   * costs one step and two equal sequences are one node. A copy of each
+   * growing prefix would cost the square of a sequence's length.
+   * @param {any} expr
+   * @returns {string[][]}
+   */
+  function captureSequences(expr) {
+    /** @type {CaptureNode} */
+    const root = { parent: null, name: "", length: 0, children: null };
+    /** @type {(node: CaptureNode, name: string) => CaptureNode} */
+    const extended = (node, name) => {
+      if (hooks.work) countWork(hooks.work, "lowering");
+      const children = node.children ?? (node.children = new Map());
+      let child = children.get(name);
+      if (!child) children.set(name, (child = { parent: node, name, length: node.length + 1, children: null }));
+      return child;
+    };
+    /** @type {(node: CaptureNode) => string[]} */
+    const names = (node) => {
+      const list = new Array(node.length);
+      for (let at = node; at.parent !== null; at = at.parent) {
+        if (hooks.work) countWork(hooks.work, "lowering");
+        list[at.length - 1] = at.name;
+      }
+      return list;
+    };
+    /** @type {(lists: CaptureNode[]) => CaptureNode[]} */
+    const distinct = (lists) => (lists.length < 2 ? lists : [...new Set(lists)]);
+    /** @type {(left: CaptureNode[], right: CaptureNode[]) => CaptureNode[]} */
+    const product = (left, right) => {
+      /** @type {CaptureNode[]} */
+      const result = [];
+      const suffixes = right.map(names);
+      for (const a of left) {
+        for (const suffix of suffixes) {
+          let node = a;
+          for (const name of suffix) node = extended(node, name);
+          result.push(node);
+        }
+      }
+      return distinct(result);
+    };
+    /** @type {(node: any) => Generator<Step, CaptureNode[], any>} */
+    const visit = function* (node) {
+      if (!isDomObject(node)) return [root];
+      if (typeof node.capture === "string") return [extended(root, node.capture)];
+      if (Array.isArray(node.seq)) {
+        /** @type {CaptureNode[]} */
+        let sequences = [root];
+        for (const item of node.seq) sequences = product(sequences, yield visit(item));
+        return sequences;
+      }
+      if (Array.isArray(node.choice) || Array.isArray(node.ranked)) {
+        /** @type {CaptureNode[]} */
+        const all = [];
+        for (const item of /** @type {unknown[]} */ (node.choice ?? node.ranked)) for (const sequence of yield visit(item)) all.push(sequence);
+        return distinct(all);
+      }
+      if (Array.isArray(node.and)) {
+        /** @type {CaptureNode[][]} */
+        const parts = [];
+        for (const item of node.and) parts.push(yield visit(item));
+        /** @type {CaptureNode[]} */
+        const result = [];
+        for (let mask = 1; mask < 1 << parts.length; mask++) {
+          /** @type {CaptureNode[]} */
+          let sequences = [root];
+          parts.forEach((part, index) => {
+            if (mask & (1 << index)) sequences = product(sequences, part);
+          });
+          for (const sequence of sequences) result.push(sequence);
+        }
+        return distinct(result);
+      }
+      if ("optional" in node) {
+        if (node.elidable === true) return [root];
+        /** @type {CaptureNode[]} */
+        const all = [root];
+        for (const sequence of yield visit(node.optional)) all.push(sequence);
+        return distinct(all);
+      }
+      return [root];
+    };
+    return run(visit(expr)).map(names);
+  }
+
+  /**
    * The captures that some production of an expression reads after a
    * capture of the same name (engine §3.5, §9), found from the structure
    * alone: two captures are read by one production exactly when they stand
@@ -6083,7 +6618,8 @@
         if (!captures.has(name)) everywhere.delete(name);
       }
     }
-    const anyHas = (/** @type {string} */ name) => capturing.has(name);
+    const itemNames = new Set(rule.alternatives.flatMap((/** @type {any} */ alternative) => [...itemCaptures(alternative.expr).keys()]));
+    const anyHas = (/** @type {string} */ name) => capturing.has(name) || itemNames.has(name);
     const items = rule.emit ? rule.emit.items : [];
     const clauses = [rule.tags, rule.value, rule.image,
       ...rule.alternatives.flatMap((/** @type {any} */ a) => [a.tags, a.value, a.image]), ...rule.conditions];
@@ -6094,8 +6630,15 @@
     for (const clause of clauses) for (const name of capturesMentioned(clause)) {
       if (!anyHas(name)) yield {kind:"independent", problem:`$${name} is captured by no alternative of ${rule.name}`};
     }
+    if (itemNames.size > 0) {
+      const problem = itemCaptureProblem(rule, waits);
+      if (problem) yield {kind:"independent", problem};
+    }
     for (const condition of rule.conditions) {
       if (waits(condition)) continue;
+      // An item condition applies to the productions of its braces' helper
+      // (engine §3.6), which itemCaptureProblem checks.
+      if (itemNames.size > 0 && capturesMentioned(condition).some((name) => itemNames.has(name))) continue;
       const prepared = prepareClause(condition);
       const applies = (/** @type {number} */ index) => {
         if (hooks.work) countWork(hooks.work, "clauses");
@@ -6396,8 +6939,8 @@
         }
         if (n.test) {
           let base = n.expr;
-          while (base.test) base = base.expr;
-          if (base.constant && !["string","any"].includes(constants(base.constant))) return {problem:"a tested pattern constant requires a string",node:base};
+          while (base?.test) base = base.expr;
+          if (base?.constant && !["string","any"].includes(constants(base.constant))) return {problem:"a tested pattern constant requires a string",node:base};
           const operands = n.test === "tags" ? n.requirements.map((/** @type {any} */ requirement) => requirement.value) : [n.value];
           for (const operand of operands) {
             const found = yield typing(operand,constants);
@@ -6519,8 +7062,11 @@
       if ("problem" in left) return left;
       const right = /** @type {{type: TermType} | TypeFault} */ (yield typing(condition.right, constants));
       if ("problem" in right) return right;
+      if ((condition.op === "≅" || condition.op === "≇") && typeof condition.right.capture === "string") {
+        return condition.left.capture === condition.right.capture ? {problem:"a tree comparison cannot compare a capture with itself",node:condition} : null;
+      }
       const problem = comparisonProblem(condition.op, left.type, right.type);
-      return problem ? { problem, node: condition } : null;
+      return problem ? { problem, node: ["≅","≇"].includes(condition.op) ? condition.right : condition } : null;
     }
     return null;
   }
@@ -6660,6 +7206,7 @@
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
       if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!isDomObject(current)) continue;
+      if (current.default !== undefined) found.push({test:"=",value:current.default,expr:current.optional});
       if (typeof current.test === "string") found.push(/** @type {any} */ (current));
       for (const key of ["choice", "ranked", "and", "seq"]) {
         const items = current[key];
@@ -7313,6 +7860,18 @@
       for (const item of rule.emit?.items ?? []) for (const recipe of [item.value,item.image]) if (recipe) recipes.push(recipe);
     }
     if (starts.length === recipes.length) recipes.forEach((recipe,index) => recipeLocations.set(recipe,positionOf(starts[index])));
+    const markers = tokens.filter(token=>token.text === "≝");
+    const defaults = [];
+    const pending = dom.rules.flatMap(rule => rule.alternatives?.map(alternative=>alternative.expr) ?? []).reverse();
+    while (pending.length) {
+      const node = /** @type {any} */ (pending.pop());
+      if (!node || typeof node !== "object") continue;
+      if (node.default !== undefined) defaults.push(node.default);
+      const children = [node.expr,node.optional,node.repeat,node.separator,...node.seq ?? [],...node.choice ?? [],...node.and ?? [],...node.ranked ?? []].filter(Boolean);
+      for (const child of children.reverse()) pending.push(child);
+    }
+    if (markers.length === defaults.length) defaults.forEach((value,index)=>recipeLocations.set(value,positionOf(markers[index])));
+
   }
 
   /**
@@ -7382,7 +7941,18 @@
       copyRankedLocation(source,target);
       copyRecipeLocation(source,target);
       copyBoundaryLocation(source,target);
+      copyPatternLocation(source,target);
     },patterns);
+  }
+
+  /** @param {any} test @returns {any} */
+  function distributeFamilyTest(test) {
+    for(const key of ['union','intersection','difference']) if(test.expr?.[key]) {
+      const result={ [key]:test.expr[key].map((/** @type {any} */ part)=>distributeFamilyTest({...test,expr:part})) };
+      copyPatternLocation(test,result);
+      return result;
+    }
+    return test;
   }
 
   /** @param {any} value @returns {any} */
@@ -7411,6 +7981,7 @@
   /** @param {any} n @param {any} unicode @returns {string} */
   function canonicalArgument(n,unicode) {
     const print=(/** @type {any} */ x)=>canonicalArgument(x,unicode);
+    if(n.set instanceof Set) return [...n.set].sort().join(' ') || '∅';
     if(n.call) return `${n.call}(${n.args.map(print).join(", ")})`;
     if(n.param) return '@'+n.param;
     if(n.integer || n.classifier) return n.integer??n.classifier;
@@ -7422,7 +7993,7 @@
     if(n.wildcard) return '_';
     if(n.empty) return 'ε';
     if(n.emptySet) return '∅';
-    if(n.requirements && !n.test) return '<'+n.requirements.map((/** @type {any} */ x)=>(x.negated?'¬':'')+print(x.value)).join(' ')+'>';
+    if(n.requirements && !n.test) return '<'+n.requirements.flatMap((/** @type {any} */ x)=>x.value.set instanceof Set ? [...x.value.set].sort().map(tag=>(x.negated?'¬':'')+tag) : [(x.negated?'¬':'')+print(x.value)]).join(' ')+'>';
     if(n.targets) return n.targets.map(print).join(' | ');
     if(n.body) {
       const body=templateBodyText(n.body,unicode);
@@ -7484,7 +8055,11 @@
       const text=n[key].map((/** @type {any} */ x)=>templateBodyText(x,unicode,key)).join({seq:' ',and:' & ',choice:' | ',ranked:' ≻ '}[key]);
       return parent && priority[key]<=priority[parent]?'('+text+')':text;
     }
-    if(n.optional) return '['+(n.elidable?'+':'')+templateBodyText(n.optional,unicode)+']';
+    if(n.optional) {
+      const parts = n.optional.seq ?? [n.optional];
+      const head = templateBodyText(parts[0],unicode) + (n.default === undefined ? '' : ' ≝ ' + canonicalArgument(n.default,unicode));
+      return '['+(n.elidable?'+':'')+[head,...parts.slice(1).map((/** @type {any} */ part)=>templateBodyText(part,unicode))].join(' ')+']';
+    }
     if(n.repeat) return '{'+(n.chain==='left'?'... ':'')+templateBodyText(n.repeat,unicode)+(n.chain==='right'?' ...':'')+(n.separator?' / '+templateBodyText(n.separator,unicode):'')+'}';
     return canonicalArgument(n,unicode);
   }
@@ -7748,14 +8323,18 @@
           }
         }
         let next=position;
-        if(['alternatives','conditions','emit','tags','value','image','requirements','range','literal','concat','union','intersection','difference','left','right','receiver','if','then','not','all','any'].includes(key) && !(position==='pattern' && ['union','intersection','difference'].includes(key))) next='term';
+        if(['alternatives','conditions','emit','tags','value','image','default','requirements','range','literal','concat','union','intersection','difference','left','right','receiver','if','then','not','all','any'].includes(key) && !(position==='pattern' && ['union','intersection','difference'].includes(key))) next='term';
         if(['seq','choice','ranked','and','optional','repeat','separator'].includes(key) && position!=='pattern') next='expr';
         if(key==='expr') next=position==='pattern'?'pattern':'expr';
         if(key==='pattern' || key==='child') next='pattern';
         if(key==='children' || position==='pattern-item' && ['choice','optional','repeat','separator'].includes(key)) next='pattern-item';
         result[key]=substitute(value,env,event,next);
+        if(key==='default') {
+          result[key]={...result[key]};
+          copyRecipeLocation(value,result[key]);
+        }
       }
-      if(position==='pattern' && result.test && result.expr.exact) {
+      if(position==='pattern' && result.test && result.expr?.exact) {
         if(result.exact) {let use=root.expr;while(use.expr) use=use.expr;fail(event,use,'an exact prefix conflicts with an argument prefix');}
         result.exact=true;
         const {exact,...expr}=result.expr;
@@ -7767,6 +8346,7 @@
       copyRankedLocation(root,result);
       copyRecipeLocation(root,result);
       copyBoundaryLocation(root,result);
+      copyPatternLocation(root,result);
       return result;
     };
     // ARG preserves its category while parameters nested in another call bind.
@@ -7828,14 +8408,14 @@
       }
       if(position==='pattern' && root.name && templates.has(root.name)) {
         const members=queue.filter((/** @type {any} */ x)=>x.call.call===root.name).map((/** @type {any} */ x)=>({...root,name:effective(x),...(root.children?{children:rewrite(root.children,event,'pattern-item')}:{})}));
-        return members.length===1?members[0]:members.length?{union:members}:{difference:[{name:'text',at:root.at},{name:'text',at:root.at}]};
+        return members.length===1?members[0]:members.length?{union:members}:{difference:[{name:'text',at:root.at,...(root.exact?{exact:true}:{})},{name:'text',at:root.at,...(root.exact?{exact:true}:{})}]};
       }
       if(root.ref && templates.has(root.ref) || root.rule && templates.has(root.rule)) fail(event,root,'a bare template reference must name one instance');
       /** @type {Record<string,any>} */
     const result={};
       for(const [key,value] of Object.entries(root)) {
         let next=position;
-        if(['alternatives','conditions','emit','tags','value','image','left','right','receiver','range','literal','args'].includes(key)) next='term';
+        if(['alternatives','conditions','emit','tags','value','image','default','left','right','receiver','range','literal','args'].includes(key)) next='term';
         if(['seq','choice','ranked','and','optional','repeat','separator','expr'].includes(key) && position!=='pattern') next='expr';
         if(key==='pattern' || key==='child') next='pattern';
         if(key==='children' || position==='pattern-item' && ['choice','optional','repeat','separator'].includes(key)) next='pattern-item';
@@ -7844,6 +8424,8 @@
       copyRankedLocation(root,result);
       copyRecipeLocation(root,result);
       copyBoundaryLocation(root,result);
+      copyPatternLocation(root,result);
+      if(position==='pattern' && result.test) return distributeFamilyTest(result);
       if(position==='pattern') for(const key of ['union','intersection']) if(result[key]) result[key]=result[key].flatMap((/** @type {any} */ part)=>part[key]??[part]);
       return result;
     };
@@ -7857,7 +8439,7 @@
       const add=(/** @type {any} */ term,tags=false)=>argumentsToCheck.push({...owner,term:rewrite(term,event),tags});
       const arg=normalize(argument);
       if(arg.body || arg.test || arg.range || arg.wildcard) {
-        const rule={...(parts.some(n=>n.param)?{params:event.rule.params}:{}),name:extraIndexes.has(event.index)?'text':event.rule.name,op:'define',flags:[],conditions:[],alternatives:[{guards:[],expr:rewrite(arg.body??arg,event,'expr')}],at:event.rule.at};
+        const rule={...(parts.some(n=>n.param)?{params:event.rule.params}:{}),name:extraIndexes.has(event.index)?'text':event.rule.name,op:'define',conditions:[],alternatives:[{guards:[],expr:rewrite(arg.body??arg,event,'expr')}],at:event.rule.at};
         argumentsToCheck.push({...owner,rule,fragment:true});
       } else if(arg.requirements) {
         for(const requirement of arg.requirements) add(requirement.value,true);
@@ -7939,17 +8521,406 @@
         ]};
       }),
       instances:ordered.map((/** @type {any} */ instance)=>{
-        /** @type {string[]} */
-        let flags=[];
         const eventIndexes=new Set(templatesByName.get(instance.call.call).events.map((/** @type {any} */ e)=>e.index));
         const events=instance.definitions.map((/** @type {any} */ event)=>{
-          const before=flags.slice();if(event.rule.op!=='extend') flags=event.rule.flags.slice();
-          return {scope:eventIndexes.has(event.index)?'template':'instance',op:event.rule.op,...position(event),flagsBefore:before,flagsAfter:flags.slice()};
+          return {scope:eventIndexes.has(event.index)?'template':'instance',op:event.rule.op,...position(event)};
         });
         const twins=ordered.filter((/** @type {any} */ other)=>other!==instance&&other.call.call===instance.call.call&&aliases(other.call.args,instance.call.args)).map((/** @type {any} */ other)=>other.name??other.canonical);
-        return {template:instance.call.call,arguments:templateIdentity(instance.call.args),name:instance.name??instance.canonical,binding:instance.binding??null,firstCall:{document:instance.origin.document,line:instance.origin.at[0],column:instance.origin.at[1]},flags,events,notes:twins.length?[{kind:'argument-alias-twin',instances:twins}]:[]};
+        return {template:instance.call.call,arguments:templateIdentity(instance.call.args),name:instance.name??instance.canonical,binding:instance.binding??null,firstCall:{document:instance.origin.document,line:instance.origin.at[0],column:instance.origin.at[1]},events,notes:twins.length?[{kind:'argument-alias-twin',instances:twins}]:[]};
       })
     };
+  }
+
+  // ---- ranking-audit.js
+  // Static reports for node-pattern steps (docs/design.md).
+
+
+
+
+
+  /** @param {any} grammar @returns {any} */
+  function observations(grammar) {
+    const rules=new Map(),terminals=new Set(),omitted=new Set();
+    const body=(/** @type {any} */ root,/** @type {Set<string>} */ refs)=>{
+      const pending=[root];
+      while(pending.length) {
+        const expr=pending.pop();
+        if(hooks.work) countWork(hooks.work,"clauses");
+        if(expr.ref) {
+          if(grammar.rules.has(expr.ref)) refs.add(expr.ref);
+          else terminals.add(expr.ref);
+        } else if(expr.literal) {
+          const value=grammar.evaluateClosed('',expr.literal,[1,1]);
+          if('string' in value) terminals.add(stringName(value.string,grammar.unicode));
+        } else if(expr.range) terminals.add(expr.range.map((/** @type {any} */ end)=>stringName(grammar.evaluateClosed('',end,[1,1]).string,grammar.unicode)).join('..'));
+        else if(expr.wildcard) terminals.add('_');
+        if(expr.optional && expr.elidable) {
+          let head=expr.optional;
+          while(head.seq || head.capture || head.test) head=head.seq?.[0] ?? head.expr;
+          if(head.ref) {omitted.add(head.ref);}
+        }
+        for(const key of ['seq','choice','ranked','and']) if(expr[key]) for (const child of expr[key]) pending.push(child);
+        for(const key of ['expr','optional','repeat','separator']) if(expr[key]) pending.push(expr[key]);
+      }
+    };
+    for(const rule of grammar.rules.values()) {
+      const refs=new Set();
+      for(const alternative of rule.alternatives) body(alternative.expr,refs);
+      rules.set(rule.name,{refs});
+    }
+    const reachable=new Set(),pending=['text'];
+    while(pending.length) {
+      const name=pending.pop();
+      if(reachable.has(name) || !rules.has(name)) continue;
+      reachable.add(name);
+      for (const child of rules.get(name).refs) pending.push(child);
+    }
+    // Keep terminal reachability separate from query-only references.
+    const reachedTerminals=new Set(),reachedOmitted=new Set();
+    const allTerminals=new Set(terminals),allOmitted=new Set(omitted);
+    terminals.clear();omitted.clear();
+    for(const name of reachable) for(const alternative of grammar.rules.get(name).alternatives) body(alternative.expr,new Set());
+    for(const terminal of terminals) reachedTerminals.add(terminal);
+    for(const terminal of omitted) reachedOmitted.add(terminal);
+    return {rules,reachable,terminals:reachedTerminals,omitted:reachedOmitted,allTerminals,allOmitted};
+  }
+
+  /** @param {any} pattern @param {any} data @returns {boolean} */
+  function dead(pattern,data) {
+    if(pattern.union) return pattern.union.every((/** @type {any} */ p)=>dead(p,data));
+    if(pattern.intersection) return pattern.intersection.some((/** @type {any} */ p)=>dead(p,data));
+    if(pattern.difference) return dead(pattern.difference[0],data);
+    if(pattern.test) return pattern.any?false:dead(pattern.expr,data);
+    if(pattern.name) return !data.reachable.has(pattern.name);
+    if(pattern.terminal) return pattern.terminal === '_' ? !data.terminals.size && !data.omitted.size : !data.terminals.has(pattern.terminal) && !data.omitted.has(pattern.terminal);
+    return false;
+  }
+
+  /** @param {any} grammar @returns {any} */
+  function rankingAudit(grammar) {
+    const steps=grammar.resolution?.steps??[];
+    if (!steps.length) return {keySteps:[],countedChanges:[]};
+    const data=observations(grammar);
+    const reports=[],changes=[];
+    for(let index=0;index<steps.length;index++) {
+      const step=steps[index],named=new Set(),pending=[step.pattern];
+      while(pending.length) {
+        const pattern=pending.pop();
+        if(pattern.name)named.add(pattern.name);
+        for (const child of patternParts(pattern)) pending.push(child);
+      }
+      reports.push({step:index,pattern:canonicalArgument({pattern:step.pattern},grammar.unicode),...(dead(step.pattern,data)?{status:'impossible'}:{})});
+      for(const change of grammar.changes)if(named.has(change.rule))changes.push({...change,step:index});
+    }
+    return {keySteps:reports,countedChanges:changes};
+  }
+
+  // ---- tree-identities.js
+  // Exact structural observations for compared occurrences (engine §4.1).
+
+
+
+  /** @param {any} root @returns {any[]} */
+  function constituentComparisons(root) {
+    const result=[], pending=[root], seen=new Set();
+    while(pending.length) {
+      const node=pending.pop();
+      if(!node || typeof node!=='object' || seen.has(node)) continue;
+      seen.add(node);
+      if((node.op==='≅' || node.op==='≇') && typeof node.right?.capture==='string') result.push(node);
+      else for (const child of clauseChildren(node).slice().reverse()) pending.push(child);
+    }
+    return result;
+  }
+
+  /**
+   * @typedef {object} TreeDemand
+   * @property {boolean} whole
+   * @property {Set<number>} parts
+   * @property {Set<string>} names
+   * @property {Set<string>} outer
+   * @property {boolean} parentPrefix
+   * @property {number} prefixUntil
+   */
+  /** @type {WeakMap<object,Map<string,TreeDemand>>} */
+  const local=new WeakMap();
+  /** @type {WeakMap<object,string>} */
+  const frameKeys=new WeakMap();
+  /** @param {any} frame */
+  function frameKey(frame) {
+    if(!frame)return '';
+    let key=frameKeys.get(frame);
+    if(key===undefined) {key=JSON.stringify([[...frame.present].sort(),[...frame.captures.keys()].sort(),[...frame.knownPrivate].sort(),!!frame.inside]);frameKeys.set(frame,key);}
+    return key;
+  }
+  /** @param {any} production @returns {TreeDemand} */
+  function localTreeDemand(production) {
+    const found=local.get(production.baseProduction ?? production)?.get(frameKey(production.lexicalFrame));
+    if(!found)throw new Error('a production has no tree demand case');
+    return found;
+  }
+
+  /** @param {any} lowered @param {any} frames */
+  function prepareTreeDemands(lowered, frames) {
+    const byKey=new Map();
+    /** @type {any[]} */
+    const states=[];
+    let nextFrame=0;
+    const contextual=new Set(lowered.productions.filter((/** @type {any} */ p)=>p.contextual).map((/** @type {any} */ p)=>p.lhs));
+    const state=(/** @type {any} */ p,/** @type {any} */ frame)=> {
+      const key=p.id+'/'+frameKey(frame);
+      if(byKey.has(key))return byKey.get(key);
+      const bound=frame ? frames.production(p,frame) : p;
+      const result={whole:false,parts:new Set(),names:new Set(),outer:new Set(),parentPrefix:false,prefixUntil:0};
+      for(const comparison of constituentComparisons([bound.conditions,bound.tags,bound.parentTags]))for(const name of [comparison.left.capture,comparison.right.capture]) {
+        result.names.add(name);
+        if(name==='') {result.whole=true;result.parentPrefix=!!p.helper;}
+        else {
+          const capture=p.captures.find((/** @type {any} */ c)=>c.name===name);
+          if(capture)result.parts.add(capture.index);else result.outer.add(name);
+        }
+      }
+      const entry={p,frame,demand:result,edges:[]};
+      const demands=local.get(p)??new Map();demands.set(frameKey(frame),result);local.set(p,demands);
+      states.push(entry);byKey.set(key,entry);return entry;
+    };
+    for(const p of lowered.productions)if(!p.contextual)state(p,null);
+    for(let at=0;at<states.length;at++) {
+      const entry=states[at],{p,frame}=entry;
+      const present=new Set([...frame?.present??[],...p.captures.map((/** @type {any} */ c)=>c.name)]);
+      const knownPrivate=new Set([...frame?.knownPrivate??[],...p.rankedPrivate??[]]);
+      const inside=!!frame?.inside||!!p.rankedGroup;
+      p.rhs.forEach((/** @type {any} */ symbol,/** @type {number} */ index)=> {
+        if(symbol.terminal||!contextual.has(symbol.name))return;
+        const captures=new Map(frame?.captures??[]);
+        for(const capture of p.captures)if(capture.index<index)captures.set(capture.name,null);
+        const child={id:nextFrame++,present,knownPrivate,captures,inside};
+        for(const q of lowered.byLhs.get(symbol.name)??[])entry.edges.push({index,child:state(q,child)});
+      });
+    }
+    let changed=true;
+    while(changed) {
+      changed=false;
+      for(const entry of states)for(const edge of entry.edges) {
+        const d=entry.demand, child=edge.child.demand;
+        if(child.parentPrefix) {
+          if(entry.p.helper&&!d.parentPrefix) {d.parentPrefix=true;changed=true;}
+          if(!entry.frame?.inside&&!entry.p.rankedGroup&&edge.index>d.prefixUntil) {d.prefixUntil=edge.index;changed=true;}
+        }
+        for(const name of child.outer) {
+          const capture=entry.p.captures.find((/** @type {any} */ c)=>c.name===name&&c.index<edge.index);
+          if(capture) {if(!d.parts.has(capture.index)) {d.parts.add(capture.index);changed=true;}}
+          else if(entry.frame?.captures.has(name)&&!d.outer.has(name)) {d.outer.add(name);changed=true;}
+        }
+      }
+    }
+  }
+
+  class TreeIdentities {
+    constructor() {
+      /** @type {Map<string,number>} */ this.ids=new Map();
+      /** @type {{key:any[],empty:boolean}[]} */ this.nodes=[];
+      /** @type {Map<number,string>} */ this.semanticNodes=new Map();
+      /** @type {Map<number,string>} */ this.semanticSequences=new Map();
+      /** @type {[number,number][]} */ this.sequences=[[0,-1]];
+      /** @type {Map<string,number>} */ this.sequenceIds=new Map();
+      /** @type {Map<string,number>} */ this.concatenations=new Map();
+      this.emptyProjection=this.intern(['EmptyProjection'],true);
+    }
+    /** @param {any[]} key @param {boolean} [empty] */
+    intern(key,empty=false) {
+      const text=JSON.stringify(key), old=this.ids.get(text);if(old!==undefined)return old;
+      const id=this.nodes.length;this.ids.set(text,id);this.nodes.push({key,empty});return id;
+    }
+    /** @param {number} prefix @param {number} node */
+    append(prefix,node) {
+      if(this.nodes[node].empty)return prefix;
+      const key=`${prefix}/${node}`,old=this.sequenceIds.get(key);if(old!==undefined)return old;
+      const id=this.sequences.length;this.sequences.push([prefix,node]);this.sequenceIds.set(key,id);return id;
+    }
+    /** @param {number} left @param {number} right */
+    concat(left,right) {
+      if(!left)return right;if(!right)return left;
+      const key=`${left}/${right}`,old=this.concatenations.get(key);if(old!==undefined)return old;
+      const pending=[];for(let at=right;at;at=this.sequences[at][0])pending.push(this.sequences[at][1]);
+      let result=left;while(pending.length)result=this.append(result,/** @type {number} */(pending.pop()));
+      this.concatenations.set(key,result);return result;
+    }
+    /** @param {number} sequence @returns {number[]} */
+    elements(sequence) {
+      const nodes=[];
+      for(let at=sequence;at;at=this.sequences[at][0])nodes.push(this.sequences[at][1]);
+      return nodes.reverse();
+    }
+    /** @param {number|undefined} identity @returns {string|null} */
+    semantic(identity) {
+      if(identity === undefined || identity < 0)return null;
+      const pending=[identity];
+      while(pending.length) {
+        const node=pending[pending.length-1];
+        if(this.semanticNodes.has(node)) {pending.pop();continue;}
+        const key=this.nodes[node].key;
+        if(key[0] !== 'Rule') {this.semanticNodes.set(node,JSON.stringify(key));continue;}
+        const children=this.elements(key[2]);
+        const missing=children.find(child=>!this.semanticNodes.has(child));
+        if(missing!==undefined) {pending.push(missing);continue;}
+        this.semanticNodes.set(node,'["Rule",'+JSON.stringify(key[1])+',['+children.map(child=>this.semanticNodes.get(child)).join(',')+']]');
+      }
+      return /** @type {string} */ (this.semanticNodes.get(identity));
+    }
+    /** @param {number} sequence @returns {string} */
+    sequenceSemantic(sequence) {
+      let value=this.semanticSequences.get(sequence);
+      if(value===undefined) {value='['+this.elements(sequence).map(node=>this.semantic(node)).join(',')+']';this.semanticSequences.set(sequence,value);}
+      return value;
+    }
+    /** @param {string} name @param {number} children */
+    rule(name,children) {return this.intern(['Rule',name,children],children===0);}
+    /** @param {string} terminal @param {string} value */
+    written(terminal,value) {return this.intern(['Written',terminal,value]);}
+    /** @param {string} terminal */
+    omitted(terminal) {return this.intern(['Omitted',terminal]);}
+    /** @param {string[]} values */
+    seal(values) {return this.intern(['Seal',values]);}
+  }
+
+  /** @param {any} context @param {string} terminal @param {number} at */
+  function terminalIdentity(context,terminal,at) {
+    if(context.recon && !context.recon.raw) {
+      if(context.synthetic?.[at])return context.trees.emptyProjection;
+      return context.trees.written(terminal,context.recon.observed.tokens[context.recon.project[at]].value);
+    }
+    return context.trees.written(terminal,context.tokens[at].value);
+  }
+
+  /** @param {any} context @param {number} start @param {number} end */
+  function sealIdentity(context,start,end) {
+    const key=`${start}/${end}`;
+    const old=context.treeSeals.get(key);if(old!==undefined)return old;
+    const observed=context.recon && !context.recon.raw ? context.recon.observed : context;
+    if(observed!==context) { start=context.recon.project[start];end=context.recon.project[end]; }
+    const values=[];for(let i=start;i<end;i++)values.push(observed.tokens[i].value);
+    const result=context.trees.seal(values);context.treeSeals.set(key,result);return result;
+  }
+
+  /** @param {any} context @param {any} production @param {number} dot @param {any} previous @param {any} child @param {number} end */
+  function treeStep(context,production,dot,previous,child,end) {
+    if(!context.trees || !production.observesTrees || !production.walksTrees && dot>production.treePrefixUntil)return null;
+    const m=context.trees;
+    let prefix=previous?.treePrefix ?? 0;
+    if(previous) {
+      const symbol=production.rhs[dot-1];
+      if(symbol.slot)prefix=m.append(prefix,sealIdentity(context,child.origin,child.end));
+      else if(child)prefix=m.concat(prefix,child.treeSequence);
+      else prefix=m.append(prefix,terminalIdentity(context,symbol.name,end-1));
+    }
+    let identity=-1,sequence=prefix;
+    if(dot===production.rhs.length && production.walksTrees) {
+      if(!production.helper) { identity=m.rule(production.lhs,prefix);sequence=m.append(0,identity); }
+      else if(production.elided!==null && production.rhs.length===0) { identity=m.omitted(production.elided);sequence=m.append(0,identity); }
+    }
+    return {treePrefix:prefix,treeIdentity:identity,treeSequence:sequence};
+  }
+
+  /** @param {any} lowered @returns {{comparison:any,production:any,cycle:string[]}|null} */
+  function treeIdentityCycle(lowered) {
+    const rows=lowered.structural, byName=new Map(), nullable=new Set();
+    for(const row of rows) {const list=byName.get(row.lhs) ?? [];list.push(row);byName.set(row.lhs,list);}
+    let changed=true;
+    while(changed) {
+      changed=false;
+      for(const row of rows)if(!nullable.has(row.lhs) && row.rhs.every((/** @type {any} */ s)=>!s.terminal && nullable.has(s.name))) {nullable.add(row.lhs);changed=true;}
+    }
+    const seals=new Set(lowered.grammar.ranked.groups.map((/** @type {any} */ g)=>g.helper));
+    const edges=new Map();
+    for(const [name,productions] of byName) {
+      /** @type {any[]} */ const out=[];
+      for(const production of productions) production.rhs.forEach((/** @type {any} */ symbol,/** @type {number} */ index)=> {
+        if(!symbol.terminal && !seals.has(symbol.name))out.push({name:symbol.name,marked:production.rhs.every((/** @type {any} */ other,/** @type {number} */ i)=>i===index || !other.terminal && nullable.has(other.name))});
+      });
+      edges.set(name,out);
+    }
+    const sites=[...lowered.treeSites];
+    for(const production of lowered.productions) {
+      const bindings=new Map(production.captures.map((/** @type {any} */ c)=>[c.name,[production.rhs[c.index].terminal,production.rhs[c.index].name]]));
+      for(const comparison of constituentComparisons([production.tags,production.parentTags,production.conditions]))sites.push({comparison,production,bindings,prefix:[]});
+    }
+    const order=new Map(), hints=new Map();
+    let nextOrder=0;
+    for(const rule of lowered.grammar.rules.values()) {
+      const definitions=new Map();
+      for(const source of rule.alternatives) {
+        const alternatives=definitions.get(source.clauses)??[];alternatives.push(source);definitions.set(source.clauses,alternatives);
+      }
+      for(const [clauses,alternatives] of definitions)for(const root of [clauses.tags,...alternatives.map((/** @type {any} */ a)=>a.tags),clauses.conditions]) {
+        for(const comparison of constituentComparisons(root)) {
+          const number=nextOrder++;
+          order.set(comparison,number);
+          const key=JSON.stringify([alternatives[0].document,boundaryLocations.get(comparison)?.at,comparison]);
+          if(!hints.has(key))hints.set(key,number);
+        }
+      }
+    }
+    const ordinal=(/** @type {any} */ site)=>order.get(site.comparison)??hints.get(JSON.stringify([(site.production.logicalSource??site.production.source)?.document,boundaryLocations.get(site.comparison)?.at,site.comparison]))??nextOrder;
+    sites.sort((a,b)=>ordinal(a)-ordinal(b)||a.production.id-b.production.id);
+    for(const {comparison,production,bindings,prefix} of sites) {
+        const roots=[];
+        for(const name of [comparison.left.capture,comparison.right.capture]) {
+          if(name==='') {
+            for (const name of prefix) roots.push(name);
+            if(!production.helper) for (const symbol of production.rhs) if (!symbol.terminal && !seals.has(symbol.name)) roots.push(symbol.name);
+          } else {
+            const binding=bindings.get(name);
+            if(binding && !binding[0])roots.push(binding[1]);
+          }
+        }
+        const reachable=[],known=new Set(),todo=roots.slice().reverse();
+        while(todo.length) {const name=todo.pop();if(known.has(name))continue;known.add(name);reachable.push(name);for(const edge of (edges.get(name)??[]).slice().reverse())todo.push(edge.name);}
+        const done=new Set(),active=new Map();
+        /** @type {string[]} */ const path=[];
+        for(const root of reachable) {
+          if(done.has(root))continue;
+          const stack=[{name:root,next:0}];
+          while(stack.length) {
+            const frame=stack[stack.length-1];
+            if(!active.has(frame.name)) {active.set(frame.name,path.length);path.push(frame.name);}
+            const out=edges.get(frame.name)??[];
+            const edge=out[frame.next++];
+            if(!edge) {path.pop();active.delete(frame.name);done.add(frame.name);stack.pop();continue;}
+            if(!edge.marked || done.has(edge.name))continue;
+            if(active.has(edge.name)) {
+              const cycle=path.slice(active.get(edge.name)).concat(edge.name).filter(name=>!name.startsWith('\u0000'));
+              return {comparison,production,cycle};
+            }
+            stack.push({name:edge.name,next:0});
+          }
+        }
+    }
+    return null;
+  }
+
+  /** @param {any} context @param {any} root @returns {number} */
+  function derivationIdentity(context,root) {
+    context.emissionTrees ??= new TreeIdentities();
+    context.emissionTreeValues ??= new WeakMap();
+    const m=context.emissionTrees, memo=context.emissionTreeValues,pending=[root];
+    while(pending.length) {
+      const node=pending[pending.length-1];
+      if(memo.has(node)) {pending.pop();continue;}
+      if(node.read) {const identity=m.written(node.read.terminal,context.tokens[node.start].value);memo.set(node,{identity,sequence:m.append(0,identity)});continue;}
+      const child=node.children.find((/** @type {any} */ c,/** @type {number} */ i)=>!node.production.rhs[i]?.slot && !memo.has(c));
+      if(child) {pending.push(child);continue;}
+      let sequence=0;
+      node.children.forEach((/** @type {any} */ c,/** @type {number} */ i)=> {
+        if(node.production.rhs[i]?.slot) sequence=m.append(sequence,m.seal(context.tokens.slice(c.start,c.end).map((/** @type {any} */ token)=>token.value)));
+        else sequence=m.concat(sequence,memo.get(c).sequence);
+      });
+      let identity=-1;
+      if(!node.production.helper) {identity=m.rule(node.production.lhs,sequence);sequence=m.append(0,identity);}
+      else if(!node.children.length && node.production.elided!==null) {identity=m.omitted(node.production.elided);sequence=m.append(0,identity);}
+      memo.set(node,{identity,sequence});
+    }
+    return memo.get(root).identity;
   }
 
   // ---- family-summaries.js
@@ -8761,13 +9732,17 @@
 
   // ---- ranked-frame.js
 
+
   // Lexical entry state for transparent helpers in a ranked alternative.
 
 
 
   /** @param {any} lowered @param {any} ranked */
   function prepareRankedFrames(lowered, ranked) {
-    if (!ranked.groups.length) return;
+    if (!ranked.groups.length) {
+      if (lowered.contextual) prepareRankedConditions(lowered);
+      return;
+    }
     const helpers = new Map(lowered.productions.filter((/** @type {any} */ p) => p.helper).map((/** @type {any} */ p) => [p.lhs, p]));
     const groups = new Map(ranked.groups.map((/** @type {any} */ g) => [g.helper, g]));
     const privateNames = new Map(ranked.groups.map((/** @type {any} */ group) => [group,group.captures]));
@@ -8826,25 +9801,37 @@
     const pending = [];
     const enter = (/** @type {any} */ p, /** @type {any} */ frame) => {
       const present = new Set([...frame.present, ...p.captures.map((/** @type {any} */ c) => c.name)]);
-      const knownPrivate = new Set([...frame.knownPrivate, ...p.rankedPrivate]);
+      const knownPrivate = new Set([...frame.knownPrivate, ...p.rankedPrivate ?? []]);
       p.rhs.forEach((/** @type {any} */ symbol, /** @type {number} */ index) => {
         if (symbol.terminal || !contextual.has(symbol.name)) return;
         const captures = new Map(frame.captures);
-        for (const capture of p.captures) if (capture.index < index) captures.set(capture.name, null);
-        pending.push({name:symbol.name, present, captures, knownPrivate});
+        for (const capture of p.captures) if (capture.index < index) captures.set(capture.name, lowered.grammar.treeComparisons ? [p.rhs[capture.index].terminal,p.rhs[capture.index].name] : null);
+        const child={name:symbol.name, present, captures, knownPrivate};
+        if(lowered.grammar.treeComparisons)Object.assign(child,{
+          identityPrefix:frame.sealed ? frame.identityPrefix : [...frame.identityPrefix??[],...p.rhs.slice(0,index).filter((/** @type {any} */ s)=>!s.terminal && !s.slot).map((/** @type {any} */ s)=>s.name)],
+          sealed:frame.sealed || !!symbol.slot});
+        pending.push(child);
       });
     };
     for (const p of lowered.productions) if (!p.helper) enter(p, {present:new Set(), captures:new Map(), knownPrivate:new Set()});
     const seen = new Set();
     for (let at = 0; at < pending.length; at++) {
       const frame = pending[at];
-      const key = JSON.stringify([frame.name, [...frame.present].sort(), [...frame.captures.keys()].sort(), [...frame.knownPrivate].sort()]);
+      const key = JSON.stringify([frame.name, [...frame.present].sort(), [...frame.captures.keys()].sort(), [...frame.knownPrivate].sort(), ...(lowered.grammar.treeComparisons ? [[...frame.captures],frame.identityPrefix,frame.sealed] : [])]);
       if (seen.has(key)) continue;
       seen.add(key);
       for (const p of lowered.byLhs.get(frame.name) ?? []) {
         const present = new Set(['', ...frame.present, ...p.captures.map((/** @type {any} */ c) => c.name)]);
         const clauses = p.rankedGroup ? p.source.clauses.conditions : [];
-        const conditions = frameConditions(clauses, present, {...p,lexicalFrame:frame}, frame.captures, p.rankedGroup?.final ?? false);
+        const conditions = [
+          ...frameConditions(clauses, present, {...p,lexicalFrame:frame}, frame.captures, p.rankedGroup?.final ?? false),
+          ...itemFrameConditions(p.itemConditions ?? [], present, p, frame.captures),
+        ];
+        if(lowered.grammar.treeComparisons) {
+          const bindings=new Map(frame.captures);
+          for(const capture of p.captures)bindings.set(capture.name,[p.rhs[capture.index].terminal,p.rhs[capture.index].name]);
+          for(const comparison of constituentComparisons(conditions))lowered.treeSites.push({comparison,production:p,bindings,prefix:frame.identityPrefix??[]});
+        }
         p.rankedConditions ??= [];
         for (const condition of conditions) p.rankedConditions.push(condition);
         enter(p, frame);
@@ -8888,15 +9875,20 @@
     const contextual = new Set(context.lowered.productions.filter((/** @type {any} */ p) => p.contextual).map((/** @type {any} */ p) => p.lhs));
     const helpers = new Map(context.lowered.productions.filter((/** @type {any} */ p) => p.helper).map((/** @type {any} */ p) => [p.lhs,p]));
     let next = 0;
-    const written = (/** @type {any} */ p) => [p.owner ?? p.lhs, p.source?.at, context.lowered.ranked.paths.get(p.writtenExpression) ?? ''];
+    const written = (/** @type {any} */ p) => [p.owner ?? p.lhs, p.source?.at ?? p.id, context.lowered.ranked?.paths.get(p.writtenExpression) ?? ''];
     const symbol = (/** @type {any} */ s) => [s.terminal ? s.name : helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test];
     const prefixKey = (/** @type {any} */ item) => {
       const captures = [];
       for (let part = item.slots; part; part = part.parent) {
         const name = item.production.captures[part.index].name;
-        if (!name.startsWith('\u0000')) captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id]);
+        if (!name.startsWith('\u0000')) {
+          captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id]);
+          if(context.trees)captures[captures.length-1].push(part.treeIdentity);
+        }
       }
-      return [written(item.production),item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,captures.reverse(),item.restores,item.production.rankedBindings,item.observationPrefix?.id];
+      const key = [written(item.production),item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,captures.reverse(),item.restores,item.production.rankedBindings,item.observationPrefix?.id];
+      if(context.trees)key.push(item.treePrefix);
+      return key;
     };
     return {
       contextual,
@@ -8925,11 +9917,13 @@
           ? context.closes.concat(outer?.observationPrefix ?? context.closes.empty,item.observationPrefix ?? context.closes.empty)
           : null;
         const sealObservationPrefix = inside && outer ? outer.sealObservationPrefix : observationPrefix;
-        const sealGroup = inside && outer ? outer.sealGroup : context.lowered.ranked.groups.find((/** @type {any} */ group) => group.helper === name) ?? null;
+        const treePrefix=context.trees ? context.trees.concat(outer?.treePrefix ?? 0,item.treePrefix ?? 0) : undefined;
+        const treeSealPrefix=inside && outer ? outer.treeSealPrefix : treePrefix;
+        const sealGroup = inside && outer ? outer.sealGroup : context.lowered.ranked?.groups.find((/** @type {any} */ group) => group.helper === name) ?? null;
         const sealEntry = inside && outer ? outer.sealEntry : item;
-        const knownPrivate = new Set([...outer?.knownPrivate ?? [],...item.production.rankedPrivate]);
+        const knownPrivate = new Set([...outer?.knownPrivate ?? [],...item.production.rankedPrivate ?? []]);
         const frame = {id:next++,key,captures,root,namedOrigin,prefix,inside,sealPrefix,present,knownPrivate,
-          observationPrefix,sealObservationPrefix,sealGroup,sealEntry};
+          observationPrefix,sealObservationPrefix,sealGroup,sealEntry,treePrefix,treeSealPrefix};
         frames.set(key,frame);
         return frame;
       },
@@ -8941,9 +9935,22 @@
         if (old) return old;
         const present = new Set(['',...frame.present,...production.captures.map((/** @type {any} */ c) => c.name)]);
         const bound = {...production,lexicalFrame:frame};
+        // The item conditions of the braces' alternative run in the helper,
+        // with the enclosing item's captures from the frame (engine §4).
+        const itemConditions = production.itemAlternative ? itemFrameConditions(production.itemConditions,present,bound,frame.captures) : [];
+        if (!production.source) {
+          // A helper outside every ranked alternative: a frame gives it the
+          // enclosing item's captures and nothing else.
+          /** @type {any[][]} */
+          const conditionsAt = Array.from({length:production.rhs.length+1},() => []);
+          for (const c of itemConditions) conditionsAt[c.readyAt+1].push(c);
+          const result = {...production,baseProduction:production,lexicalFrame:frame,conditions:itemConditions,conditionsAt};
+          productions.set(key,result);
+          return result;
+        }
         // Every clause ready at this written boundary runs in source order,
         // including common clauses and clauses owned by an enclosing group.
-        const conditions = frameConditions(production.rankedGroup ? production.source.clauses.conditions : [],present,bound,frame.captures,production.rankedGroup?.final ?? false);
+        const conditions = [...frameConditions(production.rankedGroup ? production.source.clauses.conditions : [],present,bound,frame.captures,production.rankedGroup?.final ?? false),...itemConditions];
         /** @type {any[][]} */
         const conditionsAt = Array.from({length:production.rhs.length+1},() => []);
         for (const c of conditions) conditionsAt[c.readyAt+1].push(c);
@@ -8961,10 +9968,35 @@
     };
   }
 
+  /**
+   * The item conditions of a contextual brace helper, simplified for one of
+   * its productions in one frame (engine §3.6, §4). A condition drops where the
+   * production lacks an item capture it uses, or the frame an outer one.
+   * @param {any[]} clauses @param {Set<string>} present @param {any} production @param {Map<string,any>} prefix
+   */
+  function itemFrameConditions(clauses, present, production, prefix) {
+    const positions = new Map(production.captures.map((/** @type {any} */ c) => [c.name,c.index]));
+    const result = [];
+    for (const raw of clauses) {
+      const atom = firstBoundaryAtom(raw);
+      for (const simplified of partsFor(prepareConditions([raw]), n => present.has(n), present)) {
+        const condition = simplified === DOM_FALSE ? {any:[]} : simplified;
+        const reads = rankedConditionVariables(condition);
+        if (!reads.every(n => positions.has(n) || prefix.has(n))) continue;
+        const readyAt = reads.reduce((last,n) => Math.max(last,prefix.has(n) ? -1 : positions.get(n)), -1);
+        result.push({condition,readyAt,wholeBoundary:!!atom});
+      }
+    }
+    return result;
+  }
+
   /** @param {any} condition */
   function rankedConditionVariables(condition) {return [...rankedCaptureReads(condition)];}
 
   // ---- grammar.js
+
+
+
 
 
 
@@ -9028,7 +10060,6 @@
    * @property {string} document
    * @property {ErrorLocation} at
    * @property {StitchedAlternative[]} alternatives
-   * @property {string[]} flags
    */
 
   /**
@@ -9038,7 +10069,6 @@
    * @property {string} rule
    * @property {string} document
    * @property {string} previous
-   * @property {{from: string[], to: string[]}} [flagChange]
    */
 
   /**
@@ -9057,6 +10087,7 @@
    * @property {string} name
    * @property {(where: Where) => SequenceItem[][]} build
    * @property {string | null} elided
+   * @property {string} [elidedValue]
    * @property {SymbolTest | null} elidedTest
    */
 
@@ -9103,6 +10134,8 @@
         this.changes = [];
         /** @type {Resolution | null} */
         this.resolution = null;
+        /** @type {any} */ this.rankingReport = null;
+        this.elisionOnly = false;
         /**
          * The stage's `%classifier` items in stitching order, each with its
          * document (engine §2).
@@ -9184,6 +10217,7 @@
           throw new GencmuError("grammar", "has no %ambiguity-resolution", { stage: stageName });
         }
         if (!this.rules.has("text")) throw new GencmuError("grammar", "has no rule text", {stage:stageName});
+        (/** @type {Resolution} */ (this.resolution)).elisionOnly = this.elisionOnly;
         /** @type {WeakMap<RuleClauses,WeakMap<object,{rule:string,condition:number,order:number}>>} */
         this.boundarySites = new WeakMap();
         let ruleOrder = 0;
@@ -9215,9 +10249,15 @@
             throw error;
           }
         }
+        /** @type {any[]} */
+        this.defaultValues = [];
         this.checkReferences();
         this.families = closeFamilies(this.rules);
         this.ranked = new RankedGroups(this.rules);
+        if (this.defaultValues.length) {
+          const defaults = new Lowering(this,new Set());
+          for (const [rule,alternative,node] of this.defaultValues) defaults.elidedTerminal(node.optional,{rule,alternative,pending:[]},node.default);
+        }
         if (this.ranked.groups.length) this.ranked.validate();
         // Slot emission checks inspect written carriers before absent ones disappear.
         this.emissionUsers.sort((a,b) => a.run-b.run || a.rule.at[0]-b.rule.at[0] || a.rule.at[1]-b.rule.at[1]);
@@ -9283,24 +10323,23 @@
             if (previous) {
               throw new GencmuError("grammar", `%rule ${rule.name} is already defined, in ${previous.document}; %redefine-rule replaces a rule`, at);
             }
-            this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives, flags: rule.flags });
+            this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives });
           } else if (rule.op === "redefine") {
             if (!previous) {
               throw new GencmuError("grammar", `%redefine-rule ${rule.name} replaces no rule defined before it`, at);
             }
             /** @type {RuleChange} */
             const change = { kind: "replaced", rule: rule.name, document: path, previous: previous.document };
-            if (previous.flags.join(",") !== rule.flags.join(",")) {
-              change.flagChange = { from: previous.flags.slice(), to: rule.flags.slice() };
-            }
             this.changes.push(change);
-            this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives, flags: rule.flags });
+            this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives });
           } else {
             const base = previous;
             if (!base) {
               throw new GencmuError("grammar", `%extend-rule ${rule.name} extends a rule that is not defined before it`, at);
             }
-            this.changes.push({ kind: "extended", rule: rule.name, document: path, previous: base.document });
+            /** @type {RuleChange} */
+            const change = { kind: "extended", rule: rule.name, document: path, previous: base.document };
+            this.changes.push(change);
             // Added in place: a copy of the list for each %extend-rule would
             // cost the square of their number.
             for (const alternative of alternatives) {
@@ -9321,15 +10360,36 @@
               if (this.resolution) {
                 throw new GencmuError("grammar", "has a second %ambiguity-resolution", {...at, stage:this.stageName});
               }
-              const [lean, ...rest] = directive.args;
-              const elisionOnly = rest[0] === "elision-only";
-              if (elisionOnly) rest.shift();
-              if ((lean !== "greedy" && lean !== "lazy" && lean !== "late-elision") || rest.length > 0) {
-                throw new GencmuError("grammar", `%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only`, at);
-              }
-              this.resolution = { lean, elisionOnly };
+              const steps = /** @type {import("./types.js").RankingStep[]} */ (directive.steps);
+              const last = steps[steps.length - 1];
+              const lean = last.step === "greedy" || last.step === "lazy" ? last.step : "none";
+              const keySteps = /** @type {import("./types.js").KeyStep[]} */ ((lean === "none" ? steps : steps.slice(0, -1)).map(step=>({...step})));
+              this.resolution = {steps:keySteps, lean, elisionOnly:false};
+              this.validationItems.push({run:inspectionRun,at:directive.at,kind:1,check:()=>{
+                for (const step of keySteps) {
+                  const source=/** @type {any} */ (step.pattern);
+                  const location=patternLocations.get(source) ?? source.at ?? directive.at;
+                  const resolved=this.evaluateClosed(path,source.const?source:{pattern:source},location,undefined,'pattern');
+                  if (!("pattern" in resolved)) throw this.documentError(path,location,"a ranking step requires a pattern");
+                  const pattern=resolved.pattern;
+                  const problem=rankingPatternProblem(pattern);
+                  if(problem) throw this.documentError(path,location,problem);
+                  if(step.step === 'leftmost-longest' && requiresElided(pattern)) throw this.documentError(path,location,'leftmost-longest cannot require _Elided');
+                  const pending=[pattern];
+                  while(pending.length) {
+                    const node=pending.pop();
+                    if(node.name && !this.rules.has(node.name)) throw this.documentError(path,node.at??location,`${node.name} is not a rule of stage ${this.stageName}`);
+                    for (const child of patternParts(node)) pending.push(child);
+                  }
+                  step.pattern=pattern;
+                }
+              }});
               break;
             }
+            case "elision-only":
+              if (this.elisionOnly) throw new GencmuError("grammar", "has a second %elision-only", at);
+              this.elisionOnly = true;
+              break;
             default:
               throw new GencmuError("grammar", `unknown directive %${directive.name}`, at);
           }
@@ -9638,8 +10698,11 @@
     /** @param {any} node @param {string} path @param {[number,number]} at @returns {any} */
     resolvePatterns(node, path, at) {
       const patterns = new Map();
-      for (const part of valueParts(node)) if (part.pattern && !hasUnresolved(part.node)) {
+      for (const part of valueParts(node)) {
+        if ((part.node.op === "≅" || part.node.op === "≇") && typeof part.node.right?.capture === "string" && constituentComparisons([node.tags,node.conditions,...(node.alternatives ?? []).map((/** @type {any} */ alternative)=>alternative.tags)]).length) this.treeComparisons = true;
+        if (part.pattern && !hasUnresolved(part.node)) {
         patterns.set(part.node, this.evaluateClosed(path,part.node,at,undefined,"pattern"));
+        }
       }
       /** @param {any} source @returns {any} */
       const copy = source => {
@@ -9676,6 +10739,9 @@
         this.checkValueUses(rule,path,rule.at);
       }
       const checked = this.resolvePatterns(resolvedRule,path,rule.at);
+      for(const term of [checked.tags,...(checked.alternatives??[]).map((/** @type {any} */ a)=>a.tags)]) {
+        if(term && readsOwnTags(term)) throw this.documentError(path,rule.at,"a constituent reads its own tags");
+      }
       const problem = definitionProblem(checked, true);
       if (!rule.params && (deferredEmissionProblem(checked) || deferredRecipeProblem(checked))) this.emissionUsers.push({path, rule:checked, run:inspectionRun});
       if (problem) throw this.documentError(path, rule.at, problem);
@@ -9854,6 +10920,7 @@
       };
       /** @type {(expr: Expr, rule: StitchedRule, alternative: StitchedAlternative) => void} */
       const visit = (expr, rule, alternative) => {
+        if ("default" in expr) this.defaultValues.push([rule,alternative,expr]);
         if ("ref" in expr && !isTerminalName(expr.ref)) check(expr.ref, rule, alternative);
         for (const child of expressionChildren(expr)) visit(child, rule, alternative);
       };
@@ -9892,6 +10959,12 @@
     }
 
     /**
+     * @internal
+     * @type {((features:Set<string>,error:GencmuError)=>GencmuError)|undefined}
+     */
+    recoverTreeError;
+
+    /**
      * The productions for a set of enabled features. The check of
      * elision-only reads the same productions in a mode of its own (engine
      * §3.8, §7.4).
@@ -9913,8 +10986,10 @@
           lowered = { ...new Lowering(this, on).run(), classifiers, implications: this.implications };
         } catch (error) {
           if (error instanceof GencmuError) {
-            if (error.where.stage !== this.stageName) error = error.withLocation({stage:this.stageName});
-            remember(this.lowered, key, error);
+            const recovered = this.recoverTreeError ? this.recoverTreeError(on,error) : error;
+            const located = recovered.where.stage === this.stageName ? recovered : recovered.withLocation({stage:this.stageName});
+            remember(this.lowered, key, located);
+            throw located;
           }
           throw error;
         }
@@ -9937,7 +11012,7 @@
       yield part;
       if (part.pattern || node.pattern) continue;
       if (node.op === "≅" || node.op === "≇") {
-        pending.push({node:node.right,pattern:true},{node:node.left,pattern:false});
+        pending.push({node:node.right,pattern:!(typeof node.right?.capture === "string")},{node:node.left,pattern:false});
         continue;
       }
       const expressions = expressionChildren(node);
@@ -10087,6 +11162,7 @@
       /** @type {ConstantTerm} */
       const reference = { const: record.const, at: /** @type {[number, number]} */ (record.at), value: /** @type {StageConstant} */ (constants.get(record.const)).value };
       copyRankedLocation(record,reference);
+      copyRecipeLocation(record,reference);
       return reference;
     }
     /** @type {Record<string, unknown>} */
@@ -10131,9 +11207,13 @@
       this.features = features;
       /** @type {Production[]} */
       this.productions = [];
+      /** @type {any[]|undefined} */ this.treeSites = undefined;
       /** @type {Map<string, Production[]>} */
       this.byLhs = new Map();
       this.helperCount = 0;
+      /** @type {Set<string>} the item captures of the alternative being lowered (engine §3.5) */
+      this.itemNames = new Set();
+      this.validation = false;
       this.helperExpressions = new Map();
       /** @type {Map<string, SequenceItem[][]>} */
       this.helperBodies = new Map();
@@ -10187,16 +11267,32 @@
         const name = "\u0000query:" + terminal;
         this.addProduction({
           lhs: name, rhs: [{name: terminal, terminal: true}], helper: true,
-          flags: [], owner: name, elided: null, elidedTest: null,
+          owner: name, elided: null, elidedTest: null,
           captures: [{name: "\u0000child", index: 0}], conditions: [],
           tags: {method: "tags", receiver: {capture: "\u0000child"}, args: []},
           emit: null, erased: false, warnings: [],
         });
       }
       this.checkBraceItems();
+      this.contextual = this.productions.some((production) => production.contextual);
+      if(this.grammar.treeComparisons)this.treeSites=[];
       prepareRankedFrames(this,this.grammar.ranked);
+      if(this.grammar.treeComparisons) {
+        prepareTreeDemands(this,rankedFrameTable({lowered:this}));
+        const cycle=treeIdentityCycle(this);
+        if(cycle) {
+          const source=cycle.production.logicalSource ?? cycle.production.source;
+          const location=boundaryLocations.get(cycle.comparison)?.at;
+          const at={...source.at,...(location ? {line:location[0],column:location[1]} : {})};
+          const error = loweringError(at,`tree comparison demands a cycle ${cycle.cycle.join(" → ")} that can repeat a demanded rule over one span`);
+          if (!location) boundaryDocumentErrors.set(error,{document:source.document,node:cycle.comparison});
+          throw error;
+        }
+      }
       return {
         productions: this.productions,
+        contextual: this.contextual || this.grammar.ranked.groups.length > 0,
+        treeComparisons: !!this.grammar.treeComparisons,
         byLhs: this.byLhs,
         resolution: /** @type {Resolution} */ (this.grammar.resolution),
         ranked: this.grammar.ranked,
@@ -10263,6 +11359,7 @@
       /** @type {Where} */
       const where = { rule, alternative, pending };
       this.source = alternative;
+      this.itemNames = new Set(itemCaptures(alternative.expr).keys());
       const expr = alternative.expr;
       let sequences;
       if (isChain(expr)) {
@@ -10377,6 +11474,7 @@
         emitted.add(name);
         const bodies = /** @type {SequenceItem[][]} */ (this.helperBodies.get(name));
         const helper = /** @type {PendingHelper} */ (this.pendingHelpers.get(name));
+        const helperItems = [...new Set(bodies.flatMap((sequence) => sequence.flatMap((item) => item.capture && this.itemNames.has(item.capture) ? [item.capture] : [])))];
         for (const sequence of bodies) {
           // A helper with one symbol has that symbol's tags, like any
           // production (engine §3.7).
@@ -10384,17 +11482,20 @@
           const inherited = inheritedIndex(logical);
           const single = inherited !== null;
           const ranked = this.rankedSequences.get(sequence);
-          const captures = ranked ? sequence.flatMap((item,index) => item.capture ? [{name:item.capture,index}] : []) : [];
+          // The item captures inside braces bind to the helper's productions
+          // (engine §3.5), as do the captures of a ranked option.
+          const captures = sequence.flatMap((item,index) => item.capture ? [{name:item.capture,index}] : []);
+          const items = helperItems;
           if (single && captures.length === 0) captures.push({name:"\u0000child",index:/** @type {number} */ (inherited)});
           this.addProduction({
             lhs: helper.name,
             rhs: sequence.map((item) => item.symbol),
             logical,
             helper: true,
-            flags: [],
             owner: rule.name,
             elided: helper.elided,
             elidedTest: helper.elidedTest,
+            elidedValue: helper.elidedValue,
             captures,
             conditions: [],
             tags: single ? { method: "tags", receiver: { capture: captures[0].name }, args: [] } : null,
@@ -10402,6 +11503,13 @@
             erased: false,
             warnings: [],
             ...(ranked ? {rankedGroup:ranked.group,rankedOption:ranked.option} : {}),
+            // Every helper of an alternative with item captures is contextual,
+            // so that a frame reaches the braces' helper through the helpers
+            // around it, and its item conditions read the enclosing item's
+            // captures from the frame (engine §4).
+            ...(this.itemNames.size ? {contextual: true} : {}),
+            ...(items.length ? {itemAlternative: alternative, itemNames: items,
+              itemConditions: alternative.clauses.conditions.filter((condition) => capturesMentioned(condition).some((name) => items.includes(name)))} : {}),
           });
         }
         const children = this.usedHelpers(bodies);
@@ -10482,6 +11590,8 @@
         }
         commonConditions = common;
       }
+      // An item condition attaches to the helper of its braces (engine §3.6).
+      if (this.itemNames.size) commonConditions = commonConditions.filter((c) => !capturesMentioned(c).some((name) => this.itemNames.has(name)));
       for (const condition of partsFor(prepareConditions(commonConditions), has, names)) {
         // A condition false for this production removes it.
         if (condition === DOM_FALSE) return;
@@ -10521,7 +11631,6 @@
         rhs: sequence.map((item) => item.symbol),
         logical,
         helper: false,
-        flags: rule.flags,
         owner: rule.name,
         elided: null,
         elidedTest: null,
@@ -10593,7 +11702,7 @@
         // Any other optional is a helper, and a marked one is elidable, with
         // the terminal that its marker names
         // (engine §3.8).
-        const elided = expr.elidable === true ? this.elidedTerminal(inner, where) : null;
+        const elided = expr.elidable === true ? this.elidedTerminal(inner, where, expr.default) : null;
         this.helperExpression = expr;
         const name = this.helper(where, (context) => [/** @type {SequenceItem[]} */ ([]), ...this.expand(inner, context)], elided);
         return [[{ symbol: { name, terminal: false } }]];
@@ -10661,13 +11770,13 @@
      * Names a helper rule, to be lowered when the alternative is done.
      * @param {Where} where
      * @param {(where: Where) => SequenceItem[][]} build
-     * @param {{terminal: string, test: SymbolTest | null} | null} elided
+     * @param {{terminal: string, test: SymbolTest | null, value?:string} | null} elided
      * @returns {string}
      */
     helper(where, build, elided) {
       const name = `${where.rule.name}·${this.helperCount++}`;
       if (this.grammar.ranked.groups.length && this.helperExpression) this.helperExpressions.set(name, this.helperExpression);
-      where.pending.push({ name, build, elided: elided ? elided.terminal : null, elidedTest: elided ? elided.test : null });
+      where.pending.push({ name, build, elided: elided ? elided.terminal : null, elidedTest: elided ? elided.test : null, elidedValue:elided?.value });
       return name;
     }
 
@@ -10676,13 +11785,27 @@
      * and its complete symbol predicate (engine §3.8, §12).
      * @param {Expr} expr
      * @param {Where} where
-     * @returns {{terminal: string, test: SymbolTest | null}}
+     * @param {import("./types.js").Term} [defaultValue]
+     * @returns {{terminal: string, test: SymbolTest | null, value?:string}}
      */
-    elidedTerminal(expr, where) {
+    elidedTerminal(expr, where, defaultValue) {
       const first = "seq" in expr ? expr.seq[0] : expr;
       const tested = "test" in first ? first : null;
       const name = tagName(tested ? tested.expr : first);
-      return { terminal: /** @type {string} */ (name), test: tested ? this.grammar.symbolTest(tested, where.rule.document, where.rule.at) : null };
+      if (name === undefined) throw loweringError(where.alternative.at, `an elidable optional in ${where.rule.name} does not begin with its terminator`);
+      const test = tested ? this.grammar.symbolTest(tested, where.rule.document, where.rule.at) : null;
+      const resolved = defaultValue === undefined ? undefined : this.grammar.evaluateClosed(where.rule.document, defaultValue, recipeLocations.get(defaultValue) ?? [0,0]);
+      if (resolved !== undefined && !("string" in resolved)) throw loweringError(where.rule.at, "a default requires one string");
+      const value = resolved && "string" in resolved ? resolved.string : test?.op === "=" ? test.value : undefined;
+      if (defaultValue !== undefined) {
+        /** @type {(t:SymbolTest|null)=>boolean} */
+        const holds = (t) => !t || (!t.inner || holds(t.inner)) && (t.op === "tags" ? [...t.positive ?? []].every(tag => tag === name) && !t.negative?.has(name) : (value === t.value) === (t.op === "="));
+        if (!holds(test)) {
+          const at = recipeLocations.get(defaultValue);
+          throw new GencmuError("grammar", "a default fails its head test", {document:where.rule.document,...(at ? {line:at[0],column:at[1]} : {})});
+        }
+      }
+      return { terminal: name, test, value };
     }
   }
 
@@ -10771,6 +11894,9 @@
    */
   function holdsCapture(expr, includeRanked = false) {
     if ("ranked" in expr && !includeRanked) return false;
+    // An item capture binds to the helper of its braces, not to the
+    // enclosing production (engine §3.5).
+    if ("repeat" in expr) return false;
     if ("capture" in expr) return true;
     return expressionChildren(expr).some(child => holdsCapture(child, includeRanked));
   }
@@ -10815,6 +11941,8 @@
   }
 
   // ---- earley.js
+
+
 
 
   // Recognition (engine §4) and the terms and conditions it evaluates
@@ -10952,7 +12080,7 @@
         const value = /** @type {any} */ (stack.pop());
         if (!value || typeof value !== "object" || seen.has(value)) continue;
         seen.add(value);
-        if (value.op === "≅" || value.op === "≇") found.push(value.right.pattern);
+        if (value.op === "≅" || value.op === "≇") { if (value.right.pattern) found.push(value.right.pattern); }
         else for (const child of clauseChildren(value)) stack.push(child);
       }
     }
@@ -10960,11 +12088,21 @@
     return found;
   }
 
-  /** @param {Pick<Production,"elided"|"elidedTest">} production @returns {boolean} */
+  /** @param {any} context @param {number} start @param {number} end @returns {string} */
+  function patternValue(context,start,end) {
+    if(context.recon && !context.recon.raw) {start=context.recon.project[start];end=context.recon.project[end];context=context.recon.observed;}
+    const values=context.patternValues ??= new Map();
+    const key=`${start}/${end}`;
+    let value=values.get(key);
+    if(value===undefined) {value=context.tokens.slice(start,end).map((/** @type {any} */ token)=>token.value).join("");values.set(key,value);}
+    return value;
+  }
+
+  /** @param {Pick<Production,"elided"|"elidedTest"|"elidedValue">} production @returns {boolean} */
   function omissionAllowed(production) {
     const test = production.elidedTest;
     if (!test) return true;
-    const value = test.op === "=" ? test.value : "";
+    const value = production.elidedValue ?? "";
     const tags = new Set([/** @type {string} */ (production.elided)]);
     /** @param {SymbolTest} current @returns {boolean} */
     const holds = current => {
@@ -10981,7 +12119,7 @@
 
   /** @param {ParseContext} context @param {string|null} terminal @returns {number} */
   function omittedState(context, terminal) {
-    return context.patterns ? context.patterns.node(null, context.patterns.empty, { terminal, value: "", tags: new Set([terminal]) }) : -1;
+    return context.patterns ? context.patterns.node(null, context.patterns.empty, { terminal, value: "", tags: new Set([terminal,"_Elided"]) }) : -1;
   }
 
   /** @param {ParseContext} context @param {string} terminal @param {number} at @returns {number} */
@@ -11011,7 +12149,7 @@
     const prefix = previous ? machine.concat(previous.prefix, child ? production.rhs[dot - 1].slot ? machine.seal : child.structure : terminalState(context, production, dot - 1, end - 1)) : machine.empty;
     let structure = prefix;
     if (dot === production.rhs.length) {
-      if (!production.helper) structure = machine.node(production.lhs, prefix);
+      if (!production.helper) structure = machine.node(production.lhs, prefix,null,undefined,machine.nodeValues ? patternValue(context,previous?.origin ?? end,end) : undefined);
       else if (production.rhs.length === 0 && production.elided !== null) structure = omittedState(context, production.elided);
     }
     return { prefix, structure };
@@ -11048,8 +12186,8 @@
       at,
       source: [sourceAt, sourceAt],
     };
-    if (production.elidedTest?.op === "=" && production.elidedTest.value !== undefined) {
-      event.value = production.elidedTest.value;
+    if (production.elidedValue !== undefined) {
+      event.value = production.elidedValue;
     }
     return machine.event(event);
   }
@@ -11145,6 +12283,7 @@
         ? context.closes.identity(part.observation) : null;
       captures.push([name, originalPosition(context, part.start), originalPosition(context, part.end),
         tagKey(context.interner.get(part.tags)), structuralKey(context, part.structure), closes]);
+      if(context.trees)captures[captures.length-1].push(context.trees.semantic(part.treeIdentity));
     }
     const frame = before.production.lexicalFrame;
     const prefix = frame && context.patterns ? context.patterns.concat(frame.prefix, before.prefix) : before.prefix;
@@ -11153,10 +12292,13 @@
       : before.observationPrefix;
     // The written group and original entry observations survive across runs.
     // Runtime frame IDs and the selected option do not enter this key.
-    return JSON.stringify([group.site, originalPosition(context, child.origin), originalPosition(context, child.end),
+    /** @type {unknown[]} */
+    const key = [group.site, originalPosition(context, child.origin), originalPosition(context, child.end),
       originalPosition(context, frame?.namedOrigin ?? before.origin), writtenPrefixKey(context, before.production),
       before.production.rhs.slice(0, before.dot).map(symbol => prefixSymbolKey(context, symbol)),
-      structuralKey(context, prefix), captures, closePrefix && context.closes ? context.closes.identity(closePrefix) : null]);
+      structuralKey(context, prefix), captures, closePrefix && context.closes ? context.closes.identity(closePrefix) : null];
+    if(context.trees)key.push(context.trees.sequenceSemantic(context.trees.concat(frame?.treePrefix ?? 0,/** @type {any} */ (before).treePrefix ?? 0)));
+    return JSON.stringify(key);
   }
 
   /**
@@ -11260,6 +12402,8 @@
       this.closeRules = closeDemands(lowered);
       /** @type {CloseObservations|null} */
       this.closes = this.closeRules.size ? new CloseObservations() : null;
+      /** @type {TreeIdentities|null} */ this.trees = lowered.treeComparisons ? new TreeIdentities() : null;
+      /** @type {Map<string,number>|null} */ this.treeSeals = this.trees ? new Map() : null;
       this.tokens = tokens;
       /** Where each run of the tokens lies in the text (engine §1). */
       this.sources = new Sources(tokens);
@@ -11893,21 +13037,25 @@
     // parenthesis also splits unrelated paragraphs into all close sequences.
     /** @type {Map<string,Production>} */
     const variants = new Map();
-    /** @param {Production} production @param {boolean} requested @returns {Production} */
+    /** @param {Production} production @param {number|boolean} requested @returns {Production} */
     const variant = (production, requested) => {
-      if (!context.closes) return production;
+      if (!context.closes && !context.trees) return production;
       const key = `${production.id}/${production.lexicalFrame?.id ?? -1}/${requested}`;
       let found = variants.get(key);
       if (found) return found;
       found = {...production, baseProduction:production.baseProduction ?? production,
-        closeRequested:requested,
-        observesCloses:requested || localCloseDemand(production).whole};
+        closeRequested:!!(Number(requested)&1),
+        treeRequested:!!(Number(requested)&2),
+        walksTrees:!!context.trees && (!!(Number(requested)&2) || !production.helper && localTreeDemand(production).whole),
+        treePrefixUntil:context.trees ? localTreeDemand(production).prefixUntil : 0,
+        observesTrees:!!context.trees && (!!(Number(requested)&2) || !production.helper && localTreeDemand(production).whole || localTreeDemand(production).prefixUntil>0),
+        observesCloses:!!context.closes && (!!(Number(requested)&1) || localCloseDemand(production).whole)};
       variants.set(key, found);
       return found;
     };
     const prefixTable = context.closes ? queryPrefixes(lowered) : null;
     /** @param {Item} item @returns {boolean} */
-    const requestChild = item => {
+    const requestCloses = item => {
       if (!context.closes) return false;
       if (item.production.observesCloses) return true;
       const demand = localCloseDemand(item.production);
@@ -11923,10 +13071,16 @@
       }
       return false;
     };
-    /** @param {string} name @param {any} frame @param {boolean|undefined} requested */
+    /** @param {Item} item */
+    const requestChild = context.trees ? (/** @type {Item} */ item) => {
+      const symbol=item.production.rhs[item.dot];
+      const tree=!!context.trees && ((item.production.walksTrees || item.dot<(item.production.treePrefixUntil??0)) && !symbol.slot || localTreeDemand(item.production).parts.has(item.dot));
+      return Number(requestCloses(item)) | (tree ? 2 : 0);
+    } : requestCloses;
+    /** @param {string} name @param {any} frame @param {number|boolean|undefined} requested */
     const demandKey = (name, frame, requested) =>
-      (frame ? `${name}/${frame.id}` : name) + (requested ? "/observed" : "");
-    const lexical = lowered.ranked?.groups.length ? rankedFrameTable(context) : null;
+      (frame ? `${name}/${frame.id}` : name) + (requested ? `/observed${Number(requested)}` : "");
+    const lexical = lowered.ranked?.groups.length || lowered.contextual ? rankedFrameTable(context) : null;
     /** @param {Item} item */
     const waitingKey = item => {
       const name = item.production.rhs[item.dot].name;
@@ -11934,7 +13088,7 @@
       return demandKey(name,frame,requestChild(item));
     };
     /** @param {Production} production */
-    const completionKey = production => demandKey(production.lhs,production.lexicalFrame,production.closeRequested);
+    const completionKey = production => demandKey(production.lhs,production.lexicalFrame,Number(production.closeRequested) | (production.treeRequested ? 2 : 0));
 
     // The reconstruction mode of engine §7.4, or the old contract's
     // mandatory optionals (a fault); null for the ordinary mode of §4.
@@ -11960,10 +13114,13 @@
             fail(literal,edge === "start" ? origin : set.position,bounded?.annotations[edge].get(literal.bit));
           })) return;
       const projected = structuralStep(context, production, dot, previous, child, set.position);
+      if((context.patterns?.nodeTags || context.patterns?.nodeValues) && !production.helper && dot === production.rhs.length) projected.structure = context.patterns.node(production.lhs,projected.prefix,null,context.interner.get(tagId),context.patterns.nodeValues ? patternValue(context,origin,set.position) : undefined);
+      const tree = context.trees ? treeStep(context,production,dot,previous,child,set.position) : null;
       const close = closeStep(context,production,dot,origin,previous,child,set.position);
       const summary = familyStep(context, family, members, production, dot, origin, previous, child, set.position, close);
       let key = itemKey((production.id * dots + dot) * width + origin - start, slots);
-      if (production.closeRequested) key = `${key}/observed`;
+      if (tree) key += `/t${tree.treePrefix}/${tree.treeIdentity}`;
+      if (production.closeRequested || production.treeRequested) key = `${key}/observed${Number(production.closeRequested) | (production.treeRequested ? 2 : 0)}`;
       if (production.lexicalFrame) key = `${key}/f${production.lexicalFrame.id}`;
       if (context.patterns) key = `${key}/${projected.prefix}/${projected.structure}`;
       if (close) key = `${key}/c${close.prefix.id}/${close.observation.id}`;
@@ -12026,6 +13183,7 @@
       item.boundary = boundary;
       if (bounded) item.boundaryAnnotations = bounded.annotations;
       item.prefix = projected.prefix;
+      if(tree)Object.assign(item,tree);
       item.structure = projected.structure;
       item.observationPrefix = close?.prefix ?? null;
       item.observation = close?.observation ?? null;
@@ -12084,8 +13242,9 @@
       if (test && !fault("F11", "restore") && !testHolds(context, test, position, position + 1, token.tags)) return;
       const target = setAt(position + 1);
       const structure = omittedState(context, production.elided);
+      const tree = context.trees ? treeStep(context,production,0,null,null,position) : null;
       let key = itemKey((production.id * dots) * width + position - start, null);
-      if (production.closeRequested) key = `${key}/observed`;
+      if (production.closeRequested || production.treeRequested) key = `${key}/observed${Number(production.closeRequested) | (production.treeRequested ? 2 : 0)}`;
       if (production.lexicalFrame) key = `${key}/f${production.lexicalFrame.id}`;
       if (context.patterns) key = `${key}/${context.patterns.empty}/${structure}`;
       const observation = restoredClose(context,production,position);
@@ -12094,6 +13253,7 @@
       // lookup counts, so that a search slower than the index fails a budget.
       if (hooks.work) countWork(hooks.work, "edgeChecks");
       if (context.boundaries) key = `${key}/b${context.boundaries.empty.id}`;
+      if(tree)key += `/t${tree.treePrefix}/${tree.treeIdentity}`;
       if (target.index.has(key)) return;
       const item = new Item(production, 0, position, null, null, null);
       item.boundary = context.boundaries?.empty ?? null;
@@ -12101,6 +13261,7 @@
       item.structure = structure;
       item.observationPrefix = context.closes?.empty ?? null;
       item.observation = observation;
+      if(tree)Object.assign(item,tree);
       item.restores = true;
       if (hooks.work) { countWork(hooks.work, "items"); countWork(hooks.work, "packedEdges"); }
       item.end = position + 1;
@@ -12119,7 +13280,7 @@
     /** @type {ChartSet} */
     let predictSet = /** @type {any} */ (null);
     let predictName = "";
-    let predictCloses = false;
+    let predictCloses = 0;
     let predictStrict = false;
     /** @type {any} */
     let predictFrame = null;
@@ -12129,8 +13290,8 @@
     let predictSkipped = false;
 
     // Begins the prediction of a rule in a set: false when it adds nothing.
-    /** @type {(set: ChartSet, name: string, strict?: boolean, frame?: any, requested?: boolean) => boolean} */
-    const beginPredict = (set, name, strict = false, frame = null, requested = false) => {
+    /** @type {(set: ChartSet, name: string, strict?: boolean, frame?: any, requested?: number|boolean) => boolean} */
+    const beginPredict = (set, name, strict = false, frame = null, requested = 0) => {
       const key = demandKey(name,frame,requested);
       // A rule's productions are the same at every prediction in one set:
       // predicting them again would only rebuild items that already exist. A
@@ -12142,7 +13303,7 @@
       if (before === false || (before === true && (strict || fault("F32:predict")))) return false;
       set.predicted.set(key, strict);
       predictFrame = frame;
-      predictCloses = requested;
+      predictCloses = Number(requested);
       predictSet = set;
       predictName = name;
       predictStrict = strict;
@@ -12182,7 +13343,8 @@
         // One scope for the step, which evaluates the tag term at most once
         // (engine §4).
         /** @type {StepScope} */
-        const step = { scope: null, structure: structuralStep(context, production, 0, null, null, set.position).structure, observation: closeStep(context,production,0,set.position,null,null,set.position)?.observation ?? null };
+        const step = { scope: null, ...structuralStep(context, production, 0, null, null, set.position), observation: closeStep(context,production,0,set.position,null,null,set.position)?.observation ?? null };
+        if(context.trees)step.tree=treeStep(context,production,0,null,null,set.position);
         // The tag term comes after the conditions (engine §4), unless a
         // fault evaluates it first (order:tags).
         if (production.rhs.length === 0 && fault("order:tags", "predict")) {
@@ -12258,11 +13420,12 @@
         // production that inherits from the terminal (F7:capture).
         const tags = child ? child.tagId
           : context.interner.intern(synthetic !== null && synthetic[from] && !rawObservations(context) && !fault("F7:capture") ? tagSet() : tokens[from].tags);
-        slots = captureAfter(context, slots, captureIndex, from, to, tags, child ? child.structure : terminalState(context, production, item.dot, from), child ? closeChild(context,item,child) : terminalObservation(context,production.rhs[item.dot].name,from));
+        slots = captureAfter(context, slots, captureIndex, from, to, tags, child ? child.structure : terminalState(context, production, item.dot, from), child ? closeChild(context,item,child) : terminalObservation(context,production.rhs[item.dot].name,from), context.trees && localTreeDemand(production).parts.has(item.dot) ? child ? /** @type {any} */ (child).treeIdentity : terminalIdentity(context,production.rhs[item.dot].name,from) : undefined);
       }
       if (hooks.work) countWork(hooks.work, "captureLookups");
       /** @type {StepScope} */
-      const step = { scope: null, structure: structuralStep(context, production, item.dot + 1, item, child, to).structure, observation: closeStep(context,production,item.dot+1,item.origin,item,child,to)?.observation ?? null };
+      const step = { scope: null, ...structuralStep(context, production, item.dot + 1, item, child, to), observation: closeStep(context,production,item.dot+1,item.origin,item,child,to)?.observation ?? null };
+      if(context.trees)step.tree=treeStep(context,production,item.dot+1,item,child,to);
       if (item.dot + 1 === production.rhs.length && fault("order:tags", "advance")) {
         if (completeTags(context, production, slots, item.origin, to, step) === HALT) {
           return pause(() => advanceFrom(item, to, slots, step, PART_CONDITIONS, null));
@@ -12882,10 +14045,12 @@
    * @param {number} tags
    * @param {number} structure
    * @param {CloseObservation|null} observation
+   * @param {number} [treeIdentity]
    * @returns {Captured}
    */
-  function captureAfter(context, parent, index, start, end, tags, structure, observation) {
-    const key = (parent === null ? "" : parent.id) + ":" + index + ":" + start + ":" + end + ":" + tags + ":" + structure + ":" + (observation?.id ?? "");
+  function captureAfter(context, parent, index, start, end, tags, structure, observation, treeIdentity) {
+    let key = (parent === null ? "" : parent.id) + ":" + index + ":" + start + ":" + end + ":" + tags + ":" + structure + ":" + (observation?.id ?? "");
+    if(treeIdentity !== undefined)key += `/t${treeIdentity}`;
     let found = context.captured.get(key);
     if (!found) {
       // The jumps of a skew-binary list: a sequence jumps to its parent's
@@ -12897,6 +14062,7 @@
         parent.depth - parent.jump.depth === parent.jump.depth - (parent.jump.jump === null ? 0 : parent.jump.jump.depth);
       const jump = skip ? /** @type {NonNullable<Captured>} */ (/** @type {NonNullable<Captured>} */ (parent).jump).jump : parent;
       found = { parent, jump, depth, index, start, end, tags, structure, observation, id: context.captured.size };
+      if(treeIdentity !== undefined)found.treeIdentity=treeIdentity;
       context.captured.set(key, found);
       if (hooks.work) countWork(hooks.work, "captures");
     }
@@ -12993,7 +14159,8 @@
       if (hooks.work) countWork(hooks.work, "conditions");
       const { condition, readyAt: at } = conditions[index];
       if (at !== readyAt) continue;
-      const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure,step.observation);
+      const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure,step.observation,step.prefix);
+      scope.treeIdentity = step.tree?.treeIdentity;
       const atom = firstBoundaryAtom(condition);
       const held = atom ? boundaryCondition(scope.observing,condition,scope,atom,step,conditions[index].wholeBoundary !== false) : restorationStep(() => holds(scope.observing, condition, scope), () => false);
       if (held === HALT) return pause((/** @type {boolean} */ value) => value && !scope.invalidRestoration ? failedFrom(context, production, conditions, index + 1, readyAt, slots, origin, end, step) : condition);
@@ -13013,7 +14180,8 @@
    * @returns {number | Halt}
    */
   function completeTags(context, production, slots, origin, end, step) {
-    const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure,step.observation);
+    const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure,step.observation,step.prefix);
+    scope.treeIdentity = step.tree?.treeIdentity;
     const tags = restorationStep(() => scope.constituent(), () => tagSet());
     if (tags === HALT) return pause((/** @type {TagSet} */ value) => context.interner.intern(value));
     return context.interner.intern(tags);
@@ -13024,7 +14192,7 @@
    * between its conditions and its tag term, so that the tag term runs at
    * most once in the step. This saves time only: how many times a step
    * evaluates its tag term is not observable (engine §4).
-   * @typedef {{scope: ChartScope | null, structure: number, observation: CloseObservation|null, obligations?:any[]}} StepScope
+   * @typedef {{scope: ChartScope | null, tree?:any, structure: number, prefix?:number, observation: CloseObservation|null, obligations?:any[]}} StepScope
    */
 
   /** @type {WeakMap<Production, Map<string, number>>} */
@@ -13056,11 +14224,14 @@
      * @param {number} end
      * @param {number} structure
      * @param {CloseObservation|null} [observation]
+     * @param {number} [prefix]
      */
-    constructor(context, production, slots, origin, end, structure, observation = null) {
+    constructor(context, production, slots, origin, end, structure, observation = null, prefix = -1) {
       this.context = context;
+      if(context.trees) this.treeIdentity = -1;
       this.production = production;
       this.structure = structure;
+      this.prefix = prefix;
       this.observation = observation;
       this.invalidRestoration = false;
       this.slots = slots;
@@ -13118,13 +14289,19 @@
           observation = closes.closeRule(observation,frame.root.lhs,
             originalPosition(this.context,frame.namedOrigin),originalPosition(this.context,this.end));
         }
-        const parent = new ChartScope(this.context,{...frame.root,tags:this.production.parentTags,lexicalFrame:{...frame,parentWhole:true}},null,frame.namedOrigin,this.end,structure,observation);
-        return {observation,structure,patterns:machine,start:frame.namedOrigin,end:this.end,space:this.space,
-          get tags() {return /** @type {TagSet} */ (parent.constituent());}};
+        const captures = new Map(frame.captures);
+        for (let part = this.slots; part; part = part.parent) captures.set(this.production.captures[part.index].name,part);
+        const production = {...frame.root,tags:this.production.parentTags,lexicalFrame:{...frame,captures,parentWhole:true}};
+        const parent = new ChartScope(this.context,production,null,frame.namedOrigin,this.end,structure,observation,prefix);
+        return {treeIdentity:this.context.trees ? this.context.trees.rule(frame.root.lhs,this.context.trees.append(frame.treeSealPrefix ?? 0,sealIdentity(this.context,frame.sealEntry.end,this.end))) : undefined,observation,structure,patterns:machine,start:frame.namedOrigin,end:this.end,space:this.space,
+          patternName:frame.root.lhs,patternPrefix:prefix,get tags() {return /** @type {TagSet} */ (parent.constituent());}};
       }
       if (name === "") {
         const scope = this;
         return {
+          patternName:this.production.lhs,
+          patternPrefix:this.prefix,
+          treeIdentity:this.treeIdentity,
           observation: this.observation,
           structure: this.structure,
           patterns: this.context.patterns,
@@ -13142,7 +14319,7 @@
       // about twice at most.
       if ((!this.production.captureSlot.has(name) || this.production.lexicalFrame?.parentWhole) && this.production.lexicalFrame?.captures.has(name)) {
         const found = this.production.lexicalFrame.captures.get(name);
-        return {observation:found.observation,structure:found.structure,patterns:this.context.patterns,start:found.start,end:found.end,tags:this.context.interner.get(found.tags),space:this.space};
+        return {treeIdentity:found.treeIdentity,observation:found.observation,structure:found.structure,patterns:this.context.patterns,start:found.start,end:found.end,tags:this.context.interner.get(found.tags),space:this.space};
       }
       const last = /** @type {NonNullable<Captured>} */ (this.slots);
       const index = captureIndex(this.production, name);
@@ -13156,7 +14333,7 @@
       let found;
       if (this.parts !== null) found = this.parts[index];
       else found = capturedPart(last, index, this);
-      return { observation:found.observation, structure: found.structure, patterns: this.context.patterns, start: found.start, end: found.end, tags: this.context.interner.get(found.tags), space: this.space };
+      return { treeIdentity:found.treeIdentity,  observation:found.observation, structure: found.structure, patterns: this.context.patterns, start: found.start, end: found.end, tags: this.context.interner.get(found.tags), space: this.space };
     }
   }
 
@@ -13806,8 +14983,26 @@
     const comparison = condition;
     if (comparison.op === "≅" || comparison.op === "≇") {
       const captured = scope.capture(/** @type {{capture:string}} */ (comparison.left).capture);
-      const matched = /** @type {PatternMachine} */ (captured.patterns).matches(/** @type {number} */ (captured.structure), /** @type {{pattern:any}} */ (comparison.right).pattern);
-      return matched === (comparison.op === "≅");
+      if ("capture" in comparison.right) {
+        const treeScope=/** @type {any} */ (scope);
+        const left=treeScope.treeIdentityOf ? treeScope.treeIdentityOf(/** @type {{capture:string}} */ (comparison.left).capture) : captured.treeIdentity;
+        const right=treeScope.treeIdentityOf ? treeScope.treeIdentityOf(comparison.right.capture) : scope.capture(comparison.right.capture).treeIdentity;
+        return (left === right) === (comparison.op === "≅");
+      }
+      const pattern = /** @type {{pattern:any}} */ (comparison.right).pattern;
+      const match = (/** @type {any} */ tags) => {
+        const machine = /** @type {PatternMachine} */ (captured.patterns);
+        const state = tags && captured.patternPrefix !== undefined ? machine.node(/** @type {any} */ (captured).patternName,/** @type {any} */ (captured).patternPrefix,null,tags,machine.nodeValues ? patternValue(/** @type {any} */ (scope).context ?? context,captured.start,captured.end) : undefined) : captured.structure;
+        return machine.matches(/** @type {number} */ (state),pattern) === (comparison.op === "≅");
+      };
+      if (/** @type {any} */ (comparison.left).capture === "" && readsNodeTags(pattern)) {
+        const tags = /** @type {any} */ (captured).tags;
+        return tags === HALT ? pause(match) : match(tags);
+      }
+      if (context.patterns?.nodeValues && captured.patternPrefix !== undefined) {
+        captured.structure=context.patterns.node(captured.patternName ?? null,captured.patternPrefix,null,undefined,patternValue(/** @type {any} */ (scope).context ?? context,captured.start,captured.end));
+      }
+      return match(null);
     }
     const left = evaluate(context, comparison.left, scope);
     if (left === HALT) return pause((/** @type {TermValue} */ value) => compareWith(context, comparison, value, scope));
@@ -14286,7 +15481,7 @@
       const productions = typeof skipped === "string" ? context.lowered.byLhs.get(skipped) ?? [] : [skipped];
       for (const production of productions) {
         if (!lookaheadSkips(context, production, next, position)) continue;
-        const failed = settled(() => failedCondition(context, production, -1, null, position, position, { scope: null, structure: structuralStep(context, production, 0, null, null, position).structure, observation: closeStep(context,production,0,position,null,null,position)?.observation ?? null }));
+        const failed = settled(() => failedCondition(context, production, -1, null, position, position, { scope: null, ...structuralStep(context, production, 0, null, null, position), observation: closeStep(context,production,0,position,null,null,position)?.observation ?? null }));
         if (failed) continue;
         note(writtenSymbol(production.rhs[0]), production.owner);
       }
@@ -14400,6 +15595,7 @@
   }
 
   // ---- diagnostics.js
+
 
 
   // Diagnostics for people: what went wrong with a text or a grammar, said in
@@ -14897,6 +16093,9 @@
     }
   }
 
+  /** @typedef {{step:number,pattern:string,status?:"impossible"}} RankingStepReport */
+  /** @typedef {import("./grammar.js").RuleChange & {step:number}} CountedRuleChange */
+
   /**
    * @typedef {object} StageAudit
    * @property {any[]} templates
@@ -14908,13 +16107,14 @@
    * @property {import("./splice.js").StageChange[]} stageChanges
    * @property {number} rules
    * @property {string[]} unreachable rules no derivation of `text` can reach
-   * @property {{kind: string, rule: string, document: string, previous: string,
-   *   flagChange?: {from: string[], to: string[]}}[]} changes
+   * @property {import("./grammar.js").RuleChange[]} changes
    * @property {{rule: string, document: string}[]} idleErasures rules marked `%erased` although nothing
    *   under them could emit and no token could cover them
    * @property {Membership[]} memberships every membership of a key in a class
    *   that an entry of a classifier adds or removes, in the order of the
    *   first entry that touches it
+   * @property {RankingStepReport[]} keySteps
+   * @property {CountedRuleChange[]} countedChanges
    */
 
   /** @typedef {{terminal:string, owner:string, document:string, line:number, column:number}} PermittedOptional */
@@ -15336,6 +16536,7 @@
   function audit(pipeline) {
     return pipeline.stages.map((stage) => {
       const grammar = stage.grammar;
+      const ranking=rankingAudit(grammar);
       const resolution = grammar.resolution;
       /** @type {CaptureScopes} */
       const scopes = new WeakMap();
@@ -15427,10 +16628,11 @@
       const report = {
         name: stage.name,
         stageChanges: (stage.stageChanges ?? []).slice(),
-        resolution: resolution ? `${resolution.lean}${resolution.elisionOnly ? " elision-only" : ""}` : "none",
+        resolution: resolution ? describeResolution(resolution) : "none",
         rules: grammar.rules.size,
         unreachable: [...grammar.rules.keys()].filter((name) => !reachable.has(name)).sort(compareCodePoints),
         changes: grammar.changes.slice(),
+        ...ranking,
         idleErasures,
         memberships: [...memberships.values()],
         ...templateAudit(grammar),
@@ -15440,6 +16642,18 @@
       auditUnicode.set(report, grammar.unicode);
       return report;
     });
+  }
+
+  /**
+   * A stage's directive as written: its steps, then `elision-only` where the
+   * stage declares it.
+   * @param {import("./types.js").Resolution} resolution
+   * @returns {string}
+   */
+  function describeResolution(resolution) {
+    const steps = resolution.steps.map((step) => `${step.step} ${formatTerm({pattern:step.pattern})}`);
+    if (resolution.lean !== "none") steps.push(resolution.lean);
+    return steps.join(", ") + (resolution.elisionOnly ? " elision-only" : "");
   }
 
   /**
@@ -15455,17 +16669,17 @@
       for (const change of stage.stageChanges) lines.push(`  stage ${change.kind} at ${change.document}:${change.line}:${change.column}`);
       for (const template of stage.templates) lines.push(`  template ${template.template}(${template.parameters.map((/** @type {string} */ parameter) => "@"+parameter).join(", ")}) at ${template.document}:${template.line}:${template.column}${template.notes.length ? ": "+template.notes.map((/** @type {any} */ note) => note.kind+(note.parameter ? " "+note.parameter : "")).join(", ") : ""}`);
       for (const instance of stage.instances) {
-        lines.push(`  instance ${instance.name} from ${instance.template}(${instance.arguments.map((/** @type {any} */ argument) => canonicalArgument(argument, unicode)).join(", ")}), flags ${instance.flags.join(", ") || "none"}, first call ${instance.firstCall.document}:${instance.firstCall.line}:${instance.firstCall.column}`);
+        lines.push(`  instance ${instance.name} from ${instance.template}(${instance.arguments.map((/** @type {any} */ argument) => canonicalArgument(argument, unicode)).join(", ")}), first call ${instance.firstCall.document}:${instance.firstCall.line}:${instance.firstCall.column}`);
         if (instance.binding) lines.push(`    binding: ${instance.binding.document}:${instance.binding.line}:${instance.binding.column}`);
-        for (const event of instance.events) lines.push(`    ${event.scope} ${event.op}: ${event.document}:${event.line}:${event.column}, flags ${event.flagsBefore.join(", ") || "none"} -> ${event.flagsAfter.join(", ") || "none"}`);
+        for (const event of instance.events) lines.push(`    ${event.scope} ${event.op}: ${event.document}:${event.line}:${event.column}`);
         for (const note of instance.notes) lines.push(`    ${note.kind}: ${note.instances.join(", ")}`);
       }
       if (stage.unreachable.length) lines.push(`  unreachable from text: ${stage.unreachable.join(", ")}`);
       for (const change of stage.changes) {
-        const flags = change.flagChange;
-        const note = flags ? ` (flags changed from ${flags.from.join(", ") || "none"} to ${flags.to.join(", ") || "none"})` : "";
-        lines.push(`  ${change.rule} ${change.kind} by ${change.document} (defined in ${change.previous})${note}`);
+        lines.push(`  ${change.rule} ${change.kind} by ${change.document} (defined in ${change.previous})`);
       }
+      for(const step of stage.keySteps??[]) if(step.status) lines.push(`  ranking step ${step.step+1}: ${step.status}`);
+      for(const change of stage.countedChanges??[]) lines.push(`  counted rule ${change.rule}: ${change.kind}, step ${change.step+1}`);
       for (const note of stage.boundaryNotes) {
         if (note.kind === "query-rule") lines.push(`  boundary note: ${note.rule} is reached by ${note.query} in ${note.document}:${note.line}:${note.column}`);
         else {
@@ -15792,15 +17006,18 @@
   }
 
   // ---- rank.js
-  // Choosing a parse (engine §6): the first-difference order over bottom-up
-  // action sequences under greedy and lazy, and the order of elision vectors
-  // under late-elision, both computed over the packed forest.
+
+
+  // Choosing a parse (engine §6): the profiles of the key steps of
+  // `%ambiguity-resolution`, then the first-difference order over bottom-up
+  // action sequences under greedy and lazy, both computed over the packed
+  // forest.
 
 
 
 
   /**
-   * @import { Action, Derivation, Item, Lean, Production, ReadAction, Rope, RopeConcat, RopeLeaf, Token } from "./types.js"
+   * @import { Action, Derivation, Item, KeyStep, Lean, Production, ReadAction, Rope, RopeConcat, RopeLeaf, Token } from "./types.js"
    */
 
   /**
@@ -15871,7 +17088,7 @@
    * @property {Rope} first
    * @property {Rope | null} second
    * @property {[Action | null, Action | null] | null} witness
-   * @property {RuleProfile} profile
+   * @property {Profile} profile
    * @property {boolean | null} witnessCounted with the runtime witness marks,
    *   whether the count counted W(D); null without marks
    */
@@ -16181,29 +17398,33 @@
   class Ranker {
     /**
      * @param {Token[]} tokens
+     * @param {KeyStep[]} steps the key steps of the directive, in order
      * @param {Lean} lean
      * @param {number[] | null} [project] positions to find cycles over in
      *   place of the items' own, which only a fault of the check of engine
      *   §7 gives (F19)
      */
-    constructor(tokens, lean, project = null) {
+    constructor(tokens, steps, lean, project = null) {
       this.tokens = tokens;
+      /** @type {Profiles} */
+      this.space = new Profiles(steps);
+      this.space.tokens = tokens;
       /** @type {(left: Item, right: Item) => boolean} */
       this.sameSpan = project === null
         ? (left, right) => left.origin === right.origin && left.end === right.end
         : (left, right) => project[left.origin] === project[right.origin] && project[left.end] === project[right.end];
-      // Under late-elision, the readings come from a ranking with no lean
-      // over the forest of the best derivations (engine §6).
-      this.elisions = lean === "late-elision";
+      // Whether a key step can match a reachable node. The readings then
+      // come from the forest of the best derivations (engine §6).
       this.profiles = false;
+      this.configured = false;
+      /** @type {Set<Production>} */ this.profileProductions = new Set();
+      /** @type {any} */ this.interner = null;
       /** @type {number[] | null} */
       this.profileProject = null;
       /** @type {Lean} */
-      this.lean = this.elisions ? "none" : lean;
-      /** @type {{plain: Map<Item, ProfileSummary>, contextual: Map<Item, Map<string, ProfileSummary>>}} */
+      this.lean = lean;
+      /** @type {{plain: Map<Item, ElisionSummary>, contextual: Map<Item, Map<string, ElisionSummary>>}} */
       this.summaries = { plain: new Map(), contextual: new Map() };
-      /** @type {Map<number, ElisionSeq>} */
-      this.elisionLeaves = new Map();
       /** @type {Map<string, number>} */
       this.ruleGroups = new Map();
       // The group of a rule: its strongly connected group in the graph of
@@ -16249,9 +17470,9 @@
      */
     candidateSummary(item) {
       return this.traverse(item, this.memo, (current, dependency, key) => {
-        // Profile summaries retain the best rule score, with elision vectors
-        // under late-elision (engine §6).
-        const summary = this.elisions || this.profiles ? this.summaryAt(current, key) : null;
+        // Under profiles, only the edges that attain the greatest profile of
+        // the item in its context (engine §6).
+        const summary = this.profiles ? this.summaryAt(current, key) : null;
         const admitted = this.admission?.mask(current, key);
         /** @type {Candidate[]} */
         let all = [];
@@ -16294,54 +17515,57 @@
           }
         });
         return all;
-      }, [], this.elisions || this.profiles ? (current, key) => this.keptEdges(current, key) : null);
+      }, [], this.profiles ? (current, key) => this.keptEdges(current, key) : null);
     }
 
-    // Each context holds its best rule profile and retained edges.
+    // Each context holds its greatest profile and retained edges.
     /**
      * @param {Item} item
-     * @returns {ProfileSummary}
+     * @returns {ElisionSummary}
      */
     profileSummary(item) {
+      const space = this.space;
       return this.traverse(item, this.summaries, (current, dependency, key) => {
         const all = noDerivation();
         const admitted = this.admission?.mask(current, key);
         current.edges.forEach((edge, index) => {
           if (admitted && !admitted.has(index)) return;
-          /** @type {ElisionSeq} */
-          let vector;
-          /** @type {RuleProfile} */
-          let profile = ZERO_PROFILE;
+          /** @type {Profile} */
+          let profile;
           let least;
           let total;
           if (edge.kind === "seed" || edge.kind === "restore") {
             // The helper of an elidable optional that derives ε elides its
             // terminator where it is empty. A restoration elides nothing.
-            vector = this.elisions && edge.kind === "seed" && isElided(current) ? this.elisionLeaf(current.origin) : NO_ELISIONS;
+            profile = edge.kind === "seed" && isElided(current) && this.profileProject === null
+              ? space.occurrence({terminal:current.production.elided,tags:new Set([current.production.elided,'_Elided']),value:''},current.origin,current.origin) : space.zero;
             least = 1;
             total = 1;
           } else if (edge.kind === "scan") {
             const before = dependency(edge.previous);
             if (before.total === 0) return;
-            vector = /** @type {ElisionSeq} */ (before.vector);
-            profile = before.profile;
+            const p = this.profileProject?.[edge.token] ?? edge.token;
+            const q = this.profileProject?.[edge.token+1] ?? edge.token+1;
+            const token = this.tokens[edge.token];
+            profile = p < q ? space.sum(/** @type {Profile} */ (before.profile),space.occurrence({terminal:edge.terminal,tags:token.tags,value:token.value},p,q)) : /** @type {Profile} */ (before.profile);
             least = before.least;
             total = before.total;
           } else {
             const before = dependency(edge.previous);
             const child = dependency(edge.child);
             if (before.total === 0 || child.total === 0) return;
-            vector = concatElisions(/** @type {ElisionSeq} */ (before.vector), /** @type {ElisionSeq} */ (child.vector));
-            profile = sumProfiles(before.profile, child.profile);
+            profile = space.sum(/** @type {Profile} */ (before.profile), /** @type {Profile} */ (child.profile));
             least = Math.min(2, before.least * child.least);
             total = Math.min(2, before.total * child.total);
           }
-          if (current.dot === current.production.rhs.length && current.production.flags.length) {
+          // A completed nonempty occurrence of the production's rule counts
+          // when the step matches it, before its children (engine §6).
+          if (current.dot === current.production.rhs.length && !current.production.helper) {
             const p = this.profileProject?.[current.origin] ?? current.origin;
             const q = this.profileProject?.[current.end] ?? current.end;
-            if (p < q) profile = sumProfiles(profile, occurrenceProfile(current.production.flags[0],p,q));
+            if (p < q) profile = space.sum(space.occurrence({name:current.production.lhs,tags:this.interner?.get(current.tagId) ?? new Set()}, p, q), profile);
           }
-          addEdge(all, index, vector, least, total, profile);
+          if (!admitted || admitted.has(index)) addEdge(space, all, index, least, total, profile);
         });
         return all;
       }, noDerivation());
@@ -16352,7 +17576,7 @@
      * profileSummary has already computed.
      * @param {Item} item
      * @param {string} key
-     * @returns {ProfileSummary}
+     * @returns {ElisionSummary}
      */
     summaryAt(item, key) {
       const found = key === "" ? this.summaries.plain.get(item) : this.summaries.contextual.get(item)?.get(key);
@@ -16361,7 +17585,7 @@
     }
 
     /**
-     * The edges of an item that attain its best profile and elision score.
+     * The edges of an item that attain the greatest profile in its context.
      * @param {Item} item
      * @param {string} key
      * @returns {import("./types.js").Edge[]}
@@ -16369,17 +17593,6 @@
     keptEdges(item, key) {
       const summary = this.summaryAt(item, key);
       return item.edges.filter((_, index) => summary.kept.has(index));
-    }
-
-    /**
-     * The one sequence of a single elision at a position.
-     * @param {number} at
-     * @returns {ElisionSeq}
-     */
-    elisionLeaf(at) {
-      let found = this.elisionLeaves.get(at);
-      if (!found) this.elisionLeaves.set(at, (found = { size: 1, first: at, last: at }));
-      return found;
     }
 
     /**
@@ -16739,7 +17952,12 @@
         if (hooks.work) countWork(hooks.work, "groups");
         if (seen.has(item)) continue;
         seen.add(item);
-        if (item.production.flags.length) this.profiles = true;
+        if (!this.configured && this.space.steps.length && !this.profileProductions.has(item.production)) {
+          this.profileProductions.add(item.production);
+          if (!item.production.helper && this.space.possible({name:item.production.lhs})) this.profiles = true;
+          if (isElided(item) && this.space.possible({terminal:item.production.elided,tags:new Set([item.production.elided,'_Elided']),value:''})) this.profiles = true;
+          for (const symbol of item.production.rhs) if (symbol.terminal && this.space.possible({terminal:symbol.name})) this.profiles = true;
+        }
         for (const edge of item.edges) {
           if (hooks.work) countWork(hooks.work, "groups");
           if (edge.kind === "seed" || edge.kind === "restore") continue;
@@ -16830,22 +18048,22 @@
       let count;
       let ranked = roots;
       let tied = false;
-      /** @type {RuleProfile} */
-      let profile = ZERO_PROFILE;
+      /** @type {Profile} */
+      let profile = this.space.zero;
       /** @type {boolean | null} */
       let witnessCounted = null;
-      if (this.elisions || this.profiles) {
+      if (this.profiles) {
         // Every complete item of `text` is an edge of one root (engine §6).
         const root = noDerivation();
         roots.forEach((item, index) => {
           const summary = this.profileSummary(item);
-          if (summary.total > 0) addEdge(root, index, /** @type {ElisionSeq} */ (summary.vector), summary.least, summary.total, summary.profile);
+          if (summary.total > 0) addEdge(this.space, root, index, summary.least, summary.total, /** @type {Profile} */ (summary.profile));
         });
         if (this.marks !== null) {
           const marks = this.marks;
           witnessCounted = roots.some((item) => marks.has(item.slotOriginal ?? item) && this.countOf(item).w);
         }
-        profile = root.profile;
+        profile = /** @type {Profile} */ (root.profile);
         count = root.total;
         tied = root.least === 2;
         ranked = roots.filter((_, index) => root.kept.has(index));
@@ -16875,11 +18093,11 @@
       /** @type {import("./types.js").Verdict} */
       let verdict;
       if (count === 1) verdict = "unique";
-      else if (this.elisions ? !tied : main.alts.length === 0) verdict = "resolved";
+      else if (this.profiles && this.lean === "none" ? !tied : main.alts.length === 0) verdict = "resolved";
       else verdict = "tie";
-      // The forest of the best derivations holds a second one exactly when
-      // the least count is two.
-      if (this.elisions && tied !== main.alts.length > 0) throw new Error("the least count of late-elision disagrees with its forest");
+      // Without a lean, the forest of the best derivations holds a second one
+      // exactly when the best count is two.
+      if (this.profiles && this.lean === "none" && tied !== main.alts.length > 0) throw new Error("the best count disagrees with its forest");
       /** @type {[Action | null, Action | null] | null} */
       let witness = null;
       const second = verdict === "tie"
@@ -16953,11 +18171,12 @@
     return stack[stack.length - 1];
   }
 
-  // Under late-elision, a derivation's elided terminators as the sequence of
-  // their positions, in text order: its elision vector (engine §6). The
-  // elisions of an edge's children are those of the item before it and then
-  // those of the child, so the sequence of an edge is the two concatenated,
-  // and sequences built on one prefix share it.
+  // Under `late(c)` and `early(c)`, a derivation's occurrences of `c` as the
+  // sequence of their starting positions, in text order (engine §6). The
+  // occurrences of an edge's children are those of the item before it and
+  // then those of the child, so the sequence of an edge is the two
+  // concatenated, and sequences built on one prefix share it. The elision
+  // vector of `late(elision)` is one such sequence.
   // Each node knows its size and its first and last positions. A node whose
   // first and last positions are equal is a run: all its elisions stand at one
   // position. A comparison takes a run whole, so it never walks a run's
@@ -16973,12 +18192,12 @@
    */
 
   /**
-   * An item's best rule profile in one context, with its least elision
-   * vector under late-elision. Counts retain the best and total derivations,
-   * capped at two. The summary records the edges that attain the best score.
-   * @typedef {object} ProfileSummary
-   * @property {ElisionSeq | null} vector null when there is no derivation
-   * @property {RuleProfile} profile
+   * An item's derivations in one context under profiles: the greatest
+   * profile and the number of derivations that attain it, the number of all
+   * derivations, both capped at two, and the indices of the edges that attain
+   * the greatest profile.
+   * @typedef {object} ElisionSummary
+   * @property {Profile | null} profile null when there is no derivation
    * @property {number} least
    * @property {number} total
    * @property {Set<number>} kept
@@ -16987,9 +18206,9 @@
   /** @type {ElisionSeq} */
   const NO_ELISIONS = { size: 0 };
 
-  /** @returns {ProfileSummary} */
+  /** @returns {ElisionSummary} */
   function noDerivation() {
-    return { vector: null, profile: ZERO_PROFILE, least: 0, total: 0, kept: new Set() };
+    return { profile: null, least: 0, total: 0, kept: new Set() };
   }
 
   /**
@@ -17005,20 +18224,19 @@
 
   // Adds an edge's derivations to a summary. The total counts every edge,
   // losing ones included. The least count and the kept edges count only the
-  // edges that attain the best profile and elision score.
+  // edges that attain the greatest profile.
   /**
-   * @param {ProfileSummary} summary
+   * @param {Profiles} space
+   * @param {ElisionSummary} summary
    * @param {number} index
-   * @param {ElisionSeq} vector
    * @param {number} least
    * @param {number} total
-   * @param {RuleProfile} [profile]
+   * @param {Profile} profile
    */
-  function addEdge(summary, index, vector, least, total, profile = ZERO_PROFILE) {
+  function addEdge(space, summary, index, least, total, profile) {
     summary.total = Math.min(2, summary.total + total);
-    const order = summary.vector === null ? -1 : compareProfiles(profile, summary.profile) || compareElisions(vector, summary.vector);
+    const order = summary.profile === null ? -1 : space.compare(profile, summary.profile);
     if (order < 0) {
-      summary.vector = vector;
       summary.profile = profile;
       summary.least = least;
       summary.kept = new Set([index]);
@@ -17130,26 +18348,181 @@
   const internals = { actions, firstDifference, totalOrder, decide, visible, concat, leaf, concatElisions };
 
   /** @typedef {[number, number, Count][]} SpanVector */
-  /** @typedef {{spans:SpanVector,fewest:Count}} RuleProfile */
-  /** @type {RuleProfile} */
-  const ZERO_PROFILE = {spans:[],fewest:0};
-  /** @param {string} flag @param {number} start @param {number} end @returns {RuleProfile} */
-  function occurrenceProfile(flag,start,end) {
-    return flag === "fewest" ? {spans:[],fewest:1} : {spans:[[start,end,1]],fewest:0};
+  /**
+   * One component of a profile: the counts of one key step's pattern over
+   * the spans, the sum of the counts, or the sequence of the starting
+   * positions (engine §6).
+   * @typedef {SpanVector | Count | ElisionSeq} Component
+   */
+  /**
+   * A derivation's counts of every pattern that a key step tests, one
+   * component per key step, in the order of the steps (engine §6).
+   * @typedef {Component[]} Profile
+   */
+
+  /**
+   * The profiles of one ranking: how the key steps of its directive count
+   * occurrences, add profiles and compare them (engine §6).
+   */
+  class Profiles {
+    /** @param {KeyStep[]} steps */
+    constructor(steps) {
+      this.steps = steps;
+      /** @type {any} */ this.tokens = null;
+      /** @type {any} */ this.interner = null;
+      /** @type {Map<string,boolean>} */ this.matches = new Map();
+      /** @type {WeakMap<object,number>} */ this.tagIds = new WeakMap();
+      this.nextTag = 0;
+      this.valueTests=steps.map(step=>hasPatternValue(step.pattern));
+      /** @type {Map<string,string>|null} */ this.spanValues=this.valueTests.some(Boolean) ? new Map() : null;
+      /** @type {Map<string,number>} */ this.tagKeys = new Map();
+      /** @type {Profile} */
+      this.zero = steps.map((step) => step.step === "leftmost-longest" ? [] : step.step === "fewest" || step.step === "most" ? 0 : NO_ELISIONS);
+      /** @type {Map<number, ElisionSeq>} */
+      this.leaves = new Map();
+    }
+
+    /** @param {any} node @returns {boolean} */
+    possible(node) {
+      return this.steps.some(step=>possibleNodeMatch(step.pattern,node)!==false);
+    }
+
+    /** @param {any} node @param {number} p @param {number} q @returns {Profile} */
+    occurrence(node,p,q) {
+      let tagId=this.tagIds.get(node.tags);
+      if (tagId === undefined) {
+        if (this.interner) tagId=this.interner.intern(node.tags);
+        else {
+          const key=JSON.stringify([...node.tags].sort());
+          tagId=this.tagKeys.get(key);
+          if(tagId === undefined) {tagId=this.nextTag++;this.tagKeys.set(key,tagId);}
+        }
+        this.tagIds.set(node.tags,/** @type {number} */ (tagId));
+      }
+      let profile=null;
+      if(node.name && this.spanValues) {
+        const key=`${p}/${q}`;
+        let value=this.spanValues.get(key);
+        if(value===undefined) {value=this.tokens.slice(p,q).map((/** @type {any} */ token)=>token.value).join("");this.spanValues.set(key,/** @type {string} */ (value));}
+        node={...node,value};
+      }
+      this.steps.forEach((step,index)=>{
+        const key=JSON.stringify([index,node.name??null,node.terminal??null,tagId,this.valueTests[index]?node.value??null:null]);
+        let match=this.matches.get(key);
+        if (match === undefined) {
+          match=localNodeMatches(step.pattern,node.name??null,node.tags,node.terminal?node:null,node.value);
+          this.matches.set(key,match);
+        }
+        if (match && (p<q || step.step!=='leftmost-longest')) {
+          profile ??= this.zero.slice();
+          profile[index]=this.one(index,p,q);
+        }
+      });
+      return profile ?? this.zero;
+    }
+
+    /**
+     * One occurrence in the component of a step. An empty span counts
+     * nothing under `leftmost-longest`.
+     * @param {number} index
+     * @param {number} p
+     * @param {number} q
+     * @returns {Component}
+     */
+    one(index, p, q) {
+      switch (this.steps[index].step) {
+        case "leftmost-longest": return p < q ? [[p, q, 1]] : [];
+        case "fewest": case "most": return 1;
+        default: return this.leaf(p);
+      }
+    }
+
+    /**
+     * The one sequence of a single occurrence at a position.
+     * @param {number} at
+     * @returns {ElisionSeq}
+     */
+    leaf(at) {
+      let found = this.leaves.get(at);
+      if (!found) this.leaves.set(at, (found = { size: 1, first: at, last: at }));
+      return found;
+    }
+
+    /**
+     * Adds profiles component by component. The positions of `left` precede
+     * those of `right`.
+     * @param {Profile} left
+     * @param {Profile} right
+     * @returns {Profile}
+     */
+    sum(left, right) {
+      if (left === this.zero) return right;
+      if (right === this.zero) return left;
+      return left.map((component, index) => {
+        const other = right[index];
+        switch (this.steps[index].step) {
+          case "leftmost-longest": return sumSpans(/** @type {SpanVector} */ (component), /** @type {SpanVector} */ (other));
+          case "fewest": case "most": return add(/** @type {Count} */ (component), /** @type {Count} */ (other));
+          default: return concatElisions(/** @type {ElisionSeq} */ (component), /** @type {ElisionSeq} */ (other));
+        }
+      });
+    }
+
+    /**
+     * Compares two profiles step by step. A negative result means that the
+     * left profile is the greater, so the left derivation wins (engine §6).
+     * @param {Profile} left
+     * @param {Profile} right
+     * @returns {number}
+     */
+    compare(left, right) {
+      if (left === right) return 0;
+      for (let index = 0; index < this.steps.length; index++) {
+        const a = left[index];
+        const b = right[index];
+        let order = 0;
+        switch (this.steps[index].step) {
+          case "leftmost-longest": order = compareSpans(/** @type {SpanVector} */ (a), /** @type {SpanVector} */ (b)); break;
+          case "fewest": order = a < b ? -1 : a > b ? 1 : 0; break;
+          case "most": order = a > b ? -1 : a < b ? 1 : 0; break;
+          case "late": order = compareElisions(/** @type {ElisionSeq} */ (a), /** @type {ElisionSeq} */ (b)); break;
+          case "early": order = -compareElisions(/** @type {ElisionSeq} */ (a), /** @type {ElisionSeq} */ (b)); break;
+        }
+        if (order !== 0) return order;
+      }
+      return 0;
+    }
+
+    /**
+     * Counts every completed nonempty occurrence in a chosen derivation,
+     * and no elision (engine §7).
+     * @param {Derivation} root
+     * @param {any} [tokens]
+     * @returns {Profile}
+     */
+    derivationProfile(root, tokens=this.tokens) {
+      let profile=this.zero;
+      const pending=[root];
+      for (let node=pending.pop();node;node=pending.pop()) {
+        if (node.start >= node.end) continue;
+        if ('read' in node) {
+          const token=tokens?.[node.start];
+          if(token) profile=this.sum(profile,this.occurrence({terminal:node.read.terminal,tags:token.tags,value:token.value},node.start,node.end));
+        } else {
+          if (!node.production.helper) profile=this.sum(profile,this.occurrence({name:node.production.lhs,tags:this.interner?.get(node.item.tagId)??new Set()},node.start,node.end));
+          for(let i=node.children.length-1;i>=0;i--) pending.push(node.children[i]);
+        }
+      }
+      return profile;
+    }
   }
 
   /**
-   * Compares sparse span counts in start order and reverse end order.
-   * A negative result means that the left profile wins.
-   * @param {RuleProfile} left
-   * @param {RuleProfile} right
-   * @returns {number}
+   * Compares sparse span counts in start order and reverse end order. A
+   * negative result means that the left side wins.
+   * @param {SpanVector} left
+   * @param {SpanVector} right
    */
-  function compareProfiles(left, right) {
-    return compareSpans(left.spans,right.spans) || (left.fewest < right.fewest ? -1 : left.fewest > right.fewest ? 1 : 0);
-  }
-
-  /** @param {SpanVector} left @param {SpanVector} right */
   function compareSpans(left,right) {
     for (let i = 0; i < Math.max(left.length, right.length); i++) {
       const a = left[i];
@@ -17165,18 +18538,11 @@
   }
 
   /**
-   * Adds profiles without expanding repeated occurrences.
-   * @param {RuleProfile} left
-   * @param {RuleProfile} right
-   * @returns {RuleProfile}
+   * Adds span counts without expanding repeated occurrences.
+   * @param {SpanVector} left
+   * @param {SpanVector} right
+   * @returns {SpanVector}
    */
-  function sumProfiles(left, right) {
-    if (!left.spans.length && left.fewest === 0) return right;
-    if (!right.spans.length && right.fewest === 0) return left;
-    return {spans:sumSpans(left.spans,right.spans),fewest:add(left.fewest,right.fewest)};
-  }
-
-  /** @param {SpanVector} left @param {SpanVector} right @returns {SpanVector} */
   function sumSpans(left,right) {
     if (!left.length) return right;
     if (!right.length) return left;
@@ -17197,25 +18563,6 @@
       }
     }
     return result;
-  }
-
-  /**
-   * Counts every completed flagged occurrence in a chosen derivation.
-   * @param {Derivation} root
-   * @returns {RuleProfile}
-   */
-  function derivationProfile(root) {
-    /** @type {RuleProfile} */
-    let profile = ZERO_PROFILE;
-    const pending = [root];
-    for (let node = pending.pop(); node; node = pending.pop()) {
-      if ("read" in node) continue;
-      if (node.production.flags.length && node.start < node.end) {
-        profile = sumProfiles(profile, occurrenceProfile(node.production.flags[0],node.start,node.end));
-      }
-      for (const child of node.children) pending.push(child);
-    }
-    return profile;
   }
 
   // ---- slot-forest.js
@@ -17340,12 +18687,14 @@
         const captures = [];
         for (let part = item.slots; part; part = part.parent) {
           const name = item.production.captures[part.index].name;
-          if (!name.startsWith('\u0000')) captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id]);
+          if (!name.startsWith('\u0000')) {captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id]);if(chart.context.trees)captures[captures.length-1].push(part.treeIdentity);}
         }
-        return [item.production.lexicalFrame?.id ?? null,written(item.production),item.origin,
+        const key=[item.production.lexicalFrame?.id ?? null,written(item.production),item.origin,
           item.production.rhs.slice(0,item.dot).map((/** @type {any} */ s) => [helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test]),
           item.production.rhs.slice(item.dot).map((/** @type {any} */ s) => [helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test]),
           item.prefix,captures.reverse(),item.strict,item.restores,item.boundary?.id ?? null,item.observationPrefix?.id];
+        if(chart.context.trees)key.push(item.treePrefix);
+        return key;
       };
       for (const set of (this.forest?.chart ?? chart).sets) if (set) for (const item of set.items) {
         this.stats.chartFacts++;
@@ -17709,6 +19058,7 @@
       if ("channel" in request) {
         if ("read" in node) return this.context.tokens[node.read.token][request.channel];
         const production = node.production;
+        if (production.elided !== null && node.children.length === 0) return "";
         if (production.erased) return "";
         const recipe = request.channel === "value" ? production.value : production.image ?? production.value;
         if (recipe) return yield {node, recipe};
@@ -17785,6 +19135,8 @@
 
   // ---- stage.js
 
+
+
   // Running one stage: recognition, the choice of a parse, the result tree
   // (engine §12), emission (engine §11) and elision-only (engine §7).
 
@@ -17813,9 +19165,14 @@
    * @property {boolean | null | undefined} elisionOnly
    */
 
-  /** @param {import("./earley.js").Chart} chart @param {Token[]} tokens @param {import("./types.js").Lean} lean @param {number[] | null} [project] */
-  function slotRanker(chart, tokens, lean, project = null) {
-    const ranker = new Ranker(tokens, lean, project);
+  /** @param {import("./earley.js").Chart} chart @param {Token[]} tokens @param {import("./types.js").KeyStep[]} steps @param {import("./types.js").Lean} lean @param {number[] | null} [project] */
+  function slotRanker(chart, tokens, steps, lean, project = null) {
+    const ranker = new Ranker(tokens, steps, lean, project);
+    ranker.profiles = canCountProfiles(chart.context.lowered) && !(chart.context.mode === "reconstruction" && steps.every(step=>requiresElided(step.pattern)));
+    ranker.configured = true;
+    ranker.interner = chart.context.interner;
+    ranker.space.interner = chart.context.interner;
+    ranker.space.tokens = chart.context.recon && !chart.context.recon.raw ? chart.context.recon.observed.tokens : tokens;
     if (chart.context.lowered.ranked?.groups.length) ranker.admission = new RankedAdmission(chart,chart.context.lowered.ranked);
     return ranker;
   }
@@ -17865,7 +19222,7 @@
       // An input whose every derivation is cyclic (engine §4) has none to
       // count, and is rejected like one with no item of `text` at all.
       const resolution = lowered.resolution;
-      const ranking = roots.length === 0 ? null : slotRanker(chart, tokens, resolution.lean).rank(roots);
+      const ranking = roots.length === 0 ? null : slotRanker(chart, tokens, resolution.steps, resolution.lean).rank(roots);
       if (ranking === null) {
         const rejection = rejectionOf(chart);
         report.error = {
@@ -18048,15 +19405,20 @@
         if (watch) watch.ranked({ranking:null,counted:false});
         return old ? {kind:"pass"} : {kind:"lost",completion:records};
       }
-      // The check's ranker: no lean, and cycles over spans of R (engine §7.7).
-      const ranker = slotRanker(chart, restored, "none", fault("F19") ? project : null);
+      // The check's ranker: every key step, no lean, and
+      // cycles over spans of R (engine §7.7).
+      const steps = lowered.resolution.steps;
+      const ranker = slotRanker(chart, restored, steps, "none", fault("F19") ? project : null);
       ranker.profileProject = project;
       ranker.check = true;
       ranker.marks = walk.marks;
       // Raw witness membership and filtered admission are separate decisions.
       let raw = ranker;
       if (ranker.admission) {
-        raw = new Ranker(restored, "none", fault("F19") ? project : null);
+        raw = new Ranker(restored, steps, "none", fault("F19") ? project : null);
+        raw.profiles = ranker.profiles;
+        raw.configured = true;
+        raw.interner = chart.context.interner;
         raw.profileProject = project;
         raw.check = true;
         raw.marks = ranker.marks;
@@ -18074,7 +19436,7 @@
         if (watch) watch.ranked({ ranking: null, counted: false });
         return old ? { kind: "pass" } : { kind: "lost", completion: records };
       }
-      const profileOrder = ranker.profiles ? compareProfiles(ranking.profile, derivationProfile(chosen)) : 0;
+      const profileOrder = ranker.profiles ? ranker.space.compare(ranking.profile, ranker.space.derivationProfile(chosen, tokens)) : 0;
       const restoredWitness = ropeOf(walk.sequence);
       const excluded = ranking.witnessCounted !== true;
       const better = excluded || profileOrder < 0;
@@ -18289,9 +19651,7 @@
         const position = emptySource(context.tokens, node.start);
         /** @type {ElidedNode} */
         const elided = { kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] };
-        // An equality-tested elided node keeps the restored token's string.
-        // Canonical JSON writes it as value, including an empty string.
-        if (production.elidedTest && production.elidedTest.op === "=" && production.elidedTest.value !== undefined) elided.value = production.elidedTest.value;
+        if (production.elidedValue !== undefined) elided.value = production.elidedValue;
         into.push(elided);
         continue;
       }
@@ -18342,6 +19702,12 @@
     constructor(node, context) {
       this.node = node;
       this.context = context;
+    }
+    /** @param {string} name */
+    treeIdentityOf(name) {
+      if(name === "")return derivationIdentity(this.context,this.node);
+      const capture=this.node.production.captures[/** @type {number} */ (this.node.production.captureSlot.get(name))];
+      return derivationIdentity(this.context,this.node.children[capture.index]);
     }
     /** @param {any} atom */
     boundary(atom) {
@@ -18678,6 +20044,7 @@
 
 
 
+
   /**
    * @import { Step } from "./trampoline.js"
    * @import { Argument, Comparator, Condition, DomAlternative, DomClassifier, DomConstant, DomDirective, DomEntry, DomImplication, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
@@ -18845,11 +20212,17 @@
     // an error about it is reported.
     /** @type {Map<object, ResultNode>} */
     let captureNodes = new Map();
-    // How many braces and elidable optionals the reader is inside, where no
-    // capture stands.
-    let braces = 0;
+    // The braces and elidable optionals the reader is inside. A chain and an
+    // elidable optional hold no capture, and flat braces hold item captures,
+    // outside a ranked group (engine §3.5, §9).
+    /** @type {{chain: boolean, ranked: number}[]} the braces around the construct being read, innermost last, with the ranked groups open inside each */
+    const braces = [];
     let marked = 0;
     let recipeContext = false;
+    /** @type {RuleNode|undefined} */
+    let defaultHead;
+    /** @type {Term|undefined} */
+    let headDefault;
     let featureContext = false;
     let readingHead=false;
     /** @type {Set<string>} */
@@ -18862,7 +20235,22 @@
       const namesDirective = ruleOf(item) === "directive" && valueOf(token(item)) === "%names";
       if (namesDirective && statementSeen) fail("%names must precede every other statement", item);
       if (!namesDirective) statementSeen = true;
-      if (ruleOf(item) === "directive") {
+      if (ruleOf(item) === "ranking-directive") {
+        const nodes = some(item, "ranking-step");
+        const steps = [];
+        for (const step of nodes) {
+          const name = valueOf(token(step));
+          const operand = parts(step).find(child => ["pattern-literal", "constant-reference"].includes(ruleOf(child)));
+          if (operand ? !KEY_STEPS.has(name) : !LEANS.has(name) || step !== nodes.at(-1)) {
+            fail("%ambiguity-resolution requires a pattern for each key step and no operand on a final lean", item);
+          }
+          if (operand) {
+            const value = run(readTerm(operand));
+            steps.push({step:name, pattern:"pattern" in value ? value.pattern : value});
+          } else steps.push({step:name});
+        }
+        directives.push(/** @type {import("./types.js").DomDirective} */ ({ name: "ambiguity-resolution", steps, at: at(item) }));
+      } else if (ruleOf(item) === "directive") {
         const name = valueOf(token(item)).slice(1);
         const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag" || ruleOf(child) === "argument-term");
         const problem = operandProblem(name, operands.map((child) => operandKind(child)));
@@ -18877,9 +20265,6 @@
         }
         if (name === "features" && args.some(arg => !/^[A-Za-z][A-Za-z0-9-]*$/.test(arg))) {
           fail("%features takes feature names", item);
-        }
-        if (name === "ambiguity-resolution" && !(["greedy", "lazy", "late-elision"].includes(args[0]) && (args.length === 1 || args[1] === "elision-only"))) {
-          fail("%ambiguity-resolution takes a ranking name and optionally elision-only", item);
         }
         const clause = one(item, "conditions-clause");
         if (clause && name !== "features") fail("only %features accepts conditions", item);
@@ -19027,18 +20412,6 @@
       /** @type {any} */
       const rule = { name: head ? head.call : valueOf(nameToken), ...(head ? head.args.every((/** @type {any} */ arg) => arg.param) ? {params:head.args.map((/** @type {any} */ arg) => arg.param)} : {args:head.args} : {}), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
       if (!unicode.isEmojiName?.(rule.name || "") && !/^[a-z][A-Za-z0-9_-]*$/.test(rule.name || "")) fail("a rule name starts with a lowercase letter or uses one eligible emoji", nameToken);
-      const flags = one(node, "rule-flags");
-      rule.flags = [];
-      if (flags) {
-        if (rule.op === "extend") fail("%extend-rule accepts no flags", flags);
-        for (const flag of some(flags, "rule-flag")) {
-          const name = valueOf(token(flag));
-          if (!["leftmost-longest", "fewest"].includes(name)) fail(`unknown rule flag ${name}`, flag);
-          if (rule.flags.includes(name)) fail(`duplicate rule flag ${name}`, flag);
-          if (rule.flags.length) fail("a rule accepts only one flag", flag);
-          rule.flags.push(name);
-        }
-      }
       if (parts(node).some(child => tokenValue(child) === "=")) {
         if (head) fail("a binding requires a plain rule name", node);
         const instance = yield readCall(only(node,"call"));
@@ -19057,7 +20430,9 @@
       const conditionsClause = one(node, "conditions-clause");
       /** @type {Condition[]} */
       const conditions = [];
-      if (conditionsClause) for (const condition of some(conditionsClause, "implication")) conditions.push(yield readImplication(condition));
+      if (conditionsClause) {
+        for (const condition of some(conditionsClause, "implication")) conditions.push(yield readImplication(condition));
+      }
       const emits = one(node, "emits-clause");
       const emit = emits ? /** @type {Emission} */ (yield readEmission(emits)) : undefined;
       if (tags) rule.tags = tags;
@@ -19133,6 +20508,20 @@
         const first = twice.reduce((a, b) => (firstToken(b) < firstToken(a) ? b : a));
         fail(`the capture $${valueOf(token(first)).slice(1)} is read twice by one production of the alternative`, first);
       }
+      // The name of an item capture stands nowhere else in the alternative
+      // (engine §3.5, §9): the error stands at the later capture in the text.
+      const items = itemCaptures(alternative.expr);
+      if (items.size > 0) {
+        /** @type {Map<string, ResultNode>} */
+        const seen = new Map();
+        for (const capture of allCaptures(alternative.expr)) {
+          const name = capture.capture;
+          const at = /** @type {ResultNode} */ (captureNodes.get(capture));
+          const earlier = seen.get(name);
+          if (earlier && items.has(name)) fail(`the item capture $${name} is read again: the name of an item capture stands once in its alternative`, firstToken(earlier) < firstToken(at) ? at : earlier);
+          if (!earlier) seen.set(name, at);
+        }
+      }
       const tags = one(node, "alternative-tags");
       if (tags) alternative.tags = yield readConstituentTags(tags);
       Object.assign(alternative, yield readChannels(node));
@@ -19160,7 +20549,10 @@
           const found = some(node, "conjunction", 2);
           /** @type {Expr[]} */
           const items = [];
+          const enclosing = braces[braces.length - 1];
+          if (enclosing) enclosing.ranked++;
           for (const item of found) items.push(yield readExpression(item));
+          if (enclosing) enclosing.ranked--;
           const expr = {ranked:items};
           const separator = parts(node).find(child => child.kind === "token" && valueOf(child) === "≻");
           if (separator) rankedLocations.set(expr,at(separator));
@@ -19223,10 +20615,28 @@
       } else if (!isTerminal(symbol)) {
         fail(form, node);
       }
+      const previousHead = defaultHead;
+      const previousDefault = headDefault;
+      defaultHead = symbol;
+      headDefault = undefined;
       marked++;
       const expr = /** @type {Expr} */ (yield readExpression(choice));
       marked--;
-      return { optional: expr, elidable: true };
+      const selectedDefault = /** @type {Term|undefined} */ (headDefault);
+      if (selectedDefault && "string" in selectedDefault) {
+        let head = "seq" in expr ? expr.seq[0] : expr;
+        while ("test" in head) {
+          if (head.test !== "tags" && "string" in head.value && (selectedDefault.string === head.value.string) !== (head.test === "=")) {
+            const position = recipeLocations.get(selectedDefault);
+            throw new GencmuError("grammar", "a default fails its head test", {document:path,line:position?.[0],column:position?.[1]});
+          }
+          head = head.expr;
+        }
+      }
+      const result = { optional: expr, elidable: /** @type {true} */ (true), ...(headDefault === undefined ? {} : {default:headDefault}) };
+      defaultHead = previousHead;
+      headDefault = previousDefault;
+      return result;
     }
 
     /**
@@ -19250,11 +20660,11 @@
       // A chain is the whole expression of its alternative, as the lowering
       // of its levels needs (engine §3.3, §9).
       if (chain && !whole) fail("a chain is the whole expression of its alternative: name it as a rule to use it here", node);
-      braces++;
+      braces.push({ chain: chain !== null, ranked: 0 });
       /** @type {Expr} */
       const result = { repeat: yield readExpression(choices[0]) };
       if (choices.length >= 2) result.separator = yield readExpression(choices[1]);
-      braces--;
+      braces.pop();
       if (chain) result.chain = chain;
       return result;
     }
@@ -19275,17 +20685,29 @@
         case "wildcard": token(node); return { wildcard: true };
         case "range": return { range: yield readRange(node) };
         case "tested": {
-          const tests = parts(node).filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
+          const tests = parts(node).filter(child => ["tag-test", "value-test", "default-value"].includes(ruleOf(child)));
           if (!tests.length) lacks(node, "test");
           const symbol = testBase(node) || lacks(node, "primary");
-          checkTestOrder(tests, ["constant-reference", "reference", "call", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)));
+          checkTestOrder(tests.filter(test => ruleOf(test) !== "default-value"), ["constant-reference", "reference", "call", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)));
           // Convert the base before test operands (engine §9.3).
           let expr = yield readPrimary(symbol);
-          for (const test of tests) expr = { ...(yield readTest(test)), expr };
+          for (const test of tests) {
+            if (ruleOf(test) === "default-value") {
+              if (node !== defaultHead) fail("a default stands only on an elidable optional head", test);
+              if (headDefault !== undefined) fail("an elidable head has one default at most", test);
+              const operand = only(test, "test-operand");
+              const inner = knownOf(operand, ATOMS);
+              if (!["string", "constant-reference", "parameter"].includes(ruleOf(inner))) fail("a default requires one string", operand);
+              headDefault = yield readTerm(inner);
+              recipeLocations.set(/** @type {Term} */ (headDefault), at(test));
+            } else expr = { ...(yield readTest(test)), expr };
+          }
           return expr;
         }
         case "capture": {
-          if (braces > 0) fail("a capture cannot stand inside braces, whose parts repeat: name the list as a rule, and capture that", node);
+          const innermost = braces[braces.length - 1];
+          if (innermost?.chain) fail("a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level", node);
+          if (innermost && innermost.ranked > 0) fail("an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule", node);
           if (marked > 0) fail("a capture cannot stand inside an elidable optional, which elision restores as one unit", node);
           const captureToken = token(node);
           const inner = only(node, "primary");
@@ -19404,17 +20826,18 @@
     }
 
     /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
-    function* readTest(node) {
+    function* readTest(node, pattern = false) {
       if (ruleOf(node) === "tag-test") {
         const requirements = [];
         for (const requirement of ofRule(node, "tag-requirement")) {
           const operand = only(requirement, "test-operand");
           const inner = knownOf(operand, ATOMS);
           if (!["tag", "constant-reference", "parameter"].includes(ruleOf(inner))) fail("a tag requirement is a tag or tag-set constant", operand);
-          const value = yield readTerm(inner);
+          const value = pattern && ruleOf(inner) === "tag" && valueOf(token(inner)) === "_Elided" ? {tag:"_Elided"} : yield readTerm(inner);
           const type = termType(value);
           const problem = "problem" in type ? type.problem : expectedProblem(type.type, "tags");
           if (problem) fail(problem, operand);
+          if (pattern) patternLocations.set(value,at(token(inner)));
           requirements.push({ negated: parts(requirement).some(child => tokenValue(child) === "¬"), value });
         }
         return { test: "tags", requirements };
@@ -19534,9 +20957,11 @@
           }
           const right = /** @type {Term} */ (yield readTerm(rightNode));
           const found = termType(right);
-          const problem = "problem" in found ? found.problem : expectedProblem(found.type,"pattern");
-          if (problem && !featureContext) fail(problem,inner);
-          return {op,left,right};
+          const problem = typeof /** @type {any} */ (right).capture === "string" ? left.capture === /** @type {any} */ (right).capture ? "a tree comparison cannot compare a capture with itself" : null : "problem" in found ? found.problem : expectedProblem(found.type,"pattern");
+          if (problem && !featureContext) fail(problem,typeof /** @type {any} */ (right).capture === "string" ? inner : rightNode);
+          const comparison={op,left,right};
+          boundaryLocations.set(comparison,{tree:inner,at:at(inner)});
+          return comparison;
         }
         case "comparison": {
           const op = /** @type {Comparator} */ (operator(token(only(inner, "comparator"))));
@@ -19673,6 +21098,7 @@
           const before = closedFor;
           closedFor = null;
           const pattern = yield readLayeredPattern(only(node, "pattern-primary"));
+          patternLocations.set(pattern,at(node));
           closedFor = before;
           const problem = sourcePatternProblem(pattern, {deferDepth:true, name:name => CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name)});
           if (problem) fail(problem,node);
@@ -19822,24 +21248,34 @@
       const kind=ruleOf(node);
       if (kind === "pattern-atom") {
         const inner = parts(node);
+        const defaultNode = inner.find(child=>ruleOf(child)==="default-value");
+        if (defaultNode) fail("a default stands only on an elidable optional head",defaultNode);
         const first = inner[0];
         if (!first) return lacks(node, "pattern atom");
         const named = ["name", "reference"].includes(ruleOf(first)) ||
           first.kind === "token" && ["Lowercase-Name", "Emoji-Name"].includes(first.terminal);
         const tests = inner.filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
-        const testable = !named && (first.kind === "token" ? isCapital(valueOf(first)) || valueOf(first).startsWith("_")
-          : ["tag", "string", "string-terminal", "range", "wildcard", "constant-reference"].includes(ruleOf(first)));
-        checkTestOrder(tests, testable || ruleOf(first) === "parameter");
+        const testsOnly = ["tag-test", "value-test"].includes(ruleOf(first));
+        checkTestOrder(tests, true);
+        if (named || ruleOf(first) === "call") for (const test of tests) if (ruleOf(test) === "tag-test") {
+          for (const requirement of ofRule(test,"tag-requirement")) {
+            const inner = knownOf(only(requirement,"test-operand"),ATOMS);
+            if (ruleOf(inner) === "tag" && valueOf(token(inner)) === "_Elided" && !parts(requirement).some(child=>tokenValue(child) === "¬")) fail("a rule pattern cannot require _Elided",token(inner));
+          }
+        }
+        if (testsOnly) fail("a pattern test requires an atom", first);
         if (["call", "parameter"].includes(ruleOf(first))) {
           let expr = ruleOf(first) === "call" ? yield readCall(first) : readParameter(first);
-          for (const test of tests) expr = {...(yield readTest(test)),expr};
+          for (const test of tests) expr = {...(yield readTest(test, true)),expr};
           return {node:expr};
         }
         if (named) {
           const nameToken = first.kind === "token" ? first : token(first);
           const name = valueOf(nameToken);
           if (!CLASSIFIER_NAME.test(name) && !unicode.isEmojiName?.(name)) fail("a malformed pattern rule name", nameToken);
-          return { node: { name, at: at(nameToken) } };
+          let expr = { name, at: at(nameToken) };
+          for (const test of tests) expr = {...(yield readTest(test, true)), expr};
+          return {node:expr};
         }
         let expr;
         if (first.kind === "token") {
@@ -19859,7 +21295,7 @@
           expr = { constant: value.const, at: at(first) };
         } else return lacks(node, "pattern atom");
         if(expr.literal?.const) {expr.constant=expr.literal.const;delete expr.literal;}
-        for (const test of tests) expr = { ...(yield readTest(test)), expr };
+        for (const test of tests) expr = { ...(yield readTest(test, true)), expr };
         return { node: expr };
       }
       return fail(`unexpected ${kind} in pattern`,node);
@@ -19895,6 +21331,7 @@
         if (TARGET_METHODS.has(name)) {
           for (let index = 0; index < args.length; index++) if (args[index].tag && !args[index].tag.startsWith("_")) args[index] = {terminal:args[index].tag};
         }
+        if (name === "emitted" && !recipeContext) fail("a method has the wrong receiver or arguments", node);
         if (featureContext || hasUnresolved(receiver) || args.some(hasUnresolved)) {
           const problem = methodShapeProblem(name, receiver, args, recipeContext);
           if (problem) fail(problem, node);
@@ -20065,23 +21502,40 @@
     if (["stage", "extend-stage", "redefine-stage"].includes(name)) return kinds.length === 1 && names ? null : `%${name} takes one name`;
     if (name === "include" || name === "names") return kinds.length === 1 && kinds[0] === "string" ? null : `%${name} takes one string`;
     if (name === "features") return kinds.length > 0 && names ? null : "%features takes one or more names";
-    if (name === "ambiguity-resolution" && !(kinds.length >= 1 && kinds.length <= 2)) return "%ambiguity-resolution takes one or two names";
+    if (name === "elision-only") return kinds.length === 0 ? null : "%elision-only takes no operand";
     return names ? null : `%${name} takes names only`;
   }
 
   // What a primary, a condition, a term and a term atom hold: the one rule
   // among their parts is one of these (engine §9).
+  /**
+   * The captures of an expression in the order written, braces included.
+   * @param {Expr} expr
+   * @returns {{capture: string, expr: Expr}[]}
+   */
+  function allCaptures(expr) {
+    /** @type {{capture: string, expr: Expr}[]} */
+    const found = [];
+    /** @type {(node: Expr) => void} */
+    const walk = (node) => {
+      if ("capture" in node) found.push(/** @type {{capture: string, expr: Expr}} */ (node));
+      for (const child of expressionChildren(node)) walk(child);
+    };
+    walk(expr);
+    return found;
+  }
+
   const PRIMARIES = new Set(["constant-reference", "call", "parameter", "reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty"]);
   const CONDITIONS = new Set(["tree-comparison", "comparison", "method", "negation", "presence", "implication"]);
   const TERMS = new Set(["union", "guarded-term"]);
   const ATOMS = new Set(["call", "parameter", "pattern-literal", "string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "guarded-term", "union", "term-atom", "method", "capture-reference", "constant-reference"]);
-  const ITEMS = new Set(["directive", "rule", "constant-definition", "classifier", "implication-declaration"]);
+  const ITEMS = new Set(["directive", "ranking-directive", "rule", "constant-definition", "classifier", "implication-declaration"]);
   const NAMED = new Set([
     "call-argument", "requirement-argument", "target-argument", "body-argument", "symbol-argument",
     ...ITEMS, ...PRIMARIES, ...CONDITIONS, ...TERMS, ...ATOMS,
     "argument-word", "argument-string", "argument-tag", "argument-term", "classifier-name", "classifier-class", "classifier-key", "classifier-operator", "classifier-entry",
-    "constant-definer", "definer", "rule-name", "rule-flags", "rule-flag", "body", "headed-body", "alternative", "ranked-alternative", "guard", "ranked-choice", "choice", "conjunction", "sequence", "primary",
-    "tag-test", "tag-requirement", "value-test", "test", "test-operand", "tags-clause", "alternative-tags", "emit-tags", "value-clause", "image-clause", "conditions-clause", "emits-clause", "erased-clause",
+    "constant-definer", "definer", "rule-name", "ranking-directive", "ranking-step", "body", "headed-body", "alternative", "ranked-alternative", "guard", "ranked-choice", "choice", "conjunction", "sequence", "primary",
+    "tag-test", "tag-requirement", "value-test", "default-value", "test", "test-operand", "tags-clause", "alternative-tags", "emit-tags", "value-clause", "image-clause", "conditions-clause", "emits-clause", "erased-clause",
     "emit-item", "emit-target", "emit-before", "emit-after", "recipe", "recipe-atom", "method-receiver", "method-selector", "method-name", "arguments", "argument", "integer", "intersection", "concatenation", "any-of", "all-of", "condition", "comparator", "tree-comparator",
     "pattern-primary", "pattern-node", "pattern-bare", "pattern-children", "child-choice", "child-alternative", "child-set", "child-intersection", "child-sequence", "child-item", "child-path", "child-primary",
     "pattern-literal", "pattern-union", "pattern-intersection", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
@@ -20467,7 +21921,7 @@
 
 
 
-  const ESCAPE_STATEMENTS = new Set(["%names", "%rule", "%redefine-rule", "%extend-rule", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features", "%ambiguity-resolution", "%const", "%redefine-const", "%classifier", "%implies"]);
+  const ESCAPE_STATEMENTS = new Set(["%names", "%rule", "%redefine-rule", "%extend-rule", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features", "%ambiguity-resolution", "%elision-only", "%const", "%redefine-const", "%classifier", "%implies"]);
 
   /** @import { UnicodeTable } from "./unicode.js" */
   /** @import { NamesScope } from "./unicode-names.js" */
@@ -21154,7 +22608,31 @@
       const documents = new Map();
       const pipeline = this.splice(path,documents);
       const build = () => {
-        const stages = pipeline.stages.map((stage) => new Stage(stage.name, new Grammar(stage.name, stage.documents, this.unicode), stage.changes));
+        const stages = pipeline.stages.map((stage) => {
+          const grammar = new Grammar(stage.name, stage.documents, this.unicode);
+          if (grammar.treeComparisons && stage.documents.some(document=>needsTreeLocations(document.dom))) grammar.recoverTreeError = (features,error) => {
+            const missing = boundaryDocumentErrors.get(error);
+            if (!missing) return error;
+            let located = false;
+            for (const document of stage.documents) {
+              if (document.path !== missing.document) continue;
+              const record = [...documents.values()].find(record=>record.path===document.path && document.dom.rules.some(rule=>record.dom.rules.includes(rule)));
+              if (!record) continue;
+              try {
+                restoreBoundaryLocations(record.dom,this.readDocument(record.text,record.path,true,record.inherited));
+                located = true;
+              } catch (failure) {
+                if (!(failure instanceof GencmuError)) throw failure;
+              }
+            }
+            if (located) {
+              try { new Grammar(stage.name,stage.documents,this.unicode).lower(features); }
+              catch (failure) { if (failure instanceof GencmuError) return failure; throw failure; }
+            }
+            return error;
+          };
+          return new Stage(stage.name,grammar,stage.changes);
+        });
         return new Pipeline(path, stages, this, pipeline.features);
       };
       try { return build(); } catch (error) {
@@ -21630,7 +23108,7 @@
 
   /** Keep known directive members before grammar walks. @param {GrammarDom} dom */
   function knownDomMembers(dom) {
-    return {...dom, directives:dom.directives.map(({name,args,at,conditions}) => ({name,args,at,...(conditions === undefined ? {} : {conditions})}))};
+    return /** @type {GrammarDom} */ ({...dom, directives:dom.directives.map(({name,args,steps,at,conditions}) => /** @type {import("./types.js").DomDirective} */ ({name,...(args === undefined ? {} : {args}),...(steps === undefined ? {} : {steps}),at,...(conditions === undefined ? {} : {conditions})}))});
   }
 
   // ---- index.js
@@ -22029,7 +23507,9 @@
    * @typedef {object} DomDirective
    * @property {Condition[]} [conditions]
    * @property {string} name
-   * @property {string[]} args
+   * @property {string[]} args the operands, which `ambiguity-resolution`
+   *   lacks: it has `steps` instead
+   * @property {RankingStep[]} [steps] the steps of `ambiguity-resolution`
    * @property {Position} at
    */
 
@@ -22044,7 +23524,6 @@
    * @property {never} [instance]
    * @property {string} name
    * @property {"define" | "redefine" | "extend"} op
-   * @property {string[]} flags
    * @property {Term} [tags]
    * @property {DomAlternative[]} alternatives
    * @property {Emission} [emit]
@@ -22060,7 +23539,6 @@
    * @typedef {object} InstanceBinding
    * @property {string} name
    * @property {"define" | "redefine"} op
-   * @property {[]} flags
    * @property {TemplateCall} instance
    * @property {[]} conditions
    * @property {Position} at
@@ -22103,15 +23581,17 @@
 
   /**
    * A structural node predicate in a grammar DOM (output §2).
-   * @typedef {(({name:string, at:Position} | TemplateCall | Parameter) & {exact?:true,children?:PatternChildren})
-   *   | ((PatternAtom | {test:"="|"≠", value:Term, expr:PatternTestTarget} | {test:"tags", requirements:Requirement[], expr:PatternAtom}) & {exact?:true})
+   * @typedef {((PatternRuleAtom & {exact?:true,children?:PatternChildren})
+   *   | ((PatternAtom | {test:"="|"≠", value:Term, expr:PatternTestTarget} | PatternTagTest) & {exact?:true})
    *   | {any:true, exact?:true, children:PatternChildren}
    *   | {union:Pattern[]} | {intersection:Pattern[]} | {difference:[Pattern,Pattern]}
-   *   | {path:"descendant"|"first"|"last", pattern:Pattern}} Pattern
+   *   | {path:"descendant"|"first"|"last", pattern:Pattern})} Pattern
    */
+  /** @typedef {{name:string,at:Position} | TemplateCall | Parameter} PatternRuleAtom */
   /** @typedef {{terminal:string, at:Position}} PatternTerminal */
   /** @typedef {Parameter | PatternTerminal | {literal:{string:string},at:Position} | {range:[Term,Term],at:Position} | {wildcard:true,at:Position} | {constant:string,at:Position}} PatternAtom */
-  /** @typedef {PatternAtom | {test:"tags",requirements:Requirement[],expr:PatternAtom}} PatternTestTarget */
+  /** @typedef {{test:"tags",requirements:Requirement[],expr:PatternAtom | PatternRuleAtom}} PatternTagTest */
+  /** @typedef {PatternAtom | PatternRuleAtom | {test:"tags",requirements:Requirement[],expr:PatternAtom | PatternRuleAtom}} PatternTestTarget */
   /** @typedef {PatternItem[]} PatternChildren */
   /** @typedef {{child:Pattern} | {siblings:true} | {optional:PatternChildren} | {repeat:PatternChildren,separator?:PatternChildren} | {choice:PatternChildren[]}} PatternItem */
 
@@ -22119,7 +23599,7 @@
    * A rule body expression.
    * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
    *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
-   *   | {optional: Expr, elidable?: true} | {capture: string, expr: Expr} | {ref: string}
+   *   | {optional: Expr, elidable?: true, default?: Term} | {capture: string, expr: Expr} | {ref: string}
    *   | {range: [Term, Term]} | {literal: Term} | {wildcard: true}
    *   | {test: "="|"≠", value: Term, expr: TestedSymbol} | {test: "tags", requirements: Requirement[], expr: TestedSymbol} | {empty: true} | TemplateCall | Parameter} Expr
    */
@@ -22242,6 +23722,10 @@
   /**
    * A production of a lowered grammar (engine §3).
    * @typedef {object} Production
+   * @property {boolean} [treeRequested]
+   * @property {boolean} [observesTrees]
+   * @property {boolean} [walksTrees]
+   * @property {number} [treePrefixUntil]
    * @property {import("./grammar.js").StitchedAlternative} [source]
    * @property {import("./grammar.js").StitchedAlternative} [logicalSource]
    * @property {Expr} [writtenExpression]
@@ -22249,6 +23733,9 @@
    * @property {number} [rankedOption]
    * @property {Set<string>} [sourcePrivate]
    * @property {boolean} [contextual]
+   * @property {import("./grammar.js").StitchedAlternative} [itemAlternative] the alternative whose braces this helper production lowers, when it has item captures
+   * @property {string[]} [itemNames] the item captures of the helper (engine §3.5)
+   * @property {Condition[]} [itemConditions] the item conditions of the helper, which frames attach (engine §3.6, §4)
    * @property {Condition[]} [rankedDeferred]
    * @property {ReadyCondition[]} [rankedConditions] effective conditions across static ranked entry contexts
    * @property {Term} [parentTags]
@@ -22262,11 +23749,11 @@
    * @property {GrammarSymbol[]} rhs
    * @property {import("./logical.js").LogicalSymbol[]} [logical]
    * @property {boolean} helper
-   * @property {string[]} flags
    * @property {string} owner the rule the production was lowered from
    * @property {string | null} elided the terminator an empty helper stands for
    * @property {SymbolTest | null} elidedTest the test of that terminator, an
    *   `=` test whose value a restored token stores, or null (engine §7)
+   * @property {string} [elidedValue] the explicit or equality default
    * @property {Capture[]} captures
    * @property {number[]} captureAt for each position of `rhs`, the index in
    *   `captures` of the capture there, or -1
@@ -22285,20 +23772,35 @@
    */
 
   /**
+   * A step of `%ambiguity-resolution` that compares the occurrences of one
+   * node pattern (engine §6).
+   * @typedef {{step: "leftmost-longest" | "fewest" | "most" | "late" | "early", pattern: Pattern}} KeyStep
+   */
+
+  /**
+   * A step of `%ambiguity-resolution`: a key step, or a lean, which can stand
+   * only last (engine §6).
+   * @typedef {(Omit<KeyStep,"pattern"> & {pattern:Pattern | {const:string,at:Position}}) | {step: "greedy" | "lazy"}} RankingStep
+   */
+
+  /**
    * @typedef {object} Resolution
-   * @property {"greedy" | "lazy" | "late-elision"} lean the rule of the
-   *   ranking (engine §6)
-   * @property {boolean} elisionOnly
+   * @property {KeyStep[]} steps the key steps of the stage's directive, in
+   *   order (engine §6)
+   * @property {Lean} lean the directive's last step if it is a lean, or none
+   * @property {boolean} elisionOnly whether the stage declares `%elision-only`
    */
 
   /**
    * A grammar lowered for one set of features.
    * @typedef {object} LoweredGrammar
+   * @property {boolean} treeComparisons
    * @property {WeakMap<object,WeakMap<object,{rule:string,condition:number,order:number}>>} boundarySites
    * @property {Production[]} productions
    * @property {Map<string, Production[]>} byLhs
    * @property {Resolution} resolution
    * @property {import("./ranked.js").RankedGroups} ranked
+   * @property {boolean} [contextual] whether a production is contextual, so that recognition keeps frames (engine §4)
    * @property {Map<string,Set<string>>} families static members from written rules
    * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
    *   of the stage, resolved for these features: each key's classes (engine
@@ -22308,9 +23810,9 @@
    */
 
   /**
-   * The rule the ranking uses: the grammar's, or none for elision-only's
-   * check and for the readings of a late-elision tie (engine §6).
-   * @typedef {"greedy" | "lazy" | "late-elision" | "none"} Lean
+   * The lean of a ranking: the directive's, or none for a directive without
+   * one and for elision-only's check (engine §6).
+   * @typedef {"greedy" | "lazy" | "none"} Lean
    */
 
   /**
@@ -22319,7 +23821,7 @@
    * tag set, after the parts before it. A context makes each sequence once,
    * with its number (engine §4). `depth` counts the parts, and `jump` is an
    * earlier sequence that a search for a part can skip to.
-   * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, id: number} | null} Captured
+   * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, treeIdentity?:number, id: number} | null} Captured
    */
 
   /**
@@ -22339,6 +23841,9 @@
    * A span a term denotes, with the tags of the captured part when it is a
    * whole capture.
    * @typedef {object} SpanValue
+   * @property {number} [treeIdentity]
+   * @property {string} [patternName]
+   * @property {number} [patternPrefix]
    * @property {import("./close-observations.js").CloseObservation|null} [observation]
    * @property {AlignedSpan} [aligned]
    * @property {number} [structure]

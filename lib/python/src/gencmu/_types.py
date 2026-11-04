@@ -108,10 +108,12 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
         valid = bare and len(args) == 1 and rule(args[0])
     elif name == "without-elision":
         valid = bare and not args
-    elif name in ("verbatim-text", "emitted"):
+    elif name == "emitted":
+        valid = bare and not args
+    elif name == "verbatim-text":
         valid = recipe and bare and not args
     else:
-        valid = not args and (span or recipe and receiver_method == "emitted" and name in ("value", "image"))
+        valid = not args and (span or receiver_method == "emitted" and name in ("value", "image"))
     return None if valid else "a method has the wrong receiver or arguments"
 
 
@@ -121,7 +123,7 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
         return None, "ends requires an ordinary span, not a restored span"
     spans = {"capture", "span", "restored"}
     if name in _STRING_METHODS:
-        valid = receiver in spans or (recipe and receiver == "emitted" and name in ("value", "image"))
+        valid = receiver in spans or (receiver == "emitted" and name in ("value", "image"))
         if name == "verbatim-text":
             valid = recipe and bare
         result, arity = "string", 0
@@ -279,9 +281,9 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
         tested = set()
         for node, _ in walk_pattern(term["pattern"]):
             if "test" in node:
-                base = node["expr"]
+                base = node.get("expr", {})
                 while "test" in base:
-                    base = base["expr"]
+                    base = base.get("expr", {})
                 tested.add(id(base))
         for node, _ in walk_pattern(term["pattern"]):
             operands = [node["literal"]] if "literal" in node else node.get("range", [])
@@ -427,8 +429,10 @@ def _condition_typing_once(condition: Any, constants: ConstantTypes, memo: Memo)
         right, fault = yield _term_typing(condition["right"], constants, memo)
         if fault is not None:
             return fault
+        if condition["op"] in ("≅", "≇") and "capture" in condition["right"]:
+            return ("a tree comparison cannot compare a capture with itself", condition) if condition["left"]["capture"] == condition["right"]["capture"] else None
         problem = comparison_problem(condition["op"], left, right)
-        return (problem, condition) if problem is not None else None
+        return (problem, condition["right"] if condition["op"] in ("≅", "≇") else condition) if problem is not None else None
     if "method" in condition:
         kind, fault = yield _term_typing(condition, constants, memo)
         if fault:
@@ -564,9 +568,13 @@ def tests_in(expr: Any) -> list[dict[str, Any]]:
             if isinstance(items, list):
                 stack.extend(reversed(items))
         # In reverse, so that a repeat's item comes before its separator.
-        for key in ("expr", "separator", "repeat", "optional"):
+        for key in ("expr", "separator", "repeat"):
             if key in current:
                 stack.append(current[key])
+        if "optional" in current:
+            if "default" in current:
+                found.append({"test":"=", "value":current["default"], "expr":current["optional"]})
+            stack.append(current["optional"])
     return found
 
 

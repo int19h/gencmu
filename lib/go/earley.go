@@ -16,6 +16,7 @@ type capVal struct {
 	tags       int32
 	structure  int
 	closes     int
+	tree       int
 }
 
 // itemKey is an item's identity. A captured part's span and tags are part
@@ -24,6 +25,7 @@ type capVal struct {
 // by the recognizer, 0 for none. The common case of one slot, the implicit
 // capture of a production with one symbol, needs no interning.
 type itemKey struct {
+	tree              *treeState
 	boundary          *boundaryRecord
 	prod              *production
 	dot               int32
@@ -183,23 +185,25 @@ type link struct {
 
 // symNode is every completed item of one rule over one span with one tag set.
 type symNode struct {
-	boundary            *boundaryRecord
-	boundaryAnnotations *boundaryAnnotations
-	closeRequested      bool
-	lexical             *rankedFrame
-	option              int
-	structure           int
-	closes              int
-	familySummary       int
-	rule                int32
-	start, end          int32
-	tags                *tagset
-	items               []*item
+	boundary                   *boundaryRecord
+	boundaryAnnotations        *boundaryAnnotations
+	treeIdentity, treeSequence int
+	closeRequested             bool
+	lexical                    *rankedFrame
+	option                     int
+	structure                  int
+	closes                     int
+	familySummary              int
+	rule                       int32
+	start, end                 int32
+	tags                       *tagset
+	items                      []*item
 }
 
 type symKey struct {
+	treeIdentity       int
 	boundary           *boundaryRecord
-	requested          bool
+	requested          observationKinds
 	lexical            *rankedFrame
 	option             int
 	rule, origin, tags int32
@@ -229,6 +233,7 @@ const (
 )
 
 type recognizer struct {
+	trees                                 *treeArena
 	suffix                                *suffixState
 	scans                                 []*item
 	scanIndex                             int
@@ -254,6 +259,7 @@ type recognizer struct {
 	rankedFrames                          map[string]*rankedFrame
 	rankedProductions                     map[rankedProductionKey]*production
 	machine                               *patternMachine
+	patternValues                         map[[2]int]string
 	elidableHeads                         map[int32]string
 	run                                   *stageRun
 	g                                     *lowered
@@ -331,7 +337,7 @@ const (
 // A copy of the whole struct into the heap would cost a write barrier for
 // every pointer it holds, at every step.
 type step struct {
-	closeRequested bool
+	closeRequested observationKinds
 	lexical        *rankedFrame
 	kind           int
 	it             *item
@@ -418,8 +424,11 @@ func (r *recognizer) begin(start int32) {
 	r.boundaries = newBoundaryMachine(r.g)
 	r.preparePatterns()
 	r.closes = r.run.closeArena(r.g)
-	if r.beginPredict(r.set(0), start, false, r.closeRequested) {
-		r.step = step{kind: stepPredict, rule: start, closeRequested: r.closeRequested}
+	if r.g.stage.treeComparisons {
+		r.trees = newTreeArena()
+	}
+	if r.beginPredict(r.set(0), start, false, closeKinds(r.closeRequested)) {
+		r.step = step{kind: stepPredict, rule: start, closeRequested: closeKinds(r.closeRequested)}
 	}
 }
 
@@ -452,7 +461,7 @@ func (r *recognizer) resume() *nestedQuery {
 		case stepEmpties:
 			for ; st.next < len(st.list); st.next++ {
 				c := st.list[st.next]
-				if q := r.advance(st.it, st.k, capVal{c.start, c.end, c.tags.id, c.structure, c.closes}, link{prev: st.it, sym: c}, st.it.strict); q != nil {
+				if q := r.advance(st.it, st.k, capVal{c.start, c.end, c.tags.id, c.structure, c.closes, c.treeIdentity}, link{prev: st.it, sym: c}, st.it.strict); q != nil {
 					return q
 				}
 			}
@@ -470,7 +479,7 @@ func (r *recognizer) resume() *nestedQuery {
 				if st.empty && r.heldBack(w) {
 					continue
 				}
-				if q := r.advance(w, st.k, capVal{st.c.start, st.c.end, st.ts.id, st.c.structure, st.c.closes}, link{prev: w, sym: st.c}, st.empty && w.strict); q != nil {
+				if q := r.advance(w, st.k, capVal{st.c.start, st.c.end, st.ts.id, st.c.structure, st.c.closes, st.c.treeIdentity}, link{prev: w, sym: st.c}, st.empty && w.strict); q != nil {
 					return q
 				}
 			}
@@ -492,7 +501,7 @@ func (r *recognizer) nextEntry() bool {
 			r.entered = true
 			if r.suffix != nil {
 				r.scans, r.scanIndex = nil, 0
-				if r.beginPredict(s, r.startRule, false, false) {
+				if r.beginPredict(s, r.startRule, false, 0) {
 					r.step = step{kind: stepPredict, rule: r.startRule, k: k}
 					return true
 				}
@@ -560,7 +569,7 @@ func (r *recognizer) observed(a, b int32) (int, int) {
 //
 // beginPredict records the prediction of a rule in a set, and says whether
 // it adds anything there.
-func (r *recognizer) beginPredict(s *eset, rule int32, strict bool, requested bool, frames ...*rankedFrame) bool {
+func (r *recognizer) beginPredict(s *eset, rule int32, strict bool, requested observationKinds, frames ...*rankedFrame) bool {
 	var lexical *rankedFrame
 	if len(frames) > 0 {
 		lexical = frames[0]
@@ -621,7 +630,10 @@ func (r *recognizer) predictFrom(st *step) *nestedQuery {
 		if ok {
 			key := itemKey{prod: p, origin: int32(k)}
 			r.finishCloses(&key, int32(k))
-			r.finishStructure(&key)
+			r.finishStructure(&key, int32(k))
+			if r.trees != nil {
+				r.finishTree(&key)
+			}
 			if q := r.finishTags(p, &key, int32(k), r.predictTags); q != nil {
 				return q
 			}
@@ -652,7 +664,10 @@ func (r *recognizer) restore(k int, p *production) {
 		return
 	}
 	key := itemKey{prod: p, origin: int32(k)}
-	r.finishStructure(&key)
+	r.finishStructure(&key, int32(k+1))
+	if r.trees != nil {
+		r.finishTree(&key)
+	}
 	r.finishCloses(&key, int32(k+1))
 	s := r.set(k + 1)
 	if s.index[key] != nil {
@@ -717,14 +732,18 @@ func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 		var caps itemCaps
 		var tags *lazyTags
 		key := itemKey{prod: p, origin: int32(k)}
-		r.finishStructure(&key)
+		r.finishStructure(&key, int32(k))
+		if r.trees != nil {
+			r.finishTree(&key)
+		}
 		r.finishCloses(&key, int32(k))
 		if len(p.rhs) == 0 {
 			// The tag term runs only where a condition reads $'s tags (§4).
-			tags = r.lazyTags(p, caps, int32(k), int32(k), key.structure, key.closes)
+			tags = r.lazyTags(p, caps, int32(k), int32(k), key.tree, key.structure, key.closes)
 		}
 		r.predictTags = tags
-		r.ev = r.run.evaluator(r.g, r.captureFunc(p, caps, int32(k), int32(k), tags, key.structure, key.closes))
+		capture := r.captureFunc(p, caps, int32(k), int32(k), tags, key.tree, key.structure, key.closes, key.prefix)
+		r.ev = r.run.evaluator(r.g, capture)
 		r.pending, r.condAt = true, 0
 		countCondition()
 		r.startCondition(r.ev, p.predictConds[0], p)
@@ -765,7 +784,10 @@ func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
 	if r.family != nil {
 		r.family.taking(key.familySummary)
 	}
-	r.finishStructure(&key)
+	r.finishStructure(&key, int32(k))
+	if r.trees != nil {
+		r.finishTree(&key)
+	}
 	s := r.set(k)
 	if r.boundaries != nil {
 		if w := work.Load(); w != nil {
@@ -935,7 +957,7 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	case p.tags != nil:
 		if !r.pending {
 			r.pending = true
-			r.w.term(r.run.evaluator(r.g, r.captureFunc(p, r.caps(&it.itemKey), it.origin, int32(k), nil, it.structure, it.closes)), p.tags)
+			r.w.term(r.run.evaluator(r.g, r.captureFunc(p, r.caps(&it.itemKey), it.origin, int32(k), nil, it.tree, it.structure, it.closes, it.prefix)), p.tags)
 		}
 		if q := r.w.resume(); q != nil {
 			return q
@@ -955,7 +977,14 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	if p.ranked != nil {
 		option = p.option
 	}
-	key := symKey{boundary: it.boundary, requested: p.closeRequested, lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: it.closes, familySummary: it.familySummary}
+	if r.machine != nil && r.machine.nodeTags && !p.helper {
+		it.structure = r.machine.node(p.ruleName, it.prefix, "", r.patternValue(it.origin, int32(k)), ts)
+	}
+	identity, sequence := 0, 0
+	if it.tree != nil {
+		identity, sequence = it.tree.identity, it.tree.sequence
+	}
+	key := symKey{treeIdentity: identity, boundary: it.boundary, requested: p.requestedKinds(), lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: it.closes, familySummary: it.familySummary}
 	c := s.syms[key]
 	if c != nil {
 		c.items = append(c.items, it)
@@ -965,7 +994,7 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 		r.step.kind = stepNext
 		return nil
 	}
-	c = &symNode{boundary: it.boundary, boundaryAnnotations: it.boundaryAnnotations, closeRequested: p.closeRequested, lexical: p.lexical, option: option, structure: it.structure, closes: it.closes, familySummary: it.familySummary, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
+	c = &symNode{treeIdentity: identity, treeSequence: sequence, boundary: it.boundary, boundaryAnnotations: it.boundaryAnnotations, closeRequested: p.closeRequested, lexical: p.lexical, option: option, structure: it.structure, closes: it.closes, familySummary: it.familySummary, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
 	if s.syms == nil {
 		s.syms = map[symKey]*symNode{}
 	}
@@ -974,12 +1003,12 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 		if s.empties == nil {
 			s.empties = map[rankedPrediction][]*symNode{}
 		}
-		s.empties[rankedPrediction{p.closeRequested, p.lhs, p.lexical}] = append(s.empties[rankedPrediction{p.closeRequested, p.lhs, p.lexical}], c)
+		s.empties[rankedPrediction{p.requestedKinds(), p.lhs, p.lexical}] = append(s.empties[rankedPrediction{p.requestedKinds(), p.lhs, p.lexical}], c)
 	}
-	count := len(r.sets[it.origin].waiting[rankedPrediction{p.closeRequested, p.lhs, p.lexical}])
+	count := len(r.sets[it.origin].waiting[rankedPrediction{p.requestedKinds(), p.lhs, p.lexical}])
 	st := &r.step
 	st.lexical = p.lexical
-	st.closeRequested = p.closeRequested
+	st.closeRequested = p.requestedKinds()
 	st.kind, st.k, st.origin, st.rule, st.c, st.ts = stepWaiters, k, it.origin, p.lhs, c, ts
 	st.empty, st.count, st.next = int(it.origin) == k, count, 0
 	return nil
@@ -1017,9 +1046,13 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		if r.observesCloses(p) && l.sym != nil && r.g.rankedHelpers[l.sym.rule] != nil {
 			cv.closes = r.closes.seal(cv.closes, r.blockEvent(l.sym))
 		}
+		if r.trees != nil {
+			r.advanceTree(&key, it, &cv, l)
+		}
 		if slot := p.capSlot[pos]; slot >= 0 {
 			r.setCap(&key, slot, cv)
 		}
+
 		key.dot++
 		if r.observesCloses(p) {
 			child := cv.closes
@@ -1051,7 +1084,10 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			}
 			key.prefix = r.machine.concat(it.prefix, structure)
 		}
-		r.finishStructure(&key)
+		r.finishStructure(&key, int32(k))
+		if r.trees != nil {
+			r.finishTree(&key)
+		}
 	}
 	// Each condition the walk examines counts before it is looked at, so
 	// a walk wider than the dot's own conditions passes the budget at once.
@@ -1077,9 +1113,10 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			// condition reads them (§4).
 			caps := r.caps(&key)
 			if c.whole && whole == nil {
-				whole = r.lazyTags(p, caps, key.origin, int32(k), key.structure, key.closes)
+				whole = r.lazyTags(p, caps, key.origin, int32(k), key.tree, key.structure, key.closes)
 			}
-			r.startCondition(r.run.evaluator(r.g, r.captureFunc(p, caps, key.origin, int32(k), whole, key.structure, key.closes)), c.cond, p)
+			capture := r.captureFunc(p, caps, key.origin, int32(k), whole, key.tree, key.structure, key.closes, key.prefix)
+			r.startCondition(r.run.evaluator(r.g, capture), c.cond, p)
 		}
 		resuming = false
 		if q := r.resumeCondition(); q != nil {
@@ -1118,7 +1155,7 @@ func (r *recognizer) finishTags(p *production, key *itemKey, end int32, known *l
 	}
 	if !r.boundaryTagActive {
 		r.boundaryTagActive = true
-		r.w.term(r.run.evaluator(r.g, r.captureFunc(p, r.caps(key), key.origin, end, nil, key.structure, key.closes)), p.tags)
+		r.w.term(r.run.evaluator(r.g, r.captureFunc(p, r.caps(key), key.origin, end, nil, key.tree, key.structure, key.closes, key.prefix)), p.tags)
 	}
 	if q := r.w.resume(); q != nil {
 		return q
@@ -1161,7 +1198,7 @@ func (r *recognizer) tokenTest(t *symTest, k int) bool {
 // captureFunc gives an item's captures; $ spans [origin, end) and has the
 // tags that whole gives on demand, or none while they are being computed,
 // when a term cannot read them (§9).
-func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32, whole *lazyTags, structure ...int) func(string) (spanVal, bool) {
+func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32, whole *lazyTags, tree *treeState, structure ...int) func(string) (spanVal, bool) {
 	state := 0
 	closes := 0
 	if len(structure) > 0 {
@@ -1170,11 +1207,24 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 	if len(structure) > 1 {
 		closes = structure[1]
 	}
+	identity := 0
+	if tree != nil {
+		identity = tree.identity
+	}
+	rootName, rootPrefix := p.ruleName, 0
+	if len(structure) > 2 {
+		rootPrefix = structure[2]
+	}
 	parentOrigin := origin
 	if lexical := p.lexical; lexical != nil {
 		parentOrigin = lexical.origin
+		if r.trees != nil {
+			prefix := r.trees.append(lexical.treeSealPrefix, r.sealIdentity(lexical.sealOrigin, end))
+			identity = r.trees.intern(treeNodeKey{kind: "Rule", name: r.g.rules[lexical.root.lhs].name, children: prefix})
+		}
 		if r.machine != nil {
-			state = r.machine.node(lexical.root.ruleName, r.machine.concat(lexical.sealPrefix, r.machine.sealed()), "", "", nil)
+			rootName, rootPrefix = lexical.root.ruleName, r.machine.concat(lexical.sealPrefix, r.machine.sealed())
+			state = r.machine.node(rootName, rootPrefix, "", r.patternValue(parentOrigin, end), nil)
 		}
 		if whole != nil {
 			// This lazy value belongs to the enclosing frame's $.
@@ -1214,14 +1264,14 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 			if p.lexical != nil && whole == nil {
 				tags = r.run.ps.in.empty()
 			}
-			return spanVal{a: a, b: b, whole: whole != nil || p.lexical != nil, tags: tags, lazy: whole, machine: r.machine, structure: state, arena: r.closes, closes: closes}, true
+			return spanVal{tree: identity, rootName: rootName, rootPrefix: rootPrefix, a: a, b: b, whole: whole != nil || p.lexical != nil, tags: tags, lazy: whole, machine: r.machine, structure: state, arena: r.closes, closes: closes}, true
 		}
 		slot, ok := p.slotOf[name]
 		if !ok {
 			if p.lexical != nil {
 				if cv, found := p.lexical.captures[name]; found {
 					a, b := r.observed(cv.start, cv.end)
-					return spanVal{a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags], machine: r.machine, structure: cv.structure, arena: r.closes, closes: cv.closes}, true
+					return spanVal{tree: cv.tree, a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags], machine: r.machine, structure: cv.structure, arena: r.closes, closes: cv.closes}, true
 				}
 			}
 			return spanVal{}, false
@@ -1238,14 +1288,14 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 			searched += steps + 1
 		}
 		a, b := r.observed(cv.start, cv.end)
-		return spanVal{a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags], machine: r.machine, structure: cv.structure, arena: r.closes, closes: cv.closes}, true
+		return spanVal{tree: cv.tree, a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags], machine: r.machine, structure: cv.structure, arena: r.closes, closes: cv.closes}, true
 	}
 }
 
 // lazyTags is the constituent tags of a completing item, which the walk
 // that first reads them computes, and the same set after that (§4).
-func (r *recognizer) lazyTags(p *production, caps itemCaps, origin, end int32, structure, closes int) *lazyTags {
-	return &lazyTags{r: r, p: p, caps: caps, origin: origin, end: end, structure: structure, closes: closes}
+func (r *recognizer) lazyTags(p *production, caps itemCaps, origin, end int32, tree *treeState, structure, closes int) *lazyTags {
+	return &lazyTags{tree: tree, r: r, p: p, caps: caps, origin: origin, end: end, structure: structure, closes: closes}
 }
 
 // accepted lists the completed start-rule constituents over the whole input.
@@ -1255,7 +1305,7 @@ func (r *recognizer) accepted(start int32) []*symNode {
 	}
 	var out []*symNode
 	for key, c := range r.sets[r.n].syms {
-		if key.rule == start && key.origin == 0 && key.requested == r.closeRequested && (r.boundaries == nil || r.boundaries.accepts(c.boundary, func(*boundaryLiteral) {})) {
+		if key.rule == start && key.origin == 0 && key.requested == closeKinds(r.closeRequested) && (r.boundaries == nil || r.boundaries.accepts(c.boundary, func(*boundaryLiteral) {})) {
 			out = append(out, c)
 		}
 	}
@@ -1270,7 +1320,7 @@ func (r *recognizer) begun(start int32) bool {
 	var items []*item
 	for _, s := range r.sets {
 		for key, c := range s.syms {
-			if key.rule == start && key.origin == 0 && key.requested == r.closeRequested && (r.boundaries == nil || r.boundaries.accepts(c.boundary, func(*boundaryLiteral) {})) {
+			if key.rule == start && key.origin == 0 && key.requested == closeKinds(r.closeRequested) && (r.boundaries == nil || r.boundaries.accepts(c.boundary, func(*boundaryLiteral) {})) {
 				items = append(items, c.items...)
 			}
 		}

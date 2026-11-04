@@ -646,8 +646,8 @@
     }
   },
   {
-    "name": "binding flags",
-    "grammar": "%rule use(@X) @X\n%rule(fewest) text = use(\"a\")",
+    "name": "binding cannot define a body",
+    "grammar": "%rule use(@X) @X\n%rule text = use(\"a\") \"b\"",
     "input": "",
     "expect": {
       "error": "grammar"

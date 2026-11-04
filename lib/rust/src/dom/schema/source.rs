@@ -43,9 +43,8 @@ pub(super) fn head<'a>(item: &'a Json, pending: &mut Vec<(Part, &'a Json, usize)
         pending.extend(args.iter().map(|arg| (Part::Argument, arg, 1)));
     }
     if let Some(call) = item.get("instance") {
-        if !exact(item, &["name", "op", "flags", "instance", "conditions", "at"], &[])
+        if !exact(item, &["name", "op", "instance", "conditions", "at"], &[])
             || item.get("op").and_then(Json::as_str) == Some("extend")
-            || item.get("flags").and_then(Json::as_array) != Some(&[])
             || item.get("conditions").and_then(Json::as_array) != Some(&[])
         {
             return Some("a malformed instance binding");
@@ -99,7 +98,7 @@ pub(super) fn argument<'a>(
         if !exact(value, &["body"], &[]) {
             return Some("a malformed body argument");
         }
-        pending.push((Part::Expr { whole: true, sealed: false }, body, depth));
+        pending.push((Part::Expr { whole: true, flags: super::ExprFlags::default() }, body, depth));
     } else if let Some(targets) = value.get("targets") {
         if !exact(value, &["targets"], &[]) {
             return Some("a malformed target choice");
@@ -119,7 +118,7 @@ pub(super) fn argument<'a>(
         }
     } else {
         let kind = if ["test", "range", "wildcard"].iter().any(|key| value.get(key).is_some()) {
-            Part::Expr { whole: false, sealed: false }
+            Part::Expr { whole: false, flags: super::ExprFlags::default() }
         } else {
             Part::Term
         };

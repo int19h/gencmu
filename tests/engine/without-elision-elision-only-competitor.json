@@ -1,6 +1,6 @@
 {
   "description": "A bare synthetic read retains its own projected close in a reconstruction capture (engine §4 and §7).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a (X [+T])\n%rule b (X [+T] [+U])\n%rule c $x:body %conditions $x.without-elision.matches(rival)\n\n%rule body (X T)\n%rule rival X",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a (X [+T])\n%rule b (X [+T] [+U])\n%rule c $x:body %conditions $x.without-elision.matches(rival)\n\n%rule body (X T)\n%rule rival X",
   "tokens": [
     {
       "text": "x",

@@ -134,7 +134,7 @@ fn routes(
             }
             unique(states.into_iter().filter(|state| state.mask != 0).map(|state| state.route))
         }
-        Expr::Optional(inner, _) => unique(std::iter::once(Route::default()).chain(visit(inner))),
+        Expr::Optional(inner, _, _) => unique(std::iter::once(Route::default()).chain(visit(inner))),
         Expr::Repeat(inner, separator, _) => {
             let items = visit(inner);
             if let Some(separator) = separator {
@@ -184,7 +184,7 @@ fn capture_reads(start: ReadPart<'_>, out: &mut BTreeSet<String>) {
                 Cond::Captured(name) => {
                     out.insert(name.clone());
                 }
-                Cond::Compare(_, a, b) => stack.extend([ReadPart::Term(a), ReadPart::Term(b)]),
+                Cond::Compare(_, a, b, _) => stack.extend([ReadPart::Term(a), ReadPart::Term(b)]),
                 Cond::Matches(t, _)
                 | Cond::Begins(t, _)
                 | Cond::Ends(t, _)
@@ -464,7 +464,9 @@ impl RankedGroups {
                     );
                 }
             }
-            Expr::Optional(inner, _) => self.visit(inner, &format!("{path}/optional"), final_position, owner, source),
+            Expr::Optional(inner, _, _) => {
+                self.visit(inner, &format!("{path}/optional"), final_position, owner, source)
+            }
             Expr::Repeat(inner, separator, _) => {
                 self.visit(inner, &format!("{path}/repeat"), false, owner, source);
                 if let Some(separator) = separator {
@@ -612,7 +614,7 @@ pub(crate) fn capture_names(expr: &Expr) -> BTreeSet<String> {
                 pending.push(child);
             }
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => pending.extend(items),
-            Expr::Optional(child, _) | Expr::Tested(_, _, child) => pending.push(child),
+            Expr::Optional(child, _, _) | Expr::Tested(_, _, child) => pending.push(child),
             Expr::Repeat(child, separator, _) => {
                 pending.push(child);
                 if let Some(s) = separator {
@@ -646,7 +648,7 @@ fn expression_children(expr: &Expr) -> Vec<(&Expr, String)> {
             };
             items.iter().enumerate().map(|(i, child)| (child, format!("/{key}/{i}"))).collect()
         }
-        Expr::Optional(child, _) => vec![(child, "/optional".into())],
+        Expr::Optional(child, _, _) => vec![(child, "/optional".into())],
         Expr::Repeat(child, separator, _) => {
             let mut out = vec![(child.as_ref(), "/repeat".into())];
             if let Some(separator) = separator {
@@ -821,7 +823,7 @@ impl TagGraph {
                 }
                 result
             }
-            Expr::Optional(inner, crate::dom::Mark::Plain) if common_capture(inner, captured) => {
+            Expr::Optional(inner, crate::dom::Mark::Plain, _) if common_capture(inner, captured) => {
                 Unary { zero: false, children: self.describe(grammar, ranked, source, inner, memo, captured).children }
             }
             Expr::Ranked(..) | Expr::Optional(..) | Expr::Repeat(..) => {
@@ -846,7 +848,7 @@ impl TagGraph {
                             route(self, child, Some(option));
                         }
                     }
-                    Expr::Optional(inner, _) => route(self, inner, None),
+                    Expr::Optional(inner, _, _) => route(self, inner, None),
                     Expr::Repeat(inner, separator, _) => {
                         route(self, inner, None);
                         // Recursive repetition only adds a self edge.
@@ -879,7 +881,7 @@ fn common_capture(expr: &Expr, memo: &mut FxMap<usize, bool>) -> bool {
         Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
             items.iter().any(|child| common_capture(child, memo))
         }
-        Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => common_capture(inner, memo),
+        Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => common_capture(inner, memo),
         Expr::Repeat(inner, separator, _) => {
             common_capture(inner, memo) || separator.as_deref().is_some_and(|s| common_capture(s, memo))
         }
@@ -920,7 +922,7 @@ impl WrittenSpans {
                             self.branches.push((id, vec![child]));
                         }
                     }
-                    Expr::Optional(inner, _) => {
+                    Expr::Optional(inner, _, _) => {
                         let child = self.expression(inner, grammar);
                         self.branches.extend([(id, vec![]), (id, vec![child])]);
                     }

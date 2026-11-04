@@ -1,0 +1,10 @@
+{
+  "description": "A rule tag test on $ requests the root tags at that comparison (engine §4).",
+  "grammar": "%rule text \"a\" :: T\n%conditions $ ≅ #·text<T>",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

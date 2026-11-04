@@ -1,0 +1,16 @@
+{
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text w (\"b\" (\"c\" ≻ \"d\") ≻ \"e\")\n%conditions $.emitted.value = \"yesbc\"\n%rule w \"a\" := \"no\" | \"a\" := \"yes\"",
+  "input": "abc",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 13
+    }
+  },
+  "options": {
+    "elisionOnly": true
+  }
+}

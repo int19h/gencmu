@@ -631,7 +631,7 @@ func walkValues(root valuePart, visit func(valuePart) *Error, patterns bool) *Er
 			for _, requirement := range e.Requirements {
 				terms(requirement.Value)
 			}
-			terms(e.Value, e.Ends[0], e.Ends[1])
+			terms(e.Value, e.Default, e.Ends[0], e.Ends[1])
 		case part.term != nil:
 			if part.term.Kind == tmPattern || part.pattern && !patterns {
 				if patterns && part.term.Pattern != nil {
@@ -650,7 +650,7 @@ func walkValues(root valuePart, visit func(valuePart) *Error, patterns bool) *Er
 			c := part.cond
 			if c.Kind == cdCompare && (c.Op == "≅" || c.Op == "≇") {
 				terms(c.Left)
-				children = append(children, valuePart{term: c.Right, pattern: true})
+				children = append(children, valuePart{term: c.Right, pattern: c.Right.Kind != tmCapture})
 			} else {
 				for _, p := range (clausePart{c: c}).children() {
 					children = append(children, valuePart{term: p.t, cond: p.c})
@@ -773,7 +773,7 @@ func (r *resolver) cond(c *domCond) *domCond {
 		w.clauseSteps.add("clause steps")
 	}
 	left, right, span := r.term(c.Left), r.term(c.Right), r.term(c.Span)
-	if (c.Op == "≅" || c.Op == "≇") && right.Kind != tmPattern && !valueHasSource(c.Right) {
+	if (c.Op == "≅" || c.Op == "≇") && right.Kind != tmPattern && right.Kind != tmCapture && !valueHasSource(c.Right) {
 		right = &domTerm{Kind: tmPattern, Pattern: r.patternValue(c.Right)}
 	}
 	inner := r.cond(c.Inner)
@@ -1009,6 +1009,15 @@ func (g *stageGrammar) checkConstantRule(u constUser) *Error {
 	// The checks that simplification decides, which the reader left to
 	// the loader, now with the constants' values (§9).
 	resolved := newResolver(g.constants, g.uni).rule(u.rule)
+	terms := []*domTerm{resolved.Tags}
+	for _, alternative := range resolved.Alternatives {
+		terms = append(terms, alternative.Tags)
+	}
+	for _, term := range terms {
+		if term != nil && readsOwnTags(term) {
+			return g.constError(u.doc, u.rule.At, "a constituent reads its own tags")
+		}
+	}
 	if u.rule.Params != nil {
 		resolved = partialSourceRule(resolved)
 	}

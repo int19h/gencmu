@@ -1,0 +1,10 @@
+{
+  "description": "tree-equality-item",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $x:w { $y:w }\n%conditions\n  $x ≅ $y\n%rule w \"a\" | \"b\"\n",
+  "input": "aaa",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

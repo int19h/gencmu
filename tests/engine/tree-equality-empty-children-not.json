@@ -1,0 +1,8 @@
+{
+  "description": "Empty named children do not make two equal structural trees unequal.",
+  "grammar": "%rule text $x:r $y:r\n%conditions $x ≇ $y\n%rule r [empty] \"a\"\n%rule empty ε",
+  "input": "aa",
+  "expect": {
+    "error": "rejected"
+  }
+}

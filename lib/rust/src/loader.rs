@@ -383,11 +383,15 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
         tokens: &stage.input,
         strings: &strings,
         captures: Default::default(),
-        braces: Default::default(),
+        chain: Default::default(),
+        item: Default::default(),
+        ranked: Default::default(),
         marked: Default::default(),
         position: &position,
         closed_for: Default::default(),
         in_recipe: Default::default(),
+        head_defaults: Default::default(),
+        default_head: Default::default(),
     };
     let mut dom = reader.document(tree)?;
     check_read(&dom, &notation.unicode)?;
@@ -498,7 +502,8 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
 }
 
 /// Where a loader finds its documents.
-trait Sources {
+trait Sources: Send + Sync + std::panic::RefUnwindSafe + std::panic::UnwindSafe {
+    fn owned(&self) -> Arc<dyn Sources>;
     /// The text of the document at `path`, or `None` when there is none.
     fn read(&self, path: &str) -> Result<Option<String>, Error>;
     fn resolve(&self, base: &str, target: &str) -> Option<String>;
@@ -513,11 +518,15 @@ trait Sources {
     }
 }
 
+#[derive(Clone)]
 struct MapSources {
     map: HashMap<String, String>,
 }
 
 impl Sources for MapSources {
+    fn owned(&self) -> Arc<dyn Sources> {
+        Arc::new(self.clone())
+    }
     fn names_override(&self, path: &str) -> bool {
         self.map.contains_key(path)
     }
@@ -532,6 +541,9 @@ impl Sources for MapSources {
 
 struct BundledSources;
 impl Sources for BundledSources {
+    fn owned(&self) -> Arc<dyn Sources> {
+        Arc::new(Self)
+    }
     fn read(&self, path: &str) -> Result<Option<String>, Error> {
         Ok(bundled(path).map(str::to_string))
     }
@@ -571,6 +583,9 @@ fn normalize(path: &Path) -> PathBuf {
 }
 
 impl Sources for DiskSources {
+    fn owned(&self) -> Arc<dyn Sources> {
+        Arc::new(Self)
+    }
     fn names_override(&self, path: &str) -> bool {
         !matches!(path, "data/unicode/unicode-names.txt" | "data/unicode/unicode-names-reference.txt")
             && !matches!(std::fs::metadata(path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
@@ -619,6 +634,7 @@ struct Reading<'a> {
     sources: &'a dyn Sources,
     read: HashMap<(String, Vec<String>), Arc<Dom>>,
     diagnostic_document: Option<&'a str>,
+    texts: HashMap<String, String>,
     families: HashMap<String, Preparsed>,
 }
 
@@ -670,6 +686,7 @@ impl Documents for Reading<'_> {
             &names,
             preparsed,
         )?);
+        self.texts.insert(path.to_string(), text);
         self.read.insert(key, dom.clone());
         Ok(Some(dom))
     }
@@ -683,7 +700,14 @@ impl Documents for Reading<'_> {
 fn splice_pipeline(context: &Context, sources: &dyn Sources, path: &str) -> Result<Spliced, Error> {
     splice(
         path,
-        &mut Reading { context, sources, read: HashMap::new(), diagnostic_document: None, families: HashMap::new() },
+        &mut Reading {
+            context,
+            sources,
+            read: HashMap::new(),
+            texts: HashMap::new(),
+            diagnostic_document: None,
+            families: HashMap::new(),
+        },
     )
 }
 
@@ -696,6 +720,14 @@ fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result
             // Retry only a failed load, with locations for its diagnostic document.
             let document = error.group().and_then(|group| group.document.as_deref());
             load_mode(context, sources, pipeline_path, document)
+        }
+        Err(error)
+            if error.message.starts_with("boundary target ") && error.line.is_none() && error.document.is_some() =>
+        {
+            load_mode(context, sources, pipeline_path, error.document.as_deref())
+        }
+        Err(error) if error.message.starts_with("a default fails its head test") && error.document.is_some() => {
+            load_mode(context, sources, pipeline_path, error.document.as_deref())
         }
         Err(error) if error.location_recovery.is_some() && error.line.is_none() && error.document.is_some() => {
             load_mode(context, sources, pipeline_path, error.document.as_deref())
@@ -710,19 +742,66 @@ fn load_mode(
     pipeline_path: &str,
     diagnostic_document: Option<&str>,
 ) -> Result<Pipeline, Error> {
-    let pipeline = splice(
-        pipeline_path,
-        &mut Reading { context, sources, read: HashMap::new(), diagnostic_document, families: HashMap::new() },
-    )?;
+    let mut reading = Reading {
+        context,
+        sources,
+        read: HashMap::new(),
+        texts: HashMap::new(),
+        diagnostic_document,
+        families: HashMap::new(),
+    };
+    let spliced = splice(pipeline_path, &mut reading)?;
+    let texts = Arc::new(reading.texts);
+    let mut owned_sources = None;
+    let mut recoveries = BTreeMap::new();
     let mut stages = Vec::new();
-    for stage in pipeline.stages {
+    for (index, stage) in spliced.stages.into_iter().enumerate() {
         let documents: Vec<(Arc<str>, Arc<Dom>)> =
             stage.documents.into_iter().map(|(path, dom)| (path, Arc::new(dom))).collect();
-        stages.push(stitch(&stage.name, &documents, &context.unicode).map_err(|error| error.in_stage(&stage.name))?);
+        let grammar = stitch(&stage.name, &documents, &context.unicode).map_err(|error| error.in_stage(&stage.name))?;
+        if grammar.tree_comparisons {
+            let sources = owned_sources.get_or_insert_with(|| sources.owned()).clone();
+            let texts = texts.clone();
+            let notation = context.notation.clone();
+            let unicode = context.unicode.clone();
+            let recovery: Arc<crate::pipeline::TreeLocationRecovery> =
+                Arc::new(move |document, features, classifiers| {
+                    if notation.stages.is_empty() {
+                        return None;
+                    }
+                    let mut documents = documents.clone();
+                    let mut located = false;
+                    for (path, dom) in &mut documents {
+                        if path.as_ref() != document {
+                            continue;
+                        }
+                        let Some(text) = texts.get(path.as_ref()) else { continue };
+                        let read_names = |name: &str| sources.names(name);
+                        let names_override = |name: &str| sources.names_override(name);
+                        let resolve = |base: &str, target: &str| sources.resolve(base, target);
+                        let inherited = dom.names_dependencies.iter().flat_map(|deps| deps.keys().cloned());
+                        let names = NamesScope::new(&read_names, &unicode, inherited)
+                            .in_document(path, &resolve)
+                            .with_overrides(&names_override);
+                        if let Ok(source) = read_document_named(&notation, text, true, &names) {
+                            crate::ranked::restore_locations(Arc::make_mut(dom), &source);
+                            located = true;
+                        }
+                    }
+                    if !located {
+                        return None;
+                    }
+                    let grammar = stitch(&stage.name, &documents, &unicode).ok()?;
+                    crate::lower::lower(&grammar, features, classifiers).err().filter(|error| !error.recover_location)
+                });
+            recoveries.insert(index, recovery);
+        }
+        stages.push(grammar);
     }
-    // A name used both as a gate and as a warning, in any of the stages, is
-    // an error of the pipeline as a whole (engine §13).
-    Pipeline::new(stages, pipeline.features, context.unicode.clone()).map_err(|error| error.in_document(pipeline_path))
+    let mut pipeline = Pipeline::new(stages, spliced.features, context.unicode.clone())
+        .map_err(|error| error.in_document(pipeline_path))?;
+    pipeline.tree_recovery = recoveries;
+    Ok(pipeline)
 }
 
 /// Loads a bundled pipeline by name: the pipeline document
@@ -854,7 +933,7 @@ pub fn check_dom_with_unicode(json: &str, table: &str) -> Result<Option<String>,
 }
 
 /// Splices a bundled pipeline document (engine §13) and returns the result
-/// as JSON, `{"format":40,"stages":[{"name":...,"documents":[{"path":...,
+/// as JSON, `{"format":43,"stages":[{"name":...,"documents":[{"path":...,
 /// "dom":...}]}],"features":[...]}`: each stage's runs of one document's
 /// items, as spliced stage records, and the features. With `cached`
 /// false, every document is read through the notation, bypassing
@@ -1100,13 +1179,22 @@ mod ranked_location_tests {
     fn bundled_cached_grammars_never_read_source() {
         let bundled = Context::bundled().unwrap();
         let notation = Arc::new(Pipeline::new(vec![], vec![], bundled.unicode.clone()).unwrap());
-        let mut preparsed = Preparsed::parse(
-            super::bundled("data/preparsed/lojban.json").unwrap(),
-            &bootstrap_hash(),
-            &fnv1a64(super::bundled("data/unicode/unicode.txt").unwrap()),
-            bundled.unicode.properties_fingerprint.as_deref(),
-        )
-        .unwrap();
+        // Every bundled family's cache, so that each bundled pipeline finds
+        // its documents there.
+        let mut preparsed = Preparsed::default();
+        for (path, text) in bundled::BUNDLED.iter() {
+            if !path.starts_with("data/preparsed/") || *path == BOOTSTRAP_PATH {
+                continue;
+            }
+            let family = Preparsed::parse(
+                text,
+                &bootstrap_hash(),
+                &fnv1a64(super::bundled("data/unicode/unicode.txt").unwrap()),
+                bundled.unicode.properties_fingerprint.as_deref(),
+            )
+            .unwrap();
+            preparsed.by_path.extend(family.by_path);
+        }
         let notation_entries = Preparsed::parse_implicit(
             super::bundled(BOOTSTRAP_PATH).unwrap(),
             &bootstrap_hash(),
@@ -1149,7 +1237,7 @@ mod ranked_location_tests {
         let bundled = Context::bundled().unwrap();
         let pipeline = "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n";
         let grammar =
-            "```jbogenbau\n%ambiguity-resolution late-elision\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y\n```\n";
+            "```jbogenbau\n%ambiguity-resolution late #·_<_Elided>\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y\n```\n";
         let sources = MapSources { map: [("p.md".into(), pipeline.into()), ("g.md".into(), grammar.into())].into() };
         let mut preparsed = Preparsed::default();
         for (path, text) in &sources.map {
@@ -1308,6 +1396,25 @@ mod notation_cache_tests {
     fn value_notation(aliases: &[Json]) -> String {
         let mut bootstrap = json::parse(super::bundled("data/preparsed/gencmu.json").unwrap()).unwrap();
         let document = field(field(&mut bootstrap, "documents"), "grammars/gencmu/jbogenbau/lexical.md");
+        // The aliases count as `alias`, which a first step prefers.
+        let directive = array(field(field(document, "dom"), "directives"))
+            .iter_mut()
+            .find(|directive| directive.get("name").and_then(Json::as_str) == Some("ambiguity-resolution"))
+            .unwrap();
+        let mut atoms: Vec<Json> = (0..aliases.len())
+            .map(|index| {
+                object([
+                    ("name", Json::Str(format!("value-alias-{index}"))),
+                    ("exact", Json::Bool(true)),
+                    ("at", Json::Arr(vec![Json::Int(1), Json::Int(1)])),
+                ])
+            })
+            .collect();
+        if !atoms.is_empty() {
+            let pattern = if atoms.len() == 1 { atoms.remove(0) } else { object([("union", Json::Arr(atoms))]) };
+            array(field(directive, "steps"))
+                .insert(0, object([("step", Json::Str("leftmost-longest".into())), ("pattern", pattern)]));
+        }
         let rules = array(field(field(document, "dom"), "rules"));
         for (index, alias) in aliases.iter().enumerate() {
             let name = format!("value-alias-{index}");
@@ -1345,7 +1452,6 @@ mod notation_cache_tests {
             rules.push(object([
                 ("name", Json::Str(name)),
                 ("op", Json::Str("define".into())),
-                ("flags", Json::Arr(vec![Json::Str("leftmost-longest".into())])),
                 ("at", Json::Arr(vec![Json::Int(100000 + index as i64), Json::Int(1)])),
                 ("conditions", Json::Arr(vec![])),
                 ("alternatives", Json::Arr(vec![object([("guards", Json::Arr(vec![])), ("expr", expression)])])),

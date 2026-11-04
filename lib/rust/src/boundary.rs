@@ -312,7 +312,7 @@ fn atoms_in(start: DomPart<'_>) -> Vec<&crate::dom::Cond> {
                 Cond::Not(c) => stack.push(DomPart::Condition(c)),
                 Cond::All(cs) | Cond::Any(cs) => stack.extend(cs.iter().rev().map(DomPart::Condition)),
                 Cond::If(a, b) => stack.extend([DomPart::Condition(b), DomPart::Condition(a)]),
-                Cond::Compare(_, a, b) => stack.extend([DomPart::Term(b), DomPart::Term(a)]),
+                Cond::Compare(_, a, b, _) => stack.extend([DomPart::Term(b), DomPart::Term(a)]),
                 _ => {}
             },
             DomPart::Term(t) => match t {
@@ -537,7 +537,7 @@ fn reach(g: &crate::grammar::StageGrammar, roots: Vec<String>) -> (FxSet<String>
                     terminals.insert(n.clone());
                 }
                 Expr::Seq(es) | Expr::Choice(es) | Expr::Ranked(es, _) | Expr::And(es) => stack.extend(es),
-                Expr::Capture(_, e) | Expr::Optional(e, _) | Expr::Tested(_, _, e) => stack.push(e),
+                Expr::Capture(_, e) | Expr::Optional(e, _, _) | Expr::Tested(_, _, e) => stack.push(e),
                 Expr::Repeat(e, s, _) => {
                     stack.push(e);
                     stack.extend(s.as_deref());
@@ -579,7 +579,7 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
                         Cond::Not(c) => stack.push(Part::C(c)),
                         Cond::All(cs) | Cond::Any(cs) => stack.extend(cs.iter().map(Part::C)),
                         Cond::If(a, b) => stack.extend([Part::C(a), Part::C(b)]),
-                        Cond::Compare(_, a, b) => stack.extend([Part::T(a), Part::T(b)]),
+                        Cond::Compare(_, a, b, _) => stack.extend([Part::T(a), Part::T(b)]),
                         _ => {}
                     },
                     Part::T(t) => match t {

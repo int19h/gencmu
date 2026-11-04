@@ -162,7 +162,48 @@ func (g *stageGrammar) validateBoundaryTargets() *Error {
 	return nil
 }
 
+func treeComparisonsInRule(rule *domRule) []*domCond {
+	var out []*domCond
+	collect := func(root clausePart) {
+		walkClause(root, func(part clausePart) bool {
+			if c := part.c; c != nil && (c.Op == "≅" || c.Op == "≇") {
+				out = append(out, c)
+				return false
+			}
+			return true
+		})
+	}
+	collect(clausePart{t: rule.Tags})
+	for _, alt := range rule.Alternatives {
+		collect(clausePart{t: alt.Tags})
+	}
+	for _, condition := range rule.Conditions {
+		collect(clausePart{c: condition})
+	}
+	return out
+}
+
+func restoreTreeLocations(to, from *domDoc) {
+	originals := map[[2]int]*domRule{}
+	for _, rule := range from.Rules {
+		originals[rule.At] = rule
+	}
+	for _, rule := range to.Rules {
+		source := originals[rule.At]
+		if source == nil {
+			continue
+		}
+		found, written := treeComparisonsInRule(rule), treeComparisonsInRule(source)
+		if len(found) == len(written) {
+			for i, c := range found {
+				c.At = written[i].At
+			}
+		}
+	}
+}
+
 func restoreBoundaryLocations(to, from *domDoc) {
+	restoreTreeLocations(to, from)
 	collect := func(d *domDoc) []*domCond {
 		var out []*domCond
 		for _, r := range d.Rules {

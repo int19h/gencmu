@@ -1,0 +1,8 @@
+{
+  "description": "Equality rejects the distinct tree inside the enclosing ranked seal.",
+  "grammar": "%rule text r\n%rule r :: ($ ≅ #(r=\"ab\" ∩ « \"a\" ⋯ ») ⟹ X)\n  | \"a\" ($x:r ≻ \"c\") | \"b\"\n%conditions $x ⟹ (X ⊆ $.tags ∧ $ ≅ $x)",
+  "input": "ab",
+  "expect": {
+    "error": "rejected"
+  }
+}

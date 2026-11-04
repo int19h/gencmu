@@ -13,6 +13,11 @@ func flattenGroups(d *domDoc) {
 		stack = append(stack, r.If, r.Then)
 	}
 	for _, r := range d.Directives {
+		for _, step := range r.Steps {
+			if step.Pattern != nil {
+				stack = append(stack, step.Pattern)
+			}
+		}
 		for _, c := range r.Conditions {
 			stack = append(stack, c)
 		}

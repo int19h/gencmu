@@ -22,7 +22,10 @@ fn shape_problem(dom: &Json, unicode: &Unicode) -> Option<String> {
     for part in roots.iter().filter_map(|key| dom.get(key)).flat_map(crate::parameters::nodes) {
         for field in ["ref", "tag", "terminal"] {
             if let Some(name) = part.get(field).and_then(crate::json::Json::as_str) {
-                if name.starts_with('_') && unicode.canonical_tag(name) != Some(name) {
+                if name.starts_with('_')
+                    && !(field == "tag" && name == "_Elided")
+                    && unicode.canonical_tag(name) != Some(name)
+                {
                     return Some("unknown, unavailable, or noncanonical engine tag".into());
                 }
             }
@@ -36,7 +39,7 @@ fn known_dom_members(dom: &Json) -> Option<Json> {
     if dom.get("directives").and_then(crate::json::Json::as_array).is_some_and(|items| {
         items.iter().any(|item| {
             item.as_object().is_some_and(|fields| {
-                fields.iter().any(|(key, _)| !["name", "args", "conditions", "at"].contains(&key.as_str()))
+                fields.iter().any(|(key, _)| !["name", "args", "steps", "conditions", "at"].contains(&key.as_str()))
             })
         })
     }) {
@@ -47,7 +50,9 @@ fn known_dom_members(dom: &Json) -> Option<Json> {
                     if let crate::json::Json::Arr(items) = value {
                         for item in items {
                             if let crate::json::Json::Obj(fields) = item {
-                                fields.retain(|(key, _)| ["name", "args", "conditions", "at"].contains(&key.as_str()));
+                                fields.retain(|(key, _)| {
+                                    ["name", "args", "steps", "conditions", "at"].contains(&key.as_str())
+                                });
                             }
                         }
                     }
@@ -66,7 +71,7 @@ use crate::tags::is_name;
 use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 40;
+pub const DOM_FORMAT: i64 = 44;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -149,7 +154,6 @@ pub(crate) struct RuleDef {
     pub deferred_emission: Option<crate::clauses::DefinitionIssue>,
     pub name: String,
     pub op: Op,
-    pub flags: Vec<String>,
     pub tags: Option<Term>,
     pub strings: Channels,
     pub alternatives: Vec<Alternative>,
@@ -198,7 +202,7 @@ pub(crate) enum Expr {
     Ranked(Vec<Expr>, Option<(usize, usize)>),
     And(Vec<Expr>),
     /// An optional `[x]`, or an elidable optional `[+T x]` (§3.8).
-    Optional(Box<Expr>, Mark),
+    Optional(Box<Expr>, Mark, Option<DefaultValue>),
     /// Braces: the item, the separator after `/` if any, and a chain's
     /// direction, from its marker `...` (engine §3.2, §3.3).
     Repeat(Box<Expr>, Option<Box<Expr>>, Option<Chain>),
@@ -215,6 +219,12 @@ pub(crate) enum Expr {
     /// The closed operand precedes the wrapped symbol in this representation.
     Tested(String, Term, Box<Expr>),
     Empty,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct DefaultValue {
+    pub term: Term,
+    pub at: Option<(usize, usize)>,
 }
 
 /// The marker of an optional (engine §3.8): none, `+` for an elidable
@@ -277,7 +287,7 @@ pub(crate) struct BoundaryLocation {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Cond {
     SourceQuery(String, Vec<Arg>, BoundaryLocation),
-    Compare(String, Term, Term),
+    Compare(String, Term, Term, Option<(usize, usize)>),
     Matches(Term, Vec<String>),
     /// `begins(s, R)`: whether a prefix of the span, possibly empty, parses
     /// as `R`.
@@ -336,8 +346,36 @@ impl Attachments {
 pub(crate) struct Directive {
     pub conditions: Option<Vec<Cond>>,
     pub name: String,
+    /// The operands of every directive but `%ambiguity-resolution`.
     pub args: Vec<String>,
+    /// The steps of `%ambiguity-resolution`, and None for every other
+    /// directive (engine §9.3).
+    pub steps: Option<Vec<Step>>,
     pub at: (usize, usize),
+}
+
+/// One step of `%ambiguity-resolution`: a key step with its pattern, or a
+/// lean with none (engine §6).
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Step {
+    pub step: String,
+    pub pattern: Option<Term>,
+    pub operand_at: Option<(usize, usize)>,
+}
+
+/// The steps of `%ambiguity-resolution` that take a pattern (engine §6).
+pub(crate) const KEY_STEPS: &[&str] = &["leftmost-longest", "fewest", "most", "late", "early"];
+/// The steps of `%ambiguity-resolution` that compare actions (engine §6).
+pub(crate) const LEANS: &[&str] = &["greedy", "lazy"];
+
+/// Whether steps are a well-formed list: one or more, each a key step with
+/// a pattern or a lean, with a lean only last (engine §9.3).
+pub(crate) fn valid_steps(steps: &[Step]) -> bool {
+    !steps.is_empty()
+        && steps.iter().enumerate().all(|(index, step)| match &step.pattern {
+            Some(_) => KEY_STEPS.contains(&step.step.as_str()),
+            None => LEANS.contains(&step.step.as_str()) && index == steps.len() - 1,
+        })
 }
 
 // ---- reading a DOM from JSON
@@ -393,10 +431,16 @@ fn decode_nodes(value: &Json) -> R<Dom> {
                     .map(|_| array(directive, "conditions")?.iter().map(cond_from_json).collect::<R<Vec<_>>>())
                     .transpose()?,
                 name: string(directive, "name")?,
-                args: array(directive, "args")?
-                    .iter()
-                    .map(|arg| arg.as_str().map(str::to_string).ok_or_else(|| "a bad directive argument".to_string()))
-                    .collect::<R<Vec<_>>>()?,
+                args: match directive.get("args") {
+                    Some(_) => array(directive, "args")?
+                        .iter()
+                        .map(|arg| {
+                            arg.as_str().map(str::to_string).ok_or_else(|| "a bad directive argument".to_string())
+                        })
+                        .collect::<R<Vec<_>>>()?,
+                    None => Vec::new(),
+                },
+                steps: directive.get("steps").map(steps_from_json).transpose()?,
                 at: position(directive)?,
             })
         })
@@ -539,6 +583,37 @@ fn guard_from_json(guard: &Json) -> R<Guard> {
     })
 }
 
+/// The steps of `%ambiguity-resolution`.
+pub(crate) fn steps_from_json(value: &Json) -> R<Vec<Step>> {
+    value
+        .as_array()
+        .ok_or("malformed ranking steps")?
+        .iter()
+        .map(|step| {
+            if !step
+                .as_object()
+                .is_some_and(|fields| fields.iter().all(|(key, _)| matches!(key.as_str(), "step" | "pattern")))
+            {
+                return Err("a malformed ranking step".into());
+            }
+            Ok(Step {
+                step: string(step, "step")?,
+                pattern: step
+                    .get("pattern")
+                    .map(|operand| {
+                        if operand.get("const").is_some() {
+                            term_from_json(operand)
+                        } else {
+                            crate::patterns::Pattern::from_json(operand).map(|p| Term::Pattern(Box::new(p)))
+                        }
+                    })
+                    .transpose()?,
+                operand_at: None,
+            })
+        })
+        .collect()
+}
+
 pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
     let op = match string(value, "op")?.as_str() {
         "define" => Op::Define,
@@ -551,10 +626,6 @@ pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
         deferred_emission: None,
         name: string(value, "name")?,
         op,
-        flags: array(value, "flags")?
-            .iter()
-            .map(|flag| flag.as_str().map(str::to_string).ok_or_else(|| "a malformed rule flag".to_string()))
-            .collect::<R<Vec<_>>>()?,
         tags: value.get("tags").map(term_from_json).transpose()?,
         strings: channels_from_json(value)?,
         alternatives: if value.get("instance").is_some() { &[] } else { array(value, "alternatives")? }
@@ -623,7 +694,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
         Read(&'a Json),
         List(&'a str, usize),
         Tested(String, Term),
-        Optional(Mark),
+        Optional(Mark, Option<DefaultValue>),
         Repeat(Option<Chain>, bool),
         Capture(String),
     }
@@ -653,7 +724,18 @@ fn expr_from_json(value: &Json) -> R<Expr> {
                     }
                     "optional" => {
                         let mark = if is_true(value.get("elidable")) { Mark::Elidable } else { Mark::Plain };
-                        pending.push(Task::Optional(mark));
+                        pending.push(Task::Optional(
+                            mark,
+                            value
+                                .get("default")
+                                .map(|d| -> R<DefaultValue> {
+                                    Ok(DefaultValue {
+                                        term: term_from_json(d)?,
+                                        at: crate::parameters::locations::source_at(d),
+                                    })
+                                })
+                                .transpose()?,
+                        ));
                         pending.push(Task::Read(field(value, "optional")?));
                         continue;
                     }
@@ -698,7 +780,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
                 }
             }
             Task::Tested(op, term) => Expr::Tested(op, term, Box::new(values.pop().unwrap())),
-            Task::Optional(mark) => Expr::Optional(Box::new(values.pop().unwrap()), mark),
+            Task::Optional(mark, default) => Expr::Optional(Box::new(values.pop().unwrap()), mark, default),
             Task::Repeat(chain, separated) => {
                 let item = Box::new(values.pop().unwrap());
                 let separator = separated.then(|| Box::new(values.pop().unwrap()));
@@ -805,6 +887,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     string(value, "op")?,
                     operands.next().unwrap().term(),
                     operands.next().unwrap().term(),
+                    Default::default(),
                 ),
                 "method" => {
                     let receiver = operands.next().unwrap().term();
@@ -1043,14 +1126,18 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
 
         out.push_str("{\"name\":");
         write_str(&mut out, &directive.name);
-        out.push_str(",\"args\":[");
-        for (index, arg) in directive.args.iter().enumerate() {
-            if index > 0 {
-                out.push(',');
+        if let Some(steps) = &directive.steps {
+            write_steps(&mut out, steps);
+        } else {
+            out.push_str(",\"args\":[");
+            for (index, arg) in directive.args.iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
+                }
+                write_str(&mut out, arg);
             }
-            write_str(&mut out, arg);
+            out.push(']');
         }
-        out.push(']');
         out.push_str(&format!(",\"at\":[{},{}]", directive.at.0, directive.at.1));
         if let Some(conditions) = &directive.conditions {
             out.push_str(",\"conditions\":[");
@@ -1125,6 +1212,28 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
     out
 }
 
+/// The `steps` member of `%ambiguity-resolution`.
+pub(crate) fn write_steps(out: &mut String, steps: &[Step]) {
+    out.push_str(",\"steps\":[");
+    for (index, step) in steps.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        out.push_str("{\"step\":");
+        write_str(out, &step.step);
+        if let Some(pattern) = &step.pattern {
+            out.push_str(",\"pattern\":");
+            if let Term::Pattern(p) = pattern {
+                p.write(out);
+            } else {
+                write_term(out, pattern);
+            }
+        }
+        out.push('}');
+    }
+    out.push(']');
+}
+
 pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
     out.push_str("{\"name\":");
     write_str(out, &rule.name);
@@ -1147,14 +1256,6 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
         Op::Redefine => ",\"op\":\"redefine\"",
         Op::Extend => ",\"op\":\"extend\"",
     });
-    out.push_str(",\"flags\":[");
-    for (index, flag) in rule.flags.iter().enumerate() {
-        if index > 0 {
-            out.push(',');
-        }
-        write_str(out, flag);
-    }
-    out.push(']');
     if let Some(tags) = &rule.tags {
         out.push_str(",\"tags\":");
         write_term(out, tags);
@@ -1364,7 +1465,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                     Arg::Term(term) => Some(Nested::Term(term)),
                     _ => None,
                 })),
-                Cond::Compare(_, left, right) => stack.extend([Nested::Term(right), Nested::Term(left)]),
+                Cond::Compare(_, left, right, _) => stack.extend([Nested::Term(right), Nested::Term(left)]),
                 Cond::Not(inner) => stack.push(Nested::Cond(inner)),
                 Cond::Any(items) | Cond::All(items) => stack.extend(items.iter().rev().map(Nested::Cond)),
                 Cond::If(antecedent, consequent) => stack.extend([Nested::Cond(consequent), Nested::Cond(antecedent)]),
@@ -1384,7 +1485,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     stack.extend(items.iter().rev().map(Nested::Expr))
                 }
-                Expr::Capture(_, inner) | Expr::Optional(inner, _) => stack.push(Nested::Expr(inner)),
+                Expr::Capture(_, inner) | Expr::Optional(inner, _, _) => stack.push(Nested::Expr(inner)),
                 Expr::Repeat(item, separator, _) => {
                     stack.extend(separator.as_deref().map(Nested::Expr));
                     stack.push(Nested::Expr(item));
@@ -1469,7 +1570,13 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                 Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     stack.extend(items.iter().map(|item| (Nested::Expr(item), below)))
                 }
-                Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push((Nested::Expr(inner), below)),
+                Expr::Optional(inner, _, default) => {
+                    stack.push((Nested::Expr(inner), below));
+                    if let Some(default) = default {
+                        stack.push((Nested::Term(&default.term), below));
+                    }
+                }
+                Expr::Capture(_, inner) => stack.push((Nested::Expr(inner), below)),
                 Expr::Repeat(item, separator, _) => {
                     stack.push((Nested::Expr(item), below));
                     stack.extend(separator.as_deref().map(|separator| (Nested::Expr(separator), below)));
@@ -1519,7 +1626,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                         stack.push((Nested::Term(a), depth));
                         stack.push((Nested::Term(b), depth));
                     }
-                    Pattern::Test(_, value, inner) => {
+                    Pattern::Test(_, value, inner, _) => {
                         stack.push((Nested::Term(value), below));
                         stack.push((Nested::Pattern(inner), below));
                     }
@@ -1574,7 +1681,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                 | Cond::Initial(span)
                 | Cond::Final(span)
                 | Cond::Boundary(_, span, _, _) => stack.push((Nested::Term(span), below)),
-                Cond::Compare(_, left, right) => {
+                Cond::Compare(_, left, right, _) => {
                     stack.push((Nested::Term(left), below));
                     stack.push((Nested::Term(right), below));
                 }
@@ -1621,8 +1728,8 @@ pub(crate) fn term_too_deep(term: &Term) -> bool {
     too_deep(vec![Nested::Term(term)])
 }
 
-/// The tested symbols of an expression, in the order written: each
-/// comparator, value and symbol.
+/// The tested symbols and default operands, in written order: each
+/// comparator, value and symbol. A default requires a string like `=`.
 pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
     let mut found = Vec::new();
     let mut stack = vec![expr];
@@ -1631,7 +1738,13 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.iter().rev())
             }
-            Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
+            Expr::Optional(inner, _, default) => {
+                if let Some(default) = default {
+                    found.push(("=", &default.term, inner.as_ref()));
+                }
+                stack.push(inner);
+            }
+            Expr::Capture(_, inner) => stack.push(inner),
             // The item before the separator.
             Expr::Repeat(item, separator, _) => {
                 stack.extend(separator.as_deref());
@@ -1678,7 +1791,13 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
                 Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
                     pending.extend(xs.iter().rev())
                 }
-                Expr::Capture(_, x) | Expr::Optional(x, _) => pending.push(x),
+                Expr::Capture(_, x) => pending.push(x),
+                Expr::Optional(x, _, default) => {
+                    if let Some(default) = default {
+                        references_in_term(&default.term, &mut out);
+                    }
+                    pending.push(x);
+                }
                 Expr::Repeat(x, s, _) => {
                     pending.extend(s.as_deref());
                     pending.push(x);
@@ -1764,8 +1883,10 @@ pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<St
     if matches!(op, "≅" | "≇") {
         return if left != Type::Span {
             Some("a tree comparison reads one bare capture".into())
+        } else if matches!(right, Type::Span | Type::Pattern | Type::Set | Type::Any) {
+            None
         } else {
-            expected_problem(right, Type::Pattern)
+            Some("a tree comparison requires a pattern or a bare capture on its right".into())
         };
     }
     if !matches!(op, "∈" | "∉")
@@ -1917,19 +2038,38 @@ pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<F
         Cond::If(antecedent, consequent) => {
             cond_type_fault(antecedent, constants).or_else(|| cond_type_fault(consequent, constants))
         }
-        Cond::Compare(op, left, right) => {
+        Cond::Compare(op, left, right, _) => {
             if matches!(op.as_str(), "≅" | "≇") && !matches!(left, Term::Capture(_)) {
                 return Some(Fault::in_cond("a tree comparison requires a bare capture".into(), cond));
             }
-            let left = match term_type_in(left, constants) {
+            let left_type = match term_type_in(left, constants) {
                 Ok(ty) => ty,
                 Err(fault) => return Some(fault),
             };
-            let right = match term_type_in(right, constants) {
+            let right_type = match term_type_in(right, constants) {
                 Ok(ty) => ty,
                 Err(fault) => return Some(fault),
             };
-            comparison_problem(op, left, right).map(|problem| Fault::in_cond(problem, cond))
+            if matches!(op.as_str(), "≅" | "≇") {
+                if matches!((left, right), (Term::Capture(a), Term::Capture(b)) if a == b) {
+                    return Some(Fault::in_cond(
+                        "a constituent comparison requires two different captures".into(),
+                        cond,
+                    ));
+                }
+                if right_type == Type::Span && !matches!(right, Term::Capture(_)) {
+                    return Some(Fault::in_term(
+                        "a tree comparison requires a pattern or a bare capture on its right".into(),
+                        right,
+                    ));
+                }
+                if let Some(problem) = comparison_problem(op, left_type, right_type) {
+                    return Some(Fault::in_term(problem, right));
+                }
+                None
+            } else {
+                comparison_problem(op, left_type, right_type).map(|problem| Fault::in_cond(problem, cond))
+            }
         }
         Cond::Matches(span, _)
         | Cond::Begins(span, _)
@@ -1991,7 +2131,13 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
                 Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     pending.extend(items.iter().rev())
                 }
-                Expr::Optional(inner, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
+                Expr::Optional(inner, _, default) => {
+                    pending.push(inner);
+                    if let Some(default) = default {
+                        uses.push(Use::String(&default.term));
+                    }
+                }
+                Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
                 Expr::Repeat(item, separator, _) => {
                     pending.extend(separator.as_deref());
                     pending.push(item);
@@ -2118,7 +2264,7 @@ impl crate::patterns::Pattern {
             P::Source(symbol) => symbol.take_parts(stack),
             P::Literal(value, _) => stack.push(term(value)),
             P::Range(a, b, _) => stack.extend([term(a), term(b)]),
-            P::Test(_, value, inner) => stack.extend([term(value), take(inner)]),
+            P::Test(_, value, inner, _) => stack.extend([term(value), take(inner)]),
             P::Path(_, inner) => stack.push(take(inner)),
             P::Node(inner, _, children) => {
                 stack.push(take(inner));
@@ -2186,9 +2332,13 @@ impl Expr {
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.drain(..).map(Dropping::Expr))
             }
-            Expr::Optional(inner, _) | Expr::Capture(_, inner) => {
-                stack.push(Dropping::Expr(std::mem::replace(&mut **inner, Expr::Empty)))
+            Expr::Optional(inner, _, default) => {
+                if let Some(default) = default.take() {
+                    stack.push(Dropping::Term(default.term));
+                }
+                stack.push(Dropping::Expr(std::mem::replace(&mut **inner, Expr::Empty)));
             }
+            Expr::Capture(_, inner) => stack.push(Dropping::Expr(std::mem::replace(&mut **inner, Expr::Empty))),
             Expr::Repeat(item, separator, _) => {
                 stack.push(Dropping::Expr(std::mem::replace(&mut **item, Expr::Empty)));
                 if let Some(separator) = separator {
@@ -2246,7 +2396,7 @@ impl Cond {
                     _ => None,
                 }));
             }
-            Cond::Compare(_, left, right) => {
+            Cond::Compare(_, left, right, _) => {
                 stack.push(Dropping::Term(std::mem::replace(left, Term::EmptySet)));
                 stack.push(Dropping::Term(std::mem::replace(right, Term::EmptySet)));
             }

@@ -1,0 +1,19 @@
+{
+  "description": "A stage with two %ambiguity-resolution directives is an error naming the stage (engine §2).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%ambiguity-resolution lazy\n%rule text A\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

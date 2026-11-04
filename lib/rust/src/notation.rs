@@ -28,15 +28,23 @@ pub(crate) struct Reader<'a> {
     pub strings: &'a crate::string_escapes::DocumentStrings<'a>,
     /// Each capture's boxed target identifies its source node.
     pub captures: std::cell::RefCell<FxMap<usize, &'a Node>>,
-    /// How many braces, and how many elidable optionals, the reader is
-    /// inside, where no capture stands (engine §9).
-    pub braces: std::cell::Cell<usize>,
+    /// Whether the innermost braces around the construct being read are a
+    /// chain, where no capture stands, or flat braces, where a capture is an
+    /// item capture, and how many ranked groups stand between those braces
+    /// and the construct, where no item capture stands. `marked` is how many
+    /// elidable optionals the reader is inside, where no capture stands
+    /// either (engine §3.5, §9).
+    pub chain: std::cell::Cell<bool>,
+    pub item: std::cell::Cell<bool>,
+    pub ranked: std::cell::Cell<usize>,
     pub marked: std::cell::Cell<usize>,
     /// The document position of a grammar-text index.
     pub position: &'a dyn Fn(usize) -> (usize, usize),
-    /// What the reader is reading as a closed term, a constant's value or a
-    /// test's operand, if it is reading one (engine §9, §10).
+    /// The source identity of the current elidable head.
+    pub default_head: std::cell::Cell<usize>,
+    pub head_defaults: std::cell::RefCell<FxMap<usize, crate::dom::DefaultValue>>,
     pub in_recipe: std::cell::Cell<bool>,
+    /// The closed operand that the reader currently reads (engine §9, §10).
     pub closed_for: std::cell::Cell<Option<&'static str>>,
 }
 
@@ -183,6 +191,7 @@ impl<'a> Reader<'a> {
             match rule_name(node) {
                 "rule" => item.rules.push(self.rule(node)?),
                 "directive" => item.directives.push(self.directive(node)?),
+                "ranking-directive" => item.directives.push(self.ranking_directive(node)?),
 
                 "constant-definition" => item.constants.push(self.constant(node)?),
                 "classifier" => item.classifiers.push(self.classifier(node)?),
@@ -346,10 +355,7 @@ impl<'a> Reader<'a> {
                 matches!(&args[..], [name] if crate::dom::is_classifier_name(name))
             }
             "features" => !args.is_empty() && args.iter().all(|name| feature(name)),
-            "ambiguity-resolution" => matches!(
-                args.iter().map(String::as_str).collect::<Vec<_>>().as_slice(),
-                ["greedy" | "lazy" | "late-elision"] | ["greedy" | "lazy" | "late-elision", "elision-only"]
-            ),
+            "elision-only" => args.is_empty(),
             _ => false,
         };
         if !valid {
@@ -385,30 +391,48 @@ impl<'a> Reader<'a> {
             }
             None => None,
         };
-        Ok(Directive { name: name.into(), args, conditions, at: self.at(token) })
+        Ok(Directive { name: name.into(), args, steps: None, conditions, at: self.at(token) })
     }
 
-    fn rule_flags(&self, node: &'a Node, op: Op) -> R<Vec<String>> {
-        let mut flags = Vec::new();
-        if let Some(list) = self.rules(node, "rule-flags").next() {
-            if op == Op::Extend {
-                return Err(self.error(list, "%extend-rule accepts no flags"));
+    /// `%ambiguity-resolution`: its steps, each a key step with a category
+    /// or a lean, with a lean only last (engine §9.3).
+    fn ranking_directive(&self, node: &'a Node) -> R<Directive> {
+        let token = self.token(node)?;
+        let mut steps = Vec::new();
+        let nodes: Vec<_> = self.rules(node, "ranking-step").collect();
+        for (index, step) in nodes.iter().enumerate() {
+            let parts = self.parts(step);
+            let name = self.value(parts[0]).to_string();
+            let operand = parts.len() > 1;
+            if if operand {
+                !crate::dom::KEY_STEPS.contains(&name.as_str())
+            } else {
+                !crate::dom::LEANS.contains(&name.as_str()) || index + 1 != nodes.len()
+            } {
+                return Err(self.error(
+                    node,
+                    "%ambiguity-resolution requires a pattern for each key step and no operand on a final lean",
+                ));
             }
-            for flag in self.some(list, "rule-flag", 1)? {
-                let name = self.value(self.token(flag)?);
-                if !matches!(name, "leftmost-longest" | "fewest") {
-                    return Err(self.error(flag, format!("unknown rule flag {name}")));
-                }
-                if flags.iter().any(|known| known == name) {
-                    return Err(self.error(flag, format!("duplicate rule flag {name}")));
-                }
-                if !flags.is_empty() {
-                    return Err(self.error(flag, "a rule accepts only one flag"));
-                }
-                flags.push(name.to_string());
-            }
+            let pattern = parts
+                .get(1)
+                .map(|operand| self.typed(Frame::Atom(Atom::new(operand, false))).map(|(term, _)| term))
+                .transpose()?;
+            steps.push(crate::dom::Step { step: name, pattern, operand_at: parts.get(1).map(|n| self.at(n)) });
         }
-        Ok(flags)
+        if !crate::dom::valid_steps(&steps) {
+            return Err(self.error(
+                node,
+                "%ambiguity-resolution requires a pattern for each key step and no operand on a final lean",
+            ));
+        }
+        Ok(Directive {
+            name: "ambiguity-resolution".into(),
+            args: Vec::new(),
+            steps: Some(steps),
+            conditions: None,
+            at: self.at(token),
+        })
     }
 
     fn rule(&self, node: &'a Node) -> R<RuleDef> {
@@ -468,7 +492,6 @@ impl<'a> Reader<'a> {
             "%rule" => Op::Define,
             _ => return Err(self.error(definer, "unknown rule definer")),
         };
-        let flags = self.rule_flags(node, op)?;
         if self.tokens_of(node).any(|token| self.value(token) == "=") {
             if source.params.is_some() || source.args.is_some() {
                 return Err(self.error(node, "a binding requires a plain rule name"));
@@ -479,7 +502,6 @@ impl<'a> Reader<'a> {
                 deferred_emission: None,
                 name,
                 op,
-                flags,
                 tags: None,
                 strings: Default::default(),
                 alternatives: Vec::new(),
@@ -526,7 +548,6 @@ impl<'a> Reader<'a> {
             deferred_emission: None,
             name,
             op,
-            flags,
             tags,
             strings,
             alternatives,
@@ -609,6 +630,51 @@ impl<'a> Reader<'a> {
             return Err(
                 self.error(capture, format!("the capture ${name} is read twice by one production of the alternative"))
             );
+        }
+        // The name of an item capture stands nowhere else in the
+        // alternative (§3.5, §9): the error stands at the later capture in
+        // the text.
+        let items = crate::clauses::item_capture_names(&expr);
+        if !items.is_empty() {
+            let captures = self.captures.borrow();
+            let mut seen: FxMap<&str, &Node> = FxMap::default();
+            let mut capture_targets = Vec::new();
+            let mut pending = vec![&expr];
+            while let Some(node) = pending.pop() {
+                if let Expr::Capture(_, target) = node {
+                    capture_targets.push(target.as_ref());
+                }
+                match node {
+                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                        pending.extend(items.iter().rev())
+                    }
+                    Expr::Capture(_, inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => {
+                        pending.push(inner)
+                    }
+                    Expr::Repeat(inner, sep, _) => {
+                        pending.extend(sep.as_deref());
+                        pending.push(inner);
+                    }
+                    _ => {}
+                }
+            }
+            for (index, name) in capture_names(&expr).into_iter().enumerate() {
+                let at = captures[&(capture_targets[index] as *const Expr as usize)];
+                if let Some(&earlier) = seen.get(name) {
+                    if items.contains(&name) {
+                        let later = if self.first(earlier) < self.first(at) { at } else { earlier };
+                        return Err(self.error(
+                            later,
+                            format!(
+                                "the item capture ${name} is read again: the name of an item capture stands once in \
+                                 its alternative"
+                            ),
+                        ));
+                    }
+                } else {
+                    seen.insert(name, at);
+                }
+            }
         }
         let tags = match self.rules(node, "alternative-tags").next() {
             Some(tags) => Some(self.constituent_tags(tags)?),
@@ -791,6 +857,10 @@ impl<'a> Reader<'a> {
                 frame.ranked = true;
             }
             frame.conjunctions = Some(self.some(frame.node, "conjunction", if frame.ranked { 2 } else { 1 })?);
+            if frame.ranked {
+                // No item capture stands inside a ranked group (§3.5, §9).
+                self.ranked.set(self.ranked.get() + 1);
+            }
         }
         if let Some(Val::Expr(expr)) = input {
             frame.parts.push(expr);
@@ -799,6 +869,7 @@ impl<'a> Reader<'a> {
         match conjunctions.get(frame.parts.len()) {
             Some(&conjunction) => Ok(Step::Call(Frame::Conjunction(Conjunction::new(conjunction, false)))),
             None => Ok(Step::Done(Val::Expr(if frame.ranked {
+                self.ranked.set(self.ranked.get() - 1);
                 let separator =
                     self.tokens_of(frame.node).find(|token| self.value(token) == "≻").map(|token| self.first(token));
                 Expr::Ranked(std::mem::take(&mut frame.parts), separator)
@@ -837,13 +908,21 @@ impl<'a> Reader<'a> {
             "call" => Step::Call(Frame::SourceCall(CallFrame::new(inner))),
             "tested" => Step::Call(Frame::Tested(Tested::new(inner))),
             "capture" => {
-                // A capture stands anywhere but in braces or an elidable
+                // A capture stands anywhere but in a chain or an elidable
                 // optional (§3.5, §9), and its own form is checked before
-                // what it wraps.
-                if self.braces.get() > 0 {
+                // what it wraps. Inside flat braces it is an item capture.
+                if self.chain.get() {
                     return Err(self.error(
                         inner,
-                        "a capture cannot stand inside braces, whose parts repeat: name the list as a rule, and capture that",
+                        "a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition \
+                         on $ serves each level",
+                    ));
+                }
+                if self.item.get() && self.ranked.get() > 0 {
+                    return Err(self.error(
+                        inner,
+                        "an item capture cannot stand inside a ranked group: name the ranked choice as a rule and \
+                         capture that rule",
                     ));
                 }
                 if self.marked.get() > 0 {
@@ -914,7 +993,23 @@ impl<'a> Reader<'a> {
             if frame.mark != Mark::Plain {
                 self.marked.set(self.marked.get() - 1);
             }
-            return Ok(Step::Done(Val::Expr(Expr::Optional(Box::new(expr), frame.mark))));
+            let default = self.head_defaults.borrow_mut().remove(&frame.head);
+            if frame.mark != Mark::Plain {
+                self.default_head.set(frame.previous_head);
+            }
+            if let Some(crate::dom::DefaultValue { term: Term::Str(value), at }) = &default {
+                let mut head = if let Expr::Seq(items) = &expr { &items[0] } else { &expr };
+                while let Expr::Tested(op, operand, inner) = head {
+                    if let Term::Str(expected) = operand {
+                        if (value == expected) != (op == "=") {
+                            let (line, column) = at.unwrap();
+                            return Err(Error::grammar("a default fails its head test").at(line, column));
+                        }
+                    }
+                    head = inner;
+                }
+            }
+            return Ok(Step::Done(Val::Expr(Expr::Optional(Box::new(expr), frame.mark, default))));
         }
         let node = frame.node;
         // Its required part first, then its markers (§9).
@@ -965,6 +1060,8 @@ impl<'a> Reader<'a> {
         } else if !is_terminal(head) {
             return Err(form());
         }
+        frame.head = head as *const Node as usize;
+        frame.previous_head = self.default_head.replace(frame.head);
         self.marked.set(self.marked.get() + 1);
         frame.mark = Mark::Elidable;
         Ok(Step::Call(Frame::Choice(Choice::new(choice))))
@@ -984,7 +1081,10 @@ impl<'a> Reader<'a> {
             } else {
                 frame.separator = Some(expr);
             }
-            self.braces.set(self.braces.get() - 1);
+            let (chain, item, ranked) = frame.outer;
+            self.chain.set(chain);
+            self.item.set(item);
+            self.ranked.set(ranked);
             let item = frame.item.take().expect("the item");
             let separator = frame.separator.take().map(Box::new);
             return Ok(Step::Done(Val::Expr(Expr::Repeat(Box::new(item), separator, frame.chain))));
@@ -1014,7 +1114,9 @@ impl<'a> Reader<'a> {
             return Err(self
                 .error(node, "a chain is the whole expression of its alternative: name it as a rule to use it here"));
         }
-        self.braces.set(self.braces.get() + 1);
+        // The innermost braces decide whether a capture can stand inside
+        // them (§3.5, §9).
+        frame.outer = (self.chain.replace(chain.is_some()), self.item.replace(chain.is_none()), self.ranked.replace(0));
         frame.chain = chain;
         let item = choices[0];
         frame.choices = choices;
@@ -1041,8 +1143,11 @@ impl<'a> Reader<'a> {
             (Expr::Source(SourceSymbol::Call(call)), frame.tests.take().unwrap())
         } else {
             let parts = self.parts(node);
-            let tests: Vec<_> =
-                parts.iter().copied().filter(|part| matches!(rule_name(part), "tag-test" | "value-test")).collect();
+            let tests: Vec<_> = parts
+                .iter()
+                .copied()
+                .filter(|part| matches!(rule_name(part), "tag-test" | "value-test" | "default-value"))
+                .collect();
             if tests.is_empty() {
                 return Err(self.shape_error(node, "test"));
             }
@@ -1061,6 +1166,9 @@ impl<'a> Reader<'a> {
             let mut tags = false;
             let mut value = false;
             for test in &tests {
+                if rule_name(test) == "default-value" {
+                    continue;
+                }
                 let tag = rule_name(test) == "tag-test";
                 if !valid || value || tag && tags {
                     return Err(self.error(test, "invalid test target or order"));
@@ -1078,6 +1186,21 @@ impl<'a> Reader<'a> {
             (self.symbol(base)?, tests)
         };
         for test in tests {
+            if rule_name(test) == "default-value" {
+                let key = node as *const Node as usize;
+                if key != self.default_head.get() {
+                    return Err(self.error(test, "a default stands only on an elidable optional head"));
+                }
+                if self.head_defaults.borrow().contains_key(&key) {
+                    return Err(self.error(test, "an elidable head has one default at most"));
+                }
+                let operand = self.one(test, "test-operand")?;
+                let term = self.value_test_operand(operand)?;
+                self.head_defaults
+                    .borrow_mut()
+                    .insert(key, crate::dom::DefaultValue { term, at: Some(self.first(test)) });
+                continue;
+            }
             let (op, operand) = if rule_name(test) == "tag-test" {
                 ("tags".into(), self.source_requirements(test, "a tag requirement requires a tag or tag-set constant")?)
             } else {
@@ -1302,7 +1425,13 @@ impl<'a> Reader<'a> {
             }));
         }
         let node = frame.node;
-        let inner = self.inner(node, ATOMS)?;
+        let inner = if ATOMS.contains(&rule_name(node))
+            && !matches!(rule_name(node), "term" | "guarded-term" | "union" | "term-atom")
+        {
+            node
+        } else {
+            self.inner(node, ATOMS)?
+        };
         let token = || self.token(inner);
         let typed = |term: Term, ty: Type| Ok(Step::Done(Val::Term(term, ty)));
         match rule_name(inner) {
@@ -1395,6 +1524,7 @@ impl<'a> Reader<'a> {
                         | "constant-reference"
                         | "parameter"
                         | "call"
+                        | "tag-test"
                 ) || part.kind == NodeKind::Token
                     && (matches!(part.terminal.as_deref(), Some("Emoji-Name" | "Lowercase-Name"))
                         || self.unicode.is_emoji_name(self.value(part))
@@ -1407,22 +1537,11 @@ impl<'a> Reader<'a> {
     fn pattern_atom(&self, node: &'a Node, call: Option<SourceCall>) -> R<crate::patterns::Pattern> {
         use crate::patterns::Pattern as P;
         let first = self.pattern_atom_base(node)?;
-        let name = if matches!(rule_name(first), "name" | "reference") {
-            Some(self.token(first)?)
-        } else if first.kind == NodeKind::Token {
-            Some(first)
-        } else {
-            None
-        };
-        let testable = !Self::pattern_rule_name(first)
-            && (matches!(
-                rule_name(first),
-                "tag" | "string" | "string-terminal" | "wildcard" | "range" | "constant-reference" | "parameter"
-            ) || name.is_some_and(|name| is_capital(self.value(name)) || self.value(name).starts_with('_')));
-        self.pattern_test_nodes(node, testable)?;
+        self.pattern_test_nodes(node, true)?;
         let (pattern, tested) = match rule_name(first) {
             "parameter" => (P::Source(self.source_parameter(first)?), true),
-            "call" => (P::Source(SourceSymbol::Call(call.expect("a pattern call reads its arguments first"))), false),
+            "call" => (P::Source(SourceSymbol::Call(call.expect("a pattern call reads its arguments first"))), true),
+            "tag-test" => return Err(self.error(first, "a pattern requires an atom before its tag test")),
             "tag" => (P::Terminal(self.tag_of(self.token(first)?)?, self.first(first)), true),
             "string" => (P::Literal(self.string_term(self.token(first)?)?, self.first(first)), true),
             "string-terminal" => {
@@ -1459,7 +1578,7 @@ impl<'a> Reader<'a> {
                     {
                         return Err(self.error(token, "a malformed pattern rule name"));
                     }
-                    (P::Name(name.into(), self.at(token)), false)
+                    (P::Name(name.into(), self.at(token)), true)
                 }
             }
             _ => return Err(self.shape_error(node, "pattern atom")),
@@ -1469,13 +1588,16 @@ impl<'a> Reader<'a> {
 
     /// Inspect the target and complete test sequence before any base conversion.
     fn pattern_test_nodes(&self, node: &'a Node, testable: bool) -> R<Vec<&'a Node>> {
+        if let Some(default) = self.parts(node).into_iter().find(|p| rule_name(p) == "default-value") {
+            return Err(self.error(default, "a default stands only on an elidable optional head"));
+        }
         let tests: Vec<_> =
             self.parts(node).into_iter().filter(|part| matches!(rule_name(part), "tag-test" | "value-test")).collect();
         let mut tags = false;
         let mut value = false;
         for test in &tests {
             let tag = rule_name(test) == "tag-test";
-            if !testable || value || tag && tags {
+            if (!testable && !tag) || value || tag && tags {
                 return Err(self.error(test, "invalid pattern test target or order"));
             }
             if tag {
@@ -1495,14 +1617,40 @@ impl<'a> Reader<'a> {
     ) -> R<crate::patterns::Pattern> {
         let tests = self.pattern_test_nodes(node, testable)?;
         for test in tests {
+            if matches!(
+                &pattern,
+                crate::patterns::Pattern::Name(..) | crate::patterns::Pattern::Source(SourceSymbol::Call(_))
+            ) && rule_name(test) == "tag-test"
+            {
+                for requirement in self.rules(test, "tag-requirement") {
+                    let part = self.inner(self.one(requirement, "test-operand")?, ATOMS)?;
+                    if rule_name(part) == "tag"
+                        && self.value(self.token(part)?) == "_Elided"
+                        && !self.tokens_of(requirement).any(|t| self.value(t) == "¬")
+                    {
+                        return Err(self.error(self.token(part)?, "a rule pattern cannot require _Elided"));
+                    }
+                }
+            }
             let (op, operand) = if rule_name(test) == "tag-test" {
-                ("tags".into(), self.source_requirements(test, "invalid tag requirement")?)
+                ("tags".into(), self.pattern_requirements(test)?)
             } else {
                 let op = self.operator(self.token(self.one(test, "test")?)?).into();
                 let operand = self.one(test, "test-operand")?;
                 (op, self.value_test_operand(operand)?)
             };
-            pattern = crate::patterns::Pattern::Test(op, operand, Box::new(pattern));
+            let mark_at = if rule_name(test) == "tag-test" {
+                self.rules(test, "tag-requirement").find_map(|requirement| {
+                    let part = self.inner(self.one(requirement, "test-operand").ok()?, ATOMS).ok()?;
+                    (rule_name(part) == "tag"
+                        && self.value(self.token(part).ok()?) == "_Elided"
+                        && !self.tokens_of(requirement).any(|t| self.value(t) == "¬"))
+                    .then(|| self.at(part))
+                })
+            } else {
+                None
+            };
+            pattern = crate::patterns::Pattern::Test(op, operand, Box::new(pattern), mark_at);
         }
         Ok(pattern)
     }
@@ -1867,12 +2015,26 @@ impl<'a> Reader<'a> {
                 }
                 let (left, left_type) = frame.left.take().expect("the left side");
                 // The two sides fit the comparator (engine §10).
-                if let Some(problem) =
-                    comparison_problem(&frame.op, left_type, ty).filter(|_| !self.feature_context.get())
-                {
-                    return Err(self.error(inner, problem));
+                if !self.feature_context.get() {
+                    let tree = matches!(frame.op.as_str(), "≅" | "≇");
+                    if tree && matches!((&left, &term), (Term::Capture(a), Term::Capture(b)) if a == b) {
+                        return Err(self.error(inner, "a constituent comparison requires two different captures"));
+                    }
+                    if tree && ty == Type::Span && !matches!(term, Term::Capture(_)) {
+                        return Err(self.error(
+                            self.one(inner, "union")?,
+                            "a tree comparison requires a pattern or a bare capture on its right",
+                        ));
+                    }
+                    if let Some(problem) = comparison_problem(&frame.op, left_type, ty) {
+                        let at = if tree && left_type == Type::Span { self.one(inner, "union")? } else { inner };
+                        return Err(self.error(at, problem));
+                    }
                 }
-                Ok(Step::Done(Val::Cond(Cond::Compare(std::mem::take(&mut frame.op), left, term))))
+                let at = (matches!(frame.op.as_str(), "≅" | "≇")
+                    && matches!(&term, Term::Capture(_) | Term::Source(_)))
+                .then(|| self.first(inner));
+                Ok(Step::Done(Val::Cond(Cond::Compare(std::mem::take(&mut frame.op), left, term, at))))
             }
             "negation" => {
                 let Val::Cond(cond) = value else { unreachable!("a negation holds a condition") };
@@ -2259,12 +2421,47 @@ impl<'a> PrimaryFrame<'a> {
 struct OptionalFrame<'a> {
     node: &'a Node,
     mark: Mark,
+    head: usize,
+    previous_head: usize,
 }
 
 impl<'a> OptionalFrame<'a> {
     fn new(node: &'a Node) -> Self {
-        OptionalFrame { node, mark: Mark::Plain }
+        OptionalFrame { node, mark: Mark::Plain, head: 0, previous_head: 0 }
     }
+}
+
+/// The names of the captures of an expression in the order written, braces
+/// included, which is the order the reader meets them.
+fn capture_names(expr: &Expr) -> Vec<&str> {
+    let mut names = Vec::new();
+    let mut stack = vec![expr];
+    while let Some(current) = stack.pop() {
+        work::count(Work::Walked, 1);
+        match current {
+            Expr::Capture(name, inner) => {
+                names.push(name.as_str());
+                stack.push(inner);
+            }
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                stack.extend(items.iter().rev());
+            }
+            Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push(inner),
+            Expr::Repeat(item, separator, _) => {
+                stack.extend(separator.as_deref());
+                stack.push(item);
+            }
+            Expr::Ref(_)
+            | Expr::Terminal(_)
+            | Expr::Literal(_)
+            | Expr::ScalarRange(..)
+            | Expr::Range(..)
+            | Expr::Source(_)
+            | Expr::Wildcard
+            | Expr::Empty => {}
+        }
+    }
+    names
 }
 
 struct Repetition<'a> {
@@ -2272,13 +2469,24 @@ struct Repetition<'a> {
     whole: bool,
     choices: Vec<&'a Node>,
     chain: Option<Chain>,
+    /// The reader's `chain`, `item` and `ranked` before these braces,
+    /// restored after them.
+    outer: (bool, bool, usize),
     item: Option<Expr>,
     separator: Option<Expr>,
 }
 
 impl<'a> Repetition<'a> {
     fn new(node: &'a Node, whole: bool) -> Self {
-        Repetition { node, whole, choices: Vec::new(), chain: None, item: None, separator: None }
+        Repetition {
+            node,
+            whole,
+            choices: Vec::new(),
+            chain: None,
+            outer: (false, false, 0),
+            item: None,
+            separator: None,
+        }
     }
 }
 
@@ -2444,6 +2652,7 @@ const KNOWN: &[&str] = &[
     "tag-test",
     "tag-requirement",
     "value-test",
+    "default-value",
     "value-clause",
     "image-clause",
     "erased-clause",
@@ -2480,6 +2689,8 @@ const KNOWN: &[&str] = &[
     "pattern-repeat",
     "pattern-path",
     "directive",
+    "ranking-directive",
+    "ranking-step",
     "argument-word",
     "argument-string",
     "argument-tag",
@@ -2495,8 +2706,6 @@ const KNOWN: &[&str] = &[
     "constant-reference",
     "rule",
     "definer",
-    "rule-flags",
-    "rule-flag",
     "rule-name",
     "body",
     "alternative",
@@ -2675,7 +2884,13 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                     Arg::Term(term) => Some(Part::Term(term)),
                     _ => None,
                 })),
-                Cond::Compare(op, left, right) => {
+                Cond::Compare(op, left, right, _) => {
+                    if matches!(op.as_str(), "≅" | "≇")
+                        && matches!(left,Term::Capture(name) if name.is_empty())
+                        && matches!(right,Term::Pattern(p) if crate::patterns::reads_node_tags(p))
+                    {
+                        return true;
+                    }
                     if !matches!(op.as_str(), "≅" | "≇") {
                         stack.extend([Part::Term(left), Part::Term(right)]);
                     }
@@ -2711,7 +2926,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     stack.extend(items.iter().map(Part::Expression))
                 }
-                Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(Part::Expression(inner)),
+                Expr::Optional(inner, _, _) | Expr::Capture(_, inner) => stack.push(Part::Expression(inner)),
                 Expr::Repeat(item, separator, _) => {
                     stack.push(Part::Expression(item));
                     stack.extend(separator.as_deref().map(Part::Expression));
@@ -2753,6 +2968,10 @@ fn own_tags_are_found_inside_call_arguments() {
     assert!(reads_own_tags(&source));
 }
 
+/// Folds each `any` that stands directly in an `any`, and each `all` in an
+/// `all`, into the one around it: a group in parentheses of the same
+/// connective is part of the one around it (§9). One walk, with an explicit
+/// stack, that gathers each folded list once.
 #[cfg(test)]
 #[test]
 fn call_name_lookup_precedes_argument_lookup() {
@@ -2781,6 +3000,8 @@ fn call_name_lookup_precedes_argument_lookup() {
         })
         .collect();
     let reader = Reader {
+        head_defaults: Default::default(),
+        default_head: Default::default(),
         unresolved_nodes: Default::default(),
         parts_cache: Default::default(),
         parameters: Default::default(),
@@ -2792,7 +3013,9 @@ fn call_name_lookup_precedes_argument_lookup() {
         tokens: &tokens,
         strings: &strings,
         captures: Default::default(),
-        braces: Default::default(),
+        chain: Default::default(),
+        item: Default::default(),
+        ranked: Default::default(),
         marked: Default::default(),
         position: &position,
         in_recipe: Default::default(),

@@ -1,10 +1,10 @@
 {
-  "description": "A tree-comparison type error stands at the complete comparison.",
+  "description": "A tree comparison reports a wrong right type at that operand (engine §10).",
   "document": "```jbogenbau\n%rule text $c:A %conditions $c ≅ \"x\"\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 29
+      "column": 34
     }
   }
 }

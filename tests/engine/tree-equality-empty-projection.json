@@ -1,0 +1,8 @@
+{
+  "description": "Structural comparison: empty-projection.",
+  "grammar": "%elision-only\n%rule text [+JI] [+JI] | $x:JI $y:JI\n%conditions $x ≅ $y",
+  "input": "",
+  "expect": {
+    "error": "ambiguous"
+  }
+}

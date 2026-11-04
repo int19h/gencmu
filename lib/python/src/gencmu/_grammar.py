@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import itertools
 import threading
-from dataclasses import dataclass, field
-from typing import Any, Union
+from dataclasses import dataclass, field, replace
+from copy import copy as shallow_copy
+from typing import AbstractSet, Any, Union, ClassVar
 
-from ._clauses import WHOLE, Emission, Prepared, captures_in, check_definition, rule_has_ranked, prepare, prepare_conditions, simplify_term
+from ._clauses import WHOLE, Emission, Prepared, captures_in, check_definition, rule_has_ranked, prepare, prepare_conditions, simplify_term, item_captures, mentioned_in
 from ._errors import ErrorData, GencmuError
 from ._memo import SharedMemo
 from ._recent import Recent
@@ -36,7 +37,8 @@ from ._types import (
     tests_in,
     type_name,
 )
-from ._validate import Marks
+from ._validate import Marks, term_reads_own_tags
+from ._ranking_patterns import ranking_pattern_problem, requires_elided
 from ._logical import Expansion, combine, optional, inherited
 from ._strings import literal_string, spelling, ENGINE_TAGS
 
@@ -78,15 +80,6 @@ class Rule:
     alternatives: list[Alternative]
     document: str
     at: tuple[int, int]
-    flags: list[str] = field(default_factory=list)
-
-
-@dataclass
-class FlagChange:
-    """The flags before and after a replacement that changes them."""
-
-    from_flags: list[str]
-    to_flags: list[str]
 
 
 @dataclass
@@ -97,7 +90,6 @@ class Change:
     rule: str
     document: str
     previous: str
-    flag_change: FlagChange | None = None
 
 
 @dataclass(frozen=True)
@@ -112,6 +104,7 @@ class SymbolTest:
     written: str
     requirements: tuple[tuple[bool, frozenset[str]], ...] = ()
     prior: SymbolTest | None = None
+    default_value: str | None = None
 
     def holds(self, value: str, tags: frozenset[str]) -> bool:
         """Whether the test holds of a span whose stored values join to ``value`` and
@@ -128,9 +121,9 @@ class SymbolTest:
         raise AssertionError(f"unknown symbol test {op}")
 
 
-RANKING_RULES = ("greedy", "lazy", "late-elision")
-"""The rules of the ranking that ``%ambiguity-resolution`` can name
-(engine §2, §6)."""
+KeyStep = tuple[str, dict[str, Any]]
+"""A key step of ``%ambiguity-resolution``: its name and its node pattern
+(engine §6)."""
 
 
 @dataclass
@@ -139,12 +132,15 @@ class Grammar:
 
     stage: str
     rules: dict[str, Rule]
-    # The rule of the ranking, one of RANKING_RULES (engine §6).
+    # The key steps of the stage's %ambiguity-resolution, in order, and its
+    # lean, greedy, lazy or none (engine §6).
+    steps: tuple[KeyStep, ...]
     lean: str
     elision_only: bool
     unicode: Any = field(default=None, repr=False, compare=False)
     changes: list[Change] = field(default_factory=list)
     ranked: RankedGroups | None = field(default=None, repr=False, compare=False)
+    tree_comparisons: bool = False
     # The stage's %classifier items in stitching order, each with its
     # document (engine §2).
     classifier_items: list[tuple[str, Dom]] = field(default_factory=list)
@@ -404,12 +400,12 @@ class _Constants:
                 return {"terminal": spelling(constant.value, self.unicode), "at": root["at"], **({"exact": True} if root.get("exact") else {})}
             raise self.fault_error(path, root, at, "a pattern atom requires a string or pattern constant")
         if "test" in root:
-            base = root["expr"]
+            base = root.get("expr", {})
             while "test" in base:
-                base = base["expr"]
+                base = base.get("expr", {})
             if "constant" in base and self.values[base["constant"]].type == "pattern":
                 raise self.fault_error(path, base, at, "a tested pattern atom requires a string constant")
-        result = dict(root)
+        result = shallow_copy(root)
         for key in ("union", "intersection", "difference", "choice"):
             if key in root:
                 result[key] = []
@@ -422,12 +418,15 @@ class _Constants:
             if root["test"] == "tags":
                 result["requirements"] = []
                 for requirement in root["requirements"]:
-                    value = yield self._closed(path, requirement["value"], at)
+                    value = frozenset(("_Elided",)) if requirement["value"] == {"tag": "_Elided"} else (yield self._closed(path, requirement["value"], at))
+                    if not requirement["negated"] and "_Elided" in value and any(key in root.get("expr", {}) for key in ("name", "call")):
+                        raise _error("a rule pattern cannot require _Elided", path, getattr(requirement["value"], "at", None) or at, self.stage)
                     result["requirements"].append({"negated": requirement["negated"], "value": {"set": value}})
             else:
                 value = yield self._closed(path, root["value"], at)
                 result["value"] = {"string": value}
-            result["expr"] = yield self._closed_pattern(path, root["expr"], at)
+            if "expr" in root:
+                result["expr"] = yield self._closed_pattern(path, root["expr"], at)
         if any(key in root for key in ("literal", "range", "wildcard")):
             if "literal" in root:
                 value = yield self._closed(path, root["literal"], at)
@@ -581,7 +580,11 @@ class _Constants:
             if fault is not None:
                 raise self.fault_error(path, fault[1], rule['at'], fault[0])
             self.check_value_uses(path, rule, rule['at'])
-        result = check_definition(run(self.with_values(rule)), True)
+        resolved = run(self.with_values(rule))
+        for term in [resolved.get("tags"), *(alt.get("tags") for alt in resolved.get("alternatives", []))]:
+            if term is not None and term_reads_own_tags(term):
+                raise _error("a constituent reads its own tags", path, rule["at"], self.stage)
+        result = check_definition(resolved, True)
         if result.problem is not None:
             raise _error(result.problem.message, path, rule['at'], self.stage)
         if result.deferred is not None:
@@ -687,7 +690,7 @@ class _Constants:
         if isinstance(node.get("const"), str):
             constant = self.values[node["const"]]
             return constant.value if constant.type == "pattern" else {"string": constant.value} if constant.type == "string" else {"const": node["const"], "at": node["at"], "value": constant.value}
-        if node.get("op") in ("≅", "≇") and not has_unresolved(node["right"]):
+        if node.get("op") in ("≅", "≇") and "capture" not in node["right"] and not has_unresolved(node["right"]):
             return {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
         copy: dict[str, Any] = {}
         for key, value in node.items():
@@ -724,15 +727,20 @@ class _Constants:
                 constant = self.values[node["const"]]
                 copy = constant.value if constant.type == "pattern" else {"string": constant.value} if constant.type == "string" else {"const": node["const"], "at": node["at"], "value": constant.value}
             elif node.get("op") in ("≅", "≇"):
-                copy = {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
+                if "capture" in node["right"]:
+                    self.seen_trees = True
+                    copy = node
+                else:
+                    copy = shallow_copy(node)
+                    copy["right"] = yield self._closed("", node["right"], None, "pattern")
             else:
                 values: dict[str, Any] = {}
                 for key, value in node.items():
                     values[key] = yield resolve(value)
                 copy = node if all(values[key] is value for key, value in node.items()) else values
-                if copy is not node and hasattr(node, "at") and "concat" in node:
-                    from ._recipes import Recipe
-                    copy = Recipe(values["concat"], node.at)
+                if copy is not node and hasattr(node, "at") and ("concat" in node or "default" in node):
+                    copy = shallow_copy(node)
+                    copy.update(values)
             copies[id(node)] = copy
             return copy
 
@@ -776,7 +784,7 @@ def _value_parts(root: Any):
         if pattern or "pattern" in node:
             continue
         if node.get("op") in ("≅", "≇"):
-            pending.extend(((node["right"], True), (node["left"], False)))
+            pending.extend(((node["right"], "capture" not in node["right"]), (node["left"], False)))
             continue
         if "alternatives" in node:
             keys = ("tags", "value", "image", "alternatives", "conditions", "emit")
@@ -823,7 +831,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     for argument in arguments_to_check:
         constants.arguments.setdefault((argument['inspection_run'], argument['path'], tuple(argument['at'])), []).append(argument)
     changes: list[Change] = []
-    resolutions: list[tuple[list[str], str, Any]] = []
+    resolutions: list[tuple[list[Dom], str, Any]] = []
     checks: list[tuple[int, Any, str, str, Any]] = []
     elision_only = False
     for inspection_run, (path, dom) in zip(document_runs, documents):
@@ -882,11 +890,9 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 elif op == "redefine":
                     if previous is None:
                         raise _error(f"%redefine-rule {name} replaces no rule defined before it", path, at, stage)
-                    flags = list(rule["flags"])
-                    flag_change = FlagChange(previous.flags.copy(), flags.copy()) if previous.flags != flags else None
-                    changes.append(Change("replace", name, path, previous.document, flag_change))
+                    changes.append(Change("replace", name, path, previous.document))
                     # The rule keeps its place (engine §3, "Numbering").
-                    rules[name] = Rule(name, alternatives, path, at, list(rule["flags"]))
+                    rules[name] = Rule(name, alternatives, path, at)
                 else:
                     if previous is not None:
                         raise _error(
@@ -895,7 +901,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                             at,
                             stage,
                         )
-                    rules[name] = Rule(name, alternatives, path, at, list(rule["flags"]))
+                    rules[name] = Rule(name, alternatives, path, at)
             elif kind == "directives":
                 directive = item
                 name = directive["name"]
@@ -906,20 +912,13 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 elif name == "ambiguity-resolution":
                     if resolutions:
                         raise _error("has a second %ambiguity-resolution", path, at, stage)
-                    resolutions.append((args, path, at))
-                    # The rule of the ranking (engine §6), then optionally elision-only,
-                    # each optional, in that order (engine §2).
-                    rest = args[1:]
-                    elision_only = rest[:1] == ["elision-only"]
+                    directive = {**directive, "steps": [dict(step) for step in directive["steps"]]}
+                    resolutions.append((directive["steps"], path, at))
+                    checks.append((inspection_run, at, path, "ranking", directive))
+                elif name == "elision-only":
                     if elision_only:
-                        rest = rest[1:]
-                    if not args or args[0] not in RANKING_RULES or rest:
-                        raise _error(
-                            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only",
-                            path,
-                            at,
-                            stage,
-                        )
+                        raise _error("has a second %elision-only", path, at, stage)
+                    elision_only = True
 
                 else:
                     raise _error(f"an unknown directive %{name}", path, at, stage)
@@ -944,7 +943,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     resolved_features = []
     resolved_classifiers = []
     implications = []
-    kinds = {"rule": 0, "arguments": 0, "deferred": 0, "features": 1, "classifier": 3, "implication": 4}
+    kinds = {"rule": 0, "arguments": 0, "deferred": 0, "features": 1, "ranking": 1, "classifier": 3, "implication": 4}
     checks.sort(key=lambda item: (item[0], tuple(item[1]), kinds[item[3]] if item[3] != 'arguments' else constants.arguments[item[4]][0]['kind']))
     for inspection_run, _, path, kind, item in checks:
         if kind == "rule":
@@ -955,6 +954,26 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 constants.check_arguments(uses)
         elif kind == "deferred":
             constants.deferred_emissions.append(item)
+        elif kind == "ranking":
+            for step in item["steps"]:
+                if "pattern" not in step:
+                    continue
+                operand = step["pattern"]
+                term = operand if "const" in operand else {"pattern": operand}
+                value = run(constants._closed(path, term, item["at"], "pattern"))
+                position = getattr(operand, "at", None) or operand.get("at", item["at"])
+                if not isinstance(value, dict) or "pattern" not in value:
+                    raise _error("a ranking step requires a pattern", path, position, stage)
+                pattern = value["pattern"]
+                problem = ranking_pattern_problem(pattern)
+                if problem:
+                    raise _error(problem, path, position, stage)
+                if step["step"] == "leftmost-longest" and requires_elided(pattern):
+                    raise _error("leftmost-longest cannot require _Elided", path, position, stage)
+                for node, _ in walk_pattern(pattern):
+                    if "name" in node and node["name"] not in rules:
+                        raise _error(f"{node['name']} is not defined in stage {stage}", path, node.get("at", position), stage)
+                step["pattern"] = pattern
         elif kind == "features":
             directive = item
             try:
@@ -990,10 +1009,17 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
             implications.append(constants.implication(path,item))
     classifier_items = resolved_classifiers
     constants.resolve(rules)
-    _resolve_tests(rules, constants)
+    if getattr(constants, "seen_trees", False):
+        from ._tree_identities import comparisons
+        has_trees = any(comparisons([alt.tags, alt.rule_tags, alt.conditions]) for rule in rules.values() for alt in rule.alternatives)
+    else:
+        has_trees = False
+    default_nodes = _resolve_tests(rules, constants)
     if not resolutions:
         raise GencmuError("has no %ambiguity-resolution", stage=stage)
-    args, _, _ = resolutions[0]
+    ranking_steps, _, _ = resolutions[0]
+    lean = ranking_steps[-1]["step"] if ranking_steps[-1]["step"] in ("greedy", "lazy") else "none"
+    key_steps = tuple((step["step"], step["pattern"]) for step in (ranking_steps if lean == "none" else ranking_steps[:-1]))
     if "text" not in rules:
         raise GencmuError("has no rule text", stage=stage)
     from ._boundary import validate_targets
@@ -1055,7 +1081,8 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     grammar = Grammar(
         stage,
         rules,
-        args[0],
+        key_steps,
+        lean,
         elision_only,
         unicode=unicode,
         changes=changes,
@@ -1064,9 +1091,17 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         implications=implications,
         families=members(rules, family_names),
         query_terminals=frozenset(query_terminals),
+        tree_comparisons=has_trees,
     )
 
     grammar.ranked = RankedGroups(stage, rules)
+    if default_nodes:
+        defaults = _Lowerer(grammar, frozenset())
+        for rule, alternative, node in default_nodes:
+            defaults.current = rule
+            defaults.current_alt = alternative
+            defaults.elided_terminal(node["optional"], node["default"], getattr(node,"default_at",None))
+
     if grammar.ranked.groups:
         grammar.ranked.validate_tags()
     if constants.deferred_emissions:
@@ -1101,16 +1136,18 @@ RESOLVED = "resolved"
 expression, that holds its test with its value (engine §2, §4)."""
 
 
-def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
+def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> list[tuple[Rule, Alternative, Dom]]:
     """Gives every test of a body in the stitched rules its value, from the
     constants' final values, made once for every lowering. The documents'
     DOMs are shared by every stage and pipeline that includes them, so the
-    tests go into copies of the expressions that hold them."""
+    tests go into copies of the expressions that hold them. The same walk
+    collects default optionals for omission validation."""
     copies: dict[int, Any] = {}
     # Whether each node holds a test, by identity, found once: a walk of a
     # node's whole subtree at each level of its nesting would cost a deep
     # expression its depth times its size.
     tested: dict[int, bool] = {}
+    defaults: list[tuple[Rule, Alternative, Dom]] = []
 
     # An explicit stack keeps expression depth independent of the
     # caller's recursion limit.
@@ -1125,6 +1162,8 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
                     for item in child:
                         found = (yield holds_test(item)) or found
                 elif key in ("expr", "separator", "repeat", "optional"):
+                    if "default" in node:
+                        defaults.append((rule, alt, node))
                     found = (yield holds_test(child)) or found
             tested[id(node)] = found
         return found
@@ -1135,7 +1174,7 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
         done = copies.get(id(node))
         if done is not None:
             return done
-        copy: dict[str, Any] = {}
+        copy: dict[str, Any] = shallow_copy(node)
         for key, value in node.items():
             if isinstance(value, list):
                 items: list[Any] = []
@@ -1154,6 +1193,7 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
     for rule in rules.values():
         for alt in rule.alternatives:
             alt.expr = run(resolve(alt.expr, alt))
+    return [(rule, alt, copies.get(id(node), node)) for rule, alt, node in defaults]
 
 
 # ---------------------------------------------------------------------------
@@ -1167,6 +1207,15 @@ class SlotMetadata:
     ranked_conditions: list[Dom] = field(default_factory=list, repr=False, compare=False)
 
 
+@dataclass(frozen=True, slots=True)
+class ItemClauses:
+    """The item captures that the productions of a brace helper read, and
+    the item conditions of their alternative (engine §3.5, §3.6)."""
+
+    names: tuple[str, ...]
+    conditions: tuple[Dom, ...]
+
+
 @dataclass
 class Production:
     """A production of the lowered grammar."""
@@ -1177,7 +1226,6 @@ class Production:
     terminal: tuple[bool, ...]
     rule_name: str
     helper: bool
-    rule_flag: str | None = None
     elided: str | None = None
     # The test of that terminator, if it is tested; a restored token
     # stores the string of its = test (engine §7).
@@ -1189,6 +1237,7 @@ class Production:
     tests: tuple[SymbolTest | None, ...] | None = None
     captures: dict[str, int] = field(default_factory=dict)
     slots: tuple[int, ...] = ()
+    # Only contextual helpers allocate reduced string conditions.
     conds_predict: list[Dom] = field(default_factory=list)
     conds_at: dict[int, list[Dom]] = field(default_factory=dict)
     # Whether a condition at the last symbol reads ``$``, which then has the
@@ -1210,21 +1259,26 @@ class Production:
     base_id: int | None = field(default=None,repr=False,compare=False)
     lexical: Any = field(default=None,repr=False,compare=False)
     ranked: Any = field(default=None,repr=False,compare=False)
+    tree_conditions: ClassVar[Any] = None
+    tree_requested: ClassVar[bool] = False
+    observes_trees: ClassVar[bool] = False
+    walks_trees: ClassVar[bool] = False
+    tree_prefix_until: ClassVar[int] = 0
     close_requested: bool = field(default=False, repr=False, compare=False)
     observes_closes: bool = field(default=False, repr=False, compare=False)
     option: int = -1
+    # Whether the recognizer predicts the production in a frame (engine §4):
+    # a helper of a ranked alternative, or a helper of an alternative that
+    # has item captures.
     contextual: bool = False
+    # For a helper of flat braces whose productions read item captures, the
+    # item clauses: those names, and the alternative's conditions that use
+    # any of them, which the frame simplifies for each production (engine
+    # §3.6). One field, since each field costs every production a step.
+    items: ItemClauses | None = field(default=None, repr=False, compare=False)
     private_names: set = field(default_factory=set,repr=False,compare=False)
     ranked_bindings: tuple = field(default=(),repr=False,compare=False)
     parent_tags: Any = field(default=None,repr=False,compare=False)
-
-    @property
-    def leftmost_longest(self) -> bool:
-        return self.rule_flag == "leftmost-longest"
-
-    @property
-    def fewest(self) -> bool:
-        return self.rule_flag == "fewest"
 
     @property
     def real_id(self):
@@ -1234,6 +1288,9 @@ class Production:
     def transparent(self) -> bool:
         return self.helper or len(self.logical) == 1
 
+
+_NO_NAMES: frozenset[str] = frozenset()
+"""The item captures of an alternative without braces."""
 
 IMPLICIT = "\u0000"
 """The capture name of the implicit capture of a one-symbol production
@@ -1250,6 +1307,7 @@ class Lowered:
     rule_ids: dict[str, int]
     rule_productions: list[list[int]]
     rule_display: list[str]
+    steps: tuple[KeyStep, ...]
     lean: str
     # The strings, ranges, and wildcard among terminals, by their canonical
     # form, which is their name (engine §4): what each one matches.
@@ -1282,6 +1340,9 @@ class Lowered:
     close_prefixes: list | None = None
     ranked_helpers: dict = field(default_factory=dict)
     written_helpers: dict = field(default_factory=dict)
+    # Whether some production is contextual, so that the recognizer keeps a
+    # table of frames (engine §4); lowering and the ranked preparation set it.
+    contextual: bool = False
     # The answers of ordinary nested queries, kept across parses (engine
     # §4.3).
     memo: SharedMemo = field(default_factory=SharedMemo, compare=False, repr=False)
@@ -1337,6 +1398,17 @@ class _Lowerer:
         self.helper_sources = {}
         self.helper_options = {}
         self.common_conditions = {}
+        # The item captures of the alternative item_alt, and its conditions
+        # without its item conditions, found when the expansion meets braces
+        # in it, since only an alternative with braces has item captures
+        # (engine §3.5). They serve the alternative being lowered where it is
+        # item_alt, and the others have no item captures.
+        self.item_alt: Alternative | None = None
+        self.item_names: AbstractSet[str] = _NO_NAMES
+        self.alt_conditions: list[Dom] = []
+        # Whether a production is contextual, so that the recognizer keeps a
+        # table of frames (engine §4).
+        self.contextual = False
         if grammar.ranked and grammar.ranked.groups:
             self._expand_plain = self._expand
             self._expand = self._expand_slot
@@ -1405,7 +1477,7 @@ class _Lowerer:
             self.helper_elided[number] = elided
         return number
 
-    def elided_terminal(self, expr: Dom) -> tuple[str, SymbolTest | None]:
+    def elided_terminal(self, expr: Dom, default=None, at=None) -> tuple[str, SymbolTest | None]:
         """The terminal of an elidable optional, the first item of its
         content, and its complete symbol predicate (engine §3.8, §12)."""
         first = expr["seq"][0] if "seq" in expr and expr["seq"] else expr
@@ -1414,6 +1486,24 @@ class _Lowerer:
         while "test" in symbol:
             symbol = symbol["expr"]
         name = symbol.get("ref")
+        if not is_terminal_name(name or ""):
+            name = None
+        if not isinstance(name, str):
+            raise self.fail(f"an elidable optional in {self.current.name if self.current else '?'} does not begin with its terminator")
+        value = test.value if test is not None and test.op == "=" else None
+        if default is not None:
+            value = literal_string(default)
+            if value is None:
+                raise self.fail("a default requires one string")
+            if test is not None and not test.holds(value, frozenset((name,))):
+                document = self.current_alt.document if self.current_alt else self.current.document if self.current else None
+                error = GencmuError("a default fails its head test", document=document,
+                                    line=at[0] if at else None, column=at[1] if at else None,
+                                    stage=self.grammar.stage)
+                if at is None: error._default_document = error.document
+                raise error
+        if value is not None:
+            test = replace(test, default_value=value) if test is not None else SymbolTest("tags", None, "", default_value=value)
         return (name, test)
 
     def character_class(self, expr: Dom) -> tuple[str, Any] | None:
@@ -1504,12 +1594,16 @@ class _Lowerer:
             # Any other optional is a helper, and a marked one is elidable,
             # with the terminal that its marker names
             # (engine §3.8).
-            helper = self.new_helper([[]] + body, self.elided_terminal(inner) if elidable else None)
+            helper = self.new_helper([[]] + body, self.elided_terminal(inner, expr.get("default"), getattr(expr,"default_at",None)) if elidable else None)
             return [Expansion([(("n", helper), None)])]
         if "repeat" in expr:
             # Flat braces are a helper, h → x | h s x, its base productions
             # first; the places inside the item come before those inside the
             # separator (engine §3.2).
+            if "chain" in expr:
+                raise self.fail(f"a chain in {self.current.name if self.current else '?'} is not the whole of its rule")
+            if self.item_alt is not self.current_alt and self.current_alt is not None:
+                self.item_scope(self.current_alt)
             items = yield self._expand(expr["repeat"])
             self.brace_items.append((items, self.current_alt, self.current))
             separators = (yield self._expand(expr["separator"])) if "separator" in expr else [[]]
@@ -1540,10 +1634,21 @@ class _Lowerer:
 
     # -- productions
 
+    def item_scope(self, alt: Alternative) -> None:
+        """Find the item captures of an alternative with braces, and its
+        conditions without its item conditions, which attach to the helpers
+        of their braces instead (engine §3.6)."""
+        self.item_alt = alt
+        self.item_names = frozenset(item_captures(alt.expr))
+        self.alt_conditions = [condition for condition in alt.conditions if mentioned_in(condition).isdisjoint(self.item_names)] if self.item_names else alt.conditions
+
     def ranked_common(self, expansion, alt):
+        """The alternative's conditions for a production, without those of
+        the ranked groups the production reads and without its item
+        conditions."""
         ranked = self.grammar.ranked
         if ranked is None or not ranked.groups:
-            return alt.conditions
+            return self.alt_conditions if self.item_alt is alt else alt.conditions
         names, seen = set(), set()
         pending = [sym[1] for sym, _ in expansion if sym[0] == 'n']
         while pending:
@@ -1556,14 +1661,15 @@ class _Lowerer:
             if group is not None:
                 names.update(reads(group.expr))
             pending.extend(sym[1] for body in self.helper_expansions[rule] for sym, _ in body if sym[0] == 'n')
+        conditions = self.alt_conditions if self.item_alt is alt else alt.conditions
         if not names:
-            return alt.conditions
+            return conditions
         key = (id(alt), frozenset(names))
         if key not in self.common_conditions:
-            self.common_conditions[key] = [c for c in alt.conditions if reads(c).isdisjoint(names)]
+            self.common_conditions[key] = [c for c in conditions if reads(c).isdisjoint(names)]
         return self.common_conditions[key]
 
-    def add(self, lhs: int, expansion: list[_Sym], alt: Alternative | None, elided: tuple[str, SymbolTest | None] | None = None, option: int = -1) -> None:
+    def add(self, lhs: int, expansion: list[_Sym], alt: Alternative | None, elided: tuple[str, SymbolTest | None] | None = None, option: int = -1, items: tuple[str, ...] = ()) -> None:
         rhs = tuple(sym[1] for sym, _ in expansion)
         terminal = tuple(sym[0] == "t" for sym, _ in expansion)
         self.structural.append((lhs, rhs, terminal))
@@ -1581,7 +1687,7 @@ class _Lowerer:
             terminal=terminal,
             rule_name=self.rule_display[lhs],
             helper=alt is None,
-            rule_flag=next(iter(self.grammar.rules[self.rule_names[lhs]].flags), None) if alt is not None else None,
+
             elided=elided[0] if elided is not None else None,
             elided_test=elided[1] if elided is not None else None,
             elided_owner=self.rule_display[lhs] if elided is not None else None,
@@ -1602,7 +1708,9 @@ class _Lowerer:
             present = captures.keys() | {WHOLE}
             # The conditions not true for this production, in order, each
             # prepared once for all productions, so that one costs its own
-            # captures and output, not every part of the conditions.
+            # captures and output, not every part of the conditions. An item
+            # condition is not among them: it attaches to the helper of its
+            # braces (engine §3.6).
             for condition in self.prepare(self.ranked_common(expansion, alt), True).kept(present):
                 if condition is False:
                     return
@@ -1634,6 +1742,14 @@ class _Lowerer:
             production.value = alt.value if alt.value is not None else alt.rule_value
             production.image = alt.image if alt.image is not None else alt.rule_image
             production.warnings = tuple(guard["feature"] for guard in alt.guards if guard.get("kind") == "warning")
+        elif self.item_names and self.item_alt is self.current_alt:
+            # Every helper of an alternative with item captures is
+            # contextual, so that a frame reaches the braces' helper through
+            # the helpers around it, and its item conditions read the
+            # enclosing item's captures from the frame (engine §4).
+            production.contextual = self.contextual = True
+            if items and self.current_alt is not None:
+                production.items = ItemClauses(items, tuple(condition for condition in self.current_alt.conditions if not mentioned_in(condition).isdisjoint(items)))
         production.inherited = inherited(production.logical)
         if production.tags_term is None and production.inherited is not None and production.inherited not in captures.values():
             captures[IMPLICIT] = production.inherited
@@ -1661,8 +1777,13 @@ class _Lowerer:
             self.emitted_helpers.add(number)
             elided = self.helper_elided.get(number)
             own = self.helper_expansions[number]
+            # The item captures that any production of the helper reads:
+            # every production of the helper then carries the item
+            # conditions, as the productions of a rule carry its conditions
+            # (engine §3.6).
+            items = tuple(sorted({name for expansion in own for _, name in expansion if name is not None and name in self.item_names})) if self.item_names and self.item_alt is self.current_alt else ()
             for index, expansion in enumerate(own):
-                self.add(number, expansion, None, elided=elided if not expansion else None, option=self.helper_options[number][index] if number in self.helper_options else -1)
+                self.add(number, expansion, None, elided=elided if not expansion else None, option=self.helper_options[number][index] if number in self.helper_options else -1, items=items)
             stack.extend(reversed(used(own)))
 
     def lower_emit(self, emit: Dom | None, captures: dict[str, int], emission: Emission | None = None) -> list[tuple[Any, ...]] | None:
@@ -1732,6 +1853,7 @@ class _Lowerer:
                     # helper: its base productions first, one for each
                     # expansion of the item, then its recursive ones
                     # (engine §3.3).
+                    self.item_scope(alt)
                     items = self.expand(expr["repeat"])
                     self.brace_items.append((items, alt, rule))
                     separators = self.expand(expr["separator"]) if "separator" in expr else [[]]
@@ -1765,11 +1887,18 @@ class _Lowerer:
             rule_ids={name: index for index, name in enumerate(self.rule_names)},
             rule_productions=rule_productions,
             rule_display=self.rule_display,
+            steps=self.grammar.steps,
             lean=self.grammar.lean,
             characters=self.characters,
+            contextual=self.contextual,
         )
         from ._ranked_frame import prepare_ranked
+        if self.grammar.tree_comparisons: lowered.tree_sites = []
         prepare_ranked(lowered)
+        if self.grammar.tree_comparisons:
+            from ._tree_identities import prepare, check_cycles
+            prepare(lowered)
+            check_cycles(lowered, self.structural)
         return lowered
 
     def check_brace_items(self) -> None:
@@ -1815,12 +1944,16 @@ class _Lowerer:
 
 
 def _holds_capture(expr: Any, include_ranked: bool = False) -> bool:
-    """Whether an expression holds a capture, at any depth (engine §3.5)."""
+    """Whether an expression holds a capture, at any depth (engine §3.5). An
+    item capture binds to the helper of its braces, not to the enclosing
+    production, so braces hold none here."""
     stack: list[Any] = [expr]
     while stack:
         value = stack.pop()
         if isinstance(value, dict):
             if "ranked" in value and not include_ranked:
+                continue
+            if "repeat" in value:
                 continue
             if isinstance(value.get("capture"), str) and "expr" in value:
                 return True

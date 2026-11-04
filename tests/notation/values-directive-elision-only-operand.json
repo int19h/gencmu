@@ -1,0 +1,10 @@
+{
+  "description": "%elision-only takes no operand, and an operand is an error at the directive (engine §9.3).",
+  "document": "```jbogenbau\n%elision-only on\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

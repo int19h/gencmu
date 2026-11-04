@@ -1,0 +1,21 @@
+{
+  "description": "An emission tag clause compares trees without recognition identities.",
+  "grammar": "%rule text $x:r $y:r\n%emits $ :: ($x \u2245 $y \u27f9 Same)\n%rule r \"a\" | \"b\"",
+  "input": "aa",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "Same"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -64,6 +64,9 @@ func (r *recognizer) before(it *item, l link) *item {
 		return l.prev
 	}
 	key := itemKey{prod: it.prod, origin: it.origin}
+	if r.trees != nil {
+		r.finishTree(&key)
+	}
 	if r.boundaries != nil {
 		key.boundary = r.boundaries.empty
 	}

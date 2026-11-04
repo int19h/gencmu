@@ -1,0 +1,25 @@
+{
+  "description": "The notation retains the node pattern form in the DOM (output.md).",
+  "document": "```jbogenbau\n%ambiguity-resolution late $P\n```\n",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "late",
+              "pattern": {
+                "const": "P",
+                "at": [
+                  2,
+                  28
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

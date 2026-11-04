@@ -25,6 +25,23 @@ func valueNotation(t *testing.T, aliases []notationAlias) string {
 	if lexical == nil {
 		t.Fatal("the bootstrap has no lexical stage")
 	}
+	// The first step prefers the exact alias rules (engine §6).
+	atoms := []any{}
+	for index := range aliases {
+		atoms = append(atoms, map[string]any{"name": fmt.Sprintf("value-alias-%d", index), "exact": true, "at": []int{1, 1}})
+	}
+	var pattern any
+	if len(atoms) == 1 {
+		pattern = atoms[0]
+	} else if len(atoms) > 1 {
+		pattern = map[string]any{"union": atoms}
+	}
+	for _, directive := range lexical["directives"].([]any) {
+		d := directive.(map[string]any)
+		if d["name"] == "ambiguity-resolution" && pattern != nil {
+			d["steps"] = append([]any{map[string]any{"step": "leftmost-longest", "pattern": pattern}}, d["steps"].([]any)...)
+		}
+	}
 	rules := lexical["rules"].([]any)
 	var piece map[string]any
 	for _, rule := range rules {
@@ -53,7 +70,7 @@ func valueNotation(t *testing.T, aliases []notationAlias) string {
 			tagExpr = tags[0]
 		}
 		rules = append(rules, map[string]any{
-			"name": name, "op": "define", "flags": []string{"leftmost-longest"},
+			"name": name, "op": "define",
 			"at": []int{100000 + i, 1}, "conditions": []any{},
 			"alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"seq": seq}}},
 			"emit": map[string]any{"items": []any{map[string]any{

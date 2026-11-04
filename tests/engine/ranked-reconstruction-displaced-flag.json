@@ -1,6 +1,6 @@
 {
   "description": "A reconstructed higher option excludes the chosen witness despite its better flagged profile (engine §7.10).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text :: ∅ | (a ≻ b)\n\n%rule a (X T)\n%rule (leftmost-longest) b (X [+T]) | ([+U] X)",
+  "grammar": "%ambiguity-resolution leftmost-longest #·b, late #·_<_Elided>\n%elision-only\n%rule text :: ∅ | (a ≻ b)\n\n%rule a (X T)\n%rule b (X [+T]) | ([+U] X)\n               ",
   "tokens": [
     {
       "text": "x",

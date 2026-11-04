@@ -5,7 +5,7 @@
     "error": {
       "line": 2,
       "column": 1,
-      "message": "%ambiguity-resolution takes a ranking name and optionally elision-only"
+      "message": "%ambiguity-resolution requires a pattern for each key step and no operand on a final lean"
     }
   }
 }

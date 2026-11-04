@@ -1,0 +1,10 @@
+{
+  "description": "Rule tag tests apply to resolved template instances (engine §9.3).",
+  "grammar": "%ambiguity-resolution fewest #·family(\"z\", T)<T>\n%rule family(@X, @Tag) @X :: @Tag\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

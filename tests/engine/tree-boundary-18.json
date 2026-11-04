@@ -1,6 +1,6 @@
 {
   "description": "`fewest` ranks before `late-elision` (engine §4.2 and §6, case 18).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text p | q\n%rule(fewest) p A (B | C)\n%rule q A [+T] B",
+  "grammar": "%ambiguity-resolution fewest #·p, late #·_<_Elided>\n%rule text p | q\n%rule p A (B | C)\n              \n%rule q A [+T] B",
   "tokens": [
     {
       "text": "a",

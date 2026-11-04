@@ -561,6 +561,255 @@ func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) o
 	return done[0]
 }
 
+// orderedMentions lists the captures a clause mentions, presence tests
+// included, each once, in the order written.
+func orderedMentions(p clausePart) []string {
+	var out []string
+	seen := map[string]bool{}
+	add := func(name string) {
+		if !seen[name] {
+			seen[name] = true
+			out = append(out, name)
+		}
+	}
+	walkClause(p, func(q clausePart) bool {
+		switch {
+		case q.t != nil && q.t.Kind == tmCapture:
+			add(q.t.Str)
+		case q.c != nil && q.c.Kind == cdCaptured:
+			add(q.c.Capture)
+		}
+		return true
+	})
+	return out
+}
+
+// itemCaptureProblem is why the item captures of a definition cannot be
+// read (engine §3.6, §9), or "". Only a condition reads an item capture,
+// and a pattern comparison names none. In each alternative whose item
+// captures it reads, such a condition reads the item captures of one pair
+// of braces, no $, and no capture that a production of the alternative
+// binds after those braces. Like any condition, it must apply to some
+// production: a helper production of its braces, with the captures bound
+// before the braces, or, in an alternative without its item captures, a
+// production of that alternative. itemsByAlt holds each alternative's
+// item captures with their places, items is every item capture's name,
+// and waits says whether a clause waits for its constants.
+func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map[string]bool, waits func(any) bool) string {
+	firstItem := func(names []string) string {
+		for _, name := range names {
+			if items[name] {
+				return name
+			}
+		}
+		return ""
+	}
+	// Every clause but a condition.
+	type clause struct {
+		kind  string
+		names []string
+	}
+	var others []clause
+	for _, t := range []*domTerm{r.Tags, r.Value, r.Image} {
+		if t != nil {
+			others = append(others, clause{"a clause", orderedMentions(clausePart{t: t})})
+		}
+	}
+	for _, a := range r.Alternatives {
+		for _, t := range []*domTerm{a.Tags, a.Value, a.Image} {
+			if t != nil {
+				others = append(others, clause{"a clause", orderedMentions(clausePart{t: t})})
+			}
+		}
+	}
+	if r.Emit != nil {
+		for _, it := range r.Emit.Items {
+			var names []string
+			if !it.IsInsert {
+				names = append(names, it.captures()...)
+			}
+			for _, t := range []*domTerm{it.Tags, it.Value, it.Image} {
+				if t != nil {
+					names = append(names, orderedMentions(clausePart{t: t})...)
+				}
+			}
+			others = append(others, clause{"%emits", names})
+		}
+	}
+	for _, c := range others {
+		if name := firstItem(c.names); name != "" {
+			return fmt.Sprintf("%s of %s names $%s, an item capture, which only a condition reads", c.kind, r.Name, name)
+		}
+	}
+	// The conditions that read an item capture, checked in each
+	// alternative whose item captures they read (engine §3.6).
+	sequences := make([][][]string, len(r.Alternatives))
+	helperSequences := map[*domExpr][][]string{}
+	for _, c := range r.Conditions {
+		mentioned := orderedMentions(clausePart{c: c})
+		var inside []string
+		whole := false
+		for _, name := range mentioned {
+			switch {
+			case name == "":
+				whole = true
+			case items[name]:
+				inside = append(inside, name)
+			}
+		}
+		if len(inside) == 0 {
+			continue
+		}
+		if whole {
+			return fmt.Sprintf("a condition of %s reads $%s, an item capture, together with $, which is not complete at each item", r.Name, inside[0])
+		}
+		// Like any condition, it must apply to some production. A
+		// condition that waits for its constants is checked once they have
+		// their values.
+		applies := waits(c)
+		for i, a := range r.Alternatives {
+			places := itemsByAlt[i]
+			var here []string
+			for _, name := range inside {
+				if _, ok := places[name]; ok {
+					here = append(here, name)
+				}
+			}
+			// With none of its item captures here, it is an ordinary
+			// condition of the alternative's productions.
+			if len(here) == 0 {
+				if !applies {
+					for _, caps := range validationCaptures(r, a) {
+						if conditionApplies(c, hasIn(caps)) {
+							applies = true
+							break
+						}
+					}
+				}
+				continue
+			}
+			first := places[here[0]]
+			for _, name := range here[1:] {
+				if places[name].braces != first.braces {
+					return fmt.Sprintf("a condition of %s reads $%s and $%s, item captures of two pairs of braces", r.Name, here[0], name)
+				}
+			}
+			// Its other captures are outer captures, bound before the
+			// braces in every production of the alternative that reads
+			// them. A production reads the outermost braces in place of
+			// the braces of the item capture.
+			var outer []string
+			for _, name := range mentioned {
+				if _, item := places[name]; !item {
+					outer = append(outer, name)
+				}
+			}
+			if sequences[i] == nil {
+				sequences[i] = bracesSequences(a.Expr)
+			}
+			helper, ok := helperSequences[first.braces]
+			if !ok {
+				helper = braceHelperSequences(first.braces)
+				helperSequences[first.braces] = helper
+			}
+			pseudo := bracesName(first.outer)
+			for _, sequence := range sequences[i] {
+				at := indexOf(sequence, pseudo)
+				if at < 0 {
+					continue
+				}
+				for _, name := range outer {
+					if indexOf(sequence, name) > at {
+						return fmt.Sprintf("a condition of %s reads $%s with the item capture $%s, but a production binds $%s after the braces", r.Name, name, here[0], name)
+					}
+				}
+				if applies {
+					continue
+				}
+				// A helper production of the braces, with the captures
+				// that the frame holds, bound before the braces (engine
+				// §4).
+				for _, own := range helper {
+					caps := map[string]int{"": -1}
+					for _, name := range sequence[:at] {
+						caps[name] = -1
+					}
+					for j, name := range own {
+						caps[name] = j
+					}
+					if conditionApplies(c, hasIn(caps)) {
+						applies = true
+						break
+					}
+				}
+			}
+		}
+		if !applies {
+			return fmt.Sprintf("a condition of %s applies to no production", r.Name)
+		}
+	}
+	return ""
+}
+
+// conditionApplies says whether a condition applies to a production with
+// the captures has says it has: simplified, it is not true, and it uses
+// only captures the production has (engine §3.6).
+func conditionApplies(c *domCond, has func(string) bool) bool {
+	o := simplifiedOutcome(clausePart{c: c}, has, nil)
+	return o.kind == oFalse || o.kind == oUses && !o.lacks
+}
+
+// braceHelperSequences lists the captures that the productions of the
+// helper of flat braces read, by name in the order read: each item, and
+// each separator followed by an item (engine §3.2).
+func braceHelperSequences(braces *domExpr) [][]string {
+	names := func(seqs [][]*domExpr) [][]string {
+		out := make([][]string, len(seqs))
+		for i, seq := range seqs {
+			out[i] = []string{}
+			for _, c := range seq {
+				out[i] = append(out[i], c.Name)
+			}
+		}
+		return out
+	}
+	items := names(captureSequences(braces.Inner))
+	if braces.Sep == nil {
+		return items
+	}
+	out := append([][]string{}, items...)
+	for _, left := range names(captureSequences(braces.Sep)) {
+		for _, right := range items {
+			out = append(out, append(append([]string{}, left...), right...))
+		}
+	}
+	return out
+}
+
+// patternComparisonNames lists the captures that the pattern comparisons
+// of a condition name, ≅ and ≇ with their operands (engine §3.6).
+func patternComparisonNames(c *domCond) []string {
+	var names []string
+	walkClause(clausePart{c: c}, func(q clausePart) bool {
+		if q.c != nil && (q.c.Op == "≅" || q.c.Op == "≇") {
+			names = append(names, orderedMentions(q)...)
+			return false
+		}
+		return true
+	})
+	return names
+}
+
+// indexOf is the index of s in list, or -1.
+func indexOf(list []string, s string) int {
+	for i, x := range list {
+		if x == s {
+			return i
+		}
+	}
+	return -1
+}
+
 // Definition problem kinds determine which checks wait for ranked validation.
 type definitionKind uint8
 
@@ -678,11 +927,41 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 		}
 		names = append(names, item.attachments()...)
 	}
+	// The item captures of each alternative, which bind to the helper of
+	// their braces, not to the productions listed above (engine §3.5).
+	var itemsByAlt []map[string]itemPlace
+	itemNames := map[string]bool{}
+	for _, a := range r.Alternatives {
+		places := itemCaptures(a.Expr)
+		itemsByAlt = append(itemsByAlt, places)
+		for name := range places {
+			step()
+			itemNames[name] = true
+		}
+	}
 	for _, name := range names {
 		step()
-		if capturedBy[name] == 0 {
+		if capturedBy[name] == 0 && !itemNames[name] {
 			return immediate(fmt.Sprintf("$%s is captured by no alternative of %s", name, r.Name))
 		}
+	}
+	if len(itemNames) > 0 {
+		if msg := itemCaptureProblem(r, itemsByAlt, itemNames, waits); msg != "" {
+			return immediate(msg)
+		}
+	}
+	// An item condition applies to the productions of its braces' helper
+	// (engine §3.6), which are not listed here.
+	isItem := func(c *domCond) bool {
+		if len(itemNames) == 0 {
+			return false
+		}
+		for _, name := range orderedMentions(clausePart{c: c}) {
+			if itemNames[name] {
+				return true
+			}
+		}
+		return false
 	}
 	// The clauses are split by the presence of captures once, so that the
 	// checks below cost each production its own captures and what applies
@@ -697,7 +976,7 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 	}
 	// A condition that applies to no alternative. Each production marks
 	// the conditions that apply to it.
-	conds := newCondCheck(r.Conditions, func(c *domCond) bool { return waits(c) })
+	conds := newCondCheck(r.Conditions, func(c *domCond) bool { return waits(c) || isItem(c) })
 	for _, caps := range alts {
 		if conds.left == 0 {
 			break

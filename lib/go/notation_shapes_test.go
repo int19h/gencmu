@@ -74,12 +74,14 @@ func TestNotationShapes(t *testing.T) {
 		Control    any            `json:"control"`
 		Loads      map[string]any `json:"loads"`
 		ExtraParts []struct {
-			Description string   `json:"description"`
-			Find        string   `json:"find"`
-			Replace     string   `json:"replace"`
-			Document    string   `json:"document"`
-			Inputs      []string `json:"inputs"`
-			Expect      any      `json:"expect"`
+			Description string `json:"description"`
+			// Find and Replace are one string each, or arrays of the same
+			// length whose pairs apply in order (tests/README.md).
+			Find     json.RawMessage `json:"find"`
+			Replace  json.RawMessage `json:"replace"`
+			Document string          `json:"document"`
+			Inputs   []string        `json:"inputs"`
+			Expect   any             `json:"expect"`
 			// Where is the place of an expected load error in its
 			// document, when the item gives it (tests/README.md).
 			Where *struct {
@@ -142,7 +144,7 @@ func TestNotationShapes(t *testing.T) {
 			for _, field := range []string{"ref", "rule"} {
 				syntax = strings.ReplaceAll(syntax, `"`+field+`":"`+name+`"`, `"`+field+`":"`+name+`-wrapper"`)
 			}
-			fmt.Fprintf(&wrappers, `{"name":"%s-wrapper","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"ref":"%s"}}],"conditions":[],"at":[%d,1]},`, name, name, 100000+i)
+			fmt.Fprintf(&wrappers, `{"name":"%s-wrapper","op":"define","alternatives":[{"guards":[],"expr":{"ref":"%s"}}],"conditions":[],"at":[%d,1]},`, name, name, 100000+i)
 		}
 		return strings.Replace(syntax, `"rules":[`, `"rules":[`+wrappers.String(), 1)
 	})
@@ -175,12 +177,19 @@ func TestNotationShapes(t *testing.T) {
 	}
 	// A part that the reader does not read is ignored.
 	for _, item := range shapes.ExtraParts {
-		if len(findPlaces(bootstrap, item.Find)) != 1 {
-			t.Fatalf("%s: the text to replace does not stand once", item.Description)
+		finds, replaces := shapeTexts(t, item.Find), shapeTexts(t, item.Replace)
+		if len(finds) != len(replaces) {
+			t.Fatalf("%s: %d texts to find and %d replacements", item.Description, len(finds), len(replaces))
 		}
-		changed, err := substitute(bootstrap, item.Find, item.Replace)
-		if err != nil {
-			t.Fatalf("%s: %v", item.Description, err)
+		changed := bootstrap
+		for i, find := range finds {
+			if len(findPlaces(changed, find)) != 1 {
+				t.Fatalf("%s: the text to replace does not stand once", item.Description)
+			}
+			var err error
+			if changed, err = substitute(changed, find, replaces[i]); err != nil {
+				t.Fatalf("%s: %v", item.Description, err)
+			}
 		}
 		var where *[3]any
 		if w := item.Where; w != nil {
@@ -190,6 +199,21 @@ func TestNotationShapes(t *testing.T) {
 			t.Errorf("%s: %v, not %v", item.Description, got, item.Expect)
 		}
 	}
+}
+
+// shapeTexts reads a find or replace of an extraParts item: one string, or
+// an array of strings (tests/README.md, "Notation shapes").
+func shapeTexts(t *testing.T, raw json.RawMessage) []string {
+	t.Helper()
+	var one string
+	if err := json.Unmarshal(raw, &one); err == nil {
+		return []string{one}
+	}
+	var many []string
+	if err := json.Unmarshal(raw, &many); err != nil || len(many) == 0 {
+		t.Fatalf("a malformed find or replace: %s", raw)
+	}
+	return many
 }
 
 // Each notation stage runs the check of elision-only where its own
@@ -221,7 +245,7 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 	for _, value := range lexicalDOM["directives"].([]any) {
 		directive := value.(map[string]any)
 		if directive["name"] == "ambiguity-resolution" {
-			directive["args"] = []any{"greedy", "elision-only"}
+			lexicalDOM["directives"] = append(lexicalDOM["directives"].([]any), map[string]any{"name": "elision-only", "args": []any{}, "at": []any{100000, 1}})
 		}
 	}
 	encoded, err = json.Marshal(parsed)

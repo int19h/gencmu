@@ -1,0 +1,10 @@
+{
+  "description": "The reader refuses this default or emitted read.",
+  "document": "```jbogenbau\n%rule text A :: $.emitted.value.classify(words)\n%classifier words \"a\" ∈ A\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 17
+    }
+  }
+}

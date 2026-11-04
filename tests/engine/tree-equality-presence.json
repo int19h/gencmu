@@ -1,0 +1,10 @@
+{
+  "description": "Structural comparison: presence.",
+  "grammar": "%rule text ($x:bad | $x:good $y:good)\n%conditions $y ⟹ ($x ≅ $y)\n%rule good \"a\"\n%rule bad \"a\" | bad",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

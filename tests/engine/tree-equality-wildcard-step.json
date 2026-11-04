@@ -1,0 +1,17 @@
+{
+  "description": "A wildcard step is live when a written or omitted leaf is reachable, even if no body wildcard occurs.",
+  "grammar": "%ambiguity-resolution fewest #·_\n%rule text \"a\" [+T] | \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "kind": "token"
+          }
+        ]
+      }
+    }
+  }
+}

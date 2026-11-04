@@ -69,6 +69,12 @@ The pipeline turns on two syntax features. `cbm` is the cmevla-brivla merger, wh
   ```jbogenbau
   %include "../common/forms.md"
   ```
+
+The word forms divide each run in one way only, so the stage's `lazy` step decides nothing. [The word forms](../common/forms.md) explain the one exception, which only the `lojban/zantufa` pipeline reads.
+
+```jbogenbau
+%ambiguity-resolution lazy
+```
 - [BPFK word forms](../bpfk/morphology.md)
   ```jbogenbau
   %include "../bpfk/morphology.md"
@@ -135,11 +141,11 @@ A bridi-tail is a predicate with its following terms.
 
 A span is a range between input token boundaries.
 
-A ranked choice orders alternatives at one written position. An earlier option can exclude a later option over the same span. The [notation document](../../../docs/notation.md#ranked-choices) defines when this occurs. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. `fewest` next prefers fewer links built by `bridi-tail-connective` and `gi-stag-connective` across the whole reading. `late-elision` ranks the remaining readings.
+A ranked choice orders alternatives at one written position. An earlier option can exclude a later option over the same span. The [notation document](../../../docs/notation.md#ranked-choices) defines when this occurs. `leftmost-longest #(·tense-modal ∪ ·free)` prefers the reading whose free modifiers and tense-modals start earliest and run longest. `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)` next prefers fewer links across the whole reading. `late #·_<_Elided>` ranks the remaining readings.
 
 The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing.
 
-The pipeline does not declare `elision-only`. A caller can turn the check on with `--elision-only on`. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text.
+The pipeline does not declare `%elision-only`. A caller can turn the check on with `--elision-only on`. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text.
 
 A condition can treat a written-back terminator differently from a written one. `$BARE-NA` and `$BARE-TAG` test `KU=""`, while `$WRITTEN-VAU` tests `VAU≠""`. These conditions see a written-back terminator as omitted, but the reconstruction reads it as a token. So such a condition can admit a second reading of the written-back text.
 
@@ -153,14 +159,14 @@ camxes-exp is the baseline of this pipeline, not its limit. gencmu considers eve
 
 The syntax layer preserves these camxes-exp preferences among complete readings, except where the departures below apply:
 
-- A free modifier or a tense takes the earliest and longest span before connection ranking (`leftmost-longest`, [parse preferences](syntax.md#choosing-among-parses)).
+- A free modifier or a tense takes the earliest and longest span before connection ranking (the `leftmost-longest` step, [parse preferences](syntax.md#choosing-among-parses)).
 - An ek, a jek or a joik directly after `.i` belongs to `.i` ([text and paragraphs](syntax.md#the-text-and-its-paragraphs)).
-- After span ranking, `fewest` prefers fewer bridi-tail links in the whole reading ([terms](syntax.md#terms), [bridi-tails](syntax.md#sentences-and-bridi-tails)). Equal counts leave late elision to decide, which can keep the first description open. This applies to A, JA, JOI, and VUhU. A sumti connection also takes priority over a term connection. Term connections include terms marked with `fe` or `pu`, and bare `na ku` terms.
+- After span ranking, the `fewest` step prefers fewer bridi-tail links in the whole reading ([terms](syntax.md#terms), [bridi-tails](syntax.md#sentences-and-bridi-tails)). Equal counts leave late elision to decide, which can keep the first description open. This applies to A, JA, JOI, and VUhU. A sumti connection also takes priority over a term connection. Term connections include terms marked with `fe` or `pu`, and bare `na ku` terms.
 - A `be` group attaches to the preceding tanru unit ([selbri and tanru](syntax.md#selbri-and-tanru)).
 - A final connection is last at its grammar level. Its bridi-tail connective owns a following `ke` group, with or without an intervening tag. A bare `gi` with a tag also owns its following `ke` group ([sentences and bridi-tails](syntax.md#sentences-and-bridi-tails)).
 - A subscript after another subscript nests ([free modifiers](syntax.md#free-modifiers-vocatives-and-indicators)).
 
-The `leftmost-longest` flag on `free` settles a free modifier's span before the `fewest` ranking. An omitted terminator therefore closes as late as the text allows. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis.
+The first step names `free`, so it settles a free modifier's span before the `fewest` step. An omitted terminator therefore closes as late as the text allows. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis.
 
 In `mi nelci le nu broda to brodi .e le nu brode melbi`, this layer keeps `brodi .e le nu brode melbi` inside the parenthesis. The experimental syntax permits `.e` between bridi-tails, as its [connection departures](syntax.md#bridi-tail-connections) explain. The `free` rule's span preference selects the later close. camxes-exp instead closes after `brodi`, and `.e` joins the two outer descriptions. The CLL grammar also closes before `.e`, which cannot connect its bridi-tails.
 
@@ -174,7 +180,7 @@ camxes-exp also splits a run that mixes digits and letters, as in `li pa by`, wh
 
 The syntax document's [closing section](syntax.md#differences-from-cll-and-camxes-exp) gives the complete list of departures and their reasons. Bare NA and tag terms use its explicit [KU omission limits](syntax.md#deliberate-ku-omission-limits). A query is a parse requested by a condition. The syntax document states each query's boundary conditions.
 
-The `leftmost-longest` preference includes vocatives, but it compares only readings that pass the grammar's conditions.
+The unit preference includes vocatives, but it compares only readings that pass the grammar's conditions.
 
 ### Explicit grammar differences
 
@@ -206,7 +212,7 @@ In `lo broda noi brode no'oi brodi ku'o do cu klama`, `do` belongs to the open N
 
 `la djonz. cu na'e pamoi cusku` has `na'e` on the selbri `pa moi`. camxes-exp reads the number `na'e pa` before `moi`, since its `mex MOI` form comes first.
 
-In `mi nelci le su'u delno .enai le su'u stero delno`, `.enai` joins the two descriptions, as in camxes-exp. This reading avoids a bridi-tail link inside the first abstraction. The `fewest` flag selects it before late elision.
+In `mi nelci le su'u delno .enai le su'u stero delno`, `.enai` joins the two descriptions, as in camxes-exp. This reading avoids a bridi-tail link inside the first abstraction. The `fewest` step selects it before late elision.
 
 In `lo ka smuni .e fe lo ka pemci cu melbi`, `.e` joins terms before the main selbri `melbi`. camxes-exp instead keeps the connection inside the first abstraction and reads the text as a bare sumti. The written `cu` marks the main bridi, so this layer prefers the reading with a main bridi. The inner reading puts `cu` inside an abstraction.
 
@@ -220,7 +226,7 @@ Writing `gi'e` for the first `.e` gives `mi djica lo nu do klama gi'e lo mlatu .
 
 No preference based only on form selects the intended meaning in every text. This layer keeps the whole-reading count and leaves the other readings available through written words.
 
-Where both readings already connect sumti, `fewest` cannot choose, and late elision keeps the inner connection. In `mi nelci lo nu mi djica gy .e lo nu do klama`, `.e` therefore joins `gy` with the second description inside the first abstraction. A writer who means the two `nu` descriptions closes the first one. For example, `mi nelci lo nu mi djica gy ku .e lo nu do klama` makes `.e` join those descriptions. The flag gives no preference between the two scopes, so late elision alone decides.
+Where both readings already connect sumti, the `fewest` step cannot choose, and late elision keeps the inner connection. In `mi nelci lo nu mi djica gy .e lo nu do klama`, `.e` therefore joins `gy` with the second description inside the first abstraction. A writer who means the two `nu` descriptions closes the first one. For example, `mi nelci lo nu mi djica gy ku .e lo nu do klama` makes `.e` join those descriptions. The step gives no preference between the two scopes, so late elision alone decides.
 
 A free modifier after a subscript can belong to the subscript or to the word that the subscript marks. The pipeline gives it to the word, as CLL's grammar does. So in `mi broda xi pa boi to do toi`, the parenthesis belongs to `broda`. camxes-exp gives it to the subscript.
 
@@ -240,7 +246,7 @@ A replacement quote is one unit of raw words in the words stage (`../common/loha
 
 The [indicator document](../cll/indicators.md#quotation-boundaries) defines quotation and parenthesis boundaries. Its [source comparison](../cll/indicators.md#quotation-and-parenthesis-boundaries) explains CLL and the official parser.
 
-A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence. So `to mi klama` holds `mi` or `mi klama`. The `leftmost-longest` flag on `free` takes the longer parenthesis, so the sentence wins, as in camxes-exp.
+A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence. So `to mi klama` holds `mi` or `mi klama`. The `leftmost-longest` step takes the longer parenthesis, so the sentence wins, as in camxes-exp.
 
 ### Erasure
 

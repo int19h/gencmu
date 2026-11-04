@@ -1,0 +1,19 @@
+{
+  "description": "A wildcard value test reads a leaf (engine §4).",
+  "grammar": "%rule text $x:A\n%conditions $x ≅ #·_<T>=\"a\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ],
+      "value": "a"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

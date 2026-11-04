@@ -4,6 +4,7 @@
   "input": "%rule text A",
   "expect": {
     "bundledPipelines": [
+      "eberban/refgram",
       "gencmu/jbogenbau",
       "lojban/bpfk",
       "lojban/cll",

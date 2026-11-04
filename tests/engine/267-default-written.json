@@ -1,0 +1,33 @@
+{
+  "description": "A written terminator contributes its actual value and image (engine §11.2).",
+  "grammar": "%rule text $x:r\n%emits $\n%rule r TO [+JI ≝ \"jie\"]",
+  "tokens": [
+    {
+      "text": "to",
+      "tags": [
+        "TO"
+      ]
+    },
+    {
+      "text": "jie",
+      "tags": [
+        "JI"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "tojie",
+              "image": "tojie"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

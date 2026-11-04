@@ -39,10 +39,10 @@ export function readResource(key) {
 // their own in the lexer.
 const LAYERED_SYMBOLS = new Set(["«", "»", "·"]);
 const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=",
-  "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻"]);
+  "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻", "≝"]);
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%conditions", "%emits", "%erased",
-  "%ambiguity-resolution", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
+  "%ambiguity-resolution", "%elision-only", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
 
 // A syntax error: the text cannot be read as the notation at all, which the
 // reader reports before any other error (engine §9).
@@ -256,7 +256,7 @@ function lex(text, originalPositions) {
   return tokens;
 }
 
-const DIRECTIVES = new Set(["%ambiguity-resolution", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features"]);
+const DIRECTIVES = new Set(["%ambiguity-resolution", "%elision-only", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features"]);
 const RULE_KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule"]);
 const CONSTANT_KEYWORDS = new Set(["%const", "%redefine-const"]);
 const COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
@@ -363,7 +363,24 @@ class Parser {
     return { kind: "rule", rule: "text", children, span: [0, this.index] };
   }
 
+  // Ranking steps take one pattern literal or constant after their name.
+  *rankingDirective() {
+    const start = this.index;
+    const children = [this.tok(), yield this.rankingStep()];
+    while (this.is(",")) children.push(this.tok(), yield this.rankingStep());
+    return this.node("ranking-directive", start, children);
+  }
+
+  *rankingStep() {
+    const start = this.index;
+    const children = [this.is("identifier") ? this.tok() : this.fail("expected a ranking step")];
+    if (this.is("#")) children.push(yield this.layeredLiteral());
+    else if (this.is("constant")) children.push(this.leaf("constant-reference"));
+    return this.node("ranking-step", start, children);
+  }
+
   *directive() {
+    if (this.is("%ambiguity-resolution")) return yield this.rankingDirective();
     const start = this.index;
     const children = [this.tok()];
     while (this.peek() && !this.kindAt().startsWith("%") && this.kindAt() !== "keyword") {
@@ -433,14 +450,6 @@ class Parser {
   *rule() {
     const start = this.index;
     const children = [this.leaf("definer")];
-    if (this.is("(")) {
-      const at = this.index;
-      const flags = [this.tok()];
-      flags.push(this.is("identifier") ? this.leaf("rule-flag") : this.fail("expected a rule flag"));
-      while (this.is(",")) flags.push(this.tok(), this.is("identifier") ? this.leaf("rule-flag") : this.fail("expected a rule flag"));
-      flags.push(this.expect(")"));
-      children.push(this.node("rule-flags", at, flags));
-    }
     children.push(this.is("call-name") ? (yield this.call()) : this.is("identifier") || this.is("emoji") ? this.leaf("rule-name") : this.fail("expected a rule's name"));
     if (this.is("=")) {
       children.push(this.tok(), (yield this.call()));
@@ -559,7 +568,12 @@ class Parser {
     if (this.is("capture") || this.is("constant") && this.is(":", 1)) return this.node("primary", start, [this.node("capture", start, [this.tok(), this.expect(":"), (yield this.primary())])]);
     const base = this.node("primary", start, [(yield this.symbol())]);
     const tests = [];
-    while (TEST_COMPARATORS.has(this.kindAt())) tests.push((yield this.test()));
+    while (TEST_COMPARATORS.has(this.kindAt()) || this.is("≝")) {
+      if (this.is("≝")) {
+        const at = this.index;
+        tests.push(this.node("default-value", at, [this.tok(), (yield this.testOperand())]));
+      } else tests.push((yield this.test()));
+    }
     return tests.length ? this.node("primary", start, [this.node("tested", start, [base.children[0], ...tests])]) : base;
   }
 
@@ -929,7 +943,7 @@ class Parser {
     if ((this.is('string') || this.is('constant') || this.is('parameter')) && this.is('..',1)) children.push(yield this.range());
     else if (this.is('call-name')) children.push(yield this.call());
     else if (this.is('parameter')) children.push(this.leaf('parameter'));
-    else if (this.is('identifier') || this.is('emoji')) children.push(this.tok());
+    else if (this.is('identifier') || this.is('emoji')) children.push(this.node(isCapital(this.peek().value)?'tag':'name',this.index,[this.tok()]));
     else if (this.is('tag')) children.push(this.leaf('tag'));
     else if (this.is('string')) children.push(this.leaf('string'));
     else if (this.is('_')) children.push(this.leaf('wildcard'));

@@ -8,27 +8,32 @@ import (
 
 // A frame retains written prefix values across generated helper boundaries.
 type rankedFrame struct {
-	id                 int32
-	captures           map[string]capVal
-	present            map[string]bool
-	knownPrivate       map[string]bool
-	root               *production
-	origin             int32
-	prefix, sealPrefix int
-	closes             int
-	closeRoute         string
-	sealCloses         int
-	sealOrigin         int32
-	sealGroup          *rankedGroup
-	sealEntry          *rankedFrame
-	inside             bool
+	treeDemandKey              string
+	treeBindings               map[string]symbol
+	identityPrefix             []int32
+	identitySealed             bool
+	treePrefix, treeSealPrefix int
+	id                         int32
+	captures                   map[string]capVal
+	present                    map[string]bool
+	knownPrivate               map[string]bool
+	root                       *production
+	origin                     int32
+	prefix, sealPrefix         int
+	closes                     int
+	closeRoute                 string
+	sealCloses                 int
+	sealOrigin                 int32
+	sealGroup                  *rankedGroup
+	sealEntry                  *rankedFrame
+	inside                     bool
 }
 type rankedProductionKey struct {
 	p     *production
 	frame *rankedFrame
 }
 type rankedPrediction struct {
-	requested bool
+	requested observationKinds
 	rule      int32
 	frame     *rankedFrame
 }
@@ -60,9 +65,14 @@ func overlaps(a, b map[string]bool) bool {
 	}
 	return false
 }
+
+// rankedCommonConditions is the conditions of the alternative being
+// lowered that its production over body carries: not an item condition,
+// which the helper of its braces carries (§3.6), and not one that reads a
+// private capture of a ranked group inside the body.
 func (lw *lowerer) rankedCommonConditions(body []slot, a *sAlt) []*domCond {
 	if lw.g.ranked == nil || len(lw.g.ranked.groups) == 0 {
-		return a.conds
+		return lw.altConds
 	}
 	names, seen := map[string]bool{}, map[int32]bool{}
 	var helper func(int32)
@@ -94,7 +104,7 @@ func (lw *lowerer) rankedCommonConditions(body []slot, a *sAlt) []*domCond {
 		}
 	}
 	if len(names) == 0 {
-		return a.conds
+		return lw.altConds
 	}
 	list := []string{}
 	for n := range names {
@@ -109,7 +119,7 @@ func (lw *lowerer) rankedCommonConditions(body []slot, a *sAlt) []*domCond {
 		return old
 	}
 	out := []*domCond{}
-	for _, c := range a.conds {
+	for _, c := range lw.altConds {
 		reads := map[string]bool{}
 		rankedCondReads(c, reads)
 		if !overlaps(reads, names) {
@@ -119,23 +129,41 @@ func (lw *lowerer) rankedCommonConditions(body []slot, a *sAlt) []*domCond {
 	lw.commonConds[a][key] = out
 	return out
 }
+
+// hasRanked says whether the stage has ranked groups.
+func (g *lowered) hasRanked() bool {
+	return g.stage.ranked != nil && len(g.stage.ranked.groups) > 0
+}
+
+// prepareRanked prepares the frames of the contextual helpers: those of
+// ranked alternatives, and those of alternatives with item captures (§3.5,
+// §4). A grammar with neither needs no frame.
 func (g *lowered) prepareRanked() {
-	if g.stage.ranked == nil || len(g.stage.ranked.groups) == 0 {
+	contextual := false
+	for _, p := range g.prods {
+		if p.contextual {
+			contextual = true
+			break
+		}
+	}
+	if !g.hasRanked() && !contextual {
 		return
 	}
-	g.rankedHelpers = map[int32]*rankedGroup{}
-	g.writtenHelpers = map[int32]string{}
-	sources := map[*sAlt]bool{}
-	for _, group := range g.stage.ranked.groups {
-		sources[group.source] = true
-	}
-	for _, p := range g.prods {
-		if p.ranked != nil {
-			g.rankedHelpers[p.lhs] = p.ranked
+	if g.hasRanked() {
+		g.rankedHelpers = map[int32]*rankedGroup{}
+		g.writtenHelpers = map[int32]string{}
+		sources := map[*sAlt]bool{}
+		for _, group := range g.stage.ranked.groups {
+			sources[group.source] = true
 		}
-		if p.helper && p.slot != nil {
-			g.writtenHelpers[p.lhs] = fmt.Sprintf("%s/%v/%s", p.ruleName, p.at, g.stage.ranked.paths[p.slot.path])
-			p.contextual = sources[p.slot.source]
+		for _, p := range g.prods {
+			if p.ranked != nil {
+				g.rankedHelpers[p.lhs] = p.ranked
+			}
+			if p.helper && p.slot != nil {
+				g.writtenHelpers[p.lhs] = fmt.Sprintf("%s/%v/%s", p.ruleName, p.at, g.stage.ranked.paths[p.slot.path])
+				p.contextual = p.contextual || sources[p.slot.source]
+			}
 		}
 	}
 	nested := func(p *production) map[string]bool {
@@ -196,6 +224,7 @@ func (g *lowered) prepareRanked() {
 
 // Follow finite capture contexts through active lowered helpers.
 func (g *lowered) prepareRankedConditions() {
+	type treeBinding = symbol
 	type entry struct {
 		rule  int32
 		frame *rankedFrame
@@ -232,7 +261,33 @@ func (g *lowered) prepareRankedConditions() {
 					captures[n] = capVal{}
 				}
 			}
-			pending = append(pending, entry{symbol.id, &rankedFrame{present: present, captures: captures, knownPrivate: known}})
+			child := &rankedFrame{present: present, captures: captures, knownPrivate: known}
+			if g.stage.treeComparisons {
+				child.treeBindings = map[string]treeBinding{}
+				for name, binding := range f.treeBindings {
+					child.treeBindings[name] = binding
+				}
+				for name, at := range p.posOf {
+					if at < index {
+						child.treeBindings[name] = p.rhs[at]
+					}
+				}
+				child.identityPrefix = append([]int32(nil), f.identityPrefix...)
+				if !f.identitySealed {
+					seen := map[int32]bool{}
+					for _, rule := range child.identityPrefix {
+						seen[rule] = true
+					}
+					for _, previous := range p.rhs[:index] {
+						if !previous.term && g.rankedHelpers[previous.id] == nil && !seen[previous.id] {
+							child.identityPrefix = append(child.identityPrefix, previous.id)
+							seen[previous.id] = true
+						}
+					}
+				}
+				child.identitySealed = f.identitySealed || g.rankedHelpers[symbol.id] != nil
+			}
+			pending = append(pending, entry{symbol.id, child})
 		}
 	}
 	for _, p := range g.prods {
@@ -257,6 +312,12 @@ func (g *lowered) prepareRankedConditions() {
 		sort.Strings(ready)
 		sort.Strings(known)
 		key := fmt.Sprintf("%d/%q/%q/%q", e.rule, declared, ready, known)
+		if g.stage.treeComparisons {
+			for _, name := range ready {
+				key += fmt.Sprintf("/%q:%v", name, e.frame.treeBindings[name])
+			}
+			key += fmt.Sprintf("/%v/%t", e.frame.identityPrefix, e.frame.identitySealed)
+		}
 		if seen[key] {
 			continue
 		}
@@ -267,6 +328,24 @@ func (g *lowered) prepareRankedConditions() {
 			p.rankedConditions = append(p.rankedConditions, q.predictConds...)
 			for _, c := range q.conds {
 				p.rankedConditions = append(p.rankedConditions, c.cond)
+			}
+			if g.stage.treeComparisons {
+				bindings := map[string]symbol{}
+				for name, binding := range e.frame.treeBindings {
+					bindings[name] = binding
+				}
+				for name, at := range p.posOf {
+					bindings[name] = p.rhs[at]
+				}
+				roots := append([]*domCond(nil), q.predictConds...)
+				for _, c := range q.conds {
+					roots = append(roots, c.cond)
+				}
+				for _, c := range roots {
+					for _, comparison := range constituentComparisons(clausePart{c: c}) {
+						g.treeSites = append(g.treeSites, treeSite{comparison, p, bindings, e.frame.identityPrefix})
+					}
+				}
 			}
 			enter(p, e.frame)
 		}
@@ -293,7 +372,11 @@ func (r *recognizer) rankedPrefix(it *item) string {
 			if r.closes != nil {
 				sequence = r.closes.semantic(cv.closes)
 			}
-			captures = append(captures, fmt.Sprintf("%q/%d/%d/%d/%d/%d", n, cv.start, cv.end, cv.tags, cv.structure, sequence))
+			key := fmt.Sprintf("%q/%d/%d/%d/%d/%d", n, cv.start, cv.end, cv.tags, cv.structure, sequence)
+			if r.trees != nil {
+				key += fmt.Sprintf("/t%d", cv.tree)
+			}
+			captures = append(captures, key)
 		}
 	}
 	lexical := int32(0)
@@ -311,6 +394,9 @@ func (r *recognizer) rankedPrefix(it *item) string {
 	boundary := ""
 	if r.boundaries != nil && it.boundary != nil {
 		boundary = fmt.Sprintf("/b%d", it.boundary.id)
+	}
+	if r.trees != nil && it.tree != nil {
+		boundary += fmt.Sprintf("/t%d", it.tree.prefix)
 	}
 	return boundary + fmt.Sprintf("%s/%v/%q/%q/%d/%d/%d/%d/%q/%d/%t/%s", p.ruleName, p.at, path, symbols, it.dot, it.origin, it.prefix, sequence, captures, lexical, it.restores, p.rankedBindings)
 }
@@ -350,6 +436,15 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 	}
 	f := &rankedFrame{id: int32(len(r.rankedFrames) + 1), captures: map[string]capVal{}, present: map[string]bool{}, knownPrivate: map[string]bool{}, root: p, origin: it.origin, prefix: it.prefix, sealPrefix: it.prefix, closes: it.closes}
 	f.closeRoute = r.closeEntryRoute(it)
+	if r.trees != nil {
+		if it.tree != nil {
+			f.treePrefix = it.tree.prefix
+		}
+		if outer != nil {
+			f.treePrefix = r.trees.concat(outer.treePrefix, f.treePrefix)
+		}
+		f.treeSealPrefix = f.treePrefix
+	}
 	if outer != nil {
 		for n, c := range outer.captures {
 			f.captures[n] = c
@@ -362,7 +457,11 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 		}
 		f.root, f.origin = outer.root, outer.origin
 		f.closeRoute = outer.closeRoute + f.closeRoute
-		f.prefix = r.machine.concat(outer.prefix, it.prefix)
+		// The pattern machine exists where a pattern or a ranked group
+		// needs it; without it, a prefix is the item's own.
+		if r.machine != nil {
+			f.prefix = r.machine.concat(outer.prefix, it.prefix)
+		}
 		if r.observesCloses(p) {
 			a, b := r.observed(f.origin, it.set)
 			x, y := r.observed(outer.origin, it.origin)
@@ -389,6 +488,7 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 	f.sealCloses, f.sealOrigin = f.closes, it.set
 	f.sealGroup, f.sealEntry = r.g.rankedHelpers[rule], f
 	if f.inside && outer != nil {
+		f.treeSealPrefix = outer.treeSealPrefix
 		f.sealPrefix = outer.sealPrefix
 		if outer.sealGroup != nil {
 			f.sealCloses, f.sealOrigin = outer.sealCloses, outer.sealOrigin
@@ -407,15 +507,63 @@ func (g *lowered) bindRankedConditions(q, p *production, f *rankedFrame, atomOf 
 	q.boundaryOriginal = map[*domCond]*domCond{}
 	has := func(n string) bool { _, local := p.slotOf[n]; return n == "" || local || f.present[n] }
 	private := map[string]bool{}
-	for _, group := range g.stage.ranked.groups {
-		if group.source == p.slot.source {
-			for n := range rankedPrivateNames(group.expr) {
-				private[n] = true
+	if g.hasRanked() && p.slot != nil {
+		for _, group := range g.stage.ranked.groups {
+			if group.source == p.slot.source {
+				for n := range rankedPrivateNames(group.expr) {
+					private[n] = true
+				}
 			}
+		}
+	}
+	// The item conditions of the braces' alternative run in the helper,
+	// with the enclosing item's captures from the frame (§3.6, §4). One
+	// drops where the production lacks an item capture it uses, or the
+	// frame an outer one.
+	for _, raw := range p.itemConds {
+		c, state := simplifyCond(raw, has)
+		if state == alwaysTrue {
+			continue
+		}
+		if state == alwaysFalse {
+			c = &domCond{Kind: cdAny}
+		}
+		reads := map[string]bool{}
+		rankedCondReads(c, reads)
+		missing := false
+		trigger := 0
+		for n := range reads {
+			if at, ok := p.posOf[n]; ok && n != "" {
+				if at+1 > trigger {
+					trigger = at + 1
+				}
+			} else if _, ready := f.captures[n]; !ready || n == "" {
+				missing = true
+				break
+			}
+		}
+		if missing {
+			continue
+		}
+		q.boundaryOriginal[c] = raw
+		if trigger == 0 {
+			q.predictConds = append(q.predictConds, c)
+		} else {
+			q.conds = append(q.conds, lcond{c, trigger, false})
 		}
 	}
 	if p.ranked != nil {
 		for _, raw := range p.slot.source.conds {
+			// An item condition attaches to the helper of its braces, not
+			// to a ranked group beside them (§3.6).
+			if len(p.altItems) > 0 {
+				reads := map[string]bool{}
+				rankedCondReads(raw, reads)
+				condMentions(raw, reads)
+				if overlaps(reads, p.altItems) {
+					continue
+				}
+			}
 			if atom := atomOf(raw); atom != nil && atom.Span.Str != "" {
 				if _, prefix := f.captures[atom.Span.Str]; prefix {
 					continue
@@ -508,18 +656,23 @@ func (r *recognizer) rankedProduction(p *production, f *rankedFrame) *production
 		atomOf = r.boundaries.first
 	}
 	private := r.g.bindRankedConditions(&q, p, f, atomOf)
-	source := p.slot.source
-	public := func(n string) bool { return n == "" || f.present[n] && !private[n] }
-	tags := []*domTerm{}
-	for _, term := range []*domTerm{source.alt.Tags, source.ruleTags} {
-		if term != nil {
-			tags = append(tags, simplifyTerm(term, public))
+	// The lazy $ of a helper in a ranked frame has the enclosing rule's
+	// tags. A helper outside every ranked alternative reads no $: a frame
+	// gives it the enclosing item's captures and nothing else.
+	if r.g.hasRanked() && p.slot != nil {
+		source := p.slot.source
+		public := func(n string) bool { return n == "" || f.present[n] && !private[n] }
+		tags := []*domTerm{}
+		for _, term := range []*domTerm{source.alt.Tags, source.ruleTags} {
+			if term != nil {
+				tags = append(tags, simplifyTerm(term, public))
+			}
 		}
-	}
-	if len(tags) == 1 {
-		q.parentTags = tags[0]
-	} else if len(tags) > 1 {
-		q.parentTags = &domTerm{Kind: tmUnion, Items: tags}
+		if len(tags) == 1 {
+			q.parentTags = tags[0]
+		} else if len(tags) > 1 {
+			q.parentTags = &domTerm{Kind: tmUnion, Items: tags}
+		}
 	}
 	r.rankedProductions[key] = &q
 	return &q
@@ -534,6 +687,10 @@ func (v *slotViews) rankedAncestry(scope *slotScope, r *recognizer) string {
 		if before == nil {
 			copy := *frame.parent
 			copy.dot = 0
+			if r.trees != nil {
+				copy.tree = nil
+				r.finishTree(&copy.itemKey)
+			}
 			if r.boundaries != nil {
 				copy.boundary = r.boundaries.empty
 			}

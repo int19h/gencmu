@@ -1,0 +1,13 @@
+{
+  "description": "The omission mark is legal only in pattern tag tests (engine §9.3).",
+  "grammar": "%implies T ⟹ _Elided\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 14
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "description": "A stage emits before it runs the check of elision-only. The text is resolved, and written back it would fail the check, but its emission fails first. So the result is the error of the grammar, and the stage keeps its verdict (engine §6, §7, §11).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c %emits\n%rule a x y [+T]\n%rule b x y [+T] [+T]\n%rule c x y T\n%rule x :- $.verbatim-text | A\n%rule y :- $.verbatim-text | B",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b | c %emits\n%rule a x y [+T]\n%rule b x y [+T] [+T]\n%rule c x y T\n%rule x :- $.verbatim-text | A\n%rule y :- $.verbatim-text | B",
   "tokens": [
     {
       "text": "a",

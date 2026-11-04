@@ -1,6 +1,6 @@
 {
   "description": "A reconstructed unary chain finds every rule seed and retains its witness.",
-  "grammar": "%ambiguity-resolution greedy elision-only\n%rule text r0 [+T]\n%rule r0 r1\n%rule r1 r2\n%rule r2 r3\n%rule r3 \"a\"",
+  "grammar": "%ambiguity-resolution greedy\n%elision-only\n%rule text r0 [+T]\n%rule r0 r1\n%rule r1 r2\n%rule r2 r3\n%rule r3 \"a\"",
   "input": "a",
   "expect": {
     "result": {

@@ -1,3 +1,4 @@
+import { TreeIdentities } from "./tree-identities.js";
 import { BoundaryAnnotations } from "./boundary-annotations.js";
 import { PatternMachine } from "./patterns.js";
 import { CloseObservations } from "./close-observations.js";
@@ -83,8 +84,8 @@ export declare class TagInterner {
      */
     get(id: number): TagSet;
 }
-/** @param {Pick<Production,"elided"|"elidedTest">} production @returns {boolean} */
-export declare function omissionAllowed(production: Pick<Production, "elided" | "elidedTest">): boolean;
+/** @param {Pick<Production,"elided"|"elidedTest"|"elidedValue">} production @returns {boolean} */
+export declare function omissionAllowed(production: Pick<Production, "elided" | "elidedTest" | "elidedValue">): boolean;
 /** @param {ParseContext} context @param {string} terminal @param {number} at @returns {number} */
 export declare function structuralRead(context: ParseContext, terminal: string, at: number): number;
 /**
@@ -103,6 +104,8 @@ export declare class ParseContext {
     closeRules: Set<string>;
     /** @type {CloseObservations|null} */
     closes: CloseObservations | null;
+    /** @type {TreeIdentities|null} */ trees: TreeIdentities | null;
+    /** @type {Map<string,number>|null} */ treeSeals: Map<string, number> | null;
     tokens: Token[];
     /** Where each run of the tokens lies in the text (engine §1). */
     sources: Sources;
@@ -469,15 +472,19 @@ export declare function testHolds(context: ParseContext, test: SymbolTest, from:
 export declare function rootItems(chart: Chart, rule: string): Item[];
 export type StepScope = {
     scope: ChartScope | null;
+    tree?: any;
     structure: number;
+    prefix?: number;
     observation: CloseObservation | null;
     obligations?: any[];
 };
 /** @implements {Scope} */
 declare class ChartScope implements Scope {
     context: ParseContext;
+    treeIdentity: number | undefined;
     production: Production;
     structure: number;
+    prefix: number;
     observation: CloseObservation | null;
     invalidRestoration: boolean;
     slots: Captured;
@@ -501,8 +508,9 @@ declare class ChartScope implements Scope {
      * @param {number} end
      * @param {number} structure
      * @param {CloseObservation|null} [observation]
+     * @param {number} [prefix]
      */
-    constructor(context: ParseContext, production: Production, slots: Captured, origin: number, end: number, structure: number, observation?: CloseObservation | null);
+    constructor(context: ParseContext, production: Production, slots: Captured, origin: number, end: number, structure: number, observation?: CloseObservation | null, prefix?: number);
     /**
      * The constituent's tags, from its production's tag term, evaluated at
      * most once, or HALT where the term halts for a nested parse.

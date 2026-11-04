@@ -55,6 +55,7 @@ fn partial(value: &Json, kind: &str) -> Json {
                                 | "tags"
                                 | "value"
                                 | "image"
+                                | "default"
                                 | "conditions"
                                 | "receiver"
                                 | "args"

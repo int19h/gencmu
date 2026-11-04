@@ -1,0 +1,23 @@
+{
+  "description": "A binding and an exact call share the resolved instance identity (engine §2.3 and §4.1).",
+  "grammar": "%rule part(@Name) A\n%rule named = part(X)\n%rule text $x:named $y:part(X)\n%conditions $x ≅ $y",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

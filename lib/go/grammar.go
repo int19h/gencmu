@@ -19,7 +19,15 @@ type argumentSite struct {
 	at  [2]int
 }
 
+type defaultUse struct {
+	expr        *domExpr
+	alternative *sAlt
+}
+
 type stageGrammar struct {
+	defaults          []defaultUse
+	treeComparisons   bool
+	treeExpressions   bool
 	arguments         map[argumentSite][]constArgument
 	features          []stageFeature
 	families          map[string]map[string]bool
@@ -33,9 +41,14 @@ type stageGrammar struct {
 	constLatest       map[string]int
 	rules             []*sRule
 	byName            map[string]*sRule
-	lean              string // the rule of the ranking: "greedy", "lazy" or "late-elision" (engine §6)
-	elisionOnly       bool
-	changes           []stitchChange
+	// steps are the key steps of the stage's %ambiguity-resolution, in
+	// order, and lean its last step if that is greedy or lazy, or "" for no
+	// lean (engine §6). elisionOnly says whether the stage declares
+	// %elision-only (engine §7).
+	steps       []keyStep
+	lean        string
+	elisionOnly bool
+	changes     []stitchChange
 	// classifierSet holds the stage's classifiers, and implications its
 	// implications with their values (engine §2, §11).
 	classifierSet stageClassifiers
@@ -53,20 +66,13 @@ type stageGrammar struct {
 // extended.
 type stitchChange struct {
 	rule, document, op string
-	flagChange         *flagChange
-}
-
-// flagChange holds the flags before and after a replacement that changes them.
-type flagChange struct {
-	from, to []string
 }
 
 type sRule struct {
-	flags []string
-	name  string
-	alts  []*sAlt
-	doc   string
-	at    [2]int
+	name string
+	alts []*sAlt
+	doc  string
+	at   [2]int
 }
 
 // sAlt is an alternative with the clauses of the rule statement that wrote
@@ -226,7 +232,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 					if existing != nil {
 						return nil, fail(d.path, r.At, "%%rule %s is already defined, in %s; %%redefine-rule replaces a rule", r.Name, existing.doc)
 					}
-					nr := &sRule{flags: r.Flags, name: r.Name, alts: alts, doc: d.path, at: r.At}
+					nr := &sRule{name: r.Name, alts: alts, doc: d.path, at: r.At}
 					g.rules = append(g.rules, nr)
 					g.byName[r.Name] = nr
 				case "redefine":
@@ -237,11 +243,9 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 					}
 					// The replacement keeps the place of the rule it replaces.
 					change := stitchChange{rule: r.Name, document: d.path, op: "replace"}
-					if !slices.Equal(existing.flags, r.Flags) {
-						change.flagChange = &flagChange{from: slices.Clone(existing.flags), to: slices.Clone(r.Flags)}
-					}
+
 					g.changes = append(g.changes, change)
-					existing.alts, existing.doc, existing.at, existing.flags = alts, d.path, r.At, r.Flags
+					existing.alts, existing.doc, existing.at = alts, d.path, r.At
 				case "extend":
 					if existing == nil {
 						return nil, fail(d.path, r.At, "%%extend-rule %s extends a rule that is not defined before it", r.Name)
@@ -262,22 +266,50 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 					if len(ambiguity) > 1 {
 						return nil, fail(d.path, dir.At, "has a second %%ambiguity-resolution")
 					}
-					// The rule of the ranking, greedy, lazy or late-elision, then
-					// optionally elision-only, in that
-					// order (engine §2).
-					args := dir.Args
-					rest := args
-					if len(rest) > 0 {
-						rest = rest[1:]
+					g.lean = ""
+					g.steps = nil
+					schedule(run, dir.At, 1, func() *Error {
+						for _, step := range dir.Steps {
+							if step.Pattern == nil {
+								g.lean = step.Step
+								continue
+							}
+							value, err := g.evaluateClosed(d.path, step.Pattern, dir.At, tyPattern)
+							if err != nil {
+								return err
+							}
+							position := step.Pattern.At
+							if position == [2]int{} {
+								position = dir.At
+							}
+							if value.ty != tyPattern {
+								return g.constError(d.path, position, "a ranking step requires a pattern")
+							}
+							pattern := value.pattern
+							if problem := rankingPatternProblem(pattern); problem != "" {
+								return g.constError(d.path, position, problem)
+							}
+							if step.Step == "leftmost-longest" && requiresElided(pattern) {
+								return g.constError(d.path, position, "leftmost-longest cannot require _Elided")
+							}
+							var fault *Error
+							walkPattern(pattern, func(node *domPattern) {
+								if fault == nil && node.Kind == "name" && g.byName[node.Name] == nil {
+									fault = g.constError(d.path, node.At, "%s is not defined in stage %s", node.Name, g.name)
+								}
+							})
+							if fault != nil {
+								return fault
+							}
+							g.steps = append(g.steps, keyStep{step: step.Step, pattern: pattern})
+						}
+						return nil
+					})
+				case "elision-only":
+					if g.elisionOnly {
+						return nil, fail(d.path, dir.At, "has a second %%elision-only")
 					}
-					elisionOnly := len(rest) > 0 && rest[0] == "elision-only"
-					if elisionOnly {
-						rest = rest[1:]
-					}
-					if len(args) == 0 || !isRankingRule(args[0]) || len(rest) > 0 {
-						return nil, fail(d.path, dir.At, "%%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only")
-					}
-					g.lean, g.elisionOnly = args[0], elisionOnly
+					g.elisionOnly = true
 				default:
 					return nil, fail(d.path, dir.At, "unknown directive %%%s", dir.Name)
 				}
@@ -398,6 +430,19 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 	if err := g.validateEmissionOverlap(); err != nil {
 		return nil, err
 	}
+	g.treeExpressions = checked.treeComparisons
+	if checked.treeComparisons {
+		for _, rule := range g.rules {
+			for _, alternative := range rule.alts {
+				if len(constituentComparisons(clausePart{t: alternative.ruleTags})) > 0 || len(constituentComparisons(clausePart{t: alternative.alt.Tags})) > 0 {
+					g.treeComparisons = true
+				}
+				for _, condition := range alternative.conds {
+					g.treeComparisons = g.treeComparisons || len(constituentComparisons(clausePart{c: condition})) > 0
+				}
+			}
+		}
+	}
 	g.prepareBoundarySites()
 	return g, nil
 }
@@ -458,6 +503,18 @@ func (g *stageGrammar) makeTests() *Error {
 			}
 		}
 	}
+	for _, use := range g.defaults {
+		a := use.alternative
+		lw := &lowerer{g: g, l: &lowered{}, tests: map[*domExpr]*symTest{}}
+		for i, t := range testsIn(a.alt.Expr) {
+			lw.tests[t] = a.tests[i]
+		}
+		lw.elision(use.expr, a)
+		if lw.l.fault != "" {
+			return lw.l.faultLocation
+		}
+	}
+	g.defaults = nil
 	return nil
 }
 
@@ -465,9 +522,10 @@ func (g *stageGrammar) makeTests() *Error {
 // identity. The clauses of a rule statement are shared by its
 // alternatives, so each is walked once, not once for each alternative.
 type checkedClauses struct {
-	terms map[*domTerm]bool
-	conds map[condListKey]bool
-	emits map[*domEmit]bool
+	treeComparisons bool
+	terms           map[*domTerm]bool
+	conds           map[condListKey]bool
+	emits           map[*domEmit]bool
 }
 
 // checkAlt checks what the notation's grammar cannot state: every rule named
@@ -478,6 +536,9 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 	walk = func(e *domExpr) *Error {
 		if e == nil {
 			return nil
+		}
+		if e.Default != nil {
+			g.defaults = append(g.defaults, defaultUse{e, a})
 		}
 		if e.Kind == exRef && !isTerminalName(e.Name) && g.byName[e.Name] == nil {
 			return fail("%s is not a rule of stage %s", e.Name, g.name)
@@ -536,6 +597,9 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 		}
 		switch c.Kind {
 		case cdCompare:
+			if (c.Op == "≅" || c.Op == "≇") && c.Right.Kind == tmCapture {
+				checked.treeComparisons = true
+			}
 			if err := checkTerm(c.Left); err != nil {
 				return err
 			}
@@ -591,10 +655,4 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 		checked.emits[a.emit] = true
 	}
 	return nil
-}
-
-// isRankingRule says whether a word names the rule of a stage's ranking
-// (engine §2, §6). No lean, which the check of §7 uses, has no name.
-func isRankingRule(word string) bool {
-	return word == "greedy" || word == "lazy" || word == "late-elision"
 }

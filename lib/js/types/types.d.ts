@@ -311,7 +311,15 @@ export type Recipe = {
 export type DomDirective = {
     conditions?: Condition[];
     name: string;
+    /**
+     * the operands, which `ambiguity-resolution`
+     * lacks: it has `steps` instead
+     */
     args: string[];
+    /**
+     * the steps of `ambiguity-resolution`
+     */
+    steps?: RankingStep[];
     at: Position;
 };
 export type DomRule = BodyRule | InstanceBinding;
@@ -321,7 +329,6 @@ export type BodyRule = {
     instance?: never;
     name: string;
     op: "define" | "redefine" | "extend";
-    flags: string[];
     tags?: Term;
     alternatives: DomAlternative[];
     emit?: Emission;
@@ -334,7 +341,6 @@ export type BodyRule = {
 export type InstanceBinding = {
     name: string;
     op: "define" | "redefine";
-    flags: [];
     instance: TemplateCall;
     conditions: [];
     at: Position;
@@ -393,21 +399,14 @@ export type TemplateArgument = Term | {
 } | {
     requirements: Requirement[];
 };
-export type Pattern = (({
-    name: string;
-    at: Position;
-} | TemplateCall | Parameter) & {
+export type Pattern = ((PatternRuleAtom & {
     exact?: true;
     children?: PatternChildren;
 }) | ((PatternAtom | {
     test: "=" | "≠";
     value: Term;
     expr: PatternTestTarget;
-} | {
-    test: "tags";
-    requirements: Requirement[];
-    expr: PatternAtom;
-}) & {
+} | PatternTagTest) & {
     exact?: true;
 }) | {
     any: true;
@@ -422,7 +421,11 @@ export type Pattern = (({
 } | {
     path: "descendant" | "first" | "last";
     pattern: Pattern;
-};
+});
+export type PatternRuleAtom = {
+    name: string;
+    at: Position;
+} | TemplateCall | Parameter;
 export type PatternTerminal = {
     terminal: string;
     at: Position;
@@ -442,10 +445,15 @@ export type PatternAtom = Parameter | PatternTerminal | {
     constant: string;
     at: Position;
 };
-export type PatternTestTarget = PatternAtom | {
+export type PatternTagTest = {
     test: "tags";
     requirements: Requirement[];
-    expr: PatternAtom;
+    expr: PatternAtom | PatternRuleAtom;
+};
+export type PatternTestTarget = PatternAtom | PatternRuleAtom | {
+    test: "tags";
+    requirements: Requirement[];
+    expr: PatternAtom | PatternRuleAtom;
 };
 export type PatternChildren = PatternItem[];
 export type PatternItem = {
@@ -475,6 +483,7 @@ export type Expr = {
 } | {
     optional: Expr;
     elidable?: true;
+    default?: Term;
 } | {
     capture: string;
     expr: Expr;
@@ -633,6 +642,10 @@ export type ReadyCondition = {
     wholeBoundary?: boolean;
 };
 export type Production = {
+    treeRequested?: boolean;
+    observesTrees?: boolean;
+    walksTrees?: boolean;
+    treePrefixUntil?: number;
     source?: import("./grammar.js").StitchedAlternative;
     logicalSource?: import("./grammar.js").StitchedAlternative;
     writtenExpression?: Expr;
@@ -640,6 +653,18 @@ export type Production = {
     rankedOption?: number;
     sourcePrivate?: Set<string>;
     contextual?: boolean;
+    /**
+     * the alternative whose braces this helper production lowers, when it has item captures
+     */
+    itemAlternative?: import("./grammar.js").StitchedAlternative;
+    /**
+     * the item captures of the helper (engine §3.5)
+     */
+    itemNames?: string[];
+    /**
+     * the item conditions of the helper, which frames attach (engine §3.6, §4)
+     */
+    itemConditions?: Condition[];
     rankedDeferred?: Condition[];
     /**
      * effective conditions across static ranked entry contexts
@@ -656,7 +681,6 @@ export type Production = {
     rhs: GrammarSymbol[];
     logical?: import("./logical.js").LogicalSymbol[];
     helper: boolean;
-    flags: string[];
     /**
      * the rule the production was lowered from
      */
@@ -670,6 +694,10 @@ export type Production = {
      * `=` test whose value a restored token stores, or null (engine §7)
      */
     elidedTest: SymbolTest | null;
+    /**
+     * the explicit or equality default
+     */
+    elidedValue?: string;
     captures: Capture[];
     /**
      * for each position of `rhs`, the index in
@@ -698,15 +726,35 @@ export type Production = {
      */
     warnings: string[];
 };
+export type KeyStep = {
+    step: "leftmost-longest" | "fewest" | "most" | "late" | "early";
+    pattern: Pattern;
+};
+export type RankingStep = (Omit<KeyStep, "pattern"> & {
+    pattern: Pattern | {
+        const: string;
+        at: Position;
+    };
+}) | {
+    step: "greedy" | "lazy";
+};
 export type Resolution = {
     /**
-     * the rule of the
-     * ranking (engine §6)
+     * the key steps of the stage's directive, in
+     * order (engine §6)
      */
-    lean: "greedy" | "lazy" | "late-elision";
+    steps: KeyStep[];
+    /**
+     * the directive's last step if it is a lean, or none
+     */
+    lean: Lean;
+    /**
+     * whether the stage declares `%elision-only`
+     */
     elisionOnly: boolean;
 };
 export type LoweredGrammar = {
+    treeComparisons: boolean;
     boundarySites: WeakMap<object, WeakMap<object, {
         rule: string;
         condition: number;
@@ -716,6 +764,10 @@ export type LoweredGrammar = {
     byLhs: Map<string, Production[]>;
     resolution: Resolution;
     ranked: import("./ranked.js").RankedGroups;
+    /**
+     * whether a production is contextual, so that recognition keeps frames (engine §4)
+     */
+    contextual?: boolean;
     /**
      * static members from written rules
      */
@@ -735,7 +787,7 @@ export type LoweredGrammar = {
         then: TagSet;
     }[];
 };
-export type Lean = "greedy" | "lazy" | "late-elision" | "none";
+export type Lean = "greedy" | "lazy" | "none";
 export type Captured = {
     parent: Captured;
     jump: Captured;
@@ -746,6 +798,7 @@ export type Captured = {
     tags: number;
     structure: number;
     observation: import("./close-observations.js").CloseObservation | null;
+    treeIdentity?: number;
     id: number;
 } | null;
 export type Edge = {
@@ -772,6 +825,9 @@ export type TermValue = {
     set: Set<string>;
 };
 export type SpanValue = {
+    treeIdentity?: number;
+    patternName?: string;
+    patternPrefix?: number;
     observation?: import("./close-observations.js").CloseObservation | null;
     aligned?: AlignedSpan;
     structure?: number;
@@ -1132,7 +1188,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} DomDirective
  * @property {Condition[]} [conditions]
  * @property {string} name
- * @property {string[]} args
+ * @property {string[]} args the operands, which `ambiguity-resolution`
+ *   lacks: it has `steps` instead
+ * @property {RankingStep[]} [steps] the steps of `ambiguity-resolution`
  * @property {Position} at
  */
 /**
@@ -1145,7 +1203,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {never} [instance]
  * @property {string} name
  * @property {"define" | "redefine" | "extend"} op
- * @property {string[]} flags
  * @property {Term} [tags]
  * @property {DomAlternative[]} alternatives
  * @property {Emission} [emit]
@@ -1160,7 +1217,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} InstanceBinding
  * @property {string} name
  * @property {"define" | "redefine"} op
- * @property {[]} flags
  * @property {TemplateCall} instance
  * @property {[]} conditions
  * @property {Position} at
@@ -1199,22 +1255,24 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * A structural node predicate in a grammar DOM (output §2).
- * @typedef {(({name:string, at:Position} | TemplateCall | Parameter) & {exact?:true,children?:PatternChildren})
- *   | ((PatternAtom | {test:"="|"≠", value:Term, expr:PatternTestTarget} | {test:"tags", requirements:Requirement[], expr:PatternAtom}) & {exact?:true})
+ * @typedef {((PatternRuleAtom & {exact?:true,children?:PatternChildren})
+ *   | ((PatternAtom | {test:"="|"≠", value:Term, expr:PatternTestTarget} | PatternTagTest) & {exact?:true})
  *   | {any:true, exact?:true, children:PatternChildren}
  *   | {union:Pattern[]} | {intersection:Pattern[]} | {difference:[Pattern,Pattern]}
- *   | {path:"descendant"|"first"|"last", pattern:Pattern}} Pattern
+ *   | {path:"descendant"|"first"|"last", pattern:Pattern})} Pattern
  */
+/** @typedef {{name:string,at:Position} | TemplateCall | Parameter} PatternRuleAtom */
 /** @typedef {{terminal:string, at:Position}} PatternTerminal */
 /** @typedef {Parameter | PatternTerminal | {literal:{string:string},at:Position} | {range:[Term,Term],at:Position} | {wildcard:true,at:Position} | {constant:string,at:Position}} PatternAtom */
-/** @typedef {PatternAtom | {test:"tags",requirements:Requirement[],expr:PatternAtom}} PatternTestTarget */
+/** @typedef {{test:"tags",requirements:Requirement[],expr:PatternAtom | PatternRuleAtom}} PatternTagTest */
+/** @typedef {PatternAtom | PatternRuleAtom | {test:"tags",requirements:Requirement[],expr:PatternAtom | PatternRuleAtom}} PatternTestTarget */
 /** @typedef {PatternItem[]} PatternChildren */
 /** @typedef {{child:Pattern} | {siblings:true} | {optional:PatternChildren} | {repeat:PatternChildren,separator?:PatternChildren} | {choice:PatternChildren[]}} PatternItem */
 /**
  * A rule body expression.
  * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
  *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
- *   | {optional: Expr, elidable?: true} | {capture: string, expr: Expr} | {ref: string}
+ *   | {optional: Expr, elidable?: true, default?: Term} | {capture: string, expr: Expr} | {ref: string}
  *   | {range: [Term, Term]} | {literal: Term} | {wildcard: true}
  *   | {test: "="|"≠", value: Term, expr: TestedSymbol} | {test: "tags", requirements: Requirement[], expr: TestedSymbol} | {empty: true} | TemplateCall | Parameter} Expr
  */
@@ -1319,6 +1377,10 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A production of a lowered grammar (engine §3).
  * @typedef {object} Production
+ * @property {boolean} [treeRequested]
+ * @property {boolean} [observesTrees]
+ * @property {boolean} [walksTrees]
+ * @property {number} [treePrefixUntil]
  * @property {import("./grammar.js").StitchedAlternative} [source]
  * @property {import("./grammar.js").StitchedAlternative} [logicalSource]
  * @property {Expr} [writtenExpression]
@@ -1326,6 +1388,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} [rankedOption]
  * @property {Set<string>} [sourcePrivate]
  * @property {boolean} [contextual]
+ * @property {import("./grammar.js").StitchedAlternative} [itemAlternative] the alternative whose braces this helper production lowers, when it has item captures
+ * @property {string[]} [itemNames] the item captures of the helper (engine §3.5)
+ * @property {Condition[]} [itemConditions] the item conditions of the helper, which frames attach (engine §3.6, §4)
  * @property {Condition[]} [rankedDeferred]
  * @property {ReadyCondition[]} [rankedConditions] effective conditions across static ranked entry contexts
  * @property {Term} [parentTags]
@@ -1339,11 +1404,11 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {GrammarSymbol[]} rhs
  * @property {import("./logical.js").LogicalSymbol[]} [logical]
  * @property {boolean} helper
- * @property {string[]} flags
  * @property {string} owner the rule the production was lowered from
  * @property {string | null} elided the terminator an empty helper stands for
  * @property {SymbolTest | null} elidedTest the test of that terminator, an
  *   `=` test whose value a restored token stores, or null (engine §7)
+ * @property {string} [elidedValue] the explicit or equality default
  * @property {Capture[]} captures
  * @property {number[]} captureAt for each position of `rhs`, the index in
  *   `captures` of the capture there, or -1
@@ -1361,19 +1426,32 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   in the order they are written; none for a helper
  */
 /**
+ * A step of `%ambiguity-resolution` that compares the occurrences of one
+ * node pattern (engine §6).
+ * @typedef {{step: "leftmost-longest" | "fewest" | "most" | "late" | "early", pattern: Pattern}} KeyStep
+ */
+/**
+ * A step of `%ambiguity-resolution`: a key step, or a lean, which can stand
+ * only last (engine §6).
+ * @typedef {(Omit<KeyStep,"pattern"> & {pattern:Pattern | {const:string,at:Position}}) | {step: "greedy" | "lazy"}} RankingStep
+ */
+/**
  * @typedef {object} Resolution
- * @property {"greedy" | "lazy" | "late-elision"} lean the rule of the
- *   ranking (engine §6)
- * @property {boolean} elisionOnly
+ * @property {KeyStep[]} steps the key steps of the stage's directive, in
+ *   order (engine §6)
+ * @property {Lean} lean the directive's last step if it is a lean, or none
+ * @property {boolean} elisionOnly whether the stage declares `%elision-only`
  */
 /**
  * A grammar lowered for one set of features.
  * @typedef {object} LoweredGrammar
+ * @property {boolean} treeComparisons
  * @property {WeakMap<object,WeakMap<object,{rule:string,condition:number,order:number}>>} boundarySites
  * @property {Production[]} productions
  * @property {Map<string, Production[]>} byLhs
  * @property {Resolution} resolution
  * @property {import("./ranked.js").RankedGroups} ranked
+ * @property {boolean} [contextual] whether a production is contextual, so that recognition keeps frames (engine §4)
  * @property {Map<string,Set<string>>} families static members from written rules
  * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
  *   of the stage, resolved for these features: each key's classes (engine
@@ -1382,9 +1460,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   implications, which its emitted tokens take (engine §11)
  */
 /**
- * The rule the ranking uses: the grammar's, or none for elision-only's
- * check and for the readings of a late-elision tie (engine §6).
- * @typedef {"greedy" | "lazy" | "late-elision" | "none"} Lean
+ * The lean of a ranking: the directive's, or none for a directive without
+ * one and for elision-only's check (engine §6).
+ * @typedef {"greedy" | "lazy" | "none"} Lean
  */
 /**
  * The captured parts of a chart item, the last one first: each part's
@@ -1392,7 +1470,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * tag set, after the parts before it. A context makes each sequence once,
  * with its number (engine §4). `depth` counts the parts, and `jump` is an
  * earlier sequence that a search for a part can skip to.
- * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, id: number} | null} Captured
+ * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, treeIdentity?:number, id: number} | null} Captured
  */
 /**
  * How an item was built.
@@ -1409,6 +1487,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A span a term denotes, with the tags of the captured part when it is a
  * whole capture.
  * @typedef {object} SpanValue
+ * @property {number} [treeIdentity]
+ * @property {string} [patternName]
+ * @property {number} [patternPrefix]
  * @property {import("./close-observations.js").CloseObservation|null} [observation]
  * @property {AlignedSpan} [aligned]
  * @property {number} [structure]

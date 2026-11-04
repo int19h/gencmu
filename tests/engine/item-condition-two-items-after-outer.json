@@ -1,0 +1,42 @@
+{
+  "description": "The list holds several items that each satisfy the condition against the outer capture, and the brackets show them as children of the rule (engine §3.5, §4).",
+  "grammar": "%rule text $o:B {$c:A}\n%conditions $c.value ≠ $o.value",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "d",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(b a c d)"
+  }
+}

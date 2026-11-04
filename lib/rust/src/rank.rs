@@ -1,10 +1,12 @@
 //! Choosing a parse (engine §6), computed over the packed forest without
 //! enumerating derivations.
 //!
-//! A first pass retains the best rule profile in each context. Under
-//! `late-elision`, it also compares elision vectors. Each summary counts
-//! best and total derivations and records the best edges. The entries pass
-//! compares actions only on those edges.
+//! When a key step of `%ambiguity-resolution` counts anything, a first pass
+//! gives every node of the forest, in each of its contexts, a *summary*:
+//! the greatest profile of its derivations, how many derivations attain it,
+//! how many there are in all, and which of its edges attain it. The entries
+//! below are then computed over only those edges, the forest of the best
+//! derivations.
 //!
 //! Every node of the forest (an item, a completed item, or the constituents
 //! of one rule over one span) gets a short list of *entries*. An entry is a
@@ -20,7 +22,7 @@ use crate::fxhash::FxMap;
 use std::cmp::Ordering;
 
 use crate::earley::{test_holds, Cap, Chart, Item, Shared, Tok};
-use crate::grammar::Lean;
+use crate::grammar::{KeyStep, Lean, StepKind};
 use crate::lower::{Lowered, Sym, NO_TEST};
 use crate::nat::Nat;
 use crate::tags::{SetId, Tags};
@@ -84,7 +86,7 @@ enum Node {
     /// tag set `tags`, or any; and those that the test `test` holds of, or
     /// any where it is `NO_TEST`.
     Group {
-        requested: bool,
+        requested: u8,
         rule: u32,
         origin: u32,
         set: u32,
@@ -462,8 +464,9 @@ pub(crate) struct Ranking {
     pub profile: Profile,
 }
 
-/// Elision vectors (§6), each kept as the positions of its elided
-/// terminators in text order. A vector is a node of a shared tree whose
+/// The sequences of `late(c)` and `early(c)` (§6), each kept as the
+/// starting positions of the occurrences of `c` in text order. The elision
+/// vector of `late #·<_Elided>` is one such sequence. A vector is a node of a shared tree whose
 /// leaves are runs, a position with the number of terminators elided there,
 /// so the vector of an edge is the two of its children joined, and vectors
 /// built on one part share it. A count at one boundary can be exponential
@@ -639,12 +642,12 @@ impl Vectors {
     }
 }
 
-/// A node's best rule profile and optional elision vector in one context.
-/// Best and total counts cap at two. Retained edges attain that score (§6).
-/// A total of zero means no derivation.
+/// When profiles decide, the derivations of a node in one context, one
+/// eligibility: the greatest profile, the number of derivations that attain
+/// it and the number of all of them, both capped at two, and the edges that
+/// attain it (§6). A total of zero means no derivation.
 #[derive(Debug, Clone)]
 struct Least {
-    vector: u32,
     profile: Profile,
     least: u8,
     total: u8,
@@ -652,28 +655,23 @@ struct Least {
 }
 
 impl Least {
-    const NONE: Least = Least { vector: NO_ELISIONS, profile: Profile::ZERO, least: 0, total: 0, kept: Vec::new() };
+    const NONE: Least = Least { profile: Profile::ZERO, least: 0, total: 0, kept: Vec::new() };
 
-    fn one(vector: u32) -> Least {
-        Least { vector, profile: Profile::ZERO, least: 1, total: 1, kept: vec![0] }
+    fn one(profile: Profile) -> Least {
+        Least { profile, least: 1, total: 1, kept: vec![0] }
     }
 
     /// Adds the derivations of the edge `index`. The total counts every
     /// edge, losing ones included; the least count and the kept edges
-    /// count only those that attain the best profile and elision score.
-    fn add(&mut self, vectors: &Vectors, index: u32, edge: &Least) {
+    /// count only those that attain the greatest profile.
+    fn add(&mut self, profiles: &Profiles, index: u32, edge: &Least) {
         if edge.total == 0 {
             return;
         }
         self.total = self.total.saturating_add(edge.total).min(2);
-        let order = if self.least == 0 {
-            Ordering::Less
-        } else {
-            compare_profiles(&edge.profile, &self.profile).then_with(|| vectors.compare(edge.vector, self.vector))
-        };
+        let order = if self.least == 0 { Ordering::Less } else { profiles.compare(&edge.profile, &self.profile) };
         match order {
             Ordering::Less => {
-                self.vector = edge.vector;
                 self.profile = edge.profile.clone();
                 self.least = edge.least;
                 self.kept = vec![index];
@@ -714,13 +712,6 @@ impl Summary {
     }
 }
 
-/// Profile summaries, with elision vectors when the directive requires them.
-struct ProfileSummaries {
-    count_elisions: bool,
-    vectors: Vectors,
-    summaries: FxMap<Key, Summary>,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Pass {
     Admission,
@@ -753,8 +744,10 @@ pub(crate) struct Ranker<'c> {
     results: Vec<NodeResult>,
     fsets: Vec<Vec<u32>>,
     fset_index: FxMap<Vec<u32>, u32>,
-    /// Rule-profile summaries and optional elision vectors.
-    profile_summaries: Option<ProfileSummaries>,
+    /// How the key steps count, add and compare profiles (§6).
+    profiles: Profiles,
+    /// When the profiles decide, the summaries of the nodes (§6).
+    summaries: Option<FxMap<Key, Summary>>,
     /// The runtime witness marks of W(D) (tests/README.md). With them, each
     /// count also says whether it includes a derivation made of marked links
     /// only. Every elision-only check supplies these marks, including without a test hook.
@@ -1029,13 +1022,11 @@ impl<'c> Dag<'c> {
                 Lean::Greedy => (true, false),
                 Lean::Lazy => (false, false),
                 Lean::Neither => (true, true),
-                Lean::LateElision => unreachable!("late-elision compares actions with no lean"),
             },
             (Act::Close { .. }, Act::Read { .. }) => match self.lean {
                 Lean::Greedy => (false, false),
                 Lean::Lazy => (true, false),
                 Lean::Neither => (false, true),
-                Lean::LateElision => unreachable!("late-elision compares actions with no lean"),
             },
             (Act::Close { prod: p, start: s, end: e, .. }, Act::Close { prod: q, start: t, end: f, .. }) => {
                 ((p, s, e) < (q, t, f), true)
@@ -1107,9 +1098,10 @@ impl<'c> Ranker<'c> {
         chart: &'c Chart,
         tokens: &'c [Tok],
         shared: &'c Shared<'c>,
+        steps: &[KeyStep],
         lean: Lean,
     ) -> Ranker<'c> {
-        let mut ranker = Self::new_unfiltered(g, chart, tokens, shared, lean);
+        let mut ranker = Self::new_unfiltered(g, chart, tokens, shared, steps, lean);
         if !g.ranked.slots.is_empty() {
             ranker.views = SlotViews::new(g);
             let nodes = ranker.prepare_views();
@@ -1123,12 +1115,14 @@ impl<'c> Ranker<'c> {
         chart: &'c Chart,
         tokens: &'c [Tok],
         shared: &'c Shared<'c>,
+        steps: &[KeyStep],
         lean: Lean,
     ) -> Ranker<'c> {
-        // Under late-elision, the readings come from a ranking with no lean
-        // over the forest of the best derivations (§6).
-        let late = lean == Lean::LateElision;
-        let lean = if late { Lean::Neither } else { lean };
+        // The profiles decide when a step counts elided terminators or a
+        // rule can match a step. The readings then
+        // come from the forest of the best derivations (§6).
+        let profiles = Profiles::new(steps);
+        let decide = crate::ranking_patterns::can_count(g, steps);
         let mut dag = Dag {
             g,
             chart,
@@ -1148,9 +1142,8 @@ impl<'c> Ranker<'c> {
             results: Vec::new(),
             fsets: vec![Vec::new()],
             fset_index: FxMap::default(),
-            profile_summaries: (late || g.rules.iter().any(|rule| rule.leftmost_longest || rule.fewest)).then(|| {
-                ProfileSummaries { count_elisions: late, vectors: Vectors::new(), summaries: FxMap::default() }
-            }),
+            summaries: decide.then(FxMap::default),
+            profiles,
             marks: None,
             check: false,
             admission: None,
@@ -1160,10 +1153,28 @@ impl<'c> Ranker<'c> {
         ranker
     }
 
+    /// The profile of a chosen tree in this ranking's profiles (§7).
+    pub(crate) fn tree_profile(&mut self, tree: &crate::tree::ITree, input: &[Tok]) -> Profile {
+        if self.summaries.is_none() {
+            return Profile::ZERO;
+        }
+        self.profiles.tree_profile(self.dag.g, tree, input, self.dag.tags)
+    }
+
+    /// Compares two profiles of this ranking: `Less` when the left one is
+    /// the greater (§6).
+    pub(crate) fn compare_profiles(&self, left: &Profile, right: &Profile) -> Ordering {
+        self.profiles.compare(left, right)
+    }
+
     /// Ranks the derivations of the reconstructed input of `elision-only`,
     /// whose tests of references read the projected span in O (§7.5).
     pub(crate) fn observing(mut self, observed: &'c [Tok], project: &'c [u32]) -> Ranker<'c> {
         self.dag.projection = Some((observed, project));
+        // Every projected omission has an empty span, so these steps count nothing.
+        if self.profiles.patterns.iter().all(crate::patterns::requires_elided) {
+            self.summaries = None;
+        }
         self
     }
 
@@ -1383,6 +1394,9 @@ impl<'c> Ranker<'c> {
                             let m = cap.start;
                             if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| holds(m, cap.tags))
                             {
+                                // A contextual helper's items carry the frame
+                                // the predecessor entered them in (§4).
+                                let before = self.dag.chart.sets[m as usize].items[p as usize];
                                 let child = Node::Group {
                                     requested: cap.close_requested,
                                     rule,
@@ -1392,7 +1406,7 @@ impl<'c> Ranker<'c> {
                                     test: NO_TEST,
                                     structure: cap.structure,
                                     boundary: cap.boundary,
-                                    lexical: 0,
+                                    lexical: self.dag.chart.expected_lexical(before, m),
                                     option: usize::MAX,
                                 };
                                 let child_fset = if m == item.origin { fset } else { 0 };
@@ -1410,8 +1424,9 @@ impl<'c> Ranker<'c> {
                                         items.iter().any(|&index| holds(m, eset.tagset[index as usize]))
                                     });
                                 if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| passes) {
+                                    let before = self.dag.chart.sets[m as usize].items[p as usize];
                                     let child = Node::Group {
-                                        requested: false,
+                                        requested: 0,
                                         rule,
                                         origin: m,
                                         set,
@@ -1419,7 +1434,7 @@ impl<'c> Ranker<'c> {
                                         test: test_id,
                                         structure: ANY,
                                         boundary: ANY,
-                                        lexical: 0,
+                                        lexical: self.dag.chart.expected_lexical(before, m),
                                         option: usize::MAX,
                                     };
                                     let child_fset = if m == item.origin { fset } else { 0 };
@@ -1514,7 +1529,7 @@ impl<'c> Ranker<'c> {
                 }
                 Pass::Summaries => {
                     let summary = self.summarize(key, &deps);
-                    self.profile_summaries.as_mut().expect("profile summary").summaries.insert(key, summary);
+                    self.summaries.as_mut().expect("profiles").insert(key, summary);
                 }
                 Pass::Entries => {
                     let result = self.compute(key, deps);
@@ -1529,16 +1544,14 @@ impl<'c> Ranker<'c> {
     fn done(&self, pass: Pass, key: &Key) -> bool {
         match pass {
             Pass::Admission => self.admission.as_ref().is_some_and(|a| a.counts.contains_key(key)),
-            Pass::Summaries => self
-                .profile_summaries
-                .as_ref()
-                .is_some_and(|profile_summaries| profile_summaries.summaries.contains_key(key)),
+            Pass::Summaries => self.summaries.as_ref().is_some_and(|summaries| summaries.contains_key(key)),
             Pass::Entries => self.memo.contains_key(key),
         }
     }
 
     /// The nodes that `pass` needs before `key`: every dependency, except
-    /// that profile selection restricts entries to the best edges.
+    /// that under profiles the entries need only those of the edges that
+    /// attain the greatest profile.
     fn needed(&mut self, pass: Pass, key: &Key, deps: &Deps) -> Vec<Key> {
         if pass == Pass::Admission {
             let mut keys = Self::keys(deps);
@@ -1552,8 +1565,8 @@ impl<'c> Ranker<'c> {
             }
             return keys;
         }
-        let summary = match (pass, &self.profile_summaries) {
-            (Pass::Entries, Some(profile_summaries)) => &profile_summaries.summaries[key],
+        let summary = match (pass, &self.summaries) {
+            (Pass::Entries, Some(summaries)) => &summaries[key],
             _ => return Self::keys(deps),
         };
         match deps {
@@ -1572,73 +1585,106 @@ impl<'c> Ranker<'c> {
         }
     }
 
-    /// The profile summary of a node, from those of its
+    /// The summary of a node under profiles, from those of its
     /// dependencies (§6).
     fn summarize(&mut self, key: Key, deps: &Deps) -> Summary {
         let node = self.raw_node(key.0);
         let masks = self.admission.as_ref().and_then(|a| a.masks.get(&key)).cloned();
         let plain = |all: Least| Summary { all };
         match deps {
-            Deps::Leaf => plain(Least::one(NO_ELISIONS)),
+            Deps::Leaf => {
+                let mut profile = Profile::ZERO;
+                if let Node::Read { tok, terminal } = node {
+                    let (p, q) = self
+                        .dag
+                        .projection
+                        .map_or((tok, tok + 1), |(_, project)| (project[tok as usize], project[tok as usize + 1]));
+                    if p < q {
+                        let token = &self.dag.tokens[tok as usize];
+                        profile = self.profiles.occurrence(
+                            None,
+                            Some(&self.dag.g.terminals[terminal as usize]),
+                            &token.value,
+                            token.tags,
+                            self.dag.tags,
+                            false,
+                            p,
+                            q,
+                        );
+                    }
+                }
+                plain(Least::one(profile))
+            }
             Deps::Close(None) => plain(Least::NONE),
             Deps::Close(Some(inner)) => {
                 let Node::Close { set, index } = node else { unreachable!("a close") };
                 let g = self.dag.g;
                 let production = &g.prods[self.item(set, index).prod as usize];
+                let rule = &g.rules[production.rule as usize];
                 // The helper of an elidable optional that derives ε elides
-                // its terminator where it is empty.
-                let elides = production.syms.is_empty() && g.rules[production.rule as usize].elided.is_some();
-                let profile_summaries = self.profile_summaries.as_mut().expect("profile summary");
-                let body = &profile_summaries.summaries[inner].all;
+                // its terminator where it is empty: an occurrence of
+                // the omitted leaf with the empty span.
+                let elides = production.syms.is_empty() && rule.elided.is_some();
+                let origin = self.dag.chart.sets[set as usize].items[index as usize].origin;
+                let (p, q) = self
+                    .dag
+                    .projection
+                    .map_or((origin, set), |(_, project)| (project[origin as usize], project[set as usize]));
+                let body = &self.summaries.as_ref().expect("profiles")[inner].all;
                 if body.total == 0 {
                     return plain(Least::NONE);
                 }
-                let (least, total, vector) = (body.least, body.total, body.vector);
-                let vector = if elides && profile_summaries.count_elisions {
-                    let one = profile_summaries.vectors.one(set);
-                    profile_summaries.vectors.join(vector, one)
-                } else {
-                    vector
-                };
+                let (least, total) = (body.least, body.total);
                 let mut profile = body.profile.clone();
-                if g.rules[production.rule as usize].leftmost_longest || g.rules[production.rule as usize].fewest {
-                    let origin = self.dag.chart.sets[set as usize].items[index as usize].origin;
-                    let (p, q) = self
-                        .dag
-                        .projection
-                        .map_or((origin, set), |(_, project)| (project[origin as usize], project[set as usize]));
-                    if p < q {
-                        profile = sum_profiles(&profile, &Profile::one(p, q, g.rules[production.rule as usize].fewest));
-                    }
+                let profiles = &mut self.profiles;
+                if elides && self.dag.projection.is_none() {
+                    let occurrence =
+                        profiles.occurrence(None, rule.elided.as_deref(), "", 0, self.dag.tags, true, p, p);
+                    profile = profiles.sum(&profile, &occurrence);
                 }
-                plain(Least { vector, profile, least, total, kept: vec![0] })
+                if p < q && !rule.helper {
+                    let tags = self.dag.chart.sets[set as usize].tagset[index as usize];
+                    let tokens = self.dag.projection.map_or(self.dag.tokens, |(observed, _)| observed);
+                    let value = profiles.node_value(tokens, p, q);
+                    let occurrence = profiles.occurrence(
+                        Some(&rule.name),
+                        None,
+                        value.as_deref().unwrap_or(""),
+                        tags,
+                        self.dag.tags,
+                        false,
+                        p,
+                        q,
+                    );
+                    profile = profiles.sum(&occurrence, &profile);
+                }
+                plain(Least { profile, least, total, kept: vec![0] })
             }
             Deps::Links(links) => {
-                let profile_summaries = self.profile_summaries.as_mut().expect("profile summary");
+                let summaries = self.summaries.as_ref().expect("profiles");
+                let profiles = &mut self.profiles;
                 let mut all = Least::NONE;
                 for (index, &(pred, child)) in (0..).zip(links) {
-                    let left = &profile_summaries.summaries[&pred].all;
-                    let right = &profile_summaries.summaries[&child].all;
+                    let left = &summaries[&pred].all;
+                    let right = &summaries[&child].all;
                     if left.total == 0 || right.total == 0 {
                         continue;
                     }
-                    let (vector_left, vector_right) = (left.vector, right.vector);
                     let least = left.least.saturating_mul(right.least).min(2);
                     let total = left.total.saturating_mul(right.total).min(2);
-                    let vector = profile_summaries.vectors.join(vector_left, vector_right);
-                    let profile = sum_profiles(&left.profile, &right.profile);
-                    let edge = Least { vector, profile, least, total, kept: Vec::new() };
+                    let profile = profiles.sum(&left.profile, &right.profile);
+                    let edge = Least { profile, least, total, kept: Vec::new() };
                     if masks.as_ref().map_or(true, |m| m[index as usize]) {
-                        all.add(&profile_summaries.vectors, index, &edge);
+                        all.add(profiles, index, &edge);
                     }
                 }
                 Summary { all }
             }
             Deps::Group(members) => {
-                let profile_summaries = self.profile_summaries.as_ref().expect("profile summary");
+                let summaries = self.summaries.as_ref().expect("profiles");
                 let mut all = Least::NONE;
                 for (index, member) in (0..).zip(members) {
-                    all.add(&profile_summaries.vectors, index, &profile_summaries.summaries[member].all);
+                    all.add(&self.profiles, index, &summaries[member].all);
                 }
                 plain(all)
             }
@@ -1646,11 +1692,11 @@ impl<'c> Ranker<'c> {
     }
 
     /// Which edges of a node the entries take in, in each eligibility:
-    /// those that attain the best profile and optional elision vector (§6).
-    /// Without summaries, admission alone selects the edges.
+    /// under profiles, those that attain the greatest profile (§6), and
+    /// otherwise every edge.
     fn kept(&self, key: &Key) -> Option<Vec<u32>> {
         let masks = self.admission.as_ref().and_then(|a| a.masks.get(key));
-        if let Some(summary) = self.profile_summaries.as_ref().map(|e| &e.summaries[key]) {
+        if let Some(summary) = self.summaries.as_ref().map(|summaries| &summaries[key]) {
             Some(summary.all.kept.iter().copied().filter(|i| masks.map_or(true, |m| m[*i as usize])).collect())
         } else {
             masks.map(|m| m.iter().enumerate().filter_map(|(i, yes)| yes.then_some(i as u32)).collect())
@@ -1805,11 +1851,11 @@ impl<'c> Ranker<'c> {
         if self.admission.is_some() {
             self.traverse(root, Pass::Admission);
         }
-        // Profile summaries count total and best derivations before the
-        // entries pass reads the selected forest.
-        let counts = if self.profile_summaries.is_some() {
+        // Under profiles, the total and the best count of the root,
+        // before the forest is cut down to the best derivations.
+        let counts = if self.summaries.is_some() {
             self.traverse(root, Pass::Summaries);
-            let root = &self.profile_summaries.as_ref().expect("profile summary").summaries[&root].all;
+            let root = &self.summaries.as_ref().expect("profiles")[&root].all;
             Some((root.total, root.least))
         } else {
             None
@@ -1822,16 +1868,16 @@ impl<'c> Ranker<'c> {
         }
         let result = result.clone();
         let witness_counted = self.marks.map(|_| {
-            if self.profile_summaries.is_none() {
+            if self.summaries.is_none() {
                 return result.w;
             }
             // The witness hook counts recognition before profile filtering.
-            let summaries = self.profile_summaries.take();
+            let summaries = self.summaries.take();
             let memo = std::mem::take(&mut self.memo);
             let results = std::mem::take(&mut self.results);
             self.traverse(root, Pass::Entries);
             let counted = self.results[self.memo[&root] as usize].w;
-            self.profile_summaries = summaries;
+            self.summaries = summaries;
             self.memo = memo;
             self.results = results;
             counted
@@ -1880,16 +1926,12 @@ impl<'c> Ranker<'c> {
                 tied = Some((d, div));
             }
         }
-        // Under late-elision, the forest of the best derivations holds a
-        // second one exactly when the least count is two. A disagreement is
+        // Without a lean, the forest of the best derivations holds a second
+        // one exactly when the best count is two. A disagreement is
         // a defect of the library, and like its other broken invariants it
         // panics, in release builds too, rather than pick a verdict.
         if let Some((_, least)) = counts.filter(|_| self.dag.lean == Lean::Neither) {
-            assert_eq!(
-                least >= 2,
-                tied.is_some(),
-                "the least count of late-elision disagrees with the forest of the best derivations"
-            );
+            assert_eq!(least >= 2, tied.is_some(), "the best count disagrees with the forest of the best derivations");
         }
         let verdict = if total == 1 {
             Verdict::Unique
@@ -1906,10 +1948,7 @@ impl<'c> Ranker<'c> {
                 _ => unreachable!("two different derivations differ"),
             },
         });
-        let profile = self
-            .profile_summaries
-            .as_ref()
-            .map_or_else(|| Profile::ZERO, |summaries| summaries.summaries[&root].all.profile.clone());
+        let profile = self.summaries.as_ref().map_or(Profile::ZERO, |summaries| summaries[&root].all.profile.clone());
         Some(Ranking { verdict, first: chosen, second, witness, witness_counted, profile })
     }
 }
@@ -1927,20 +1966,234 @@ pub(crate) fn restored_terminal(g: &Lowered, prod: u32) -> u32 {
         .expect("an elidable optional begins with its terminal")
 }
 
-/// Sparse span counts in increasing start and decreasing end order.
-#[derive(Debug, Clone)]
-pub(crate) struct Profile {
-    spans: Vec<(u32, u32, Nat)>,
-    fewest: Nat,
+/// One component of a profile: the counts of one key step's pattern over
+/// the nonempty spans, in increasing start and decreasing end order, the
+/// sum of the counts, or the sequence of the starting positions (§6).
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum Component {
+    Spans(Vec<(u32, u32, Nat)>),
+    Count(Nat),
+    Sequence(u32),
 }
+
+/// A derivation's counts of every pattern that a key step tests, one
+/// component per key step, in the order of the steps (§6). The profile
+/// with no component counts nothing.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Profile(Vec<Component>);
+
 impl Profile {
-    pub const ZERO: Self = Self { spans: Vec::new(), fewest: Nat::ZERO };
-    fn one(start: u32, end: u32, fewest: bool) -> Self {
-        if fewest {
-            Self { spans: vec![], fewest: Nat::ONE }
-        } else {
-            Self { spans: vec![(start, end, Nat::ONE)], fewest: Nat::ZERO }
+    pub const ZERO: Self = Self(Vec::new());
+}
+
+/// The profiles of one ranking: how the key steps of its directive count
+/// occurrences, add profiles and compare them (§6).
+#[derive(Hash, PartialEq, Eq)]
+struct RankingNodeKey {
+    step: usize,
+    name: Option<String>,
+    terminal: Option<String>,
+    value: Option<String>,
+    set: u32,
+    omitted: bool,
+}
+
+pub(crate) struct Profiles {
+    steps: Vec<StepKind>,
+    patterns: Vec<crate::patterns::Pattern>,
+    answers: FxMap<RankingNodeKey, bool>,
+    values: Vec<bool>,
+    node_values: bool,
+    span_values: FxMap<(u32, u32), std::rc::Rc<str>>,
+    vectors: Vectors,
+}
+
+impl Profiles {
+    pub(crate) fn new(steps: &[KeyStep]) -> Profiles {
+        Profiles {
+            steps: steps.iter().map(|step| step.kind).collect(),
+            patterns: steps.iter().map(|step|step.pattern.clone()).collect(),
+            answers: FxMap::default(),
+            values: steps.iter().map(|step|step.pattern.walk().any(|part| matches!(part,crate::patterns::Part::Pattern(crate::patterns::Pattern::Test(op,_,_, _)) if op != "tags"))).collect(),
+            node_values: steps.iter().any(|step| crate::patterns::reads_node_values(&step.pattern)),
+            span_values: FxMap::default(),
+            vectors: Vectors::new(),
         }
+    }
+
+    fn node_value(&mut self, tokens: &[Tok], start: u32, end: u32) -> Option<std::rc::Rc<str>> {
+        if !self.node_values {
+            return None;
+        }
+        if let Some(value) = self.span_values.get(&(start, end)) {
+            return Some(value.clone());
+        }
+        let mut sound = String::new();
+        let mut at = start as usize;
+        while at < end as usize {
+            work::count(Work::Spanned, 1);
+            let token = &tokens[at];
+            if token.quiet > 0 {
+                at += token.quiet as usize;
+                continue;
+            }
+            sound.push_str(token.sound());
+            at += 1;
+        }
+        let value: std::rc::Rc<str> = sound.into();
+        self.span_values.insert((start, end), value.clone());
+        Some(value)
+    }
+
+    /// The component of a step that counts nothing.
+    fn zero(&self, index: usize) -> Component {
+        match self.steps[index] {
+            StepKind::LeftmostLongest => Component::Spans(Vec::new()),
+            StepKind::Fewest | StepKind::Most => Component::Count(Nat::ZERO),
+            StepKind::Late | StepKind::Early => Component::Sequence(NO_ELISIONS),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn occurrence(
+        &mut self,
+        name: Option<&str>,
+        terminal: Option<&str>,
+        value: &str,
+        set: u32,
+        tags: &Tags,
+        omitted: bool,
+        p: u32,
+        q: u32,
+    ) -> Profile {
+        let mut components: Option<Vec<Component>> = None;
+        for index in 0..self.steps.len() {
+            let key = RankingNodeKey {
+                step: index,
+                name: name.map(str::to_owned),
+                terminal: terminal.map(str::to_owned),
+                value: self.values[index].then(|| value.to_owned()),
+                set,
+                omitted,
+            };
+            let matches = *self.answers.entry(key).or_insert_with(|| {
+                let names: Vec<String> = if omitted {
+                    vec![terminal.expect("omitted terminal").to_owned(), "_Elided".into()]
+                } else {
+                    tags.list(set).iter().map(|&id| tags.name(id).to_owned()).collect()
+                };
+                crate::patterns::local_matches_with_value(
+                    &self.patterns[index],
+                    name,
+                    terminal.map(|t| (t, value, names.as_slice())),
+                    &names,
+                    name.map(|_| value),
+                )
+            });
+            if !matches {
+                continue;
+            }
+            let components = components.get_or_insert_with(|| (0..self.steps.len()).map(|i| self.zero(i)).collect());
+            components[index] = match self.steps[index] {
+                StepKind::LeftmostLongest if p < q => Component::Spans(vec![(p, q, Nat::ONE)]),
+                StepKind::LeftmostLongest => Component::Spans(Vec::new()),
+                StepKind::Fewest | StepKind::Most => Component::Count(Nat::ONE),
+                StepKind::Late | StepKind::Early => Component::Sequence(self.vectors.one(p)),
+            };
+        }
+        components.map_or(Profile::ZERO, Profile)
+    }
+
+    /// Adds profiles component by component. The positions of `left`
+    /// precede those of `right`.
+    pub(crate) fn sum(&mut self, left: &Profile, right: &Profile) -> Profile {
+        if left.0.is_empty() {
+            return right.clone();
+        }
+        if right.0.is_empty() {
+            return left.clone();
+        }
+        Profile(
+            left.0
+                .iter()
+                .zip(&right.0)
+                .map(|pair| match pair {
+                    (Component::Spans(a), Component::Spans(b)) => Component::Spans(sum_spans(a, b)),
+                    (Component::Count(a), Component::Count(b)) => Component::Count(a.add(b)),
+                    (Component::Sequence(a), Component::Sequence(b)) => Component::Sequence(self.vectors.join(*a, *b)),
+                    _ => unreachable!("the components of one step have one kind"),
+                })
+                .collect(),
+        )
+    }
+
+    /// Compares two profiles step by step: `Less` when the left one is the
+    /// greater, so that the left derivation wins (§6).
+    pub(crate) fn compare(&self, left: &Profile, right: &Profile) -> Ordering {
+        if left.0.is_empty() && right.0.is_empty() {
+            return Ordering::Equal;
+        }
+        for (index, kind) in self.steps.iter().enumerate() {
+            let zero = self.zero(index);
+            let a = left.0.get(index).unwrap_or(&zero);
+            let b = right.0.get(index).unwrap_or(&zero);
+            let order = match (kind, a, b) {
+                (_, Component::Spans(a), Component::Spans(b)) => compare_spans(a, b),
+                (StepKind::Fewest, Component::Count(a), Component::Count(b)) => a.cmp(b),
+                (_, Component::Count(a), Component::Count(b)) => b.cmp(a),
+                (StepKind::Late, Component::Sequence(a), Component::Sequence(b)) => self.vectors.compare(*a, *b),
+                (_, Component::Sequence(a), Component::Sequence(b)) => self.vectors.compare(*b, *a),
+                _ => unreachable!("the components of one step have one kind"),
+            };
+            if order != Ordering::Equal {
+                return order;
+            }
+        }
+        Ordering::Equal
+    }
+
+    /// Counts every completed nonempty occurrence in a chosen tree, and no
+    /// elision (§7). The occurrences are added in the order of their
+    /// starting positions, as the sequences of `late` and `early` need.
+    pub(crate) fn tree_profile(
+        &mut self,
+        g: &Lowered,
+        tree: &crate::tree::ITree,
+        tokens: &[Tok],
+        tags: &Tags,
+    ) -> Profile {
+        let mut occurrences = Vec::new();
+        for node in &tree.nodes {
+            match node.kind {
+                crate::tree::IKind::Close { prod, start, end, tags, .. } if start < end => {
+                    let rule = &g.rules[g.prods[prod as usize].rule as usize];
+                    if !rule.helper {
+                        occurrences.push((start, end, Some(rule.name.as_str()), None, "", tags));
+                    }
+                }
+                crate::tree::IKind::Read { tok, terminal } => {
+                    let token = &tokens[tok as usize];
+                    occurrences.push((
+                        tok,
+                        tok + 1,
+                        None,
+                        Some(g.terminals[terminal as usize].as_str()),
+                        token.value.as_str(),
+                        token.tags,
+                    ));
+                }
+                _ => {}
+            }
+        }
+        occurrences.sort_by_key(|&(start, _, _, _, _, _)| start);
+        let mut profile = Profile::ZERO;
+        for (p, q, name, terminal, value, set) in occurrences {
+            let node_value = if name.is_some() { self.node_value(tokens, p, q) } else { None };
+            let value = node_value.as_deref().unwrap_or(value);
+            let occurrence = self.occurrence(name, terminal, value, set, tags, false, p, q);
+            profile = self.sum(&profile, &occurrence);
+        }
+        profile
     }
 }
 
@@ -1948,19 +2201,18 @@ fn span_order(a: &(u32, u32, Nat), b: &(u32, u32, Nat)) -> Ordering {
     a.0.cmp(&b.0).then_with(|| b.1.cmp(&a.1))
 }
 
-pub(crate) fn compare_profiles(left: &Profile, right: &Profile) -> Ordering {
-    for (a, b) in left.spans.iter().zip(&right.spans) {
+/// Compares sparse span counts in start order and reverse end order:
+/// `Less` when the left side wins.
+fn compare_spans(left: &[(u32, u32, Nat)], right: &[(u32, u32, Nat)]) -> Ordering {
+    for (a, b) in left.iter().zip(right) {
         let order = span_order(a, b).then_with(|| b.2.cmp(&a.2));
         if order != Ordering::Equal {
             return order;
         }
     }
-    right.spans.len().cmp(&left.spans.len()).then_with(|| left.fewest.cmp(&right.fewest))
+    right.len().cmp(&left.len())
 }
 
-fn sum_profiles(a: &Profile, b: &Profile) -> Profile {
-    Profile { spans: sum_spans(&a.spans, &b.spans), fewest: a.fewest.add(&b.fewest) }
-}
 fn sum_spans(left: &[(u32, u32, Nat)], right: &[(u32, u32, Nat)]) -> Vec<(u32, u32, Nat)> {
     let mut result = Vec::with_capacity(left.len() + right.len());
     let (mut i, mut j) = (0, 0);
@@ -1989,22 +2241,9 @@ fn sum_spans(left: &[(u32, u32, Nat)], right: &[(u32, u32, Nat)]) -> Vec<(u32, u
     result
 }
 
-pub(crate) fn tree_profile(g: &Lowered, tree: &crate::tree::ITree) -> Profile {
-    let mut profile = Profile::ZERO;
-    for node in &tree.nodes {
-        if let crate::tree::IKind::Close { prod, start, end, .. } = node.kind {
-            let rule = &g.rules[g.prods[prod as usize].rule as usize];
-            if start < end && (rule.leftmost_longest || rule.fewest) {
-                profile = sum_profiles(&profile, &Profile::one(start, end, rule.fewest));
-            }
-        }
-    }
-    profile
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{Least, Nat, Ordering, VNode, Vectors, NO_ELISIONS};
+    use super::{Least, Nat, Ordering, Profile, Profiles, VNode, Vectors};
     use crate::work::{assert_linear, Work};
 
     /// A node whose many edges all attain the least vector keeps them all,
@@ -2012,11 +2251,11 @@ mod tests {
     /// one for each kept edge.
     #[test]
     fn kept_edges_are_found_without_a_scan() {
-        let vectors = Vectors::new();
+        let profiles = Profiles::new(&[]);
         assert_linear(Work::Kept, 40_000, &mut |n| {
             let mut least = Least::NONE;
             for index in 0..n as u32 {
-                least.add(&vectors, index, &Least::one(NO_ELISIONS));
+                least.add(&profiles, index, &Least::one(Profile::ZERO));
             }
             assert!((0..n as u32).all(|index| least.keeps(index)));
             assert!(!least.keeps(n as u32));

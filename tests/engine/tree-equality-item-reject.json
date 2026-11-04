@@ -1,0 +1,8 @@
+{
+  "description": "Structural comparison: item-reject.",
+  "grammar": "%rule text $x:w {$y:w}\n%conditions $x ≅ $y\n%rule w \"a\" | \"b\"",
+  "input": "aab",
+  "expect": {
+    "error": "rejected"
+  }
+}

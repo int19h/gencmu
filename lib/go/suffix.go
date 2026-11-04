@@ -139,7 +139,7 @@ func (r *recognizer) retainSuffix(k int) {
 	}
 	var witnesses []*item
 	for key, node := range r.sets[k].syms {
-		if key.rule == r.startRule && !key.requested && (r.boundaries == nil || r.boundaries.accepts(node.boundary, func(*boundaryLiteral) {})) {
+		if key.rule == r.startRule && key.requested == 0 && (r.boundaries == nil || r.boundaries.accepts(node.boundary, func(*boundaryLiteral) {})) {
 			witnesses = append(witnesses, node.items...)
 		}
 	}
@@ -160,7 +160,7 @@ func (r *recognizer) scan(k int, it *item) bool {
 	}
 	st := &r.step
 	st.kind, st.it, st.k, st.strict = stepTerminal, it, k+1, strict
-	st.cv = capVal{int32(k), int32(k + 1), tags, r.terminalStructure(it.prod, int(it.dot), k, sym.id), r.terminalCloses(k, r.g.terminals[sym.id])}
+	st.cv = capVal{int32(k), int32(k + 1), tags, r.terminalStructure(it.prod, int(it.dot), k, sym.id), r.terminalCloses(k, r.g.terminals[sym.id]), 0}
 	st.l = link{prev: it, tok: int32(k), term: sym.id}
 	return true
 }

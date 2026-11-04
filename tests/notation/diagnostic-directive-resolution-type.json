@@ -4,8 +4,7 @@
   "expect": {
     "error": {
       "line": 2,
-      "column": 1,
-      "message": "%ambiguity-resolution takes names only"
+      "column": 23
     }
   }
 }

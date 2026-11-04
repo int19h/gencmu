@@ -1,0 +1,16 @@
+{
+  "description": "An item condition of inner braces cannot read a capture that a production binds after the outer braces, which the production reads as one symbol (engine §3.6, §9).",
+  "documents": {
+    "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text { C {$c:A} } $b:B\n%conditions $c.value = $b.value\n```\n"
+  },
+  "pipelineDocument": "main.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "description": "Elision-only restores a terminator with its default (engine §7).",
+  "grammar": "%elision-only\n%rule text $x:r\n%rule r TO [+JI ≝ \"jie\"]",
+  "tokens": [
+    {
+      "text": "to",
+      "tags": [
+        "TO"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "description": "Rule profiles rank before fewest counts (engine §4.2 and §6, case 20).",
-  "grammar": "%rule text x | y\n%rule(leftmost-longest) l A\n%rule(fewest) f B\n%rule x l f\n%rule y A B",
+  "grammar": "%ambiguity-resolution leftmost-longest #·l, fewest #·f, greedy\n%rule text x | y\n%rule l A\n               \n%rule f B\n              \n%rule x l f\n%rule y A B",
   "tokens": [
     {
       "text": "a",

@@ -1,6 +1,6 @@
 {
   "description": "A fewest occurrence that reads only a synthetic token adds zero, so reconstruction reports elision-only ambiguity.",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text x | y | z\n%rule x A [+T] B\n%rule y A f B\n%rule z A [+U] [+V] B\n%rule(fewest) f T",
+  "grammar": "%ambiguity-resolution fewest #·f, late #·_<_Elided>\n%elision-only\n%rule text x | y | z\n%rule x A [+T] B\n%rule y A f B\n%rule z A [+U] [+V] B\n%rule f T\n              ",
   "tokens": [
     {
       "text": "a",

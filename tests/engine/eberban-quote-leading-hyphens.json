@@ -1,0 +1,41 @@
+{
+  "description": "In the eberban/refgram pipeline, both delimiters of a quote take a leading misplaced hyphen.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "a co -zao[x]-zao mo",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "forms",
+        "feature": "hyphen-misplaced",
+        "rule": "misplaced-hyphen",
+        "span": [
+          5,
+          6
+        ],
+        "source": [
+          5,
+          6
+        ]
+      },
+      {
+        "stage": "forms",
+        "feature": "hyphen-misplaced",
+        "rule": "misplaced-hyphen",
+        "span": [
+          12,
+          13
+        ],
+        "source": [
+          12,
+          13
+        ]
+      }
+    ]
+  }
+}

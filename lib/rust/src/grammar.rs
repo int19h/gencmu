@@ -17,18 +17,40 @@ use crate::patterns::Pattern;
 use crate::unicode::Unicode;
 use crate::work::{self, Mutant, Work};
 
-/// The rule by which a stage ranks its derivations (engine §6): the lean
-/// of rule 2, the counts of elided terminators, or, for the `elision-only`
-/// check (§7), no lean at all.
+/// The last step of a stage's `%ambiguity-resolution`, which compares the
+/// actions of the derivations with the greatest profile (engine §6).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Lean {
     Greedy,
     Lazy,
-    /// A derivation beats another when its elision vector is less.
-    LateElision,
-    /// Neither: any two derivations that differ are tied, as the
-    /// `elision-only` check ranks (§7). A directive cannot name it.
+    /// Neither: any two derivations with the greatest profile are tied, as
+    /// a directive with no lean and the `elision-only` check rank (§6, §7).
     Neither,
+}
+
+/// How a key step of `%ambiguity-resolution` compares its pattern's
+/// occurrences (engine §6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum StepKind {
+    /// Counts per nonempty span, by increasing start, then decreasing end,
+    /// then the greater count.
+    LeftmostLongest,
+    /// The total count, the smaller winning.
+    Fewest,
+    /// The total count, the greater winning.
+    Most,
+    /// Counts per start boundary, fewer winning at the first that differs.
+    Late,
+    /// Counts per start boundary, more winning at the first that differs.
+    Early,
+}
+
+/// A key step of `%ambiguity-resolution`: how it compares, and the
+/// pattern whose occurrences it counts (engine §6).
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct KeyStep {
+    pub kind: StepKind,
+    pub pattern: crate::patterns::Pattern,
 }
 
 /// The clauses of a rule, which each of its alternatives shares, so that
@@ -58,19 +80,9 @@ pub(crate) struct StitchedAlternative {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StitchedRule {
-    pub flags: Vec<String>,
     pub name: String,
     pub alternatives: Vec<StitchedAlternative>,
     pub document: Arc<str>,
-}
-
-/// The flags before and after a replacement that changes them.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FlagChange {
-    /// The replaced rule's flags.
-    pub from: Vec<String>,
-    /// The replacement rule's flags.
-    pub to: Vec<String>,
 }
 
 /// One replacement or extension the loader recorded (engine §2).
@@ -85,17 +97,19 @@ pub struct Change {
     pub extension: bool,
     /// The document that made the change.
     pub document: String,
-    /// The flags before and after the replacement, only if they differ.
-    pub flag_change: Option<FlagChange>,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct StageGrammar {
+    pub tree_comparisons: bool,
+    pub tree_expressions: bool,
     pub features: Vec<(Arc<str>, crate::dom::Directive)>,
     pub unicode: Arc<Unicode>,
     pub name: String,
     pub rules: Vec<StitchedRule>,
     pub index: HashMap<String, usize>,
+    /// The key steps of `%ambiguity-resolution`, in order (engine §6).
+    pub steps: Vec<KeyStep>,
     pub lean: Lean,
     pub elision_only: bool,
     pub ranked: Arc<crate::ranked::RankedGroups>,
@@ -241,10 +255,13 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         }
     }
     let mut grammar = StageGrammar {
+        tree_comparisons: false,
+        tree_expressions: false,
         unicode: Arc::new(unicode.clone()),
         name: stage.to_string(),
         rules: Vec::new(),
         index: HashMap::new(),
+        steps: Vec::new(),
         lean: Lean::Greedy,
         elision_only: false,
         ranked: Arc::new(crate::ranked::RankedGroups::default()),
@@ -258,11 +275,13 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         Rule(&'a Arc<str>, &'a RuleDef),
         Arguments(&'a crate::parameters::expand::ArgumentUse),
         Feature(usize),
+        Ranking(&'a Arc<str>, &'a Directive),
         Classifier(usize),
         Implication(&'a Arc<str>, &'a ImplicationDef),
     }
     let mut checks = Vec::new();
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
+    let mut elision_only = false;
     let mut constants =
         Constants { stage, unicode, values: HashMap::new(), versions: Vec::new(), latest: HashMap::new() };
     let mut deferred = Vec::new();
@@ -345,7 +364,6 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                     text_order += rule.alternatives.len();
                     let error = |message: String| Err(located(message, document, rule.at));
                     let stitched = || StitchedRule {
-                        flags: rule.flags.clone(),
                         name: rule.name.clone(),
                         alternatives: alternatives.clone(),
                         document: document.clone(),
@@ -372,16 +390,12 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                             };
                             // The replacement keeps the place of the rule it
                             // replaces (§3, "Numbering").
-                            let previous_flags = &grammar.rules[index].flags;
-                            let flag_change = (previous_flags != &rule.flags)
-                                .then(|| FlagChange { from: previous_flags.clone(), to: rule.flags.clone() });
                             grammar.rules[index] = stitched();
                             grammar.changes.push(Change {
                                 stage: stage.to_string(),
                                 rule: rule.name.clone(),
                                 extension: false,
                                 document: document.to_string(),
-                                flag_change,
                             });
                         }
                         Op::Extend => {
@@ -397,7 +411,6 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                                 rule: rule.name.clone(),
                                 extension: true,
                                 document: document.to_string(),
-                                flag_change: None,
                             });
                         }
                     }
@@ -415,24 +428,23 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                             }
                             let refused = || {
                                 here(
-                            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only"
-                                .to_string(),
-                        )
+                                    "%ambiguity-resolution requires a pattern for each key step and no operand on a final lean"
+                                        .to_string(),
+                                )
                             };
-                            let mut args = directive.args.iter().map(String::as_str).peekable();
-                            grammar.lean = match args.next() {
-                                Some("greedy") => Lean::Greedy,
-                                Some("lazy") => Lean::Lazy,
-                                Some("late-elision") => Lean::LateElision,
-                                _ => return Err(refused()),
-                            };
-                            // Each optional word in its place, and nothing after
-                            // them (engine §2).
-                            grammar.elision_only = args.next_if_eq(&"elision-only").is_some();
-                            if args.next().is_some() {
+                            let steps = directive.steps.as_deref().unwrap_or_default();
+                            if !crate::dom::valid_steps(steps) {
                                 return Err(refused());
                             }
+                            checks.push((run, directive.at, 1, Check::Ranking(document, directive)));
                             resolution = Some((document.clone(), directive.at));
+                        }
+                        "elision-only" => {
+                            if elision_only {
+                                return Err(here("has a second %elision-only".into()));
+                            }
+                            elision_only = true;
+                            grammar.elision_only = true;
                         }
                         other => return Err(here(format!("an unknown directive %{other}"))),
                     }
@@ -478,6 +490,44 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                     constants.check_arguments(&arguments, None)?;
                 }
             }
+            Check::Ranking(document, directive) => {
+                grammar.lean = Lean::Neither;
+                for step in directive.steps.as_deref().unwrap_or_default() {
+                    let kind = match step.step.as_str() {
+                        "greedy" => {
+                            grammar.lean = Lean::Greedy;
+                            continue;
+                        }
+                        "lazy" => {
+                            grammar.lean = Lean::Lazy;
+                            continue;
+                        }
+                        "leftmost-longest" => StepKind::LeftmostLongest,
+                        "fewest" => StepKind::Fewest,
+                        "most" => StepKind::Most,
+                        "late" => StepKind::Late,
+                        "early" => StepKind::Early,
+                        _ => unreachable!("validated step"),
+                    };
+                    let operand = step.pattern.as_ref().expect("key operand");
+                    let at = step.operand_at.or_else(|| first_constant(operand)).unwrap_or(directive.at);
+                    let pattern = constants.evaluate_pattern(operand, document, at)?;
+                    if let Some(problem) = crate::patterns::ranking_problem(&pattern) {
+                        return Err(located(problem.into(), document, at));
+                    }
+                    if kind == StepKind::LeftmostLongest && crate::patterns::requires_elided(&pattern) {
+                        return Err(located("leftmost-longest cannot require _Elided".into(), document, at));
+                    }
+                    for part in pattern.walk() {
+                        if let crate::patterns::Part::Pattern(Pattern::Name(name, at)) = part {
+                            if !grammar.index.contains_key(name) {
+                                return Err(located(format!("{name} is not defined in stage {stage}"), document, *at));
+                            }
+                        }
+                    }
+                    grammar.steps.push(KeyStep { kind, pattern });
+                }
+            }
             Check::Feature(index) => {
                 let (document, directive) = &mut grammar.features[index];
                 let arguments =
@@ -506,11 +556,15 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     // Shared clauses are checked once, with the first alternative that
     // holds them.
     let mut checked: FxSet<*const RuleClauses> = FxSet::default();
+    let mut tree_comparisons = false;
+    let mut tree_expressions = false;
     for rule in &grammar.rules {
         for alternative in &rule.alternatives {
             let first = checked.insert(Arc::as_ptr(&alternative.clauses));
-            check_alternative(&grammar, alternative, first)
+            let (recognition, expressions) = check_alternative(&grammar, alternative, first)
                 .map_err(|message| located(message, &alternative.document, alternative.at))?;
+            tree_comparisons |= recognition;
+            tree_expressions |= expressions;
         }
     }
     grammar.close_families = Arc::new(close_families(&grammar));
@@ -530,6 +584,8 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         recipe_cycles(alternative)?;
     }
     emission_overlap(&grammar)?;
+    grammar.tree_comparisons = tree_comparisons;
+    grammar.tree_expressions = tree_expressions;
     Ok(grammar)
 }
 
@@ -576,7 +632,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
                 _ => {}
             },
             Part::Cond(condition) => match condition {
-                Cond::Compare(_, a, b) => pending.extend([Part::Term(a), Part::Term(b)]),
+                Cond::Compare(_, a, b, _) => pending.extend([Part::Term(a), Part::Term(b)]),
                 Cond::Matches(t, _)
                 | Cond::Begins(t, _)
                 | Cond::Ends(t, _)
@@ -648,7 +704,7 @@ fn consuming(expr: &Expr, rules: &FxSet<String>) -> bool {
                 return true
             }
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => pending.extend(items),
-            Expr::Capture(_, inner) | Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => pending.push(inner),
+            Expr::Capture(_, inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => pending.push(inner),
             Expr::Repeat(item, separator, _) => {
                 pending.push(item);
                 pending.extend(separator.as_deref());
@@ -692,7 +748,7 @@ fn emission_overlap(grammar: &StageGrammar) -> Result<(), Error> {
                     Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                         pending.extend(items)
                     }
-                    Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => pending.push(inner),
+                    Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => pending.push(inner),
                     Expr::Repeat(item, separator, _) => {
                         pending.push(item);
                         pending.extend(separator.as_deref());
@@ -1244,7 +1300,7 @@ impl Constants<'_> {
                     push(Part::Pattern(b));
                     push(Part::Pattern(a));
                 }
-                Part::Pattern(Pattern::Path(_, inner) | Pattern::Test(_, _, inner)) => push(Part::Pattern(inner)),
+                Part::Pattern(Pattern::Path(_, inner) | Pattern::Test(_, _, inner, _)) => push(Part::Pattern(inner)),
                 Part::Children(Children::Node(inner)) => push(Part::Pattern(inner)),
                 Part::Children(Children::Sequence(items) | Children::Choice(items)) => {
                     for child in items.iter().rev() {
@@ -1339,6 +1395,18 @@ impl Constants<'_> {
             ),
             _ => unreachable!(),
         };
+        for part in pattern.walk() {
+            if let crate::patterns::Part::Pattern(test @ Pattern::Test(op, _, inner, mark_at)) = part {
+                if op == "tags" && matches!(inner.as_ref(), Pattern::Name(..)) && crate::patterns::requires_elided(test)
+                {
+                    return Err(located(
+                        "a rule pattern cannot require _Elided".into(),
+                        document,
+                        mark_at.unwrap_or(item),
+                    ));
+                }
+            }
+        }
         Ok(Value::Pattern(pattern))
     }
     fn evaluate_plain(&self, root: &Term, document: &str, item: (usize, usize)) -> Result<Value, Error> {
@@ -1586,6 +1654,11 @@ impl Constants<'_> {
         // The checks that simplification decides, which the reader left
         // to the loader, now with the constants' values (§9).
         let resolved = self.substitute_rule(rule);
+        for term in resolved.tags.iter().chain(resolved.alternatives.iter().filter_map(|a| a.tags.as_ref())) {
+            if crate::notation::reads_own_tags(term) {
+                return Err(located("a constituent reads its own tags".into(), document, rule.at));
+            }
+        }
         let projected;
         let checked = if rule.source.params.is_some() {
             projected = crate::dom::partial::rule(&resolved).map_err(|message| located(message, document, rule.at))?;
@@ -1614,6 +1687,9 @@ impl Constants<'_> {
             match part {
                 ValuePart::Pattern(term) => {
                     self.check_pattern_uses(term, document, at)?;
+                }
+                ValuePart::Expr(expr @ Expr::Optional(_, _, Some(_))) => {
+                    self.check_body_strings(expr, document, at)?;
                 }
                 ValuePart::Expr(Expr::ScalarRange(a, b)) => {
                     self.check_scalar_uses(a, b, document, at)?;
@@ -1838,6 +1914,72 @@ impl Constants<'_> {
         Ok((a, b))
     }
 
+    fn check_body_strings(&self, root: &Expr, document: &str, at: (usize, usize)) -> Result<(), Error> {
+        let mut pending = vec![root];
+        while let Some(expr) = pending.pop() {
+            match expr {
+                Expr::ScalarRange(a, b) => {
+                    self.scalar_endpoints(a, b, document, at)?;
+                }
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                    pending.extend(items.iter().rev())
+                }
+                Expr::Optional(inner, _, default) => {
+                    if let Some(default) = default {
+                        if matches!(default.term, Term::Source(_)) {
+                            pending.push(inner);
+                            continue;
+                        }
+                        let value = self.evaluate(&default.term, document, default.at.unwrap_or(at))?;
+                        let Value::Str(value) = value else {
+                            return Err(located(
+                                "a default requires one string".into(),
+                                document,
+                                default.at.unwrap_or(at),
+                            ));
+                        };
+                        let head = if let Expr::Seq(xs) = inner.as_ref() { &xs[0] } else { inner.as_ref() };
+                        let mut base = head;
+                        while let Expr::Tested(_, _, next) = base {
+                            base = next;
+                        }
+                        let (Expr::Ref(name) | Expr::Terminal(name)) = base else {
+                            pending.push(inner);
+                            continue;
+                        };
+                        let mut tested = head;
+                        while let Expr::Tested(op, operand, next) = tested {
+                            let operand = self.evaluate_test(operand, op, document, at)?;
+                            let test = crate::lower::SymbolTest::new(op, &operand, self.unicode);
+                            if test.tags.iter().any(|t| t != name)
+                                || test.negative.contains(name)
+                                || test
+                                    .sound
+                                    .as_ref()
+                                    .is_some_and(|s| (s == &value) != (test.op == crate::lower::TestOp::Is))
+                            {
+                                return Err(located(
+                                    "a default fails its head test".into(),
+                                    document,
+                                    default.at.unwrap_or(at),
+                                ));
+                            }
+                            tested = next;
+                        }
+                    }
+                    pending.push(inner)
+                }
+                Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
+                Expr::Repeat(item, separator, _) => {
+                    pending.extend(separator.as_deref());
+                    pending.push(item);
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
     /// Gives every test of a body its value, a string or a tag set, from
     /// the constants' final values (§2, §4). Each value is then a string,
     /// `∅`, a tag or a union of tags, in code point order.
@@ -1846,11 +1988,28 @@ impl Constants<'_> {
             for alternative in &mut rule.alternatives {
                 let mut stack = vec![&mut alternative.alternative.expr];
                 while let Some(expr) = stack.pop() {
+                    if matches!(expr, Expr::Optional(_, _, Some(_))) {
+                        self.check_body_strings(expr, &alternative.document, alternative.at)?;
+                    }
                     match expr {
                         Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                             stack.extend(items.iter_mut())
                         }
-                        Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
+                        Expr::Optional(inner, _, default) => {
+                            if let Some(value) = default {
+                                *value = crate::dom::DefaultValue {
+                                    term: self.evaluate_test(
+                                        &value.term,
+                                        "=",
+                                        &alternative.document,
+                                        value.at.unwrap_or(alternative.at),
+                                    )?,
+                                    at: value.at,
+                                };
+                            }
+                            stack.push(inner);
+                        }
+                        Expr::Capture(_, inner) => stack.push(inner),
                         Expr::Repeat(item, separator, _) => {
                             stack.push(item);
                             stack.extend(separator.as_deref_mut());
@@ -1940,8 +2099,8 @@ impl Constants<'_> {
                     }
                 }
             }
-            Cond::Compare(op, left, right) => {
-                if matches!(op.as_str(), "≅" | "≇") {
+            Cond::Compare(op, left, right, _) => {
+                if matches!(op.as_str(), "≅" | "≇") && !matches!(right, Term::Capture(_)) {
                     if value_has_source(right) {
                         return;
                     }
@@ -2096,7 +2255,13 @@ impl<'a> Iterator for ValueParts<'a> {
                 Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
                     children.extend(xs.iter().map(ValuePart::Expr))
                 }
-                Expr::Capture(_, e) | Expr::Optional(e, _) => children.push(ValuePart::Expr(e)),
+                Expr::Optional(e, _, default) => {
+                    children.push(ValuePart::Expr(e));
+                    if let Some(default) = default {
+                        children.push(ValuePart::Term(&default.term));
+                    }
+                }
+                Expr::Capture(_, e) => children.push(ValuePart::Expr(e)),
                 Expr::Repeat(e, separator, _) => {
                     children.push(ValuePart::Expr(e));
                     children.extend(separator.iter().map(|e| ValuePart::Expr(e)));
@@ -2131,9 +2296,9 @@ impl<'a> Iterator for ValueParts<'a> {
                         None
                     }
                 })),
-                Cond::Compare(op, a, b) => {
+                Cond::Compare(op, a, b, _) => {
                     children.push(ValuePart::Term(a));
-                    children.push(if matches!(op.as_str(), "≅" | "≇") {
+                    children.push(if matches!(op.as_str(), "≅" | "≇") && !matches!(b, Term::Capture(_)) {
                         ValuePart::Pattern(b)
                     } else {
                         ValuePart::Term(b)
@@ -2159,27 +2324,33 @@ impl<'a> Iterator for ValueParts<'a> {
 
 /// Checks an alternative, and its rule's clauses where `clauses` says that
 /// no alternative before it shared them.
-fn check_alternative(grammar: &StageGrammar, alternative: &StitchedAlternative, clauses: bool) -> Result<(), String> {
+fn check_alternative(
+    grammar: &StageGrammar,
+    alternative: &StitchedAlternative,
+    clauses: bool,
+) -> Result<(bool, bool), String> {
+    let mut compared = false;
     check_expr(grammar, &alternative.alternative.expr)?;
     for term in alternative.alternative.tags.iter() {
-        check_term(grammar, term)?;
+        check_term(grammar, term, &mut compared)?;
     }
     if !clauses {
-        return Ok(());
+        return Ok((compared, compared));
     }
     let clauses = &alternative.clauses;
     for term in clauses.tags.iter() {
-        check_term(grammar, term)?;
+        check_term(grammar, term, &mut compared)?;
     }
     for cond in &clauses.conditions {
-        check_cond(grammar, cond)?;
+        check_cond(grammar, cond, &mut compared)?;
     }
+    let recognition = compared;
     for item in clauses.emit.iter().flatten() {
         if let EmitItem::Capture(_, Some(term), ..) | EmitItem::Insert(Some(term), _) = item {
-            check_term(grammar, term)?;
+            check_term(grammar, term, &mut compared)?;
         }
     }
-    Ok(())
+    Ok((recognition, compared))
 }
 
 fn check_rule(grammar: &StageGrammar, name: &str) -> Result<(), String> {
@@ -2203,7 +2374,7 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
             check_expr(grammar, item)?;
             separator.as_deref().map_or(Ok(()), |separator| check_expr(grammar, separator))
         }
-        Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => check_expr(grammar, inner),
+        Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => check_expr(grammar, inner),
         Expr::Ref(name) => {
             if is_terminal_name(name) {
                 Ok(())
@@ -2242,27 +2413,34 @@ fn check_span_references(grammar: &StageGrammar, term: &Term) -> Result<(), Stri
     }
 }
 
-fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
+fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Result<(), String> {
     match term {
         Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
         // Stitching has checked every constant (engine §2).
         Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => Ok(()),
         Term::Union(items) | Term::Intersection(items) => {
             for item in items {
-                check_term(grammar, item)?;
+                check_term(grammar, item, compared)?;
             }
             Ok(())
         }
         Term::Difference(left, right) => {
-            check_term(grammar, left)?;
-            check_term(grammar, right)
+            check_term(grammar, left, compared)?;
+            check_term(grammar, right, compared)
         }
         Term::Capture(_) => Ok(()),
         Term::If(cond, then) => {
-            check_cond(grammar, cond)?;
-            check_term(grammar, then)
+            check_cond(grammar, cond, compared)?;
+            check_term(grammar, then, compared)
         }
         Term::Call(name, args) => match (name.as_str(), &args[..]) {
+            ("value" | "image", [Arg::Term(Term::Call(method, args))]) if method == "emitted" => {
+                if let [Arg::Term(Term::Capture(_))] = &args[..] {
+                    Ok(())
+                } else {
+                    Err("emitted requires a bare capture".into())
+                }
+            }
             ("value" | "image" | "source-text" | "decomposed-source-text" | "classes" | "tags", [Arg::Term(span)]) => {
                 check_span_references(grammar, span)
             }
@@ -2271,16 +2449,16 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 check_rule(grammar, rule)
             }
             ("ngrams", [Arg::Term(string), Arg::Integer(n)]) if crate::dom::valid_integer(n) => {
-                check_term(grammar, string)
+                check_term(grammar, string, compared)
             }
             ("split", [Arg::Term(string), Arg::Term(delimiter)]) => {
-                check_term(grammar, string)?;
-                check_term(grammar, delimiter)
+                check_term(grammar, string, compared)?;
+                check_term(grammar, delimiter, compared)
             }
             ("concat", args) => {
                 for arg in args {
                     if let Arg::Term(term) = arg {
-                        check_term(grammar, term)?;
+                        check_term(grammar, term, compared)?;
                     }
                 }
                 Ok(())
@@ -2288,7 +2466,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             ("verbatim-text" | "emitted", [Arg::Term(span)]) => check_span_references(grammar, span),
             // A classifier that classify names belongs to the stage (§2).
             ("classify", [Arg::Term(string), Arg::Classifier(classifier)]) => {
-                check_term(grammar, string)?;
+                check_term(grammar, string, compared)?;
                 if grammar.classifiers.iter().any(|(_, item)| item.name == *classifier) {
                     Ok(())
                 } else {
@@ -2326,16 +2504,17 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
     }
 }
 
-fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
+fn check_cond(grammar: &StageGrammar, cond: &Cond, compared: &mut bool) -> Result<(), String> {
     work::count(Work::Stitched, 1);
     match cond {
         Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
-        Cond::Compare(op, left, right) => {
+        Cond::Compare(op, left, right, _) => {
+            *compared |= matches!(op.as_str(), "≅" | "≇") && matches!(right, Term::Capture(_));
             if !matches!(op.as_str(), "=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "≅" | "≇") {
                 return Err(format!("an unknown comparison {op}"));
             }
-            check_term(grammar, left)?;
-            check_term(grammar, right)
+            check_term(grammar, left, compared)?;
+            check_term(grammar, right, compared)
         }
         Cond::Matches(span, rule) | Cond::Begins(span, rule) | Cond::Ends(span, rule) => {
             if matches!(cond, Cond::Ends(..)) && crate::dom::restored_span(span) {
@@ -2350,15 +2529,15 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
             Ok(())
         }
         Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => check_span_references(grammar, span),
-        Cond::Not(inner) => check_cond(grammar, inner),
+        Cond::Not(inner) => check_cond(grammar, inner, compared),
         Cond::Captured(_) => Ok(()),
         Cond::If(antecedent, consequent) => {
-            check_cond(grammar, antecedent)?;
-            check_cond(grammar, consequent)
+            check_cond(grammar, antecedent, compared)?;
+            check_cond(grammar, consequent, compared)
         }
         Cond::Any(items) | Cond::All(items) => {
             for item in items {
-                check_cond(grammar, item)?;
+                check_cond(grammar, item, compared)?;
             }
             Ok(())
         }
@@ -2383,14 +2562,15 @@ mod tests {
         let unicode =
             Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").expect("the table")).expect("the table");
         let dom = |n: usize| {
-            let same = || Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()));
+            let same = || {
+                Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()), Default::default())
+            };
             let rule = RuleDef {
                 source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
                 name: "text".into(),
                 op: Op::Define,
-                flags: Vec::new(),
                 tags: None,
                 alternatives: (0..n)
                     .map(|_| Alternative {
@@ -2409,7 +2589,8 @@ mod tests {
             let directive = Directive {
                 conditions: None,
                 name: "ambiguity-resolution".into(),
-                args: vec!["greedy".into()],
+                args: Vec::new(),
+                steps: Some(vec![crate::dom::Step { step: "greedy".into(), pattern: None, operand_at: None }]),
                 at: (0, 0),
             };
             let dom = Dom {
@@ -2454,6 +2635,8 @@ mod tests {
             let entries =
                 (0..n).map(|index| entry(index, true)).chain((0..n).map(|index| entry(index, false))).collect();
             StageGrammar {
+                tree_comparisons: false,
+                tree_expressions: false,
                 features: Vec::new(),
                 unicode: std::sync::Arc::new(
                     crate::unicode::Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").unwrap())
@@ -2462,6 +2645,7 @@ mod tests {
                 name: "s".into(),
                 rules: Vec::new(),
                 index: HashMap::new(),
+                steps: Vec::new(),
                 lean: Lean::Greedy,
                 elision_only: false,
                 ranked: Arc::new(crate::ranked::RankedGroups::default()),

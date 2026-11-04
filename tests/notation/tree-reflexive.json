@@ -1,0 +1,10 @@
+{
+  "description": "A comparison refuses a reflexive operand.",
+  "document": "```jbogenbau\n%rule text $x:A\n%conditions $x ≅ $x\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 13
+    }
+  }
+}

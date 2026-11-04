@@ -518,6 +518,13 @@ class EngineCases(unittest.TestCase):
             with self.subTest(member=name), self.assertRaises(AssertionError):
                 self.check("load", {"error": "grammar", name: []}, value, result, error, features)
 
+        value, result, error, features = run_case({"grammar": "%rule text {ε}", "input": ""})
+        self.assertIsNone(error)
+        self.assertIsNotNone(features)
+        self.check("runtime", {"error": "grammar"}, value, result, error, features)
+        with self.assertRaisesRegex(AssertionError, "expect.where requires a load error"):
+            self.check("runtime", {"error": "grammar", "where": {"document": "main.md"}}, value, result, error, features)
+
     def test_a_usage_error_of_loading_meets_only_its_kind(self) -> None:
         # A document held in memory with a lone surrogate is a mistake of the
         # caller (engine §1), found at load (tests/README.md).

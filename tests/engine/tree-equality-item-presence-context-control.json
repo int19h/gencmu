@@ -1,0 +1,29 @@
+{
+  "description": "The present guard keeps the item comparison in the other entry frame.",
+  "grammar": "%rule text ($g:G $x:good | $x:bad) {$y:good}\n%conditions $g ⟹ ($x ≅ $y)\n%rule good A\n%rule bad A | bad",
+  "tokens": [
+    {
+      "text": "g",
+      "tags": [
+        "G"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

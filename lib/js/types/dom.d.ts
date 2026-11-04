@@ -1,7 +1,13 @@
 import type { GrammarDom } from "./types.js";
+/** The steps of `%ambiguity-resolution` that take a pattern (engine §6). */
+export declare const KEY_STEPS: Set<string>;
+/** The steps of `%ambiguity-resolution` that compare actions (engine §6). */
+export declare const LEANS: Set<string>;
+/** @param {unknown} steps @returns {boolean} */
+export declare function validSteps(steps: unknown): boolean;
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 40;
+export declare const DOM_FORMAT = 44;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
 export declare const TEST_OPS: Set<string>;
@@ -192,6 +198,72 @@ export declare function strayAttachment(items: any[], has: (name: string) => boo
  * @returns {string[]}
  */
 export declare function capturesUsed(node: unknown): string[];
+/**
+ * The captures a clause mentions at all, presence tests included.
+ * @param {unknown} node
+ * @returns {string[]}
+ */
+export declare function capturesMentioned(node: unknown): string[];
+/**
+ * The item captures of an expression: the captures inside flat braces, each
+ * with the innermost flat braces around it and the outermost ones (engine
+ * §3.5). The production of the alternative reads the outermost braces as
+ * one symbol, so the check of item conditions places them among its
+ * captures. A chain holds no capture, which the reader makes sure of, so a
+ * capture inside a chain's braces is not listed.
+ * @param {any} expr
+ * @returns {Map<string, {braces: any, outer: any}>} name to its innermost
+ *   and outermost flat braces
+ */
+export declare function itemCaptures(expr: any): Map<string, {
+    braces: any;
+    outer: any;
+}>;
+/**
+ * The sequences of captures that the productions of an expression read, as
+ * `captureSequences` lists them, with each pair of flat braces that the
+ * production reads as the braces node itself. The item captures inside the
+ * braces stay out, as in every production. The check of item conditions
+ * compares the place of the braces with the places of the captures a
+ * condition reads (engine §3.6).
+ * @param {any} expr
+ * @returns {unknown[][]}
+ */
+export declare function bracesSequences(expr: any): unknown[][];
+/**
+ * The captures of each production of an alternative, name to its place in
+ * the order that the production reads them, with `$` at -1 (engine §3.5).
+ * @param {any} alternative
+ * @returns {Map<string, number>[]}
+ */
+export declare function alternativeCaptures(alternative: any): Map<string, number>[];
+export type CaptureNode = {
+    parent: CaptureNode | null;
+    name: string;
+    length: number;
+    children: Map<string, CaptureNode> | null;
+};
+/**
+ * A sequence of capture names, as a node of a trie of all the sequences
+ * of one expression: one node for each distinct sequence, which shares its
+ * prefix with the sequences it extends.
+ * @typedef {{parent: CaptureNode | null, name: string, length: number, children: Map<string, CaptureNode> | null}} CaptureNode
+ */
+/**
+ * The distinct sequences of captures that the productions of an expression
+ * read, each in the order read (engine §3.2, §3.5): a choice gives each
+ * branch's, an `&` each subsequence's, a plain optional none or its
+ * content's, and braces and an elidable optional none. Productions that
+ * read the same names in the same order are one sequence. Gates do not
+ * matter, since they drop whole alternatives.
+ *
+ * The sequences are nodes of a trie, so that extending one by a capture
+ * costs one step and two equal sequences are one node. A copy of each
+ * growing prefix would cost the square of a sequence's length.
+ * @param {any} expr
+ * @returns {string[][]}
+ */
+export declare function captureSequences(expr: any): string[][];
 /**
  * The captures that some production of an expression reads after a
  * capture of the same name (engine §3.5, §9), found from the structure

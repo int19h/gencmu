@@ -1,0 +1,30 @@
+{
+  "description": "In the eberban/refgram pipeline, delimiter-shape reads zaon after the interior ], so that ] is quoted text. Its pair is delimiter-longer-particle-closer.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "co zao[x]zaon]zao",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "co zao[x]zaon]zao",
+              "image": "co zao[x]zaon]zao"
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": []
+  }
+}

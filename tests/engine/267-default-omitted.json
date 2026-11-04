@@ -1,0 +1,31 @@
+{
+  "description": "An omitted terminator records its restoration default (output.md).",
+  "grammar": "%rule text $x:r\n%rule r TO [+JI ≝ \"jie\"]",
+  "tokens": [
+    {
+      "text": "to",
+      "tags": [
+        "TO"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "children": [
+              {},
+              {
+                "kind": "elided",
+                "terminal": "JI",
+                "value": "jie"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

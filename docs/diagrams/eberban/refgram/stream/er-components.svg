@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="821" height="152" viewBox="0 0 821 152" role="img" aria-label="Railroad diagram of the rule er-components">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="109.2" lengthAdjust="spacingAndGlyphs">er-components</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<g class="rule"><rect x="40" y="44" width="84" height="24" rx="0"/><text x="82" y="61" textLength="67.2" lengthAdjust="spacingAndGlyphs">er-first</text></g>
+<path d="M124 56h10"/>
+<path d="M134 56h20"/>
+<g class="rule"><rect x="154" y="44" width="42" height="24" rx="0"/><text x="175" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">gap</text></g>
+<path d="M196 56H216"/>
+<path d="M134 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H196a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M216 56h10"/>
+<g class="rule"><rect x="226" y="44" width="117" height="24" rx="0"/><text x="284.5" y="61" textLength="100.8" lengthAdjust="spacingAndGlyphs">er-component</text></g>
+<path d="M343 56h10"/>
+<path d="M353 56h20"/>
+<g class="rule"><rect x="373" y="44" width="42" height="24" rx="0"/><text x="394" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">gap</text></g>
+<path d="M415 56H435"/>
+<path d="M353 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H415a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M435 56h10"/>
+<g class="rule"><rect x="445" y="44" width="117" height="24" rx="0"/><text x="503.5" y="61" textLength="100.8" lengthAdjust="spacingAndGlyphs">er-component</text></g>
+<path d="M562 56h10"/>
+<path d="M572 56h20"/>
+<g class="rule"><rect x="592" y="44" width="42" height="24" rx="0"/><text x="613" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">gap</text></g>
+<path d="M634 56H654"/>
+<path d="M572 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H634a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M654 56h10"/>
+<g class="rule"><rect x="664" y="44" width="117" height="24" rx="0"/><text x="722.5" y="61" textLength="100.8" lengthAdjust="spacingAndGlyphs">er-component</text></g>
+<path d="M781 56H781a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H40a10 10 0 0 0 -10 10V110a10 10 0 0 0 10 10"/>
+<path d="M40 120h20"/>
+<path d="M60 120h20"/>
+<path d="M80 120h20"/>
+<g class="rule"><rect x="100" y="108" width="42" height="24" rx="0"/><text x="121" y="125" textLength="25.2" lengthAdjust="spacingAndGlyphs">gap</text></g>
+<path d="M142 120H162"/>
+<path d="M80 120a10 10 0 0 0 10 -10V108a10 10 0 0 1 10 -10H142a10 10 0 0 1 10 10V110a10 10 0 0 0 10 10"/>
+<path d="M162 120h10"/>
+<g class="rule"><rect x="172" y="108" width="117" height="24" rx="0"/><text x="230.5" y="125" textLength="100.8" lengthAdjust="spacingAndGlyphs">er-component</text></g>
+<path d="M289 120H309"/>
+<path d="M289 120a10 10 0 0 1 10 10V132a10 10 0 0 1 -10 10H80a10 10 0 0 1 -10 -10V130a10 10 0 0 1 10 -10"/>
+<path d="M309 120H329"/>
+<path d="M40 120a10 10 0 0 0 10 -10V98a10 10 0 0 1 10 -10H309a10 10 0 0 1 10 10V110a10 10 0 0 0 10 10"/>
+<path d="M329 120H801"/>
+<path d="M801 120h6m0 -8v16m4 -16v16"/>
+</svg>

@@ -1,0 +1,41 @@
+{
+  "description": "In the eberban/refgram pipeline, a hyphen after the co of a quote and one before its closing delimiter each carry hyphen-misplaced.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "a co-zao[x]-zao mo",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "forms",
+        "feature": "hyphen-misplaced",
+        "rule": "misplaced-hyphen",
+        "span": [
+          4,
+          5
+        ],
+        "source": [
+          4,
+          5
+        ]
+      },
+      {
+        "stage": "forms",
+        "feature": "hyphen-misplaced",
+        "rule": "misplaced-hyphen",
+        "span": [
+          11,
+          12
+        ],
+        "source": [
+          11,
+          12
+        ]
+      }
+    ]
+  }
+}

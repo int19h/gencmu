@@ -129,6 +129,7 @@ fn child_position<'a>(key: &str, position: &'a str) -> &'a str {
         "tags",
         "value",
         "image",
+        "default",
         "requirements",
         "range",
         "literal",
@@ -818,7 +819,6 @@ impl Expander<'_> {
                     let mut rule = obj([
                         ("name", if extra { string("text") } else { get(&event.rule, "name").clone() }),
                         ("op", string("define")),
-                        ("flags", Json::Arr(Vec::new())),
                         ("conditions", Json::Arr(Vec::new())),
                         (
                             "alternatives",
@@ -1030,7 +1030,13 @@ impl Expander<'_> {
                     }
                 }
             }
-            set(&mut result, k, self.substitute(v, env, event, child_position(k, position))?);
+            let mut substituted = self.substitute(v, env, event, child_position(k, position))?;
+            if k == "default" {
+                if let Some(source) = v.get(SOURCE) {
+                    set(&mut substituted, SOURCE, source.clone());
+                }
+            }
+            set(&mut result, k, substituted);
         }
         if position == "pattern" && has(&result, "test") && has(get(&result, "expr"), "exact") {
             if has(&result, "exact") {
@@ -1112,7 +1118,10 @@ impl Expander<'_> {
             } else if !members.is_empty() {
                 obj([("union", Json::Arr(members))])
             } else {
-                let n = obj([("name", string("text")), ("at", get(root, "at").clone())]);
+                let mut n = obj([("name", string("text")), ("at", get(root, "at").clone())]);
+                if get(root, "exact").as_bool() == Some(true) {
+                    set(&mut n, "exact", Json::Bool(true));
+                }
                 obj([("difference", Json::Arr(vec![n.clone(), n]))])
             });
         }
@@ -1134,6 +1143,9 @@ impl Expander<'_> {
                 })
                 .collect::<R<_>>()?,
         );
+        if position == "pattern" && has(&result, "test") {
+            return Ok(distribute_family_test(result));
+        }
         if position == "pattern" {
             for key in ["union", "intersection"] {
                 if has(&result, key) {
@@ -1162,4 +1174,25 @@ impl Expander<'_> {
         super::locations::restore_document(&mut d, root);
         Ok(d)
     }
+}
+
+fn distribute_family_test(test: Json) -> Json {
+    for key in ["union", "intersection", "difference"] {
+        if let Some(parts) = get(get(&test, "expr"), key).as_array() {
+            let members = parts
+                .iter()
+                .map(|part| {
+                    let mut member = test.clone();
+                    set(&mut member, "expr", part.clone());
+                    distribute_family_test(member)
+                })
+                .collect();
+            let mut out = obj([(key, Json::Arr(members))]);
+            if let Some(source) = test.get(SOURCE) {
+                set(&mut out, SOURCE, source.clone())
+            }
+            return out;
+        }
+    }
+    test
 }

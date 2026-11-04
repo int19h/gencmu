@@ -10,7 +10,7 @@ A tag is a named mark on a token. Lexical tags distinguish names, strings, integ
 
 These rules implement the recognition productions of [engine §9.2](../../../docs/engine.md#92-syntax-forms). They admit forms that the reader rejects under [§9.3](../../../docs/engine.md#93-conversion-and-validation).
 
-The rule names identify reader constructors. Section 9.2 maps recognition names to these constructors: `document` becomes `text`, `captured` becomes `capture`, and `item` becomes `emit-item`. It also maps `flags` to `rule-flags`, `conditions` to `conditions-clause`, and `method-chain` to `method`. The same table specifies the remaining wrapper mappings.
+The rule names identify reader constructors. Section 9.2 maps recognition names to these constructors: `document` becomes `text`, `captured` becomes `capture`, and `item` becomes `emit-item`. It also maps `conditions` to `conditions-clause` and `method-chain` to `method`. The same table specifies the remaining wrapper mappings.
 
 ## Choosing among readings
 
@@ -33,7 +33,7 @@ The reader converts the recognized tree into a DOM, its document object model. C
   [{statement}]
 
 %rule statement
-  rule | directive | constant-definition | classifier | implication-declaration
+  rule | ranking-directive | directive | constant-definition | classifier | implication-declaration
 ```
 
 <details><summary>Railroad diagrams of <code>text</code> and <code>statement</code></summary>
@@ -43,7 +43,7 @@ The reader converts the recognized tree into a DOM, its document object model. C
 
 ## Rules and alternatives
 
-A rule defines, redefines, or extends a name. Optional flags precede the name, and the body precedes conditions and output.
+A rule defines, redefines, or extends a name. The body precedes the conditions and the output.
 
 Header tag and string clauses apply to every alternative. A header clause requires the leading `|`, which separates its operands from the body.
 
@@ -53,17 +53,11 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
 
 ```jbogenbau
 %rule rule
-  definer [rule-flags] (rule-name | call) ("=" call | (body | clauses headed-body)
+  definer (rule-name | call) ("=" call | (body | clauses headed-body)
     [conditions-clause] [output])
 
 %rule definer
   KW-RULE | KW-REDEFINE-RULE | KW-EXTEND-RULE
-
-%rule rule-flags
-  "(" {rule-flag / ","} ")"
-
-%rule rule-flag
-  Identifier
 
 %rule rule-name
   Identifier | Emoji-Name
@@ -96,11 +90,9 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
   "::" term
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>rule</code> to <code>alternative-tags</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>rule</code> to <code>alternative-tags</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/rule.svg" alt="Railroad diagram of the rule rule"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/definer.svg" alt="Railroad diagram of the rule definer"></p>
-<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/rule-flags.svg" alt="Railroad diagram of the rule rule-flags"></p>
-<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/rule-flag.svg" alt="Railroad diagram of the rule rule-flag"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/rule-name.svg" alt="Railroad diagram of the rule rule-name"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/clauses.svg" alt="Railroad diagram of the rule clauses"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/headed-body.svg" alt="Railroad diagram of the rule headed-body"></p>
@@ -244,14 +236,14 @@ A `tested` primary holds its base and all following tests in written order. Test
 
 Valid symbols accept a tag test followed by a value test. Recognition admits extra tests, reversed tests, and wider operands so that the reader can name their errors.
 
-Each tag requirement has an optional `¬`. An empty requirement list holds vacuously. A value test uses `=` or `≠` and requires a string literal or string constant.
+Each tag requirement has an optional `¬`. An empty requirement list holds vacuously. A value test uses `=` or `≠` and requires a string literal or string constant. A default value, `≝` and a string, has the form of a value test. Recognition admits it after any symbol, and the reader accepts it only on the head of an elidable optional.
 
 ```jbogenbau
 %rule tested
   untested-primary {symbol-test}
 
 %rule symbol-test
-  tag-test | value-test
+  tag-test | value-test | default-value
 
 %rule tag-test
   "<" [{tag-requirement}] ">"
@@ -264,6 +256,9 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
 
 %rule test
   "=" | "≠"
+
+%rule default-value
+  "≝" test-operand
 
 %rule operand-atom
   call | parameter | string | constant-reference | name | tag | range | capture-reference | empty-set | pattern-literal | "(" term ")"
@@ -278,13 +273,14 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
   string | constant-reference | parameter
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>tested</code> to <code>string-operand</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>tested</code> to <code>string-operand</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/tested.svg" alt="Railroad diagram of the rule tested"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/symbol-test.svg" alt="Railroad diagram of the rule symbol-test"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/tag-test.svg" alt="Railroad diagram of the rule tag-test"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/tag-requirement.svg" alt="Railroad diagram of the rule tag-requirement"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/value-test.svg" alt="Railroad diagram of the rule value-test"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/test.svg" alt="Railroad diagram of the rule test"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/default-value.svg" alt="Railroad diagram of the rule default-value"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/operand-atom.svg" alt="Railroad diagram of the rule operand-atom"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/test-operand.svg" alt="Railroad diagram of the rule test-operand"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/range.svg" alt="Railroad diagram of the rule range"></p>
@@ -504,7 +500,7 @@ A condition is a comparison, tree comparison, method, presence test, negation, o
 
 The flat implication list preserves every operand for the reader's grouping. This keeps recognition work proportional to the list rather than its nested completions.
 
-A tree comparison has a bare capture on the left and a pattern term on the right. `≇` negates the same candidate's `≅` answer.
+A tree comparison requires a bare capture on the left. On the right, a pattern tests structure, and a bare capture compares two trees.
 
 ```jbogenbau
 %rule implication
@@ -555,7 +551,9 @@ A tree comparison has a bare capture on the left and a pattern term on the right
 
 A pattern starts with `#` and one node test, bare child list, or grouped predicate. An exact prefix suppresses the node test's single-child search.
 
-Guillemets enclose child items. A list directly after a pattern atom attaches to that atom. The reader keeps an attached list only on a rule name, emoji rule, template family, exact call, or compatible parameter.
+A pattern atom names a rule, terminal, constant, or wildcard. A tag test follows the atom, as in `#_<Tense>`. The reader converts it as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says.
+
+Guillemets enclose child items. A child list attaches to the preceding atom. Only a rule name, emoji rule, template family, exact call, or compatible parameter accepts an attached list.
 
 A bare list or an exact prefix needs whitespace or a comment after a node test, `»`, `]`, `}`, or a group's `)`. Thus `« a «b» »` has two items, while `« a«b» »` attaches the list to `a`. `« (a)«b» »` is an error. After `⋯` or `⋰`, no space is necessary.
 
@@ -569,7 +567,7 @@ A child set has at least one operator. A lone child path is therefore a one-item
 
 Child lists contain sequences, choices, optional sequences, repeats, and sibling gaps. Paths and set operations combine whole predicates.
 
-Recognition admits repeated or reversed tests on names, terminals, and constants. The reader restricts tests to terminal identities or string constants, in tag-then-value order.
+Recognition admits repeated or reversed tests on node atoms. The reader restricts a rule atom to one tag test. Terminal and tag-only atoms also accept a value test, after their tag test.
 
 ```jbogenbau
 %rule pattern-literal
@@ -691,7 +689,7 @@ Recognition admits repeated or reversed tests on names, terminals, and constants
 
 ## Directives
 
-A directive starts a stage, includes a document, declares features, or chooses ambiguity resolution. Each written name is a separate operand.
+A directive starts a stage, includes a document, declares features, turns on the elision check, or lists the ranking steps. Each written name is a separate operand. The ranking directive has its own form: steps separated by commas, each a name alone or a name followed by one pattern literal or constant reference. The reader requires an exact local pattern there, as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says.
 
 Recognition accepts wider operands than each directive permits. The reader rejects wrong counts and types at the directive before converting those operands.
 
@@ -705,9 +703,15 @@ Recognition accepts wider operands than each directive permits. The reader rejec
 %rule directive
   directive-name [{directive-argument}] [conditions-clause]
 
+%rule ranking-directive
+  KW-AMBIGUITY-RESOLUTION {ranking-step / ","}
+
+%rule ranking-step
+  Identifier [pattern-literal | constant-reference]
+
 %rule directive-name
   | KW-STAGE | KW-EXTEND-STAGE | KW-REDEFINE-STAGE
-  | KW-INCLUDE | KW-NAMES | KW-FEATURES | KW-AMBIGUITY-RESOLUTION
+  | KW-INCLUDE | KW-NAMES | KW-FEATURES | KW-ELISION-ONLY
 
 %rule directive-argument
   argument-word | argument-string | argument-tag | argument-term
@@ -728,8 +732,10 @@ Recognition accepts wider operands than each directive permits. The reader rejec
   (tag | name | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")") {method-selector}
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>directive</code> to <code>directive-method</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>directive</code> to <code>directive-method</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/directive.svg" alt="Railroad diagram of the rule directive"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/ranking-directive.svg" alt="Railroad diagram of the rule ranking-directive"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/ranking-step.svg" alt="Railroad diagram of the rule ranking-step"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/directive-name.svg" alt="Railroad diagram of the rule directive-name"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/directive-argument.svg" alt="Railroad diagram of the rule directive-argument"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/argument-word.svg" alt="Railroad diagram of the rule argument-word"></p>

@@ -14,6 +14,8 @@ type occurrence struct {
 }
 
 type stringEmitter struct {
+	trees                        *treeArena
+	treeStates                   map[*occurrence]treeState
 	boundaryStarts, boundaryEnds map[string]map[int]bool
 	run                          *stageRun
 	rec                          *recognizer
@@ -116,6 +118,10 @@ func (em *stringEmitter) strings(root *occurrence, channel int, recipe *domTerm)
 						value = token.Image
 					}
 					finish(literalParts(value))
+					continue
+				}
+				if d.kind == dClose && d.prod.restoration() {
+					finish(literalParts(""))
 					continue
 				}
 				if d.kind != dClose || d.prod.nothing {
@@ -476,7 +482,11 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 				ev := run.evaluator(rec.g, func(name string) (spanVal, bool) {
 					o := em.capture(f.o, name)
 					x, y, tags := em.span(o)
-					return spanVal{a: x, b: y, whole: true, tags: tags, machine: rec.machine, structure: rec.derivationStructure(o.d), arena: rec.closes, closes: rec.derivationCloses(o.d)}, true
+					span := spanVal{a: x, b: y, whole: true, tags: tags, machine: rec.machine, structure: rec.derivationStructure(o.d), arena: rec.closes, closes: rec.derivationCloses(o.d)}
+					if rec.g.stage.treeExpressions {
+						span.treeReader = func() int { return em.treeIdentity(o) }
+					}
+					return span, true
 				})
 				ev.boundary = func(atom *domCond) bool {
 					span, _ := ev.capture(atom.Span.Str)

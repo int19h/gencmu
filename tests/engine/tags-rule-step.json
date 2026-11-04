@@ -1,0 +1,17 @@
+{
+  "description": "A key step reads constituent tags and inherited tags (engine §6).",
+  "grammar": "%ambiguity-resolution fewest #(·a<T> ∪ ·b<T>)\n%rule text a | b\n%rule a \"a\" :: T\n%rule b \"a\" :: U",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "b"
+          }
+        ]
+      }
+    }
+  }
+}

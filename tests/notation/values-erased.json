@@ -2,12 +2,11 @@
   "document": "```jbogenbau\n%rule r A %erased\n```\n",
   "expect": {
     "dom": {
-      "format": 40,
+      "format": 44,
       "rules": [
         {
           "name": "r",
           "op": "define",
-          "flags": [],
           "alternatives": [
             {
               "guards": [],

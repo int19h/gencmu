@@ -1,0 +1,41 @@
+{
+  "description": "In the eberban/refgram pipeline, each foreign letter is a space token of its own, so q and w each carry non-eberban-letter, as in the PEG.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "a qw mo",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "forms",
+        "feature": "non-eberban-letter",
+        "rule": "space-unit",
+        "span": [
+          2,
+          3
+        ],
+        "source": [
+          2,
+          3
+        ]
+      },
+      {
+        "stage": "forms",
+        "feature": "non-eberban-letter",
+        "rule": "space-unit",
+        "span": [
+          3,
+          4
+        ],
+        "source": [
+          3,
+          4
+        ]
+      }
+    ]
+  }
+}

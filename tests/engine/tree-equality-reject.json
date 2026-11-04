@@ -1,0 +1,8 @@
+{
+  "description": "tree-equality-reject",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $x:w $y:w\n%conditions\n  $x ≅ $y\n%rule w \"a\" | \"b\"\n",
+  "input": "ab",
+  "expect": {
+    "error": "rejected"
+  }
+}

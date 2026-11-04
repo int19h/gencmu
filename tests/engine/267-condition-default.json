@@ -1,0 +1,20 @@
+{
+  "description": "An omitted optional retains its restoration default in the tree (engine §3.8).",
+  "grammar": "%rule text $x:r [+T ≝ \"t\"]\n%rule r \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {},
+          {
+            "kind": "elided",
+            "terminal": "T",
+            "value": "t"
+          }
+        ]
+      }
+    }
+  }
+}

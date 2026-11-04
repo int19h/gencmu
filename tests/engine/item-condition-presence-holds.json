@@ -1,0 +1,30 @@
+{
+  "description": "A presence test of an item capture keeps the item expansion that binds it (engine §3.5, §3.6).",
+  "grammar": "%rule text {A | $c:B}\n%conditions $c",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(b b)"
+  }
+}

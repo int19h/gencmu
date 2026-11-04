@@ -1,10 +1,10 @@
 {
-  "description": "Engine §9.3 reports every wrong directive operand at the directive.",
+  "description": "A ranking directive with no step fails the syntax stage at the token after it (engine §9.3).",
   "document": "```jbogenbau\n%ambiguity-resolution\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 1
+      "column": 22
     }
   }
 }

@@ -1,0 +1,17 @@
+{
+  "description": "A whole comparison retains only the trees of its own production under an ordinary caller. An unobserved extension keeps its cyclic proofs.",
+  "grammar": "%rule text r\n%rule r $x:A\n%conditions $ ≇ $x\n%extend-rule r r",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,20 +1,26 @@
 {
-  "description": "An unflagged redefinition removes the preference and restores the stage tie (engine §2, §6).",
-  "grammar": "%ambiguity-resolution lazy\n%rule text r | (r \"b\")\n%rule (leftmost-longest) r \"a\"\n%redefine-rule r \"a\" | (\"a\" \"b\")",
+  "description": "A rule replacement keeps the stage ranking step (engine §2 and §6).",
+  "grammar": "%ambiguity-resolution leftmost-longest #·r, lazy\n%rule text r | (r \"b\")\n%rule r \"a\"\n%redefine-rule r \"a\" | (\"a\" \"b\")",
   "input": "ab",
   "expect": {
     "result": {
-      "ok": false,
+      "ok": true,
       "stages": [
         {
-          "verdict": "tie"
+          "verdict": "resolved"
         }
       ],
-      "error": {
-        "kind": "ambiguous",
-        "reason": "tie"
+      "tree": {
+        "children": [
+          {
+            "rule": "r",
+            "span": [
+              0,
+              2
+            ]
+          }
+        ]
       }
-    },
-    "error": "ambiguous"
+    }
   }
 }

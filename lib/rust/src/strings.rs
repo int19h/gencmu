@@ -185,6 +185,12 @@ impl<'a> Strings<'a> {
                         }),
                         IKind::Close { prod, .. } => {
                             let production = &self.grammar.prods[prod as usize];
+                            let rule = &self.grammar.rules[production.rule as usize];
+                            if rule.elided.is_some() && production.syms.is_empty() {
+                                values.push(String::new());
+                                continue;
+                            }
+                            let production = &self.grammar.prods[prod as usize];
                             if production.erased {
                                 values.push(String::new());
                                 continue;
@@ -213,7 +219,10 @@ impl<'a> Strings<'a> {
                                             Channel::Value => p.strings.value.is_some(),
                                             Channel::Image => p.strings.image.is_some() || p.strings.value.is_some(),
                                         };
-                                        if !selected {
+                                        if !(selected
+                                            || self.grammar.rules[p.rule as usize].elided.is_some()
+                                                && p.syms.is_empty())
+                                        {
                                             pending.extend(child_node.children.iter().rev());
                                             continue;
                                         }

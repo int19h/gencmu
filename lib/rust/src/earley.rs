@@ -124,7 +124,7 @@ pub(crate) fn test_holds(test: &SymbolTest, tokens: &[Tok], tags: &Tags, set: Se
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct Cap {
     pub boundary: u32,
-    pub close_requested: bool,
+    pub close_requested: u8,
     pub structure: u32,
     pub start: u32,
     pub end: u32,
@@ -209,7 +209,7 @@ impl<'c> CapSearch<'c> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct Item {
     pub boundary: u32,
-    pub close_requested: bool,
+    pub close_requested: u8,
     pub lexical: u32,
     pub prefix: u32,
     pub structure: u32,
@@ -218,6 +218,8 @@ pub(crate) struct Item {
     pub origin: u32,
     pub caps: u32,
 }
+
+type CompletionKey = (u32, u32, SetId, u32, u32, u8, u32);
 
 #[derive(Debug, Default)]
 pub(crate) struct ESet {
@@ -239,16 +241,16 @@ pub(crate) struct ESet {
     pub tagset: Vec<SetId>,
     index: FxMap<Item, u32>,
     failed: FxSet<Item>,
-    waiting: FxMap<u64, Vec<u32>>,
+    waiting: FxMap<u128, Vec<u32>>,
     /// Completed items by (rule, origin).
     pub completed: FxMap<(u32, u32), Vec<u32>>,
     /// The origins of each rule's completed items, in order of completion.
     pub origins: FxMap<u32, Vec<u32>>,
-    done: FxSet<(u32, u32, SetId, u32, u32, bool, u32)>,
-    empty: FxMap<u64, Vec<(SetId, u32, u32)>>,
+    done: FxSet<CompletionKey>,
+    empty: FxMap<u128, Vec<(SetId, u32, u32)>>,
     /// The rules predicted here, each with whether every prediction of it
     /// was strict (§7.4).
-    predicted: FxMap<u64, bool>,
+    predicted: FxMap<u128, bool>,
     /// The productions that prediction skipped here because the next token
     /// lacked their first terminal. A production whose condition failed is
     /// not one of them.
@@ -333,13 +335,13 @@ pub(crate) struct Chart {
     /// Queries settle selected witnesses after recognition instead.
     boundary_root: Option<u32>,
     family: Option<(u32, u32)>,
-    pub close_requested: bool,
+    pub close_requested: u8,
     suffix: bool,
     pub lexical: Vec<LexicalFrame>,
     lexical_index: FxMap<String, u32>,
     pub helper_entries: FxMap<(u32, Item), u32>,
     pub machine: Option<Rc<RefCell<Machine>>>,
-    pub terminal_states: FxMap<(u32, u32, bool), u32>,
+    pub terminal_states: FxMap<(u32, u32, bool, bool), u32>,
     /// Reconstruction and eligibility retain their actual recognition advances.
     record_links: bool,
     pub links: FxMap<(u32, Item), Vec<(Item, Cap)>>,
@@ -362,6 +364,7 @@ pub(crate) struct Chart {
 
 #[derive(Debug, Clone)]
 pub(crate) struct LexicalFrame {
+    pub tree_demands: Option<FxMap<u32, usize>>,
     family: Option<(u32, u32)>,
     pub observes_closes: bool,
     pub captures: std::collections::BTreeMap<String, Cap>,
@@ -372,13 +375,14 @@ pub(crate) struct LexicalFrame {
     pub origin: u32,
     pub prefix: u32,
     pub seal_prefix: u32,
+    pub seal_at: u32,
     pub inside: bool,
     pub restoration_entry: Option<u32>,
     pub restoration_seal: Option<(usize, u32, usize)>,
 }
 
-fn lexical_rule(rule: u32, lexical: u32, requested: bool) -> u64 {
-    (u64::from(requested) << 63) | (u64::from(lexical) << 32) | u64::from(rule)
+fn lexical_rule(rule: u32, lexical: u32, requested: u8) -> u128 {
+    (u128::from(requested) << 64) | (u128::from(lexical) << 32) | u128::from(rule)
 }
 
 impl Chart {
@@ -406,6 +410,7 @@ impl Chart {
     pub(crate) fn expected_lexical(&self, before: Item, at: u32) -> u32 {
         self.helper_entries.get(&(at, before)).copied().unwrap_or(0)
     }
+    #[allow(clippy::too_many_arguments)]
     fn enter_helper(
         &mut self,
         g: &Lowered,
@@ -486,6 +491,7 @@ impl Chart {
         });
         let inside = outer.is_some_and(|f| f.inside) || g.ranked.slots.contains_key(&p.rule);
         let seal_prefix = if inside { outer.map_or(prefix, |f| f.seal_prefix) } else { prefix };
+        let seal_at = if inside { outer.map_or(at, |f| f.seal_at) } else { at };
         let original = |at: u32| base + project.map_or(at, |p| p[at as usize]) as usize;
         let restoration_entry = self.machine.as_ref().and_then(|machine| {
             let mut m = machine.borrow_mut();
@@ -496,7 +502,7 @@ impl Chart {
                 .iter()
                 .filter(|(name, _)| !known.contains(*name))
                 .map(|(name, cap)| {
-                    let structure = m.structural(cap.structure);
+                    let structure = m.select(cap.structure, false, true);
                     (
                         name.clone(),
                         original(cap.start),
@@ -507,7 +513,7 @@ impl Chart {
                     )
                 })
                 .collect();
-            let structure = m.structural(prefix);
+            let structure = m.select(prefix, false, true);
             let control = m.observations.as_mut().unwrap().control(&symbols[..before.dot as usize]);
             let entry = crate::restoration::Entry {
                 parent: outer.and_then(|f| f.restoration_entry),
@@ -534,17 +540,27 @@ impl Chart {
         };
         let observes_closes = outer.map_or(observing, |f| f.observes_closes);
         let id = self.lexical.len() as u32 + 1;
+        let available: Vec<_> = captures.keys().cloned().collect();
+        let declared: Vec<_> = declared.into_iter().collect();
+        let known_private: Vec<_> = known.into_iter().collect();
+        let tree_demands = if g.tree_demands.is_empty() {
+            None
+        } else {
+            crate::tree_identity::case_indices(g, rule, &declared, &available, &known_private, inside)
+        };
         self.lexical.push(LexicalFrame {
+            tree_demands,
             family: self.family,
             observes_closes,
-            available: captures.keys().cloned().collect(),
+            available,
             captures,
-            declared: declared.into_iter().collect(),
-            known_private: known.into_iter().collect(),
+            declared,
+            known_private,
             root,
             origin,
             prefix,
             seal_prefix,
+            seal_at,
             inside,
             restoration_entry,
             restoration_seal,
@@ -825,6 +841,7 @@ enum NestedKey {
 /// text, and the memo of nested parses, which `next_stage` clears before a
 /// parse over other tokens or with other rules.
 pub(crate) struct Shared<'a> {
+    pattern_values: RefCell<FxMap<(usize, usize, usize), Rc<str>>>,
     pub emission_boundaries: FxSet<(bool, u32, Sym)>,
     pub emission_targets: FxMap<String, Sym>,
     pub boundaries: Option<Rc<RefCell<crate::boundary::Records>>>,
@@ -862,6 +879,7 @@ pub(crate) struct Shared<'a> {
 impl<'a> Shared<'a> {
     pub(crate) fn new(unicode: &'a Unicode, text: &'a [char]) -> Shared<'a> {
         Shared {
+            pattern_values: RefCell::new(FxMap::default()),
             boundaries: None,
             emission_boundaries: FxSet::default(),
             emission_targets: FxMap::default(),
@@ -990,6 +1008,8 @@ pub(crate) struct Recognizer<'g, 's, 'a> {
 /// parts, and `$`, the whole constituent, from the item's origin to `end`.
 #[derive(Clone)]
 pub(crate) struct Frame<'c> {
+    pub prefix: u32,
+    pub parent_prefix: u32,
     pub structure: u32,
     pub caps: Caps<'c>,
     pub prod: u32,
@@ -1349,6 +1369,8 @@ impl<'g> Held<'g> {
     /// The frame of the evaluation, over the captured parts of `search`.
     fn frame<'c>(&self, search: &'c CapSearch<'c>, project: Option<&'c [u32]>) -> Frame<'c> {
         Frame {
+            prefix: self.item.prefix,
+            parent_prefix: 0,
             structure: self.item.structure,
             caps: Caps::Chart(search),
             prod: self.item.prod,
@@ -1386,7 +1408,7 @@ enum Step {
     Predict {
         rule: u32,
         lexical: u32,
-        requested: bool,
+        requested: u8,
         e: usize,
         strict: bool,
         before: Option<bool>,
@@ -1405,7 +1427,7 @@ enum Step {
     Waiters {
         e: usize,
         origin: usize,
-        rule: u64,
+        rule: u128,
         tags: SetId,
         structure: u32,
         boundary: u32,
@@ -1420,7 +1442,7 @@ enum Step {
 #[derive(Clone, Copy)]
 enum Then {
     Queue,
-    Empties { item: Item, rule: u64, strict: bool, skip: bool },
+    Empties { item: Item, rule: u128, strict: bool, skip: bool },
 }
 
 /// One recognition in progress: its tokens, its chart so far, where its
@@ -1451,16 +1473,16 @@ impl<'t, 'g> Run<'t, 'g> {
             parent: 0,
             jump: 0,
             depth: 0,
-            cap: Cap { boundary: 0, close_requested: false, start: 0, end: 0, tags: 0, structure: u32::MAX },
+            cap: Cap { boundary: 0, close_requested: 0, start: 0, end: 0, tags: 0, structure: u32::MAX },
         });
         chart.sets.push(first);
         // The first step predicts the start rule in a set that holds
         // nothing yet, as `begin_predict` would begin it.
-        chart.sets[0].predicted.insert(u64::from(start), false);
+        chart.sets[0].predicted.insert(u128::from(start), false);
         let step = Step::Predict {
             rule: start,
             lexical: 0,
-            requested: false,
+            requested: 0,
             e: 0,
             strict: false,
             before: None,
@@ -1494,7 +1516,7 @@ impl<'t, 'g> Run<'t, 'g> {
         if run.chart.suffix {
             run.chart.positions.set(FxMap::default()).expect("an empty positions cache");
         }
-        run.chart.close_requested = request.aligned.is_some();
+        run.chart.close_requested = u8::from(request.aligned.is_some());
         run.chart.family = request.aligned.and_then(|a| a.family);
         if let Step::Predict { requested, .. } = &mut run.step {
             *requested = run.chart.close_requested;
@@ -1514,6 +1536,7 @@ impl<'t, 'g> Run<'t, 'g> {
 #[derive(Debug)]
 pub(crate) struct Preparation {
     roots: Vec<Pattern>,
+    /// One channel mask for each physical production.
     /// Whether a recognition needs a pattern machine.
     machine: bool,
     /// Whether a rule observes closes, so that the machine records
@@ -1603,7 +1626,7 @@ impl Preparation {
         }
         let observes = !crate::restoration::demanded(g).is_empty();
         Preparation {
-            machine: !(roots.is_empty() && g.ranked.slots.is_empty() && !observes),
+            machine: !(roots.is_empty() && g.ranked.slots.is_empty() && !observes && g.tree_demands.is_empty()),
             roots,
             observes,
             close_demands: crate::restoration::local_demands(g).into(),
@@ -1627,15 +1650,19 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             if prepared.observes {
                 machine.observations = Some(crate::restoration::Observations::new());
             }
+            if !self.g.tree_demands.is_empty() {
+                machine.trees = Some(crate::tree_identity::Arena::new());
+            }
             Rc::new(RefCell::new(machine))
         });
         self.shared.boundaries = prepared.boundaries.clone().map(|m| Rc::new(RefCell::new(m)));
         self.shared.pattern_grammar = key;
     }
     fn observes_closes(&self, item: Item) -> bool {
-        item.close_requested || self.shared.close_demands.get(item.prod as usize).is_some_and(|d| d.whole)
+        item.close_requested & crate::tree_identity::CLOSE != 0
+            || self.shared.close_demands.get(item.prod as usize).is_some_and(|d| d.whole)
     }
-    fn requests_child(&self, item: Item, tokens: &[Tok], at: usize) -> bool {
+    fn requests_closes(&self, item: Item, tokens: &[Tok], at: usize) -> bool {
         if !self.shared.machine.as_ref().is_some_and(|m| m.borrow().observations.is_some()) {
             return false;
         }
@@ -1674,7 +1701,37 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 || prefix.first.iter().any(|t| self.shared.reads(self.matchers[*t as usize], &tokens[at], false))
         })
     }
-    fn finish_structure(&self, family: Option<(u32, u32)>, item: &mut Item, set: usize, base: usize, tokens: &[Tok]) {
+    fn walks_trees(&self, item: Item, frame: Option<&LexicalFrame>) -> bool {
+        !self.g.tree_demands.is_empty() && crate::tree_identity::walks(self.g, item, frame)
+    }
+    fn requests_child(&self, chart: &Chart, item: Item, tokens: &[Tok], at: usize) -> u8 {
+        let mut kinds = u8::from(self.requests_closes(item, tokens, at));
+        let p = &self.g.prods[item.prod as usize];
+        if !self.g.tree_demands.is_empty()
+            && !matches!(p.syms[item.dot as usize],Sym::N(r) if self.g.ranked.slots.contains_key(&r))
+        {
+            let frame = chart.lexical_frame(item.lexical);
+            let d = crate::tree_identity::demand(self.g, item.prod, frame);
+            let captured = p.cap_at[item.dot as usize].is_some_and(|slot| d.captures.contains(&slot));
+            if captured || crate::tree_identity::prefix_demand(self.g, item, frame) {
+                kinds |= crate::tree_identity::TREE;
+            }
+        }
+        kinds
+    }
+    fn node_tags(&self) -> bool {
+        self.shared.machine.as_ref().is_some_and(|m| m.borrow().node_tags)
+    }
+
+    fn finish_structure(
+        &self,
+        family: Option<(u32, u32)>,
+        lexical: Option<&LexicalFrame>,
+        item: &mut Item,
+        set: usize,
+        base: usize,
+        tokens: &[Tok],
+    ) {
         if let Some(machine) = &self.shared.machine {
             let g = self.g;
             let p = &g.prods[item.prod as usize];
@@ -1683,11 +1740,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 return;
             }
             let rule = &g.rules[p.rule as usize];
+            let value = if rule.helper { None } else { self.pattern_value(tokens, base, item.origin as usize, set) };
             let mut m = machine.borrow_mut();
             let mut structure = if rule.helper {
                 if p.syms.is_empty() {
                     if let Some(t) = &rule.elided {
-                        let tags = vec![t.clone()];
+                        let tags = vec![t.clone(), "_Elided".into()];
                         let empty = m.empty;
                         m.node(None, empty, Some((t, "", &tags)))
                     } else {
@@ -1697,7 +1755,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     item.prefix
                 }
             } else {
-                m.node(Some(&rule.name), item.prefix, None)
+                m.node_with_value(Some(&rule.name), item.prefix, None, &[], value.as_deref())
             };
             if m.observations.is_some() && self.observes_closes(*item) {
                 let original = |at: usize| self.recon.map_or(at, |r| r.project[at] as usize);
@@ -1714,10 +1772,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                                 None
                             }
                         } else {
-                            rule.elided_test.and_then(|test| {
-                                let t = &g.tests[test as usize];
-                                (t.op == TestOp::Is).then(|| t.sound.clone()).flatten()
-                            })
+                            rule.elided_value.clone()
                         };
                         let mut record = crate::restoration::record(terminal.clone(), start, observed, sound);
                         record.at += base;
@@ -1740,17 +1795,45 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 observation = m.observations.as_mut().unwrap().complete(observation, named, base + start, base + end);
                 structure = m.observing(structure, observation);
             }
+            if !g.tree_demands.is_empty() && self.walks_trees(*item, lexical) {
+                let prefix = m.tree(item.prefix).unwrap_or_default().sequence;
+                let arena = m.trees.as_mut().expect("demanded tree identities");
+                let tree = if !rule.helper {
+                    let identity = arena.node(crate::tree_identity::Node::Rule(rule.name.clone(), prefix));
+                    let sequence = arena.append(0, identity);
+                    arena.state(crate::tree_identity::Tree { prefix, identity, sequence })
+                } else if p.syms.is_empty() && rule.elided.is_some() {
+                    arena.singleton(crate::tree_identity::Node::Omitted(rule.elided.clone().unwrap()))
+                } else {
+                    0
+                };
+                if tree != 0 {
+                    structure = m.with_tree(structure, tree);
+                }
+            }
             item.structure = structure;
         }
     }
 
     /// The enclosing named view retains cycles hidden by a ranked seal.
-    fn lexical_whole_structure(&self, frame: &mut Frame<'_>, prefix: u32, base: usize) {
+    fn lexical_whole_structure(&self, frame: &mut Frame<'_>, prefix: u32, base: usize, tokens: &[Tok]) {
         let (Some(lexical), Some(machine)) = (frame.lexical, &self.shared.machine) else { return };
         let rule = self.g.prods[lexical.root as usize].rule;
         let parent = &self.g.rules[rule as usize].name;
+        let value = self.pattern_value(tokens, base, lexical.origin as usize, frame.end as usize);
         let mut m = machine.borrow_mut();
-        frame.parent_structure = m.node(Some(parent), frame.parent_structure, None);
+        frame.parent_prefix = frame.parent_structure;
+        frame.parent_structure = m.node_with_value(Some(parent), frame.parent_structure, None, &[], value.as_deref());
+        if !self.g.tree_demands.is_empty() && crate::tree_identity::demand(self.g, frame.prod, frame.lexical).whole {
+            let project = |at: u32| frame.project.map_or(at, |p| p[at as usize]) as usize;
+            let values = tokens[project(lexical.seal_at)..project(frame.end)].iter().map(|t| t.value.clone()).collect();
+            let prefix = m.tree(lexical.seal_prefix).unwrap_or_default().sequence;
+            let arena = m.trees.as_mut().expect("demanded identities");
+            let seal = arena.node(crate::tree_identity::Node::Seal(values));
+            let prefix = arena.append(prefix, seal);
+            let tree = arena.singleton(crate::tree_identity::Node::Rule(parent.clone(), prefix));
+            frame.parent_structure = m.with_tree(frame.parent_structure, tree);
+        }
         if !lexical.observes_closes || m.observations.is_none() {
             return;
         }
@@ -1788,7 +1871,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         };
         let rule = &self.g.rules[self.g.prods[item.prod as usize].rule as usize];
         let omitted = synthetic && item.dot == 0 && rule.helper && rule.elided.is_some();
-        let key = (e as u32, terminal, omitted);
+        let trees = !self.g.tree_demands.is_empty()
+            && crate::tree_identity::terminal_demand(self.g, item, chart.lexical_frame(item.lexical));
+        let key = (e as u32, terminal, omitted, trees);
         if let Some(&id) = chart.terminal_states.get(&key) {
             return id;
         }
@@ -1796,7 +1881,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let empty = m.empty;
         let name = &self.g.terminals[terminal as usize];
         let mut id = if omitted {
-            let tags = vec![name.clone()];
+            let tags = vec![name.clone(), "_Elided".into()];
             m.node(None, empty, Some((name, "", &tags)))
         } else if synthetic {
             empty
@@ -1825,6 +1910,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         if let Some((_, context)) = chart.family {
             let summary = m.families.token(context, base + e, base + e + 1);
             id = m.with_family(id, summary);
+        }
+        if trees {
+            let node = if synthetic {
+                crate::tree_identity::Node::EmptyProjection
+            } else {
+                crate::tree_identity::Node::Written(name.clone(), token.value.clone())
+            };
+            let tree = m.trees.as_mut().expect("demanded identities").singleton(node);
+            id = m.with_tree(id, tree);
         }
         chart.terminal_states.insert(key, id);
         id
@@ -2109,7 +2203,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Step::Empties { item, e, strict, empties, next } => {
                     while let Some(&(tags, structure, boundary)) = empties.get(*next) {
                         let cap = Cap {
-                            close_requested: self.requests_child(*item, run.tokens, *e),
+                            close_requested: self.requests_child(&run.chart, *item, run.tokens, *e),
                             start: *e as u32,
                             end: *e as u32,
                             tags,
@@ -2141,7 +2235,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         let strict = *empty && chart.sets[*origin].is_strict(waiter as usize);
                         if !strict || self.reads_later(waiting) {
                             let cap = Cap {
-                                close_requested: *rule >> 63 != 0,
+                                close_requested: (*rule >> 64) as u8,
                                 start: *origin as u32,
                                 end: *e as u32,
                                 tags: *tags,
@@ -2170,11 +2264,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 run.chart.reached = e;
                 run.entered = true;
                 let rule = run.request.as_ref().unwrap().rule;
-                if let Some(before) = Self::begin_predict(&mut run.chart, rule, 0, false, e, false) {
+                if let Some(before) = Self::begin_predict(&mut run.chart, rule, 0, 0, e, false) {
                     run.step = Step::Predict {
                         rule,
                         lexical: 0,
-                        requested: false,
+                        requested: 0,
                         e,
                         strict: false,
                         before,
@@ -2241,7 +2335,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         self.recon.map(|r| &r.project[..]),
                         self.observes_closes(item),
                     );
-                    let requested = self.requests_child(item, run.tokens, e);
+                    let requested = self.requests_child(&run.chart, item, run.tokens, e);
                     let key = lexical_rule(rule, lexical, requested);
                     if !again {
                         run.chart.sets[e].waiting.entry(key).or_insert_with(|| self.shared.fresh_list()).push(k as u32);
@@ -2297,7 +2391,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 .boundaries
                 .as_ref()
                 .map_or(0, |m| m.borrow_mut().leaf(&g.terminals[terminal as usize], synthetic));
-            let cap = Cap { boundary, close_requested: false, start: e as u32, end: e as u32 + 1, tags, structure };
+            let cap = Cap { boundary, close_requested: 0, start: e as u32, end: e as u32 + 1, tags, structure };
             run.step = Step::Terminal { item, cap, into: e + 1, strict };
             return true;
         }
@@ -2326,7 +2420,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     where
         'g: 't,
     {
-        self.finish_structure(chart.family, &mut item, set, base, tokens);
+        self.finish_structure(chart.family, chart.lexical_frame(item.lexical), &mut item, set, base, tokens);
         let g = self.g;
         let production = &g.prods[item.prod as usize];
         // A strict item never completes.
@@ -2366,7 +2460,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         } else {
             production.conds_at(item.dot as usize)
         };
-        if conds.is_empty() && self.shared.boundaries.is_none() {
+        if conds.is_empty()
+            && self.shared.boundaries.is_none()
+            && !(self.node_tags()
+                && !g.rules[production.rule as usize].helper
+                && item.dot as usize == production.syms.len())
+        {
             chart.record_advance(set, item, previous);
             Self::insert(chart, item, set, strict, u32::MAX, self.recon.is_some());
             return Ok(());
@@ -2398,7 +2497,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let (observed, project) = self.observed(tokens);
         let search = CapSearch::resume(chart, state.item.caps, state.found.take(), state.searched);
         let mut frame = state.frame(&search, project);
-        self.lexical_whole_structure(&mut frame, state.item.prefix, base);
+        self.lexical_whole_structure(&mut frame, state.item.prefix, base, observed);
         let outcome = loop {
             let result = if state.eval.tasks.is_empty() {
                 Ok(Out::Bool(true))
@@ -2448,9 +2547,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             return Ok(());
         }
         state.obligations.append(&mut state.eval.obligations);
-        let known = state.tags.or(frame.tags.get()).unwrap_or(u32::MAX);
+        let mut known = state.tags.or(frame.tags.get()).unwrap_or(u32::MAX);
         let p = &self.g.prods[item.prod as usize];
-        if self.shared.boundaries.is_some()
+        if (self.shared.boundaries.is_some() || self.node_tags() && !self.g.rules[p.rule as usize].helper)
             && !state.tags_mode
             && item.dot as usize == p.syms.len()
             && known == u32::MAX
@@ -2463,6 +2562,26 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
         }
         let mut item = item;
+        if self.node_tags() && !self.g.rules[p.rule as usize].helper && item.dot as usize == p.syms.len() {
+            if known == u32::MAX {
+                known = self.plain_tags(&frame.caps, item.prod);
+            }
+            let names: Vec<String> =
+                self.shared.tags.list(known).iter().map(|&id| self.shared.tags.name(id).to_owned()).collect();
+            let value = self.pattern_value(tokens, base, item.origin as usize, set);
+            let mut m = self.shared.machine.as_ref().expect("tag observations").borrow_mut();
+            let observation = m.observation(item.structure);
+            let tree = m.tree_state(item.structure);
+            let structure = m.node_with_value(
+                Some(&self.g.rules[p.rule as usize].name),
+                item.prefix,
+                None,
+                &names,
+                value.as_deref(),
+            );
+            let structure = if tree != 0 { m.with_tree(structure, tree) } else { structure };
+            item.structure = m.observing(structure, observation);
+        }
         if let Some(machine) = &self.shared.boundaries {
             let mut m = machine.borrow_mut();
             let mut before = crate::boundary::Bits::new();
@@ -2652,7 +2771,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         chart: &mut Chart,
         rule: u32,
         lexical: u32,
-        requested: bool,
+        requested: u8,
         e: usize,
         strict: bool,
     ) -> Option<Option<bool>> {
@@ -2676,7 +2795,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         base: usize,
         rule: u32,
         lexical: u32,
-        requested: bool,
+        requested: u8,
         e: usize,
         strict: bool,
         before: Option<bool>,
@@ -2709,7 +2828,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         rule: u32,
         production: u32,
         lexical: u32,
-        requested: bool,
+        requested: u8,
         e: usize,
         strict: bool,
         before: Option<bool>,
@@ -2730,7 +2849,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let test = &g.tests[test as usize];
                 let own = self.shared.tags.tag(terminal);
                 let set = self.shared.tags.set(vec![own]);
-                let sound = if test.op == TestOp::Is { test.sound.clone().unwrap_or_default() } else { String::new() };
+                let sound = helper.elided_value.clone().unwrap_or_default();
                 let synthetic = Tok {
                     text: String::new(),
                     tags: set,
@@ -2818,7 +2937,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         recon: &Recon,
         production: u32,
         lexical: u32,
-        requested: bool,
+        requested: u8,
         terminal: &str,
         test: Option<u32>,
         e: usize,
@@ -2849,7 +2968,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             prefix: 0,
             structure: u32::MAX,
         };
-        self.finish_structure(chart.family, &mut item, e + 1, 0, tokens);
+        self.finish_structure(chart.family, chart.lexical_frame(item.lexical), &mut item, e + 1, 0, tokens);
         if e + 1 >= chart.sets.len() {
             while chart.sets.len() < e + 2 {
                 chart.sets.push(self.shared.fresh_set());
@@ -2916,6 +3035,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 return Ok(());
             }
         }
+        let reading_trees = !g.tree_demands.is_empty();
+        let observing_trees =
+            reading_trees && crate::tree_identity::prefix_demand(g, item, chart.lexical_frame(item.lexical));
         let caps =
             if production.cap_at[item.dot as usize].is_some() { chart.extend_caps(item.caps, cap) } else { item.caps };
         let prefix = self.shared.machine.as_ref().map_or(0, |m| {
@@ -2945,12 +3067,32 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     }
                     None => m.sealed(),
                 }
+            } else if reading_trees {
+                m.select(cap.structure, observing, observing_trees)
             } else if observing {
                 cap.structure
             } else {
                 m.structural(cap.structure)
             };
-            let previous = if observing { item.prefix } else { m.structural(item.prefix) };
+            let child = if ranked && observing_trees {
+                let (observed, project) = self.observed(tokens);
+                let (start, end) = project.map_or((cap.start as usize, cap.end as usize), |p| {
+                    (p[cap.start as usize] as usize, p[cap.end as usize] as usize)
+                });
+                let values = observed[start..end].iter().map(|t| t.value.clone()).collect();
+                let tree =
+                    m.trees.as_mut().expect("demanded identities").singleton(crate::tree_identity::Node::Seal(values));
+                m.with_tree(child, tree)
+            } else {
+                child
+            };
+            let previous = if reading_trees {
+                m.select(item.prefix, observing, observing_trees)
+            } else if observing {
+                item.prefix
+            } else {
+                m.structural(item.prefix)
+            };
             let prefix = m.concat(previous, child);
             if observing {
                 let original = |at: u32| base + self.recon.map_or(at, |r| r.project[at as usize]) as usize;
@@ -2977,7 +3119,20 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             prefix,
             structure: u32::MAX,
         };
-        self.finish_structure(chart.family, &mut next, into, base, tokens);
+        self.finish_structure(chart.family, chart.lexical_frame(next.lexical), &mut next, into, base, tokens);
+        if chart.machine.is_some()
+            && self.shared.boundaries.is_none()
+            && !(self.node_tags()
+                && !g.rules[production.rule as usize].helper
+                && next.dot as usize == production.syms.len())
+        {
+            let edges = chart.links.entry((into as u32, next)).or_default();
+            if !edges.contains(&(item, cap)) {
+                work::count(Work::PackedEdges, 1);
+                edges.push((item, cap));
+            }
+            chart.advances.insert((item, cap), next);
+        }
         self.add(chart, evals, tokens, base, next, into, strict, Some((item, cap)))
     }
 
@@ -3015,7 +3170,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let (observed, project) = self.observed(tokens);
         let search = CapSearch::resume(chart, state.item.caps, state.found.take(), state.searched);
         let mut frame = state.frame(&search, project);
-        self.lexical_whole_structure(&mut frame, state.item.prefix, base);
+        self.lexical_whole_structure(&mut frame, state.item.prefix, base, observed);
         match self.evaluate(&mut state.eval, &frame, observed, base) {
             Ok(out) => {
                 evals.spare = state.eval.tasks;
@@ -3124,6 +3279,21 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     }
 
     // ---- terms and conditions
+
+    fn pattern_value(&self, tokens: &[Tok], base: usize, start: usize, end: usize) -> Option<Rc<str>> {
+        if !self.shared.machine.as_ref().is_some_and(|m| m.borrow().node_values) {
+            return None;
+        }
+        let (observed, project) = self.observed(tokens);
+        let (start, end) = project.map_or((start, end), |p| (p[start] as usize, p[end] as usize));
+        let key = (self.g as *const Lowered as usize, base + start, base + end);
+        if let Some(value) = self.shared.pattern_values.borrow().get(&key) {
+            return Some(value.clone());
+        }
+        let value: Rc<str> = self.value(observed, start, end).into();
+        self.shared.pattern_values.borrow_mut().insert(key, value.clone());
+        Some(value)
+    }
 
     /// The exact input value of the span (§5). Runs of empty values
     /// are skipped whole, as in a value test.
@@ -3429,8 +3599,27 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Task::Cond(cond) => {
                     work::count(Work::Visits, 1);
                     match cond {
+                        LCond::SameTree(left, positive, right, _) => {
+                            let m = self.shared.machine.as_ref().expect("demanded identities").borrow();
+                            let a = m.tree(self.span_structure(left, frame)).map(|tree| tree.identity);
+                            let b = m.tree(self.span_structure(right, frame)).map(|tree| tree.identity);
+                            Out::Bool((a.is_some_and(|id| id != crate::tree_identity::ABSENT) && a == b) == *positive)
+                        }
                         LCond::Tree(span, positive, p) => {
-                            let state = match span {
+                            let root_tags = if matches!(span, Span::Whole) && crate::patterns::reads_node_tags(p) {
+                                let mark = eval.tasks.len();
+                                eval.tasks.push(Task::Cond(cond));
+                                match self.whole(eval, frame, Wanted::Tags) {
+                                    None => continue,
+                                    Some(set) => {
+                                        eval.tasks.truncate(mark);
+                                        Some(set)
+                                    }
+                                }
+                            } else {
+                                None
+                            };
+                            let mut state = match span {
                                 Span::Whole => {
                                     if frame.lexical.is_some() {
                                         frame.parent_structure
@@ -3444,6 +3633,43 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                                 }
                                 _ => unreachable!("bare capture"),
                             };
+                            if let Some(set) = root_tags {
+                                let names: Vec<String> = self
+                                    .shared
+                                    .tags
+                                    .list(set)
+                                    .iter()
+                                    .map(|&id| self.shared.tags.name(id).to_owned())
+                                    .collect();
+                                let (name, prefix) = if let Some(lexical) = frame.lexical {
+                                    (
+                                        self.g.rules[self.g.prods[lexical.root as usize].rule as usize].name.as_str(),
+                                        frame.parent_prefix,
+                                    )
+                                } else {
+                                    (
+                                        self.g.rules[self.g.prods[frame.prod as usize].rule as usize].name.as_str(),
+                                        frame.prefix,
+                                    )
+                                };
+                                let value = self.pattern_value(
+                                    tokens,
+                                    base,
+                                    frame.lexical.map_or(frame.origin, |f| f.origin) as usize,
+                                    frame.end as usize,
+                                );
+                                let mut m = self.shared.machine.as_ref().expect("demanded pattern").borrow_mut();
+                                let old = m.observation(state);
+                                let tree = m.tree_state(state);
+                                if prefix != u32::MAX {
+                                    state = m.node_with_value(Some(name), prefix, None, &names, value.as_deref());
+                                }
+                                if tree != 0 {
+                                    state = m.with_tree(state, tree);
+                                }
+                                state = m.observing(state, old);
+                            }
+
                             Out::Bool(
                                 self.shared.machine.as_ref().expect("demanded pattern").borrow().matches(state, p)
                                     == *positive,
@@ -3924,6 +4150,8 @@ mod tests {
             let matchers = matchers(&g, &mut shared.tags);
             let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared, recon: None };
             let frame = Frame {
+                prefix: 0,
+                parent_prefix: 0,
                 lexical: None,
                 parent_structure: u32::MAX,
                 parent_tags: Cell::new(None),
@@ -4006,6 +4234,8 @@ mod tests {
             let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
             let names: Vec<String> = (0..n).map(|i| format!("Tag-{i}")).collect();
             let frame = Frame {
+                prefix: 0,
+                parent_prefix: 0,
                 lexical: None,
                 parent_structure: u32::MAX,
                 parent_tags: Cell::new(None),
@@ -4020,7 +4250,7 @@ mod tests {
             let union = LTerm::Union(names.into_iter().map(LTerm::Tag).collect());
             let list = recognizer.tag_list(&union, &frame, &[], 0).expect("initial tag set");
             let tags = recognizer.shared.tags.set_shared(list);
-            let caps = [Cap { boundary: 0, close_requested: false, start: 0, end: 0, tags, structure: u32::MAX }];
+            let caps = [Cap { boundary: 0, close_requested: 0, start: 0, end: 0, tags, structure: u32::MAX }];
             let frame = Frame { caps: Caps::All(&caps), ..frame };
             let range = LTerm::Tags(Span::Cap(0));
             let first = recognizer.tag_list(&range, &frame, &[], 0).expect("a set");
@@ -4209,12 +4439,12 @@ mod tests {
             parent: 0,
             jump: 0,
             depth: 0,
-            cap: Cap { boundary: 0, close_requested: false, start: 0, end: 0, tags: 0, structure: u32::MAX },
+            cap: Cap { boundary: 0, close_requested: 0, start: 0, end: 0, tags: 0, structure: u32::MAX },
         });
         let id = (0..n).fold(0, |id, at| {
             chart.extend_caps(
                 id,
-                Cap { boundary: 0, close_requested: false, start: at, end: at + 1, tags: 0, structure: u32::MAX },
+                Cap { boundary: 0, close_requested: 0, start: at, end: at + 1, tags: 0, structure: u32::MAX },
             )
         });
         (chart, id)
@@ -4267,8 +4497,10 @@ mod tests {
         let matchers = matchers(&g, &mut shared.tags);
         let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
         let caps =
-            [Cap { boundary: 0, close_requested: false, start: 0, end: n as u32, tags: classes, structure: u32::MAX }];
+            [Cap { boundary: 0, close_requested: 0, start: 0, end: n as u32, tags: classes, structure: u32::MAX }];
         let frame = Frame {
+            prefix: 0,
+            parent_prefix: 0,
             lexical: None,
             parent_structure: u32::MAX,
             parent_tags: Cell::new(None),
@@ -4358,9 +4590,10 @@ mod tests {
         let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
         assert_linear(Work::Listed, 1000, &mut |n| {
             let (_, classes, split) = made.iter().find(|made| made.0 == n).expect("made");
-            let caps =
-                [Cap { boundary: 0, close_requested: false, start: 0, end: 0, tags: *classes, structure: u32::MAX }];
+            let caps = [Cap { boundary: 0, close_requested: 0, start: 0, end: 0, tags: *classes, structure: u32::MAX }];
             let frame = Frame {
+                prefix: 0,
+                parent_prefix: 0,
                 lexical: None,
                 parent_structure: u32::MAX,
                 parent_tags: Cell::new(None),

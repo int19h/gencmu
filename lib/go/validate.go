@@ -55,7 +55,7 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem { return checkDOMMode(d,
 func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 	d.unresolved = false
 	for _, dir := range d.Directives {
-		if dir == nil || dir.Args == nil || !directiveOperandsOK(dir) {
+		if dir == nil || !directiveOperandsOK(dir) {
 			return &domProblem{message: "a malformed directive"}
 		}
 		if dir.Conditions != nil {
@@ -162,9 +162,7 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			if !(isRuleName(r.Name, uni) || expanded && strings.Contains(r.Name, "(") && strings.HasSuffix(r.Name, ")")) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || r.Instance == nil && len(r.Alternatives) == 0 {
 				return &domProblem{message: "a malformed rule"}
 			}
-			if len(r.Flags) > 1 || (len(r.Flags) == 1 && ((r.Flags[0] != "leftmost-longest" && r.Flags[0] != "fewest") || r.Op == "extend")) {
-				return &domProblem{message: "a malformed rule flag list"}
-			}
+
 			c := &domChecker{rule: r, label: "rule " + r.Name, uni: uni, expanded: expanded}
 			c.sourceHead(r)
 			d.unresolved = d.unresolved || c.unresolved
@@ -196,7 +194,7 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 						c.fail("a malformed guard: a guard's feature is a name")
 					}
 				}
-				c.expr(a.Expr, 0, true, false)
+				c.expr(a.Expr, 0, true, false, false, false, false)
 				c.constituentTags(a.Tags)
 				c.recipe(a.Value)
 				c.recipe(a.Image)
@@ -217,6 +215,11 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			for _, a := range r.Alternatives {
 				if twice := duplicateCaptures(a.Expr); len(twice) > 0 {
 					return &domProblem{message: fmt.Sprintf("rule %s: a capture name used twice in one production", r.Name), rule: r}
+				}
+			}
+			for _, a := range r.Alternatives {
+				if repeatsItemCapture(a.Expr) {
+					return &domProblem{message: "the name of an item capture used twice in one alternative", rule: r}
 				}
 			}
 			// The values of its tests, once the nesting is bounded (engine §9).
@@ -308,6 +311,25 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			return nil
 		}})
 	}
+	for _, dir := range d.Directives {
+		if dir.Name != "ambiguity-resolution" {
+			continue
+		}
+		inspections = append(inspections, inspection{dir.At, func() *domProblem {
+			c := &domChecker{uni: uni, label: "%ambiguity-resolution", expanded: expanded}
+			for _, step := range dir.Steps {
+				if step.Pattern != nil {
+					c.term(step.Pattern, 0, false)
+				}
+			}
+			if c.problem != nil {
+				c.problem.at = dir.At
+				return c.problem
+			}
+			d.unresolved = d.unresolved || c.unresolved
+			return nil
+		}})
+	}
 	slices.SortFunc(inspections, func(a, b inspection) int { return slices.Compare(a.at[:], b.at[:]) })
 	for _, inspection := range inspections {
 		if problem := inspection.run(); problem != nil {
@@ -379,11 +401,18 @@ func implicationSideFault(side *domTerm, ct constTypes) *typeFault {
 	return nil
 }
 
-// directiveOperandsOK checks all seven directive names and the operands
-// that the notation's syntax allows the pipeline
-// directives (engine §9): stage selectors take one name, %include one string and
-// %features one or more names.
+// directiveOperandsOK checks a directive's name, one of the notation's
+// directives, and the operands the notation's syntax allows (engine §9):
+// stage selectors take one name, %include one string, %features one or more
+// names and %elision-only none. %ambiguity-resolution has well-formed steps
+// in place of operands.
 func directiveOperandsOK(dir *domDirective) bool {
+	if dir.Name == "ambiguity-resolution" {
+		return dir.Args == nil && validSteps(dir.Steps)
+	}
+	if dir.Args == nil || dir.Steps != nil {
+		return false
+	}
 	switch dir.Name {
 	case "stage", "extend-stage", "redefine-stage":
 		return len(dir.Args) == 1 && classifierName.MatchString(dir.Args[0])
@@ -398,8 +427,8 @@ func directiveOperandsOK(dir *domDirective) bool {
 				return false
 			}
 		}
-	case "ambiguity-resolution":
-		return len(dir.Args) >= 1 && len(dir.Args) <= 2 && isRankingRule(dir.Args[0]) && (len(dir.Args) == 1 || dir.Args[1] == "elision-only")
+	case "elision-only":
+		return len(dir.Args) == 0
 	default:
 		return false
 	}
@@ -454,10 +483,13 @@ func (c *domChecker) deep(depth int) bool {
 }
 
 // expr checks an expression. whole says it is the alternative's whole
-// expression, the only place a chain may stand, and sealed that it lies
-// inside braces or an elidable optional, where no capture stands (engine
-// §3.5, §9).
-func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
+// expression, the only place a chain may stand. sealed says it lies inside
+// an elidable optional, and chain that the innermost braces around it are
+// a chain: no capture stands in either. item says the innermost braces are
+// flat, where a capture is an item capture, and ranked that a ranked group
+// stands between those braces and the expression, where no item capture
+// stands (engine §3.5, §9).
+func (c *domChecker) expr(e *domExpr, depth int, whole, sealed, chain, item, ranked bool) {
 	if c.deep(depth) {
 		return
 	}
@@ -480,26 +512,34 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 			return
 		}
 		for _, it := range e.Items {
-			c.expr(it, depth+1, false, sealed)
+			c.expr(it, depth+1, false, sealed, chain, item, ranked || e.Kind == exRanked)
 		}
 	case exOptional:
+		if e.Default != nil {
+			if !e.Elidable || !stringTermShape(e.Default) {
+				c.fail("a malformed default")
+				return
+			}
+			c.term(e.Default, depth+1, false)
+		}
 		// An elidable optional begins with its terminal (engine §3.8, §9).
 		if e.Elidable && elidableHead(e.Inner) == nil {
 			c.fail("a malformed elidable optional")
 			return
 		}
-		c.expr(e.Inner, depth+1, false, sealed || e.Elidable)
+		c.expr(e.Inner, depth+1, false, sealed || e.Elidable, chain, item, ranked)
 	case exRepeat:
 		// A chain is the whole expression of its alternative (engine §9).
 		// A separator counts on from the depth of its repeat, as the item
-		// does.
+		// does. The innermost braces decide whether a capture inside them
+		// is an item capture (engine §3.5).
 		if e.Chain != "" && !whole {
 			c.fail("a chain that is not the whole expression of its alternative")
 			return
 		}
-		c.expr(e.Inner, depth+1, false, true)
+		c.expr(e.Inner, depth+1, false, sealed, e.Chain != "", e.Chain == "", false)
 		if e.Sep != nil {
-			c.expr(e.Sep, depth+1, false, true)
+			c.expr(e.Sep, depth+1, false, sealed, e.Chain != "", e.Chain == "", false)
 		}
 	case exCapture:
 		// A capture wraps one symbol, and stands anywhere but in braces or
@@ -508,8 +548,8 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 			c.fail("an argument cannot read or declare captures")
 			return
 		}
-		if sealed {
-			c.fail("a capture inside braces or an elidable optional")
+		if sealed || chain || item && ranked {
+			c.fail("a capture inside a chain or an elidable optional, or an item capture inside a ranked group")
 			return
 		}
 		if e.Name == "" {
@@ -526,13 +566,13 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 		}
 		// A capture is a compound node: its symbol lies below it, and is
 		// checked as any expression is.
-		c.expr(e.Inner, depth+1, false, sealed)
+		c.expr(e.Inner, depth+1, false, sealed, chain, item, ranked)
 	case exTest:
 		if e.Op == "tags" {
 			if !isTestable(e.Inner) {
 				c.fail("a tag test requires a base symbol")
 			}
-			c.expr(e.Inner, depth+1, false, sealed)
+			c.expr(e.Inner, depth+1, false, sealed, chain, item, ranked)
 			for _, r := range e.Requirements {
 				if r.Value == nil || r.Value.Kind != tmTag && r.Value.Kind != tmConst && r.Value.Kind != tmParam {
 					c.fail("a malformed tag requirement")
@@ -551,7 +591,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 			c.fail("a test follows only a reference, a terminal, a range or a property")
 			return
 		}
-		c.expr(e.Inner, depth+1, false, sealed)
+		c.expr(e.Inner, depth+1, false, sealed, chain, item, ranked)
 		if e.Value == nil {
 			c.fail("a missing value of a test")
 			return
@@ -734,6 +774,461 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 	return duplicates
 }
 
+// exprChildren lists the parts of an expression in the order written: the
+// items of a list, then what a capture, a test, an optional or braces
+// wrap, then a separator.
+func exprChildren(e *domExpr) []*domExpr {
+	var out []*domExpr
+	if e == nil {
+		return out
+	}
+	out = append(out, e.Items...)
+	if e.Inner != nil {
+		out = append(out, e.Inner)
+	}
+	if e.Sep != nil {
+		out = append(out, e.Sep)
+	}
+	return out
+}
+
+// allCaptures lists the captures of an expression in the order written,
+// those inside braces and elidable optionals included. Each node counts
+// before it is met.
+func allCaptures(e *domExpr) []*domExpr {
+	var found []*domExpr
+	stack := []*domExpr{e}
+	for len(stack) > 0 {
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if n == nil {
+			continue
+		}
+		if n.Kind == exCapture {
+			found = append(found, n)
+		}
+		kids := exprChildren(n)
+		for i := len(kids) - 1; i >= 0; i-- {
+			stack = append(stack, kids[i])
+		}
+	}
+	return found
+}
+
+// itemPlace is where an item capture stands: the innermost flat braces
+// around it, whose item captures one condition may read together, and the
+// outermost flat braces around it, which a production of the alternative
+// reads in their place (engine §3.5, §3.6).
+type itemPlace struct {
+	braces, outer *domExpr
+}
+
+// itemCaptures lists the item captures of an expression, the captures
+// inside flat braces, by name, each with its place (engine §3.5). A chain
+// holds no capture, which the reader makes sure of, so a capture inside a
+// chain's own braces is not listed. Flat braces inside a chain's item are
+// the outermost flat braces of their captures.
+func itemCaptures(e *domExpr) map[string]itemPlace {
+	found := map[string]itemPlace{}
+	type frame struct {
+		n     *domExpr
+		place *itemPlace
+	}
+	stack := []frame{{n: e}}
+	for len(stack) > 0 {
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		n := top.n
+		if n == nil {
+			continue
+		}
+		place := top.place
+		switch n.Kind {
+		case exCapture:
+			if place != nil {
+				if _, ok := found[n.Name]; !ok {
+					found[n.Name] = *place
+				}
+			}
+		case exRepeat:
+			if n.Chain == "" {
+				inner := &itemPlace{braces: n, outer: n}
+				if place != nil {
+					inner.outer = place.outer
+				}
+				place = inner
+			}
+		}
+		kids := exprChildren(n)
+		for i := len(kids) - 1; i >= 0; i-- {
+			stack = append(stack, frame{kids[i], place})
+		}
+	}
+	return found
+}
+
+// repeatsItemCapture says whether the name of an item capture stands more
+// than once in an expression, inside its braces or outside them (engine
+// §3.5, §9).
+func repeatsItemCapture(e *domExpr) bool {
+	items := itemCaptures(e)
+	if len(items) == 0 {
+		return false
+	}
+	seen := map[string]bool{}
+	for _, c := range allCaptures(e) {
+		if _, item := items[c.Name]; item {
+			if seen[c.Name] {
+				return true
+			}
+			seen[c.Name] = true
+		}
+	}
+	return false
+}
+
+// bracesName is the pseudo-capture that stands for a pair of flat braces
+// in bracesSequences: the braces themselves, by their identity.
+func bracesName(braces *domExpr) string { return fmt.Sprintf("\x01%p", braces) }
+
+// bracesSequences lists the distinct sequences of captures that the
+// productions of an expression read, as captureSequences does, with each
+// pair of flat braces that a production reads as a pseudo-capture named
+// by bracesName. The captures and braces inside the braces stay out, as in
+// every production. The check of item conditions compares the place of
+// the braces with the places of the captures a condition reads (engine
+// §3.6).
+func bracesSequences(e *domExpr) [][]string {
+	w := work.Load()
+	step := func() {
+		if w != nil {
+			w.readerSteps.add("reader steps")
+		}
+	}
+	distinct := func(lists [][]string) [][]string {
+		seen := map[string]bool{}
+		var out [][]string
+		for _, list := range lists {
+			step()
+			key := strings.Join(list, "\x00")
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			out = append(out, list)
+		}
+		return out
+	}
+	product := func(left, right [][]string) [][]string {
+		var out [][]string
+		for _, a := range left {
+			for _, b := range right {
+				step()
+				out = append(out, append(append([]string{}, a...), b...))
+			}
+		}
+		return distinct(out)
+	}
+	// A chain holds no capture, and its productions read an item, or a
+	// separator followed by an item, so it gives the item's sequences and
+	// each separator sequence followed by an item sequence (engine §3.3).
+	// Only braces stand in them.
+	kids := func(n *domExpr) []*domExpr {
+		switch {
+		case n == nil:
+			return nil
+		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
+			return n.Items
+		case n.Kind == exOptional && !n.Elidable:
+			return []*domExpr{n.Inner}
+		case n.Kind == exRepeat && n.Chain != "":
+			if n.Sep != nil {
+				return []*domExpr{n.Inner, n.Sep}
+			}
+			return []*domExpr{n.Inner}
+		}
+		return nil
+	}
+	type frame struct {
+		n       *domExpr
+		combine bool
+	}
+	stack := []frame{{n: e}}
+	var done [][][]string
+	for len(stack) > 0 {
+		step()
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		n := top.n
+		if !top.combine {
+			switch {
+			case n != nil && n.Kind == exCapture:
+				done = append(done, [][]string{{n.Name}})
+				continue
+			case n != nil && n.Kind == exRepeat && n.Chain == "":
+				done = append(done, [][]string{{bracesName(n)}})
+				continue
+			}
+			items := kids(n)
+			if len(items) == 0 {
+				done = append(done, [][]string{{}})
+				continue
+			}
+			stack = append(stack, frame{n: n, combine: true})
+			for i := len(items) - 1; i >= 0; i-- {
+				stack = append(stack, frame{n: items[i]})
+			}
+			continue
+		}
+		count := len(kids(n))
+		parts := append([][][]string{}, done[len(done)-count:]...)
+		done = done[:len(done)-count]
+		var out [][]string
+		switch n.Kind {
+		case exSeq:
+			out = [][]string{{}}
+			for _, part := range parts {
+				out = product(out, part)
+			}
+		case exChoice, exRanked:
+			for _, part := range parts {
+				out = append(out, part...)
+			}
+			out = distinct(out)
+		case exRepeat:
+			out = append(out, parts[0]...)
+			if len(parts) > 1 {
+				out = append(out, product(parts[1], parts[0])...)
+			}
+			out = distinct(out)
+		case exAnd:
+			for mask := 1; mask < 1<<len(parts); mask++ {
+				seqs := [][]string{{}}
+				for i, part := range parts {
+					if mask&(1<<i) != 0 {
+						seqs = product(seqs, part)
+					}
+				}
+				out = append(out, seqs...)
+			}
+			out = distinct(out)
+		case exOptional:
+			out = append([][]string{{}}, parts[0]...)
+		}
+		done = append(done, out)
+	}
+	return done[0]
+}
+
+// captureSequences lists the distinct sequences of captures that the
+// productions of an expression read, each in the order read (engine §3.2,
+// §3.5): a choice gives each branch's, an & each subsequence's, a plain
+// optional none or its content's, and braces and an elidable optional
+// none. Productions that read the same names in the same order are one
+// sequence. Gates do not matter, since they drop whole alternatives.
+// Repeated names are duplicateCaptures' concern.
+func captureSequences(e *domExpr) [][]*domExpr {
+	// Each capture or join that the work below makes, looks up, compares
+	// or writes out counts before it does.
+	w := work.Load()
+	step := func() {
+		if w != nil {
+			w.readerSteps.add("reader steps")
+		}
+	}
+	// A sequence is a tree of the sequences it joins, so a join shares its
+	// parts and costs one step. A copy at each join would cost nested
+	// sequences the square of their depth. Each sequence is written out
+	// once, at the end.
+	type capSeq struct {
+		c    *domExpr
+		l, r *capSeq
+		// h is a hash of the names in order, and pw the base to the power
+		// of their number, so that a join finds its hash in one step.
+		h, pw uint64
+	}
+	const base = 1099511628211
+	empty := (*capSeq)(nil)
+	powOf := func(s *capSeq) uint64 {
+		if s == nil {
+			return 1
+		}
+		return s.pw
+	}
+	hashOf := func(s *capSeq) uint64 {
+		if s == nil {
+			return 0
+		}
+		return s.h
+	}
+	leaf := func(c *domExpr) *capSeq {
+		// The hash of a name reads each of its bytes once, as reading the
+		// name did.
+		h := uint64(14695981039346656037)
+		for i := 0; i < len(c.Name); i++ {
+			h = (h ^ uint64(c.Name[i])) * base
+		}
+		return &capSeq{c: c, h: h | 1, pw: base}
+	}
+	// flat writes a sequence out in order, each part of its tree counted
+	// before it is entered.
+	flat := func(s *capSeq) []*domExpr {
+		var out []*domExpr
+		stack := []*capSeq{s}
+		for len(stack) > 0 {
+			step()
+			top := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			switch {
+			case top == nil:
+			case top.c != nil:
+				out = append(out, top.c)
+			default:
+				stack = append(stack, top.r, top.l)
+			}
+		}
+		return out
+	}
+	join := func(a, b *capSeq) *capSeq {
+		step()
+		switch {
+		case a == nil:
+			return b
+		case b == nil:
+			return a
+		}
+		return &capSeq{l: a, r: b, h: hashOf(a)*powOf(b) + b.h, pw: a.pw * b.pw}
+	}
+	same := func(a, b *capSeq) bool {
+		x, y := flat(a), flat(b)
+		if len(x) != len(y) {
+			return false
+		}
+		for i := range x {
+			step()
+			if x[i].Name != y[i].Name {
+				return false
+			}
+		}
+		return true
+	}
+	// distinct keeps the first of each list of names. Lists are found by
+	// their hash, and only lists of equal hash are written out and
+	// compared, so a list that is not repeated is never written out here.
+	distinct := func(lists []*capSeq) []*capSeq {
+		if len(lists) < 2 {
+			return lists
+		}
+		seen := map[uint64][]*capSeq{}
+		var out []*capSeq
+	next:
+		for _, list := range lists {
+			step()
+			h := hashOf(list)
+			for _, other := range seen[h] {
+				if same(list, other) {
+					continue next
+				}
+			}
+			seen[h] = append(seen[h], list)
+			out = append(out, list)
+		}
+		return out
+	}
+	product := func(left, right []*capSeq) []*capSeq {
+		var out []*capSeq
+		for _, a := range left {
+			for _, b := range right {
+				out = append(out, join(a, b))
+			}
+		}
+		return distinct(out)
+	}
+	// Each node is met twice, with an explicit stack: first to push its
+	// parts, and then to combine their sequences, which stand on done.
+	kids := func(n *domExpr) []*domExpr {
+		switch {
+		case n == nil:
+			return nil
+		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
+			return n.Items
+		case n.Kind == exOptional && !n.Elidable:
+			return []*domExpr{n.Inner}
+		}
+		return nil
+	}
+	type frame struct {
+		n       *domExpr
+		combine bool
+	}
+	stack := []frame{{n: e}}
+	var done [][]*capSeq
+	for len(stack) > 0 {
+		step()
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		n := top.n
+		if !top.combine {
+			if n != nil && n.Kind == exCapture {
+				done = append(done, []*capSeq{leaf(n)})
+				continue
+			}
+			items := kids(n)
+			if len(items) == 0 {
+				done = append(done, []*capSeq{empty})
+				continue
+			}
+			stack = append(stack, frame{n: n, combine: true})
+			for i := len(items) - 1; i >= 0; i-- {
+				stack = append(stack, frame{n: items[i]})
+			}
+			continue
+		}
+		count := len(kids(n))
+		parts := appendCounted(nil, done[len(done)-count:], readerCount(), "reader steps")
+		done = done[:len(done)-count]
+		var out []*capSeq
+		switch n.Kind {
+		case exSeq:
+			out = []*capSeq{empty}
+			for _, part := range parts {
+				out = product(out, part)
+			}
+		case exChoice, exRanked:
+			for _, part := range parts {
+				out = appendCounted(out, part, readerCount(), "reader steps")
+			}
+			out = distinct(out)
+		case exAnd:
+			for mask := 1; mask < 1<<len(parts); mask++ {
+				seqs := []*capSeq{empty}
+				for i, part := range parts {
+					if mask&(1<<i) != 0 {
+						seqs = product(seqs, part)
+					}
+				}
+				out = appendCounted(out, seqs, readerCount(), "reader steps")
+			}
+			out = distinct(out)
+		default:
+			out = distinct(appendCounted([]*capSeq{empty}, parts[0], readerCount(), "reader steps"))
+		}
+		done = append(done, out)
+	}
+	sequences := make([][]*domExpr, len(done[0]))
+	for i, s := range done[0] {
+		sequences[i] = flat(s)
+	}
+	return sequences
+}
+
+// isCapturable says whether a capture can wrap an expression of a kind: a
 // reference, a terminal, a range, a property or a tested symbol (engine §9).
 func isCapturable(kind string) bool {
 	switch kind {
@@ -908,7 +1403,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 					if r.Value == nil || r.Value.Kind != tmTag && r.Value.Kind != tmConst && r.Value.Kind != tmParam {
 						return "a malformed tag requirement"
 					}
-					c.term(r.Value, d+1, false)
+					if r.Value.Kind != tmTag || r.Value.Str != "_Elided" {
+						c.term(r.Value, d+1, false)
+					}
 				}
 				return ""
 			}
@@ -966,12 +1463,14 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		}
 		var ok bool
 		switch t.Str {
+		case "emitted", "verbatim-text":
+			ok = false
 		case "without-elision-except":
 			ok = len(args) == 2 && args[0] != nil && (args[0].Kind == tmCapture || unresolvedTerm(args[0])) && isRule(args[1])
 		case "without-elision":
 			ok = len(args) == 1 && args[0] != nil && (args[0].Kind == tmCapture || unresolvedTerm(args[0]))
 		case "value", "image", "source-text", "decomposed-source-text", "classes", "first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens":
-			ok = len(args) == 1 && isSpanShape(args[0])
+			ok = len(args) == 1 && (isSpanShape(args[0]) || (t.Str == "value" || t.Str == "image") && args[0] != nil && args[0].Kind == tmCall && args[0].Str == "emitted")
 		case "tags":
 			ok = (len(args) == 1 && isSpanShape(args[0])) || (len(args) == 2 && isSpanShape(args[0]) && isRule(args[1]))
 		case "ngrams":
@@ -1135,6 +1634,9 @@ func readsOwnTags(t *domTerm) bool {
 		stack = stack[:len(stack)-1]
 		if p.c != nil {
 			if p.c.Kind == cdCompare && (p.c.Op == "≅" || p.c.Op == "≇") {
+				if p.c.Left.Kind == tmCapture && p.c.Left.Str == "" && p.c.Right.Kind == tmPattern && patternReadsNodeTags(p.c.Right.Pattern) {
+					return true
+				}
 				continue
 			}
 			// .matches and .begins parse the tokens again, .starts-input
@@ -1321,8 +1823,8 @@ func comparisonProblem(op string, left, right termType) string {
 		if left != tySpan {
 			return "a tree comparison requires a bare capture on its left"
 		}
-		if right != tyPattern && right != tySet && right != tyAny {
-			return "a tree comparison requires a tree pattern on its right"
+		if right != tySpan && right != tyPattern && right != tySet && right != tyAny {
+			return "a tree comparison requires a pattern or a bare capture on its right"
 		}
 		return ""
 	}
@@ -1657,8 +2159,20 @@ func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 		if f != nil {
 			return f
 		}
+		if c.Op == "≅" || c.Op == "≇" {
+			if right == tySpan && c.Right.Kind != tmCapture {
+				return &typeFault{"a tree comparison requires a pattern or a bare capture on its right", c.Right}
+			}
+			if c.Left.Kind == tmCapture && c.Right.Kind == tmCapture && c.Left.Str == c.Right.Str {
+				return &typeFault{"a constituent comparison requires two different captures", c}
+			}
+		}
 		if problem := comparisonProblem(c.Op, left, right); problem != "" {
-			return &typeFault{problem, c}
+			node := any(c)
+			if (c.Op == "≅" || c.Op == "≇") && left == tySpan {
+				node = c.Right
+			}
+			return &typeFault{problem, node}
 		}
 	}
 	return nil
@@ -1763,6 +2277,24 @@ func ruleTypeFault(r *domRule, ct constTypes) *typeFault {
 			if problem := testTypeProblem(t.Op, ty); problem != "" {
 				keep(&typeFault{problem, t.Value})
 			}
+		}
+		pending := []*domExpr{a.Expr}
+		for len(pending) > 0 {
+			e := pending[len(pending)-1]
+			pending = pending[:len(pending)-1]
+			if e == nil {
+				continue
+			}
+			if e.Default != nil {
+				ty, fault := termTypeIn(e.Default, ct)
+				if fault != nil {
+					return fault
+				}
+				if problem := expectedProblem(ty, tyString); problem != "" {
+					return &typeFault{problem, e.Default}
+				}
+			}
+			pending = append(pending, exprChildren(e)...)
 		}
 	}
 	if len(faults) == 0 {

@@ -1,0 +1,19 @@
+{
+  "description": "Structural comparison: emission.",
+  "grammar": "%rule text $x:r $y:r\n%emits $ :: ($x ≅ $y ⟹ Same)\n%rule r \"a\" | \"b\"",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

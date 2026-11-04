@@ -1,0 +1,10 @@
+{
+  "description": "tree-equality-wildcard",
+  "grammar": "%rule text $x:w\n%conditions $x ≅ #_\n%rule w \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

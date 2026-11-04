@@ -1,0 +1,13 @@
+{
+  "description": "A rule in a ranking pattern must be defined (engine §9.3).",
+  "grammar": "%ambiguity-resolution fewest #·missing\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 2,
+      "column": 32
+    }
+  }
+}

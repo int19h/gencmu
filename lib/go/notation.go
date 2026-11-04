@@ -236,6 +236,13 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 	return found
 }
 
+// bracesEntry is one pair of braces the reader is inside: whether it is
+// a chain, and how many ranked groups below it the reader is inside.
+type bracesEntry struct {
+	chain  bool
+	ranked int
+}
+
 type domBuilder struct {
 	parameters      map[string]bool
 	partsCache      map[*Node][]*Node
@@ -249,17 +256,23 @@ type domBuilder struct {
 	// captureNodes holds the notation node of each capture of the
 	// alternative being read, where an error about it is reported.
 	captureNodes map[*domExpr]*Node
-	// braces and marked count the braces and the elidable optionals the
-	// reader is inside, where no capture stands (engine §3.5).
-	braces, marked int
-	toks           []Token
-	gt             *grammarText
-	doc            string
-	uni            *unicodeTable // configured Unicode data for input and diagnostics
+	// braces holds the braces the reader is inside, innermost last: a
+	// chain holds no capture, and flat braces no capture inside a ranked
+	// group. marked counts the elidable optionals, where no capture stands
+	// either (engine §3.5).
+	braces []bracesEntry
+	marked int
+	toks   []Token
+	gt     *grammarText
+	doc    string
+	uni    *unicodeTable // configured Unicode data for input and diagnostics
 	// closedFor is what the reader is reading as a closed term, a
 	// constant's value or a test's operand, or "" (§9, §10).
-	closedFor string
-	inRecipe  bool
+	closedFor   string
+	inRecipe    bool
+	defaultHead *Node
+	headDefault *domTerm
+	defaultNode *Node
 	// types keeps the types found of the terms and conditions read, each
 	// found once (§10).
 	types *typeMemo
@@ -285,7 +298,7 @@ var domRules = map[string]bool{
 	"call": true, "parameter": true, "call-argument": true, "requirement-argument": true, "target-argument": true, "body-argument": true, "symbol-argument": true,
 
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
-	"directive": true, "rule": true, "definer": true, "rule-flags": true, "rule-flag": true, "alternative": true, "choice": true, "ranked-alternative": true, "ranked-choice": true,
+	"directive": true, "ranking-directive": true, "ranking-step": true, "rule": true, "definer": true, "alternative": true, "choice": true, "ranked-alternative": true, "ranked-choice": true,
 	"conjunction": true, "sequence": true, "repetition": true, "reference": true,
 	"string": true, "tag": true, "name": true,
 	"tested": true, "test": true, "test-operand": true, "capture": true, "group": true, "optional": true,
@@ -300,7 +313,7 @@ var domRules = map[string]bool{
 	"constant-definition": true, "constant-definer": true, "constant-reference": true,
 	"classifier": true, "classifier-name": true, "classifier-entry": true, "classifier-key": true,
 	"classifier-operator": true, "classifier-class": true, "implication-declaration": true,
-	"headed-body": true, "string-terminal": true, "wildcard": true, "tag-test": true, "tag-requirement": true, "value-test": true,
+	"headed-body": true, "string-terminal": true, "wildcard": true, "tag-test": true, "tag-requirement": true, "value-test": true, "default-value": true,
 	"value-clause": true, "image-clause": true, "erased-clause": true, "recipe": true, "recipe-atom": true,
 	"method": true, "method-receiver": true, "method-selector": true, "method-name": true, "arguments": true,
 	"argument-term": true, "tag-run": true, "string-run": true, "integer": true, "tree-comparator": true,
@@ -510,7 +523,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			continue
 		}
 		switch c.Rule {
-		case "rule", "constant-definition", "classifier", "implication-declaration", "directive":
+		case "rule", "constant-definition", "classifier", "implication-declaration", "directive", "ranking-directive":
 		default:
 			b.fail(c, "the notation gives a %s where an item stands", c.Rule)
 		}
@@ -528,6 +541,8 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			implication := b.implicationDeclaration(c)
 
 			item.Implications = append(item.Implications, implication)
+		case "ranking-directive":
+			item.Directives = append(item.Directives, b.rankingDirective(c))
 		case "directive":
 			keyword := b.token(c)
 			ps := b.parts(c)
@@ -613,6 +628,28 @@ func (b *domBuilder) document(root *Node) *domDoc {
 	return d
 }
 
+// rankingDirective reads %ambiguity-resolution: its steps, each a lean or
+// a step with a category, with every wrong step reported at the directive
+// (engine §9.3).
+func (b *domBuilder) rankingDirective(n *Node) *domDirective {
+	dir := &domDirective{Name: "ambiguity-resolution", Steps: []domStep{}, At: b.at(n)}
+	steps := b.some(n, "ranking-step", 1)
+	for i, node := range steps {
+		parts := b.parts(node)
+		name := b.tokenValue(parts[0])
+		hasOperand := len(parts) > 1
+		if keySteps[name] != hasOperand || !keySteps[name] && (!leans[name] || i != len(steps)-1) {
+			b.fail(n, "%%ambiguity-resolution requires a pattern for each key step and no operand on a final lean")
+		}
+		step := domStep{Step: name}
+		if hasOperand {
+			step.Pattern = b.term(parts[1])
+		}
+		dir.Steps = append(dir.Steps, step)
+	}
+	return dir
+}
+
 // constant reads a constant's definition: its name without $, and its
 // value, a closed term of a type that a constant can have (engine §2, §9,
 // §10).
@@ -694,31 +731,6 @@ func (b *domBuilder) implicationDeclaration(n *Node) *domImplication {
 	return m
 }
 
-func (b *domBuilder) ruleFlags(n *Node, op string) []string {
-	flags := []string{}
-	if list := b.one(n, "rule-flags"); list != nil {
-		if op == "extend" {
-			b.fail(list, "%%extend-rule accepts no flags")
-		}
-		for _, flag := range b.some(list, "rule-flag", 1) {
-			name := b.tokenValue(b.token(flag))
-			if name != "leftmost-longest" && name != "fewest" {
-				b.fail(flag, "unknown rule flag %s", name)
-			}
-			for _, previous := range flags {
-				if previous == name {
-					b.fail(flag, "duplicate rule flag %s", name)
-				}
-			}
-			if len(flags) > 0 {
-				b.fail(flag, "a rule accepts only one flag")
-			}
-			flags = append(flags, name)
-		}
-	}
-	return flags
-}
-
 func (b *domBuilder) rule(n *Node) *domRule {
 	b.hasBoundary = false
 	previous := b.parameters
@@ -727,7 +739,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	// The definer, the name, the alternatives and the clauses; the syntax
 	// allows at most one of each clause, in order.
 	definer := b.token(b.only(n, "definer"))
-	r := &domRule{At: b.at(definer), Conditions: []*domCond{}, Flags: []string{}}
+	r := &domRule{At: b.at(definer), Conditions: []*domCond{}}
 	switch b.tokenValue(definer) {
 	case "%redefine-rule":
 		r.Op = "redefine"
@@ -783,7 +795,6 @@ func (b *domBuilder) rule(n *Node) *domRule {
 			b.fail(b.token(head), "a rule name starts with a lowercase letter or uses one eligible emoji")
 		}
 	}
-	r.Flags = b.ruleFlags(n, r.Op)
 	for _, p := range b.parts(n) {
 		if p.Kind == KindToken && b.tokenValue(p) == "=" {
 			if r.Params != nil || r.Args != nil {
@@ -893,6 +904,26 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 			}
 		}
 		b.fail(first, "the capture %s is read twice by one production of the alternative", b.tokenValue(b.token(first)))
+	}
+	// The name of an item capture stands nowhere else in the alternative
+	// (engine §3.5, §9): the error stands at the later capture in the text.
+	if items := itemCaptures(a.Expr); len(items) > 0 {
+		seen := map[string]*Node{}
+		for _, c := range allCaptures(a.Expr) {
+			at := b.captureNodes[c]
+			earlier, ok := seen[c.Name]
+			if ok {
+				if _, item := items[c.Name]; item {
+					later := at
+					if before(b.at(at), b.at(earlier)) {
+						later = earlier
+					}
+					b.fail(later, "the item capture %s is read again: the name of an item capture stands once in its alternative", b.tokenValue(b.token(later)))
+				}
+				continue
+			}
+			seen[c.Name] = at
+		}
 	}
 	if p := b.one(n, "alternative-tags"); p != nil {
 		a.Tags = b.constituentTags(p)
@@ -1116,12 +1147,9 @@ func operandProblem(name string, kinds []string) string {
 		if len(kinds) == 0 || !names {
 			return "%features takes one or more names"
 		}
-	case "ambiguity-resolution":
-		if len(kinds) < 1 || len(kinds) > 2 {
-			return "%ambiguity-resolution takes one or two names"
-		}
-		if !names {
-			return "%ambiguity-resolution takes names only"
+	case "elision-only":
+		if len(kinds) != 0 {
+			return "%elision-only takes no operand"
 		}
 	default:
 		if !names {

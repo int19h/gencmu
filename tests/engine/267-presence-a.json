@@ -1,0 +1,16 @@
+{
+  "description": "The reader refuses this condition's emitted read (engine §9.3).",
+  "documents": {
+    "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text\n  | $x:\"a\" := \"yes\"\n  | \"b\" := $.verbatim-text\n%conditions\n  $x ⟹ $.emitted.value = \"yes\"\n```"
+  },
+  "pipelineDocument": "main.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 8,
+      "column": 8
+    }
+  }
+}

@@ -133,7 +133,7 @@ fn notation_shapes() {
                 syntax = syntax.replace(&format!(r#""{field}":"{name}""#), &format!(r#""{field}":"{name}-wrapper""#));
             }
             wrappers.push_str(&format!(
-                r#"{{"name":"{name}-wrapper","op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],"conditions":[],"at":[{},1]}},"#,
+                r#"{{"name":"{name}-wrapper","op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],"conditions":[],"at":[{},1]}},"#,
                 100_000 + index
             ));
         }
@@ -160,9 +160,19 @@ fn notation_shapes() {
     // own document and inputs.
     for item in shapes.get("extraParts").expect("extraParts").array() {
         let text = |key: &str| item.get(key).and_then(Value::str).unwrap_or_else(|| panic!("{key}")).to_string();
-        let (find, replace) = (text("find"), text("replace"));
-        assert_eq!(find_places(&bootstrap, &find).len(), 1, "{}", text("description"));
-        let changed = substitute(&bootstrap, &find, &replace);
+        // `find` and `replace` are strings, or arrays of the same length
+        // whose pairs apply in order (tests/README.md).
+        let texts = |key: &str| match item.get(key).unwrap_or_else(|| panic!("{key}")) {
+            Value::Array(items) => items.iter().map(|value| value.str().expect(key).to_string()).collect(),
+            _ => vec![text(key)],
+        };
+        let (finds, replaces): (Vec<String>, Vec<String>) = (texts("find"), texts("replace"));
+        assert_eq!(finds.len(), replaces.len(), "{}", text("description"));
+        let mut changed = bootstrap.clone();
+        for (find, replace) in finds.iter().zip(&replaces) {
+            assert_eq!(find_places(&changed, find).len(), 1, "{}", text("description"));
+            changed = substitute(&changed, find, replace);
+        }
         assert_eq!(&outcome(item, changed), item.get("expect").expect("expect"), "{}", text("description"));
     }
 }
@@ -171,16 +181,21 @@ fn notation_shapes() {
 fn a_notation_stage_that_declares_elision_only_runs_the_check() {
     let bootstrap = read(&["data", "preparsed", "gencmu.json"]);
     let bootstrap = bootstrap.replacen(
-        r#""name":"symbol","op":"define","flags":[],"alternatives":["#,
-        r#""name":"symbol","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"literal":{"string":"."}}},"#,
+        r#""name":"symbol","op":"define","alternatives":["#,
+        r#""name":"symbol","op":"define","alternatives":[{"guards":[],"expr":{"literal":{"string":"."}}},"#,
         1,
     );
-    let directive = r#""name":"ambiguity-resolution","args":["greedy"]"#;
+    let directive = r#""name":"ambiguity-resolution","steps":[{"step":"greedy"}]"#;
     let lexical = bootstrap.find(r#""grammars/gencmu/jbogenbau/lexical.md":"#).expect("the lexical document");
     let syntax = bootstrap.find(r#""grammars/gencmu/jbogenbau/syntax.md":"#).expect("the syntax document");
     let at = bootstrap.find(directive).expect("the directive");
     assert!(lexical < at && at < syntax, "the first directive is the lexical stage's");
-    let elision = bootstrap.replacen(directive, r#""name":"ambiguity-resolution","args":["greedy","elision-only"]"#, 1);
+    // A second directive of the lexical stage, at a column of its own.
+    let elision = bootstrap.replacen(
+        &format!("{{{directive}"),
+        &format!(r#"{{"name":"elision-only","args":[],"at":[20,41]}},{{{directive}"#),
+        1,
+    );
     let sources = |bootstrap: String| {
         [
             ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),

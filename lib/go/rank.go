@@ -9,9 +9,13 @@ import (
 // The ranking (engine §6), composed over the packed forest the recognizer
 // leaves, without enumerating derivations.
 //
-// Profile summaries first retain the best rule profile in each context.
-// Under late-elision they also compare elision vectors (see elSeq).
-// The action comparison then uses greedy, lazy or no lean on that forest.
+// Where the key steps of the directive count anything, the ranking first
+// keeps, for each item in each context, the greatest profile of its
+// derivations and the links that attain it (see profileSpace). Then it
+// ranks over that smaller forest of the best derivations with the lean of
+// the directive: greedy, lazy or none. Under greedy, lazy and no lean, the
+// ranking compares the action sequences of derivations, as below. With no
+// lean, the count of the best derivations gives the verdict.
 //
 // A derivation is kept as a persistent structure (dn) whose bottom-up action
 // sequence is read lazily, so that two derivations sharing a subtree compare
@@ -240,15 +244,16 @@ type ranker struct {
 	rawWitnessCounted *bool
 	rec               *recognizer
 	// lean is greedy, lazy, or "" for no lean, where any two differing
-	// derivations tie. Under late-elision it is "", and elisions is set.
-	lean     string
-	elisions bool
+	// derivations tie.
+	lean string
+	// space holds the key steps of the ranking, and profiles says whether
+	// they count anything: a step names elision, or a rule counts as a
+	// pattern of a key step (engine §6).
+	space    *profileSpace
 	profiles bool
 	items    map[*item]*itemRank
 	syms     map[*symNode]*itemRank
 	marked   map[*item]bool
-	// leaves holds the one vector of a single elision at each position.
-	leaves map[int32]*elSeq
 	// marks holds W(D)'s links for each item of W(D) (tests/README.md).
 	// Each count also says whether it includes a derivation of marked links only.
 	// Every elision-only check supplies these marks, including without a test hook.
@@ -265,10 +270,10 @@ func (rk *ranker) skips(fault, site string, i, n int) bool {
 	return rk.check && n > 1 && i == n-1 && rk.rec.run.ps.faultAt(fault, site)
 }
 
-// newRanker ranks under the rule of a directive, greedy, lazy or
-// late-elision, or under no lean for "".
-func newRanker(rec *recognizer, rule string) *ranker {
-	rk := newUnfilteredRanker(rec, rule)
+// newRanker ranks by the key steps of a directive and then its lean,
+// greedy, lazy, or no lean for "" (engine §6).
+func newRanker(rec *recognizer, steps []keyStep, lean string) *ranker {
+	rk := newUnfilteredRanker(rec, steps, lean)
 	if len(rec.g.rankedHelpers) > 0 {
 		rk.views = newSlotViews(rk)
 		rk.admission = newSlotAdmission(rk)
@@ -277,16 +282,18 @@ func newRanker(rec *recognizer, rule string) *ranker {
 }
 
 // newUnfilteredRanker keeps the raw forest without ranked views or admission.
-func newUnfilteredRanker(rec *recognizer, rule string) *ranker {
-	rk := &ranker{rec: rec, lean: rule, items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
-	if rule == "late-elision" {
-		// The readings come from a ranking with no lean over the forest of
-		// the best derivations (engine §6).
-		rk.lean, rk.elisions = "", true
-		rk.leaves = map[int32]*elSeq{}
-	}
-	for _, r := range rec.g.rules {
-		rk.profiles = rk.profiles || r.leftmostLongest || r.fewest
+func newUnfilteredRanker(rec *recognizer, steps []keyStep, lean string) *ranker {
+	rk := &ranker{rec: rec, lean: lean, space: newProfileSpace(steps), items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
+	rk.space.rec = rec
+	rk.profiles = rec.g.canCountProfiles(steps)
+	if rec.recon != nil {
+		onlyOmitted := true
+		for _, step := range steps {
+			onlyOmitted = onlyOmitted && requiresElided(step.pattern)
+		}
+		if onlyOmitted {
+			rk.profiles = false
+		}
 	}
 	return rk
 }
@@ -502,14 +509,13 @@ type cand struct {
 }
 
 type entry struct {
-	profile ruleProfile
-	cands   []*cand
-	count   int // derivations, up to 2: the total of engine §6
-	// Profile selection retains the best rule profile and, under late-elision,
-	// its least elision vector. least counts derivations at that score, up to 2.
-	// cands holds only derivations that attain that score.
-	vec   *elSeq
-	least int
+	cands []*cand
+	count int // derivations, up to 2: the total of engine §6
+	// Under profiles, profile is the greatest profile of the derivations,
+	// and least the number of them that attain it, up to 2. cands then
+	// holds only derivations that attain profile.
+	profile profile
+	least   int
 	// w, with the runtime witness marks, says whether count includes a
 	// derivation of marked links only (tests/README.md). The same loop
 	// decides both, so any choice that drops W(D) from the count drops it
@@ -842,13 +848,12 @@ func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 	return &itemFrame{it: it, f: f, slot: slot, marked: rk.slotMarks(it)}, nil
 }
 
-// linkVal summarizes one link's rule profile and derivation counts.
-// Under late-elision it also retains the least elision vector.
+// linkVal is the summary of one link: its derivations, and under
+// profiles their greatest profile and how many attain it.
 type linkVal struct {
-	profile     ruleProfile
+	profile     profile
 	prev, child *entry
 	admitted    bool
-	vec         *elSeq
 	least       int
 }
 
@@ -910,7 +915,21 @@ func (fr *itemFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 				continue
 			}
 			if l.sym == nil {
-				fr.child, fr.phase = &entry{cands: []*cand{{d: readNode(l.tok, l.term)}}, count: 1, least: 1}, linkSummarize
+				var profile profile
+				if rk.profiles {
+					a, b := l.tok, l.tok+1
+					if rc := rk.rec.recon; rc != nil {
+						a, b = int32(rc.project[a]), int32(rc.project[b])
+					}
+					if a < b {
+						index := rk.rec.base + int(l.tok)
+						if rc := rk.rec.recon; rc != nil {
+							index = rc.original[l.tok]
+						}
+						profile = rk.space.occurrence("", rk.rec.g.terminals[l.term], rk.rec.run.toks[index].Value, rk.rec.run.tagsets[index], a, b)
+					}
+				}
+				fr.child, fr.phase = &entry{cands: []*cand{{d: readNode(l.tok, l.term)}}, count: 1, least: 1, profile: profile}, linkSummarize
 				continue
 			}
 			var cf forbidden
@@ -949,11 +968,11 @@ func (fr *itemFrame) summarize(rk *ranker, l link) {
 		}
 	}
 	count := prev.count * child.count
-	if rk.elisions || rk.profiles {
-		// An edge's vector is the sum of its children's, and its least
+	if rk.profiles {
+		// An edge's profile is the sum of its children's, and its least
 		// count their product (engine §6).
-		v.vec, v.least = concatElisions(prev.vec, child.vec), min(prev.least*child.least, 2)
-		v.profile = sumProfiles(prev.profile, child.profile)
+		v.least = min(prev.least*child.least, 2)
+		v.profile = rk.space.sum(prev.profile, child.profile)
 	}
 	// The link is W(D)'s where it is marked, and its predecessor and
 	// child are W(D)'s. A predicted predecessor and a read are.
@@ -962,7 +981,7 @@ func (fr *itemFrame) summarize(rk *ranker, l link) {
 	// count or in the candidates (tests/README.md).
 	if !rk.skips("lost:context", "links", i, len(it.links)) {
 		if v.admitted {
-			fr.all.add(v.profile, v.vec, v.least, count)
+			fr.all.add(rk.space, v.profile, v.least, count)
 			fr.allW = fr.allW || w
 		}
 	}
@@ -973,10 +992,11 @@ func (fr *itemFrame) summarize(rk *ranker, l link) {
 
 // finish gives the item's value from its links' and remembers it.
 func (fr *itemFrame) finish(rk *ranker) *entry {
-	// Only links that attain the best profile and elision score give candidates.
+	// The candidates. Under profiles, only the links that attain the
+	// greatest profile of the summary give them.
 	var cands []*cand
 	for _, v := range fr.vals {
-		inAll := v.admitted && (!(rk.elisions || rk.profiles) || compareScore(v.profile, v.vec, fr.all.profile, fr.all.vec) == 0)
+		inAll := v.admitted && (!rk.profiles || rk.space.compare(v.profile, fr.all.profile) == 0)
 		if !inAll {
 			continue
 		}
@@ -985,7 +1005,7 @@ func (fr *itemFrame) finish(rk *ranker) *entry {
 	}
 	var e *entry
 	if fr.all.total > 0 {
-		e = &entry{count: fr.all.total, profile: fr.all.profile, vec: fr.all.vec, least: fr.all.least, w: fr.allW}
+		e = &entry{count: fr.all.total, profile: fr.all.profile, least: fr.all.least, w: fr.allW}
 		e.cands = rk.merge(cands)
 	}
 	fr.slot.state, fr.slot.e = 2, e
@@ -1023,10 +1043,9 @@ func (rk *ranker) startSym(s *symNode, f forbidden) (rankFrame, *entry) {
 
 // edgeVal is the value of one completed item, an edge of a constituent.
 type edgeVal struct {
-	profile ruleProfile
+	profile profile
 	it      *item
 	e       *entry
-	vec     *elSeq
 }
 
 // symFrame ranks a constituent's completed items in turn.
@@ -1061,38 +1080,32 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 			continue
 		}
 		profile := e.profile
-		if rule := rk.rec.g.rules[s.rule]; rule.leftmostLongest || rule.fewest {
+		if rk.profiles {
+			if c.prod.restoration() && !c.restores && rk.rec.recon == nil {
+				tags := rk.rec.run.ps.in.fromList([]string{c.prod.elided, "_Elided"})
+				profile = rk.space.sum(rk.space.occurrence("", c.prod.elided, "", tags, s.start, s.start), profile)
+			}
 			a, b := s.start, s.end
 			if rc := rk.rec.recon; rc != nil {
 				a, b = int32(rc.project[a]), int32(rc.project[b])
 			}
-			if a < b {
-				if rule.fewest {
-					profile.fewest = profile.fewest.add(countOne)
-				} else {
-					profile = sumProfiles(profile, ruleProfile{spans: []profileSpan{{a, b, countOne}}})
-				}
+			if !rk.rec.g.rules[s.rule].helper && a < b {
+				profile = rk.space.sum(rk.space.occurrence(rk.rec.g.rules[s.rule].name, "", "", s.tags, a, b), profile)
 			}
-		}
-		vec := e.vec
-		if rk.elisions && c.prod.restoration() && !c.restores {
-			// The helper of an elidable optional that derives ε elides its
-			// terminator at its position (engine §6).
-			vec = rk.leaf(s.start)
 		}
 		// Faults of the check skip the last of two or more completed
 		// items, in the count or in the candidates (tests/README.md).
 		if !rk.skips("lost:context", "items", fr.i, len(s.items)) {
-			fr.sum.add(profile, vec, e.least, e.count)
+			fr.sum.add(rk.space, profile, e.least, e.count)
 			fr.w = fr.w || e.w
 		}
 		if !rk.skips("lost:select", "items", fr.i, len(s.items)) {
-			fr.vals = append(fr.vals, edgeVal{it: c, e: e, vec: vec, profile: profile})
+			fr.vals = append(fr.vals, edgeVal{it: c, e: e, profile: profile})
 		}
 	}
 	var cands []*cand
 	for _, v := range fr.vals {
-		if (rk.elisions || rk.profiles) && compareScore(v.profile, v.vec, fr.sum.profile, fr.sum.vec) != 0 {
+		if rk.profiles && rk.space.compare(v.profile, fr.sum.profile) != 0 {
 			continue
 		}
 		c := v.it
@@ -1104,7 +1117,7 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 	}
 	var e *entry
 	if fr.sum.total > 0 {
-		e = &entry{cands: rk.merge(cands), count: fr.sum.total, profile: fr.sum.profile, vec: fr.sum.vec, least: fr.sum.least, w: fr.w}
+		e = &entry{cands: rk.merge(cands), count: fr.sum.total, profile: fr.sum.profile, least: fr.sum.least, w: fr.w}
 	}
 	fr.slot.state, fr.slot.e = 2, e
 	return nil, e
@@ -1168,7 +1181,7 @@ func (rk *ranker) prepare(top []*symNode) {
 // reading, m, which is the chosen derivation unless the verdict is a tie,
 // and for a tie the second reading, t, and the witness (engine §6).
 type rankResult struct {
-	profile ruleProfile
+	profile profile
 	verdict string
 	first   *dn
 	second  *dn // nil unless the verdict is a tie
@@ -1201,11 +1214,7 @@ func (rk *ranker) rank(top []*symNode) *rankResult {
 }
 func (rk *ranker) rankOriginal(top []*symNode) *rankResult {
 	rk.prepare(top)
-	type rootVal struct {
-		e   *entry
-		vec *elSeq
-	}
-	var vals []rootVal
+	var vals []*entry
 	var root summary
 	counted := false
 	for _, s := range top {
@@ -1213,29 +1222,35 @@ func (rk *ranker) rankOriginal(top []*symNode) *rankResult {
 		if e == nil || e.count == 0 {
 			continue
 		}
-		root.add(e.profile, e.vec, e.least, e.count)
+		root.add(rk.space, e.profile, e.least, e.count)
 		counted = counted || e.w
-		vals = append(vals, rootVal{e: e, vec: e.vec})
+		vals = append(vals, e)
 	}
 	if root.total == 0 {
 		return nil
 	}
 	var cands []*cand
-	for _, v := range vals {
-		if (rk.elisions || rk.profiles) && compareScore(v.e.profile, v.vec, root.profile, root.vec) != 0 {
+	for _, e := range vals {
+		if rk.profiles && rk.space.compare(e.profile, root.profile) != 0 {
 			continue
 		}
-		cands = append(cands, v.e.cands...)
+		cands = append(cands, e.cands...)
 	}
 	m := rk.finish(rk.merge(cands))
-	if rk.elisions && (root.least >= 2) != (len(m.tied.ds) > 0) {
-		panic("gencmu: the least count of late-elision disagrees with its forest")
-	}
+
 	res := &rankResult{profile: root.profile, first: m.d, witnessCounted: rk.marks != nil && counted}
+	// Without a lean, the count of the best derivations decides; with one,
+	// the lean decides among them (engine §6).
+	counts := rk.profiles && rk.lean == ""
+	// Without a lean, the forest holds a second best derivation exactly
+	// when the best count is two (engine §6).
+	if counts && (root.least == 2) != (len(m.tied.ds) > 0) {
+		panic("gencmu: the best count disagrees with its forest")
+	}
 	switch {
 	case root.total == 1:
 		res.verdict = VerdictUnique
-	case rk.elisions && root.least < 2, !rk.elisions && len(m.tied.ds) == 0:
+	case counts && root.least < 2, !counts && len(m.tied.ds) == 0:
 		res.verdict = VerdictResolved
 	default:
 		res.verdict = VerdictTie
@@ -1244,9 +1259,9 @@ func (rk *ranker) rankOriginal(top []*symNode) *rankResult {
 		return res
 	}
 	if len(m.tied.ds) == 0 {
-		// Under late-elision, the forest of the best derivations holds a
-		// second one exactly when the least count is two.
-		panic("gencmu: the least count of late-elision disagrees with its forest")
+		// Without a lean, the forest of the best derivations holds a
+		// second one exactly when the best count is two.
+		panic("gencmu: the best count disagrees with its forest")
 	}
 	res.second = m.tied.ds[0]
 	r := rk.compare(m.d, res.second)
@@ -1259,35 +1274,36 @@ func (rk *ranker) rankOriginal(top []*symNode) *rankResult {
 }
 
 // summary sums the derivations of the edges of one item, constituent or
-// root in one context (engine §6). It retains their total and best rule
-// profile, with an elision vector under late-elision, and both counts up to 2.
+// root in one context (engine §6): their total, and under profiles the
+// greatest profile and the number of derivations that attain it, each up
+// to 2.
 type summary struct {
-	profile ruleProfile
+	profile profile
 	total   int
-	vec     *elSeq
 	least   int
 }
 
 // add adds an edge's derivations. The total counts every edge, losing ones
-// included. The least count counts only derivations at the best score.
-// Without flags or late-elision, the least count equals the total.
-func (s *summary) add(profile ruleProfile, vec *elSeq, least, total int) {
+// included; the least count counts only those that attain the greatest
+// profile. Outside profiles every profile is zero, so least follows total.
+func (s *summary) add(space *profileSpace, p profile, least, total int) {
 	if total == 0 {
 		return
 	}
-	switch c := compareScore(profile, vec, s.profile, s.vec); {
+	switch c := space.compare(p, s.profile); {
 	case s.total == 0 || c < 0:
-		s.vec, s.least, s.profile = vec, least, profile
+		s.least, s.profile = least, p
 	case c == 0:
 		s.least = min(s.least+least, 2)
 	}
 	s.total = min(s.total+total, 2)
 }
 
-// elSeq is an elision vector (engine §6), kept as the sequence of the
-// positions of a derivation's elided terminators in text order: a leaf is
-// one elision at its position, and a pair is left followed by right. nil
-// is the empty sequence. The sequence of an edge is that of the item before
+// elSeq is the component of a profile under late(c) and early(c) (engine
+// §6), kept as the sequence of the starting positions of a derivation's
+// occurrences of c in text order: a leaf is one occurrence at its position,
+// and a pair is left followed by right. nil is the empty sequence. The
+// elision vector of late #·<_Elided> is one such sequence. The sequence of an edge is that of the item before
 // it followed by that of the child, so sequences built on one prefix share
 // it, and a comparison skips what both share.
 //
@@ -1299,15 +1315,6 @@ type elSeq struct {
 	first, last int32 // the first and the last position
 	left, right *elSeq
 	size        count
-}
-
-func (rk *ranker) leaf(at int32) *elSeq {
-	l := rk.leaves[at]
-	if l == nil {
-		l = &elSeq{first: at, last: at, size: countOne}
-		rk.leaves[at] = l
-	}
-	return l
 }
 
 func concatElisions(a, b *elSeq) *elSeq {
@@ -1422,14 +1429,199 @@ func (w *runWalk) runSize() count {
 	return w.st[len(w.st)-1].size
 }
 
-// ruleProfile stores nonempty spans with exact occurrence counts.
+// keyStep is a step of %ambiguity-resolution that compares the occurrences
+// of one category: leftmost-longest, fewest, most, late or early (engine
+// §6).
+type keyStep struct {
+	step    string
+	pattern *domPattern
+}
+
+// profileSpan is the count of the occurrences over one nonempty span.
 type profileSpan struct {
 	start, end int32
 	count      count
 }
-type ruleProfile struct {
-	spans  []profileSpan
-	fewest count
+
+// component is a profile's counts for one key step: under leftmost-longest
+// the counts over the spans, in start order and reverse end order, under
+// fewest and most their sum, and under late and early the sequence of
+// their starting positions. The zero component counts nothing.
+type component struct {
+	spans []profileSpan
+	n     count
+	seq   *elSeq
+}
+
+// profile is a derivation's counts of every category that a key step
+// names, one component per key step, in the order of the steps (engine
+// §6). nil is the profile that counts nothing.
+type profile []component
+
+func (p profile) at(i int) component {
+	if p == nil {
+		return component{}
+	}
+	return p[i]
+}
+
+// profileSpace holds the key steps of one ranking: how they count
+// occurrences, add profiles and compare them (engine §6).
+type profileSpace struct {
+	steps      []keyStep
+	answers    map[rankingNodeKey]bool
+	values     []bool
+	nodeValues bool
+	spanValues map[[2]int32]string
+	rec        *recognizer
+	// leaves holds the one sequence of a single occurrence at each position.
+	leaves map[int32]*elSeq
+}
+
+type rankingNodeKey struct {
+	step                  int
+	name, terminal, value string
+	tags                  *tagset
+}
+
+func newProfileSpace(steps []keyStep) *profileSpace {
+	sp := &profileSpace{steps: steps, answers: map[rankingNodeKey]bool{}, leaves: map[int32]*elSeq{}}
+	for _, step := range steps {
+		sp.values = append(sp.values, patternHasValue(step.pattern))
+		sp.nodeValues = sp.nodeValues || patternReadsNodeValue(step.pattern)
+	}
+	return sp
+}
+
+func (sp *profileSpace) occurrence(name, terminal, value string, tags *tagset, p, q int32) profile {
+	var out profile
+	if name != "" && sp.nodeValues {
+		if sp.spanValues == nil {
+			sp.spanValues = map[[2]int32]string{}
+		}
+		key := [2]int32{p, q}
+		var found bool
+		value, found = sp.spanValues[key]
+		if !found {
+			a, b := sp.rec.observed(p, q)
+			value = sp.rec.run.spanValue(spanVal{a: a, b: b})
+			sp.spanValues[key] = value
+		}
+	}
+	for index, step := range sp.steps {
+		key := rankingNodeKey{step: index, name: name, terminal: terminal, tags: tags}
+		if sp.values[index] {
+			key.value = value
+		}
+		match, found := sp.answers[key]
+		if !found {
+			match = localNodeMatches(step.pattern, name, terminal, value, tags)
+			sp.answers[key] = match
+		}
+		if !match {
+			continue
+		}
+		if out == nil {
+			out = make(profile, len(sp.steps))
+		}
+		switch step.step {
+		case "leftmost-longest":
+			if p < q {
+				out[index].spans = []profileSpan{{p, q, countOne}}
+			}
+		case "fewest", "most":
+			out[index].n = countOne
+		default:
+			out[index].seq = sp.leaf(p)
+		}
+	}
+	return out
+}
+
+func (sp *profileSpace) leaf(at int32) *elSeq {
+	l := sp.leaves[at]
+	if l == nil {
+		l = &elSeq{first: at, last: at, size: countOne}
+		sp.leaves[at] = l
+	}
+	return l
+}
+
+// sum adds two profiles component by component. The positions of a
+// precede those of b.
+func (sp *profileSpace) sum(a, b profile) profile {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	out := make(profile, len(sp.steps))
+	for i, step := range sp.steps {
+		switch step.step {
+		case "leftmost-longest":
+			out[i].spans = sumSpans(a[i].spans, b[i].spans)
+		case "fewest", "most":
+			out[i].n = a[i].n.add(b[i].n)
+		default:
+			out[i].seq = concatElisions(a[i].seq, b[i].seq)
+		}
+	}
+	return out
+}
+
+// compare compares two profiles step by step: the first step whose
+// comparison decides gives the order. It is negative when a is the greater
+// profile, so that its derivation wins (engine §6).
+func (sp *profileSpace) compare(a, b profile) int {
+	if a == nil && b == nil {
+		return 0
+	}
+	for i, step := range sp.steps {
+		x, y := a.at(i), b.at(i)
+		c := 0
+		switch step.step {
+		case "leftmost-longest":
+			c = compareSpans(x.spans, y.spans)
+		case "fewest":
+			c = x.n.cmp(y.n)
+		case "most":
+			c = y.n.cmp(x.n)
+		case "late":
+			c = compareElisions(x.seq, y.seq)
+		case "early":
+			c = compareElisions(y.seq, x.seq)
+		}
+		if c != 0 {
+			return c
+		}
+	}
+	return 0
+}
+
+// derivationProfile counts every completed nonempty occurrence in a chosen
+// derivation, and no elision (engine §7). It visits the closes in text
+// order, a parent before its children, so that the sequences of late and
+// early list their positions in order.
+func (sp *profileSpace) derivationProfile(g *lowered, d *dn) profile {
+	var out profile
+	stack := []*dn{d}
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if n == nil {
+			continue
+		}
+		if n.kind == dClose && !g.rules[n.prod.lhs].helper && n.start < n.end {
+			out = sp.sum(out, sp.occurrence(g.rules[n.prod.lhs].name, "", "", n.tags, n.start, n.end))
+		} else if n.kind == dRead {
+			rec := sp.rec
+			index := rec.base + int(n.tok)
+			out = sp.sum(out, sp.occurrence("", g.terminals[n.term], rec.run.toks[index].Value, rec.run.tagsets[index], n.tok, n.tok+1))
+		}
+		stack = append(stack, n.b, n.a)
+	}
+	return out
 }
 
 func spanOrder(a, b profileSpan) int {
@@ -1442,8 +1634,10 @@ func spanOrder(a, b profileSpan) int {
 	return 1
 }
 
-func compareProfiles(a, b ruleProfile) int {
-	x, y := a.spans, b.spans
+// compareSpans compares span counts in start order and reverse end order:
+// at the first differing span, the side that counts an earlier or longer
+// span, or more over one span, wins. It is negative when x wins.
+func compareSpans(x, y []profileSpan) int {
 	for i := 0; i < len(x) && i < len(y); i++ {
 		if c := spanOrder(x[i], y[i]); c != 0 {
 			return c
@@ -1458,16 +1652,16 @@ func compareProfiles(a, b ruleProfile) int {
 	if len(x) < len(y) {
 		return 1
 	}
-	return a.fewest.cmp(b.fewest)
+	return 0
 }
-func sumProfiles(a, b ruleProfile) ruleProfile {
-	count := a.fewest.add(b.fewest)
-	x, y := a.spans, b.spans
+
+// sumSpans adds span counts without expanding repeated occurrences.
+func sumSpans(x, y []profileSpan) []profileSpan {
 	if len(x) == 0 {
-		return ruleProfile{y, count}
+		return y
 	}
 	if len(y) == 0 {
-		return ruleProfile{x, count}
+		return x
 	}
 	out := make([]profileSpan, 0, len(x)+len(y))
 	i, j := 0, 0
@@ -1487,32 +1681,5 @@ func sumProfiles(a, b ruleProfile) ruleProfile {
 	}
 	out = append(out, x[i:]...)
 	out = append(out, y[j:]...)
-	return ruleProfile{out, count}
-}
-
-func compareScore(a ruleProfile, av *elSeq, b ruleProfile, bv *elSeq) int {
-	if c := compareProfiles(a, b); c != 0 {
-		return c
-	}
-	return compareElisions(av, bv)
-}
-
-func derivationProfile(g *lowered, d *dn) ruleProfile {
-	var out ruleProfile
-	stack := []*dn{d}
-	for len(stack) > 0 {
-		n := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		if n == nil {
-			continue
-		}
-		if n.kind == dClose && g.rules[n.prod.lhs].fewest && n.start < n.end {
-			out.fewest = out.fewest.add(countOne)
-		}
-		if n.kind == dClose && g.rules[n.prod.lhs].leftmostLongest && n.start < n.end {
-			out = sumProfiles(out, ruleProfile{spans: []profileSpan{{n.start, n.end, countOne}}})
-		}
-		stack = append(stack, n.a, n.b)
-	}
 	return out
 }

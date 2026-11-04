@@ -64,7 +64,7 @@ fn a_prefix_can_end_before_a_ranked_group() {
 
 #[test]
 fn synthetic_reads_cannot_hide_a_named_cycle() {
-    let grammar = "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a X [+T]\n%rule b X [+T] [+U]\n%rule c $x:r\n%conditions $x.without-elision.matches(rival)\n%rule r r T | X\n%rule rival X [+T]\n```\n";
+    let grammar = "```jbogenbau\n%stage main\n%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a X [+T]\n%rule b X [+T] [+U]\n%rule c $x:r\n%conditions $x.without-elision.matches(rival)\n%rule r r T | X\n%rule rival X [+T]\n```\n";
     let pipeline = gencmu::load_pipeline_sources([("p.md", grammar)], "p.md").unwrap();
     let token =
         gencmu::InputToken { image: None, text: "x".into(), tags: ["X".into()].into_iter().collect(), value: None };

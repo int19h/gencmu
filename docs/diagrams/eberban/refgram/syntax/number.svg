@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="377" height="94" viewBox="0 0 377 94" role="img" aria-label="Railroad diagram of the rule number">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="50.4" lengthAdjust="spacingAndGlyphs">number</text>
+<text class="label" x="80.4" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
+<path d="M10 64v16m4 -16v16M14 72h6"/>
+<path d="M20 72h20"/>
+<g class="terminal"><rect x="40" y="60" width="33" height="24" rx="12"/><text x="56.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">TI</text></g>
+<path d="M73 72h10"/>
+<g class="terminal"><rect x="83" y="60" width="33" height="24" rx="12"/><text x="99.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">JU</text></g>
+<path d="M116 72H136"/>
+<path d="M20 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H116a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
+<path d="M136 72h10"/>
+<g class="rule"><rect x="146" y="60" width="109" height="24" rx="0"/><text x="200.5" y="77" textLength="92.4" lengthAdjust="spacingAndGlyphs">number-body</text></g>
+<path d="M255 72h10"/>
+<path d="M265 72h20"/>
+<g class="terminal"><rect x="285" y="60" width="33" height="24" rx="12"/><text x="301.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">JI</text></g>
+<path d="M318 72H357"/>
+<path d="M265 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H337a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
+<text class="label" x="289" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M357 72h6m0 -8v16m4 -16v16"/>
+</svg>

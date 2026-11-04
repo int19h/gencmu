@@ -60,7 +60,7 @@
 // decomposition. The .decomposed-source-text method decomposes the original
 // source text of a span with the same table.
 //
-// Result format 15 and grammar DOM format 40 follow docs/output.md.
+// Result format 15 and grammar DOM format 43 follow docs/output.md.
 // Source positions count Unicode code points, rather than UTF-8 bytes.
 // Spans and token indices count tokens of the relevant stage. Tags occur
 // once in code point order. User tags start with uppercase ASCII letters.
@@ -94,9 +94,9 @@
 //
 // # Ambiguity
 //
-// Where a text has several parses, the rule of the stage, greedy, lazy or
-// late-elision, ranks them over the packed parse forest without enumerating
-// them (engine §6). A stage takes the one best parse. Where two or more are
+// Where a text has several parses, the steps of the stage's
+// %ambiguity-resolution rank them over the packed parse forest without
+// enumerating them (engine §6). A stage takes the one best parse. Where two or more are
 // best, they are tied, and the tie is an error: the result's Error has kind
 // ErrorAmbiguous, the reason ReasonTie, and two readings. The stage's
 // Verdict is VerdictTie, with the witness, and it has no output.

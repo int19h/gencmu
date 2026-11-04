@@ -22,7 +22,8 @@ CASE: dict[str, Any] = {
     "documents": {
         "p.md": """```jbogenbau
 %stage main
-%ambiguity-resolution late-elision elision-only
+%ambiguity-resolution late #·_<_Elided>
+%elision-only
 %rule text a | b
 %rule a w! A [+T="ta"] [+U] %emits $ :: X
 %rule b A [+T="ta"] [+U] [+U]
@@ -152,11 +153,11 @@ class WitnessHook(unittest.TestCase):
             '%rule text a\n%rule a "a" [+T]',
             '%rule text (a ≻ b) ::∅\n%rule a "a" [+T]\n%rule b "a" [+T] [+U]',
         ]:
-            pipeline = gencmu.load_pipeline_sources({"p.md":'```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n'+body+'\n```'},"p.md")
+            pipeline = gencmu.load_pipeline_sources({"p.md":'```jbogenbau\n%stage main\n%ambiguity-resolution late #·_<_Elided>\n%elision-only\n'+body+'\n```'},"p.md")
             original = _stage.rank
-            def rank(forest, lean, **options):
+            def rank(forest, steps, lean, **options):
                 self.assertFalse(options.get("check",False))
-                return original(forest,lean,**options)
+                return original(forest,steps,lean,**options)
             with (
                 mock.patch.object(_witness,"walk_witness",return_value=None),
                 mock.patch.object(_stage,"rank",side_effect=rank),

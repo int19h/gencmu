@@ -1,0 +1,10 @@
+{
+  "description": "Structural comparison: unequal.",
+  "grammar": "%rule text $x:w $y:w\n%conditions $x ≇ $y\n%rule w \"a\" | \"b\"",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

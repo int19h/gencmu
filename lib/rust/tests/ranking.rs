@@ -2,7 +2,7 @@
 //! inputs, every derivation enumerated by brute force, and the verdict,
 //! first reading, second reading and witness computed straight from the
 //! definitions, compared with the library's. The rule of the ranking is
-//! `greedy`, `lazy` or `late-elision`.
+//! `greedy`, `lazy` or `late #·_<_Elided>`.
 //!
 //! `GENCMU_PROPERTY_CASES` sets how many cases to run (default 3000) and
 //! `GENCMU_PROPERTY_SEED` the first seed; a failing case prints its seed,
@@ -144,7 +144,7 @@ fn generate(rng: &mut Rng) -> (Source, Input) {
     };
     let late = lean == Lean::LateElision;
     let elision_only = lean == Lean::Greedy && rng.chance(25);
-    // Under late-elision, and now and then under another rule, a terminal
+    // Under late #·_<_Elided>, and now and then under another rule, a terminal
     // is elidable.
     let elidable = if !elision_only && (late || rng.chance(30)) { Some(rng.below(terminal_count)) } else { None };
     let sugar = elidable.is_some() || rng.chance(40);
@@ -374,21 +374,42 @@ fn item_text(item: &Item) -> String {
     }
 }
 
+/// The steps of the directive: `leftmost-longest(span)` where a rule
+/// counts as `span`, then the rule of the case.
+fn steps(source: &Source) -> Vec<String> {
+    let mut steps = Vec::new();
+    let names: Vec<_> = source
+        .leftmost_longest
+        .iter()
+        .enumerate()
+        .filter(|(_, counted)| **counted)
+        .map(|(index, _)| format!("·{}", RULES[index]))
+        .collect();
+    if !names.is_empty() {
+        steps.push(format!("leftmost-longest #({})", names.join(" ∪ ")));
+    }
+    steps.push(
+        match source.lean {
+            Lean::Lazy => "lazy",
+            Lean::LateElision => "late #·_<_Elided>",
+            _ => "greedy",
+        }
+        .into(),
+    );
+    steps
+}
+
 fn grammar_text(source: &Source) -> String {
-    let mut text = String::new();
-    text.push_str(match (source.lean, source.elision_only) {
-        (Lean::Lazy, _) => "%ambiguity-resolution lazy",
-        (Lean::LateElision, _) => "%ambiguity-resolution late-elision",
-        (_, true) => "%ambiguity-resolution greedy elision-only",
-        _ => "%ambiguity-resolution greedy",
-    });
-    text.push('\n');
+    let mut text = format!("%ambiguity-resolution {}\n", steps(source).join(", "));
+    if source.elision_only {
+        text.push_str("%elision-only\n");
+    }
     let name = |sym: &Sym| match sym {
         Sym::T(t) => TERMINALS[*t],
         Sym::N(n) => RULES[*n],
     };
     for (rule, alternatives) in source.rules.iter().enumerate() {
-        let flag = if source.leftmost_longest[rule] { "(leftmost-longest)" } else { "" };
+        let counts = "";
         if let Some(chain) = source.chains[rule] {
             let (item, separator) = (name(&chain.item), name(&chain.separator));
             let body = if chain.left {
@@ -396,7 +417,7 @@ fn grammar_text(source: &Source) -> String {
             } else {
                 format!("{{{item} ... / {separator}}}")
             };
-            text.push_str(&format!("%rule{flag} {} {body}\n", RULES[rule]));
+            text.push_str(&format!("%rule {} {body}{counts}\n", RULES[rule]));
             continue;
         }
         let bodies: Vec<String> = alternatives
@@ -412,7 +433,7 @@ fn grammar_text(source: &Source) -> String {
                 body.join(" ")
             })
             .collect();
-        text.push_str(&format!("%rule{flag} {} {}\n", RULES[rule], bodies.join(" | ")));
+        text.push_str(&format!("%rule {} {}{counts}\n", RULES[rule], bodies.join(" | ")));
     }
     text
 }
@@ -424,14 +445,14 @@ fn grammar_dom(source: &Source) -> String {
         Sym::T(t) => format!("{{\"ref\":\"{}\"}}", TERMINALS[*t]),
         Sym::N(n) => format!("{{\"ref\":\"{}\"}}", RULES[*n]),
     };
-    let first_rule_line = 3;
+    // The rules follow the directives, one line each.
+    let first_rule_line = if source.elision_only { 4 } else { 3 };
     let mut rules = Vec::new();
     for (rule, alternatives) in source.rules.iter().enumerate() {
-        let flags = if source.leftmost_longest[rule] { "[\"leftmost-longest\"]" } else { "[]" };
         if let Some(chain) = source.chains[rule] {
             let direction = if chain.left { "left" } else { "right" };
             rules.push(format!(
-                "{{\"name\":\"{}\",\"op\":\"define\",\"flags\":{flags},\"alternatives\":[{{\"guards\":[],\"expr\":{{\"repeat\":{},\"separator\":{},\"chain\":\"{direction}\"}}}}],\"conditions\":[],\"at\":[{},1]}}",
+                "{{\"name\":\"{}\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"repeat\":{},\"separator\":{},\"chain\":\"{direction}\"}}}}],\"conditions\":[],\"at\":[{},1]}}",
                 RULES[rule],
                 reference(&chain.item),
                 reference(&chain.separator),
@@ -472,20 +493,36 @@ fn grammar_dom(source: &Source) -> String {
             })
             .collect();
         rules.push(format!(
-            "{{\"name\":\"{}\",\"op\":\"define\",\"flags\":{flags},\"alternatives\":[{}],\"conditions\":[],\"at\":[{},1]}}",
+            "{{\"name\":\"{}\",\"op\":\"define\",\"alternatives\":[{}],\"conditions\":[],\"at\":[{},1]}}",
             RULES[rule],
             alternatives.join(","),
             rule + first_rule_line
         ));
     }
-    let args = match (source.lean, source.elision_only) {
-        (Lean::Lazy, _) => "\"lazy\"",
-        (Lean::LateElision, _) => "\"late-elision\"",
-        (_, true) => "\"greedy\",\"elision-only\"",
-        _ => "\"greedy\"",
-    };
-    let args = args.to_string();
-    let directives = [format!("{{\"name\":\"ambiguity-resolution\",\"args\":[{args}],\"at\":[2,1]}}")];
+    let steps: Vec<String> = steps(source)
+        .iter()
+        .map(|step| {
+            if step.starts_with("leftmost-longest") {
+                let atoms:Vec<String> = source.leftmost_longest.iter().enumerate().filter(|(_,c)|**c).map(|(index,_)| {
+                    let line = format!("%ambiguity-resolution {}",steps(source).join(", "));
+                    let prefix = line.split(&format!("·{}",RULES[index])).next().unwrap();
+                    let column = prefix.chars().count()+2;
+                    format!("{{\"name\":\"{}\",\"exact\":true,\"at\":[2,{column}]}}",RULES[index])
+                }).collect();
+                let pattern = if atoms.len()==1 {atoms[0].clone()}else{format!("{{\"union\":[{}]}}",atoms.join(","))};
+                format!("{{\"step\":\"leftmost-longest\",\"pattern\":{pattern}}}")
+            } else if step.starts_with("late ") {
+                let line = format!("%ambiguity-resolution {}", steps(source).join(", "));
+                let column = line.split("_<_Elided>").next().unwrap().chars().count() + 1;
+                format!("{{\"step\":\"late\",\"pattern\":{{\"test\":\"tags\",\"requirements\":[{{\"negated\":false,\"value\":{{\"tag\":\"_Elided\"}}}}],\"expr\":{{\"wildcard\":true,\"at\":[2,{column}]}},\"exact\":true}}}}")
+            } else {format!("{{\"step\":\"{step}\"}}")}
+        })
+        .collect();
+    let mut directives =
+        vec![format!("{{\"name\":\"ambiguity-resolution\",\"steps\":[{}],\"at\":[2,1]}}", steps.join(","))];
+    if source.elision_only {
+        directives.push("{\"name\":\"elision-only\",\"args\":[],\"at\":[3,1]}".to_string());
+    }
     format!(
         "{{\"format\":{DOM_FORMAT},\"rules\":[{}],\"directives\":[{}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}",
         rules.join(","),
@@ -998,7 +1035,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
             counts
         })
         .collect();
-    // Count spans directly from source flags, without library profile operations.
+    // Count spans directly from the generated rule groups, without library profile operations.
     let profiles = full
         .iter()
         .map(|acts| {
@@ -1152,9 +1189,9 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         .or_default() += 1;
     if grammar.lean == Lean::LateElision {
         let stat = match expected.verdict {
-            "unique" => "(stat) late-elision unique",
-            "resolved" => "(stat) late-elision resolved",
-            _ => "(stat) late-elision tie",
+            "unique" => "(stat) late #·_<_Elided> unique",
+            "resolved" => "(stat) late #·_<_Elided> resolved",
+            _ => "(stat) late #·_<_Elided> tie",
         };
         *findings.entry(stat).or_default() += 1;
     }

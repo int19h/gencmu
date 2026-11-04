@@ -1,0 +1,10 @@
+{
+  "description": "Structural comparison: rule-tag-value.",
+  "grammar": "%rule text $x:r\n%conditions $x ≅ #r<T>=\"a\"\n%rule r \"a\" :: T",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

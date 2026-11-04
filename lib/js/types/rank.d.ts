@@ -1,4 +1,4 @@
-import type { Action, Derivation, Item, Lean, Production, Rope, RopeLeaf, Token } from "./types.js";
+import type { Action, Derivation, Item, KeyStep, Lean, Production, Rope, RopeLeaf, Token } from "./types.js";
 export type Candidate = {
     seq: Rope;
     alts: Rope[];
@@ -15,7 +15,7 @@ export type Ranking = {
     first: Rope;
     second: Rope | null;
     witness: [Action | null, Action | null] | null;
-    profile: RuleProfile;
+    profile: Profile;
     /**
      * with the runtime witness marks,
      * whether the count counted W(D); null without marks
@@ -83,21 +83,23 @@ export declare function totalOrder(left: Rope, right: Rope, lean: Lean): number;
 export type TraversalContext = Set<string>;
 export declare class Ranker {
     tokens: import("./tokens.js").Token[];
+    /** @type {Profiles} */
+    space: Profiles;
     /** @type {(left: Item, right: Item) => boolean} */
     sameSpan: (left: Item, right: Item) => boolean;
-    elisions: boolean;
     profiles: boolean;
+    configured: boolean;
+    /** @type {Set<Production>} */ profileProductions: Set<Production>;
+    /** @type {any} */ interner: any;
     /** @type {number[] | null} */
     profileProject: number[] | null;
     /** @type {Lean} */
     lean: Lean;
-    /** @type {{plain: Map<Item, ProfileSummary>, contextual: Map<Item, Map<string, ProfileSummary>>}} */
+    /** @type {{plain: Map<Item, ElisionSummary>, contextual: Map<Item, Map<string, ElisionSummary>>}} */
     summaries: {
-        plain: Map<Item, ProfileSummary>;
-        contextual: Map<Item, Map<string, ProfileSummary>>;
+        plain: Map<Item, ElisionSummary>;
+        contextual: Map<Item, Map<string, ElisionSummary>>;
     };
-    /** @type {Map<number, ElisionSeq>} */
-    elisionLeaves: Map<number, ElisionSeq>;
     /** @type {Map<string, number>} */
     ruleGroups: Map<string, number>;
     /** @type {(rule: string) => number | undefined} */
@@ -137,12 +139,13 @@ export declare class Ranker {
     admission: import("./ranked-admission.js").RankedAdmission | null;
     /**
      * @param {Token[]} tokens
+     * @param {KeyStep[]} steps the key steps of the directive, in order
      * @param {Lean} lean
      * @param {number[] | null} [project] positions to find cycles over in
      *   place of the items' own, which only a fault of the check of engine
      *   §7 gives (F19)
      */
-    constructor(tokens: Token[], lean: Lean, project?: number[] | null);
+    constructor(tokens: Token[], steps: KeyStep[], lean: Lean, project?: number[] | null);
     /**
      * @param {Item} item
      * @returns {Candidate[]}
@@ -150,30 +153,24 @@ export declare class Ranker {
     candidateSummary(item: Item): Candidate[];
     /**
      * @param {Item} item
-     * @returns {ProfileSummary}
+     * @returns {ElisionSummary}
      */
-    profileSummary(item: Item): ProfileSummary;
+    profileSummary(item: Item): ElisionSummary;
     /**
      * The summaries of an item in the context that `key` names, which
      * profileSummary has already computed.
      * @param {Item} item
      * @param {string} key
-     * @returns {ProfileSummary}
+     * @returns {ElisionSummary}
      */
-    summaryAt(item: Item, key: string): ProfileSummary;
+    summaryAt(item: Item, key: string): ElisionSummary;
     /**
-     * The edges of an item that attain its best profile and elision score.
+     * The edges of an item that attain the greatest profile in its context.
      * @param {Item} item
      * @param {string} key
      * @returns {import("./types.js").Edge[]}
      */
     keptEdges(item: Item, key: string): import("./types.js").Edge[];
-    /**
-     * The one sequence of a single elision at a position.
-     * @param {number} at
-     * @returns {ElisionSeq}
-     */
-    elisionLeaf(at: number): ElisionSeq;
     /**
      * The one leaf for closing an item: every sequence that closes it shares
      * it, rather than each making its own.
@@ -267,12 +264,11 @@ export type ElisionNode = {
     left?: ElisionSeq;
     right?: ElisionSeq;
 };
-export type ProfileSummary = {
+export type ElisionSummary = {
     /**
      * null when there is no derivation
      */
-    vector: ElisionSeq | null;
-    profile: RuleProfile;
+    profile: Profile | null;
     least: number;
     total: number;
     kept: Set<number>;
@@ -304,29 +300,82 @@ export declare const internals: {
     concatElisions: typeof concatElisions;
 };
 export type SpanVector = [number, number, Count][];
-export type RuleProfile = {
-    spans: SpanVector;
-    fewest: Count;
-};
+export type Component = SpanVector | Count | ElisionSeq;
+export type Profile = Component[];
+/** @typedef {[number, number, Count][]} SpanVector */
 /**
- * Compares sparse span counts in start order and reverse end order.
- * A negative result means that the left profile wins.
- * @param {RuleProfile} left
- * @param {RuleProfile} right
- * @returns {number}
+ * One component of a profile: the counts of one key step's pattern over
+ * the spans, the sum of the counts, or the sequence of the starting
+ * positions (engine §6).
+ * @typedef {SpanVector | Count | ElisionSeq} Component
  */
-export declare function compareProfiles(left: RuleProfile, right: RuleProfile): number;
 /**
- * Adds profiles without expanding repeated occurrences.
- * @param {RuleProfile} left
- * @param {RuleProfile} right
- * @returns {RuleProfile}
+ * A derivation's counts of every pattern that a key step tests, one
+ * component per key step, in the order of the steps (engine §6).
+ * @typedef {Component[]} Profile
  */
-export declare function sumProfiles(left: RuleProfile, right: RuleProfile): RuleProfile;
 /**
- * Counts every completed flagged occurrence in a chosen derivation.
- * @param {Derivation} root
- * @returns {RuleProfile}
+ * The profiles of one ranking: how the key steps of its directive count
+ * occurrences, add profiles and compare them (engine §6).
  */
-export declare function derivationProfile(root: Derivation): RuleProfile;
+export declare class Profiles {
+    steps: KeyStep[];
+    /** @type {any} */ tokens: any;
+    /** @type {any} */ interner: any;
+    /** @type {Map<string,boolean>} */ matches: Map<string, boolean>;
+    /** @type {WeakMap<object,number>} */ tagIds: WeakMap<object, number>;
+    nextTag: number;
+    valueTests: boolean[];
+    /** @type {Map<string,string>|null} */ spanValues: Map<string, string> | null;
+    /** @type {Map<string,number>} */ tagKeys: Map<string, number>;
+    /** @type {Profile} */
+    zero: Profile;
+    /** @type {Map<number, ElisionSeq>} */
+    leaves: Map<number, ElisionSeq>;
+    /** @param {KeyStep[]} steps */
+    constructor(steps: KeyStep[]);
+    /** @param {any} node @returns {boolean} */
+    possible(node: any): boolean;
+    /** @param {any} node @param {number} p @param {number} q @returns {Profile} */
+    occurrence(node: any, p: number, q: number): Profile;
+    /**
+     * One occurrence in the component of a step. An empty span counts
+     * nothing under `leftmost-longest`.
+     * @param {number} index
+     * @param {number} p
+     * @param {number} q
+     * @returns {Component}
+     */
+    one(index: number, p: number, q: number): Component;
+    /**
+     * The one sequence of a single occurrence at a position.
+     * @param {number} at
+     * @returns {ElisionSeq}
+     */
+    leaf(at: number): ElisionSeq;
+    /**
+     * Adds profiles component by component. The positions of `left` precede
+     * those of `right`.
+     * @param {Profile} left
+     * @param {Profile} right
+     * @returns {Profile}
+     */
+    sum(left: Profile, right: Profile): Profile;
+    /**
+     * Compares two profiles step by step. A negative result means that the
+     * left profile is the greater, so the left derivation wins (engine §6).
+     * @param {Profile} left
+     * @param {Profile} right
+     * @returns {number}
+     */
+    compare(left: Profile, right: Profile): number;
+    /**
+     * Counts every completed nonempty occurrence in a chosen derivation,
+     * and no elision (engine §7).
+     * @param {Derivation} root
+     * @param {any} [tokens]
+     * @returns {Profile}
+     */
+    derivationProfile(root: Derivation, tokens?: any): Profile;
+}
 export {};

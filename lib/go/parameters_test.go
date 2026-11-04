@@ -122,11 +122,10 @@ func TestParameterPinnedPublicEdits(t *testing.T) {
 		parameterEqual(t, got, want)
 	}
 }
-func TestParameterFlags(t *testing.T) {
-	g := parameterGrammar(t, "%rule(fewest) atom(@X) @X\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"")
-	parameterEqual(t, g.byName["atom(\"a\")"].flags, []string{})
-	parameterEqual(t, g.byName["atom(\"b\")"].flags, []string{"fewest"})
-
+func TestParameterRankingSteps(t *testing.T) {
+	g := parameterGrammar(t, "%ambiguity-resolution fewest #·atom\n%rule atom(@X) @X\n%rule text atom(\"a\") atom(\"b\")\n%redefine-rule atom(\"a\") \"c\"\n%extend-rule atom(@Y) \"d\"")
+	parameterEqual(t, len(g.steps), 1)
+	parameterEqual(t, g.steps[0].pattern.Kind, "union")
 }
 func TestParameterNormalizationAndConstants(t *testing.T) {
 	g := parameterGrammar(t, "%const $A \"a\"\n%rule atom(@X) @X\n%rule text atom(\"a\") atom((\"a\")) atom($A)")
@@ -387,7 +386,7 @@ func TestParameterPatternTestOperands(t *testing.T) {
 	text := `%rule atom(@X) @X
 %rule unused(@X) @X %conditions $ ≅ #(atom("a")="a")
 %rule text "a"`
-	if _, e := casePipeline(&engineCase{Grammar: &text}, false); isGuardedCrash(e) || e == nil || !strings.Contains(e.Error(), "invalid pattern test") {
+	if _, e := casePipeline(&engineCase{Grammar: &text}, false); e != nil {
 		t.Fatalf("tested exact call: %v", e)
 	}
 }
@@ -401,7 +400,6 @@ type parameterStructureCase struct {
 	Argument      json.RawMessage
 	Order         []string
 	Instances     *int
-	Flags         map[string][]string
 }
 
 func (c *parameterStructureCase) checkExpectations(instances int, argument any) error {
@@ -507,12 +505,7 @@ func TestParameterSharedStructure(t *testing.T) {
 			if err := c.checkExpectations(len(x.instanceNames), argument); err != nil {
 				t.Fatal(err)
 			}
-			if c.Flags != nil {
-				g := parameterGrammar(t, c.Grammar)
-				for name, flags := range c.Flags {
-					parameterEqual(t, g.byName[name].flags, flags)
-				}
-			}
+
 		})
 	}
 }

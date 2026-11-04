@@ -174,6 +174,7 @@ type loader struct {
 	noCache            bool
 	diagnosticDocument string
 	recipeDocument     string
+	defaultDocument    string
 	boundaryDocument   string
 	// fromDisk is set when read decodes files, not strings the caller
 	// supplies: bytes that are not valid UTF-8 are then a grammar error of
@@ -208,6 +209,9 @@ func (l *loader) documentText(p, text string, inherited []string) (*domDoc, *Err
 		return nil, &Error{Kind: ErrorUsage, Document: p, Message: "the document is not a sequence of Unicode scalar values: " + problem}
 	}
 	names := newNamesScope(l.namesText, l.uni, inherited)
+	if p == l.defaultDocument {
+		return l.readSource(p, text, names)
+	}
 	if !l.noCache {
 		key := domCacheKey{p, fnv1a64(text), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, domFormat}
 		if raw, ok := l.preparsed[key]; ok {
@@ -240,6 +244,7 @@ func (l *loader) documentText(p, text string, inherited []string) (*domDoc, *Err
 			}
 		}
 	}
+
 	return l.readSource(p, text, names)
 }
 
@@ -310,6 +315,8 @@ func (l *loader) load(pipelinePath string) (*Pipeline, error) {
 			diagnostic.diagnosticDocument = failure.Group.Document
 		case failure.boundaryLocation && failure.Line == 0 && failure.Document != "":
 			diagnostic.boundaryDocument = failure.Document
+		case failure.defaultLocation && failure.Line == 0 && failure.Document != "":
+			diagnostic.defaultDocument = failure.Document
 		case failure.recipeCycle && failure.Line == 0 && failure.Document != "":
 			diagnostic.recipeDocument = failure.Document
 		default:
@@ -321,7 +328,8 @@ func (l *loader) load(pipelinePath string) (*Pipeline, error) {
 }
 
 func (l *loader) loadMode(pipelinePath string) (*Pipeline, error) {
-	p, perr := l.splice(pipelinePath)
+	texts := map[string]string{}
+	p, perr := l.splice(pipelinePath, texts)
 	if perr != nil {
 		return nil, perr
 	}
@@ -337,13 +345,60 @@ func (l *loader) loadMode(pipelinePath string) (*Pipeline, error) {
 	if err != nil {
 		return nil, err
 	}
+	for index, stage := range p.stages {
+		if !stages[index].treeComparisons {
+			continue
+		}
+		if pipeline.treeRecovery == nil {
+			pipeline.treeRecovery = map[int]func(*lowered, map[string]bool) *lowered{}
+		}
+		pipeline.treeRecovery[index] = func(original *lowered, features map[string]bool) *lowered {
+			failure := original.faultLocation
+			if failure == nil || !failure.treeLocation || l.reader == nil {
+				return original
+			}
+			documents := append([]docDOM(nil), stage.documents...)
+			located := false
+			for i, document := range documents {
+				if document.path != failure.Document {
+					continue
+				}
+				cached, err := decodeDOM(document.dom.json(), l.uni)
+				if err != nil {
+					continue
+				}
+				var inherited []string
+				for path := range document.dom.namesDependencies {
+					inherited = append(inherited, path)
+				}
+				source, sourceErr := l.reader.readMode(texts[document.path], document.path, true, newNamesScope(l.namesText, l.uni, inherited))
+				if sourceErr != nil {
+					continue
+				}
+				cached.namesDependencies = document.dom.namesDependencies
+				restoreTreeLocations(cached, source)
+				documents[i].dom = cached
+				located = true
+			}
+			if located {
+				grammar, err := stitch(stage.name, documents, l.uni)
+				if err == nil {
+					candidate := lower(grammar, features)
+					if candidate.faultLocation != nil && !candidate.faultLocation.treeLocation {
+						return candidate
+					}
+				}
+			}
+			return original
+		}
+	}
 	return pipeline, nil
 }
 
 // splice splices the pipeline document at pipelinePath: its stages, each
 // a list of runs of one document's items, and the features it turns on
 // (engine §13). The DOM cache keys each path with its inherited names.
-func (l *loader) splice(pipelinePath string) (*splicedPipeline, *Error) {
+func (l *loader) splice(pipelinePath string, texts ...map[string]string) (*splicedPipeline, *Error) {
 	doms := map[string]*domDoc{}
 	return splicePipelineWithNames(pipelinePath, func(p string, names []string) (*domDoc, *Error) {
 		encoded, _ := json.Marshal(names)
@@ -354,6 +409,9 @@ func (l *loader) splice(pipelinePath string) (*splicedPipeline, *Error) {
 		text, ok, err := l.read(p)
 		if err != nil || !ok {
 			return nil, err
+		}
+		if len(texts) > 0 {
+			texts[0][p] = text
 		}
 		dom, err := l.documentText(p, text, names)
 		if err != nil {
@@ -370,7 +428,8 @@ func newPipeline(stages []*stageGrammar, declared []string, uni *unicodeTable) (
 	if err != nil {
 		return nil, err
 	}
-	return &Pipeline{uni: uni, stages: stages, declared: declared, features: features}, nil
+	pipeline := &Pipeline{uni: uni, stages: stages, declared: declared, features: features}
+	return pipeline, nil
 }
 
 // pipelineFeatures lists names from guards and pipeline or stage-local
@@ -692,7 +751,8 @@ type Pipeline struct {
 	lowered []*recent[lowerKey, *lowerEntry]
 	// memoLimit is the bound of the shared memos that the library's own
 	// tests set, 0 where they set none (memo.go).
-	memoLimit atomic.Int64
+	memoLimit    atomic.Int64
+	treeRecovery map[int]func(*lowered, map[string]bool) *lowered
 }
 
 type lowerKey struct {
@@ -756,7 +816,12 @@ func (d *Pipeline) lower(stage int, features map[string]bool) *lowered {
 	d.mu.Unlock()
 	// The first parse that needs it lowers it, outside the lock. So it does
 	// not hold up the parses that need other ones.
-	e.once.Do(func() { e.l = lower(g, on) })
+	e.once.Do(func() {
+		e.l = lower(g, on)
+		if recover := d.treeRecovery[stage]; recover != nil {
+			e.l = recover(e.l, on)
+		}
+	})
 	return e.l
 }
 

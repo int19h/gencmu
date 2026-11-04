@@ -16,7 +16,7 @@ def pattern_parts(node):
         if key in node:
             return node[key]
     if 'test' in node:
-        return [node['expr']]
+        return [node['expr']] if 'expr' in node else []
     if 'path' in node:
         return [node['pattern']]
     if 'child' in node:
@@ -108,18 +108,36 @@ def leaf_test(node: Dom, value: str, tags: frozenset[str]) -> bool:
     return (value == node["value"]["string"]) == (node["test"] == "=")
 
 
-def terminal_predicate(node: Dom, leaf) -> bool:
-    while "test" in node:
-        if not leaf_test(node, leaf[1], leaf[2]):
-            return False
-        node = node["expr"]
-    return leaf[0] == node["terminal"]
+def local_node_matches(node, name, tags, leaf=None, value=None):
+    if value is None and leaf is not None: value = leaf[1]
+    if "union" in node:
+        return any(local_node_matches(p, name, tags, leaf, value) for p in node["union"])
+    if "intersection" in node:
+        return all(local_node_matches(p, name, tags, leaf, value) for p in node["intersection"])
+    if "difference" in node:
+        return local_node_matches(node["difference"][0], name, tags, leaf, value) and not local_node_matches(node["difference"][1], name, tags, leaf, value)
+    if "test" in node:
+        return local_node_matches(node["expr"], name, tags, leaf, value) and (leaf_test(node, "", tags) if node["test"] == "tags" else value is not None and leaf_test(node, value, tags))
+    if "name" in node:
+        return node["name"] == name
+    if "terminal" in node:
+        return leaf is not None and (node["terminal"] == "_" or node["terminal"] == leaf[0])
+    return bool(node.get("any") and (name is not None or leaf is not None))
+
+
+def reads_node_tags(node):
+    return bool(node.get("test") == "tags" and ("name" in node.get("expr", {}) or "call" in node.get("expr", {}))) or any(reads_node_tags(p) for p in pattern_parts(node))
 
 
 class PatternMachine:
     """A finite product of node predicates and child-sequence automata."""
 
     def __init__(self, roots: list[Dom]) -> None:
+        self.node_tags = any(map(reads_node_tags, roots))
+        def reads_value(node):
+            expr = node.get("expr", {})
+            return node.get("test") in ("=", "≠") and ("name" in expr or "name" in expr.get("expr", {})) or any(map(reads_value, pattern_parts(node)))
+        self.node_values = any(map(reads_value, roots))
         self.predicates: list[Dom] = []
         self.machines: list[Dom] = []
         self.ids: dict[tuple[Any, ...], int] = {}
@@ -268,8 +286,8 @@ class PatternMachine:
     def sealed(self) -> int:
         return self.seal
 
-    def node(self, name: str | None, children: int, leaf: tuple[str, str, frozenset[str]] | None = None) -> int:
-        key = ("node", name, children, leaf)
+    def node(self, name: str | None, children: int, leaf: tuple[str, str, frozenset[str]] | None = None, tags=frozenset(), value=None) -> int:
+        key = ("node", name, children, leaf, tags, value)
         old = self.transitions.get(key)
         if old is not None:
             return old
@@ -281,9 +299,9 @@ class PatternMachine:
             if "name" in p:
                 holds = name == p["name"]
             elif "terminal" in p:
-                holds = leaf is not None and leaf[0] == p["terminal"]
+                holds = leaf is not None and (p["terminal"] == "_" or leaf[0] == p["terminal"])
             elif "test" in p:
-                holds = leaf is not None and terminal_predicate(p, leaf)
+                holds = local_node_matches(p, name, leaf[2] if leaf else tags, leaf, value)
             elif "any" in p or "children" in p:
                 holds = (name is not None or leaf is not None) if "any" in p else True
             elif "path" in p:
@@ -319,8 +337,12 @@ def observation_machine(lowered: Any) -> PatternMachine | None:
     for production in lowered.productions:
         if production.ranked is not None:
             pending.extend(production.slot.source.conditions)
-        if production.contextual:
+        if production.contextual and production.slot is not None:
             pending.extend((production.slot.source.tags,production.slot.source.rule_tags))
+        # An item condition runs in the frames of its braces' helper, which
+        # the recognizer binds after this scan (engine §4).
+        if production.items is not None:
+            pending.append(production.items.conditions)
         pending.extend(production.conds_predict)
         for conditions in production.conds_at.values():
             pending.extend(conditions)
@@ -336,7 +358,7 @@ def observation_machine(lowered: Any) -> PatternMachine | None:
         if isinstance(node, (list, tuple)):
             pending.extend(node)
         elif node.get("op") in ("≅", "≇"):
-            roots.append(node["right"]["pattern"])
+            if "pattern" in node["right"]: roots.append(node["right"]["pattern"])
         else:
             pending.extend(node.values())
     lowered._pattern_roots = roots

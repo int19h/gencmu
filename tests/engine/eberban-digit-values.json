@@ -1,0 +1,66 @@
+{
+  "description": "In the eberban/refgram pipeline, each digit has its TI word as value and the digit as image.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "0123456789",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "ti",
+              "image": "0"
+            },
+            {
+              "value": "te",
+              "image": "1"
+            },
+            {
+              "value": "ta",
+              "image": "2"
+            },
+            {
+              "value": "to",
+              "image": "3"
+            },
+            {
+              "value": "tu",
+              "image": "4"
+            },
+            {
+              "value": "tie",
+              "image": "5"
+            },
+            {
+              "value": "tia",
+              "image": "6"
+            },
+            {
+              "value": "tio",
+              "image": "7"
+            },
+            {
+              "value": "tiu",
+              "image": "8"
+            },
+            {
+              "value": "tei",
+              "image": "9"
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": []
+  }
+}

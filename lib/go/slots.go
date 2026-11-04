@@ -97,6 +97,10 @@ func newSlotAdmission(rk *ranker) *slotAdmission {
 			if before == nil {
 				copy := *it
 				copy.dot = 0
+				if rk.rec.trees != nil {
+					copy.tree = nil
+					rk.rec.finishTree(&copy.itemKey)
+				}
 				if rk.rec.boundaries != nil {
 					copy.boundary = rk.rec.boundaries.empty
 				}

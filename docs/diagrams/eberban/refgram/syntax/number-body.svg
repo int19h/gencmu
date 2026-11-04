@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="627" height="278" viewBox="0 0 627 278" role="img" aria-label="Railroad diagram of the rule number-body">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="92.4" lengthAdjust="spacingAndGlyphs">number-body</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<g class="rule"><rect x="40" y="44" width="67" height="24" rx="0"/><text x="73.5" y="61" textLength="50.4" lengthAdjust="spacingAndGlyphs">digits</text></g>
+<path d="M107 56h10"/>
+<path d="M117 56h20"/>
+<g class="terminal"><rect x="137" y="44" width="33" height="24" rx="12"/><text x="153.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">JE</text></g>
+<path d="M170 56h10"/>
+<g class="rule"><rect x="180" y="44" width="67" height="24" rx="0"/><text x="213.5" y="61" textLength="50.4" lengthAdjust="spacingAndGlyphs">digits</text></g>
+<path d="M247 56H267"/>
+<path d="M117 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H247a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M267 56H607"/>
+<path d="M20 56a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="88" width="67" height="24" rx="0"/><text x="73.5" y="105" textLength="50.4" lengthAdjust="spacingAndGlyphs">digits</text></g>
+<path d="M107 100h10"/>
+<g class="terminal"><rect x="117" y="88" width="33" height="24" rx="12"/><text x="133.5" y="105" textLength="16.8" lengthAdjust="spacingAndGlyphs">JO</text></g>
+<path d="M150 100h10"/>
+<path d="M160 100h20"/>
+<g class="rule"><rect x="180" y="88" width="67" height="24" rx="0"/><text x="213.5" y="105" textLength="50.4" lengthAdjust="spacingAndGlyphs">digits</text></g>
+<path d="M247 100H267"/>
+<path d="M160 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H247a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M267 100h10"/>
+<path d="M277 100h20"/>
+<g class="terminal"><rect x="297" y="88" width="33" height="24" rx="12"/><text x="313.5" y="105" textLength="16.8" lengthAdjust="spacingAndGlyphs">JA</text></g>
+<path d="M330 100h10"/>
+<g class="rule"><rect x="340" y="88" width="67" height="24" rx="0"/><text x="373.5" y="105" textLength="50.4" lengthAdjust="spacingAndGlyphs">digits</text></g>
+<path d="M407 100H427"/>
+<path d="M277 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H407a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M427 100h10"/>
+<path d="M437 100h20"/>
+<g class="terminal"><rect x="457" y="88" width="33" height="24" rx="12"/><text x="473.5" y="105" textLength="16.8" lengthAdjust="spacingAndGlyphs">JE</text></g>
+<path d="M490 100h10"/>
+<g class="rule"><rect x="500" y="88" width="67" height="24" rx="0"/><text x="533.5" y="105" textLength="50.4" lengthAdjust="spacingAndGlyphs">digits</text></g>
+<path d="M567 100H587"/>
+<path d="M437 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H567a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M587 100H587a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M20 56a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="132" width="33" height="24" rx="12"/><text x="56.5" y="149" textLength="16.8" lengthAdjust="spacingAndGlyphs">JO</text></g>
+<path d="M73 144h10"/>
+<g class="rule"><rect x="83" y="132" width="67" height="24" rx="0"/><text x="116.5" y="149" textLength="50.4" lengthAdjust="spacingAndGlyphs">digits</text></g>
+<path d="M150 144h10"/>
+<path d="M160 144h20"/>
+<g class="terminal"><rect x="180" y="132" width="33" height="24" rx="12"/><text x="196.5" y="149" textLength="16.8" lengthAdjust="spacingAndGlyphs">JA</text></g>
+<path d="M213 144h10"/>
+<g class="rule"><rect x="223" y="132" width="67" height="24" rx="0"/><text x="256.5" y="149" textLength="50.4" lengthAdjust="spacingAndGlyphs">digits</text></g>
+<path d="M290 144H310"/>
+<path d="M160 144a10 10 0 0 0 10 -10V132a10 10 0 0 1 10 -10H290a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<path d="M310 144h10"/>
+<path d="M320 144h20"/>
+<g class="terminal"><rect x="340" y="132" width="33" height="24" rx="12"/><text x="356.5" y="149" textLength="16.8" lengthAdjust="spacingAndGlyphs">JE</text></g>
+<path d="M373 144h10"/>
+<g class="rule"><rect x="383" y="132" width="67" height="24" rx="0"/><text x="416.5" y="149" textLength="50.4" lengthAdjust="spacingAndGlyphs">digits</text></g>
+<path d="M450 144H470"/>
+<path d="M320 144a10 10 0 0 0 10 -10V132a10 10 0 0 1 10 -10H450a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<path d="M470 144H587a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M20 56a10 10 0 0 1 10 10V178a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="176" width="33" height="24" rx="12"/><text x="56.5" y="193" textLength="16.8" lengthAdjust="spacingAndGlyphs">JO</text></g>
+<path d="M73 188h10"/>
+<g class="terminal"><rect x="83" y="176" width="33" height="24" rx="12"/><text x="99.5" y="193" textLength="16.8" lengthAdjust="spacingAndGlyphs">JA</text></g>
+<path d="M116 188h10"/>
+<g class="rule"><rect x="126" y="176" width="67" height="24" rx="0"/><text x="159.5" y="193" textLength="50.4" lengthAdjust="spacingAndGlyphs">digits</text></g>
+<path d="M193 188h10"/>
+<path d="M203 188h20"/>
+<g class="terminal"><rect x="223" y="176" width="33" height="24" rx="12"/><text x="239.5" y="193" textLength="16.8" lengthAdjust="spacingAndGlyphs">JE</text></g>
+<path d="M256 188h10"/>
+<g class="rule"><rect x="266" y="176" width="67" height="24" rx="0"/><text x="299.5" y="193" textLength="50.4" lengthAdjust="spacingAndGlyphs">digits</text></g>
+<path d="M333 188H353"/>
+<path d="M203 188a10 10 0 0 0 10 -10V176a10 10 0 0 1 10 -10H333a10 10 0 0 1 10 10V178a10 10 0 0 0 10 10"/>
+<path d="M353 188H587a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M20 56a10 10 0 0 1 10 10V212a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="210" width="33" height="24" rx="12"/><text x="56.5" y="227" textLength="16.8" lengthAdjust="spacingAndGlyphs">JO</text></g>
+<path d="M73 222h10"/>
+<g class="terminal"><rect x="83" y="210" width="33" height="24" rx="12"/><text x="99.5" y="227" textLength="16.8" lengthAdjust="spacingAndGlyphs">JE</text></g>
+<path d="M116 222h10"/>
+<g class="rule"><rect x="126" y="210" width="67" height="24" rx="0"/><text x="159.5" y="227" textLength="50.4" lengthAdjust="spacingAndGlyphs">digits</text></g>
+<path d="M193 222H587a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M20 56a10 10 0 0 1 10 10V246a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="244" width="33" height="24" rx="12"/><text x="56.5" y="261" textLength="16.8" lengthAdjust="spacingAndGlyphs">JE</text></g>
+<path d="M73 256h10"/>
+<g class="rule"><rect x="83" y="244" width="67" height="24" rx="0"/><text x="116.5" y="261" textLength="50.4" lengthAdjust="spacingAndGlyphs">digits</text></g>
+<path d="M150 256H587a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M607 56h6m0 -8v16m4 -16v16"/>
+</svg>

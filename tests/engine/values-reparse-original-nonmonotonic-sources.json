@@ -1,7 +1,7 @@
 {
   "description": "Caller tokens retain out-of-order empty sources through two identity stages. Restored observations read original Z rather than synthetic T (engine §§1, 7, 12).",
   "documents": {
-    "p.md": "```jbogenbau\n%stage letters\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item X | Y | Z %emits $\n%stage triples\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item X | Y | Z %emits $\n%stage main\n%ambiguity-resolution late-elision elision-only\n%rule text X Y a | X Y b | X Y c\n%rule a [+T] Z %conditions $.source-text = \"\", Z ⊆ $.first-token.tags\n%rule b [+T] [+T] Z\n%rule c T Z\n```\n"
+    "p.md": "```jbogenbau\n%stage letters\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item X | Y | Z %emits $\n%stage triples\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item X | Y | Z %emits $\n%stage main\n%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text X Y a | X Y b | X Y c\n%rule a [+T] Z %conditions $.source-text = \"\", Z ⊆ $.first-token.tags\n%rule b [+T] [+T] Z\n%rule c T Z\n```\n"
   },
   "pipelineDocument": "p.md",
   "input": "a",

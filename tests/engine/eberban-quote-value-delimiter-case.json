@@ -1,0 +1,30 @@
+{
+  "description": "In the eberban/refgram pipeline, the delimiter of a foreign quote is an Eberban word, so the value spells it as its word value.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "co Zao[x]ZAO",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "co zao[x]zao",
+              "image": "co Zao[x]ZAO"
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": []
+  }
+}

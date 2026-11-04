@@ -1,0 +1,15 @@
+{
+  "description": "A key step resolves a pattern constant (engine §6 and §9.3).",
+  "grammar": "%const $OMITTED #·_<_Elided>\n%ambiguity-resolution late $OMITTED\n%rule text [[+JI]]",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ]
+    }
+  }
+}

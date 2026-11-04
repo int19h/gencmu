@@ -1,6 +1,6 @@
 {
   "description": "A literal terminal cannot read a synthetic terminator (engine §4).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text \"a\" [+T=\"t\"] | \"a\" \"t\"",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text \"a\" [+T=\"t\"] | \"a\" \"t\"",
   "input": "a",
   "expect": {
     "result": {

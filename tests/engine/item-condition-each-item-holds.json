@@ -1,0 +1,30 @@
+{
+  "description": "An item condition that holds of every item lets the list complete, and the flat list leaves its items as children of the rule (engine §3.5, §4).",
+  "grammar": "%rule text {$c:A}\n%conditions $c.value ≠ \"x\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(a b)"
+  }
+}

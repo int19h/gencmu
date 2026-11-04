@@ -348,8 +348,22 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                 let mut caps = Vec::new();
                 match (&chosen.nodes[child as usize].kind, production.syms[position]) {
                     (IKind::Read { tok, terminal }, Sym::T(symbol)) if *terminal == symbol => {
-                        let structure =
-                            forest.chart.terminal_states.get(&(from, symbol, false)).copied().unwrap_or(u32::MAX);
+                        let structure = forest
+                            .chart
+                            .terminal_states
+                            .get(&(
+                                from,
+                                symbol,
+                                false,
+                                !g.tree_demands.is_empty()
+                                    && crate::tree_identity::terminal_demand(
+                                        g,
+                                        item,
+                                        forest.chart.lexical_frame(item.lexical),
+                                    ),
+                            ))
+                            .copied()
+                            .unwrap_or(u32::MAX);
                         let token = &forest.tokens[forest.original_at[*tok as usize] as usize];
                         let tags = token.tags;
                         let boundary = forest
@@ -357,7 +371,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                             .boundaries
                             .as_ref()
                             .map_or(0, |m| m.borrow_mut().leaf(&g.terminals[symbol as usize], false));
-                        caps.push(Cap { boundary, close_requested: false, start: from, end: to, tags, structure });
+                        caps.push(Cap { boundary, close_requested: 0, start: from, end: to, tags, structure });
                     }
                     (IKind::Close { .. }, Sym::N(_)) => {
                         for &i in &found[child as usize] {

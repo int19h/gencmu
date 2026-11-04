@@ -1,0 +1,10 @@
+{
+  "description": "An emission tag clause can test its root tags (engine §9.3).",
+  "grammar": "%rule text \"a\" :: T\n%emits $ :: ($ ≅ #·text<T> ⟹ U)",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
