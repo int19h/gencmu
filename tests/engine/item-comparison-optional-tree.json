@@ -1,0 +1,10 @@
+{
+  "description": "An item structural comparison retains the outer identity through optional and recursive brace helpers.",
+  "grammar": "%rule text $v:w [{$c:w \"r\"}] w\n%conditions $v ≅ $c\n%rule w \"a\" | \"b\"",
+  "input": "aararb",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

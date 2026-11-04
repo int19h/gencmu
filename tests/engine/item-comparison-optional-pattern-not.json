@@ -1,0 +1,10 @@
+{
+  "description": "An item pattern comparison in optional flat braces tests every item beside an active structural comparison.",
+  "grammar": "%rule text $x:word $y:word [{$c:chain-inner \"r\"}] chain-inner\n%conditions $x ≅ $y ∧ $c ≇ #(⋱ chain-inner« bi-free chain »)\n%rule chain-inner bi-free chain | step\n%rule bi-free \"b\"\n%rule chain step\n%rule step \"a\"\n%rule word \"a\"",
+  "input": "aaarara",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
