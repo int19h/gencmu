@@ -431,9 +431,9 @@ A verb is a definable word with its namespace, or an inline assignment with `bo`
 
 ### Quotes
 
-The [quotes chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/quotes.html) gives four quotes. `ca` quotes a grammatical text up to `cai`. The text can be empty. `ci` quotes one word: a particle, a root, a compound or a borrowing. A spelling quote and a foreign quote are words of their own, so `ci` does not quote them. A digit is a particle, so `ci` quotes it.
+The [quotes chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/quotes.html) gives four quotes. `ca` quotes a grammatical text up to `cai`. The text can be empty. `ci` quotes one actual word: a particle, a root, a compound or a borrowing. A spelling quote and a foreign quote are each one quote unit, not a word, so `ci` does not quote them. A digit is a particle, so `ci` quotes it.
 
-`ce` spells a text up to `cei`, which the forms stage reads as one word. `co` quotes foreign text, which the forms stage also reads as one word, and `coi` stands for a quote whose content the speaker cannot read.
+`ce` spells a text up to `cei`, which the forms stage reads as one unit. `co` quotes foreign text, which the forms stage also reads as one unit, and `coi` stands for a quote whose content the speaker cannot read.
 
 The chapter does not say that `cai` can be left out. The PEG lets the speaker leave it out where the quoted text can end, and this grammar follows the PEG.
 
@@ -582,14 +582,15 @@ The [annotations chapter](https://eberban.github.io/eberban/books/refgram/book/g
 
 ## Differences from the reference grammar and the PEG
 
-The dictionary says that `pa` resumes the bindings of "a matching verb", and the book does not describe `pa`. Only the PEG defines the match. Its `same_structure` compares the trees of the two verbs, with their free prefixes and suffixes. This grammar follows that model with the tree comparison `$v ≅ $e`. So `a mi di duna meon pa duna vo mo` and `a mi to jie meon pa to vo mo` are no texts, as in the PEG. The match departs from the PEG in two places, because a word compares by its canonical value.
+The dictionary says that `pa` resumes the bindings of "a matching verb", and the book does not describe `pa`. Only the PEG defines the match. Its `same_structure` compares the trees of the two verbs, with their free prefixes and suffixes. This grammar follows that model with the tree comparison `$v ≅ $e`. So `a mi di duna meon pa duna vo mo` and `a mi to jie meon pa to vo mo` are no texts, as in the PEG. The match departs from the PEG in three places. In the first two, a word compares by its canonical value. In the third, the PEG drops a part of the verb from its tree.
 
 - A nested compound matches its other spelling, as `pa e e ber ban ban` after `ei ber ban ban`. Both spellings have one value here, and the PEG fails to resume. [The word forms](morphology.md#differences-from-the-reference-grammar-and-the-peg) explain the choice.
 - A digit matches its spelled `TI` word, so `a mi 3 meon pa to vo mo` is a text here. The PEG's digit node holds a `symbol` field where a spelled particle holds a `word`, so the two spellings differ there. The numbers chapter makes each digit the same particle as its word.
+- A free prefix before an `NI` starter stays in the tree here. So `a ca di nu ga cai meon pa ca nu ga cai vo mo` has no parse here, while the control with `di` in both quotes is a text in both parsers. The PEG's `NI_Free` reads the free prefixes and then drops them from its tree, so the two verbs match there. This grammar keeps the annotation, so the verbs differ.
 
 The numbers chapter says that a `JI` other than `jie` must follow a positive integer, with no fractional part. Whether a number is a positive integer depends on its value, as `to jei ti` shows. The grammar tests no values, so it accepts any `JI` after any number, as the PEG does. So `a to jo te ji mian` is a text here. This departs from the book's usage rule, not from the PEG.
 
-The PEG's `ci` reads a native word, a compound or a borrowing, so it reads no digit. A digit is a particle here, so `a ci 1 mian` is a text here and not in the PEG. The PEG's `ci` reads `co` as a particle and its brackets as spaces. A quote is one word here, so `a ci co [x] mian` is a text in the PEG and not here.
+The PEG's `ci` reads a native word, a compound or a borrowing, so it reads no digit. A digit is a particle here, so `a ci 1 mian` is a text here and not in the PEG. The PEG's `ci` reads `co` as a particle and its brackets as spaces. A quote is one quote unit here, and `ci` quotes only words. So `a ci co [x] mian` is a text in the PEG and not here.
 
 If no starter, paragraph mark or end of the whole text follows an erasure, the PEG queues its message about the starter. It applies that rule inside a quote or a parenthesis too. A later `ra` that erases ungrammatical text discards the message. So erased text can follow an erasure in the PEG, as it can here. This grammar also accepts the end of an enclosing quote or parenthesis after an erasure. So `a mi da a mo ra dai` is a text here and not in the PEG.
 
@@ -607,4 +608,4 @@ The PEG reads no `bu` after a prefix-form enumeration whose `pei` is left out. S
 
 The PEG reads `ra` only after a space character, so a text that starts with `ra` fails there. This grammar counts the start of a text as a pause, so `ra a mo` is a text here.
 
-The PEG warns about a `cai` left out after a quote of several sentences. It counts erased text after an erasure as a sentence, because its tree gives that text no eraser field. This grammar counts only sentences that are not erased. So the PEG warns about `a mi pe ca a mo ra ke ra a ke bu ke` and this grammar does not.
+The PEG warns about a `cai` left out after a quote of several sentences. Its paragraph rule stores the erased sentence in a sequence, and the warning reads the field `eraser` on that sequence. The sentence inside the sequence has that field, but the sequence has none. So the PEG counts the erased sentence. This grammar counts only sentences that are not erased. So the PEG warns about `a mi pe ca a mo ra ke ra a ke bu ke` and this grammar does not.

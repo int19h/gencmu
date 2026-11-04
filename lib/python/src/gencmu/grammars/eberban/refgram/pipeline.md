@@ -36,7 +36,7 @@ The stage reads the characters of the text. It hands the forms stage one token p
   %include "morphology.md"
   ```
 
-The stage divides the letters into words and tags each word with its family. A compound, a spelling quote and a foreign quote are each one word. The stage hands on one space token for each gap and drops hesitation.
+The stage divides the letters into words and quotes and tags each token with its family. A compound is one word unit, and a spelling quote and a foreign quote are each one quote unit. The stage hands on one space token for each gap and drops hesitation.
 
 ## Stage 3: words
 
@@ -79,4 +79,4 @@ This pipeline reports only that a text has no parse and where the parse stops. I
 
 The sentences chapter says that a `ra` inside a foreign quote erases an ungrammatical sentence. That passage describes the PEG. The PEG reads the characters of such a sentence again, without regard to quotes.
 
-mia, who designed Eberban, considers that reading a limitation of the PEG. Her intent is that words and quotes are read first and parsed after. This pipeline does that, so a `ra` inside a quote is always quoted text. A compound is a word unit too, so no quote starts inside a compound that is not complete. [The word forms](morphology.md#differences-from-the-reference-grammar-and-the-peg) give the details.
+mia, who designed Eberban, considers that reading a limitation of the PEG. Her intent is that words and quotes are read first and parsed after. This pipeline does that, so a `ra` inside a quote is always quoted text. A compound is a word unit made of actual words, and a quote is a quote unit, not a word. So no quote starts in a component slot of a compound that is not complete. [The word forms](morphology.md#differences-from-the-reference-grammar-and-the-peg) give the details.
