@@ -68,7 +68,9 @@ The morphology chapter says that a bracket is a space outside the syntax of fore
 
 The book says that `q`, `w`, `x` and `y` are spaces. The PEG warns about each of them where no foreign quote holds it. So `space-unit` reads one space token, and it carries the warning `non-eberban-letter` for a foreign letter. Every gap reads its spaces through `space-unit`, so each foreign letter in a gap warns once. A foreign quote reads its text as quoted characters, so a foreign letter in the text warns nothing.
 
-A borrowing, a freeform variable, a compound and a spelling quote can hold a gap inside one token. Such a gap can also hold hesitation. The rule `gap` reads it. Each such token builds its value from its parts, so the gap adds nothing to the value. An unfinished compound holds gaps between its tokens. There `gap` emits one `Space` token, as `space` does between items. Inside a token, the emission of the token replaces it.
+A borrowing, a freeform variable, a compound and a spelling quote can hold a gap inside one token. Such a gap can also hold hesitation. The rule `gap` reads it. Each such token builds its value from its parts, so the gap adds nothing to the value.
+
+An unfinished compound holds gaps between its tokens. There `gap` emits one `Space` token, as `space` does between items. Inside a token, the emission of the token replaces it.
 
 The rules `space-before` and `space-after` hold beside a space, a bracket of a gap or an edge of the text. Hesitation, erasers and the end of a borrowing need them. They test the neighboring node of the parse, so a bracket that a foreign quote reads is no space. So `co [x]ra` holds no eraser, and an `n` right before the `[` of a quote is no hesitation.
 
@@ -900,11 +902,11 @@ The PEG warns about an `er` compound of one, two or three components. A single w
 
 ### Unfinished compounds
 
-A compound that lacks a component is unfinished. Its prefixes are no words, so they are junk. Its components are actual words, so they stay words. The sentences chapter lets `ra` erase ungrammatical text, and an unfinished compound is ungrammatical. So `ra` erases the first sentence of `a e mi ra a mo`.
+An unfinished level of a compound lacks a required component, holds an unfinished component, or lacks its required closer. A compound with an unfinished level is unfinished. Its prefixes are no words, so they are junk. Its components are actual words, so they stay words. The sentences chapter lets `ra` erase ungrammatical text, and an unfinished compound is ungrammatical. So `ra` erases the first sentence of `a e mi ra a mo`.
 
 As in a complete compound, no quote starts in a component slot of an unfinished one. An eraser is no component, so it ends the compound. So in `a e co [ra a mo`, `co` is a plain particle and the bracket is a gap. Then `ra` erases the unfinished compound, and the text keeps `a mo`.
 
-The rule `open-compound` reads an unfinished compound. It follows `compound` level by level, with the same slot rules. Each of its levels lacks a component, and the last component of a level can itself be unfinished. An `e` level needs two components, and an `en` level needs three. An `er` level reads no closing `e`. So the rule counts the open slots of every prefix at every depth.
+The rule `open-compound` reads an unfinished compound. It follows `compound` level by level, with the same slot rules. Each level that it reads is unfinished, as defined above. An `e` level needs two components, and an `en` level needs three. An `er` level needs its closing `e`, which this rule never reads. So the rule counts the open slots of every prefix at every depth.
 
 So in `a ei mi co [ra a mo`, the inner `i` has its two components `mi` and `co`. The outer `e` still lacks its second component, so `co` starts no quote. In the same way, `a ene mi mo co [ra a ke` reads `e mi mo` and `co` as the first two components of `en`. The third is missing.
 
@@ -1209,9 +1211,11 @@ The sentences chapter says that a `ra` inside a foreign quote erases a sentence 
 
 Her intent is that words and quotes are read first and parsed after. This stage does that. A closed quote is one unit wherever it stands, so a `ra` inside it is quoted text. A `co` and opener that no closer follows is an unclosed quote, and the text has no parse. The PEG reads such text again as erasable characters, so `a sune co [mi ra a sunu` and `a co [x ra a mo` are texts there.
 
-The PEG also reads text again as erasable characters where a complete nested compound stands in an unfinished one. In `a e e-nu ra a mo`, the nested compound is `en` with the components `ura`, `a` and `mo`. The outer `e` lacks its second component. The PEG then erases `a e e-nu`, and this grammar rejects the text, because `ra` is part of the borrowing.
+Both parsers read `u ra` as a borrowing, so its `ra` is content and no eraser. So `a e u ra` has no parse here, because nothing erases the unfinished compound. The PEG reads the characters of an ungrammatical sentence again, finds the `ra` there and erases `a e`. The same holds inside a nested compound, as in `a e e-nu ra a mo`, whose nested `en` holds the borrowing `ura`. Both parsers accept `a u ra` and `a e u ra a mo`.
 
 The PEG ends an `er` compound only at an `e` with spaces before it and spaces or the end of the text after it. So `a er mi bjan sa ta e1` fails there. The compounds chapter asks only for a space before the `e`. This stage ends the compound at any `e` that is a run of its own, so a digit can follow it.
+
+The PEG also rejects two adjacent closers, as in `a er er mi e e`. Its inner `CompoundNEnd` takes the space before the outer `e`, so the outer compound finds no closer. The compounds chapter asks for a space before each closing `e`, and the text has one for each. So this stage reads one compound with `compound-size`, while `a er er mi e mo e` is a text in both parsers.
 
 The PEG reads no digit as a compound component, so `a e 1 mi` fails there. The book calls each digit a `TI` particle, and the compounds chapter lets a particle be a component. So this stage reads that compound.
 
