@@ -122,17 +122,17 @@ The condition-loading cases stop before the condition's stage, so a runtime fail
 
 If `options.until` is present, it names the last stage to run (engine §13). A name that is not a stage of the pipeline is a `usage` error. No case gives an empty name, because Go cannot tell an empty name from no name (`docs/api.md`). The same restriction applies to memo configurations. Each library tests an empty name in its own tests.
 
-A pattern describes required result fields. `expect.result` is a pattern matched against the format 15 canonical result of `docs/output.md`. A pattern matches in these ways:
+A pattern describes required result fields. `expect.result` is a pattern matched against the format 16 canonical result of `docs/output.md`. A pattern matches in these ways:
 
 - An object matches when every member of the pattern matches the member of the same name.
 - An array matches when it has the same length and each element matches.
 - Anything else matches when it is equal.
 
-`expect.error` accepts `grammar`, `usage`, `rejected`, `ambiguous`, or `feature-conflict`. `expect.message` requires `expect.error: "grammar"`. It pins an agreed error reason, without a resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors. The runtime comparison removes exactly the prefix built from the error's structured document, line, and column. It preserves the public result.
+`expect.error` accepts `grammar`, `usage`, `rejected`, `reported`, `ambiguous`, or `feature-conflict`. `expect.message` requires `expect.error: "grammar"`. It pins an agreed error reason, without a resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors. The runtime comparison removes exactly the prefix built from the error's structured document, line, and column. It preserves the public result.
 
 The runner constructs that exact prefix from the originating error's document, line, and column. It preserves colons inside document names.
 
-A result pattern rejects error `message` assertions. Existing unit tests pin the common stitching and classifier messages specified in engine §2. Other wording stays library-specific.
+A result pattern rejects engine-generated error `message` assertions. Existing unit tests pin the common stitching and classifier messages specified in engine §2. Other wording stays library-specific.
 
 A pattern matches a result that has members beyond its own. So the invariants, and not the patterns, say that a tied stage has no output.
 
@@ -142,7 +142,17 @@ A pattern matches a result that has members beyond its own. So the invariants, a
 
 `treeRendering` pins the JavaScript tree listing in `lib/js/test/output.test.js`. Its `aliases` list supplies alternative abbreviations for U+000A. Its `text` gives the expected listing, with `ALIAS` replaced by each abbreviation. Its `decodedError` gives the error kind for rendering a result decoded from JSON. Other libraries inspect this object's shape and run the rest of the case.
 
-`expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the pipeline (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
+`expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. Each warning uses `stage`, `code`, `rule`, `span`, `source`, and `message`, with no `feature` member. So `[]` says that there are no warnings. `expect.features` is the list of features of the pipeline (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
+
+A result pattern pins named errors through `error.kind:"reported"` and the ordered `error.errors` array. Each diagnostic can pin its `code`, `rule`, `stage`, `span`, and `source`. Array lengths and order must agree, so the pattern also pins the number of reports.
+
+```json
+{"expect":{"result":{"ok":false,"error":{"kind":"reported","errors":[{"code":"unmatched-fi","span":[0,1],"source":[0,2]}]}}}}
+```
+
+Named diagnostic messages come from grammar recipes and can be compared as ordinary data. The ban on result-pattern `message` assertions covers engine-generated errors, rather than named diagnostics or warnings.
+
+A reported failure retains its chosen tree and `unique` or `resolved` verdict, with no failed-stage output. Invariants also require a nonempty diagnostic list, the failed stage last, and no `elision-only` run for that chosen derivation. A tie carries no named errors or warnings from its tied stage.
 
 Expectation comparisons distinguish booleans from numbers, as JSON does.
 
@@ -284,7 +294,7 @@ The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin si
 
 ## Layered pattern conformance
 
-The `notation/layered-pattern-*.json` cases use the public reader and format-44 DOM. They cover node decorations, item arrays, operator binding, grouping, source spacing, parameters, and source error positions.
+The `notation/layered-pattern-*.json` cases use the public reader and format-45 DOM. They cover node decorations, item arrays, operator binding, grouping, source spacing, parameters, and source error positions.
 
 The `engine/layered-pattern-*.json` cases use the public loader. They cover exact matching, independent child searches, empty lists, seals, choices, constant binding, template families, and error positions.
 
@@ -366,7 +376,7 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 44. The library tests it as a preparsed DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 45. The library tests it as a preparsed DOM (engine §9). The `malformed` field gives the required outcome of DOM inspection.
 
 Instead, an item can supply `dom`, the complete DOM envelope. This form can test the envelope and interactions between declarations. An optional `message` requires that the problem contains that agreed text. An optional `code` requires the problem code before its first colon.
 
@@ -600,7 +610,7 @@ Pipeline and grammar documents define pipeline behavior. Corpus cases pin their 
 
 `corpus/literary.jsonl` contains longer story bodies, songs, and paired repair cases for `lojban/cll` and `lojban/bpfk`. [Literary text sources](text-sources/README.md) records their source snapshots, extraction boundaries, and transformations.
 
-Each line is one case: a Lojban text, with the result that gencmu must give for it:
+Each line is one language text and its required result:
 
 ```
 {"id": "cll.5.1.c5e1d1", "text": "do mamta mi", "pipeline": "lojban/cll", "expect": "accept",
@@ -608,24 +618,26 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
 ```
 
 - `pipeline` is the full name of a bundled pipeline. `features`, when present, lists the features that the case turns on. `withoutFeatures` lists those that it turns off.
-- `expect` is `accept` or `reject`. For an accepted text, `verdict` is the verdict of the last stage, and `brackets` is its tree, with elided terminators hidden. For a rejected one, `stage` names the stage that rejected it.
-- In a rejected case, `at` is the start of the error's `source` in the text. It counts code points from 0. At the end of the stage's input, `at` is the end of the source of its last token. That is the length of the text only when no pause, attached indicator or erased word follows that token. For example, `mi le ui` stops at 5, the end of `le`, which carries `ui`, and not at 8 (case `adhoc.syntax.at-end-after-attached-indicator`).
+- `expect` is `accept` or `reject`. For an accepted text, `verdict` is the verdict of the last stage, and `brackets` is its tree, with elided terminators hidden. For a rejected one, `stage` names the failed stage. A named-error case can also pin its retained `unique` or `resolved` verdict.
+- In a plain rejection, `at` is the start of the error's `source` in the text. For named errors, it is the first diagnostic's source start. It counts code points from 0. At the end of the stage's input, `at` is the end of the source of its last token. If no pause, attached indicator, or erased word follows that token, the position equals the text length. For example, `mi le ui` stops at 5, the end of `le`, which carries `ui`, and not at 8 (case `adhoc.syntax.at-end-after-attached-indicator`).
 
   A change in a preceding stage can move the failing token's start or end. For example, splitting words differently can move `at`. A change of that position fails the case. Two different failures can stop at the same place, so `at` does not show the reason for the rejection. It and the accepted twins of a rejection make the cases stronger, and neither proves the reason.
 
   An error with no position, such as an ambiguity, gives no `at`.
-- `error` is present exactly when the result's error is of kind `ambiguous`. It is `{"kind": "ambiguous", "reason": "tie"}`, or the same with the reason `elision-only` (engine §6, §7). A case with any other result has no `error`, a rejection or an error of the grammar included. A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed.
+- `error` is present for `ambiguous` and `reported` results. It is `{"kind": "ambiguous", "reason": "tie"}`, or the same with the reason `elision-only` (engine §6, §7). A named-error case uses `{"kind":"reported"}` and its ordered `errors` list below. Other results have no `error`, including plain rejections and grammar failures. A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed.
 - The `reason` inside `error` is the reason of the ambiguous error. It is a field of `error`, and it is not the case's own `reason`, which explains the expected verdict (below). A case can have both.
 - `ties`, when present, contains exactly one nonempty stage name. It requires `expect: "reject"`, and its name equals `stage`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
+- `errors` is required for a `reported` case and forbidden otherwise. Each entry is `{"code":"unmatched-fi","at":0}`. The list pins every diagnostic's code and original source start, in report order. It is nonempty, and the case's `at` equals its first entry's `at`.
+- A present `warnings` field pins every warning in result order as `{"stage":"words","code":"y-cmavo","at":3}`. `at` is that warning's original source start. An empty list requires no warnings. Message wording and other coordinates belong in shared engine cases.
 - `words` records the words stage's output when that output is present. The case writes each token as its image (engine §5). The pipeline's grammar recipes supply pause spaces and verbatim text.
 
 A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. Some corpus texts tie in their pipeline, and those cases expect the tie. Each library also tests that its runner refuses the result mutants above. A case uses its pipeline declarations and the caller configuration. The case matches when every one of those fields that the case or the result of the library has is equal.
 
-Every runner compares all of these fields, `at` included.
+Every runner compares the required fields, including diagnostic codes and positions. A present `warnings` field requires exact equality of its projected list.
 
 The runners differ on input that this format does not allow, such as a field whose value is null. So `node tools/sync.js --check` first makes sure that every case meets its schema (`tools/fixture-shapes.js`). Each file is UTF-8, and each line is one JSON object. No object has a member name twice, at any depth, and every string is a sequence of Unicode scalar values, with no lone surrogate.
 
-A case has only the fields above, and none of them is null. An accepted case has `verdict` and `brackets`. A rejected case has `stage`, and it has `at` exactly when it has no `error`.
+A case has only the fields above, and none of them is null. An accepted case has `verdict` and `brackets`. A rejected case has `stage`. It has `at` for plain rejection or named errors, and no `at` for ambiguity.
 
 The optional `seeded` field records a reference fixture's verdict, `"accept"` or `"reject"`. When gencmu expects a different verdict, `reason` explains that expectation in terms of its grammar. A case can also have `reason` without `seeded`, to explain a grammar change or a pipeline policy. `node tools/corpus-departures.js` lists every such case, grouped by reason. A change to the `words` or `brackets` of a case needs no field of its own. It is a change to what gencmu produces, made in the same commit as the grammar change that causes it.
 
