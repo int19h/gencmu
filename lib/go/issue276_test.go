@@ -1,11 +1,79 @@
 package gencmu
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestIssue276GuardSitesPreparsed(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name  string
+		index int
+	}{
+		{"guard-duplicate-alternatives", 1}, {"guard-header-first", 0}, {"guard-simplified-origin", 1},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			fixture := issue276Case(t, c.name)
+			source := "```jbogenbau\n" + *fixture.Grammar + "\n```\n"
+			dom, readErr := bundled.reader.read(source, "grammars/test/g.md")
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			cache, err := json.Marshal(map[string]any{
+				"format": domFormat, "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash,
+				"properties": fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]),
+				"documents":  map[string]any{"grammars/test/g.md": map[string]any{"hash": fnv1a64(source), "dom": json.RawMessage(dom.json())}},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			parse := func(cache string) *ParseResult {
+				sources := map[string]string{"grammars/test/p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "grammars/test/g.md": source}
+				if cache != "" {
+					sources["data/preparsed/test.json"] = cache
+				}
+				pipeline, err := LoadPipelineSources(sources, "grammars/test/p.md")
+				if err != nil {
+					t.Fatal(err)
+				}
+				result, err := pipeline.Parse("bab", ParseOptions{})
+				if err != nil {
+					t.Fatal(err)
+				}
+				return result
+			}
+			plain, cached := parse(""), parse(string(cache))
+			for _, result := range []*ParseResult{plain, cached} {
+				if result.Error == nil || result.Error.Boundary == nil || result.Error.Boundary.Condition != c.index {
+					t.Fatalf("wrong guard site: %+v", result.Error)
+				}
+			}
+			left, err := MarshalResult(plain)
+			if err != nil {
+				t.Fatal(err)
+			}
+			right, err := MarshalResult(cached)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(left) != string(right) {
+				t.Fatalf("source and preparsed results differ: %s %s", left, right)
+			}
+			if c.name == "guard-duplicate-alternatives" {
+				changed := strings.Replace(string(cache), `"string":"x"`, `"string":"a"`, 1)
+				if changed == string(cache) || parse(changed).Error.Boundary.Condition != 0 {
+					t.Fatal("the preparsed route must use its DOM")
+				}
+			}
+		})
+	}
+}
 
 func TestIssue276SpliceActionVisibility(t *testing.T) {
 	original := &production{num: 7}

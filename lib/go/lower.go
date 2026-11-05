@@ -816,7 +816,7 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	// The union of the alternative's own tag term and its definition's
 	// %tags, where either is written (§3.7).
 	var written []*domTerm
-	for _, term := range []*domTerm{a.alt.Tags, a.ruleTags} {
+	for _, term := range []*domTerm{a.ruleTags, a.alt.Tags} {
 		if term != nil {
 			written = append(written, lw.simplifyTerm(term, names, has))
 		}
