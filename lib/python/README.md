@@ -2,7 +2,7 @@
 
 gencmu is a Lojban parser. A literate grammar document mixes prose with grammar rules. gencmu loads these Markdown documents at runtime. This is the Python library. An API is the operations that a library exposes.
 
-The library is pure Python, uses the standard library only, and needs Python 3.14 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. A document object model (DOM) stores parsed grammar rules. The library reads DOM format 40 and writes result format 15. It writes the canonical JSON of `docs/output.md`.
+The library is pure Python, uses the standard library only, and needs Python 3.14 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. A document object model (DOM) stores parsed grammar rules. The library reads DOM format 45 and writes result format 16. It writes the canonical JSON of `docs/output.md`.
 
 ```python
 import gencmu
@@ -49,7 +49,7 @@ result = pipeline.parse(text, features=(), without_features=(), until=None, elis
 - `until` names the last stage to run. An unknown name raises `GencmuError` with `kind` `"usage"`.
 - `elision_only`, when it is `True` or `False`, overrides the grammars' `%ambiguity-resolution ... elision-only`.
 
-A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous`, `feature-conflict`, or `grammar`. An `ambiguous` error has a `reason` and two `readings`.
+A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous`, `feature-conflict`, `reported`, or `grammar`. An `ambiguous` error has a `reason` and two `readings`.
 
 A `feature-conflict` error names a disabled feature whose conditional declaration holds for the stage input. Its `stage` and `feature` fields identify the conflict.
 
@@ -72,10 +72,10 @@ A caller cannot supply attachments. Nonempty `before` or `after` lists raise `Ge
 `pipeline.features` lists the features of the pipeline in code point order of their names, as a tuple of `Feature`. The list includes the gates of the entries of its classifiers. Each `Feature` has these fields:
 
 - `name`
-- `kind`: `"gate"` for a guard `f?` or `¬f?`, or `"warning"` for `f!`
+- `kind`: `"gate"` for a guard `f?` or `¬f?`, `"warning"` for a warning rule, or `"error"` for an error rule
 - `default`: Whether the pipeline turns the feature on
 
-A pipeline whose guards use one name both as a gate and as a warning cannot be loaded. A gate of a classifier's entry counts here too.
+A stage cannot use one name for several feature kinds. A gate of a classifier's entry counts here too. Error codes cannot appear in feature declarations. Caller feature lists do not affect error codes.
 
 You can use a pipeline for any number of parses, and you can share it between threads.
 
@@ -95,7 +95,15 @@ A `Token` also has its attachments, `before` and `after`. These are two lists of
 
 A terminal in a token node, witness, or expected list is a tag, canonical string, range, or `_` wildcard. Examples include `KOhA`, `"a"`, and `"a".."z"`. Expected terminals include their exact value test or signed tag requirements, as in `LE="la"` or `KOhA<¬UI>`. Spans are `(start, end)` tuples, and source ranges count code points.
 
-`result.warnings` lists the warnings of the nodes of the chosen tree of each stage. A node has one `ParseWarning` for each warning guard `f!` of its alternative whose feature `f` is on. The warnings come in stage order and then in tree order. Each has its `stage`, `feature`, `rule`, `span` and `source`. The list is empty when there are no warnings.
+`result.warnings` lists enabled warnings from chosen occurrences, before erasure and splice flattening. The warnings come in stage order and then in tree preorder. Each has its `stage`, `code`, `rule`, `span`, `source`, and `message`. `%suppress-warnings` suppresses matching codes on its occurrence and descendants. Disabled or suppressed warnings evaluate no message.
+
+A chosen error rule gives a `reported` result with named reports in `error.errors`. Each report has the same fields as a warning. The stage keeps its tree and verdict, produces no output, and stops the pipeline. Other error results have a null result tree.
+
+A failed message recipe gives a `grammar` result. The stage keeps its verdict but has no tree, output, errors, or warnings. Earlier stages keep their outputs and warnings.
+
+Verdicts count only derivations with the least error count. Error alternatives do not make an error-free reading ambiguous.
+
+`pipeline.ranking_reports()` includes notes for queries that reach error rules, unused suppression codes, and large expansions of guarded tags. `pipeline.format_ranking_reports()` formats these notes as text.
 
 - `gencmu.to_json(result)` is the canonical JSON as text, in the key order of `docs/output.md`.
 - `gencmu.result_json(result)` is the same as plain data.

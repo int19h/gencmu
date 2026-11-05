@@ -77,3 +77,26 @@ class Diagnostics(unittest.TestCase):
         })
         result = run_case(fixture("warning-with-errors"))[1]
         self.assertEqual(outcome({}, result=result)["warnings"], [{"stage": "main", "code": "text", "at": 0}])
+
+    def test_query_note_names_the_reachable_error_rule(self):
+        case = fixture("error-query-matches")
+        case["grammar"] = case["grammar"].replace("matches(bad)", "matches(wrapper)") + "\n%rule wrapper bad"
+        pipeline, error = load_case_pipeline(case)
+        self.assertIsNone(error)
+        notes = pipeline.ranking_reports()[0]["diagnosticNotes"]
+        self.assertEqual([n["target"] for n in notes if n["kind"] == "query-error"], ["bad"])
+
+    def test_suppression_reach_is_local_to_its_alternative(self):
+        case = fixture("warning-suppression-descendant")
+        case["grammar"] = '%rule text wrap\n%rule wrap A %suppress-warnings warn\n%extend-rule wrap warn\n%rule warn A %warning "warning"'
+        pipeline, error = load_case_pipeline(case)
+        self.assertIsNone(error)
+        notes = pipeline.ranking_reports()[0]["diagnosticNotes"]
+        self.assertTrue(any(n["kind"] == "unused-suppression" and n["rule"] == "wrap" for n in notes))
+
+    def test_ordinary_tag_audit_enumerates_no_capture_choices(self):
+        case = fixture("warning-erased")
+        pipeline, error = load_case_pipeline(case)
+        self.assertIsNone(error)
+        with patch("gencmu._diagnostic_audit.validation_captures", side_effect=AssertionError("unexpected capture work")):
+            pipeline.ranking_reports()
