@@ -871,7 +871,12 @@ func (b *domBuilder) checkRule(r *domRule) {
 	}
 	if b.hasBoundary {
 		if atom, msg := boundaryRuleProblem(checked); msg != "" {
-			panic(grammarError(b.doc, atom.At, "%s", msg))
+			at := atom.At
+			if at == [2]int{} {
+				// Compound conditions have no atom position. Report the definition.
+				at = r.At
+			}
+			panic(grammarError(b.doc, at, "%s", msg))
 		}
 	}
 	// The definition as a whole (§9), reported at the rule.

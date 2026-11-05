@@ -233,6 +233,10 @@ func restoreBoundaryLocations(to, from *domDoc) {
 			for _, c := range r.Conditions {
 				out = append(out, boundaryAtoms(clausePart{c: c})...)
 			}
+			out = append(out, boundaryAtoms(clausePart{t: r.Tags})...)
+			for _, alt := range r.Alternatives {
+				out = append(out, boundaryAtoms(clausePart{t: alt.Tags})...)
+			}
 			if r.Emit != nil {
 				for _, it := range r.Emit.Items {
 					out = append(out, boundaryAtoms(clausePart{t: it.Tags})...)

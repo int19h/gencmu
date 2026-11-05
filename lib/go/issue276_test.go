@@ -8,6 +8,79 @@ import (
 	"testing"
 )
 
+func TestIssue276GuardErrorPositionsPreparsed(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"guard-target-header-position", "guard-target-alternative-position", "guard-compound-position"} {
+		t.Run(name, func(t *testing.T) {
+			fixture := issue276Case(t, name)
+			source := "```jbogenbau\n%ambiguity-resolution greedy\n" + *fixture.Grammar + "\n```\n"
+			compound := name == "guard-compound-position"
+			readable := source
+			if compound {
+				readable = strings.Replace(source, " ∧ $.followed-by(b)", "", 1)
+			}
+			dom, readErr := bundled.reader.read(readable, "grammars/test/g.md")
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			var rule *domRule
+			for _, r := range dom.Rules {
+				if r.Name == "x" {
+					rule = r
+				}
+			}
+			term := rule.Tags
+			if term == nil {
+				term = rule.Alternatives[0].Tags
+			}
+			atom := term.Cond
+			if compound {
+				term.Cond = &domCond{Kind: cdAll, Items: []*domCond{atom, atom}}
+			}
+			load := func(cached bool) error {
+				sources := map[string]string{"grammars/test/p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "grammars/test/g.md": source}
+				if cached {
+					cache, err := json.Marshal(map[string]any{
+						"format": domFormat, "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash,
+						"properties": fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]),
+						"documents":  map[string]any{"grammars/test/g.md": map[string]any{"hash": fnv1a64(source), "dom": json.RawMessage(dom.json())}},
+					})
+					if err != nil {
+						t.Fatal(err)
+					}
+					sources["data/preparsed/test.json"] = string(cache)
+				}
+				_, err := LoadPipelineSources(sources, "grammars/test/p.md")
+				return err
+			}
+			plain, cached := load(false), load(true)
+			if !reflect.DeepEqual(plain, cached) {
+				t.Fatalf("source=%+v preparsed=%+v", plain, cached)
+			}
+			wantLine, wantColumn := 4, 27
+			if name == "guard-target-alternative-position" {
+				wantLine, wantColumn = 5, 31
+			} else if compound {
+				wantColumn = 1
+			}
+			failure, ok := plain.(*Error)
+			if !ok || failure.Kind != "grammar" || failure.Line != wantLine || failure.Column != wantColumn {
+				t.Fatalf("wrong error position: %+v", plain)
+			}
+			if compound {
+				term.Cond = atom
+			} else {
+				atom.Targets[0].Str = "x"
+			}
+			if err := load(true); err != nil {
+				t.Fatalf("the preparsed control must use its DOM instead of the invalid source: %v", err)
+			}
+		})
+	}
+}
+
 func TestIssue276GuardSitesPreparsed(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
