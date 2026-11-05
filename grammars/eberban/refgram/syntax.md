@@ -947,13 +947,11 @@ An `o` or `ni` sentence needs a definable target before any definition. Its reco
 %error "the parenthetical needs its closing dai"
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>o-sentence</code> to <code>unclosed-parenthetical</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>o-sentence</code> to <code>unclosed-parenthetical</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/o-sentence.3.svg" alt="Railroad diagram of the rule o-sentence"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ni-sentence.2.svg" alt="Railroad diagram of the rule ni-sentence"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/not-definable-o.svg" alt="Railroad diagram of the rule not-definable-o"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/not-definable-ni.svg" alt="Railroad diagram of the rule not-definable-ni"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/parenthetical-boundary.svg" alt="Railroad diagram of the rule parenthetical-boundary"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/parenthetical-close-neighbours.svg" alt="Railroad diagram of the rule parenthetical-close-neighbours"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/unclosed-parenthetical.svg" alt="Railroad diagram of the rule unclosed-parenthetical"></p>
 </details>
 
@@ -1071,7 +1069,7 @@ Number recovery distinguishes missing parts from parts in the wrong order. The l
 
 ```
 
-<details><summary>Railroad diagrams of the 18 rules from <code>base-verb</code> to <code>number-part-order</code></summary>
+<details><summary>Railroad diagrams of the 17 rules from <code>base-verb</code> to <code>number-part-order</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.5.svg" alt="Railroad diagram of the rule base-verb"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-part.svg" alt="Railroad diagram of the rule number-part"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-base.svg" alt="Railroad diagram of the rule loose-base"></p>
@@ -1081,8 +1079,7 @@ Number recovery distinguishes missing parts from parts in the wrong order. The l
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-end-alone.svg" alt="Railroad diagram of the rule number-end-alone"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-base-number.svg" alt="Railroad diagram of the rule empty-base-number"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-empty-base.svg" alt="Railroad diagram of the rule number-empty-base"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/repeat-number-prefix.svg" alt="Railroad diagram of the rule repeat-number-prefix"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/magnitude-number-prefix.svg" alt="Railroad diagram of the rule magnitude-number-prefix"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-recovery-prefix.svg" alt="Railroad diagram of the rule number-recovery-prefix"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-repeat-number.svg" alt="Railroad diagram of the rule empty-repeat-number"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-magnitude-number.svg" alt="Railroad diagram of the rule empty-magnitude-number"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-empty-repeat.svg" alt="Railroad diagram of the rule number-empty-repeat"></p>

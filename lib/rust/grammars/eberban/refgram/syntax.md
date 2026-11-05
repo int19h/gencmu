@@ -918,9 +918,8 @@ Each repeated recovery segment contains a written `bu`, so it reads at least one
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/bind-empty-fi.svg" alt="Railroad diagram of the rule bind-empty-fi"></p>
 </details>
 
-An `o` or `ni` sentence needs a definable target before any definition. Its recovery marks the missing target at that position. A missing parenthetical end reports before an enclosing `cai` or at the end of the input. A written `dai` closes its parenthetical instead of becoming an unmatched closer there.
+An `o` or `ni` sentence needs a definable target before any definition. Its recovery marks the missing target at that position. A missing parenthetical end reports at the end of the input. A written `dai` closes its parenthetical instead of becoming an unmatched closer there.
 
-A missing-end recovery before `cai` cannot use the endpoint of a quote whose own `cai` is omitted. That particle belongs to the quote. A preceding quote with written `cai` does not block the recovery. A `cai` quoted by `ci` remains content, so it does not prove a written close. The spliced empty helper records these neighbour facts before the missing-end rule completes.
 
 ```jbogenbau
 %extend-rule o-sentence
@@ -941,29 +940,18 @@ A missing-end recovery before `cai` cannot use the endpoint of a quote whose own
   ¬$.onward.begins(definable)
 %error "ni needs a root, compound, freeform, or gi variable as its target"
 
-%rule parenthetical-boundary
-  end-of-text | [{prefix}] CAI
-
-%rule parenthetical-close-neighbours
-  ε :: ($.preceded-by(grammatical-quote) ⟹ Quote-end)
-    ∪ ($.preceded-by(word-quote) ⟹ Word-quote-end)
-
 %rule unclosed-parenthetical
-  $n:*parenthetical-close-neighbours :: ∅
+  ε
 %conditions
-  $.onward.begins(parenthetical-boundary),
-  $.ends-input ∨ Quote-end ⊈ $n.tags ∨
-    ($.preceding-tokens.ends(CAI) ∧ Word-quote-end ⊈ $n.tags)
+  $.ends-input
 %error "the parenthetical needs its closing dai"
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>o-sentence</code> to <code>unclosed-parenthetical</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>o-sentence</code> to <code>unclosed-parenthetical</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/o-sentence.3.svg" alt="Railroad diagram of the rule o-sentence"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ni-sentence.2.svg" alt="Railroad diagram of the rule ni-sentence"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/not-definable-o.svg" alt="Railroad diagram of the rule not-definable-o"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/not-definable-ni.svg" alt="Railroad diagram of the rule not-definable-ni"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/parenthetical-boundary.svg" alt="Railroad diagram of the rule parenthetical-boundary"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/parenthetical-close-neighbours.svg" alt="Railroad diagram of the rule parenthetical-close-neighbours"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/unclosed-parenthetical.svg" alt="Railroad diagram of the rule unclosed-parenthetical"></p>
 </details>
 
@@ -1001,9 +989,9 @@ A sentence after `ra` needs a written starter. A sentence without that starter i
 
 A written `JI` cannot detach from a number that omits its own `JI`. This prevents splitting a written terminator from its number to disguise a failed resumption. Empty base recovery retains its written `JI`. Empty repeat and magnitude recovery retain only a grammatical prefix and report on the trailing `ja` or `je`.
 
-The prefix readers forbid a repeated part without `jo`, duplicates, and parts in the wrong order. An erroneous prefix stays outside the empty-part wrapper and keeps its own error.
+The recovery prefix admits ordered parts, including a complete repeated part or magnitude. A repeated part still needs `jo`. An erroneous prefix stays outside the empty-part wrapper and keeps its own error.
 
-Number recovery distinguishes missing parts from parts in the wrong order. The loose reader retains each part. Digit runs take every following digit except the start of a base. This prevents alternate divisions of one faulty number. The ordered counterpart distinguishes order errors from missing digits or a missing fraction marker.
+Number recovery distinguishes missing parts from parts in the wrong order. The loose reader retains each part. Digit runs take every following digit except the start of a base. This prevents alternate divisions of one faulty number. A digitless number can end before another number part only with written `JI`. The ordered counterpart distinguishes order errors from missing digits or a missing fraction marker.
 
 ```jbogenbau
 %extend-rule base-verb
@@ -1042,17 +1030,14 @@ Number recovery distinguishes missing parts from parts in the wrong order. The l
   JU
 %error "ju needs a preceding ti digit for its base"
 
-%rule repeat-number-prefix
-  [loose-base] [loose-digits] [loose-fraction]
-
-%rule magnitude-number-prefix
-  [loose-base] [loose-digits] [loose-fraction [JA loose-digits]]
+%rule number-recovery-prefix
+  [loose-base] [loose-digits] [loose-fraction [JA loose-digits]] [JE loose-digits]
 
 %rule empty-repeat-number
-  *repeat-number-prefix *number-empty-repeat [JI]
+  *number-recovery-prefix *number-empty-repeat [JI]
 
 %rule empty-magnitude-number
-  *magnitude-number-prefix *number-empty-magnitude [JI]
+  *number-recovery-prefix *number-empty-magnitude [JI]
 
 %rule number-empty-repeat
   JA
@@ -1072,6 +1057,8 @@ Number recovery distinguishes missing parts from parts in the wrong order. The l
 
 %rule number-without-digits
   JO [JI] | TI JU [JO] [JI]
+%conditions
+  JI ⊆ $.last-token.tags ∨ ¬$.following-tokens.begins(number-start)
 %error "a number needs integer digits, fractional digits, or a magnitude"
 
 %rule number-part-order
@@ -1082,7 +1069,7 @@ Number recovery distinguishes missing parts from parts in the wrong order. The l
 
 ```
 
-<details><summary>Railroad diagrams of the 18 rules from <code>base-verb</code> to <code>number-part-order</code></summary>
+<details><summary>Railroad diagrams of the 17 rules from <code>base-verb</code> to <code>number-part-order</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.5.svg" alt="Railroad diagram of the rule base-verb"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-part.svg" alt="Railroad diagram of the rule number-part"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-base.svg" alt="Railroad diagram of the rule loose-base"></p>
@@ -1092,8 +1079,7 @@ Number recovery distinguishes missing parts from parts in the wrong order. The l
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-end-alone.svg" alt="Railroad diagram of the rule number-end-alone"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-base-number.svg" alt="Railroad diagram of the rule empty-base-number"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-empty-base.svg" alt="Railroad diagram of the rule number-empty-base"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/repeat-number-prefix.svg" alt="Railroad diagram of the rule repeat-number-prefix"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/magnitude-number-prefix.svg" alt="Railroad diagram of the rule magnitude-number-prefix"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-recovery-prefix.svg" alt="Railroad diagram of the rule number-recovery-prefix"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-repeat-number.svg" alt="Railroad diagram of the rule empty-repeat-number"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-magnitude-number.svg" alt="Railroad diagram of the rule empty-magnitude-number"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-empty-repeat.svg" alt="Railroad diagram of the rule number-empty-repeat"></p>
@@ -1177,7 +1163,7 @@ The named rules below reject only their chosen erroneous reading. Every erasable
 | `bind-empty-fi` | `bind-next` | [`E_BindEmptyFI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L392) |
 | `not-definable-o` | `o-sentence` | [`E_NotDefinableO`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L297) |
 | `not-definable-ni` | `ni-sentence` | [`E_NotDefinableNI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L298) |
-| `unclosed-parenthetical` | `parenthetical`, before an enclosing `cai` or at input end | [`E_UnclosedParenthetical`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L631) |
+| `unclosed-parenthetical` | `parenthetical`, at input end | [`E_UnclosedParenthetical`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L631) |
 | `spelling-empty` | `base-verb` | [`E_SpellingEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L524) |
 | `erased-must-be-followed-by-sentence-starter` | The optional final child inside `ra-run` | [`E_ErasedMustBeFollowedBySentenceStarter`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L287) |
 | `number-end-alone` | `base-verb` | [`E_NumberEndAlone`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L611) |
@@ -1192,15 +1178,19 @@ The named rules below reject only their chosen erroneous reading. Every erasable
 
 A numeric word quoted by `ci` is not a number constituent. It does not block `number-end-alone`. A second written `JI` can also report after a number that already has its terminator.
 
+A grammatical complete body can precede one empty `ja` or `je` in number recovery. Other misplaced parts have no general segmentation preference. An empty `ju` after a complete body retains ordinary rejection, as in `a to je te ju`.
+
 The grammar gives `ci` no fault alternative. Unsupported quote operands, unclassified junk, missing word boundaries, and a free prefix before `po` retain ordinary rejection. A `JI` value restriction also remains outside this grammar, as the preceding numbers discussion explains.
 
 An unclaimed `cai` keeps the default rejection, including `a mo ra cai`. This map has no named error for an unmatched `cai`.
 
-A parenthetical needs a preceding head. So `a ca da mi cai` retains plain rejection: its quoted text has no verb for `da` to annotate. In `a ca a mi da mo cai`, the verb supplies that head, and the missing `dai` reports. The PEG can retain its parenthetical message from a failed reading of the first input.
+A parenthetical needs a preceding head. So `a ca da mi cai` retains plain rejection: its quoted text has no verb for `da` to annotate. A headed parenthetical before `cai` also retains plain rejection, as in `a ca a mi da mo cai`. The PEG can retain its parenthetical message from a failed reading of the first input.
 
 Missing-operand recovery stops at structural boundaries, including a bind opener. A dangling free prefix lies inside an unfinished operand and retains the default rejection. Examples are `a mi pa di` and `a mi dona va di`. The prefix supplies no complete operand for an independent resumption or binding diagnosis. A bare `be` also lies outside this boundary, so `a zi be` retains plain rejection. It supplies neither a modification operand nor a bind head.
 
-A missing parenthetical end reports only before an enclosing `cai` or at input end. Enclosing bind and enumeration closers lie outside that boundary. Examples are `a mi va ke da mo fi ke vei` and `a pe ke da mo pei`. Their chosen readings report the swallowed closers and then the missing `dai` at input end.
+A missing parenthetical end reports only at input end. Recovery before `cai` needs the owning quote's own terminator status. Neighbour tests cannot qualify that node by its tags or a pattern. A named elided-quote constituent changes valid trees, and a splice cannot serve as a neighbour target. So a missing `dai` before `cai` retains ordinary rejection.
+
+Enclosing bind and enumeration closers lie outside that boundary. Examples are `a mi va ke da mo fi ke vei` and `a pe ke da mo pei`. Their chosen readings report the swallowed closers and then the missing `dai` at input end.
 
 The PEG can queue a message from a reading that later fails. This grammar reports only errors in its chosen derivation, so its message need not match that queued message.
 
