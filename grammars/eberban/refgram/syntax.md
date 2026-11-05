@@ -952,11 +952,13 @@ An empty spelling quote has no first unit after `ce`. The forms stage marks that
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-must-be-followed-by-sentence-starter.svg" alt="Railroad diagram of the rule erased-must-be-followed-by-sentence-starter"></p>
 </details>
 
+A written `JI` follows no number part in `number-end-alone`. This prevents splitting a written terminator from its number to disguise a failed resumption. Empty repeat and magnitude recovery retain preceding parts and report only on the trailing `ja` or `je`.
+
 Number recovery distinguishes missing parts from parts in the wrong order. The loose reader retains each part. Digit runs take every following digit except the start of a base. This prevents alternate divisions of one faulty number. The ordered counterpart distinguishes order errors from missing digits or a missing fraction marker.
 
 ```jbogenbau
 %extend-rule base-verb
-  | *number-end-alone | *number-empty-base | *number-empty-repeat | *number-empty-magnitude
+  | *number-end-alone | *number-empty-base | *empty-repeat-number | *empty-magnitude-number
   | *number-repeat-without-fraction | *number-without-digits | *number-part-order
 
 %rule number-part
@@ -980,11 +982,19 @@ Number recovery distinguishes missing parts from parts in the wrong order. The l
 
 %rule number-end-alone
   JI
+%conditions
+  ¬$.preceding-tokens.ends(number-start)
 %error "ji needs a preceding number part"
 
 %rule number-empty-base
   JU
 %error "ju needs a preceding ti digit for its base"
+
+%rule empty-repeat-number
+  [{number-part}] *number-empty-repeat [JI]
+
+%rule empty-magnitude-number
+  [{number-part}] *number-empty-magnitude [JI]
 
 %rule number-empty-repeat
   JA
