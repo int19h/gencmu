@@ -1,0 +1,54 @@
+{
+  "description": "An optional diagnostic tail preserves the ra-run tags and its flat children.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "a sune ra a sunu",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "paragraphs",
+            "children": [
+              {
+                "rule": "sentences",
+                "children": [
+                  {
+                    "rule": "sentence",
+                    "children": [
+                      {
+                        "rule": "erased-valid",
+                        "children": [
+                          {},
+                          {
+                            "rule": "ra-run",
+                            "tags": [
+                              "RA",
+                              "Word"
+                            ],
+                            "children": [
+                              {
+                                "kind": "token",
+                                "terminal": "RA"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {}
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "warnings": []
+  }
+}

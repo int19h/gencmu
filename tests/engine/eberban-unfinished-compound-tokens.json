@@ -1,5 +1,5 @@
 {
-  "description": "In the eberban/refgram pipeline, the forms stage reads the unfinished compound of a ei mi co [x] ra a mo as the junk prefix e, then the complete nested compound with its canonical value, then a gap. The co opens no quote.",
+  "description": "In the eberban/refgram pipeline, the unfinished outer prefix emits junk with its fault class. The complete inner compound keeps its canonical value. The following gap contains no quote.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
   },
@@ -25,6 +25,7 @@
             {
               "value": "e",
               "tags": [
+                "Fault-incomplete-compound",
                 "Junk"
               ]
             },

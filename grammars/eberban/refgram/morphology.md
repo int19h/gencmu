@@ -934,7 +934,7 @@ So in `a ei mi co [ra a mo`, the inner `i` has its two components `mi` and `co`.
 
 At an `er` level, no component carries `Spaced-E`, as in a complete compound ("The end of an `er` compound" above). So a standalone `e` ends the level, and an unfinished reading never reaches past the end of a complete `er` compound.
 
-`stray-compound` reads an unfinished compound as an item of the text. `stray-prefix` emits a `Junk` token for each prefix of an unfinished level. Each simple component emits its word token, and a complete nested compound emits its compound token. A gap between them emits a `Space` token, and a foreign letter in it warns, as in any gap. So `a eco [x] ra a mo` reads the junk `e`, the particle `co` and a gap that warns about `x`.
+`stray-compound` reads an unfinished compound as an item of the text. `stray-prefix` emits a `Junk` token for each prefix of an unfinished level. Its emitted token adds only the fault mark, so prefix marks stay internal to the compound reader. Each simple component emits its word token, and a complete nested compound emits its compound token. A gap between them emits a `Space` token, and a foreign letter in it warns, as in any gap. So `a eco [x] ra a mo` reads the junk `e`, the particle `co` and a gap that warns about `x`.
 
 The step `leftmost-longest` names `open-compound`. An unfinished compound starts at its prefixes, so it wins over a quote that starts in one of its slots. A complete compound on the same start is always longer, because the unfinished one stops at a slot that it lacks. So the complete compound wins, and a quote after it still starts, as in `a e ber ban ce bu ra cei`.
 
@@ -961,7 +961,8 @@ A reader can expect each quote rule to test the letters before it for an unfinis
     ∪ (¬$p.following-tokens.begins(spaced-i-tail) ∧ (ER-PREFIX ⊈ $p.tags ∨
     ¬$p.following-tokens.begins(empty-compound-tail)) ⟹ Fault-incomplete-compound)
 %emits
-  $ :: Junk ∪ $.tags := $.decomposed-source-text :- $.source-text
+  $ :: Junk ∪ ($.tags ∩ (Fault-spaced-i-prefix ∪ Fault-compound-empty ∪ Fault-incomplete-compound))
+    := $.decomposed-source-text :- $.source-text
 
 %rule first-component
   | first-slot
