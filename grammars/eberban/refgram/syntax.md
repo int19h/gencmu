@@ -451,7 +451,7 @@ The chapter does not say that `cai` can be left out. The PEG lets the speaker le
 
 A quote with a written `cai` reads `text`, like the whole text, because no closer inside it can end it. In a quote whose `cai` is left out, a particle that closes an outer construct ends the quoted text instead of starting erasable text. The second and third alternatives read such a quote. Their terminator `[+CAI=""]` allows only the omitted `cai`, because a written `cai` has the value `cai`. Their first two conditions require that the text holds no erased invalid stretch that starts with such a particle.
 
-Where a quote of several sentences leaves out its `cai` before the end of the text, the PEG warns. The end of the quote is then hard to see. The third alternative carries that warning as `multi-sentence-cai-elided`.
+Where a quote of several sentences leaves out its `cai` before the end of the text, the PEG warns. The end of the quote is then hard to see. The third alternative splices the warning rule `multi-sentence-cai-elided`.
 
 A quote holds several sentences in two cases: it has several paragraphs, or its first paragraph has more than one sentence that is not erased. `$SEVERAL-SENTENCES` states that. An erased sentence is a node that holds the sentence and its `ra`. So the single-child search of the pattern stops there, and the sentence does not count. The last three conditions send each such quote to exactly one of the two alternatives.
 
@@ -463,13 +463,18 @@ A quote holds several sentences in two cases: it has several paragraphs, or its 
 %rule grammatical-quote
   | [{prefix}] CA text [{prefix}] CAI
   | [{prefix}] CA $q:open-quote-text [+CAI=""]
-  | multi-sentence-cai-elided! [{prefix}] CA $l:open-quote-text [+CAI=""]
+  | *multi-sentence-cai-elided
 %conditions
   $q ≇ #(⋮ erased-invalid« elider-word ⋯ »),
+  $q ≅ $SEVERAL-SENTENCES ⟹ $.following-tokens.begins(end-of-text)
+
+%rule multi-sentence-cai-elided
+  [{prefix}] CA $l:open-quote-text [+CAI=""]
+%conditions
   $l ≇ #(⋮ erased-invalid« elider-word ⋯ »),
-  $q ≅ $SEVERAL-SENTENCES ⟹ $.following-tokens.begins(end-of-text),
   $l ≅ $SEVERAL-SENTENCES,
-  $l ⟹ ¬$.following-tokens.begins(end-of-text)
+  ¬$.following-tokens.begins(end-of-text)
+%warning "a quote of several sentences omits cai before more text"
 
 %rule word-quote
   [{prefix}] CI (Word<Particle ¬Quote> | Root | Compound | Borrowing)
@@ -481,8 +486,9 @@ A quote holds several sentences in two cases: it has several paragraphs, or its 
   [{prefix}] (CO<Quote> | COI)
 ```
 
-<details><summary>Railroad diagrams of the 4 rules from <code>grammatical-quote</code> to <code>foreign-quote</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>grammatical-quote</code> to <code>foreign-quote</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/grammatical-quote.svg" alt="Railroad diagram of the rule grammatical-quote"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/multi-sentence-cai-elided.svg" alt="Railroad diagram of the rule multi-sentence-cai-elided"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/word-quote.svg" alt="Railroad diagram of the rule word-quote"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/spelling-quote.svg" alt="Railroad diagram of the rule spelling-quote"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/foreign-quote.svg" alt="Railroad diagram of the rule foreign-quote"></p>
