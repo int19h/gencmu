@@ -62,11 +62,13 @@ The stage drops the spaces and hands the syntax stage a stream of words.
   %include "syntax.md"
   ```
 
-The stage builds the tree of the text. An elided terminator is a closing word left unwritten. The stage first prefers the reading that erases fewer words, then the one that passes fewer steps before a resumption, as [the grammar](syntax.md) explains. It then ranks the parses with `late #·_<_Elided>`, so an elided terminator falls as late as the text allows. [The notation document](../../../docs/notation.md#elided-terminators) defines these steps.
+The stage builds the tree of the text. At equal error counts, it prefers a specific failure to an unmatched closer or resumption. That preference never separates zero-error readings.
+
+An elided terminator is a closing word left unwritten. The stage first prefers the reading that erases fewer words, then the one that passes fewer steps before a resumption, as [the grammar](syntax.md) explains. It then ranks the parses with `late #·_<_Elided>`, so an elided terminator falls as late as the text allows. [The notation document](../../../docs/notation.md#elided-terminators) defines these steps.
 
 ```jbogenbau
 %ambiguity-resolution
-  fewest #·erased-word, fewest #·passed-step, late #·_<_Elided>
+  fewest $UNMATCHED-ERRORS, fewest #·erased-word, fewest #·passed-step, late #·_<_Elided>
 ```
 
 ## Differences from the reference grammar and the PEG
