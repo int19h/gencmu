@@ -957,12 +957,13 @@ A missing-end recovery before `cai` cannot use the endpoint of a quote whose own
 %error "the parenthetical needs its closing dai"
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>o-sentence</code> to <code>unclosed-parenthetical</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>o-sentence</code> to <code>unclosed-parenthetical</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/o-sentence.3.svg" alt="Railroad diagram of the rule o-sentence"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ni-sentence.2.svg" alt="Railroad diagram of the rule ni-sentence"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/not-definable-o.svg" alt="Railroad diagram of the rule not-definable-o"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/not-definable-ni.svg" alt="Railroad diagram of the rule not-definable-ni"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/parenthetical-boundary.svg" alt="Railroad diagram of the rule parenthetical-boundary"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/parenthetical-close-neighbours.svg" alt="Railroad diagram of the rule parenthetical-close-neighbours"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/unclosed-parenthetical.svg" alt="Railroad diagram of the rule unclosed-parenthetical"></p>
 </details>
 

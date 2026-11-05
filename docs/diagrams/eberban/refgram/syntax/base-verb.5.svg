@@ -7,7 +7,7 @@
 <g class="terminal"><rect x="40" y="34" width="159" height="24" rx="12"/><text x="119.5" y="51" textLength="142.8" lengthAdjust="spacingAndGlyphs">*number-end-alone</text></g>
 <path d="M199 46H337"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="68" width="168" height="24" rx="12"/><text x="124" y="85" textLength="151.2" lengthAdjust="spacingAndGlyphs">*number-empty-base</text></g>
+<g class="terminal"><rect x="40" y="68" width="168" height="24" rx="12"/><text x="124" y="85" textLength="151.2" lengthAdjust="spacingAndGlyphs">*empty-base-number</text></g>
 <path d="M208 80H317a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="102" width="184" height="24" rx="12"/><text x="132" y="119" textLength="168" lengthAdjust="spacingAndGlyphs">*empty-repeat-number</text></g>

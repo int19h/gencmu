@@ -4,5 +4,6 @@
 <text class="title" x="10" y="24" textLength="184.8" lengthAdjust="spacingAndGlyphs">unclosed-parenthetical</text>
 <text class="label" x="214.8" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<path d="M20 46h6m0 -8v16m4 -16v16"/>
+<g class="terminal"><rect x="20" y="34" width="277" height="24" rx="12"/><text x="158.5" y="51" textLength="260.4" lengthAdjust="spacingAndGlyphs">*parenthetical-close-neighbours</text></g>
+<path d="M297 46h6m0 -8v16m4 -16v16"/>
 </svg>
