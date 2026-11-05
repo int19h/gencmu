@@ -16,6 +16,14 @@ def fixture(name):
 
 
 class Diagnostics(unittest.TestCase):
+    def test_message_capture_reason_distinguishes_absent_from_unknown(self):
+        for name in ('message-optional-capture-reason', 'message-captured-terminator-reason'):
+            with self.subTest(case=name):
+                _, error = load_case_pipeline(fixture(name))
+                self.assertIsNotNone(error)
+                self.assertIn('recipe', str(error))
+                self.assertNotIn('captured by no alternative', str(error))
+
     def test_a_failed_message_preserves_earlier_stages(self):
         case = fixture("message-guard")
         pipeline, error = load_case_pipeline(case)

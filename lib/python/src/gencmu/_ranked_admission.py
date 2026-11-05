@@ -33,7 +33,7 @@ class RankedAdmission(RankedFacts):
         for item,edges in enumerate(forest.edges):
             p = self.productions[forest.prod[item]]
             scope = forest.slot_scopes[item] if hasattr(forest,'slot_scopes') else None
-            if p.helper and scope is None:
+            if p.helper and p.splice_of is None and scope is None:
                 continue
             position = forest.dot[item]-1
             if position<0 or p.terminal[position]:

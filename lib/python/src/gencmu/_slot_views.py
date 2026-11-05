@@ -5,10 +5,10 @@ from ._earley import RESTORE
 
 def helper_forest(raw, names, marks):
     productions = raw.lowered.productions
-    helpers = {p.lhs for p in productions if p.helper}
+    helpers = {p.lhs for p in productions if p.helper and p.splice_of is None}
     users = {}
     for p in productions:
-        if p.helper:
+        if p.helper and p.splice_of is None:
             for terminal,symbol in zip(p.terminal,p.rhs):
                 if not terminal:
                     users.setdefault(symbol,[]).append(p.lhs)
@@ -75,7 +75,7 @@ def helper_forest(raw, names, marks):
                 append((previous,kind,child,extra),index)
                 continue
             predecessor = view(previous,scope)
-            carries = kind == 2 and productions[raw.prod[child]].lhs in wrapped and (not production.helper or scope is not None)
+            carries = kind == 2 and productions[raw.prod[child]].lhs in wrapped and (not production.helper or production.splice_of is not None or scope is not None)
             if not carries:
                 append((predecessor,kind,child,extra),index)
                 continue

@@ -213,8 +213,8 @@ class RankedGroups:
         if 'capture' in expr and expr['capture'] in needed:
             route.length = 1
             route.captures[expr['capture']] = (self.owners.get(id(expr)), 1)
-        while 'expr' in expr:
-            expr = expr['expr']
+        while 'expr' in expr or 'splice' in expr:
+            expr = expr.get('expr', expr.get('splice'))
         name = expr.get('ref')
         route.span = (self.spans[0][name], self.spans[1][name]) if name in self.rules else (True, True)
         return [route]
@@ -346,8 +346,8 @@ class TagGraph:
                             # A recursive repetition route can only add a self edge.
                             if 'separator' in expr:
                                 describe(expr['separator'])
-                    elif 'expr' in expr:
-                        result = describe(expr['expr'])
+                    elif 'expr' in expr or 'splice' in expr:
+                        result = describe(expr.get('expr', expr.get('splice')))
                     else:
                         result = (False, [named.get(expr.get('ref'))])
                     memo[key] = result
@@ -373,8 +373,8 @@ def written_spans(rules):
         key = id(expr)
         if key in memo:
             return memo[key]
-        if 'expr' in expr:
-            node = expression(expr['expr'])
+        if 'expr' in expr or 'splice' in expr:
+            node = expression(expr.get('expr', expr.get('splice')))
         elif 'ref' in expr:
             node = named.get(expr['ref'], 0)
         elif any(k in expr for k in ('literal', 'range', 'wildcard')):

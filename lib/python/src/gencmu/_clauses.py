@@ -1192,7 +1192,7 @@ def validation_captures(rule, alternative):
     if initial is not None:
         witnesses.append(initial)
     items = rule.get('emit', {}).get('items', [])
-    clauses = [rule.get('tags'), rule.get('value'), rule.get('image'), *rule['conditions']]
+    clauses = [rule.get('tags'), rule.get('value'), rule.get('image'), rule.get('error'), rule.get('warning'), *rule['conditions']]
     for item in items:
         clauses.extend(item.get(channel) for channel in ('tags', 'value', 'image'))
     clauses.extend(a.get(k) for a in rule['alternatives'] for k in ('tags', 'value', 'image'))

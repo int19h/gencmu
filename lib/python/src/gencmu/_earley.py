@@ -10,7 +10,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Callable
 
 from . import _memo, _testing
-from ._boundary import METHODS, Records, Annotations, atoms
+from ._boundary import METHODS, Records, Annotations, atoms, condition_items
 from ._clauses import WHOLE
 from ._eligible import eligible
 from ._errors import _GrammarFault
@@ -1348,13 +1348,10 @@ class Parser:
 
         sites = {}
         for order, rule in enumerate(lowered.grammar.rules.values() if boundaries is not None else ()):
-            seen, index = set(), 0
-            for alternative in rule.alternatives:
+            index = 0
+            for alternative, items in condition_items(rule):
                 key = id(alternative.conditions)
-                if key in seen:
-                    continue
-                seen.add(key)
-                for condition in alternative.conditions:
+                for condition in items:
                     sites.setdefault(key, []).append((condition, (order, index, rule.name)))
                     index += 1
 
