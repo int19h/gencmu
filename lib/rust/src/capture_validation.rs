@@ -597,7 +597,9 @@ pub(super) fn captures(rule: &RuleDef, alternative: usize) -> Vec<Vec<&str>> {
     q.ask(Vec::new(), Vec::new(), &[]);
     let items = rule.emit.as_deref().unwrap_or_default();
     let mut mentioned = Vec::new();
-    for t in rule.tags.iter().chain(rule.strings.value.iter()).chain(rule.strings.image.iter()) {
+    for t in
+        rule.tags.iter().chain(&rule.strings.value).chain(&rule.strings.image).chain(&rule.error).chain(&rule.warning)
+    {
         walk_captures(Part::Term(t), true, true, &mut mentioned);
     }
     for c in &rule.conditions {

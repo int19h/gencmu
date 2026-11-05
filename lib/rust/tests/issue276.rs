@@ -6,6 +6,17 @@ use gencmu::{InputToken, ParseErrorKind, ParseOptions};
 fn fixture(name: &str) -> Value {
     parse_json(&std::fs::read_to_string(repository().join(format!("tests/engine/i276-{name}.json"))).unwrap()).unwrap()
 }
+
+#[test]
+fn message_capture_reason_distinguishes_absent_from_unknown() {
+    for name in ["message-optional-capture-reason", "message-captured-terminator-reason"] {
+        let case = fixture(name);
+        let (documents, path) = common::case_documents(&case);
+        let error = gencmu::load_pipeline_sources(documents, &path).unwrap_err();
+        assert!(error.message.contains("recipe"), "{error}");
+        assert!(!error.message.contains("captured by no alternative"), "{error}");
+    }
+}
 fn pipeline(case: &Value) -> gencmu::Pipeline {
     let (documents, path) = common::case_documents(case);
     gencmu::load_pipeline_sources(documents, &path).unwrap()

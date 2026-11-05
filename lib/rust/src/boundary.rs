@@ -362,18 +362,46 @@ pub(crate) struct Site {
     pub condition: usize,
 }
 pub(crate) fn condition_offsets(g: &crate::grammar::StageGrammar) -> FxMap<usize, usize> {
+    condition_sites(g).0
+}
+type GuardSites<'a> = FxMap<usize, Vec<(&'a crate::dom::Cond, usize)>>;
+pub(crate) fn condition_sites(g: &crate::grammar::StageGrammar) -> (FxMap<usize, usize>, GuardSites<'_>) {
     let mut offsets = FxMap::default();
+    let mut guard_sites = FxMap::default();
     for rule in &g.rules {
         let mut count = 0;
+        let mut definitions = FxMap::default();
+        let mut order = Vec::new();
         for alt in &rule.alternatives {
             let key = std::sync::Arc::as_ptr(&alt.clauses) as usize;
-            if let std::collections::hash_map::Entry::Vacant(e) = offsets.entry(key) {
-                e.insert(count);
-                count += alt.clauses.conditions.len();
+            if !definitions.contains_key(&key) {
+                order.push(key);
+            }
+            definitions.entry(key).or_insert_with(Vec::new).push(alt);
+        }
+        for key in order {
+            let alternatives = &definitions[&key];
+            let clauses = &alternatives[0].clauses;
+            offsets.insert(key, count);
+            count += clauses.conditions.len();
+            let mut seen: FxSet<*const crate::dom::Cond> =
+                clauses.conditions.iter().flat_map(dom_atoms).map(|atom| atom as *const _).collect();
+            let sites = guard_sites.entry(key).or_insert_with(Vec::new);
+            for alt in alternatives {
+                for term in clauses.tags.iter().chain(&alt.alternative.tags) {
+                    for (condition, _) in crate::guarded_tags::guards(term) {
+                        for atom in dom_atoms(condition) {
+                            if seen.insert(atom as *const _) {
+                                sites.push((atom, count));
+                                count += 1;
+                            }
+                        }
+                    }
+                }
             }
         }
     }
-    offsets
+    (offsets, guard_sites)
 }
 /// Source graphs carry late annotation joins without splitting chart facts.
 #[derive(Debug, Default)]

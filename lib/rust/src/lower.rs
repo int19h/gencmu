@@ -1178,7 +1178,7 @@ pub(crate) fn lower(
     features: &BTreeSet<String>,
     classifiers: Arc<ClassifierTables>,
 ) -> Result<Lowered, LowerError> {
-    let condition_offsets = crate::boundary::condition_offsets(grammar);
+    let (condition_offsets, guard_sites) = crate::boundary::condition_sites(grammar);
     let mut lowerer = Lowerer {
         grammar,
         terminals: Vec::new(),
@@ -1345,8 +1345,13 @@ pub(crate) fn lower(
     // (§3.3), decided over the structural grammar: every production made
     // so far, helpers included, before a false condition removes any, with
     // tests ignored. Every remaining alternative counts, reachable or not.
-    let sequences: Vec<(u32, Vec<Sym>)> =
+    let mut sequences: Vec<(u32, Vec<Sym>)> =
         order.iter().map(|pending| (pending.rule, pending.sequence.iter().map(|(sym, ..)| *sym).collect())).collect();
+    for (alias, rule) in rules.iter().enumerate() {
+        if let Some(target) = rule.splice_target {
+            sequences.push((alias as u32, vec![Sym::N(target)]));
+        }
+    }
     let nullable = nullable_rules(rules.len(), sequences.iter().map(|(rule, syms)| (*rule, syms.as_slice())));
     let empty = |nullable: &[bool], syms: &[Sym]| {
         syms.iter().all(|sym| matches!(sym, Sym::N(rule) if nullable[*rule as usize]))
@@ -1624,7 +1629,17 @@ pub(crate) fn lower(
                     let tags = scope.term(&term).unwrap_or_else(|_| unreachable!("a tag term uses a missing capture"));
                     let lowered = conditions
                         .iter()
-                        .map(|c| scope.cond(c).expect("a whole constituent neighbour"))
+                        .map(|c| {
+                            let atoms = crate::boundary::dom_atoms(c);
+                            scope.site = guard_sites[&(Arc::as_ptr(&alternative.clauses) as usize)]
+                                .iter()
+                                .find(|(raw, _)| atoms.first().is_some_and(|atom| *atom == *raw))
+                                .map(|(_, condition)| crate::boundary::Site {
+                                    rule: production.owner,
+                                    condition: *condition,
+                                });
+                            scope.cond(c).expect("a whole constituent neighbour")
+                        })
                         .collect::<Vec<_>>();
                     tag_variants.push((tags, lowered, conditions));
                 }
