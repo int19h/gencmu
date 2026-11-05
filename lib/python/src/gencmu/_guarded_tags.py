@@ -44,9 +44,9 @@ def problem(term):
     for guard in guards(term):
         atom = guard["if"].get("not", guard["if"])
         if atom.get("method") not in METHODS or atom.get("receiver") != {"capture": ""}:
-            return "a tag guard requires one optionally negated neighbour atom on $", guard["if"]
+            return "a tag guard requires one optionally negated neighbour atom on $", atom
         if not closed(guard["then"]):
-            return "a neighbour tag guard requires a literal tag set", guard["if"]
+            return "a neighbour tag guard requires a literal tag set", atom
     return None
 
 
