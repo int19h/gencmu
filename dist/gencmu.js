@@ -566,8 +566,10 @@
   function restoreBoundaryLocations(dom,source) {
     const compared=writtenTreeComparisons(dom), originalsCompared=writtenTreeComparisons(source);
     if(compared.length===originalsCompared.length)compared.forEach((/** @type {any} */ node,/** @type {number} */ index)=>copyBoundaryLocation(originalsCompared[index],node));
-    const atoms = dom.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([rule.conditions,rule.emit]));
-    const originals = source.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([rule.conditions,rule.emit]));
+    const collect = (/** @type {any} */ document) => document.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([
+      rule.conditions,rule.tags,...(rule.alternatives ?? []).map((/** @type {any} */ alt)=>alt.tags),rule.emit,
+    ]));
+    const atoms = collect(dom), originals = collect(source);
     if (atoms.length !== originals.length) return;
     atoms.forEach((/** @type {any} */ atom,/** @type {number} */ index) => {
       const original = originals[index];
