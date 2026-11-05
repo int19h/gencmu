@@ -1158,7 +1158,7 @@ Equivalent variants have equal effective tag terms and equal appended boundary o
 
 A guard is one optionally negated boundary atom on `$`, with a literal tag-set consequent. Compound Boolean guards, captured receivers, and nonliteral consequents are document errors. Other tag-term restrictions still apply.
 
-A guard error stands at its atom, also under negation, but a compound guard error stands at its definition.
+A guard error stands at its atom, also under one negation. An error in any other guard form stands at its definition.
 
 ### 3.8 Elidable optionals
 
