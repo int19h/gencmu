@@ -618,7 +618,7 @@ Each line is one language text and its required result:
 ```
 
 - `pipeline` is the full name of a bundled pipeline. `features`, when present, lists the features that the case turns on. `withoutFeatures` lists those that it turns off.
-- `expect` is `accept` or `reject`. For an accepted text, `verdict` is the verdict of the last stage, and `brackets` is its tree, with elided terminators hidden. For a rejected one, `stage` names the failed stage. A named-error case can also pin its retained `unique` or `resolved` verdict.
+- `expect` is `accept` or `reject`. For an accepted text, `verdict` is the verdict of the last stage, and `brackets` is its tree, with elided terminators hidden. For a rejected one, `stage` names the failed stage. A `reported` case requires `verdict`, the failed stage's retained `unique` or `resolved` verdict.
 - In a plain rejection, `at` is the start of the error's `source` in the text. For named errors, it is the first diagnostic's source start. It counts code points from 0. At the end of the stage's input, `at` is the end of the source of its last token. If no pause, attached indicator, or erased word follows that token, the position equals the text length. For example, `mi le ui` stops at 5, the end of `le`, which carries `ui`, and not at 8 (case `adhoc.syntax.at-end-after-attached-indicator`).
 
   A change in a preceding stage can move the failing token's start or end. For example, splitting words differently can move `at`. A change of that position fails the case. Two different failures can stop at the same place, so `at` does not show the reason for the rejection. It and the accepted twins of a rejection make the cases stronger, and neither proves the reason.
@@ -631,13 +631,17 @@ Each line is one language text and its required result:
 - A present `warnings` field pins every warning in result order as `{"stage":"words","code":"y-cmavo","at":3}`. `at` is that warning's original source start. An empty list requires no warnings. Message wording and other coordinates belong in shared engine cases.
 - `words` records the words stage's output when that output is present. The case writes each token as its image (engine §5). The pipeline's grammar recipes supply pause spaces and verbatim text.
 
-A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. Some corpus texts tie in their pipeline, and those cases expect the tie. Each library also tests that its runner refuses the result mutants above. A case uses its pipeline declarations and the caller configuration. The case matches when every one of those fields that the case or the result of the library has is equal.
+A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. Some corpus texts tie in their pipeline, and those cases expect the tie. Each library also tests that its runner refuses the result mutants above. A case uses its pipeline declarations and the caller configuration.
+
+For fields other than `warnings`, every field present in the case or result must agree. A `reported` case requires `verdict`.
+
+The optional `warnings` field is an exception. If present, it compares the complete projected list exactly and in order, including `[]`. If absent, it compares nothing.
 
 Every runner compares the required fields, including diagnostic codes and positions. A present `warnings` field requires exact equality of its projected list.
 
 The runners differ on input that this format does not allow, such as a field whose value is null. So `node tools/sync.js --check` first makes sure that every case meets its schema (`tools/fixture-shapes.js`). Each file is UTF-8, and each line is one JSON object. No object has a member name twice, at any depth, and every string is a sequence of Unicode scalar values, with no lone surrogate.
 
-A case has only the fields above, and none of them is null. An accepted case has `verdict` and `brackets`. A rejected case has `stage`. It has `at` for plain rejection or named errors, and no `at` for ambiguity.
+A case has only the fields above, and none of them is null. An accepted case has `verdict` and `brackets`. A `reported` case also requires `verdict`. A rejected case has `stage`. It has `at` for plain rejection or named errors, and no `at` for ambiguity.
 
 The optional `seeded` field records a reference fixture's verdict, `"accept"` or `"reject"`. When gencmu expects a different verdict, `reason` explains that expectation in terms of its grammar. A case can also have `reason` without `seeded`, to explain a grammar change or a pipeline policy. `node tools/corpus-departures.js` lists every such case, grouped by reason. A change to the `words` or `brackets` of a case needs no field of its own. It is a change to what gencmu produces, made in the same commit as the grammar change that causes it.
 

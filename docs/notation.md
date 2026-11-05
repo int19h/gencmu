@@ -434,7 +434,7 @@ A diagnostic is a named error or warning from a chosen occurrence. A rule can ca
 %error "this fi has no matching opener"
 ```
 
-The rule's name is its diagnostic code. Errors and warnings share one code namespace. Across the pipeline, a name has exactly one role: gate, warning code, or error code. A warning rule's name must also meet the feature-name rules.
+The rule's name is its diagnostic code. Errors and warnings share one code namespace. Across the pipeline, a name has exactly one role: gate, warning code, or error code. A warning rule's name must also meet the feature-name rules. For an instance, the loader applies the code-name requirements to its final effective name after stitching (engine §2.3).
 
 The clause order is `%conditions`, then `%error` or `%warning`, then `%suppress-warnings`, then `%emits` or `%erased`. Each clause is optional. Diagnostics and suppression attach to the productions of their definition. An extension supplies its own clauses and inherits none from the base definition.
 
@@ -454,7 +454,7 @@ A caller enables or disables warnings by code through the feature controls. `%fe
 
 ### Suppressing warnings
 
-`%suppress-warnings` lists warning codes separated by commas. `_` alone suppresses all warning codes. An empty list or a list mixing `_` with codes is a document error.
+`%suppress-warnings` lists warning codes separated by commas. `_` alone suppresses all warning codes. An empty list or a list mixing `_` with codes is a document error. A repeated code in a suppression list is legal and changes nothing.
 
 ```jbogenbau
 %rule delimiter-shape
@@ -470,7 +470,7 @@ After stitching each stage, every listed code must name a warning in that stage.
 
 ### Choosing specific errors
 
-If its message improves the default rejection, a grammar can add a specific error. The comparison includes the default position and expected list. A shorter message with the same information also qualifies. A vaguer message does not.
+A grammar adds a specific error only where its message says more than the default rejection, or says the same more briefly. The comparison includes the default position and expected list. A vaguer message does not.
 
 The comparison uses the default rejection as that grammar reports it. A condition that fails at a rule's end can put the rejection after the fault.
 
@@ -1257,7 +1257,7 @@ A nested ranked group can evaluate an enclosing condition. A whole-rule atom kee
 
 Header and alternative tag terms accept a guarded literal tag set, such as `($.followed-by(resume-head) ⟹ Passed)`.
 
-Each guard is one `followed-by` or `preceded-by` atom on `$`, optionally negated. After constant binding, a literal tag set is a fixed set of user tags. Its target can be a choice of names. A compound Boolean guard, a captured receiver, or a nonliteral tag result is a document error. Several guarded parts can occur in one term.
+Each guard is one `followed-by` or `preceded-by` atom on `$`, optionally negated. Its target can be a choice of names. After constant binding, a literal tag set is a fixed set of user tags. A compound Boolean guard, a captured receiver, or a nonliteral tag result is a document error. Several guarded parts can occur in one term.
 
 ```jbogenbau
 %rule step
@@ -1808,6 +1808,7 @@ Each bundled grammar document shows a railroad diagram of each rule or template.
 The diagrams draw the notation in this way:
 
 - A square box is a rule, and a rounded box is a terminal. A test stands in the box of its symbol, as the notation writes it, such as `LE="la"`.
+- A splice uses the box of its rule, with `*` before the name.
 - A sequence runs from left to right. A sequence too wide for the page continues on the next row. The track runs back under the row before it.
 - A choice puts its first branch on the track and its other branches below it. The alternatives of a rule are a choice.
 - A ranked choice draws its options in a dashed frame, numbered from 1 in preferred order. The label `≻ same span` precedes the frame. Ordinary branches inside an option are unnumbered, and a nested ranked choice has its own frame. A note under the rule repeats the filter rule.

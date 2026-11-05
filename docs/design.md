@@ -612,7 +612,7 @@ Other bundled warnings require the caller to enable them.
 
 A warning is on the chosen tree only. The parser reports no addition that only a losing reading uses. A tie has no chosen tree, so it reports no warnings. The experimental syntax is a layer over the CLL grammar. Its syntax additions do not carry warnings. The bundled Lojban warnings are `y-cmavo` in `lojban/cll` and `experimental-cgv` in `lojban/experimental`.
 
-A change of reading is a gate, `name?`, with the base form under `¬name?`, so that exactly one of the two is live. A warning cannot express it, because a warning keeps its alternative even with the feature off. The base reading is then gone either way. A pipeline that makes such a change can declare its gate as an unconditional default. A caller who wants the base reading can disable that default. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
+A change of reading is a gate, `name?`, with the base form under `¬name?`, so that exactly one of the two is live. A warning cannot express it, because a warning rule keeps its reading whether its code is on or off. The base reading is then gone either way. A pipeline that makes such a change can declare its gate as an unconditional default. A caller who wants the base reading can disable that default. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
 
 One name has one role throughout a pipeline: gate, warning code, or error code. The loader rejects role conflicts. Warning codes must also be valid feature names. Error codes cannot be enabled or disabled.
 
@@ -671,7 +671,7 @@ Inline fault codes are `number-repeat-without-fraction`, `number-without-digits`
 
 `E_SpacedQuoteMarkStart` has no mapping. `co` is a valid word, and `a en co bu [x]bu` is a compound in both parsers. Both accept `a co bu [x]bu ra a mo` by erasure. Those letters do not establish an attempted quote.
 
-`E_EmptyParenthetical` and the book-allowed cases of `E_ErasedMustBeFollowedBySentenceStarter` remain listed departures. `erased-chain` discards no errors. `a mi duna vo ri ke` and `a mi fa ri bjan` remain rejections with codes.
+`E_EmptyParenthetical` and the book-allowed cases of `E_ErasedMustBeFollowedBySentenceStarter` remain listed departures. `erased-chain` discards no errors. `a mi duna vo ri ke` and `a mi fa ri bjan` fail with named errors, as `reported` results.
 
 The forms stage classifies malformed words with ordinary fault marks, such as `Fault-voicing`, and emits no diagnostic for erasable text. Each malformed token carries one class of fault, for its leftmost fault. A written total order of fault readers in `morphology.md` decides that class. It preserves the PEG class of every corpus rejection, including voicing for `a pbanh`.
 
@@ -689,7 +689,7 @@ Each warning rule takes its code's name, including `hyphen-misplaced` and `math-
 
 Every PEG `W_` rule and `warn` call maps to an existing warning code. `W_IInitialFreeformVariable` and `W_UInitialBorrowing` map to `hyphen-misplaced`. The PEG accepts `a i--ia` with two warnings, while gencmu rejects it. The grammar's closing section lists this hyphen departure, and the corpus pins the text.
 
-The grammar's closing section maps each code to its PEG source. Error and warning messages are gencmu's own text. Parity compares rejection and warning locations, rather than message wording. The PEG can retain an error from a failed reading, while this pipeline reports only its chosen derivation's errors.
+The grammar's closing section maps each code to its PEG source. Error and warning messages are gencmu's own text. Apart from listed departures, the pipeline rejects inputs that the PEG rejects and warns on inputs that the PEG warns on. The corpus pins gencmu's own codes and positions. The PEG can retain an error from a failed reading, while this pipeline reports only its chosen derivation's errors.
 
 ## Expensive constructs behind features
 

@@ -133,7 +133,7 @@ The result has the fields of `docs/output.md`, in the data types of the language
 
 A `reported` error contains the ordered `errors` of the chosen derivation. Each diagnostic has `stage`, `code`, `rule`, `span`, `source`, and `message`. Warnings use that same shape and have no `feature` member.
 
-The result keeps the chosen tree and its `unique` or `resolved` verdict, with `ok:false` and no failed-stage output. It retains enabled unsuppressed warnings and stops before the next stage. A message recipe failure gives a `grammar` result. Errors cannot be disabled. With no warnings, `warnings` is an empty list.
+The result keeps the chosen tree and its `unique` or `resolved` verdict, with `ok:false` and no failed-stage output. It retains enabled unsuppressed warnings and stops before the next stage. A message recipe failure gives a `grammar` result. Errors cannot be disabled. With no warnings, `warnings` is an empty list, and the canonical JSON omits it.
 
 The result also has `features`, the enabled feature names in code point order, without duplicates. This field stays outside canonical JSON. Go calls it `Features`.
 

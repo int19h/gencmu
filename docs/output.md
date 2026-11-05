@@ -236,7 +236,11 @@ A rule has this form, in canonical member order:
 
 `erased` is present only as `true`. `erased` and `emit` cannot coexist. An erased definition cannot carry a value or image recipe. It can carry a diagnostic recipe or suppression.
 
-`error` and `warning` cannot coexist. Each holds a MESSAGE recipe, which excludes `.emitted` (below). `suppressWarnings` is a nonempty array of warning codes, or `["_"]` for all warnings. The wildcard cannot share its array with codes. These clauses attach only to this definition's productions. An extension inherits none of them.
+`error` and `warning` cannot coexist. Each holds a MESSAGE recipe, which excludes `.emitted` (below).
+
+`suppressWarnings` is a nonempty array of warning codes, or `["_"]` for all warnings. The wildcard cannot share its array with codes. A repeated code in a suppression list is legal and changes nothing.
+
+These clauses attach only to this definition's productions. An extension inherits none of them.
 
 Rules have no members beyond the forms shown here, including the template and instance forms below.
 

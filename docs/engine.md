@@ -836,6 +836,10 @@ Each key uses its final public name, or its canonical name when unnamed. Calls b
 
 A public name cannot equal a template name.
 
+After stitching, the loader requires each error code to be a valid rule name (§9.1). Each warning code must be a valid feature name. These requirements apply to call-head definitions and public-name edits of bound instances.
+
+A diagnostic instance uses its final public name as its code. If rebinding leaves it unnamed, its canonical call spelling fails the code-name requirement.
+
 `%redefine-rule NAME = CALL` can replace an earlier ordinary rule or rebind a named instance to a different key. The old instance retains its identity and edits, and falls back to its canonical call name. The new instance takes NAME everywhere. A key that already has another public name cannot receive NAME. Repeating the current binding is an error. `%extend-rule NAME = CALL` is an error.
 
 An edit written with NAME applies to the key bound at that statement's source position. Earlier edits remain on the old key after rebinding. Later edits by NAME apply to the new key. Every reference to NAME, except the head of an edit, uses its final binding. Exact calls continue to name their own instance keys.
@@ -1134,7 +1138,7 @@ Capture lowering decides every presence test attached to a production. A test th
 
 Explicit alternative and definition tag terms union. If neither exists, inheritance uses logical helper structure, not the physical expansion's symbol count.
 
-A production with one logical symbol inherits that symbol's tags. A production with zero or several logical symbols has empty tags. Each optional remains one logical helper. A splice is one logical call with the target constituent's tags. Its absent route has empty tags. Its present content applies this same rule recursively.
+A production with one logical symbol inherits that symbol's tags. A production with zero or several logical symbols has empty tags. Each optional remains one logical helper. Its absent route has empty tags. Its present content applies this same rule recursively. A splice is one logical call with the target constituent's tags.
 
 Flat-repeat helpers and named chain levels retain their own logical production structure. Ranked tag safety uses these same inheritance edges (§2.1). Explicit `:: ∅` stops inheritance.
 
@@ -1991,7 +1995,7 @@ A qualified proof also passes the step at its group: the advance of the enclosin
 
 Within one admission group, a higher proof excludes a lower proof only with dominating open facts and no greater error count. They dominate when, at each edge, the higher proof's literals are a subset of the lower proof's, and their offers are equal. A literal is its edge, direction, target set and sign. The error annotation is not part of it. Wherever the lower proof survives, the higher proof survives too. An excluded proof therefore always has a replacement with the same continuation.
 
-A smaller error count alone never removes a proof with different undominated open facts. This rule applies in main recognition, queries, and reconstruction. Equal counts permit the ordinary option-order preference.
+A smaller error count alone never removes a proof with different undominated open facts. This exclusion applies wherever ranked admission runs, in main recognition and reconstruction. Inside a query, only the zero-error witness rule of §4 filters proofs for errors. Equal counts permit the ordinary option-order preference.
 
 The test compares literals by identity. It can miss a logical implication between different literals. Then both proofs stay, and ranking decides. It never excludes a proof that full ranking needs.
 
@@ -2396,7 +2400,7 @@ Emoji names work wherever rule names work, including template heads and calls. T
 
 A parameter token is `@` followed directly by `[A-Za-z][A-Za-z0-9_-]*`. A bare `@`, separated name, or `@(` is a lexical error. A call-name token is a rule name immediately followed by `(`. A splice uses `*` directly before that name or call-name token.
 
-It contains the name only. It can name a call or a call-shaped rule head. Method and keyword constructors can consume it in their name positions.
+The call-name token contains the name only. It can name a call or a call-shaped rule head. Method and keyword constructors can consume it in their name positions.
 
 It never reads directly as a reference, ordinary rule name, or bare pattern name. Whitespace or a comment before `(` prevents this token. Child-list attachment has its own adjacency rule below.
 
@@ -2796,7 +2800,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `test-operand` | One recognized operand | Require a string literal, string constant, or declared parameter for a value test. Produce unresolved STRINGTERM. |
 | `capture` | Capture token, then `primary` | `capture` name without `$`, then `expr`. The base accepts every rule reference or call, including emoji rules. |
 | `group` | One `choice` | Child expression |
-| `optional` | One `choice` or sole captured terminator, then markers | `optional`, with `elidable:true` for the valid marker, including inside its sole capture |
+| `optional` | Select the route first. Require `capture` for the captured route, or `choice` for the ordinary route, then inspect markers and form. | `optional`, with `elidable:true` for a valid marker. The captured route reads the marker inside its sole capture. |
 | `repetition` | Choices, then markers. Read the first two choices. | First is `repeat`, second is `separator`. Marker before the item means left chain, after it means right chain. |
 | `empty` | One `ε` token | `empty:true` |
 | `tags-clause`, `alternative-tags`, `emit-tags` | One `term` | Owner's `tags` |
@@ -2993,7 +2997,11 @@ A tree from a bootstrap of another notation can also lack a part that a construc
 - A `capture`: the restrictions on its place, including the sole-terminator exception of §3.8, then its token and its `primary`. Then come the checks of `$` and of the name. Last come the one known part of the primary, the base-symbol check, and that symbol. For a tested target, inspect only its base primary. The `tested` constructor checks its tests.
 
   If a tested target lacks its primary, report `the notation's tested has no primary` before inspecting its tests.
-- An `optional`: its `choice`, then its markers, then the form of an elidable optional, and then its content through the ordinary symbol-test rules. So an `optional` with two markers and no `choice` is an error at the `optional`.
+- An `optional`: first select its route without requiring a child. A direct `capture` part selects the captured route. Otherwise, select the ordinary route.
+
+  On the ordinary route, require `choice` before inspecting markers. A missing `choice` takes priority over marker errors. Next inspect markers, then the elidable form, then the content through ordinary symbol-test rules.
+
+  On the captured route, require `capture` before inspecting markers. Its `+` belongs to that capture. A second marker fails at that marker. A missing marker fails the captured form at the optional. Next inspect the sole-terminator form, then read the capture and its terminal through their ordinary constructor rules. This route requires no `choice`.
 - A `repetition`: its `choice`s, then its markers, then the placement of a chain, and then the item and the separator. So a `repetition` with two markers and no `choice` is an error at the `repetition`.
 - A `group`: its `choice`, and then its content.
 
@@ -3017,7 +3025,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A capture name that one production of an alternative holds twice is an error. It is reported at the second capture in the text that such a production reads. Several productions can read a name twice, at different second captures. The error then stands at the one of those captures that comes first in the text. So `($x:A | $y:B) ($y:C | $x:D)` is an error at `$y:C`, the second capture of the production `B C`. `A D` reads `$x` twice too, but its second capture, `$x:D`, comes later.
 
   The productions are the expansions of §3.2, taken before any gate applies. So the error does not depend on the features: `f? [$x:A] $x:B` is an error with `f` off too. A name in two branches of a choice is no error, since no expansion reads both, as in `A ($x:B | $x:C)`. A name in two items of `&`, or in an optional and beside it, is an error, since some expansion reads both.
-- A test requires a rule reference, call, terminal, or parameter whose argument is one symbol. Other targets cause an error at the test. So a test after a group, an optional, braces, a capture, or `ε` is an error. The syntax grammar permits tests after any primary, in any number and order. After a capture binder, source tests belong to its target. Only a supplied notation tree can test the capture itself.
+- A test requires a rule reference, call, splice, terminal, or parameter whose argument is one symbol. Other targets cause an error at the test. So a test after a group, an optional, braces, a capture, or `ε` is an error. The syntax grammar permits tests after any primary, in any number and order. After a capture binder, source tests belong to its target. Only a supplied notation tree can test the capture itself.
 
   A symbol accepts one tag test, then one value test, with either absent. On the head of an elidable optional, one default value can follow them. Every other sequence fails at its first disallowed test. A repeated kind, or a test after a later kind, therefore fails at the second one. So `[+T ≝ "t" ="t"]` fails at `=`.
 
@@ -3027,9 +3035,13 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A clause other than a condition that names an item capture is an error at the clause. So is a condition that reads an item capture together with `$`, with an item capture of other braces, or with a capture that a production of the alternative binds after those braces. The reader finds these when it validates the rule's clauses, after the alternatives.
 - A capture inside an elidable optional is an error unless it wraps that optional's sole terminator (§3.8). Report a forbidden capture at its binder. A capture deeper inside the optional remains invalid.
 - An `optional` with two or more markers is an error, reported at the second marker. The bundled syntax grammar never gives such a node, but a bootstrap of another notation can.
-- An elidable optional that is not of the form of §3.8 is an error, reported at its `[`. Before the reader drops groups, it makes sure that the notation tree meets this rule. The hand-written bootstrap reader builds the same tree, so it makes the same check. The `optional`'s `choice` must be one `conjunction` of one `sequence`, with no leading `|` before the conjunction and no leading `&` before the sequence. This is the one place where a leading separator is not allowed: `[+| KU]` and `[+& KU]` are errors. A choice in parentheses later in the optional can still begin with `|`, as in `[+KU (| A | B)]`.
+- An elidable optional that is not of the form of §3.8 is an error, reported at its `[`. Before the reader drops groups, it makes sure that the notation tree meets this rule. The hand-written bootstrap reader builds the same tree, so it makes the same check. Select the captured or ordinary route before requiring a child, as the constructor steps above state.
 
-  The first `primary` of that sequence must be the terminal itself or a declared parameter. Alternatively, the complete content is one capture with `+` between its binder and that terminal. Tests and a default follow the captured terminal in their usual order. A written terminal is a `reference` whose name begins with `A` to `Z`, or a `tag`. It can also be a `tested` whose primary is that tag or parameter with an existing symbol-test comparator. So a `group` there is an error, even of one terminal or around the whole content.
+  On the ordinary route, require `choice` as one `conjunction` of one `sequence`, without a leading `|` or `&`. So `[+| KU]` and `[+& KU]` are errors. A choice in parentheses later in the optional can still begin with `|`, as in `[+KU (| A | B)]`.
+
+  The first `primary` of that sequence must be the terminal itself or a declared parameter.
+
+  On the captured route, require the sole `capture`, with `+` between its binder and its terminal or parameter. Do not require `choice`. Tests and a default follow the captured terminal in their usual order. A written terminal is a `reference` whose name begins with `A` to `Z`, or a `tag`. It can also be a `tested` whose primary is that tag or parameter with an existing symbol-test comparator. So a `group` there is an error, even of one terminal or around the whole content.
 
   A tested head without a primary fails this form before the reader inspects its contents.
 
@@ -3037,7 +3049,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   A DOM cannot show a group, so its own requirement is on the normalized form. The `optional` content must be its terminal, a sequence starting with it, or a capture wrapping only that terminal. The captured form cannot have a surrounding sequence or any rest.
 
-After expansion, the terminal is a `ref` with a capitalized non-engine tag name. Before expansion, it can instead be a declared `param` node. Tests can wrap that tag or parameter. Substitution must give the parameter exactly one bare user tag before applying the written head tests.
+  After expansion, the terminal is a `ref` with a capitalized non-engine tag name. Before expansion, it can instead be a declared `param` node. Tests can wrap that tag or parameter. Substitution must give the parameter exactly one bare user tag before applying the written head tests.
 
   Every DOM that a reader makes meets this requirement. A supplied DOM `{"optional":{"seq":[{"ref":"KU"},{"ref":"🆓"}]},"elidable":true}` is well formed, whatever text it came from. `[+(KU 🆓) A]`, whose first expression is a `seq`, has no well-formed DOM.
 - A chain, a `repetition` with a marker, that is not the whole expression of its alternative is an error, reported at its `{`. The whole expression is the alternative's `conjunction` when that is one `sequence` of one `primary`, the `repetition` itself. So a chain inside a group, an optional, other braces, a capture or a test is an error. So is a chain in a sequence, a choice or `&`, although a group makes no node of the DOM. The lowering of §3.3 makes sure that the chain's alternative is the only one of its rule.
@@ -3084,7 +3096,7 @@ After expansion, the terminal is a `ref` with a capitalized non-engine tag name.
 
   Each expression, condition, tag term, recipe, constant value, classifier key, and implication side starts at depth zero. A diagnostic recipe also starts at zero.
 
-Feature conditions also start at depth zero. An emission item's tag term and recipes also start at zero. Declarations, alternatives, emission lists, emission items, arrays, positions, guards, and signed requirement records add no depth. A recipe root always uses `concat`, including for one atom. Other `concat` nodes require at least two string operands.
+  Feature conditions also start at depth zero. An emission item's tag term and recipes also start at zero. Declarations, alternatives, emission lists, emission items, arrays, positions, guards, and signed requirement records add no depth. A recipe root always uses `concat`, including for one atom. Other `concat` nodes require at least two string operands.
 
   | Form | Depth of its children |
   | --- | --- |
@@ -3239,7 +3251,6 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has a `ref` that is neither a valid name nor a valid emoji scalar.
 - Its `splice` does not contain exactly one rule `ref` or `call`. A terminal, parameter, grouped expression, or nested splice is invalid.
 - A definition carries both `error` and `warning`, or a template carries either. Each diagnostic value must be a message recipe without `.emitted`.
-- A warning rule's effective name is not a valid feature name (§9.1). Error codes retain the ordinary rule-name repertoire.
 - Its `suppressWarnings` is not a nonempty array of warning-code names, or `["_"]`. `_` cannot share that array with codes.
 - A diagnostic or suppression clause appears on an alternative instead of its definition.
 - An expression has only `ranked`, whose value is not an array of at least two expressions. Report `ranked-choice-syntax`.
@@ -3248,7 +3259,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has an `optional` with an `elidable` member whose value is not `true`. It has an elidable `optional` whose expression the reader refuses (above).
 - It has a capture that the reader refuses. That is one that wraps anything but a symbol, or one that wraps a `repeat`. A capture inside a chain is invalid. An elidable `optional` permits only its sole-terminator capture. A ranked group cannot separate an item capture from its braces.
 
-A capture inside flat braces is an item capture and is valid (§3.5). It is also a name that some expansion of an alternative holds twice (above), or a name that is not all lower case.
+  A capture inside flat braces is an item capture and is valid (§3.5). The reader also refuses a name that some expansion of an alternative holds twice. It also refuses a name that is not all lower case.
 - It has an emission with a member other than `items`, or an erased definition with a string recipe or emission. Diagnostic recipes remain legal on erased definitions.
 - It has an alternative guard whose feature is not a feature name as §9.1 defines it. Or the guard has members beyond its feature, kind, and negation state.
 - It has a directive whose name is not `ambiguity-resolution`, `elision-only`, `stage`, `extend-stage`, `redefine-stage`, `include`, `names` or `features`.
@@ -3264,6 +3275,8 @@ A capture inside flat braces is an item capture and is valid (§3.5). It is also
 - It has a classifier whose name does not begin with `a` to `z`. Its entry has an invalid gate kind or feature name (§9.1). It has an entry with no key, or with a key that the reader refuses. It has an entry whose operator is not `∈` or `∉`. Its class must start and end with uppercase ASCII letters and never start with `_`.
 - It has an implication whose sides are not closed tag-set terms, or either side names an engine tag.
 - Its `.classify` argument is not a classifier name, or a classifier name appears in another argument position.
+
+Diagnostic codes receive the final-name validation of §2.3 after stitching, including instance bindings and rebinding. A document reader does not reject a diagnostic solely because its definition has a call head.
 
 The reader takes semantic names and syntax from token values, including rule names, tags, constants, features, classes, classifier keys, and methods. Include paths decode escapes within their original literal runs. Diagnostic positions count the original text.
 
@@ -3669,7 +3682,7 @@ A stage whose verdict is `tie` emits nothing (§6), at whichever stage it is. Th
 
 ## 12. The tree
 
-Warnings in this section are parse warnings. Loading diagnostics belong to §13 and the loaded pipeline API.
+Errors and warnings in this section are parse diagnostics. Loading diagnostics belong to §13 and the loaded pipeline API.
 
 The result's tree comes from the chosen derivation, and each reading of an `ambiguous` error comes from its own derivation (§6, §7). The engine builds a tree from a derivation as follows:
 
@@ -3686,7 +3699,7 @@ The input token of a token node can carry attachments (§11). The node does not 
 
 A node with a nonempty span has the source of its tokens (§1). A node with an empty span is an `elided` node or a rule that read no token of the stage's input. Such a node has an empty source at the source end of the input token before its position. At position 0, its empty source is at the source start of the first input token, or at 0 if there is no input token.
 
-### Reports from the chosen derivation
+### 12.1 Reports from the chosen derivation
 
 A diagnostic belongs to a source occurrence, before tree construction omits spliced calls. Every occurrence whose production carries `%error` contributes one error. Every enabled, unsuppressed `%warning` occurrence contributes one warning. Empty occurrences and each level of a chain count separately. A failed condition creates no occurrence.
 
@@ -3696,7 +3709,9 @@ A diagnostic records `stage`, `code`, `rule`, `span`, `source`, and `message`, i
 
 After choice, evaluate each report's message once from its own occurrence and captures. The recipe follows §11.3 but excludes `.emitted`. It accepts string literals, string constants, captured input string methods, and `++`. It cannot query or read absent, item, or private ranked captures. A message's input methods observe its constituent without running emission.
 
-Disabled and suppressed warnings evaluate no message. A message evaluation failure returns `grammar`, retains the stage's verdict, and prevents emission and reconstruction. That failure has no partial named-error list or partial warnings from that stage. Earlier warnings remain. The result's tree is null, as for other grammar failures after choice.
+Disabled and suppressed warnings evaluate no message. A message evaluation failure returns `grammar`, retains the stage's verdict, and prevents emission and reconstruction. That failure has no partial named-error list or partial warnings from that stage. Earlier warnings remain. The result's tree is null.
+
+No message recipe can fail in the present recipe language. This rule is a guard that no shared case reaches.
 
 Suppression applies to every occurrence under its owning rule, including that rule and spliced calls. Nested suppression sets unite. `_` suppresses all warnings. A stage-disabled warning stays disabled. Suppression never affects errors, counts, recognition, ranking, or emission. Templates pass suppression to each instance.
 
