@@ -28,6 +28,8 @@ A further sentence cannot start with a paragraph mark or the end of a parenthesi
 ```jbogenbau
 %rule text-of(@Open)
   [{DO}] [paragraphs-of(@Open)]
+%conditions
+  $ ≇ #·open-quote-text ∨ $ ≇ $TEXT-RECOVERY
 
 %rule paragraphs-of(@Open)
   [po-head] sentences-of(@Open) [{po-head sentences-of(@Open)}]
@@ -596,8 +598,16 @@ The [annotations chapter](https://eberban.github.io/eberban/books/refgram/book/g
 %rule interjection
   DE [si-free] verb
 
+%const $TEXT-RECOVERY
+  #text-of« ⋯ paragraphs-of« ⋯ sentences-of« ⋯ sentence-of« ⋯ unmatched-tail » ⋯ » ⋯ » »
+
+%const $OWNED-DAI-RECOVERY
+  #text-of« ⋯ paragraphs-of« ⋯ sentences-of« ⋯ sentence-of« ⋯ unmatched-tail<DAI> » ⋯ » ⋯ » »
+
 %rule parenthetical
-  DA text (DAI | *unclosed-parenthetical)
+  DA $t:text (DAI | *unclosed-parenthetical)
+%conditions
+  $t ≇ $OWNED-DAI-RECOVERY
 ```
 
 <details><summary>Railroad diagrams of <code>prefix</code>, <code>postfix</code>, <code>interjection</code> and <code>parenthetical</code></summary>
@@ -752,19 +762,26 @@ Each fault error reads the token that carries its class. Its span is that token 
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/incomplete-compound.svg" alt="Railroad diagram of the rule incomplete-compound"></p>
 </details>
 
-Unmatched closing particles have no open construct to claim them. Text recovery reads them after a sentence body or at a sentence start. This keeps closers out of verb positions inside chains. A stray resumption reads its attempted verb and explains that its structure does not match. The empty resumption instead names the missing verb.
+Unmatched closing particles have no open construct to claim them. Text recovery reads them after a sentence body or at a sentence start. This keeps closers out of verb positions inside chains. A stray resumption reads its attempted verb and explains that its structure does not match. The empty resumption instead names the missing verb. Recovery also spans a closer after erasure.
+
+Each recovery tail forwards only its own unmatched `DAI` mark and the marks of subsequent tails. It does not forward marks from nested definitions. `$OWNED-DAI-RECOVERY` finds those tails only in the parenthetical's own text skeleton. The parenthetical rejects that recovery, so its first available `dai` closes it. Nested quotes retain their own recovery scope.
 
 ```jbogenbau
 %extend-rule sentence-of(@Open)
-  sentence-body unmatched-tail | unmatched-tail
+  | sentence-body unmatched-tail | erased-valid unmatched-tail
+  | $i:erased-invalid unmatched-tail | empty-erasure unmatched-tail | unmatched-tail
+%conditions
+  ¬$i.onward.begins(@Open),
+  ¬$i.onward.begins(po-head)
 
 %extend-rule base-verb
   *select-empty | *modified-empty
 
 %rule unmatched-tail
-  | unmatched-resume step-tail [ri-continuation] [unmatched-tail]
-  | *resume-chain-empty [unmatched-tail]
-  | unmatched-closer [ri-continuation | definition] [unmatched-tail]
+  | unmatched-resume step-tail [ri-continuation] [$t:unmatched-tail] :: ($t ⟹ $t.tags)
+  | *resume-chain-empty [$t:unmatched-tail] :: ($t ⟹ $t.tags)
+  | $c:unmatched-closer [ri-continuation | definition] [$t:unmatched-tail]
+      :: ($c.tags ∩ DAI) ∪ ($t ⟹ $t.tags)
 
 %rule unmatched-closer
   unmatched-fi | unmatched-vei | unmatched-be | unmatched-pei | unmatched-bu | unmatched-dai
@@ -891,7 +908,7 @@ An empty-chain diagnostic follows a written starter, an erased chain, a negation
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/bind-empty-fi.svg" alt="Railroad diagram of the rule bind-empty-fi"></p>
 </details>
 
-An `o` or `ni` sentence needs a definable target before any definition. Its recovery marks the missing target at that position. A missing parenthetical end reports at the end of the input.
+An `o` or `ni` sentence needs a definable target before any definition. Its recovery marks the missing target at that position. A missing parenthetical end reports before an enclosing `cai` or at the end of the input. A written `dai` closes its parenthetical instead of becoming an unmatched closer there.
 
 ```jbogenbau
 %extend-rule o-sentence
@@ -912,10 +929,13 @@ An `o` or `ni` sentence needs a definable target before any definition. Its reco
   ¬$.onward.begins(definable)
 %error "ni needs a root, compound, freeform, or gi variable as its target"
 
+%rule parenthetical-boundary
+  end-of-text | [{prefix}] CAI
+
 %rule unclosed-parenthetical
   ε
 %conditions
-  $.ends-input
+  $.onward.begins(parenthetical-boundary)
 %error "the parenthetical needs its closing dai"
 ```
 
