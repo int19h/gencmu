@@ -618,7 +618,7 @@ func actionsText(g *lowered, as []action) string {
 			parts = append(parts, fmt.Sprintf("read %d %s", a.tok, g.terminals[a.term]))
 		} else {
 			mark := ""
-			if a.prod.transparent {
+			if a.hidden {
 				mark = "~"
 			}
 			parts = append(parts, fmt.Sprintf("%sclose %s#%d [%d,%d]", mark, g.rules[a.prod.lhs].name, a.prod.num, a.start, a.end))
@@ -632,7 +632,7 @@ func sameActions(a, b []action) bool {
 		return false
 	}
 	for i := range a {
-		if a[i] != b[i] {
+		if !a[i].same(b[i]) {
 			return false
 		}
 	}
