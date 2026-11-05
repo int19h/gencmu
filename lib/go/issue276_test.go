@@ -12,15 +12,15 @@ func TestIssue276GuardErrorPositionsPreparsed(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"guard-target-header-position", "guard-target-alternative-position", "guard-compound-position"} {
+	for _, name := range []string{"guard-target-header-position", "guard-target-alternative-position", "guard-compound-position", "guard-negated-nonliteral-position", "guard-negated-receiver-position"} {
 		t.Run(name, func(t *testing.T) {
 			fixture := issue276Case(t, name)
 			source := "```jbogenbau\n%ambiguity-resolution greedy\n" + *fixture.Grammar + "\n```\n"
 			compound := name == "guard-compound-position"
-			readable := source
-			if compound {
-				readable = strings.Replace(source, " ∧ $.followed-by(b)", "", 1)
-			}
+			negated := strings.HasPrefix(name, "guard-negated-")
+			readable := strings.Replace(source, " ∧ $.followed-by(b)", "", 1)
+			readable = strings.Replace(readable, "$y.tags", "T", 1)
+			readable = strings.Replace(readable, "¬$y.followed-by", "¬$.followed-by", 1)
 			dom, readErr := bundled.reader.read(readable, "grammars/test/g.md")
 			if readErr != nil {
 				t.Fatal(readErr)
@@ -36,6 +36,15 @@ func TestIssue276GuardErrorPositionsPreparsed(t *testing.T) {
 				term = rule.Alternatives[0].Tags
 			}
 			atom := term.Cond
+			if negated {
+				atom = atom.Inner
+			}
+			consequent, receiver := term.Items[0], atom.Span
+			if name == "guard-negated-nonliteral-position" {
+				term.Items[0] = &domTerm{Kind: tmCall, Str: "tags", Items: []*domTerm{{Kind: tmCapture, Str: "y"}}}
+			} else if negated {
+				atom.Span = &domTerm{Kind: tmCapture, Str: "y"}
+			}
 			if compound {
 				term.Cond = &domCond{Kind: cdAll, Items: []*domCond{atom, atom}}
 			}
@@ -64,12 +73,16 @@ func TestIssue276GuardErrorPositionsPreparsed(t *testing.T) {
 				wantLine, wantColumn = 5, 31
 			} else if compound {
 				wantColumn = 1
+			} else if negated {
+				wantColumn = 21
 			}
 			failure, ok := plain.(*Error)
 			if !ok || failure.Kind != "grammar" || failure.Line != wantLine || failure.Column != wantColumn {
 				t.Fatalf("wrong error position: %+v", plain)
 			}
-			if compound {
+			if negated {
+				term.Items[0], atom.Span = consequent, receiver
+			} else if compound {
 				term.Cond = atom
 			} else {
 				atom.Targets[0].Str = "x"

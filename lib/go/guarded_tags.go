@@ -80,10 +80,10 @@ func neighbourGuardProblem(term *domTerm) (*domCond, string) {
 			atom = atom.Inner
 		}
 		if atom.Kind != cdBoundary || atom.Span == nil || atom.Span.Kind != tmCapture || atom.Span.Str != "" {
-			return guard.Cond, "a tag guard requires one optionally negated neighbour atom on $"
+			return atom, "a tag guard requires one optionally negated neighbour atom on $"
 		}
 		if len(guard.Items) != 1 || !literalTagShape(guard.Items[0]) {
-			return guard.Cond, "a neighbour tag guard requires a literal tag set"
+			return atom, "a neighbour tag guard requires a literal tag set"
 		}
 	}
 	return nil, ""
