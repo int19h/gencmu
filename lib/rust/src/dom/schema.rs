@@ -700,7 +700,7 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                         }
                         pending.push((Part::String, default, depth + 1));
                     }
-                    if inner.get("capture").is_some()
+                    let malformed_capture = inner.get("capture").is_some()
                         && value.get("elidable").is_some()
                         && !inner.get("expr").is_some_and(|t| {
                             let mut base = t;
@@ -709,8 +709,8 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                             }
                             base.get("param").is_some()
                                 || base.get("ref").and_then(Json::as_str).is_some_and(|t| tag(t) && !engine_tag(t))
-                        })
-                    {
+                        });
+                    if malformed_capture {
                         return Some("a malformed captured terminator".into());
                     }
                     let sealed = flags.sealed || value.get("elidable").is_some() && inner.get("capture").is_none();

@@ -67,7 +67,7 @@ fn invalid_bytes_are_a_grammar_error_of_the_document() {
             Box::new({
                 let good = good.clone();
                 move |b| {
-                    let text = PIPELINE.replace("%stage main", "%stage main (* @ *)");
+                    let text = PIPELINE.replace("%stage main", "%stage main -- @");
                     vec![("p.md", with_bytes(&text, b)), ("g.md", good.clone())]
                 }
             }),
@@ -84,10 +84,7 @@ fn invalid_bytes_are_a_grammar_error_of_the_document() {
         (
             "a comment of an included document",
             Box::new(|b| {
-                vec![
-                    ("p.md", PIPELINE.as_bytes().to_vec()),
-                    ("g.md", with_bytes(&grammar("%rule text \"a\" (* @ *)"), b)),
-                ]
+                vec![("p.md", PIPELINE.as_bytes().to_vec()), ("g.md", with_bytes(&grammar("%rule text \"a\" -- @"), b))]
             }),
             "g.md",
         ),
@@ -133,7 +130,7 @@ fn invalid_bytes_are_a_grammar_error_of_the_document() {
 fn fffd_supplementary_characters_and_a_byte_order_mark_decode_as_themselves() {
     let directory = Directory::new(&[
         ("p.md", format!("# A pipeline \u{FFFD} \u{1F600}\n\n{PIPELINE}").into_bytes()),
-        ("g.md", grammar("%rule text \"�\" \"😀\" \"􏿽\" (* � 😀 *)").into_bytes()),
+        ("g.md", grammar("%rule text \"�\" \"😀\" \"􏿽\" -- � 😀").into_bytes()),
     ]);
     let pipeline = gencmu::load_pipeline_file(directory.pipeline()).expect("a pipeline");
     assert!(pipeline.parse("\u{FFFD}\u{1F600}\u{10FFFD}", &ParseOptions::default()).unwrap().ok);
