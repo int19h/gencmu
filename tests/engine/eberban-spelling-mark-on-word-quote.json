@@ -1,0 +1,112 @@
+{
+  "description": "In the eberban/refgram pipeline, an ordinary ce keeps its lexical spelling-unit mark even as a word quoted by ci. The complete forms output pins its tags and positions.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "a ci ce",
+  "options": {
+    "until": "forms"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {
+          "name": "forms",
+          "output": [
+            {
+              "text": "a",
+              "value": "a",
+              "image": "a",
+              "tags": [
+                "A",
+                "Particle",
+                "Word"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "Space"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "text": "ci",
+              "value": "ci",
+              "image": "ci",
+              "tags": [
+                "CI",
+                "Particle",
+                "Word"
+              ],
+              "span": [
+                2,
+                4
+              ],
+              "source": [
+                2,
+                4
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "Space"
+              ],
+              "span": [
+                4,
+                5
+              ],
+              "source": [
+                4,
+                5
+              ]
+            },
+            {
+              "text": "ce",
+              "value": "ce",
+              "image": "ce",
+              "tags": [
+                "CE",
+                "Missing-spelling-unit",
+                "Particle",
+                "Word"
+              ],
+              "span": [
+                5,
+                7
+              ],
+              "source": [
+                5,
+                7
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": []
+  }
+}
