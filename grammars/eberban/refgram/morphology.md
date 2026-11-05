@@ -1716,7 +1716,7 @@ The remaining candidates distinguish repeated consonants, voicing, sibilants, wo
 
 ## Differences from the reference grammar and the PEG
 
-The book says that a particle can start with a sonorant or a vowel. The PEG reads only `n`, `a` and `o`, and this grammar does the same. The morphology chapter says that a word that starts with `n`, `a` or `o` is always a particle. Two sonorants never follow each other in such a word, so `a mi anra` has no parse. The sentences chapter names A, O and NI as the particles that start with `a`, `o` and `n`.
+The book says that a particle can start with a sonorant or a vowel. The PEG reads only `n`, `a` and `o`, and this grammar does the same. The morphology chapter says that a word that starts with `n`, `a` or `o` is always a particle. Two sonorants never follow each other in such a word, so `a mi anra` is rejected. The sentences chapter names A, O and NI as the particles that start with `a`, `o` and `n`.
 
 The vowels `e`, `i` and `u` open compounds, freeform variables and borrowings. The book gives no other family that starts with `r` or `l`. So `ra` and `ri` are the only words that start with `r`, and no word starts with `l`.
 
@@ -1726,9 +1726,9 @@ The PEG reads hesitation only after a space character, so a text that starts wit
 
 The sentences chapter says that a `ra` inside a foreign quote erases a sentence that was already ungrammatical. It describes the PEG, which reads a foreign quote only where the syntax expects a verb. When a sentence is ungrammatical, the PEG reads its characters again as erasable text and ignores quotes. mia, who designed Eberban, considers this a limitation of the PEG.
 
-Her intent is that words and quotes are read first and parsed after. This stage does that. A closed quote is one unit wherever it stands, so a `ra` inside it is quoted text. A `co` and opener that no closer follows is an unclosed quote, and the text has no parse. The PEG reads such text again as erasable characters, so `a sune co [mi ra a sunu` and `a co [x ra a mo` are texts there.
+Her intent is that words and quotes are read first and parsed after. This stage does that. A closed quote is one unit wherever it stands, so a `ra` inside it is quoted text. A `co` and opener that no closer follows is an unclosed quote, and the text is rejected. The PEG reads such text again as erasable characters, so `a sune co [mi ra a sunu` and `a co [x ra a mo` are texts there.
 
-Both parsers read `u ra` as a borrowing, so its `ra` is content and no eraser. So `a e u ra` has no parse here, because nothing erases the unfinished compound. The PEG reads the characters of an ungrammatical sentence again, finds the `ra` there and erases `a e u`. The same holds inside a nested compound, as in `a e e-nu ra a mo`, whose nested `en` holds the borrowing `ura`. Both parsers accept `a u ra` and `a e u ra a mo`.
+Both parsers read `u ra` as a borrowing, so its `ra` is content and no eraser. So `a e u ra` is rejected here, because nothing erases the unfinished compound. The PEG reads the characters of an ungrammatical sentence again, finds the `ra` there and erases `a e u`. The same holds inside a nested compound, as in `a e e-nu ra a mo`, whose nested `en` holds the borrowing `ura`. Both parsers accept `a u ra` and `a e u ra a mo`.
 
 The PEG ends an `er` compound only at an `e` with spaces before it and spaces or the end of the text after it. So `a er mi bjan sa ta e1` fails there. The compounds chapter asks only for a space before the `e`. This stage ends the compound at any `e` that is a run of its own, so a digit can follow it.
 
@@ -1736,7 +1736,7 @@ The PEG also rejects two adjacent closers, as in `a er er mi e e`. Its inner `Co
 
 The PEG reads no digit as a compound component, so `a e 1 mi` fails there. The book calls each digit a `TI` particle, and the compounds chapter lets a particle be a component. So this stage reads that compound.
 
-The PEG reads an `NI` particle right after a compound prefix as a component, as in `a enun mi` and `a en-nu ban ban`. The compounds chapter says that an `NI` particle needs a pause or a space before it. Otherwise it can be confused with the start of `en`. A hyphen is no space, so this stage reads such a run as junk, and both texts have no parse.
+The PEG reads an `NI` particle right after a compound prefix as a component, as in `a enun mi` and `a en-nu ban ban`. The compounds chapter says that an `NI` particle needs a pause or a space before it. Otherwise it can be confused with the start of `en`. A hyphen is no space, so this stage reads such a run as junk, and both texts are rejected.
 
 The PEG records each prefix as the text writes it. So `ei ber ban ban` has the inner prefix `i`, and `e e ber ban ban` has `e`. Two spellings of one compound then differ, and a `pa` resumption that repeats the verb in the other spelling fails there. The compounds chapter calls the joined prefix a shorthand for the spaced one. This stage gives both spellings one value, in the shortest canonical form that the chapter says the dictionary uses.
 
@@ -1758,4 +1758,78 @@ The PEG warns about each misplaced hyphen with its own message. This grammar car
 - A hyphen inside `ra` or `ri`, as in `r-a`, carries the warning. The PEG reads no hyphen there and rejects the text. This grammar treats the hyphen as it does after the first consonant of any particle.
 - An attached `i` after `n-` or `r-`, as in `en-iber`, carries `prefix-i-after-sonorant` as well as `hyphen-misplaced`. The PEG tests the letter right before the `i`, so the hyphen hides the `n` there. The hyphen has an empty value, so the letter before the `i` is still `n`. The compounds chapter spells the vowel `e` after it.
 
-The PEG itself departs from the book in one class of texts. Its digit has no word boundary after it, and its trailing hyphen rule reads a hyphen before a digit or word. So the PEG accepts a row of two hyphens between a digit and a following digit or word. Examples are `1--bjan` and `mi 1--2 bjan`, each with three warnings. A word boundary holds one hyphen at most, so this grammar rejects them. The PEG rejects such a row before a space, as in `a mi 1-- mo`.
+The PEG itself departs from the book at adjacent hyphens. Its digit has no word boundary after it, and its trailing hyphen rule reads a hyphen before a digit or word. So the PEG accepts a row of two hyphens between a digit and a following digit or word. Examples are `1--bjan` and `mi 1--2 bjan`, each with three warnings.
+
+A word boundary holds one hyphen at most, so this grammar rejects them. The same limit rejects `a i--ia`, which the PEG accepts with two warnings at the freeform prefix. The PEG rejects such a row before a space, as in `a mi 1-- mo`.
+
+### Diagnostic codes and PEG sources
+
+The forms stage classifies erasable faults and leaves their diagnostics to syntax. The outer item choice gives stray prefixes precedence over junk runs. Within stray prefixes, `spaced-i-prefix` precedes `compound-empty`, then `incomplete-compound`. The remaining order is the written junk-reader list below.
+
+Each malformed run keeps its original division and carries one ordinary fault mark. Whole-run shape queries select the leftmost fault through a valid morphological prefix. They evaluate no warning recipe. An unclassified run remains plain `Junk`.
+
+A prefix takes its `n` or `r` before it ends. This leaves an attached `NI` component as ordinary junk rather than a doubled-consonant fault. For an incomplete compound, each diagnostic spans its own stray prefix.
+
+| Code | Forms reader or bearer | PEG source |
+| --- | --- | --- |
+| `spaced-i-prefix` | `stray-prefix`, `Fault-spaced-i-prefix` | [`E_SpacedIPrefix`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L807) |
+| `compound-empty` | `stray-prefix`, `Fault-compound-empty` | [`CompoundN`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L785) |
+| `incomplete-compound` | `stray-prefix`, `Fault-incomplete-compound` | [`E_IncompleteCompound`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L810) |
+| `quadruplet` | `read-quadruplet`, `Fault-quadruplet` | [`E_Quadruplet`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1025) |
+| `triplet-middle-m` | `read-triplet-middle-m`, `Fault-triplet-middle-m` | [`E_TripletInvalid_Root`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1031) / [`E_TripletInvalid_Freeform`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1041) |
+| `triplet-yz-sonorant-x` | `read-triplet-yz-sonorant-x`, `Fault-triplet-yz-sonorant-x` | [`E_TripletYZ_SonorantX`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1028) |
+| `triplet-root-first-pair` | `read-triplet-root-first-pair`, `Fault-triplet-root-first-pair` | [`E_TripletInvalid_Root`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1031) |
+| `triplet-freeform-first-pair` | `read-triplet-freeform-first-pair`, `Fault-triplet-freeform-first-pair` | [`E_TripletInvalid_Freeform`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1041) |
+| `triplet-root-shape` | `read-triplet-root-shape`, `Fault-triplet-root-shape` | [`E_TripletInvalid_Root`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1031) |
+| `triplet-freeform-shape` | `read-triplet-freeform-shape`, `Fault-triplet-freeform-shape` | [`E_TripletInvalid_Freeform`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1041) |
+| `doubled-pair` | `read-doubled-pair`, `Fault-doubled-pair` | [`E_DoubledPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1073) |
+| `pair-voiceness` | `read-pair-voiceness`, `Fault-pair-voiceness` | [`E_PairVoiceness1`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1075) / [`E_PairVoiceness2`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1077) |
+| `sibilant-pair` | `read-sibilant-pair`, `Fault-sibilant-pair` | [`E_SibilantPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1079) |
+| `root-starts-with-medial-pair` | `read-root-starts-with-medial-pair`, `Fault-root-starts-with-medial-pair` | [`E_RootStartsWithMedialPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L919) |
+| `particle-sonorant-pair` | `read-particle-sonorant-pair`, `Fault-particle-sonorant-pair` | [`E_ParticleSonorantPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L910) |
+| `h-not-between-vowels` | `read-h-not-between-vowels`, `Fault-h-not-between-vowels` | [`E_NoVowelBeforeH`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L999) / [`E_NoVowelAfterH`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1000) |
+| `hyphen-same-vowels` | `read-hyphen-same-vowels`, `Fault-hyphen-same-vowels` | [`Vowels`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L974) |
+| `invalid-medial-pair` | `read-invalid-medial-pair`, `Fault-invalid-medial-pair` | [`E_InvalidMedialPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L939) |
+| `freeform-multi-consonents-ending` | `read-freeform-multi-consonents-ending`, `Fault-freeform-multi-consonents-ending` | [`E_FreeformMultiConsonentsEnding`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L881) |
+| `unclosed-foreign-quote` | `unclosed-foreign-quote`, at end of input | [`E_UnclosedForeignQuote`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L520) |
+
+An unclosed foreign quote reports in this stage because syntax cannot erase it. A bracket closes a simple quote. A delimited quote also needs the matching delimiter after its bracket.
+
+The PEG's `E_SpacedQuoteMarkStart` has no named counterpart. `co` is a valid word, so its letters do not establish an attempted quote. Both parsers accept `a en co bu [x]bu` as a compound and `a co bu [x]bu ra a mo` by erasure.
+
+An empty `er` recovery consumes its closing `e` outside the named diagnostic. Only its `er` token reports `compound-empty`. Other positions, including an unsupported `ci` operand, retain the default rejection.
+
+### Warning codes and PEG sources
+
+Each warning reports only from the chosen reading. The messages are this grammar's own text. Every PEG warning below maps to an existing code.
+
+| Code | PEG source |
+| --- | --- |
+| `hyphen-misplaced` | [`W_TIMinusSymbol`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L768) |
+| `math-symbol` | [`W_TIMathSymbols`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L772) |
+| `hyphen-misplaced` | [`W_CompoundPrefixPostHyphen`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L813) |
+| `hyphen-misplaced` | [`W_CompoundHyphenInPrefix`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L816) |
+| `prefix-i-after-sonorant` | [`W_CompoundIAfterSonorant`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L819) |
+| `hyphen-misplaced` | [`W_FreeformVariablePreHyphen`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L848) |
+| `hyphen-misplaced` | [`W_BorrowingVariablePreHyphen`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L851) |
+| `hyphen-misplaced` | [`W_FreeformVariablePrefixHyphen`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L855) |
+| `hyphen-misplaced` | [`W_BorrowingPrefixHyphen`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L858) |
+| `hyphen-misplaced` | [`W_IInitialFreeformVariable`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L862) |
+| `hyphen-misplaced` | [`W_UInitialBorrowing`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L865) |
+| `hyphen-misplaced` | [`W_FreeformHyphenAfterH`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L869) |
+| `hyphen-misplaced` | [`W_FreeformHyphenAfterInitial`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L873) |
+| `hyphen-misplaced` | [`W_HyphenBeforeFinalConsonant`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L877) |
+| `hyphen-misplaced` | [`W_HyphenAfterInitial`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L944) |
+| `hyphen-misplaced` | [`W_HyphenBeforeMedialOrTriplet`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L949) |
+| `hyphen-misplaced` | [`W_HyphenAfterMedialOrTriplet`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L953) |
+| `hyphen-misplaced` | [`W_HyphenAfterMedialSonorant`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L957) |
+| `hyphen-misplaced` | [`W_HyphenBeforeFinalSonorant`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L961) |
+| `hyphen-misplaced` | [`W_HyphenPreWord`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L966) |
+| `hyphen-misplaced` | [`W_HyphenPostWord`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L967) |
+| `hyphen-misplaced` | [`W_HyphenAfterH`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L998) |
+| `hyphen-misplaced` | [`W_HyphenInInitialPairOfTriplet`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1024) |
+| `hyphen-misplaced` | [`W_HyphenInInitialPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1060) |
+| `non-eberban-letter` | [`W_NonEberbanLetter`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1136) |
+| `compound-size` | The three size-warning calls in [`CompoundN`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L785) |
+
+Erased adjacent hyphens remain junk and emit no hyphen warning. So `a mi 1--2 ra a mo` warns only in the PEG. A vowel-initial run touching a digit also remains junk. In `a 1anco[x] ra a mo`, its bracket starts no quote, so the outside `x` carries `non-eberban-letter` here.

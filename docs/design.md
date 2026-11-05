@@ -654,44 +654,13 @@ One effective production permits at most 16 variants after merging and pruning. 
 
 ## Eberban diagnostics
 
-A specific error must say more than the default rejection's position and expected list, or express the same information more briefly. A vaguer message does not qualify. The comparison uses the grammar's actual rejection. If a condition fails at rule completion, that rejection can follow the fault.
+A specific error must add information to the actual default rejection, with its position and expected list, or state that information more briefly. A vaguer message does not qualify.
 
-For `a pban mo ra mo`, a named error explains the missing starter. The default instead reports the last `mo` with only `RA` expected. `o mi dona` and resumption's `vo` cases also need messages that identify the earlier fault.
+Forms classify erasable malformed runs with ordinary fault marks. Syntax reports the matching named error only where no zero-error erasure wins. An unclosed foreign quote reports in forms because syntax cannot erase it. Unclassified junk retains the default rejection.
 
-The syntax stage maps these PEG rules to named error alternatives:
+Error counts precede the grammar's written preferences, and queries use only zero-error witnesses. Erasure never discards an error occurrence. Warning rules report only their chosen occurrences, under the ordinary feature and suppression rules.
 
-- The seven `E_Unmatched*` rules.
-- `E_ChainEmpty`, `E_ResumeChainEmpty`, `E_SelectEmpty`, and `E_ModifiedEmpty`.
-- `E_BindEmptyVI`, `E_BindEmptyFI`, `E_NotDefinableO`, and `E_NotDefinableNI`.
-- `E_SpellingEmpty` and `E_UnclosedParenthetical`.
-- The four `E_Number*` rules, three inline number tests, and the empty `er` compound.
-- The book-forbidden cases of `E_ErasedMustBeFollowedBySentenceStarter`, in tail position after a `ra-run`.
-
-Codes use the kebab case of their PEG rule names, such as `unmatched-fi`. The shared-message pairs use `pair-voiceness` and `h-not-between-vowels`. Triplet faults use one code per message.
-
-Inline fault codes are `number-repeat-without-fraction`, `number-without-digits`, `number-part-order`, `compound-empty`, and `hyphen-same-vowels`. The forms stage reports `E_UnclosedForeignQuote`, because syntax cannot erase an unclosed quote. No forms error stands where syntax can erase the text.
-
-`E_SpacedQuoteMarkStart` has no mapping. `co` is a valid word, and `a en co bu [x]bu` is a compound in both parsers. Both accept `a co bu [x]bu ra a mo` by erasure. Those letters do not establish an attempted quote.
-
-`E_EmptyParenthetical` and the book-allowed cases of `E_ErasedMustBeFollowedBySentenceStarter` remain listed departures. `erased-chain` discards no errors. `a mi duna vo ri ke` and `a mi fa ri bjan` fail with named errors, as `reported` results.
-
-The forms stage classifies malformed words with ordinary fault marks, such as `Fault-voicing`, and emits no diagnostic for erasable text. Each malformed token carries one class of fault, for its leftmost fault. A written total order of fault readers in `morphology.md` decides that class. It preserves the PEG class of every corpus rejection, including voicing for `a pbanh`.
-
-Fault readers are alternatives inside `junk-run`, whose emission tags are `$ :: Junk ∪ $.tags`. They classify an existing run without changing its division or adding a ranking step. No other rule or query target names a fault reader. An unclassified run keeps untagged `Junk` and a bare rejection.
-
-Fault marks never start with `_`, which belongs to the engine. Their names end in lowercase, so they are not token classes. If no erasure takes the token, syntax raises matching named errors at `base-verb` and `definable-part`. The `ci` position and other positions remain plain rejections, listed in the grammar's closing section.
-
-A message names its fault class, including triplet faults. For example, it can say "invalid consonant pair: the consonants differ in voicing". It does not replace fault classes with one generic junk error. Locating the faulty letters within the token belongs to separate work.
-
-The diagnostic spans its fault-bearing token. For an incomplete compound, each stray prefix is the bearer, so its diagnostic spans that prefix alone. `E_SpacedIPrefix` has its own fault mark, ordered before incomplete compounds. In `e i ber ban ban`, the bearer is `e`. A following-token test sees the gap and freeform `i ber`, and the message names the repair, `ei` or `e e`.
-
-`a tkco ra a mo` retains zero-error erasure. Structured error alternatives never replace flat token readings, and zero-error query witnesses keep `erased-invalid` available in `sentence-of`.
-
-Each warning rule takes its code's name, including `hyphen-misplaced` and `math-symbol`. A transparent call marks its occurrence without changing the tree. Conditions that read the warning rule's captures belong to that rule, including those of `grammatical-quote`.
-
-Every PEG `W_` rule and `warn` call maps to an existing warning code. `W_IInitialFreeformVariable` and `W_UInitialBorrowing` map to `hyphen-misplaced`. The PEG accepts `a i--ia` with two warnings, while gencmu rejects it. The grammar's closing section lists this hyphen departure, and the corpus pins the text.
-
-The grammar's closing section maps each code to its PEG source. Error and warning messages are gencmu's own text. Apart from listed departures, the pipeline rejects inputs that the PEG rejects and warns on inputs that the PEG warns on. The corpus pins gencmu's own codes and positions. The PEG can retain an error from a failed reading, while this pipeline reports only its chosen derivation's errors.
+The Eberban grammar records the complete mappings, fault order, and deliberate departures in its closing sections. See [word forms](../grammars/eberban/refgram/morphology.md#diagnostic-codes-and-peg-sources) and [syntax](../grammars/eberban/refgram/syntax.md#diagnostic-codes-and-peg-sources).
 
 ## Expensive constructs behind features
 
