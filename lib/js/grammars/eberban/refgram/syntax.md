@@ -17,7 +17,7 @@ The prose uses these Eberban terms:
 
 A text is language flags, then paragraphs, and an empty text is valid. The [sentences chapter](https://eberban.github.io/eberban/books/refgram/book/logic/sentences.html) marks a new paragraph with `PO`. The first paragraph can lack it. A paragraph is a sentence and any number of further sentences. A further sentence starts with a sentence starter, a particle of family `A`, `O` or `NI`. Or it is ungrammatical text that `ra` erases.
 
-The chapter says that where several prefixes stand in a row, `PO` is the first of them. So `po-head` reads no free prefix before `PO`, and `di po a mi` has no parse. A free prefix can follow it, as in `po di a mi`.
+The chapter says that where several prefixes stand in a row, `PO` is the first of them. So `po-head` reads no free prefix before `PO`, and `di po a mi` is rejected. A free prefix can follow it, as in `po di a mi`.
 
 The text rules are templates. Their parameter names what blocks an erasure at the start of a paragraph, as "Sentences and erasure" explains. `text` and its rules serve the whole text, a parenthetical and a quote with a written `cai`. `open-quote-text` and its rules serve a quote whose `cai` is left out.
 
@@ -229,7 +229,7 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
   _<¬RA>
 
 %rule ra-run
-  {RA}
+  {RA} [*erased-must-be-followed-by-sentence-starter]
 
 %rule after-erasure
   | starter-head | PO | erased-invalid
@@ -273,7 +273,8 @@ An inner predicate is a chain, with an optional arguments list before it. The ar
   [{prefix}] MI
 
 %rule definition
-  [arguments-list] chain
+  | [arguments-list] chain
+  | arguments-list *chain-empty
 
 %rule arguments-list
   [{KI | GI | ba-free}] BE
@@ -396,10 +397,10 @@ A written terminator never equals an elided one, so `to jie` and `to` are two ve
   bind-first [{bind-next}] [+VEI]
 
 %rule bind-first
-  [bi-free] vi-free definition
+  [bi-free] vi-free (definition | *bind-empty-vi)
 
 %rule bind-next
-  [bi-free] fi-free definition
+  [bi-free] fi-free (definition | *bind-empty-fi)
 
 %rule vi-free
   [{prefix}] VI [{postfix}]
@@ -419,13 +420,15 @@ A written terminator never equals an elided one, so `to jie` and `to` are two ve
 
 ## Verbs
 
-A verb is a definable word with its namespace, or an inline assignment with `bo`. It can also be a `KI`, `BA` or `MI` particle, a quote, an enumeration, a borrowing group or a number. A `KI`, a number and a borrowing group take no free prefix of their own, as in the PEG. So `a di 1` and `a di ualis` have no parse. The others can take free prefixes. Any verb of a chain can take free suffixes, as in `a ke de mi`, because `annotated-verb` reads them.
+A verb is a definable word with its namespace, or an inline assignment with `bo`. It can also be a `KI`, `BA` or `MI` particle, a quote, an enumeration, a borrowing group or a number. A `KI`, a number and a borrowing group take no free prefix of their own, as in the PEG. So `a di 1` and `a di ualis` are rejected. The others can take free prefixes. Any verb of a chain can take free suffixes, as in `a ke de mi`, because `annotated-verb` reads them.
 
 ```jbogenbau
 %rule base-verb
-  | definable-usage | inline-assignment | KI | ba-free | mi-free
+  | $d:definable-usage | inline-assignment | KI | ba-free | mi-free
   | grammatical-quote | word-quote | spelling-quote | foreign-quote
   | enumeration | borrowing-group | number
+%conditions
+  $d ≇ #« definable-part« fault-token » »
 
 %rule inline-assignment
   [{prefix}] BO (KI | definable)
@@ -458,7 +461,8 @@ A quote holds several sentences in two cases: it has several paragraphs, or its 
 ```jbogenbau
 %const $SEVERAL-SENTENCES
   #« ⋯ open-quote-paragraphs« ⋯ open-quote-sentences po-head ⋯ » »
-  ∪ #« ⋯ open-quote-paragraphs« [po-head] open-quote-sentences« ⋯ sentence-choice ⋯ sentence-choice ⋯ » ⋯ » »
+  ∪ #« ⋯ open-quote-paragraphs« [po-head] open-quote-sentences« ⋯ sentence-choice ⋯
+    sentence-choice ⋯ » ⋯ » »
 
 %rule grammatical-quote
   | [{prefix}] CA text [{prefix}] CAI
@@ -533,7 +537,7 @@ A number is digits with separators, as the [numbers chapter](https://eberban.git
 
 The alternatives of `number-body` list the parts that can come first. Any `JI` can end any number, as in the PEG. The chapter says that `jie` is mandatory between consecutive numbers to tell them apart. That means only that the ending cannot be left out there, so any written `JI` separates two numbers. A number with its `JI` left out cannot stand directly before another number, while `a te ji ta` is two numbers.
 
-An elidable optional cannot hold a capture, so the condition on `number` states that with a tree pattern. Either the last child is a written `JI`, or no number part follows.
+The condition on `number` tests its closing `JI` with a tree pattern. Either the last child is a written `JI`, or no number part follows.
 
 The chapter says that a `JI` other than `jie` "must follow positive integer (no fractional part)". That rule concerns the value of the number, and the closing section explains why the grammar imposes no condition on that value.
 
@@ -587,7 +591,7 @@ The [annotations chapter](https://eberban.github.io/eberban/books/refgram/book/g
   DE [si-free] verb
 
 %rule parenthetical
-  DA text DAI
+  DA text (DAI | *unclosed-parenthetical)
 ```
 
 <details><summary>Railroad diagrams of <code>prefix</code>, <code>postfix</code>, <code>interjection</code> and <code>parenthetical</code></summary>
@@ -598,6 +602,424 @@ The [annotations chapter](https://eberban.github.io/eberban/books/refgram/book/g
 </details>
 
 
+## Diagnostic recovery
+
+For equal error counts, a specific construct failure precedes an unmatched closer or resumption. The pipeline counts these named error nodes with `$UNMATCHED-ERRORS`. Every zero-error reading has the same zero count.
+
+```jbogenbau
+%const $UNMATCHED-ERRORS
+  #(·unmatched-fi ∪ ·unmatched-vei ∪ ·unmatched-be ∪ ·unmatched-pei
+    ∪ ·unmatched-bu ∪ ·unmatched-dai ∪ ·unmatched-resume)
+```
+
+Named errors preserve a complete reading of faulty text. A zero-error reading always takes precedence, including erasure. A query uses only zero-error witnesses, so error recovery never makes erased invalid text grammatical.
+
+Fault-bearing junk is a verb error or a definable-part error. The condition on the ordinary definable-usage branch excludes its bare fault reading at a verb position. That leaves one reading there, while namespaced and prefixed fault readings keep their structure.
+
+```jbogenbau
+%extend-rule base-verb
+  fault-token
+
+%extend-rule definable-part
+  [{prefix}] fault-token
+
+%rule fault-token
+  quadruplet | triplet-middle-m | triplet-yz-sonorant-x | triplet-root-first-pair |
+    triplet-freeform-first-pair | triplet-root-shape | triplet-freeform-shape | doubled-pair |
+    pair-voiceness | sibilant-pair | root-starts-with-medial-pair | particle-sonorant-pair |
+    h-not-between-vowels | hyphen-same-vowels | invalid-medial-pair |
+    freeform-multi-consonents-ending | spaced-i-prefix | empty-compound-fault | incomplete-compound
+```
+
+<details><summary>Railroad diagrams of <code>base-verb</code>, <code>definable-part</code> and <code>fault-token</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.2.svg" alt="Railroad diagram of the rule base-verb"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/definable-part.2.svg" alt="Railroad diagram of the rule definable-part"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/fault-token.svg" alt="Railroad diagram of the rule fault-token"></p>
+</details>
+
+Each fault error reads the token that carries its class. Its span is that token alone. Incomplete compounds therefore report on each stray prefix rather than on the whole compound. The empty-compound recovery consumes its closing `e` outside the diagnostic, so only the `er` token reports.
+
+```jbogenbau
+%rule quadruplet
+  Junk<Fault-quadruplet>
+%error "a word permits at most three consecutive consonants"
+
+%rule triplet-middle-m
+  Junk<Fault-triplet-middle-m>
+%error "the middle consonant of this triplet cannot be m"
+
+%rule triplet-yz-sonorant-x
+  Junk<Fault-triplet-yz-sonorant-x>
+%error "after a sonorant, the last pair needs an initial or consonant-sonorant shape"
+
+%rule triplet-root-first-pair
+  Junk<Fault-triplet-root-first-pair>
+%error "a root triplet needs a medial or initial first pair"
+
+%rule triplet-freeform-first-pair
+  Junk<Fault-triplet-freeform-first-pair>
+%error "a freeform triplet needs a medial or initial first pair, or a sonorant first consonant"
+
+%rule triplet-root-shape
+  Junk<Fault-triplet-root-shape>
+%error "the root triplet needs a medial-initial shape or a permitted liquid ending"
+
+%rule triplet-freeform-shape
+  Junk<Fault-triplet-freeform-shape>
+%error "the freeform triplet fits none of the permitted shapes"
+
+%rule doubled-pair
+  Junk<Fault-doubled-pair>
+%error "a consonant pair cannot repeat the same consonant across a hyphen"
+
+%rule pair-voiceness
+  Junk<Fault-pair-voiceness>
+%error "invalid consonant pair: the consonants differ in voicing"
+
+%rule sibilant-pair
+  Junk<Fault-sibilant-pair>
+%error "a consonant pair cannot contain two sibilants"
+
+%rule root-starts-with-medial-pair
+  Junk<Fault-root-starts-with-medial-pair>
+%error "a root cannot start with a medial consonant pair"
+
+%rule particle-sonorant-pair
+  Junk<Fault-particle-sonorant-pair>
+%error "a particle cannot contain two consecutive sonorants"
+
+%rule h-not-between-vowels
+  Junk<Fault-h-not-between-vowels>
+%error "h must stand between vowels, except at a borrowing or freeform onset"
+
+%rule hyphen-same-vowels
+  Junk<Fault-hyphen-same-vowels>
+%error "a hyphen cannot separate two copies of the same vowel"
+
+%rule invalid-medial-pair
+  Junk<Fault-invalid-medial-pair>
+%error "the consonant pair is neither medial nor an initial pair starting another word"
+
+%rule freeform-multi-consonents-ending
+  Junk<Fault-freeform-multi-consonents-ending>
+%error "a borrowing or freeform can end with at most one consonant"
+
+%rule spaced-i-prefix
+  Junk<Fault-spaced-i-prefix>
+%error "attach the nested prefix as ei, or write e e instead of e i"
+
+%rule empty-compound-fault
+  *compound-empty Junk<Fault-incomplete-compound>="e"
+
+%rule compound-empty
+  Junk<Fault-compound-empty>
+%error "an er compound needs at least one component"
+
+%rule incomplete-compound
+  Junk<Fault-incomplete-compound>
+%error "the compound needs more components or its closing e"
+```
+
+<details><summary>Railroad diagrams of the 20 rules from <code>quadruplet</code> to <code>incomplete-compound</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/quadruplet.svg" alt="Railroad diagram of the rule quadruplet"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/triplet-middle-m.svg" alt="Railroad diagram of the rule triplet-middle-m"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/triplet-yz-sonorant-x.svg" alt="Railroad diagram of the rule triplet-yz-sonorant-x"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/triplet-root-first-pair.svg" alt="Railroad diagram of the rule triplet-root-first-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/triplet-freeform-first-pair.svg" alt="Railroad diagram of the rule triplet-freeform-first-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/triplet-root-shape.svg" alt="Railroad diagram of the rule triplet-root-shape"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/triplet-freeform-shape.svg" alt="Railroad diagram of the rule triplet-freeform-shape"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/doubled-pair.svg" alt="Railroad diagram of the rule doubled-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/pair-voiceness.svg" alt="Railroad diagram of the rule pair-voiceness"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/sibilant-pair.svg" alt="Railroad diagram of the rule sibilant-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/root-starts-with-medial-pair.svg" alt="Railroad diagram of the rule root-starts-with-medial-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/particle-sonorant-pair.svg" alt="Railroad diagram of the rule particle-sonorant-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/h-not-between-vowels.svg" alt="Railroad diagram of the rule h-not-between-vowels"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/hyphen-same-vowels.svg" alt="Railroad diagram of the rule hyphen-same-vowels"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/invalid-medial-pair.svg" alt="Railroad diagram of the rule invalid-medial-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/freeform-multi-consonents-ending.svg" alt="Railroad diagram of the rule freeform-multi-consonents-ending"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/spaced-i-prefix.svg" alt="Railroad diagram of the rule spaced-i-prefix"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-compound-fault.svg" alt="Railroad diagram of the rule empty-compound-fault"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/compound-empty.svg" alt="Railroad diagram of the rule compound-empty"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/incomplete-compound.svg" alt="Railroad diagram of the rule incomplete-compound"></p>
+</details>
+
+Unmatched closing particles have no open construct to claim them. Text recovery reads them after a sentence body or at a sentence start. This keeps closers out of verb positions inside chains. A stray resumption reads its attempted verb and explains that its structure does not match. The empty resumption instead names the missing verb.
+
+```jbogenbau
+%extend-rule sentence-of(@Open)
+  sentence-body unmatched-tail | unmatched-tail
+
+%extend-rule base-verb
+  *select-empty | *modified-empty
+
+%rule unmatched-tail
+  | unmatched-resume step-tail [ri-continuation] [unmatched-tail]
+  | *resume-chain-empty [unmatched-tail]
+  | unmatched-closer [ri-continuation | definition] [unmatched-tail]
+
+%rule unmatched-closer
+  unmatched-fi | unmatched-vei | unmatched-be | unmatched-pei | unmatched-bu | unmatched-dai
+
+%rule ri-continuation
+  {RI} (definition | *chain-empty)
+
+%rule unmatched-fi
+  fi-free
+%error "fi has no open vi binding group"
+
+%rule unmatched-vei
+  VEI
+%error "vei has no open vi binding group"
+
+%rule unmatched-be
+  BE
+%error "be needs an arguments list or a borrowing group"
+
+%rule unmatched-pei
+  PEI
+%error "pei has no open pe enumeration"
+
+%rule unmatched-bu
+  bu-free
+%error "bu needs an open pe enumeration"
+
+%rule unmatched-dai
+  DAI
+%error "dai has no open da parenthetical"
+
+%rule unmatched-resume
+  resume-head annotated-verb
+%error "pa needs an earlier verb with matching structure"
+
+%rule resume-chain-empty
+  resume-head
+%conditions
+  $.following-tokens.begins(missing-operand-boundary)
+%error "pa needs the verb whose bindings it resumes"
+
+%rule select-empty
+  si-free
+%conditions
+  $.following-tokens.begins(missing-operand-boundary)
+%error "si needs a following verb"
+
+%rule modified-empty
+  zi-free
+%conditions
+  $.following-tokens.begins(missing-operand-boundary)
+%error "zi needs a verb to modify"
+
+```
+
+<details><summary>Railroad diagrams of the 15 rules from <code>sentence-of</code> to <code>modified-empty</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentence-of.2.svg" alt="Railroad diagram of the rule sentence-of"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.3.svg" alt="Railroad diagram of the rule base-verb"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/unmatched-tail.svg" alt="Railroad diagram of the rule unmatched-tail"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/unmatched-closer.svg" alt="Railroad diagram of the rule unmatched-closer"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/ri-continuation.svg" alt="Railroad diagram of the rule ri-continuation"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/unmatched-fi.svg" alt="Railroad diagram of the rule unmatched-fi"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/unmatched-vei.svg" alt="Railroad diagram of the rule unmatched-vei"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/unmatched-be.svg" alt="Railroad diagram of the rule unmatched-be"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/unmatched-pei.svg" alt="Railroad diagram of the rule unmatched-pei"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/unmatched-bu.svg" alt="Railroad diagram of the rule unmatched-bu"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/unmatched-dai.svg" alt="Railroad diagram of the rule unmatched-dai"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/unmatched-resume.svg" alt="Railroad diagram of the rule unmatched-resume"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/resume-chain-empty.svg" alt="Railroad diagram of the rule resume-chain-empty"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/select-empty.svg" alt="Railroad diagram of the rule select-empty"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/modified-empty.svg" alt="Railroad diagram of the rule modified-empty"></p>
+</details>
+
+An empty-chain diagnostic follows a written starter, an erased chain, a negation, or an arguments list. The positive-width owner keeps repetitions non-nullable. A boundary test detects the missing operand without recursively parsing recovery alternatives. The diagnostic preference chooses this recovery over an unmatched `be` reading with the same error count.
+
+```jbogenbau
+%extend-rule a-sentence
+  [{prefix}] A [{postfix}] *chain-empty
+
+%extend-rule chain
+  {erased-chain RI} *chain-empty
+
+%extend-rule o-sentence
+  [{prefix}] O [{postfix}] definable *chain-empty
+
+%extend-rule separator-form
+  [arguments-list] *chain-empty
+
+%extend-rule chain-inner
+  bi-free *chain-empty
+
+%rule missing-operand-boundary
+  starter-head | PO | RA | RI | sentence-closer | end-of-text
+
+%rule chain-empty
+  ε
+%conditions
+  $.onward.begins(missing-operand-boundary)
+%error "a chain needs at least one non-erased verb"
+
+%rule bind-empty-vi
+  ε
+%conditions
+  $.onward.begins(missing-operand-boundary)
+%error "vi needs a following chain"
+
+%rule bind-empty-fi
+  ε
+%conditions
+  $.onward.begins(missing-operand-boundary)
+%error "fi needs a following chain"
+```
+
+<details><summary>Railroad diagrams of the 9 rules from <code>a-sentence</code> to <code>bind-empty-fi</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/a-sentence.2.svg" alt="Railroad diagram of the rule a-sentence"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain.2.svg" alt="Railroad diagram of the rule chain"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/o-sentence.2.svg" alt="Railroad diagram of the rule o-sentence"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/separator-form.2.svg" alt="Railroad diagram of the rule separator-form"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-inner.2.svg" alt="Railroad diagram of the rule chain-inner"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/missing-operand-boundary.svg" alt="Railroad diagram of the rule missing-operand-boundary"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-empty.svg" alt="Railroad diagram of the rule chain-empty"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/bind-empty-vi.svg" alt="Railroad diagram of the rule bind-empty-vi"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/bind-empty-fi.svg" alt="Railroad diagram of the rule bind-empty-fi"></p>
+</details>
+
+An `o` or `ni` sentence needs a definable target before any definition. Its recovery marks the missing target at that position. A missing parenthetical end reports at the end of the input.
+
+```jbogenbau
+%extend-rule o-sentence
+  [{prefix}] O [{postfix}] *not-definable-o [definition]
+
+%extend-rule ni-sentence
+  [{prefix}] NI *not-definable-ni [verb]
+
+%rule not-definable-o
+  ε
+%conditions
+  ¬$.onward.begins(definable)
+%error "o needs a root, compound, freeform, or gi variable as its target"
+
+%rule not-definable-ni
+  ε
+%conditions
+  ¬$.onward.begins(definable)
+%error "ni needs a root, compound, freeform, or gi variable as its target"
+
+%rule unclosed-parenthetical
+  ε
+%conditions
+  $.ends-input
+%error "the parenthetical needs its closing dai"
+```
+
+<details><summary>Railroad diagrams of the 5 rules from <code>o-sentence</code> to <code>unclosed-parenthetical</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/o-sentence.3.svg" alt="Railroad diagram of the rule o-sentence"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/ni-sentence.2.svg" alt="Railroad diagram of the rule ni-sentence"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/not-definable-o.svg" alt="Railroad diagram of the rule not-definable-o"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/not-definable-ni.svg" alt="Railroad diagram of the rule not-definable-ni"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/unclosed-parenthetical.svg" alt="Railroad diagram of the rule unclosed-parenthetical"></p>
+</details>
+
+An empty spelling quote has no unit between `ce` and `cei`, or ends immediately after `ce`. A sentence after `ra` needs a written starter. The recovery follows the erasure and does not remove errors from its children.
+
+```jbogenbau
+%extend-rule base-verb
+  *spelling-empty
+
+%rule spelling-empty
+  [{prefix}] CE<¬Quote> [CEI]
+%conditions
+  $.following-tokens.begins(sentence-end)
+%error "a spelling quote needs at least one unit"
+
+%rule erased-must-be-followed-by-sentence-starter
+  $s:a-sentence
+%conditions
+  ¬$s.onward.begins(starter-head | PO | sentence-closer)
+%error "after ra, write a sentence starter: a, o, or ni"
+```
+
+<details><summary>Railroad diagrams of the 3 rules from <code>base-verb</code> to <code>erased-must-be-followed-by-sentence-starter</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.4.svg" alt="Railroad diagram of the rule base-verb"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/spelling-empty.svg" alt="Railroad diagram of the rule spelling-empty"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-must-be-followed-by-sentence-starter.svg" alt="Railroad diagram of the rule erased-must-be-followed-by-sentence-starter"></p>
+</details>
+
+Number recovery distinguishes missing parts from parts in the wrong order. The loose reader retains each part. Digit runs take every following digit except the start of a base. This prevents alternate divisions of one faulty number. The ordered counterpart distinguishes order errors from missing digits or a missing fraction marker.
+
+```jbogenbau
+%extend-rule base-verb
+  | *number-end-alone | *number-empty-base | *number-empty-repeat | *number-empty-magnitude
+  | *number-repeat-without-fraction | *number-without-digits | *number-part-order
+
+%rule number-part
+  loose-base | loose-digits | loose-fraction | JA loose-digits | JE loose-digits
+
+%rule loose-base
+  TI JU
+
+%rule loose-digits
+  {TI}
+%conditions
+  ¬$.following-tokens.begins(TI) ∨ $.following-tokens.begins(loose-base)
+
+%rule loose-fraction
+  JO [$d:loose-digits]
+%conditions
+  $d ∨ ¬$.following-tokens.begins(TI) ∨ $.following-tokens.begins(loose-base)
+
+%rule ordered-number-parts
+  [TI JU] [digits] [JO [digits]] [JA digits] [JE digits] [JI]
+
+%rule number-end-alone
+  JI
+%error "ji needs a preceding number part"
+
+%rule number-empty-base
+  JU
+%error "ju needs a preceding ti digit for its base"
+
+%rule number-empty-repeat
+  JA
+%conditions
+  ¬$.following-tokens.begins(TI)
+%error "ja starts a repeated part and needs at least one ti digit"
+
+%rule number-empty-magnitude
+  JE
+%conditions
+  ¬$.following-tokens.begins(TI)
+%error "je starts a magnitude and needs at least one ti digit"
+
+%rule number-repeat-without-fraction
+  [TI JU] [digits] JA digits [JE digits] [JI]
+%error "repeating digits need a fractional part introduced by jo"
+
+%rule number-without-digits
+  JO [JI] | TI JU [JO] [JI]
+%error "a number needs integer digits, fractional digits, or a magnitude"
+
+%rule number-part-order
+  {number-part} [JI]
+%conditions
+  ¬$.matches(ordered-number-parts)
+%error "number parts need base, integer, fraction, repeat, then magnitude, without duplicates"
+
+```
+
+<details><summary>Railroad diagrams of the 13 rules from <code>base-verb</code> to <code>number-part-order</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.5.svg" alt="Railroad diagram of the rule base-verb"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-part.svg" alt="Railroad diagram of the rule number-part"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-base.svg" alt="Railroad diagram of the rule loose-base"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-digits.svg" alt="Railroad diagram of the rule loose-digits"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-fraction.svg" alt="Railroad diagram of the rule loose-fraction"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/ordered-number-parts.svg" alt="Railroad diagram of the rule ordered-number-parts"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-end-alone.svg" alt="Railroad diagram of the rule number-end-alone"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-empty-base.svg" alt="Railroad diagram of the rule number-empty-base"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-empty-repeat.svg" alt="Railroad diagram of the rule number-empty-repeat"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-empty-magnitude.svg" alt="Railroad diagram of the rule number-empty-magnitude"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-repeat-without-fraction.svg" alt="Railroad diagram of the rule number-repeat-without-fraction"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-without-digits.svg" alt="Railroad diagram of the rule number-without-digits"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-part-order.svg" alt="Railroad diagram of the rule number-part-order"></p>
+</details>
+
 ## Differences from the reference grammar and the PEG
 
 The dictionary says that `pa` resumes the bindings of "a matching verb", and the book does not describe `pa`. Only the PEG defines the match. Its `same_structure` compares the trees of the two verbs, with their free prefixes and suffixes. This grammar follows that model with the tree comparison `$v ≅ $e`. So `a mi di duna meon pa duna vo mo` and `a mi to jie meon pa to vo mo` are no texts, as in the PEG.
@@ -606,7 +1028,7 @@ The match departs from the PEG in three places. In the first two, a word compare
 
 - A nested compound matches its other spelling, as `pa e e ber ban ban` after `ei ber ban ban`. Both spellings have one value here, and the PEG fails to resume. [The word forms](morphology.md#differences-from-the-reference-grammar-and-the-peg) explain the choice.
 - A digit matches its spelled `TI` word, so `a mi 3 meon pa to vo mo` is a text here. The PEG's digit node holds a `symbol` field where a spelled particle holds a `word`, so the two spellings differ there. The numbers chapter makes each digit the same particle as its word.
-- A free prefix before an `NI` starter stays in the tree here. So `a ca di nu ga cai meon pa ca nu ga cai vo mo` has no parse here, while the control with `di` in both quotes is a text in both parsers. The PEG's `NI_Free` reads the free prefixes and then drops them from its tree, so the two verbs match there. This grammar keeps the annotation, so the verbs differ.
+- A free prefix before an `NI` starter stays in the tree here. So `a ca di nu ga cai meon pa ca nu ga cai vo mo` is rejected here, while the control with `di` in both quotes is a text in both parsers. The PEG's `NI_Free` reads the free prefixes and then drops them from its tree, so the two verbs match there. This grammar keeps the annotation, so the verbs differ.
 
 The numbers chapter says that a `JI` other than `jie` must follow a positive integer, with no fractional part. Whether a number is a positive integer depends on its value, as `to jei ti` shows. The grammar tests no values, so it accepts any `JI` after any number, as the PEG does. So `a to jo te ji mian` is a text here. This departs from the book's usage rule, not from the PEG.
 
@@ -622,10 +1044,75 @@ The quotes chapter does not say that `cai` can be left out. The PEG lets the spe
 
 The annotations chapter allows any valid text in a parenthetical, and an empty text is valid. The PEG rejects an empty parenthetical with a message. This grammar follows the book, so `a mi da dai` is a text here and not in the PEG.
 
-The sentences chapter says that where several prefixes stand in a row, `PO` is the first of them. The PEG reads free prefixes before `PO`, so `di po a mi` is a text there. This grammar follows the book, and the text has no parse here.
+The sentences chapter says that where several prefixes stand in a row, `PO` is the first of them. The PEG reads free prefixes before `PO`, so `di po a mi` is a text there. This grammar follows the book, and the text is rejected here.
 
 The PEG reads no `bu` after a prefix-form enumeration whose `pei` is left out. So `a pe pe bu mi bu mo` fails there, while `a pe pe bu mi pei bu mo` is a text in both. The enumeration chapter puts no limit on an elided `pei` before `bu`. The PEG's guard `!BU_Free` only turns texts into rejections. So this grammar closes the inner enumeration before the second `bu`, and `a pe pe bu mi bu mo` has the nested reading here.
 
 The PEG reads `ra` only after a space character, so a text that starts with `ra` fails there. This grammar counts the start of a text as a pause, so `ra a mo` is a text here.
 
 The PEG warns about a `cai` left out after a quote of several sentences. Its paragraph rule stores the erased sentence in a sequence, and the warning reads the field `eraser` on that sequence. The sentence inside the sequence has that field, but the sequence has none. So the PEG counts the erased sentence. This grammar counts only sentences that are not erased. So the PEG warns about `a mi pe ca a mo ra ke ra a ke bu ke` and this grammar does not.
+
+### Diagnostic codes and PEG sources
+
+Each named error adds the failed relation or states the default rejection's information more briefly. The messages belong to this grammar. Error counts precede the written diagnostic preference, erasure preference, resumption preference, and elision preference.
+
+The named rules below reject only their chosen erroneous reading. Every erasable span retains a zero-error reading, so `a tkco ra a mo` reports no error. Erasure by `ri` discards no errors: `a mi duna vo ri ke` and `a mi fa ri bjan` remain reported failures.
+
+| Code and rule | Grammar position | PEG source |
+| --- | --- | --- |
+| `quadruplet` | `base-verb` and `definable-part` | [`E_Quadruplet`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1025) |
+| `triplet-middle-m` | `base-verb` and `definable-part` | [`E_TripletInvalid_Root`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1031) / [`E_TripletInvalid_Freeform`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1041) |
+| `triplet-yz-sonorant-x` | `base-verb` and `definable-part` | [`E_TripletYZ_SonorantX`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1028) |
+| `triplet-root-first-pair` | `base-verb` and `definable-part` | [`E_TripletInvalid_Root`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1031) |
+| `triplet-freeform-first-pair` | `base-verb` and `definable-part` | [`E_TripletInvalid_Freeform`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1041) |
+| `triplet-root-shape` | `base-verb` and `definable-part` | [`E_TripletInvalid_Root`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1031) |
+| `triplet-freeform-shape` | `base-verb` and `definable-part` | [`E_TripletInvalid_Freeform`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1041) |
+| `doubled-pair` | `base-verb` and `definable-part` | [`E_DoubledPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1073) |
+| `pair-voiceness` | `base-verb` and `definable-part` | [`E_PairVoiceness1`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1075) / [`E_PairVoiceness2`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1077) |
+| `sibilant-pair` | `base-verb` and `definable-part` | [`E_SibilantPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1079) |
+| `root-starts-with-medial-pair` | `base-verb` and `definable-part` | [`E_RootStartsWithMedialPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L919) |
+| `particle-sonorant-pair` | `base-verb` and `definable-part` | [`E_ParticleSonorantPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L910) |
+| `h-not-between-vowels` | `base-verb` and `definable-part` | [`E_NoVowelBeforeH`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L999) / [`E_NoVowelAfterH`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1000) |
+| `hyphen-same-vowels` | `base-verb` and `definable-part` | [`Vowels`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L974) |
+| `invalid-medial-pair` | `base-verb` and `definable-part` | [`E_InvalidMedialPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L939) |
+| `freeform-multi-consonents-ending` | `base-verb` and `definable-part` | [`E_FreeformMultiConsonentsEnding`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L881) |
+| `spaced-i-prefix` | `base-verb` and `definable-part` | [`E_SpacedIPrefix`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L807) |
+| `compound-empty` | `base-verb` and `definable-part` | [`CompoundN`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L785) |
+| `incomplete-compound` | `base-verb` and `definable-part` | [`E_IncompleteCompound`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L810) |
+| `unmatched-fi` | `unmatched-tail` in text recovery | [`E_UnmatchedFI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L211) |
+| `unmatched-vei` | `unmatched-tail` in text recovery | [`E_UnmatchedVEI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L212) |
+| `unmatched-be` | `unmatched-tail` in text recovery | [`E_UnmatchedBE`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L213) |
+| `unmatched-pei` | `unmatched-tail` in text recovery | [`E_UnmatchedPEI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L214) |
+| `unmatched-bu` | `unmatched-tail` in text recovery | [`E_UnmatchedBU`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L215) |
+| `unmatched-dai` | `unmatched-tail` in text recovery | [`E_UnmatchedDAI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L216) |
+| `unmatched-resume` | `unmatched-tail` in text recovery | [`E_UnmatchedResume`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L217) |
+| `resume-chain-empty` | `unmatched-tail` in text recovery | [`E_ResumeChainEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L323) |
+| `select-empty` | `base-verb` | [`E_SelectEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L420) |
+| `modified-empty` | `base-verb` | [`E_ModifiedEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L421) |
+| `chain-empty` | A written starter, negation, erased chain, or arguments list | [`E_ChainEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L322) |
+| `bind-empty-vi` | `bind-first` or `bind-next` | [`E_BindEmptyVI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L391) |
+| `bind-empty-fi` | `bind-first` or `bind-next` | [`E_BindEmptyFI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L392) |
+| `not-definable-o` | `o-sentence` or `ni-sentence` | [`E_NotDefinableO`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L297) |
+| `not-definable-ni` | `o-sentence` or `ni-sentence` | [`E_NotDefinableNI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L298) |
+| `unclosed-parenthetical` | `parenthetical`, at end of input | [`E_UnclosedParenthetical`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L631) |
+| `spelling-empty` | `base-verb` | [`E_SpellingEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L524) |
+| `erased-must-be-followed-by-sentence-starter` | After `ra-run` | [`E_ErasedMustBeFollowedBySentenceStarter`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L287) |
+| `number-end-alone` | `base-verb` | [`E_NumberEndAlone`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L611) |
+| `number-empty-base` | `base-verb` | [`E_NumberEmptyBase`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L612) |
+| `number-empty-repeat` | `base-verb` | [`E_NumberEmptyRepeat`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L613) |
+| `number-empty-magnitude` | `base-verb` | [`E_NumberEmptyMagnitude`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L614) |
+| `number-repeat-without-fraction` | `base-verb` | [`Number`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L558) |
+| `number-without-digits` | `base-verb` | [`Number`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L558) |
+| `number-part-order` | `base-verb` | [`NumberFormat`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L578) |
+
+`E_EmptyParenthetical` remains a book-based departure because any valid text, including an empty text, can occupy a parenthetical. The book-allowed `E_ErasedMustBeFollowedBySentenceStarter` cases also remain departures. An enclosing quote or parenthesis can end after erasure, and a later `ra` can erase the following invalid stretch.
+
+The grammar gives `ci` no fault alternative. Unsupported quote operands, unclassified junk, missing word boundaries, and a free prefix before `po` retain ordinary rejection. A `JI` value restriction also remains outside this grammar, as the preceding numbers discussion explains.
+
+The PEG can queue a message from a reading that later fails. This grammar reports only errors in its chosen derivation, so its message need not match that queued message.
+
+| Warning code | PEG source |
+| --- | --- |
+| `multi-sentence-cai-elided` | The warning call in [`GrammaticalQuote`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L450) |
+
+The warning counts only sentences that are not erased. The PEG's erased-sentence counting departure remains as described above.

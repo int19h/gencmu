@@ -8,7 +8,7 @@ The stage reads the words and spaces of the [forms stage](morphology.md). It kee
 
 The stream is a sequence of units with gaps between them. A gap is one or more space tokens, and it emits nothing. Two units can also stand side by side, as `mi` and `bjan` do in `mibjan`. Each unit reads one token, so the text has one parse, and the `lazy` policy of the stage decides nothing.
 
-A unit is a word or junk. Junk is a run that the forms stage read as no word, or a prefix of an unfinished compound. It passes through for the syntax stage, where only erased text admits it.
+A unit is a word or junk. Junk is a run that the forms stage read as no word, or a prefix of an unfinished compound. It passes through with its fault marks. Syntax erases it, reports a matching named error, or rejects it without a code.
 
 ```jbogenbau
 %ambiguity-resolution lazy
@@ -31,3 +31,7 @@ A unit is a word or junk. Junk is a run that the forms stage read as no word, or
 <p><img src="../../../docs/diagrams/eberban/refgram/stream/gap.svg" alt="Railroad diagram of the rule gap"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/stream/unit.svg" alt="Railroad diagram of the rule unit"></p>
 </details>
+
+## Differences from the reference grammar and the PEG
+
+This stage preserves every fault mark and adds no diagnostic. The [word forms](morphology.md#diagnostic-codes-and-peg-sources) classify malformed runs. The [syntax](syntax.md#diagnostic-codes-and-peg-sources) reports their faults where erasure leaves them in a supported position.

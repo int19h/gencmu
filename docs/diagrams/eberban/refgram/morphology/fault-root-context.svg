@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="767" height="122" viewBox="0 0 767 122" role="img" aria-label="Railroad diagram of the rule fault-root-context">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="151.2" lengthAdjust="spacingAndGlyphs">fault-root-context</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<g class="rule"><rect x="20" y="44" width="159" height="24" rx="0"/><text x="99.5" y="61" textLength="142.8" lengthAdjust="spacingAndGlyphs">fault-word-prefix</text></g>
+<path d="M179 56h10"/>
+<path d="M189 56h20"/>
+<g class="rule"><rect x="209" y="44" width="117" height="24" rx="0"/><text x="267.5" y="61" textLength="100.8" lengthAdjust="spacingAndGlyphs">ns-consonant</text></g>
+<path d="M326 56h10"/>
+<path d="M336 56h20"/>
+<g class="terminal"><rect x="356" y="44" width="67" height="24" rx="12"/><text x="389.5" y="61" textLength="50.4" lengthAdjust="spacingAndGlyphs">Hyphen</text></g>
+<path d="M423 56H443"/>
+<path d="M336 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H423a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M443 56h10"/>
+<g class="rule"><rect x="453" y="44" width="75" height="24" rx="0"/><text x="490.5" y="61" textLength="58.8" lengthAdjust="spacingAndGlyphs">vhowels</text></g>
+<path d="M528 56H548"/>
+<path d="M189 56a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="209" y="88" width="117" height="24" rx="0"/><text x="267.5" y="105" textLength="100.8" lengthAdjust="spacingAndGlyphs">initial-pair</text></g>
+<path d="M326 100h10"/>
+<path d="M336 100h20"/>
+<g class="terminal"><rect x="356" y="88" width="67" height="24" rx="12"/><text x="389.5" y="105" textLength="50.4" lengthAdjust="spacingAndGlyphs">Hyphen</text></g>
+<path d="M423 100H443"/>
+<path d="M336 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H423a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M443 100h10"/>
+<g class="rule"><rect x="453" y="88" width="75" height="24" rx="0"/><text x="490.5" y="105" textLength="58.8" lengthAdjust="spacingAndGlyphs">vhowels</text></g>
+<path d="M528 100H528a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M548 56h10"/>
+<path d="M558 56h20"/>
+<path d="M578 56h20"/>
+<g class="rule"><rect x="598" y="44" width="109" height="24" rx="0"/><text x="652.5" y="61" textLength="92.4" lengthAdjust="spacingAndGlyphs">root-middle</text></g>
+<path d="M707 56H727"/>
+<path d="M707 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H598a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M727 56H747"/>
+<path d="M558 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H727a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M747 56h6m0 -8v16m4 -16v16"/>
+</svg>

@@ -62,11 +62,13 @@ The stage drops the spaces and hands the syntax stage a stream of words.
   %include "syntax.md"
   ```
 
-The stage builds the tree of the text. An elided terminator is a closing word left unwritten. The stage first prefers the reading that erases fewer words, then the one that passes fewer steps before a resumption, as [the grammar](syntax.md) explains. It then ranks the parses with `late #·_<_Elided>`, so an elided terminator falls as late as the text allows. [The notation document](../../../docs/notation.md#elided-terminators) defines these steps.
+The stage builds the tree of the text. At equal error counts, it prefers a specific failure to an unmatched closer or resumption. That preference never separates zero-error readings.
+
+An elided terminator is a closing word left unwritten. The stage first prefers the reading that erases fewer words, then the one that passes fewer steps before a resumption, as [the grammar](syntax.md) explains. It then ranks the parses with `late #·_<_Elided>`, so an elided terminator falls as late as the text allows. [The notation document](../../../docs/notation.md#elided-terminators) defines these steps.
 
 ```jbogenbau
 %ambiguity-resolution
-  fewest #·erased-word, fewest #·passed-step, late #·_<_Elided>
+  fewest $UNMATCHED-ERRORS, fewest #·erased-word, fewest #·passed-step, late #·_<_Elided>
 ```
 
 ## Differences from the reference grammar and the PEG
@@ -75,7 +77,7 @@ Each stage document closes with its own list. The pipeline as a whole departs fr
 
 The PEG reports a custom message for each mistake it recognizes. A reading can queue a message and then fail. The first message still stays queued, and it then rejects the text. Around a few speculative attempts, it saves the queued message. If it discards the attempt, it restores the message. A later `ra` that erases ungrammatical text discards the queued message.
 
-This pipeline reports only that a text has no parse and where the parse stops. Its grammar states the rule behind each message. A reading that fails here leaves nothing behind, so only the readings that succeed decide. A text that the PEG rejects with a message has no parse here. The exceptions are the departures that the stage documents list, and a message that a failed reading left queued.
+This pipeline reports named errors from its chosen derivation, alongside its warnings. A zero-error erasure takes precedence over every erroneous reading. A failed reading leaves no queued message. The stage documents map each code to its PEG source and list every deliberate departure.
 
 The sentences chapter says that a `ra` inside a foreign quote erases an ungrammatical sentence. That passage describes the PEG. The PEG reads the characters of such a sentence again, without regard to quotes.
 

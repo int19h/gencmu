@@ -1,14 +1,59 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="249" height="78" viewBox="0 0 249 78" role="img" aria-label="Railroad diagram of the rule junk-run">
+<svg xmlns="http://www.w3.org/2000/svg" width="407" height="612" viewBox="0 0 407 612" role="img" aria-label="Railroad diagram of the rule junk-run">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="67.2" lengthAdjust="spacingAndGlyphs">junk-run</text>
 <text class="label" x="97.2" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
-<g class="rule"><rect x="40" y="34" width="84" height="24" rx="0"/><text x="82" y="51" textLength="67.2" lengthAdjust="spacingAndGlyphs">run-char</text></g>
-<path d="M124 46H144"/>
-<path d="M124 46a10 10 0 0 1 10 10V58a10 10 0 0 1 -10 10H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M144 46h10"/>
-<g class="rule"><rect x="154" y="34" width="75" height="24" rx="0"/><text x="191.5" y="51" textLength="58.8" lengthAdjust="spacingAndGlyphs">run-end</text></g>
-<path d="M229 46h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="40" y="34" width="142" height="24" rx="0"/><text x="111" y="51" textLength="126" lengthAdjust="spacingAndGlyphs">read-quadruplet</text></g>
+<path d="M182 46H387"/>
+<path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="68" width="193" height="24" rx="0"/><text x="136.5" y="85" textLength="176.4" lengthAdjust="spacingAndGlyphs">read-triplet-middle-m</text></g>
+<path d="M233 80H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="102" width="235" height="24" rx="0"/><text x="157.5" y="119" textLength="218.4" lengthAdjust="spacingAndGlyphs">read-triplet-yz-sonorant-x</text></g>
+<path d="M275 114H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="136" width="252" height="24" rx="0"/><text x="166" y="153" textLength="235.2" lengthAdjust="spacingAndGlyphs">read-triplet-root-first-pair</text></g>
+<path d="M292 148H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="170" width="285" height="24" rx="0"/><text x="182.5" y="187" textLength="268.8" lengthAdjust="spacingAndGlyphs">read-triplet-freeform-first-pair</text></g>
+<path d="M325 182H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="204" width="210" height="24" rx="0"/><text x="145" y="221" textLength="193.2" lengthAdjust="spacingAndGlyphs">read-triplet-root-shape</text></g>
+<path d="M250 216H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V240a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="238" width="243" height="24" rx="0"/><text x="161.5" y="255" textLength="226.8" lengthAdjust="spacingAndGlyphs">read-triplet-freeform-shape</text></g>
+<path d="M283 250H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V274a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="272" width="159" height="24" rx="0"/><text x="119.5" y="289" textLength="142.8" lengthAdjust="spacingAndGlyphs">read-doubled-pair</text></g>
+<path d="M199 284H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V308a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="306" width="176" height="24" rx="0"/><text x="128" y="323" textLength="159.6" lengthAdjust="spacingAndGlyphs">read-pair-voiceness</text></g>
+<path d="M216 318H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V342a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="340" width="168" height="24" rx="0"/><text x="124" y="357" textLength="151.2" lengthAdjust="spacingAndGlyphs">read-sibilant-pair</text></g>
+<path d="M208 352H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V376a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="374" width="294" height="24" rx="0"/><text x="187" y="391" textLength="277.2" lengthAdjust="spacingAndGlyphs">read-root-starts-with-medial-pair</text></g>
+<path d="M334 386H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V410a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="408" width="243" height="24" rx="0"/><text x="161.5" y="425" textLength="226.8" lengthAdjust="spacingAndGlyphs">read-particle-sonorant-pair</text></g>
+<path d="M283 420H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V444a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="442" width="226" height="24" rx="0"/><text x="153" y="459" textLength="210" lengthAdjust="spacingAndGlyphs">read-h-not-between-vowels</text></g>
+<path d="M266 454H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V478a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="476" width="210" height="24" rx="0"/><text x="145" y="493" textLength="193.2" lengthAdjust="spacingAndGlyphs">read-hyphen-same-vowels</text></g>
+<path d="M250 488H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V512a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="510" width="218" height="24" rx="0"/><text x="149" y="527" textLength="201.6" lengthAdjust="spacingAndGlyphs">read-invalid-medial-pair</text></g>
+<path d="M258 522H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V546a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="544" width="327" height="24" rx="0"/><text x="203.5" y="561" textLength="310.8" lengthAdjust="spacingAndGlyphs">read-freeform-multi-consonents-ending</text></g>
+<path d="M367 556H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V580a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="578" width="134" height="24" rx="0"/><text x="107" y="595" textLength="117.6" lengthAdjust="spacingAndGlyphs">plain-junk-run</text></g>
+<path d="M174 590H367a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M387 46h6m0 -8v16m4 -16v16"/>
 </svg>
