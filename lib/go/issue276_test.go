@@ -162,3 +162,12 @@ func TestIssue276CorpusWarningsOptional(t *testing.T) {
 		t.Fatal(failure)
 	}
 }
+
+func TestIssue276TagLimitIsLoadError(t *testing.T) {
+	for _, name := range []string{"tags-variants-5", "tags-same-result-limit"} {
+		_, err := casePipeline(issue276Case(t, name), false)
+		if err == nil || !strings.Contains(err.Error(), "16") {
+			t.Fatalf("%s: expected load error, got %v", name, err)
+		}
+	}
+}
