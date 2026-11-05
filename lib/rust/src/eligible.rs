@@ -126,6 +126,8 @@ impl<'a> Proofs<'a> {
     fn cap(&self, place: Place) -> Cap {
         let item = self.item(place);
         Cap {
+            route: self.g.route(item.prod),
+            proof_structure: None,
             boundary: item.boundary,
             close_requested: item.close_requested,
             start: item.origin,
@@ -354,7 +356,7 @@ impl<'a> Proofs<'a> {
     /// eligible proof tree (§4).
     pub(crate) fn eligible(&self, witnesses: &[Place]) -> Vec<bool> {
         let everything = vec![true; witnesses.len()];
-        if witnesses.is_empty() || !self.g.elides {
+        if witnesses.is_empty() || !self.g.elides && !self.g.has_errors {
             return everything;
         }
         // The items that the witnesses rest on, children before the items
@@ -407,7 +409,7 @@ impl<'a> Proofs<'a> {
         }
         // With no omission, every item has a finite proof tree, made from
         // predicted items in the order in which the recognizer made it.
-        if !omits {
+        if !omits && !self.g.has_errors {
             return everything;
         }
         let next: Vec<Next> = order.iter().map(|&place| self.next(self.item(place))).collect();
@@ -427,6 +429,11 @@ impl<'a> Proofs<'a> {
                     continue;
                 }
                 let place = order[x];
+                let item = self.item(place);
+                let prod = &self.g.prods[item.prod as usize];
+                if prod.error.is_some() && item.dot as usize == prod.syms.len() {
+                    continue;
+                }
                 let (mut has_e, mut has_p) = (false, false);
                 for edge in &edges[x] {
                     let through = match *edge {

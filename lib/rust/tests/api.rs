@@ -217,7 +217,7 @@ fn gates_turn_off_and_warnings_follow_the_chosen_tree() {
     sources.insert("p.md".to_string(), "```jbogenbau\n%features f\n%stage main\n%include \"g.md\"\n```\n".to_string());
     sources.insert(
         "g.md".to_string(),
-        grammar("%ambiguity-resolution greedy\n%rule text f? \"a\" | ¬f? w! {part}\n%rule part w! \"b\" | \"c\""),
+        grammar("%ambiguity-resolution greedy\n%rule text f? \"a\" | ¬f? *w\n%rule w {part} %warning \"warning w\"\n%rule part *w-part | \"c\"\n%rule w-part \"b\" %warning \"warning w-part\""),
     );
     let pipeline = gencmu::load_pipeline_sources(sources.clone(), "p.md").unwrap();
     assert_eq!(
@@ -225,6 +225,7 @@ fn gates_turn_off_and_warnings_follow_the_chosen_tree() {
         [
             Feature { name: "f".to_string(), kind: FeatureKind::Gate, default: true },
             Feature { name: "w".to_string(), kind: FeatureKind::Warning, default: false },
+            Feature { name: "w-part".to_string(), kind: FeatureKind::Warning, default: false },
         ]
     );
     assert!(!pipeline.parse("bcb", &ParseOptions::default()).unwrap().ok);
@@ -236,19 +237,20 @@ fn gates_turn_off_and_warnings_follow_the_chosen_tree() {
     // One warning for each node of the chosen tree built from a warned
     // alternative: the helper of `{part}`, which the tree splices out, is
     // not one of its nodes (engine §12).
-    let warned = pipeline.parse("bcb", &ParseOptions { features: vec!["w".into()], ..off }).unwrap();
+    let warned = pipeline.parse("bcb", &ParseOptions { features: vec!["w".into(), "w-part".into()], ..off }).unwrap();
     assert!(warned.ok);
     assert_eq!(gencmu::to_brackets(&warned, false), "(b c b)");
     let warning = |rule: &str, span: std::ops::Range<usize>| Warning {
         stage: "main".to_string(),
-        feature: "w".to_string(),
+        code: rule.to_string(),
+        message: format!("warning {rule}"),
         rule: rule.to_string(),
         span: span.clone(),
         source: span,
     };
-    assert_eq!(warned.warnings, [warning("text", 0..3), warning("part", 0..1), warning("part", 2..3)]);
+    assert_eq!(warned.warnings, [warning("w", 0..3), warning("w-part", 0..1), warning("w-part", 2..3)]);
     assert!(gencmu::to_json(&warned).contains(
-        ",\"error\":null,\"warnings\":[{\"stage\":\"main\",\"feature\":\"w\",\"rule\":\"text\",\"span\":[0,3],\"source\":[0,3]},"
+        ",\"error\":null,\"warnings\":[{\"stage\":\"main\",\"code\":\"w\",\"rule\":\"w\",\"span\":[0,3],\"source\":[0,3],\"message\":\"warning w\"},"
     ));
     let both =
         ParseOptions { features: vec!["w".into()], without_features: vec!["w".into()], ..ParseOptions::default() };
@@ -399,7 +401,7 @@ fn results_outlive_the_pipeline_and_cross_threads() {
         pipeline.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":15,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":16,\"ok\":true"));
 
     let pipeline = std::sync::Arc::new(gencmu::load_pipeline("gencmu/jbogenbau").unwrap());
     let threads: Vec<_> = (0..4)
@@ -1008,6 +1010,7 @@ fn the_witness_lost_error_writes_its_members_in_order() {
         children: Vec::new(),
     };
     let error = ParseError {
+        errors: Vec::new(),
         feature: None,
         boundary: None,
         kind: ParseErrorKind::Grammar,
@@ -1040,13 +1043,14 @@ fn the_witness_lost_error_writes_its_members_in_order() {
     assert_eq!(
         gencmu::to_json(&result),
         concat!(
-            r#"{"format":15,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
+            r#"{"format":16,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
             r#""message":"the syntax stage could not reconstruct its chosen derivation for elision-only","#,
             r#""chosen":{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]},"#,
             r#""completion":[{"terminal":"KU","at":3,"source":[9,9]},{"terminal":"VAU","at":5,"source":[16,16],"value":"vau"}]}}"#
         )
     );
     let plain = ParseError {
+        errors: Vec::new(),
         feature: None,
         code: None,
         chosen: None,
@@ -1534,11 +1538,13 @@ fn caller_deep_json_has_no_recursive_writer() {
 
 #[test]
 fn caller_feature_role_location_occurs_once() {
-    let error =
-        gencmu::load_pipeline_sources(single("%ambiguity-resolution greedy\n%rule text f? \"a\" | f! \"b\""), "p.md")
-            .unwrap_err();
+    let error = gencmu::load_pipeline_sources(
+        single("%ambiguity-resolution greedy\n%rule text f? \"a\" | *f\n%rule f \"b\" %warning \"warning f\""),
+        "p.md",
+    )
+    .unwrap_err();
     assert_eq!(error.message, "the feature f is used both as a gate and as a warning");
-    assert_eq!(error.to_string().matches("g.md:5:1").count(), 1);
+    assert_eq!(error.to_string().matches("g.md:6:1").count(), 1);
 }
 
 #[test]

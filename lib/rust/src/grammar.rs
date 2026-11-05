@@ -61,6 +61,9 @@ pub(crate) struct RuleClauses {
     pub strings: Channels,
     pub emit: Option<Vec<EmitItem>>,
     pub conditions: Vec<Cond>,
+    pub error: Option<Term>,
+    pub warning: Option<Term>,
+    pub suppress_warnings: Vec<String>,
 }
 
 /// An alternative after stitching, with the clauses of the rule that
@@ -323,6 +326,9 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                     // alternative. Each condition counts as it is copied.
                     let copy_clauses = || {
                         Arc::new(RuleClauses {
+                            error: rule.error.clone(),
+                            warning: rule.warning.clone(),
+                            suppress_warnings: rule.suppress_warnings.clone(),
                             tags: rule.tags.clone(),
                             strings: rule.strings.clone(),
                             emit: rule.emit.clone(),
@@ -552,6 +558,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     if !grammar.index.contains_key("text") {
         return Err(Error::grammar("has no rule text").in_stage(stage));
     }
+    crate::diagnostics::check(&grammar, documents)?;
     crate::boundary::reachable(&grammar)?;
     // Shared clauses are checked once, with the first alternative that
     // holds them.
@@ -657,7 +664,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
                     out.push(rule as u32);
                 }
             }
-            Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => edges(inner, grammar, out),
+            Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) => edges(inner, grammar, out),
             Expr::Choice(branches) => {
                 for branch in branches {
                     edges(branch, grammar, out);
@@ -704,7 +711,9 @@ fn consuming(expr: &Expr, rules: &FxSet<String>) -> bool {
                 return true
             }
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => pending.extend(items),
-            Expr::Capture(_, inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => pending.push(inner),
+            Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => {
+                pending.push(inner)
+            }
             Expr::Repeat(item, separator, _) => {
                 pending.push(item);
                 pending.extend(separator.as_deref());
@@ -748,7 +757,9 @@ fn emission_overlap(grammar: &StageGrammar) -> Result<(), Error> {
                     Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                         pending.extend(items)
                     }
-                    Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => pending.push(inner),
+                    Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => {
+                        pending.push(inner)
+                    }
                     Expr::Repeat(item, separator, _) => {
                         pending.push(item);
                         pending.extend(separator.as_deref());
@@ -1861,7 +1872,14 @@ impl Constants<'_> {
                         for term in terms {
                             self.substitute_term(term);
                         }
-                        for recipe in clauses.strings.value.iter_mut().chain(&mut clauses.strings.image) {
+                        for recipe in clauses
+                            .strings
+                            .value
+                            .iter_mut()
+                            .chain(&mut clauses.strings.image)
+                            .chain(&mut clauses.error)
+                            .chain(&mut clauses.warning)
+                        {
                             self.substitute_term(recipe);
                         }
                         for item in clauses.emit.iter_mut().flatten() {
@@ -1969,7 +1987,7 @@ impl Constants<'_> {
                     }
                     pending.push(inner)
                 }
-                Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
+                Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) => pending.push(inner),
                 Expr::Repeat(item, separator, _) => {
                     pending.extend(separator.as_deref());
                     pending.push(item);
@@ -2009,7 +2027,7 @@ impl Constants<'_> {
                             }
                             stack.push(inner);
                         }
-                        Expr::Capture(_, inner) => stack.push(inner),
+                        Expr::Capture(_, inner) | Expr::Splice(inner) => stack.push(inner),
                         Expr::Repeat(item, separator, _) => {
                             stack.push(item);
                             stack.extend(separator.as_deref_mut());
@@ -2042,11 +2060,15 @@ impl Constants<'_> {
     /// A copy of a rule definition in which each constant is its value.
     fn substitute_rule(&self, rule: &RuleDef) -> RuleDef {
         let mut rule = rule.clone();
-        let terms = rule.tags.iter_mut().chain(rule.alternatives.iter_mut().filter_map(|a| a.tags.as_mut())).chain(
-            rule.emit.iter_mut().flatten().filter_map(|item| match item {
+        let terms = rule
+            .error
+            .iter_mut()
+            .chain(&mut rule.warning)
+            .chain(rule.tags.iter_mut())
+            .chain(rule.alternatives.iter_mut().filter_map(|a| a.tags.as_mut()))
+            .chain(rule.emit.iter_mut().flatten().filter_map(|item| match item {
                 EmitItem::Capture(_, tags, ..) | EmitItem::Insert(tags, _) => tags.as_mut(),
-            }),
-        );
+            }));
         for term in terms {
             self.substitute_term(term);
         }
@@ -2231,7 +2253,7 @@ impl<'a> Iterator for ValueParts<'a> {
             }
             ValuePart::Source(_) => (),
             ValuePart::Rule(rule) => {
-                children.extend(rule.tags.iter().map(ValuePart::Term));
+                children.extend(rule.error.iter().chain(&rule.warning).chain(&rule.tags).map(ValuePart::Term));
                 value_channels(&mut children, &rule.strings);
                 children.extend(rule.alternatives.iter().map(ValuePart::Alternative));
                 children.extend(rule.conditions.iter().map(ValuePart::Cond));
@@ -2261,7 +2283,7 @@ impl<'a> Iterator for ValueParts<'a> {
                         children.push(ValuePart::Term(&default.term));
                     }
                 }
-                Expr::Capture(_, e) => children.push(ValuePart::Expr(e)),
+                Expr::Capture(_, e) | Expr::Splice(e) => children.push(ValuePart::Expr(e)),
                 Expr::Repeat(e, separator, _) => {
                     children.push(ValuePart::Expr(e));
                     children.extend(separator.iter().map(|e| ValuePart::Expr(e)));
@@ -2374,7 +2396,7 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
             check_expr(grammar, item)?;
             separator.as_deref().map_or(Ok(()), |separator| check_expr(grammar, separator))
         }
-        Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => check_expr(grammar, inner),
+        Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => check_expr(grammar, inner),
         Expr::Ref(name) => {
             if is_terminal_name(name) {
                 Ok(())
@@ -2566,6 +2588,9 @@ mod tests {
                 Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()), Default::default())
             };
             let rule = RuleDef {
+                error: None,
+                warning: None,
+                suppress_warnings: Vec::new(),
                 source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,

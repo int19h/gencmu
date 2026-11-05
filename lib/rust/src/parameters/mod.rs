@@ -57,7 +57,7 @@ pub(crate) fn at(n: &Json) -> Option<(usize, usize)> {
 }
 pub(crate) fn source_fields(root: &Json) -> Vec<(&str, &Json)> {
     let prefix: &[&str] = if has(root, "name") && has(root, "op") {
-        &["instance", "args", "tags", "value", "image", "alternatives", "conditions", "emit"]
+        &["instance", "args", "tags", "value", "image", "alternatives", "conditions", "error", "warning", "emit"]
     } else if has(root, "expr") && !has(root, "test") {
         &["expr", "tags", "value", "image"]
     } else if has(root, "capture") || has(root, "insert") {
@@ -76,6 +76,9 @@ pub(crate) fn source_fields(root: &Json) -> Vec<(&str, &Json)> {
         "receiver",
         "args",
         "expr",
+        "splice",
+        "error",
+        "warning",
         "body",
         "targets",
         "requirements",
@@ -215,7 +218,7 @@ pub(crate) fn argument(expr: Json) -> Json {
     if let Some(value) = expr.get("literal") {
         return value.clone();
     }
-    if ["param", "call", "test", "range", "wildcard"].iter().any(|k| has(&expr, k)) {
+    if ["splice", "param", "call", "test", "range", "wildcard"].iter().any(|k| has(&expr, k)) {
         return expr;
     }
     obj([("body", expr)])

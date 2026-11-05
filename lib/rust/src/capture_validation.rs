@@ -175,7 +175,7 @@ fn query<'a>(expr: &'a Expr, required: &FxSet<&str>, forbidden: &FxSet<&str>, or
                     out = next;
                 }
             }
-            Expr::Optional(inner, Mark::Plain, _) => {
+            Expr::Optional(inner, mark, _) if *mark == Mark::Plain || matches!(&**inner, Expr::Capture(..)) => {
                 let mut absent = Witness::empty();
                 absent.key = leaf(0);
                 out[0] = Some(absent);
@@ -210,7 +210,10 @@ fn variable(expr: &Expr) -> bool {
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 items.iter().collect()
             }
-            Expr::Optional(inner, Mark::Plain, _) | Expr::Tested(_, _, inner) => vec![inner],
+            Expr::Optional(inner, mark, _) if *mark == Mark::Plain || matches!(&**inner, Expr::Capture(..)) => {
+                vec![inner]
+            }
+            Expr::Tested(_, _, inner) => vec![inner],
             _ => Vec::new(),
         };
         if !ready {
@@ -222,7 +225,7 @@ fn variable(expr: &Expr) -> bool {
         let has = matches!(e, Expr::Capture(..)) || parts.iter().any(|p| p.0);
         let varies = parts.iter().any(|p| p.1)
             || has
-                && (matches!(e, Expr::Optional(_, Mark::Plain, _))
+                && (matches!(e, Expr::Optional(inner, mark, _) if *mark==Mark::Plain || matches!(&**inner,Expr::Capture(..)))
                     || children.len() > 1 && matches!(e, Expr::Choice(_) | Expr::Ranked(_, _) | Expr::And(_)));
         done.push((has, varies));
     }

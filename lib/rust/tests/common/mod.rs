@@ -674,6 +674,7 @@ pub fn error_kind(kind: gencmu::ParseErrorKind) -> &'static str {
         gencmu::ParseErrorKind::Rejected => "rejected",
         gencmu::ParseErrorKind::Ambiguous => "ambiguous",
         gencmu::ParseErrorKind::Grammar => "grammar",
+        gencmu::ParseErrorKind::Reported => "reported",
         gencmu::ParseErrorKind::FeatureConflict => "feature-conflict",
     }
 }
@@ -825,6 +826,52 @@ pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), Str
 pub fn result_problems(json: &Value) -> Vec<String> {
     let mut problems = Vec::new();
     let stages = json.get("stages").map_or(&[][..], Value::array);
+    let diagnostic = |value: &Value| {
+        let keys = ["stage", "code", "rule", "span", "source", "message"];
+        if !matches!(value,Value::Object(fields) if fields.len()==6 && fields.iter().all(|(k,_)|keys.contains(&k.as_str())))
+        {
+            return false;
+        }
+        if value.get("code") != value.get("rule") {
+            return false;
+        }
+        if !["stage", "code", "rule", "message"].iter().all(|k| value.get(k).and_then(Value::str).is_some()) {
+            return false;
+        }
+        ["span","source"].iter().all(|k|matches!(value.get(k),Some(Value::Array(pair)) if pair.len()==2 && pair.iter().all(|v|matches!(v,Value::Number(n) if n.is_finite()&&*n>=0.0&&n.fract()==0.0&&*n<=9007199254740991.0)) && matches!((&pair[0],&pair[1]),(Value::Number(a),Value::Number(b)) if a<=b)))
+    };
+    for warning in json.get("warnings").map_or(&[][..], Value::array) {
+        if !diagnostic(warning) {
+            problems.push("a warning lacks its diagnostic fields".into());
+        }
+    }
+    if let Some(error) = json.get("error").filter(|e| matches!(e, Value::Object(_))) {
+        if error.get("kind").and_then(Value::str) == Some("reported") {
+            let last = stages.last();
+            if json.get("ok") != Some(&Value::Bool(false))
+                || json.get("tree") == Some(&Value::Null)
+                || json.get("tree").is_none()
+                || !last.is_some_and(|s| {
+                    s.get("name") == error.get("stage")
+                        && matches!(s.get("verdict").and_then(Value::str), Some("unique" | "resolved"))
+                        && s.get("output").is_none()
+                })
+            {
+                problems.push("a reported result lacks its retained tree and verdict or has output".into());
+            }
+            if !matches!(error.get("errors"),Some(Value::Array(reports)) if !reports.is_empty() && reports.iter().all(|r|diagnostic(r)&&r.get("stage")==error.get("stage")))
+            {
+                problems.push("a reported result lacks its ordered named errors".into());
+            }
+            for key in ["token", "source", "line", "column", "expected", "readings"] {
+                if error.get(key).is_some() {
+                    problems.push(format!("a reported error has {key}"));
+                }
+            }
+        } else if json.get("tree") != Some(&Value::Null) {
+            problems.push("an error result other than reported has a tree".into());
+        }
+    }
     for (index, stage) in stages.iter().enumerate() {
         let name = stage.get("name").and_then(Value::str).unwrap_or("?");
         if stage.get("tied").is_some() {

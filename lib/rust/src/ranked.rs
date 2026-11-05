@@ -473,7 +473,7 @@ impl RankedGroups {
                     self.visit(separator, &format!("{path}/separator"), false, owner, source);
                 }
             }
-            Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => {
+            Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) => {
                 self.visit(inner, &format!("{path}/expr"), final_position, owner, source)
             }
             _ => {}
@@ -656,6 +656,7 @@ fn expression_children(expr: &Expr) -> Vec<(&Expr, String)> {
             }
             out
         }
+        Expr::Splice(child) => vec![(child, "/splice".into())],
         Expr::Capture(_, child) | Expr::Tested(_, _, child) => vec![(child, "/expr".into())],
         _ => vec![],
     }
@@ -860,7 +861,7 @@ impl TagGraph {
                 }
                 result
             }
-            Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => {
+            Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) => {
                 self.describe(grammar, ranked, source, inner, memo, captured)
             }
             Expr::Ref(name) => Unary { zero: false, children: vec![grammar.index.get(name).copied()] },
@@ -881,7 +882,7 @@ fn common_capture(expr: &Expr, memo: &mut FxMap<usize, bool>) -> bool {
         Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
             items.iter().any(|child| common_capture(child, memo))
         }
-        Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => common_capture(inner, memo),
+        Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => common_capture(inner, memo),
         Expr::Repeat(inner, separator, _) => {
             common_capture(inner, memo) || separator.as_deref().is_some_and(|s| common_capture(s, memo))
         }
@@ -904,7 +905,9 @@ impl WrittenSpans {
             return id;
         }
         let id = match expr {
-            Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => self.expression(inner, grammar),
+            Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) => {
+                self.expression(inner, grammar)
+            }
             Expr::Ref(name) => grammar.index.get(name).map_or(0, |i| i + 1),
             Expr::Terminal(_) | Expr::Literal(_) | Expr::ScalarRange(..) | Expr::Range(..) | Expr::Wildcard => 0,
             _ => {
@@ -1008,7 +1011,7 @@ impl SymbolSpans {
         }
     }
     fn atom(&self, mut expr: &Expr, grammar: &StageGrammar) -> Span {
-        while let Expr::Capture(_, inner) | Expr::Tested(_, _, inner) = expr {
+        while let Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) = expr {
             expr = inner;
         }
         if let Expr::Ref(name) = expr {

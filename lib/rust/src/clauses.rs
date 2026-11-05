@@ -1003,7 +1003,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<&Expr> {
                     stack.push((expr, true));
                     stack.extend(items.iter().rev().map(|item| (item, false)));
                 }
-                Expr::Optional(inner, Mark::Plain, _) => {
+                Expr::Optional(inner, mark, _) if *mark == Mark::Plain || matches!(&**inner, Expr::Capture(..)) => {
                     stack.push((expr, true));
                     stack.push((inner, false));
                 }
@@ -1021,7 +1021,9 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<&Expr> {
                             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                                 inside.extend(items.iter().rev())
                             }
-                            Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => inside.push(inner),
+                            Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => {
+                                inside.push(inner)
+                            }
                             Expr::Repeat(item, separator, _) => {
                                 inside.extend(separator.as_deref());
                                 inside.push(item);
@@ -1031,7 +1033,8 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<&Expr> {
                     }
                     done.push(empty());
                 }
-                Expr::Source(_)
+                Expr::Splice(_)
+                | Expr::Source(_)
                 | Expr::Ref(_)
                 | Expr::Terminal(_)
                 | Expr::Literal(_)
@@ -1186,7 +1189,7 @@ impl<'e> CaptureSequences<'e> {
                 Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     stack.extend(items.iter().rev())
                 }
-                Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push(inner),
+                Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push(inner),
                 Expr::Repeat(item, separator, _) => {
                     stack.extend(separator.as_deref());
                     stack.push(item);
@@ -1222,7 +1225,7 @@ impl<'e> CaptureSequences<'e> {
                         stack.push((expr, true));
                         stack.extend(items.iter().rev().map(|item| (item, false)));
                     }
-                    Expr::Optional(inner, Mark::Plain, _) => {
+                    Expr::Optional(inner, mark, _) if *mark == Mark::Plain || matches!(&**inner, Expr::Capture(..)) => {
                         stack.push((expr, true));
                         stack.push((inner, false));
                     }
@@ -1230,7 +1233,8 @@ impl<'e> CaptureSequences<'e> {
                         self.skip(expr);
                         done.push(vec![Vec::new()]);
                     }
-                    Expr::Tested(..)
+                    Expr::Splice(_)
+                    | Expr::Tested(..)
                     | Expr::Ref(_)
                     | Expr::Terminal(_)
                     | Expr::Literal(_)
@@ -1337,7 +1341,7 @@ fn item_captures_and_braces(expr: &Expr) -> ItemsAndBraces<'_> {
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.iter().rev().map(|item| (item, place)));
             }
-            Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push((inner, place)),
+            Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push((inner, place)),
             Expr::Ref(_)
             | Expr::Terminal(_)
             | Expr::Literal(_)
@@ -1384,7 +1388,7 @@ pub(crate) fn repeats_item_capture(expr: &Expr) -> bool {
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.iter())
             }
-            Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push(inner),
+            Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push(inner),
             Expr::Ref(_)
             | Expr::Terminal(_)
             | Expr::Literal(_)
@@ -1413,7 +1417,9 @@ fn flat_braces_in(expr: &Expr) -> usize {
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.iter().rev());
             }
-            Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) | Expr::Capture(_, inner) => stack.push(inner),
+            Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) | Expr::Capture(_, inner) => {
+                stack.push(inner)
+            }
             Expr::Ref(_)
             | Expr::Terminal(_)
             | Expr::Literal(_)
@@ -1461,7 +1467,7 @@ pub(crate) fn braces_sequences(expr: &Expr) -> Vec<Vec<Read<'_>>> {
                     stack.push((current, true));
                     stack.extend(items.iter().rev().map(|item| (item, false)));
                 }
-                Expr::Optional(inner, Mark::Plain, _) => {
+                Expr::Optional(inner, mark, _) if *mark == Mark::Plain || matches!(&**inner, Expr::Capture(..)) => {
                     stack.push((current, true));
                     stack.push((inner, false));
                 }
@@ -1479,7 +1485,8 @@ pub(crate) fn braces_sequences(expr: &Expr) -> Vec<Vec<Read<'_>>> {
                     order += flat_braces_in(current);
                     done.push(vec![Vec::new()]);
                 }
-                Expr::Tested(..)
+                Expr::Splice(_)
+                | Expr::Tested(..)
                 | Expr::Ref(_)
                 | Expr::Terminal(_)
                 | Expr::Literal(_)
@@ -1607,10 +1614,14 @@ fn item_capture_problem(rule: &RuleDef) -> Option<String> {
         return None;
     }
     let is_item = |name: &str| item_names.contains(name);
-    let clauses =
-        rule.tags.iter().chain(&rule.strings.value).chain(&rule.strings.image).chain(
-            rule.alternatives.iter().flat_map(|a| a.tags.iter().chain(&a.strings.value).chain(&a.strings.image)),
-        );
+    let clauses = rule
+        .tags
+        .iter()
+        .chain(&rule.strings.value)
+        .chain(&rule.strings.image)
+        .chain(&rule.error)
+        .chain(&rule.warning)
+        .chain(rule.alternatives.iter().flat_map(|a| a.tags.iter().chain(&a.strings.value).chain(&a.strings.image)));
     for term in clauses {
         if let Some(name) = mentioned_in(Part::Term(term)).into_iter().find(|name| is_item(name)) {
             return Some(format!(
@@ -1784,6 +1795,8 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
         && rule.emit.is_none()
         && rule.strings.value.is_none()
         && rule.strings.image.is_none()
+        && rule.error.is_none()
+        && rule.warning.is_none()
         && rule.alternatives.iter().all(|alternative| {
             alternative.tags.is_none() && alternative.strings.value.is_none() && alternative.strings.image.is_none()
         })
@@ -1853,7 +1866,9 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
     // A capture mentioned anywhere, presence tests included, that no
     // alternative captures.
     let mut mentioned: Vec<&str> = Vec::new();
-    for term in rule.tags.iter().chain(&rule.strings.value).chain(&rule.strings.image) {
+    for term in
+        rule.tags.iter().chain(&rule.strings.value).chain(&rule.strings.image).chain(&rule.error).chain(&rule.warning)
+    {
         walk_captures(Part::Term(term), true, true, &mut mentioned);
     }
     for alternative in &rule.alternatives {
@@ -1981,7 +1996,7 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
         let alternative = &rule.alternatives[*alternative];
         let selected_value = alternative.strings.value.as_ref().or(rule.strings.value.as_ref());
         let selected_image = alternative.strings.image.as_ref().or(rule.strings.image.as_ref()).or(selected_value);
-        for recipe in selected_value.into_iter().chain(selected_image) {
+        for recipe in selected_value.into_iter().chain(selected_image).chain(&rule.error).chain(&rule.warning) {
             let mut used = Vec::new();
             term_captures(recipe, &mut used);
             if let Some(missing) = used.into_iter().find(|name| !has(name)) {
@@ -2128,6 +2143,10 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
         }
     }
     None
+}
+
+pub(crate) fn validation_captures(rule: &RuleDef, alternative: usize) -> Vec<Vec<&str>> {
+    validation::captures(rule, alternative)
 }
 
 #[cfg(test)]
@@ -2363,6 +2382,9 @@ mod tests {
                 .chain(names.iter().map(|name| EmitItem::Capture(name.clone(), None, Attachments::default())))
                 .collect();
             RuleDef {
+                error: None,
+                warning: None,
+                suppress_warnings: Vec::new(),
                 source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,

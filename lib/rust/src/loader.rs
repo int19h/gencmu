@@ -387,6 +387,7 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
         item: Default::default(),
         ranked: Default::default(),
         marked: Default::default(),
+        allowed_marked: Default::default(),
         position: &position,
         closed_for: Default::default(),
         in_recipe: Default::default(),

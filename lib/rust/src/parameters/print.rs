@@ -49,6 +49,9 @@ pub(crate) fn canonical(n: &Json, u: &Unicode) -> String {
             list(get(n, "args")).iter().map(p).collect::<Vec<_>>().join(", ")
         );
     }
+    if has(n, "splice") {
+        return format!("*{}", p(get(n, "splice")));
+    }
     if has(n, "param") {
         return format!("@{}", text(get(n, "param")));
     }

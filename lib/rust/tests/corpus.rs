@@ -137,6 +137,47 @@ fn outcome(pipeline: &gencmu::Pipeline, case: &Value) -> Result<BTreeMap<&'stati
             got.insert("at", Value::Number(source.start as f64));
         }
     }
+    if let Some(error) = result.error.as_ref().filter(|e| e.kind == gencmu::ParseErrorKind::Reported) {
+        let verdict = match result.stages.last().and_then(|s| s.verdict) {
+            Some(gencmu::Verdict::Unique) => string("unique"),
+            Some(gencmu::Verdict::Resolved) => string("resolved"),
+            _ => Value::Null,
+        };
+        got.insert("verdict", verdict);
+        got.insert("error", Value::Object(vec![("kind".into(), string("reported"))]));
+        got.insert(
+            "errors",
+            Value::Array(
+                error
+                    .errors
+                    .iter()
+                    .map(|report| {
+                        Value::Object(vec![
+                            ("code".into(), string(&report.code)),
+                            ("at".into(), Value::Number(report.source.start as f64)),
+                        ])
+                    })
+                    .collect(),
+            ),
+        );
+        got.insert("at", Value::Number(error.errors[0].source.start as f64));
+    }
+    got.insert(
+        "warnings",
+        Value::Array(
+            result
+                .warnings
+                .iter()
+                .map(|report| {
+                    Value::Object(vec![
+                        ("stage".into(), string(&report.stage)),
+                        ("code".into(), string(&report.code)),
+                        ("at".into(), Value::Number(report.source.start as f64)),
+                    ])
+                })
+                .collect(),
+        ),
+    );
     // An ambiguous error pins its kind and reason, and no other error has
     // the field (tests/README.md).
     if let Some(error) = result.error.as_ref().filter(|error| error.kind == gencmu::ParseErrorKind::Ambiguous) {
@@ -170,8 +211,11 @@ fn outcome(pipeline: &gencmu::Pipeline, case: &Value) -> Result<BTreeMap<&'stati
 }
 
 fn compare(case: &Value, got: &BTreeMap<&'static str, Value>) -> Option<String> {
-    for key in ["expect", "verdict", "stage", "at", "error", "ties", "words", "brackets"] {
+    for key in ["expect", "verdict", "stage", "at", "error", "errors", "ties", "words", "brackets", "warnings"] {
         let expected = case.get(key);
+        if key == "warnings" && expected.is_none() {
+            continue;
+        }
         let found = got.get(key);
         if expected.is_none() && found.is_none() {
             continue;
@@ -324,4 +368,24 @@ fn corpus_comparison_ignores_object_member_order_and_preserves_array_order() {
         parse_json(r#"{"nested":{"a":1,"b":2},"other":true}"#).unwrap(),
         parse_json(r#"{"other":true,"nested":{"b":2,"a":1}}"#).unwrap()
     );
+}
+
+#[test]
+fn diagnostic_projection_pins_codes_and_optional_warnings() {
+    let case =
+        parse_json(r#"{"id":"projection","pipeline":"main","grammar":"%rule text \"a\" %error \"bad\"","text":"a"}"#)
+            .unwrap();
+    let (documents, path) = common::case_documents(&case);
+    let p = gencmu::load_pipeline_sources(documents, &path).unwrap();
+    let got = outcome(&p, &case).unwrap();
+    assert_eq!(got.get("at"), Some(&Value::Number(0.0)));
+    assert_eq!(got.get("verdict"), Some(&string("unique")));
+    assert_eq!(got.get("errors"), Some(&parse_json(r#"[{"code":"text","at":0}]"#).unwrap()));
+    let mut expected =
+        Value::Object(got.iter().filter(|(k, _)| **k != "warnings").map(|(k, v)| (k.to_string(), v.clone())).collect());
+    assert!(compare(&expected, &got).is_none());
+    if let Value::Object(fields) = &mut expected {
+        fields.push(("warnings".into(), Value::Array(vec![Value::Null])));
+    }
+    assert!(compare(&expected, &got).is_some());
 }

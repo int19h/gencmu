@@ -26,6 +26,7 @@ pub(crate) struct Strings<'a> {
     sources: &'a Sources,
     text: &'a [char],
     unicode: &'a crate::unicode::Unicode,
+    observing: bool,
     covered: Vec<bool>,
     claims: FxSet<(usize, usize)>,
     claim_points: Vec<usize>,
@@ -50,6 +51,7 @@ impl<'a> Strings<'a> {
             sources,
             text,
             unicode,
+            observing: false,
             covered: Vec::new(),
             claims: FxSet::default(),
             claim_points: Vec::new(),
@@ -57,6 +59,10 @@ impl<'a> Strings<'a> {
             saved: vec![[None, None]; tree.nodes.len()],
             active: vec![[false; 2]; tree.nodes.len()],
         }
+    }
+
+    pub(crate) fn observe(&mut self) {
+        self.observing = true;
     }
 
     fn span(&self, node: u32) -> (usize, usize) {
@@ -75,7 +81,13 @@ impl<'a> Strings<'a> {
         let IKind::Close { prod, .. } = node.kind else { unreachable!("a recipe belongs to a constituent") };
         let production = &self.grammar.prods[prod as usize];
         let slot = production.names[name] as usize;
-        node.children[production.cap_pos[slot]]
+        let position = production.cap_pos[slot];
+        let child = node.children[position];
+        if production.forward_captures.contains_key(&position) {
+            self.tree.nodes[child as usize].children[0]
+        } else {
+            child
+        }
     }
 
     fn failure(message: &str) -> EngineError {
@@ -125,7 +137,7 @@ impl<'a> Strings<'a> {
         if right < end {
             extensions.push((right, end));
         }
-        if self.claims.insert(span) {
+        if !self.observing && self.claims.insert(span) {
             for (start, end) in extensions {
                 let first = self.claim_points.binary_search(&start).expect("a source endpoint");
                 let last = self.claim_points.binary_search(&end).expect("a source endpoint");
@@ -287,7 +299,7 @@ impl<'a> Strings<'a> {
         Ok(values.pop().expect("the requested string"))
     }
 
-    fn override_string(&mut self, owner: u32, recipe: &'a Term) -> Result<String, EngineError> {
+    pub(crate) fn override_string(&mut self, owner: u32, recipe: &'a Term) -> Result<String, EngineError> {
         // A recipe task joins its atoms. This wrapper adds no dependency identity.
         let Term::Call(_, atoms) = recipe else { unreachable!() };
         let mut values = String::new();

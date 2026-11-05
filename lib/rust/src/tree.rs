@@ -288,34 +288,49 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
 /// right. The walk passes through the helpers that the tree splices out,
 /// without counting them as nodes, and so meets the tree's nodes in the
 /// tree's own order.
-pub(crate) fn warnings_of(
+pub(crate) fn reports_of(
     tree: &ITree,
     g: &Lowered,
     sources: &Sources,
     features: &BTreeSet<String>,
     stage: &str,
-) -> Vec<Warning> {
+    tokens: &[Tok],
+    text: &[char],
+) -> Result<(Vec<Warning>, Vec<Warning>), EngineError> {
     let mut warnings = Vec::new();
-    let mut stack = vec![0u32];
-    while let Some(index) = stack.pop() {
+    let mut errors = Vec::new();
+    let mut strings = crate::strings::Strings::new(g, tree, tokens, sources, text, &g.unicode);
+    strings.observe();
+    let mut stack = vec![(0u32, BTreeSet::<String>::new())];
+    while let Some((index, mut suppressed)) = stack.pop() {
         let node = &tree.nodes[index as usize];
-        let IKind::Close { prod, start, end, .. } = node.kind else {
-            continue;
-        };
+        let IKind::Close { prod, start, end, .. } = node.kind else { continue };
         let production = &g.prods[prod as usize];
-        // A helper's productions have no warnings.
-        for feature in production.warnings.iter().filter(|&feature| features.contains(feature)) {
-            warnings.push(Warning {
+        suppressed.extend(production.suppress_warnings.iter().cloned());
+        let code = &g.rules[production.rule as usize].name;
+        let warning = production
+            .warning
+            .as_ref()
+            .filter(|_| features.contains(code) && !suppressed.contains("_") && !suppressed.contains(code));
+        for (recipe, is_error) in production.error.iter().map(|r| (r, true)).chain(warning.map(|r| (r, false))) {
+            crate::diagnostics::message(code)?;
+            let report = Warning {
                 stage: stage.to_string(),
-                feature: feature.clone(),
-                rule: g.rules[production.rule as usize].name.clone(),
+                code: code.clone(),
+                rule: code.clone(),
                 span: start as usize..end as usize,
                 source: source_of(sources, start as usize, end as usize),
-            });
+                message: strings.override_string(index, recipe)?,
+            };
+            if is_error {
+                errors.push(report);
+            } else {
+                warnings.push(report);
+            }
         }
-        stack.extend(node.children.iter().rev());
+        stack.extend(node.children.iter().rev().map(|&child| (child, suppressed.clone())));
     }
-    warnings
+    Ok((errors, warnings))
 }
 
 /// A token emitted for the next stage.
@@ -696,7 +711,13 @@ pub(crate) fn emit(
                             if slot == u32::MAX {
                                 index
                             } else {
-                                node.children[production.cap_pos[slot as usize]]
+                                let position = production.cap_pos[slot as usize];
+                                let child = node.children[position];
+                                if production.forward_captures.contains_key(&position) {
+                                    tree.nodes[child as usize].children[0]
+                                } else {
+                                    child
+                                }
                             }
                         };
                         let mut sequence = Vec::with_capacity(items.len());

@@ -504,7 +504,7 @@ fn restore_defaults(expr: &mut dom::Expr, n: &Json) {
                 }
             }
         }
-        Expr::Capture(_, x) | Expr::Tested(_, _, x) => {
+        Expr::Splice(x) | Expr::Capture(_, x) | Expr::Tested(_, _, x) => {
             if let Some(n) = n.get("expr") {
                 restore_defaults(x, n);
             }
@@ -544,7 +544,7 @@ fn annotate_defaults(expr: &dom::Expr, n: &mut Json) {
                 }
             }
         }
-        Expr::Capture(_, x) | Expr::Tested(_, _, x) => {
+        Expr::Splice(x) | Expr::Capture(_, x) | Expr::Tested(_, _, x) => {
             if let Some(n) = slot(n, "expr") {
                 annotate_defaults(x, n);
             }

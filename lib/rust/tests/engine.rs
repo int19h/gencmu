@@ -126,11 +126,12 @@ fn harness_detects_a_wrong_expectation() {
     // expected exactly when there is one.
     let warned = |expect: &str| {
         let case = format!(
-            r#"{{"grammar": "%rule text w! X", "tokens": [{{"text": "x", "tags": ["X"]}}], "options": {{"features": ["w"]}}, "expect": {expect}}}"#
+            r#"{{"grammar": "%rule text *w\n%rule w X %warning \"warning w\"", "tokens": [{{"text": "x", "tags": ["X"]}}], "options": {{"features": ["w"]}}, "expect": {expect}}}"#
         );
         run_engine_case(&parse_json(&case).unwrap())
     };
-    let warning = r#"{"stage": "main", "feature": "w", "rule": "text", "span": [0, 1], "source": [0, 1]}"#;
+    let warning =
+        r#"{"stage": "main", "code": "w", "rule": "w", "span": [0, 1], "source": [0, 1], "message": "warning w"}"#;
     assert!(warned(&format!(r#"{{"warnings": [{warning}]}}"#)).is_ok());
     assert!(warned(r#"{"warnings": []}"#).is_err());
     assert!(warned(r#"{"features": [{"name": "w", "kind": "warning", "default": false}]}"#).is_ok());
@@ -236,7 +237,7 @@ fn emission_errors_come_in_order() {
 #[test]
 fn the_runner_refuses_a_result_that_breaks_an_invariant() {
     use common::{apply_mutant, check_json, engine_case_result, result_mutants, result_problems, Value};
-    let expect = parse_json(r#"{"result": {"ok": false, "error": {"kind": "ambiguous"}}}"#).unwrap();
+    let expect = parse_json("{}").unwrap();
     for (mutant, case) in result_mutants() {
         let name = mutant.get("name").and_then(Value::str).unwrap_or("").to_string();
         let json = engine_case_result(&case);
@@ -258,8 +259,8 @@ fn a_check_that_loses_its_witness_is_the_grammar_error_elision_witness_lost() {
     use common::{result_problems, witness_problem, Value};
     use gencmu::tools::{losing_witness, with_elision_checks, Loss};
     let case = parse_json(
-        r#"{"documents": {"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ :: Tag-x\n%rule b A [+T=\"ta\"] [+U] [+U]\n%stage later\n%ambiguity-resolution greedy\n%rule text Tag-x\n```\n"},
-            "pipelineDocument": "p.md", "tokens": [{"text": "a", "tags": ["A"]}], "options": {"features": ["w"]}}"#,
+        r#"{"documents": {"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b\n%rule a A [+T=\"ta\"] [+U] %warning \"warning a\" %emits $ :: Tag-x\n%rule b A [+T=\"ta\"] [+U] [+U]\n%stage later\n%ambiguity-resolution greedy\n%rule text Tag-x\n```\n"},
+            "pipelineDocument": "p.md", "tokens": [{"text": "a", "tags": ["A"]}], "options": {"features": ["a"]}}"#,
     )
     .unwrap();
     let (documents, pipeline) = common::case_documents(&case);

@@ -31,6 +31,7 @@ fn written_comparisons(root: crate::clauses::Part<'_>) -> Vec<Option<(usize, usi
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Node {
     Rule(String, u32),
+    Anonymous(u32),
     Written(String, String),
     Omitted(String),
     Seal(Vec<String>),
@@ -272,7 +273,7 @@ fn demand_state(
             match span {
                 Span::Whole => {
                     demand.whole = true;
-                    demand.parent_prefix = g.rules[p.rule as usize].helper;
+                    demand.parent_prefix = !p.tree_root;
                 }
                 Span::Cap(slot) => {
                     demand.captures.insert(*slot);
@@ -320,7 +321,7 @@ pub(crate) fn demands(g: &Lowered) -> (Vec<Demand>, FxMap<DemandKey, usize>) {
             for (at, child) in states[id].edges.clone() {
                 let needs_prefix = states[child].demand.parent_prefix;
                 if needs_prefix {
-                    if g.rules[p.rule as usize].helper && !states[id].demand.parent_prefix {
+                    if !p.tree_root && !states[id].demand.parent_prefix {
                         states[id].demand.parent_prefix = true;
                         changed = true;
                     }
@@ -381,8 +382,7 @@ pub(crate) fn demand<'a>(g: &'a Lowered, prod: u32, frame: Option<&crate::earley
 }
 
 pub(crate) fn walks(g: &Lowered, item: crate::earley::Item, frame: Option<&crate::earley::LexicalFrame>) -> bool {
-    item.close_requested & TREE != 0
-        || !g.rules[g.prods[item.prod as usize].rule as usize].helper && demand(g, item.prod, frame).whole
+    item.close_requested & TREE != 0 || g.prods[item.prod as usize].tree_root && demand(g, item.prod, frame).whole
 }
 
 pub(crate) fn prefix_demand(
@@ -527,7 +527,7 @@ pub(crate) fn check_cycles(
                 match span {
                     Span::Whole => {
                         roots.extend(&context.prefix);
-                        if !g.rules[p.rule as usize].helper {
+                        if p.tree_root {
                             roots.extend(p.syms.iter().filter_map(|symbol| match symbol {
                                 Sym::N(rule) if !g.ranked.slots.contains_key(rule) => Some(*rule),
                                 _ => None,
@@ -560,7 +560,7 @@ pub(crate) fn check_cycles(
             comparisons(condition, &mut reads);
         }
         collect(id as u32, reads, &Context::default());
-        if !g.rules[p.rule as usize].helper {
+        if p.tree_root {
             enter(g, id as u32, &Context::default(), &mut queue);
         }
     }
@@ -716,14 +716,16 @@ fn emission_identity(
             }
         }
         let rule = &g.rules[production.rule as usize];
-        let identity = if !rule.helper {
+        let identity = if production.splice {
+            arena.node(Node::Anonymous(prefix))
+        } else if !rule.helper {
             arena.node(Node::Rule(rule.name.clone(), prefix))
         } else if production.syms.is_empty() && rule.elided.is_some() {
             arena.node(Node::Omitted(rule.elided.clone().unwrap()))
         } else {
             ABSENT
         };
-        let sequence = if identity == ABSENT { prefix } else { arena.append(0, identity) };
+        let sequence = if identity == ABSENT || production.splice { prefix } else { arena.append(0, identity) };
         memo.insert(id, Tree { prefix, identity, sequence });
     }
     memo[&root]

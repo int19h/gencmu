@@ -23,6 +23,7 @@ pub(super) fn document(dom: &mut Dom) {
     for rule in &mut dom.rules {
         stack.extend(rule.tags.iter_mut().map(Part::Term));
         channels(&mut rule.strings, &mut stack);
+        stack.extend(rule.error.iter_mut().chain(&mut rule.warning).map(Part::Term));
         stack.extend(rule.conditions.iter_mut().map(Part::Cond));
         stack.extend(rule.source.args.iter_mut().flatten().map(Part::Argument));
         stack.extend(rule.source.instance.iter_mut().map(Part::Call));
@@ -64,7 +65,7 @@ pub(super) fn document(dom: &mut Dom) {
                     stack.push(Part::Expr(inner));
                     stack.extend(default.iter_mut().map(|d| Part::Term(&mut d.term)));
                 }
-                Expr::Capture(_, inner) => stack.push(Part::Expr(inner)),
+                Expr::Capture(_, inner) | Expr::Splice(inner) => stack.push(Part::Expr(inner)),
                 Expr::Repeat(inner, separator, _) => {
                     stack.push(Part::Expr(inner));
                     stack.extend(separator.iter_mut().map(|s| Part::Expr(s)));

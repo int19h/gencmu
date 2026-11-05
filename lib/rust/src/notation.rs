@@ -38,6 +38,7 @@ pub(crate) struct Reader<'a> {
     pub item: std::cell::Cell<bool>,
     pub ranked: std::cell::Cell<usize>,
     pub marked: std::cell::Cell<usize>,
+    pub allowed_marked: std::cell::RefCell<FxSet<usize>>,
     /// The document position of a grammar-text index.
     pub position: &'a dyn Fn(usize) -> (usize, usize),
     /// The source identity of the current elidable head.
@@ -498,6 +499,9 @@ impl<'a> Reader<'a> {
             }
             source.instance = Some(self.source_call(self.one(node, "call")?)?);
             return Ok(RuleDef {
+                error: None,
+                warning: None,
+                suppress_warnings: Vec::new(),
                 source,
                 deferred_emission: None,
                 name,
@@ -539,11 +543,29 @@ impl<'a> Reader<'a> {
                 conditions.push(self.implication(implication)?);
             }
         }
+        let error = self.rules(node, "error-clause").next().map(|clause| self.recipe(clause)).transpose()?;
+        let warning = self.rules(node, "warning-clause").next().map(|clause| self.recipe(clause)).transpose()?;
+        let mut suppress_warnings = Vec::new();
+        if let Some(clause) = self.rules(node, "suppress-warnings-clause").next() {
+            for part in self.parts(clause) {
+                if rule_name(part) == "suppression-code" {
+                    suppress_warnings.push(self.value(self.token(part)?).to_string());
+                } else if part.kind == NodeKind::Token && self.value(part) == "_" {
+                    suppress_warnings.push("_".into());
+                }
+            }
+            if suppress_warnings.is_empty() {
+                return Err(self.error(clause, "a suppression list requires codes or _"));
+            }
+        }
         let emit = match self.rules(node, "emits-clause").next() {
             Some(clause) => Some(self.emission(clause)?),
             None => None,
         };
         let rule = RuleDef {
+            error,
+            warning,
+            suppress_warnings,
             source,
             deferred_emission: None,
             name,
@@ -564,6 +586,9 @@ impl<'a> Reader<'a> {
             return Ok(());
         }
         let (line, column) = rule.at;
+        if let Some(problem) = crate::diagnostics::definition_problem(rule) {
+            return Err(Error::grammar(problem).at(line, column));
+        }
         let projected;
         let checked = if self.unresolved.get() {
             projected = crate::dom::partial::rule(rule).map_err(|problem| Error::grammar(problem).at(line, column))?;
@@ -584,23 +609,16 @@ impl<'a> Reader<'a> {
         Ok(())
     }
 
-    fn guard(&self, node: &'a Node, gates_only: bool) -> R<Guard> {
+    fn guard(&self, node: &'a Node, _gates_only: bool) -> R<Guard> {
         let text = self.value(self.token(node)?);
-        let (text, kind) = match text.strip_suffix('!') {
-            Some(text) => (text, FeatureKind::Warning),
-            None => (text.strip_suffix('?').ok_or_else(|| self.error(node, "invalid guard"))?, FeatureKind::Gate),
-        };
+        let text = text.strip_suffix('?').ok_or_else(|| self.error(node, "a guard ends with ?"))?;
+        let kind = FeatureKind::Gate;
         let (feature, negated) = match text.strip_prefix('¬') {
             Some(feature) => (feature, true),
             None => (text, false),
         };
-        if kind == FeatureKind::Warning && negated {
-            return Err(self.error(node, "a warning cannot be negated"));
-        }
-        if kind == FeatureKind::Warning && gates_only {
-            return Err(self.error(node, "an entry of a classifier takes gates only, not a warning"));
-        }
-        if !feature.starts_with(|c: char| c.is_ascii_alphabetic())
+        if feature.contains("--")
+            || !feature.starts_with(|c: char| c.is_ascii_alphabetic())
             || !feature.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
         {
             return Err(self.error(node, "invalid feature name"));
@@ -609,8 +627,7 @@ impl<'a> Reader<'a> {
     }
 
     fn alternative(&self, node: &'a Node) -> R<Alternative> {
-        // A guard's token is its text: `f?` or `¬f?` for a gate, `f!`
-        // for a warning (§9).
+        // A guard token is `f?` or `¬f?` (§9).
         let guards = self.rules(node, "guard").map(|guard| self.guard(guard, false)).collect::<R<_>>()?;
         self.captures.borrow_mut().clear();
         let expr = if rule_name(node) == "ranked-alternative" {
@@ -648,9 +665,10 @@ impl<'a> Reader<'a> {
                     Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                         pending.extend(items.iter().rev())
                     }
-                    Expr::Capture(_, inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => {
-                        pending.push(inner)
-                    }
+                    Expr::Capture(_, inner)
+                    | Expr::Splice(inner)
+                    | Expr::Optional(inner, _, _)
+                    | Expr::Tested(_, _, inner) => pending.push(inner),
                     Expr::Repeat(inner, sep, _) => {
                         pending.extend(sep.as_deref());
                         pending.push(inner);
@@ -888,6 +906,15 @@ impl<'a> Reader<'a> {
                 Val::SourceCall(call) => Val::Expr(Expr::Source(SourceSymbol::Call(call))),
                 value => value,
             };
+            let value = if frame.spliced {
+                if let Val::Expr(expr) = value {
+                    Val::Expr(Expr::Splice(Box::new(expr)))
+                } else {
+                    value
+                }
+            } else {
+                value
+            };
             return Ok(Step::Done(match (frame.capture.take(), value) {
                 (Some((name, node)), Val::Expr(expr)) => {
                     let target = Box::new(expr);
@@ -903,6 +930,15 @@ impl<'a> Reader<'a> {
         Ok(match rule_name(inner) {
             "reference" | "tag" | "string-terminal" | "constant-reference" | "wildcard" | "range" => {
                 Step::Done(Val::Expr(self.symbol(inner)?))
+            }
+            "splice" => {
+                let target = self.inner(inner, &["reference", "call"])?;
+                let marker = self.token(inner)?;
+                if self.tokens[marker.token.unwrap()].source.end != self.tokens[target.span.start].source.start {
+                    return Err(self.error(inner, "a splice marker stands directly before its target"));
+                }
+                frame.spliced = true;
+                Step::Call(Frame::Primary(PrimaryFrame::new(target, false)))
             }
             "parameter" => Step::Done(Val::Expr(Expr::Source(self.source_parameter(inner)?))),
             "call" => Step::Call(Frame::SourceCall(CallFrame::new(inner))),
@@ -925,7 +961,7 @@ impl<'a> Reader<'a> {
                          capture that rule",
                     ));
                 }
-                if self.marked.get() > 0 {
+                if self.marked.get() > 0 && !self.allowed_marked.borrow().contains(&(inner as *const Node as usize)) {
                     return Err(self.error(
                         inner,
                         "a capture cannot stand inside an elidable optional, which elision restores as one unit",
@@ -955,6 +991,7 @@ impl<'a> Reader<'a> {
                             | "range"
                             | "call"
                             | "parameter"
+                            | "splice"
                     ) {
                         return Err(self.error(capture, "a capture wraps one symbol"));
                     }
@@ -970,6 +1007,7 @@ impl<'a> Reader<'a> {
                         | "call"
                         | "parameter"
                         | "tested"
+                        | "splice"
                 ) {
                     return Err(self.error(capture, "a capture wraps one symbol"));
                 }
@@ -993,12 +1031,18 @@ impl<'a> Reader<'a> {
             if frame.mark != Mark::Plain {
                 self.marked.set(self.marked.get() - 1);
             }
+            if let Some(node) = frame.captured_node.take() {
+                self.allowed_marked.borrow_mut().remove(&node);
+            }
             let default = self.head_defaults.borrow_mut().remove(&frame.head);
             if frame.mark != Mark::Plain {
                 self.default_head.set(frame.previous_head);
             }
             if let Some(crate::dom::DefaultValue { term: Term::Str(value), at }) = &default {
                 let mut head = if let Expr::Seq(items) = &expr { &items[0] } else { &expr };
+                if let Expr::Capture(_, inner) = head {
+                    head = inner;
+                }
                 while let Expr::Tested(op, operand, inner) = head {
                     if let Term::Str(expected) = operand {
                         if (value == expected) != (op == "=") {
@@ -1012,6 +1056,37 @@ impl<'a> Reader<'a> {
             return Ok(Step::Done(Val::Expr(Expr::Optional(Box::new(expr), frame.mark, default))));
         }
         let node = frame.node;
+        if let Some(capture) = self.rules(node, "capture").next() {
+            let markers: Vec<_> =
+                self.tokens_of(node).chain(self.tokens_of(capture)).filter(|t| self.value(t) == "+").collect();
+            if markers.len() > 1 {
+                return Err(self.error(markers[1], "an optional has one marker + at most"));
+            }
+            if markers.is_empty() || self.rules(node, "choice").next().is_some() {
+                return Err(self.error(node, "a captured elidable optional holds only its terminator"));
+            }
+            let head = self.inner(self.one(capture, "primary")?, PRIMARIES)?;
+            let base = if rule_name(head) == "tested" {
+                self.test_base(head)?
+                    .ok_or_else(|| self.error(node, "a captured elidable optional holds only its terminator"))?
+            } else {
+                head
+            };
+            if rule_name(base) != "parameter"
+                && !(matches!(rule_name(base), "tag" | "reference")
+                    && self.tokens_of(base).next().is_some_and(|t| is_capital(self.value(t))))
+            {
+                return Err(self.error(node, "a captured elidable optional holds only its terminator"));
+            }
+            frame.head = head as *const Node as usize;
+            frame.previous_head = self.default_head.replace(frame.head);
+            frame.mark = Mark::Elidable;
+            let key = capture as *const Node as usize;
+            frame.captured_node = Some(key);
+            self.allowed_marked.borrow_mut().insert(key);
+            self.marked.set(self.marked.get() + 1);
+            return Ok(Step::Call(Frame::Primary(PrimaryFrame::new(capture, false))));
+        }
         // Its required part first, then its markers (§9).
         let choice = self.one(node, "choice")?;
         let markers: Vec<&Node> = self.tokens_of(node).filter(|token| self.value(token) == "+").collect();
@@ -1139,7 +1214,9 @@ impl<'a> Reader<'a> {
     /// primary, so that the reader can name the reason.
     fn resume_tested(&self, frame: &mut Tested<'a>, input: Option<Val>) -> R<Step<'a>> {
         let node = frame.node;
-        let (mut expr, tests) = if let Some(Val::SourceCall(call)) = input {
+        let (mut expr, tests) = if let Some(Val::Expr(expr)) = input {
+            (expr, frame.tests.take().unwrap())
+        } else if let Some(Val::SourceCall(call)) = input {
             (Expr::Source(SourceSymbol::Call(call)), frame.tests.take().unwrap())
         } else {
             let parts = self.parts(node);
@@ -1162,6 +1239,7 @@ impl<'a> Reader<'a> {
                     | "range"
                     | "call"
                     | "parameter"
+                    | "splice"
             );
             let mut tags = false;
             let mut value = false;
@@ -1182,6 +1260,10 @@ impl<'a> Reader<'a> {
             if rule_name(base) == "call" {
                 frame.tests = Some(tests);
                 return Ok(Step::Call(Frame::SourceCall(CallFrame::new(base))));
+            }
+            if rule_name(base) == "splice" {
+                frame.tests = Some(tests);
+                return Ok(Step::Call(Frame::Primary(PrimaryFrame::new(base, false))));
             }
             (self.symbol(base)?, tests)
         };
@@ -2146,63 +2228,67 @@ impl<'a> Reader<'a> {
             if let Some(clause) = self.rules(node, name).next() {
                 let recipe = self.one(clause, "recipe")?;
                 *at = Some(self.first(recipe));
-                let mut atoms = Vec::new();
-                self.in_recipe.set(true);
-                for atom in self.some(recipe, "recipe-atom", 1)? {
-                    if !atoms.is_empty() {
-                        return Err(
-                            self.error(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
-                        );
-                    }
-                    let written =
-                        self.tokens.get(atom.span.clone()).ok_or_else(|| self.shape_error(atom, "valid token span"))?;
-                    if written.iter().any(|t| matches!(t.value.as_str(), "(" | ")")) {
-                        return Err(self.error(atom, "a recipe atom has no grouping or arguments"));
-                    }
-                    if written.iter().any(|t| matches!(t.value.as_str(), "∪" | "∩" | "∖" | "⟹")) {
-                        return Err(self.error(atom, "a recipe atom has no set operator"));
-                    }
-                    let (mut term, _) = self.term(self.one(atom, "term")?, true)?;
-                    let terms = if let Term::Call(name, args) = &mut term {
-                        if name == "concat" {
-                            std::mem::take(args)
-                        } else {
-                            vec![Arg::Term(term)]
-                        }
-                    } else {
-                        vec![Arg::Term(term)]
-                    };
-                    for arg in terms {
-                        let Arg::Term(term) = arg else { unreachable!("string operand") };
-                        let valid = match &term {
-                            Term::Str(_) | Term::Const(..) | Term::Source(SourceSymbol::Parameter(..)) => true,
-                            Term::Union(_) => {
-                                return Err(self
-                                    .error(atom, "juxtaposed recipe strings require ++, use ++ between string atoms"))
-                            }
-                            Term::Call(name, args)
-                                if matches!(
-                                    name.as_str(),
-                                    "value" | "image" | "source-text" | "decomposed-source-text" | "verbatim-text"
-                                ) =>
-                            {
-                                matches!(&args[..], [Arg::Term(Term::Capture(_))])
-                                    || matches!(name.as_str(), "value" | "image")
-                                        && matches!(&args[..], [Arg::Term(Term::Call(name,args))] if name == "emitted" && matches!(&args[..], [Arg::Term(Term::Capture(_))]))
-                            }
-                            _ => false,
-                        };
-                        if !valid {
-                            return Err(self.error(atom, "a recipe atom must be a string or a captured string method"));
-                        }
-                        atoms.push(Arg::Term(term));
-                    }
-                }
-                self.in_recipe.set(false);
-                *target = Some(Term::Call("concat".into(), atoms));
+                *target = Some(self.recipe(clause)?);
             }
         }
         Ok(channels)
+    }
+
+    fn recipe(&self, clause: &'a Node) -> R<Term> {
+        let recipe = self.one(clause, "recipe")?;
+        let mut atoms = Vec::new();
+        self.in_recipe.set(true);
+        for atom in self.some(recipe, "recipe-atom", 1)? {
+            if !atoms.is_empty() {
+                return Err(self.error(atom, "juxtaposed recipe strings require ++, use ++ between string atoms"));
+            }
+            let written =
+                self.tokens.get(atom.span.clone()).ok_or_else(|| self.shape_error(atom, "valid token span"))?;
+            if written.iter().any(|t| matches!(t.value.as_str(), "(" | ")")) {
+                return Err(self.error(atom, "a recipe atom has no grouping or arguments"));
+            }
+            if written.iter().any(|t| matches!(t.value.as_str(), "∪" | "∩" | "∖" | "⟹")) {
+                return Err(self.error(atom, "a recipe atom has no set operator"));
+            }
+            let (mut term, _) = self.term(self.one(atom, "term")?, true)?;
+            let terms = if let Term::Call(name, args) = &mut term {
+                if name == "concat" {
+                    std::mem::take(args)
+                } else {
+                    vec![Arg::Term(term)]
+                }
+            } else {
+                vec![Arg::Term(term)]
+            };
+            for arg in terms {
+                let Arg::Term(term) = arg else { unreachable!("string operand") };
+                let valid = match &term {
+                    Term::Str(_) | Term::Const(..) | Term::Source(SourceSymbol::Parameter(..)) => true,
+                    Term::Union(_) => {
+                        return Err(
+                            self.error(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
+                        )
+                    }
+                    Term::Call(name, args)
+                        if matches!(
+                            name.as_str(),
+                            "value" | "image" | "source-text" | "decomposed-source-text" | "verbatim-text"
+                        ) =>
+                    {
+                        matches!(&args[..], [Arg::Term(Term::Capture(_))])
+                            || matches!(name.as_str(), "value" | "image")
+                                && matches!(&args[..], [Arg::Term(Term::Call(name,args))] if name == "emitted" && matches!(&args[..], [Arg::Term(Term::Capture(_))]))
+                    }
+                    _ => false,
+                };
+                if !valid {
+                    return Err(self.error(atom, "a recipe atom must be a string or a captured string method"));
+                }
+                atoms.push(Arg::Term(term));
+            }
+        }
+        self.in_recipe.set(false);
+        Ok(Term::Call("concat".into(), atoms))
     }
 
     fn term_tag(&self, token: &'a Node) -> R<String> {
@@ -2410,11 +2496,12 @@ struct PrimaryFrame<'a> {
     whole: bool,
     /// The name of the capture that wraps what it asked for, if it is one.
     capture: Option<(String, &'a Node)>,
+    spliced: bool,
 }
 
 impl<'a> PrimaryFrame<'a> {
     fn new(node: &'a Node, whole: bool) -> Self {
-        PrimaryFrame { node, whole, capture: None }
+        PrimaryFrame { node, whole, capture: None, spliced: false }
     }
 }
 
@@ -2423,11 +2510,12 @@ struct OptionalFrame<'a> {
     mark: Mark,
     head: usize,
     previous_head: usize,
+    captured_node: Option<usize>,
 }
 
 impl<'a> OptionalFrame<'a> {
     fn new(node: &'a Node) -> Self {
-        OptionalFrame { node, mark: Mark::Plain, head: 0, previous_head: 0 }
+        OptionalFrame { node, mark: Mark::Plain, head: 0, previous_head: 0, captured_node: None }
     }
 }
 
@@ -2446,7 +2534,7 @@ fn capture_names(expr: &Expr) -> Vec<&str> {
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.iter().rev());
             }
-            Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push(inner),
+            Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push(inner),
             Expr::Repeat(item, separator, _) => {
                 stack.extend(separator.as_deref());
                 stack.push(item);
@@ -2653,6 +2741,11 @@ const KNOWN: &[&str] = &[
     "tag-requirement",
     "value-test",
     "default-value",
+    "error-clause",
+    "warning-clause",
+    "suppress-warnings-clause",
+    "suppression-code",
+    "splice",
     "value-clause",
     "image-clause",
     "erased-clause",
@@ -2760,6 +2853,7 @@ const KNOWN: &[&str] = &[
 /// What a primary, a condition, a term and a term atom hold: the one rule
 /// among their parts is one of these (engine §9).
 const PRIMARIES: &[&str] = &[
+    "splice",
     "call",
     "parameter",
     "string-terminal",
@@ -2926,7 +3020,9 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     stack.extend(items.iter().map(Part::Expression))
                 }
-                Expr::Optional(inner, _, _) | Expr::Capture(_, inner) => stack.push(Part::Expression(inner)),
+                Expr::Optional(inner, _, _) | Expr::Capture(_, inner) | Expr::Splice(inner) => {
+                    stack.push(Part::Expression(inner))
+                }
                 Expr::Repeat(item, separator, _) => {
                     stack.push(Part::Expression(item));
                     stack.extend(separator.as_deref().map(Part::Expression));
@@ -3017,6 +3113,7 @@ fn call_name_lookup_precedes_argument_lookup() {
         item: Default::default(),
         ranked: Default::default(),
         marked: Default::default(),
+        allowed_marked: Default::default(),
         position: &position,
         in_recipe: Default::default(),
         closed_for: Default::default(),

@@ -10,7 +10,7 @@ use crate::result::{
 };
 
 /// The version of the shape of the result (docs/output.md).
-pub const RESULT_FORMAT: u32 = 15;
+pub const RESULT_FORMAT: u32 = 16;
 
 fn write_range(out: &mut String, range: &Range<usize>) {
     out.push('[');
@@ -270,6 +270,7 @@ fn write_error(out: &mut String, error: &ParseError) {
         ParseErrorKind::Rejected => "\"rejected\"",
         ParseErrorKind::Ambiguous => "\"ambiguous\"",
         ParseErrorKind::Grammar => "\"grammar\"",
+        ParseErrorKind::Reported => "\"reported\"",
         ParseErrorKind::FeatureConflict => "\"feature-conflict\"",
     });
     if let Some(stage) = &error.stage {
@@ -361,6 +362,16 @@ fn write_error(out: &mut String, error: &ParseError) {
                 out.push(']');
             }
         }
+        ParseErrorKind::Reported => {
+            out.push_str(",\"errors\":[");
+            for (index, report) in error.errors.iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
+                }
+                write_warning(out, report);
+            }
+            out.push(']');
+        }
         ParseErrorKind::Grammar | ParseErrorKind::FeatureConflict => {}
     }
     out.push_str(",\"message\":");
@@ -398,14 +409,16 @@ fn write_error(out: &mut String, error: &ParseError) {
 fn write_warning(out: &mut String, warning: &Warning) {
     out.push_str("{\"stage\":");
     write_str(out, &warning.stage);
-    out.push_str(",\"feature\":");
-    write_str(out, &warning.feature);
+    out.push_str(",\"code\":");
+    write_str(out, &warning.code);
     out.push_str(",\"rule\":");
     write_str(out, &warning.rule);
     out.push_str(",\"span\":");
     write_range(out, &warning.span);
     out.push_str(",\"source\":");
     write_range(out, &warning.source);
+    out.push_str(",\"message\":");
+    write_str(out, &warning.message);
     out.push('}');
 }
 

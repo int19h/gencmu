@@ -493,10 +493,15 @@ pub(crate) fn definition_problem(rule: &crate::dom::RuleDef) -> Option<(String, 
             }
         }
     }
-    let mut terms: Vec<_> =
-        rule.tags.iter().chain(rule.strings.value.iter()).chain(rule.strings.image.iter()).collect();
+    let mut terms: Vec<_> = rule
+        .error
+        .iter()
+        .chain(&rule.warning)
+        .chain(rule.strings.value.iter())
+        .chain(rule.strings.image.iter())
+        .collect();
     for alt in &rule.alternatives {
-        terms.extend(alt.tags.iter().chain(alt.strings.value.iter()).chain(alt.strings.image.iter()));
+        terms.extend(alt.strings.value.iter().chain(alt.strings.image.iter()));
         terms.extend(crate::dom::tests_in(&alt.expr).into_iter().map(|(_, t, _)| t));
     }
     for item in rule.emit.iter().flatten() {
@@ -505,6 +510,11 @@ pub(crate) fn definition_problem(rule: &crate::dom::RuleDef) -> Option<(String, 
             EmitItem::Insert(_, s) => s,
         };
         terms.extend(strings.value.iter().chain(strings.image.iter()));
+    }
+    for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alt| alt.tags.as_ref())) {
+        if let Some((message, atom)) = crate::guarded_tags::problem(term) {
+            return problem(message, atom);
+        }
     }
     for t in terms {
         if let Some(atom) = term_atoms(t).first() {
@@ -537,7 +547,9 @@ fn reach(g: &crate::grammar::StageGrammar, roots: Vec<String>) -> (FxSet<String>
                     terminals.insert(n.clone());
                 }
                 Expr::Seq(es) | Expr::Choice(es) | Expr::Ranked(es, _) | Expr::And(es) => stack.extend(es),
-                Expr::Capture(_, e) | Expr::Optional(e, _, _) | Expr::Tested(_, _, e) => stack.push(e),
+                Expr::Splice(e) | Expr::Capture(_, e) | Expr::Optional(e, _, _) | Expr::Tested(_, _, e) => {
+                    stack.push(e)
+                }
                 Expr::Repeat(e, s, _) => {
                     stack.push(e);
                     stack.extend(s.as_deref());

@@ -446,6 +446,8 @@ pub struct Stage {
 pub enum ParseErrorKind {
     /// A conditional declaration holds for a feature that the caller disables.
     FeatureConflict,
+    /// The chosen derivation contains named error reports.
+    Reported,
     /// A stage's grammar does not accept its input.
     Rejected,
     /// A stage has two or more best readings, or the `elision-only` check
@@ -517,6 +519,8 @@ pub struct BoundaryFailure {
 /// The error of a result whose `ok` is false.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
+    /// Named reports from the chosen occurrences, in tree preorder.
+    pub errors: Vec<Warning>,
     /// The disabled feature whose conditional declaration holds, for FeatureConflict.
     pub feature: Option<String>,
     /// The failed neighbor condition, when one explains this rejection.
@@ -573,14 +577,15 @@ impl fmt::Display for ParseError {
     }
 }
 
-/// A warning (engine §12): a rule node of a stage's chosen tree, built from
-/// an alternative with a warning `f!` while the feature `f` was on.
+/// A named diagnostic from a chosen occurrence (engine §12).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Warning {
     /// The stage whose chosen tree has the node.
     pub stage: String,
-    /// The warning's feature, the `f` of `f!`.
-    pub feature: String,
+    /// The diagnostic code, equal to its rule name.
+    pub code: String,
+    /// The evaluated message recipe.
+    pub message: String,
     /// The node's rule.
     pub rule: String,
     /// The range of the stage's input tokens the node covers.
@@ -598,7 +603,7 @@ pub struct ParseResult {
     pub ok: bool,
     /// The stages run, in order.
     pub stages: Vec<Stage>,
-    /// The last stage's chosen tree, when `ok`.
+    /// The last stage's chosen tree, on success or a named error result.
     pub tree: Option<Node>,
     /// Why the text did not parse, when not `ok`.
     pub error: Option<ParseError>,

@@ -77,10 +77,13 @@ pub(crate) fn possible(
 }
 
 pub(crate) fn can_count(g: &Lowered, steps: &[KeyStep]) -> bool {
-    if steps.is_empty() {
-        return false;
-    }
     *g.profile_possible.get_or_init(|| {
+        if g.prods.iter().any(|p| p.error.is_some()) {
+            return true;
+        }
+        if steps.is_empty() {
+            return false;
+        }
         let mut pending = vec![g.start];
         let mut seen = std::collections::HashSet::new();
         let matches = |name, terminal, omitted, tags: Option<&[String]>| {

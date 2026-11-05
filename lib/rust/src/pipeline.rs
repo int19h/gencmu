@@ -15,7 +15,7 @@ use crate::result::{
     Action, AmbiguityReason, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Restoration,
     Stage, Tags, Token, Verdict, Warning,
 };
-use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, ReadingMap, Sources, TreeContext};
+use crate::tree::{build, emit, public_tree, reports_of, IKind, ITree, ReadingMap, Sources, TreeContext};
 use crate::unicode::Unicode;
 use crate::witness::{self, CheckForest};
 
@@ -198,33 +198,49 @@ struct Run {
 /// only declarations use is a gate. A name used as both gate and warning is an error.
 fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec<Feature>, Error> {
     let mut kinds: BTreeMap<&str, FeatureKind> = BTreeMap::new();
+    let mut roles: BTreeMap<&str, &str> = BTreeMap::new();
     for stage in stages {
-        let rules = stage.rules.iter().flat_map(|rule| &rule.alternatives).flat_map(|alternative| {
-            alternative
-                .alternative
-                .guards
-                .iter()
-                .map(move |guard| (guard, alternative.document.as_ref(), alternative.at))
-        });
-        let entries = stage.classifiers.iter().flat_map(|(document, classifier)| {
-            classifier
-                .entries
-                .iter()
-                .flat_map(move |entry| entry.guards.iter().map(move |guard| (guard, document.as_ref(), entry.at)))
-        });
-        for (guard, document, (line, column)) in rules.chain(entries) {
-            if *kinds.entry(&guard.feature).or_insert(guard.kind) != guard.kind {
-                return Err(Error::grammar(format!(
-                    "the feature {} is used both as a gate and as a warning",
-                    guard.feature
-                ))
-                .in_document(document)
-                .at(line, column)
-                .in_stage(&stage.name));
+        let mut uses = Vec::new();
+        for rule in &stage.rules {
+            for alt in &rule.alternatives {
+                uses.extend(
+                    alt.alternative
+                        .guards
+                        .iter()
+                        .map(|guard| (guard.feature.as_str(), "gate", alt.document.as_ref(), alt.at)),
+                );
+                if alt.clauses.error.is_some() {
+                    uses.push((&rule.name, "error", &alt.document, alt.at));
+                }
+                if alt.clauses.warning.is_some() {
+                    uses.push((&rule.name, "warning", &alt.document, alt.at));
+                }
+            }
+        }
+        for (document, classifier) in &stage.classifiers {
+            for entry in &classifier.entries {
+                uses.extend(
+                    entry.guards.iter().map(|guard| (guard.feature.as_str(), "gate", document.as_ref(), entry.at)),
+                );
+            }
+        }
+        for (name, role, document, (line, column)) in uses {
+            if let Some(known) = roles.insert(name, role).filter(|known| *known != role) {
+                let category = if known == "error" || role == "error" { "name" } else { "feature" };
+                return Err(Error::grammar(format!("the {category} {name} is used both as a {known} and as a {role}"))
+                    .in_document(document)
+                    .at(line, column)
+                    .in_stage(&stage.name));
+            }
+            if role != "error" {
+                kinds.insert(name, if role == "warning" { FeatureKind::Warning } else { FeatureKind::Gate });
             }
         }
     }
     for name in declared {
+        if roles.get(name.as_str()) == Some(&"error") {
+            return Err(Error::grammar("an error code cannot be enabled or disabled"));
+        }
         kinds.entry(name).or_insert(FeatureKind::Gate);
     }
     let mut tested = BTreeMap::new();
@@ -232,6 +248,11 @@ fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec
     for stage in stages {
         for (document, directive) in &stage.features {
             for name in &directive.args {
+                if roles.get(name.as_str()) == Some(&"error") {
+                    return Err(Error::grammar("an error code cannot be enabled or disabled")
+                        .in_document(document)
+                        .at(directive.at.0, directive.at.1));
+                }
                 if let Some(earlier) = tested.get(name) {
                     return Err(Error::grammar(format!("stage {earlier} tests local feature {name}"))
                         .in_document(document.as_ref())
@@ -242,6 +263,11 @@ fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec
                 if directive.conditions.is_none() {
                     defaults.insert(name);
                 }
+            }
+        }
+        for rule in &stage.rules {
+            if rule.alternatives.iter().any(|alt| alt.clauses.warning.is_some()) {
+                tested.entry(rule.name.clone()).or_insert_with(|| stage.name.clone());
             }
         }
         for guard in stage.rules.iter().flat_map(|rule| &rule.alternatives).flat_map(|alt| &alt.alternative.guards) {
@@ -506,7 +532,11 @@ impl Pipeline {
         Ok(ParseResult {
             ok,
             stages: run.stages,
-            tree: if ok { run.tree } else { None },
+            tree: if ok || run.error.as_ref().is_some_and(|e| e.kind == ParseErrorKind::Reported) {
+                run.tree
+            } else {
+                None
+            },
             error: run.error,
             warnings: run.warnings,
             features: features.into_iter().collect(),
@@ -598,6 +628,7 @@ impl Pipeline {
             None => error.message,
         };
         ParseError {
+            errors: Vec::new(),
             feature: None,
             boundary: None,
             kind: ParseErrorKind::Grammar,
@@ -714,7 +745,26 @@ impl Pipeline {
         let tree = public_tree(&chosen, &context);
         // The chosen tree's warnings, which stand even if the emission or
         // the `elision-only` check then fails (§12).
-        run.warnings.extend(warnings_of(&chosen, &lowered, &sources, features, &grammar.name));
+        let reports = reports_of(&chosen, &lowered, &sources, features, &grammar.name, &input, shared.text);
+        let (errors, warnings) = match reports {
+            Ok(reports) => reports,
+            Err(error) => {
+                run.stages.push(stage);
+                return Err(Box::new(self.grammar_error(index, error)));
+            }
+        };
+        run.warnings.extend(warnings);
+        if !errors.is_empty() {
+            let mut error = self.grammar_error(
+                index,
+                EngineError { message: "the chosen derivation reports errors".into(), rule: None },
+            );
+            error.kind = ParseErrorKind::Reported;
+            error.errors = errors;
+            run.tree = Some(tree);
+            run.stages.push(stage);
+            return Err(Box::new(error));
+        }
         let emitted = {
             let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared, recon: None };
             emit(&mut recognizer, &chosen, &input, &sources)
@@ -769,6 +819,7 @@ impl Pipeline {
                 Ok(Check::Lost(completion)) => {
                     let name = &grammar.name;
                     let error = ParseError {
+                        errors: Vec::new(),
                         feature: None,
                         boundary: None,
                         kind: ParseErrorKind::Grammar,
@@ -820,6 +871,7 @@ impl Pipeline {
     fn tie(&self, index: usize, readings: Vec<Node>) -> ParseError {
         let stage = &self.stages[index].name;
         ParseError {
+            errors: Vec::new(),
             feature: None,
             boundary: None,
             kind: ParseErrorKind::Ambiguous,
@@ -861,6 +913,7 @@ impl Pipeline {
             format!("stage {stage} cannot read {found}; it expected {}", wanted.join(", "))
         };
         ParseError {
+            errors: Vec::new(),
             feature: None,
             boundary: None,
             kind: ParseErrorKind::Rejected,
@@ -1108,6 +1161,7 @@ impl Pipeline {
         let readings = trees.iter().map(|t| public_tree(t, &context)).collect();
         let stage = &self.stages[index].name;
         Ok(Check::Ambiguous(Box::new(ParseError {
+            errors: Vec::new(),
             feature: None, boundary: None,
             kind: ParseErrorKind::Ambiguous,
             stage: Some(stage.clone()),

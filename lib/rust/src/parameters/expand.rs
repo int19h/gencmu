@@ -152,7 +152,7 @@ fn child_position<'a>(key: &str, position: &'a str) -> &'a str {
         return "term";
     }
     if position != "pattern"
-        && ["seq", "choice", "ranked", "and", "optional", "repeat", "separator", "expr"].contains(&key)
+        && ["splice", "seq", "choice", "ranked", "and", "optional", "repeat", "separator", "expr"].contains(&key)
     {
         return "expr";
     }
@@ -814,7 +814,7 @@ impl Expander<'_> {
                     Ok(())
                 };
                 let arg = self.normalize(argument);
-                if ["body", "test", "range", "wildcard"].iter().any(|k| has(&arg, k)) {
+                if ["splice", "body", "test", "range", "wildcard"].iter().any(|k| has(&arg, k)) {
                     let body = arg.get("body").unwrap_or(&arg);
                     let mut rule = obj([
                         ("name", if extra { string("text") } else { get(&event.rule, "name").clone() }),
@@ -878,7 +878,7 @@ impl Expander<'_> {
             if has(&arg, "string") || has(&arg, "const") {
                 return Ok(obj([("literal", arg)]));
             }
-            if ["call", "test", "range", "wildcard"].iter().any(|k| has(&arg, k)) {
+            if ["splice", "call", "test", "range", "wildcard"].iter().any(|k| has(&arg, k)) {
                 return Ok(arg);
             }
         } else if position == "pattern" {

@@ -6,7 +6,8 @@ pub(super) fn leaf(value: &Json) -> bool {
 }
 
 fn parameter(name: &str) -> bool {
-    name.starts_with(|c: char| c.is_ascii_alphabetic())
+    !name.contains("--")
+        && name.starts_with(|c: char| c.is_ascii_alphabetic())
         && name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')
 }
 
@@ -117,7 +118,7 @@ pub(super) fn argument<'a>(
             return Some("a malformed nominal rule argument");
         }
     } else {
-        let kind = if ["test", "range", "wildcard"].iter().any(|key| value.get(key).is_some()) {
+        let kind = if ["splice", "test", "range", "wildcard"].iter().any(|key| value.get(key).is_some()) {
             Part::Expr { whole: false, flags: super::ExprFlags::default() }
         } else {
             Part::Term
@@ -129,6 +130,9 @@ pub(super) fn argument<'a>(
 
 pub(super) fn elidable(value: &Json) -> bool {
     let mut head = value.get("seq").and_then(Json::as_array).and_then(|xs| xs.first()).unwrap_or(value);
+    if head.get("capture").is_some() {
+        head = head.get("expr").unwrap_or(head);
+    }
     while let Some(inner) = head.get("expr").filter(|_| head.get("test").is_some()) {
         head = inner;
     }

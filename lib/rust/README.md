@@ -32,6 +32,8 @@ A caller can enable or disable an unknown feature name. Unknown names do not cha
 - `ParseOptions` has `features`, `without_features`, `until` and `elision_only`. `features` names the features to turn on, besides the pipeline's own. `without_features` names features to disable, including unconditional defaults.
 - `Pipeline::features()` lists the features of the pipeline in code point order, the gates of its classifiers' entries included. Each is a `Feature` with its `name`, its `kind` (`FeatureKind::Gate` or `FeatureKind::Warning`), and whether the pipeline turns it on by `default`.
 
+Warning codes are selectable features. Error codes are absent from the feature list and cannot appear in `%features` declarations. Caller feature lists do not affect error codes. One name cannot serve different roles across stages.
+
 A `FeatureConflict` result names a disabled feature whose conditional declaration holds for the stage input. Its `stage` and `feature` fields identify the conflict.
 
 ## Results
@@ -48,7 +50,15 @@ A `FeatureConflict` result names a disabled feature whose conditional declaratio
 
   A token also has its attachments, `before` and `after`. These are tokens that belong to it and that no later stage reads, such as the indicators after a word. Each is an `Attachment`, a token without a span, with attachments of its own. Both lists are empty unless an emission gives the token attachments.
 
-  The warnings are those of the enabled warning features. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage.
+  Enabled warning rules report chosen occurrences, before erasure and splice flattening. Reports follow stage order and then tree preorder. Each warning has `stage`, `code`, `rule`, `span`, `source`, and `message`. `%suppress-warnings` suppresses matching codes on its occurrence and descendants. Disabled or suppressed warnings evaluate no message.
+
+  A chosen error rule gives `ParseErrorKind::Reported`, with ordered named reports in `ParseError::errors`. Each report has the same fields as a warning. The result retains its tree and verdict, emits nothing, and stops the pipeline. Other error results have a null result tree.
+
+  A failed message recipe gives `ParseErrorKind::Grammar`. The stage keeps its verdict but has no tree, output, errors, or warnings. Earlier stages keep their outputs and warnings.
+
+  Verdicts count only derivations with the least error count. Error alternatives do not make an error-free reading ambiguous.
+
+  Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage.
 
   A shared `BTreeSet<String>` backs the mutable `Tags` set. `Tags` copies shared storage before mutation. `Deref` and `DerefMut` expose the standard set methods. `From` converts owned `BTreeSet<String>` values in both directions.
 
@@ -73,15 +83,17 @@ For tests and tools: `Pipeline::parse_tokens` feeds tokens straight to the first
 
 A DOM holds the document's constants, classifiers and implications as the document writes them, never their values. The loader gives each constant its value when it stitches a stage. A stage resolves its classifiers for the features of each parse, once for each set of features.
 
-The DOM format is 40. The result format is 15. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`.
+The DOM format is 45. The result format is 16. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`.
 
 `$x.without-elision` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. The method takes one bare capture. `$x.without-elision.onward` extends the query through the following input.
 
 `$x.without-elision-except(family)` takes a bare capture and one ordinary rule name or exact instance. The family permits extra closes from optionals that its members own. Each extra close needs a kept token or record on both sides inside the shared stretch. `.onward` preserves this permission. Other span methods drop it. Family membership follows the final written rules, before feature gates or lowering.
 
-The Rust API exposes definition changes through `Pipeline::changes`. Rejections can name a failed boundary condition through `ParseError::boundary`. It exposes no grammar audit. The audit data and notes of `docs/design.md` belong to the JavaScript API.
+The Rust API exposes definition changes through `Pipeline::changes`. Rejections can name a failed boundary condition through `ParseError::boundary`. `Pipeline::ranking_reports` includes notes for queries that reach error rules, unused suppression codes, and large expansions of guarded tags. `format_ranking_reports` formats these notes as text.
 
-A capture can stand anywhere in an alternative but inside braces or an elidable optional, and a production holds each name once. A production can have any number of captures. Each capture forms part of the identity of a recognizer item. A capture whose rule can end in many places multiplies items (engine §4).
+A capture wraps one symbol or splice. An elidable optional can capture its lone terminator with `[$j:+T]`. Flat braces can hold item captures, including inside a chain. Other captures cannot stand inside a chain.
+
+A production holds each capture name once. A production can have any number of captures. Each capture forms part of the identity of a recognizer item. A capture whose rule can end in many places multiplies items (engine §4).
 
 ## Development
 

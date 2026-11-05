@@ -121,7 +121,7 @@ pub fn expect(value: &Value) -> R {
         result_pattern(pattern)?;
     }
     if let Some(error) = value.get("error").and_then(Value::str) {
-        if !matches!(error, "grammar" | "usage" | "rejected" | "ambiguous" | "feature-conflict") {
+        if !matches!(error, "grammar" | "usage" | "rejected" | "ambiguous" | "feature-conflict" | "reported") {
             return Err(format!("expect.error has an unknown kind {error:?}"));
         }
     }
@@ -148,7 +148,14 @@ pub fn expect(value: &Value) -> R {
             fields(
                 warning,
                 "expect.warnings[]",
-                &[("stage", Text), ("feature", Text), ("rule", Text), ("span", Array), ("source", Array)],
+                &[
+                    ("stage", Text),
+                    ("code", Text),
+                    ("rule", Text),
+                    ("span", Array),
+                    ("source", Array),
+                    ("message", Text),
+                ],
             )?;
             for name in ["span", "source"] {
                 if let Some(range) = warning.get(name) {

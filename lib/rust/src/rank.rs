@@ -87,6 +87,7 @@ enum Node {
     /// any where it is `NO_TEST`.
     Group {
         requested: u8,
+        route: u8,
         rule: u32,
         origin: u32,
         set: u32,
@@ -151,10 +152,29 @@ struct SlotCandidate {
     start: u32,
     end: u32,
     entry: String,
+    errors: Nat,
 }
-#[derive(Default)]
 struct Counts {
+    errors: Nat,
     all: u8,
+}
+impl Default for Counts {
+    fn default() -> Self {
+        Self { all: 0, errors: Nat::ZERO }
+    }
+}
+impl Counts {
+    fn offer(&mut self, errors: Nat, ways: u8) {
+        if ways == 0 {
+            return;
+        }
+        if self.all == 0 || errors < self.errors {
+            self.errors = errors;
+            self.all = ways.min(2);
+        } else if errors == self.errors {
+            self.all = self.all.saturating_add(ways).min(2);
+        }
+    }
 }
 type SlotMaxima = std::collections::BTreeSet<String>;
 struct Admission {
@@ -247,7 +267,7 @@ impl Admission {
             let Node::Item { set: end, index } = raw else { continue };
             let item = chart.sets[end as usize].items[index as usize];
             let p = &g.prods[item.prod as usize];
-            if g.rules[p.rule as usize].helper && scope == 0 {
+            if !p.tree_root && scope == 0 {
                 continue;
             }
             if item.dot == 0 {
@@ -266,6 +286,7 @@ impl Admission {
                 let open = chart.boundaries.as_ref().map(|m| m.borrow().open(previous.boundary, cap.boundary));
                 let label = format!("{option:020}/{open:?}");
                 let candidate = SlotCandidate {
+                    errors: Nat::ZERO,
                     node,
                     edge,
                     label,
@@ -341,6 +362,8 @@ impl Ranker<'_> {
                     let right = &a.counts[&child];
                     let ways = left.all;
                     if ways > 0 && right.all > 0 {
+                        let mut candidate = candidate;
+                        candidate.errors = left.errors.add(&right.errors);
                         viable.push(candidate);
                     }
                 }
@@ -349,6 +372,7 @@ impl Ranker<'_> {
                     .filter(|proof| {
                         !viable.iter().any(|higher| {
                             higher.option < proof.option
+                                && higher.errors <= proof.errors
                                 && match (&higher.open, &proof.open) {
                                     (Some(h), Some(l)) => h.dominates(l),
                                     (None, None) => true,
@@ -389,12 +413,16 @@ impl Ranker<'_> {
                     }
                     _ => true,
                 };
-                Counts { all: u8::from(valid) }
+                Counts { all: u8::from(valid), errors: Nat::ZERO }
             }
             Deps::Close(None) => Counts::default(),
             Deps::Close(Some(k)) => {
                 let body = &a.counts[k];
-                Counts { all: body.all }
+                let own = match self.raw_node(key.0) {
+                    Node::Close { set, index } => self.dag.g.prods[self.item(set, index).prod as usize].error.is_some(),
+                    _ => false,
+                };
+                Counts { all: body.all, errors: if own { body.errors.add(&Nat::ONE) } else { body.errors.clone() } }
             }
             Deps::Group(members) => {
                 let mut result = Counts::default();
@@ -403,7 +431,7 @@ impl Ranker<'_> {
                         continue;
                     }
                     let c = &a.counts[k];
-                    result.all = result.all.saturating_add(c.all).min(2);
+                    result.offer(c.errors.clone(), c.all);
                 }
                 result
             }
@@ -418,7 +446,7 @@ impl Ranker<'_> {
                     let right = &a.counts[&child];
                     let ways = (left.all).saturating_mul(right.all).min(2);
                     if mask.map_or(true, |m| m[i]) {
-                        result.all = result.all.saturating_add(ways).min(2);
+                        result.offer(left.errors.add(&right.errors), ways);
                     }
                 }
                 result
@@ -668,7 +696,16 @@ impl Least {
         if edge.total == 0 {
             return;
         }
-        self.total = self.total.saturating_add(edge.total).min(2);
+        let error_order = if self.total == 0 {
+            Ordering::Less
+        } else {
+            Profiles::errors(&edge.profile).cmp(&Profiles::errors(&self.profile))
+        };
+        self.total = match error_order {
+            Ordering::Less => edge.total.min(2),
+            Ordering::Equal => self.total.saturating_add(edge.total).min(2),
+            Ordering::Greater => self.total,
+        };
         let order = if self.least == 0 { Ordering::Less } else { profiles.compare(&edge.profile, &self.profile) };
         match order {
             Ordering::Less => {
@@ -785,7 +822,12 @@ impl<'c> Dag<'c> {
 
     fn close_act(&self, set: u32, item: u32) -> Act {
         let item = self.item(set, item);
-        Act::Close { prod: item.prod, start: item.origin, end: set, visible: self.g.prods[item.prod as usize].visible }
+        Act::Close {
+            prod: self.g.prods[item.prod as usize].source,
+            start: item.origin,
+            end: set,
+            visible: self.g.prods[item.prod as usize].visible,
+        }
     }
 
     fn product(&mut self, first: &Entry, second: &Entry) -> Entry {
@@ -1172,7 +1214,9 @@ impl<'c> Ranker<'c> {
     pub(crate) fn observing(mut self, observed: &'c [Tok], project: &'c [u32]) -> Ranker<'c> {
         self.dag.projection = Some((observed, project));
         // Every projected omission has an empty span, so these steps count nothing.
-        if self.profiles.patterns.iter().all(crate::patterns::requires_elided) {
+        if !self.dag.g.prods.iter().any(|p| p.error.is_some())
+            && self.profiles.patterns.iter().all(crate::patterns::requires_elided)
+        {
             self.summaries = None;
         }
         self
@@ -1265,6 +1309,7 @@ impl<'c> Ranker<'c> {
     /// A rule on no cycle has an empty context below it, since no rule
     /// above it can complete again below it over the same span.
     fn fset_with(&mut self, fset: u32, rule: u32) -> u32 {
+        let rule = self.dag.g.rules[rule as usize].splice_target.unwrap_or(rule);
         let cycles = &self.dag.g.cycle;
         let Some(cycle) = cycles[rule as usize] else {
             return 0;
@@ -1308,13 +1353,14 @@ impl<'c> Ranker<'c> {
                             Sym::T(terminal) => (Node::Read { tok: m, terminal }, 0),
                             Sym::N(rule) => (
                                 Node::Group {
+                                    route: p.routes.get(&position).copied().unwrap_or(0),
                                     requested: cap.close_requested,
                                     rule,
                                     origin: m,
                                     set,
                                     tags: cap.tags,
                                     test: p.test(position).unwrap_or(NO_TEST),
-                                    structure: cap.structure,
+                                    structure: cap.proof_structure.unwrap_or(cap.structure),
                                     boundary: cap.boundary,
                                     lexical: self.dag.chart.expected_lexical(before, m),
                                     option,
@@ -1398,13 +1444,14 @@ impl<'c> Ranker<'c> {
                                 // the predecessor entered them in (§4).
                                 let before = self.dag.chart.sets[m as usize].items[p as usize];
                                 let child = Node::Group {
+                                    route: production.routes.get(&position).copied().unwrap_or(0),
                                     requested: cap.close_requested,
                                     rule,
                                     origin: m,
                                     set,
                                     tags: cap.tags,
                                     test: NO_TEST,
-                                    structure: cap.structure,
+                                    structure: cap.proof_structure.unwrap_or(cap.structure),
                                     boundary: cap.boundary,
                                     lexical: self.dag.chart.expected_lexical(before, m),
                                     option: usize::MAX,
@@ -1426,6 +1473,7 @@ impl<'c> Ranker<'c> {
                                 if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| passes) {
                                     let before = self.dag.chart.sets[m as usize].items[p as usize];
                                     let child = Node::Group {
+                                        route: production.routes.get(&position).copied().unwrap_or(0),
                                         requested: 0,
                                         rule,
                                         origin: m,
@@ -1449,13 +1497,14 @@ impl<'c> Ranker<'c> {
             Node::Close { set, index } => {
                 let item = self.item(set, index);
                 let rule = self.dag.g.prods[item.prod as usize].rule;
+                let rule = self.dag.g.rules[rule as usize].splice_target.unwrap_or(rule);
                 if self.fsets[fset as usize].binary_search(&rule).is_ok() {
                     return Deps::Close(None);
                 }
                 let inner = self.fset_with(fset, rule);
                 Deps::Close(Some((Node::Item { set, index }, inner)))
             }
-            Node::Group { requested, rule, origin, set, tags, test, structure, boundary, lexical, option } => {
+            Node::Group { requested, route, rule, origin, set, tags, test, structure, boundary, lexical, option } => {
                 let eset = &self.dag.chart.sets[set as usize];
                 // A fault applies no test in the check (tests/README.md).
                 let no_tests = self.dag.projection.is_some() && witness::fault_at(Fault::RankerTests, "group");
@@ -1469,7 +1518,8 @@ impl<'c> Ranker<'c> {
                         items
                             .iter()
                             .filter(|&&index| {
-                                (eset.items[index as usize].lexical == lexical)
+                                (route == 0 || self.dag.g.route(eset.items[index as usize].prod) == route)
+                                    && (eset.items[index as usize].lexical == lexical)
                                     && eset.items[index as usize].close_requested == requested
                                     && (option == usize::MAX
                                         || self.dag.g.ranked.options.get(&eset.items[index as usize].prod)
@@ -1637,6 +1687,9 @@ impl<'c> Ranker<'c> {
                 let (least, total) = (body.least, body.total);
                 let mut profile = body.profile.clone();
                 let profiles = &mut self.profiles;
+                if production.error.is_some() {
+                    profile = profiles.sum(&profile, &profiles.error());
+                }
                 if elides && self.dag.projection.is_none() {
                     let occurrence =
                         profiles.occurrence(None, rule.elided.as_deref(), "", 0, self.dag.tags, true, p, p);
@@ -1835,6 +1888,7 @@ impl<'c> Ranker<'c> {
         // edge of one root (§6).
         let root = (
             Node::Group {
+                route: 0,
                 requested: self.dag.chart.close_requested,
                 rule: self.dag.g.start,
                 origin: 0,
@@ -2011,7 +2065,7 @@ pub(crate) struct Profiles {
 impl Profiles {
     pub(crate) fn new(steps: &[KeyStep]) -> Profiles {
         Profiles {
-            steps: steps.iter().map(|step| step.kind).collect(),
+            steps: std::iter::once(StepKind::Fewest).chain(steps.iter().map(|step| step.kind)).collect(),
             patterns: steps.iter().map(|step|step.pattern.clone()).collect(),
             answers: FxMap::default(),
             values: steps.iter().map(|step|step.pattern.walk().any(|part| matches!(part,crate::patterns::Part::Pattern(crate::patterns::Pattern::Test(op,_,_, _)) if op != "tags"))).collect(),
@@ -2019,6 +2073,18 @@ impl Profiles {
             span_values: FxMap::default(),
             vectors: Vectors::new(),
         }
+    }
+
+    fn errors(profile: &Profile) -> Nat {
+        match profile.0.first() {
+            Some(Component::Count(n)) => n.clone(),
+            _ => Nat::ZERO,
+        }
+    }
+    fn error(&self) -> Profile {
+        let mut components: Vec<_> = (0..self.steps.len()).map(|i| self.zero(i)).collect();
+        components[0] = Component::Count(Nat::ONE);
+        Profile(components)
     }
 
     fn node_value(&mut self, tokens: &[Tok], start: u32, end: u32) -> Option<std::rc::Rc<str>> {
@@ -2067,12 +2133,12 @@ impl Profiles {
         q: u32,
     ) -> Profile {
         let mut components: Option<Vec<Component>> = None;
-        for index in 0..self.steps.len() {
+        for index in 1..self.steps.len() {
             let key = RankingNodeKey {
                 step: index,
                 name: name.map(str::to_owned),
                 terminal: terminal.map(str::to_owned),
-                value: self.values[index].then(|| value.to_owned()),
+                value: self.values[index - 1].then(|| value.to_owned()),
                 set,
                 omitted,
             };
@@ -2083,7 +2149,7 @@ impl Profiles {
                     tags.list(set).iter().map(|&id| tags.name(id).to_owned()).collect()
                 };
                 crate::patterns::local_matches_with_value(
-                    &self.patterns[index],
+                    &self.patterns[index - 1],
                     name,
                     terminal.map(|t| (t, value, names.as_slice())),
                     &names,
@@ -2162,6 +2228,14 @@ impl Profiles {
         tokens: &[Tok],
         tags: &Tags,
     ) -> Profile {
+        let mut error_profile = Profile::ZERO;
+        for node in &tree.nodes {
+            if let crate::tree::IKind::Close { prod, .. } = node.kind {
+                if g.prods[prod as usize].error.is_some() {
+                    error_profile = self.sum(&error_profile, &self.error());
+                }
+            }
+        }
         let mut occurrences = Vec::new();
         for node in &tree.nodes {
             match node.kind {
@@ -2193,7 +2267,7 @@ impl Profiles {
             let occurrence = self.occurrence(name, terminal, value, set, tags, false, p, q);
             profile = self.sum(&profile, &occurrence);
         }
-        profile
+        self.sum(&profile, &error_profile)
     }
 }
 
@@ -2378,7 +2452,7 @@ impl SlotViews {
         }
         let mut users: FxMap<u32, Vec<u32>> = FxMap::default();
         for p in &g.prods {
-            if g.rules[p.rule as usize].helper {
+            if !p.tree_root {
                 for s in &p.syms {
                     if let Sym::N(r) = s {
                         users.entry(*r).or_default().push(p.rule);
@@ -2524,7 +2598,9 @@ impl Ranker<'_> {
                 let mut found = vec![];
                 for ((previous, pf), (child, cf)) in links {
                     let carries = matches!(child, Node::Group {rule, ..} if self.views.as_ref().unwrap().wrapped.contains(&rule))
-                        && (!self.dag.g.rules[own as usize].helper || scope != 0);
+                        && (self.dag.g.rules[own as usize].splice_target.is_some()
+                            || !self.dag.g.rules[own as usize].helper
+                            || scope != 0);
                     let pred = (self.views.as_mut().unwrap().view(previous, scope), pf);
                     if carries {
                         let inner = self.helper_scope(previous, child, scope);

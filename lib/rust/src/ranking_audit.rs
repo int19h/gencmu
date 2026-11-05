@@ -31,6 +31,8 @@ pub struct RankingReport {
     pub key_steps: Vec<RankingStepReport>,
     /// Redefinitions and extensions of counted rules.
     pub counted_changes: Vec<CountedRuleChange>,
+    /// Notes about diagnostics, suppression, and tag expansion.
+    pub diagnostic_notes: Vec<crate::DiagnosticNote>,
 }
 
 fn walk_body(
@@ -78,7 +80,7 @@ fn walk_body(
                     let mut head = e.as_ref();
                     loop {
                         match head {
-                            Expr::Capture(_, e) | Expr::Tested(_, _, e) => head = e,
+                            Expr::Splice(e) | Expr::Capture(_, e) | Expr::Tested(_, _, e) => head = e,
                             Expr::Seq(es) => head = &es[0],
                             Expr::Ref(t) | Expr::Terminal(t) => {
                                 omitted.insert(t.clone());
@@ -90,7 +92,7 @@ fn walk_body(
                 }
                 pending.push(e);
             }
-            Expr::Capture(_, e) | Expr::Tested(_, _, e) => pending.push(e),
+            Expr::Splice(e) | Expr::Capture(_, e) | Expr::Tested(_, _, e) => pending.push(e),
             Expr::Seq(es) | Expr::Choice(es) | Expr::Ranked(es, _) | Expr::And(es) => pending.extend(es),
             Expr::Repeat(e, s, _) => {
                 pending.push(e);
@@ -122,7 +124,12 @@ fn dead(p: &Pattern, reachable: &BTreeSet<String>, terms: &BTreeSet<String>) -> 
 
 pub(crate) fn report(g: &StageGrammar) -> RankingReport {
     if g.steps.is_empty() {
-        return RankingReport { name: g.name.clone(), key_steps: Vec::new(), counted_changes: Vec::new() };
+        return RankingReport {
+            name: g.name.clone(),
+            key_steps: Vec::new(),
+            counted_changes: Vec::new(),
+            diagnostic_notes: crate::diagnostic_audit::notes(g),
+        };
     }
     let bodies: Vec<_> = g
         .rules
@@ -151,7 +158,12 @@ pub(crate) fn report(g: &StageGrammar) -> RankingReport {
             terminals.extend(bodies[i].2.iter().cloned());
         }
     }
-    let mut out = RankingReport { name: g.name.clone(), key_steps: Vec::new(), counted_changes: Vec::new() };
+    let mut out = RankingReport {
+        name: g.name.clone(),
+        key_steps: Vec::new(),
+        counted_changes: Vec::new(),
+        diagnostic_notes: crate::diagnostic_audit::notes(g),
+    };
     for (step, key) in g.steps.iter().enumerate() {
         let names: BTreeSet<_> = key
             .pattern
@@ -190,6 +202,14 @@ pub fn format_ranking_reports(reports: &[RankingReport]) -> String {
             if !step.status.is_empty() {
                 lines.push(format!("  ranking step {}: {}", step.step + 1, step.status));
             }
+        }
+        for note in &report.diagnostic_notes {
+            let detail = match note.kind.as_str() {
+                "query-error" => format!("query reaches error rule {}", note.target.as_deref().unwrap_or("")),
+                "unused-suppression" => format!("unused suppression code {}", note.code.as_deref().unwrap_or("")),
+                _ => format!("{} guarded tag variants", note.variants.unwrap_or(0)),
+            };
+            lines.push(format!("  {}: {detail}", note.rule));
         }
         for change in &report.counted_changes {
             lines.push(format!(

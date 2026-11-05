@@ -45,6 +45,8 @@ mod test_common;
 
 mod boundary;
 mod clauses;
+mod diagnostic_audit;
+mod diagnostics;
 mod dom;
 mod earley;
 mod eligible;
@@ -52,6 +54,10 @@ mod error;
 mod features;
 mod fxhash;
 mod grammar;
+mod guarded_tags;
+pub use diagnostic_audit::DiagnosticNote;
+#[doc(hidden)]
+pub use diagnostics::with_diagnostic_messages;
 mod json;
 mod loader;
 mod lower;
