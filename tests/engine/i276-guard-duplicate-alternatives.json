@@ -1,0 +1,18 @@
+{
+  "description": "Equal guards on different alternatives retain their own condition indexes.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text \"b\" [r4]\n%rule r2 \"x\" :: ($.followed-by(r2) ⟹ T0)\n       | \"a\" :: ($.followed-by(r2) ⟹ T0)\n%rule r4 r2 \"b\" \"a\"",
+  "input": "bab",
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "error": {
+        "token": 3,
+        "boundary": {
+          "rule": "r2",
+          "condition": 1,
+          "at": 2
+        }
+      }
+    }
+  }
+}
