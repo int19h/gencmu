@@ -993,7 +993,7 @@ A written `JI` cannot detach from a number that omits its own `JI`. This prevent
 
 The recovery prefix admits ordered parts, including a complete repeated part or magnitude. A repeated part still needs `jo`. An erroneous prefix stays outside the empty-part wrapper and keeps its own error.
 
-Number recovery distinguishes missing parts from parts in the wrong order. The loose reader retains each part. Digit runs take every following digit except the start of a base. This prevents alternate divisions of one faulty number. The ordered counterpart distinguishes order errors from missing digits or a missing fraction marker.
+Number recovery distinguishes missing parts from parts in the wrong order. The loose reader retains each part. Digit runs take every following digit except the start of a base. This prevents alternate divisions of one faulty number. A digitless number can end before another number part only with written `JI`. The ordered counterpart distinguishes order errors from missing digits or a missing fraction marker.
 
 ```jbogenbau
 %extend-rule base-verb
@@ -1059,6 +1059,8 @@ Number recovery distinguishes missing parts from parts in the wrong order. The l
 
 %rule number-without-digits
   JO [JI] | TI JU [JO] [JI]
+%conditions
+  JI ⊆ $.last-token.tags ∨ ¬$.following-tokens.begins(number-start)
 %error "a number needs integer digits, fractional digits, or a magnitude"
 
 %rule number-part-order
@@ -1178,6 +1180,8 @@ The named rules below reject only their chosen erroneous reading. Every erasable
 `E_EmptyParenthetical` remains a book-based departure because any valid text, including an empty text, can occupy a parenthetical. The book-allowed `E_ErasedMustBeFollowedBySentenceStarter` cases also remain departures. An enclosing quote or parenthesis can end after erasure, and a later `ra` can erase the following invalid stretch.
 
 A numeric word quoted by `ci` is not a number constituent. It does not block `number-end-alone`. A second written `JI` can also report after a number that already has its terminator.
+
+A grammatical complete body can precede one empty `ja` or `je` in number recovery. Other misplaced parts have no general segmentation preference. An empty `ju` after a complete body retains ordinary rejection, as in `a to je te ju`.
 
 The grammar gives `ci` no fault alternative. Unsupported quote operands, unclassified junk, missing word boundaries, and a free prefix before `po` retain ordinary rejection. A `JI` value restriction also remains outside this grammar, as the preceding numbers discussion explains.
 
