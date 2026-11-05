@@ -991,7 +991,7 @@ A sentence after `ra` needs a written starter. A sentence without that starter i
 
 A written `JI` cannot detach from a number that omits its own `JI`. This prevents splitting a written terminator from its number to disguise a failed resumption. Empty base recovery retains its written `JI`. Empty repeat and magnitude recovery retain only a grammatical prefix and report on the trailing `ja` or `je`.
 
-The prefix readers forbid a repeated part without `jo`, duplicates, and parts in the wrong order. An erroneous prefix stays outside the empty-part wrapper and keeps its own error.
+The recovery prefix admits ordered parts, including a complete repeated part or magnitude. A repeated part still needs `jo`. An erroneous prefix stays outside the empty-part wrapper and keeps its own error.
 
 Number recovery distinguishes missing parts from parts in the wrong order. The loose reader retains each part. Digit runs take every following digit except the start of a base. This prevents alternate divisions of one faulty number. The ordered counterpart distinguishes order errors from missing digits or a missing fraction marker.
 
@@ -1032,17 +1032,14 @@ Number recovery distinguishes missing parts from parts in the wrong order. The l
   JU
 %error "ju needs a preceding ti digit for its base"
 
-%rule repeat-number-prefix
-  [loose-base] [loose-digits] [loose-fraction]
-
-%rule magnitude-number-prefix
-  [loose-base] [loose-digits] [loose-fraction [JA loose-digits]]
+%rule number-recovery-prefix
+  [loose-base] [loose-digits] [loose-fraction [JA loose-digits]] [JE loose-digits]
 
 %rule empty-repeat-number
-  *repeat-number-prefix *number-empty-repeat [JI]
+  *number-recovery-prefix *number-empty-repeat [JI]
 
 %rule empty-magnitude-number
-  *magnitude-number-prefix *number-empty-magnitude [JI]
+  *number-recovery-prefix *number-empty-magnitude [JI]
 
 %rule number-empty-repeat
   JA
