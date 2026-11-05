@@ -60,7 +60,7 @@ A further sentence cannot start with a paragraph mark or the end of a parenthesi
   PO | DAI
 
 %rule closer
-  elider-word | CAI
+  FI | VEI | PEI | BU | PA | CAI
 
 %rule text = text-of(open-sentence)
 %rule paragraphs = paragraphs-of(open-sentence)
@@ -152,6 +152,8 @@ A paragraph mark at the start of a paragraph is always the paragraph's mark, so 
 
 %rule elider-word
   FI | VEI | PEI | BU | PA
+%conditions
+  $.onward.begins(erasure-reach)
 
 %rule end-of-text
   ε
@@ -189,7 +191,9 @@ An erased valid sentence is a sentence followed by one or more `ra`. Erased inva
 
 `invalid-head` names its first word, so that the condition on a grammatical quote can test it. An empty erasure is a `ra` alone. Each word after the first is an `erased-word`. The pipeline's first step is `fewest #·erased-word`. So of two readings, the one that erases fewer words wins, as the chapter's "last sentence that was still grammatical" asks.
 
-`invalid-head` reads its word only when a `ra` follows somewhere later, as the rule `erasure-reach` tests. The condition changes no reading, because erased invalid text always ends with `ra`. It serves the error report. Without it, a reading as erased text survives every word, so a failed text reports only its end and a missing `ra`. With it, `a pban` reports the word `pban`. A text with a later `ra`, such as `a pban mo ra mo`, reports the first word that the erasure cannot explain, here the last `mo`.
+`invalid-head` needs a later `ra` somewhere in the text, which the rule `erasure-reach` tests. A closer at the head, an `elider-word`, needs the same. The conditions change no reading, because erased invalid text always ends with `ra`. They serve the error report.
+
+Without them, a reading as erased text survives every word, so a failed text reports only its end and a missing `ra`. With them, `a pban` reports the word `pban`, and `a mi fa mo` reports `fa`. A text with a later `ra` reports the first word that the erasure cannot explain. In `a pban mo ra mo`, that word is the last `mo`.
 
 The chapter says that `ra` "must be surrounded by spaces or pauses". The start of a text counts as a pause, as it does for hesitation in the [word forms](morphology.md). So a text can start with `ra`.
 
