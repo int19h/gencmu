@@ -1,0 +1,16 @@
+{
+  "description": "Direct captures retain the identity of an empty splice.",
+  "grammar": "%rule text $x:*a $y:*b\n%conditions $x ≅ $y\n%rule a ε\n%rule b ε",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "description": "Splices with different children have different identities.",
+  "grammar": "%rule text $x:*a $y:*b\n%conditions $x ≇ $y\n%rule a A\n%rule b B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "description": "An empty splice differs from a nonempty splice.",
+  "grammar": "%rule text $x:*empty $y:*a\n%conditions $x ≇ $y\n%rule empty ε\n%rule a A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}
