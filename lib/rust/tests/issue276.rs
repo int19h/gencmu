@@ -100,3 +100,21 @@ fn guarded_tag_limit_is_a_load_error() {
         assert!(error.message.contains("16"), "{error}");
     }
 }
+
+#[test]
+fn splice_only_cycles_share_the_called_rule_key() {
+    for entry in ["loop", "*loop"] {
+        let source = format!(
+            "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {entry}\n%rule loop *loop | A\n```\n"
+        );
+        let p = gencmu::load_pipeline_sources([("p.md", source)], "p.md").unwrap();
+        let result = p
+            .parse_tokens(
+                &[InputToken { text: "a".into(), tags: ["A".into()].into_iter().collect(), ..Default::default() }],
+                &ParseOptions::default(),
+            )
+            .unwrap();
+        assert!(result.ok, "{entry}: {result:?}");
+        assert_eq!(result.stages[0].verdict, Some(gencmu::Verdict::Unique), "{entry}");
+    }
+}

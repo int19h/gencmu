@@ -2383,8 +2383,10 @@ fn cycles(rules: &[LRule], prods: &[Prod]) -> Vec<Option<u32>> {
             // Each edge counts as it is added.
             work::count(Work::Lowered, 1);
             if let Sym::N(target) = production.syms[position] {
-                if seen.insert((production.rule, target)) {
-                    edges[production.rule as usize].push(target);
+                let source = rules[production.rule as usize].splice_target.unwrap_or(production.rule);
+                let target = rules[target as usize].splice_target.unwrap_or(target);
+                if seen.insert((source, target)) {
+                    edges[source as usize].push(target);
                 }
             }
         }
@@ -2468,6 +2470,11 @@ fn cycles(rules: &[LRule], prods: &[Prod]) -> Vec<Option<u32>> {
                     }
                 }
             }
+        }
+    }
+    for (id, rule) in rules.iter().enumerate() {
+        if let Some(target) = rule.splice_target {
+            cycle[id] = cycle[target as usize];
         }
     }
     cycle
