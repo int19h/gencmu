@@ -6954,3 +6954,9 @@ eberban.recovery2.spelling-mark-3
 eberban.recovery2.operand-limit-1
 eberban.recovery2.parenthetical-limit-1
 eberban.recovery2.parenthetical-limit-2
+eberban.recovery3.quote-boundary-1
+eberban.recovery3.quote-boundary-2
+eberban.recovery3.quote-boundary-5
+eberban.recovery3.quote-boundary-6
+eberban.recovery3.quote-boundary-7
+eberban.recovery3.quote-boundary-8
