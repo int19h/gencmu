@@ -920,6 +920,8 @@ Each repeated recovery segment contains a written `bu`, so it reads at least one
 
 An `o` or `ni` sentence needs a definable target before any definition. Its recovery marks the missing target at that position. A missing parenthetical end reports before an enclosing `cai` or at the end of the input. A written `dai` closes its parenthetical instead of becoming an unmatched closer there.
 
+A missing-end recovery before `cai` cannot use the endpoint of a quote whose own `cai` is omitted. That particle belongs to the quote. A preceding quote with written `cai` does not block the recovery. A `cai` quoted by `ci` remains content, so it does not prove a written close. The spliced empty helper records these neighbour facts before the missing-end rule completes.
+
 ```jbogenbau
 %extend-rule o-sentence
   [{prefix}] O [{postfix}] *not-definable-o [definition]
@@ -942,10 +944,16 @@ An `o` or `ni` sentence needs a definable target before any definition. Its reco
 %rule parenthetical-boundary
   end-of-text | [{prefix}] CAI
 
+%rule parenthetical-close-neighbours
+  ε :: ($.preceded-by(grammatical-quote) ⟹ Quote-end)
+    ∪ ($.preceded-by(word-quote) ⟹ Word-quote-end)
+
 %rule unclosed-parenthetical
-  ε
+  $n:*parenthetical-close-neighbours :: ∅
 %conditions
-  $.onward.begins(parenthetical-boundary)
+  $.onward.begins(parenthetical-boundary),
+  $.ends-input ∨ Quote-end ⊈ $n.tags ∨
+    ($.preceding-tokens.ends(CAI) ∧ Word-quote-end ⊈ $n.tags)
 %error "the parenthetical needs its closing dai"
 ```
 
