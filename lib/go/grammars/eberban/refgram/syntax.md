@@ -199,6 +199,8 @@ The chapter says that `ra` "must be surrounded by spaces or pauses". The start o
 
 The PEG requires a written starter after an erasure, and states this rule in an error message. The book supports it only by inference. It lets only the first sentence of a paragraph leave its starter out, and the sentence after an erasure is not the first.
 
+`ra-run` keeps the tags of its repeated particles through a captured splice. The optional diagnostic tail adds no tag to a zero-error reading.
+
 Erased text can follow an erasure too, because the later `ra` erases it. So `after-erasure` accepts a starter, a paragraph mark or more erased text. It also accepts the end of the text, or a particle that ends an enclosing quote or parenthesis. The particles of `elider-word` end a quote whose `cai` is left out.
 
 ```jbogenbau
@@ -229,14 +231,17 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
   _<¬RA>
 
 %rule ra-run
-  {RA} [*erased-must-be-followed-by-sentence-starter]
+  $r:*ra-words [*erased-must-be-followed-by-sentence-starter] :: $r.tags
+
+%rule ra-words
+  {RA}
 
 %rule after-erasure
   | starter-head | PO | erased-invalid
   | sentence-closer | end-of-text
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>erased-valid</code> to <code>after-erasure</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>erased-valid</code> to <code>after-erasure</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-valid.svg" alt="Railroad diagram of the rule erased-valid"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-invalid.svg" alt="Railroad diagram of the rule erased-invalid"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-erasure.svg" alt="Railroad diagram of the rule empty-erasure"></p>
@@ -244,6 +249,7 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/erasure-reach.svg" alt="Railroad diagram of the rule erasure-reach"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-word.svg" alt="Railroad diagram of the rule erased-word"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ra-run.svg" alt="Railroad diagram of the rule ra-run"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/ra-words.svg" alt="Railroad diagram of the rule ra-words"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/after-erasure.svg" alt="Railroad diagram of the rule after-erasure"></p>
 </details>
 
