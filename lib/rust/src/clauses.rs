@@ -1977,6 +1977,13 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
     let rule_check = rule_tags.map(TermCheck::new);
     let alternative_checks: Vec<Option<TermCheck>> =
         alternative_tags.iter().map(|term| term.map(TermCheck::new)).collect();
+    let guarded_tags: FxSet<*const Term> = rule
+        .tags
+        .iter()
+        .chain(rule.alternatives.iter().filter_map(|a| a.tags.as_ref()))
+        .filter(|term| !crate::guarded_tags::guards(term).is_empty())
+        .map(|term| term as *const Term)
+        .collect();
     for (index, (alternative, _)) in productions.iter().enumerate() {
         let has = captures_of(index);
         if each_part {
@@ -1994,6 +2001,15 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
             }
         }
         let alternative = &rule.alternatives[*alternative];
+        let effective_tags: Vec<_> = rule.tags.iter().chain(&alternative.tags).collect();
+        if effective_tags.iter().any(|term| guarded_tags.contains(&(*term as *const Term)))
+            && !effective_tags.iter().any(|term| term_waits(term))
+        {
+            let terms = effective_tags.into_iter().map(|term| simplify_value(term, &has)).collect();
+            if let Err(problem) = crate::guarded_tags::variants(&Term::Union(terms)) {
+                return immediate(problem);
+            }
+        }
         let selected_value = alternative.strings.value.as_ref().or(rule.strings.value.as_ref());
         let selected_image = alternative.strings.image.as_ref().or(rule.strings.image.as_ref()).or(selected_value);
         for recipe in selected_value.into_iter().chain(selected_image).chain(&rule.error).chain(&rule.warning) {

@@ -89,3 +89,14 @@ fn splice_dom_requires_a_nominal_target() {
         assert!(gencmu::tools::check_dom(&dom).unwrap().is_some(), "{target}");
     }
 }
+
+#[test]
+fn guarded_tag_limit_is_a_load_error() {
+    for name in ["tags-variants-5", "tags-same-result-limit"] {
+        let case = fixture(name);
+        let (documents, path) = common::case_documents(&case);
+        let error = gencmu::load_pipeline_sources(documents, &path).expect_err("the variant limit is a load error");
+        assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
+        assert!(error.message.contains("16"), "{error}");
+    }
+}
