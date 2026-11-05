@@ -220,6 +220,8 @@ type lowerer struct {
 	terms   map[*domTerm]*termLowering
 	condsOf map[condsKey]*condLowering
 	emits   map[*domEmit]*emitSplit
+	// Concrete variants depend only on the simplified tag term, which productions can share.
+	variants map[*domTerm][]guardedTagVariant
 }
 
 // condsKey is a list of conditions, known by its first element and its
@@ -268,7 +270,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 		return l
 	}
 	l.classifiers = tables.tables
-	lw := &lowerer{helperNodes: map[int32]*helperNode{}, rankOptions: map[int32][]int{}, commonConds: map[*sAlt]map[string][]*domCond{}, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}}
+	lw := &lowerer{helperNodes: map[int32]*helperNode{}, rankOptions: map[int32][]int{}, commonConds: map[*sAlt]map[string][]*domCond{}, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, variants: map[*domTerm][]guardedTagVariant{}}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
 		l.rules = append(l.rules, &lrule{name: r.name, owner: r.name, scc: -1})
@@ -1468,10 +1470,15 @@ func sourceProduction(p *production) *production {
 }
 
 func (lw *lowerer) expandTagVariants(p *production, a *sAlt) {
-	variants, fault := guardedTagVariants(p.tags)
-	if fault != "" {
-		lw.loweringFault(a, "%s", fault)
-		return
+	variants, known := lw.variants[p.tags]
+	if !known {
+		var fault string
+		variants, fault = guardedTagVariants(p.tags)
+		if fault != "" {
+			lw.loweringFault(a, "%s", fault)
+			return
+		}
+		lw.variants[p.tags] = variants
 	}
 	original := *p
 	for index, variant := range variants {
