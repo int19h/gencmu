@@ -74,6 +74,8 @@ def _print_argument(n, unicode):
     if 'call' in n:
         args = yield _print_join(n['args'], unicode, _print_argument, ', ')
         return n['call'] + '(' + args + ')'
+    if 'splice' in n:
+        return '*' + (yield _print_argument(n['splice'], unicode))
     if 'param' in n:
         return '@' + n['param']
     for key in ('rule', 'tag', 'terminal', 'ref', 'name', 'integer', 'classifier'):
@@ -309,7 +311,7 @@ def expand_templates(documents, unicode):
                     for i, alternative in enumerate(node['alternatives']):
                         children.extend(alternative.get(k) for k in ('expr', 'tags', 'value', 'image'))
                         if i == 0:
-                            children.extend(node.get(k) for k in ('tags', 'value', 'image', 'conditions', 'emit'))
+                            children.extend(node.get(k) for k in ('tags', 'value', 'image', 'conditions', 'error', 'warning', 'emit'))
                 else:
                     children = [node.get('receiver'), node['args']] if 'method' in node else [node['args']] if 'call' in node else [node[k] for k in ordered_keys(node)]
                 pending.append((node, True))
@@ -390,7 +392,7 @@ def expand_templates(documents, unicode):
                 return dict(ref=arg.get('rule', arg.get('tag', arg.get('terminal'))))
             if 'string' in arg or 'const' in arg:
                 return dict(literal=arg)
-            if any(k in arg for k in ('call', 'test', 'range', 'wildcard')):
+            if any(k in arg for k in ('call', 'test', 'range', 'wildcard', 'splice')):
                 return arg
         elif position == 'pattern':
             if 'rule' in arg:
@@ -412,7 +414,7 @@ def expand_templates(documents, unicode):
                 return dict(terminal=arg['tag'])
             if any(k in arg for k in ('rule', 'terminal', 'call')):
                 return arg
-        elif position == 'term' and not any(k in arg for k in ('body', 'targets', 'requirements', 'rule', 'call', 'test', 'range', 'wildcard')):
+        elif position == 'term' and not any(k in arg for k in ('body', 'targets', 'requirements', 'rule', 'call', 'test', 'range', 'wildcard', 'splice')):
             return arg
         fail(event, use, f"argument {canonical_argument(arg, unicode)} is invalid at @{use['param']} in {position} position")
 
@@ -616,7 +618,7 @@ def expand_templates(documents, unicode):
             arguments_to_check.append(dict(owner, term=rewrite(term, event), tags=tags))
 
         arg = normalize(argument)
-        if any(k in arg for k in ('body', 'test', 'range', 'wildcard')):
+        if any(k in arg for k in ('body', 'test', 'range', 'wildcard', 'splice')):
             rule = dict(name='text' if event['index'] in extra_indexes else event['rule']['name'], op='define', conditions=[],
                         alternatives=[dict(guards=[], expr=rewrite(arg.get('body', arg), event, 'expr'))], at=event['rule']['at'])
             if any('param' in n for n in parts):
@@ -686,9 +688,9 @@ def child_position(key, position):
         return 'pattern-item'
     if position == 'pattern' and key in ('union', 'intersection', 'difference'):
         return 'pattern'
-    if key in ('alternatives', 'conditions', 'emit', 'tags', 'value', 'image', 'default', 'requirements', 'range', 'literal', 'concat', 'union', 'intersection', 'difference', 'left', 'right', 'receiver', 'if', 'then', 'not', 'all', 'any', 'args'):
+    if key in ('alternatives', 'conditions', 'error', 'warning', 'emit', 'tags', 'value', 'image', 'default', 'requirements', 'range', 'literal', 'concat', 'union', 'intersection', 'difference', 'left', 'right', 'receiver', 'if', 'then', 'not', 'all', 'any', 'args'):
         return 'term'
-    if key in ('seq', 'choice', 'ranked', 'and', 'optional', 'repeat', 'separator', 'expr') and position != 'pattern':
+    if key in ('seq', 'choice', 'ranked', 'and', 'optional', 'repeat', 'separator', 'expr', 'splice') and position != 'pattern':
         return 'expr'
     if key in ('pattern', 'child'):
         return 'pattern'

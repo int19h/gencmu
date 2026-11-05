@@ -780,7 +780,7 @@ def validate_engine_expect(expect: Any) -> None:
     if "warnings" in expect:
         assert isinstance(expect["warnings"], list), "expect.warnings: expected an array"
         for warning in expect["warnings"]:
-            case_object(warning, "stage feature rule span source", "expect.warnings[]", "stage feature rule span source")
+            case_object(warning, "stage code rule span source message", "expect.warnings[]", "stage code rule span source message")
             for field, value in warning.items():
                 case_value(value, "range" if field in ("span", "source") else "string", "expect.warnings[]." + field)
     if "result" in expect:
@@ -1023,7 +1023,7 @@ def validate_result_pattern(pattern: Any) -> None:
         item, in_error = stack.pop()
         if isinstance(item, dict):
             assert not (in_error and "message" in item), "a result pattern cannot assert an error message"
-            stack.extend((child, in_error or key == "error") for key, child in item.items())
+            stack.extend((child, (False if key == "errors" else in_error or key == "error")) for key, child in item.items())
         elif isinstance(item, list):
             stack.extend((child, in_error) for child in item)
 
@@ -1056,6 +1056,16 @@ def mismatch(pattern: Any, value: Any, where: str = "$") -> str | None:
     return None
 
 
+def named_diagnostic(value):
+    fields = {"stage", "code", "rule", "span", "source", "message"}
+    return (isinstance(value, dict) and set(value) == fields
+            and all(isinstance(value[key], str) for key in ("stage", "code", "rule", "message"))
+            and value["code"] == value["rule"]
+            and all(isinstance(value[key], list) and len(value[key]) == 2
+                    and all(type(number) is int and 0 <= number <= 9007199254740991 for number in value[key])
+                    and value[key][0] <= value[key][1] for key in ("span", "source")))
+
+
 def result_problems(value: dict[str, Any]) -> list[str]:
     """Report broken result invariants from tests/README.md.
 
@@ -1071,6 +1081,22 @@ def result_problems(value: dict[str, Any]) -> list[str]:
     problems: list[str] = []
     stages = value["stages"]
     error = value["error"]
+    if error and error.get("kind") != "reported" and value.get("tree") is not None:
+        problems.append("an error result other than reported has a tree")
+    for warning in value.get("warnings", []):
+        if not named_diagnostic(warning):
+            problems.append("a warning lacks its diagnostic fields")
+    if error and error.get("kind") == "reported":
+        last = stages[-1] if stages else None
+        if (value.get("ok") is not False or not value.get("tree") or not last
+                or last.get("name") != error.get("stage") or last.get("verdict") not in ("unique", "resolved") or "output" in last):
+            problems.append("a reported result lacks its retained tree and verdict or has output")
+        errors = error.get("errors")
+        if not isinstance(errors, list) or not errors or any(not named_diagnostic(item) or item["stage"] != error.get("stage") for item in errors):
+            problems.append("a reported result lacks its ordered named errors")
+        for member in ("token", "source", "line", "column", "expected", "readings"):
+            if member in error:
+                problems.append(f"a reported error has the member {member}")
     # An ambiguous error has no position (docs/output.md).
     if isinstance(error, dict) and error.get("kind") == "ambiguous":
         for member in ("token", "source"):

@@ -33,6 +33,13 @@ def problem(rule):
             from ._clauses import captures_in
             if captures_in(condition) - {name}:
                 return 'a boundary condition with a captured receiver reads only that capture', atom
+    from ._guarded_tags import guards, problem as tag_problem
+    for term in [rule.get("tags"), *(a.get("tags") for a in rule["alternatives"])]:
+        fault = tag_problem(term)
+        if fault:
+            return fault
+        for guard in guards(term):
+            allowed.update(id(atom) for atom in atoms(guard["if"]))
     for atom in atoms(rule.get('emit')):
         allowed.add(id(atom))
     for atom in atoms(rule):

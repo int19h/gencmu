@@ -4,6 +4,7 @@ productions (engine §3)."""
 from __future__ import annotations
 
 import itertools
+import re
 import threading
 from dataclasses import dataclass, field, replace
 from copy import copy as shallow_copy
@@ -72,6 +73,9 @@ class Alternative:
     at: tuple[int, int]
     ranked_locations: dict = field(default_factory=dict, repr=False, compare=False)
     index: int = field(default=0, repr=False, compare=False)
+    error: Any = None
+    warning: Any = None
+    suppress_warnings: tuple[str, ...] = ()
 
 
 @dataclass
@@ -198,7 +202,7 @@ k gates can have 2^k of them. The least recently used goes first."""
 
 
 def _gate_names(guards: list[Dom]) -> frozenset[str]:
-    return frozenset(guard["feature"] for guard in guards if guard.get("kind") != "warning")
+    return frozenset(guard["feature"] for guard in guards)
 
 
 Classifiers = dict[str, dict[str, frozenset[str]]]
@@ -751,7 +755,7 @@ class _Constants:
                 # references and patterns are in users along with constants.
                 if (alternative.document, alternative.at) not in sites:
                     continue
-                for field in ("value", "image", "rule_value", "rule_image"):
+                for field in ("value", "image", "rule_value", "rule_image", "error", "warning"):
                     recipe = getattr(alternative, field)
                     if recipe is not None:
                         setattr(alternative, field, run(resolve(recipe)))
@@ -806,7 +810,7 @@ def _value_parts(root: Any):
             keys = ("left", "right")
         else:
             keys = ("seq", "choice", "ranked", "and", "optional", "repeat", "separator", "literal", "range",
-                    "not", "any", "all", "union", "intersection", "difference", "concat", "items", "tags", "value", "image", "conditions", "emit")
+                    "not", "any", "all", "union", "intersection", "difference", "concat", "items", "tags", "value", "image", "error", "warning", "conditions", "emit")
         pending.extend((node[key], False) for key in reversed(keys) if key in node)
 
 
@@ -873,6 +877,8 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                         at=at,
                         ranked_locations=getattr(rule,"ranked_locations",{}).get(alternative_index,{}),
                         index=alternative_index,
+                        error=rule.get("error"), warning=rule.get("warning"),
+                        suppress_warnings=tuple(rule.get("suppressWarnings", ())),
                     )
                     for alternative_index,alt in enumerate(rule.get("alternatives", []))
                 ]
@@ -937,6 +943,20 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     for key, uses in constants.arguments.items():
         owner = uses[0]
         checks.append((owner['inspection_run'], owner['at'], owner['path'], 'arguments', key))
+    warning_codes = {name for name, rule in rules.items() if any(a.warning is not None for a in rule.alternatives)}
+    from ._template_nodes import nodes as diagnostic_nodes
+    for name, rule in rules.items():
+        for alternative in rule.alternatives:
+            if alternative.error is not None and not (re.fullmatch(r"(?!.*--)[a-z][A-Za-z0-9_-]*", name) or unicode.is_emoji_name(name)):
+                raise _error("an error code must be a rule name", alternative.document, alternative.at, stage)
+            if alternative.warning is not None and re.fullmatch(r"(?!.*--)[A-Za-z][A-Za-z0-9-]*", name) is None:
+                raise _error("a warning code must be a feature name", alternative.document, alternative.at, stage)
+            for code in alternative.suppress_warnings:
+                if code != "_" and code not in warning_codes:
+                    raise _error(f"suppression code {code} is not a warning of stage {stage}", alternative.document, alternative.at, stage)
+            for recipe in (alternative.error, alternative.warning):
+                if recipe is not None and any(node.get("method") == "emitted" for node in diagnostic_nodes(recipe)):
+                    raise _error("a message recipe cannot read .emitted", alternative.document, alternative.at, stage)
     constants.bind()
     from ._validate import input_conditions_problem
     from ._types import condition_type_fault
@@ -1077,6 +1097,34 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                         stack.extend(reversed(list(value.values())))
                 elif isinstance(value, list):
                     stack.extend(reversed(value))
+    from ._template_nodes import nodes
+    prohibited = {n["name"] for _, pattern in key_steps for n in nodes(pattern) if isinstance(n.get("name"), str)}
+    for constant in constants.values.values():
+        if constant.type == "pattern":
+            prohibited.update(node["name"] for node in nodes(constant.value["pattern"]) if isinstance(node.get("name"), str))
+    splices = []
+    inspected = set()
+    for rule in rules.values():
+        for alt in rule.alternatives:
+            pending = [alt.expr, alt.tags, alt.rule_tags, alt.conditions, alt.emit]
+            while pending:
+                node = pending.pop()
+                if not isinstance(node, (dict, list)) or id(node) in inspected:
+                    continue
+                inspected.add(id(node))
+                if isinstance(node, list):
+                    pending.extend(node)
+                    continue
+                if "splice" in node:
+                    splices.append((node["splice"]["ref"], alt))
+                if "pattern" in node:
+                    prohibited.update(part["name"] for part in nodes(node["pattern"]) if isinstance(part.get("name"), str))
+                if node.get("method") in ("followed-by", "preceded-by"):
+                    prohibited.update(arg["rule"] for arg in node["args"] if "rule" in arg)
+                pending.extend(node.values())
+    for target, alt in splices:
+        if target in prohibited:
+            raise _error(f"a splice of {target} conflicts with a pattern or neighbour target", alt.document, alt.at, stage)
     from ._families import members
     grammar = Grammar(
         stage,
@@ -1121,7 +1169,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
             at = getattr(recipe, "at", alternative.at)
             error = _error("recipe dependency cycle: " + " → ".join(path), alternative.document, at, stage)
             if not hasattr(recipe, "at"):
-                field = next(name for name in ("value", "image", "rule_value", "rule_image") if getattr(alternative, name) is recipe)
+                field = next(name for name in ("value", "image", "rule_value", "rule_image", "error", "warning") if getattr(alternative, name) is recipe)
                 error._recipe_location = alternative.at, alternative.index, field
             raise error
     from ._overlap import conflict
@@ -1252,9 +1300,17 @@ class Production:
     erased: bool = False
     value: Any = None
     image: Any = None
-    # The features of the alternative's warnings, in the order they are
-    # written (engine §12); none for a helper.
-    warnings: tuple[str, ...] = ()
+    # Diagnostic recipes belong to the source alternative (engine §12).
+    error: Any = None
+    warning: Any = None
+    suppress_warnings: tuple[str, ...] = ()
+    splice_of: int | None = None
+    source_id: int | None = None
+    tree_root: bool = False
+    optional_routes: dict[int, str] = field(default_factory=dict)
+    terminal_captures: set[str] = field(default_factory=set)
+    forward_captures: dict[int, str] = field(default_factory=dict)
+    guard_conditions: list = field(default_factory=list)
     slot: SlotMetadata | None = field(default=None,repr=False,compare=False)
     base_id: int | None = field(default=None,repr=False,compare=False)
     lexical: Any = field(default=None,repr=False,compare=False)
@@ -1283,6 +1339,10 @@ class Production:
     @property
     def real_id(self):
         return self.id if self.base_id is None else self.base_id
+
+    @property
+    def action_id(self):
+        return self.source_id if self.source_id is not None else self.real_id
 
     @property
     def transparent(self) -> bool:
@@ -1417,6 +1477,7 @@ class _Lowerer:
         self.rule_ids = {name: index for index, name in enumerate(self.rule_names)}
         self.rule_display: list[str] = list(self.rule_names)
         self.helper_expansions: dict[int, list[list[_Sym]]] = {}
+        self.splice_aliases: dict[int, int] = {}
         self.helper_elided: dict[int, tuple[str, SymbolTest | None]] = {}
         self.emitted_helpers: set[int] = set()
         self.productions: list[Production] = []
@@ -1481,6 +1542,8 @@ class _Lowerer:
         """The terminal of an elidable optional, the first item of its
         content, and its complete symbol predicate (engine §3.8, §12)."""
         first = expr["seq"][0] if "seq" in expr and expr["seq"] else expr
+        if "capture" in first:
+            first = first["expr"]
         test: SymbolTest | None = first[RESOLVED] if "test" in first else None
         symbol = first
         while "test" in symbol:
@@ -1578,6 +1641,10 @@ class _Lowerer:
         if "optional" in expr:
             inner = expr["optional"]
             elidable = expr.get("elidable") is True
+            if elidable and "capture" in inner:
+                body = yield self._expand(inner)
+                helper = self.new_helper([[]] + body, self.elided_terminal(inner, expr.get("default"), getattr(expr, "default_at", None)))
+                return [Expansion([(("n", helper, None, "empty"), None)]), Expansion([(("n", helper, None, "written"), inner["capture"])])]
             body = yield self._expand(inner)
             # A plain optional that holds a capture expands in place, as
             # (ε | x) would: first the empty sequence, then each expansion
@@ -1610,6 +1677,15 @@ class _Lowerer:
             return [Expansion([(("n", self.repeat_helper(items, separators)), None)])]
         if "empty" in expr:
             return [Expansion()]
+        if "splice" in expr:
+            target = self.rule_ids[expr["splice"]["ref"]]
+            if target not in self.splice_aliases:
+                alias = len(self.rule_names)
+                self.splice_aliases[target] = alias
+                name = "\0splice:" + self.rule_names[target]
+                self.rule_names.append(name)
+                self.rule_display.append(self.rule_display[target])
+            return [Expansion([(("n", self.splice_aliases[target]), None)])]
         if "ref" in expr:
             return [Expansion([(self.symbol(expr["ref"]), None)])]
         if any(k in expr for k in ("range", "literal", "wildcard")):
@@ -1741,7 +1817,9 @@ class _Lowerer:
             production.erased = alt.erased
             production.value = alt.value if alt.value is not None else alt.rule_value
             production.image = alt.image if alt.image is not None else alt.rule_image
-            production.warnings = tuple(guard["feature"] for guard in alt.guards if guard.get("kind") == "warning")
+            production.error = alt.error
+            production.warning = alt.warning
+            production.suppress_warnings = alt.suppress_warnings
         elif self.item_names and self.item_alt is self.current_alt:
             # Every helper of an alternative with item captures is
             # contextual, so that a frame reaches the braces' helper through
@@ -1750,6 +1828,9 @@ class _Lowerer:
             production.contextual = self.contextual = True
             if items and self.current_alt is not None:
                 production.items = ItemClauses(items, tuple(condition for condition in self.current_alt.conditions if not mentioned_in(condition).isdisjoint(items)))
+        production.optional_routes = {index: sym[3] for index, (sym, _) in enumerate(expansion) if len(sym) > 3}
+        production.terminal_captures = {name for sym, name in expansion if name and len(sym) > 3 and sym[3] == "written"}
+        production.forward_captures = {position: name for name, position in production.captures.items() if name in production.terminal_captures}
         production.inherited = inherited(production.logical)
         if production.tags_term is None and production.inherited is not None and production.inherited not in captures.values():
             captures[IMPLICIT] = production.inherited
@@ -1757,7 +1838,21 @@ class _Lowerer:
         for index, position in enumerate(sorted(captures.values())):
             slots[position] = index
         production.slots = tuple(slots)
-        self.productions.append(production)
+        from ._guarded_tags import variants
+        try:
+            concrete = variants(production.tags_term)
+        except ValueError as error:
+            raise self.fail(str(error)) from error
+        source_id = len(self.productions)
+        for term, conditions in concrete:
+            at = len(production.rhs) - 1
+            ready = {index: list(items) for index, items in production.conds_at.items()}
+            predict = list(production.conds_predict)
+            if at < 0:
+                predict.extend(conditions)
+            else:
+                ready.setdefault(at, []).extend(conditions)
+            self.productions.append(replace(production, id=len(self.productions), tags_term=term, source_id=source_id, guard_conditions=conditions, conds_predict=predict, conds_at=ready, whole_ready=production.whole_ready or bool(conditions and production.rhs)))
 
     def flush(self, expansions: list[list[_Sym]]) -> None:
         """Number the helpers these expansions use, after the productions of
@@ -1876,6 +1971,13 @@ class _Lowerer:
             self.rule_display.append(name)
             self.rule_ids[name] = lhs
             self.productions.append(Production(id=len(self.productions), lhs=lhs, rhs=(terminal,), terminal=(True,), rule_name=name, helper=True, slots=(0,), logical=(("symbol", 0),), inherited=0))
+        from dataclasses import replace
+        for target, alias in self.splice_aliases.items():
+            for original in [p for p in self.productions if p.lhs == target]:
+                self.productions.append(replace(original, id=len(self.productions), lhs=alias, helper=True, splice_of=target, source_id=original.source_id if original.source_id is not None else original.id))
+                self.structural.append((alias, original.rhs, original.terminal))
+        for production in self.productions:
+            production.tree_root = not production.helper or production.splice_of is not None
         self.check_brace_items()
         rule_productions: list[list[int]] = [[] for _ in self.rule_names]
         for production in self.productions:
@@ -1936,9 +2038,9 @@ class _Lowerer:
                 raise self.fail(f"an item of braces in {rule.name if rule else '?'} can match no tokens", alt, rule)
 
     def holds(self, guards: list[Dom]) -> bool:
-        # Only gates drop an alternative; a warning keeps it (engine §3.1).
+        # Feature guards select alternatives (engine §3.1).
         return all(
-            guard.get("kind") == "warning" or (guard["feature"] in self.features) != bool(guard.get("negated"))
+            (guard["feature"] in self.features) != bool(guard.get("negated"))
             for guard in guards
         )
 

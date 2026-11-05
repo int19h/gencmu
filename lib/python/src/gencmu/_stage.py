@@ -166,27 +166,27 @@ class Tree:
         return _range_source(self.sources, node.start, node.end)
 
 
-def warnings_of(root: DNode, tree: Tree, features: frozenset[str], stage: str) -> list[ParseWarning]:
-    """The warnings of a chosen derivation (engine §12): each rule node of its
-    tree gives one for each warning of its alternative whose feature is on,
-    in the order a walk meets the nodes, parent before children and children
-    left to right. The walk splices helpers, which are no nodes of the
-    tree, as the tree does."""
-    warnings: list[ParseWarning] = []
-    stack: list[DChild] = [root]
-    while stack:
-        node = stack.pop()
+def reports_of(root, tree, context, forest, features, stage):
+    errors, warnings = [], []
+    strings = Emitter(context, forest, tree, root)
+    strings.claim_gaps = False
+    pending = [(root, frozenset())]
+    while pending:
+        node, inherited = pending.pop()
         if isinstance(node, DRead):
             continue
-        production = node.production
-        if not production.helper:
-            for feature in production.warnings:
-                if feature in features:
-                    span = (node.start, node.end)
-                    warnings.append(ParseWarning(stage, feature, production.rule_name, span, tree.source_of(node)))
-        children = node.children
-        stack.extend(reversed(children))
-    return warnings
+        p = node.production
+        suppressed = inherited | frozenset(p.suppress_warnings)
+        code = p.rule_name
+        recipe = p.error if p.error is not None else p.warning if code in features and code not in suppressed and "_" not in suppressed else None
+        if recipe is not None:
+            if _testing.diagnostic_message is not None:
+                _testing.diagnostic_message(node, recipe)
+            message = run(strings.recipe(node, recipe))
+            report = ParseWarning(stage, code, code, (node.start, node.end), tree.source_of(node), message)
+            (errors if p.error is not None else warnings).append(report)
+        pending.extend((child, suppressed) for child in reversed(node.children))
+    return errors, warnings
 
 
 def has_elided(tree: Node) -> bool:
@@ -241,6 +241,7 @@ class Emitter:
 
     def __init__(self, context: StageContext, forest: Forest, tree: Tree, root: DNode) -> None:
         self.context = context
+        self.claim_gaps = True
         self.forest = forest
         self.tokens = context.tokens
         self.tree = tree
@@ -276,7 +277,10 @@ class Emitter:
         return self.tokens[part.token].source if isinstance(part, DRead) else self.tree.source_of(part)
 
     def capture(self, owner: DNode, name: str) -> DChild:
-        return owner if name == "" else owner.children[owner.production.captures[name]]
+        if name == "":
+            return owner
+        child = owner.children[owner.production.captures[name]]
+        return self.capture(child, name) if name in owner.production.terminal_captures and isinstance(child, DNode) else child
 
     def verbatim(self, part: DChild) -> str:
         span = part.start, part.end
@@ -306,7 +310,7 @@ class Emitter:
         extensions = [(start, left)] if start < left else []
         if right < end:
             extensions.append((right, end))
-        if span not in self.claims:
+        if self.claim_gaps and span not in self.claims:
             for a, b in extensions:
                 for cell in range(bisect_left(self.claim_points, a), bisect_left(self.claim_points, b)):
                     if cell in self.claimed_cells:
@@ -536,7 +540,7 @@ def _action(act: Act, lowered: Lowered) -> Action:
     if act.read:
         return Action("read", token=act.token, terminal=act.terminal)
     production = lowered.productions[act.production]
-    return Action("close", rule=production.rule_name, production=production.real_id, span=(act.start, act.end))
+    return Action("close", rule=production.rule_name, production=production.action_id, span=(act.start, act.end))
 
 
 class StageRunner:
@@ -616,7 +620,16 @@ class StageRunner:
         root = derivation(forest, ranking.first)
         tree = Tree(root, context.sources, context.tagtab)
         outcome = StageOutcome(verdict=ranking.verdict, tree=tree.root, derivation=root)
-        outcome.warnings = warnings_of(root, tree, self.features, self.name)
+        try:
+            errors, outcome.warnings = reports_of(root, tree, context, forest, self.features, self.name)
+        except _GrammarFault as fault:
+            outcome.tree = None
+            outcome.warnings = []
+            outcome.error = self.fault(fault)
+            return outcome
+        if errors:
+            outcome.error = ParseError("reported", "the chosen derivation reports errors", stage=self.name, errors=errors)
+            return outcome
         emitter = Emitter(context, forest, tree, root)
         try:
             outcome.output = emitter.emit()
@@ -731,7 +744,9 @@ class StageRunner:
                     if competitor is None:
                         raise RuntimeError("Reconstruction requires a distinct best admitted competitor.")
                     ranking.first, ranking.second = restored_rope, competitor
-                    difference = first_difference(restored_rope, competitor, True) or first_difference(restored_rope, competitor, False)
+                    difference = first_difference(restored_rope, competitor, True)
+                    if difference is None or difference[1] is None or difference[2] is None:
+                        difference = first_difference(restored_rope, competitor, False)
                     assert difference is not None
                     ranking.witness = (difference[1], difference[2])
                 if preferred:
@@ -773,7 +788,7 @@ class StageRunner:
             if act.read:
                 return Action("read", token=project[act.token], terminal=act.terminal)
             production = lowered.productions[act.production]
-            return Action("close", rule=production.rule_name, production=production.real_id, span=(project[act.start], project[act.end]))
+            return Action("close", rule=production.rule_name, production=production.action_id, span=(project[act.start], project[act.end]))
 
         return ParseError(
             "ambiguous",

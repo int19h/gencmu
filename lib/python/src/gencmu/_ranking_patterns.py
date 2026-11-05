@@ -81,14 +81,18 @@ def known_tags(term):
 
 
 def can_count_profiles(lowered, steps):
-    if not steps:
-        return False
     decisions = getattr(lowered, "ranking_possible", None)
     if decisions is None:
         decisions = lowered.ranking_possible = {}
     key = tuple(id(pattern) for _, pattern in steps)
     if key in decisions:
         return decisions[key]
+    if any(p.error is not None for p in lowered.productions):
+        decisions[key] = True
+        return True
+    if not steps:
+        decisions[key] = False
+        return False
     pending = [lowered.rule_ids["text"]]
     seen = set()
     possible = False

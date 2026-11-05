@@ -105,15 +105,15 @@ class TreeIdentities:
                 pending.pop()
                 continue
             key = self.nodes[node][0]
-            if key[0] != "Rule":
+            if key[0] not in ("Rule", "Anonymous"):
                 self.semantic_nodes[node] = json.dumps(key, separators=(",", ":"))
                 continue
-            children = self.elements(key[2])
+            children = self.elements(key[2] if key[0] == "Rule" else key[1])
             missing = next((child for child in children if child not in self.semantic_nodes), None)
             if missing is not None:
                 pending.append(missing)
                 continue
-            self.semantic_nodes[node] = '["Rule",' + json.dumps(key[1]) + ',[' + ','.join(self.semantic_nodes[child] for child in children) + ']]'
+            self.semantic_nodes[node] = '[' + json.dumps(key[0]) + (',' + json.dumps(key[1]) if key[0] == 'Rule' else '') + ',[' + ','.join(self.semantic_nodes[child] for child in children) + ']]'
         return self.semantic_nodes[identity]
 
     def sequence_semantic(self, sequence):
@@ -123,6 +123,9 @@ class TreeIdentities:
 
     def rule(self, name, sequence):
         return self.intern(("Rule", name, sequence), sequence == 0)
+
+    def anonymous(self, sequence):
+        return self.intern(("Anonymous", sequence))
 
     def written(self, terminal, value):
         return self.intern(("Written", terminal, value))
@@ -164,7 +167,7 @@ def prepare(lowered):
         if key in indexed: return indexed[key]
         bound = frames.production(p, frame) if frame is not None else p
         names = {term["capture"] for c in comparisons([bound.tags_term, bound.parent_tags, bound.conds_predict, list(bound.conds_at.values())]) for term in (c["left"], c["right"])}
-        demand = ["" in names, {p.captures[n] for n in names if n in p.captures}, names - p.captures.keys() - {""}, bool(p.helper and "" in names), 0]
+        demand = ["" in names, {p.captures[n] for n in names if n in p.captures}, names - p.captures.keys() - {""}, bool(p.helper and p.splice_of is None and "" in names), 0]
         entry = SimpleNamespace(p=p, frame=frame, demand=demand, edges=[])
         demands[key] = demand
         indexed[key] = entry
@@ -185,7 +188,7 @@ def prepare(lowered):
             if terminal or not any(lowered.productions[i].contextual for i in lowered.rule_productions[symbol]): continue
             captures = dict(frame.captures) if frame else {}
             captures.update((name, None) for name, pos in p.captures.items() if pos < index and not name.startswith("\0"))
-            child = SimpleNamespace(id=next_frame, captures=captures, present=present, known_private=known, inside=inside)
+            child = SimpleNamespace(id=next_frame, captures=captures, present=present, known_private=known, inside=inside, root=frame.root if frame else p)
             next_frame += 1
             for i in lowered.rule_productions[symbol]:
                 entry.edges.append((index, state(lowered.productions[i], child)))
@@ -256,7 +259,7 @@ def check_cycles(lowered, structural):
                 if binding is not None and not binding[0]: roots.append(binding[1])
             else:
                 roots.extend(prefix)
-                if not p.helper:
+                if p.tree_root:
                     roots.extend(symbol for terminal, symbol in zip(p.terminal, p.rhs) if not terminal and symbol not in lowered.ranked_helpers)
         pending, reachable, known = list(reversed(roots)), [], set()
         while pending:
@@ -324,7 +327,9 @@ def derivation_identity(context, root):
             else:
                 sequence = machine.concat(sequence, memo[child][1])
         identity = None
-        if not node.production.helper:
+        if node.production.splice_of is not None:
+            identity = machine.anonymous(sequence)
+        elif not node.production.helper:
             identity = machine.rule(node.production.rule_name, sequence)
             sequence = machine.append(0, identity)
         elif not node.children and node.production.elided is not None:

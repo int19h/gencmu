@@ -173,5 +173,5 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
         production = forest.lowered.productions[forest.prod[item]]
         if is_elided(node):
             sequence.append(Act(True, token=start, terminal=production.elided or ""))
-        sequence.append(Act(False, item=item, production=production.id, canonical=production.real_id, start=start, end=end, visible=not production.transparent))
+        sequence.append(Act(False, item=item, production=production.id, canonical=production.action_id, start=start, end=end, visible=not production.transparent))
     return Walk(marks, sequence)

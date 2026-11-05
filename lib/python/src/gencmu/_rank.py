@@ -265,6 +265,7 @@ class Summaries:
     def __init__(self, forest: Forest) -> None:
         self.forest = forest
         self.admission = None
+        self.error_counts = {}
         self.productions = forest.lowered.productions
         self.memo: dict[Key, Any] = {}
         self.steps_memo: dict[Key, list[Step]] = {}
@@ -276,7 +277,8 @@ class Summaries:
     # -- the cycle rule's contexts
 
     def rule(self, item: int) -> int:
-        return self.productions[self.forest.prod[item]].lhs
+        p = self.productions[self.forest.prod[item]]
+        return p.splice_of if p.splice_of is not None else p.lhs
 
     def sensitive(self, item: int) -> bool:
         """Whether an item's derivations depend on its context: whether it has
@@ -390,7 +392,7 @@ class Summaries:
         cause no difference of context. Different sets of ancestors within
         the group can still need different summaries of the item."""
         scope = getattr(self.forest,"slot_scopes",())[item] if hasattr(self.forest,"slot_scopes") else None
-        if scope is not None and self.productions[self.forest.prod[item]].helper:
+        if scope is not None and (self.productions[self.forest.prod[item]].helper and self.productions[self.forest.prod[item]].splice_of is None):
             return frozenset(rule for rule in forbidden if rule not in self.forest.slot_helpers)
         if not forbidden or not self.sensitive(item):
             return self.empty
@@ -416,7 +418,7 @@ class Summaries:
         own rule joins the context of its children over its span."""
         _, item, context = key
         scope = getattr(self.forest,"slot_scopes",())[item] if hasattr(self.forest,"slot_scopes") else None
-        return self.partial_key(item, context if scope is not None and self.productions[self.forest.prod[item]].helper else context | {self.rule(item)})
+        return self.partial_key(item, context if scope is not None and (self.productions[self.forest.prod[item]].helper and self.productions[self.forest.prod[item]].splice_of is None) else context | {self.rule(item)})
 
     def all_steps(self, key: Key) -> list[Step]:
         """The edges of a partial key's item that its context allows."""
@@ -544,7 +546,7 @@ class Ranker(Summaries):
                     False,
                     item=forest.slot_original[item] if hasattr(forest,"slot_original") else item,
                     production=production.id,
-                    canonical=production.real_id,
+                    canonical=production.action_id,
                     start=forest.origin[item],
                     end=forest.end[item],
                     visible=not production.transparent,
@@ -565,6 +567,8 @@ class Ranker(Summaries):
                 self.witnessed[key] = inner_w
             inner = memo[self.inner_key(key)]
             entries, count = inner
+            production = self.productions[self.forest.prod[item]]
+            self.error_counts[key] = self.error_counts.get(self.inner_key(key), INF) + (production.error is not None)
             close = self.close_leaf(item)
             kept: list[Entry] = []
             for entry in entries:
@@ -572,6 +576,7 @@ class Ranker(Summaries):
             return (kept, count)
         mask = self.admission.mask(key) if self.admission is not None else None
         total = 0
+        least_errors = INF
         kept = []
         marked = marks.get(item) if marks is not None else None
         witnessed = self.witnessed
@@ -610,6 +615,11 @@ class Ranker(Summaries):
                     for before in pred_entries:
                         for after in child_entries:
                             produced.append(self.combine(before, after))
+            edge_errors = (self.error_counts.get(pred_key, INF) if pred_key is not None else 0) + (self.error_counts.get(child_key, INF) if child_key is not None and edge_kind == 2 else 0)
+            if not ways or edge_errors > least_errors:
+                continue
+            if edge_errors < least_errors:
+                least_errors, total, kept, w_all = edge_errors, 0, [], False
             if marked is not None and ways > 0 and index in marked and counted:
                 # The edge is W(D)'s where it is marked, and its predecessor
                 # and child are W(D)'s.
@@ -628,6 +638,7 @@ class Ranker(Summaries):
                 self.keep(kept, entry)
         total = min(total, 2)
         value = (kept, total)
+        self.error_counts[key] = least_errors
         if marks is not None:
             witnessed[key] = w_all
         return value
@@ -717,6 +728,7 @@ class Ranker(Summaries):
         witness; ``None`` if the input has no derivation. The root combines
         the derivations of every root item (engine §6)."""
         total = 0
+        least_errors = INF
         kept: list[Entry] = []
         counted = False
         for root in roots:
@@ -724,6 +736,11 @@ class Ranker(Summaries):
             if key is None:
                 continue
             entries, count = self.solve(key)
+            errors = self.error_counts.get(key, INF)
+            if not count or errors > least_errors:
+                continue
+            if errors < least_errors:
+                least_errors, total, kept, counted = errors, 0, [], False
             total += count
             if self.marks is not None:
                 counted = counted or (count > 0 and self.witnessed[key])
@@ -916,13 +933,14 @@ class Profiles:
 
     def __init__(self, steps, tagtab=None, tokens=()) -> None:
         self.steps = tuple(steps)
-        self.kinds = tuple(step for step, _ in self.steps)
+        self.kinds = ("fewest",) + tuple(step for step, _ in self.steps)
         self.tagtab = tagtab
         self.tokens = tokens
         self.values = tuple(has_pattern_value(pattern) for _, pattern in steps)
         self.span_values = {} if any(self.values) else None
         self.answers = {}
         self.zero: Profile = tuple(() if kind == "leftmost-longest" else 0 if kind in ("fewest", "most") else None for kind in self.kinds)
+        self.error = (1, *self.zero[1:])
         self.leaves: dict[int, Elided] = {}
 
     def occurrence(self, name, tags, terminal, value, p, q) -> Profile:
@@ -941,7 +959,7 @@ class Profiles:
             if match:
                 if profile is None:
                     profile = list(self.zero)
-                profile[index] = self.one(index, p, q)
+                profile[index + 1] = self.one(index, p, q)
         return self.zero if profile is None else tuple(profile)
 
     def tags(self, identity):
@@ -950,7 +968,7 @@ class Profiles:
     def one(self, index: int, p: int, q: int) -> Component:
         """One occurrence in the component of a step. An empty span counts
         nothing under ``leftmost-longest``."""
-        kind = self.kinds[index]
+        kind = self.kinds[index + 1]
         if kind == "leftmost-longest":
             return ((p, q, 1),) if p < q else ()
         if kind in ("fewest", "most"):
@@ -1004,6 +1022,8 @@ class Profiles:
         while pending:
             node = pending.pop()
             production = getattr(node, "production", None)
+            if production is not None and production.error is not None:
+                profile = self.sum(profile, self.error)
             if production is None:
                 if node.start < node.end:
                     token = self.tokens[node.token]
@@ -1043,8 +1063,10 @@ class Best:
         self.edges: list[int] = []
 
     def offer(self, index: int, total: int, profile: Profile, count: int) -> None:
-        # Every edge adds to the total, losing ones included.
-        self.total += total
+        if not self.found or profile[0] < self.profile[0]:
+            self.total = total
+        elif profile[0] == self.profile[0]:
+            self.total += total
         order = self.space.compare(profile, self.profile) if self.found else -1
         if order < 0:
             self.found = True
@@ -1104,6 +1126,8 @@ class Profiled(Summaries):
             if self.elided[forest.prod[item]] and forest.project is None and forest.edges[item][0][1] != RESTORE:
                 terminal = production.elided
                 profile = space.sum(profile, space.occurrence(None, frozenset((terminal, "_Elided")), terminal, "", start, start))
+            if production.error is not None:
+                profile = space.sum(profile, space.error)
             return Summary(inner.total, profile, inner.count, NO_EDGES)
         mask = self.admission.mask(key) if self.admission is not None else None
         every = Best(space)
@@ -1253,7 +1277,7 @@ def rank_original(forest: Forest, steps: tuple[tuple[str, str], ...], lean: str,
         return None
     space = Profiles(steps, forest.tagtab, getattr(forest, "original_tokens", forest.tokens))
     ranker: Profiled | Ranker
-    if can_count_profiles(forest.lowered, steps) and not (forest.project is not None and all(requires_elided(pattern) for _, pattern in steps)):
+    if can_count_profiles(forest.lowered, steps) and not (forest.project is not None and not any(p.error is not None for p in forest.lowered.productions) and all(requires_elided(pattern) for _, pattern in steps)):
         ranker = Profiled(forest, space, lean)
     else:
         ranker = Ranker(forest, lean)

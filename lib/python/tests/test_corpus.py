@@ -33,7 +33,7 @@ from .shared import (
     write_json,
 )
 
-FIELDS = ("expect", "verdict", "stage", "at", "error", "ties", "words", "brackets")
+FIELDS = ("expect", "verdict", "stage", "at", "error", "errors", "ties", "words", "brackets", "warnings")
 
 _pipelines: dict[str, Any] = {}
 
@@ -80,7 +80,7 @@ def outcome(
     if witness_lost(value):
         raise AssertionError("the result is the error elision-witness-lost, which no grammar gives")
     got: dict[str, Any] = {"expect": "accept" if result.ok else "reject"}
-    if result.ok:
+    if result.ok or result.error is not None and result.error.kind == "reported":
         got["verdict"] = result.stages[-1].verdict
     else:
         got["stage"] = result.error.stage if result.error else None
@@ -91,6 +91,11 @@ def outcome(
     if result.error is not None and result.error.kind == "ambiguous":
         # An ambiguous error pins its kind and its reason (tests/README.md).
         got["error"] = {"kind": result.error.kind, "reason": result.error.reason}
+    if result.error is not None and result.error.kind == "reported":
+        got["stage"] = result.error.stage
+        got["error"] = {"kind": "reported"}
+        got["errors"] = [{"code": error.code, "at": error.source[0]} for error in result.error.errors]
+    got["warnings"] = [{"stage": warning.stage, "code": warning.code, "at": warning.source[0]} for warning in result.warnings]
     ties = [stage.name for stage in result.stages if stage.verdict == "tie"]
     if ties:
         got["ties"] = ties

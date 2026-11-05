@@ -25,7 +25,8 @@ CASE: dict[str, Any] = {
 %ambiguity-resolution late #·_<_Elided>
 %elision-only
 %rule text a | b
-%rule a w! A [+T="ta"] [+U] %emits $ :: X
+%rule a *w %emits $ :: X
+%rule w A [+T="ta"] [+U] %warning "warning w"
 %rule b A [+T="ta"] [+U] [+U]
 %stage later
 %ambiguity-resolution greedy
@@ -70,7 +71,7 @@ class WitnessLostError(unittest.TestCase):
 
         def decode(text, *args, **kwargs):
             value = loads(text, *args, **kwargs)
-            if isinstance(value, dict) and value.get("format") == 15:
+            if isinstance(value, dict) and value.get("format") == 16:
                 value["ok"] = int(value["ok"])
             return value
 

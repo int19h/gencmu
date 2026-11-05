@@ -484,6 +484,7 @@ def rule_type_roots(rule: Any) -> list[Any]:
     for alternative in rule["alternatives"]:
         roots.extend(alternative.get(key) for key in ("expr", "tags", "value", "image"))
     roots.extend(rule["conditions"])
+    roots.extend((rule.get("error"), rule.get("warning")))
     for item in rule.get("emit", {}).get("items", []):
         roots.extend(item.get(key) for key in ("tags", "value", "image"))
     return roots

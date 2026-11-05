@@ -31,7 +31,7 @@ def ranking_audit(grammar):
                     omitted.add(head['ref'])
             for key in ('seq', 'choice', 'ranked', 'and'):
                 pending.extend(node.get(key, ()))
-            for key in ('expr', 'optional', 'repeat', 'separator'):
+            for key in ('expr', 'optional', 'repeat', 'separator', 'splice'):
                 if key in node:
                     pending.append(node[key])
         return refs, terminals, omitted
@@ -89,6 +89,11 @@ def format_ranking_reports(reports):
         lines.append(report['name'] + ':')
         for step in report['keySteps']:
             if step.get('status'): lines.append(f"  ranking step {step['step'] + 1}: {step['status']}")
+        for note in report.get('diagnosticNotes', []):
+            detail = (f"{note['variants']} guarded tag variants" if note['kind'] == 'guarded-tag-variants'
+                      else f"query target {note['target']} reaches an error rule" if note['kind'] == 'query-error'
+                      else f"suppression code {note['code']} reaches no warning")
+            lines.append(f"  {note['rule']}: {detail}")
         for change in report['countedChanges']:
             lines.append(f"  counted rule {change['rule']}: {change['kind']}, step {change['step'] + 1}")
     return '\n'.join(lines)

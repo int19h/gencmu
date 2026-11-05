@@ -62,6 +62,7 @@ class CheckWatch:
 
 
 elision_check: Callable[[CheckRun], CheckWatch] | None = None
+diagnostic_message: Callable | None = None
 
 # The shared-case conformance switch compares each eligible family witness
 # with an independent, whole-observation deletion test (tests/README.md).

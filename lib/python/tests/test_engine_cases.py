@@ -222,7 +222,7 @@ class EngineCases(unittest.TestCase):
 
     def test_warning_expectations_distinguish_booleans_from_numbers(self) -> None:
         value, result, error, features = run_case({"grammar": '%rule text "a"', "input": "a"})
-        warning = {"stage": "main", "feature": "f", "rule": "text", "span": [0, 1], "source": [0, 1]}
+        warning = {"stage": "main", "code": "f", "rule": "f", "span": [0, 1], "source": [0, 1], "message": "warning"}
         for field in ("span", "source"):
             for changed in (warning, {**warning, field: [False, True]}):
                 actual = {**value, "warnings": [changed]}

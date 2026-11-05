@@ -62,13 +62,15 @@ class RankedAdmission(RankedFacts):
             kept = self.maxima.get(context)
             if context not in self.maxima:
                 present = []
+                costs = {}
                 for item,number,option in self.slot_groups[group]:
                     candidate = self.partial_key(item,key[2])
                     step = next((s for s in self.all_steps(candidate) if s[0]==number),None)
                     if step is not None and self.ways(step):
                         present.append((item, number, option))
+                        costs[item, number] = self.cost(step)
                 kept = self.maxima[context] = frozenset((item, number) for item, number, option in present
-                    if not any(higher < option and dominates(self.open[other, edge], self.open[item, number])
+                    if not any(higher < option and costs[other, edge] <= costs[item, number] and dominates(self.open[other, edge], self.open[item, number])
                                for other, edge, higher in present))
                 if group not in self.reported and any(
                     (item, number) in kept and any(higher < option for _, _, higher in present)

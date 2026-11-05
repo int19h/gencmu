@@ -690,22 +690,35 @@ def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tup
     Unconditional declarations also supply defaults. A name that
     only declarations use is a gate. A name used as both gate and warning is an error."""
     kinds: dict[str, str] = {}
+    errors = set()
     for grammar in grammars:
-        guards = [(guard, alternative.document, alternative.at) for rule in grammar.rules.values() for alternative in rule.alternatives for guard in alternative.guards]
+        roles = []
+        for rule in grammar.rules.values():
+            for alternative in rule.alternatives:
+                roles.extend((guard["feature"], "gate", alternative.document, alternative.at) for guard in alternative.guards)
+                for kind in ("error", "warning"):
+                    if getattr(alternative, kind) is not None:
+                        roles.append((rule.name, kind, alternative.document, alternative.at))
         for document, classifier in grammar.classifier_items:
             for entry in classifier["entries"]:
-                guards.extend((guard, document, entry["at"]) for guard in entry["guards"])
-        for guard, document, at in guards:
-            name = guard["feature"]
-            kind = "warning" if guard.get("kind") == "warning" else "gate"
-            if kinds.setdefault(name, kind) != kind:
-                raise GencmuError(f"the feature {name} is used both as a gate and as a warning", document=document, line=at[0], column=at[1], stage=grammar.stage)
+                roles.extend((guard["feature"], "gate", document, entry["at"]) for guard in entry["guards"])
+        for name, kind, document, at in roles:
+            known = kinds.setdefault(name, kind)
+            if known != kind:
+                category = "name" if "error" in (known, kind) else "feature"
+                raise GencmuError(f"the {category} {name} is used both as a {known} and as a {kind}", document=document, line=at[0], column=at[1], stage=grammar.stage)
+            if kind == "error":
+                errors.add(name)
+    if errors & declared:
+        raise GencmuError("an error code cannot be enabled or disabled")
     local = set()
     defaults = set(declared)
     tested = {}
     for grammar in grammars:
         for document, directive in grammar.feature_items:
             for name in directive["args"]:
+                if name in errors:
+                    raise GencmuError("an error code cannot be enabled or disabled", document=document, stage=grammar.stage)
                 if name in tested:
                     raise GencmuError(f"stage {tested[name]} tests local feature {name}", document=document, line=directive["at"][0], column=directive["at"][1], stage=grammar.stage)
                 local.add(name)
@@ -715,9 +728,11 @@ def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tup
             for alt in rule.alternatives:
                 for guard in alt.guards:
                     tested.setdefault(guard["feature"], grammar.stage)
+                if alt.warning is not None:
+                    tested.setdefault(rule.name, grammar.stage)
         for name in grammar.classifier_gates:
             tested.setdefault(name, grammar.stage)
-    return tuple(Feature(name, kinds.get(name, "gate"), name in defaults) for name in sorted(kinds.keys() | declared | local))
+    return tuple(Feature(name, kinds.get(name, "gate"), name in defaults) for name in sorted((kinds.keys() | declared | local) - errors))
 
 
 class Pipeline:
@@ -742,6 +757,10 @@ class Pipeline:
         reports = []
         for grammar in self._grammars:
             report = ranking_audit(grammar)
+            from ._diagnostic_audit import diagnostic_notes
+            notes = diagnostic_notes(grammar)
+            if notes:
+                report["diagnosticNotes"] = notes
             reports.append(dict(name=grammar.stage, **report))
         return reports
 
@@ -929,7 +948,7 @@ class Pipeline:
             stages.append(stage)
             warnings.extend(outcome.warnings)
             if outcome.error is not None:
-                return ParseResult(False, stages, None, outcome.error, warnings=warnings, features=sorted(features))
+                return ParseResult(False, stages, outcome.tree if outcome.error.kind == "reported" else None, outcome.error, warnings=warnings, features=sorted(features))
             assert outcome.output is not None
             current = outcome.output
         return ParseResult(True, stages, stages[-1].tree if stages else None, None, warnings=warnings, features=sorted(features))

@@ -183,7 +183,7 @@ class Bound:
 
     def observation(self, name: str) -> int:
         if name == WHOLE:
-            return self.structure
+            return self.machine.node(None, self.structure) if self.production.helper and self.root_pattern is None and self.machine is not None else self.structure
         position = self.production.captures.get(name)
         if position is None:
             frame = self.production.lexical
@@ -1271,7 +1271,9 @@ class Parser:
                     prefix = trees.append(prefix, terminal_identity(terminal, child))
             identity, sequence = None, prefix
             if position == len(p.rhs) and p.walks_trees:
-                if not p.helper:
+                if p.splice_of is not None:
+                    identity = trees.anonymous(prefix)
+                elif not p.helper:
                     identity = trees.rule(p.rule_name, prefix)
                     sequence = trees.append(0, identity)
                 elif p.elided is not None:
@@ -1381,7 +1383,7 @@ class Parser:
                 # A lexical ancestor can evaluate the clause, but its own
                 # final group alone owns a whole-rule literal.
                 from ._ranked import reads
-                if not whole or not p.helper or bool(reads(next((raw for raw in source.conditions if any(original is atom for original in atoms(raw))), condition)) & p.private_names):
+                if not whole or not p.helper or p.splice_of is not None or bool(reads(next((raw for raw in source.conditions if any(original is atom for original in atoms(raw))), condition)) & p.private_names):
                     site = next((site for raw, site in sites.get(id(source.conditions), ()) if any(original is atom for original in atoms(raw))), None)
                     obligations.append((atom, boundaries.literal(atom, yes), site))
             return yes or no
@@ -1523,7 +1525,7 @@ class Parser:
                             observes_closes=closes is not None and (bool(requested & 1) or demand(p)[0]))
                 if trees is not None:
                     q.tree_requested = bool(requested & 2)
-                    q.walks_trees = q.tree_requested or not p.helper and tree_demand(p)[0]
+                    q.walks_trees = q.tree_requested or p.tree_root and tree_demand(p)[0]
                     q.tree_prefix_until = tree_demand(p)[4]
                     q.observes_trees = q.walks_trees or q.tree_prefix_until > 0
                 productions.append(q)
@@ -1532,7 +1534,7 @@ class Parser:
             return variants[key]
 
         def bound_for(production, captured, whole=None, structure=0, close_structure=0, prefix=0, tree_identity=None):
-            root_pattern = (production.rule_name, prefix)
+            root_pattern = (None if production.helper else production.rule_name, prefix)
             frame = production.lexical
             if frame is not None and whole is not None:
                 start, at, own = whole
@@ -1553,6 +1555,8 @@ class Parser:
                 if machine is not None:
                     root_pattern = (frame.root.rule_name, machine.concat(frame.seal_prefix,machine.sealed()))
                     structure = machine.node(*root_pattern, value=input_value(frame.origin, at) if machine.node_values else None)
+            if production.helper and frame is None and machine is not None:
+                structure = machine.node(None, structure)
             bound = evaluator.bind(production, captured, whole, structure, close_structure)
             bound.root_pattern = root_pattern
             if trees is not None:
@@ -1599,6 +1603,9 @@ class Parser:
             than a walk, so an advance without conditions makes none."""
             production = productions[prod[item]]
             position = dot[item]
+            route = production.optional_routes.get(position)
+            if route is not None and edge[1] == 2 and (len(productions[prod[edge[2]]].rhs) == 0) != (route == "empty"):
+                return None
             if strict_step and position + 1 == len(production.rhs):
                 # A strict step that completes, route 3's read of T with
                 # nothing after it, makes a strict item at the end of its
@@ -1666,6 +1673,17 @@ class Parser:
             if trees is not None and position in tree_demand(production)[1]:
                 identity = tree_ids[edge[2]] if edge[1] == 2 else terminal_identity(edge[3], edge[2])
                 part = (*part[:3], part_structure, part_closes, identity)
+            if production.slots[position] >= 0 and edge[1] == 2:
+                name = production.forward_captures.get(position)
+                child = edge[2]
+                if name is not None:
+                    child_production = productions[prod[child]]
+                    part = caps[child][child_production.slots[child_production.captures[name]]]
+                    if trees is not None and position in tree_demand(production)[1] and (len(part) < 6 or part[5] is None):
+                        part = (*part[:3], part[3] if len(part) > 3 else 0, part[4] if len(part) > 4 else 0, terminal_identity(child_production.rhs[0], origin[child]))
+                elif productions[prod[child]].splice_of is not None and machine is not None:
+                    structure = machine.node(None, part_structure)
+                    part = (*part[:3], structure, *part[4:])
             captured = caps[item]
             if production.slots[position] >= 0:
                 step = (captured, part)

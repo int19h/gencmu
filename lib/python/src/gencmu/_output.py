@@ -8,7 +8,7 @@ from typing import Any
 from ._model import Action, Node, ParseError, ParseResult, ParseWarning, Restoration, Stage, Token
 from ._tags import sorted_tags
 
-FORMAT = 15
+FORMAT = 16
 _ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
 
 
@@ -106,6 +106,8 @@ def error_json(error: ParseError) -> dict[str, Any]:
         value["stage"] = error.stage
     if error.feature is not None:
         value["feature"] = error.feature
+    if error.errors is not None:
+        value["errors"] = [warning_json(item) for item in error.errors]
     if error.code is not None:
         value["code"] = error.code
     if error.reason is not None:
@@ -151,10 +153,11 @@ def restoration_json(record: Restoration) -> dict[str, Any]:
 def warning_json(warning: ParseWarning) -> dict[str, Any]:
     return {
         "stage": warning.stage,
-        "feature": warning.feature,
+        "code": warning.code,
         "rule": warning.rule,
         "span": list(warning.span),
         "source": list(warning.source),
+        "message": warning.message,
     }
 
 

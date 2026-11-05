@@ -36,8 +36,8 @@ def prepare_ranked(lowered):
         if p.ranked is not None:
             lowered.ranked_helpers[p.lhs] = p.ranked
         if p.helper and p.slot is not None:
-            lowered.written_helpers[p.lhs] = (p.rule_name, p.slot.source.document, p.slot.source.at, ranked.paths[p.slot.path])
-            p.contextual = p.contextual or id(p.slot.source) in sources
+            lowered.written_helpers[p.lhs] = (p.rule_name, p.slot.source.document, p.slot.source.at, ranked.paths.get(p.slot.path, ""))
+            p.contextual = p.contextual or p.splice_of is None and id(p.slot.source) in sources
             lowered.contextual = lowered.contextual or p.contextual
     for p in lowered.productions:
         if p.ranked is None:
@@ -112,7 +112,7 @@ def prepare_ranked_conditions(lowered):
             pending.append((symbol, child))
 
     for p in lowered.productions:
-        if not p.helper:
+        if p.tree_root:
             enter(p, SimpleNamespace(present=set(), captures={}, known_private=set()))
     seen, at = set(), 0
     while at < len(pending):
@@ -148,7 +148,7 @@ def written_prefix(lowered, p, dot, origin, prefix, caps, restores=False, closes
     captures = tuple((name, observation(caps[p.slots[position]])) for name, position in sorted(p.captures.items(), key=lambda part: part[1]) if not name.startswith('\u0000') and position < dot)
     source = (p.rule_name, *written_source(p), lowered.written_helpers.get(p.lhs))
     parent = p.lexical.close_entry if closes is not None and p.lexical else p.lexical.key if p.lexical else None
-    key = (parent, source, symbols, dot, origin, prefix, captures, restores, p.ranked_bindings)
+    key = (parent, source, p.real_id if p.guard_conditions else None, symbols, dot, origin, prefix, captures, restores, p.ranked_bindings)
     return key + (closes.semantic(close_prefix),) if closes is not None else key
 
 
@@ -271,6 +271,12 @@ class Frames:
             public = {''} | (frame.present-private)
             tags = [simplify_term(t,public) for t in (source.tags,source.rule_tags) if t is not None]
             q.parent_tags = tags[0] if len(tags)==1 else {'union':tags} if tags else {'emptySet':True}
+            from ._guarded_tags import variants, atom_key
+            assigned = {atom_key(c.get("not", c)): "not" not in c for c in frame.root.guard_conditions}
+            found = next((term for term, conditions in variants(q.parent_tags) if all(assigned.get(atom_key(c.get("not", c))) == ("not" not in c) for c in conditions)), None)
+            if found is None:
+                raise RuntimeError("a ranked frame lost its enclosing tag assignment")
+            q.parent_tags = found
         else:
             # A helper outside every ranked alternative: a frame gives it the
             # enclosing item's captures and nothing else.

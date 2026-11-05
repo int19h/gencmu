@@ -39,19 +39,31 @@ class RankedFacts(Summaries):
         right = self.memo[child] if child is not None else 1
         return min(left*right,2)
 
+    def cost(self, step):
+        _, kind, previous, child, _, _ = step
+        return (self.error_counts.get(previous, float("inf")) if previous is not None else 0) + (self.error_counts.get(child, float("inf")) if child is not None and kind == 2 else 0)
+
     def compute(self,key):
         if key[0]==0:
-            return self.memo[self.inner_key(key)]
+            inner = self.inner_key(key)
+            p = self.productions[self.forest.prod[key[1]]]
+            self.error_counts[key] = self.error_counts.get(inner, float("inf")) + (p.error is not None)
+            return self.memo[inner]
         mask = self.admit(key)
         all_ = 0
+        errors = float("inf")
         edges = len(self.forest.edges[key[1]])
         for step in self.all_steps(key):
             index,kind,_,_,child,_ = step
             if self.check and edges>1 and index==0 and _testing.fault('lost:context'):
                 continue
             ways = self.ways(step)
-            if mask is None or index in mask:
+            cost = self.cost(step)
+            if ways and (mask is None or index in mask) and cost <= errors:
+                if cost < errors:
+                    errors, all_ = cost, 0
                 all_ = min(all_+ways,2)
+        self.error_counts[key] = errors
         return all_
 
     def mask(self,key):

@@ -51,13 +51,13 @@ class StrictUtf8(unittest.TestCase):
             ("the pipeline's prose", lambda b: {"p.md": with_bytes("# A pipeline @\n\n" + PIPELINE, b), "g.md": good}, "p.md"),
             (
                 "a comment of the pipeline",
-                lambda b: {"p.md": with_bytes(PIPELINE.replace("%stage main", "%stage main (* @ *)"), b), "g.md": good},
+                lambda b: {"p.md": with_bytes(PIPELINE.replace("%stage main", "%stage main -- @"), b), "g.md": good},
                 "p.md",
             ),
             ("an included document's prose", lambda b: {"p.md": PIPELINE, "g.md": with_bytes("# A grammar @\n\n" + good, b)}, "g.md"),
             (
                 "a comment of an included document",
-                lambda b: {"p.md": PIPELINE, "g.md": with_bytes(grammar('%rule text "a" (* @ *)'), b)},
+                lambda b: {"p.md": PIPELINE, "g.md": with_bytes(grammar('%rule text "a" -- @'), b)},
                 "g.md",
             ),
             ("an extra names file", lambda b: {"p.md": PIPELINE.replace("%stage main", '%names "bad.names"\n%stage main'), "g.md": grammar('%rule text "‹LATIN SMALL LETTER A›"'), "bad.names": with_bytes("unicode-names 15.1.0\n@", b)}, "bad.names"),
@@ -99,7 +99,7 @@ class StrictUtf8(unittest.TestCase):
         root = self.directory(
             {
                 "p.md": "# A pipeline � \U0001f600\n\n" + PIPELINE,
-                "g.md": grammar('%rule text "�" "😀" "\U0010fffd" (* � 😀 *)'),
+                "g.md": grammar('%rule text "�" "😀" "\U0010fffd" -- � 😀'),
             }
         )
         pipeline = gencmu.load_pipeline_file(os.path.join(root, "p.md"))

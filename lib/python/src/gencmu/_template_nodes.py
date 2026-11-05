@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import copy
 
 
-_SOURCE_KEYS = ('if', 'then', 'left', 'right', 'not', 'any', 'all', 'receiver', 'args', 'expr', 'body', 'targets', 'requirements', 'negated', 'tags', 'value', 'image', 'pattern', 'child', 'children', 'repeat', 'separator', 'optional', 'seq', 'choice', 'ranked', 'and', 'union', 'intersection', 'difference', 'concat', 'items', 'before', 'after')
+_SOURCE_KEYS = ('if', 'then', 'left', 'right', 'not', 'any', 'all', 'receiver', 'args', 'expr', 'splice', 'body', 'targets', 'requirements', 'negated', 'tags', 'value', 'image', 'error', 'warning', 'suppressWarnings', 'pattern', 'child', 'children', 'repeat', 'separator', 'optional', 'seq', 'choice', 'ranked', 'and', 'union', 'intersection', 'difference', 'concat', 'items', 'before', 'after')
 
 
 def _source_order(prefix):
@@ -13,7 +13,7 @@ def _source_order(prefix):
 
 
 _SOURCE_ORDERS = (
-    _source_order(('instance', 'args', 'tags', 'value', 'image', 'alternatives', 'conditions', 'emit')),
+    _source_order(('instance', 'args', 'tags', 'value', 'image', 'alternatives', 'conditions', 'error', 'warning', 'suppressWarnings', 'emit')),
     _source_order(('expr', 'tags', 'value', 'image')),
     _source_order(('tags', 'value', 'image')),
     _source_order(()),
@@ -55,7 +55,7 @@ def argument_of_expression(expr):
         return {"tag" if name[:1].isupper() or name.startswith("_") else "rule": name}
     if "literal" in expr:
         return expr["literal"]
-    if any(k in expr for k in ("param", "call", "test", "range", "wildcard")):
+    if any(k in expr for k in ("param", "call", "test", "range", "wildcard", "splice")):
         return expr
     return {"body": expr}
 

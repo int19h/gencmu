@@ -43,7 +43,8 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
         return witnesses
     lowered = forest.lowered
     helpers = lowered.elidable_helpers
-    if not helpers:
+    errors = any(p.error is not None for p in lowered.productions)
+    if not helpers and not errors:
         return witnesses
     productions = lowered.productions
     prod, dot, edges = forest.prod, forest.dot, forest.edges
@@ -88,7 +89,7 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
             order.append(item)
     # With no omission, every item has a finite proof tree: the one in
     # which the recognizer made it.
-    if not omits:
+    if not omits and not errors:
         return witnesses
 
     # From the whole chart, eligible or not: the items that advance over a
@@ -194,6 +195,8 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
     while changed:
         changed = False
         for item in order:
+            if forest.dot[item] == len(productions[forest.prod[item]].rhs) and productions[forest.prod[item]].error is not None:
+                continue
             what, group = after[item]
             if item in has_e and (what == NONE or item in has_p):
                 continue

@@ -196,7 +196,8 @@ class Expected:
 @dataclass
 class ParseError:
     """Why a parse failed: ``kind`` is ``"rejected"``, ``"ambiguous"``,
-    ``"feature-conflict"``, or ``"grammar"`` (docs/output.md, "Error").
+    ``"feature-conflict"``, ``"reported"``, or ``"grammar"`` (docs/output.md, "Error").
+    A reported error retains its tree and ordered named ``errors``.
 
     An ambiguous error has a ``reason``: ``"tie"`` where a stage has two or
     more best readings (engine §6), or ``"elision-only"`` where the check of
@@ -226,6 +227,7 @@ class ParseError:
     completion: list[Restoration] | None = None
     witness: tuple[Action, Action] | None = None
     feature: str | None = None
+    errors: list[ParseWarning] | None = None
     # The definition's location is separate from the stage-input position.
     _grammar_location: str | None = field(default=None, repr=False, compare=False)
 
@@ -263,17 +265,18 @@ class Stage:
 
 @dataclass
 class ParseWarning:
-    """A warning (engine §12): a rule node of a stage's chosen tree whose
-    alternative has a warning ``feature!``, while the feature is on.
+    """An enabled, unsuppressed warning from a chosen occurrence (engine §12).
+    Its code names its definition, and its message is an evaluated recipe.
     ``span`` is the node's range of the stage's input tokens, and ``source``
     its range of the original text. Not called ``Warning``, which is a
     built-in exception."""
 
     stage: str
-    feature: str
+    code: str
     rule: str
     span: Range
     source: Range
+    message: str = ""
 
 
 @dataclass
