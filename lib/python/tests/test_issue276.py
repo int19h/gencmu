@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import unittest
+import json
 from unittest.mock import patch
 
 import gencmu
@@ -16,6 +17,32 @@ def fixture(name):
 
 
 class Diagnostics(unittest.TestCase):
+    def test_guard_occurrence_sites_survive_preparsed_loading(self):
+        from gencmu._pipeline import read_document, bundled_text, DOM_FORMAT
+        from gencmu._hash import fnv1a64
+        for name, index in [('guard-duplicate-alternatives', 1), ('guard-header-first', 0), ('guard-simplified-origin', 1)]:
+            with self.subTest(case=name):
+                case = fixture(name)
+                path, grammar = 'grammars/test/p.md', 'grammars/test/g.md'
+                sources = {path: '```jbogenbau\n%stage main\n%include "g.md"\n```\n', grammar: '```jbogenbau\n' + case['grammar'] + '\n```\n'}
+                dom = read_document(sources[grammar], grammar)
+                cache = json.dumps({
+                    'format': DOM_FORMAT, 'bootstrap': fnv1a64(bundled_text('data/preparsed/gencmu.json') or ''),
+                    'unicode': fnv1a64(bundled_text('data/unicode/unicode.txt') or ''),
+                    'properties': fnv1a64(bundled_text('data/unicode/unicode-properties.txt') or ''),
+                    'documents': {grammar: {'hash': fnv1a64(sources[grammar]), 'dom': dom}},
+                }, separators=(',', ':'))
+                plain = parse_case(gencmu.load_pipeline_sources(sources, path), case)
+                cached = parse_case(gencmu.load_pipeline_sources({**sources, 'data/preparsed/test.json': cache}, path), case)
+                self.assertEqual(plain[1].error.boundary['condition'], index)
+                self.assertEqual(cached[1].error.boundary['condition'], index)
+                self.assertEqual(cached[0], plain[0])
+                if name == 'guard-duplicate-alternatives':
+                    changed = cache.replace('"string":"x"', '"string":"a"')
+                    self.assertNotEqual(changed, cache)
+                    control = gencmu.load_pipeline_sources({**sources, 'data/preparsed/test.json': changed}, path)
+                    self.assertEqual(parse_case(control, case)[1].error.boundary['condition'], 0)
+
     def test_message_capture_reason_distinguishes_absent_from_unknown(self):
         for name in ('message-optional-capture-reason', 'message-captured-terminator-reason'):
             with self.subTest(case=name):

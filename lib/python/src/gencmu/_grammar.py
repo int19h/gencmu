@@ -1812,7 +1812,7 @@ class _Lowerer:
             # The union of the alternative's own tags and the definition's
             # (engine §3.7); the reader has made sure neither uses a capture
             # the alternative lacks.
-            terms = [self.prepare(term, False).simplified(present) for term in (alt.tags, alt.rule_tags) if term is not None]
+            terms = [self.prepare(term, False).simplified(present) for term in (alt.rule_tags, alt.tags) if term is not None]
             if terms:
                 production.tags_term = terms[0] if len(terms) == 1 else {"union": terms}
             production.emit = self.lower_emit(alt.emit, captures, self.emission(alt.emit))
