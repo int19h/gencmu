@@ -1,6 +1,6 @@
 {
   "description": "A tie has no chosen tree, so it gives no warnings, not even where one of its readings uses the warned alternative (engine §6, §12).",
-  "grammar": "%rule text A | w! A",
+  "grammar": "%rule text A | *w\n%rule w A %warning \"warning w\"",
   "tokens": [
     {
       "text": "a",

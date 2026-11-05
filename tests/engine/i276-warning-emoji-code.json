@@ -1,0 +1,15 @@
+{
+  "description": "A warning code must be a feature name, so an emoji warning rule is invalid.",
+  "grammar": "%rule text *🆓\n%rule 🆓 A %warning \"emoji\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

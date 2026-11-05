@@ -1,9 +1,9 @@
 {
   "description": "a comment separates an exact child",
-  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« a(* note *)·b »\n```\n",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« a-- note\n·b »\n```\n",
   "expect": {
     "dom": {
-      "format": 44,
+      "format": 45,
       "rules": [
         {
           "conditions": [

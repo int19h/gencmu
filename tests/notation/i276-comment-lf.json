@@ -1,0 +1,16 @@
+{
+  "description": "A line comment ends before LF.",
+  "document": "```jbogenbau\n%rule a A -- ignored\n%rule b B\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "a"
+        },
+        {
+          "name": "b"
+        }
+      ]
+    }
+  }
+}

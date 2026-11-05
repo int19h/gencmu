@@ -1,0 +1,44 @@
+{
+  "description": "Diagnostics follow parents before children, with siblings in written order.",
+  "grammar": "%rule text first *second %error \"root\"\n%rule first A %error \"first\"\n%rule second ε %error \"second\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "text",
+            "span": [
+              0,
+              1
+            ]
+          },
+          {
+            "code": "first",
+            "span": [
+              0,
+              1
+            ]
+          },
+          {
+            "code": "second",
+            "span": [
+              1,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "error": "reported"
+  }
+}

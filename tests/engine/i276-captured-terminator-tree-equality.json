@@ -1,0 +1,29 @@
+{
+  "description": "A written captured terminator compares as its terminal, including through tree identities.",
+  "grammar": "%rule text $x:T [$j:+T] %conditions $j, $x ≅ $j",
+  "tokens": [
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

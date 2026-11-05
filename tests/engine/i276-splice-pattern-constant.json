@@ -1,0 +1,15 @@
+{
+  "description": "A pattern constant cannot name a spliced rule.",
+  "grammar": "%const $P #r\n%rule text *r %conditions $ ≇ $P\n%rule r A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

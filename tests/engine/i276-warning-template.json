@@ -1,0 +1,15 @@
+{
+  "description": "A template cannot carry a warning directive.",
+  "grammar": "%rule wrap(@X) @X %warning \"bad\"\n%rule text wrap(A)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "description": "Equal returned tags do not merge variants with distinct boundary obligations.",
+  "grammar": "%rule text x (r0 | r1 | r2 | r3 | r4)\n%rule x A :: ($.followed-by(r0) ⟹ Mark) ∪ ($.followed-by(r1) ⟹ Mark) ∪ ($.followed-by(r2) ⟹ Mark) ∪ ($.followed-by(r3) ⟹ Mark) ∪ ($.followed-by(r4) ⟹ Mark)\n%rule r0 B\n%rule r1 C\n%rule r2 D\n%rule r3 E\n%rule r4 F",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

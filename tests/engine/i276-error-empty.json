@@ -1,0 +1,37 @@
+{
+  "description": "An empty error occurrence retains its empty span and source.",
+  "grammar": "%rule text *bad A\n%rule bad ε %error \"empty\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad",
+            "rule": "bad",
+            "span": [
+              0,
+              0
+            ]
+          }
+        ]
+      }
+    },
+    "error": "reported"
+  }
+}

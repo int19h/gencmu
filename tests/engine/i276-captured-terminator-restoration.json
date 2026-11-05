@@ -1,0 +1,28 @@
+{
+  "description": "Reconstruction restores a captured terminator while preserving its omission observation.",
+  "grammar": "%elision-only\n%rule text A [$j:+T=\"t\"] %conditions ¬$j",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "terminal": "A"
+          },
+          {
+            "terminal": "T",
+            "value": "t"
+          }
+        ]
+      }
+    }
+  }
+}

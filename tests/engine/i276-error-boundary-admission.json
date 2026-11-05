@@ -1,0 +1,42 @@
+{
+  "description": "A lower-error option retains different open boundary facts during ranked admission.",
+  "grammar": "%rule text (good ≻ bad) (A | B) :: ∅\n%rule good A %conditions $.followed-by(B)\n%rule bad A %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad",
+            "span": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

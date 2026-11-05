@@ -1,0 +1,29 @@
+{
+  "description": "An empty guarded consequent preserves ranked tag safety.",
+  "grammar": "%rule text selected right\n%rule selected :: ($.followed-by(right) ⟹ ∅)\n | (A ≻ A)\n%rule right B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

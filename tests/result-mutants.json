@@ -177,6 +177,98 @@
         "chosenReading"
       ],
       "set": 0
+    },
+    {
+      "name": "a reported failure without its tree",
+      "case": "i276-error-shape.json",
+      "path": [
+        "tree"
+      ],
+      "set": null
+    },
+    {
+      "name": "a reported failure with no errors",
+      "case": "i276-error-shape.json",
+      "path": [
+        "error",
+        "errors"
+      ],
+      "set": []
+    },
+    {
+      "name": "a reported failure with a tied verdict",
+      "case": "i276-error-shape.json",
+      "path": [
+        "stages",
+        0,
+        "verdict"
+      ],
+      "set": "tie"
+    },
+    {
+      "name": "a reported failure with output",
+      "case": "i276-error-shape.json",
+      "path": [
+        "stages",
+        0,
+        "output"
+      ],
+      "set": []
+    },
+    {
+      "name": "a reported failure with an envelope source",
+      "case": "i276-error-shape.json",
+      "path": [
+        "error",
+        "source"
+      ],
+      "set": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "a named error with another stage",
+      "case": "i276-error-shape.json",
+      "path": [
+        "error",
+        "errors",
+        0,
+        "stage"
+      ],
+      "set": "other"
+    },
+    {
+      "name": "a named error with another rule",
+      "case": "i276-error-shape.json",
+      "path": [
+        "error",
+        "errors",
+        0,
+        "rule"
+      ],
+      "set": "other"
+    },
+    {
+      "name": "a named error with a warning feature",
+      "case": "i276-error-shape.json",
+      "path": [
+        "error",
+        "errors",
+        0,
+        "feature"
+      ],
+      "set": "bad"
+    },
+    {
+      "name": "a warning without its message",
+      "case": "warning-on.json",
+      "path": [
+        "warnings",
+        0,
+        "message"
+      ],
+      "remove": true
     }
   ]
 }

@@ -1,0 +1,23 @@
+{
+  "description": "A queried tag union excludes error-bearing witnesses.",
+  "grammar": "%rule text A %conditions $.tags(probe) = Clean\n%rule probe *bad :: Fault | A :: Clean\n%rule bad A %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

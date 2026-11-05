@@ -1,0 +1,38 @@
+{
+  "description": "An erased occurrence still reports its enabled warning.",
+  "grammar": "%rule text *warn %erased\n%rule warn A %warning \"warning warn\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "warn"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "warn",
+        "rule": "warn",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "warning warn"
+      }
+    ]
+  }
+}

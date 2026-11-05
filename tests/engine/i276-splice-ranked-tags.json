@@ -1,0 +1,39 @@
+{
+  "description": "A spliced rule with a ranked choice retains its neighbour-dependent tags.",
+  "grammar": "%rule text *left right\n%rule left (A ≻ A) :: ($.followed-by(right) ⟹ Mark)\n%rule right B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "terminal": "A"
+          },
+          {
+            "rule": "right"
+          }
+        ]
+      },
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -37,17 +37,18 @@
         },
         "warnings": [
           {
-            "feature": "experimental-cgv",
-            "rule": "brivla-token",
-            "source": [
-              0,
-              7
-            ],
+            "stage": "words",
+            "code": "experimental-cgv",
+            "rule": "experimental-cgv",
             "span": [
               0,
               1
             ],
-            "stage": "words"
+            "source": [
+              0,
+              7
+            ],
+            "message": "this word uses an experimental CgV form"
           }
         ]
       }

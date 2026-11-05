@@ -12,8 +12,8 @@
     "warnings": [
       {
         "stage": "forms",
-        "feature": "compound-size",
-        "rule": "fixed-tail",
+        "code": "compound-size",
+        "rule": "compound-size",
         "span": [
           2,
           23
@@ -21,7 +21,8 @@
         "source": [
           2,
           23
-        ]
+        ],
+        "message": "this er compound has fewer than three components"
       }
     ]
   }

@@ -12,8 +12,8 @@
     "warnings": [
       {
         "stage": "forms",
-        "feature": "non-eberban-letter",
-        "rule": "space-unit",
+        "code": "non-eberban-letter",
+        "rule": "non-eberban-letter",
         "span": [
           21,
           22
@@ -21,7 +21,8 @@
         "source": [
           21,
           22
-        ]
+        ],
+        "message": "this letter is outside the Eberban alphabet"
       }
     ]
   }

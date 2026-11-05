@@ -1,14 +1,14 @@
 {
-  "description": "A feature-role conflict identifies the declaration that changes the role (engine \u00a713).",
+  "description": "A feature-role conflict identifies the declaration that changes the role (engine §13).",
   "documents": {
-    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text f? \"a\" | f! \"b\"\n```\n"
+    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text f? \"a\" | *f\n%rule f \"b\" %warning \"warning f\"\n```\n"
   },
   "pipelineDocument": "p.md",
   "expect": {
     "error": "grammar",
     "where": {
       "document": "p.md",
-      "line": 4,
+      "line": 5,
       "column": 1
     }
   }

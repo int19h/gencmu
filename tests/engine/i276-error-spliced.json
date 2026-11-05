@@ -1,0 +1,38 @@
+{
+  "description": "A spliced occurrence retains its named error and source coordinates.",
+  "grammar": "%rule text *bad\n%rule bad A %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad",
+            "rule": "bad",
+            "span": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "a",
+    "error": "reported"
+  }
+}

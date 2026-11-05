@@ -1,0 +1,37 @@
+{
+  "description": "A splice places its children directly in the enclosing tree.",
+  "grammar": "%rule text *pair\n%rule pair A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A"
+          },
+          {
+            "kind": "token",
+            "terminal": "B"
+          }
+        ]
+      }
+    },
+    "brackets": "(a b)"
+  }
+}

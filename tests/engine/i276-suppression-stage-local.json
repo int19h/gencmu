@@ -1,0 +1,15 @@
+{
+  "description": "A suppression code must name a warning in its own stage.",
+  "grammar": "%stage first\n%rule text A %suppress-warnings warn\n%stage second\n%rule text A\n%rule warn A %warning \"warning\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

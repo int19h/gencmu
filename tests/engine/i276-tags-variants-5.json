@@ -1,0 +1,21 @@
+{
+  "description": "Five independent guards exceed the limit of 16 variants.",
+  "grammar": "%rule text x (r0 | r1 | r2 | r3 | r4)\n%rule x A :: ($.followed-by(r0) ⟹ Tag-0) ∪ ($.followed-by(r1) ⟹ Tag-1) ∪ ($.followed-by(r2) ⟹ Tag-2) ∪ ($.followed-by(r3) ⟹ Tag-3) ∪ ($.followed-by(r4) ⟹ Tag-4)\n%rule r0 B\n%rule r1 C\n%rule r2 D\n%rule r3 E\n%rule r4 F",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

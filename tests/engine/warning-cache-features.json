@@ -1,6 +1,6 @@
 {
-  "description": "Warning features change collected warnings while one pipeline reuses its lowering (engine §§3.1, 12).",
-  "grammar": "%rule text a! b! \"x\"",
+  "description": "Warning codes change collected warnings while one pipeline reuses its lowering (engine §§3.1, 12).",
+  "grammar": "%rule text *a\n%rule a *b %warning \"warning a\"\n%rule b \"x\" %warning \"warning b\"",
   "input": "x",
   "parses": [
     {
@@ -27,8 +27,8 @@
         "warnings": [
           {
             "stage": "main",
-            "feature": "a",
-            "rule": "text",
+            "code": "a",
+            "rule": "a",
             "span": [
               0,
               1
@@ -36,7 +36,8 @@
             "source": [
               0,
               1
-            ]
+            ],
+            "message": "warning a"
           }
         ]
       }
@@ -54,8 +55,8 @@
         "warnings": [
           {
             "stage": "main",
-            "feature": "b",
-            "rule": "text",
+            "code": "b",
+            "rule": "b",
             "span": [
               0,
               1
@@ -63,7 +64,8 @@
             "source": [
               0,
               1
-            ]
+            ],
+            "message": "warning b"
           }
         ]
       }
@@ -82,8 +84,8 @@
         "warnings": [
           {
             "stage": "main",
-            "feature": "a",
-            "rule": "text",
+            "code": "a",
+            "rule": "a",
             "span": [
               0,
               1
@@ -91,12 +93,13 @@
             "source": [
               0,
               1
-            ]
+            ],
+            "message": "warning a"
           },
           {
             "stage": "main",
-            "feature": "b",
-            "rule": "text",
+            "code": "b",
+            "rule": "b",
             "span": [
               0,
               1
@@ -104,7 +107,8 @@
             "source": [
               0,
               1
-            ]
+            ],
+            "message": "warning b"
           }
         ]
       }
@@ -133,8 +137,8 @@
         "warnings": [
           {
             "stage": "main",
-            "feature": "a",
-            "rule": "text",
+            "code": "a",
+            "rule": "a",
             "span": [
               0,
               1
@@ -142,7 +146,8 @@
             "source": [
               0,
               1
-            ]
+            ],
+            "message": "warning a"
           }
         ]
       }

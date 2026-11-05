@@ -137,20 +137,20 @@
   {
     "name": "long-comment",
     "description": "A comment of many characters.",
-    "prefix": "%rule a (*",
+    "prefix": "%rule a --",
     "open": "x",
     "middle": "",
     "close": "",
-    "suffix": "*) B"
+    "suffix": "\nB"
   },
   {
     "name": "comment-of-openers",
     "description": "A comment that holds many quotes, comment openers and prefixes, each of which could begin a token.",
-    "prefix": "%rule a (*",
+    "prefix": "%rule a --",
     "open": "'\"(*$a%b~c¬d",
     "middle": "",
     "close": "",
-    "suffix": "*) B"
+    "suffix": "\nB"
   },
   {
     "name": "long-string",

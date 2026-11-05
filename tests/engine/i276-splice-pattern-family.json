@@ -1,0 +1,15 @@
+{
+  "description": "A pattern family forbids splices of its instances after expansion.",
+  "grammar": "%rule piece(@X) @X\n%rule text *piece(A) %conditions $ ≇ #piece",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

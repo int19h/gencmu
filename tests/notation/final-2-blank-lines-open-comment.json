@@ -1,10 +1,10 @@
 {
-  "description": "Two final blank lines contribute a newline and move the grammar end position (engine §8).",
-  "document": "```jbogenbau\n%rule text (*\n```\n```jbogenbau\n\n\n```\n",
+  "description": "A final line comment supplies no rule body. The syntax error follows the last grammar token.",
+  "document": "```jbogenbau\n%rule text --\n```\n```jbogenbau\n\n\n```\n",
   "expect": {
     "error": {
-      "line": 6,
-      "column": 1
+      "line": 2,
+      "column": 11
     }
   }
 }

@@ -1,0 +1,19 @@
+{
+  "description": "A line comment supplies whitespace between separate test forms.",
+  "document": "```jbogenbau\n%rule a A -- ignored\n <B>\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "test": "tags"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

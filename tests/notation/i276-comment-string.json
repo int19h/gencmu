@@ -1,0 +1,21 @@
+{
+  "description": "A quoted string retains its double hyphens literally.",
+  "document": "```jbogenbau\n%rule a \"--\"\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "literal": {
+                  "string": "--"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

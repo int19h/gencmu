@@ -11,7 +11,6 @@
       "warnings": [
         {
           "stage": "forms",
-          "feature": "hyphen-misplaced",
           "span": [
             3,
             4
@@ -19,11 +18,11 @@
           "source": [
             3,
             4
-          ]
+          ],
+          "code": "hyphen-misplaced"
         },
         {
           "stage": "forms",
-          "feature": "hyphen-misplaced",
           "span": [
             5,
             6
@@ -31,7 +30,8 @@
           "source": [
             5,
             6
-          ]
+          ],
+          "code": "hyphen-misplaced"
         }
       ]
     }

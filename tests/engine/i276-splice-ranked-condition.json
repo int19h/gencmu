@@ -1,0 +1,18 @@
+{
+  "description": "A spliced rule with a ranked choice retains its own completed conditions.",
+  "grammar": "%rule text *r :: ∅\n%rule r (A ≻ A) :: ∅ %conditions $.value = \"b\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false
+    }
+  }
+}

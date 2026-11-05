@@ -1,0 +1,23 @@
+{
+  "description": "A suppression code suppresses a descendant warning.",
+  "grammar": "%rule text *wrap\n%rule wrap *warn %suppress-warnings warn\n%rule warn A %warning \"warning warn\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "warn"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

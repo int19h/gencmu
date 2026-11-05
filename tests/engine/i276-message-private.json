@@ -1,0 +1,15 @@
+{
+  "description": "A message cannot read a private capture of a ranked option.",
+  "grammar": "%rule text ($x:A ≻ A) :: ∅ %error $x.value",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

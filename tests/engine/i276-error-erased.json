@@ -1,0 +1,37 @@
+{
+  "description": "Erasure does not discard an occurrence or its named error.",
+  "grammar": "%rule text *bad %erased\n%rule bad A %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad",
+            "rule": "bad",
+            "span": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "error": "reported"
+  }
+}

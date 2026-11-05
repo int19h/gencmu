@@ -32,8 +32,8 @@
     "warnings": [
       {
         "stage": "forms",
-        "feature": "hyphen-misplaced",
-        "rule": "misplaced-hyphen",
+        "code": "hyphen-misplaced",
+        "rule": "hyphen-misplaced",
         "span": [
           12,
           13
@@ -41,7 +41,8 @@
         "source": [
           12,
           13
-        ]
+        ],
+        "message": "this hyphen stands outside a recommended position"
       }
     ]
   }

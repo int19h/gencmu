@@ -1,0 +1,15 @@
+{
+  "description": "A message cannot read an item capture from braces.",
+  "grammar": "%rule text {$x:A} %error $x.value",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

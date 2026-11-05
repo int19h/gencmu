@@ -1,0 +1,10 @@
+{
+  "description": "A captured terminator reads a terminal tag rather than a rule.",
+  "document": "```jbogenbau\n%rule text [$j:+word]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

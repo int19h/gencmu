@@ -1,0 +1,23 @@
+{
+  "description": "A suppression clause also suppresses the owning rule's warning.",
+  "grammar": "%rule text *warn\n%rule warn A %warning \"warning warn\" %suppress-warnings warn",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "warn"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

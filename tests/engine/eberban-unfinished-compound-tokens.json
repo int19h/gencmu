@@ -60,8 +60,8 @@
     "warnings": [
       {
         "stage": "forms",
-        "feature": "non-eberban-letter",
-        "rule": "space-unit",
+        "code": "non-eberban-letter",
+        "rule": "non-eberban-letter",
         "span": [
           12,
           13
@@ -69,7 +69,8 @@
         "source": [
           12,
           13
-        ]
+        ],
+        "message": "this letter is outside the Eberban alphabet"
       }
     ]
   }

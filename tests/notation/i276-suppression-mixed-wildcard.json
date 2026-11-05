@@ -1,0 +1,10 @@
+{
+  "description": "The suppression wildcard stands alone.",
+  "document": "```jbogenbau\n%rule text A %suppress-warnings _, warn\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 34
+    }
+  }
+}

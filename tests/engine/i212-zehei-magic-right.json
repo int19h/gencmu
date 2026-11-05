@@ -25,7 +25,7 @@
           {
             "terminal": "BRIVLA<Cgv-Warning>",
             "rules": [
-              "brivla-token"
+              "experimental-cgv"
             ]
           },
           {
@@ -37,7 +37,7 @@
           {
             "terminal": "CMEVLA<Cgv-Warning>",
             "rules": [
-              "cmevla-token"
+              "experimental-cgv"
             ]
           },
           {

@@ -1,0 +1,30 @@
+{
+  "description": "Nested suppression lists unite throughout their subtrees.",
+  "grammar": "%rule text *outer %suppress-warnings first\n%rule outer *first *second %suppress-warnings second\n%rule first A %warning \"first\"\n%rule second B %warning \"second\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "first",
+      "second"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

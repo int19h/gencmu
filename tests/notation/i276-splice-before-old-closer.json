@@ -1,0 +1,35 @@
+{
+  "description": "A splice argument remains distinct from a block opener before a later quoted block closer.",
+  "document": "```jbogenbau\n%rule text f(*piece) \"*)\"\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "call": "f",
+                    "args": [
+                      {
+                        "splice": {
+                          "ref": "piece"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "literal": {
+                      "string": "*)"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

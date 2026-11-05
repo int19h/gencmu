@@ -1,0 +1,15 @@
+{
+  "description": "A template cannot carry an error directive.",
+  "grammar": "%rule wrap(@X) @X %error \"bad\"\n%rule text wrap(A)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

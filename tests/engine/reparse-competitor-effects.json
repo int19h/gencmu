@@ -1,6 +1,6 @@
 {
-  "description": "Only the chosen derivation emits and warns. The competitor c has a warning guard and an emission, and neither reaches the result: the output is a's one token, and there are no warnings (engine §7.10, §11, §12).",
-  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a ($x:A [+T]) %emits $x :: Kept\n\n%rule b (A [+T] [+T])\n%rule c w! (A T) %emits $ :: Competitor\n",
+  "description": "Only the chosen derivation emits and warns. The competitor c calls a spliced warning rule and carries an emission. Neither reaches the result.",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a ($x:A [+T]) %emits $x :: Kept\n\n%rule b (A [+T] [+T])\n%rule c *w\n%rule w A T %warning \"warning w\" %emits $ :: Competitor\n",
   "options": {
     "features": [
       "w"
@@ -40,17 +40,17 @@
           {
             "close": {
               "rule": "a",
-              "production": 3,
+              "production": 4,
               "span": [
-                0,
+                1,
                 1
               ]
             }
           },
           {
             "close": {
-              "rule": "c",
-              "production": 11,
+              "rule": "w",
+              "production": 12,
               "span": [
                 0,
                 1

@@ -1,0 +1,23 @@
+{
+  "description": "A recognition query can name a rule that another occurrence splices.",
+  "grammar": "%rule text *r %conditions $.matches(r)\n%rule r A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

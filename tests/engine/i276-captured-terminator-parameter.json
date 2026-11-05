@@ -1,0 +1,23 @@
+{
+  "description": "A template parameter can supply the captured terminator tag.",
+  "grammar": "%rule optional(@T) A [$j:+@T] %conditions ¬$j\n%rule text optional(T)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

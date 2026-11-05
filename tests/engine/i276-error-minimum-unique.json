@@ -1,0 +1,30 @@
+{
+  "description": "Losing error readings affect neither uniqueness nor the elision-only trigger.",
+  "grammar": "%ambiguity-resolution lazy\n%elision-only\n%rule text bad | good\n%rule bad A %error \"bad\"\n%rule good A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "good"
+          }
+        ]
+      }
+    }
+  }
+}

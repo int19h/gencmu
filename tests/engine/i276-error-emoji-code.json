@@ -1,0 +1,27 @@
+{
+  "description": "An error code accepts an eligible emoji rule name.",
+  "grammar": "%rule text *🆓\n%rule 🆓 A %error \"emoji\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "error": {
+        "errors": [
+          {
+            "code": "🆓",
+            "rule": "🆓",
+            "message": "emoji"
+          }
+        ]
+      }
+    }
+  }
+}

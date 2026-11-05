@@ -751,7 +751,7 @@
   },
   {
     "name": "a comment after a reference remains layout",
-    "grammar": "%rule text item(* note *)\n%rule item \"a\"",
+    "grammar": "%rule text item-- note\n%rule item \"a\"",
     "input": "a",
     "expect": {
       "result": {

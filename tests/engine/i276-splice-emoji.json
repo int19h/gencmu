@@ -1,0 +1,24 @@
+{
+  "description": "A splice can name an eligible emoji rule.",
+  "grammar": "%rule text *🆓\n%rule 🆓 A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "terminal": "A"
+          }
+        ]
+      }
+    }
+  }
+}

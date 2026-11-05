@@ -1,0 +1,36 @@
+{
+  "description": "A positive neighbour guard selects its literal tags when the atom holds.",
+  "grammar": "%rule text left right\n%rule left A :: ($.followed-by(right) ⟹ Mark)\n%rule right B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "left",
+            "tags": [
+              "Mark"
+            ]
+          },
+          {
+            "rule": "right"
+          }
+        ]
+      }
+    }
+  }
+}
