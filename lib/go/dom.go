@@ -7,7 +7,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 44
+const domFormat = 45
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what data/preparsed/gencmu.json and data/preparsed/FAMILY.json hold.
@@ -60,6 +60,8 @@ type domConst struct {
 }
 
 type domRule struct {
+	Error, Warning   *domTerm
+	SuppressWarnings []string
 	Params           []string
 	Args             []*domArgument
 	Instance         *domSourceCall
@@ -83,11 +85,10 @@ type domAlt struct {
 	Value, Image    *domTerm
 }
 
-// domGuard is a gate, f? or ¬f?, or a warning, f!, which is never negated
-// (engine §9).
+// domGuard is a gate, f? or ¬f? (engine §9).
 type domGuard struct {
 	Feature string
-	Kind    string // FeatureGate or FeatureWarning
+	Kind    string // FeatureGate
 	Negated bool
 }
 
@@ -101,6 +102,7 @@ const (
 	exRepeat   = "repeat"
 	exRef      = "ref"
 	exCapture  = "capture"
+	exSplice   = "splice"
 	exTest     = "test"
 	exEmpty    = "empty"
 	exRange    = "range"
@@ -507,6 +509,25 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 		c.writeJSON(w)
 	}
 	w.raw("]")
+	for _, field := range []struct {
+		name   string
+		recipe *domTerm
+	}{{"error", r.Error}, {"warning", r.Warning}} {
+		if field.recipe != nil {
+			w.raw(`,"` + field.name + `":`)
+			field.recipe.writeJSON(w)
+		}
+	}
+	if r.SuppressWarnings != nil {
+		w.raw(`,"suppressWarnings":[`)
+		for i, code := range r.SuppressWarnings {
+			if i > 0 {
+				w.raw(",")
+			}
+			w.str(code)
+		}
+		w.raw("]")
+	}
 	if r.Erased {
 		w.raw(`,"erased":true`)
 	}
@@ -560,6 +581,10 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 		w.str("ref")
 		w.raw(":")
 		w.str(e.Name)
+		w.raw("}")
+	case exSplice:
+		w.raw(`{"splice":`)
+		e.Inner.writeJSON(w)
 		w.raw("}")
 	case exCapture:
 		w.raw(`{"capture":`)
@@ -1064,7 +1089,7 @@ func (dc *domDecoder) decodeRule(raw any) (*domRule, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !onlyMembers(o, "name", "params", "args", "instance", "op", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at") {
+	if !onlyMembers(o, "name", "params", "args", "instance", "op", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "error", "warning", "suppressWarnings", "at") {
 		return nil, fmt.Errorf("a malformed rule")
 	}
 	r := &domRule{}
@@ -1120,6 +1145,23 @@ func (dc *domDecoder) decodeRule(raw any) (*domRule, error) {
 			return nil, fmt.Errorf("a malformed rule")
 		}
 		r.Erased = true
+	}
+	for _, field := range []struct {
+		name   string
+		target **domTerm
+	}{{"error", &r.Error}, {"warning", &r.Warning}} {
+		if value, ok := o[field.name]; ok {
+			*field.target, err = dc.decodeTerm(value)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	if value, ok := o["suppressWarnings"]; ok {
+		r.SuppressWarnings, err = domList(value, domString)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if r.Value, r.Image, err = dc.decodeRecipes(o); err != nil {
 		return nil, err
@@ -1259,6 +1301,10 @@ func (dc *domDecoder) decodeExprObj(raw any, o domObject, depth int) (*domExpr, 
 		}
 		return e, nil
 	}
+	if value, ok := o["splice"]; ok {
+		inner, err := dc.decodeExprAt(value, depth+1)
+		return &domExpr{Kind: exSplice, Inner: inner}, err
+	}
 	if v, ok := o["capture"]; ok {
 		name, err := domString(v)
 		if err != nil {
@@ -1316,7 +1362,7 @@ func (dc *domDecoder) decodeExprObj(raw any, o domObject, depth int) (*domExpr, 
 // member names the form. A rule argument and a classifier argument are
 // forms of a term too.
 var exprForms = [][]string{
-	{exSeq}, {exChoice}, {exRanked}, {exAnd}, {exOptional, "elidable?", "default?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exCapture, "expr"},
+	{exSplice}, {exSeq}, {exChoice}, {exRanked}, {exAnd}, {exOptional, "elidable?", "default?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exCapture, "expr"},
 	{"param", "at"}, {"call", "args", "at"},
 	{exRange}, {exLiteral}, {exWildcard}, {exTest, "value?", "requirements?", "expr"}, {exEmpty},
 }

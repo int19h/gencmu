@@ -1031,6 +1031,9 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		r.obligations = nil
 		key = it.itemKey
 		pos := int(key.dot)
+		if route := p.rhs[pos].route; route != 0 && l.sym != nil && (len(l.sym.items[0].prod.rhs) == 0) != (route == 1) {
+			return nil
+		}
 		// A strict step that completes, route 3's read of T with nothing
 		// after it, makes a strict item at the end of its production. The
 		// step drops it before it evaluates anything (§4, §7.4; JS
@@ -1049,8 +1052,19 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		if r.trees != nil {
 			r.advanceTree(&key, it, &cv, l)
 		}
+		if name := p.forwardCaptures[pos]; name != "" && l.sym != nil {
+			child := l.sym.items[0]
+			cv = r.caps(&child.itemKey).at(child.prod.slotOf[name])
+			if r.trees != nil && cv.tree == 0 {
+				cv.tree = r.terminalIdentity(r.g.terminals[child.prod.rhs[0].id], child.origin)
+			}
+		}
 		if slot := p.capSlot[pos]; slot >= 0 {
-			r.setCap(&key, slot, cv)
+			captured := cv
+			if r.machine != nil && l.sym != nil && r.g.rules[l.sym.rule].spliceTarget != nil {
+				captured.structure = r.machine.node("", cv.structure, "", "", nil)
+			}
+			r.setCap(&key, slot, captured)
 		}
 
 		key.dot++
@@ -1212,6 +1226,12 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 		identity = tree.identity
 	}
 	rootName, rootPrefix := p.ruleName, 0
+	if p.helper {
+		rootName = ""
+		if p.lexical == nil && r.machine != nil {
+			state = r.machine.node("", state, "", "", nil)
+		}
+	}
 	if len(structure) > 2 {
 		rootPrefix = structure[2]
 	}

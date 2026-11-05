@@ -244,6 +244,7 @@ type bracesEntry struct {
 }
 
 type domBuilder struct {
+	allowedMarked   map[*Node]bool
 	parameters      map[string]bool
 	partsCache      map[*Node][]*Node
 	unresolvedNodes map[*Node]bool
@@ -295,7 +296,7 @@ var domRules = map[string]bool{
 	"child-path":         true,
 	"child-primary":      true,
 
-	"call": true, "parameter": true, "call-argument": true, "requirement-argument": true, "target-argument": true, "body-argument": true, "symbol-argument": true,
+	"splice": true, "error-clause": true, "warning-clause": true, "suppress-warnings-clause": true, "suppression-code": true, "call": true, "parameter": true, "call-argument": true, "requirement-argument": true, "target-argument": true, "body-argument": true, "symbol-argument": true,
 
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
 	"directive": true, "ranking-directive": true, "ranking-step": true, "rule": true, "definer": true, "alternative": true, "choice": true, "ranked-alternative": true, "ranked-choice": true,
@@ -475,7 +476,7 @@ func (b *domBuilder) knownOf(n *Node, kinds []string) *Node {
 // What a primary, a condition, a term and a term atom hold: the one rule
 // among their parts is one of these (engine §9).
 var (
-	primaryRules   = []string{"call", "parameter", "reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
+	primaryRules   = []string{"splice", "call", "parameter", "reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
 	conditionRules = []string{"comparison", "tree-comparison", "method", "negation", "presence", "implication"}
 	termRules      = []string{"union", "guarded-term"}
 	atomRules      = []string{"call", "parameter", "string", "tag", "term-atom", "range", "name", "empty-set", "term", "guarded-term", "union", "method", "tag-run", "string-run", "capture-reference", "constant-reference", "pattern-literal"}
@@ -833,6 +834,29 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	if p := b.one(n, "emits-clause"); p != nil {
 		r.Emit = b.emission(p)
 	}
+	for _, field := range []struct {
+		name   string
+		target **domTerm
+	}{{"error", &r.Error}, {"warning", &r.Warning}} {
+		if clause := b.one(n, field.name+"-clause"); clause != nil {
+			recipe := b.recipe(b.only(clause, "recipe"))
+			if messageReadsEmitted(recipe) {
+				b.fail(clause, "a message recipe cannot read .emitted")
+			}
+			*field.target = recipe
+		}
+	}
+	if clause := b.one(n, "suppress-warnings-clause"); clause != nil {
+		r.SuppressWarnings = []string{}
+		for _, part := range b.parts(clause) {
+			if part.Kind == KindToken && b.tokenValue(part) == "_" {
+				r.SuppressWarnings = append(r.SuppressWarnings, "_")
+			}
+		}
+		for _, code := range b.ofRule(clause, "suppression-code") {
+			r.SuppressWarnings = append(r.SuppressWarnings, b.tokenValue(b.token(code)))
+		}
+	}
 	r.Erased = b.one(n, "erased-clause") != nil
 	return r
 }
@@ -866,17 +890,11 @@ func (b *domBuilder) guard(n *Node) domGuard {
 	switch {
 	case strings.HasSuffix(name, "?"):
 		g.Feature = strings.TrimSuffix(name, "?")
-	case strings.HasSuffix(name, "!"):
-		g.Kind = FeatureWarning
-		g.Feature = strings.TrimSuffix(name, "!")
 	default:
-		b.fail(n, "a guard is a feature name followed by ? or !")
+		b.fail(n, "a guard is a feature name followed by ?")
 	}
 	if !nameSyntaxFeature.MatchString(g.Feature) {
 		b.fail(n, "a guard's feature is not a feature name")
-	}
-	if g.Kind == FeatureWarning && g.Negated {
-		b.fail(n, "a warning cannot be negated")
 	}
 	return g
 }
@@ -971,7 +989,8 @@ func before(a, c [2]int) bool {
 
 // capturedRules are the rules of the symbols a capture can wrap (engine §9).
 var capturedRules = map[string]bool{
-	"call": true, "parameter": true,
+	"splice": true,
+	"call":   true, "parameter": true,
 	"reference": true, "tag": true, "string-terminal": true, "wildcard": true, "constant-reference": true, "range": true, "tested": true,
 }
 

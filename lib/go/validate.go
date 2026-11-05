@@ -22,12 +22,18 @@ import (
 // node.
 const maxDOMDepth = 256
 
-var nameSyntaxFeature = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*$`)
+type notationName struct{ *regexp.Regexp }
 
-var domName = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]*$`)
+func (p notationName) MatchString(text string) bool {
+	return !strings.Contains(text, "--") && p.Regexp.MatchString(text)
+}
+
+var nameSyntaxFeature = notationName{regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*$`)}
+
+var domName = notationName{regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]*$`)}
 
 // captureName is the syntax of a capture's name, all lower case (engine §9).
-var captureName = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+var captureName = notationName{regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)}
 
 // domProblem is why a DOM is malformed; tooDeep marks the nesting limit,
 // the one problem a DOM the reader built can have.
@@ -175,6 +181,25 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			c.constituentTags(r.Tags)
 			c.recipe(r.Value)
 			c.recipe(r.Image)
+			if r.Error != nil && r.Warning != nil || r.Params != nil && (r.Error != nil || r.Warning != nil) {
+				c.fail("a template accepts no diagnostic, and a rule accepts only one")
+			}
+			for _, recipe := range []*domTerm{r.Error, r.Warning} {
+				c.recipe(recipe)
+				if recipe != nil && messageReadsEmitted(recipe) {
+					c.fail("a message recipe cannot read .emitted")
+				}
+			}
+			if r.SuppressWarnings != nil {
+				if len(r.SuppressWarnings) == 0 {
+					c.fail("a malformed suppression list")
+				}
+				for _, code := range r.SuppressWarnings {
+					if code == "_" && len(r.SuppressWarnings) != 1 || code != "_" && !nameSyntaxFeature.MatchString(code) {
+						c.fail("a malformed suppression list")
+					}
+				}
+			}
 			c.emission(r.Emit)
 			for _, cond := range r.Conditions {
 				c.condition(cond, 0)
@@ -187,7 +212,7 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 				// A guard is a gate or a warning, and a warning has no negated
 				// form. Its feature is a name (§9).
 				for _, g := range a.Guards {
-					if g.Kind != FeatureGate && (g.Kind != FeatureWarning || g.Negated) {
+					if g.Kind != FeatureGate {
 						c.fail("a malformed guard")
 					}
 					if !nameSyntaxFeature.MatchString(g.Feature) {
@@ -344,8 +369,8 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 // lower-case letter, and className that of a class, which begins with a
 // capital (engine §2, §9).
 var (
-	classifierName = regexp.MustCompile(`^[a-z][A-Za-z0-9_-]*$`)
-	className      = regexp.MustCompile(`^[A-Z][A-Za-z0-9_-]*$`)
+	classifierName = notationName{regexp.MustCompile(`^[a-z][A-Za-z0-9_-]*$`)}
+	className      = notationName{regexp.MustCompile(`^[A-Z][A-Za-z0-9_-]*$`)}
 )
 
 // entryProblem validates classifier gates, keys, operators, and classes.
@@ -527,7 +552,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed, chain, item, ran
 			c.fail("a malformed elidable optional")
 			return
 		}
-		c.expr(e.Inner, depth+1, false, sealed || e.Elidable, chain, item, ranked)
+		c.expr(e.Inner, depth+1, false, sealed || e.Elidable && e.Inner.Kind != exCapture, chain, item, ranked)
 	case exRepeat:
 		// A chain is the whole expression of its alternative (engine §9).
 		// A separator counts on from the depth of its repeat, as the item
@@ -541,6 +566,12 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed, chain, item, ran
 		if e.Sep != nil {
 			c.expr(e.Sep, depth+1, false, sealed, e.Chain != "", e.Chain == "", false)
 		}
+	case exSplice:
+		if e.Inner == nil || e.Inner.Kind != exCall && (e.Inner.Kind != exRef || !c.ruleName(e.Inner.Name)) {
+			c.fail("a splice requires a rule or instance")
+			return
+		}
+		c.expr(e.Inner, depth+1, false, sealed, chain, item, ranked)
 	case exCapture:
 		// A capture wraps one symbol, and stands anywhere but in braces or
 		// an elidable optional; $, the whole constituent, wraps nothing.
@@ -639,6 +670,9 @@ func elidableHead(e *domExpr) *domExpr {
 	if e.Kind == exSeq && len(e.Items) > 0 {
 		head = e.Items[0]
 	}
+	if head.Kind == exCapture {
+		head = head.Inner
+	}
 	base := head
 	for base != nil && base.Kind == exTest && (base.Op == "=" || base.Op == "≠" || base.Op == "tags") {
 		base = base.Inner
@@ -674,7 +708,7 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 			return nil
 		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
 			return n.Items
-		case n.Kind == exOptional && !n.Elidable:
+		case n.Kind == exOptional && (!n.Elidable || n.Inner.Kind == exCapture):
 			return []*domExpr{n.Inner}
 		}
 		return nil
@@ -945,7 +979,7 @@ func bracesSequences(e *domExpr) [][]string {
 			return nil
 		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
 			return n.Items
-		case n.Kind == exOptional && !n.Elidable:
+		case n.Kind == exOptional && (!n.Elidable || n.Inner.Kind == exCapture):
 			return []*domExpr{n.Inner}
 		case n.Kind == exRepeat && n.Chain != "":
 			if n.Sep != nil {
@@ -1158,7 +1192,7 @@ func captureSequences(e *domExpr) [][]*domExpr {
 			return nil
 		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
 			return n.Items
-		case n.Kind == exOptional && !n.Elidable:
+		case n.Kind == exOptional && (!n.Elidable || n.Inner.Kind == exCapture):
 			return []*domExpr{n.Inner}
 		}
 		return nil
@@ -1232,7 +1266,7 @@ func captureSequences(e *domExpr) [][]*domExpr {
 // reference, a terminal, a range, a property or a tested symbol (engine §9).
 func isCapturable(kind string) bool {
 	switch kind {
-	case exRef, exRange, exLiteral, exWildcard, exTest, exParam, exCall:
+	case exRef, exRange, exLiteral, exWildcard, exTest, exParam, exCall, exSplice:
 		return true
 	}
 	return false
@@ -1245,7 +1279,7 @@ func isTestable(e *domExpr) bool {
 		return false
 	}
 	switch e.Kind {
-	case exRef, exParam, exCall:
+	case exRef, exParam, exCall, exSplice:
 		return true
 	case exRange, exLiteral, exWildcard:
 		return true
@@ -2364,6 +2398,8 @@ func ruleTypeFault(r *domRule, ct constTypes) *typeFault {
 	for _, condition := range r.Conditions {
 		add(clausePart{c: condition})
 	}
+	term(r.Error)
+	term(r.Warning)
 	if r.Emit != nil {
 		for _, item := range r.Emit.Items {
 			term(item.Tags)
@@ -2450,7 +2486,7 @@ func constantValueType(value *domTerm, redefine bool, ct constTypes) (termType, 
 
 // constName is the syntax of a constant's name, without its $: a name that
 // begins with a capital (engine §2).
-var constName = regexp.MustCompile(`^[A-Z][A-Za-z0-9_-]*$`)
+var constName = notationName{regexp.MustCompile(`^[A-Z][A-Za-z0-9_-]*$`)}
 
 // openPart is the first part of a term that is not closed (engine §10), or
 // nil: a capture, a guarded term, or a call of anything but split and ngrams.

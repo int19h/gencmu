@@ -38,7 +38,7 @@ func newSlotViews(rk *ranker) *slotViews {
 	g := rk.rec.g
 	users := map[int32][]int32{}
 	for _, p := range g.prods {
-		if g.rules[p.lhs].helper {
+		if g.rules[p.lhs].helper && p.spliceTarget == nil {
 			for _, s := range p.rhs {
 				if !s.term {
 					users[s.id] = append(users[s.id], p.lhs)
@@ -148,7 +148,7 @@ func newSlotViews(rk *ranker) *slotViews {
 		}
 		for index, edge := range raw.links {
 			prev := itemView(edge.prev, scope)
-			if edge.sym == nil || !wrapped[edge.sym.rule] || g.rules[raw.prod.lhs].helper && scope == nil {
+			if edge.sym == nil || !wrapped[edge.sym.rule] || g.rules[raw.prod.lhs].helper && raw.prod.spliceTarget == nil && scope == nil {
 				copy := edge
 				copy.prev = prev
 				copy.sym = symView(edge.sym, nil)

@@ -14,6 +14,7 @@ type occurrence struct {
 }
 
 type stringEmitter struct {
+	observing                    bool
 	trees                        *treeArena
 	treeStates                   map[*occurrence]treeState
 	boundaryStarts, boundaryEnds map[string]map[int]bool
@@ -55,6 +56,9 @@ func (em *stringEmitter) capture(o *occurrence, name string) *occurrence {
 	}
 	if o.d.kind == dClose {
 		if pos, ok := o.d.prod.posOf[name]; ok {
+			if o.d.prod.forwardCaptures[pos] != "" {
+				return o.kids[pos].kids[0]
+			}
 			return o.kids[pos]
 		}
 	}
@@ -245,6 +249,9 @@ func (em *stringEmitter) verbatim(a, b int) string {
 	}
 	for r < q && !em.coverage[r] {
 		r++
+	}
+	if em.observing {
+		return string(em.run.ps.text[l:r])
 	}
 	span := [2]int{a, b}
 	if _, exists := em.claims[span]; !exists {

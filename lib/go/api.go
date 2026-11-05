@@ -438,36 +438,43 @@ func newPipeline(stages []*stageGrammar, declared []string, uni *unicodeTable) (
 // only declarations use is a gate. A name used as both gate and warning is an error.
 func pipelineFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Error) {
 	kinds := map[string]string{}
-	firstIn := map[string]string{} // the document of a name's first guard
+	add := func(name, kind, document string, at [2]int, stage string) *Error {
+		if known := kinds[name]; known != "" && known != kind {
+			category := "feature"
+			if known == "error" || kind == "error" {
+				category = "name"
+			}
+			error := grammarError(document, at, "the %s %s is used both as a %s and as a %s", category, name, known, kind)
+			error.Stage = stage
+			return error
+		}
+		kinds[name] = kind
+		return nil
+	}
 	for _, g := range stages {
 		for _, r := range g.rules {
 			for _, a := range r.alts {
-				for _, gd := range a.alt.Guards {
-					known, ok := kinds[gd.Feature]
-					if !ok {
-						kinds[gd.Feature], firstIn[gd.Feature] = gd.Kind, a.doc
-						continue
+				for _, guard := range a.alt.Guards {
+					if err := add(guard.Feature, FeatureGate, a.doc, a.at, g.name); err != nil {
+						return nil, err
 					}
-					if known != gd.Kind {
-						e := grammarError(a.doc, a.at, "the feature %s is used as a %s here and as a %s in %s; a feature is a gate or a warning, not both", gd.Feature, gd.Kind, known, firstIn[gd.Feature])
-						e.Stage = g.name
-						return nil, e
+				}
+				if a.error != nil {
+					if err := add(r.name, "error", a.doc, a.at, g.name); err != nil {
+						return nil, err
+					}
+				}
+				if a.warning != nil {
+					if err := add(r.name, FeatureWarning, a.doc, a.at, g.name); err != nil {
+						return nil, err
 					}
 				}
 			}
 		}
-		// The gates of every classifier's entries count too (§13).
-		for _, it := range g.classifierSet.items {
-			for _, e := range it.classifier.Entries {
-				for _, gd := range e.Guards {
-					known, ok := kinds[gd.Feature]
-					if !ok {
-						kinds[gd.Feature], firstIn[gd.Feature] = gd.Kind, it.doc
-						continue
-					}
-					if known != gd.Kind {
-						err := grammarError(it.doc, e.At, "the feature %s is used as a %s here and as a %s in %s; a feature is a gate or a warning, not both", gd.Feature, gd.Kind, known, firstIn[gd.Feature])
-						err.Stage = g.name
+		for _, item := range g.classifierSet.items {
+			for _, entry := range item.classifier.Entries {
+				for _, guard := range entry.Guards {
+					if err := add(guard.Feature, FeatureGate, item.doc, entry.At, g.name); err != nil {
 						return nil, err
 					}
 				}
@@ -476,6 +483,9 @@ func pipelineFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Er
 	}
 	on := map[string]bool{}
 	for _, f := range declared {
+		if kinds[f] == "error" {
+			return nil, &Error{Kind: "grammar", Message: "an error code cannot be enabled or disabled"}
+		}
 		on[f] = true
 		if kinds[f] == "" {
 			kinds[f] = FeatureGate
@@ -485,6 +495,9 @@ func pipelineFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Er
 	for _, stage := range stages {
 		for _, item := range stage.features {
 			for _, name := range item.directive.Args {
+				if kinds[name] == "error" {
+					return nil, grammarError(item.doc, item.directive.At, "an error code cannot be enabled or disabled")
+				}
 				if earlier := tested[name]; earlier != "" {
 					err := grammarError(item.doc, item.directive.At, "stage %s tests local feature %s", earlier, name)
 					err.Stage = stage.name
@@ -500,6 +513,9 @@ func pipelineFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Er
 		}
 		for _, rule := range stage.rules {
 			for _, alt := range rule.alts {
+				if alt.warning != nil && tested[rule.name] == "" {
+					tested[rule.name] = stage.name
+				}
 				for _, guard := range alt.alt.Guards {
 					if tested[guard.Feature] == "" {
 						tested[guard.Feature] = stage.name
@@ -519,6 +535,9 @@ func pipelineFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Er
 	}
 	features := make([]Feature, 0, len(kinds))
 	for name, kind := range kinds {
+		if kind == "error" {
+			continue
+		}
 		features = append(features, Feature{Name: name, Kind: kind, Default: on[name]})
 	}
 	sort.Slice(features, func(i, j int) bool { return features[i].Name < features[j].Name })
@@ -972,7 +991,7 @@ func (d *Pipeline) parse(text []rune, tokens []Token, options ParseOptions) (res
 			res.OK, res.Error = false, o.err
 		}
 	}
-	if res.OK {
+	if res.OK || res.Error != nil && res.Error.Kind == ErrorReported {
 		res.Tree = outcomes[len(outcomes)-1].tree
 	}
 	return res, nil

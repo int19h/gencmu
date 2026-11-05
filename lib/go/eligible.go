@@ -107,7 +107,7 @@ func (e *eligibility) next(it *item) int {
 // proof tree (§4).
 func (r *recognizer) eligibleItems(items []*item) []*item {
 	helpers := r.g.elidable
-	if !r.g.anyElidable || len(items) == 0 {
+	if !r.g.anyElidable && !r.g.hasErrors || len(items) == 0 {
 		return items
 	}
 	if w := work.Load(); w != nil {
@@ -164,7 +164,7 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 	}
 	// With no omission, every item of a chart has a finite proof tree, made
 	// from predicted items in the order in which the recognizer made it.
-	if !omits {
+	if !omits && !r.g.hasErrors {
 		return items
 	}
 	// The prefixes that the chart advances over a written optional, from
@@ -223,6 +223,9 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 	for changed := true; changed; {
 		changed = false
 		for x, it := range e.order {
+			if int(it.dot) == len(it.prod.rhs) && it.prod.error != nil {
+				continue
+			}
 			if E[x] && (P[x] || next[x] == nextNone) {
 				continue
 			}

@@ -357,7 +357,7 @@ func sourceArgument(expr *domExpr) *domArgument {
 		return &domArgument{Term: &domTerm{Kind: tmParam, Str: expr.Name, At: expr.At}}
 	case exCall:
 		return &domArgument{Term: &domTerm{Kind: tmSourceCall, Call: expr.Call, At: expr.At}}
-	case exTest, exRange, exWildcard:
+	case exTest, exRange, exWildcard, exSplice:
 		return &domArgument{Expr: expr}
 	default:
 		return &domArgument{Expr: expr, Body: true}

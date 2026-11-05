@@ -36,19 +36,19 @@ A caller can enable or disable an unknown feature name. Unknown names do not cha
 
 ## Parsing
 
-`(*Pipeline).Parse(text, ParseOptions{Features, WithoutFeatures, Until, ElisionOnly})` parses a text. A text that is not valid UTF-8 is a usage error. The `Warnings` of a result are those of the enabled warning features.
+`(*Pipeline).Parse(text, ParseOptions{Features, WithoutFeatures, Until, ElisionOnly})` parses a text. A text that is not valid UTF-8 is a usage error. The `Warnings` of a result come from enabled, unsuppressed warning rules.
 
 A `feature-conflict` result names a disabled feature whose conditional declaration holds for the stage input. Its `Stage` and `Feature` fields identify the conflict.
 
-`(*Pipeline).Features()` lists the features of the pipeline, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
+`(*Pipeline).Features()` lists the features of the pipeline, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on. Warning features use their warning rule's code.
 
 `$x.without-elision` and `$x.without-elision-except(F)` restore captured omitted terminators for an aligned query.
 
 A close family is a set of rules. `F` names that family through its written rule references, as [engine §2.2](../../docs/engine.md#22-close-families) defines. The family method permits extra witness closes that family members own. Each extra close needs a kept token or candidate record on each side. The query preserves every candidate close and ranked block.
 
-`.onward` extends either restored query through the original following input and retains its family. Other span methods return ordinary spans. Parse results use format 15. Go exposes no audit API.
+`.onward` extends either restored query through the original following input and retains its family. Other span methods return ordinary spans. Parse results use format 16. `RankingReports()` gives static notes about ranking and diagnostics. `FormatRankingReports` renders those notes.
 
-Boundary atoms `$x.followed-by(S)` and `$x.preceded-by(S)` read neighbors of the parse that the condition belongs to. These boundary conditions filter candidate derivations before ranking. In an emission item, they read the chosen tree. Their target accepts rule names and terminal names.
+Boundary atoms `$x.followed-by(S)` and `$x.preceded-by(S)` read neighbors of the parse that the condition belongs to. These boundary conditions filter candidate derivations before ranking. In an emission item, they read the chosen tree. Their target accepts rule names and terminal names. Constituent tags can use these atoms as guards with literal tag sets.
 
 `.ends-input` tests the end of the current input. The steps of `%ambiguity-resolution`, such as `leftmost-longest #·text` and `fewest #·link<Link>`, compare nodes that match their patterns. A rejected result can name its failed condition through `Error.Boundary`.
 
@@ -61,7 +61,13 @@ The API copies the tokens and leaves the caller's records unchanged. Nonempty `B
 
 A text that a stage reads in two or more best ways is a tie. Its result is not `OK`, and its `Error` has the kind `ambiguous` and the `Reason` `tie`, with two `Readings`. The stage has the verdict `tie` and a `Witness`, and it has no output. The `Reason` of the error of `ElisionOnly` is `elision-only`.
 
-A text that does not parse gives a result whose `OK` is false. Its error kind is `rejected`, `ambiguous`, `feature-conflict`, or `grammar` (`docs/api.md`).
+A text that does not parse gives a result whose `OK` is false. Its error kind is `rejected`, `ambiguous`, `feature-conflict`, `reported`, or `grammar` (`docs/api.md`).
+
+Ranking first keeps derivations with the fewest error occurrences. A losing error reading does not affect the verdict.
+
+A chosen error rule produces an error of kind `reported`. The result retains its tree and verdict, reports ordered `Errors`, and stops before emission. Every other error result has a null `Tree`.
+
+Each named error and warning has `Stage`, `Code`, `Rule`, `Span`, `Source`, and an evaluated `Message`. Each code equals its rule name. Reports follow stage order. Within each stage, reports visit a parent before its children, before tree flattening and erasure. Suppression removes warnings from the owning occurrence and its descendants.
 
 Lowering can find grammar defects for a parse's features (engine §3). Examples include a chain `{... x / s}` beside another alternative, or a repeated item that can match no tokens. The pipeline loads. Parsing returns a result whose `Error` has kind `grammar`. The separate returned error is nil. The result error's `Message` starts with the faulty definition's document, line, and column, as `g.md:3:1:`.
 

@@ -40,6 +40,8 @@ func ruleRecipes(r *domRule) []*domTerm {
 	}
 	add(r.Value)
 	add(r.Image)
+	add(r.Error)
+	add(r.Warning)
 	for _, a := range r.Alternatives {
 		add(a.Value)
 		add(a.Image)

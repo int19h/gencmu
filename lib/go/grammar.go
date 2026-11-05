@@ -78,6 +78,8 @@ type sRule struct {
 // sAlt is an alternative with the clauses of the rule statement that wrote
 // it: an extension's alternatives keep the extension's own clauses.
 type sAlt struct {
+	error, warning       *domTerm
+	suppressWarnings     []string
 	boundaryOwner        *sAlt
 	boundarySites        map[*domCond]*boundarySite
 	written              jobj
@@ -218,7 +220,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 				}
 				alts := make([]*sAlt, len(r.Alternatives))
 				for i, a := range r.Alternatives {
-					alts[i] = &sAlt{written: written, writtenAlternative: i, textOrder: textOrder, alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, erased: r.Erased, ruleValue: r.Value, ruleImage: r.Image, doc: d.path, at: r.At}
+					alts[i] = &sAlt{error: r.Error, warning: r.Warning, suppressWarnings: r.SuppressWarnings, written: written, writtenAlternative: i, textOrder: textOrder, alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, erased: r.Erased, ruleValue: r.Value, ruleImage: r.Image, doc: d.path, at: r.At}
 					textOrder++
 				}
 				for _, a := range alts {
@@ -381,6 +383,9 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 		g.rules = ordered
 	}
 
+	if err := g.checkDiagnosticsAndSplices(); err != nil {
+		return nil, err
+	}
 	if err := g.validateBoundaryTargets(); err != nil {
 		return nil, err
 	}

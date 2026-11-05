@@ -169,7 +169,7 @@ func elAction(e iterEl) action {
 	if e.n.kind == dRead {
 		return action{read: true, tok: e.n.tok, term: e.n.term}
 	}
-	return action{prod: e.n.prod, start: e.n.start, end: e.n.end}
+	return action{prod: sourceProduction(e.n.prod), start: e.n.start, end: e.n.end}
 }
 
 func elWhole(e iterEl) count {
@@ -291,7 +291,7 @@ func newUnfilteredRanker(rec *recognizer, steps []keyStep, lean string) *ranker 
 		for _, step := range steps {
 			onlyOmitted = onlyOmitted && requiresElided(step.pattern)
 		}
-		if onlyOmitted {
+		if onlyOmitted && !rec.g.hasErrors {
 			rk.profiles = false
 		}
 	}
@@ -833,7 +833,7 @@ func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 	if rk.views != nil {
 		scope = rk.views.itemScopes[it]
 	}
-	f = rk.slotContext(f, it.prod.lhs, scope)
+	f = rk.slotContext(f, rk.rec.g.cycleRule(it.prod.lhs), scope)
 	slot := memoSlotFor(rk.itemMemo(it), f)
 	switch slot.state {
 	case 1:
@@ -1019,10 +1019,10 @@ func (rk *ranker) startSym(s *symNode, f forbidden) (rankFrame, *entry) {
 	if rk.views != nil {
 		scope = rk.views.symScopes[s]
 	}
-	if f.has(s.rule) {
+	if f.has(rk.rec.g.cycleRule(s.rule)) {
 		return nil, nil
 	}
-	f = rk.slotContext(f, s.rule, scope)
+	f = rk.slotContext(f, rk.rec.g.cycleRule(s.rule), scope)
 	slot := memoSlotFor(rk.symMemo(s), f)
 	switch slot.state {
 	case 1:
@@ -1036,7 +1036,7 @@ func (rk *ranker) startSym(s *symNode, f forbidden) (rankFrame, *entry) {
 	}
 	inner := f
 	if rk.rec.g.rules[s.rule].scc >= 0 && scope == nil {
-		inner = f.with(s.rule)
+		inner = f.with(rk.rec.g.cycleRule(s.rule))
 	}
 	return &symFrame{s: s, inner: inner, slot: slot}, nil
 }
@@ -1081,6 +1081,9 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 		}
 		profile := e.profile
 		if rk.profiles {
+			if c.prod.error != nil {
+				profile = rk.space.sum(profile, rk.space.errorProfile())
+			}
 			if c.prod.restoration() && !c.restores && rk.rec.recon == nil {
 				tags := rk.rec.run.ps.in.fromList([]string{c.prod.elided, "_Elided"})
 				profile = rk.space.sum(rk.space.occurrence("", c.prod.elided, "", tags, s.start, s.start), profile)
@@ -1290,13 +1293,19 @@ func (s *summary) add(space *profileSpace, p profile, least, total int) {
 	if total == 0 {
 		return
 	}
-	switch c := space.compare(p, s.profile); {
-	case s.total == 0 || c < 0:
+	comparison := space.compare(p, s.profile)
+	errors := p.at(0).n.cmp(s.profile.at(0).n)
+	if s.total == 0 || errors < 0 {
+		s.total = min(total, 2)
+	} else if errors == 0 {
+		s.total = min(s.total+total, 2)
+	}
+	switch {
+	case s.least == 0 || comparison < 0:
 		s.least, s.profile = least, p
-	case c == 0:
+	case comparison == 0:
 		s.least = min(s.least+least, 2)
 	}
-	s.total = min(s.total+total, 2)
 }
 
 // elSeq is the component of a profile under late(c) and early(c) (engine
@@ -1468,6 +1477,7 @@ func (p profile) at(i int) component {
 // profileSpace holds the key steps of one ranking: how they count
 // occurrences, add profiles and compare them (engine §6).
 type profileSpace struct {
+	kinds      []string
 	steps      []keyStep
 	answers    map[rankingNodeKey]bool
 	values     []bool
@@ -1485,8 +1495,9 @@ type rankingNodeKey struct {
 }
 
 func newProfileSpace(steps []keyStep) *profileSpace {
-	sp := &profileSpace{steps: steps, answers: map[rankingNodeKey]bool{}, leaves: map[int32]*elSeq{}}
+	sp := &profileSpace{kinds: []string{"fewest"}, steps: steps, answers: map[rankingNodeKey]bool{}, leaves: map[int32]*elSeq{}}
 	for _, step := range steps {
+		sp.kinds = append(sp.kinds, step.step)
 		sp.values = append(sp.values, patternHasValue(step.pattern))
 		sp.nodeValues = sp.nodeValues || patternReadsNodeValue(step.pattern)
 	}
@@ -1522,17 +1533,17 @@ func (sp *profileSpace) occurrence(name, terminal, value string, tags *tagset, p
 			continue
 		}
 		if out == nil {
-			out = make(profile, len(sp.steps))
+			out = make(profile, len(sp.kinds))
 		}
 		switch step.step {
 		case "leftmost-longest":
 			if p < q {
-				out[index].spans = []profileSpan{{p, q, countOne}}
+				out[index+1].spans = []profileSpan{{p, q, countOne}}
 			}
 		case "fewest", "most":
-			out[index].n = countOne
+			out[index+1].n = countOne
 		default:
-			out[index].seq = sp.leaf(p)
+			out[index+1].seq = sp.leaf(p)
 		}
 	}
 	return out
@@ -1556,9 +1567,9 @@ func (sp *profileSpace) sum(a, b profile) profile {
 	if b == nil {
 		return a
 	}
-	out := make(profile, len(sp.steps))
-	for i, step := range sp.steps {
-		switch step.step {
+	out := make(profile, len(sp.kinds))
+	for i, step := range sp.kinds {
+		switch step {
 		case "leftmost-longest":
 			out[i].spans = sumSpans(a[i].spans, b[i].spans)
 		case "fewest", "most":
@@ -1577,10 +1588,10 @@ func (sp *profileSpace) compare(a, b profile) int {
 	if a == nil && b == nil {
 		return 0
 	}
-	for i, step := range sp.steps {
+	for i, step := range sp.kinds {
 		x, y := a.at(i), b.at(i)
 		c := 0
-		switch step.step {
+		switch step {
 		case "leftmost-longest":
 			c = compareSpans(x.spans, y.spans)
 		case "fewest":
@@ -1611,6 +1622,9 @@ func (sp *profileSpace) derivationProfile(g *lowered, d *dn) profile {
 		stack = stack[:len(stack)-1]
 		if n == nil {
 			continue
+		}
+		if n.kind == dClose && n.prod.error != nil {
+			out = sp.sum(out, sp.errorProfile())
 		}
 		if n.kind == dClose && !g.rules[n.prod.lhs].helper && n.start < n.end {
 			out = sp.sum(out, sp.occurrence(g.rules[n.prod.lhs].name, "", "", n.tags, n.start, n.end))
@@ -1681,5 +1695,11 @@ func sumSpans(x, y []profileSpan) []profileSpan {
 	}
 	out = append(out, x[i:]...)
 	out = append(out, y[j:]...)
+	return out
+}
+
+func (sp *profileSpace) errorProfile() profile {
+	out := make(profile, len(sp.kinds))
+	out[0].n = countOne
 	return out
 }

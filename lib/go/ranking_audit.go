@@ -21,9 +21,10 @@ type CountedRuleChange struct {
 
 // RankingReport holds the static reports of one stage.
 type RankingReport struct {
-	Name           string
-	KeySteps       []RankingStepReport
-	CountedChanges []CountedRuleChange
+	DiagnosticNotes []DiagnosticNote
+	Name            string
+	KeySteps        []RankingStepReport
+	CountedChanges  []CountedRuleChange
 }
 
 func addRankingTags(into, from map[string]bool) {
@@ -170,7 +171,9 @@ func rankingStageReport(g *stageGrammar) RankingReport {
 func (p *Pipeline) RankingReports() []RankingReport {
 	out := make([]RankingReport, 0, len(p.stages))
 	for _, g := range p.stages {
-		out = append(out, rankingStageReport(g))
+		report := rankingStageReport(g)
+		report.DiagnosticNotes = diagnosticNotes(g)
+		out = append(out, report)
 	}
 	return out
 }
@@ -183,6 +186,16 @@ func FormatRankingReports(reports []RankingReport) string {
 		for _, step := range report.KeySteps {
 			if step.Status != "" {
 				lines = append(lines, fmt.Sprintf("  ranking step %d: %s", step.Step+1, step.Status))
+			}
+		}
+		for _, note := range report.DiagnosticNotes {
+			switch note.Kind {
+			case "query-error":
+				lines = append(lines, fmt.Sprintf("  %s: query reaches error rule %s", note.Rule, note.Target))
+			case "unused-suppression":
+				lines = append(lines, fmt.Sprintf("  %s: suppression code %s reaches no warning", note.Rule, note.Code))
+			case "guarded-tag-variants":
+				lines = append(lines, fmt.Sprintf("  %s: %d guarded tag variants", note.Rule, note.Variants))
 			}
 		}
 		for _, change := range report.CountedChanges {

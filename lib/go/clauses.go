@@ -610,7 +610,7 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 		names []string
 	}
 	var others []clause
-	for _, t := range []*domTerm{r.Tags, r.Value, r.Image} {
+	for _, t := range []*domTerm{r.Tags, r.Value, r.Image, r.Error, r.Warning} {
 		if t != nil {
 			others = append(others, clause{"a clause", orderedMentions(clausePart{t: t})})
 		}
@@ -907,7 +907,7 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 			return true
 		})
 	}
-	for _, term := range []*domTerm{r.Tags, r.Value, r.Image} {
+	for _, term := range []*domTerm{r.Tags, r.Value, r.Image, r.Error, r.Warning} {
 		mention(clausePart{t: term})
 	}
 	for _, a := range r.Alternatives {

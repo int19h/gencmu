@@ -357,7 +357,7 @@ func (r *recognizer) resumeCondition() *nestedQuery {
 		if r.conditionYes != value && r.boundaries != nil {
 			a, p := r.conditionAtom, r.conditionProd
 			own := true
-			if p.helper && a.Span.Str == "" {
+			if p.helper && p.spliceTarget == nil && a.Span.Str == "" {
 				own = false
 				raw := r.condition
 				if original := p.boundaryOriginal[r.condition]; original != nil {

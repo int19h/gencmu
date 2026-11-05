@@ -614,7 +614,7 @@ func (r *recognizer) closeProduction(p *production, requested observationKinds) 
 	if r.trees != nil {
 		q.treeRequested = requested&treeObservation != 0
 		d := r.g.localTreeDemand(p)
-		q.walksTrees = q.treeRequested || !p.helper && d.whole
+		q.walksTrees = q.treeRequested || p.treeRoot && d.whole
 		q.treePrefixUntil = d.prefixUntil
 		q.observesTrees = q.walksTrees || q.treePrefixUntil > 0
 	}

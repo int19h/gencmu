@@ -29,7 +29,7 @@ type corpusCase struct {
 	fields          map[string]any // the fields compared
 }
 
-var corpusFields = []string{"expect", "verdict", "stage", "at", "error", "ties", "words", "brackets"}
+var corpusFields = []string{"expect", "verdict", "stage", "at", "error", "errors", "ties", "words", "brackets", "warnings"}
 
 func readCorpus(t *testing.T) []*corpusCase {
 	files, _ := filepath.Glob("../../tests/corpus/*.jsonl")
@@ -190,6 +190,20 @@ func corpusOutcomeOf(res *ParseResult, canonical any) (map[string]any, error) {
 			got["at"] = float64(res.Error.Source[0])
 		}
 	}
+	if res.Error != nil && res.Error.Kind == ErrorReported {
+		got["verdict"] = res.Stages[len(res.Stages)-1].Verdict
+		got["error"] = map[string]any{"kind": ErrorReported}
+		errors := []any{}
+		for _, error := range res.Error.Errors {
+			errors = append(errors, map[string]any{"code": error.Code, "at": float64(error.Source[0])})
+		}
+		got["errors"] = errors
+	}
+	warnings := []any{}
+	for _, warning := range res.Warnings {
+		warnings = append(warnings, map[string]any{"stage": warning.Stage, "code": warning.Code, "at": float64(warning.Source[0])})
+	}
+	got["warnings"] = warnings
 	// An ambiguous error pins its kind and its reason (tests/README.md).
 	if res.Error != nil && res.Error.Kind == ErrorAmbiguous {
 		got["error"] = map[string]any{"kind": res.Error.Kind, "reason": res.Error.Reason}

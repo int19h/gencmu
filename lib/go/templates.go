@@ -421,7 +421,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			arguments = append(arguments, record)
 		}
 		arg := templateObj(x.normalize(argument))
-		if arg["body"] != nil || arg["test"] != nil || arg["range"] != nil || arg["wildcard"] != nil {
+		if arg["body"] != nil || arg["test"] != nil || arg["range"] != nil || arg["wildcard"] != nil || arg["splice"] != nil {
 			body := arg["body"]
 			if body == nil {
 				body = arg
@@ -596,7 +596,7 @@ func templateCalls(root any, visit func(templateObject)) {
 					templateCalls(alt[k], visit)
 				}
 				if i == 0 {
-					for _, k := range []string{"tags", "value", "image", "conditions", "emit"} {
+					for _, k := range []string{"tags", "value", "image", "conditions", "error", "warning", "emit"} {
 						templateCalls(n[k], visit)
 					}
 				}
@@ -774,7 +774,7 @@ func (x *templateExpander) convert(arg templateObject, position string, e *templ
 		if arg["string"] != nil || arg["const"] != nil {
 			return templateObject{"literal": arg}
 		}
-		for _, k := range []string{"call", "test", "range", "wildcard"} {
+		for _, k := range []string{"call", "splice", "test", "range", "wildcard"} {
 			if arg[k] != nil {
 				return arg
 			}
@@ -820,7 +820,7 @@ func (x *templateExpander) convert(arg templateObject, position string, e *templ
 		}
 	case "term":
 		valid := true
-		for _, k := range []string{"body", "targets", "requirements", "rule", "call", "test", "range", "wildcard"} {
+		for _, k := range []string{"body", "targets", "requirements", "rule", "call", "splice", "test", "range", "wildcard"} {
 			valid = valid && arg[k] == nil
 		}
 		if valid {

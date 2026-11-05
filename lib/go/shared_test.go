@@ -535,6 +535,36 @@ func checkParse(d *Pipeline, c *engineCase, options *caseOptions, expect *caseEx
 // output, with its chosen tree and completion and no position, reason or
 // readings (engine §7.9). No result has it, whatever the case expects, since
 // engine §7.8 proves that no grammar gives it.
+func namedDiagnostic(value any) bool {
+	diagnostic, ok := value.(map[string]any)
+	if !ok || len(diagnostic) != 6 {
+		return false
+	}
+	for _, field := range []string{"stage", "code", "rule", "message"} {
+		if _, ok := diagnostic[field].(string); !ok {
+			return false
+		}
+	}
+	if diagnostic["code"] != diagnostic["rule"] {
+		return false
+	}
+	for _, field := range []string{"span", "source"} {
+		pair, ok := diagnostic[field].([]any)
+		if !ok || len(pair) != 2 {
+			return false
+		}
+		for _, number := range pair {
+			if caseInteger(number, field) != nil || number.(float64) < 0 || number.(float64) > 9007199254740991 {
+				return false
+			}
+		}
+		if pair[0].(float64) > pair[1].(float64) {
+			return false
+		}
+	}
+	return true
+}
+
 func resultProblems(got any) []string {
 	var problems []string
 	result, _ := got.(map[string]any)
@@ -542,6 +572,44 @@ func resultProblems(got any) []string {
 	if e, _ := result["error"].(map[string]any); e != nil && e["code"] != nil {
 		problems = append(problems, witnessLostProblems(e, stages)...)
 		problems = append(problems, "the result is the error elision-witness-lost, which no grammar gives")
+	}
+	error, _ := result["error"].(map[string]any)
+	if error != nil && error["kind"] != ErrorReported && result["tree"] != nil {
+		problems = append(problems, "an error result other than reported has a tree")
+	}
+	if warnings, ok := result["warnings"].([]any); ok {
+		for _, warning := range warnings {
+			if !namedDiagnostic(warning) {
+				problems = append(problems, "a warning lacks its diagnostic fields")
+			}
+		}
+	}
+	if error != nil && error["kind"] == ErrorReported {
+		var last map[string]any
+		if len(stages) > 0 {
+			last, _ = stages[len(stages)-1].(map[string]any)
+		}
+		_, output := last["output"]
+		if result["ok"] != false || result["tree"] == nil || last["name"] != error["stage"] || last["verdict"] != VerdictUnique && last["verdict"] != VerdictResolved || output {
+			problems = append(problems, "a reported result lacks its retained tree and verdict or has output")
+		}
+		errors, ok := error["errors"].([]any)
+		valid := ok && len(errors) > 0
+		for _, diagnostic := range errors {
+			if !namedDiagnostic(diagnostic) {
+				valid = false
+			} else if diagnostic.(map[string]any)["stage"] != error["stage"] {
+				valid = false
+			}
+		}
+		if !valid {
+			problems = append(problems, "a reported result lacks its ordered named errors")
+		}
+		for _, field := range []string{"token", "source", "line", "column", "expected", "readings"} {
+			if _, present := error[field]; present {
+				problems = append(problems, "a reported error has the member "+field)
+			}
+		}
 	}
 	// An ambiguous error has no position (docs/output.md).
 	if e, _ := result["error"].(map[string]any); e != nil && e["kind"] == ErrorAmbiguous {

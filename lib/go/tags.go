@@ -290,7 +290,7 @@ func subset(a, b *tagset) bool {
 	return true
 }
 
-var nameSyntax = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]*$`)
+var nameSyntax = notationName{regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]*$`)}
 
 // isName accepts an ASCII letter followed by ASCII letters, digits,
 // underscores, or hyphens (engine §9).

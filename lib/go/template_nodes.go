@@ -65,13 +65,13 @@ func templateSourceKeys(n templateObject) []string {
 	var prefix []string
 	switch {
 	case n["name"] != nil && n["op"] != nil:
-		prefix = []string{"instance", "args", "tags", "value", "image", "alternatives", "conditions", "emit"}
+		prefix = []string{"instance", "args", "tags", "value", "image", "alternatives", "conditions", "error", "warning", "suppressWarnings", "emit"}
 	case n["expr"] != nil && n["test"] == nil:
 		prefix = []string{"expr", "tags", "value", "image"}
 	case n["capture"] != nil || n["insert"] != nil:
 		prefix = []string{"tags", "value", "image"}
 	}
-	order := append(prefix, "if", "then", "left", "right", "not", "any", "all", "receiver", "args", "expr", "body", "targets", "requirements", "negated", "tags", "value", "image", "pattern", "child", "children", "repeat", "separator", "optional", "seq", "choice", "ranked", "and", "union", "intersection", "difference", "concat", "items", "before", "after")
+	order := append(prefix, "if", "then", "left", "right", "not", "any", "all", "receiver", "args", "expr", "splice", "body", "targets", "requirements", "negated", "tags", "value", "image", "pattern", "child", "children", "repeat", "separator", "optional", "seq", "choice", "ranked", "and", "union", "intersection", "difference", "concat", "items", "before", "after")
 	var keys []string
 	seen := map[string]bool{}
 	for _, key := range order {
@@ -136,7 +136,7 @@ func templateArgument(expr templateObject) templateObject {
 	if expr["literal"] != nil {
 		return templateObj(expr["literal"])
 	}
-	for _, key := range []string{"param", "call", "test", "range", "wildcard"} {
+	for _, key := range []string{"param", "call", "splice", "test", "range", "wildcard"} {
 		if expr[key] != nil {
 			return expr
 		}
@@ -181,7 +181,7 @@ func writeTemplateJSON(w *jsonWriter, v any) {
 	switch n := v.(type) {
 	case map[string]any:
 		keys := templateKeys(n)
-		order := []string{"name", "params", "args", "op", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
+		order := []string{"name", "params", "args", "op", "tags", "value", "image", "alternatives", "emit", "conditions", "error", "warning", "suppressWarnings", "erased", "at"}
 		switch {
 		case n["name"] != nil && n["args"] != nil && n["op"] == nil:
 			order = []string{"name", "args", "at", "conditions"}
@@ -275,10 +275,10 @@ func templateChildPosition(key, position string) string {
 	if position == "pattern" && (key == "union" || key == "intersection" || key == "difference") {
 		return "pattern"
 	}
-	if strings.Contains("|alternatives|conditions|emit|tags|value|image|default|requirements|range|literal|concat|union|intersection|difference|left|right|receiver|if|then|not|all|any|args|", "|"+key+"|") {
+	if strings.Contains("|alternatives|conditions|error|warning|emit|tags|value|image|default|requirements|range|literal|concat|union|intersection|difference|left|right|receiver|if|then|not|all|any|args|", "|"+key+"|") {
 		return "term"
 	}
-	if position != "pattern" && strings.Contains("|seq|choice|ranked|and|optional|repeat|separator|expr|", "|"+key+"|") {
+	if position != "pattern" && strings.Contains("|seq|choice|ranked|and|optional|repeat|separator|expr|splice|", "|"+key+"|") {
 		return "expr"
 	}
 	if key == "pattern" || key == "child" {

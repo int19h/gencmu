@@ -108,6 +108,7 @@ type Stage struct {
 // Error kinds.
 const (
 	ErrorRejected        = "rejected"
+	ErrorReported        = "reported"
 	ErrorAmbiguous       = "ambiguous"
 	ErrorGrammar         = "grammar"
 	ErrorFeatureConflict = "feature-conflict"
@@ -171,6 +172,7 @@ type BoundaryCondition struct {
 // and Completion, the terminators that the check wrote back (engine §7.9).
 
 type ParseError struct {
+	Errors     []Warning
 	Feature    string
 	Boundary   *BoundaryCondition
 	Kind       string
@@ -190,13 +192,13 @@ type ParseError struct {
 	Completion []Restoration
 }
 
-// Warning reports a rule node of a stage's chosen tree that an alternative
-// with a warning guard, f!, built while the feature f was on (engine §12).
+// Warning reports an enabled, unsuppressed diagnostic from a chosen occurrence (engine §12).
 // Span counts the stage's input tokens, Source the original text's code
 // points, as a node's do.
 type Warning struct {
 	Stage   string
-	Feature string
+	Code    string
+	Message string
 	Rule    string
 	Span    [2]int
 	Source  [2]int

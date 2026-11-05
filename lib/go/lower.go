@@ -10,8 +10,9 @@ import (
 // and rules, the helpers for the notation's sugar among the rules.
 
 type symbol struct {
-	term bool
-	id   int32 // a terminal's index in lowered.terminals, or a rule's in lowered.rules
+	route uint8
+	term  bool
+	id    int32 // a terminal's index in lowered.terminals, or a rule's in lowered.rules
 }
 
 type slotMetadata struct {
@@ -20,6 +21,13 @@ type slotMetadata struct {
 }
 
 type production struct {
+	error, warning    *domTerm
+	suppressWarnings  []string
+	spliceTarget      *int32
+	source            *production
+	treeRoot          bool
+	forwardCaptures   map[int]string
+	guardConditions   []*domCond
 	boundaryOriginal  map[*domCond]*domCond
 	logicalGroups     []logicalGroup
 	helperExpression  *domExpr // the written helper site, shared by split routes
@@ -73,10 +81,6 @@ type production struct {
 	ruleName         string   // the rule the author wrote (for a helper, the one it serves)
 	doc              string
 	at               [2]int
-	// warnings holds every written warning name of the alternative, in
-	// written order. Output selects enabled names for the chosen tree (§12).
-	// A helper has none.
-	warnings []string
 }
 
 // condRange is where the conditions that are ready once an item's dot
@@ -98,15 +102,17 @@ type lcond struct {
 }
 
 type lrule struct {
-	name     string
-	helper   bool
-	owner    string
-	prods    []*production
-	nullable bool
-	scc      int // the index of its same-span cycle class, or -1 if it can never lie below itself
+	spliceTarget *int32
+	name         string
+	helper       bool
+	owner        string
+	prods        []*production
+	nullable     bool
+	scc          int // the index of its same-span cycle class, or -1 if it can never lie below itself
 }
 
 type lowered struct {
+	hasErrors       bool
 	treeSites       []treeSite
 	treeDemands     map[treeDemandKey]*treeDemand
 	profileOnce     sync.Once
@@ -136,7 +142,7 @@ type lowered struct {
 	// found (§3), or "": parsing with it is a result with that error.
 	fault         string
 	faultLocation *Error
-	// warns says some production gives warnings under these features (§12).
+	// warns says that some production carries a diagnostic (§12).
 	warns bool
 	// classifiers holds the stage's classifiers resolved for these
 	// features: for each, each key's classes (§2).
@@ -153,11 +159,12 @@ type lowered struct {
 }
 
 type slot struct {
-	logicalMark int
-	logicalExpr *domExpr
-	sym         symbol
-	capture     string
-	test        *symTest // nil for a symbol without a test
+	captureTerminal bool
+	logicalMark     int
+	logicalExpr     *domExpr
+	sym             symbol
+	capture         string
+	test            *symTest // nil for a symbol without a test
 }
 
 // symTest is a test of a symbol in a body (engine §2, §4) with its value:
@@ -182,6 +189,8 @@ func (p *production) testAt(i int) *symTest {
 }
 
 type lowerer struct {
+	spliceNames map[int32]int32
+	spliceOrder []int32
 	helperNodes map[int32]*helperNode
 	rankOptions map[int32][]int
 	commonConds map[*sAlt]map[string][]*domCond
@@ -207,11 +216,10 @@ type lowerer struct {
 	braceItems []braceItem
 	// The clauses of each rule, split by the presence of captures once
 	// for all its productions, by the term, list or emission split, and
-	// the warnings of each alternative, found once (§3.6).
-	terms    map[*domTerm]*termLowering
-	condsOf  map[condsKey]*condLowering
-	emits    map[*domEmit]*emitSplit
-	warnings map[*sAlt][]string
+	// the recipes of each alternative, found once (§3.6).
+	terms   map[*domTerm]*termLowering
+	condsOf map[condsKey]*condLowering
+	emits   map[*domEmit]*emitSplit
 }
 
 // condsKey is a list of conditions, known by its first element and its
@@ -260,7 +268,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 		return l
 	}
 	l.classifiers = tables.tables
-	lw := &lowerer{helperNodes: map[int32]*helperNode{}, rankOptions: map[int32][]int{}, commonConds: map[*sAlt]map[string][]*domCond{}, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
+	lw := &lowerer{helperNodes: map[int32]*helperNode{}, rankOptions: map[int32][]int{}, commonConds: map[*sAlt]map[string][]*domCond{}, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
 		l.rules = append(l.rules, &lrule{name: r.name, owner: r.name, scc: -1})
@@ -269,6 +277,26 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 		if lw.lowerRule(r); l.fault != "" {
 			return l
 		}
+	}
+	for _, target := range lw.spliceOrder {
+		alias := lw.spliceNames[target]
+		for _, original := range l.rules[target].prods {
+			p := *original
+			p.num = len(l.prods)
+			p.lhs = alias
+			p.helper = true
+			p.transparent = true
+			target := target
+			p.spliceTarget = &target
+			p.source = sourceProduction(original)
+			l.prods = append(l.prods, &p)
+			l.rules[alias].prods = append(l.rules[alias].prods, &p)
+			lw.structural = append(lw.structural, structuralProduction{alias, p.rhs})
+		}
+	}
+	for _, p := range l.prods {
+		p.treeRoot = !p.helper || p.spliceTarget != nil
+		l.hasErrors = l.hasErrors || p.error != nil
 	}
 	terminals := map[string]bool{}
 	visited := map[clausePart]bool{}
@@ -405,7 +433,7 @@ func (lw *lowerer) newHelper(owner *sAlt, ownerRule string) int32 {
 // a gate and never drops its alternative (§3.1).
 func (lw *lowerer) guardsHold(a *domAlt) bool {
 	for _, gd := range a.Guards {
-		if gd.Kind != FeatureWarning && lw.features[gd.Feature] == gd.Negated {
+		if lw.features[gd.Feature] == gd.Negated {
 			return false
 		}
 	}
@@ -668,6 +696,22 @@ func (lw *lowerer) newProduction(lhs int32, body []slot) *production {
 	for i, s := range body {
 		p.rhs = append(p.rhs, s.sym)
 		p.capSlot[i] = -1
+		if s.capture != "" {
+			if p.posOf == nil {
+				p.posOf = map[string]int{}
+			}
+			p.capName[i] = s.capture
+			p.posOf[s.capture] = i
+			p.capSlot[i] = int32(p.nslots)
+			p.slotOf[s.capture] = int32(p.nslots)
+			p.nslots++
+		}
+		if s.captureTerminal {
+			if p.forwardCaptures == nil {
+				p.forwardCaptures = map[int]string{}
+			}
+			p.forwardCaptures[i] = s.capture
+		}
 		if s.test != nil {
 			// A tested symbol is the symbol, and carries its test (§3).
 			if p.tests == nil {
@@ -679,8 +723,10 @@ func (lw *lowerer) newProduction(lhs int32, body []slot) *production {
 	if inherit >= 0 {
 		// One symbol and no tags: the symbol's tags (§3.7), read as captured.
 		p.implicit = true
-		p.capSlot[inherit] = 0
-		p.nslots = 1
+		if p.capSlot[inherit] < 0 {
+			p.capSlot[inherit] = int32(p.nslots)
+			p.nslots++
+		}
 	}
 	lw.l.prods = append(lw.l.prods, p)
 	r := lw.l.rules[lhs]
@@ -745,18 +791,8 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	}
 	p.ruleName = lw.l.rules[lhs].name
 	p.doc, p.at = a.doc, a.at
-	warnings, ok := lw.warnings[a]
-	if !ok {
-		for _, gd := range a.alt.Guards {
-			presenceStep()
-			if gd.Kind == FeatureWarning {
-				warnings = append(warnings, gd.Feature)
-			}
-		}
-		lw.warnings[a] = warnings
-	}
-	if len(warnings) > 0 {
-		p.warnings = appendCounted(nil, warnings, readerCount(), "reader steps")
+	p.error, p.warning, p.suppressWarnings = a.error, a.warning, a.suppressWarnings
+	if p.error != nil || p.warning != nil {
 		lw.l.warns = true
 	}
 	p.transparent = p.logicalCount == 1
@@ -860,6 +896,8 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 		p.emit = e
 		p.nothing = a.erased
 	}
+	lw.expandTagVariants(p, a)
+
 }
 
 // simplifyTerm simplifies a term for a production whose captures are
@@ -879,6 +917,8 @@ func (lw *lowerer) simplifyTerm(t *domTerm, names []string, has func(string) boo
 // tested.
 func elidableTerminal(e *domExpr) (string, *domExpr) {
 	switch {
+	case e.Kind == exCapture:
+		return elidableTerminal(e.Inner)
 	case e.Kind == exSeq:
 		return elidableTerminal(e.Items[0])
 	case e.Kind == exTest:
@@ -988,8 +1028,33 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 			out = append(out, lw.expandSeq(chosen, a, ruleName)...)
 		}
 		return out
+	case exSplice:
+		target, ok := lw.l.byName[e.Inner.Name]
+		if !ok {
+			lw.loweringFault(a, "a splice requires a resolved rule reference")
+			return nil
+		}
+		if lw.spliceNames == nil {
+			lw.spliceNames = map[int32]int32{}
+		}
+		alias, ok := lw.spliceNames[target]
+		if !ok {
+			alias = int32(len(lw.l.rules))
+			name := "\x00splice:" + e.Inner.Name
+			lw.l.byName[name] = alias
+			lw.l.rules = append(lw.l.rules, &lrule{name: name, owner: e.Inner.Name, helper: true, scc: -1, spliceTarget: &target})
+			lw.spliceNames[target] = alias
+			lw.spliceOrder = append(lw.spliceOrder, target)
+		}
+		return [][]slot{{{sym: symbol{id: alias}}}}
 	case exOptional:
 		inner := e.Inner
+		if e.Elidable && inner.Kind == exCapture {
+			terminal, test := lw.elision(e, a)
+			helper := lw.helper(a, ruleName, terminal, test, func(int32) [][]slot { return append([][]slot{{}}, lw.expand(inner, a, ruleName)...) })
+			h := helper[0][0].sym.id
+			return [][]slot{{{sym: symbol{id: h, route: 1}}}, {{sym: symbol{id: h, route: 2}, capture: inner.Name, captureTerminal: true}}}
+		}
 		// A plain optional that holds a capture expands in place, as
 		// (ε | x) would: first the empty sequence, then each expansion of
 		// x (§3.2).
@@ -1386,4 +1451,59 @@ func (lw *lowerer) elision(e *domExpr, a *sAlt) (string, *symTest) {
 	}
 
 	return elide, elideT
+}
+
+func sourceProduction(p *production) *production {
+	p = baseProduction(p)
+	if p.source != nil {
+		return p.source
+	}
+	return p
+}
+
+func (lw *lowerer) expandTagVariants(p *production, a *sAlt) {
+	variants, fault := guardedTagVariants(p.tags)
+	if fault != "" {
+		lw.loweringFault(a, "%s", fault)
+		return
+	}
+	original := *p
+	for index, variant := range variants {
+		q := p
+		if index > 0 {
+			copy := original
+			q = &copy
+			q.num = len(lw.l.prods)
+			q.source = p
+			lw.l.prods = append(lw.l.prods, q)
+			lw.l.rules[q.lhs].prods = append(lw.l.rules[q.lhs].prods, q)
+		}
+		q.tags = variant.tags
+		q.guardConditions = variant.conditions
+		q.conds = append([]lcond(nil), original.conds...)
+		q.predictConds = append([]*domCond(nil), original.predictConds...)
+		for _, condition := range variant.conditions {
+			if len(q.rhs) == 0 {
+				q.predictConds = append(q.predictConds, condition)
+			} else {
+				q.conds = append(q.conds, lcond{cond: condition, trigger: len(q.rhs), whole: true})
+			}
+		}
+		if len(q.conds) > 0 {
+			q.condFrom = make([]int32, len(q.rhs)+2)
+			for _, c := range q.conds {
+				q.condFrom[c.trigger+1]++
+			}
+			for i := 1; i < len(q.condFrom); i++ {
+				q.condFrom[i] += q.condFrom[i-1]
+			}
+		}
+	}
+}
+
+func (g *lowered) cycleRule(rule int32) int32 {
+	if target := g.rules[rule].spliceTarget; target != nil {
+		return *target
+	}
+	return rule
 }

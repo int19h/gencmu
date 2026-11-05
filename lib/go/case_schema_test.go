@@ -311,7 +311,7 @@ func resultPatternProblem(pattern any) error {
 				return fmt.Errorf("a result pattern cannot assert an error message. Use expect.message")
 			}
 			for key, child := range value {
-				pending = append(pending, entry{child, part.inError || key == "error"})
+				pending = append(pending, entry{child, key != "errors" && (part.inError || key == "error")})
 			}
 		case []any:
 			for _, child := range value {

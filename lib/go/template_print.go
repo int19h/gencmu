@@ -78,6 +78,9 @@ func templateCanonical(n templateObject, uni *unicodeTable) string {
 	if n["literal"] != nil {
 		return p(n["literal"])
 	}
+	if n["splice"] != nil {
+		return "*" + p(n["splice"])
+	}
 	if n["range"] != nil {
 		return join(n["range"], "..")
 	}

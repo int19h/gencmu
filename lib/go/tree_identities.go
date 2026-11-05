@@ -113,7 +113,7 @@ func (g *lowered) prepareTreeDemands() {
 				for _, term := range []*domTerm{comparison.Left, comparison.Right} {
 					if term.Str == "" {
 						d.whole = true
-						d.parentPrefix = p.helper
+						d.parentPrefix = p.helper && p.spliceTarget == nil
 					} else if at, found := p.posOf[term.Str]; found {
 						d.positions[at] = true
 					} else {
@@ -175,7 +175,11 @@ func (g *lowered) prepareTreeDemands() {
 					captures[n] = capVal{}
 				}
 			}
-			child := &rankedFrame{present: present, knownPrivate: known, captures: captures, inside: inside}
+			root := p
+			if f != nil {
+				root = f.root
+			}
+			child := &rankedFrame{root: root, present: present, knownPrivate: known, captures: captures, inside: inside}
 			for _, q := range g.rules[symbol.id].prods {
 				entry.edges = append(entry.edges, treeDemandEdge{index, state(q, child)})
 			}
@@ -351,7 +355,7 @@ func (m *treeArena) semantic(identity int) string {
 			continue
 		}
 		n := m.nodes[f.identity]
-		if n.kind != "Rule" {
+		if n.kind != "Rule" && n.kind != "Anonymous" {
 			m.semanticNodes[f.identity] = "[" + strconv.Quote(n.kind) + "," + strconv.Quote(n.name) + "," + strconv.Quote(n.value) + "]"
 			continue
 		}
@@ -366,7 +370,7 @@ func (m *treeArena) semantic(identity int) string {
 			continue
 		}
 		var text strings.Builder
-		text.WriteString("[\"Rule\"," + strconv.Quote(n.name) + ",[")
+		text.WriteString("[" + strconv.Quote(n.kind) + "," + strconv.Quote(n.name) + ",[")
 		for i, child := range children {
 			if i != 0 {
 				text.WriteByte(',')
@@ -437,7 +441,9 @@ func (em *stringEmitter) treeIdentity(root *occurrence) int {
 			}
 		}
 		state := treeState{prefix: sequence, sequence: sequence}
-		if !n.prod.helper {
+		if n.prod.spliceTarget != nil {
+			state.identity = em.trees.intern(treeNodeKey{kind: "Anonymous", children: sequence})
+		} else if !n.prod.helper {
 			state.identity = em.trees.intern(treeNodeKey{kind: "Rule", name: em.rec.g.rules[n.prod.lhs].name, children: sequence})
 			state.sequence = em.trees.append(0, state.identity)
 		} else if n.prod.restoration() {
@@ -461,7 +467,9 @@ func (r *recognizer) finishTree(key *itemKey) {
 	}
 	state.sequence = state.prefix
 	if int(key.dot) == len(p.rhs) && p.walksTrees {
-		if !p.helper {
+		if p.spliceTarget != nil {
+			state.identity = r.trees.intern(treeNodeKey{kind: "Anonymous", children: state.prefix})
+		} else if !p.helper {
 			state.identity = r.trees.intern(treeNodeKey{kind: "Rule", name: r.g.rules[p.lhs].name, children: state.prefix})
 			state.sequence = r.trees.append(0, state.identity)
 		} else if p.restoration() {
@@ -610,7 +618,7 @@ func (g *lowered) checkTreeCycles(rows []structuralProduction) {
 		for _, operand := range []*domTerm{site.comparison.Left, site.comparison.Right} {
 			if operand.Str == "" {
 				roots = append(roots, site.prefix...)
-				if !site.production.helper {
+				if site.production.treeRoot {
 					for _, symbol := range site.production.rhs {
 						if !symbol.term && g.rankedHelpers[symbol.id] == nil {
 							roots = append(roots, symbol.id)

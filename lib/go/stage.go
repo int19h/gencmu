@@ -340,7 +340,12 @@ func (run *stageRun) run(g *lowered, elisionOnly bool, features map[string]bool)
 	// Only the chosen tree gives warnings: not the check of elision-only
 	// (§12).
 	if g.warns {
-		out.warnings = run.warnings(rec, res.first, features)
+		var errors []Warning
+		errors, out.warnings = run.reports(rec, res.first, features)
+		if len(errors) > 0 {
+			out.err = &ParseError{Kind: ErrorReported, Stage: run.name, Errors: errors, Message: "the chosen derivation reports errors"}
+			return out
+		}
 	}
 	// The stage emits its tokens before the check of §7. An error found
 	// while emitting ends the stage before the check (§6).

@@ -162,7 +162,7 @@ func (g *lowered) prepareRanked() {
 			}
 			if p.helper && p.slot != nil {
 				g.writtenHelpers[p.lhs] = fmt.Sprintf("%s/%v/%s", p.ruleName, p.at, g.stage.ranked.paths[p.slot.path])
-				p.contextual = p.contextual || sources[p.slot.source]
+				p.contextual = p.contextual || p.spliceTarget == nil && sources[p.slot.source]
 			}
 		}
 	}
@@ -177,7 +177,7 @@ func (g *lowered) prepareRanked() {
 		for len(pending) > 0 {
 			r := pending[len(pending)-1]
 			pending = pending[:len(pending)-1]
-			if seen[r] || !g.rules[r].helper {
+			if seen[r] || !g.rules[r].helper || g.rules[r].spliceTarget != nil {
 				continue
 			}
 			seen[r] = true
@@ -261,7 +261,11 @@ func (g *lowered) prepareRankedConditions() {
 					captures[n] = capVal{}
 				}
 			}
-			child := &rankedFrame{present: present, captures: captures, knownPrivate: known}
+			root := f.root
+			if root == nil {
+				root = p
+			}
+			child := &rankedFrame{root: root, present: present, captures: captures, knownPrivate: known}
 			if g.stage.treeComparisons {
 				child.treeBindings = map[string]treeBinding{}
 				for name, binding := range f.treeBindings {
@@ -291,8 +295,8 @@ func (g *lowered) prepareRankedConditions() {
 		}
 	}
 	for _, p := range g.prods {
-		if !p.helper {
-			enter(p, &rankedFrame{})
+		if p.treeRoot {
+			enter(p, &rankedFrame{root: p})
 		}
 	}
 	seen := map[string]bool{}
@@ -397,6 +401,9 @@ func (r *recognizer) rankedPrefix(it *item) string {
 	}
 	if r.trees != nil && it.tree != nil {
 		boundary += fmt.Sprintf("/t%d", it.tree.prefix)
+	}
+	if len(p.guardConditions) > 0 {
+		boundary += fmt.Sprintf("/v%d", baseProduction(p).num)
 	}
 	return boundary + fmt.Sprintf("%s/%v/%q/%q/%d/%d/%d/%d/%q/%d/%t/%s", p.ruleName, p.at, path, symbols, it.dot, it.origin, it.prefix, sequence, captures, lexical, it.restores, p.rankedBindings)
 }
@@ -624,6 +631,13 @@ func (g *lowered) bindRankedConditions(q, p *production, f *rankedFrame, atomOf 
 			}
 		}
 	}
+	for _, condition := range p.guardConditions {
+		if len(p.rhs) == 0 {
+			q.predictConds = append(q.predictConds, condition)
+		} else {
+			q.conds = append(q.conds, lcond{condition, len(p.rhs), true})
+		}
+	}
 	if len(q.conds) > 0 {
 		sort.SliceStable(q.conds, func(i, j int) bool { return q.conds[i].trigger < q.conds[j].trigger })
 		q.condFrom = make([]int32, len(p.rhs)+2)
@@ -672,6 +686,45 @@ func (r *recognizer) rankedProduction(p *production, f *rankedFrame) *production
 			q.parentTags = tags[0]
 		} else if len(tags) > 1 {
 			q.parentTags = &domTerm{Kind: tmUnion, Items: tags}
+		}
+	}
+	if q.parentTags != nil {
+		assigned := map[string]bool{}
+		if f.root != nil {
+			for _, condition := range f.root.guardConditions {
+				atom := condition
+				if atom.Kind == cdNot {
+					atom = atom.Inner
+				}
+				assigned[tagAtomKey(atom)] = condition.Kind != cdNot
+			}
+		}
+		variants, fault := guardedTagVariants(q.parentTags)
+		if fault != "" {
+			panic(&parseFailure{message: fault})
+		}
+		found := false
+		for _, variant := range variants {
+			matches := true
+			for _, condition := range variant.conditions {
+				atom := condition
+				if atom.Kind == cdNot {
+					atom = atom.Inner
+				}
+				value, known := assigned[tagAtomKey(atom)]
+				if !known || value != (condition.Kind != cdNot) {
+					matches = false
+					break
+				}
+			}
+			if matches {
+				q.parentTags = variant.tags
+				found = true
+				break
+			}
+		}
+		if !found {
+			panic("a ranked frame lost its enclosing tag assignment")
 		}
 	}
 	r.rankedProductions[key] = &q
