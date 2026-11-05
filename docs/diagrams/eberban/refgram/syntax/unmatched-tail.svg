@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="709" height="200" viewBox="0 0 709 200" role="img" aria-label="Railroad diagram of the rule unmatched-tail">
+<svg xmlns="http://www.w3.org/2000/svg" width="734" height="200" viewBox="0 0 734 200" role="img" aria-label="Railroad diagram of the rule unmatched-tail">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="117.6" lengthAdjust="spacingAndGlyphs">unmatched-tail</text>
@@ -17,15 +17,22 @@
 <g class="rule"><rect x="515" y="44" width="134" height="24" rx="0"/><text x="582" y="61" textLength="117.6" lengthAdjust="spacingAndGlyphs">unmatched-tail</text></g>
 <path d="M649 56H669"/>
 <path d="M495 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H649a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M669 56H689"/>
+<path d="M669 56H714"/>
 <path d="M20 56a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="88" width="176" height="24" rx="12"/><text x="128" y="105" textLength="159.6" lengthAdjust="spacingAndGlyphs">*resume-chain-empty</text></g>
 <path d="M216 100h10"/>
-<path d="M226 100h20"/>
-<g class="rule"><rect x="246" y="88" width="134" height="24" rx="0"/><text x="313" y="105" textLength="117.6" lengthAdjust="spacingAndGlyphs">unmatched-tail</text></g>
-<path d="M380 100H400"/>
-<path d="M226 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H380a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
-<path d="M400 100H669a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="226" y="88" width="92" height="24" rx="0"/><text x="272" y="105" textLength="75.6" lengthAdjust="spacingAndGlyphs">step-tail</text></g>
+<path d="M318 100h10"/>
+<path d="M328 100h20"/>
+<g class="rule"><rect x="348" y="88" width="142" height="24" rx="0"/><text x="419" y="105" textLength="126" lengthAdjust="spacingAndGlyphs">ri-continuation</text></g>
+<path d="M490 100H510"/>
+<path d="M328 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H490a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M510 100h10"/>
+<path d="M520 100h20"/>
+<g class="rule"><rect x="540" y="88" width="134" height="24" rx="0"/><text x="607" y="105" textLength="117.6" lengthAdjust="spacingAndGlyphs">unmatched-tail</text></g>
+<path d="M674 100H694"/>
+<path d="M520 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H674a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M694 100H694a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
 <path d="M20 56a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="132" width="151" height="24" rx="0"/><text x="115.5" y="149" textLength="134.4" lengthAdjust="spacingAndGlyphs">unmatched-closer</text></g>
 <path d="M191 144h10"/>
@@ -43,6 +50,6 @@
 <g class="rule"><rect x="453" y="132" width="134" height="24" rx="0"/><text x="520" y="149" textLength="117.6" lengthAdjust="spacingAndGlyphs">unmatched-tail</text></g>
 <path d="M587 144H607"/>
 <path d="M433 144a10 10 0 0 0 10 -10V132a10 10 0 0 1 10 -10H587a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
-<path d="M607 144H669a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M689 56h6m0 -8v16m4 -16v16"/>
+<path d="M607 144H694a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M714 56h6m0 -8v16m4 -16v16"/>
 </svg>

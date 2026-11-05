@@ -10,10 +10,10 @@
 <g class="terminal"><rect x="40" y="68" width="168" height="24" rx="12"/><text x="124" y="85" textLength="151.2" lengthAdjust="spacingAndGlyphs">*number-empty-base</text></g>
 <path d="M208 80H317a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="102" width="184" height="24" rx="12"/><text x="132" y="119" textLength="168" lengthAdjust="spacingAndGlyphs">*number-empty-repeat</text></g>
+<g class="terminal"><rect x="40" y="102" width="184" height="24" rx="12"/><text x="132" y="119" textLength="168" lengthAdjust="spacingAndGlyphs">*empty-repeat-number</text></g>
 <path d="M224 114H317a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="136" width="210" height="24" rx="12"/><text x="145" y="153" textLength="193.2" lengthAdjust="spacingAndGlyphs">*number-empty-magnitude</text></g>
+<g class="terminal"><rect x="40" y="136" width="210" height="24" rx="12"/><text x="145" y="153" textLength="193.2" lengthAdjust="spacingAndGlyphs">*empty-magnitude-number</text></g>
 <path d="M250 148H317a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="170" width="277" height="24" rx="12"/><text x="178.5" y="187" textLength="260.4" lengthAdjust="spacingAndGlyphs">*number-repeat-without-fraction</text></g>
