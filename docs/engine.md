@@ -1154,7 +1154,7 @@ If negative target sets of one direction cover a positive target set of that dir
 
 Each remaining variant has the same body and concrete neighbour-dependent tags. Append each assigned atom or its negation after all written conditions. Preserve every definition clause and the source rule and production identity. Internal variants add no node or distinct source derivation. Exactly one assignment survives for each settled derivation, so each occurrence reports once.
 
-Merge equivalent variants and prune impossible assignments before counting the variants of one effective production. More than 16 is a document error, independent of the `&` limit. More than 8 gets an audit note. The loader applies ranked tag safety (§2.1) to every tag set that a variant can return.
+Equivalent variants have equal effective tag terms and equal appended boundary obligations. Merge equivalent variants and prune impossible assignments before counting the variants of one effective production. More than 16 is a document error, independent of the `&` limit. More than 8 gets an audit note. The loader applies ranked tag safety (§2.1) to every tag set that a variant can return.
 
 A guard is one optionally negated boundary atom on `$`, with a literal tag-set consequent. Compound Boolean guards, captured receivers, and nonliteral consequents are document errors. Other tag-term restrictions still apply.
 
@@ -1212,7 +1212,7 @@ Query helpers follow every production from the written grammar, including its he
 
 `*r` lowers to one call of r with a transparent occurrence marker. It never copies r's expression into its caller. The call keeps every target clause, including emission, erasure, diagnostic, and suppression. Its logical slot contributes r's computed tags.
 
-Recognition retains the target rule identity for cycle exclusion. A spliced and an ordinary call share the same rule-and-span cycle key. Tree construction, patterns, and tree identities omit the spliced root and flatten its children in order. Action comparison ignores its close, regardless of its symbol count.
+Recognition retains the target rule identity for cycle exclusion. A spliced and an ordinary call share the same rule-and-span cycle key. Tree construction, patterns, and tree identities omit the spliced root and flatten its children in order. Action comparison ignores its close, regardless of its symbol count. Rejection expectations retain the called definition as their owner.
 
 A capture of a splice retains that anonymous constituent, including its span, tags, strings, and ordered child sequence. Presence holds even over an empty span. `$` inside the spliced call has the same anonymous structure. Anonymous constituents compare by their child sequences, and a root-name test for r fails.
 
