@@ -990,13 +990,15 @@ A sentence after `ra` needs a written starter. A sentence without that starter i
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-must-be-followed-by-sentence-starter.svg" alt="Railroad diagram of the rule erased-must-be-followed-by-sentence-starter"></p>
 </details>
 
-A written `JI` follows no number part in `number-end-alone`. This prevents splitting a written terminator from its number to disguise a failed resumption. Empty repeat and magnitude recovery retain preceding parts and report only on the trailing `ja` or `je`.
+A written `JI` cannot detach from a number that omits its own `JI`. This prevents splitting a written terminator from its number to disguise a failed resumption. Empty base recovery retains its written `JI`. Empty repeat and magnitude recovery retain only a grammatical prefix and report on the trailing `ja` or `je`.
+
+The prefix readers forbid a repeated part without `jo`, duplicates, and parts in the wrong order. An erroneous prefix stays outside the empty-part wrapper and keeps its own error.
 
 Number recovery distinguishes missing parts from parts in the wrong order. The loose reader retains each part. Digit runs take every following digit except the start of a base. This prevents alternate divisions of one faulty number. The ordered counterpart distinguishes order errors from missing digits or a missing fraction marker.
 
 ```jbogenbau
 %extend-rule base-verb
-  | *number-end-alone | *number-empty-base | *empty-repeat-number | *empty-magnitude-number
+  | *number-end-alone | *empty-base-number | *empty-repeat-number | *empty-magnitude-number
   | *number-repeat-without-fraction | *number-without-digits | *number-part-order
 
 %rule number-part
@@ -1021,18 +1023,27 @@ Number recovery distinguishes missing parts from parts in the wrong order. The l
 %rule number-end-alone
   JI
 %conditions
-  ¬$.preceding-tokens.ends(number-start)
+  $.preceding-tokens.ends(JI) ∨ ¬$.preceded-by(number)
 %error "ji needs a preceding number part"
+
+%rule empty-base-number
+  *number-empty-base [JI]
 
 %rule number-empty-base
   JU
 %error "ju needs a preceding ti digit for its base"
 
+%rule repeat-number-prefix
+  [loose-base] [loose-digits] [loose-fraction]
+
+%rule magnitude-number-prefix
+  [loose-base] [loose-digits] [loose-fraction [JA loose-digits]]
+
 %rule empty-repeat-number
-  [{number-part}] *number-empty-repeat [JI]
+  *repeat-number-prefix *number-empty-repeat [JI]
 
 %rule empty-magnitude-number
-  [{number-part}] *number-empty-magnitude [JI]
+  *magnitude-number-prefix *number-empty-magnitude [JI]
 
 %rule number-empty-repeat
   JA
@@ -1062,7 +1073,7 @@ Number recovery distinguishes missing parts from parts in the wrong order. The l
 
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>base-verb</code> to <code>number-part-order</code></summary>
+<details><summary>Railroad diagrams of the 18 rules from <code>base-verb</code> to <code>number-part-order</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.5.svg" alt="Railroad diagram of the rule base-verb"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-part.svg" alt="Railroad diagram of the rule number-part"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-base.svg" alt="Railroad diagram of the rule loose-base"></p>
@@ -1070,7 +1081,10 @@ Number recovery distinguishes missing parts from parts in the wrong order. The l
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-fraction.svg" alt="Railroad diagram of the rule loose-fraction"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ordered-number-parts.svg" alt="Railroad diagram of the rule ordered-number-parts"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-end-alone.svg" alt="Railroad diagram of the rule number-end-alone"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-base-number.svg" alt="Railroad diagram of the rule empty-base-number"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-empty-base.svg" alt="Railroad diagram of the rule number-empty-base"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/repeat-number-prefix.svg" alt="Railroad diagram of the rule repeat-number-prefix"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/magnitude-number-prefix.svg" alt="Railroad diagram of the rule magnitude-number-prefix"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-repeat-number.svg" alt="Railroad diagram of the rule empty-repeat-number"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-magnitude-number.svg" alt="Railroad diagram of the rule empty-magnitude-number"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-empty-repeat.svg" alt="Railroad diagram of the rule number-empty-repeat"></p>
@@ -1158,7 +1172,7 @@ The named rules below reject only their chosen erroneous reading. Every erasable
 | `spelling-empty` | `base-verb` | [`E_SpellingEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L524) |
 | `erased-must-be-followed-by-sentence-starter` | The optional final child inside `ra-run` | [`E_ErasedMustBeFollowedBySentenceStarter`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L287) |
 | `number-end-alone` | `base-verb` | [`E_NumberEndAlone`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L611) |
-| `number-empty-base` | `base-verb` | [`E_NumberEmptyBase`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L612) |
+| `number-empty-base` | `empty-base-number`, on its `JU` | [`E_NumberEmptyBase`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L612) |
 | `number-empty-repeat` | `empty-repeat-number`, on its `JA` | [`E_NumberEmptyRepeat`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L613) |
 | `number-empty-magnitude` | `empty-magnitude-number`, on its `JE` | [`E_NumberEmptyMagnitude`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L614) |
 | `number-repeat-without-fraction` | `base-verb` | [`Number`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L558) |
