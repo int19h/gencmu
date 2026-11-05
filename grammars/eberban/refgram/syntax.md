@@ -762,7 +762,7 @@ Each fault error reads the token that carries its class. Its span is that token 
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/incomplete-compound.svg" alt="Railroad diagram of the rule incomplete-compound"></p>
 </details>
 
-Unmatched closing particles have no open construct to claim them. Text recovery reads them after a sentence body or at a sentence start. This keeps closers out of verb positions inside chains. A stray resumption reads its attempted verb and explains that its structure does not match. The empty resumption instead names the missing verb. Recovery also spans a closer after erasure.
+Unmatched closing particles have no open construct to claim them. Text recovery reads them after a sentence body or at a sentence start. This keeps closers out of verb positions inside chains. A stray resumption reads its attempted verb and explains that its structure does not match. The empty resumption instead names the missing verb. Its following binds remain readable, so a bind opener does not hide that error. Recovery also spans a closer after erasure.
 
 Each recovery tail forwards only its own unmatched `DAI` mark and the marks of subsequent tails. It does not forward marks from nested definitions. `$OWNED-DAI-RECOVERY` finds those tails only in the parenthetical's own text skeleton. The parenthetical rejects that recovery, so its first available `dai` closes it. Nested quotes retain their own recovery scope.
 
@@ -779,7 +779,7 @@ Each recovery tail forwards only its own unmatched `DAI` mark and the marks of s
 
 %rule unmatched-tail
   | unmatched-resume step-tail [ri-continuation] [$t:unmatched-tail] :: ($t ⟹ $t.tags)
-  | *resume-chain-empty [$t:unmatched-tail] :: ($t ⟹ $t.tags)
+  | *resume-chain-empty step-tail [ri-continuation] [$t:unmatched-tail] :: ($t ⟹ $t.tags)
   | $c:unmatched-closer [ri-continuation | definition] [$t:unmatched-tail]
       :: ($c.tags ∩ DAI) ∪ ($t ⟹ $t.tags)
 
@@ -855,7 +855,9 @@ Each recovery tail forwards only its own unmatched `DAI` mark and the marks of s
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/modified-empty.svg" alt="Railroad diagram of the rule modified-empty"></p>
 </details>
 
-An empty-chain diagnostic follows a written starter, an erased chain, a negation, or an arguments list. It also follows a definable `o` target or an enumeration separator. When its following chain is missing, the separator still belongs to its open enumeration. The positive-width owner keeps repetitions non-nullable. A boundary test detects the missing operand without recursively parsing recovery alternatives. The diagnostic preference chooses this recovery over an unmatched `be` reading with the same error count.
+An empty-chain diagnostic follows a written starter, an erased chain, a negation, or an arguments list. It also follows a definable `o` target or an enumeration separator. When its following chain is missing, the separator still belongs to its open enumeration.
+
+The positive-width owner keeps repetitions non-nullable. A boundary test detects the missing operand without recursively parsing recovery alternatives. It recognizes annotated `vi` and `fi`, with optional `bi`, without reading the bind operand. The diagnostic preference chooses this recovery over an unmatched `be` reading with the same error count.
 
 ```jbogenbau
 %extend-rule a-sentence
@@ -875,7 +877,10 @@ An empty-chain diagnostic follows a written starter, an erased chain, a negation
   bi-free *chain-empty
 
 %rule missing-operand-boundary
-  starter-head | PO | RA | RI | sentence-closer | end-of-text
+  starter-head | PO | RA | RI | bind-start | sentence-closer | end-of-text
+
+%rule bind-start
+  [bi-free] [{prefix}] (VI | FI)
 
 %rule chain-empty
   ε
@@ -915,7 +920,7 @@ An `o` or `ni` sentence needs a definable target before any definition. Its reco
   [{prefix}] O [{postfix}] *not-definable-o [definition]
 
 %extend-rule ni-sentence
-  [{prefix}] NI *not-definable-ni [verb]
+  [{prefix}] NI *not-definable-ni [definition]
 
 %rule not-definable-o
   ε
@@ -1155,6 +1160,8 @@ The named rules below reject only their chosen erroneous reading. Every erasable
 `E_EmptyParenthetical` remains a book-based departure because any valid text, including an empty text, can occupy a parenthetical. The book-allowed `E_ErasedMustBeFollowedBySentenceStarter` cases also remain departures. An enclosing quote or parenthesis can end after erasure, and a later `ra` can erase the following invalid stretch.
 
 The grammar gives `ci` no fault alternative. Unsupported quote operands, unclassified junk, missing word boundaries, and a free prefix before `po` retain ordinary rejection. A `JI` value restriction also remains outside this grammar, as the preceding numbers discussion explains.
+
+Missing-operand recovery stops at structural boundaries, including a bind opener. A dangling free prefix lies inside an unfinished operand and retains the default rejection. Examples are `a mi pa di` and `a mi dona va di`. The prefix supplies no complete operand for an independent resumption or binding diagnosis.
 
 The PEG can queue a message from a reading that later fails. This grammar reports only errors in its chosen derivation, so its message need not match that queued message.
 
