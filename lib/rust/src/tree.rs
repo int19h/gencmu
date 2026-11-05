@@ -4,6 +4,7 @@
 
 use std::cell::Cell;
 use std::collections::BTreeSet;
+use std::rc::Rc;
 
 use crate::earley::{Cap, Caps, EngineError, Frame, Recognizer, Tok};
 use crate::fxhash::{FxMap, FxSet};
@@ -301,12 +302,14 @@ pub(crate) fn reports_of(
     let mut errors = Vec::new();
     let mut strings = crate::strings::Strings::new(g, tree, tokens, sources, text, &g.unicode);
     strings.observe();
-    let mut stack = vec![(0u32, BTreeSet::<String>::new())];
+    let mut stack = vec![(0u32, Rc::new(BTreeSet::<String>::new()))];
     while let Some((index, mut suppressed)) = stack.pop() {
         let node = &tree.nodes[index as usize];
         let IKind::Close { prod, start, end, .. } = node.kind else { continue };
         let production = &g.prods[prod as usize];
-        suppressed.extend(production.suppress_warnings.iter().cloned());
+        if !production.suppress_warnings.is_empty() {
+            Rc::make_mut(&mut suppressed).extend(production.suppress_warnings.iter().cloned());
+        }
         let code = &g.rules[production.rule as usize].name;
         let warning = production
             .warning

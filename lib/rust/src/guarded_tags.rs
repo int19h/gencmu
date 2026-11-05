@@ -42,6 +42,7 @@ pub(crate) fn problem(term: &Term) -> Option<(&'static str, &Cond)> {
     None
 }
 fn literal(term: &Term) -> BTreeSet<String> {
+    crate::work::count(crate::work::Work::Visits, 1);
     match term {
         Term::Tag(name) => BTreeSet::from([name.clone()]),
         Term::EmptySet => BTreeSet::new(),
@@ -49,7 +50,8 @@ fn literal(term: &Term) -> BTreeSet<String> {
         Term::Intersection(items) => {
             let mut result = items.first().map(literal).unwrap_or_default();
             for item in items.iter().skip(1) {
-                result.retain(|name| literal(item).contains(name));
+                let right = literal(item);
+                result.retain(|name| right.contains(name));
             }
             result
         }
@@ -160,4 +162,26 @@ pub(crate) fn variants(term: &Term) -> Result<Vec<(Term, Vec<Cond>)>, String> {
 pub(crate) fn assignment(condition: &Cond) -> (Key, bool) {
     let (condition, negated) = atom(condition);
     (key(condition), !negated)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::work::{self, Work};
+
+    #[test]
+    fn nested_intersections_visit_each_operand_once() {
+        let pair = || Term::Union(vec![Term::Tag("T".into()), Term::Tag("U".into())]);
+        let depth = 24;
+        let mut term = pair();
+        for _ in 0..depth {
+            term = Term::Intersection(vec![pair(), Term::Union(vec![pair(), term])]);
+        }
+        let visits = 8 * depth + 3;
+        work::reset();
+        work::budget(Work::Visits, visits);
+        assert_eq!(literal(&term), BTreeSet::from(["T".into(), "U".into()]));
+        assert_eq!(work::counted(Work::Visits), visits);
+        work::reset();
+    }
 }

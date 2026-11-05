@@ -118,3 +118,26 @@ fn splice_only_cycles_share_the_called_rule_key() {
         assert_eq!(result.stages[0].verdict, Some(gencmu::Verdict::Unique), "{entry}");
     }
 }
+
+#[test]
+fn nested_literal_tag_sets_load() {
+    let mut term = "T U".to_string();
+    for _ in 0..24 {
+        term = format!("(T U) ∩ ((T U) ∪ ({term}))");
+    }
+    let source = format!(
+        "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text x B\n%rule x A :: ($.followed-by(B) ⟹ ({term}))\n```\n"
+    );
+    let pipeline = gencmu::load_pipeline_sources([("p.md", source)], "p.md").unwrap();
+    let tokens = ["A", "B"].map(|tag| InputToken {
+        text: tag.into(),
+        tags: [tag.into()].into_iter().collect(),
+        ..Default::default()
+    });
+    let result = pipeline.parse_tokens(&tokens, &ParseOptions::default()).unwrap();
+    assert!(result.ok, "{result:?}");
+    assert_eq!(
+        result.tree.unwrap().children[0].tags,
+        std::collections::BTreeSet::<String>::from(["T".into(), "U".into()])
+    );
+}
