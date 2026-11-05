@@ -86,13 +86,13 @@ The Python loaders also take `use_cache=False`. With it, the loader reads every 
 
 ### The pipeline's features
 
-A feature is a named switch that the grammars of the pipeline test (engine §13).
+A feature is a named switch for a gate or warning code (engine §13).
 
-A loaded pipeline lists its features (engine §13), in code point order of the names. The list includes the gates of the entries of its classifiers. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name.
+A loaded pipeline lists its features (engine §13), in code point order of the names. The list includes classifier gates and every surviving warning rule, named by its code. Error codes are not selectable features. One name cannot serve different roles across stages. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name.
 
 The JavaScript audit gives the static ranking reports of `docs/design.md`. Python and Rust expose `ranking_reports()`. Go exposes `RankingReports()`. Python prints them through `format_ranking_reports()`. Go uses `FormatRankingReports`. Rust uses `format_ranking_reports`.
 
-Unconditional declarations, global or stage-local, set `default:true`. The inventory does not depend on the caller's last stage. Conditional declarations contribute feature names without defaults.
+Unconditional declarations, global or stage-local, set `default:true`. The inventory does not depend on the caller's last stage. Conditional declarations contribute feature names without defaults. Warning codes use the same enable and disable arguments as gates. Disabling a warning changes reports only, including message evaluation. Suppression follows the grammar and cannot enable a disabled code.
 
 ### Parsing
 
@@ -113,7 +113,7 @@ Each source-map loader copies the supplied entries. Later changes to the caller'
 
 A document read from disk is different: bytes that are not valid UTF-8 there are a `grammar` load error, with no line or column.
 
-A text that does not parse gives a failed result. Its `ok` is false, and its `error` explains the failure. The kind of that error is `rejected`, `ambiguous`, `feature-conflict`, or `grammar`. A grammar result message keeps the document location and description. Its separate `stage` field names the stage. This rule also applies to grammar errors from conditions, queries, and emission.
+A text that does not parse gives a failed result. Its `ok` is false, and its `error` explains the failure. The kind of that error is `rejected`, `reported`, `ambiguous`, `feature-conflict`, or `grammar`. A grammar result message keeps the document location and description. Its separate `stage` field names the stage. This rule also applies to grammar errors from conditions, queries, and emission.
 
 An `ambiguous` error has a reason. It is `tie` where a stage has two or more best readings (engine §6). It is `elision-only` where the check of engine §7 fails.
 
@@ -129,7 +129,11 @@ Parsing is synchronous, and you can use a loaded pipeline for any number of pars
 
 ### The result
 
-The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. `warnings` is an empty list when there are no warnings.
+The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`.
+
+A `reported` error contains the ordered `errors` of the chosen derivation. Each diagnostic has `stage`, `code`, `rule`, `span`, `source`, and `message`. Warnings use that same shape and have no `feature` member.
+
+The result keeps the chosen tree and its `unique` or `resolved` verdict, with `ok:false` and no failed-stage output. It retains enabled unsuppressed warnings and stops before the next stage. A message recipe failure gives a `grammar` result. Errors cannot be disabled. With no warnings, `warnings` is an empty list.
 
 The result also has `features`, the enabled feature names in code point order, without duplicates. This field stays outside canonical JSON. Go calls it `Features`.
 
@@ -244,7 +248,7 @@ The JavaScript entry points also export helpers for the CLI and playground:
 - `compactJson(value)` returns JSON text without spacing and supports values deeper than the call stack.
 - `nodeBrackets(root, tokens, { showElided })` renders any result tree over its indexed tokens as brackets. The configuration argument is optional.
 - `nodeTree(root, tokens, text)` renders any result tree over its indexed tokens as a tree listing. The source text is optional.
-- `explainWarnings(result)` returns warning descriptions and excerpts from the source text.
+- `explainWarnings(result)` formats each warning's evaluated `message` and its source excerpt, in result order. It uses the warning's `code`, rule, stage, and position. It does not look up feature descriptions or reevaluate recipes.
 - `bundledGrammarsDirectory()` returns the bundled grammar directory and comes only from `gencmu/node`.
 
 The portable `gencmu` entry point and `gencmu/node` both export the first six helpers.
