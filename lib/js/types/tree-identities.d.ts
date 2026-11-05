@@ -39,6 +39,8 @@ export declare class TreeIdentities {
     sequenceSemantic(sequence: number): string;
     /** @param {string} name @param {number} children */
     rule(name: string, children: number): number;
+    /** @param {number} children */
+    anonymous(children: number): number;
     /** @param {string} terminal @param {string} value */
     written(terminal: string, value: string): number;
     /** @param {string} terminal */

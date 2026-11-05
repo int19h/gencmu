@@ -4657,10 +4657,16 @@
   /** @param {any} lowered @returns {boolean} */
   function canCountProfiles(lowered) {
     const steps=lowered.resolution.steps;
-    if (lowered.productions.some((/** @type {any} */ production)=>!!production.error)) return true;
-    if (!steps.length) return false;
     const cached=profileDecisions.get(lowered);
     if (cached !== undefined) return cached;
+    if (lowered.productions.some((/** @type {any} */ production)=>!!production.error)) {
+      profileDecisions.set(lowered,true);
+      return true;
+    }
+    if (!steps.length) {
+      profileDecisions.set(lowered,false);
+      return false;
+    }
     const pending=['text'],seen=new Set();
     let possible=false;
     const test=(/** @type {any} */ node)=>steps.some((/** @type {any} */ step)=>possibleNodeMatch(step.pattern,node)!==false);
@@ -8916,7 +8922,7 @@
       const result={whole:false,parts:new Set(),names:new Set(),outer:new Set(),parentPrefix:false,prefixUntil:0};
       for(const comparison of constituentComparisons([bound.conditions,bound.tags,bound.parentTags]))for(const name of [comparison.left.capture,comparison.right.capture]) {
         result.names.add(name);
-        if(name==='') {result.whole=true;result.parentPrefix=!!p.helper;}
+        if(name==='') {result.whole=true;result.parentPrefix=!!p.helper&&!p.spliceOf;}
         else {
           const capture=p.captures.find((/** @type {any} */ c)=>c.name===name);
           if(capture)result.parts.add(capture.index);else result.outer.add(name);
@@ -9003,11 +9009,11 @@
         const node=pending[pending.length-1];
         if(this.semanticNodes.has(node)) {pending.pop();continue;}
         const key=this.nodes[node].key;
-        if(key[0] !== 'Rule') {this.semanticNodes.set(node,JSON.stringify(key));continue;}
-        const children=this.elements(key[2]);
+        if(key[0] !== 'Rule' && key[0] !== 'Anonymous') {this.semanticNodes.set(node,JSON.stringify(key));continue;}
+        const children=this.elements(key[key[0] === 'Rule' ? 2 : 1]);
         const missing=children.find(child=>!this.semanticNodes.has(child));
         if(missing!==undefined) {pending.push(missing);continue;}
-        this.semanticNodes.set(node,'["Rule",'+JSON.stringify(key[1])+',['+children.map(child=>this.semanticNodes.get(child)).join(',')+']]');
+        this.semanticNodes.set(node,'['+JSON.stringify(key[0])+(key[0] === 'Rule' ? ','+JSON.stringify(key[1]) : '')+',['+children.map(child=>this.semanticNodes.get(child)).join(',')+']]');
       }
       return /** @type {string} */ (this.semanticNodes.get(identity));
     }
@@ -9019,6 +9025,8 @@
     }
     /** @param {string} name @param {number} children */
     rule(name,children) {return this.intern(['Rule',name,children],children===0);}
+    /** @param {number} children */
+    anonymous(children) {return this.intern(['Anonymous',children]);}
     /** @param {string} terminal @param {string} value */
     written(terminal,value) {return this.intern(['Written',terminal,value]);}
     /** @param {string} terminal */
@@ -9059,7 +9067,8 @@
     }
     let identity=-1,sequence=prefix;
     if(dot===production.rhs.length && production.walksTrees) {
-      if(!production.helper) { identity=m.rule(production.lhs,prefix);sequence=m.append(0,identity); }
+      if(production.spliceOf) identity=m.anonymous(prefix);
+      else if(!production.helper) { identity=m.rule(production.lhs,prefix);sequence=m.append(0,identity); }
       else if(production.elided!==null && production.rhs.length===0) { identity=m.omitted(production.elided);sequence=m.append(0,identity); }
     }
     return {treePrefix:prefix,treeIdentity:identity,treeSequence:sequence};
@@ -9111,7 +9120,7 @@
         for(const name of [comparison.left.capture,comparison.right.capture]) {
           if(name==='') {
             for (const name of prefix) roots.push(name);
-            if(!production.helper) for (const symbol of production.rhs) if (!symbol.terminal && !seals.has(symbol.name)) roots.push(symbol.name);
+            if(production.treeRoot) for (const symbol of production.rhs) if (!symbol.terminal && !seals.has(symbol.name)) roots.push(symbol.name);
           } else {
             const binding=bindings.get(name);
             if(binding && !binding[0])roots.push(binding[1]);
@@ -9159,7 +9168,8 @@
         else sequence=m.concat(sequence,memo.get(c).sequence);
       });
       let identity=-1;
-      if(!node.production.helper) {identity=m.rule(node.production.lhs,sequence);sequence=m.append(0,identity);}
+      if(node.production.spliceOf) identity=m.anonymous(sequence);
+      else if(!node.production.helper) {identity=m.rule(node.production.lhs,sequence);sequence=m.append(0,identity);}
       else if(!node.children.length && node.production.elided!==null) {identity=m.omitted(node.production.elided);sequence=m.append(0,identity);}
       memo.set(node,{identity,sequence});
     }
@@ -11583,6 +11593,7 @@
           emit: null, erased: false,
         });
       }
+      for (const production of this.productions) production.treeRoot = !production.helper || !!production.spliceOf;
       this.checkBraceItems();
       this.contextual = this.productions.some((production) => production.contextual);
       if(this.grammar.treeComparisons)this.treeSites=[];
@@ -13379,9 +13390,9 @@
       found = {...production, baseProduction:production.baseProduction ?? production,
         closeRequested:!!(Number(requested)&1),
         treeRequested:!!(Number(requested)&2),
-        walksTrees:!!context.trees && (!!(Number(requested)&2) || !production.helper && localTreeDemand(production).whole),
+        walksTrees:!!context.trees && (!!(Number(requested)&2) || production.treeRoot && localTreeDemand(production).whole),
         treePrefixUntil:context.trees ? localTreeDemand(production).prefixUntil : 0,
-        observesTrees:!!context.trees && (!!(Number(requested)&2) || !production.helper && localTreeDemand(production).whole || localTreeDemand(production).prefixUntil>0),
+        observesTrees:!!context.trees && (!!(Number(requested)&2) || production.treeRoot && localTreeDemand(production).whole || localTreeDemand(production).prefixUntil>0),
         observesCloses:!!context.closes && (!!(Number(requested)&1) || localCloseDemand(production).whole)};
       variants.set(key, found);
       return found;
@@ -24220,6 +24231,7 @@
    * @property {GrammarSymbol[]} rhs
    * @property {import("./logical.js").LogicalSymbol[]} [logical]
    * @property {boolean} helper
+   * @property {boolean} [treeRoot]
    * @property {string} [spliceOf]
    * @property {number} [sourceId]
    * @property {Recipe} [error]

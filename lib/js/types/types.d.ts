@@ -695,6 +695,7 @@ export type Production = {
     rhs: GrammarSymbol[];
     logical?: import("./logical.js").LogicalSymbol[];
     helper: boolean;
+    treeRoot?: boolean;
     spliceOf?: string;
     sourceId?: number;
     error?: Recipe;
@@ -1428,6 +1429,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {GrammarSymbol[]} rhs
  * @property {import("./logical.js").LogicalSymbol[]} [logical]
  * @property {boolean} helper
+ * @property {boolean} [treeRoot]
  * @property {string} [spliceOf]
  * @property {number} [sourceId]
  * @property {Recipe} [error]
