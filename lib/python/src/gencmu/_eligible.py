@@ -43,7 +43,7 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
         return witnesses
     lowered = forest.lowered
     helpers = lowered.elidable_helpers
-    errors = any(p.error is not None for p in lowered.productions)
+    errors = lowered.has_errors
     if not helpers and not errors:
         return witnesses
     productions = lowered.productions

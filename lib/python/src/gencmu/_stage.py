@@ -176,7 +176,7 @@ def reports_of(root, tree, context, forest, features, stage):
         if isinstance(node, DRead):
             continue
         p = node.production
-        suppressed = inherited | frozenset(p.suppress_warnings)
+        suppressed = inherited | frozenset(p.suppress_warnings) if p.suppress_warnings else inherited
         code = p.rule_name
         recipe = p.error if p.error is not None else p.warning if code in features and code not in suppressed and "_" not in suppressed else None
         if recipe is not None:

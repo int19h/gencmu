@@ -1369,6 +1369,7 @@ class Lowered:
     rule_display: list[str]
     steps: tuple[KeyStep, ...]
     lean: str
+    has_errors: bool = field(init=False)
     # The strings, ranges, and wildcard among terminals, by their canonical
     # form, which is their name (engine §4): what each one matches.
     characters: dict[str, CharacterClass] = field(default_factory=dict)
@@ -1420,6 +1421,7 @@ class Lowered:
         return index
 
     def __post_init__(self) -> None:
+        self.has_errors = any(production.error is not None for production in self.productions)
         self.elidable_helpers = frozenset(
             production.lhs for production in self.productions if production.helper and production.elided is not None
         )
