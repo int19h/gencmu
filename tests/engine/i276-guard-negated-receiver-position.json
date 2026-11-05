@@ -1,0 +1,14 @@
+{
+  "description": "An invalid negated guard reports its atom position.",
+  "grammar": "%rule text x b\n%rule x $y:\"a\" :: (¬$y.followed-by(b) ⟹ T)\n%rule b \"b\"",
+  "input": "ab",
+  "expect": {
+    "error": "grammar",
+    "message": "a tag guard requires one optionally negated neighbour atom on $",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 21
+    }
+  }
+}
