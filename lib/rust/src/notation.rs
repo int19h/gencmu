@@ -1926,7 +1926,8 @@ impl<'a> Reader<'a> {
                     crate::dom::BoundaryLocation {
                         at: Some(self.first(frame.node)),
                         targets: frame.arguments.as_ref().unwrap().iter().map(|n| self.first(n)).collect(),
-                    },
+                    }
+                    .into(),
                 ),
                 _ => {
                     let targets = args

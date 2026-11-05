@@ -79,6 +79,7 @@ fn cond(c: &mut dom::Cond, n: &Json) {
     use dom::Cond;
     match c {
         Cond::Boundary(_, receiver, _, location) => {
+            let location = std::sync::Arc::make_mut(location);
             location.at = source_at(n);
             location.targets = list(get(n, "args")).iter().filter_map(source_at).collect();
             term(receiver, get(n, "receiver"))

@@ -305,7 +305,8 @@ pub(crate) enum Cond {
     Initial(Term),
     Final(Term),
     /// A complete-tree neighbor, with its direction and target choice.
-    Boundary(bool, Term, Vec<String>, BoundaryLocation),
+    /// Clones share the annotation's identity even without source locations.
+    Boundary(bool, Term, Vec<String>, std::sync::Arc<BoundaryLocation>),
     Not(Box<Cond>),
     Any(Vec<Cond>),
     All(Vec<Cond>),
@@ -939,7 +940,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                             args.iter()
                                 .map(|arg| string(arg, if arg.get("rule").is_some() { "rule" } else { "terminal" }))
                                 .collect::<R<Vec<_>>>()?,
-                            BoundaryLocation::default(),
+                            BoundaryLocation::default().into(),
                         ),
                         ("matches" | "begins" | "ends", args) => {
                             let targets = args

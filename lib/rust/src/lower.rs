@@ -1416,7 +1416,8 @@ pub(crate) fn lower(
             .position(|a| std::ptr::eq(a, alternative))
             .expect("a written alternative")
     };
-    let mut common_conditions: FxMap<(u32, usize, Vec<String>), Vec<Cond>> = FxMap::default();
+    type IndexedConditions = (Vec<Cond>, Vec<usize>);
+    let mut common_conditions: FxMap<(u32, usize, Vec<String>), IndexedConditions> = FxMap::default();
     for pending in &order {
         let Some((number, _)) = pending.source else { continue };
         let private = private_for(pending);
@@ -1433,14 +1434,15 @@ pub(crate) fn lower(
                 .clauses
                 .conditions
                 .iter()
-                .filter(|c| {
+                .enumerate()
+                .filter(|(_, c)| {
                     let mut reads = BTreeSet::new();
                     crate::ranked::cond_reads(c, &mut reads);
                     reads.is_disjoint(&private)
                         && items.map_or(true, |items| !reads.iter().any(|name| items.contains(name)))
                 })
-                .cloned()
-                .collect()
+                .map(|(index, c)| (c.clone(), index))
+                .unzip()
         });
     }
 
@@ -1563,7 +1565,7 @@ pub(crate) fn lower(
                 production.at = source.at;
             }
         }
-        if let Some((number, _)) = pending.source {
+        if let Some((number, written_alternative)) = pending.source {
             let alternative = alternatives[pending.rule as usize][number];
             production.document = Some(alternative.document.clone());
             production.at = alternative.at;
@@ -1603,7 +1605,7 @@ pub(crate) fn lower(
             let each_part = work::mutated(Mutant::LowerEachPart);
             // The union of the alternative's own tags and its definition's
             // (§3.7); with neither written, the default below.
-            let tag_clauses = [alternative.alternative.tags.as_ref(), alternative.clauses.tags.as_ref()].map(|term| {
+            let tag_clauses = [alternative.clauses.tags.as_ref(), alternative.alternative.tags.as_ref()].map(|term| {
                 term.map(|term| {
                     if each_part {
                         // A mutation of the tests simplifies every part
@@ -1631,13 +1633,11 @@ pub(crate) fn lower(
                         .iter()
                         .map(|c| {
                             let atoms = crate::boundary::dom_atoms(c);
-                            scope.site = guard_sites[&(Arc::as_ptr(&alternative.clauses) as usize)]
-                                .iter()
-                                .find(|(raw, _)| atoms.first().is_some_and(|atom| *atom == *raw))
-                                .map(|(_, condition)| crate::boundary::Site {
-                                    rule: production.owner,
-                                    condition: *condition,
-                                });
+                            let identity = crate::boundary::guard_identity(atoms[0]);
+                            let site = &guard_sites[&(Arc::as_ptr(&alternative.clauses) as usize)][&identity];
+                            debug_assert!(site.alternative.map_or(true, |i| i == written_alternative));
+                            scope.site =
+                                Some(crate::boundary::Site { rule: production.owner, condition: site.condition });
                             scope.cond(c).expect("a whole constituent neighbour")
                         })
                         .collect::<Vec<_>>();
@@ -1647,17 +1647,9 @@ pub(crate) fn lower(
             }
             let private = private_for(&pending);
             let key = (pending.rule, number, private.iter().cloned().collect());
-            let source_conditions = common_conditions.get(&key).unwrap_or(&alternative.clauses.conditions);
-            let mut next_source = 0;
-            let source_indexes: Vec<usize> = source_conditions
-                .iter()
-                .map(|c| {
-                    let index = alternative.clauses.conditions[next_source..].iter().position(|raw| raw == c).unwrap()
-                        + next_source;
-                    next_source = index + 1;
-                    index
-                })
-                .collect();
+            let prepared = common_conditions.get(&key);
+            let source_conditions =
+                prepared.map(|(conditions, _)| conditions).unwrap_or(&alternative.clauses.conditions);
             let conditions = if each_part {
                 let mut left = Vec::new();
                 for (index, cond) in source_conditions.iter().enumerate() {
@@ -1681,7 +1673,8 @@ pub(crate) fn lower(
             for (simple, index) in conditions {
                 scope.site = Some(crate::boundary::Site {
                     rule: production.owner,
-                    condition: condition_offsets[&(Arc::as_ptr(&alternative.clauses) as usize)] + source_indexes[index],
+                    condition: condition_offsets[&(Arc::as_ptr(&alternative.clauses) as usize)]
+                        + prepared.map_or(index, |(_, indexes)| indexes[index]),
                 });
                 scope.last = None;
                 scope.whole = false;

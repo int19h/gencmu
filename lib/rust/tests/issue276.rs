@@ -8,6 +8,53 @@ fn fixture(name: &str) -> Value {
 }
 
 #[test]
+fn guard_occurrence_sites_survive_preparsed_loading() {
+    for (name, index) in
+        [("guard-duplicate-alternatives", 1), ("guard-header-first", 0), ("guard-simplified-origin", 1)]
+    {
+        let case = fixture(name);
+        let source = format!("```jbogenbau\n{}\n```\n", case.get("grammar").unwrap().str().unwrap());
+        let dom = gencmu::tools::read_grammar_document(&source, "").unwrap();
+        let cache = format!(
+            r#"{{"format":{},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"grammars/test/g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
+            gencmu::tools::DOM_FORMAT,
+            gencmu::tools::bootstrap_hash(),
+            gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode.txt")),
+            gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode-properties.txt")),
+            gencmu::tools::fnv1a64(&source),
+        );
+        let sources = std::collections::BTreeMap::from([
+            ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("grammars/test/g.md", source),
+        ]);
+        let parse = |cache: Option<&str>| {
+            let mut documents = sources.clone();
+            if let Some(cache) = cache {
+                documents.insert("data/preparsed/test.json", cache.to_string());
+            }
+            gencmu::load_pipeline_sources(documents, "grammars/test/p.md")
+                .unwrap()
+                .parse("bab", &ParseOptions::default())
+                .unwrap()
+        };
+        let plain = parse(None);
+        let cached = parse(Some(&cache));
+        assert_eq!(plain.error.as_ref().unwrap().boundary.as_ref().unwrap().condition, index, "{name}");
+        assert_eq!(cached.error.as_ref().unwrap().boundary.as_ref().unwrap().condition, index, "{name}");
+        assert_eq!(gencmu::to_json(&cached), gencmu::to_json(&plain), "{name}");
+        if name == "guard-duplicate-alternatives" {
+            let changed = cache.replace(r#""string":"x""#, r#""string":"a""#);
+            assert_ne!(changed, cache);
+            assert_eq!(
+                parse(Some(&changed)).error.unwrap().boundary.unwrap().condition,
+                0,
+                "the cache must use its DOM"
+            );
+        }
+    }
+}
+
+#[test]
 fn message_capture_reason_distinguishes_absent_from_unknown() {
     for name in ["message-optional-capture-reason", "message-captured-terminator-reason"] {
         let case = fixture(name);

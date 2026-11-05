@@ -364,35 +364,48 @@ pub(crate) struct Site {
 pub(crate) fn condition_offsets(g: &crate::grammar::StageGrammar) -> FxMap<usize, usize> {
     condition_sites(g).0
 }
-type GuardSites<'a> = FxMap<usize, Vec<(&'a crate::dom::Cond, usize)>>;
-pub(crate) fn condition_sites(g: &crate::grammar::StageGrammar) -> (FxMap<usize, usize>, GuardSites<'_>) {
+pub(crate) struct GuardSite {
+    pub alternative: Option<usize>,
+    pub condition: usize,
+}
+type GuardSites = FxMap<usize, FxMap<usize, GuardSite>>;
+pub(crate) fn guard_identity(atom: &crate::dom::Cond) -> usize {
+    let crate::dom::Cond::Boundary(_, _, _, source) = atom else { unreachable!("a boundary atom") };
+    std::sync::Arc::as_ptr(source) as usize
+}
+pub(crate) fn condition_sites(g: &crate::grammar::StageGrammar) -> (FxMap<usize, usize>, GuardSites) {
     let mut offsets = FxMap::default();
     let mut guard_sites = FxMap::default();
     for rule in &g.rules {
         let mut count = 0;
         let mut definitions = FxMap::default();
         let mut order = Vec::new();
-        for alt in &rule.alternatives {
+        for (alternative, alt) in rule.alternatives.iter().enumerate() {
             let key = std::sync::Arc::as_ptr(&alt.clauses) as usize;
             if !definitions.contains_key(&key) {
                 order.push(key);
             }
-            definitions.entry(key).or_insert_with(Vec::new).push(alt);
+            definitions.entry(key).or_insert_with(Vec::new).push((alternative, alt));
         }
         for key in order {
             let alternatives = &definitions[&key];
-            let clauses = &alternatives[0].clauses;
+            let clauses = &alternatives[0].1.clauses;
             offsets.insert(key, count);
             count += clauses.conditions.len();
-            let mut seen: FxSet<*const crate::dom::Cond> =
-                clauses.conditions.iter().flat_map(dom_atoms).map(|atom| atom as *const _).collect();
-            let sites = guard_sites.entry(key).or_insert_with(Vec::new);
-            for alt in alternatives {
-                for term in clauses.tags.iter().chain(&alt.alternative.tags) {
+            let mut seen: FxSet<usize> = clauses.conditions.iter().flat_map(dom_atoms).map(guard_identity).collect();
+            let sites = guard_sites.entry(key).or_insert_with(FxMap::default);
+            for (alternative, alt) in alternatives {
+                for (owner, term) in clauses
+                    .tags
+                    .iter()
+                    .map(|t| (None, t))
+                    .chain(alt.alternative.tags.iter().map(|t| (Some(*alternative), t)))
+                {
                     for (condition, _) in crate::guarded_tags::guards(term) {
                         for atom in dom_atoms(condition) {
-                            if seen.insert(atom as *const _) {
-                                sites.push((atom, count));
+                            let identity = guard_identity(atom);
+                            if seen.insert(identity) {
+                                sites.insert(identity, GuardSite { alternative: owner, condition: count });
                                 count += 1;
                             }
                         }

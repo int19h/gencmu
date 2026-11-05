@@ -231,13 +231,13 @@ fn restore(mut pending: Vec<Pair<'_>>) {
                     }
                 }
                 (Cond::Boundary(_, to, _, tl), Cond::SourceQuery(_, from, fl)) => {
-                    *tl = fl.clone();
+                    *tl = fl.clone().into();
                     if let Some(Arg::Term(from)) = from.first() {
                         pending.push(Pair::Term(to, from));
                     }
                 }
                 (Cond::SourceQuery(_, to, tl), Cond::Boundary(_, from, _, fl)) => {
-                    *tl = fl.clone();
+                    *tl = (**fl).clone();
                     if let Some(Arg::Term(to)) = to.first_mut() {
                         pending.push(Pair::Term(to, from));
                     }
