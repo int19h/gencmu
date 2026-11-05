@@ -491,23 +491,37 @@ func (r *recognizer) bounded(k int, key *itemKey, l link) bool {
 
 func (g *stageGrammar) prepareBoundarySites() {
 	for order, rule := range g.rules {
-		seen := map[*sAlt]bool{}
-		index := 0
+		definitions := map[*sAlt][]*sAlt{}
+		var owners []*sAlt
 		for _, source := range rule.alts {
 			owner := source.boundaryOwner
-			if seen[owner] {
-				source.boundarySites = owner.boundarySites
-				continue
+			if _, ok := definitions[owner]; !ok {
+				owners = append(owners, owner)
 			}
-			seen[owner] = true
+			definitions[owner] = append(definitions[owner], source)
+		}
+		index := 0
+		for _, owner := range owners {
 			owner.boundarySites = map[*domCond]*boundarySite{}
-			for _, c := range source.conds {
+			for _, c := range owner.conds {
 				for _, atom := range boundaryAtoms(clausePart{c: c}) {
 					owner.boundarySites[atom] = &boundarySite{rule.name, index, order}
 				}
 				index++
 			}
-			source.boundarySites = owner.boundarySites
+			for _, source := range definitions[owner] {
+				for _, term := range []*domTerm{owner.ruleTags, source.alt.Tags} {
+					for _, guard := range neighbourGuards(term) {
+						for _, atom := range boundaryAtoms(clausePart{c: guard.Cond}) {
+							if owner.boundarySites[atom] == nil {
+								owner.boundarySites[atom] = &boundarySite{rule.name, index, order}
+								index++
+							}
+						}
+					}
+				}
+				source.boundarySites = owner.boundarySites
+			}
 		}
 	}
 	for _, rule := range g.rules {

@@ -7,6 +7,21 @@ import (
 	"testing"
 )
 
+func TestIssue276SpliceActionVisibility(t *testing.T) {
+	original := &production{num: 7}
+	alias := &production{num: 8, transparent: true, source: original}
+	for _, occurrence := range []*production{original, alias} {
+		a := elAction(iterEl{n: &dn{kind: dClose, prod: occurrence}, leaf: true})
+		if a.prod != original || a.visible() == occurrence.transparent || !a.same(action{prod: original}) {
+			t.Fatalf("action loses occurrence visibility or canonical identity: %+v", a)
+		}
+	}
+	ranking := (&ranker{}).compare(closeNode(alias, 0, 0, nil, nil), closeNode(original, 0, 0, nil, nil))
+	if ranking.kind != cAPrefix || ranking.hasWhole {
+		t.Fatalf("canonical equality includes visibility: %+v", ranking)
+	}
+}
+
 func issue276Case(t *testing.T, name string) *engineCase {
 	t.Helper()
 	return loadCase(t, filepath.Join("../../tests/engine", "i276-"+name+".json"))

@@ -241,7 +241,7 @@ func (r *rankedGroups) routes(g *stageGrammar, expr *domExpr, needed map[string]
 			route.length = 1
 			route.captures[expr.Name] = rankedCapture{r.owners[expr], 1}
 		}
-		for expr.Kind == exCapture || expr.Kind == exTest {
+		for expr.Kind == exCapture || expr.Kind == exTest || expr.Kind == exSplice {
 			expr = expr.Inner
 		}
 		if expr.Kind == exRef && g.byName[expr.Name] != nil {
@@ -760,7 +760,7 @@ func newRankedTagGraph(g *stageGrammar, ranked *rankedGroups) *rankedTagGraph {
 							describe(expr.Sep)
 						}
 					}
-				case exCapture, exTest:
+				case exCapture, exTest, exSplice:
 					result = describe(expr.Inner)
 				default:
 					child, ok := named[expr.Name]
@@ -814,7 +814,7 @@ func rankedWrittenSpans(g *stageGrammar) (map[string]bool, map[string]bool) {
 		}
 		id := 0
 		switch expr.Kind {
-		case exCapture, exTest:
+		case exCapture, exTest, exSplice:
 			id = expression(expr.Inner)
 		case exRef:
 			id = named[expr.Name]

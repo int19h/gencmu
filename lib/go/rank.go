@@ -123,10 +123,18 @@ type action struct {
 	tok        int32
 	term       int32
 	prod       *production
+	hidden     bool
 	start, end int32
 }
 
-func (a action) visible() bool { return a.read || !a.prod.transparent }
+func (a action) visible() bool { return a.read || !a.hidden }
+
+func (a action) same(b action) bool {
+	if a.read || b.read {
+		return a.read && b.read && a.tok == b.tok && a.term == b.term
+	}
+	return a.prod == b.prod && a.start == b.start && a.end == b.end
+}
 
 type iterEl struct {
 	n    *dn
@@ -169,7 +177,7 @@ func elAction(e iterEl) action {
 	if e.n.kind == dRead {
 		return action{read: true, tok: e.n.tok, term: e.n.term}
 	}
-	return action{prod: sourceProduction(e.n.prod), start: e.n.start, end: e.n.end}
+	return action{prod: sourceProduction(e.n.prod), hidden: e.n.prod.transparent, start: e.n.start, end: e.n.end}
 }
 
 func elWhole(e iterEl) count {
@@ -385,115 +393,69 @@ func (rk *ranker) aFirst(r cmpRes) bool {
 }
 
 func (rk *ranker) compare(a, b *dn) cmpRes {
-	var ia, ib actionIter
-	ia.push(a)
-	ib.push(b)
-	var r cmpRes
-	vis := count{}
-	// The whole sequences, in step, skipping shared subtrees.
-	for {
-		ea, oka := ia.top()
-		eb, okb := ib.top()
-		if !oka && !okb {
-			return cmpRes{kind: cIdentical}
+	first := func(visible bool) cmpRes {
+		var ia, ib actionIter
+		ia.push(a)
+		ib.push(b)
+		position := count{}
+		size := elWhole
+		if visible {
+			size = elVis
 		}
-		if !oka || !okb {
-			r.aEnded = !oka
-			break
-		}
-		if ea == eb {
-			vis = vis.add(elVis(ea))
-			ia.pop()
-			ib.pop()
-			continue
-		}
-		if !isLeaf(ea) || !isLeaf(eb) {
-			// Expand the larger side first, so that the two meet at a
-			// subtree they share.
-			c := elWhole(ea).cmp(elWhole(eb))
-			if !isLeaf(ea) && c >= 0 {
-				ia.expand()
-			}
-			if !isLeaf(eb) && c <= 0 {
-				ib.expand()
-			}
-			continue
-		}
-		xa, xb := elAction(ea), elAction(eb)
-		if xa == xb {
-			if xa.visible() {
-				vis = vis.add(countOne)
-			}
-			ia.pop()
-			ib.pop()
-			continue
-		}
-		r.wa, r.wb, r.hasWhole = xa, xb, true
-		break
-	}
-	// The visible sequences, from there.
-	norm := func(it *actionIter) (iterEl, bool) {
-		for {
-			e, ok := it.top()
-			if !ok {
-				return e, false
-			}
-			if isLeaf(e) {
-				if e.leaf && e.n.prod.transparent {
-					it.pop()
-					continue
+		norm := func(it *actionIter) (iterEl, bool) {
+			for {
+				e, ok := it.top()
+				if !ok || !size(e).isZero() {
+					return e, ok
 				}
-				return e, true
-			}
-			if e.n.visCount().isZero() {
 				it.pop()
+			}
+		}
+		for {
+			ea, oka := norm(&ia)
+			eb, okb := norm(&ib)
+			switch {
+			case !oka && !okb:
+				return cmpRes{kind: cVisEqual, pos: position}
+			case !oka:
+				return cmpRes{kind: cAPrefix, pos: position}
+			case !okb:
+				return cmpRes{kind: cBPrefix, pos: position}
+			}
+			if ea == eb {
+				position = position.add(size(ea))
+				ia.pop()
+				ib.pop()
 				continue
 			}
-			return e, true
+			if !isLeaf(ea) || !isLeaf(eb) {
+				c := size(ea).cmp(size(eb))
+				if !isLeaf(ea) && c >= 0 {
+					ia.expand()
+				}
+				if !isLeaf(eb) && c <= 0 {
+					ib.expand()
+				}
+				continue
+			}
+			xa, xb := elAction(ea), elAction(eb)
+			if xa.same(xb) {
+				position = position.add(countOne)
+				ia.pop()
+				ib.pop()
+				continue
+			}
+			return cmpRes{kind: cVisDiff, pos: position, va: xa, vb: xb, outcome: rk.decide(xa, xb)}
 		}
 	}
-	for {
-		ea, oka := norm(&ia)
-		eb, okb := norm(&ib)
-		switch {
-		case !oka && !okb:
-			r.kind = cVisEqual
-			r.pos = vis
-			return r
-		case !oka:
-			r.kind, r.pos = cAPrefix, vis
-			return r
-		case !okb:
-			r.kind, r.pos = cBPrefix, vis
-			return r
-		}
-		if ea == eb {
-			vis = vis.add(elVis(ea))
-			ia.pop()
-			ib.pop()
-			continue
-		}
-		if !isLeaf(ea) || !isLeaf(eb) {
-			c := elVis(ea).cmp(elVis(eb))
-			if !isLeaf(ea) && c >= 0 {
-				ia.expand()
-			}
-			if !isLeaf(eb) && c <= 0 {
-				ib.expand()
-			}
-			continue
-		}
-		xa, xb := elAction(ea), elAction(eb)
-		if xa == xb {
-			vis = vis.add(countOne)
-			ia.pop()
-			ib.pop()
-			continue
-		}
-		r.kind, r.pos, r.va, r.vb = cVisDiff, vis, xa, xb
-		r.outcome = rk.decide(xa, xb)
-		return r
+	result, whole := first(true), first(false)
+	result.aEnded = whole.kind == cAPrefix
+	result.hasWhole = whole.kind == cVisDiff
+	result.wa, result.wb = whole.va, whole.vb
+	if result.kind == cVisEqual && whole.kind == cVisEqual {
+		result.kind = cIdentical
 	}
+	return result
 }
 
 // tiedSet holds the derivations tied with a candidate that diverge from it
