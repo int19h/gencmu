@@ -7953,7 +7953,7 @@
       path.length = 1;
       path.captures.set(expr.capture,{owner:groups.owners.get(expr)??null,at:1});
     }
-    while (expr.expr) expr = expr.expr;
+    while (expr.expr || expr.splice) expr = expr.expr ?? expr.splice;
     const rule = expr.ref && groups.rules.has(expr.ref);
     path.span = {productive:!rule || spans.productive.has(expr.ref),nonempty:!rule || spans.nonempty.has(expr.ref)};
     return [path];
@@ -8047,7 +8047,7 @@
     const expression = expr => {
       const known = memo.get(expr); if (known !== undefined) return known;
       let id;
-      if (expr.expr) id = expression(expr.expr);
+      if (expr.expr || expr.splice) id = expression(expr.expr ?? expr.splice);
       else if (expr.ref) id = named.get(expr.ref) ?? terminal;
       else if (expr.literal || expr.range || expr.wildcard) id = terminal;
       else {
@@ -18222,10 +18222,10 @@
       /** @type {(frame: Frame, item: Item) => TraversalContext} */
       const contextBelow = (frame, item) => {
         if (!this.sameSpan(frame.item, item)) return EMPTY_CONTEXT;
-        if(item.slotScope && item.production.helper){
+        if(item.slotScope && item.production.helper && !item.production.spliceOf){
           const helpers=/** @type {NonNullable<import("./ranked-admission.js").RankedAdmission["forest"]>} */ (this.admission?.forest).helpers;
           const kept=new Set([...frame.context].filter(key=>!helpers.has(key.slice(1))));
-          if(complete(frame.item)&&!frame.item.production.helper)kept.add(ruleKey(frame.item));
+          if(complete(frame.item)&&(!frame.item.production.helper || frame.item.production.spliceOf))kept.add(ruleKey(frame.item));
           return kept.size?kept:EMPTY_CONTEXT;
         }
         const own = group(item.production.spliceOf ?? item.production.lhs);
@@ -18956,9 +18956,9 @@
   /** @param {import("./earley.js").Chart} chart @param {Set<string>} names */
   function helperSlotForest(chart, names) {
     const lowered = chart.context.lowered;
-    const helpers = new Set(lowered.productions.filter(p => p.helper).map(p => p.lhs));
+    const helpers = new Set(lowered.productions.filter(p => p.helper && !p.spliceOf).map(p => p.lhs));
     const users = new Map();
-    for (const p of lowered.productions) if (p.helper) for (const s of p.rhs) {
+    for (const p of lowered.productions) if (p.helper && !p.spliceOf) for (const s of p.rhs) {
       const list = users.get(s.name) ?? [];
       list.push(p.lhs);
       users.set(s.name, list);
@@ -19030,7 +19030,7 @@
         const previous = view(edge.previous, scope);
         if (edge.kind === "scan") { append({...edge, previous}, index); continue; }
         const child = edge.child;
-        const carries = child.production.helper && wrapped.has(child.production.lhs) && (!raw.production.helper || scope);
+        const carries = wrapped.has(child.production.lhs) && (!raw.production.helper || raw.production.spliceOf || scope);
         if (!carries) { append({...edge, previous, child:view(child)}, index); continue; }
         const inner = scopeFor(edge.previous, child, scope);
         append({...edge, previous, child:view(child, inner)}, index);
@@ -19090,7 +19090,7 @@
       for (const set of (this.forest?.chart ?? chart).sets) if (set) for (const item of set.items) {
         this.stats.chartFacts++;
         const group = item.production.rhs[item.dot-1]?.slot;
-        if (!group || !names.has(group.helper) || item.production.helper && !item.slotScope) continue;
+        if (!group || !names.has(group.helper) || item.production.helper && !item.production.spliceOf && !item.slotScope) continue;
         for (const [index,edge] of item.edges.entries()) {
           if (edge.kind !== 'complete') continue;
           const scope = item.slotScope;
@@ -19112,7 +19112,8 @@
 
     /** @param {any} item @param {string} context */
     availabilityKey(item,context) {
-      return JSON.stringify([context,item.complete ? item.slotScope?.frames[0].production.lhs ?? item.production.lhs : null]);
+      const production = item.slotScope?.frames[0].production ?? item.production;
+      return JSON.stringify([context,item.complete ? production.spliceOf ?? production.lhs : null]);
     }
 
     /** @param {any} item @param {string} context */
