@@ -836,11 +836,11 @@ Each key uses its final public name, or its canonical name when unnamed. Calls b
 
 A public name cannot equal a template name.
 
-After stitching, the loader requires each error code to be a valid rule name (§9.1). Each warning code must be a valid feature name. These requirements apply to call-head definitions and public-name edits of bound instances.
-
-A diagnostic instance uses its final public name as its code. If rebinding leaves it unnamed, its canonical call spelling fails the code-name requirement.
-
 `%redefine-rule NAME = CALL` can replace an earlier ordinary rule or rebind a named instance to a different key. The old instance retains its identity and edits, and falls back to its canonical call name. The new instance takes NAME everywhere. A key that already has another public name cannot receive NAME. Repeating the current binding is an error. `%extend-rule NAME = CALL` is an error.
+
+After stitching, the loader requires each error code to be a valid rule name (§9.1). Each warning code must be a valid feature name. These requirements hold for every diagnostic rule, with call heads and public-name edits included.
+
+An instance with a diagnostic clause uses its final public name as its code. If rebinding leaves it unnamed, its canonical call spelling fails the code-name requirement.
 
 An edit written with NAME applies to the key bound at that statement's source position. Earlier edits remain on the old key after rebinding. Later edits by NAME apply to the new key. Every reference to NAME, except the head of an edit, uses its final binding. Exact calls continue to name their own instance keys.
 
@@ -1948,7 +1948,7 @@ One candidate can beat another under `greedy` or `lazy`. Then the loser's tied d
 
 The best count counts least-error derivations attaining the greatest profile, capped at two. A summary retains its least error count and verdict total beside its greatest profile and best count. Within one edge, the children's profiles add, and their best counts multiply. The edge adds its own completed occurrences. Over one summary's edges, keep the greater profile or add best counts where the profiles are equal.
 
-The root compares its items by the same profile. Without a lean, a total of two with a best count of one is `resolved`, and a best count of two is a tie. This holds also when two items of `text` each have one derivation with the same greatest profile.
+The root compares its items by the same profile. Without a lean, a verdict total of two with a best count of one is `resolved`. A best count of two is a tie. When two items of `text` each have one derivation with the same greatest profile, this holds too.
 
 The best derivations form a smaller forest. For each summary, the implementation keeps the edges that attain its greatest profile. Each kept edge leads to the summaries of its children, in their own contexts. The stage finds `m` and `t` by a ranking with no lean over that forest. That ranking keeps the same contexts, so it reaches a child only through the summary that its context allows.
 

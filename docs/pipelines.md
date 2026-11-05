@@ -557,7 +557,7 @@ Give `%warning` one message recipe after `%conditions`. Put `%suppress-warnings`
 
 A warning changes no accepted reading or chosen tree. Callers enable or disable its code with the feature controls. `%suppress-warnings code` suppresses it within one subtree, and `_` suppresses all warning codes.
 
-For an invalid construct, use `%error` with a message that improves the default rejection. The engine prefers fewer errors before grammar ranking. A chosen error stops the pipeline without stage output and keeps the chosen tree.
+For an invalid construct, use `%error` only where its message says more than the default rejection, or says the same more briefly. The engine prefers fewer errors before grammar ranking. A chosen error stops the pipeline without stage output and keeps the chosen tree.
 
 Use `--` for comments inside grammar blocks. A comment ends at LF, CRLF, CR, or the file end. A string retains literal `--`. The notation has no block comment form.
 

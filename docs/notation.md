@@ -1626,9 +1626,9 @@ Otherwise it reaches emission. For `resolved`, the enabled elision-only check th
 
 The engine first prefers fewer error occurrences, before every grammar step. Each source occurrence counts once, including spliced calls, empty occurrences, and every chain level. Warnings never affect ranking.
 
-A verdict counts only admitted readings with the least error count. One gives `unique`. Several with exactly one best give `resolved`, and several best give `tie`. If a zero-error reading exists, error-bearing readings do not count toward its verdict.
+A verdict counts only admitted readings with the least error count. One gives `unique`. Several with exactly one best give `resolved`, and several best give `tie`. If a zero-error reading exists, error-bearing readings do not count toward the verdict.
 
-Error alternatives do not by themselves make a text ambiguous. In Eberban, `a pban ra a mo` stays `unique` despite a losing fault reading of `pban`. That error reading starts no `elision-only` check.
+Readings above the least error count cannot make a text ambiguous. In Eberban, `a pban ra a mo` stays `unique` despite a losing fault reading of `pban`. A higher-error reading starts no `elision-only` check.
 
 A grammar then ranks admitted parses with equal error counts by its `%ambiguity-resolution` directive. The directive lists one or more steps, separated by commas. Of two parses, the first step that tells them apart decides which beats the other. If no other admitted parse beats a parse, that parse is best. The stage takes a sole best parse. Several best parses give a tie.
 

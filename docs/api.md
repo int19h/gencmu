@@ -129,11 +129,11 @@ Parsing is synchronous, and you can use a loaded pipeline for any number of pars
 
 ### The result
 
-The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`.
+The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. With no warnings, `warnings` is an empty list, and the canonical JSON omits it.
 
 A `reported` error contains the ordered `errors` of the chosen derivation. Each diagnostic has `stage`, `code`, `rule`, `span`, `source`, and `message`. Warnings use that same shape and have no `feature` member.
 
-A `reported` result keeps the chosen tree and its `unique` or `resolved` verdict, with `ok:false` and no failed-stage output. It retains enabled unsuppressed warnings and stops before the next stage. Errors cannot be disabled. With no warnings, `warnings` is an empty list, and the canonical JSON omits it.
+A `reported` result keeps the chosen tree and its `unique` or `resolved` verdict, with `ok:false` and no failed-stage output. It retains enabled unsuppressed warnings and stops before the next stage. Errors cannot be disabled.
 
 Every other error result has a null `tree`. If a message recipe fails, the stage keeps its verdict and gives a `grammar` result. It reports no named errors or warnings and has no output. Earlier stages retain their outputs and warnings.
 
