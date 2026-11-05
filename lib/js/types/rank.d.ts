@@ -109,15 +109,17 @@ export declare class Ranker {
         plain: Map<Item, Candidate[]>;
         contextual: Map<Item, Map<string, Candidate[]>>;
     };
-    /** @type {{plain: Map<Item, {all: number} & {w: boolean}>, contextual: Map<Item, Map<string, {all: number} & {w: boolean}>>}} */
+    /** @type {{plain: Map<Item, {all: number, errors: Count} & {w: boolean}>, contextual: Map<Item, Map<string, {all: number, errors: Count} & {w: boolean}>>}} */
     counts: {
         plain: Map<Item, {
             all: number;
+            errors: Count;
         } & {
             w: boolean;
         }>;
         contextual: Map<Item, Map<string, {
             all: number;
+            errors: Count;
         } & {
             w: boolean;
         }>>;
@@ -211,16 +213,17 @@ export declare class Ranker {
      */
     count(item: Item): number;
     /**
-     * The number of an item's derivations, capped at two. With the runtime witness marks, `w`
+     * The number of an item's least-error derivations, capped at two. With witness marks, `w`
      * says whether the count includes a derivation made of marked edges
      * only (tests/README.md). The same loop decides both, over the same
      * edges, so any choice that drops W(D) from the count drops it from `w`.
      * A dependency that closes a cycle has no derivation, and no `w`.
      * @param {Item} item
-     * @returns {{all: number} & {w: boolean}}
+     * @returns {{all: number, errors: Count} & {w: boolean}}
      */
     countOf(item: Item): {
         all: number;
+        errors: Count;
     } & {
         w: boolean;
     };
@@ -330,6 +333,8 @@ export declare class Profiles {
     /** @type {Map<string,number>} */ tagKeys: Map<string, number>;
     /** @type {Profile} */
     zero: Profile;
+    /** @type {Profile} */
+    error: Profile;
     /** @type {Map<number, ElisionSeq>} */
     leaves: Map<number, ElisionSeq>;
     /** @param {KeyStep[]} steps */

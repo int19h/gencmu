@@ -61,6 +61,7 @@ export type ErrorJson = {
     kind: ParseError["kind"];
     stage?: string;
     feature?: string;
+    errors?: WarningJson[];
     code?: "elision-witness-lost";
     reason?: "tie" | "elision-only";
     token?: number;
@@ -99,7 +100,8 @@ export type ResultJson = {
 };
 export type WarningJson = {
     stage: string;
-    feature: string;
+    code: string;
+    message: string;
     rule: string;
     span: [number, number];
     source: [number, number];

@@ -24,6 +24,9 @@ export type RuleClauses = {
     erased: boolean;
     value: import("./types.js").Recipe | undefined;
     image: import("./types.js").Recipe | undefined;
+    error: import("./types.js").Recipe | undefined;
+    warning: import("./types.js").Recipe | undefined;
+    suppressWarnings: string[] | undefined;
 };
 export type StitchedRule = {
     name: string;
@@ -40,6 +43,7 @@ export type RuleChange = {
 export type SequenceItem = {
     symbol: import("./types.js").GrammarSymbol;
     capture?: string;
+    captureTerminal?: boolean;
 };
 export type Where = {
     rule: StitchedRule;
@@ -289,6 +293,7 @@ export declare class Grammar {
         expr?: Expr;
     }, path: string, at: ErrorLocation): SymbolTest;
     checkReferences(): void;
+    checkDiagnosticsAndSplices(): void;
     /**
      * The productions for a set of enabled features. The check of
      * elision-only reads the same productions in a mode of its own (engine

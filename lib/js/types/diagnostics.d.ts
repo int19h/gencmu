@@ -51,8 +51,7 @@ export declare function explainTies(result: {
     stages: StageReport[];
 }): string;
 /**
- * Each warning of a result (engine §12) as the feature it names and an
- * excerpt of the text the warned constituent covers.
+ * Each warning's code and evaluated message, with its source excerpt.
  * @param {ParseResult} result
  * @returns {string}
  */
@@ -102,6 +101,7 @@ export type StageAudit = {
     instances: any[];
     name: string;
     resolution: string;
+    diagnosticNotes?: any[];
     boundaryNotes: any[];
     /**
      * close families in first-call order

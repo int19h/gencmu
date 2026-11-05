@@ -18,6 +18,7 @@ export declare function capturedNode(node: DerivationRule, name: string): Deriva
 export declare class StringWalk {
     context: ParseContext;
     scope: (node: DerivationRule) => Scope;
+    claimGaps: boolean;
     /** @type {WeakMap<Derivation,Map<object|string,string>>} */
     values: WeakMap<Derivation, Map<object | string, string>>;
     /** @type {WeakMap<Derivation,Set<object|string>>} */
@@ -36,8 +37,8 @@ export declare class StringWalk {
     } | null;
     /** @type {WeakMap<object,Map<object,object>>} */
     itemKeys: WeakMap<object, Map<object, object>>;
-    /** @param {ParseContext} context @param {(node:DerivationRule)=>Scope} scope */
-    constructor(context: ParseContext, scope: (node: DerivationRule) => Scope);
+    /** @param {ParseContext} context @param {(node:DerivationRule)=>Scope} scope @param {boolean} [claimGaps] */
+    constructor(context: ParseContext, scope: (node: DerivationRule) => Scope, claimGaps?: boolean);
     /** @param {Request} request @returns {object|string} */
     key(request: Request): object | string;
     /** @param {Derivation} node @param {Channel} channel @returns {string} */

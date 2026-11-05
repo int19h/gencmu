@@ -53,8 +53,12 @@ export type Expectation = {
     rules: string[];
 };
 export type ParseError = {
-    kind: "rejected" | "ambiguous" | "grammar" | "feature-conflict";
+    kind: "rejected" | "reported" | "ambiguous" | "grammar" | "feature-conflict";
     feature?: string;
+    /**
+     * named diagnostics of a reported result
+     */
+    errors?: ParseWarning[];
     stage?: string;
     /**
      * why an ambiguous error is
@@ -188,8 +192,9 @@ export type StageReportBase = {
 };
 export type ParseWarning = {
     stage: string;
-    feature: string;
+    code: string;
     rule: string;
+    message: string;
     /**
      * the node's span over the stage's input tokens
      */
@@ -336,6 +341,9 @@ export type BodyRule = {
     erased?: true;
     value?: Recipe;
     image?: Recipe;
+    error?: Recipe;
+    warning?: Recipe;
+    suppressWarnings?: string[];
     at: Position;
 };
 export type InstanceBinding = {
@@ -352,6 +360,9 @@ export type InstanceBinding = {
     erased?: never;
     value?: never;
     image?: never;
+    error?: never;
+    warning?: never;
+    suppressWarnings?: never;
 };
 export type DomAlternative = {
     guards: Guard[];
@@ -362,14 +373,7 @@ export type DomAlternative = {
 };
 export type Guard = {
     feature: string;
-    /**
-     * a gate keeps its alternative only while
-     * its feature is on, or off if negated; a warning always keeps it
-     */
-    kind: "gate" | "warning";
-    /**
-     * always false for a warning
-     */
+    kind: "gate";
     negated: boolean;
 };
 export type Parameter = {
@@ -392,7 +396,7 @@ export type TemplateArgument = Term | {
     range: [Term, Term];
 } | {
     wildcard: true;
-} | TestedSymbol | {
+} | Splice | TestedSymbol | {
     body: Expr;
 } | {
     targets: QueryTarget[];
@@ -468,6 +472,11 @@ export type PatternItem = {
 } | {
     choice: PatternChildren[];
 };
+export type Splice = {
+    splice: {
+        ref: string;
+    } | TemplateCall;
+};
 export type Expr = {
     choice: Expr[];
 } | {
@@ -487,7 +496,7 @@ export type Expr = {
 } | {
     capture: string;
     expr: Expr;
-} | {
+} | Splice | {
     ref: string;
 } | {
     range: [Term, Term];
@@ -507,7 +516,7 @@ export type Expr = {
     empty: true;
 } | TemplateCall | Parameter;
 export type TestOp = "tags" | "=" | "≠";
-export type TestedSymbol = TemplateCall | Parameter | {
+export type TestedSymbol = TemplateCall | Parameter | Splice | {
     ref: string;
 } | {
     range: [Term, Term];
@@ -597,6 +606,7 @@ export type GrammarSymbol = {
     slot?: import("./ranked.js").RankedGroup;
     name: string;
     terminal: boolean;
+    optionalRoute?: "empty" | "written";
     /**
      * the test on the symbol's own span; not part
      * of the terminal's identity (engine §4)
@@ -628,6 +638,10 @@ export type CharacterClass = {
 };
 export type Capture = {
     name: string;
+    /**
+     * a captured terminator forwarded through its helper
+     */
+    terminal?: boolean;
     /**
      * the position of the captured symbol
      */
@@ -681,6 +695,11 @@ export type Production = {
     rhs: GrammarSymbol[];
     logical?: import("./logical.js").LogicalSymbol[];
     helper: boolean;
+    spliceOf?: string;
+    sourceId?: number;
+    error?: Recipe;
+    warning?: Recipe;
+    suppressWarnings?: string[];
     /**
      * the rule the production was lowered from
      */
@@ -710,6 +729,7 @@ export type Production = {
      */
     captureSlot: Map<string, number>;
     conditions: ReadyCondition[];
+    guardConditions?: ReadyCondition[];
     /**
      * the conditions ready after
      * each position, at `readyAt + 1`, in written order
@@ -720,11 +740,6 @@ export type Production = {
     erased: boolean;
     value?: Recipe;
     image?: Recipe;
-    /**
-     * the features of the alternative's warnings,
-     * in the order they are written; none for a helper
-     */
-    warnings: string[];
 };
 export type KeyStep = {
     step: "leftmost-longest" | "fewest" | "most" | "late" | "early";
@@ -826,7 +841,7 @@ export type TermValue = {
 };
 export type SpanValue = {
     treeIdentity?: number;
-    patternName?: string;
+    patternName?: string | null;
     patternPrefix?: number;
     observation?: import("./close-observations.js").CloseObservation | null;
     aligned?: AlignedSpan;
@@ -977,8 +992,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * Why a text did not parse: rejected by a stage, ambiguous with a tie or
  * under elision-only, or a defect of the grammar found while running it.
  * @typedef {object} ParseError
- * @property {"rejected" | "ambiguous" | "grammar" | "feature-conflict"} kind
+ * @property {"rejected" | "reported" | "ambiguous" | "grammar" | "feature-conflict"} kind
  * @property {string} [feature]
+ * @property {ParseWarning[]} [errors] named diagnostics of a reported result
  * @property {string} [stage]
  * @property {"tie" | "elision-only"} [reason] why an ambiguous error is
  *   one: a tie (engine §6) or the check of elision-only (engine §7)
@@ -1083,12 +1099,12 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   (engine §12), absent for a stage that rejected its input or tied
  */
 /**
- * A warning (engine §12): a node of a stage's chosen tree that a warned
- * alternative built while its feature was on.
+ * An enabled, unsuppressed warning from the chosen derivation (engine §12).
  * @typedef {object} ParseWarning
  * @property {string} stage
- * @property {string} feature
+ * @property {string} code
  * @property {string} rule
+ * @property {string} message
  * @property {Span} span the node's span over the stage's input tokens
  * @property {Span} source the node's range of the original text
  */
@@ -1210,6 +1226,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {true} [erased]
  * @property {Recipe} [value]
  * @property {Recipe} [image]
+ * @property {Recipe} [error]
+ * @property {Recipe} [warning]
+ * @property {string[]} [suppressWarnings]
  * @property {Position} at
  */
 /**
@@ -1228,6 +1247,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {never} [erased]
  * @property {never} [value]
  * @property {never} [image]
+ * @property {never} [error]
+ * @property {never} [warning]
+ * @property {never} [suppressWarnings]
  */
 /**
  * @typedef {object} DomAlternative
@@ -1240,9 +1262,8 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * @typedef {object} Guard
  * @property {string} feature
- * @property {"gate" | "warning"} kind a gate keeps its alternative only while
- *   its feature is on, or off if negated; a warning always keeps it
- * @property {boolean} negated always false for a warning
+ * @property {"gate"} kind
+ * @property {boolean} negated
  */
 /** @typedef {{param:string, at:Position}} Parameter */
 /** @typedef {{call:string, args:TemplateArgument[], at:Position}} TemplateCall */
@@ -1250,7 +1271,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * One argument before template expansion.
  * @typedef {Term | {rule:string} | TemplateCall | Parameter | {range:[Term,Term]}
- *   | {wildcard:true} | TestedSymbol | {body:Expr} | {targets:QueryTarget[]}
+ *   | {wildcard:true} | Splice | TestedSymbol | {body:Expr} | {targets:QueryTarget[]}
  *   | {requirements:Requirement[]}} TemplateArgument
  */
 /**
@@ -1268,11 +1289,12 @@ export type ParseContext = import("./earley.js").ParseContext;
 /** @typedef {PatternAtom | PatternRuleAtom | {test:"tags",requirements:Requirement[],expr:PatternAtom | PatternRuleAtom}} PatternTestTarget */
 /** @typedef {PatternItem[]} PatternChildren */
 /** @typedef {{child:Pattern} | {siblings:true} | {optional:PatternChildren} | {repeat:PatternChildren,separator?:PatternChildren} | {choice:PatternChildren[]}} PatternItem */
+/** @typedef {{splice:{ref:string}|TemplateCall}} Splice */
 /**
  * A rule body expression.
  * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
  *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
- *   | {optional: Expr, elidable?: true, default?: Term} | {capture: string, expr: Expr} | {ref: string}
+ *   | {optional: Expr, elidable?: true, default?: Term} | {capture: string, expr: Expr} | Splice | {ref: string}
  *   | {range: [Term, Term]} | {literal: Term} | {wildcard: true}
  *   | {test: "="|"≠", value: Term, expr: TestedSymbol} | {test: "tags", requirements: Requirement[], expr: TestedSymbol} | {empty: true} | TemplateCall | Parameter} Expr
  */
@@ -1282,7 +1304,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * What a test follows: a reference, a terminal, a range or a property.
- * @typedef {TemplateCall | Parameter | {ref: string} | {range: [Term, Term]} | {literal: Term} | {wildcard: true} | {test: "tags", requirements: Requirement[], expr: TestedSymbol}} TestedSymbol
+ * @typedef {TemplateCall | Parameter | Splice | {ref: string} | {range: [Term, Term]} | {literal: Term} | {wildcard: true} | {test: "tags", requirements: Requirement[], expr: TestedSymbol}} TestedSymbol
  */
 /**
  * An emission clause.
@@ -1333,6 +1355,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {import("./ranked.js").RankedGroup} [slot]
  * @property {string} name
  * @property {boolean} terminal
+ * @property {"empty"|"written"} [optionalRoute]
  * @property {SymbolTest} [test] the test on the symbol's own span; not part
  *   of the terminal's identity (engine §4)
  * @property {string} [literal]
@@ -1364,6 +1387,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * @typedef {object} Capture
  * @property {string} name
+ * @property {boolean} [terminal] a captured terminator forwarded through its helper
  * @property {number} index the position of the captured symbol
  */
 /**
@@ -1404,6 +1428,11 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {GrammarSymbol[]} rhs
  * @property {import("./logical.js").LogicalSymbol[]} [logical]
  * @property {boolean} helper
+ * @property {string} [spliceOf]
+ * @property {number} [sourceId]
+ * @property {Recipe} [error]
+ * @property {Recipe} [warning]
+ * @property {string[]} [suppressWarnings]
  * @property {string} owner the rule the production was lowered from
  * @property {string | null} elided the terminator an empty helper stands for
  * @property {SymbolTest | null} elidedTest the test of that terminator, an
@@ -1415,6 +1444,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Map<string, number>} captureSlot each capture's name, with its
  *   index in `captures`
  * @property {ReadyCondition[]} conditions
+ * @property {ReadyCondition[]} [guardConditions]
  * @property {ReadyCondition[][]} conditionsAt the conditions ready after
  *   each position, at `readyAt + 1`, in written order
  * @property {Term | null} tags
@@ -1422,8 +1452,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {boolean} erased
  * @property {Recipe} [value]
  * @property {Recipe} [image]
- * @property {string[]} warnings the features of the alternative's warnings,
- *   in the order they are written; none for a helper
  */
 /**
  * A step of `%ambiguity-resolution` that compares the occurrences of one
@@ -1488,7 +1516,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * whole capture.
  * @typedef {object} SpanValue
  * @property {number} [treeIdentity]
- * @property {string} [patternName]
+ * @property {string|null} [patternName]
  * @property {number} [patternPrefix]
  * @property {import("./close-observations.js").CloseObservation|null} [observation]
  * @property {AlignedSpan} [aligned]

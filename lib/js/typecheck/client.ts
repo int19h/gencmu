@@ -32,7 +32,7 @@ function rules(node: ResultNode): string[] {
 }
 if (result.tree) rules(result.tree);
 if (result.error) {
-  const kind: "rejected" | "ambiguous" | "feature-conflict" | "grammar" = result.error.kind;
+  const kind: "rejected" | "reported" | "ambiguous" | "feature-conflict" | "grammar" = result.error.kind;
   // An ambiguous error says why: a tie or the check of elision-only.
   const reason: "tie" | "elision-only" | undefined = result.error.reason;
   if (result.error.readings) result.error.readings.forEach(rules);
@@ -70,3 +70,15 @@ trace(pipeline, "", {stage:"syntax", position:0, elisionOnly:"off"});
 
 // @ts-expect-error caller tokens do not declare insertion provenance
 pipeline.parse("a", {tokens:[{text:"a", tags:[], span:[0,1], source:[0,1], insertedBy:"caller"}]});
+
+for (const diagnostic of [...result.warnings, ...result.error?.errors ?? []]) {
+  const code: string = diagnostic.code;
+  const message: string = diagnostic.message;
+  const stage: string = diagnostic.stage;
+  const rule: string = diagnostic.rule;
+  const span: [number, number] = diagnostic.span;
+  const source: [number, number] = diagnostic.source;
+  // @ts-expect-error diagnostics have a code instead of a feature member
+  void diagnostic.feature;
+  void code, message, stage, rule, span, source;
+}
