@@ -859,9 +859,9 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/modified-empty.svg" alt="Railroad diagram of the rule modified-empty"></p>
 </details>
 
-An empty-chain diagnostic follows a written `a`, a definable `o` target, `bi`, an arguments list, or an enumeration separator. It also follows `ri` in `chain` or in an erroneous tail's `ri-continuation`. An enumeration can lack its first chain too. When its following chain is missing, the separator still belongs to its open enumeration.
+An empty-chain diagnostic follows a written `a`, a definable `o` target, `bi`, an arguments list, or an enumeration separator. It also follows `ri` in `chain` or in an erroneous tail's `ri-continuation`. An enumeration can lack its first chain too. When its following chain is missing, the separator still belongs to its open enumeration. Recovery retains later separators and items, so an interior empty item does not abandon its enumeration.
 
-The positive-width owner keeps repetitions non-nullable. A boundary test detects the missing operand without recursively parsing recovery alternatives. It recognizes annotated `vi` and `fi`, with optional `bi`, without reading the bind operand. The diagnostic preference chooses this recovery over an unmatched `be` reading with the same error count.
+Each repeated recovery segment contains a written `bu`, so it reads at least one token. A boundary test detects the missing operand without recursively parsing recovery alternatives. It recognizes annotated `vi` and `fi`, with optional `bi`, without reading the bind operand. The diagnostic preference chooses this recovery over an unmatched `be` reading with the same error count.
 
 ```jbogenbau
 %extend-rule a-sentence
@@ -874,8 +874,8 @@ The positive-width owner keeps repetitions non-nullable. A boundary test detects
   [{prefix}] O [{postfix}] definable *chain-empty
 
 %extend-rule separator-form
-  | [arguments-list] *chain-empty
-  | [arguments-list] {chain / bu-free} bu-free *chain-empty
+  | [arguments-list] *chain-empty [{bu-free (chain | *chain-empty)}]
+  | [arguments-list] {chain / bu-free} bu-free *chain-empty [{bu-free (chain | *chain-empty)}]
 
 %extend-rule chain-inner
   bi-free *chain-empty

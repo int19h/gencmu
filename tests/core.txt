@@ -6925,3 +6925,10 @@ eberban.recovery2.number-prefix-1
 eberban.recovery2.number-prefix-2
 eberban.recovery2.number-prefix-3
 eberban.recovery2.number-prefix-9
+eberban.recovery2.enumeration-1
+eberban.recovery2.enumeration-2
+eberban.recovery2.enumeration-3
+eberban.recovery2.enumeration-4
+eberban.recovery2.enumeration-5
+eberban.recovery2.enumeration-6
+eberban.recovery2.enumeration-7
