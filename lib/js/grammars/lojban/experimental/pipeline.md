@@ -16,7 +16,7 @@ The indicator stage starts with the lojban/cll pipeline's stage ([`../cll/pipeli
 
 A feature is a named switch that the grammars test. The pipeline turns on `su-boundary`. That feature makes SU stop at the last surviving word of NIhO, LU, LUhEI, TUhE or TO.
 
-The words stage turns on the warning feature `experimental-cgv`. It reports a name or predicate word that needs the CgV extension, as in `atkuila`. Disabling the warning changes no reading.
+The words stage turns on the warning code `experimental-cgv`. It reports a name or predicate word that needs the CgV extension, as in `atkuila`. Disabling the warning changes no reading.
 
 The pipeline turns on two syntax features. `cbm` is the cmevla-brivla merger, which lets a name word (cmevla) also act as a predicate word (brivla). `soi-clause` makes `soi` a term that takes a subsentence, in place of CLL's free modifier of reciprocity. A caller (the program or person that asks for a parse) can turn either off to read the CLL form.
 

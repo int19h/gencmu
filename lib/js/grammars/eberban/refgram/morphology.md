@@ -83,8 +83,11 @@ The rules `space-before` and `space-after` hold beside a space, a bracket of a g
   $ :: Space := " "
 
 %rule space-unit
-  | Space<¬Foreign-Letter>
-  | non-eberban-letter! Space<Foreign-Letter>
+  Space<¬Foreign-Letter> | *non-eberban-letter
+
+%rule non-eberban-letter
+  Space<Foreign-Letter>
+%warning "this letter is outside the Eberban alphabet"
 
 %rule space-open
   Open
@@ -108,9 +111,10 @@ The rules `space-before` and `space-after` hold beside a space, a bracket of a g
   $.ends-input ∨ $.followed-by(space-unit | space-open | space-close)
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>space</code> to <code>space-after</code></summary>
+<details><summary>Railroad diagrams of the 8 rules from <code>space</code> to <code>space-after</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/space.svg" alt="Railroad diagram of the rule space"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/space-unit.svg" alt="Railroad diagram of the rule space-unit"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/non-eberban-letter.svg" alt="Railroad diagram of the rule non-eberban-letter"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/space-open.svg" alt="Railroad diagram of the rule space-open"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/space-close.svg" alt="Railroad diagram of the rule space-close"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/gap.svg" alt="Railroad diagram of the rule gap"></p>
@@ -124,9 +128,9 @@ The rules below name the letter classes that the letters stage tags. `ns-consona
 
 The morphology chapter says that a hyphen can stand at a syllable boundary inside a word. A syllable starts at a vowel after a different vowel, at `h`, and at a single consonant between vowels. Inside a borrowing, a syllable also starts at an initial pair. A medial pair splits between its two consonants, and a triplet `XYZ` splits between `X` and `YZ`. In a borrowing, a sonorant or `m` before a consonant splits the same way. A hyphen at one of these places is silent.
 
-Anywhere else, the grammar accepts a hyphen with the warning `hyphen-misplaced`. That includes the start and the end of a word. The rule `misplaced-hyphen` reads such a hyphen, and the pipeline turns the warning on. The PEG warns at most of these places, and the closing section lists the others.
+Anywhere else, the grammar accepts a hyphen with the warning `hyphen-misplaced`. That includes the start and the end of a word. The rule `hyphen-misplaced` reads such a hyphen, and the pipeline turns the warning on. The PEG warns at most of these places, and the closing section lists the others.
 
-A delimiter of a foreign quote is an Eberban word, and the quote reads such a word in two ways. It reads its delimiters with warnings, and the words inside its text in silence ("Foreign quotes" below). So the rules that a delimiter reaches take the hyphen rule as the parameter `@Hyphen`. The ordinary words read them with `misplaced-hyphen`, which warns. The silent reader reads them with a plain `Hyphen`. A named instance gives each ordinary reading its own name, such as `vhowels`.
+A delimiter of a foreign quote is an Eberban word, and the quote reads such a word in two ways. It reads its delimiters with warnings, and the words inside its text in silence ("Foreign quotes" below). So the rules that a delimiter reaches take the hyphen rule as the parameter `@Hyphen`. The ordinary words read them with `hyphen-misplaced`, which warns. The silent reader reads them with a plain `Hyphen`. A named instance gives each ordinary reading its own name, such as `vhowels`.
 
 ```jbogenbau
 %rule vowel
@@ -141,16 +145,17 @@ A delimiter of a foreign quote is an Eberban word, and the quote reads such a wo
 %rule ns-consonant
   Letter<Consonant ¬Sonorant>
 
-%rule misplaced-hyphen
-  hyphen-misplaced! Hyphen
+%rule hyphen-misplaced
+  Hyphen
+%warning "this hyphen stands outside a recommended position"
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>vowel</code> to <code>misplaced-hyphen</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>vowel</code> to <code>hyphen-misplaced</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/sonorant.svg" alt="Railroad diagram of the rule sonorant"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/ns-consonant.svg" alt="Railroad diagram of the rule ns-consonant"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/misplaced-hyphen.svg" alt="Railroad diagram of the rule misplaced-hyphen"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/hyphen-misplaced.svg" alt="Railroad diagram of the rule hyphen-misplaced"></p>
 </details>
 
 Two vowels written in a row are two letters, because the letters stage merges a repeated letter into one. A hyphen between two copies of the same vowel splits one vowel in two, so the book forbids it. The condition on the hyphenated alternative states that.
@@ -166,7 +171,7 @@ Two vowels written in a row are two letters, because the letters stage merges a 
 %rule vhowels-of(@Hyphen)
   vowels [{[Hyphen] Letter<H> [@Hyphen] vowels}]
 
-%rule vhowels = vhowels-of(misplaced-hyphen)
+%rule vhowels = vhowels-of(hyphen-misplaced)
 ```
 
 <details><summary>Railroad diagrams of <code>vowels</code>, <code>vhowels-of</code> and <code>vhowels</code></summary>
@@ -200,7 +205,7 @@ The morphology chapter lists the consonant pairs. An initial pair can begin a wo
 %conditions
   $x.value ++ $y.value ∈ $INITIAL-PAIRS
 
-%rule initial-pair = initial-pair-of(misplaced-hyphen)
+%rule initial-pair = initial-pair-of(hyphen-misplaced)
 
 %rule medial-pair
   $x:consonant [Hyphen] $y:consonant
@@ -226,13 +231,13 @@ A freeform variable or borrowing has a third shape: `X` is a sonorant and `YZ` i
     ∨ ($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∨ $x.value ++ $y.value ∈ $INITIAL-PAIRS)
       ∧ $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS
 
-%rule root-triplet = root-triplet-of(misplaced-hyphen)
+%rule root-triplet = root-triplet-of(hyphen-misplaced)
 
 %rule freeform-triplet
   root-triplet | sonorant-triplet
 
 %rule sonorant-triplet
-  sonorant [Hyphen] $y:ns-consonant [misplaced-hyphen] $z:consonant
+  sonorant [Hyphen] $y:ns-consonant [hyphen-misplaced] $z:consonant
 %conditions
   $y.value ++ $z.value ∈ $INITIAL-PAIRS
     ∨ $y.value ++ $z.value ∈ $MEDIAL-PAIRS ∧ Sonorant ⊆ $z.tags
@@ -253,31 +258,31 @@ The shape of a particle gives its family. As in the PEG, the first consonant giv
 
 ```jbogenbau
 %rule particle-cv(@Consonant, @Tag)
-  $c:ns-consonant [misplaced-hyphen] vhowels :: @Tag
+  $c:ns-consonant [hyphen-misplaced] vhowels :: @Tag
 %conditions
   $c.value = @Consonant
 
 %rule particle-cv-except(@Consonant, @Except, @Tag)
-  $c:ns-consonant [misplaced-hyphen] $v:vhowels :: @Tag
+  $c:ns-consonant [hyphen-misplaced] $v:vhowels :: @Tag
 %conditions
   $c.value = @Consonant,
   $v.value ≠ @Except
 
 %rule particle-cvv(@Consonant, @Vowel, @Tag)
-  $c:ns-consonant [misplaced-hyphen] $v:vhowels :: @Tag
+  $c:ns-consonant [hyphen-misplaced] $v:vhowels :: @Tag
 %conditions
   $c.value = @Consonant,
   $v.first-token.value = @Vowel
 
 %rule particle-cvv-except(@Consonant, @Vowel, @Except, @Tag)
-  $c:ns-consonant [misplaced-hyphen] $v:vhowels :: @Tag
+  $c:ns-consonant [hyphen-misplaced] $v:vhowels :: @Tag
 %conditions
   $c.value = @Consonant,
   $v.first-token.value = @Vowel,
   $v.value ≠ @Except
 
 %rule particle-exact(@Consonant, @Vowels, @Tag)
-  $c:ns-consonant [misplaced-hyphen] $v:vhowels :: @Tag
+  $c:ns-consonant [hyphen-misplaced] $v:vhowels :: @Tag
 %conditions
   $c.value = @Consonant,
   $v.value = @Vowels
@@ -381,7 +386,7 @@ The particle families of `n`, `a` and `o` are `NI`, `A` and `O`. The `n` can tak
 
 ```jbogenbau
 %rule ni-particle
-  Letter="n" [misplaced-hyphen] vhowels particle-tail :: NI
+  Letter="n" [hyphen-misplaced] vhowels particle-tail :: NI
 
 %rule a-particle
   $v:vhowels particle-tail :: A
@@ -396,7 +401,7 @@ The particle families of `n`, `a` and `o` are `NI`, `A` and `O`. The `n` can tak
 %rule particle-tail-of(@Hyphen)
   [{[Hyphen] sonorant [@Hyphen] vhowels-of(@Hyphen)}] [[@Hyphen] sonorant]
 
-%rule particle-tail = particle-tail-of(misplaced-hyphen)
+%rule particle-tail = particle-tail-of(hyphen-misplaced)
 
 %rule consonant-particle
   | mi-particle | fi-particle | vi-particle | vei-particle | ti-particle | si-particle
@@ -439,9 +444,9 @@ A root starts with a non-sonorant consonant or an initial pair. After its first 
 %rule final-sonorant-of(@Hyphen)
   [@Hyphen] sonorant
 
-%rule root-form = root-form-of(misplaced-hyphen)
-%rule root-middle = root-middle-of(misplaced-hyphen)
-%rule final-sonorant = final-sonorant-of(misplaced-hyphen)
+%rule root-form = root-form-of(hyphen-misplaced)
+%rule root-middle = root-middle-of(hyphen-misplaced)
+%rule final-sonorant = final-sonorant-of(hyphen-misplaced)
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>root-form-of</code> to <code>final-sonorant</code></summary>
@@ -471,8 +476,8 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
 
 ```jbogenbau
 %rule word-run
-  | [misplaced-hyphen] first-word [{consonant-word}] run-close
-  | [misplaced-hyphen] foreign-quote
+  | [hyphen-misplaced] first-word [{consonant-word}] run-close
+  | [hyphen-misplaced] foreign-quote
 
 %rule run-close
   run-end | foreign-quote
@@ -484,28 +489,28 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   consonant-particle-word | root-word | spelling-quote
 
 %rule consonant-particle-word
-  $p:consonant-particle [misplaced-hyphen] :: Word ∪ Particle ∪ $p.tags
+  $p:consonant-particle [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
 %conditions
   CO ⊆ $p.tags ⟹ ¬$.onward.begins(quote-opener)
 %emits
   $ :- $.value
 
 %rule ni-word
-  $p:ni-particle [misplaced-hyphen] :: Word ∪ Particle ∪ $p.tags
+  $p:ni-particle [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
 %conditions
   ¬$.preceding-tokens.ends(after-digit)
 %emits
   $ :- $.value
 
 %rule vowel-particle-word
-  $p:vowel-particle [misplaced-hyphen] :: Word ∪ Particle ∪ $p.tags
+  $p:vowel-particle [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
 %conditions
   ¬$.preceding-tokens.ends(after-digit)
 %emits
   $ :- $.value
 
 %rule root-word
-  root-form [misplaced-hyphen] :: Word ∪ Root
+  root-form [hyphen-misplaced] :: Word ∪ Root
 %emits
   $ :- $.value
 
@@ -543,7 +548,7 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
 
 ```jbogenbau
 %rule freeform-word(@Prefix, @Tag)
-  [misplaced-hyphen] $p:Letter prefix-gap $c:content [misplaced-hyphen] space-after :: Word ∪ @Tag := @Prefix ++ $c.value
+  [hyphen-misplaced] $p:Letter prefix-gap $c:content [hyphen-misplaced] space-after :: Word ∪ @Tag := @Prefix ++ $c.value
 %conditions
   $p.value = @Prefix,
   ¬$p.preceding-tokens.ends(after-digit)
@@ -554,17 +559,17 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
 %rule freeform-variable = freeform-word("i", Freeform)
 
 %rule prefix-gap
-  [gap] [misplaced-hyphen]
+  [gap] [hyphen-misplaced]
 
 %rule content
-  [content-onset] vhowels [{content-middle vhowels}] [[misplaced-hyphen] consonant]
+  [content-onset] vhowels [{content-middle vhowels}] [[hyphen-misplaced] consonant]
 
 %rule content-onset
-  (onset-cluster | split-cluster | Letter<H>) [misplaced-hyphen]
+  (onset-cluster | split-cluster | Letter<H>) [hyphen-misplaced]
 
 %rule content-middle
-  | [Hyphen] onset-cluster [misplaced-hyphen]
-  | [misplaced-hyphen] split-cluster [misplaced-hyphen]
+  | [Hyphen] onset-cluster [hyphen-misplaced]
+  | [hyphen-misplaced] split-cluster [hyphen-misplaced]
 
 %rule onset-cluster
   initial-pair | consonant
@@ -606,7 +611,7 @@ The numbers chapter also says that `+`, `*` and `/` are spaces, and that verbs e
 
 ```jbogenbau
 %rule digit-word
-  [$l:misplaced-hyphen] $d:Digit [$t:misplaced-hyphen] digit-math
+  [$l:hyphen-misplaced] $d:Digit [$t:hyphen-misplaced] digit-math
 %conditions
   ¬$l.preceding-tokens.ends(Hyphen),
   ¬$t.following-tokens.begins(Hyphen)
@@ -614,23 +619,24 @@ The numbers chapter also says that `+`, `*` and `/` are spaces, and that verbs e
   $d :: Word ∪ Particle ∪ TI
 
 %rule digit-math
-  [$m:math-mark]
+  [$m:math-symbol]
 %conditions
   $m ∨ ¬$.following-tokens.begins(math-space)
 
-%rule math-mark
-  math-symbol! ε
+%rule math-symbol
+  ε
 %conditions
   $.following-tokens.begins(math-space)
+%warning "a mathematical symbol follows this digit"
 
 %rule math-space
   Space<Math-Symbol>
 ```
 
-<details><summary>Railroad diagrams of <code>digit-word</code>, <code>digit-math</code>, <code>math-mark</code> and <code>math-space</code></summary>
+<details><summary>Railroad diagrams of <code>digit-word</code>, <code>digit-math</code>, <code>math-symbol</code> and <code>math-space</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/digit-word.svg" alt="Railroad diagram of the rule digit-word"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/digit-math.svg" alt="Railroad diagram of the rule digit-math"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/math-mark.svg" alt="Railroad diagram of the rule math-mark"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/math-symbol.svg" alt="Railroad diagram of the rule math-symbol"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/math-space.svg" alt="Railroad diagram of the rule math-space"></p>
 </details>
 
@@ -651,12 +657,12 @@ A run of `ra` is one eraser per `ra`. The syntax stage applies them. A hyphen af
   | space-before ri-word space-after
 
 %rule ra-word
-  Letter="r" [misplaced-hyphen] Letter="a" :: Word ∪ RA
+  Letter="r" [hyphen-misplaced] Letter="a" :: Word ∪ RA
 %emits
   $ :- $.value
 
 %rule ri-word
-  Letter="r" [misplaced-hyphen] Letter="i" :: Word ∪ RI
+  Letter="r" [hyphen-misplaced] Letter="i" :: Word ∪ RI
 %emits
   $ :- $.value
 ```
@@ -689,7 +695,7 @@ The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` 
   first-prefix | attached-prefix
 
 %rule first-prefix
-  Letter="e" [[misplaced-hyphen] prefix-arity] :: $.value.classify(prefix-length) ∪ (¬$.following-tokens.begins(later-letter) ⟹ Standalone)
+  Letter="e" [[hyphen-misplaced] prefix-arity] :: $.value.classify(prefix-length) ∪ (¬$.following-tokens.begins(later-letter) ⟹ Standalone)
 %conditions
   ¬$.preceding-tokens.ends(after-digit),
   ¬$.preceding-tokens.ends(after-letter)
@@ -701,9 +707,9 @@ The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` 
   Letter [Hyphen]
 
 %rule attached-prefix
-  | $e:Letter="e" [[misplaced-hyphen] prefix-arity] :: $.value.classify(prefix-length)
+  | $e:Letter="e" [[hyphen-misplaced] prefix-arity] :: $.value.classify(prefix-length)
   | $i:Letter="i" :: E-PREFIX
-  | $i:Letter="i" [misplaced-hyphen] $r:prefix-arity :: ("e" ++ $r.value).classify(prefix-length)
+  | $i:Letter="i" [hyphen-misplaced] $r:prefix-arity :: ("e" ++ $r.value).classify(prefix-length)
 %conditions
   $e.preceding-tokens.ends(after-e | after-i | after-arity),
   $i.preceding-tokens.ends(after-e)
@@ -736,17 +742,22 @@ The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` 
 
 ```jbogenbau
 %extend-rule attached-prefix
-  | prefix-i-after-sonorant! $i:Letter="i" :: E-PREFIX
-  | prefix-i-after-sonorant! $i:Letter="i" [misplaced-hyphen] $r:prefix-arity :: ("e" ++ $r.value).classify(prefix-length)
+  *prefix-i-after-sonorant
+
+%rule prefix-i-after-sonorant
+  | $i:Letter="i" :: E-PREFIX
+  | $i:Letter="i" [hyphen-misplaced] $r:prefix-arity :: ("e" ++ $r.value).classify(prefix-length)
 %conditions
   $i.preceding-tokens.ends(after-arity)
+%warning "an attached i follows a sonorant prefix"
 
 %rule after-arity
   prefix-arity [Hyphen]
 ```
 
-<details><summary>Railroad diagrams of <code>attached-prefix</code> and <code>after-arity</code></summary>
+<details><summary>Railroad diagrams of the 3 rules from <code>attached-prefix</code> to <code>after-arity</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/attached-prefix.2.svg" alt="Railroad diagram of the rule attached-prefix"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/prefix-i-after-sonorant.svg" alt="Railroad diagram of the rule prefix-i-after-sonorant"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/after-arity.svg" alt="Railroad diagram of the rule after-arity"></p>
 </details>
 
@@ -754,7 +765,7 @@ The rule `prefixes` reads the prefixes at the start of a run as one form. The ju
 
 ```jbogenbau
 %rule prefixes
-  first-prefix [{[misplaced-hyphen] attached-prefix}]
+  first-prefix [{[hyphen-misplaced] attached-prefix}]
 ```
 
 <details><summary>Railroad diagram of <code>prefixes</code></summary>
@@ -773,20 +784,20 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
 
 ```jbogenbau
 %rule compound-run
-  [misplaced-hyphen] compound [{consonant-word}] run-close
+  [hyphen-misplaced] compound [{consonant-word}] run-close
 
 %rule first-slot := $c.emitted.value
-  | [misplaced-hyphen] $c:attached-first
+  | [hyphen-misplaced] $c:attached-first
   | $c:digit-word
   | $c:borrowing
-  | [misplaced-hyphen] gap $c:spaced-component
+  | [hyphen-misplaced] gap $c:spaced-component
 
 %rule later-slot :: $c.tags ∩ Spaced-E := $c.emitted.value
   | $c:attached-later
   | gap $c:spaced-later
 
 %rule prefix-join
-  [misplaced-hyphen] [gap [misplaced-hyphen]]
+  [hyphen-misplaced] [gap [hyphen-misplaced]]
 
 %rule attached-first
   vowel-particle-word | component-particle | root-word
@@ -795,15 +806,15 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
   component-particle | root-word | digit-word
 
 %rule spaced-component
-  | [misplaced-hyphen] (component-particle | root-word | vowel-particle-word | ni-word)
+  | [hyphen-misplaced] (component-particle | root-word | vowel-particle-word | ni-word)
   | digit-word | borrowing
 
 %rule spaced-later
   | spaced-component
-  | [misplaced-hyphen] $n:compound :: $n.tags
+  | [hyphen-misplaced] $n:compound :: $n.tags
 
 %rule component-particle
-  $p:consonant-particle [misplaced-hyphen] :: Word ∪ Particle ∪ $p.tags
+  $p:consonant-particle [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
 %emits
   $ :- $.value
 ```
@@ -855,15 +866,20 @@ That vowel depends on the letter before it, so a tail comes in two kinds. `compo
       := "ne" ++ $n.emitted.value ++ " " ++ $b.emitted.value ++ " " ++ $c.emitted.value
   | prefix<ER-PREFIX> $l:er-components er-closer
       := "r" ++ $l.emitted.value ++ " e"
-  | compound-size! prefix<ER-PREFIX> $l:few-er-components er-closer
-      := "r" ++ $l.emitted.value ++ " e"
+  | *compound-size
+
+%rule compound-size
+  prefix<ER-PREFIX> $l:few-er-components er-closer
+    := "r" ++ $l.emitted.value ++ " e"
+%warning "this er compound has fewer than three components"
 ```
 
-<details><summary>Railroad diagrams of <code>compound</code>, <code>compound-tail</code>, <code>joined-tail</code> and <code>fixed-tail</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>compound</code> to <code>compound-size</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/compound.svg" alt="Railroad diagram of the rule compound"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/compound-tail.svg" alt="Railroad diagram of the rule compound-tail"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/joined-tail.svg" alt="Railroad diagram of the rule joined-tail"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/fixed-tail.svg" alt="Railroad diagram of the rule fixed-tail"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/compound-size.svg" alt="Railroad diagram of the rule compound-size"></p>
 </details>
 
 ### The end of an `er` compound
@@ -889,7 +905,7 @@ The PEG warns about an `er` compound of one, two or three components. A single w
   er-first er-component er-component er-component [{er-component}]
 
 %rule er-closer
-  gap [misplaced-hyphen] Letter="e" [misplaced-hyphen] run-end
+  gap [hyphen-misplaced] Letter="e" [hyphen-misplaced] run-end
 ```
 
 <details><summary>Railroad diagrams of the 5 rules from <code>er-first</code> to <code>er-closer</code></summary>
@@ -922,7 +938,7 @@ A reader can expect each quote rule to test the letters before it for an unfinis
 
 ```jbogenbau
 %rule stray-compound
-  [misplaced-hyphen] open-compound run-end
+  [hyphen-misplaced] open-compound run-end
 
 %rule open-compound
   | $p:stray-prefix<E-PREFIX> [open-first | first-component [open-later]]
@@ -943,7 +959,7 @@ A reader can expect each quote rule to test the letters before it for an unfinis
   prefix-join $o:open-compound :: $o.tags ∩ Spaced-E
 
 %rule open-later
-  gap [misplaced-hyphen] $o:open-compound :: $o.tags ∩ Spaced-E
+  gap [hyphen-misplaced] $o:open-compound :: $o.tags ∩ Spaced-E
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>stray-compound</code> to <code>open-later</code></summary>
@@ -969,7 +985,7 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
 
 ```jbogenbau
 %rule spelling-quote
-  $s:ce-particle $u:units unit-join $e:cei-particle [misplaced-hyphen]
+  $s:ce-particle $u:units unit-join $e:cei-particle [hyphen-misplaced]
     :: Word ∪ Particle ∪ CE ∪ Quote := $s.value ++ " " ++ $u.emitted.value ++ " " ++ $e.value :- $.source-text
 %emits
   $
@@ -978,7 +994,7 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
   first-unit [{later-unit}]
 
 %rule first-unit := $u.value
-  | [misplaced-hyphen] $u:attached-unit
+  | [hyphen-misplaced] $u:attached-unit
   | spelling-gap $u:unit
 
 %rule later-unit := " " ++ $u.value
@@ -986,10 +1002,10 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
   | spelling-gap $u:unit
 
 %rule unit-join
-  [misplaced-hyphen] | spelling-gap
+  [hyphen-misplaced] | spelling-gap
 
 %rule spelling-gap
-  [misplaced-hyphen] gap [misplaced-hyphen]
+  [hyphen-misplaced] gap [hyphen-misplaced]
 
 %rule unit
   consonant-unit | vowel-unit
@@ -1008,7 +1024,7 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
   vhowels
 
 %rule unit-letters
-  (initial-pair | consonant) [misplaced-hyphen] vhowels
+  (initial-pair | consonant) [hyphen-misplaced] vhowels
 
 %rule complete-cei
   cei-particle particle-end [Hyphen] word-boundary
@@ -1056,7 +1072,7 @@ The value is the `co` word, a space and the text from `[` to `]`. In the second 
   $
 
 %rule quote-co
-  co-particle particle-end [misplaced-hyphen] word-boundary
+  co-particle particle-end [hyphen-misplaced] word-boundary
 
 %rule opening-gap
   {space-unit | space-close | hesitation}
@@ -1112,7 +1128,7 @@ A digit is one `TI` particle, and a digit can be a delimiter. It needs no word b
   | [@Hyphen] native-particle-of(@Hyphen)
   | digit-form-of(@Hyphen) @Math
 
-%rule native-delimiter = delimiter-of(misplaced-hyphen, digit-math)
+%rule native-delimiter = delimiter-of(hyphen-misplaced, digit-math)
 %rule delimiter-shape = delimiter-of(Hyphen, ε)
 
 %rule native-root-of(@Hyphen)
@@ -1181,10 +1197,10 @@ Second, a single hyphen beside a digit belongs to the digit word, so it is no ju
   $ :: Junk := $.decomposed-source-text :- $.source-text
 
 %rule run-opener
-  [misplaced-hyphen] [{word-form}] quote-opener
+  [hyphen-misplaced] [{word-form}] quote-opener
 
 %rule word-form
-  (prefixes | consonant-particle | vowel-particle | ni-particle | root-form | spelling-quote) [misplaced-hyphen]
+  (prefixes | consonant-particle | vowel-particle | ni-particle | root-form | spelling-quote) [hyphen-misplaced]
 
 %rule spaced-start
   [Hyphen] (vowel | sonorant)

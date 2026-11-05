@@ -25,7 +25,7 @@ For quote markers, this layer only adds classes to the shared class sets. The sh
 
 ```jbogenbau
 %redefine-const $WORD-QUOTE-MARKERS
-  (* ZO_pre <- pre_clause ZO spaces? any_word spaces?;  GOhOI_pre <- pre_clause GOhOI spaces? any_word spaces? *)
+  -- ZO_pre <- pre_clause ZO spaces? any_word spaces?;  GOhOI_pre <- pre_clause GOhOI spaces? any_word spaces?
   $WORD-QUOTE-MARKERS ∪ GOhOI
 
 ```
@@ -65,7 +65,7 @@ For quote markers, this layer only adds classes to the shared class sets. The sh
 
 ```jbogenbau
 %redefine-const $ZOI-MARKERS
-  (* ZOI_pre <- pre_clause ZOI spaces? zoi_open spaces? zoi_word* zoi_close spaces?;  MUhOI_pre likewise *)
+  -- ZOI_pre <- pre_clause ZOI spaces? zoi_open spaces? zoi_word* zoi_close spaces?;  MUhOI_pre likewise
   $ZOI-MARKERS ∪ MUhOI
 
 ```
@@ -76,7 +76,7 @@ In a `lo'u` or `lo'ai` quote, the stage tags such a word `Word` only, like every
 
 ```jbogenbau
 %redefine-rule hesitation
-  (* spaces <- !Y initial_spaces *)
+  -- spaces <- !Y initial_spaces
   $h:y-run :: ∅
 %conditions
   ¬$h.onward.begins(y-bu-word),
@@ -141,7 +141,7 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
 %erased
 
 %rule opener-space-token
-  (* initial_spaces <- (space_char / !ybu Y)+: a hesitation before bu is no space *)
+  -- initial_spaces <- (space_char / !ybu Y)+: a hesitation before bu is no space
   $h:Hesitation
 %conditions
   Opener-Space ⊆ $h.tags,

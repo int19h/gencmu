@@ -63,23 +63,23 @@ This grammar excludes pure y from the onset alternative and reads the whole run 
 ### Word shapes and boundaries
 
 ```jbogenbau
-%rule cmevla-shape  (* A name carries its join property and an onset mark when it does not begin with a nucleus. *)
+%rule cmevla-shape  -- A name carries its join property and an onset mark when it does not begin with a nucleus.
   $n:cmevla :: Continued ∪ (¬$n.onward.begins(nucleus) ⟹ Onset)
 
-%rule cmavo-shape  (* Ordinary particles exclude pure y hesitation. Onset marks a word that can follow another without a pause. *)
+%rule cmavo-shape  -- Ordinary particles exclude pure y hesitation. Onset marks a word that can follow another without a pause.
   $c:cmavo :: Continued ∪ (¬$c.onward.begins(nucleus) ⟹ Onset)
 %conditions
   ¬$c.matches(y-letters)
 
-%rule brivla-shape  (* A predicate word carries its join and onset properties. *)
+%rule brivla-shape  -- A predicate word carries its join and onset properties.
   $b:brivla-word :: Continued ∪ (¬$b.onward.begins(nucleus) ⟹ Onset)
 
-%redefine-rule y-run  (* Pure hesitation keeps the complete particle boundary and its onset requirement. *)
+%redefine-rule y-run  -- Pure hesitation keeps the complete particle boundary and its onset requirement.
   $h:cmavo :: (¬$h.onward.begins(nucleus) ⟹ Onset)
 %conditions
   $h.matches(y-letters)
 
-%rule y-letters               (* a run of y letters, which a condition tests *)
+%rule y-letters               -- a run of y letters, which a condition tests
   "y" | "y" y-letters
 ```
 
@@ -96,27 +96,27 @@ This grammar excludes pure y from the onset alternative and reads the whole run 
 The PEG's `lojban_word` is what `post_word` looks for after a word.
 
 ```jbogenbau
-%rule lojban-word  (* A legal word is a name, a particle, or a predicate word. Their own conditions separate the classes. *)
+%rule lojban-word  -- A legal word is a name, a particle, or a predicate word. Their own conditions separate the classes.
   cmevla | cmavo | brivla-word
 
-%rule brivla-word  (* Predicate words are roots, compounds, or borrowings. Root stress and consonant clusters prevent a particle reading. Lujvo exclude roots and borrowings. Borrowing heads exclude root-shaped rafsi strings. *)
+%rule brivla-word  -- Predicate words are roots, compounds, or borrowings. Root stress and consonant clusters prevent a particle reading. Lujvo exclude roots and borrowings. Borrowing heads exclude root-shaped rafsi strings.
   gismu | lujvo | fuhivla
 
-%rule lujvo  (* A compound is a predicate word that is neither a root nor a borrowing. *)
+%rule lujvo  -- A compound is a predicate word that is neither a root nor a borrowing.
   $b:brivla
 %conditions
   ¬$b.onward.begins(gismu | fuhivla)
 
-%rule post-word  (* A word ends before a pause or a legal next word. Without a pause, the next word cannot start with a nucleus. *)
+%rule post-word  -- A word ends before a pause or a legal next word. Without a pause, the next word cannot start with a nucleus.
   | pause
   | $w:lojban-word
 %conditions
   ¬$w.onward.begins(nucleus)
 
-%rule pause                   (* `pause <- comma* space_char+ / EOF`. A pause test accepts a pause token or the end of input. *)
+%rule pause                   -- `pause <- comma* space_char+ / EOF`. A pause test accepts a pause token or the end of input.
   PAUSE | end-of-text
 
-%rule end-of-text  (* Require the end of input. *)
+%rule end-of-text  -- Require the end of input.
   ε
 %conditions
   $.ends-input
@@ -138,16 +138,16 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 A name is a run of letters that ends in a consonant before a pause. The repeated sounds exclude that final consonant, so only one repetition count reaches it. The PEG also offers a syllabified name shape, which requires the same general shape and ends at the same pause. The single `zifcme` form covers both name readings without duplicate proofs.
 
 ```jbogenbau
-%rule cmevla  (* A name needs the general name shape. The syllabified name shape requires that same shape and ends at the same pause. *)
+%rule cmevla  -- A name needs the general name shape. The syllabified name shape requires that same shape and ends at the same pause.
   zifcme
 
-%rule zifcme  (* A name forbids an initial apostrophe and ends in a consonant before a pause. *)
+%rule zifcme  -- A name forbids an initial apostrophe and ends in a consonant before a pause.
   [{zifcme-sound}] $c:consonant
 %conditions
   ¬$.onward.begins(h),
   $c.following-tokens.begins(pause)
 
-%rule zifcme-sound  (* An apostrophe and a consonant use distinct letters. A glide requires a following nucleus, which a vowel forbids. Reserve the pause-final consonant for zifcme. *)
+%rule zifcme-sound  -- An apostrophe and a consonant use distinct letters. A glide requires a following nucleus, which a vowel forbids. Reserve the pause-final consonant for zifcme.
   | nucleus
   | glide
   | h
@@ -170,23 +170,23 @@ A name is a run of letters that ends in a consonant before a pause. The repeated
 A cmavo is not the start of a name, and not the start of a lujvo that begins with a CVC rafsi and a y-hyphen. Its form is an onset and nuclei joined by apostrophes, or a run of `y`. A pause or another word follows it. `CVCy_lujvo` keeps `bajykerlo` one lujvo, rather than `ba jy kerlo`.
 
 ```jbogenbau
-%rule cmavo  (* A particle excludes a name start and a CVCy compound start. It ends at a complete word boundary. *)
+%rule cmavo  -- A particle excludes a name start and a CVCy compound start. It ends at a complete word boundary.
   $f:cmavo-form
 %conditions
   ¬$f.onward.begins(cmevla | cvcy-lujvo),
   $f.following-tokens.begins(post-word)
 
-%rule cvcy-lujvo  (* Detect a CVC rafsi with a y-hyphen before the compound core. Stress separates the two forms. Unhyphenated initial rafsi cannot start where the core starts, because of stress and their own exclusions. Only a lookahead. *)
+%rule cvcy-lujvo  -- Detect a CVC rafsi with a y-hyphen before the compound core. Stress separates the two forms. Unhyphenated initial rafsi cannot start where the core starts, because of stress and their own exclusions. Only a lookahead.
   | cvc-rafsi y [h] [{initial-rafsi}] brivla-core
   | stressed-cvc-rafsi y short-final-rafsi
 
-%rule cmavo-form  (* A particle has an onset form or is a whole hesitation run. Pure y letters belong only to hesitation. *)
+%rule cmavo-form  -- A particle has an onset form or is a whole hesitation run. Pure y letters belong only to hesitation.
   | $f:cmavo-form-with-onset
   | ys
 %conditions
   ¬$f.matches(y-letters)
 
-%rule cmavo-form-with-onset  (* A particle forbids an apostrophe or cluster at its start. Each inner nucleus needs its apostrophe. The final nucleus cannot consume that apostrophe. *)
+%rule cmavo-form-with-onset  -- A particle forbids an apostrophe or cluster at its start. Each inner nucleus needs its apostrophe. The final nucleus cannot consume that apostrophe.
   $o:onset [{nucleus h}] cmavo-last-nucleus
 %conditions
   ¬$o.onward.begins(h | cluster)
@@ -205,12 +205,12 @@ A cmavo is not the start of a name, and not the start of a lujvo that begins wit
 The last nucleus of a cmavo is unstressed, or it is not followed by a consonant cluster. So `MIklama` is not `mI klama`. One condition covers both reasons for the same nucleus.
 
 ```jbogenbau
-%rule cmavo-last-nucleus  (* A particle ends in an unstressed nucleus, or in a nucleus with no following consonant cluster. One nucleus covers both cases. *)
+%rule cmavo-last-nucleus  -- A particle ends in an unstressed nucleus, or in a nucleus with no following consonant cluster. One nucleus covers both cases.
   $n:nucleus
 %conditions
   ¬$n.onward.begins(stressed) ∨ ¬$n.following-tokens.begins(cluster)
 
-%rule ys  (* Hesitation occupies a whole run of y letters. A shorter prefix cannot end before another y. *)
+%rule ys  -- Hesitation occupies a whole run of y letters. A shorter prefix cannot end before another y.
   {y}
 %conditions
   ¬$.following-tokens.begins(y)
@@ -235,18 +235,18 @@ No syllable of a borrowing has `y` as its nucleus. A borrowing cannot cross a y-
 The `short-final-rafsi` rule reads a consonant and diphthong, or an initial pair and vowel. Its diphthong cannot split into a gismu's final vowel and another word, because that vowel forbids a following nucleus. The `cvv-final-rafsi` rule stresses its first vowel, while the apostrophe form of `stressed-cvv-rafsi` stresses its second vowel.
 
 ```jbogenbau
-%rule brivla  (* A predicate word cannot start where a particle begins. Unstressed initial rafsi precede its stressed core. *)
+%rule brivla  -- A predicate word cannot start where a particle begins. Unstressed initial rafsi precede its stressed core.
   [{initial-rafsi}] brivla-core
 %conditions
   ¬$.onward.begins(cmavo)
 
-%rule brivla-core  (* Borrowing heads exclude rafsi strings. The other cores differ in consonant positions, apostrophes, hyphens, or stress. *)
+%rule brivla-core  -- Borrowing heads exclude rafsi strings. The other cores differ in consonant positions, apostrophes, hyphens, or stress.
   | fuhivla
   | gismu
   | cvv-final-rafsi
   | stressed-initial-rafsi short-final-rafsi
 
-%rule stressed-initial-rafsi  (* Extended brivla forms need an unstressed first syllable and apostrophe-y. Borrowing heads exclude rafsi strings. After a long y-rafsi's CCV prefix, consonant-y cannot start the required short final. An apostrophe after CVV cannot start it either. A CVC rafsi forbids following y. *)
+%rule stressed-initial-rafsi  -- Extended brivla forms need an unstressed first syllable and apostrophe-y. Borrowing heads exclude rafsi strings. After a long y-rafsi's CCV prefix, consonant-y cannot start the required short final. An apostrophe after CVV cannot start it either. A CVC rafsi forbids following y.
   stressed-extended-rafsi | stressed-y-rafsi | stressed-y-less-rafsi
 
 ```
@@ -264,7 +264,7 @@ A short rafsi without a y-hyphen cannot start an extended rafsi or borrowing, or
 The comment on `initial-rafsi` states why its three alternatives cannot complete the same initial rafsi.
 
 ```jbogenbau
-%rule initial-rafsi  (* A short unhyphenated rafsi cannot start or directly precede an extended rafsi or borrowing. It excludes y-rafsi and hy-rafsi through y-less-rafsi, and extended forms through any-extended-rafsi. Initial borrowing rafsi need an unstressed first syllable. Extended brivla forms need two syllables before apostrophe-y. The stressed counterparts also need a short final that cannot start with consonant-y or apostrophe. *)
+%rule initial-rafsi  -- A short unhyphenated rafsi cannot start or directly precede an extended rafsi or borrowing. It excludes y-rafsi and hy-rafsi through y-less-rafsi, and extended forms through any-extended-rafsi. Initial borrowing rafsi need an unstressed first syllable. Extended brivla forms need two syllables before apostrophe-y. The stressed counterparts also need a short final that cannot start with consonant-y or apostrophe.
   | extended-rafsi
   | y-rafsi
   | $l:y-less-rafsi
@@ -272,7 +272,7 @@ The comment on `initial-rafsi` states why its three alternatives cannot complete
   ¬$l.onward.begins(any-extended-rafsi),
   ¬$l.following-tokens.begins(any-extended-rafsi)
 
-%rule any-extended-rafsi      (* `any_extended_rafsi <- fuhivla / extended_rafsi / stressed_extended_rafsi`. The test detects a borrowing or either extended rafsi form. *)
+%rule any-extended-rafsi      -- `any_extended_rafsi <- fuhivla / extended_rafsi / stressed_extended_rafsi`. The test detects a borrowing or either extended rafsi form.
   fuhivla | extended-rafsi | stressed-extended-rafsi
 ```
 
@@ -290,51 +290,51 @@ A consonantal syllable has a consonant and then a coda that begins with a syllab
 An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before a y-hyphen inside a compound. A `brivla_rafsi` is a head of two syllables or more, followed by `'y`, as `klama'y` in `klama'ybroda`. A `fuhivla_rafsi` is the head of a borrowing followed by an onset and `y`. The onset is a consonant, as in `aktyiismu`, a legal initial cluster, or a glide, as in `spageiybroda`. Each has a stressed form, which stands before `short-final-rafsi`.
 
 ```jbogenbau
-%rule fuhivla  (* A borrowing ends with its stressed syllable and final syllable. A vowel-bearing final syllable cannot start with a consonantal syllable. *)
+%rule fuhivla  -- A borrowing ends with its stressed syllable and final syllable. A vowel-bearing final syllable cannot start with a consonantal syllable.
   fuhivla-head stressed-syllable [{consonantal-syllable}] final-syllable
 
-%rule stressed-extended-rafsi  (* The stressed brivla form requires apostrophe-y after its stressed syllable. The stressed borrowing form forbids that onset at its fixed boundary. *)
+%rule stressed-extended-rafsi  -- The stressed brivla form requires apostrophe-y after its stressed syllable. The stressed borrowing form forbids that onset at its fixed boundary.
   stressed-brivla-rafsi | stressed-fuhivla-rafsi
 
-%rule extended-rafsi  (* A brivla rafsi requires an apostrophe after its head. A borrowing rafsi forbids that onset. The complete heads fix that boundary. *)
+%rule extended-rafsi  -- A brivla rafsi requires an apostrophe after its head. A borrowing rafsi forbids that onset. The complete heads fix that boundary.
   brivla-rafsi | fuhivla-rafsi
 
-%rule stressed-brivla-rafsi  (* A stressed extended brivla rafsi needs an unstressed first syllable before its stressed end and apostrophe-y. *)
+%rule stressed-brivla-rafsi  -- A stressed extended brivla rafsi needs an unstressed first syllable before its stressed end and apostrophe-y.
   $b:brivla-head stressed-syllable h y
 %conditions
   $b.onward.begins(unstressed-syllable)
 
-%rule brivla-rafsi  (* A whole brivla head before apostrophe-y needs at least two syllables. A following rafsi cannot start with the optional apostrophe. *)
+%rule brivla-rafsi  -- A whole brivla head before apostrophe-y needs at least two syllables. A following rafsi cannot start with the optional apostrophe.
   brivla-head h y [h]
 %conditions
   $.onward.begins(two-syllables)
 
-%rule two-syllables  (* Require two vowel-bearing syllables. A consonantal syllable cannot consume the start of the second one. *)
+%rule two-syllables  -- Require two vowel-bearing syllables. A consonantal syllable cannot consume the start of the second one.
   syllable [{consonantal-syllable}] syllable
 
-%rule stressed-fuhivla-rafsi  (* A stressed borrowing rafsi ends before y. Its onset cannot be an apostrophe. *)
+%rule stressed-fuhivla-rafsi  -- A stressed borrowing rafsi ends before y. Its onset cannot be an apostrophe.
   fuhivla-head stressed-syllable [{consonantal-syllable}] $o:onset y
 %conditions
   ¬$o.onward.begins(h)
 
-%rule fuhivla-rafsi  (* A borrowing rafsi starts with an unstressed syllable and forbids an apostrophe onset after its head. A following rafsi cannot start with apostrophe. *)
+%rule fuhivla-rafsi  -- A borrowing rafsi starts with an unstressed syllable and forbids an apostrophe onset after its head. A following rafsi cannot start with apostrophe.
   $f:fuhivla-head onset y [h]
 %conditions
   $f.onward.begins(unstressed-syllable),
   ¬$f.following-tokens.begins(h)
 
-%rule fuhivla-head  (* A borrowing head cannot begin with a rafsi string. *)
+%rule fuhivla-head  -- A borrowing head cannot begin with a rafsi string.
   $b:brivla-head
 %conditions
   ¬$b.onward.begins(rafsi-string)
 
-%rule brivla-head  (* An unstressed head requires an onset and excludes particles, slinku'i forms, and apostrophe starts. The following stress or hyphen fixes its length. *)
+%rule brivla-head  -- An unstressed head requires an onset and excludes particles, slinku'i forms, and apostrophe starts. The following stress or hyphen fixes its length.
   [{unstressed-syllable}]
 %conditions
   ¬$.onward.begins(cmavo | slinkuhi | h),
   $.onward.begins(syllable-onset)
 
-%rule slinkuhi  (* A slinku'i form starts with a consonant plus a rafsi string, but the whole start is not itself a rafsi string. Only a lookahead. *)
+%rule slinkuhi  -- A slinku'i form starts with a consonant plus a rafsi string, but the whole start is not itself a rafsi string. Only a lookahead.
   $c:consonant rafsi-string
 %conditions
   ¬$c.onward.begins(rafsi-string)
@@ -359,16 +359,16 @@ An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before
 The slinku'i test and a borrowing's head look for a string of rafsi. That is any number of rafsi without a y-hyphen, and then a part that can end a lujvo or that has a y-hyphen. The PEG uses it only in lookaheads.
 
 ```jbogenbau
-%rule rafsi-string  (* Detect a string of rafsi. The stressed ending or y boundary fixes the unstressed prefix. Only a lookahead. *)
+%rule rafsi-string  -- Detect a string of rafsi. The stressed ending or y boundary fixes the unstressed prefix. Only a lookahead.
   [{y-less-rafsi}] rafsi-string-end
 
-%rule rafsi-string-end        (* `gismu / CVV_final_rafsi / stressed_y_less_rafsi short_final_rafsi / y_rafsi / stressed_y_rafsi / stressed_y_less_rafsi? initial_pair y / hy_rafsi / stressed_hy_rafsi`. The test detects a compound ending or a y-hyphen boundary. *)
+%rule rafsi-string-end        -- `gismu / CVV_final_rafsi / stressed_y_less_rafsi short_final_rafsi / y_rafsi / stressed_y_rafsi / stressed_y_less_rafsi? initial_pair y / hy_rafsi / stressed_hy_rafsi`. The test detects a compound ending or a y-hyphen boundary.
   | gismu
   | cvv-final-rafsi
   | stressed-y-less-rafsi short-final-rafsi
   | y-rafsi
   | stressed-y-rafsi
-  | [stressed-y-less-rafsi] initial-pair y  (* A stressed CVC or CVV rafsi differs from initial-pair in its second letter. A stressed CCV rafsi has a vowel where the following y is required. So the optional cannot consume the required pair. *)
+  | [stressed-y-less-rafsi] initial-pair y  -- A stressed CVC or CVV rafsi differs from initial-pair in its second letter. A stressed CCV rafsi has a vowel where the following y is required. So the optional cannot consume the required pair.
   | hy-rafsi
   | stressed-hy-rafsi
 
@@ -386,65 +386,65 @@ The slinku'i test and a borrowing's head look for a string of rafsi. That is any
 The core of a brivla ends it, and a pause or another word follows it. Its final syllable has a nucleus with no stress mark and is not followed by a name.
 
 ```jbogenbau
-%rule gismu  (* A root ends with a valid final syllable at a complete word boundary. *)
+%rule gismu  -- A root ends with a valid final syllable at a complete word boundary.
   gismu-start $c:consonant $v:vowel
 %conditions
   $c.onward.begins(final-syllable),
   $v.following-tokens.begins(post-word)
 
-%rule gismu-start             (* `initial_pair stressed_vowel / consonant stressed_vowel consonant`. The second letter is a consonant in one form and a vowel in the other. *)
+%rule gismu-start             -- `initial_pair stressed_vowel / consonant stressed_vowel consonant`. The second letter is a consonant in one form and a vowel in the other.
   initial-pair stressed-vowel | consonant stressed-vowel consonant
 
-%rule cvv-final-rafsi  (* A CVV final rafsi ends with a valid final syllable at a complete word boundary. *)
+%rule cvv-final-rafsi  -- A CVV final rafsi ends with a valid final syllable at a complete word boundary.
   consonant stressed-vowel h $v:vowel
 %conditions
   $v.onward.begins(final-syllable),
   $v.following-tokens.begins(post-word)
 
-%rule short-final-rafsi  (* A short final rafsi forms a valid final syllable at a complete word boundary. *)
+%rule short-final-rafsi  -- A short final rafsi forms a valid final syllable at a complete word boundary.
   $r:short-final-body
 %conditions
   $r.onward.begins(final-syllable),
   $r.following-tokens.begins(post-word)
 
-%rule short-final-body        (* `consonant diphthong / initial_pair vowel`. The second letter is a vowel in one form and a consonant in the other. *)
+%rule short-final-body        -- `consonant diphthong / initial_pair vowel`. The second letter is a vowel in one form and a consonant in the other.
   consonant diphthong | initial-pair vowel
 
-%rule stressed-y-rafsi  (* A stressed long rafsi or CVC rafsi ends before y. The forms differ in their second letter, or a consonant follows the CVC prefix before the long form reaches y. *)
+%rule stressed-y-rafsi  -- A stressed long rafsi or CVC rafsi ends before y. The forms differ in their second letter, or a consonant follows the CVC prefix before the long form reaches y.
   stressed-long-rafsi y | stressed-cvc-rafsi y
 
-%rule stressed-y-less-rafsi  (* CVC, CCV, and CVV differ in their second or third letter. The CVC form cannot end directly before y. *)
+%rule stressed-y-less-rafsi  -- CVC, CCV, and CVV differ in their second or third letter. The CVC form cannot end directly before y.
   | $c:stressed-cvc-rafsi
   | stressed-ccv-rafsi
   | stressed-cvv-rafsi
 %conditions
   ¬$c.following-tokens.begins(y)
 
-%rule stressed-long-rafsi     (* `stressed_long_rafsi <- initial_pair stressed_vowel consonant / consonant stressed_vowel consonant consonant`. The forms differ in their second letter. *)
+%rule stressed-long-rafsi     -- `stressed_long_rafsi <- initial_pair stressed_vowel consonant / consonant stressed_vowel consonant consonant`. The forms differ in their second letter.
   initial-pair stressed-vowel consonant | consonant stressed-vowel consonant consonant
 
-%rule stressed-cvc-rafsi      (* A stressed CVC rafsi has a stressed vowel between two consonants. *)
+%rule stressed-cvc-rafsi      -- A stressed CVC rafsi has a stressed vowel between two consonants.
   consonant stressed-vowel consonant
 
-%rule stressed-ccv-rafsi      (* A stressed CCV rafsi ends in a stressed vowel after an initial consonant pair. *)
+%rule stressed-ccv-rafsi      -- A stressed CCV rafsi ends in a stressed vowel after an initial consonant pair.
   initial-pair stressed-vowel
 
-%rule stressed-cvv-rafsi      (* A stressed CVV rafsi begins with a consonant. Its apostrophe form stresses the second vowel. Its diphthong form stresses the diphthong. An r-hyphen can follow either form. *)
+%rule stressed-cvv-rafsi      -- A stressed CVV rafsi begins with a consonant. Its apostrophe form stresses the second vowel. Its diphthong form stresses the diphthong. An r-hyphen can follow either form.
   consonant stressed-cvv-body [r-hyphen]
 
-%rule stressed-cvv-body       (* `unstressed_vowel h stressed_vowel / stressed_diphthong`. The second letter is an apostrophe in one form and a vowel in the other. *)
+%rule stressed-cvv-body       -- `unstressed_vowel h stressed_vowel / stressed_diphthong`. The second letter is an apostrophe in one form and a vowel in the other.
   unstressed-vowel h stressed-vowel | stressed-diphthong
 
-%rule y-rafsi  (* A long rafsi or CVC rafsi ends before y. The forms differ in their second letter, or a consonant follows the CVC prefix before the long form reaches y. The following rafsi cannot start with apostrophe. *)
+%rule y-rafsi  -- A long rafsi or CVC rafsi ends before y. The forms differ in their second letter, or a consonant follows the CVC prefix before the long form reaches y. The following rafsi cannot start with apostrophe.
   (long-rafsi | cvc-rafsi) y [h]
 
-%rule y-less-rafsi  (* An unhyphenated rafsi excludes y-rafsi, hy-rafsi, and their stressed forms at its start. It cannot end directly before an apostrophe. *)
+%rule y-less-rafsi  -- An unhyphenated rafsi excludes y-rafsi, hy-rafsi, and their stressed forms at its start. It cannot end directly before an apostrophe.
   $r:y-less-rafsi-body
 %conditions
   ¬$r.onward.begins(y-rafsi | stressed-y-rafsi | hy-rafsi | stressed-hy-rafsi),
   ¬$r.following-tokens.begins(h)
 
-%rule y-less-rafsi-body       (* `CVC_rafsi / CCV_rafsi / CVV_rafsi`. CVC and CCV differ in their second letter. CVC and CVV differ in their third letter. CCV and CVV differ in their second letter. *)
+%rule y-less-rafsi-body       -- `CVC_rafsi / CCV_rafsi / CVV_rafsi`. CVC and CCV differ in their second letter. CVC and CVV differ in their third letter. CCV and CVV differ in their second letter.
   cvc-rafsi | ccv-rafsi | cvv-rafsi
 ```
 
@@ -473,40 +473,40 @@ A `hy_rafsi` is a CCVCV, CVCCV, CCV, or CVV rafsi body followed by `'y`. The BPF
 A long CCVCV form leaves a consonant after its CCV prefix, where the shorter branch requires an apostrophe. The CVV form differs in its second or third letter. Thus only one branch reaches apostrophe-y.
 
 ```jbogenbau
-%rule hy-rafsi                (* An apostrophe-y rafsi ends its classical body with apostrophe-y. Another apostrophe can follow the hyphen. *)
+%rule hy-rafsi                -- An apostrophe-y rafsi ends its classical body with apostrophe-y. Another apostrophe can follow the hyphen.
   hy-rafsi-body h y [h]
 
-%rule hy-rafsi-body  (* A long CCVCV form leaves a consonant after CCV, so only one reaches apostrophe-y. CVV differs in its second or third letter. *)
+%rule hy-rafsi-body  -- A long CCVCV form leaves a consonant after CCV, so only one reaches apostrophe-y. CVV differs in its second or third letter.
   long-rafsi-vowel | ccv-rafsi | cvv-rafsi
 
-%rule long-rafsi-vowel        (* The long classical form appends a vowel to a long rafsi. *)
+%rule long-rafsi-vowel        -- The long classical form appends a vowel to a long rafsi.
   long-rafsi vowel
 
-%rule stressed-hy-rafsi       (* A stressed apostrophe-y rafsi ends its stressed classical body with apostrophe-y. *)
+%rule stressed-hy-rafsi       -- A stressed apostrophe-y rafsi ends its stressed classical body with apostrophe-y.
   stressed-hy-rafsi-body h y
 
-%rule stressed-hy-rafsi-body  (* CVV differs in its second or third letter. The long form differs from stressed CCV in its second letter or third-letter stress. *)
+%rule stressed-hy-rafsi-body  -- CVV differs in its second or third letter. The long form differs from stressed CCV in its second letter or third-letter stress.
   long-rafsi-stressed-vowel | stressed-ccv-rafsi | stressed-cvv-rafsi
 
-%rule long-rafsi-stressed-vowel  (* The stressed long classical form appends a stressed vowel to an unstressed long rafsi. *)
+%rule long-rafsi-stressed-vowel  -- The stressed long classical form appends a stressed vowel to an unstressed long rafsi.
   long-rafsi stressed-vowel
 
-%rule long-rafsi              (* `long_rafsi <- initial_pair unstressed_vowel consonant / consonant unstressed_vowel consonant consonant`. The forms differ in their second letter. *)
+%rule long-rafsi              -- `long_rafsi <- initial_pair unstressed_vowel consonant / consonant unstressed_vowel consonant consonant`. The forms differ in their second letter.
   initial-pair unstressed-vowel consonant | consonant unstressed-vowel consonant consonant
 
-%rule cvc-rafsi               (* A CVC rafsi has an unstressed vowel between two consonants. *)
+%rule cvc-rafsi               -- A CVC rafsi has an unstressed vowel between two consonants.
   consonant unstressed-vowel consonant
 
-%rule ccv-rafsi               (* A CCV rafsi ends in an unstressed vowel after an initial consonant pair. *)
+%rule ccv-rafsi               -- A CCV rafsi ends in an unstressed vowel after an initial consonant pair.
   initial-pair unstressed-vowel
 
-%rule cvv-rafsi               (* A CVV rafsi begins with a consonant. It has two unstressed vowels with an apostrophe between them, or an unstressed diphthong. An r-hyphen can follow either form. *)
+%rule cvv-rafsi               -- A CVV rafsi begins with a consonant. It has two unstressed vowels with an apostrophe between them, or an unstressed diphthong. An r-hyphen can follow either form.
   consonant cvv-body [r-hyphen]
 
-%rule cvv-body                (* `unstressed_vowel h unstressed_vowel / unstressed_diphthong`. The second letter is an apostrophe in one form and a vowel in the other. *)
+%rule cvv-body                -- `unstressed_vowel h unstressed_vowel / unstressed_diphthong`. The second letter is an apostrophe in one form and a vowel in the other.
   unstressed-vowel h unstressed-vowel | unstressed-diphthong
 
-%rule r-hyphen  (* The hyphen is r before a consonant, or n before r. A following rafsi cannot begin with either resulting pair. *)
+%rule r-hyphen  -- The hyphen is r before a consonant, or n before r. A following rafsi cannot begin with either resulting pair.
   | $r:r
   | $n:n
 %conditions
@@ -541,7 +541,7 @@ A vowel, diphthong or syllable is stressed in two cases. In one, the vowel after
 So an unmarked brivla is stressed on its penultimate counted syllable, and a pause must follow it. Another word can directly follow a brivla whose stress is marked.
 
 ```jbogenbau
-%rule final-syllable  (* The final counted syllable forbids y and marked stress. It excludes a following name and ends at a complete word boundary. *)
+%rule final-syllable  -- The final counted syllable forbids y and marked stress. It excludes a following name and ends at a complete word boundary.
   $o:syllable-onset $n:nucleus
 %conditions
   ¬$o.following-tokens.begins(y | stressed),
@@ -559,30 +559,30 @@ So an unmarked brivla is stressed on its penultimate counted syllable, and a pau
   ¬$s.onward.begins(stressed),
   ¬$s.following-tokens.begins(stress)
 
-%rule stressed-syllable = stressed-unit(syllable)  (* A syllable is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
+%rule stressed-syllable = stressed-unit(syllable)  -- A syllable is stressed by a written mark or its position before the final syllable. One constituent covers both cases.
 
-%rule stressed-diphthong = stressed-unit(diphthong)  (* A diphthong is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
+%rule stressed-diphthong = stressed-unit(diphthong)  -- A diphthong is stressed by a written mark or its position before the final syllable. One constituent covers both cases.
 
-%rule stressed-vowel = stressed-unit(vowel)  (* A vowel is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
+%rule stressed-vowel = stressed-unit(vowel)  -- A vowel is stressed by a written mark or its position before the final syllable. One constituent covers both cases.
 
-%rule unstressed-syllable  (* An unstressed vowel-bearing syllable has a nucleus. A consonantal syllable has none. Only one kind can complete at a syllable boundary. *)
+%rule unstressed-syllable  -- An unstressed vowel-bearing syllable has a nucleus. A consonantal syllable has none. Only one kind can complete at a syllable boundary.
   unstressed-plain-syllable | consonantal-syllable
 
-%rule unstressed-plain-syllable = unstressed-unit(syllable)  (* An unstressed syllable has neither a written stress mark nor positional stress. *)
+%rule unstressed-plain-syllable = unstressed-unit(syllable)  -- An unstressed syllable has neither a written stress mark nor positional stress.
 
-%rule unstressed-diphthong = unstressed-unit(diphthong)  (* An unstressed diphthong has neither a written stress mark nor positional stress. *)
+%rule unstressed-diphthong = unstressed-unit(diphthong)  -- An unstressed diphthong has neither a written stress mark nor positional stress.
 
-%rule unstressed-vowel = unstressed-unit(vowel)  (* An unstressed vowel has neither a written stress mark nor positional stress. *)
+%rule unstressed-vowel = unstressed-unit(vowel)  -- An unstressed vowel has neither a written stress mark nor positional stress.
 
-%rule stress  (* Positional stress precedes the last counted syllable before a pause. The counted syllable cannot start with y. It permits an empty onset, so the PEG's greedy split succeeds whenever any split does. *)
+%rule stress  -- Positional stress precedes the last counted syllable before a pause. The counted syllable cannot start with y. It permits an empty onset, so the PEG's greedy split succeeds whenever any split does.
   [{consonant | glide}] [h] [y] $s:syllable
 %conditions
   $s.following-tokens.begins(pause)
 
-%rule stressed                (* stressed <- onset comma* [AEIOU] *)
+%rule stressed                -- stressed <- onset comma* [AEIOU]
   syllable-onset stress-mark
 
-%rule stress-mark             (* [AEIOU], a letter and not a vowel rule *)
+%rule stress-mark             -- [AEIOU], a letter and not a vowel rule
   "a"<Stressed> | "e"<Stressed> | "i"<Stressed> | "o"<Stressed> | "u"<Stressed>
 ```
 
@@ -611,63 +611,63 @@ A syllable has an onset, a nucleus, and an optional nonempty coda. A consonantal
 If a coda stands before another syllable, omitting it leaves consonants that cannot begin that syllable. If it stands before a pause, omitting it leaves consonants before that required pause. Thus both presence choices cannot complete the same word.
 
 ```jbogenbau
-%rule any-syllable  (* A vowel-bearing syllable has a nucleus. A consonantal syllable has none, so they cannot consume the same complete syllable. *)
+%rule any-syllable  -- A vowel-bearing syllable has a nucleus. A consonantal syllable has none, so they cannot consume the same complete syllable.
   onset-nucleus-coda | consonantal-syllable
 
-%rule syllable-onset  (* This hook supplies the shared onset for syllables, stress tests, the brivla head and coda lookahead. *)
+%rule syllable-onset  -- This hook supplies the shared onset for syllables, stress tests, the brivla head and coda lookahead.
   onset
 
-%rule onset-nucleus-coda  (* A vowel-bearing syllable has an optional nonempty coda. Omitting a required coda leaves consonants that cannot start the following syllable. *)
+%rule onset-nucleus-coda  -- A vowel-bearing syllable has an optional nonempty coda. Omitting a required coda leaves consonants that cannot start the following syllable.
   syllable-onset nucleus [coda]
 
-%rule syllable  (* A counted syllable forbids a y nucleus. Its optional nonempty coda leaves no duplicate empty reading at a pause. *)
+%rule syllable  -- A counted syllable forbids a y nucleus. Its optional nonempty coda leaves no duplicate empty reading at a pause.
   $o:syllable-onset nucleus [coda]
 %conditions
   ¬$o.following-tokens.begins(y)
 
-%rule consonantal-syllable  (* The second consonant must be syllabic. The nonempty coda contains it. *)
+%rule consonantal-syllable  -- The second consonant must be syllabic. The nonempty coda contains it.
   $c:consonant coda
 %conditions
   $c.following-tokens.begins(syllabic)
 
-%rule coda  (* A nonempty coda ends before a syllable or a pause. Those following boundaries cannot coincide. *)
+%rule coda  -- A nonempty coda ends before a syllable or a pause. Those following boundaries cannot coincide.
   coda-before-syllable | coda-before-pause
 
-%rule coda-before-syllable  (* A medial coda ends before a syllable, but cannot begin a syllable itself. *)
+%rule coda-before-syllable  -- A medial coda ends before a syllable, but cannot begin a syllable itself.
   $c:consonant
 %conditions
   ¬$c.onward.begins(any-syllable),
   $c.following-tokens.begins(any-syllable)
 
-%rule coda-before-pause  (* A final coda has one consonant or a syllabic consonant and another consonant. Their lengths before the pause cannot coincide. *)
+%rule coda-before-pause  -- A final coda has one consonant or a syllabic consonant and another consonant. Their lengths before the pause cannot coincide.
   [syllabic] $c:consonant
 %conditions
   $c.following-tokens.begins(pause)
 
-%rule onset  (* An apostrophe, glide, or consonant initial precedes a nucleus. An empty initial before apostrophe cannot reach that nucleus. Initial forbids a following glide. *)
+%rule onset  -- An apostrophe, glide, or consonant initial precedes a nucleus. An empty initial before apostrophe cannot reach that nucleus. Initial forbids a following glide.
   h | glide | initial
 
-%rule nucleus  (* A nucleus is a vowel, diphthong, or y. A vowel forbids the following nucleus that a diphthong requires. A y nucleus forbids another nucleus. *)
+%rule nucleus  -- A nucleus is a vowel, diphthong, or y. A vowel forbids the following nucleus that a diphthong requires. A y nucleus forbids another nucleus.
   | vowel
   | diphthong
   | $y:y
 %conditions
   ¬$y.following-tokens.begins(nucleus)
 
-%rule glide  (* A glide is i or u directly before a nucleus. *)
+%rule glide  -- A glide is i or u directly before a nucleus.
   $g:i-or-u
 %conditions
   $g.following-tokens.begins(nucleus)
 
-%rule i-or-u                  (* i / u *)
+%rule i-or-u                  -- i / u
   i | u
 
-%rule diphthong  (* A diphthong cannot end directly before another nucleus. *)
+%rule diphthong  -- A diphthong cannot end directly before another nucleus.
   $d:diphthong-letters
 %conditions
   ¬$d.following-tokens.begins(nucleus)
 
-%rule diphthong-letters  (* The four diphthongs differ in their first or second letter. A repeated i or u cannot follow the matching diphthong. *)
+%rule diphthong-letters  -- The four diphthongs differ in their first or second letter. A repeated i or u cannot follow the matching diphthong.
   | a $i:i
   | a $u:u
   | e $i:i
@@ -676,12 +676,12 @@ If a coda stands before another syllable, omitting it leaves consonants that can
   ¬$i.following-tokens.begins(i),
   ¬$u.following-tokens.begins(u)
 
-%rule vowel  (* A vowel cannot end directly before another nucleus. *)
+%rule vowel  -- A vowel cannot end directly before another nucleus.
   $v:vowel-letter
 %conditions
   ¬$v.following-tokens.begins(nucleus)
 
-%rule vowel-letter            (* a / e / i / o / u *)
+%rule vowel-letter            -- a / e / i / o / u
   a | e | i | o | u
 ```
 
@@ -711,32 +711,32 @@ If a coda stands before another syllable, omitting it leaves consonants that can
 A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `i`, `o` and `u` rules each read one value. `stress-mark` tests `Stressed` on those five values, so it finds the written stress. A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apostrophe is followed by a nucleus.
 
 ```jbogenbau
-%rule a                       (* a <- comma* [aA] *)
+%rule a                       -- a <- comma* [aA]
   "a"
 
-%rule e                       (* e <- comma* [eE] *)
+%rule e                       -- e <- comma* [eE]
   "e"
 
-%rule i                       (* i <- comma* [iI] *)
+%rule i                       -- i <- comma* [iI]
   "i"
 
-%rule o                       (* o <- comma* [oO] *)
+%rule o                       -- o <- comma* [oO]
   "o"
 
-%rule u                       (* u <- comma* [uU] *)
+%rule u                       -- u <- comma* [uU]
   "u"
 
-%rule y  (* A y letter cannot precede a non-y nucleus. *)
+%rule y  -- A y letter cannot precede a non-y nucleus.
   $y:"y"
 %conditions
   ¬$y.following-tokens.begins(non-y-nucleus)
 
-%rule non-y-nucleus  (* This nucleus test excludes y at its start. *)
+%rule non-y-nucleus  -- This nucleus test excludes y at its start.
   $n:nucleus
 %conditions
   ¬$n.onward.begins(y)
 
-%rule h  (* An apostrophe must precede a nucleus. *)
+%rule h  -- An apostrophe must precede a nucleus.
   $h:"'"<¬PAUSE>
 %conditions
   $h.following-tokens.begins(nucleus)
@@ -760,39 +760,39 @@ A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `
 An initial pair is two consonants that can begin a word. `initial` says which: an affricate, or a sibilant, another consonant and a liquid, each optional, where no consonant or glide follows. An affricate joins a stopped sound with friction. A sibilant is a hissing consonant. The liquids here are `l` and `r`.
 
 ```jbogenbau
-%rule cluster                 (* `cluster <- consonant consonant+`. The first two consonants decide this lookahead. *)
+%rule cluster                 -- `cluster <- consonant consonant+`. The first two consonants decide this lookahead.
   consonant consonant
 
-%rule initial-pair  (* An initial pair starts a legal initial and contains exactly two consonants. *)
+%rule initial-pair  -- An initial pair starts a legal initial and contains exactly two consonants.
   $a:consonant $b:consonant
 %conditions
   $a.onward.begins(initial),
   ¬$b.following-tokens.begins(consonant)
 
-%rule initial  (* An initial ends before any next consonant or glide. The parts branch leaves an affricate's second consonant, so only the affricate branch completes. *)
+%rule initial  -- An initial ends before any next consonant or glide. The parts branch leaves an affricate's second consonant, so only the affricate branch completes.
   | $a:affricate
   | $p:initial-parts
 %conditions
   ¬$a.following-tokens.begins(consonant | glide),
   ¬$p.following-tokens.begins(consonant | glide)
 
-%rule initial-parts  (* Each initial part is optional. Leaving any available consonant unread fails the final consonant exclusion of initial. *)
+%rule initial-parts  -- Each initial part is optional. Leaving any available consonant unread fails the final consonant exclusion of initial.
   [sibilant] [other] [liquid]
 
-%rule affricate               (* `affricate <- t c / t s / d j / d z`. The forms differ in their first or second letter. *)
+%rule affricate               -- `affricate <- t c / t s / d j / d z`. The forms differ in their first or second letter.
   t c | t s | d j | d z
 
-%rule liquid                  (* liquid <- l / r *)
+%rule liquid                  -- liquid <- l / r
   l | r
 
-%rule other  (* The other initial consonants forbid tl, dl, and n before a liquid. *)
+%rule other  -- The other initial consonants forbid tl, dl, and n before a liquid.
   | p | $t:t | k | f | x | b | $d:d | g | v | m | $n:n
 %conditions
   ¬$t.following-tokens.begins(l),
   ¬$d.following-tokens.begins(l),
   ¬$n.following-tokens.begins(liquid)
 
-%rule sibilant  (* A sibilant forbids sx, and j or z before n or a liquid. *)
+%rule sibilant  -- A sibilant forbids sx, and j or z before n or a liquid.
   | c
   | $s:s
   | $j:j-or-z
@@ -800,19 +800,19 @@ An initial pair is two consonants that can begin a word. `initial` says which: a
   ¬$s.following-tokens.begins(x),
   ¬$j.following-tokens.begins(n | liquid)
 
-%rule j-or-z                  (* j / z *)
+%rule j-or-z                  -- j / z
   j | z
 
-%rule consonant               (* consonant <- voiced / unvoiced / syllabic *)
+%rule consonant               -- consonant <- voiced / unvoiced / syllabic
   voiced | unvoiced | syllabic
 
-%rule syllabic                (* syllabic <- l / m / n / r *)
+%rule syllabic                -- syllabic <- l / m / n / r
   l | m | n | r
 
-%rule voiced                  (* voiced <- b / d / g / j / v / z *)
+%rule voiced                  -- voiced <- b / d / g / j / v / z
   b | d | g | j | v | z
 
-%rule unvoiced                (* unvoiced <- c / f / k / p / s / t / x *)
+%rule unvoiced                -- unvoiced <- c / f / k / p / s / t / x
   c | f | k | p | s | t | x
 ```
 
@@ -839,7 +839,7 @@ The `letter-ban` hook reads a following syllable-initial apostrophe or glide. Ea
 The `consonant-letter` template takes the character and its forbidden targets. Each letter keeps its reference name through a named instance.
 
 ```jbogenbau
-%rule letter-ban  (* Consonant letters cannot precede a syllable-initial apostrophe or glide. *)
+%rule letter-ban  -- Consonant letters cannot precede a syllable-initial apostrophe or glide.
   h | glide
 
 %rule consonant-letter(@S, @B)
@@ -847,39 +847,39 @@ The `consonant-letter` template takes the character and its forbidden targets. E
 %conditions
   ¬$c.following-tokens.begins(letter-ban | @B)
 
-%rule l = consonant-letter("l", l)  (* This consonant applies the shared letter ban and forbids a repeated letter. *)
+%rule l = consonant-letter("l", l)  -- This consonant applies the shared letter ban and forbids a repeated letter.
 
-%rule m = consonant-letter("m", m | z)  (* This consonant applies the shared letter ban and forbids a repeated letter. It forbids z. *)
+%rule m = consonant-letter("m", m | z)  -- This consonant applies the shared letter ban and forbids a repeated letter. It forbids z.
 
-%rule n = consonant-letter("n", n | affricate)  (* This consonant applies the shared letter ban and forbids a repeated letter. It forbids an affricate. *)
+%rule n = consonant-letter("n", n | affricate)  -- This consonant applies the shared letter ban and forbids a repeated letter. It forbids an affricate.
 
-%rule r = consonant-letter("r", r)  (* This consonant applies the shared letter ban and forbids a repeated letter. *)
+%rule r = consonant-letter("r", r)  -- This consonant applies the shared letter ban and forbids a repeated letter.
 
-%rule b = consonant-letter("b", b | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
+%rule b = consonant-letter("b", b | unvoiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant.
 
-%rule d = consonant-letter("d", d | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
+%rule d = consonant-letter("d", d | unvoiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant.
 
-%rule g = consonant-letter("g", g | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
+%rule g = consonant-letter("g", g | unvoiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant.
 
-%rule v = consonant-letter("v", v | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
+%rule v = consonant-letter("v", v | unvoiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant.
 
-%rule j = consonant-letter("j", j | z | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids z. *)
+%rule j = consonant-letter("j", j | z | unvoiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids z.
 
-%rule z = consonant-letter("z", z | j | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids j. *)
+%rule z = consonant-letter("z", z | j | unvoiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids j.
 
-%rule s = consonant-letter("s", s | c | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c. *)
+%rule s = consonant-letter("s", s | c | voiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c.
 
-%rule c = consonant-letter("c", c | s | x | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids s and x. *)
+%rule c = consonant-letter("c", c | s | x | voiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids s and x.
 
-%rule x = consonant-letter("x", x | c | k | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c and k. *)
+%rule x = consonant-letter("x", x | c | k | voiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c and k.
 
-%rule k = consonant-letter("k", k | x | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids x. *)
+%rule k = consonant-letter("k", k | x | voiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids x.
 
-%rule f = consonant-letter("f", f | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
+%rule f = consonant-letter("f", f | voiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant.
 
-%rule p = consonant-letter("p", p | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
+%rule p = consonant-letter("p", p | voiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant.
 
-%rule t = consonant-letter("t", t | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
+%rule t = consonant-letter("t", t | voiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant.
 ```
 
 <details><summary>Railroad diagrams of the 19 rules from <code>letter-ban</code> to <code>t</code></summary>

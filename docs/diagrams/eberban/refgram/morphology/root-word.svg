@@ -6,7 +6,7 @@
 <g class="rule"><rect x="20" y="44" width="92" height="24" rx="0"/><text x="66" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">root-form</text></g>
 <path d="M112 56h10"/>
 <path d="M122 56h20"/>
-<g class="rule"><rect x="142" y="44" width="151" height="24" rx="0"/><text x="217.5" y="61" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<g class="rule"><rect x="142" y="44" width="151" height="24" rx="0"/><text x="217.5" y="61" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
 <path d="M293 56H313"/>
 <path d="M122 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H293a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
 <path d="M313 56h6m0 -8v16m4 -16v16"/>

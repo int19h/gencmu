@@ -23,7 +23,7 @@
 <path d="M600 56H600a10 10 0 0 1 10 10V78a10 10 0 0 1 -10 10H40a10 10 0 0 0 -10 10V120a10 10 0 0 0 10 10"/>
 <path d="M40 130h20"/>
 <path d="M60 130h20"/>
-<g class="rule"><rect x="80" y="118" width="151" height="24" rx="0"/><text x="155.5" y="135" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<g class="rule"><rect x="80" y="118" width="151" height="24" rx="0"/><text x="155.5" y="135" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
 <path d="M231 130H251"/>
 <path d="M60 130a10 10 0 0 0 10 -10V118a10 10 0 0 1 10 -10H231a10 10 0 0 1 10 10V120a10 10 0 0 0 10 10"/>
 <path d="M251 130h10"/>
