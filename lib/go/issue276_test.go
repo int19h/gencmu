@@ -122,7 +122,7 @@ func TestIssue276CorpusProjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := map[string]any{"expect": "reject", "verdict": VerdictUnique, "stage": "main", "error": map[string]any{"kind": ErrorReported}, "errors": []any{map[string]any{"code": "bad", "at": float64(0)}}, "warnings": []any{}}
+	expected := map[string]any{"expect": "reject", "verdict": VerdictUnique, "stage": "main", "error": map[string]any{"kind": ErrorReported}, "errors": []any{map[string]any{"code": "bad", "at": float64(0)}}, "warnings": []any{}, "at": float64(0)}
 	if !reflect.DeepEqual(got, expected) {
 		t.Fatalf("got %+v, want %+v", got, expected)
 	}
@@ -134,5 +134,31 @@ func TestIssue276CountCap(t *testing.T) {
 	result, err := pipeline.Parse(strings.Repeat("a", 100), ParseOptions{})
 	if err != nil || result.Error == nil || result.Error.Kind != ErrorAmbiguous || result.Stages[0].Verdict != VerdictTie || len(result.Error.Readings) != 2 {
 		t.Fatalf("counted choices: %v %+v", err, result)
+	}
+}
+
+func TestIssue276CorpusWarningsOptional(t *testing.T) {
+	pipeline := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text *warn\n%rule warn \"a\" %warning \"warning\""))
+	fields := map[string]any{"expect": "accept", "verdict": VerdictUnique, "brackets": "a"}
+	c := &corpusCase{Text: "a", Features: []string{"warn"}, fields: fields}
+	got, err := corpusOutcome(pipeline, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, value := range got {
+		if key != "warnings" {
+			fields[key] = value
+		}
+	}
+	if failure := checkCorpusCase(pipeline, c); failure != "" {
+		t.Fatal(failure)
+	}
+	fields["warnings"] = []any{}
+	if failure := checkCorpusCase(pipeline, c); failure == "" {
+		t.Fatal("an explicit empty list ignored a warning")
+	}
+	fields["warnings"] = got["warnings"]
+	if failure := checkCorpusCase(pipeline, c); failure != "" {
+		t.Fatal(failure)
 	}
 }

@@ -198,6 +198,7 @@ func corpusOutcomeOf(res *ParseResult, canonical any) (map[string]any, error) {
 			errors = append(errors, map[string]any{"code": error.Code, "at": float64(error.Source[0])})
 		}
 		got["errors"] = errors
+		got["at"] = float64(res.Error.Errors[0].Source[0])
 	}
 	warnings := []any{}
 	for _, warning := range res.Warnings {
@@ -389,6 +390,9 @@ func checkCorpusCase(d *Pipeline, c *corpusCase) (failure string) {
 		return fmt.Sprintf("%s: %v", c.ID, err)
 	}
 	for _, k := range corpusFields {
+		if _, present := c.fields[k]; k == "warnings" && !present {
+			continue
+		}
 		want, inCase := c.fields[k]
 		have, inGot := got[k]
 		if !inCase && !inGot {
