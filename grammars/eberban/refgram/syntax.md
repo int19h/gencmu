@@ -620,6 +620,8 @@ For equal error counts, a specific construct failure precedes an unmatched close
 
 Named errors preserve a complete reading of faulty text. A zero-error reading always takes precedence, including erasure. A query uses only zero-error witnesses, so error recovery never makes erased invalid text grammatical.
 
+When its closing `e` starts another compound, an empty `er` still reports on its own token. The combined recovery consumes a stray closing `e` without reporting a second error.
+
 Fault-bearing junk is a verb error or a definable-part error. The condition on the ordinary definable-usage branch excludes its bare fault reading at a verb position. That leaves one reading there, while namespaced and prefixed fault readings keep their structure.
 
 ```jbogenbau
@@ -634,7 +636,8 @@ Fault-bearing junk is a verb error or a definable-part error. The condition on t
     triplet-freeform-first-pair | triplet-root-shape | triplet-freeform-shape | doubled-pair |
     pair-voiceness | sibilant-pair | root-starts-with-medial-pair | particle-sonorant-pair |
     h-not-between-vowels | hyphen-same-vowels | invalid-medial-pair |
-    freeform-multi-consonents-ending | spaced-i-prefix | empty-compound-fault | incomplete-compound
+    freeform-multi-consonents-ending | spaced-i-prefix | empty-compound-fault
+    | compound-empty | incomplete-compound
 ```
 
 <details><summary>Railroad diagrams of <code>base-verb</code>, <code>definable-part</code> and <code>fault-token</code></summary>
@@ -950,6 +953,7 @@ An empty spelling quote has no first unit after `ce`. The forms stage marks that
 <details><summary>Railroad diagrams of the 3 rules from <code>base-verb</code> to <code>erased-must-be-followed-by-sentence-starter</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.4.svg" alt="Railroad diagram of the rule base-verb"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/spelling-empty.svg" alt="Railroad diagram of the rule spelling-empty"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/spelling-empty.2.svg" alt="Railroad diagram of the rule spelling-empty"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-must-be-followed-by-sentence-starter.svg" alt="Railroad diagram of the rule erased-must-be-followed-by-sentence-starter"></p>
 </details>
 
@@ -1025,7 +1029,7 @@ Number recovery distinguishes missing parts from parts in the wrong order. The l
 
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>base-verb</code> to <code>number-part-order</code></summary>
+<details><summary>Railroad diagrams of the 15 rules from <code>base-verb</code> to <code>number-part-order</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.5.svg" alt="Railroad diagram of the rule base-verb"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-part.svg" alt="Railroad diagram of the rule number-part"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-base.svg" alt="Railroad diagram of the rule loose-base"></p>
@@ -1034,6 +1038,8 @@ Number recovery distinguishes missing parts from parts in the wrong order. The l
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ordered-number-parts.svg" alt="Railroad diagram of the rule ordered-number-parts"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-end-alone.svg" alt="Railroad diagram of the rule number-end-alone"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-empty-base.svg" alt="Railroad diagram of the rule number-empty-base"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-repeat-number.svg" alt="Railroad diagram of the rule empty-repeat-number"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-magnitude-number.svg" alt="Railroad diagram of the rule empty-magnitude-number"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-empty-repeat.svg" alt="Railroad diagram of the rule number-empty-repeat"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-empty-magnitude.svg" alt="Railroad diagram of the rule number-empty-magnitude"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-repeat-without-fraction.svg" alt="Railroad diagram of the rule number-repeat-without-fraction"></p>
