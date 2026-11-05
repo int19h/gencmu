@@ -923,16 +923,20 @@ An `o` or `ni` sentence needs a definable target before any definition. Its reco
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/unclosed-parenthetical.svg" alt="Railroad diagram of the rule unclosed-parenthetical"></p>
 </details>
 
-An empty spelling quote has no unit between `ce` and `cei`, or ends immediately after `ce`. A sentence after `ra` needs a written starter. The recovery follows the erasure and does not remove errors from its children.
+An empty spelling quote has no first unit after `ce`. The forms stage marks that absence before words become indivisible syntax tokens. A following digit or malformed pair starts no unit. A valid unit without `cei` remains an unclosed quote, including `a ce mi`. A sentence after `ra` needs a written starter. The recovery follows the erasure and does not remove errors from its children.
 
 ```jbogenbau
 %extend-rule base-verb
   *spelling-empty
 
 %rule spelling-empty
-  [{prefix}] CE<¬Quote> [CEI]
+  [{prefix}] CE<¬Quote> CEI
+%error "a spelling quote needs at least one unit"
+
+%extend-rule spelling-empty
+  [{prefix}] CE<¬Quote>
 %conditions
-  $.following-tokens.begins(sentence-end)
+  Missing-spelling-unit ⊆ $.last-token.tags
 %error "a spelling quote needs at least one unit"
 
 %rule erased-must-be-followed-by-sentence-starter

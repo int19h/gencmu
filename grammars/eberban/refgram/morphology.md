@@ -476,6 +476,8 @@ The conditions on `ni-word`, `vowel-particle-word`, `first-prefix` and `freeform
 
 A `co` that a complete opener follows starts a foreign quote, so it is never a plain word. A complete opener is `co`, its optional gap and delimiter, and an opening bracket, and `quote-opener` reads it. The condition on `consonant-particle-word` states the bar. It tests only a particle of the `CO` family, so no other particle before a bracket is tested.
 
+An ordinary `ce` carries `Missing-spelling-unit` only where the forms reader finds no first spelling unit. This test uses the letters, including malformed runs, before syntax receives whole tokens.
+
 The quote reads its own `co` through the particle rule, so the bar never meets the quote. A compound reads its components without the bar ("Compounds" below). The test reads the opener alone, not the whole quote. So an unclosed quote is rejected, as in `a mico [x`.
 
 ```jbogenbau
@@ -494,6 +496,7 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
 
 %rule consonant-particle-word
   $p:consonant-particle [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
+    ∪ (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
 %conditions
   CO ⊆ $p.tags ⟹ ¬$.onward.begins(quote-opener)
 %emits
@@ -821,6 +824,7 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
 
 %rule component-particle
   $p:consonant-particle [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
+    ∪ (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
 %emits
   $ :- $.value
 ```
@@ -1007,7 +1011,7 @@ The token carries `CE`, `Quote`, `Word` and `Particle`. Its image is the written
 
 The quote is one unit that starts with `c`, so a run of words can hold it, as in `mice bu cei`. The `ce` is a complete particle, so a word must be able to end after it. After a gap, the first unit can start with any consonant, as the book spells `nu`, `ri` and `lu`. Without a gap, the first unit starts with a non-sonorant consonant, which can begin a word. So `a cenu cei` reads the root `cenu`, and `a ce nu cei` reads a quote of `nu`.
 
-A unit that starts with a vowel needs a gap before it. The quote ends at the first complete `cei` particle, which `complete-cei` reads with a word boundary after it, as the PEG's `CEI` does. So a unit can be `cei` where no word boundary follows it, as in `a ce bu ceinu cei`. A `ce` particle that no `cei` closes is an ordinary word. The syntax stage has no use for it, so such a text fails there.
+A unit that starts with a vowel needs a gap before it. The quote ends at the first complete `cei` particle, which `complete-cei` reads with a word boundary after it, as the PEG's `CEI` does. So a unit can be `cei` where no word boundary follows it, as in `a ce bu ceinu cei`. A `ce` particle that no `cei` closes is an ordinary word. If no first unit follows that `ce`, syntax reports an empty quote. Otherwise the missing `cei` retains the default rejection.
 
 The morphology chapter allows a hyphen at a syllable boundary. A consonant unit starts a syllable, so a hyphen right before it is silent, as in `a ce bu-nu cei`. Inside a unit, the hyphen rules of the words apply, so `a ce b-u cei` carries `hyphen-misplaced`. A hyphen beside a gap, after `ce` or before `cei` stands at the edge of a word, so it carries the warning too.
 
