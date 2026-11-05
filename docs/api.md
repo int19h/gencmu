@@ -133,7 +133,9 @@ The result has the fields of `docs/output.md`, in the data types of the language
 
 A `reported` error contains the ordered `errors` of the chosen derivation. Each diagnostic has `stage`, `code`, `rule`, `span`, `source`, and `message`. Warnings use that same shape and have no `feature` member.
 
-The result keeps the chosen tree and its `unique` or `resolved` verdict, with `ok:false` and no failed-stage output. It retains enabled unsuppressed warnings and stops before the next stage. A message recipe failure gives a `grammar` result. Errors cannot be disabled. With no warnings, `warnings` is an empty list, and the canonical JSON omits it.
+A `reported` result keeps the chosen tree and its `unique` or `resolved` verdict, with `ok:false` and no failed-stage output. It retains enabled unsuppressed warnings and stops before the next stage. Errors cannot be disabled. With no warnings, `warnings` is an empty list, and the canonical JSON omits it.
+
+Every other error result has a null `tree`. If a message recipe fails, the stage keeps its verdict and gives a `grammar` result. It reports no named errors or warnings and has no output. Earlier stages retain their outputs and warnings.
 
 The result also has `features`, the enabled feature names in code point order, without duplicates. This field stays outside canonical JSON. Go calls it `Features`.
 
@@ -141,13 +143,13 @@ It includes caller-enabled names, including unknown names, and global defaults, 
 
 A failed result retains features enabled before the failure, including earlier declarations in the failed stage. Operands before a disabled operand do enable features before that declaration reports a conflict (engine §13). Each parse starts with a fresh feature set.
 
-`unique` means exactly one [admitted derivation](notation.md#ranked-choices). `resolved` means several admitted derivations with exactly one best. Several best admitted derivations give a tie.
+Verdicts count only [admitted derivations](notation.md#ranked-choices) with the least error count. `unique` means one such derivation. `resolved` means several such derivations with exactly one best. Several best derivations give a tie. Higher-error derivations change no verdict and start no `elision-only` check.
 
 [Ambiguity](notation.md#ambiguity) defines how filtering and seals affect results.
 
 The [pipeline guide](pipelines.md#phoneme-values-and-stress) describes the bundled stages and comparison values. The `until` argument must name a stage in the selected pipeline.
 
-A stage exposes its name, input and output tokens, verdict, and any tie witness. JavaScript and Python expose a stage tree. If ranking chose that tree, those APIs retain it after an emission or elision-check error. Find stages by name because their order differs by pipeline. A tied stage emits nothing and places both readings in the result error.
+A stage exposes its name, input and output tokens, verdict, and any tie witness. JavaScript and Python expose a stage tree. If ranking chose that tree, those APIs retain it after an emission or elision-check error. That stage tree is separate from the result's `tree`, which is null on those failures. Find stages by name because their order differs by pipeline. A tied stage emits nothing and places both readings in the result error.
 
 A token stores text, value, image, tags, span, and source. Both strings always exist.
 

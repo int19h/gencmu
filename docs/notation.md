@@ -1626,6 +1626,10 @@ Otherwise it reaches emission. For `resolved`, the enabled elision-only check th
 
 The engine first prefers fewer error occurrences, before every grammar step. Each source occurrence counts once, including spliced calls, empty occurrences, and every chain level. Warnings never affect ranking.
 
+A verdict counts only admitted readings with the least error count. One gives `unique`. Several with exactly one best give `resolved`, and several best give `tie`. If a zero-error reading exists, error-bearing readings do not count toward its verdict.
+
+Error alternatives do not by themselves make a text ambiguous. In Eberban, `a pban ra a mo` stays `unique` despite a losing fault reading of `pban`. That error reading starts no `elision-only` check.
+
 A grammar then ranks admitted parses with equal error counts by its `%ambiguity-resolution` directive. The directive lists one or more steps, separated by commas. Of two parses, the first step that tells them apart decides which beats the other. If no other admitted parse beats a parse, that parse is best. The stage takes a sole best parse. Several best parses give a tie.
 
 ```jbogenbau
@@ -1751,7 +1755,7 @@ The constituent of an elided terminator can end wherever a parse of the whole te
 
 A language's own rule can be narrower: a terminator can be elided only if no ambiguity results. The `elision-only` check is one reading of such a rule. The directive `%elision-only` turns it on for a stage. It examines only the parse that the ranking chose.
 
-A chosen derivation with errors skips the check. Otherwise the enabled check runs after emission for `resolved`. For `unique`, it also runs with an elided node in the chosen parse. It skips a unique parse with no elided node. Uniqueness on the original input cannot exclude another reading of the restored input.
+A chosen derivation with errors skips the check. Otherwise the enabled check runs after emission for `resolved`. For `unique`, it also runs with an elided node in the chosen parse. It skips a unique parse with no elided node. Verdicts count only least-error readings, so higher-error readings never start the check. Uniqueness on the original input cannot exclude another reading of the restored input.
 
 With the check on, the stage restores the chosen parse's omitted terminators. A restored terminator has the default value of its optional (below) and the singleton tags `{T}`. Synthetic images are empty. Omitted pattern leaves still observe empty strings, whatever the default value.
 

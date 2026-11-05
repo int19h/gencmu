@@ -624,7 +624,9 @@ A caller selects features separately. The `lojban/experimental` pipeline uses ca
 
 The trailing clause order is conditions, diagnostic, suppression, then emission or erasure. `%suppress-warnings` names codes, or `_` for all warnings. It covers its own occurrence and every descendant, including spliced calls. Nested lists unite, and no inner rule enables a suppressed or stage-disabled code.
 
-Reports follow the chosen derivation before spliced nodes disappear, parent before children and siblings in order. Spliced and empty occurrences retain their positions. The engine evaluates each reported message once after choice. Disabled and suppressed warnings evaluate none. A failed message gives a `grammar` result.
+Reports follow the chosen derivation before spliced nodes disappear, parent before children and siblings in order. Spliced and empty occurrences retain their positions. The engine evaluates each reported message once after choice. Disabled and suppressed warnings evaluate none.
+
+A failed message gives a `grammar` result with the chosen verdict, a null tree, and no output. That stage reports no named errors or warnings. Earlier stages retain their outputs and warnings.
 
 Message recipes read captures and `$`, with string methods and `++`. They cannot query, read `.emitted`, or read absent, item, or private ranked captures. Recognition and ranking evaluate no messages.
 
@@ -705,7 +707,9 @@ The words stage declares `sa-su` with conditions on its input classes. It enable
 
 Ranked choices filter the parses that recognition allows before ranking. The parses that survive are admitted. The engine first prefers fewer error occurrences, then applies the stage directive to equal counts. Each error-bearing source occurrence counts once, including empty calls, splices, and chain levels. Warnings never affect ranking. If no other admitted parse beats a parse, that parse is best.
 
-One admitted derivation gives `unique`. Several admitted derivations with exactly one best give `resolved`. Several best derivations give a tie with two readings and an action witness.
+Verdicts count only admitted derivations with the least error count. One such derivation gives `unique`. Several with exactly one best give `resolved`. Several best derivations give a tie with two readings and an action witness.
+
+Each ranking summary retains its least error count and the number of derivations attaining it, capped at two. Its verdict total includes losers under grammar preferences, but excludes higher-error readings. Error alternatives cannot change a zero-error text's verdict by themselves.
 
 Ranking stops before admission preparation when the forest has no roots.
 
@@ -717,7 +721,7 @@ The [Ambiguity](notation.md#ambiguity) section defines verdict transitions and t
 
 The reason for `late #·_<_Elided>` is that `greedy` decides more than CLL asks. CLL leaves one choice to the parser, the place of an elided terminator. `greedy` also decides every other choice of read against close, such as where a free modifier attaches. So it can hide an ambiguity of the grammar behind a preference that no rule states. `late #·_<_Elided>` decides only the place of elided terminators. Parses with equal profiles remain tied, and the grammar settles them with its rules.
 
-The count composes by addition over the packed forest, the shared graph of all parses. So the engine never enumerates the parses (engine §6). It does not depend on the name of a terminator, its depth or the constituent that it ends. "Close an older construct as late as possible" describes some of its results, but the count has no record of which construct is older. It can trade an early elision of one terminator for an early elision of another.
+The elision count composes by addition over the packed forest, the shared graph of all parses. So the engine never enumerates the parses (engine §6). It does not depend on the name of a terminator, its depth or the constituent that it ends. "Close an older construct as late as possible" describes some of its results, but the count has no record of which construct is older. It can trade an early elision of one terminator for an early elision of another.
 
 The syntax grammars end their directive with `late #·_<_Elided>` ("Syntax conventions" below).
 
@@ -757,7 +761,7 @@ An error is better than a hidden choice. A reader of the error sees the two read
 
 CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` is one reading of that rule, for the stage whose grammar declares it. CLL does not say which parse to test, so the check tests the one that the ranking chose.
 
-A chosen derivation with errors skips the check and emits nothing. Otherwise the check runs after `resolved`, including without an elision. For `unique`, it also runs with an elided node in the chosen tree.
+A chosen derivation with errors skips the check and emits nothing. Otherwise the check runs after `resolved`, including without an elision. For `unique`, it also runs with an elided node in the chosen tree. Higher-error readings change no verdict and start no check.
 
 The initial search stops at the first elided node. The check walks the chosen derivation for a profile only when a key step can count an occurrence. It follows these steps:
 
@@ -767,7 +771,9 @@ The initial search stops at the first elided node. The check walks the chosen de
 
    The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the readings that engine §7.10 names, shown over the original input. An intentionally excluded witness gives ordinary ambiguity, not witness loss.
 
-The stage ranks and collects reports. If its chosen derivation has no errors, it emits and runs the applicable check. A tie ends the stage before emission and before the check. So a stage reports at most one `ambiguous` error, and a tie comes first. A stage that fails the check keeps its output, but no later stage runs.
+The stage ranks and collects reports. If its chosen derivation has no errors, it emits and runs the applicable check. A tie ends the stage before emission and before the check. So a stage reports at most one `ambiguous` error, and a tie comes first.
+
+An `elision-only` ambiguity keeps stage output and warnings, with a null result tree. A grammar failure during the check keeps warnings but no output, with a null result tree. Both retain the chosen verdict and stop later stages.
 
 The two errors share their kind because both describe two readings. A tie compares parses of the text as written. An `elision-only` error compares reconstructions with written-back terminators. A tie has verdict `tie`. An `elision-only` error keeps `unique` or `resolved`. The error's reason identifies which comparison fails.
 
@@ -940,7 +946,7 @@ The grammar decides the shape of the tree, and gencmu loads the grammar at runti
 ParseResult
   ok            whether every stage accepted without an error
   stages        per stage: name, input tokens, output tokens, verdict, tie witness, rejection
-  tree          the last stage's chosen tree, or none
+  tree          the last stage's chosen tree on success or a reported error, otherwise none
   error         the first rejection or error: a rejection has its source position and what was expected,
                 an ambiguous error has its reason and two readings
   warnings      per warning: stage, code, rule, span, source, and evaluated message
@@ -956,6 +962,8 @@ Node
   tags          for a rule node: its tag set, a sorted list of tags
   token         for a token node: the index of the stage-input token it read
 ```
+
+Every error result except `reported` has a null tree, including emission and check failures after choice.
 
 The tree is lossless with respect to the grammar that the author wrote. Every ordinary rule occurrence is a node, including chains of single-child rules. Spliced calls omit their nodes and retain their children in order. So a program can tell `sumti-6` from `sumti`.
 

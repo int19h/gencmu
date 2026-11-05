@@ -194,6 +194,9 @@ Cases preserve the shared pause and foreign readings for the seven No explicit r
 
 An invariant is a required property of every result. Every runner also makes sure that each canonical result meets these invariants, whatever the case expects. A case cannot turn them off, and its pattern need not repeat them:
 
+- Every error result except `reported` has a null `tree`, including message, emission, and elision-check failures after choice.
+- A message recipe failure retains the stage's verdict, with no output, named errors, or warnings from that stage. Earlier outputs and warnings remain.
+- Verdicts and summary totals count only derivations with the least error count. Higher-error readings never turn `unique` into `resolved` or start `elision-only`.
 - An error of kind `ambiguous` has no member `token` and no member `source`.
 - An error has no member `cycle`, `conflict`, or `chosenReading`.
 - No stage has a member `tied`.
@@ -210,9 +213,11 @@ The answer records raw W(D), which engine §7.8 reconstructs from the chosen der
 - The walk: After the check recognizes R and before it ranks, a walk looks for W(D) in the chart. It takes each occurrence in the derivation tree on its own, even where the representation shares one object between occurrences. It marks the edges or links that W(D) uses. JavaScript and Python mark an edge by its index among its item's edges.
 
   Go marks a link. Rust marks a link as its ranker rebuilds it, by the item and the set where its predecessor stands. Where the chart does not hold W(D), the answer is no.
-- The count channel: The check passes the marks to the ranker that it uses. Beside each item's count, capped at two, the ranker keeps a bit: whether the count includes a derivation made only of marked edges. The same loop decides both, over the same edges, in the same contexts, with the same faults. So a choice that drops W(D) from the count also drops it from the bit.
+- The count channel: The check passes the marks to the ranker that it uses. Each summary retains its least error count and the number of derivations attaining it, capped at two.
 
-  A cut that closes a cycle has no bit. The loop can stop once the count is two, but at a marked item only once the bit is known. A root of W(D) must have the bit.
+  Beside that total, the ranker keeps a bit that records whether the total includes a derivation made only of marked edges. The same loop decides both, over the same edges, in the same contexts, with the same faults. So a choice that drops W(D) from the count also drops it from the bit.
+
+  A cut that closes a cycle has no bit. If the least error count is settled, the loop can stop at two. At a marked item, the loop must also determine the bit. A root of W(D) must have the bit.
 - The selection channel: An elision-only error reports raw W(D) first, including when admission excludes it. The second reading is the T-first best admitted competitor distinct from W(D). The walk builds the witness actions in post-order for comparison.
 
 Every check tracks W(D) and passes its marks to the ranker, whether or not a test watches it. The optional test hook observes the reconstruction and ranking. It does not enable runtime witness tracking.

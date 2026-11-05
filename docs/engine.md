@@ -1830,17 +1830,17 @@ So a nonempty `leftmost-longest` occurrence beats its absence, and equal spans c
 
 Of two derivations with different profiles, the one with the greater profile beats the other. Of two with equal profiles, the one that the lean prefers beats the other. Without a lean, neither beats the other. A derivation is best if no other derivation beats it.
 
-The verdict is one of these:
+The verdict counts only admitted derivations with the least error count. If a zero-error derivation exists, error-bearing derivations do not count toward the verdict. The verdict is one of these:
 
-- `unique` if the input has one admitted derivation
-- `resolved` if it has several admitted derivations, and exactly one of them is best
-- `tie` if two or more admitted derivations are best
+- `unique` for one admitted derivation with the least error count.
+- `resolved` for several admitted derivations with that count and exactly one best derivation.
+- `tie` for several best admitted derivations with that count.
 
 Under `unique` and `resolved`, the chosen derivation is the one best derivation. Under `resolved`, it beats every other derivation (below). A tie is an error, and the stage then has no chosen derivation. The production numbers of §3 never decide which derivation a stage chooses.
 
 Only an occurrence makes a component nonzero. A sparse map stores only nonzero components. A shared sorted list with one entry per occurrence is another representation, since equal spans count separately. With no grammar key step, a profile stores only its error count. Zero-error derivations can share that count.
 
-The stage retains every derivation with the greatest profile before applying its lean. The admitted total, before profile selection, determines `unique`. The remaining comparison of actions and elisions applies within that retained forest.
+The stage retains every derivation with the greatest profile before applying its lean. The verdict total counts all admitted derivations with the least error count, before grammar key steps select profiles. That total determines `unique`. The remaining comparison of actions and elisions applies within the forest of greatest profiles.
 
 A derivation is read as its sequence of actions in bottom-up order. An action is a read of a token as a terminal, or a close of a production over a span. Closes of helpers, spliced calls, and productions with exactly one logical symbol are transparent. They are part of the sequence, but two sequences never differ at one. The other actions are visible.
 
@@ -1928,21 +1928,25 @@ For example, take `text → b | a`, `a → b` and `b → a | A`, over the token 
 
 The derivations of the input are those of every completed item of `text` that spans it (§4). The implementation combines the summaries of all these items as the edges of one root.
 
-Under every ranking rule, the verdict needs the total, the number of admitted noncyclic derivations, capped at two. Within one edge, the totals of the children multiply. Over the edges of one summary, the totals add, for every edge that the context allows, losing ones included. The root combines its items in the same way. A total of one is `unique`.
+Each ranking summary keeps its least error count and the number of admitted noncyclic derivations attaining that count, capped at two. This number is its verdict total. A summary without a derivation has total zero and no least error count.
 
-The implementation can keep the total in each summary, or compute it apart with the same rules. Either way, it computes the total before it drops any losing edge. A ranking of the best derivations alone cannot give the total.
+Within one edge, add the children's least error counts and the edge's own error contribution. Multiply their totals, capped at two. An edge with no derivation contributes no total.
+
+Across edges, keep the lower error count and its total. Add totals only for equal least error counts, capped at two. Higher-error edges contribute nothing to this total. The root combines its completed items by the same rules. A total of one gives `unique`.
+
+Compute the verdict total before grammar key steps or the lean discard their losing derivations. Derivations that lose to grammar preferences still count at the least error count. The count of best derivations alone cannot supply this total. This selection follows ranked admission and preserves its separate boundary states.
 
 A profile composes by addition in each component. Each completed error-bearing source occurrence adds one to its error component, including empty and spliced occurrences. A chain adds one per error-bearing level. Internal variants never multiply this contribution.
 
 A completion edge adds its children's profiles and, for each step whose pattern matches the completed nonempty constituent, one occurrence over its span. A read edge adds one occurrence for each step whose pattern matches the leaf. The helper of an elidable optional that derives ε at `p` adds one occurrence at `p` for each step whose pattern matches the omitted leaf.
 
-Adding a common profile preserves comparison and equality, because every key step compares counts by component or by sum. Each summary retains its greatest profile and every edge that attains it, with the same cycle context. The total remains separate from the count of best derivations.
+Adding a common profile preserves comparison and equality, because every key step compares counts by component or by sum. Each summary retains its greatest profile and every edge that attains it, with the same cycle context. The verdict total counts all least-error derivations, including losers under grammar key steps. It remains separate from the count of best derivations.
 
 With a lean, the action summaries of this section run over the forest of greatest profiles. With or without a lean, both `m` and the earliest-diverging tied derivation compose over the retained forest. An implementation keeps, in each summary, its *T*-least derivation and the earliest-diverging derivations tied with it. It keeps several candidates side by side while their order is not yet settled, since what follows decides. Their order is not settled while one's visible sequence is a prefix of another's. It is also not settled while their visible sequences are equal and one whole sequence is a prefix of the other.
 
 One candidate can beat another under `greedy` or `lazy`. Then the loser's tied derivation stays tied with the winner exactly when it diverged from the loser before the point where the winner beat it. One that diverged there is beaten there too. So the number of derivations, which can be exponential, never matters.
 
-The best count counts derivations attaining the greatest profile. The count stops at two. A summary holds its greatest profile and its best count. Within one edge, the children's profiles add, and their best counts multiply. The edge adds its own completed occurrences, if any. Over one summary's edges, keep the greater profile or add best counts where the profiles are equal.
+The best count counts least-error derivations attaining the greatest profile, capped at two. A summary retains its least error count and verdict total beside its greatest profile and best count. Within one edge, the children's profiles add, and their best counts multiply. The edge adds its own completed occurrences. Over one summary's edges, keep the greater profile or add best counts where the profiles are equal.
 
 The root compares its items by the same profile. Without a lean, a total of two with a best count of one is `resolved`, and a best count of two is a tie. This holds also when two items of `text` each have one derivation with the same greatest profile.
 
@@ -1958,7 +1962,9 @@ A rule with an inherited, forwarded or computed tag term can carry any set. A ta
 
 The same decision is made per terminal for reads and per elidable helper for omitted leaves. A stage without possible errors and without matching grammar key steps needs no stored profile components. A wrong "no" changes the chosen derivation, so the decision errs toward "yes".
 
-Structural state forms part of each summary's item identity. Ranked admission keeps query eligibility and same-span cycle contexts separate (§6.1). A summary cannot substitute an edge from another structural state. Count admitted noncyclic derivations before ranking, capped at two. Equal observations do not reduce that count. Profiles compose within each full state and context.
+Structural state forms part of each summary's item identity. Ranked admission keeps query eligibility and same-span cycle contexts separate (§6.1). A summary cannot substitute an edge from another structural state.
+
+Within each full state and context, retain the least error count and its verdict total, capped at two. Compute that total before grammar key steps and the lean. Equal observations do not merge distinct least-error derivations. Profiles compose within each full state and context.
 
 For k independent Boolean observations, a product can contain up to `2^k` states. Sequence prefixes and captures add further factors. Finite sharing does not imply constant memory use.
 
@@ -2003,7 +2009,7 @@ For `a ≻ b ≻ c`, qualified `a` can remove `c` without `b`. It needs dominati
 
 A candidate must pass its tests and ready conditions in the requested recognition and cycle context. A disabled feature, failed gate, or unavailable cyclic proof supplies no witness.
 
-The summaries compose over admitted edges. Their totals count admitted derivations, capped at two, before profile selection. Rank by profile, then by the lean. With no grammar key step, error counts precede the lean.
+After admission, ranking summaries retain the least error count and its verdict total, capped at two (§6). The total includes grammar-step losers with that error count. Rank by profile, then by the lean. With no grammar key step, error counts precede the lean.
 
 Candidate construction visits only edges that admission and profile selection retain. If an error or grammar key step can count an occurrence, profile summaries run. Their internal names and failure messages identify profile summaries. Admission needs existence counts. The separate ranking pass supplies witness membership where reconstruction requires it.
 
@@ -2029,7 +2035,7 @@ The check is on where the stage declares `%elision-only` or the caller asks for 
 
 A chosen derivation with errors skips the check. It emits nothing (§12). A tie never reaches the check, because a tie ends the stage first. It skips a unique tree with no elided node. An error of the grammar found while emitting ends the stage before it. A caller can switch the check off for a stage that declares it.
 
-Uniqueness concerns the original input. Restoration can create another derivation. For `text → "a" [+T] | "a" T`, input `a` has one derivation, with `T` elided. After restoration, the optional and the bare `T` both read the synthetic token. Their profiles are equal, so the check fails.
+Uniqueness counts the original input's admitted derivations with the least error count (§6). Additional higher-error readings never change that verdict or start this check. Restoration can create another derivation. For `text → "a" [+T] | "a" T`, input `a` has one derivation, with `T` elided. After restoration, the optional and the bare `T` both read the synthetic token. Their profiles are equal, so the check fails.
 
 The check follows the decision order of §7.10. It chooses no replacement derivation and examines no other restoration.
 
@@ -2178,7 +2184,7 @@ Cycles are found over spans of R, as §4 says. Two constituents of one rule whos
 
 If reconstruction has no root or no walk for W(D), the check reports witness loss without preparing admission or ranking.
 
-Locate raw W(D) before applying ranked admission. Admission groups options by their physical spans in R, including synthetic tokens. The reconstruction rules, including the omission ban and strictness test of §7.4, still apply. Equal projected O spans do not establish equal admission spans. Rank admitted derivations by profiles over projected spans `[π(a),π(b))` in O.
+Locate raw W(D) before applying ranked admission. Admission groups options by their physical spans in R, including synthetic tokens. The reconstruction rules, including the omission ban and strictness test of §7.4, still apply. Equal projected O spans do not establish equal admission spans. Rank admitted derivations by profiles over projected spans `[π(a),π(b))` in O. Reconstruction summaries retain their least error count and its total, capped at two, under §6.
 
 No lean applies, whatever the directive ends with. The error count remains the first profile component and includes empty projected spans. Each grammar key step ignores occurrences whose projected spans are empty. Reconstruction evaluates no diagnostic message. So a restoration and a bare synthetic read count nothing, whatever pattern matches them. A step that matches omitted leaves alone decides nothing in the check.
 
@@ -2186,7 +2192,7 @@ The check ranks a traversal of the actual admitted derivation over projected spa
 
 A restoration's read of its synthetic token is a read action, and its close is the close of a helper, which is transparent. Section 7.10 selects the error's readings. The canonical keys never turn a tie into a pass. Derivations whose trees are equal over O are still distinct derivations.
 
-An error of the grammar met while the check recognizes R is the result's error, as one met while emitting is (§11). This includes an error in a competing derivation that only the check reaches. The stage keeps its verdict and warnings, but it has no output.
+An error of the grammar met while the check recognizes R is the result's error, as one met while emitting is (§11). This includes an error in a competing derivation that only the check reaches. The stage keeps its verdict and warnings, but it has no output. The result's tree is null.
 
 W(D), the restored witness (§7.8), keeps D's zero error count. Grammar key steps omit occurrences with empty projected spans in both profiles. Every other occurrence projects to its original span. Section 7.10 gives the decisions for witness loss and competing readings.
 
@@ -3505,7 +3511,7 @@ The tags that an item gives its token are the token's explicit tags. For each im
 
 Implications apply to every token that the stage emits, an inserted one included, and to nothing else. They do not change a constituent's tags, the value of a term or classifier, or a token of the stage's input. A later stage applies only its own implications. The synthetic tokens of §7 are not emitted, so no implication applies to them. No derivation of the check of §7 emits or attaches anything.
 
-An item can emit an empty tag set. A string terminal or `_` can read such a token. Recipe or ownership errors during emission end the stage with its verdict and warnings but no output. The elision-only check does not then run.
+An item can emit an empty tag set. A string terminal or `_` can read such a token. Recipe or ownership errors during emission retain the stage's verdict and warnings, with no output and a null result tree. The elision-only check does not then run.
 
 A token's constituent is its whole `$` carrier or captured carrier. Its span covers that part's stage-input tokens. Its source is their envelope, or the empty-node source of §12. Its text is the original source interval. A recipe changes neither source nor text, even when its image includes neighboring punctuation.
 
@@ -3684,7 +3690,7 @@ A stage whose verdict is `tie` emits nothing (§6), at whichever stage it is. Th
 
 Errors and warnings in this section are parse diagnostics. Loading diagnostics belong to §13 and the loaded pipeline API.
 
-The result's tree comes from the chosen derivation, and each reading of an `ambiguous` error comes from its own derivation (§6, §7). The engine builds a tree from a derivation as follows:
+On success or a `reported` error, the result's tree comes from the chosen derivation. Every other error result has a null tree. Each reading of an `ambiguous` error comes from its own derivation (§6, §7). The engine builds a tree from a derivation as follows:
 
 - An ordinary closed production of an authored rule is a `rule` node, with its children in order.
 - A spliced call omits its rule node and places its children in order at that position. Its clauses still apply to its derivation occurrence.
@@ -3709,7 +3715,7 @@ A diagnostic records `stage`, `code`, `rule`, `span`, `source`, and `message`, i
 
 After choice, evaluate each report's message once from its own occurrence and captures. The recipe follows §11.3 but excludes `.emitted`. It accepts string literals, string constants, captured input string methods, and `++`. It cannot query or read absent, item, or private ranked captures. A message's input methods observe its constituent without running emission.
 
-Disabled and suppressed warnings evaluate no message. A message evaluation failure returns `grammar`, retains the stage's verdict, and prevents emission and reconstruction. That failure has no partial named-error list or partial warnings from that stage. Earlier warnings remain. The result's tree is null.
+Disabled and suppressed warnings evaluate no message. A message evaluation failure returns `grammar`, retains the stage's verdict, and prevents emission and reconstruction. That stage reports no named errors or warnings. Earlier stages retain their outputs and warnings. The result's tree is null.
 
 No message recipe can fail in the present recipe language. This rule is a guard that no shared case reaches.
 
@@ -3813,7 +3819,7 @@ The loader examines gates, warning-code uses, and classifier guards before featu
 
 A rejection, `reported` error, or `ambiguous` error ends the run. A `reported` stage has no output and retains its chosen tree and verdict. Earlier stages retain their outputs and warnings.
 
-The result's `ok` is true when every stage run accepted without an error. The result's warnings are those of every stage that ran (§12), in stage order, and they are kept whether or not the result is `ok`.
+The result's `tree` is null for every error except `reported`, including errors after choice. When every stage run accepts without an error, the result's `ok` is true. The result retains the warnings that stages produce under §12, in stage order, whether or not it is `ok`.
 
 A pipeline's features are its gate names, warning-rule names, and names declared by `%features`. Error codes are not selectable features. The counted gates and diagnostics come from each stage's surviving definitions after stitching (§2). Alternatives that `%redefine-rule` replaces and stage items that `%redefine-stage` discards no longer count. The gates of every classifier's entries count too. The loader counts them before any gate drops an alternative (§3.1), whatever features are on.
 

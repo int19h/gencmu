@@ -24,7 +24,11 @@ General-category tags use long names in token tags, node tags, terminals, expect
 {"format":16,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
 ```
 
-`format` is the version of the result shape, 16. `tree` is the chosen tree of the last stage, or `null`. With `ok:true`, `error` is `null`. With no parse warning, `warnings` is absent (engine §12, §13).
+`format` is the version of the result shape, 16. `tree` is the chosen tree of the last stage, or `null`. In every error result except `reported`, `tree` is null, including failures after choice during message evaluation, emission, or the elision-only check.
+
+A `reported` result retains the chosen tree. With `ok:true`, `error` is `null`. With no parse warning, `warnings` is absent (engine §12, §13).
+
+If a message recipe fails, its error has kind `grammar`. The result has a null tree and no failed-stage output. The stage retains its verdict and reports no named errors or warnings. Earlier stages retain their outputs and warnings.
 
 A stage has one of these forms:
 
@@ -151,7 +155,7 @@ A rejection can also name a failed boundary condition:
 - `ambiguous` (engine §6, §7): The error has `stage`, `reason`, `readings` and `message`, and no position. Every ambiguous error has two readings. `message` is free, and the shared tests do not compare it. `reason` says which of two cases the error is:
   - `tie`: The ranking of the stage has two or more best derivations (engine §6). The stage's verdict is `tie`, and it has no output. The readings are the first and the second reading of the tie, over the stage's input as the stage read it. They are two derivations, but they can be equal as `NODE` values.
 
-    The engine counts derivations. It merges neither those that differ only at transparent closes nor those with equal trees (engine §6). The stage's witness then names the actions where they differ.
+    The engine counts admitted derivations with the least error count. It merges neither those that differ only at transparent closes nor those with equal trees (engine §6). The stage's witness then names the actions where they differ.
   - `elision-only`: The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. Engine §7.10 defines this decision. The stage's verdict is `unique` or `resolved`, and it keeps its output. The first reading is W(D), the restored chosen derivation. The second is its deterministic competitor (engine §7.10). This order also applies without ranked groups or key steps.
 
     The readings hold the written-back terminators as elided nodes (engine §7.10). One can be a restored optional's terminator. One can also be a terminator that a reading reads on the written route of an optional, or as a bare terminal. So the two readings can be equal as `NODE` values, as a tie's can.
