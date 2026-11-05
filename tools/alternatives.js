@@ -29,7 +29,7 @@ export const LINE_LIMIT = 100;
  * @returns {boolean}
  */
 export function isSingleSymbol(expr) {
-  return !!expr.call || !!expr.param || typeof expr.ref === "string" || "literal" in expr || "wildcard" in expr || "terminal" in expr || "range" in expr || "property" in expr || "test" in expr || expr.empty === true;
+  return !!expr.splice || !!expr.call || !!expr.param || typeof expr.ref === "string" || "literal" in expr || "wildcard" in expr || "terminal" in expr || "range" in expr || "property" in expr || "test" in expr || expr.empty === true;
 }
 
 /**
@@ -98,17 +98,16 @@ function scanBody(chars, start) {
   const skipLayout = (at) => {
     for (;;) {
       while (isSpace(chars[at])) at++;
-      if (chars[at] !== "(" || chars[at + 1] !== "*") return at;
+      if (chars[at] !== "-" || chars[at + 1] !== "-") return at;
       at += 2;
-      while (at < chars.length && !(chars[at] === "*" && chars[at + 1] === ")")) at++;
-      at += 2;
+      while (at < chars.length && chars[at]!=="\n" && chars[at]!=="\r") at++;
     }
   };
   // The rule's name is an identifier or one eligible emoji.
   i = skipLayout(i);
   if (chars[i] !== undefined && unicode.isEmojiName(chars[i])) i++;
   else while (isNameChar(chars[i])) i++;
-  if (chars[i] === "(" && chars[i+1] !== "*") {
+  if (chars[i] === "(") {
     let depth=1;
     for (i++;i<chars.length && depth;i++) {
       i=skipLayout(i);
@@ -387,12 +386,11 @@ function clauseLayoutProblems(markdown, dom, path) {
     const c = chars[i];
     if (comment) {
       opaqueLines.add(line);
-      if (c === "(" && chars[i + 1] === "*") { comment++; i++; }
-      else if (c === "*" && chars[i + 1] === ")") { comment--; i++; }
+      if (c === "\n" || c === "\r") comment=0;
     } else if (string) {
       opaqueLines.add(line);
       if (c === '"') string = false;
-    } else if (c === "(" && chars[i + 1] === "*") {
+    } else if (c === "-" && chars[i + 1] === "-") {
       opaqueLines.add(line);
       comment++; i++;
     } else if (c === '"') {

@@ -67,7 +67,7 @@
   const SPACE = /^[\t-\r \u0085\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]$/;
 
   // Keywords, names and quoted tokens used by pipeline directives (§9.1).
-  // Comments stop at their first closer. Quotes never use backslash escapes.
+  // Comments stop at LF, CR, or the end of the file. Quotes keep backslashes.
   // Strings keep dollar signs literally. Other punctuation ends an operand.
   function tokens(text) {
     const cs = [...text];
@@ -77,10 +77,9 @@
     while (i < cs.length) {
       if (SPACE.test(cs[i])) {
         i++;
-      } else if (at(i, "(*")) {
-        let end = i + 2;
-        while (end < cs.length && !at(end, "*)")) end++;
-        i = end + 2;
+      } else if (at(i, "--")) {
+        i+=2;
+        while (i<cs.length && cs[i]!=="\r" && cs[i]!=="\n") i++;
       } else if (cs[i] === "\"") {
         const start = ++i;
         let valid = true;
@@ -96,7 +95,7 @@
         let end = i + (keyword ? 1 : 0);
         if (/^[A-Za-z]$/.test(cs[end])) {
           end++;
-          while (end < cs.length && /^[-_A-Za-z0-9]$/.test(cs[end])) end++;
+          while (end < cs.length && /^[-_A-Za-z0-9]$/.test(cs[end]) && !at(end,"--")) end++;
           found.push({ kind: keyword ? "keyword" : "name", value: cs.slice(i, end).join(""), offset:i });
           i = end;
         } else {

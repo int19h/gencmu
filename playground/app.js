@@ -479,6 +479,7 @@
       verdict = badge("good", warned ? `accepted, with ${plural(warned, "warning")}` : "accepted");
     }
     else if (message.parse.error.kind === "feature-conflict") verdict = badge("bad", `required feature ${message.parse.error.feature} is disabled`);
+    else if (message.parse.error.kind === "reported") verdict = badge("bad", `${plural(message.parse.error.errors.length, "error")} in the ${message.parse.error.stage} stage`);
     else if (message.parse.error.kind === "rejected") verdict = badge("bad", `rejected by the ${message.parse.error.stage} stage`);
     else if (message.parse.error.kind === "ambiguous" && message.parse.error.reason === "tie") verdict = badge("bad", `a tie in the ${message.parse.error.stage} stage`);
     else if (message.parse.error.kind === "ambiguous") verdict = badge("bad", `ambiguous in the ${message.parse.error.stage} stage`);
@@ -716,13 +717,13 @@
       features.replaceChildren(element("span", { class: "muted", text: "loading…" }));
       return;
     }
-    if (!info.features.length) features.replaceChildren(element("span", { class: "muted", text: "none: no grammar of this pipeline is guarded on a feature" }));
+    if (!info.features.length) features.replaceChildren(element("span", { class: "muted", text: "none: this pipeline declares no feature or warning code" }));
     else {
       fill(features, info.features.map((feature) => {
         const name = feature.name;
         const mode = state.without.has(name) ? "off" : state.features.has(name) ? "on" : "grammar";
         const on = mode === "on" || mode === "grammar" && feature.default;
-        const title = (feature.kind === "warning" ? "A warning: while it is on, a parse that uses this addition says where" : "A gate: while it is on, the grammar has this construct") +
+        const title = (feature.kind === "warning" ? "A warning code: while it is on, the chosen reading reports its message and position" : "A gate: while it is on, the grammar has this construct") +
           (feature.default ? "; the pipeline turns it on" : "");
         return element("label", { class: "chip" + (on ? " enabled" : ""), title },
           element("select", {

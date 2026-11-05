@@ -21,9 +21,9 @@ const position = object({ document: string }, { line: positive, column: positive
 const coordinates = { line: positive, column: positive };
 const options = object({}, { features: strings, withoutFeatures: strings, until: { pattern: /./s }, elisionOnly: boolean });
 const feature = object({ name: string, kind: choice("gate", "warning"), default: boolean });
-const warning = object({ stage: string, feature: string, rule: string, span: pair, source: pair });
+const warning = object({ stage: string, code: string, rule: string, span: pair, source: pair, message:string });
 const expectation = object({}, {
-  result: record, error: choice("grammar", "usage", "rejected", "ambiguous", "feature-conflict"), where: position, diagnostic: string, message: string,
+  result: record, error: choice("grammar", "usage", "rejected", "reported", "ambiguous", "feature-conflict"), where: position, diagnostic: string, message: string,
   brackets: string, warnings: list(warning), features: list(feature), enabledFeatures: strings, bundledPipelines: strings,
 }, [(v) => (has(v, "where") || has(v, "diagnostic") || has(v, "message")) && v.error !== "grammar"
   ? ["where, diagnostic and message require a grammar error"] : []]);
@@ -104,7 +104,8 @@ const growth = object({ case: string, depths: counts, nodesPerDepth: natural, sl
 });
 const corpus = object({ id: string, text: string, pipeline: string, expect: choice("accept", "reject") }, {
   features: strings, withoutFeatures: strings, verdict: string, stage: string, at: natural,
-  error: object({ kind: choice("ambiguous"), reason: choice("tie", "elision-only") }),
+  error: either(object({kind:choice("ambiguous"),reason:choice("tie","elision-only")}),object({kind:choice("reported")})),
+  errors:list(object({code:string,at:natural})), warnings:list(object({stage:string,code:string,at:natural})),
   ties: { tuple: [{ pattern: /./s }] }, words: strings, brackets: string, seeded: choice("accept", "reject"), reason: string,
 }, [(v) => {
   const problems = [];
@@ -113,10 +114,18 @@ const corpus = object({ id: string, text: string, pipeline: string, expect: choi
     for (const key of ["stage", "at", "error", "ties"]) if (has(v, key)) problems.push(`accept forbids ${key}`);
   } else {
     if (!has(v, "stage")) problems.push("reject requires stage");
-    for (const key of ["verdict", "brackets"]) if (has(v, key)) problems.push(`reject forbids ${key}`);
-    for (const message of exactly("at", "error")(v)) problems.push(message);
+    if (has(v,"brackets")) problems.push("reject forbids brackets");
+    if (v.error?.kind==="reported") {
+      if (!["unique","resolved"].includes(v.verdict)) problems.push("reported requires a retained verdict");
+      if (!v.errors?.length) problems.push("reported requires errors");
+      if (v.at!==v.errors?.[0]?.at) problems.push("at must equal the first diagnostic position");
+    } else {
+      if (has(v,"verdict")) problems.push("reject forbids verdict");
+      for (const message of exactly("at","error")(v)) problems.push(message);
+    }
   }
-  if (has(v, "ties") && v.ties[0] !== v.stage) problems.push("ties must name stage");
+  if (v.error?.kind!=="reported" && has(v,"errors")) problems.push("errors requires reported");
+  if (has(v, "ties") && (v.error?.reason!=="tie" || v.ties[0] !== v.stage)) problems.push("ties must name stage");
   if (has(v, "seeded") && !has(v, "reason")) problems.push("seeded requires reason");
   return problems;
 }]);
