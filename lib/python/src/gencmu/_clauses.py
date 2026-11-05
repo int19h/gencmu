@@ -1410,6 +1410,9 @@ def _definition_issues(rule: Dom):
     def tag_issue(name: str) -> DefinitionIssue:
         return DefinitionIssue("independent", f"a tag term of {rule['name']} uses ${name}, which a production lacks; guard it with ${name} ⟹")
 
+    from ._guarded_tags import guards as tag_guards, variants as tag_variants
+    guarded_terms = {id(term) for term in [rule.get("tags"), *(a.get("tags") for a in alternatives)]
+                     if term is not None and tag_guards(term)}
     rule_missing: dict[tuple[str, ...], str | None] = {}
     # The anchor of each inserted tag is its next covering capture item.
     anchors: list[str | None] = [None] * len(items)
@@ -1432,6 +1435,13 @@ def _definition_issues(rule: Dom):
             absent = missing(alternative["tags"], present)
             if absent is not None:
                 yield tag_issue(absent)
+        effective_tags = [term for term in (rule.get("tags"), alternative.get("tags")) if term is not None]
+        if any(id(term) in guarded_terms for term in effective_tags) and not any(waits(term) for term in effective_tags):
+            terms = [prepared_terms[id(term)][1].simplified(present) for term in effective_tags]
+            try:
+                tag_variants(terms[0] if len(terms) == 1 else {"union": terms})
+            except ValueError as error:
+                yield DefinitionIssue("independent", str(error))
         value = alternative.get("value", rule.get("value"))
         image = alternative.get("image", rule.get("image", value))
         for recipe in (value, image, rule.get("error"), rule.get("warning")):

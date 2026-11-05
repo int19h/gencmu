@@ -108,3 +108,12 @@ class Diagnostics(unittest.TestCase):
         self.assertIsNone(mismatch(case, got))
         self.assertIsNotNone(mismatch({**case, "warnings": []}, got))
         self.assertIsNone(mismatch({**case, "warnings": got["warnings"]}, got))
+
+    def test_guarded_tag_limit_is_a_load_error(self):
+        for name in ("tags-variants-5", "tags-same-result-limit"):
+            with self.subTest(case=name):
+                pipeline, error = load_case_pipeline(fixture(name))
+                self.assertIsNone(pipeline)
+                self.assertIsNotNone(error)
+                self.assertEqual(error.kind, "grammar")
+                self.assertIn("16", str(error))
