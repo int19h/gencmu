@@ -95,6 +95,7 @@ def outcome(
         got["stage"] = result.error.stage
         got["error"] = {"kind": "reported"}
         got["errors"] = [{"code": error.code, "at": error.source[0]} for error in result.error.errors]
+        got["at"] = result.error.errors[0].source[0]
     got["warnings"] = [{"stage": warning.stage, "code": warning.code, "at": warning.source[0]} for warning in result.warnings]
     ties = [stage.name for stage in result.stages if stage.verdict == "tie"]
     if ties:
@@ -120,6 +121,8 @@ def mismatch(case: dict[str, Any], got: dict[str, Any] | str) -> str | None:
     if isinstance(got, str):
         return f"{case['id']}: crashed: {got}"
     for key in FIELDS:
+        if key == "warnings" and key not in case:
+            continue
         if key not in case and key not in got:
             continue
         if not same_json(case.get(key), got.get(key)):

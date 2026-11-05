@@ -8,7 +8,7 @@ import gencmu
 from gencmu import _testing
 from gencmu._errors import _GrammarFault
 from .shared import SHARED, load_case, load_case_pipeline, parse_case, run_case
-from .test_corpus import outcome
+from .test_corpus import outcome, mismatch
 
 
 def fixture(name):
@@ -71,6 +71,7 @@ class Diagnostics(unittest.TestCase):
     def test_corpus_fields_keep_codes_and_source_positions(self):
         result = run_case(fixture("error-shape"))[1]
         got = outcome({}, result=result)
+        self.assertEqual(got["at"], 0)
         self.assertEqual({key: got[key] for key in ("expect", "verdict", "stage", "error", "errors", "warnings")}, {
             "expect": "reject", "verdict": "unique", "stage": "main", "error": {"kind": "reported"},
             "errors": [{"code": "bad", "at": 0}], "warnings": [],
@@ -100,3 +101,10 @@ class Diagnostics(unittest.TestCase):
         self.assertIsNone(error)
         with patch("gencmu._diagnostic_audit.validation_captures", side_effect=AssertionError("unexpected capture work")):
             pipeline.ranking_reports()
+
+    def test_corpus_warnings_are_optional_and_exact_when_present(self):
+        case = {"id": "projection", "pipeline": "main", "expect": "accept"}
+        got = {"expect": "accept", "warnings": [{"stage": "main", "code": "warn", "at": 0}]}
+        self.assertIsNone(mismatch(case, got))
+        self.assertIsNotNone(mismatch({**case, "warnings": []}, got))
+        self.assertIsNone(mismatch({**case, "warnings": got["warnings"]}, got))
