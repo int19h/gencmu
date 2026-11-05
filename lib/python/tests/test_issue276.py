@@ -117,3 +117,11 @@ class Diagnostics(unittest.TestCase):
                 self.assertIsNotNone(error)
                 self.assertEqual(error.kind, "grammar")
                 self.assertIn("16", str(error))
+
+    def test_splice_only_cycles_share_the_called_rule_key(self):
+        for entry in ("loop", "*loop"):
+            case = fixture("splice-cycle")
+            case["grammar"] = "%rule text " + entry + "\n%rule loop *loop | A"
+            result = run_case(case)[1]
+            self.assertTrue(result.ok)
+            self.assertEqual(result.stages[0].verdict, "unique")
