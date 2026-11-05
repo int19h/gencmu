@@ -835,7 +835,7 @@ Unmatched closing particles have no open construct to claim them. Text recovery 
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/modified-empty.svg" alt="Railroad diagram of the rule modified-empty"></p>
 </details>
 
-An empty-chain diagnostic follows a written starter, an erased chain, a negation, or an arguments list. The positive-width owner keeps repetitions non-nullable. A boundary test detects the missing operand without recursively parsing recovery alternatives. The diagnostic preference chooses this recovery over an unmatched `be` reading with the same error count.
+An empty-chain diagnostic follows a written starter, an erased chain, a negation, or an arguments list. It also follows a definable `o` target or an enumeration separator. When its following chain is missing, the separator still belongs to its open enumeration. The positive-width owner keeps repetitions non-nullable. A boundary test detects the missing operand without recursively parsing recovery alternatives. The diagnostic preference chooses this recovery over an unmatched `be` reading with the same error count.
 
 ```jbogenbau
 %extend-rule a-sentence
@@ -848,7 +848,8 @@ An empty-chain diagnostic follows a written starter, an erased chain, a negation
   [{prefix}] O [{postfix}] definable *chain-empty
 
 %extend-rule separator-form
-  [arguments-list] *chain-empty
+  | [arguments-list] *chain-empty
+  | [arguments-list] {chain / bu-free} bu-free *chain-empty
 
 %extend-rule chain-inner
   bi-free *chain-empty
