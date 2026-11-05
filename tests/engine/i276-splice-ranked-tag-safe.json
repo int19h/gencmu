@@ -1,0 +1,16 @@
+{
+  "description": "A ranked splice option inherits the empty tags of its called rule.",
+  "grammar": "%rule text (*x ≻ ε)\n%rule x \"a\" \"a\"",
+  "input": "aa",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

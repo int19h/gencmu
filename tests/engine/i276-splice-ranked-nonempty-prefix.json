@@ -1,0 +1,8 @@
+{
+  "description": "A potentially nonempty splice can move the start of a ranked group.",
+  "grammar": "%rule text q p\n%rule q \"q\"\n%rule z \"z\"\n%rule p *z ($x:\"a\" ≻ \"b\")\n%conditions $x ∨ $.preceded-by(q)",
+  "input": "qza",
+  "expect": {
+    "error": "grammar"
+  }
+}

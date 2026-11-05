@@ -1,0 +1,15 @@
+{
+  "description": "A message cannot read an unwritten captured terminator.",
+  "grammar": "%rule text A *inner\n%rule inner [$j:+T]\n%warning \"w\" ++ $j.value",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

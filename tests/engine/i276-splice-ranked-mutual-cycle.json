@@ -1,0 +1,16 @@
+{
+  "description": "Mutual splices retain finite ranked scopes and exclude same-span cycles.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text *r3\n%rule r3 *r4 | (\"b\" ≻ \"b\") \"b\" \"a\"\n%rule r4 *r3",
+  "input": "bba",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

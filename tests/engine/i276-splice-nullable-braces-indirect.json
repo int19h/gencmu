@@ -1,0 +1,9 @@
+{
+  "description": "An indirect splice of an optional rule cannot be an item of braces.",
+  "grammar": "%rule text {y} \"a\"\n%rule y *z\n%rule z [\"b\"]",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "an item of braces in text can match no tokens"
+  }
+}
