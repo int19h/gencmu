@@ -171,3 +171,13 @@ func TestIssue276TagLimitIsLoadError(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue276SpliceOnlyCycles(t *testing.T) {
+	for _, entry := range []string{"loop", "*loop"} {
+		p := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+entry+"\n%rule loop *loop | A"))
+		result, err := p.ParseTokens("a", []InputToken{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}, ParseOptions{})
+		if err != nil || !result.OK || result.Stages[0].Verdict != VerdictUnique {
+			t.Fatalf("%s: %v %+v", entry, err, result)
+		}
+	}
+}

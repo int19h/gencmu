@@ -1329,9 +1329,10 @@ func (l *lowered) computeCycles() {
 				} else if blocking > 1 || (blocking == 1 && at != j) {
 					continue
 				}
-				edges[i] = append(edges[i], s.id)
-				if s.id == int32(i) {
-					self[i] = true
+				source, target := l.cycleRule(int32(i)), l.cycleRule(s.id)
+				edges[source] = append(edges[source], target)
+				if target == source {
+					self[source] = true
 				}
 			}
 		}
@@ -1407,6 +1408,11 @@ func (l *lowered) computeCycles() {
 					low[u] = low[v]
 				}
 			}
+		}
+	}
+	for _, rule := range l.rules {
+		if rule.spliceTarget != nil {
+			rule.scc = l.rules[*rule.spliceTarget].scc
 		}
 	}
 }
