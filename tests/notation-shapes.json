@@ -1,6 +1,6 @@
 {
   "description": "A bootstrap of another notation (engine §9). Each rule of the syntax document of the notation, except text, has a new name in turn. A renamed rule is a wrapper, and the reader reads through it. A rename in loads gives a pipeline, which parses each of the inputs as loads says. Any other rename is a grammar error of loading. control is what the bundled bootstrap gives. It is also what the bundled bootstrap gives when a wrapper of its own stands around each of these rules.",
-  "document": "```jbogenbau\n%ambiguity-resolution greedy\n%features f g\n%const $K (A ∪ B)\n%redefine-const $K (A ∪ B ∪ ∅)\n%classifier lex f? \"mi\" ∈ KOHA ¬g? \"do\" ∉ KOHA\n\n\n%implies (A ∩ B) ⟹ (C ∖ D)\n%rule text :: (V ∪ (($x ∧ $x.source-text.classify(lex) ⊆ W) ⟹ X)) :- $.verbatim-text | f? ($x:word $y:\"l\"=\"l\" [(\"c\" | \"d\")] [+KU \"z\"] {\"e\"} (\"f\" & \"g\") \"h\"..\"k\" _Lu Sound-0061-s H \"m\"<¬B>) :: (T ∪ $K) | ¬f? ($z:\"b\" [(\"c\" [$w:\"n\"])]) :: U | (\"q\" text-tail) %conditions (($x.source-text = \"ok\" ∨ $y.starts-input) ⟹ (¬($x.first-token.matches(word)) ∧ $y)), $x.tokens-after-first.begins(word), $y.source-text ∈ \"a.b\".split(\".\") %warning \"message text\" %suppress-warnings text %emits $x ($y) :: ($x.tags ∩ $x.source-text.classify(lex)), ε :: Y\n\n\n\n\n\n\n\n%rule word {\"w\"}\n\n%rule text-tail ε\n\n%redefine-rule text-tail (🆓 \"r\")\n\n%extend-rule text-tail \"s\"\n\n%rule 🆓 \"t\"\n\n%rule unused-splice *unused-helper\n%rule unused-helper \"u\"\n%rule unused-error \"u\" %error \"invalid u\"\n%rule captured \"j\" [$j:+T] %conditions ¬$j\n```\n",
+  "document": "```jbogenbau\n%ambiguity-resolution greedy\n%features f g\n%const $K (A ∪ B)\n%redefine-const $K (A ∪ B ∪ ∅)\n%classifier lex f? \"mi\" ∈ KOHA ¬g? \"do\" ∉ KOHA\n\n\n%implies (A ∩ B) ⟹ (C ∖ D)\n%rule text :: (V ∪ (($x ∧ $x.source-text.classify(lex) ⊆ W) ⟹ X)) :- $.verbatim-text | f? ($x:word $y:\"l\"=\"l\" [(\"c\" | \"d\")] [+KU \"z\"] {\"e\"} (\"f\" & \"g\") \"h\"..\"k\" _Lu Sound-0061-s H \"m\"<¬B>) :: (T ∪ $K) | ¬f? ($z:\"b\" [(\"c\" [$w:\"n\"])]) :: U | (\"q\" text-tail) %conditions (($x.source-text = \"ok\" ∨ $y.starts-input) ⟹ (¬($x.first-token.matches(word)) ∧ $y)), $x.tokens-after-first.begins(word), $y.source-text ∈ \"a.b\".split(\".\") %warning \"message text\" %suppress-warnings text %emits $x ($y) :: ($x.tags ∩ $x.source-text.classify(lex)), ε :: Y\n\n\n\n\n\n\n\n%rule word {\"w\"}\n\n%rule text-tail ε\n\n%redefine-rule text-tail (🆓 \"r\")\n\n%extend-rule text-tail \"s\"\n\n%rule 🆓 \"t\"\n\n%rule unused-splice *unused-helper\n%rule unused-helper \"u\"\n%rule unused-error \"u\" %error \"invalid u\"\n%rule captured \"j\" [$j:+T] %conditions ¬$j\n%rule unused-parse $p:\"p\"\n%conditions $p.parse(\"p\" …).error-free\n```\n",
   "inputs": [
     "b",
     "bc",
@@ -545,6 +545,13 @@
       "rejected"
     ],
     "splice": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "ordinary-selector": [
       "rejected",
       "rejected",
       "(q [t r])",
