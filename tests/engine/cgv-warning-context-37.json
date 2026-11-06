@@ -1,5 +1,5 @@
 {
-  "description": "Engine §12.1: erasure removes the CgV occurrence and its warning from the reporting derivation.",
+  "description": "Engine §12.1: erasure removes the CgV occurrence and its warning from the reporting derivation. Engine §6: the erased alternatives collapse, so the remaining reading is unique.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
@@ -18,7 +18,7 @@
             {},
             {
               "name": "words",
-              "verdict": "resolved",
+              "verdict": "unique",
               "output": [
                 {
                   "value": "broda",
@@ -53,7 +53,7 @@
             {},
             {
               "name": "words",
-              "verdict": "resolved",
+              "verdict": "unique",
               "output": [
                 {
                   "value": "broda",

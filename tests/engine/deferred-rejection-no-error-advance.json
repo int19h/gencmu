@@ -1,0 +1,42 @@
+{
+  "description": "Engine §12.1: no error advance.",
+  "grammar": "%rule text :: ∅ | good ≻ bad\n%rule good A fault C\n%rule fault B\n%error \"fault\"\n%rule bad A B\n%error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad",
+            "rejection": {
+              "token": 1,
+              "source": [
+                2,
+                3
+              ],
+              "line": 1,
+              "column": 3,
+              "expected": []
+            }
+          }
+        ]
+      }
+    }
+  }
+}

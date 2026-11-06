@@ -1,0 +1,26 @@
+{
+  "description": "Engine §12.1: extension is another definition.",
+  "grammar": "%rule text :: ∅ | bad ≻ other\n%extend-rule text good\n%rule bad A\n%error \"bad\"\n%rule other A B\n%error \"other\"\n%rule good A C",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad"
+          }
+        ]
+      }
+    }
+  }
+}

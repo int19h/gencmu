@@ -306,6 +306,44 @@
         "warnings"
       ],
       "remove": true
+    },
+    {
+      "name": "competitor rejection without its token",
+      "case": "deferred-rejection-descendant-origin.json",
+      "path": [
+        "error",
+        "errors",
+        0,
+        "rejection",
+        "token"
+      ],
+      "remove": true
+    },
+    {
+      "name": "competitor rejection with an invalid line",
+      "case": "deferred-rejection-descendant-origin.json",
+      "path": [
+        "error",
+        "errors",
+        0,
+        "rejection",
+        "line"
+      ],
+      "set": 0
+    },
+    {
+      "name": "competitor rejection with invalid expected rules",
+      "case": "deferred-rejection-descendant-origin.json",
+      "path": [
+        "error",
+        "errors",
+        0,
+        "rejection",
+        "expected",
+        0,
+        "rules"
+      ],
+      "set": "part"
     }
   ]
 }
