@@ -513,7 +513,7 @@ All user constant references use final stage definitions. A redefinition's own l
 
 A demanded pattern is one that a condition reads. A structural state records a candidate's pattern answers. The recognizer compiles demanded patterns into finite structural states. Items retain prefix states, and captures retain completed states alongside spans and tags.
 
-A packed edge records one way to build a node. These edges keep correlated answers for one candidate. Equal observation states still retain distinct derivations.
+A packed edge records one way to build a node. These edges keep correlated answers for one candidate. Outside erased collapse, equal observation states still retain distinct derivations.
 
 A summary combines the derivations of one item. Its cycle context records ancestor rules over the same span. Ranking summaries retain that context. Ranked admission keeps query eligibility and cycle contexts separate. A structural-state change does not bypass rule-and-span cycle exclusion.
 
@@ -547,7 +547,7 @@ Every proof that the filter excludes has a qualifying replacement in its admissi
 
 The exact group key, tag closure, and algorithm belong to engine §2.1 and §6.1. [Ambiguity](notation.md#ambiguity) defines verdict changes and their effects on later stages. The ranker compares the additive blame measure first, then grammar key profiles, then the lean.
 
-Reconstruction first locates the restored chosen derivation before filtering. Filtering compares spans that include restored terminators. It ranks admitted readings by projected profiles without a stage directive. Filtering can exclude the restored derivation and cause an `elision-only` ambiguity. The error reports that derivation first and the best admitted competitor second. Only its absence before filtering reports `elision-witness-lost` ([engine §7](engine.md#7-elision-only)).
+Reconstruction first locates concrete W(D), the restored chosen derivation, before filtering or erased collapse. Filtering compares spans that include restored terminators. It ranks admitted readings by projected profiles without a stage directive. Filtering can exclude the restored derivation and cause an `elision-only` ambiguity. The error reports that reading first and the best admitted competitor class's kept reading second. Only its absence before filtering reports `elision-witness-lost` ([engine §7](engine.md#7-elision-only)).
 
 Experimental ranks text-initial bodies, NUhI bodies, and NAhE before mekso-MOI and SE conversion. Its ME operands use ordinary alternatives with an aligned sumti query. Zantufa ranks whole MOI constructions, MAhO, and MOhE. Its fragments and ME operands use ordinary alternatives with aligned category conditions. In Zantufa, SE can begin a mekso through an operator, so the MOI group also includes it. FA and JAI cannot begin those mekso forms.
 
@@ -634,7 +634,9 @@ Message recipes read captures and `$`, with string methods and `++`. They cannot
 
 A chosen derivation with errors keeps its tree and `unique` or `resolved` verdict. Its `reported` result lists all named errors and keeps enabled unsuppressed warnings, with `ok:false`. It retains the reporting stage's output. Earlier chosen errors flow onward on tokens instead of stopping the run. A tie reports ambiguity and the errors and warnings of its two shown readings.
 
-Erasure drops both own and carried diagnostics and contributes zero measure to its parent. Equal observable interiors collapse to one canonical derivation, without grammar key steps or the lean. Outer steps see the erased root alone. Each summary keeps an extra measure-only candidate so an erased and a live parent can share one item. This composes over shared edges, without enumerating complete derivations (engine §6).
+Erasure drops both own and carried diagnostics and contributes zero measure to its parent. Equal observable interiors collapse to one canonical derivation, without grammar key steps or the lean. The observable state excludes private captures, which no parent can read. Outer steps see the erased root alone.
+
+Each summary keeps an additional action summary whose profile contains only the measure. It retains prefix-related candidates until their common continuation settles their canonical order. An erased parent reads this summary, while a live parent reads the ordinary one. Both compose over their retained shared edges without enumerating complete derivations (engine §6).
 
 A splice is one transparent call, not an expression copy. It keeps conditions, tags, strings, emission, erasure, diagnostics, and suppression. Its close is transparent to action comparison, and it supplies one logical symbol for inheritance.
 
@@ -660,11 +662,13 @@ A specific error must add information to the actual default rejection, with its 
 
 Forms error alternatives stand beside the restrictions that they break. Separate recovering readers preserve strict foreign-quote delimiter readers. A faulty word retains the class of its word shape and carries every surviving diagnostic to syntax. Generic junk carries its own error with ranked-competitor rejection evidence. Error messages quote the faulty letters, and their spans cover those letters.
 
-Each error adds its source-envelope length and one to the error count. An empty envelope instead adds one sourceless charge. Ranking prefers less blame, fewer sourceless errors, and then more total errors. Shorter recoveries therefore precede grammar preferences. Equal blame favors finer division into errors. Warning controls affect reports alone.
+If every token source is empty, an error adds one sourceless charge and one to the error count. Otherwise it adds its source-envelope length and one to that count. Ranking prefers less blame, fewer sourceless errors, and then more total errors. Shorter recoveries therefore precede grammar preferences. Equal blame favors finer division into errors. Warning controls affect reports alone.
 
-A structural query reads a faulty word as a word. `.error-free` explicitly requires a zero-measure witness. Erasure removes the diagnostics inside its scope, including syntax recoveries. The grammar uses an erased inner constituent for the erased words and retains `ra-run` outside it. It prefers `fewest #·words-erasure` before `late #·(erased-sentence | erased-words)`. The `@Open` bar uses `¬$i.onward.parse(@Open …).error-free`.
+A structural query reads a faulty word as a word. `.error-free` explicitly requires a zero-measure witness. Erasure removes the diagnostics inside its scope, including syntax recoveries. The grammar uses an erased inner constituent for the erased words and retains `ra-run` outside it. It prefers `fewest #·words-erasure` before `late #(·erased-sentence ∪ ·erased-words)`. The `@Open` bar uses `¬$i.onward.parse(@Open …).error-free`.
 
-A named error reads at least one token. Missing parts belong to recovery rules over their openers, rather than empty gaps. An unclosed parenthetical or foreign quote covers the unclosed construct, because an opener alone loses its body to shorter recovery. A missing construct on empty stage input receives plain rejection.
+A named error reads at least one token. Each moved omission error has its own rule and reads the opener token alone, with that token as its span. It does not read the whole opener production. Its guard uses `$.following-tokens` after the opener, never `$.onward`. The grammar closing section lists the sites.
+
+An unclosed parenthetical or foreign quote covers the unclosed construct, because an opener alone loses its body to shorter recovery. A missing construct on empty stage input receives plain rejection.
 
 The grammar's closing sections record the diagnostic mappings and deliberate departures. An unfinished compound and a spaced `i` prefix report on their prefix, rather than the separate open slot or `i`. Faulty words report in every syntax position that accepts their class, including quotes and namespace steps. See [word forms](../grammars/eberban/refgram/morphology.md#diagnostic-codes-and-peg-sources) and [syntax](../grammars/eberban/refgram/syntax.md#diagnostic-codes-and-peg-sources).
 
@@ -718,7 +722,7 @@ A key step can rank before the lean, so an author can state grouping independent
 
 A document that holds the directive states the policy for every pipeline that includes it. Where pipelines differ, the shared document holds no directive, and each pipeline document states its own. A layer changes what a step counts by `%redefine-const` of a pattern constant that a step names, where the base chose to name one.
 
-`elision-only` keeps the key steps because they express structural preferences. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. The check never replaces the chosen parse. Restored terminators add no width, so writing them back cannot lengthen an occurrence.
+`elision-only` keeps the key steps because they express structural preferences. If filtering excludes the restored chosen derivation, the check fails. Otherwise, its collapsed class must be the sole best admitted class of the written-back text. The check never replaces the chosen parse. Restored terminators add no width, so writing them back cannot lengthen an occurrence.
 
 With `leftmost-longest #·simple-tense-modal` first, `pu va ca gi` groups as `pu va` then `ca gi`, as the official parser does. The step ranks complete parses. The official lexer instead groups tokens before syntax parsing. The notation's "Ambiguity" section explains the differences from POSIX subexpression semantics.
 
@@ -744,9 +748,11 @@ The initial search stops at the first elided node. The check walks the chosen de
 
 1. Take the chosen tree's `elided` nodes in leaf order, from left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries the terminator's tag. Its recognition value is the default value. The engine marks it synthetic.
 2. Parse the token sequence with the same grammar. Use a mode where each elidable optional is restored or written. Every condition, tag and test of a rule reads the original input through a projection that leaves the synthetic tokens out. A test on a terminal reads the written-back terminator's tag and recognition value. A query parses the original input with the grammar as it is.
-3. Locate the chosen reconstruction before filtering. Its absence gives `elision-witness-lost`. Filter the reconstructed forest, then rank by blame measure and projected grammar profiles without a lean. Synthetic tokens carry no diagnostics and contribute no blame. The check evaluates no messages. An admitted witness passes only as the sole best admitted derivation.
+3. Locate the chosen reconstruction before filtering. Its absence gives `elision-witness-lost`. Filter the reconstructed forest, then rank by blame measure and projected grammar profiles without a lean. Synthetic tokens carry no diagnostics or carried charge. An error occurrence over synthetic tokens alone still adds `(0,1,1)` before erasure. The check evaluates no messages.
 
-   The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the readings that engine §7.10 names, shown over the original input. An intentionally excluded witness gives ordinary ambiguity, not witness loss.
+   The admitted witness's collapsed class passes only as the sole best admitted class.
+
+   If filtering excludes the restored chosen derivation, the check fails. Otherwise, its collapsed class must be the sole best admitted class of the written-back text. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the readings that engine §7.10 names, shown over the original input. An intentionally excluded witness gives ordinary ambiguity, not witness loss.
 
 The stage ranks and collects reports. It emits after message evaluation. If no error counts, it runs the applicable check. A tie ends the stage before emission and before the check. So a stage reports at most one `ambiguous` error, and a tie comes first.
 
@@ -774,7 +780,7 @@ For example, take `text → A [+T] | A T`. On `A`, its only derivation elides `T
 
 A condition can query a whole span, prefix, suffix, or tag union with `matches`, `begins`, `ends`, or `tags` (engine §4). That nested parse sees every way to read the span, and an elidable optional can be left out anywhere in it. So a nested reading can rely on leaving out a terminator that the same construct reads in the actual text. A nested reading must not do that.
 
-So every nested query follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. The query answers only from remaining proof trees with zero error occurrences.
+So every nested query follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. The query answers only from remaining proof trees with no unerased error occurrence of their own. A carried error does not bar that witness.
 
 This includes aligned queries and all four query methods. No query evaluates a diagnostic message. Several such trees are an ordinary success, never a tie. No option turns this priority off.
 
@@ -820,7 +826,7 @@ Zantufa uses patterns and aligned category queries to remove duplicate construct
 
 ### Where an elided terminator can fall
 
-`elision-only` requires the restored chosen reading to survive filtering as the only best admitted reading of the written-back text. It does not settle whether a reading that needs an elided terminator counts at all. CLL's rule, "if no grammatical ambiguity results", has three readings, and the grammar that CLL prints does not choose among them:
+`elision-only` requires the restored chosen reading to survive filtering with its class as the sole best admitted class of the written-back text. It does not settle whether a reading that needs an elided terminator counts at all. CLL's rule, "if no grammatical ambiguity results", has three readings, and the grammar that CLL prints does not choose among them:
 
 - The printed grammar, read literally, counts every parse: a terminator can be elided wherever a parse of the whole text needs it. `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses, with the description ending before `se farvi`.
 - YACC is the grammar of CLL 1.1's official parser. That parser reads one lexeme ahead and never goes back. A lexeme is one word or one run of words that the parser joins. The parser elides a terminator only through the error recovery of its grammar, where the next lexeme cannot continue what it is reading. CLL's own explanations of elision describe this. That is why CLL 14.14 says that `le nanmu ku joi le ninmu` needs its `ku`.
@@ -836,7 +842,7 @@ A pipeline that reads as the official parser does needs that preparser as a sepa
 
 Two connected sumti can also parse as connected terms in the experimental grammar. A sumti is an argument of a predicate. A term is a wider kind of argument that includes sumti. The experimental rule for sumti connections selects the sumti reading of `mi .e do klama` and `mi .e bo do klama`.
 
-A parse option overrides `elision-only` either way. A caller switches it on to require the restored chosen reading as the only best admitted reading, or off to loosen the CLL pipeline. The steps of `%ambiguity-resolution` cannot be overridden, because each list of steps gives a different language, not a variation. A lazy syntax and a greedy word grammar are examples.
+A parse option overrides `elision-only` either way. A caller switches it on to require the restored chosen reading's class as the sole best admitted class, or off to loosen the CLL pipeline. The steps of `%ambiguity-resolution` cannot be overridden, because each list of steps gives a different language, not a variation. A lazy syntax and a greedy word grammar are examples.
 
 ### Syntax conventions
 
