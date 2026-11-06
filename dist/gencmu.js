@@ -12538,6 +12538,7 @@
    *   making it: a set the recognizer never reached is empty
    * @property {number} furthest the last position whose set holds an item
    * @property {ParseContext} context
+   * @property {ReturnType<typeof rankedFrameTable>|null} frames
    * @property {boolean} [closeRequested]
    * @property {any[]} [boundaryFailures]
    * @property {FamilySummaries|null} [family]
@@ -14089,7 +14090,7 @@
       if (suffix.answers.has(set.position)) return;
       /** @type {Chart} */
       const chart = {sets,start,end:set.position,setAt:position => sets[position-start] || new ChartSet(position),
-        furthest,context,closeRequested:false,family:null,familyTrace:null,boundaryFailures};
+        furthest,context,frames:lexical,closeRequested:false,family:null,familyTrace:null,boundaryFailures};
       const witnesses = set.items.filter(item => item.complete && item.production.lhs === rule && !item.production.closeRequested);
       suffix.answers.set(set.position,eligibleWitnesses(chart,boundaryWitnesses(chart,witnesses),!!query?.errorFree).length !== 0);
     } : null;
@@ -14287,7 +14288,7 @@
           step = NEXT;
           /** @type {(position: number) => ChartSet} */
           const peek = (position) => sets[position - start] || new ChartSet(position);
-          return { sets, start, end, setAt: peek, furthest, context, closeRequested: !!query?.aligned, family, familyTrace, boundaryFailures };
+          return { sets, start, end, setAt: peek, furthest, context, frames:lexical, closeRequested: !!query?.aligned, family, familyTrace, boundaryFailures };
         }
         step = kind;
         item = entry;
@@ -16251,7 +16252,6 @@
   // Default rejection evidence for a diagnostic that is itself a ranked option (§12.1).
 
 
-
   /** @typedef {import('./earley.js').Item} Item */
   /** @typedef {import('./types.js').Production} Production */
   /** @typedef {{next:Item,child:Item|null}} Advance */
@@ -16271,7 +16271,7 @@
    * @returns {import('./types.js').CompetitorRejection|null} */
   function competitorSlice(chart,start,cap,option) {
     const group=/** @type {NonNullable<Production['rankedGroup']>} */(option.rankedGroup);
-    const frames=rankedFrameTable(chart.context);
+    const frames=chart.frames;
     /** @type {Map<number,Map<string,Item[]>>} */ const entries=new Map();
     /** @type {Map<Item,Advance[]>} */ const advances=new Map();
     /** @type {Map<Item,{previous:Item,next:Item}[]>} */ const completions=new Map();
@@ -16323,7 +16323,7 @@
     for(let index=0;index<queue.length;index++) {
       const item=queue[index],symbol=item.production.rhs[item.dot];
       if(symbol&&!symbol.terminal) {
-        const frame=frames.entry(item,symbol.name);
+        const frame=frames?.entry(item,symbol.name)??null;
         for(const entry of entries.get(item.end)?.get(symbol.name)??[])if((entry.production.lexicalFrame??null)===frame)add(entry);
         for(const production of omissions(item.end,p=>(p.lexicalFrame??null)===frame,symbol.name))omit(item.end,production);
       }

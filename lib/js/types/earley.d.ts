@@ -4,6 +4,7 @@ import { PatternMachine } from "./patterns.js";
 import { CloseObservations } from "./close-observations.js";
 import { FamilySummaries } from "./family-summaries.js";
 import { Sources } from "./tokens.js";
+import { rankedFrameTable } from "./ranked-frame.js";
 import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Captured, SpanValue, SymbolTest, TagSet, TermValue } from "./types.js";
 import type { CloseEvent, CloseObservation } from "./close-observations.js";
 import type { Token } from "./tokens.js";
@@ -22,6 +23,7 @@ export type Chart = {
      */
     furthest: number;
     context: ParseContext;
+    frames: ReturnType<typeof rankedFrameTable> | null;
     closeRequested?: boolean;
     boundaryFailures?: any[];
     family?: FamilySummaries | null;
@@ -53,6 +55,7 @@ export type QualifiedObservation = {
  *   making it: a set the recognizer never reached is empty
  * @property {number} furthest the last position whose set holds an item
  * @property {ParseContext} context
+ * @property {ReturnType<typeof rankedFrameTable>|null} frames
  * @property {boolean} [closeRequested]
  * @property {any[]} [boundaryFailures]
  * @property {FamilySummaries|null} [family]
