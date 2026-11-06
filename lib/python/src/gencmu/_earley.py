@@ -1728,8 +1728,8 @@ class Parser:
                 return
             add(production.id, position + 1, start, captured, at, edge, strict_step, prefix, close_prefix, family_prefix, obligations, known_tag)
 
-        # Terminal indexes omit candidates before their prediction conditions.
-        # Rejection evaluates those conditions lazily at a reached boundary.
+        # Prediction conditions run before lookahead. Rejection revisits
+        # skipped candidates only at the boundaries that its slice reaches.
         by_first = lowered.by_first_terminal
         by_first_characters = lowered.by_first_characters
         unfiltered_predictions = lowered.unfiltered_predictions
@@ -1823,11 +1823,11 @@ class Parser:
                     # can read.
                     if strict_prediction and last_reading[production.real_id] < 0:
                         continue
-                if production.rhs and production.terminal[0]:
-                    first = production.rhs[0]
-                    if j == n or not (carries(first, base + j) if first in characters else first in tokens[base + j].tags):
-                        continue
                 if not production.conds_predict or (yield allowed(production, j)):
+                    if production.rhs and production.terminal[0]:
+                        first = production.rhs[0]
+                        if j == n or not (carries(first, base + j) if first in characters else first in tokens[base + j].tags):
+                            continue
                     add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
             if j < n and frame is None:
                 table = by_first[rule]

@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 
 import gencmu
-from gencmu import _testing
+from gencmu import _testing, _earley
 from gencmu._competitor_rejection import competitor_slice
 from gencmu._earley import StageContext, Parser
 from gencmu._grammar import lower
@@ -13,14 +13,14 @@ from gencmu._source_lines import SourceLines
 from .shared import run_case
 
 
-def context_for(grammar):
+def context_for(grammar, tags=("A",)):
     loaded = gencmu.load_pipeline_sources({
         "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
         "g.md": '```jbogenbau\n%ambiguity-resolution greedy\n' + grammar + '\n```\n',
     }, "p.md")
     lowered = lower(loaded._grammars[0], frozenset())
-    token = gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1))
-    return StageContext(lowered, [token], "a", loaded._unicode)
+    tokens = [gencmu.Token(tag.lower(), frozenset({tag}), (i, i+1), (i, i+1)) for i, tag in enumerate(tags)]
+    return StageContext(lowered, tokens, "".join(token.text for token in tokens), loaded._unicode)
 
 
 def option_of(forest, option):
@@ -32,6 +32,29 @@ def option_of(forest, option):
 
 
 class CompetitorEvidence(unittest.TestCase):
+    def test_skipped_conditions_run_only_for_reached_competitors_and_remain_cached(self):
+        # Engine §12.1: evidence adds no condition evaluation outside its slice.
+        context = context_for('%rule text :: ∅ | (good ≻ bad) C\n%extend-rule text unrelated\n'
+                              '%rule good A wanted\n%rule wanted K\n%rule bad A B\n%error "bad"\n'
+                              '%rule unrelated A B unwanted\n%rule unwanted Z', ("A", "B", "C"))
+        forest = Parser(context).parse(context.lowered.rule_ids["text"])
+        option = next(production for production in (forest.lowered.productions[number] for number in forest.prod)
+                      if production.ranked is not None and production.option == 1 and production.rhs
+                      and not production.terminal[0] and forest.lowered.rule_names[production.rhs[0]] == "bad")
+        calls = []
+        original = _earley.prediction_holds
+
+        def evaluate(forest, production, position):
+            calls.append(production.rule_name)
+            return original(forest, production, position)
+
+        with patch.object(_earley, "prediction_holds", evaluate):
+            evidence = competitor_slice(forest, 0, 2, option)
+            self.assertEqual(evidence["expected"], [{"terminal": "K", "rules": ["wanted"]}])
+            self.assertEqual(calls, ["wanted"])
+            self.assertEqual(competitor_slice(forest, 0, 2, option), evidence)
+            self.assertEqual(calls, ["wanted"])
+
     def test_reconstruction_uses_the_first_competitor_in_action_order(self):
         # Engine §7.10: the competitor keeps the exterior before its divergence.
         for grouped, surrounded in ((False, False), (True, False), (False, True)):
