@@ -114,7 +114,7 @@
     if (node.body) return [node.body];
     if (node.seq || node.choice || node.ranked || node.and || node.optional || node.repeat || node.splice || node.expr) {
       const children = expressionChildren(/** @type {any} */ (node));
-      if (node.test) children.push(...(node.test === "tags" ? node.requirements.map((/** @type {any} */ r)=>r.value) : [node.value]));
+      if (node.test) for(const child of node.test === "tags" ? node.requirements.map((/** @type {any} */ r)=>r.value) : [node.value])children.push(child);
       return children;
     }
     if (node.literal) return typeof node.literal === "object" ? [node.literal] : [];
@@ -202,7 +202,7 @@
       if (!node || typeof node !== "object" || seen.has(node)) continue;
       seen.add(node);
       if (typeof node.capture === "string") return node;
-      pending.push(...expressionChildren(node).slice().reverse());
+      for(const child of expressionChildren(node).slice().reverse())pending.push(child);
     }
     return null;
   }
@@ -15676,7 +15676,10 @@
         : nestedKey(context, memoKind, rule, start, end);
     if (errorFree || readsCarriedErrors(context.lowered,rule)) {
       const parts = JSON.parse(key);
-      if (key.startsWith('["of"')) parts.push("carried-errors",...context.tokens.slice(start,end).map(token => token.errors.length !== 0));
+      if (key.startsWith('["of"')) {
+        parts.push("carried-errors");
+        for(let index=start;index<end;index++)parts.push(context.tokens[index].errors.length!==0);
+      }
       key = JSON.stringify(parts);
     }
     requireInactive(context,rule,start,end);
@@ -20626,7 +20629,7 @@
           throw error;
         }
         if (check.competitorWarnings){
-          diagnosticData.collected.warnings.push(...check.competitorWarnings);
+          for(const warning of check.competitorWarnings)diagnosticData.collected.warnings.push(warning);
         }
         if (check.kind === "lost") {
           // The witness of the chosen derivation is lost: a defect of the
