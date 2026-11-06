@@ -333,6 +333,9 @@ func (run *stageRun) run(g *lowered, elisionOnly bool, features map[string]bool)
 			flows = append(flows, flow)
 			run.evaluateDiagnostics(flow, features)
 		}
+		for _, flow := range flows {
+			run.competitorRejections(flow)
+		}
 		out.diagnostics = stageDiagnostics{tiedDiagnostics(flows[0].events(), flows[1].events()), joinDiagnostics(flows[0].messages(), flows[1].messages())}
 		out.err = &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonTie, Readings: []*Node{run.buildTree(rec, result.first), run.buildTree(rec, result.second)}, Message: "stage " + run.name + ": the text is ambiguous: it has two best readings, a tie"}
 		return out
@@ -341,6 +344,7 @@ func (run *stageRun) run(g *lowered, elisionOnly bool, features map[string]bool)
 	flow := newDiagnosticFlow(occurrenceTree(result.first), run, rec)
 	flows = append(flows, flow)
 	run.evaluateDiagnostics(flow, features)
+	run.competitorRejections(flow)
 	out.diagnostics = stageDiagnostics{flow.collected(), flow.messages()}
 	out.stage.Output = run.emitFlow(rec, flow.root, flow)
 	unowned := flow.assign()
@@ -359,50 +363,15 @@ func (run *stageRun) run(g *lowered, elisionOnly bool, features map[string]bool)
 
 func (run *stageRun) rejection(rec *recognizer) *ParseError {
 	k := rec.furthest
-	rules := map[string]map[string]bool{}
-	expect := func(p *production, pos int) {
-		if pos < len(p.rhs) && p.rhs[pos].term {
-			// A tested terminal is written with its test (docs/output.md).
-			t := writtenSymbol(rec.g.terminals[p.rhs[pos].id], p.testAt(pos))
-			if rules[t] == nil {
-				rules[t] = map[string]bool{}
-			}
-			rules[t][p.ruleName] = true
-		}
-	}
+	var items []*item
+	var omitted []*production
 	if k < len(rec.sets) {
-		for _, it := range rec.sets[k].items {
-			expect(it.prod, int(it.dot))
-		}
-		// The predictions left out because they could not read the next
-		// token (earley.go, predict).
-		for rule := range rec.sets[k].predicted {
-			for _, base := range rec.g.rules[rule.rule].prods {
-				p := rec.rankedProduction(base, rule.frame)
-				// A nested parse that the conditions need runs on a stack
-				// of its own, and they go on from where they halted.
-				ok, q := rec.predictable(p, k)
-				for q != nil {
-					run.startQuery(q)
-					run.drive(q.recognizer(run))
-					ok, q = rec.predictable(p, k)
-				}
-				if ok {
-					expect(p, 0)
-				}
-			}
+		items = rec.sets[k].items
+		for _, candidates := range rec.predictionsAt(k) {
+			omitted = append(omitted, rec.skippedProductions(k, candidates, nil)...)
 		}
 	}
-	var expected []Expected
-	for t, rs := range rules {
-		e := Expected{Terminal: t}
-		for r := range rs {
-			e.Rules = append(e.Rules, r)
-		}
-		sort.Strings(e.Rules)
-		expected = append(expected, e)
-	}
-	sort.Slice(expected, func(i, j int) bool { return expected[i].Terminal < expected[j].Terminal })
+	expected := run.expectedAt(rec, items, omitted)
 	err := run.rejectedAt(k, expected)
 	err.Boundary = rec.boundaryDiagnostic(k)
 	if b := err.Boundary; b != nil {

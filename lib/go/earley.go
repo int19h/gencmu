@@ -233,6 +233,8 @@ const (
 )
 
 type recognizer struct {
+	predictionIndexes                     map[int]map[predictionName][]rankedPrediction
+	skippedCache                          map[int]map[*production]bool
 	measures                              *diagnosticMeasures
 	trees                                 *treeArena
 	suffix                                *suffixState
