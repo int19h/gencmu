@@ -17678,6 +17678,85 @@
     }
   }
 
+  // ---- measures.js
+  // Additive diagnostic charges and profile order (engine §1, §6).
+
+
+  /** @typedef {number|bigint} Count */
+  /** @typedef {[Count,Count,Count]} Measure */
+  /** @type {Measure} */
+  const ZERO_MEASURE=Object.freeze(/** @type {any} */([0,0,0]));
+
+  /** @param {Count} left @param {Count} right @returns {Count} */
+  function addCount(left,right){
+    if(typeof left==='number' && typeof right==='number'){
+      const sum=left+right;
+      if(sum<=Number.MAX_SAFE_INTEGER || sum===Infinity)return sum;
+    }
+    if(left===Infinity || right===Infinity)return Infinity;
+    return BigInt(left)+BigInt(right);
+  }
+
+  /** @param {Measure} left @param {Measure} right @returns {Measure} */
+  function sumMeasure(left,right){
+    if(left===ZERO_MEASURE)return right;
+    if(right===ZERO_MEASURE)return left;
+    return [addCount(left[0],right[0]),addCount(left[1],right[1]),addCount(left[2],right[2])];
+  }
+
+  /** Negative means that the left measure wins. @param {ArrayLike<any>} left @param {ArrayLike<any>} right */
+  function compareMeasure(left,right){
+    for(let index=0;index<3;index++)if(left[index]<right[index] || left[index]>right[index]){
+      const order=left[index]<right[index]?-1:1;
+      return index===2?-order:order;
+    }
+    return 0;
+  }
+
+  // Public diagnostic objects carry no charge or identity fields. Copies
+  // retain this private record rather than deriving a charge from new spans.
+  /** @type {WeakMap<object,{measure:Measure,identity:object}>} */
+  const records=new WeakMap();
+  /** @param {object} diagnostic @param {Measure} measure @param {object} [identity] */
+  function recordDiagnostic(diagnostic,measure,identity={}){
+    records.set(diagnostic,{measure:/** @type {Measure} */(Object.freeze([...measure])),identity});
+    return diagnostic;
+  }
+  /** @param {object} diagnostic */
+  function diagnosticRecord(diagnostic){
+    const record=records.get(diagnostic);
+    if(!record)throw new Error('An engine diagnostic requires a fixed charge and identity.');
+    return record;
+  }
+  /** @param {object} original @param {object} copy */
+  function copyDiagnosticRecord(original,copy){
+    const record=records.get(original);
+    if(record)records.set(copy,record);
+    return copy;
+  }
+
+  class Measures {
+    /** @param {import('./tokens.js').Token[]} tokens @param {Sources} [sources] */
+    constructor(tokens,sources=new Sources(tokens)){
+      this.sources=sources;
+      this.nonempty=[0];
+      /** @type {Measure[]} */
+      this.carried=[];
+      for(const token of tokens){
+        this.nonempty.push(this.nonempty[this.nonempty.length-1]+(token.source[0]<token.source[1]?1:0));
+        let measure=ZERO_MEASURE;
+        for(const diagnostic of token.errors)measure=sumMeasure(measure,diagnosticRecord(diagnostic).measure);
+        this.carried.push(measure);
+      }
+    }
+    /** @param {number} start @param {number} end @returns {Measure} */
+    own(start,end){
+      if(this.nonempty[end]===this.nonempty[start])return [0,1,1];
+      const [low,high]=this.sources.of(start,end);
+      return [high-low,0,1];
+    }
+  }
+
   // ---- restoration.js
   // Tokens and source projection shared by elision-only and restored spans.
 
@@ -17723,6 +17802,7 @@
   // ---- rank.js
 
 
+
   // Choosing a parse (engine §6): the profiles of the key steps of
   // `%ambiguity-resolution`, then the first-difference order over bottom-up
   // action sequences under greedy and lazy, both computed over the packed
@@ -17750,27 +17830,12 @@
    */
 
   /**
-   * A count of actions or of elided terminators. It is a number while it is
+   * A count of actions, diagnostics, or elided terminators. It is a number while it is
    * a safe integer, and a bigint beyond, since a shared sequence can hold
    * exponentially many. Infinity stands for no divergence. Counts compare
    * exactly with < and >, whatever their types.
    * @typedef {number | bigint} Count
    */
-
-  /**
-   * The sum of two counts, exact however large.
-   * @param {Count} left
-   * @param {Count} right
-   * @returns {Count}
-   */
-  function add(left, right) {
-    if (typeof left === "number" && typeof right === "number") {
-      const sum = left + right;
-      if (sum <= Number.MAX_SAFE_INTEGER || sum === Infinity) return sum;
-    }
-    if (left === Infinity || right === Infinity) return Infinity;
-    return BigInt(left) + BigInt(right);
-  }
 
   /**
    * The difference of two finite counts, the right one no greater.
@@ -17839,7 +17904,7 @@
   function concat(left, right) {
     if ("empty" in left) return right;
     if ("empty" in right) return left;
-    return { left, right, size: add(left.size, right.size) };
+    return { left, right, size: addCount(left.size, right.size) };
   }
 
   /**
@@ -17997,7 +18062,7 @@
         const y = b.front();
         if (x === null || y === null) break;
         if (x === y || (onlyVisible && knownEqual(x, y))) {
-          index = add(index, x.size);
+          index = addCount(index, x.size);
           a.skip();
           b.skip();
           continue;
@@ -18020,7 +18085,7 @@
       if (x === null && y === null) return null;
       if (x === null || y === null) return { left: x, right: y, index };
       if (!sameAction(x, y)) return { left: x, right: y, index };
-      if (visible(x)) index = add(index, 1);
+      if (visible(x)) index = addCount(index, 1);
     }
   }
 
@@ -18121,16 +18186,18 @@
      */
     constructor(tokens, steps, lean, project = null) {
       this.tokens = tokens;
+      this.measures = new Measures(tokens);
       /** @type {Profiles} */
       this.space = new Profiles(steps);
       this.space.tokens = tokens;
+      this.space.measures = this.measures;
       /** @type {(left: Item, right: Item) => boolean} */
       this.sameSpan = project === null
         ? (left, right) => left.origin === right.origin && left.end === right.end
         : (left, right) => project[left.origin] === project[right.origin] && project[left.end] === project[right.end];
       // Whether a key step can match a reachable node. The readings then
       // come from the forest of the best derivations (engine §6).
-      this.profiles = false;
+      this.profiles = this.measures.carried.some(measure=>measure[2]!==0);
       this.configured = false;
       /** @type {Set<Production>} */ this.profileProductions = new Set();
       /** @type {any} */ this.interner = null;
@@ -18148,7 +18215,7 @@
       this.groups = (rule) => this.ruleGroups.get(rule);
       /** @type {{plain: Map<Item, Candidate[]>, contextual: Map<Item, Map<string, Candidate[]>>}} */
       this.memo = { plain: new Map(), contextual: new Map() };
-      /** @type {{plain: Map<Item, {all: number, errors: Count} & {w: boolean}>, contextual: Map<Item, Map<string, {all: number, errors: Count} & {w: boolean}>>}} */
+      /** @type {{plain: Map<Item, {all: number, measure: import("./measures.js").Measure | null} & {w: boolean}>, contextual: Map<Item, Map<string, {all: number, measure: import("./measures.js").Measure | null} & {w: boolean}>>}} */
       this.counts = { plain: new Map(), contextual: new Map() };
       /** @type {Map<Item, RopeLeaf>} */
       this.closes = new Map();
@@ -18220,7 +18287,7 @@
                 /** @type {Candidate} */
                 let entry = { seq: concat(before.seq, child.seq), alts: [], at: Infinity };
                 for (const alt of before.alts) entry = this.offer(entry, concat(alt, child.seq), before.at);
-                for (const alt of child.alts) entry = this.offer(entry, concat(before.seq, alt), add(before.seq.size, child.at));
+                for (const alt of child.alts) entry = this.offer(entry, concat(before.seq, alt), addCount(before.seq.size, child.at));
                 produced.push(entry);
               }
             }
@@ -18263,6 +18330,7 @@
             const q = this.profileProject?.[edge.token+1] ?? edge.token+1;
             const token = this.tokens[edge.token];
             profile = p < q ? space.sum(/** @type {Profile} */ (before.profile),space.occurrence({terminal:edge.terminal,tags:token.tags,value:token.value},p,q)) : /** @type {Profile} */ (before.profile);
+            profile=space.charge(profile,this.measures.carried[edge.token]);
             least = before.least;
             total = before.total;
           } else {
@@ -18280,7 +18348,7 @@
             const q = this.profileProject?.[current.end] ?? current.end;
             if (p < q) profile = space.sum(space.occurrence({name:current.production.lhs,tags:this.interner?.get(current.tagId) ?? new Set()}, p, q), profile);
           }
-          if (current.dot===current.production.rhs.length && current.production.error) profile=space.sum(space.error,profile);
+          if (current.dot===current.production.rhs.length && current.production.error) profile=space.charge(profile,this.measures.own(current.origin,current.end));
           if (!admitted || admitted.has(index)) addEdge(space, all, index, least, total, profile);
         });
         return all;
@@ -18443,13 +18511,13 @@
     }
 
     /**
-     * The number of an item's least-error derivations, capped at two. With witness marks, `w`
+     * The number of an item's best-measure derivations, capped at two. With witness marks, `w`
      * says whether the count includes a derivation made of marked edges
      * only (tests/README.md). The same loop decides both, over the same
      * edges, so any choice that drops W(D) from the count drops it from `w`.
      * A dependency that closes a cycle has no derivation, and no `w`.
      * @param {Item} item
-     * @returns {{all: number, errors: Count} & {w: boolean}}
+     * @returns {{all: number, measure: import("./measures.js").Measure | null} & {w: boolean}}
      */
     countOf(item) {
       const marks = this.marks;
@@ -18458,13 +18526,13 @@
         const edges = current.edges;
         const admitted = this.admission?.compute(current, dependency, key);
         let all = 0;
-        let errors = /** @type {Count} */ (Infinity);
+        let measure = /** @type {import("./measures.js").Measure|null} */ (null);
         let w = false;
         for (let index = 0; index < edges.length; index++) {
           const edge = edges[index];
           if (admitted && !admitted.has(index)) continue;
           let ways;
-          let edgeErrors;
+          let edgeMeasure;
           let edgeW;
           if (edge.kind === "restore" && fault("lost:rank", "count")) continue;
           // A fault skips the last of two or more edges in the check
@@ -18472,32 +18540,35 @@
           if (this.check && index > 0 && index === edges.length - 1 && fault("lost:context")) continue;
           if (edge.kind === "seed" || edge.kind === "restore") {
             ways = 1;
-            edgeErrors = 0;
+            edgeMeasure = ZERO_MEASURE;
             edgeW = true;
           } else if (edge.kind === "scan") {
             const before = dependency(edge.previous);
             ways = before.all;
-            edgeErrors = before.errors;
+            if(!ways)continue;
+            edgeMeasure = sumMeasure(/** @type {import("./measures.js").Measure} */(before.measure),this.measures.carried[edge.token]);
             edgeW = before.w;
           } else {
             const before = dependency(edge.previous);
             const child = dependency(edge.child);
             ways = before.all * child.all;
-            edgeErrors = add(before.errors,child.errors);
+            if(!ways)continue;
+            edgeMeasure = sumMeasure(/** @type {import("./measures.js").Measure} */(before.measure),/** @type {import("./measures.js").Measure} */(child.measure));
             edgeW = before.w && child.w;
           }
           if (!ways) continue;
-          if (current.dot===current.production.rhs.length && current.production.error) edgeErrors=add(edgeErrors,1);
-          if (edgeErrors>errors) continue;
-          if (edgeErrors<errors) {errors=edgeErrors;all=0;w=false;}
+          if (current.dot===current.production.rhs.length && current.production.error) edgeMeasure=sumMeasure(edgeMeasure,this.measures.own(current.origin,current.end));
+          const order=measure===null?-1:compareMeasure(edgeMeasure,measure);
+          if(order>0)continue;
+          if(order<0){measure=edgeMeasure;all=0;w=false;}
           if (marked !== undefined && ways > 0 && edgeW && marked.has(this.admission?.forest?.rawIndices.get(edge) ?? index)) w = true;
           all = Math.min(2, all + ways);
-          // A zero-error count cannot decrease. It can stop at two,
+          // A zero-measure count cannot lose to a later edge. It can stop at two,
           // but with marks only once `w` is known.
-          if (all === 2 && errors === 0 && (marked === undefined || w)) break;
+          if (all === 2 && edgeMeasure[2] === 0 && (marked === undefined || w)) break;
         }
-        return { all, errors, w };
-      }, { all: 0, errors:Infinity, w: false });
+        return { all, measure, w };
+      }, { all: 0, measure:null, w: false });
     }
 
     // Computes `combine(item, dependency)` for an item after every item it
@@ -18920,7 +18991,7 @@
   /**
    * An item's derivations in one context under profiles: the greatest
    * profile and the number of derivations that attain it, the number of
-   * least-error derivations, both capped at two, and the indices of edges that attain
+   * best-measure derivations, both capped at two, and the indices of edges that attain
    * the greatest profile.
    * @typedef {object} ElisionSummary
    * @property {Profile | null} profile null when there is no derivation
@@ -18945,11 +19016,11 @@
   function concatElisions(left, right) {
     if (!("first" in left)) return right;
     if (!("first" in right)) return left;
-    return { left, right, size: add(left.size, right.size), first: left.first, last: right.last };
+    return { left, right, size: addCount(left.size, right.size), first: left.first, last: right.last };
   }
 
   // Adds an edge's derivations to a summary. The total counts edges with
-  // the fewest errors. The least count and the kept edges count only the
+  // the best measure. The least count and the kept edges count only the
   // edges that attain the greatest profile.
   /**
    * @param {Profiles} space
@@ -18960,8 +19031,9 @@
    * @param {Profile} profile
    */
   function addEdge(space, summary, index, least, total, profile) {
-    if (summary.profile === null || profile[0] < summary.profile[0]) summary.total=total;
-    else if (profile[0] === summary.profile[0]) summary.total=Math.min(2,summary.total+total);
+    const measureOrder=summary.profile===null?-1:compareMeasure(profile,summary.profile);
+    if(measureOrder<0)summary.total=total;
+    else if(measureOrder===0)summary.total=Math.min(2,summary.total+total);
     const order = summary.profile === null ? -1 : space.compare(profile, summary.profile);
     if (order < 0) {
       summary.profile = profile;
@@ -19014,10 +19086,10 @@
       const yLeft = subtract(y.size, b.taken);
       if (xLeft < yLeft) {
         dropFront(a);
-        b.taken = add(b.taken, xLeft);
+        b.taken = addCount(b.taken, xLeft);
       } else if (yLeft < xLeft) {
         dropFront(b);
-        a.taken = add(a.taken, yLeft);
+        a.taken = addCount(a.taken, yLeft);
       } else {
         dropFront(a);
         dropFront(b);
@@ -19082,9 +19154,8 @@
    * @typedef {SpanVector | Count | ElisionSeq} Component
    */
   /**
-   * A derivation's counts of every pattern that a key step tests, one
-   * component per key step, in the order of the steps (engine §6).
-   * @typedef {Component[]} Profile
+   * A derivation's measure followed by its grammar-key components (engine §6).
+   * @typedef {[Count,Count,Count,...Component[]]} Profile
    */
 
   /**
@@ -19104,9 +19175,8 @@
       /** @type {Map<string,string>|null} */ this.spanValues=this.valueTests.some(Boolean) ? new Map() : null;
       /** @type {Map<string,number>} */ this.tagKeys = new Map();
       /** @type {Profile} */
-      this.zero = [0,...steps.map((step) => step.step === "leftmost-longest" ? [] : step.step === "fewest" || step.step === "most" ? 0 : NO_ELISIONS)];
-      /** @type {Profile} */
-      this.error = [1,...this.zero.slice(1)];
+      this.zero = [0,0,0,...steps.map((step) => step.step === "leftmost-longest" ? [] : step.step === "fewest" || step.step === "most" ? 0 : NO_ELISIONS)];
+      /** @type {Measures|null} */ this.measures=null;
       /** @type {Map<number, ElisionSeq>} */
       this.leaves = new Map();
     }
@@ -19144,7 +19214,7 @@
         }
         if (match && (p<q || step.step!=='leftmost-longest')) {
           profile ??= this.zero.slice();
-          profile[index+1]=this.one(index,p,q);
+          profile[index+3]=this.one(index,p,q);
         }
       });
       return profile ?? this.zero;
@@ -19187,15 +19257,15 @@
     sum(left, right) {
       if (left === this.zero) return right;
       if (right === this.zero) return left;
-      return left.map((component, index) => {
+      return /** @type {Profile} */(left.map((component, index) => {
         const other = right[index];
-        if (index===0) return add(/** @type {Count} */ (component),/** @type {Count} */ (other));
-        switch (this.steps[index-1].step) {
+        if (index<3) return addCount(/** @type {Count} */ (component),/** @type {Count} */ (other));
+        switch (this.steps[index-3].step) {
           case "leftmost-longest": return sumSpans(/** @type {SpanVector} */ (component), /** @type {SpanVector} */ (other));
-          case "fewest": case "most": return add(/** @type {Count} */ (component), /** @type {Count} */ (other));
+          case "fewest": case "most": return addCount(/** @type {Count} */ (component), /** @type {Count} */ (other));
           default: return concatElisions(/** @type {ElisionSeq} */ (component), /** @type {ElisionSeq} */ (other));
         }
-      });
+      }));
     }
 
     /**
@@ -19207,10 +19277,11 @@
      */
     compare(left, right) {
       if (left === right) return 0;
-      if (left[0] !== right[0]) return left[0] < right[0] ? -1 : 1;
+      const measureOrder=compareMeasure(left,right);
+      if(measureOrder)return measureOrder;
       for (let index = 0; index < this.steps.length; index++) {
-        const a = left[index+1];
-        const b = right[index+1];
+        const a = left[index+3];
+        const b = right[index+3];
         let order = 0;
         switch (this.steps[index].step) {
           case "leftmost-longest": order = compareSpans(/** @type {SpanVector} */ (a), /** @type {SpanVector} */ (b)); break;
@@ -19224,6 +19295,14 @@
       return 0;
     }
 
+    /** @param {Profile} profile @param {import("./measures.js").Measure} measure @returns {Profile} */
+    charge(profile,measure){
+      if(measure===ZERO_MEASURE)return profile;
+      const result=/** @type {Profile} */(profile.slice());
+      for(let index=0;index<3;index++)result[index]=addCount(/** @type {Count} */(result[index]),measure[index]);
+      return result;
+    }
+
     /**
      * Counts every completed nonempty occurrence in a chosen derivation,
      * and no elision (engine §7).
@@ -19233,11 +19312,13 @@
      */
     derivationProfile(root, tokens=this.tokens) {
       let profile=this.zero;
+      const measures=this.measures && this.measures.sources.tokens===tokens?this.measures:new Measures(tokens);
       const pending=[root];
       for (let node=pending.pop();node;node=pending.pop()) {
-        if (!("read" in node) && node.production.error) profile=this.sum(profile,this.error);
+        if (!("read" in node) && node.production.error) profile=this.charge(profile,measures.own(node.start,node.end));
         if (node.start >= node.end) continue;
         if ('read' in node) {
+          profile=this.charge(profile,measures.carried[node.start]);
           const token=tokens?.[node.start];
           if(token) profile=this.sum(profile,this.occurrence({terminal:node.read.terminal,tags:token.tags,value:token.value},node.start,node.end));
         } else {
@@ -19289,7 +19370,7 @@
       if (order < 0) result.push(left[i++]);
       else if (order > 0) result.push(right[j++]);
       else {
-        result.push([a[0], a[1], add(a[2], b[2])]);
+        result.push([a[0], a[1], addCount(a[2], b[2])]);
         i++;
         j++;
       }
@@ -19393,13 +19474,6 @@
 
 
 
-  /** @param {any} left @param {any} right @returns {number|bigint} */
-  function errorSum(left,right) {
-    const a=left.errors,b=right.errors;
-    if (a===Infinity || b===Infinity) return Infinity;
-    if (typeof a==='bigint' || typeof b==='bigint' || a+b>Number.MAX_SAFE_INTEGER) return BigInt(a)+BigInt(b);
-    return a+b;
-  }
 
   // Admission uses finite eligible facts, before the ordinary ranker.
   class RankedAdmission {
@@ -19485,7 +19559,7 @@
           const viable = group.filter((/** @type {any} */ proof) => dependency(proof.edge.previous).all && dependency(proof.edge.child).all);
           kept = new Set(viable.filter((/** @type {any} */ proof) => !viable.some((/** @type {any} */ higher) =>
             higher.option < proof.option &&
-            errorSum(dependency(higher.edge.previous),dependency(higher.edge.child)) <= errorSum(dependency(proof.edge.previous),dependency(proof.edge.child)) && boundaryDominates(higher.open,proof.open))));
+            compareMeasure(sumMeasure(dependency(higher.edge.previous).measure,dependency(higher.edge.child).measure),sumMeasure(dependency(proof.edge.previous).measure,dependency(proof.edge.child).measure)) <= 0 && boundaryDominates(higher.open,proof.open))));
           if ([...kept].some(proof => viable.some((/** @type {any} */ higher) => higher.option < proof.option))) this.reportSplit(group);
           contexts.set(key,kept);
         }
@@ -19882,6 +19956,7 @@
 
 
 
+
   // Running one stage: recognition, the choice of a parse, the result tree
   // (engine §12), emission (engine §11) and elision-only (engine §7).
 
@@ -19913,7 +19988,7 @@
   /** @param {import("./earley.js").Chart} chart @param {Token[]} tokens @param {import("./types.js").KeyStep[]} steps @param {import("./types.js").Lean} lean @param {number[] | null} [project] */
   function slotRanker(chart, tokens, steps, lean, project = null) {
     const ranker = new Ranker(tokens, steps, lean, project);
-    ranker.profiles = canCountProfiles(chart.context.lowered) && !(chart.context.mode === "reconstruction" && !chart.context.lowered.productions.some(p=>p.error) && steps.every(step=>requiresElided(step.pattern)));
+    ranker.profiles ||= canCountProfiles(chart.context.lowered) && !(chart.context.mode === "reconstruction" && !chart.context.lowered.productions.some(p=>p.error) && steps.every(step=>requiresElided(step.pattern)));
     ranker.configured = true;
     ranker.interner = chart.context.interner;
     ranker.space.interner = chart.context.interner;
@@ -20365,6 +20440,7 @@
     /** @type {import("./types.js").ParseWarning[]} */
     const errors=[];
     const strings=new StringWalk(context,node=>new TreeScope(node,context),false);
+    const measures=new Measures(context.tokens,context.sources);
     const stack=[{node:root,suppressed:new Set()}];
     while(stack.length) {
       const {node,suppressed:inherited}=/** @type {NonNullable<ReturnType<typeof stack.pop>>} */ (stack.pop());
@@ -20377,6 +20453,7 @@
         hooks.diagnosticMessage?.(node,recipe);
         const message=strings.item(node,recipe,recipe);
         const diagnostic={stage,code,rule:code,span:/** @type {Span} */ ([node.start,node.end]),source:sourceOf(context.sources,node.start,node.end),message};
+        recordDiagnostic(diagnostic,production.error ? measures.own(node.start,node.end) : ZERO_MEASURE);
         (production.error ? errors : warnings).push(diagnostic);
       }
       for(let index=node.children.length-1;index>=0;index--) stack.push({node:node.children[index],suppressed});
