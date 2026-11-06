@@ -89,10 +89,16 @@ def format_ranking_reports(reports):
         lines.append(report['name'] + ':')
         for step in report['keySteps']:
             if step.get('status'): lines.append(f"  ranking step {step['step'] + 1}: {step['status']}")
+        for erasure in report.get('erasures', []):
+            lines.append(f"  {erasure['kind']} erasure: {erasure['rule']}")
         for note in report.get('diagnosticNotes', []):
-            detail = (f"{note['variants']} guarded tag variants" if note['kind'] == 'guarded-tag-variants'
-                      else f"query target {note['target']} reaches an error rule" if note['kind'] == 'query-error'
-                      else f"suppression code {note['code']} reaches no warning")
+            if note['kind'] == 'guarded-tag-variants':
+                detail = f"{note['variants']} guarded tag variants"
+            elif note['kind'] == 'query-error':
+                detail = f"query target {note['target']} contains error productions. Witnesses exclude unerased own errors"
+                detail += " and carried errors outside erased parts" if note['filtered'] else " but allow carried errors"
+            else:
+                detail = f"suppression code {note['code']} reaches no warning"
             lines.append(f"  {note['rule']}: {detail}")
         for change in report['countedChanges']:
             lines.append(f"  counted rule {change['rule']}: {change['kind']}, step {change['step'] + 1}")

@@ -77,6 +77,7 @@ class Alternative:
     error: Any = None
     warning: Any = None
     suppress_warnings: tuple[str, ...] = ()
+    definition: object = field(default_factory=object, repr=False, compare=False)
 
 
 @dataclass
@@ -864,6 +865,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 # One list that the alternatives share, as they share the other
                 # rule-level clauses, so that walks of it can skip it once seen.
                 conditions = list(rule.get("conditions", []))
+                definition = object()
                 alternatives = [
                     Alternative(
                         guards=list(alt.get("guards", [])),
@@ -883,6 +885,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                         index=alternative_index,
                         error=rule.get("error"), warning=rule.get("warning"),
                         suppress_warnings=tuple(rule.get("suppressWarnings", ())),
+                        definition=definition,
                     )
                     for alternative_index,alt in enumerate(rule.get("alternatives", []))
                 ]

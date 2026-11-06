@@ -111,7 +111,7 @@ class Diagnostics(unittest.TestCase):
         self.assertEqual(got["at"], 0)
         self.assertEqual({key: got[key] for key in ("expect", "verdict", "stage", "error", "errors", "warnings")}, {
             "expect": "reject", "verdict": "unique", "stage": "main", "error": {"kind": "reported"},
-            "errors": [{"code": "bad", "at": 0}], "warnings": [],
+            "errors": [{"stage": "main", "code": "bad", "at": 0}], "warnings": [],
         })
         result = run_case(fixture("warning-with-errors"))[1]
         self.assertEqual(outcome({}, result=result)["warnings"], [{"stage": "main", "code": "text", "at": 0}])

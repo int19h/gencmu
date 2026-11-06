@@ -760,6 +760,15 @@ class Pipeline:
             report = ranking_audit(grammar)
             from ._diagnostic_audit import diagnostic_notes
             notes = diagnostic_notes(grammar)
+            from ._erasure_audit import erasure_audit
+            erasures = erasure_audit(grammar)
+            report["erasures"] = erasures
+            definitions = {}
+            for entry in erasures:
+                alt = grammar.rules[entry["rule"]].alternatives[entry["alternative"]]
+                key = entry["rule"], entry["document"], alt.definition
+                definitions[key] = definitions.get(key, True) and entry["kind"] == "inert"
+            report["idleErasures"] = [dict(rule=name, document=document) for (name, document, definition), inert in definitions.items() if inert]
             if notes:
                 report["diagnosticNotes"] = notes
             reports.append(dict(name=grammar.stage, **report))
