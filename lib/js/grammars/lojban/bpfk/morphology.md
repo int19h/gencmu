@@ -137,6 +137,10 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 
 A name is a run of letters that ends in a consonant before a pause. The repeated sounds exclude that final consonant, so only one repetition count reaches it. The PEG also offers a syllabified name shape, which requires the same general shape and ends at the same pause. The single `zifcme` form covers both name readings without duplicate proofs.
 
+No sound in the repetition needs a test against a pause.
+
+The final consonant of `zifcme` always follows the repetition, so the repetition cannot take that consonant and still complete the name.
+
 ```jbogenbau
 %rule cmevla  (* A name needs the general name shape. The syllabified name shape requires that same shape and ends at the same pause. *)
   zifcme
@@ -147,13 +151,8 @@ A name is a run of letters that ends in a consonant before a pause. The repeated
   ¬$.onward.begins(h),
   $c.following-tokens.begins(pause)
 
-%rule zifcme-sound  (* An apostrophe and a consonant use distinct letters. A glide requires a following nucleus, which a vowel forbids. Reserve the pause-final consonant for zifcme. *)
-  | nucleus
-  | glide
-  | h
-  | $c:consonant
-%conditions
-  ¬$c.following-tokens.begins(pause)
+%rule zifcme-sound  (* An apostrophe and a consonant use distinct letters. A glide requires a following nucleus, which a vowel forbids. No pause test stands here, because the final consonant of zifcme always follows this repetition. *)
+  nucleus | glide | h | consonant
 
 ```
 
@@ -385,6 +384,22 @@ The slinku'i test and a borrowing's head look for a string of rafsi. That is any
 
 The core of a brivla ends it, and a pause or another word follows it. Its final syllable has a nucleus with no stress mark and is not followed by a name.
 
+Three rules test `final-syllable` at one anchor each, and no rule repeats its `post-word` test.
+
+In `gismu`, the witness begins at the last consonant, and its nucleus is the last vowel of the body.
+
+In `cvv-final-rafsi`, the witness begins at the final vowel, and its nucleus is that vowel.
+
+In `short-final-rafsi`, the witness begins at the start of the body, and its nucleus ends the body.
+
+Each witness ends where its body ends, so its `post-word` test reads the same place as a test on the body.
+
+The callers of the stressed CVC form put a consonant after it.
+
+A short final rafsi begins with a consonant, and an initial pair begins with a consonant.
+
+So no caller can put `y` after the stressed CVC form, and no test against `y` stands on that form.
+
 Each rafsi shape stands once as a template.
 
 The stress argument of a template is one stress unit.
@@ -406,23 +421,20 @@ A layer can change that vowel without a change to the other parts.
 `gismu` reads the stressed long shape and one more vowel.
 
 ```jbogenbau
-%rule gismu  (* A root is the stressed long shape and a vowel. It ends with a valid final syllable at a complete word boundary. *)
+%rule gismu  (* A root is the stressed long shape and a vowel. Its final syllable test stands at its last consonant. *)
   $s:stressed-long-rafsi $v:vowel
 %conditions
-  $s.last-token.onward.begins(final-syllable),
-  $v.following-tokens.begins(post-word)
+  $s.last-token.onward.begins(final-syllable)
 
-%rule cvv-final-rafsi  (* A CVV final rafsi ends with a valid final syllable at a complete word boundary. *)
+%rule cvv-final-rafsi  (* A CVV final rafsi ends with a valid final syllable. Its test stands at its final vowel. *)
   consonant stressed-vowel h $v:vowel
 %conditions
-  $v.onward.begins(final-syllable),
-  $v.following-tokens.begins(post-word)
+  $v.onward.begins(final-syllable)
 
-%rule short-final-rafsi  (* A short final rafsi forms a valid final syllable at a complete word boundary. *)
+%rule short-final-rafsi  (* A short final rafsi forms a valid final syllable. Its test stands over its whole body. *)
   $r:short-final-body
 %conditions
-  $r.onward.begins(final-syllable),
-  $r.following-tokens.begins(post-word)
+  $r.onward.begins(final-syllable)
 
 %rule short-final-body        (* `consonant diphthong / initial_pair vowel`. The second letter is a vowel in one form and a consonant in the other. *)
   consonant diphthong | initial-pair vowel
@@ -468,12 +480,7 @@ A layer can change that vowel without a change to the other parts.
 
 %rule stressed-y-rafsi = y-rafsi-of(stressed-vowel, ε)  (* A stressed long rafsi or CVC rafsi ends before y. *)
 
-%rule stressed-y-less-rafsi  (* CVC, CCV, and CVV differ in their second or third letter. The CVC form cannot end directly before y. *)
-  | $c:cvc-rafsi-of(stressed-vowel)
-  | ccv-rafsi-of(stressed-vowel)
-  | cvv-rafsi-of(stressed-vowel, stressed-diphthong)
-%conditions
-  ¬$c.following-tokens.begins(y)
+%rule stressed-y-less-rafsi = short-rafsi-of(stressed-vowel, stressed-diphthong)  (* A stressed short rafsi is a CVC, CCV or CVV rafsi. No test against y stands here, because each caller puts a consonant after it. *)
 
 %rule y-less-rafsi  (* An unhyphenated rafsi excludes a y rafsi and an apostrophe-y rafsi of either stress at its start. It cannot end directly before an apostrophe. *)
   $r:y-less-rafsi-body
