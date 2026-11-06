@@ -13,6 +13,12 @@ class DiagnosticLists:
     warnings: list = field(default_factory=list)
 
 
+@dataclass
+class StageDiagnostics:
+    collected: DiagnosticLists = field(default_factory=DiagnosticLists)
+    evaluated: DiagnosticLists = field(default_factory=DiagnosticLists)
+
+
 def diagnostic_identity(diagnostic):
     return diagnostic_record(diagnostic).identity
 

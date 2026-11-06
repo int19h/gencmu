@@ -70,7 +70,9 @@ class Diagnostics(unittest.TestCase):
         self.assertIsNone(result.stages[1].tree)
         self.assertIsNone(result.stages[1].output)
         self.assertIsNone(result.error.errors)
-        self.assertEqual([warning.code for warning in result.warnings], ["early"])
+        # Engine §12.1 keeps the evaluated prefix before the input's carried lists.
+        self.assertEqual([warning.code for warning in result.warnings], ["late", "early"])
+        self.assertEqual(result.error.warnings, result.warnings)
         self.assertEqual(value["stages"][0]["output"][0]["value"], "a")
         self.assertNotIn("output", value["stages"][1])
 

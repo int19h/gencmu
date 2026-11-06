@@ -21,6 +21,7 @@ from ._model import Feature, Node, ParseError, ParseResult, ParseWarning, Stage,
 from ._splice import _EmptyStageError, SplicedPipeline, splice_pipeline
 from ._recent import Recent
 from ._stage import StageOutcome, StageRunner
+from ._diagnostic_flow import DiagnosticLists, join_diagnostics, input_diagnostics
 from ._tags import is_tag
 from ._unicode import UnicodeTable
 from ._validate import CLASSIFIER_NAME, FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem, known_dom_members
@@ -876,11 +877,13 @@ class Pipeline:
             raise GencmuError("tokens requires a sequence", kind="usage")
         supplied_tags = []
         for index, token in enumerate(tokens):
+            if not isinstance(token, Token):
+                raise GencmuError(f"token {index}: invalid input token", kind="usage")
             for field in ("errors", "warnings"):
                 values = getattr(token, field)
                 if not isinstance(values, list) or values:
                     raise GencmuError(f"token {index} has diagnostics, which a caller cannot supply", kind="usage")
-            if token.before or token.after:
+            if any(not isinstance(values, list) or values for values in (token.before, token.after)):
                 raise GencmuError(f"token {index} has attachments, which a caller cannot supply", kind="usage")
             for field in ("text", "value", "image"):
                 value = getattr(token, field)
@@ -923,10 +926,12 @@ class Pipeline:
     ) -> ParseResult:
         """Run each selected stage once."""
         stages = []
-        warnings: list[ParseWarning] = []
+        pending = DiagnosticLists()
+        collected = DiagnosticLists()
         current = tokens
         for number in range(last + 1):
             grammar = self._grammars[number]
+            failure = None
             try:
                 for _, directive in grammar.feature_items:
                     conditional = "conditions" in directive
@@ -935,37 +940,52 @@ class Pipeline:
                     for feature in directive["args"]:
                         if feature in off:
                             if conditional:
-                                failure = ParseError("feature-conflict", f"the {grammar.stage} stage requires disabled feature {feature}", stage=grammar.stage, feature=feature)
-                                stages.append(Stage(grammar.stage, None, current))
-                                return ParseResult(False, stages, None, failure, warnings=warnings, features=sorted(features))
+                                failure = ParseError("feature-conflict", f"the {grammar.stage} stage requires disabled feature {feature}",
+                                                     stage=grammar.stage, feature=feature)
+                                break
                         else:
                             features = features | {feature}
-                lowered = self._lowered_grammar(number, features)
+                    if failure is not None:
+                        break
+                if failure is None:
+                    lowered = self._lowered_grammar(number, features)
             except GencmuError as error:
-                # An error of the grammar lowering finds for these features
-                # is a result, with its stage and no position (engine §13).
                 failure = ParseError("grammar", error.message, stage=grammar.stage, _grammar_location=error.where)
-                stages.append(Stage(grammar.stage, None, current))
-                return ParseResult(False, stages, None, failure, warnings=warnings, features=sorted(features))
-
-            runner = StageRunner(grammar.stage, lowered, current, text, self._unicode, features=features)
-            check = grammar.elision_only if elision_only is None else elision_only
-            outcome = runner.run(check)
-            stage = Stage(
-                grammar.stage,
-                outcome.verdict,
-                current,
-                outcome.output,
-                outcome.witness,
-                outcome.tree,
-            )
+            if failure is not None:
+                outcome = StageOutcome(error=failure)
+            else:
+                runner = StageRunner(grammar.stage, lowered, current, text, self._unicode,
+                                     features=features, stage_order=number, pending_errors=bool(pending.errors))
+                check = grammar.elision_only if elision_only is None else elision_only
+                outcome = runner.run(check)
+            stage = Stage(grammar.stage, outcome.verdict, current, outcome.output, outcome.witness, outcome.tree,
+                          errors=outcome.errors, warnings=outcome.warnings)
             stages.append(stage)
-            warnings.extend(outcome.warnings)
+            data = outcome._diagnostics
             if outcome.error is not None:
-                return ParseResult(False, stages, outcome.tree if outcome.error.kind == "reported" else None, outcome.error, warnings=warnings, features=sorted(features))
+                error = outcome.error
+                if error.kind == "ambiguous":
+                    reporting = data.collected
+                elif error.kind == "rejected":
+                    cutoff = min(len(current), (error.token if error.token is not None else len(current)) + 1)
+                    reporting = input_diagnostics(current, cutoff)
+                else:
+                    reporting = join_diagnostics([data.evaluated, input_diagnostics(current)])
+                collected = join_diagnostics([pending, reporting])
+                if (error.kind != "ambiguous" or error.reason == "tie") and collected.errors:
+                    error.errors = collected.errors
+                if error.kind in ("rejected", "grammar", "feature-conflict") and collected.warnings:
+                    error.warnings = collected.warnings
+                return ParseResult(False, stages, None, error, warnings=collected.warnings, features=sorted(features))
+            if number == last:
+                collected = join_diagnostics([pending, data.collected])
+                error = (ParseError("reported", "the chosen derivation reports errors", stage=grammar.stage, errors=collected.errors)
+                         if collected.errors else None)
+                return ParseResult(error is None, stages, outcome.tree, error, warnings=collected.warnings, features=sorted(features))
+            pending = join_diagnostics([pending, DiagnosticLists(outcome.errors, outcome.warnings)])
             assert outcome.output is not None
             current = outcome.output
-        return ParseResult(True, stages, stages[-1].tree if stages else None, None, warnings=warnings, features=sorted(features))
+        return ParseResult(True, stages, None, None, warnings=collected.warnings, features=sorted(features))
 
 
 def read_document(text: str, path: str = "document.md", *, sources: Mapping[str, str] | None = None) -> Dom:

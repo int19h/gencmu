@@ -9,6 +9,8 @@ from typing import Any, Union
 
 from ._earley import RESTORE, Evaluator, Forest, Parser, Sources, StageContext
 from ._errors import _GrammarFault
+from ._diagnostic_flow import DiagnosticFlow, StageDiagnostics, join_diagnostics, tied_diagnostics
+from ._measures import Measures, ZERO_MEASURE, DiagnosticIdentity, record_diagnostic
 from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._markdown import line_column
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Restoration, Tags, Token
@@ -166,11 +168,11 @@ class Tree:
         return _range_source(self.sources, node.start, node.end)
 
 
-def reports_of(root, tree, context, forest, features, stage):
-    errors, warnings = [], []
-    strings = Emitter(context, forest, tree, root)
+def evaluate_diagnostics(flow, tree, context, forest, features, stage, stage_order=0):
+    strings = Emitter(context, forest, tree, flow.root, flow)
     strings.claim_gaps = False
-    pending = [(root, frozenset())]
+    measures = Measures(context.tokens, context.sources)
+    pending = [(flow.root, frozenset())]
     while pending:
         node, inherited = pending.pop()
         if isinstance(node, DRead):
@@ -184,9 +186,10 @@ def reports_of(root, tree, context, forest, features, stage):
                 _testing.diagnostic_message(node, recipe)
             message = run(strings.recipe(node, recipe))
             report = ParseWarning(stage, code, code, (node.start, node.end), tree.source_of(node), message)
-            (errors if p.error is not None else warnings).append(report)
+            record_diagnostic(report, measures.own(node.start, node.end) if p.error is not None else ZERO_MEASURE,
+                              DiagnosticIdentity(stage_order, len(flow.evaluated)))
+            flow.add(node, report, "errors" if p.error is not None else "warnings")
         pending.extend((child, suppressed) for child in reversed(node.children))
-    return errors, warnings
 
 
 def has_elided(tree: Node) -> bool:
@@ -239,13 +242,14 @@ def implied(tags: Tags, lowered: Lowered) -> Tags:
 class Emitter:
     """Separate emission, channel, and ownership walks (engine §11)."""
 
-    def __init__(self, context: StageContext, forest: Forest, tree: Tree, root: DNode) -> None:
+    def __init__(self, context: StageContext, forest: Forest, tree: Tree, root: DNode, flow: DiagnosticFlow) -> None:
         self.context = context
         self.claim_gaps = True
         self.forest = forest
         self.tokens = context.tokens
         self.tree = tree
         self.root = root
+        self.flow = flow
         self.evaluator = Evaluator(context, 0, len(context.tokens))
         self.boundary_first = self.boundary_last = None
         self.channels = {}
@@ -441,12 +445,13 @@ class Emitter:
             bound.tree_reader = lambda name: derivation_identity(self.context, self.capture(node, name))
         return self.evaluator.tags(term, bound)
 
-    def emit_item(self, node: DNode, item: tuple, out: list[Token]) -> None:
+    def emit_item(self, node: DNode, item: tuple, out: list[Token], scope) -> None:
         tagtab = self.context.tagtab
         if item[0] == "whole":
             _, term, value, image = item
             tags = self.item_tags(node, term) if term is not None else tagtab.get(node.tag)
             out.append(self.part_token(node, node, tags, value, image))
+            self.flow.emitted(out[-1], node, node, scope)
         elif item[0] == "capture":
             _, position, term, _, _, value, image = item
             part = node.children[position]
@@ -458,6 +463,7 @@ class Emitter:
                 else tagtab.get(part.tag)
             )
             out.append(self.part_token(node, part, tags, value, image))
+            self.flow.emitted(out[-1], part, node, scope)
         else:
             _, term, anchor, value, image = item
             if anchor == -1:
@@ -481,43 +487,50 @@ class Emitter:
                     written_image,
                 )
             )
+            self.flow.emitted(out[-1], None, node, scope)
 
     def emit(self) -> list[Token]:
         return self.emitted(self.root)
 
     def emitted(self, root: DChild) -> list[Token]:
         out = []
-        work = [("walk", root, out)]
+        work = [("walk", root, out, self.flow.main)]
         while work:
             task = work.pop()
             kind = task[0]
             if kind == "walk":
-                _, node, into = task
+                _, node, into, scope = task
                 if isinstance(node, DRead) or node.production.erased:
                     continue
                 if node.production.emit is None:
-                    work.extend(("walk", child, into) for child in reversed(node.children))
+                    work.extend(("walk", child, into, scope) for child in reversed(node.children))
                 else:
-                    work.extend(("item", node, item, into) for item in reversed(node.production.emit))
+                    work.extend(("item", node, item, into, scope) for item in reversed(node.production.emit))
             elif kind == "item":
-                _, node, item, into = task
+                _, node, item, into, scope = task
                 if item[0] != "capture" or not (item[3] or item[4]):
-                    self.emit_item(node, item, into)
+                    self.emit_item(node, item, into, scope)
+                    if item[0] in ("whole", "capture"):
+                        token = into[-1]
+                        self.flow.attachments(token, [], [], token.before, token.after)
                     continue
                 before, after = [], []
-                steps = [("walk", node.children[p], before) for p in item[3]]
-                steps.append(("carrier", node, item, into))
-                steps.extend(("walk", node.children[p], after) for p in item[4])
-                steps.append(("attach", into, before, after))
+                before_scopes = [self.flow.attachment(node.children[p]) for p in item[3]]
+                after_scopes = [self.flow.attachment(node.children[p]) for p in item[4]]
+                steps = [("walk", node.children[p], before, attached) for p, attached in zip(item[3], before_scopes)]
+                steps.append(("carrier", node, item, into, scope))
+                steps.extend(("walk", node.children[p], after, attached) for p, attached in zip(item[4], after_scopes))
+                steps.append(("attach", into, before, after, before_scopes, after_scopes))
                 work.extend(reversed(steps))
             elif kind == "carrier":
-                _, node, item, into = task
-                self.emit_item(node, item, into)
+                _, node, item, into, scope = task
+                self.emit_item(node, item, into, scope)
             else:
-                _, into, before, after = task
+                _, into, before, after, before_scopes, after_scopes = task
                 for token in (*before, *after):
                     token.span = None
                 token = into[-1]
+                self.flow.attachments(token, before_scopes, after_scopes, token.before, token.after)
                 token.before = [*before, *token.before]
                 token.after = [*token.after, *after]
         return out
@@ -534,6 +547,8 @@ class StageOutcome:
     witness: tuple[Action, Action] | None = None
     error: ParseError | None = None
     warnings: list[ParseWarning] = field(default_factory=list)
+    errors: list[ParseWarning] = field(default_factory=list)
+    _diagnostics: StageDiagnostics = field(default_factory=StageDiagnostics, repr=False, compare=False)
 
 
 def _action(act: Act, lowered: Lowered) -> Action:
@@ -555,6 +570,8 @@ class StageRunner:
         text: str,
         unicode: UnicodeTable,
         features: frozenset[str] = frozenset(),
+        stage_order: int = 0,
+        pending_errors: bool = False,
     ) -> None:
         self.name = name
         self.lowered = lowered
@@ -562,6 +579,8 @@ class StageRunner:
         self.text = text
         self.unicode = unicode
         self.features = features
+        self.stage_order = stage_order
+        self.pending_errors = pending_errors
 
     def fault(self, fault: _GrammarFault) -> ParseError:
         # A defect found while parsing has its stage and no position (§13).
@@ -620,59 +639,57 @@ class StageRunner:
         root = derivation(forest, ranking.first)
         tree = Tree(root, context.sources, context.tagtab)
         outcome = StageOutcome(verdict=ranking.verdict, tree=tree.root, derivation=root)
+        flow = DiagnosticFlow(root, self.tokens)
         try:
-            errors, outcome.warnings = reports_of(root, tree, context, forest, self.features, self.name)
+            evaluate_diagnostics(flow, tree, context, forest, self.features, self.name, self.stage_order)
         except _GrammarFault as fault:
             outcome.tree = None
-            outcome.warnings = []
+            outcome._diagnostics = StageDiagnostics(evaluated=flow.messages())
             outcome.error = self.fault(fault)
             return outcome
-        if errors:
-            outcome.error = ParseError("reported", "the chosen derivation reports errors", stage=self.name, errors=errors)
-            return outcome
-        emitter = Emitter(context, forest, tree, root)
+        outcome._diagnostics = StageDiagnostics(flow.collected(), flow.messages())
+        emitter = Emitter(context, forest, tree, root, flow)
         try:
             outcome.output = emitter.emit()
-            if elision_only and (ranking.verdict == "resolved" or
-                                 ranking.verdict == "unique" and has_elided(tree.root)):
-                # The stage accepted its input, so it has its output; the
-                # check makes the parse fail, and the result has no tree.
+            unowned = flow.assign()
+            outcome.errors, outcome.warnings = unowned.errors, unowned.warnings
+            if (elision_only and not self.pending_errors and not outcome._diagnostics.collected.errors
+                    and (ranking.verdict == "resolved" or ranking.verdict == "unique" and has_elided(tree.root))):
                 error = self.check_elision(context, root, tree.root)
                 if error is not None:
                     outcome.error = error
                     if error.code is not None:
-                        # A lost witness is a defect of the engine, and the
-                        # stage has no output (engine §7.9).
                         outcome.output = None
         except _GrammarFault as fault:
-            # A defect found once the stage has chosen its tree, while emitting
-            # or in the check of elision-only, leaves it without output; it
-            # keeps its verdict and warnings (engine §7.7, §11). A defect
-            # found while emitting ends the stage before the check.
             outcome.output = None
             outcome.error = self.fault(fault)
-            return outcome
         return outcome
 
     def tie(self, forest: Forest, context: StageContext, ranking: Ranking) -> StageOutcome:
-        """A tie is an error of kind ambiguous, with the reason tie. The
-        stage keeps its verdict and its witness, and has no tree, no output
-        and no warnings. The error holds the first and the second reading
-        (engine §6)."""
+        """Collect both best readings without emission (engine §12.1)."""
         lowered = forest.lowered
-        # Neither action of a witness is ever missing (engine §6, §7.10).
         if ranking.witness is None or ranking.witness[0] is None or ranking.witness[1] is None:
             raise RuntimeError("the witness of a ranking lacks an action")
-        readings = [Tree(derivation(forest, rope), context.sources, context.tagtab).root for rope in (ranking.first, ranking.second)]
-        error = ParseError(
-            "ambiguous",
-            f"stage {self.name} is ambiguous: two readings of its text are best, a tie",
-            stage=self.name,
-            reason="tie",
-            readings=readings,
-        )
+        roots = [derivation(forest, rope) for rope in (ranking.first, ranking.second)]
+        flows = [DiagnosticFlow(root, self.tokens) for root in roots]
         witness = (_action(ranking.witness[0], lowered), _action(ranking.witness[1], lowered))
-        return StageOutcome(verdict="tie", witness=witness, error=error)
+        outcome = StageOutcome(verdict="tie", witness=witness)
+        try:
+            for flow in flows:
+                tree = Tree(flow.root, context.sources, context.tagtab)
+                evaluate_diagnostics(flow, tree, context, forest, self.features, self.name, self.stage_order)
+        except _GrammarFault as fault:
+            outcome._diagnostics = StageDiagnostics(evaluated=join_diagnostics([flow.messages() for flow in flows]))
+            outcome.error = self.fault(fault)
+            return outcome
+        outcome._diagnostics = StageDiagnostics(tied_diagnostics(flows[0].events(), flows[1].events()),
+                                                join_diagnostics([flow.messages() for flow in flows]))
+        outcome.error = ParseError(
+            "ambiguous", f"stage {self.name} is ambiguous: two readings of its text are best, a tie",
+            stage=self.name, reason="tie",
+            readings=[Tree(root, context.sources, context.tagtab).root for root in roots],
+        )
+        return outcome
 
     def check_elision(self, main: StageContext, chosen: DNode, tree: Node) -> ParseError | None:
         """Engine §7: the check of elision-only. It writes the chosen

@@ -60,4 +60,6 @@ def production_clauses(production):
             production.tags_term, production.emit,
             production.slot.ranked_conditions if production.slot else None,
             production.parent_tags, production.items.conditions if production.items else None,
-            [source.conditions, source.tags, source.rule_tags, source.emit] if source else None]
+            [source.conditions, source.tags, source.rule_tags, source.emit,
+             source.value, source.image, source.rule_value, source.rule_image,
+             source.error, source.warning] if source else None]
