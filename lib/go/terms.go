@@ -891,7 +891,7 @@ func (run *stageRun) qualifiedProofs(rec *recognizer) []qualifiedProof {
 		}
 	}
 	proofs := []qualifiedProof{}
-	for _, it := range rec.eligibleItems(items) {
+	for _, it := range rec.eligibleItems(items, false) {
 		if rec.family != nil && run.ps.private != nil && run.ps.private.familyOracle != nil {
 			run.ps.private.familyOracle(rec, it)
 		}
@@ -1074,7 +1074,7 @@ func (run *stageRun) settle(rec *recognizer) {
 			items = append(items, c.items...)
 		}
 		kept := map[*item]bool{}
-		for _, it := range rec.eligibleItems(items) {
+		for _, it := range rec.eligibleItems(items, false) {
 			kept[it] = true
 		}
 		var sets []*tagset

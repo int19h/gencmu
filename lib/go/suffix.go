@@ -143,7 +143,7 @@ func (r *recognizer) retainSuffix(k int) {
 			witnesses = append(witnesses, node.items...)
 		}
 	}
-	r.suffix.answers[at] = len(r.eligibleItems(witnesses)) > 0
+	r.suffix.answers[at] = len(r.eligibleItems(witnesses, false)) > 0
 }
 
 // scan readies one terminal advance. Suffix recognition delays these

@@ -890,8 +890,8 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 	if r.Emit != nil {
 		items = r.Emit.Items
 	}
-	// An erased definition cannot carry recipes or emission (engine §9).
-	if r.Erased && (hasRecipes(r) || r.Emit != nil) {
+	// Erasure bars value and image recipes, but permits diagnostics (§9).
+	if r.Erased && (hasStringRecipes(r) || r.Emit != nil) {
 		return immediate("an erased definition cannot carry recipes or emission")
 	}
 	// A capture no alternative captures, wherever it is mentioned.

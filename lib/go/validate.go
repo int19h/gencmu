@@ -231,7 +231,7 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			if c.unresolved && !c.ruleName(r.Name) {
 				return &domProblem{message: "a malformed rule name", rule: r}
 			}
-			if r.Erased && (r.Emit != nil || hasRecipes(r)) {
+			if r.Erased && (r.Emit != nil || hasStringRecipes(r)) {
 				return &domProblem{message: "an erased rule has an emission or recipe", rule: r}
 			}
 			d.unresolved = d.unresolved || c.unresolved

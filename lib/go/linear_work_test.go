@@ -456,7 +456,7 @@ func TestEligibilityQueryConstant(t *testing.T) {
 	r := &recognizer{g: l}
 	countWorkIn(w, func() {
 		for range 100 {
-			r.eligibleItems(nil)
+			r.eligibleItems(nil, false)
 		}
 	})
 	if steps := w.elidableSteps.Load(); steps != 0 {

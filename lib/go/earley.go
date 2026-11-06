@@ -1346,7 +1346,7 @@ func (r *recognizer) begun(start int32) bool {
 		}
 	}
 	// Only an item with an eligible proof tree counts (§4).
-	return len(r.eligibleItems(items)) > 0
+	return len(r.eligibleItems(items, false)) > 0
 }
 
 func sortSyms(s []*symNode) {

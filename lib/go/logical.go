@@ -155,17 +155,22 @@ func (l *logicalPriority) permits(it, prefix *item) bool {
 // permitsEligible follows only eligible advances from a candidate to its
 // own fixed prefix. Blocker discovery still uses prefixes on the raw chart.
 // E/P grow during the fixed point, so these filtered paths are not memoized.
-func (l *logicalPriority) permitsEligible(it *item, advance func(*item, link) bool) bool {
+func (l *logicalPriority) permitsEligible(it *item, bit uint8, state func(*item) uint8, predecessors func(*item, link, uint8) uint8) bool {
 	g := it.prod.precedingLogicalOptional(int(it.dot))
-	seen := map[*item]bool{}
-	stack := []*item{it}
+	type proof struct {
+		item *item
+		bit  uint8
+	}
+	seen := map[proof]bool{}
+	stack := []proof{{it, bit}}
 	for len(stack) > 0 {
-		p := stack[len(stack)-1]
+		current := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
-		if seen[p] {
+		if seen[current] || state(current.item)&current.bit == 0 {
 			continue
 		}
-		seen[p] = true
+		seen[current] = true
+		p := current.item
 		if int(p.dot) == g.start {
 			if l.permits(it, p) {
 				return true
@@ -173,8 +178,11 @@ func (l *logicalPriority) permitsEligible(it *item, advance func(*item, link) bo
 			continue
 		}
 		for _, edge := range p.links {
-			if advance(p, edge) {
-				stack = append(stack, l.r.before(p, edge))
+			allowed := predecessors(p, edge, current.bit)
+			for _, before := range []uint8{1, 2} {
+				if allowed&before != 0 {
+					stack = append(stack, proof{l.r.before(p, edge), before})
+				}
 			}
 		}
 	}

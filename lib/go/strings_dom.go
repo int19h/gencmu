@@ -153,7 +153,11 @@ func stringTermShape(t *domTerm) bool {
 }
 
 func hasRecipes(r *domRule) bool {
-	if r.Value != nil || r.Image != nil || r.Error != nil || r.Warning != nil {
+	return r.Error != nil || r.Warning != nil || hasStringRecipes(r)
+}
+
+func hasStringRecipes(r *domRule) bool {
+	if r.Value != nil || r.Image != nil {
 		return true
 	}
 	for _, a := range r.Alternatives {
