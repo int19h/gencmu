@@ -426,7 +426,7 @@ A guarded term writes a condition before `⟹`. It supplies its value only where
 
 The reader groups repeated guards to the right. Flat lists retain their written order without completing a separate recursive level for each guard.
 
-A method chain starts with a receiver and follows it with selectors. Each selector names a method and can supply nonempty parenthesized arguments.
+A method chain starts with a receiver and follows it with selectors. Each selector names a method and can supply nonempty parenthesized arguments. The `parse` selector takes a capture-free body constituent instead of a list of terms. Its outer remainder mark selects a prefix or suffix query.
 
 The methods `.begins`, `.matches`, `.ends`, `.followed-by`, and `.preceded-by` separate target names with `|`. Other methods separate arguments with `,`. The reader enforces this distinction.
 
@@ -471,7 +471,18 @@ An emoji rule name is also a method argument. A classifier name starts with a lo
   term-atom
 
 %rule method-selector
-  "." method-name ["(" arguments ")"]
+  "." (parse-selector ≻ ordinary-selector)
+
+%rule ordinary-selector
+  method-name ["(" arguments ")"]
+%conditions
+  $.first-token.value ≠ "parse"
+
+%rule parse-selector
+  "parse" "(" parse-argument ")"
+
+%rule parse-argument
+  "…" choice | choice "…" | choice
 
 %rule method-name
   Identifier | Call-Name
@@ -501,7 +512,7 @@ An emoji rule name is also a method argument. A classifier name starts with a lo
   String
 ```
 
-<details><summary>Railroad diagrams of the 21 rules from <code>term</code> to <code>string</code></summary>
+<details><summary>Railroad diagrams of the 24 rules from <code>term</code> to <code>string</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/term.svg" alt="Railroad diagram of the rule term"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/guarded-term.svg" alt="Railroad diagram of the rule guarded-term"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/union.svg" alt="Railroad diagram of the rule union"></p>
@@ -514,6 +525,9 @@ An emoji rule name is also a method argument. A classifier name starts with a lo
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/method.svg" alt="Railroad diagram of the rule method"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/method-receiver.svg" alt="Railroad diagram of the rule method-receiver"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/method-selector.svg" alt="Railroad diagram of the rule method-selector"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/ordinary-selector.svg" alt="Railroad diagram of the rule ordinary-selector"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/parse-selector.svg" alt="Railroad diagram of the rule parse-selector"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/parse-argument.svg" alt="Railroad diagram of the rule parse-argument"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/method-name.svg" alt="Railroad diagram of the rule method-name"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/arguments.svg" alt="Railroad diagram of the rule arguments"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/argument.svg" alt="Railroad diagram of the rule argument"></p>

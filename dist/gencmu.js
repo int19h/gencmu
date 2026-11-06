@@ -111,6 +111,14 @@
     if (!value || typeof value !== "object") return [];
     const node = /** @type {Record<string, any>} */ (value);
     if (node.pattern) return [];
+    if (node.body) return [node.body];
+    if (node.seq || node.choice || node.ranked || node.and || node.optional || node.repeat || node.splice || node.expr) {
+      const children = expressionChildren(/** @type {any} */ (node));
+      if (node.test) children.push(...(node.test === "tags" ? node.requirements.map((/** @type {any} */ r)=>r.value) : [node.value]));
+      return children;
+    }
+    if (node.literal) return typeof node.literal === "object" ? [node.literal] : [];
+    if (node.range) return node.range;
     if (node.string !== undefined || node.tag !== undefined || node.captured !== undefined || node.rule || node.classifier) return [];
     if (typeof node.capture === "string" && !node.tags && !node.value && !node.image) return [];
     if (node.method) return [node.receiver, ...node.args];
@@ -4035,6 +4043,38 @@
     return table;
   }
 
+  // ---- query-forms.js
+  // Body queries (engine §3.10 and §4): the outer remainder is not a symbol.
+
+
+  /** @param {any} body @returns {{body:any, mode:string, problem?:string}} */
+  function queryBody(body) {
+    const sequence = body?.seq;
+    if (Array.isArray(sequence) && sequence.some(item => item?.remainder)) {
+      const markers = sequence.map((item,index) => item?.remainder ? index : -1).filter(index => index >= 0);
+      if (Object.keys(body).length !== 1 || markers.length !== 1 || sequence.length < 2 || ![0,sequence.length-1].includes(markers[0]) ||
+          Object.keys(sequence[markers[0]]).length !== 1 || sequence[markers[0]].remainder !== true) {
+        return {body,mode:"matches",problem:"a remainder stands at one outer edge of a parse argument"};
+      }
+      const parts = sequence.filter((_,index) => index !== markers[0]);
+      return {body:parts.length === 1 ? parts[0] : {seq:parts},mode:markers[0] === 0 ? "ends" : "begins"};
+    }
+    return {body,mode:"matches"};
+  }
+
+  /** @param {any} body @returns {any | null} */
+  function queryCapture(body) {
+    const pending = [body], seen = new Set();
+    while (pending.length) {
+      const node = pending.pop();
+      if (!node || typeof node !== "object" || seen.has(node)) continue;
+      seen.add(node);
+      if (typeof node.capture === "string") return node;
+      pending.push(...expressionChildren(node).slice().reverse());
+    }
+    return null;
+  }
+
   // ---- pattern-shapes.js
   /** Source positions of pattern operands and tag requirements. */
   const patternLocations = new WeakMap();
@@ -4725,6 +4765,12 @@
   function normalizeArgument(value, copyLocation = null, patterns = new Set()) {
     if(!value || typeof value!=="object") return value;
     if(Array.isArray(value)) return value.map(item => normalizeArgument(item,copyLocation,patterns));
+    if(value.method === "parse") {
+      const result={...value,receiver:normalizeArgument(value.receiver,copyLocation,patterns),
+        args:value.args.map((/** @type {any} */ arg)=>({body:normalizeArgument(arg.body,copyLocation,patterns)}))};
+      copyLocation?.(value,result);
+      return result;
+    }
     if(value.body) {
       const converted=argumentOfExpression(normalizeArgument(value.body,copyLocation,patterns));
       return converted;
@@ -4788,10 +4834,11 @@
   // Receiver-first method signatures (engine §10).
 
 
+
   const METHOD_SIGNATURE_PROBLEM = "a method has the wrong receiver or arguments";
 
   const SPAN_METHODS = new Set(["first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens", "without-elision", "without-elision-except"]);
-  const QUERY_METHODS = new Set(["matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by"]);
+  const QUERY_METHODS = new Set(["matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by"]);
   const INPUT_STRINGS = new Set(["value", "image", "source-text", "decomposed-source-text"]);
   const TARGET_METHODS = new Set(["matches", "begins", "ends", "followed-by", "preceded-by"]);
   const METHODS = new Set([...SPAN_METHODS, ...QUERY_METHODS, ...INPUT_STRINGS, "tags", "classes", "split", "ngrams", "classify", "verbatim-text", "emitted"]);
@@ -4816,7 +4863,12 @@
     const term = (/** @type {any} */ arg) => object(arg) && !["rule", "classifier", "terminal", "integer"].some(key => key in arg);
     if (name === "ends" && restored(receiver)) return "ends requires an ordinary span, not a restored span";
     let valid;
-    if (name === "ngrams") valid = args.length === 1 && named(args[0], "integer") && /^[1-9][0-9]*$/.test(args[0].integer);
+    if (name === "parse") {
+      if (args.length !== 1 || !object(args[0]) || Object.keys(args[0]).length !== 1 || !object(args[0].body)) return METHOD_SIGNATURE_PROBLEM;
+      if (restored(receiver) && queryBody(args[0].body).mode === "ends") return "suffix parse requires an ordinary span, not a restored span";
+      valid = span;
+    } else if (name === "error-free") valid = ["parse","error-free"].includes(receiver.method) && args.length === 0;
+    else if (name === "ngrams") valid = args.length === 1 && named(args[0], "integer") && /^[1-9][0-9]*$/.test(args[0].integer);
     else if (name === "split") valid = args.length === 1 && term(args[0]) && !(hasUnresolved([receiver,args]) && args[0].string === "");
     else if (name === "classify") valid = args.length === 1 && named(args[0], "classifier");
     else if (name === "tags") valid = span && (args.length === 0 || args.length === 1 && rule(args[0]));
@@ -4845,7 +4897,12 @@
     const span = type === "span";
     const string = type === "string" || type === "any" || span;
     const rule = (/** @type {number} */ index) => args[index] && typeof args[index].rule === "string";
-    if (name === "without-elision") {
+    if (name === "parse") {
+      if (!span || args.length !== 1 || !args[0]?.body) return METHOD_SIGNATURE_PROBLEM;
+      if (restored(receiver) && queryBody(args[0].body).mode === "ends") return "suffix parse requires an ordinary span, not a restored span";
+    } else if (name === "error-free") {
+      if (type !== "forest" || args.length) return METHOD_SIGNATURE_PROBLEM;
+    } else if (name === "without-elision") {
       if (args.length || typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) {
         return "without-elision requires a bare capture: write $x.without-elision.onward";
       }
@@ -4886,6 +4943,7 @@
 
   /** @param {string} name @returns {string} */
   function methodType(name) {
+    if (name === "parse" || name === "error-free") return "forest";
     if (SPAN_METHODS.has(name)) return "span";
     if (QUERY_METHODS.has(name)) return "condition";
     if (name === "emitted") return "emitted";
@@ -4906,6 +4964,7 @@
   }
 
   // ---- dom.js
+
 
 
 
@@ -4945,7 +5004,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 45;
+  const DOM_FORMAT = 46;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/;
   // A classifier name starts with a lowercase letter. A class name starts
@@ -5342,11 +5401,17 @@
         else if ("capture" in value) { if (typeof value.capture !== "string" || value.capture !== "" && !CAPTURE_NAME.test(value.capture)) return "a malformed capture reference"; }
         else if ("method" in value) {
           if (["classify","ngrams"].includes(value.method) && Array.isArray(value.args) && value.args.some(hasUnresolved)) return "a parameter cannot replace a classifier name or integer argument";
-          if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && (value.method === "verbatim-text" || value.method === "emitted")) || (!task.query && QUERY_METHODS.has(value.method))) return "a malformed method";
+          if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && (value.method === "verbatim-text" || value.method === "emitted")) || (!task.query && QUERY_METHODS.has(value.method) && !["parse","error-free"].includes(value.method))) return "a malformed method";
           push("method-shape", value, depth, { recipe: task.recipe });
           child("term", value.receiver, { recipe: task.recipe });
           for (const arg of value.args) {
-            if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "ends", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return "a malformed rule argument"; }
+            if (object(arg) && "body" in arg) {
+              if (value.method !== "parse" || !exact(arg,["body"])) return "a malformed parse argument";
+              const parsed = queryBody(arg.body);
+              if (parsed.problem) return parsed.problem;
+              if (queryCapture(parsed.body)) return "a parse argument cannot declare captures";
+              push("expr",parsed.body,depth + (parsed.mode !== "matches" && arg.body.seq.length === 2 ? 2 : 1),{params:task.params,whole:true});
+            } else if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "ends", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return "a malformed rule argument"; }
             else if (object(arg) && typeof arg.terminal === "string") { if (Object.keys(arg).length !== 1 || !TARGET_METHODS.has(value.method) || !/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return "a malformed boundary target"; }
             else if (object(arg) && "integer" in arg) { if (Object.keys(arg).length !== 1 || value.method !== "ngrams" || typeof arg.integer !== "string" || !/^[1-9][0-9]*$/.test(arg.integer)) return "a malformed integer argument"; }
             else if (object(arg) && typeof arg.classifier === "string") { if (Object.keys(arg).length !== 1 || value.method !== "classify" || !CLASSIFIER_NAME.test(arg.classifier)) return "a malformed classifier argument"; }
@@ -6940,7 +7005,7 @@
    * A term's type: a string, a set of strings, a tag set, a span, a set
    * whose kind nothing has given yet, such as `∅`, or, for a constant that
    * the reader cannot know, any type but a span (engine §9).
-   * @typedef {"string" | "strings" | "tags" | "span" | "pattern" | "set" | "any" | "emitted" | "condition"} TermType
+   * @typedef {"string" | "strings" | "tags" | "span" | "pattern" | "set" | "any" | "emitted" | "condition" | "forest"} TermType
    */
 
   /**
@@ -6951,7 +7016,7 @@
 
   const SET_KINDS = new Set(["strings", "tags", "pattern", "set"]);
   /** @type {Record<string, string>} */
-  const TYPE_NAMES = { string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", pattern: "a pattern", set: "a set", any: "a value", emitted: "an emitted pair", condition: "a condition" };
+  const TYPE_NAMES = { forest: "a witness forest", string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", pattern: "a pattern", set: "a set", any: "a value", emitted: "an emitted pair", condition: "a condition" };
   /** @type {ConstantTypes} */
   const UNKNOWN_CONSTANTS = () => "any";
 
@@ -7137,7 +7202,7 @@
       if ("problem" in receiver) return receiver;
       const types = [];
       for (const arg of term.args) {
-        if (arg.rule || arg.classifier || arg.terminal || arg.integer) types.push("name");
+        if (arg.body || arg.rule || arg.classifier || arg.terminal || arg.integer) types.push("name");
         else {
           const found = yield typing(arg, constants);
           if ("problem" in found) return found;
@@ -7215,7 +7280,7 @@
     if (condition.method) {
       const found = yield typing(condition, constants);
       if ("problem" in found) return found;
-      return found.type === "condition" ? null : { problem: "a condition requires a query method", node: condition };
+      return ["condition","forest"].includes(found.type) ? null : { problem: "a condition requires a query method", node: condition };
     }
     if (Array.isArray(condition.any) || Array.isArray(condition.all)) {
       for (const item of condition.any ?? condition.all) {
@@ -8241,6 +8306,7 @@
     if(n.range) return n.range.map(print).join('..');
     if(n.wildcard) return '_';
     if(n.empty) return 'ε';
+    if(n.remainder) return '…';
     if(n.emptySet) return '∅';
     if(n.requirements && !n.test) return '<'+n.requirements.flatMap((/** @type {any} */ x)=>x.value.set instanceof Set ? [...x.value.set].sort().map(tag=>(x.negated?'¬':'')+tag) : [(x.negated?'¬':'')+print(x.value)]).join(' ')+'>';
     if(n.targets) return n.targets.map(print).join(' | ');
@@ -8257,6 +8323,7 @@
       const op={concat:' ++ ',union:' ∪ ',intersection:' ∩ ',difference:' ∖ '}[key];
       return values.map((/** @type {any} */ x,/** @type {number} */ i)=>templateTermGroup(x,key,i)?'('+print(x)+')':print(x)).join(op);
     }
+    if(n.method === 'parse') return print(n.receiver)+'.parse('+templateBodyText(n.args[0].body,unicode)+')';
     if(n.method) {
       const receiver=print(n.receiver);
       const grouped=templateTermGroup(n.receiver,'method',0);
@@ -8549,6 +8616,7 @@
             if(query && replacement?.targets) {
               for(const target of replacement.targets) result.args.push(convert(target,'target',event,arg));
             }
+            else if(root.method==='parse') result.args.push({body:substitute(arg.body,env,event,'expr')});
             else result.args.push(substitute(arg,env,event,target?'target':'term'));
           }
           continue;
@@ -10276,6 +10344,7 @@
 
 
 
+
   // A stage's grammar: its documents stitched together (engine §2) and
   // lowered to productions for one set of features (engine §3).
 
@@ -11229,6 +11298,7 @@
             if (hooks.work) countWork(hooks.work, "clauses");
             if (!node || typeof node !== "object") continue;
             if (BOUNDARY_METHODS.has(node.method)) continue;
+            if (node.body) { visit(queryBody(node.body).body,rule,alternative); continue; }
             if (typeof node.rule === "string") check(node.rule,rule,alternative);
             if (typeof node.classifier === "string" && !classifierNames.has(node.classifier)) {
               throw new GencmuError("grammar", `${node.classifier} is not a classifier of stage ${this.stageName}`, alternative.at);
@@ -11455,7 +11525,7 @@
     return false;
   }
 
-  const TYPE_PHRASES = { pattern: "a pattern", string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", emitted: "an emitted pair", condition: "a condition", set: "a set", any: "a value" };
+  const TYPE_PHRASES = { forest: "a witness forest", pattern: "a pattern", string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", emitted: "an emitted pair", condition: "a condition", set: "a set", any: "a value" };
 
   /**
    * A copy of a clause in which every reference to a constant holds the
@@ -16384,6 +16454,7 @@
       return { parts: [asTerm(condition.left), asTerm(condition.right)], combine: ([left, right]) => `${left} ${condition.op} ${right}` };
     }
     const term = notation.term;
+    if ("body" in term) return leaf(templateBodyText(term.body,unicode));
     if ("rule" in term) return leaf(term.rule);
     if ("classifier" in term) return leaf(term.classifier);
     if ("string" in term) return leaf(stringName(term.string, unicode));
@@ -20446,6 +20517,7 @@
 
 
 
+
   // From the notation's syntax tree to a grammar DOM (engine §9).
 
 
@@ -21553,7 +21625,7 @@
         const inner = knownOf(node, ATOMS);
         if (ruleOf(inner) === "method") {
           const method = yield readMethod(inner);
-          if (QUERY_METHODS.has(method.method)) fail("a query method is a condition, not a term", inner);
+          if (QUERY_METHODS.has(method.method) && !["parse","error-free"].includes(method.method)) fail("a query method is a condition, not a term", inner);
           return method;
         }
         return yield readTerm(inner, argument);
@@ -21775,12 +21847,28 @@
     function* readMethod(node) {
       let receiver = yield readTerm(only(only(node, "method-receiver"), "term-atom"), true);
       for (const selector of some(node, "method-selector")) {
-        const name = valueOf(token(only(selector, "method-name")));
+        const parsed = one(selector, "parse-selector");
+        const name = parsed ? "parse" : valueOf(token(only(selector, "method-name")));
         if(!METHODS.has(name)) fail(`unknown method ${name}`,node);
         if (closedFor && !["split", "ngrams"].includes(name)) fail(`${closedFor} cannot read an input method`, node);
         /** @type {any[]} */
         const args = [];
         const argumentsNode = one(selector, "arguments");
+        if (parsed) {
+          const argument = only(parsed,"parse-argument");
+          let body = yield readExpression(only(argument,"choice"),true);
+          const capture = queryCapture(body);
+          if (capture) fail("a parse argument cannot declare captures",ofRule(argument,"capture")[0] ?? argument);
+          const markers = parts(argument).filter(child => child.kind === "token" && valueOf(child) === "…");
+          if (markers.length > 1) fail("a remainder stands at one outer edge of a parse argument",markers[1]);
+          if (markers.length) {
+            const first = parts(argument)[0] === markers[0];
+            body = {seq:first ? [{remainder:true},body] : [body,{remainder:true}]};
+          }
+          const bodyProblem = queryBody(body).problem;
+          if (bodyProblem) fail(bodyProblem,argument);
+          args.push({body});
+        }
         if (argumentsNode) for (const argument of some(argumentsNode, "argument")) {
           const integer = one(argument, "integer");
           if (integer) {
@@ -21807,7 +21895,7 @@
         if ("problem" in found) fail(found.problem, node);
         const types = [];
         for (const arg of args) {
-          if (arg.rule || arg.classifier || arg.terminal || arg.integer || arg.call || arg.param) types.push("name");
+          if (arg.body || arg.rule || arg.classifier || arg.terminal || arg.integer || arg.call || arg.param) types.push("name");
           else {
             const type = featureContext ? {type:"any"} : termType(arg);
             if ("problem" in type) fail(type.problem, node);
@@ -21816,7 +21904,7 @@
         }
         const problem = methodProblem(name, receiver, args, found.type, types, recipeContext);
         if (problem && !featureContext && !args.some(hasUnresolved) && !hasUnresolved(receiver)) {
-          const specific = problem === "split has an empty delimiter" || problem.startsWith("ends requires") || problem.startsWith("without-elision");
+          const specific = problem === "split has an empty delimiter" || (problem.startsWith("ends requires") || problem.startsWith("suffix parse requires")) || problem.startsWith("without-elision");
           fail(specific ? problem : "a method has the wrong receiver or arguments", node);
         }
         if (closedFor && found.type === "span") fail(`${closedFor} cannot read an input method`, node);
@@ -22003,7 +22091,7 @@
     "argument-word", "argument-string", "argument-tag", "argument-term", "classifier-name", "classifier-class", "classifier-key", "classifier-operator", "classifier-entry",
     "constant-definer", "definer", "rule-name", "ranking-directive", "ranking-step", "body", "headed-body", "alternative", "ranked-alternative", "guard", "ranked-choice", "choice", "conjunction", "sequence", "primary",
     "tag-test", "tag-requirement", "value-test", "default-value", "test", "test-operand", "tags-clause", "alternative-tags", "emit-tags", "value-clause", "image-clause", "conditions-clause", "error-clause", "warning-clause", "suppress-warnings-clause", "suppression-code", "emits-clause", "erased-clause",
-    "emit-item", "emit-target", "emit-before", "emit-after", "recipe", "recipe-atom", "method-receiver", "method-selector", "method-name", "arguments", "argument", "integer", "intersection", "concatenation", "any-of", "all-of", "condition", "comparator", "tree-comparator",
+    "emit-item", "emit-target", "emit-before", "emit-after", "recipe", "recipe-atom", "method-receiver", "method-selector", "parse-selector", "parse-argument", "method-name", "arguments", "argument", "integer", "intersection", "concatenation", "any-of", "all-of", "condition", "comparator", "tree-comparator",
     "pattern-primary", "pattern-node", "pattern-bare", "pattern-children", "child-choice", "child-alternative", "child-set", "child-intersection", "child-sequence", "child-item", "child-path", "child-primary",
     "pattern-literal", "pattern-union", "pattern-intersection", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
   ]);
@@ -24145,7 +24233,7 @@
   /**
    * A function's argument: a term, the name of a rule, or the name of a
    * classifier.
-   * @typedef {Term | {rule: string} | {terminal:string} | {classifier: string} | {integer: string}} Argument
+   * @typedef {Term | {body: Expr | {seq: (Expr | {remainder:true})[]}} | {rule: string} | {terminal:string} | {classifier: string} | {integer: string}} Argument
    */
 
   // ---- The engine ---------------------------------------------------------

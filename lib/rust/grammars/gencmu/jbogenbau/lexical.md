@@ -397,11 +397,13 @@ A symbol is punctuation that no larger lexical form contains. Symbols preserve t
 
 The greedy reading keeps `...`, `..`, `++`, `::`, `:=`, and `:-` together as compound tokens. `#` and `(` remain separate tokens.
 
+`…` marks the unread remainder at one edge of a body query.
+
 `≻` separates ranked options. `≝` gives an elided terminator its default value. `/` separates a repetition's item and separator. Pattern paths and comparisons retain their own punctuation tokens.
 
 ```jbogenbau
 %rule symbol
-  | "«" | "»" | "·"
+  | "«" | "»" | "·" | "…"
   | "*" | "|" | "&" | "(" | ")" | "[" | "]" | "{" | "}" | "/" | "+" | "<" | ">" | "#" | "ε" | ","
   | "∧" | "∨" | "⟹" | "=" | "∈" | "⊆" | "∪" | "∩" | "∖" | "∅"
   | "≅" | "≝" | "⋯" | "⋮" | "⋰" | "⋱" | "≻" | ":" | "."
