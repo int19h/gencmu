@@ -1,0 +1,10 @@
+{
+  "description": "Engine §4: a remainder has one outer edge, and a forest has no comparison or conversion.",
+  "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%conditions $.parse((A …))\n```\n",
+  "expect": {
+    "error": {
+      "line": 4,
+      "column": 24
+    }
+  }
+}
