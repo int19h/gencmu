@@ -6,7 +6,7 @@ from unittest.mock import patch
 import gencmu
 from gencmu import _testing
 from gencmu._errors import _GrammarFault
-from .shared import SHARED, load_case, run_case
+from .shared import SHARED, load_case, run_case, result_problems
 from .test_corpus import outcome, mismatch
 
 
@@ -50,6 +50,7 @@ class Reporting(unittest.TestCase):
         with patch.object(_testing, "diagnostic_message", message):
             value, result, error, _ = run_case(fixture("tie-carried-and-multiplicity"))
         self.assertIsNone(error)
+        self.assertEqual(result_problems(value), [])
         self.assertEqual(result.error.kind, "grammar")
         self.assertEqual(result.stages[-1].verdict, "tie")
         self.assertIsNone(result.tree)
@@ -85,6 +86,7 @@ class Reporting(unittest.TestCase):
                 with patch.object(_testing, "diagnostic_message", message):
                     value, result, error, _ = run_case(case)
                 self.assertIsNone(error)
+                self.assertEqual(result_problems(value), [])
                 self.assertEqual(result.error.kind, "grammar")
                 self.assertEqual(result.stages[-1].verdict, "tie" if tied else "unique")
                 self.assertIsNone(result.tree)

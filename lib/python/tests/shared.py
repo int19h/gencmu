@@ -1088,8 +1088,8 @@ def result_problems(value: dict[str, Any]) -> list[str]:
 
     An ambiguous error has no token or source, and no stage has a tied
     member. A tied stage comes last and has no output. Its result has ok
-    false, tree null, and an ambiguous error with reason tie, its stage
-    name, and two readings. Errors have no cycle, conflict, or chosenReading.
+    false and tree null. It reports either a tie with two readings or a
+    grammar failure after choice. Errors have no cycle, conflict, or chosenReading.
 
     A witness-loss error has kind grammar, a stage, chosen, and completion.
     It has no token, source, line, column, expected, reason, or readings.
@@ -1173,11 +1173,12 @@ def result_problems(value: dict[str, Any]) -> list[str]:
             value["ok"] is not False
             or value["tree"] is not None
             or not isinstance(error, dict)
-            or error.get("kind") != "ambiguous"
-            or error.get("reason") != "tie"
             or not same_json(error.get("stage"), stage["name"])
-            or not isinstance(error.get("readings"), list)
-            or len(error["readings"]) != 2
+            or not (
+                error.get("kind") == "grammar" and "reason" not in error and "readings" not in error
+                or error.get("kind") == "ambiguous" and error.get("reason") == "tie"
+                and isinstance(error.get("readings"), list) and len(error["readings"]) == 2
+            )
         ):
             problems.append(f"the tied stage {stage['name']} lacks its error of kind ambiguous, reason tie and two readings")
     if isinstance(error, dict):
