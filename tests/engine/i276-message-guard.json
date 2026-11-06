@@ -45,10 +45,10 @@
       },
       "warnings": [
         {
-          "code": "early"
+          "code": "late"
         },
         {
-          "code": "late"
+          "code": "early"
         }
       ]
     }

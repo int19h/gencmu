@@ -1,5 +1,5 @@
 {
-  "description": "Erasure does not discard an occurrence or its named error.",
+  "description": "Engine §6 and §12.1: erasure removes an occurrence's named error.",
   "grammar": "%rule text *bad %erased\n%rule bad A %error \"bad\"",
   "tokens": [
     {
@@ -11,27 +11,9 @@
   ],
   "expect": {
     "result": {
-      "ok": false,
-      "stages": [
-        {
-          "name": "main",
-          "verdict": "unique"
-        }
-      ],
-      "error": {
-        "kind": "reported",
-        "errors": [
-          {
-            "code": "bad",
-            "rule": "bad",
-            "span": [
-              0,
-              1
-            ]
-          }
-        ]
-      }
+      "ok": true,
+      "error": null
     },
-    "error": "reported"
+    "warnings": []
   }
 }

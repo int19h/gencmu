@@ -1,5 +1,5 @@
 {
-  "description": "A tie has no chosen tree, so it gives no warnings, not even where one of its readings uses the warned alternative (engine §6, §12).",
+  "description": "Engine §12.1: a tie collects warnings from both shown readings, including a warning found only in the second.",
   "grammar": "%rule text A | *w\n%rule w A %warning \"warning w\"",
   "tokens": [
     {
@@ -29,7 +29,22 @@
         "reason": "tie"
       }
     },
-    "warnings": [],
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "w",
+        "rule": "w",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "warning w"
+      }
+    ],
     "error": "ambiguous"
   }
 }

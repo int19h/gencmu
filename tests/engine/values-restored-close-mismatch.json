@@ -12,7 +12,7 @@
   "expect": {
     "error": "rejected",
     "result": {
-      "format": 16,
+      "format": 17,
       "ok": false,
       "error": {
         "kind": "rejected"

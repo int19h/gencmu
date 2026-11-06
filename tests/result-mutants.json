@@ -206,14 +206,14 @@
       "set": "tie"
     },
     {
-      "name": "a reported failure with output",
+      "name": "a reported failure without output",
       "case": "i276-error-shape.json",
       "path": [
         "stages",
         0,
         "output"
       ],
-      "set": []
+      "remove": true
     },
     {
       "name": "a reported failure with an envelope source",
@@ -267,6 +267,43 @@
         "warnings",
         0,
         "message"
+      ],
+      "remove": true
+    },
+    {
+      "name": "an emitted carrier with an empty error list",
+      "case": "deferred-report-forward.json",
+      "path": [
+        "stages",
+        0,
+        "output",
+        0,
+        "errors"
+      ],
+      "set": []
+    },
+    {
+      "name": "stage-level errors beside nonempty output",
+      "case": "deferred-report-forward.json",
+      "path": [
+        "stages",
+        0,
+        "errors"
+      ],
+      "copy": [
+        "stages",
+        0,
+        "output",
+        0,
+        "errors"
+      ]
+    },
+    {
+      "name": "a failed envelope without its collected warnings",
+      "case": "deferred-report-rejection-cutoff.json",
+      "path": [
+        "error",
+        "warnings"
       ],
       "remove": true
     }

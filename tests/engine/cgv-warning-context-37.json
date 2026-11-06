@@ -1,5 +1,5 @@
 {
-  "description": "SA erases the CgV word after the parser reads it. That chosen word read keeps its warning.",
+  "description": "Engine §12.1: erasure removes the CgV occurrence and its warning from the reporting derivation.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
@@ -35,22 +35,7 @@
             }
           ]
         },
-        "warnings": [
-          {
-            "stage": "words",
-            "code": "experimental-cgv",
-            "rule": "experimental-cgv",
-            "span": [
-              0,
-              1
-            ],
-            "source": [
-              0,
-              6
-            ],
-            "message": "this word uses an experimental CgV form"
-          }
-        ]
+        "warnings": []
       }
     },
     {

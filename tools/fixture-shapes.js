@@ -21,9 +21,10 @@ const position = object({ document: string }, { line: positive, column: positive
 const coordinates = { line: positive, column: positive };
 const options = object({}, { features: strings, withoutFeatures: strings, until: { pattern: /./s }, elisionOnly: boolean });
 const feature = object({ name: string, kind: choice("gate", "warning"), default: boolean });
-const warning = object({ stage: string, code: string, rule: string, span: pair, source: pair, message:string });
+const rejection = object({token:natural,source:pair,line:positive,column:positive,expected:list(object({terminal:string,rules:strings}))});
+const warning = object({ stage: string, code: string, rule: string, span: pair, source: pair, message:string },{rejection});
 const expectation = object({}, {
-  result: record, error: choice("grammar", "usage", "rejected", "reported", "ambiguous", "feature-conflict"), where: position, diagnostic: string, message: string,
+  result: {check:resultPatternProblems}, error: choice("grammar", "usage", "rejected", "reported", "ambiguous", "feature-conflict"), where: position, diagnostic: string, message: string,
   brackets: string, warnings: list(warning), features: list(feature), enabledFeatures: strings, bundledPipelines: strings,
 }, [(v) => (has(v, "where") || has(v, "diagnostic") || has(v, "message")) && v.error !== "grammar"
   ? ["where, diagnostic and message require a grammar error"] : []]);
@@ -40,7 +41,7 @@ const engine = object({}, {
   // The main runners inspect token payloads and match result patterns.
 ]);
 const notationError = object(coordinates, { message: string });
-const notation = object({ document: string, expect: object({}, { dom: record, error: notationError }, [exactly("dom", "error")]) },
+const notation = object({ document: string, expect: object({}, { dom: {check:domQueryPatternProblems}, error: notationError }, [exactly("dom", "error")]) },
   { description: string, cacheMisses: boolean }, [
     (v) => v.cacheMisses === true && !has(v.expect, "dom") ? ["cacheMisses requires a DOM expectation"] : [],
   ]);
@@ -105,7 +106,7 @@ const growth = object({ case: string, depths: counts, nodesPerDepth: natural, sl
 const corpus = object({ id: string, text: string, pipeline: string, expect: choice("accept", "reject") }, {
   features: strings, withoutFeatures: strings, verdict: string, stage: string, at: natural,
   error: either(object({kind:choice("ambiguous"),reason:choice("tie","elision-only")}),object({kind:choice("reported")})),
-  errors:list(object({code:string,at:natural})), warnings:list(object({stage:string,code:string,at:natural})),
+  errors:list(object({code:string,at:natural},{stage:string}),1), warnings:list(object({stage:string,code:string,at:natural})),
   ties: { tuple: [{ pattern: /./s }] }, words: strings, brackets: string, seeded: choice("accept", "reject"), reason: string,
 }, [(v) => {
   const problems = [];
@@ -121,10 +122,10 @@ const corpus = object({ id: string, text: string, pipeline: string, expect: choi
       if (v.at!==v.errors?.[0]?.at) problems.push("at must equal the first diagnostic position");
     } else {
       if (has(v,"verdict")) problems.push("reject forbids verdict");
-      for (const message of exactly("at","error")(v)) problems.push(message);
+      if(has(v,"at")&&has(v,"error"))problems.push("at and error cannot coexist");
     }
   }
-  if (v.error?.kind!=="reported" && has(v,"errors")) problems.push("errors requires reported");
+  if(v.expect!=="reject"&&has(v,"errors"))problems.push("errors requires reject");
   if (has(v, "ties") && (v.error?.reason!=="tie" || v.ties[0] !== v.stage)) problems.push("ties must name stage");
   if (has(v, "seeded") && !has(v, "reason")) problems.push("seeded requires reason");
   return problems;
@@ -292,6 +293,71 @@ function manifestProblems(value, context) {
         problems.push(`${at}: text_sha256 differs from the corpus text`);
       }
     }
+  }
+  return problems;
+}
+
+// Result expectations are partial objects. New diagnostic fields still have
+// known containers and member names, including nested rejection evidence.
+function resultPatternProblems(value){
+  const members={
+    result:['format','ok','stages','tree','error','warnings'],
+    stage:['name','verdict','witness','output','errors','warnings'],
+    token:['text','value','image','tags','span','source','insertedBy','before','after','errors','warnings'],
+    error:['kind','stage','feature','code','reason','token','source','line','column','expected','boundary','readings','witness','document','errors','warnings','message','chosen','completion'],
+    diagnostic:['stage','code','rule','span','source','message','rejection'],
+    rejection:['token','source','line','column','expected'],
+  };
+  const problems=[],pending=[{value,kind:'result',at:'result'}];
+  while(pending.length){
+    const {value,kind,at}=pending.pop();
+    if(value===null&&kind==='error')continue;
+    if(!value||typeof value!=='object'||Array.isArray(value)){problems.push(at+': expected an object');continue;}
+    for(const [key,child]of Object.entries(value)){
+      if(!members[kind].includes(key)){problems.push(at+': unknown member '+key);continue;}
+      const childKind=key==='errors'||key==='warnings'?'diagnostic':kind==='result'&&key==='stages'?'stage':key==='output'||key==='before'||key==='after'?'token':null;
+      if(childKind){
+        if(!Array.isArray(child)){problems.push(at+'.'+key+': expected an array');continue;}
+        child.forEach((value,index)=>pending.push({value,kind:childKind,at:at+'.'+key+'['+index+']'}));
+      }else if(key==='error'&&kind==='result')pending.push({value:child,kind:'error',at:at+'.error'});
+      else if(key==='rejection'&&kind==='diagnostic')pending.push({value:child,kind:'rejection',at:at+'.rejection'});
+    }
+  }
+  return problems;
+}
+
+// DOM expectations stay partial. Body queries require their argument wrapper
+// and permit a remainder only at one outer edge. Malformed supplied DOMs
+// remain opaque inputs to the libraries.
+function domQueryPatternProblems(value){
+  const problems=[],pending=[value];
+  if(!value||typeof value!=='object'||Array.isArray(value))return ['expected a DOM object'];
+  while(pending.length){
+    const node=pending.pop();
+    if(!node||typeof node!=='object')continue;
+    if(node.method==='parse'&&has(node,'args')){
+      if(!Array.isArray(node.args)||node.args.length!==1||!node.args[0]||typeof node.args[0]!=='object'||Object.keys(node.args[0]).some(key=>key!=='body')||!has(node.args[0],'body'))problems.push('parse requires one body argument');
+      else{
+        const body=node.args[0].body,work=[];
+        if(!body||typeof body!=='object'||Array.isArray(body))problems.push('parse requires a body expression');
+        if(body?.seq!==undefined){
+          if(!Array.isArray(body.seq))problems.push('a body sequence requires an array');
+          else body.seq.forEach((node,index)=>work.push({node,outer:(index===0||index===body.seq.length-1)&&body.seq.length>1}));
+        }else work.push({node:body,outer:false});
+        let remainders=0;
+        while(work.length){
+          const {node,outer}=work.pop();
+          if(!node||typeof node!=='object')continue;
+          if(has(node,'capture')&&has(node,'expr'))problems.push('a query body has no capture binder');
+          if(has(node,'remainder')){
+            if(!outer||node.remainder!==true||Object.keys(node).length!==1)problems.push('a remainder requires an outer query edge');
+            remainders++;
+          }else for(const child of Object.values(node))if(child&&typeof child==='object')for(const part of Array.isArray(child)?child:[child])work.push({node:part,outer:false});
+        }
+        if(remainders>1)problems.push('a query has at most one remainder');
+      }
+    }
+    for(const child of Object.values(node))if(child&&typeof child==='object')for(const part of Array.isArray(child)?child:[child])pending.push(part);
   }
   return problems;
 }

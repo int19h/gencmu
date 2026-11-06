@@ -14,7 +14,7 @@
       "ok": false,
       "error": {
         "kind": "reported",
-        "stage": "forms",
+        "stage": "words",
         "errors": [
           {
             "code": "unclosed-foreign-quote",

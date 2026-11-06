@@ -1,0 +1,66 @@
+{
+  "description": "Engine §11.5, §12.1, and §13: deferred diagnostic flow and reporting (until).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%rule text fault\n%rule fault A\n%error \"bad\"\n%emits $ :: Word\n%stage last\n%ambiguity-resolution greedy\n%rule text Word\n%erased\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "before",
+          "verdict": "unique",
+          "output": [
+            {
+              "errors": [
+                {
+                  "stage": "before",
+                  "code": "fault",
+                  "span": [
+                    0,
+                    1
+                  ],
+                  "source": [
+                    0,
+                    1
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "stage": "before",
+        "errors": [
+          {
+            "stage": "before",
+            "code": "fault",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "options": {
+    "until": "before"
+  }
+}

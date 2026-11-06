@@ -1,5 +1,5 @@
 {
-  "description": "In the eberban/refgram pipeline, a foreign letter ends the closing delimiter of a quote and carries non-eberban-letter.",
+  "description": "In the eberban/refgram pipeline, a foreign letter ends the closing delimiter of a quote and carries non-eberban-letter. Engine §12.1: the words stage erases the warned gap and drops its carried warning.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
   },
@@ -9,21 +9,6 @@
     "result": {
       "ok": true
     },
-    "warnings": [
-      {
-        "stage": "forms",
-        "code": "non-eberban-letter",
-        "rule": "non-eberban-letter",
-        "span": [
-          14,
-          15
-        ],
-        "source": [
-          14,
-          15
-        ],
-        "message": "this letter is outside the Eberban alphabet"
-      }
-    ]
+    "warnings": []
   }
 }

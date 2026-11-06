@@ -1,5 +1,5 @@
 {
-  "description": "An erased occurrence still reports its enabled warning.",
+  "description": "Engine §12.1: warnings inside erased text do not survive.",
   "grammar": "%rule text *warn %erased\n%rule warn A %warning \"warning warn\"",
   "tokens": [
     {
@@ -18,21 +18,6 @@
     "result": {
       "ok": true
     },
-    "warnings": [
-      {
-        "stage": "main",
-        "code": "warn",
-        "rule": "warn",
-        "span": [
-          0,
-          1
-        ],
-        "source": [
-          0,
-          1
-        ],
-        "message": "warning warn"
-      }
-    ]
+    "warnings": []
   }
 }
