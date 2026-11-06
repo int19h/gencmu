@@ -3,6 +3,7 @@ package gencmu
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -134,5 +135,60 @@ func TestDeferredAuditSharesEffectAndClauseWalks(t *testing.T) {
 		if counts[1] > 5*counts[0] {
 			t.Fatalf("%s: nonlinear audit %v", family, counts)
 		}
+	}
+}
+
+func TestDeferredAuditCachesQueryReportTargets(t *testing.T) {
+	// Design, Diagnostics and debugging: alternatives share the filtered report targets.
+	var counts []int64
+	for _, n := range []int{50, 200} {
+		alternatives, conditions, rules := make([]string, n), make([]string, n), make([]string, n)
+		for index := range n {
+			alternatives[index] = fmt.Sprintf("$c%d:A :: T%d", index, index)
+			conditions[index] = fmt.Sprintf("$c%d.parse(r0)", index)
+			target := "A"
+			if index+1 < n {
+				target = fmt.Sprintf("r%d", index+1)
+			}
+			rules[index] = fmt.Sprintf("%%rule r%d %s", index, target)
+		}
+		grammar := "%rule text :: $.tags(r0) | " + strings.Join(alternatives, " | ") + "\n%conditions " + strings.Join(conditions, ", ") + "\n" + strings.Join(rules, "\n") + "\n%error \"fault\"\n%erased"
+		pipeline := auditPipeline(t, grammar)
+		work := &workCounts{}
+		var notes []DiagnosticNote
+		countWorkIn(work, func() { notes = pipeline.RankingReports()[0].DiagnosticNotes })
+		if len(notes) != 1 || notes[0].Kind != "query-error" || notes[0].Target != fmt.Sprintf("r%d", n-1) || notes[0].Filtered {
+			t.Fatalf("wrong notes: %v", notes)
+		}
+		count := work.readerSteps.Load() + work.clauseSteps.Load() + work.ruleSetSteps.Load()
+		if count > int64(80*n+100) {
+			t.Fatalf("n=%d: %d audit steps", n, count)
+		}
+		counts = append(counts, count)
+		t.Logf("query annotations n=%d: %d audit steps", n, count)
+	}
+	if counts[1] > 5*counts[0] {
+		t.Fatalf("nonlinear audit: %v", counts)
+	}
+}
+
+func TestDeferredAuditKeepsAlternativeTargetsAndExtensionLocations(t *testing.T) {
+	// Engine §2: cached queries keep each definition's clauses and source position.
+	grammar := "%rule text :: $.tags(common) | A :: $.tags(first) | A :: $.tags(second)\n%conditions $.parse(target), $.parse(target).error-free\n%extend-rule text A :: $.tags(first)\n%conditions $.parse(other).error-free\n"
+	for _, name := range []string{"common", "first", "second", "target", "other"} {
+		grammar += "%rule " + name + " A\n%error \"fault\"\n%erased\n"
+	}
+	notes := auditPipeline(t, grammar).RankingReports()[0].DiagnosticNotes
+	var got []string
+	for _, note := range notes {
+		if note.Kind == "query-error" {
+			got = append(got, fmt.Sprintf("%d:%s:%v", note.Line, note.Target, note.Filtered))
+		}
+	}
+	want := []string{"5:common:false", "5:first:false", "5:second:false", "5:target:false", "5:target:true", "7:first:false", "7:other:true"}
+	sort.Strings(got)
+	sort.Strings(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("wrong locations: %v", got)
 	}
 }

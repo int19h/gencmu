@@ -61,7 +61,7 @@ The API copies the tokens and leaves the caller's records unchanged. Nonempty `B
 
 ## Results
 
-A text that a stage reads in two or more best ways is a tie. Its result is not `OK`, and its `Error` has the kind `ambiguous` and the `Reason` `tie`, with two `Readings`. The stage has the verdict `tie` and a `Witness`, and it has no output. The `Reason` of the error of `ElisionOnly` is `elision-only`.
+A text that a stage reads in two or more best ways is a tie. If its messages evaluate, the result reports `ambiguous` with `Reason` `tie` and two `Readings`. The stage has verdict `tie`, a `Witness`, and no output. A message failure reports `grammar` and retains that verdict. The `Reason` of an `ElisionOnly` error is `elision-only`.
 
 A text that does not parse gives a result whose `OK` is false. Its error kind is `rejected`, `ambiguous`, `feature-conflict`, `reported`, or `grammar` (`docs/api.md`).
 
@@ -122,7 +122,7 @@ The Go test runner runs independent tests and shared engine and notation cases i
 
 Tests that use process-wide controls or allocation counts stay serial. These tests use work counters, stack limits, allocation counts, or changes to the working directory. Go finishes these tests before it starts the parallel tests. The corpus uses its separate pool, which `GENCMU_CORPUS_WORKERS` controls.
 
-The tests read the shared cases in `../../tests/`. The runner skips caller fields that Go cannot represent, including explicit null strings or diagnostic lists. They run every notation case and each representable engine case, the core sample of the corpus and the fixpoint of the bootstrap. For an engine case whose grammar cannot be loaded, they also compare where the error stands, when the case gives it. An engine case with `parses` loads its pipeline once and parses its input with each item's configuration in turn.
+The tests read the shared cases in `../../tests/`. The runner skips caller fields that Go cannot represent, including explicit null strings or diagnostic lists. They run every notation case and each representable engine case, the core sample of the corpus and the fixpoint of the bootstrap. A case can require the position of a load error. The runner compares that position. An engine case with `parses` loads its pipeline once and parses its input with each item's configuration in turn.
 
 The tests also compare `data/preparsed/lojban.json` with a fresh reading, with the cache both used and bypassed.
 

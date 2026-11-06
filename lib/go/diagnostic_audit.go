@@ -204,10 +204,17 @@ func diagnosticNotes(g *stageGrammar) []DiagnosticNote {
 					merge(roots, part)
 				}
 				reached = closure(roots)
+				for name := range reached {
+					evidenceAuditClosure()
+					if !errors[name] {
+						delete(reached, name)
+					}
+				}
 				queriesCache[key] = reached
 			}
 			var targets []string
 			for target := range reached {
+				evidenceAuditClosure()
 				if errors[target] {
 					targets = append(targets, target)
 				}
