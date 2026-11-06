@@ -10044,6 +10044,67 @@
     return witnesses.filter(witness => errorFree ? !!(eligible[at(witness)] & 1) : eligible[at(witness)] !== 0);
   }
 
+  // ---- nullable-errors.js
+  // Conservative empty-error test before feature filtering (engine §3.6).
+
+  /**
+   * The first error alternative that can read no tokens. Gates, conditions,
+   * and symbol tests cannot establish a positive width. Each dependency edge
+   * participates in the least fixed point once, including recursive calls.
+   * @param {Map<string,import('./grammar.js').StitchedRule>} rules
+   * @param {{rule:import('./grammar.js').StitchedRule,alternative:import('./grammar.js').StitchedAlternative}[]} errors
+   */
+  function nullableError(rules, errors) {
+    /** @typedef {{all:boolean,children:number[],users:number[],remaining:number,value:boolean}} Node */
+    /** @type {Node[]} */
+    const nodes=[];
+    /** @type {Map<object|string,number>} */
+    const identities=new Map();
+    /** @type {(object|string)[]} */
+    const pending=[];
+    /** @param {object|string} identity */
+    const intern=identity=>{
+      const previous=identities.get(identity);
+      if(previous!==undefined)return previous;
+      const id=nodes.length;
+      identities.set(identity,id);
+      nodes.push({all:false,children:[],users:[],remaining:0,value:false});
+      pending.push(identity);
+      return id;
+    };
+    const roots=errors.map(({alternative})=>intern(alternative.expr));
+    for(let index=0;index<pending.length;index++){
+      const identity=pending[index],node=nodes[index];
+      /** @type {(object|string)[]} */
+      let children=[];
+      if(typeof identity==='string')children=rules.get(identity)?.alternatives.map(alternative=>alternative.expr) ?? [];
+      else {
+        const expr=/** @type {import('./types.js').Expr} */(identity);
+        if('empty' in expr || 'optional' in expr)node.all=true;
+        else if('seq' in expr){node.all=true;children=expr.seq;}
+        else if('choice' in expr)children=expr.choice;
+        else if('ranked' in expr)children=expr.ranked;
+        else if('and' in expr)children=expr.and;
+        else if('repeat' in expr)children=[expr.repeat];
+        else if('capture' in expr || 'test' in expr)children=[expr.expr];
+        else if('splice' in expr)children=[expr.splice];
+        else if('ref' in expr && rules.has(expr.ref))children=[expr.ref];
+      }
+      node.children=children.map(intern);
+      node.remaining=node.children.length;
+      for(const child of node.children)nodes[child].users.push(index);
+    }
+    const ready=[];
+    for(let index=0;index<nodes.length;index++)if(nodes[index].all && nodes[index].remaining===0){nodes[index].value=true;ready.push(index);}
+    for(let index=0;index<ready.length;index++)for(const user of nodes[ready[index]].users){
+      const node=nodes[user];
+      if(node.value)continue;
+      if(!node.all || --node.remaining===0){node.value=true;ready.push(user);}
+    }
+    const first=roots.findIndex(root=>nodes[root].value);
+    return first<0?undefined:errors[first];
+  }
+
   // ---- emission-overlap.js
   // Conservative input coverage of final stitched emissions (engine §9.3).
 
@@ -10429,6 +10490,7 @@
 
 
 
+
   // A stage's grammar: its documents stitched together (engine §2) and
   // lowered to productions for one set of features (engine §3).
 
@@ -10712,6 +10774,8 @@
           validateRecipeCycles(alternative.value ?? alternative.clauses.value,alternative.image ?? alternative.clauses.image,alternative.document);
         }
         validateEmissionOverlap(this.rules);
+        const emptyError=nullableError(this.rules,this.errorAlternatives);
+        if(emptyError)throw new GencmuError("grammar",`an error production of ${emptyError.rule.name} can match no tokens`,emptyError.alternative.at);
         /**
          * The features that gate an alternative or an entry of a classifier.
          * Only these change a lowered grammar. A warning keeps its alternative
@@ -11437,6 +11501,8 @@
 
     checkDiagnosticsAndSplices() {
       const warnings=new Set(), splices=[], prohibited=new Set();
+      /** @type {{rule:StitchedRule,alternative:StitchedAlternative}[]} */
+      this.errorAlternatives=[];
       /** @param {any} pattern */
       const names=(pattern)=> { if (pattern?.name) prohibited.add(pattern.name); for(const child of patternParts(pattern ?? {})) names(child); };
       for (const step of this.resolution?.steps ?? []) names(step.pattern);
@@ -11444,6 +11510,7 @@
       for (const rule of this.rules.values()) for (const alternative of rule.alternatives) {
         const clauses=alternative.clauses;
         if (clauses.warning) warnings.add(rule.name);
+        if (clauses.error) this.errorAlternatives.push({rule,alternative});
         if (clauses.error && !(/^(?!.*--)[a-z][A-Za-z0-9_-]*$/.test(rule.name) || this.unicode.isEmojiName(rule.name))) throw new GencmuError("grammar","an error code must be a rule name",alternative.at);
         if (clauses.warning && !/^(?!.*--)[A-Za-z][A-Za-z0-9-]*$/.test(rule.name)) throw new GencmuError("grammar","a warning code must be a feature name",alternative.at);
         /** @type {any[]} */
