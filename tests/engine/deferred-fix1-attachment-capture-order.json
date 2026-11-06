@@ -1,0 +1,148 @@
+{
+  "description": "Engine §11.5 and §12.1: each attachment capture sorts its whole diagnostic group across emitted tokens.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%rule text $a:A $b:old $c:C\n%emits $a, $b, $c\n%rule old B\n%warning \"old\"\n%stage last\n%ambiguity-resolution greedy\n%rule text $p:pair $w:word\n%emits ($p) $w\n%rule pair $x:fresh $y:B\n%emits $x, $y\n%rule fresh A\n%warning \"new\"\n%rule word C\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "old",
+      "fresh"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "before",
+        "code": "old",
+        "rule": "old",
+        "span": [
+          1,
+          2
+        ],
+        "source": [
+          2,
+          3
+        ],
+        "message": "old"
+      },
+      {
+        "stage": "last",
+        "code": "fresh",
+        "rule": "fresh",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "new"
+      }
+    ],
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "before"
+        },
+        {
+          "name": "last",
+          "output": [
+            {
+              "warnings": [
+                {
+                  "stage": "before",
+                  "code": "old",
+                  "rule": "old",
+                  "span": [
+                    1,
+                    2
+                  ],
+                  "source": [
+                    2,
+                    3
+                  ],
+                  "message": "old"
+                },
+                {
+                  "stage": "last",
+                  "code": "fresh",
+                  "rule": "fresh",
+                  "span": [
+                    0,
+                    1
+                  ],
+                  "source": [
+                    0,
+                    1
+                  ],
+                  "message": "new"
+                }
+              ],
+              "before": [
+                {
+                  "warnings": [
+                    {
+                      "stage": "last",
+                      "code": "fresh",
+                      "rule": "fresh",
+                      "span": [
+                        0,
+                        1
+                      ],
+                      "source": [
+                        0,
+                        1
+                      ],
+                      "message": "new"
+                    }
+                  ]
+                },
+                {
+                  "warnings": [
+                    {
+                      "stage": "before",
+                      "code": "old",
+                      "rule": "old",
+                      "span": [
+                        1,
+                        2
+                      ],
+                      "source": [
+                        2,
+                        3
+                      ],
+                      "message": "old"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
