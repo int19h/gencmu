@@ -16385,20 +16385,46 @@
       }
       return seen;
     };
-    for (const rule of grammar.rules.values()) for (const alternative of rule.alternatives) {
-      const clauses=alternative.clauses;
-      const where={rule:rule.name,document:alternative.document,line:alternative.at.line,column:alternative.at.column};
-      /** @type {{node:any,filtered:boolean}[]} */
-      const pending=[clauses.conditions,clauses.tags,alternative.tags,clauses.emit].map(node=>({node,filtered:false}));
-      /** @type {Map<string,number>} */ const targets=new Map();
+    // Definition clauses and terms stay shared across their alternatives.
+    // Cache discovery by source object, not by a simplified production.
+    /** @typedef {Map<string,number>} Targets */
+    /** @type {Targets} */ const emptyTargets=new Map();
+    /** @type {Map<any,Targets>} */ const queryTargets=new Map();
+    const targetsOf=(/** @type {any} */ root)=>{
+      const known=queryTargets.get(root);if(known)return known;
+      /** @type {Targets} */ const found=new Map();
+      const pending=[{node:root,filtered:false}];
       while(pending.length) {
         if(hooks.work)countWork(hooks.work,"walkSteps");
         const {node,filtered}=/** @type {NonNullable<ReturnType<typeof pending.pop>>} */(pending.pop());
         const names=['matches','begins','ends','tags'].includes(node?.method)?node.args.flatMap((/** @type {any} */ arg)=>arg.rule?[arg.rule]:[]):node?.method==='parse'?queryReferences(node.args[0].body):[];
-        for(const name of names)targets.set(name,(targets.get(name)??0)|(filtered?2:1));
+        for(const name of names)found.set(name,(found.get(name)??0)|(filtered?2:1));
         for(const child of clauseChildren(node))pending.push({node:child,filtered:filtered||node?.method==='error-free'});
       }
-      for(const [name,bits]of closure(targets))if(errors.has(name))for(const filtered of [false,true]) {
+      const result=found.size?found:emptyTargets;
+      queryTargets.set(root,result);return result;
+    };
+    /** @type {Map<import('./grammar.js').RuleClauses,Map<Targets,Targets>>} */ const queryClosures=new Map();
+    const queriesOf=(/** @type {import('./grammar.js').RuleClauses} */ clauses,/** @type {any} */ tags)=>{
+      const own=targetsOf(tags);
+      let cache=queryClosures.get(clauses);if(!cache)queryClosures.set(clauses,cache=new Map());
+      const known=cache.get(own);if(known)return known;
+      /** @type {Targets} */ const targets=new Map();
+      // Preserve the clause walk's discovery order for the audit notes.
+      for(const part of [targetsOf(clauses.emit),own,targetsOf(clauses.tags),targetsOf(clauses.conditions)]) {
+        for(const [name,bits]of part)targets.set(name,(targets.get(name)??0)|bits);
+      }
+      const reached=closure(targets);cache.set(own,reached);return reached;
+    };
+    /** @type {Map<any,boolean>} */ const guards=new Map();
+    const guarded=(/** @type {any} */ term)=>{
+      const known=guards.get(term);if(known!==undefined)return known;
+      const found=neighbourGuards(term).length!==0;guards.set(term,found);return found;
+    };
+    for (const rule of grammar.rules.values()) for (const alternative of rule.alternatives) {
+      const clauses=alternative.clauses;
+      const where={rule:rule.name,document:alternative.document,line:alternative.at.line,column:alternative.at.column};
+      for(const [name,bits]of queriesOf(clauses,alternative.tags))if(errors.has(name))for(const filtered of [false,true]) {
         if(bits&(filtered?2:1))notes.push({kind:'query-error',...where,target:name,filtered});
       }
       if (clauses.suppressWarnings) {
@@ -16416,7 +16442,7 @@
         for (const code of new Set(clauses.suppressWarnings)) if (code==='_' ? !possible.size : !possible.has(code)) notes.push({kind:'unused-suppression',...where,code});
       }
       const terms=[clauses.tags,alternative.tags].filter(term=>term!==undefined);
-      if (neighbourGuards(terms).length) {
+      if (terms.some(guarded)) {
         const owner={name:rule.name,...clauses,alternatives:[alternative]};
         for (const captures of validationCaptures(owner,alternative)) {
           const terms=[clauses.tags,alternative.tags].filter(term=>term!==undefined).map(term=>simplifyFor(prepareClause(term),name=>captures.has(name),captures));
