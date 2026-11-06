@@ -389,6 +389,9 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 	if err := g.validateBoundaryTargets(); err != nil {
 		return nil, err
 	}
+	if err := g.nullableError(); err != nil {
+		return nil, err
+	}
 	checked := &checkedClauses{terms: map[*domTerm]bool{}, conds: map[condListKey]bool{}, emits: map[*domEmit]bool{}}
 	for _, r := range g.rules {
 		for _, a := range r.alts {
