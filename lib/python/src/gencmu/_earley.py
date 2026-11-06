@@ -282,6 +282,11 @@ class Forest:
     tagtab: Any = None
     context: Any = None
     base: int = 0
+    frames: Any = None
+    predictions: list = field(default_factory=list)
+    candidate_factory: Any = None
+    entry_for: Any = None
+    skipped_cache: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -397,6 +402,7 @@ class StageContext:
     token_tags: list[int] = field(default_factory=list)
     # Where each run of the tokens lies in the text (engine §1).
     sources: Sources = field(init=False)
+    lines: Any = None
     # The next token with a nonempty stored value, made on first use.
     sounding: list[int] | None = field(init=False, default=None)
     # On the context of the reconstructed input R of the check of engine §7,
@@ -1722,9 +1728,8 @@ class Parser:
                 return
             add(production.id, position + 1, start, captured, at, edge, strict_step, prefix, close_prefix, family_prefix, obligations, known_tag)
 
-        # Prediction conditions run before lookahead. Other terminal-first
-        # productions use the terminal indexes to avoid prediction work.
-        # Rejection still lists the terminals that lookahead leaves out.
+        # Terminal indexes omit candidates before their prediction conditions.
+        # Rejection evaluates those conditions lazily at a reached boundary.
         by_first = lowered.by_first_terminal
         by_first_characters = lowered.by_first_characters
         unfiltered_predictions = lowered.unfiltered_predictions
@@ -1818,11 +1823,11 @@ class Parser:
                     # can read.
                     if strict_prediction and last_reading[production.real_id] < 0:
                         continue
+                if production.rhs and production.terminal[0]:
+                    first = production.rhs[0]
+                    if j == n or not (carries(first, base + j) if first in characters else first in tokens[base + j].tags):
+                        continue
                 if not production.conds_predict or (yield allowed(production, j)):
-                    if production.rhs and production.terminal[0]:
-                        first = production.rhs[0]
-                        if j == n or not (carries(first, base + j) if first in characters else first in tokens[base + j].tags):
-                            continue
                     add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
             if j < n and frame is None:
                 table = by_first[rule]
@@ -2023,34 +2028,105 @@ class Parser:
             and productions[prod[item]].close_requested == self.observe and not productions[prod[item]].tree_requested
         ]
         expected: dict[str, set[str]] = {}
-        here = tokens[base + furthest].tags if furthest < n else {}
-        here_tag = token_tags[base + furthest] if furthest < n else None
-        for prediction in predicted[furthest]:
-            rule = prediction[0] if frames is not None or closes is not None or trees is not None else prediction
-            requested = prediction[2] if closes is not None or trees is not None else False
-            frame = next((f for f in frames.frames.values() if f.id==prediction[1]),None) if frames is not None else None
-            for terminal, numbers in itertools.chain(by_first[rule].items(), by_first_characters[rule].items()):
-                if here_tag is not None and (carries(terminal, base + furthest) if terminal in characters else terminal in here):
-                    continue
-                for number in numbers:
-                    production = candidate(productions[number],frame,requested)
-                    if not production.conds_predict or (yield allowed(production, furthest)):
-                        written = written_symbol(terminal, production.tests[0] if production.tests else None)
-                        expected.setdefault(written, set()).add(production.rule_name)
-        for terminal, waiters in scanning[furthest].items():
-            for waiter in waiters:
-                production = productions[prod[waiter]]
-                test = production.tests[dot[waiter]] if production.tests else None
-                expected.setdefault(written_symbol(terminal, test), set()).add(production.rule_name)
         # The forest's tokens are those the parse read, before its furthest
         # set.
         result = Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if has_slots else [], strict if has_slots else [], close_structures, close_prefixes, closes, self.observe, family, family_prefixes, family_structures, records, boundaries, annotations, failures, tagtab=context.tagtab, context=context, base=base)
+        result.frames, result.predictions = frames, predicted
+        result.candidate_factory, result.entry_for = candidate, entry
         if context.observed is not None: result.original_tokens = context.observed.tokens
         if trees is not None:
             result.tree_prefix = tree_prefixes
             result.tree_identity = tree_ids
             result.tree_sequence = tree_sequences
         return result
+
+
+def prediction_groups(forest, position):
+    if position >= len(forest.predictions):
+        return
+    for key in forest.predictions[position]:
+        _testing.count("walkSteps")
+        if isinstance(key, tuple):
+            rule, frame_id = key[:2]
+            frame = forest.frames.by_id[frame_id] if forest.frames is not None and frame_id else None
+            requested = key[2] if len(key) > 2 else False
+        else:
+            rule, frame, requested = key, None, False
+        yield rule, frame, requested
+
+
+def prediction_holds(forest, production, position):
+    # A skipped production starts with a terminal, so it has no whole span.
+    context = forest.context
+    if context.observed is None:
+        evaluator = Evaluator(context, forest.base, len(context.tokens))
+    else:
+        evaluator = Evaluator(context.observed, 0, len(context.observed.tokens), context.project)
+    bound = evaluator.bind(production, NO_CAPS)
+    for condition in production.conds_predict:
+        try:
+            if atoms(condition):
+                values = []
+                try:
+                    for value in (True, False):
+                        bound.boundary_value = value
+                        try:
+                            values.append(bool(run(evaluator.walk_condition(condition, bound))))
+                        except InvalidObservation:
+                            values.append(False)
+                finally:
+                    bound.boundary_value = None
+                if not any(values):
+                    return False
+            elif not run(evaluator.walk_condition(condition, bound)):
+                return False
+        except InvalidObservation:
+            return False
+    return True
+
+
+def skipped_productions(forest, position, candidates=None, accept=None):
+    cache = forest.skipped_cache.setdefault(position, {})
+    groups = prediction_groups(forest, position) if candidates is None else candidates
+    context = forest.context
+    at = forest.base + position
+    for candidate in groups:
+        _testing.count("walkSteps")
+        if isinstance(candidate, tuple):
+            rule, frame, requested = candidate
+            productions = (forest.candidate_factory(forest.lowered.productions[number], frame, requested)
+                           for number in forest.lowered.rule_productions[rule])
+        else:
+            productions = (candidate,)
+        for production in productions:
+            _testing.count("walkSteps")
+            if accept is not None and not accept(production):
+                continue
+            if production.id not in cache:
+                _testing.count("walkSteps")
+                skipped = bool(production.rhs and production.terminal[0])
+                if skipped and at < len(context.tokens):
+                    terminal = production.rhs[0]
+                    skipped = not (context.carries(terminal, at) if terminal in forest.lowered.characters
+                                   else terminal in context.tokens[at].tags)
+                cache[production.id] = skipped and prediction_holds(forest, production, position)
+            if cache[production.id]:
+                yield production
+
+
+def expected_at(forest, position, items=None, skipped=None):
+    expected = {}
+    if items is None:
+        items = (item for item, end in enumerate(forest.end) if end == position)
+    for item in items:
+        production, dot = forest.lowered.productions[forest.prod[item]], forest.dot[item]
+        if dot < len(production.rhs) and production.terminal[dot]:
+            test = production.tests[dot] if production.tests else None
+            expected.setdefault(written_symbol(production.rhs[dot], test), set()).add(production.rule_name)
+    for production in skipped_productions(forest, position) if skipped is None else skipped:
+        written = written_symbol(production.rhs[0], production.tests[0] if production.tests else None)
+        expected.setdefault(written, set()).add(production.rule_name)
+    return expected
 
 
 def reading_last(lowered: Lowered) -> list[int]:

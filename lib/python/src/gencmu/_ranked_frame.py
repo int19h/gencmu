@@ -183,6 +183,7 @@ class Frames:
         self.lowered,self.machine = lowered,machine
         self.closes, self.project = closes, project
         self.frames,self.productions = {},{}
+        self.by_id = {}
         # The item conditions of each production, prepared once for all its
         # frames, by its number.
         self.prepared_items = {}
@@ -224,6 +225,7 @@ class Frames:
             frame.seal_start = outer.seal_start if inside and outer else at
             frame.seal_entry = outer.seal_entry if inside and outer else frame.close_entry
         self.frames[key] = frame
+        self.by_id[frame.id] = frame
         return frame
 
     def common_entry(self, p, dot, origin, prefix, caps, outer, close_prefix, tree_prefix=0):

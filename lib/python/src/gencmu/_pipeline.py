@@ -22,6 +22,7 @@ from ._splice import _EmptyStageError, SplicedPipeline, splice_pipeline
 from ._recent import Recent
 from ._stage import StageOutcome, StageRunner
 from ._diagnostic_flow import DiagnosticLists, join_diagnostics, input_diagnostics
+from ._source_lines import SourceLines
 from ._tags import is_tag
 from ._unicode import UnicodeTable
 from ._validate import CLASSIFIER_NAME, FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem, known_dom_members
@@ -938,6 +939,7 @@ class Pipeline:
         pending = DiagnosticLists()
         collected = DiagnosticLists()
         current = tokens
+        lines = SourceLines(text)
         for number in range(last + 1):
             grammar = self._grammars[number]
             failure = None
@@ -964,7 +966,7 @@ class Pipeline:
                 outcome = StageOutcome(error=failure)
             else:
                 runner = StageRunner(grammar.stage, lowered, current, text, self._unicode,
-                                     features=features, stage_order=number, pending_errors=bool(pending.errors))
+                                     features=features, stage_order=number, pending_errors=bool(pending.errors), lines=lines)
                 check = grammar.elision_only if elision_only is None else elision_only
                 outcome = runner.run(check)
             stage = Stage(grammar.stage, outcome.verdict, current, outcome.output, outcome.witness, outcome.tree,

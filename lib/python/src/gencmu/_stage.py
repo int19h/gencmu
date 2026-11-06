@@ -9,12 +9,13 @@ from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
 from typing import Any, Union
 
-from ._earley import RESTORE, Evaluator, Forest, Parser, Sources, StageContext
+from ._earley import RESTORE, Evaluator, Forest, Parser, Sources, StageContext, expected_at
 from ._errors import _GrammarFault
 from ._diagnostic_flow import DiagnosticFlow, StageDiagnostics, join_diagnostics, tied_diagnostics
 from ._measures import Measures, ZERO_MEASURE, DiagnosticIdentity, record_diagnostic
+from ._competitor_rejection import competitor_rejections
+from ._source_lines import SourceLines
 from ._grammar import Lowered, Production, SymbolTest, written_symbol
-from ._markdown import line_column
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Restoration, Tags, Token
 from ._rank import (
     Act,
@@ -574,6 +575,7 @@ class StageRunner:
         features: frozenset[str] = frozenset(),
         stage_order: int = 0,
         pending_errors: bool = False,
+        lines=None,
     ) -> None:
         self.name = name
         self.lowered = lowered
@@ -583,6 +585,7 @@ class StageRunner:
         self.features = features
         self.stage_order = stage_order
         self.pending_errors = pending_errors
+        self.lines = SourceLines(text) if lines is None else lines
 
     def fault(self, fault: _GrammarFault) -> ParseError:
         # A defect found while parsing has its stage and no position (§13).
@@ -594,6 +597,7 @@ class StageRunner:
         have read next (engine §4)."""
         tokens = self.tokens
         position = forest.furthest
+        forest.expected = expected_at(forest, position)
         expected = [Expected(terminal, sorted(rules)) for terminal, rules in sorted(forest.expected.items())]
         if position < len(tokens):
             source = tokens[position].source
@@ -602,7 +606,7 @@ class StageRunner:
             at = tokens[-1].source[1] if tokens else 0
             source = (at, at)
             shown = "the end of the input"
-        line, column = line_column(self.text, source[0])
+        line, column = self.lines.position(source[0])
         listed = ", ".join(f"{entry.terminal} ({', '.join(entry.rules)})" for entry in expected) or "nothing"
         message = f"stage {self.name} cannot read {shown}; it expected {listed}"
         candidates = []
@@ -629,6 +633,7 @@ class StageRunner:
         engine §7 where it applies. A tie ends the stage at the ranking."""
         lowered = self.lowered
         context = StageContext(lowered, self.tokens, self.text, self.unicode)
+        context.lines = self.lines
         start = lowered.rule_ids["text"]
         forest = Parser(context).parse(start)
         ranking = rank(forest, lowered.steps, lowered.lean)
@@ -644,6 +649,7 @@ class StageRunner:
         flow = DiagnosticFlow(root, self.tokens)
         try:
             evaluate_diagnostics(flow, tree, context, forest, self.features, self.name, self.stage_order)
+            competitor_rejections(flow, forest)
         except _GrammarFault as fault:
             outcome.tree = None
             outcome._diagnostics = StageDiagnostics(evaluated=flow.messages())
@@ -680,6 +686,8 @@ class StageRunner:
             for flow in flows:
                 tree = Tree(flow.root, context.sources, context.tagtab)
                 evaluate_diagnostics(flow, tree, context, forest, self.features, self.name, self.stage_order)
+            for flow in flows:
+                competitor_rejections(flow, forest)
         except _GrammarFault as fault:
             outcome._diagnostics = StageDiagnostics(evaluated=join_diagnostics([flow.messages() for flow in flows]))
             outcome.error = self.fault(fault)
