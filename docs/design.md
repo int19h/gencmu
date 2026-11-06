@@ -634,7 +634,7 @@ Message recipes read captures and `$`, with string methods and `++`. They cannot
 
 A chosen derivation with errors keeps its tree and `unique` or `resolved` verdict. Its `reported` result lists all named errors and keeps enabled unsuppressed warnings, with `ok:false`. It retains the reporting stage's output. Earlier chosen errors flow onward on tokens instead of stopping the run. A tie reports ambiguity and the errors and warnings of its two shown readings.
 
-Erasure drops both own and carried diagnostics and contributes zero measure to its parent. Equal observable interiors collapse to one canonical derivation, without grammar key steps or the lean. The observable state excludes private captures, which no parent can read. Outer steps see the erased root alone.
+Erasure drops both own and carried diagnostics and contributes zero measure to its parent. Equal observable interiors collapse to one canonical derivation, without grammar key steps or the lean. The observable state excludes captures bound by the erased production, including ordinary captures and captures inside ranked options. Frame captures from an enclosing item remain in a contextual helper's state because its matching depends on them. Outer steps see the erased root alone.
 
 Each summary keeps an additional action summary whose profile contains only the measure. It retains prefix-related candidates until their common continuation settles their canonical order. An erased parent reads this summary, while a live parent reads the ordinary one. Both compose over their retained shared edges without enumerating complete derivations (engine §6).
 
@@ -750,9 +750,9 @@ The initial search stops at the first elided node. The check walks the chosen de
 2. Parse the token sequence with the same grammar. Use a mode where each elidable optional is restored or written. Every condition, tag and test of a rule reads the original input through a projection that leaves the synthetic tokens out. A test on a terminal reads the written-back terminator's tag and recognition value. A query parses the original input with the grammar as it is.
 3. Locate the chosen reconstruction before filtering. Its absence gives `elision-witness-lost`. Filter the reconstructed forest, then rank by blame measure and projected grammar profiles without a lean. Synthetic tokens carry no diagnostics or carried charge. An error occurrence over synthetic tokens alone still adds `(0,1,1)` before erasure. The check evaluates no messages.
 
-   The admitted witness's collapsed class passes only as the sole best admitted class.
+   The admitted witness's collapsed class passes only as the sole best admitted class. A pass leaves the main result in place.
 
-   If filtering excludes the restored chosen derivation, the check fails. Otherwise, its collapsed class must be the sole best admitted class of the written-back text. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the readings that engine §7.10 names, shown over the original input. An intentionally excluded witness gives ordinary ambiguity, not witness loss.
+   If filtering excludes the restored chosen derivation, the check fails. Otherwise, its collapsed class must be the sole best admitted class of the written-back text. Only a failure gives an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the readings that engine §7.10 names, shown over the original input. An intentionally excluded witness gives ordinary ambiguity, not witness loss.
 
 The stage ranks and collects reports. It emits after message evaluation. If no error counts, it runs the applicable check. A tie ends the stage before emission and before the check. So a stage reports at most one `ambiguous` error, and a tie comes first.
 
