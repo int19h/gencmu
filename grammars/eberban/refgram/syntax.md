@@ -993,7 +993,7 @@ The recovery prefix admits ordered parts, including a complete repeated part or 
 
 Number recovery distinguishes missing parts from parts in the wrong order. The loose reader retains each part. Digit runs take every following digit except the start of a base. This prevents alternate divisions of one faulty number. The ordered counterpart distinguishes order errors from missing digits or a missing fraction marker.
 
-Error-number recovery uses written `JI`, a boundary outside `number-start`, or an empty marker as its normal end. Some fragment readings also compete with a whole-number order error, and ranking chooses the report. The digitless rule bars detachment before `TI`, `JO`, `JA`, or `JE` without written `JI`. A bare `JU` after either digitless form starts no part, because no `TI` precedes it.
+Number recovery normally ends at written `JI`, before a token outside `number-start`, or before an empty marker. Some fragment readings also compete with a whole-number order error, and ranking chooses the report. The digitless rule bars detachment before `TI`, `JO`, `JA`, or `JE` without written `JI`. A bare `JU` after either digitless form starts no part, because no `TI` precedes it.
 
 ```jbogenbau
 %extend-rule base-verb
@@ -1180,7 +1180,7 @@ The named rules below reject only their chosen erroneous reading. Every erasable
 
 A numeric word quoted by `ci` is not a number constituent. It does not block `number-end-alone`. A second written `JI` can also report after a number that already has its terminator.
 
-A grammatical complete body can precede one empty `ja` or `je` in number recovery. Other misplaced parts have no general segmentation preference. An empty `ju` after a complete body retains ordinary rejection, as in `a to je te ju`.
+A grammatical complete body can precede one empty `ja` or `je` in number recovery. Other misplaced parts have no general segmentation preference. An empty `ju` after a complete body retains ordinary rejection, as in `a to je te ju`. Digits before `ju` form a base. If recovery retains the complete body before `ju`, its final digits also form a base with that marker. That base competes with `number-without-digits` at the same error count.
 
 The grammar gives `ci` no fault alternative. Unsupported quote operands, unclassified junk, missing word boundaries, and a free prefix before `po` retain ordinary rejection. A `JI` value restriction also remains outside this grammar, as the preceding numbers discussion explains.
 
