@@ -1385,11 +1385,11 @@ An implementation computes E and P over the recorded advances. E says that one p
 The transitions are:
 
 - A predicted item has E unless it is a completed unerased error occurrence. Its F flag holds for a zero measure.
-- An advance that is not an omission gives E from an E predecessor. A completion also needs E in its completed child. F holds only with F in both contributing proofs. A token read preserves F only without carried errors.
+- An advance that is not an omission gives E from an E predecessor. A completion also needs E in its completed child. An advance over a completed child needs F in both the predecessor and the child. If the token carries no error, an advance over it keeps the predecessor's F. Otherwise it clears F.
 - An omission gives E only from a predecessor with P. It keeps that predecessor's F flag.
 - Before an optional with preceding logical nonterminal Y, P follows an E advance over Y whose fixed prefix permits the omission. P retains that advance's F flag.
 - Before an optional without such a nonterminal, P requires E and permission for that fixed prefix's omission. P retains the F flag of that proof.
-- A completed unerased own error has no ordinary E, P, or F. An erased completion instead uses its interior's written-priority support and resets its measure, so it has E and F. The ordinary fixed-prefix rules determine P.
+- A completed unerased own error has no ordinary E, P, or F. An erased completion instead uses its interior's written-priority support and resets its measure, so it has E and F. This erased-completion rule replaces the general completion rule for that item. The ordinary fixed-prefix rules determine P.
 
 The implementation also retains written-priority support through the same E and P transitions without the own-error filter. Erased completions use that support, so interior own errors do not destroy their witnesses. This support still requires a finite proof without forbidden omissions. These computations reach the least fixed point, so a cycle alone supplies no proof. They visit shared items and advances without constructing witness trees.
 
@@ -2002,7 +2002,9 @@ The root compares its items by the same profile. Without a lean, a verdict total
 
 The best derivations form a smaller forest. For each summary, the implementation keeps the edges that attain its greatest profile. Each kept edge leads to the summaries of its children, in their own contexts. The stage finds `m` and `t` by a ranking with no lean over that forest. That ranking keeps the same contexts, so it reaches a child only through the summary that its context allows.
 
-Inside one recognition and cycle context, completed erased productions of one rule collapse on equal spans and observable states. Observable state is the completed item's identity (§4) without production, dot, and private captures. It includes tags and returned captures with their spans and states. It also includes structural prefix state, demanded restoration observations, demanded tree identities, and the boundary record (§4.2). Different observable states remain separate. A private capture cannot distinguish interiors because no parent reads it and its conditions already ran.
+Inside one recognition and cycle context, completed erased productions of one rule collapse on equal spans and observable states. Observable state is the completed item's identity (§4) without production, dot, or captures bound by the erased production. This excludes ordinary captures and captures inside ranked options alike. Frame captures supplied by an enclosing item to a contextual helper remain in its state because its matching depends on them. 
+
+The state also includes tags. It also includes structural prefix state, demanded restoration observations, demanded tree identities, and the boundary record (§4.2). Different observable states remain separate. A capture bound by the erased production cannot distinguish interiors because no parent reads it and its conditions already ran.
 
 The collapse crosses productions that carry `%erased`, but not productions without that clause. Extensions inherit no erasure. Each collapsed occurrence contributes one derivation to the verdict total. Internally, it chooses the best pre-erasure measure and then canonical action keys, without grammar key steps or a lean. Only its contribution to its parent resets to zero.
 
