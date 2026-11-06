@@ -442,7 +442,9 @@ A message uses the recipe language of "Two walks and recipes", except that `.emi
 
 An error production must read at least one token. The loader rejects a nullable error production at its definition, even behind a gate or an impossible condition. Its conservative test ignores tests and conditions and treats gated alternatives as present (engine §3.6). Warning productions can be empty because warnings contribute no blame.
 
-An empty stage input supplies no token for its own omission error. A missing construct without a consumed opener therefore retains plain rejection. An omission under an elided opener belongs to an enclosing construct that reads a token. A named omission error reads its opener or the unclosed construct, rather than an empty gap.
+An empty stage input supplies no token for its own omission error. A missing construct without a consumed opener therefore retains plain rejection. An omission under an elided opener belongs to an enclosing construct that reads a token. Each moved omission error has its own recovery rule and reads the opener token alone, rather than the opener production. Its span is that token.
+
+A moved guard uses `$.following-tokens` after the opener, never `$.onward`. The grammar closing section lists the sites and whole-unclosed-construct exceptions.
 
 A chosen occurrence raises its diagnostic in its own stage. Spliced calls retain their spans, and each chain level counts separately. Failing conditions create no occurrence. The stage evaluates messages once after choice, before emission.
 
@@ -452,7 +454,7 @@ A diagnostic travels on one emitted token to later stages. Its message and coord
 
 The reporting stage collects pending stage-level diagnostics first, then its chosen derivation in preorder. A parent precedes its children, and siblings retain their order before spliced roots disappear. Token leaves contribute carried diagnostics at their positions. Errors and warnings keep separate ordered lists (engine §12.1).
 
-Ranking first compares source blame, with less blamed input preferred. At equal blame, fewer sourceless errors win, then more total errors win. Each error adds its source-envelope length. An empty envelope instead adds one sourceless charge.
+Ranking first compares source blame, with less blamed input preferred. At equal blame, fewer sourceless errors win, then more total errors win. If every token source is empty, an error adds one sourceless charge and one to the error count. Otherwise it adds its source-envelope length and one to that count.
 
 Overlapping sources still add their charges. Erased subtrees contribute zero, and warnings contribute nothing. Grammar preferences follow equal measures, including in ranked admission.
 
@@ -1111,7 +1113,9 @@ As a condition, a nonempty forest holds. `.error-free` keeps only witnesses with
 
 For example, `¬$i.onward.parse(@Open …).error-free` bars an error-free opening structure in a template whose `@Open` supplies that target. The engine computes the filter over shared chart items without building witness trees.
 
-Query alternatives run from left to right until one holds. An error from an evaluated query ends the parse. A tag query reads one token that carries that tag. `matches` requires exactly that token, while `begins` permits later tokens and `ends` permits earlier tokens. Restored whole and prefix queries retain their alignment rules for every alternative. A restored `.ends` receiver is a load error.
+Target lists of `matches`, `begins`, and `ends` run from left to right until one query holds. A choice inside `parse(C)` is a body choice within one nested recognition. An error from an evaluated query ends the parse.
+
+A tag query reads one token that carries that tag. `matches` requires exactly that token, while `begins` permits later tokens and `ends` permits earlier tokens. Restored whole and prefix queries retain their alignment rules for every alternative. A restored `.ends` receiver is a load error.
 
 In a rule with a ranked choice, a terminal target has the same meaning as in any other rule. For `matches`, `begins`, and `ends`, the engine reads the target through a helper that reads one token. The helper changes no ranked group and no capture. `followed-by` and `preceded-by` test the nodes of the parse, as "Neighbours in the parse" explains.
 
@@ -1654,7 +1658,7 @@ A grammar then ranks admitted parses with equal measures by its `%ambiguity-reso
 
 ```jbogenbau
 %ambiguity-resolution
-  fewest #·words-erasure, late #·(erased-sentence | erased-words),
+  fewest #·words-erasure, late #(·erased-sentence ∪ ·erased-words),
   fewest #·passed-step, late #·_<_Elided>
 ```
 
@@ -1812,17 +1816,17 @@ Ranked choices compare spans in the reconstructed input, including restored term
 
 The check keeps every step of the directive but a final `greedy` or `lazy`, which it never applies. It counts occurrences over projected spans. An occurrence with an empty projected span counts nothing in each grammar step.
 
-The blame measure remains first. It uses projected original sources, and synthetic tokens carry no diagnostics or charge. The check evaluates no diagnostic message. A written-back terminator has an empty projected span, so it counts nothing in the check, whatever pattern matches it.
+The blame measure remains first. It uses projected original sources, and synthetic tokens carry no diagnostics or carried charge. An error occurrence over synthetic tokens alone still adds `(0,1,1)` before erasure (engine §7.7). The check evaluates no diagnostic message. A written-back terminator has an empty projected span, so it counts nothing in the check, whatever pattern matches it.
 
-If filtering excludes the restored chosen derivation, the check fails. If that derivation is not the sole best admitted reconstruction, the check also fails. Failure gives an ambiguity error, never a replacement chosen parse.
+If filtering excludes the restored chosen derivation, the check fails. After admission, its membership follows its class under erased collapse (engine §6). If that class is not the sole best admitted class, the check also fails. Failure gives an ambiguity error, never a replacement chosen parse.
 
-With no grammar key step, the check requires the restored chosen parse as the only admitted zero-error reading. Recognition before filtering always keeps that parse. If a library loses it, the library has a defect and reports `elision-witness-lost` (engine §7.9). Filtering can exclude that present parse and cause ordinary ambiguity. A tie ends the stage before this check.
+With no grammar key step, the check requires the restored chosen parse's class as the only admitted class of best measure. Before filtering and collapse, recognition always keeps the concrete restored parse. If a library loses it, the library has a defect and reports `elision-witness-lost` (engine §7.9). Filtering can exclude that present parse and cause ordinary ambiguity. A tie ends the stage before this check.
 
 A grammar can also contain ambiguities unrelated to terminators. The experimental Lojban grammar is an example. A sumti is an argument of the selbri, the main predicate. A term includes sumti and other kinds of arguments. The experimental grammar gives sumti connections priority over term connections. It therefore reads `mi .e do` in `mi .e do klama` as two connected sumti.
 
 `late #·_<_Elided>` does not make `elision-only` redundant. Written-back terminators can let another alternative match, or let a test on a terminal match. So the check can find a second reading that the steps do not rank below the chosen parse.
 
-The `lojban/experimental` and `lojban/zantufa` pipelines do not declare `%elision-only`. A caller can switch `elision-only` on to require the restored chosen reading as the only best admitted reading of the written-back text. A condition can treat a written-back terminator differently from a written one. In those grammars, such a condition can produce a second reading in reconstruction. A caller can also switch it off, to loosen a grammar that declares it.
+The `lojban/experimental` and `lojban/zantufa` pipelines do not declare `%elision-only`. A caller can switch `elision-only` on to require the restored chosen reading's class as the sole best admitted class of the written-back text. A condition can treat a written-back terminator differently from a written one. In those grammars, such a condition can produce a second reading in reconstruction. A caller can also switch it off, to loosen a grammar that declares it.
 
 ## Layout of the bundled grammars
 
