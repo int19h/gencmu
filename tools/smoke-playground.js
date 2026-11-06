@@ -530,7 +530,7 @@ async function main() {
       "display JSON must render images and nested attachments");
     await page.locator("#tab-canonical").click();
     const canonical = JSON.parse((await idle("the canonical JSON with values and images")).output);
-    assert.equal(canonical.format, 16);
+    assert.equal(canonical.format, 17);
     const indicator = canonical.stages.find((stage) => stage.name === "indicators").output[0];
     assert.deepEqual(indicator, {text: "m,I", value: "mi", image: "mI", tags: miTags,
       span: [1, 2], source: [5, 8], before: beforeTokens, after: afterTokens});
