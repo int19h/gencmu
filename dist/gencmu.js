@@ -15770,7 +15770,7 @@
       for (const production of lowered.byLhs.get(here.rule) ?? []) {
         for (const symbol of production.rhs) if (!symbol.terminal) pending.push({rule:symbol.name,nested:here.nested});
         /** @type {unknown[]} */
-        const clauses = [production.conditions,production.tags,production.parentTags,production.rankedDeferred];
+        const clauses = productionClauses(production);
         const visited = new Set();
         while (clauses.length) {
           const node = /** @type {any} */ (clauses.pop());
@@ -21507,6 +21507,19 @@
     const ofRule = (node, name) => parts(node).flatMap((child) => (child.kind === "rule" && child.rule === name ? [child] : []));
     /** @type {(node: ResultNode, name: string) => RuleNode | undefined} */
     const one = (node, name) => ofRule(node, name)[0];
+    /** First written occurrence, including nested body nodes (engine §9).
+     * @param {ResultNode} node @param {string} name @returns {RuleNode|undefined} */
+    const descendant = (node,name) => {
+      const pending=[node];
+      while(pending.length){
+        if(hooks.work)countWork(hooks.work,"walkSteps");
+        const current=/** @type {ResultNode} */(pending.pop());
+        if(current.kind!=="rule")continue;
+        if(current.rule===name)return current;
+        for(let index=current.children.length-1;index>=0;index--)pending.push(current.children[index]);
+      }
+      return undefined;
+    };
     // The parts that the reader reads from a node (engine §9). A node that
     // lacks one is an error of the document, which only a bootstrap of
     // another notation gives.
@@ -22740,7 +22753,7 @@
           const argument = only(parsed,"parse-argument");
           let body = yield readExpression(only(argument,"choice"),true);
           const capture = queryCapture(body);
-          if (capture) fail("a parse argument cannot declare captures",ofRule(argument,"capture")[0] ?? argument);
+          if (capture) fail("a parse argument cannot declare captures",descendant(argument,"capture") ?? argument);
           const markers = parts(argument).filter(child => child.kind === "token" && valueOf(child) === "…");
           if (markers.length > 1) fail("a remainder stands at one outer edge of a parse argument",markers[1]);
           if (markers.length) {
