@@ -9,9 +9,9 @@
 //! read the whole optional as written. A tree is eligible when none of its
 //! omissions is forbidden.
 //!
-//! Each item has two states, computed together to their least fixpoint: E,
-//! it has an eligible proof tree, and P, it has an eligible proof tree whose
-//! fixed prefix permits the optional after it to be empty.
+//! Each item has eligible E and permitted P proof states at their least fixpoint.
+//! Each state distinguishes a clean proof, F, from one with carried errors.
+//! Raw counterparts admit own errors until an erased completion clears them.
 
 use std::cell::OnceCell;
 
@@ -251,20 +251,23 @@ impl<'a> Proofs<'a> {
 
     /// Walk one eligible route back across the physical expansion of a
     /// logical optional. Its permitted prefix and eligibility stay together.
+    #[allow(clippy::too_many_arguments)]
     fn optional_permitted(
         &self,
         x: usize,
+        bit: u8,
         boundary: OptionalBoundary,
         order: &[Place],
         edges: &[Vec<Edge>],
-        states: (&[bool], &[bool]),
+        states: (&[u8], &[u8]),
+        tokens: &[crate::earley::Tok],
         blocked: &mut FxMap<(Place, usize), Option<u32>>,
     ) -> bool {
         let (e, p) = states;
-        let mut pending = vec![x];
+        let mut pending = vec![(x, bit)];
         let mut seen = crate::fxhash::FxSet::default();
-        while let Some(at) = pending.pop() {
-            if !seen.insert(at) {
+        while let Some((at, wanted)) = pending.pop() {
+            if !seen.insert((at, wanted)) {
                 continue;
             }
             self.count();
@@ -273,20 +276,33 @@ impl<'a> Proofs<'a> {
                 let until = *blocked
                     .entry((place, boundary.expression))
                     .or_insert_with(|| self.optional_blocked_until(place, boundary.expression));
-                if until.map_or(true, |end| end < order[x].0) {
+                if e[at] & wanted != 0 && until.map_or(true, |end| end < order[x].0) {
                     return true;
                 }
                 continue;
             }
             for edge in &edges[at] {
-                match *edge {
-                    Edge::Scan { before } if e[before] => pending.push(before),
-                    Edge::Complete { before, child, omission }
-                        if e[child] && if omission { p[before] } else { e[before] } =>
-                    {
-                        pending.push(before)
+                let (before, available, child) = match *edge {
+                    Edge::Seed => continue,
+                    Edge::Scan { before } => (before, e[before], None),
+                    Edge::Complete { before, child, omission } => {
+                        (before, if omission { p[before] } else { e[before] }, Some(e[child]))
                     }
-                    _ => {}
+                };
+                for b in [1, 2] {
+                    if available & b == 0 {
+                        continue;
+                    }
+                    let through = if let Some(child) = child {
+                        combine_states(b, child)
+                    } else if tokens.get(order[before].0 as usize).is_some_and(|token| !token.errors.is_empty()) {
+                        2
+                    } else {
+                        b
+                    };
+                    if through & wanted != 0 {
+                        pending.push((before, b));
+                    }
                 }
             }
         }
@@ -354,9 +370,15 @@ impl<'a> Proofs<'a> {
 
     /// Which of `witnesses`, completed items of the queried rule, have an
     /// eligible proof tree (§4).
+    #[cfg(test)]
     pub(crate) fn eligible(&self, witnesses: &[Place]) -> Vec<bool> {
-        let everything = vec![true; witnesses.len()];
-        if witnesses.is_empty() || !self.g.elides && !self.g.has_errors {
+        self.flags(witnesses, &[], false).into_iter().map(|flags| flags != 0).collect()
+    }
+
+    /// Bit 1 is an eligible clean proof, and bit 2 carries an error (§4.3).
+    pub(crate) fn flags(&self, witnesses: &[Place], tokens: &[crate::earley::Tok], carries: bool) -> Vec<u8> {
+        let everything = vec![1; witnesses.len()];
+        if witnesses.is_empty() || !self.g.elides && !self.g.has_errors && !carries {
             return everything;
         }
         // The items that the witnesses rest on, children before the items
@@ -409,83 +431,129 @@ impl<'a> Proofs<'a> {
         }
         // With no omission, every item has a finite proof tree, made from
         // predicted items in the order in which the recognizer made it.
-        if !omits && !self.g.has_errors {
+        if !omits && !self.g.has_errors && !carries {
             return everything;
         }
         let next: Vec<Next> = order.iter().map(|&place| self.next(self.item(place))).collect();
         let mut written: FxMap<Place, bool> = FxMap::default();
         let mut blocked: FxMap<Place, Option<u32>> = FxMap::default();
         let mut optional_blocked = FxMap::default();
-        let mut e = vec![false; order.len()];
-        let mut p = vec![false; order.len()];
+        let mut e = vec![0u8; order.len()];
+        let mut p = vec![0u8; order.len()];
+        let mut raw = vec![0u8; order.len()];
+        let mut raw_p = vec![0u8; order.len()];
+        let ceilings = [if carries || self.g.has_errors { 3 } else { 1 }, if carries { 3 } else { 1 }];
         let mut changed = true;
         while changed {
             changed = false;
             for x in 0..order.len() {
-                // Each item of each sweep counts, so that sweeps that each
-                // settle only a few items show their cost.
-                self.count();
-                if e[x] && (p[x] || next[x] == Next::Other) {
-                    continue;
-                }
-                let place = order[x];
-                let item = self.item(place);
-                let prod = &self.g.prods[item.prod as usize];
-                if prod.error.is_some() && item.dot as usize == prod.syms.len() {
-                    continue;
-                }
-                let (mut has_e, mut has_p) = (false, false);
-                for edge in &edges[x] {
-                    let through = match *edge {
-                        Edge::Seed => true,
-                        Edge::Scan { before } => e[before],
-                        Edge::Complete { before, child, omission } => {
-                            (if omission { p[before] } else { e[before] }) && e[child]
-                        }
-                    };
-                    if !through {
+                for channel in 0..2 {
+                    self.count();
+                    let raw_support = raw[x];
+                    let (states, permissions) = if channel == 0 { (&mut raw, &mut raw_p) } else { (&mut e, &mut p) };
+                    if states[x] == ceilings[channel] && (permissions[x] == ceilings[channel] || next[x] == Next::Other)
+                    {
                         continue;
                     }
-                    has_e = true;
-                    match (next[x], *edge) {
-                        (Next::Alone, _) if !has_p => {
-                            has_p = !if work::mutated(Mutant::AskWrittenAgain) {
-                                // A mutation of the tests asks again at each
-                                // edge, with no memo.
-                                self.reads_written(place)
+                    let place = order[x];
+                    let item = self.item(place);
+                    let prod = &self.g.prods[item.prod as usize];
+                    let (mut a, mut permits) = (0u8, 0u8);
+                    for edge in &edges[x] {
+                        let through = match *edge {
+                            Edge::Seed => 1,
+                            Edge::Scan { before } => {
+                                let prior = states[before];
+                                if prior != 0
+                                    && tokens
+                                        .get(order[before].0 as usize)
+                                        .is_some_and(|token| !token.errors.is_empty())
+                                {
+                                    2
+                                } else {
+                                    prior
+                                }
+                            }
+                            Edge::Complete { before, child, omission } => combine_states(
+                                if omission { permissions[before] } else { states[before] },
+                                states[child],
+                            ),
+                        };
+                        if through == 0 {
+                            continue;
+                        }
+                        a |= through;
+                        match (next[x], *edge) {
+                            (Next::Alone, _) if through & !permits != 0 => {
+                                let written = if work::mutated(Mutant::AskWrittenAgain) {
+                                    self.reads_written(place)
+                                } else {
+                                    *written.entry(place).or_insert_with(|| self.reads_written(place))
+                                };
+                                if !written {
+                                    permits |= through;
+                                }
+                            }
+                            (Next::Constituent, Edge::Complete { before, .. }) if through & !permits != 0 => {
+                                let prefix = order[before];
+                                let until = *blocked.entry(prefix).or_insert_with(|| self.blocked_until(prefix));
+                                if until.map_or(true, |end| end < place.0) {
+                                    permits |= through;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    if a != 0 {
+                        if let Next::Optional { expression, start } = next[x] {
+                            for bit in [1, 2] {
+                                if a & bit != 0
+                                    && self.optional_permitted(
+                                        x,
+                                        bit,
+                                        OptionalBoundary { expression, start, end: item.dot as usize },
+                                        &order,
+                                        &edges,
+                                        (states, permissions),
+                                        tokens,
+                                        &mut optional_blocked,
+                                    )
+                                {
+                                    permits |= bit;
+                                }
+                            }
+                        }
+                    }
+                    if item.dot as usize == prod.syms.len() {
+                        if prod.erased {
+                            if a | raw_support != 0 {
+                                a = 1;
+                            }
+                            if permits != 0 {
+                                permits = 1;
+                            }
+                        } else if prod.error.is_some() {
+                            if channel == 0 {
+                                if a != 0 {
+                                    a = 2;
+                                }
+                                if permits != 0 {
+                                    permits = 2;
+                                }
                             } else {
-                                *written.entry(place).or_insert_with(|| self.reads_written(place))
-                            };
+                                a = 0;
+                                permits = 0;
+                            }
                         }
-                        // The fixed prefix is the item before the advance
-                        // over the constituent.
-                        (Next::Constituent, Edge::Complete { before, .. }) if !has_p => {
-                            let prefix = order[before];
-                            let until = *blocked.entry(prefix).or_insert_with(|| self.blocked_until(prefix));
-                            has_p = until.map_or(true, |until| until < place.0);
-                        }
-                        _ => {}
                     }
-                }
-                if has_e {
-                    if let Next::Optional { expression, start } = next[x] {
-                        has_p = self.optional_permitted(
-                            x,
-                            OptionalBoundary { expression, start, end: self.item(place).dot as usize },
-                            &order,
-                            &edges,
-                            (&e, &p),
-                            &mut optional_blocked,
-                        );
+                    if states[x] | a != states[x] {
+                        states[x] |= a;
+                        changed = true;
                     }
-                }
-                if has_e && !e[x] {
-                    e[x] = true;
-                    changed = true;
-                }
-                if has_p && !p[x] {
-                    p[x] = true;
-                    changed = true;
+                    if permissions[x] | permits != permissions[x] {
+                        permissions[x] |= permits;
+                        changed = true;
+                    }
                 }
             }
         }
@@ -505,6 +573,15 @@ impl<'a> Proofs<'a> {
     }
 }
 
+fn combine_states(left: u8, right: u8) -> u8 {
+    let clean = left & right & 1;
+    if left != 0 && right != 0 && (left | right) & 2 != 0 {
+        clean | 2
+    } else {
+        clean
+    }
+}
+
 /// Checks written-terminator priority (§4) against a search for eligible
 /// proof trees, found one by one, on small random grammars with chained
 /// elidable optionals. The search reads a chart that it builds itself
@@ -519,6 +596,82 @@ mod tests {
     use crate::earley::{matchers, Recognizer, Shared, Tok};
     use crate::lower::{Lowered, Sym};
     use crate::work::{assert_linear, assert_mutant_stops, Mutant, Work};
+
+    fn deferred_flags(grammar: &str, dirty: &[bool]) -> Vec<u8> {
+        let grammar = grammar.replacen("%rule text", "%rule query", 1);
+        let document =
+            format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text A\n{grammar}\n```\n");
+        let pipeline = crate::load_pipeline_sources([("p.md", document)], "p.md").unwrap();
+        let g = pipeline.lowered_stage(0);
+        let start = g.rules.iter().position(|rule| rule.name == "query").unwrap() as u32;
+        let chars = vec!['a'; dirty.len()];
+        let mut shared = Shared::new(&pipeline.unicode, &chars);
+        let input: Vec<_> = dirty
+            .iter()
+            .enumerate()
+            .map(|(index, dirty)| Tok {
+                text: "a".into(),
+                tags: shared.tags.set_of(["A"]),
+                value: "a".into(),
+                source: (index, index + 1),
+                image: "a".into(),
+                errors: if *dirty {
+                    vec![crate::result::Warning::new(
+                        "before".into(),
+                        "fault".into(),
+                        index..index + 1,
+                        index..index + 1,
+                        "fault".into(),
+                    )]
+                } else {
+                    Vec::new()
+                },
+                warnings: Vec::new(),
+                sound: Default::default(),
+                quiet: 0,
+                before: Vec::new(),
+                after: Vec::new(),
+            })
+            .collect();
+        let matchers = matchers(&g, &mut shared.tags);
+        let chart = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None }
+            .recognize(&input, 0, start)
+            .unwrap();
+        let witnesses: Vec<_> = chart
+            .sets
+            .last()
+            .unwrap()
+            .completed
+            .get(&(start, 0))
+            .into_iter()
+            .flatten()
+            .map(|&index| (dirty.len() as u32, index))
+            .collect();
+        let mut flags = Proofs::new(&g, &chart).flags(&witnesses, &input, dirty.iter().any(|dirty| *dirty));
+        flags.sort();
+        flags
+    }
+
+    #[test]
+    fn deferred_proofs_keep_clean_and_dirty_support_coherent() {
+        // Engine §4.3: carried errors affect F, and erasure clears both error sources.
+        assert_eq!(deferred_flags("%rule text A", &[false]), [1]);
+        assert_eq!(deferred_flags("%rule text A", &[true]), [2]);
+        assert_eq!(deferred_flags("%rule text A\n%erased", &[true]), [1]);
+        assert_eq!(deferred_flags("%rule text bad\n%rule bad A\n%error \"bad\"", &[false]), [0]);
+        assert_eq!(deferred_flags("%rule text bad\n%erased\n%rule bad A\n%error \"bad\"", &[false]), [1]);
+        assert_eq!(deferred_flags("%rule text erased A | A erased\n%rule erased A\n%erased", &[true, false]), [1, 2]);
+    }
+
+    #[test]
+    fn deferred_query_memo_observes_only_carried_error_presence() {
+        // Engine §4.3: raw answers and filtered answers share their structural target.
+        let grammar="%rule text $x:A $y:A\n%conditions $x.parse(A) ∧ $y.parse(A) ∧ ¬$x.parse(A).error-free ∧ $y.parse(A).error-free";
+        assert_eq!(deferred_flags(grammar, &[true, false]), [2]);
+        // A nested filtered answer also makes its caller's memo depend on F.
+        let grammar="%rule text $x:A $y:A\n%conditions ¬$x.parse(probe) ∧ $y.parse(probe)\n%rule probe A\n%conditions $.parse(A).error-free";
+        assert_eq!(deferred_flags(grammar, &[true, false]), [2]);
+    }
 
     /// SplitMix64.
     struct Rng(u64);
@@ -1038,15 +1191,15 @@ mod tests {
             assert!(eligible.iter().all(|&eligible| eligible));
             (operations, items)
         };
-        let (small, items) = operations(500, &|items| 4 * items);
+        let (small, items) = operations(500, &|items| 8 * items);
         assert!(small > 0, "the searches ran");
         // The index is one pass over the chart, the searches read each
         // completed item of it at most once, and two sweeps settle the
-        // items they rest on: at most four times the chart's items. An
+        // raw and eligible channels: at most eight times the chart's items. An
         // index built again for each search would read the chart once per
         // search, so this stops the shorter text at the first operation
         // past that, before the longer one costs much.
-        assert!(small <= 4 * items, "{small} operations for 500 tokens, over a chart of {items} items");
+        assert!(small <= 8 * items, "{small} operations for 500 tokens, over a chart of {items} items");
         // Four times the text costs about four times as much, not sixteen,
         // and the longer text's run stops at the first entry past that.
         let (large, _) = operations(2000, &|_| 6 * small);
@@ -1088,9 +1241,8 @@ mod tests {
     }
 
     /// The question whether an optional is read as written, asked once for
-    /// each item, keeps the searches linear in n: 266 entries at 20 and 986
-    /// at 80. Asked again at each edge, they take 1085 and 13865, so the
-    /// larger run stops at the first entry past five times 266.
+    /// each item, keeps both proof channels linear: 446 entries at 20 and
+    /// 1646 at 80. A repeated question at every edge exceeds the budget.
     #[test]
     fn the_question_of_a_written_optional_is_asked_once_per_item() {
         assert_linear(Work::Searched, 20, &mut written_question_work);

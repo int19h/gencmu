@@ -85,6 +85,7 @@ pub(crate) enum CmpOp {
 
 #[derive(Debug, Clone)]
 pub(crate) enum LCond {
+    ErrorFree(Span, u32, crate::query_forms::Mode),
     Tree(Span, bool, crate::patterns::Pattern),
     SameTree(Span, bool, Span, Option<(usize, usize)>),
     Cmp(CmpOp, LTerm, LTerm),
@@ -337,6 +338,7 @@ impl Prod {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Lowered {
+    pub reads_errors: Vec<bool>,
     pub has_errors: bool,
     pub profile_possible: ProfilePossible,
     pub tree_demands: Arc<[crate::tree_identity::Demand]>,
@@ -1083,16 +1085,29 @@ impl<'a> Scope<'a> {
         }
     }
 
-    fn forest(&mut self, term: &Term) -> Result<LCond, Missing> {
+    fn forest(&mut self, mut term: &Term) -> Result<LCond, Missing> {
+        let mut filtered = false;
+        while let Term::Call(name, args) = term {
+            if let ("error-free", [Arg::Term(inner)]) = (name.as_str(), args.as_slice()) {
+                work::count(Work::Walked, 1);
+                term = inner;
+                filtered = true;
+            } else {
+                break;
+            }
+        }
         let Term::Call(name, args) = term else { return Err(Missing) };
-        // Filtered forest answers enter the proof solver with their F channel.
         let ("parse", [Arg::Term(receiver), Arg::Term(Term::Body(body))]) = (name.as_str(), args.as_slice()) else {
             return Err(Missing);
         };
         let target = self.body_targets.get(&(Arc::as_ptr(body) as usize)).ok_or(Missing)?;
         let rule = self.query_target(target)?;
         let span = self.span(receiver)?;
-        Ok(match crate::query_forms::body_mode(body) {
+        let mode = crate::query_forms::body_mode(body);
+        if filtered {
+            return Ok(LCond::ErrorFree(span, rule, mode));
+        }
+        Ok(match mode {
             crate::query_forms::Mode::Whole => LCond::Matches(span, rule),
             crate::query_forms::Mode::Prefix => LCond::Begins(span, rule),
             crate::query_forms::Mode::Suffix => LCond::Ends(span, rule),
@@ -1895,6 +1910,7 @@ pub(crate) fn lower(
     let tests = std::mem::take(&mut lowerer.tests);
     let elides = rules.iter().any(|rule| rule.elided.is_some());
     let mut lowered = Lowered {
+        reads_errors: Vec::new(),
         has_errors: prods.iter().any(|p| p.error.is_some()),
         profile_possible: Default::default(),
         tree_demands: Arc::from([]),
@@ -1917,6 +1933,7 @@ pub(crate) fn lower(
         prepared: Prepared::default(),
     };
     lowered.ranked = ranked_runtime(grammar, &lowered, &query_rules, &item_alts);
+    lowered.reads_errors = crate::query_dependencies::carried(&lowered);
     if grammar.tree_comparisons {
         let (demands, cases) = crate::tree_identity::demands(&lowered);
         lowered.tree_demands = demands.into();

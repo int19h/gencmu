@@ -49,3 +49,12 @@ fn old_and_new_queries_share_the_active_target() {
     let result = parse("%rule text A\n%conditions $.matches(a)\n%rule a A\n%conditions $.parse(a …)", &[("a", "A")]);
     assert_eq!(result.error.unwrap().kind, gencmu::ParseErrorKind::Grammar);
 }
+
+#[test]
+fn repeated_error_free_filters_keep_the_query_condition() {
+    // Engine §4.3: the filter is idempotent, including a failed query.
+    for (body, accepts) in [("A", true), ("B", false)] {
+        let grammar = format!("%rule text A\n%conditions $.parse({body}).error-free.error-free");
+        assert_eq!(parse(&grammar, &[("a", "A")]).ok, accepts);
+    }
+}

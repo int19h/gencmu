@@ -823,6 +823,11 @@ impl Contents {
 /// What a nested parse's answer is remembered by (§4).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum NestedKey {
+    Context {
+        key: Box<NestedKey>,
+        filtered: bool,
+        errors: u64,
+    },
     /// A short span: its rule, the original text that holds its tokens'
     /// sources, and each token's tags, text, value, and where its
     /// source begins and ends in that text, which
@@ -846,6 +851,8 @@ enum NestedKey {
 /// text, and the memo of nested parses, which `next_stage` clears before a
 /// parse over other tokens or with other rules.
 pub(crate) struct Shared<'a> {
+    error_prefix: Vec<usize>,
+    error_base: usize,
     pattern_values: RefCell<FxMap<(usize, usize, usize), Rc<str>>>,
     pub emission_boundaries: FxSet<(bool, u32, Sym)>,
     pub emission_targets: FxMap<String, Sym>,
@@ -859,14 +866,14 @@ pub(crate) struct Shared<'a> {
     pub text: &'a [char],
     /// Whether a span parses as a rule, and its tags as it: what `matches`
     /// and `tags` read of one nested parse.
-    memo: FxMap<NestedKey, (bool, SetId)>,
+    memo: FxMap<NestedKey, Answer>,
     /// The contents that the keys of the memo and of `begins` number.
     contents: Contents,
     /// Original qualified witnesses, shared by alignment constraints and endpoints.
     qualified: FxMap<QualificationKey, Vec<QualifiedWitness>>,
     /// What `begins` reads, apart, since it can hold where `matches` does
     /// not.
-    begins: FxMap<NestedKey, bool>,
+    begins: FxMap<NestedKey, (bool, bool)>,
     /// The nested parses running, by place, whatever the kind of query that
     /// started each.
     running: FxSet<Place>,
@@ -884,6 +891,8 @@ pub(crate) struct Shared<'a> {
 impl<'a> Shared<'a> {
     pub(crate) fn new(unicode: &'a Unicode, text: &'a [char]) -> Shared<'a> {
         Shared {
+            error_prefix: Vec::new(),
+            error_base: 0,
             pattern_values: RefCell::new(FxMap::default()),
             boundaries: None,
             emission_boundaries: FxSet::default(),
@@ -909,6 +918,23 @@ impl<'a> Shared<'a> {
         }
     }
 
+    fn prepare_errors(&mut self, tokens: &[Tok], base: usize) {
+        if !self.error_prefix.is_empty() {
+            return;
+        }
+        self.error_base = base;
+        self.error_prefix.push(0);
+        for token in tokens {
+            work::count(Work::Walked, 1);
+            let next = self.error_prefix.last().unwrap() + usize::from(!token.errors.is_empty());
+            self.error_prefix.push(next);
+        }
+    }
+    fn carried_errors(&self, base: usize, length: usize) -> bool {
+        let start = base - self.error_base;
+        self.error_prefix[start] != self.error_prefix[start + length]
+    }
+
     /// An empty set, with room kept from an earlier chart if one has it.
     fn fresh_set(&mut self) -> ESet {
         self.spare.pop().unwrap_or_default()
@@ -930,6 +956,7 @@ impl<'a> Shared<'a> {
     /// Forgets the nested parses of the previous parse, whose rules and
     /// tokens may differ.
     pub(crate) fn next_stage(&mut self) {
+        self.error_prefix.clear();
         self.machine = None;
         self.boundaries = None;
         self.emission_boundaries.clear();
@@ -1134,6 +1161,7 @@ struct QualifiedWitness {
     tags: SetId,
     family: u32,
     oracle: u32,
+    clean: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1149,7 +1177,11 @@ impl Request<'_> {
         (self.rule, self.base + self.start, self.base + self.end)
     }
     fn qualification_key(&self) -> QualificationKey {
-        match &self.key {
+        let mut key = &self.key;
+        while let NestedKey::Context { key: inner, .. } = key {
+            key = inner;
+        }
+        match key {
             NestedKey::Aligned { active, .. } => (self.place(), active.clone(), self.aligned.and_then(|a| a.family)),
             _ => unreachable!("an aligned qualification key"),
         }
@@ -1158,7 +1190,7 @@ impl Request<'_> {
 
 /// A nested query's answer: whether its span parses as its rule, and the
 /// union of the tags of its derivations.
-type Answer = (bool, SetId);
+type Answer = (bool, SetId, bool);
 
 /// What a node of a condition or a term gives, or a whole evaluation of a
 /// production's tag term for its constituent.
@@ -1199,6 +1231,7 @@ fn took(last: &mut Option<Out>) -> Out {
 /// The kind of a nested query, which says what its answer gives.
 #[derive(Debug, Clone, Copy)]
 enum Query {
+    ErrorFree(crate::query_forms::Mode),
     Matches,
     Begins,
     Ends,
@@ -1206,9 +1239,10 @@ enum Query {
 }
 
 impl Query {
-    fn out(self, (holds, set): Answer, tags: &Tags) -> Out {
+    fn out(self, (holds, set, clean): Answer, tags: &Tags) -> Out {
         match self {
             Query::Matches | Query::Begins | Query::Ends => Out::Bool(holds),
+            Query::ErrorFree(_) => Out::Bool(clean),
             Query::TagsRule => Out::Value(Value::Set(tags.shared(set))),
         }
     }
@@ -1958,6 +1992,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// so a nested parse over the rest of a long text makes only the sets it
     /// reaches.
     pub(crate) fn recognize(&mut self, tokens: &[Tok], base: usize, start: u32) -> Result<Chart, EngineError> {
+        self.shared.prepare_errors(self.recon.map_or(tokens, |recon| recon.observed), base);
         self.prepare_patterns();
         let first = self.shared.fresh_set();
         let mut run = Run::new(tokens, base, start, self.recon, first);
@@ -2088,17 +2123,21 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         };
         if request.begins {
             let mut accepted = false;
+            let mut clean = false;
             for w in witnesses {
-                accepted |= aligned(&w);
+                if aligned(&w) {
+                    accepted = true;
+                    clean |= w.clean;
+                }
             }
             if self.shared.suffix_active == 0 {
-                self.shared.begins.insert(request.key, accepted);
+                self.shared.begins.insert(request.key, (accepted, clean));
             }
-            return (accepted, 0);
+            return (accepted, 0, clean);
         }
         let retained: Vec<_> = witnesses.iter().filter(aligned).collect();
         let list = union_all(retained.iter().map(|w| self.shared.tags.list(w.tags)));
-        let answer = (!retained.is_empty(), self.shared.tags.set(list));
+        let answer = (!retained.is_empty(), self.shared.tags.set(list), retained.iter().any(|w| w.clean));
         if self.shared.suffix_active == 0 {
             self.shared.memo.insert(request.key, answer);
         }
@@ -2106,7 +2145,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     }
     fn settle(&mut self, request: Request, chart: &Chart) -> Answer {
         if let Some(id) = request.suffix {
-            return (self.shared.suffixes[id].answers[&(request.base + request.end)], 0);
+            let (holds, clean) = self.shared.suffixes[id].answers[&(request.base + request.end)];
+            return (holds, 0, clean);
         }
         let rule = request.rule;
         let tokens = &request.tokens[request.start..request.end];
@@ -2133,13 +2173,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .map(move |&index| (set as u32, index))
             })
             .collect();
-        let eligible = self.proofs(chart).eligible(&witnesses);
+        let eligible =
+            self.proofs(chart).flags(&witnesses, tokens, self.shared.carried_errors(query_base, tokens.len()));
         if request.aligned.is_some() {
             let qualified: Vec<_> = witnesses
                 .into_iter()
                 .zip(eligible)
-                .filter(|(_, eligible)| *eligible)
-                .map(|((set, index), _)| QualifiedWitness {
+                .filter(|(_, eligible)| *eligible != 0)
+                .map(|((set, index), flags)| QualifiedWitness {
+                    clean: flags & 1 != 0,
                     end: query_base + set as usize,
                     observation: self
                         .shared
@@ -2172,19 +2214,24 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
             return answer;
         }
-        let retained: Vec<_> =
-            witnesses.into_iter().zip(eligible).filter_map(|(witness, eligible)| eligible.then_some(witness)).collect();
+        let retained: Vec<_> = witnesses
+            .into_iter()
+            .zip(eligible)
+            .filter_map(|(witness, flags)| (flags != 0).then_some((witness, flags & 1 != 0)))
+            .collect();
         let accepted = !retained.is_empty();
+        let clean = retained.iter().any(|(_, clean)| *clean);
         if request.begins {
             if self.shared.suffix_active == 0 {
-                self.shared.begins.insert(request.key, accepted);
+                self.shared.begins.insert(request.key, (accepted, clean));
             }
-            return (accepted, 0);
+            return (accepted, 0, clean);
         }
         let tags = &self.shared.tags;
-        let list =
-            union_all(retained.iter().map(|&(set, index)| tags.list(chart.sets[set as usize].tagset[index as usize])));
-        let answer = (accepted, self.shared.tags.set(list));
+        let list = union_all(
+            retained.iter().map(|&((set, index), _)| tags.list(chart.sets[set as usize].tagset[index as usize])),
+        );
+        let answer = (accepted, self.shared.tags.set(list), clean);
         if self.shared.suffix_active == 0 {
             self.shared.memo.insert(request.key, answer);
         }
@@ -3353,7 +3400,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     /// The key a nested parse of `tokens[start..end]` as `rule` is
     /// remembered by: its content if the span is short, else its place.
-    fn nested_key(&mut self, tokens: &[Tok], base: usize, start: usize, end: usize, rule: u32) -> NestedKey {
+    fn nested_key(
+        &mut self,
+        tokens: &[Tok],
+        base: usize,
+        start: usize,
+        end: usize,
+        rule: u32,
+        filtered: bool,
+    ) -> NestedKey {
         if end - start > CONTENT_KEY_LIMIT {
             return NestedKey::Place((rule, base + start, base + end));
         }
@@ -3362,7 +3417,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let low = span.iter().map(|token| token.source.0).min().unwrap_or(0);
         let high = span.iter().map(|token| token.source.1).max().unwrap_or(0);
         let shared = &mut *self.shared;
-        NestedKey::Content(rule, shared.contents.number(&shared.text[low..high], span, low))
+        let key = NestedKey::Content(rule, shared.contents.number(&shared.text[low..high], span, low));
+        if filtered || self.g.reads_errors[rule as usize] {
+            let errors = span.iter().enumerate().fold(0, |bits, (index, token)| {
+                work::count(Work::Walked, 1);
+                bits | (u64::from(!token.errors.is_empty()) << index)
+            });
+            NestedKey::Context { key: Box::new(key), filtered, errors }
+        } else {
+            key
+        }
     }
 
     /// The proof trees of a nested parse's chart, using its recorded advances.
@@ -3533,6 +3597,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         tokens: &'t [Tok],
         base: usize,
     ) -> Result<Out, Halt<'t>> {
+        self.shared.prepare_errors(tokens, base);
         let (start, match_end, _) = self.checked_bounds(span, frame, tokens.len())?;
         let mut anchor = span;
         while let Span::From(inner) = anchor {
@@ -3551,7 +3616,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             None
         };
         let end = if aligned.is_some() { tokens.len() } else { match_end };
-        if matches!(query, Query::Ends) {
+        if matches!(query, Query::Ends | Query::ErrorFree(crate::query_forms::Mode::Suffix)) {
             let place = (rule, base + start, base + end);
             let mut request = Request {
                 tokens,
@@ -3576,7 +3641,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             };
             let state = &self.shared.suffixes[id];
             if let Some(&holds) = state.answers.get(&(base + end)) {
-                return Ok(Out::Bool(holds));
+                return Ok(query.out((holds.0, 0, holds.1), &self.shared.tags));
             }
             request.suffix = Some(id);
             eval.tasks.push(Task::Await(query));
@@ -3604,9 +3669,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .unwrap()
                     .normalized(a.observation),
             },
-            None => self.nested_key(tokens, base, start, end, rule),
+            None => self.nested_key(tokens, base, start, end, rule, matches!(query, Query::ErrorFree(_))),
         };
-        let begins = matches!(query, Query::Begins);
+        let begins = matches!(query, Query::Begins | Query::ErrorFree(crate::query_forms::Mode::Prefix));
         let place = (rule, base + start, base + end);
         if self.shared.running.contains(&place) {
             let request = Request { tokens, base, start, end, rule, key, begins, suffix: None, aligned };
@@ -3615,7 +3680,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let known = if self.shared.suffix_active > 0 {
             None
         } else if begins {
-            self.shared.begins.get(&key).map(|&holds| (holds, 0))
+            self.shared.begins.get(&key).map(|&(holds, clean)| (holds, 0, clean))
         } else {
             self.shared.memo.get(&key).copied()
         };
@@ -3804,6 +3869,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         LCond::If(antecedent, consequent) => {
                             eval.push(Task::Implies(consequent), Task::Cond(antecedent));
                             continue;
+                        }
+                        LCond::ErrorFree(span, rule, mode) => {
+                            self.query(eval, span, *rule, Query::ErrorFree(*mode), frame, tokens, base)?
                         }
                         LCond::Matches(span, rule) => {
                             self.query(eval, span, *rule, Query::Matches, frame, tokens, base)?
