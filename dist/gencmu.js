@@ -2367,7 +2367,7 @@
   /**
    * The independent witness test's ranking observer.
    * @typedef {object} ElisionCheckWatch
-   * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
+   * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean,representative?:import("./types.js").Rope|null}) => void} ranked
    */
 
   /**
@@ -4752,7 +4752,7 @@
     const steps=lowered.resolution.steps;
     const cached=profileDecisions.get(lowered);
     if (cached !== undefined) return cached;
-    if (lowered.productions.some((/** @type {any} */ production)=>!!production.error)) {
+    if (lowered.productions.some((/** @type {any} */ production)=>!!production.error || production.erased)) {
       profileDecisions.set(lowered,true);
       return true;
     }
@@ -17569,6 +17569,57 @@
     return notes;
   }
 
+  // ---- erased-classes.js
+  // Erased completions retain observable state, but no private bindings (§6).
+  /** @typedef {import('./types.js').Item} Item */
+  /** @typedef {{indices:number[],erased:boolean}} EdgeGroup */
+  class ErasedClasses {
+    constructor(){
+      /** @type {WeakMap<object,number>} */ this.ids=new WeakMap();
+      /** @type {WeakMap<object,string>} */ this.keys=new WeakMap();
+      this.next=0;
+    }
+    /** @param {object} object */
+    id(object){let id=this.ids.get(object);if(id===undefined){id=this.next++;this.ids.set(object,id);}return id;}
+    /** @param {Item} item */
+    key(item){
+      let key=this.keys.get(item);
+      if(key===undefined){
+        key=JSON.stringify([item.production.lhs,item.origin,item.end,item.tagId,item.prefix,item.structure,
+          item.observationPrefix?.id,item.observation?.id,item.familySummary?.id,
+          /** @type {any} */(item).treePrefix,/** @type {any} */(item).treeIdentity,item.boundary?.id,
+          item.strict,item.restores,!!item.production.closeRequested,!!item.production.treeRequested,
+          item.production.lexicalFrame?.id,item.slotScope?.id]);
+        this.keys.set(item,key);
+      }
+      return key;
+    }
+    /** @param {import('./types.js').Edge[]} edges @param {Set<number>|null|undefined} [mask] @returns {EdgeGroup[]} */
+    groups(edges,mask){
+      const groups=[],seen=new Map();
+      for(let index=0;index<edges.length;index++){
+        if(mask&&!mask.has(index))continue;
+        const edge=edges[index],erased=edge.kind==='complete'&&edge.child.production.erased;
+        const key=erased?this.id(edge.previous)+'/'+this.key(edge.child):null;
+        const old=key===null?undefined:seen.get(key);
+        if(old)old.indices.push(index);
+        else {const group={indices:[index],erased};groups.push(group);if(key!==null)seen.set(key,group);}
+      }
+      return groups;
+    }
+    /** @param {Item[]} roots @returns {number[][]} */
+    roots(roots){
+      const groups=[],seen=new Map();
+      for(const [index,item] of roots.entries()){
+        const key=item.production.erased?this.key(item):null;
+        const old=key===null?undefined:seen.get(key);
+        if(old)old.push(index);
+        else {const group=[index];groups.push(group);if(key!==null)seen.set(key,group);}
+      }
+      return groups;
+    }
+  }
+
   // ---- hash.js
   // FNV-1a over the text's UTF-8 bytes, 64 bits, as 16 hexadecimal digits:
   // the hash that keys the preparsed DOMs in every library.
@@ -17803,6 +17854,7 @@
 
 
 
+
   // Choosing a parse (engine §6): the profiles of the key steps of
   // `%ambiguity-resolution`, then the first-difference order over bottom-up
   // action sequences under greedy and lazy, both computed over the packed
@@ -17869,6 +17921,7 @@
    * @property {Rope | null} second
    * @property {[Action | null, Action | null] | null} witness
    * @property {Profile} profile
+   * @property {boolean|null} rawWitnessCounted
    * @property {boolean | null} witnessCounted with the runtime witness marks,
    *   whether the count counted W(D); null without marks
    */
@@ -18175,6 +18228,11 @@
   /** @type {TraversalContext} */
   const EMPTY_CONTEXT = new Set();
 
+  /** @typedef {Extract<import('./types.js').Edge,{kind:'complete'}>} CompletionEdge */
+  /** @typedef {{all:number,measure:import('./measures.js').Measure|null,w:boolean,member:boolean}} CountSummary */
+  /** @typedef {{ordinary:ElisionSummary,canonical:ElisionSummary}} SummaryPair */
+  /** @typedef {{ordinary:Candidate[],canonical:Candidate[],measure:import("./measures.js").Measure|null}} ActionPair */
+
   class Ranker {
     /**
      * @param {Token[]} tokens
@@ -18185,6 +18243,8 @@
      *   §7 gives (F19)
      */
     constructor(tokens, steps, lean, project = null) {
+      this.erasures=new ErasedClasses();
+      /** @type {Item[]} */ this.rankingRoots=[];
       this.tokens = tokens;
       this.measures = new Measures(tokens);
       /** @type {Profiles} */
@@ -18205,7 +18265,7 @@
       this.profileProject = null;
       /** @type {Lean} */
       this.lean = lean;
-      /** @type {{plain: Map<Item, ElisionSummary>, contextual: Map<Item, Map<string, ElisionSummary>>}} */
+      /** @type {{plain: Map<Item, SummaryPair>, contextual: Map<Item, Map<string, SummaryPair>>}} */
       this.summaries = { plain: new Map(), contextual: new Map() };
       /** @type {Map<string, number>} */
       this.ruleGroups = new Map();
@@ -18213,9 +18273,9 @@
       // groupRules, or undefined for a rule that cannot reach itself there.
       /** @type {(rule: string) => number | undefined} */
       this.groups = (rule) => this.ruleGroups.get(rule);
-      /** @type {{plain: Map<Item, Candidate[]>, contextual: Map<Item, Map<string, Candidate[]>>}} */
+      /** @type {{plain: Map<Item, ActionPair>, contextual: Map<Item, Map<string, ActionPair>>}} */
       this.memo = { plain: new Map(), contextual: new Map() };
-      /** @type {{plain: Map<Item, {all: number, measure: import("./measures.js").Measure | null} & {w: boolean}>, contextual: Map<Item, Map<string, {all: number, measure: import("./measures.js").Measure | null} & {w: boolean}>>}} */
+      /** @type {{plain:Map<Item,CountSummary>,contextual:Map<Item,Map<string,CountSummary>>}} */
       this.counts = { plain: new Map(), contextual: new Map() };
       /** @type {Map<Item, RopeLeaf>} */
       this.closes = new Map();
@@ -18246,113 +18306,115 @@
     // of the other are not yet decided and are kept side by side; everything
     // else is settled here, so the list stays short.
     // Candidates preserve their cycle and admission context.
-    /**
-     * @param {Item} item
-     * @returns {Candidate[]}
-     */
-    candidateSummary(item) {
-      return this.traverse(item, this.memo, (current, dependency, key) => {
-        // Under profiles, only the edges that attain the greatest profile of
-        // the item in its context (engine §6).
-        const summary = this.profiles ? this.summaryAt(current, key) : null;
-        const admitted = this.admission?.mask(current, key);
-        /** @type {Candidate[]} */
-        let all = [];
-        // The getter builds the list on each read, so it is read once.
-        current.edges.forEach((edge, index, edges) => {
-          // A fault skips the last of two or more edges in the check (lost:select).
-          if (this.check && index > 0 && index === edges.length - 1 && fault("lost:select")) return;
-          const inAll = (summary === null || summary.kept.has(index)) && (!admitted || admitted.has(index));
-          if (!inAll) return;
-          /** @type {Candidate[]} */
-          let produced;
-          if (edge.kind === "seed") produced = [{ seq: EMPTY, alts: [], at: Infinity }];
-          // A restoration reads its synthetic token, and its own close
-          // follows (engine §7.4, §7.7).
-          // A fault gives a restoration no derivation in the ranking
-          // (lost:rank), here and in the summaries and the counts below.
-          else if (edge.kind === "restore") produced = fault("lost:rank", "candidates") ? [] : [{ seq: this.readLeaf(edge.token, edge.terminal), alts: [], at: Infinity }];
-          else if (edge.kind === "scan") {
-            const read = this.readLeaf(edge.token, edge.terminal);
-            produced = dependency(edge.previous).map((entry) => extend(entry, read));
-          } else {
-            const close = this.closeLeaf(edge.child);
-            const children = dependency(edge.child).map((entry) => extend(entry, close));
-            const earlier = dependency(edge.previous);
-            produced = [];
-            for (const before of earlier) {
-              for (const child of children) {
-                // A derivation tied with the combination differs from it first
-                // either in the earlier part or in the child.
-                /** @type {Candidate} */
-                let entry = { seq: concat(before.seq, child.seq), alts: [], at: Infinity };
-                for (const alt of before.alts) entry = this.offer(entry, concat(alt, child.seq), before.at);
-                for (const alt of child.alts) entry = this.offer(entry, concat(before.seq, alt), addCount(before.seq.size, child.at));
+    /** @param {Item} item @returns {Candidate[]} */
+    candidateSummary(item){return this.candidatePair(item).ordinary;}
+
+    /** @param {Item} item @param {TraversalContext} [context] @returns {ActionPair} */
+    candidatePair(item,context=EMPTY_CONTEXT) {
+      if(this.admission)this.countOf(item,context);
+      if(this.profiles)this.profileSummary(item,context);
+      return this.traverse(item,this.memo,(current,dependency,key)=>{
+        const summary=this.profiles?this.summaryAt(current,key):null;
+        const edges=current.edges,admitted=this.admission?.mask(current,key);
+        /** @type {ActionPair} */
+        const result={ordinary:[],canonical:[],measure:summary?(summary.canonical.profile?/** @type {import("./measures.js").Measure} */(summary.canonical.profile.slice(0,3)):null):ZERO_MEASURE};
+        for(const group of this.erasures.groups(edges,admitted)){
+          const index=group.indices[0],edge=edges[index];
+          if(this.check&&index>0&&index===edges.length-1&&fault('lost:select'))continue;
+          if(summary&&!group.indices.some(index=>summary.ordinary.kept.has(index)||summary.canonical.kept.has(index)))continue;
+          const erased=group.erased?this.erasedChoice(group.indices.map(index=>/** @type {CompletionEdge} */(edges[index]).child),dependency):null;
+          for(const channel of /** @type {const} */(['ordinary','canonical'])){
+            if(summary&&!group.indices.some(index=>summary[channel].kept.has(index)))continue;
+            /** @type {Candidate[]} */ let produced=[];
+            if(edge.kind==='seed')produced=[{seq:EMPTY,alts:[],at:Infinity}];
+            else if(edge.kind==='restore')produced=fault('lost:rank','candidates')?[]:[{seq:this.readLeaf(edge.token,edge.terminal),alts:[],at:Infinity}];
+            else if(edge.kind==='scan')produced=dependency(edge.previous)[channel].map(entry=>extend(entry,this.readLeaf(edge.token,edge.terminal)));
+            else {
+              const children=group.erased?(erased?[{seq:erased,alts:[],at:Infinity}]:[]):dependency(edge.child)[channel].map(entry=>extend(entry,this.closeLeaf(edge.child)));
+              for(const before of dependency(edge.previous)[channel])for(const child of children){
+                /** @type {Candidate} */ let entry={seq:concat(before.seq,child.seq),alts:/** @type {Rope[]} */([]),at:Infinity};
+                if(channel==='ordinary'){
+                  for(const alt of before.alts)entry=this.offer(entry,concat(alt,child.seq),before.at);
+                  for(const alt of child.alts)entry=this.offer(entry,concat(before.seq,alt),addCount(before.seq.size,child.at));
+                }
                 produced.push(entry);
               }
             }
+            for(const entry of produced)result[channel]=this.keep(result[channel],entry,channel==='canonical');
           }
-          for (const entry of produced) {
-            all = this.keep(all, entry);
-          }
-        });
-        return all;
-      }, [], this.profiles ? (current, key) => this.keptEdges(current, key) : null);
+        }
+        return result;
+      },{ordinary:[],canonical:[],measure:null},this.profiles?(current,key)=>this.keptEdges(current,key):null,context);
     }
 
-    // Each context holds its greatest profile and retained edges.
-    /**
-     * @param {Item} item
-     * @returns {ElisionSummary}
-     */
-    profileSummary(item) {
-      const space = this.space;
-      return this.traverse(item, this.summaries, (current, dependency, key) => {
-        const all = noDerivation();
-        const admitted = this.admission?.mask(current, key);
-        current.edges.forEach((edge, index) => {
-          if (admitted && !admitted.has(index)) return;
-          /** @type {Profile} */
-          let profile;
-          let least;
-          let total;
-          if (edge.kind === "seed" || edge.kind === "restore") {
-            // The helper of an elidable optional that derives ε elides its
-            // terminator where it is empty. A restoration elides nothing.
-            profile = edge.kind === "seed" && isElided(current) && this.profileProject === null
-              ? space.occurrence({terminal:current.production.elided,tags:new Set([current.production.elided,'_Elided']),value:''},current.origin,current.origin) : space.zero;
-            least = 1;
-            total = 1;
-          } else if (edge.kind === "scan") {
-            const before = dependency(edge.previous);
-            if (before.total === 0) return;
-            const p = this.profileProject?.[edge.token] ?? edge.token;
-            const q = this.profileProject?.[edge.token+1] ?? edge.token+1;
-            const token = this.tokens[edge.token];
-            profile = p < q ? space.sum(/** @type {Profile} */ (before.profile),space.occurrence({terminal:edge.terminal,tags:token.tags,value:token.value},p,q)) : /** @type {Profile} */ (before.profile);
-            profile=space.charge(profile,this.measures.carried[edge.token]);
-            least = before.least;
-            total = before.total;
-          } else {
-            const before = dependency(edge.previous);
-            const child = dependency(edge.child);
-            if (before.total === 0 || child.total === 0) return;
-            profile = space.sum(/** @type {Profile} */ (before.profile), /** @type {Profile} */ (child.profile));
-            least = Math.min(2, before.least * child.least);
-            total = Math.min(2, before.total * child.total);
+    /** @param {Item[]} items @param {(item:Item)=>ActionPair} dependency @returns {Rope|null} */
+    erasedChoice(items,dependency){
+      /** @type {import('./measures.js').Measure|null} */ let measure=null;
+      /** @type {Rope|null} */ let best=null;
+      for(const item of items){
+        const pair=dependency(item);
+        if(!pair.canonical.length||pair.measure===null)continue;
+        const order=measure===null?-1:compareMeasure(pair.measure,measure);
+        if(order>0)continue;
+        if(order<0){measure=/** @type {import('./measures.js').Measure} */(pair.measure);best=null;}
+        for(const entry of pair.canonical){
+          const seq=concat(entry.seq,this.closeLeaf(item));
+          if(best===null||totalOrder(seq,best,'none')<0)best=seq;
+        }
+      }
+      return best;
+    }
+
+    /** @param {Item} item @param {TraversalContext} [context] @returns {SummaryPair} */
+    profileSummary(item,context=EMPTY_CONTEXT) {
+      const space=this.space;
+      return this.traverse(item,this.summaries,(current,dependency,key)=>{
+        const result={ordinary:noDerivation(),canonical:noDerivation()};
+        const edges=current.edges,admitted=this.admission?.mask(current,key);
+        for(const group of this.erasures.groups(edges,admitted)){
+          const edge=edges[group.indices[0]];
+          for(const channel of /** @type {const} */(['ordinary','canonical'])){
+            /** @type {Profile} */ let profile;
+            let least,total;
+            if(edge.kind==='seed'||edge.kind==='restore'){
+              profile=channel==='ordinary'&&edge.kind==='seed'&&isElided(current)&&this.profileProject===null
+                ?space.occurrence({terminal:current.production.elided,tags:new Set([current.production.elided,'_Elided']),value:''},current.origin,current.origin):space.zero;
+              least=total=1;
+            }else if(edge.kind==='scan'){
+              const before=dependency(edge.previous)[channel];if(!before.total)continue;
+              const p=this.profileProject?.[edge.token]??edge.token,q=this.profileProject?.[edge.token+1]??edge.token+1,token=this.tokens[edge.token];
+              profile=/** @type {Profile} */(before.profile);
+              if(channel==='ordinary'&&p<q)profile=space.sum(profile,space.occurrence({terminal:edge.terminal,tags:token.tags,value:token.value},p,q));
+              profile=space.charge(profile,this.measures.carried[edge.token]);least=before.least;total=before.total;
+            }else{
+              const before=dependency(edge.previous)[channel];if(!before.total)continue;
+              const children=group.indices.map(index=>dependency(/** @type {CompletionEdge} */(edges[index]).child));
+              if(group.erased){
+                if(!children.some(child=>child.canonical.total))continue;
+                profile=space.sum(/** @type {Profile} */(before.profile),channel==='ordinary'?this.erasedProfile(edge.child):space.zero);
+                least=before.least;total=before.total;
+              }else{
+                const child=children[0][channel];if(!child.total)continue;
+                profile=space.sum(/** @type {Profile} */(before.profile),/** @type {Profile} */(child.profile));
+                least=Math.min(2,before.least*child.least);total=Math.min(2,before.total*child.total);
+              }
+            }
+            if(channel==='ordinary'&&current.complete&&!current.production.helper){
+              const p=this.profileProject?.[current.origin]??current.origin,q=this.profileProject?.[current.end]??current.end;
+              if(p<q)profile=space.sum(space.occurrence({name:current.production.lhs,tags:this.interner?.get(current.tagId)??new Set()},p,q),profile);
+            }
+            if(current.complete&&current.production.error)profile=space.charge(profile,this.measures.own(current.origin,current.end));
+            addEdge(space,result[channel],group.indices,least,total,profile);
           }
-          // A completed nonempty occurrence of the production's rule counts
-          // when the step matches it, before its children (engine §6).
-          if (current.dot === current.production.rhs.length && !current.production.helper) {
-            const p = this.profileProject?.[current.origin] ?? current.origin;
-            const q = this.profileProject?.[current.end] ?? current.end;
-            if (p < q) profile = space.sum(space.occurrence({name:current.production.lhs,tags:this.interner?.get(current.tagId) ?? new Set()}, p, q), profile);
-          }
-          if (current.dot===current.production.rhs.length && current.production.error) profile=space.charge(profile,this.measures.own(current.origin,current.end));
-          if (!admitted || admitted.has(index)) addEdge(space, all, index, least, total, profile);
-        });
-        return all;
-      }, noDerivation());
+        }
+        return result;
+      },{ordinary:noDerivation(),canonical:noDerivation()},null,context);
+    }
+
+    /** The external profile contains only the erased root. @param {Item} item @returns {Profile} */
+    erasedProfile(item){
+      const p=this.profileProject?.[item.origin]??item.origin,q=this.profileProject?.[item.end]??item.end;
+      return !item.production.helper&&p<q?this.space.occurrence({name:item.production.lhs,tags:this.interner?.get(item.tagId)??new Set()},p,q):this.space.zero;
     }
 
     /**
@@ -18360,7 +18422,7 @@
      * profileSummary has already computed.
      * @param {Item} item
      * @param {string} key
-     * @returns {ElisionSummary}
+     * @returns {SummaryPair}
      */
     summaryAt(item, key) {
       const found = key === "" ? this.summaries.plain.get(item) : this.summaries.contextual.get(item)?.get(key);
@@ -18376,7 +18438,7 @@
      */
     keptEdges(item, key) {
       const summary = this.summaryAt(item, key);
-      return item.edges.filter((_, index) => summary.kept.has(index));
+      return item.edges.filter((_, index) => (summary.ordinary.kept.has(index)||summary.canonical.kept.has(index)));
     }
 
     /**
@@ -18450,9 +18512,10 @@
     /**
      * @param {Candidate[]} kept
      * @param {Candidate} entry
+     * @param {boolean} [canonical]
      * @returns {Candidate[]}
      */
-    keep(kept, entry) {
+    keep(kept, entry, canonical=false) {
       const lean = this.lean;
       /** @type {Candidate[]} */
       const result = [];
@@ -18461,6 +18524,11 @@
       for (const other of kept) {
         if (current === null) {
           result.push(other);
+          continue;
+        }
+        if(canonical){
+          if(!orderSettled(other.seq,current.seq)){result.push(other);continue;}
+          if(totalOrder(other.seq,current.seq,"none")<=0){result.push(other);current=null;}
           continue;
         }
         const difference = firstDifference(other.seq, current.seq, true);
@@ -18510,65 +18578,139 @@
       return this.countOf(item).all;
     }
 
-    /**
-     * The number of an item's best-measure derivations, capped at two. With witness marks, `w`
-     * says whether the count includes a derivation made of marked edges
-     * only (tests/README.md). The same loop decides both, over the same
-     * edges, so any choice that drops W(D) from the count drops it from `w`.
-     * A dependency that closes a cycle has no derivation, and no `w`.
-     * @param {Item} item
-     * @returns {{all: number, measure: import("./measures.js").Measure | null} & {w: boolean}}
-     */
-    countOf(item) {
-      const marks = this.marks;
-      return this.traverse(item, this.counts, (current, dependency, key) => {
-        const marked = marks === null ? undefined : marks.get(current.slotOriginal ?? current);
-        const edges = current.edges;
-        const admitted = this.admission?.compute(current, dependency, key);
-        let all = 0;
-        let measure = /** @type {import("./measures.js").Measure|null} */ (null);
-        let w = false;
-        for (let index = 0; index < edges.length; index++) {
-          const edge = edges[index];
-          if (admitted && !admitted.has(index)) continue;
-          let ways;
-          let edgeMeasure;
-          let edgeW;
-          if (edge.kind === "restore" && fault("lost:rank", "count")) continue;
-          // A fault skips the last of two or more edges in the check
-          // (lost:context).
-          if (this.check && index > 0 && index === edges.length - 1 && fault("lost:context")) continue;
-          if (edge.kind === "seed" || edge.kind === "restore") {
-            ways = 1;
-            edgeMeasure = ZERO_MEASURE;
-            edgeW = true;
-          } else if (edge.kind === "scan") {
-            const before = dependency(edge.previous);
-            ways = before.all;
-            if(!ways)continue;
-            edgeMeasure = sumMeasure(/** @type {import("./measures.js").Measure} */(before.measure),this.measures.carried[edge.token]);
-            edgeW = before.w;
-          } else {
-            const before = dependency(edge.previous);
-            const child = dependency(edge.child);
-            ways = before.all * child.all;
-            if(!ways)continue;
-            edgeMeasure = sumMeasure(/** @type {import("./measures.js").Measure} */(before.measure),/** @type {import("./measures.js").Measure} */(child.measure));
-            edgeW = before.w && child.w;
+    /** @param {Item} item @param {TraversalContext} [context] @returns {CountSummary} */
+    countOf(item,context=EMPTY_CONTEXT) {
+      const marks=this.marks;
+      return this.traverse(item,this.counts,(current,dependency,key)=>{
+        const marked=marks===null?undefined:marks.get(current.slotOriginal??current);
+        const edges=current.edges,admitted=this.admission?.compute(current,dependency,key);
+        let all=0,w=false,member=false;
+        /** @type {import('./measures.js').Measure|null} */ let measure=null;
+        for(const group of this.erasures.groups(edges,admitted)){
+          const index=group.indices[0],edge=edges[index];
+          if(edge.kind==='restore'&&fault('lost:rank','count'))continue;
+          if(this.check&&index>0&&index===edges.length-1&&fault('lost:context'))continue;
+          const owns=(/** @type {number} */ index)=>marked?.has(this.admission?.forest?.rawIndices.get(edges[index])??index)??false;
+          let ways,edgeW,edgeMember;
+          /** @type {import('./measures.js').Measure} */ let edgeMeasure;
+          if(edge.kind==='seed'||edge.kind==='restore'){
+            ways=1;edgeMeasure=ZERO_MEASURE;edgeW=edgeMember=owns(index);
+          }else if(edge.kind==='scan'){
+            const before=dependency(edge.previous);ways=before.all;if(!ways)continue;
+            edgeMeasure=sumMeasure(/** @type {import('./measures.js').Measure} */(before.measure),this.measures.carried[edge.token]);
+            edgeW=before.w&&owns(index);edgeMember=before.member&&owns(index);
+          }else{
+            const before=dependency(edge.previous);if(!before.all)continue;
+            if(group.erased){
+              const children=group.indices.map(index=>({index,summary:dependency(/** @type {CompletionEdge} */(edges[index]).child)})).filter(child=>child.summary.all);
+              if(!children.length)continue;
+              const included=children.some(child=>child.summary.member&&owns(child.index));
+              ways=before.all;edgeMeasure=/** @type {import('./measures.js').Measure} */(before.measure);
+              edgeW=before.w&&included;edgeMember=before.member&&included;
+            }else{
+              const child=dependency(edge.child);ways=before.all*child.all;if(!ways)continue;
+              edgeMeasure=sumMeasure(/** @type {import('./measures.js').Measure} */(before.measure),/** @type {import('./measures.js').Measure} */(child.measure));
+              edgeW=before.w&&child.w&&owns(index);edgeMember=before.member&&child.member&&owns(index);
+            }
           }
-          if (!ways) continue;
-          if (current.dot===current.production.rhs.length && current.production.error) edgeMeasure=sumMeasure(edgeMeasure,this.measures.own(current.origin,current.end));
+          member ||= edgeMember;
+          if(current.complete&&current.production.error)edgeMeasure=sumMeasure(edgeMeasure,this.measures.own(current.origin,current.end));
           const order=measure===null?-1:compareMeasure(edgeMeasure,measure);
           if(order>0)continue;
           if(order<0){measure=edgeMeasure;all=0;w=false;}
-          if (marked !== undefined && ways > 0 && edgeW && marked.has(this.admission?.forest?.rawIndices.get(edge) ?? index)) w = true;
-          all = Math.min(2, all + ways);
-          // A zero-measure count cannot lose to a later edge. It can stop at two,
-          // but with marks only once `w` is known.
-          if (all === 2 && edgeMeasure[2] === 0 && (marked === undefined || w)) break;
+          w ||= edgeW;all=Math.min(2,all+ways);
         }
-        return { all, measure, w };
-      }, { all: 0, measure:null, w: false });
+        return {all,measure,w,member};
+      },{all:0,measure:null,w:false,member:false},null,context);
+    }
+
+    /** @param {{item:Item,context:TraversalContext}} frame @param {Item} item @returns {TraversalContext} */
+    contextBelow(frame,item){
+      const group=this.groups;
+      const ruleKey=(/** @type {Item} */ item)=>`\u0000${item.production.spliceOf??item.production.lhs}`;
+        if (!this.sameSpan(frame.item, item)) return EMPTY_CONTEXT;
+        if(item.slotScope && item.production.helper && !item.production.spliceOf){
+          const helpers=/** @type {NonNullable<import("./ranked-admission.js").RankedAdmission["forest"]>} */ (this.admission?.forest).helpers;
+          const kept=new Set([...frame.context].filter(key=>!helpers.has(key.slice(1))));
+          if(frame.item.complete&&(!frame.item.production.helper || frame.item.production.spliceOf))kept.add(ruleKey(frame.item));
+          return kept.size?kept:EMPTY_CONTEXT;
+        }
+        const own = group(item.production.spliceOf ?? item.production.lhs);
+        if (own === undefined) return EMPTY_CONTEXT;
+        /** @type {TraversalContext} */
+        const context = new Set();
+        for (const key of frame.context) {
+          if (hooks.work) countWork(hooks.work, "traversal");
+          if (group(key.slice(1)) === own) context.add(key);
+        }
+        if (frame.item.complete && group(frame.item.production.spliceOf ?? frame.item.production.lhs) === own) context.add(ruleKey(frame.item));
+        return context.size === 0 ? EMPTY_CONTEXT : context;
+    }
+    /** @param {TraversalContext} context */
+    contextKey(context){
+      const keys=[];
+      for(const key of context){if(hooks.work)countWork(hooks.work,"traversal");keys.push(key);}
+      return keys.sort().join("\u0001");
+    }
+
+    /**
+     * Replace only erased interiors of concrete W(D). Every outer choice
+     * follows the walk's coherent proof, not a union of witness marks (§7.10).
+     * @param {import('./witness.js').WitnessProof} proof
+     * @returns {Rope|null}
+     */
+    witnessRepresentative(proof){
+      /** @typedef {{proof:import('./witness.js').WitnessProof,item:Item,context:TraversalContext,parts:(Rope|WitnessFrame)[]|null,result:Rope|null}} WitnessFrame */
+      const item=this.admission?.forest?.plain.get(proof.item)??proof.item;
+      if(item.production.erased){
+        const items=this.rankingRoots.filter(other=>other.production.erased&&this.erasures.key(other)===this.erasures.key(item));
+        return this.erasedChoice(items,child=>this.candidatePair(child));
+      }
+      /** @type {WitnessFrame} */ const root={proof,item,context:EMPTY_CONTEXT,parts:null,result:null};
+      const stack=[root];
+      while(stack.length){
+        const frame=stack[stack.length-1];
+        if(frame.parts===null){
+          frame.parts=[];
+          if(frame.item.restores){frame.parts.push(this.readLeaf(frame.item.origin,/** @type {string} */(frame.item.production.elided)));continue;}
+          let current=frame.item,context=frame.context;
+          for(let index=frame.proof.links.length-1;index>=0;index--){
+            const link=frame.proof.links[index];
+            if((current.slotOriginal??current)!==link.item)return null;
+            this.countOf(current,context);
+            const admitted=this.admission?.mask(current,this.contextKey(context));
+            const edges=current.edges;
+            const number=link.index;
+            if(!edges[number]||(this.admission?.forest?.rawIndices.get(edges[number])??number)!==link.index||admitted&&!admitted.has(number))return null;
+            const edge=edges[number];
+            if(edge.kind==='scan')frame.parts.push(this.readLeaf(edge.token,edge.terminal));
+            else if(edge.kind==='complete'){
+              if(!link.child)return null;
+              if(edge.child.production.erased){
+                const group=this.erasures.groups(edges,admitted).find(group=>group.indices.includes(number));
+                if(!group)return null;
+                const children=group.indices.map(index=>/** @type {CompletionEdge} */(edges[index]).child);
+                const parent={item:current,context};
+                const seq=this.erasedChoice(children,child=>this.candidatePair(child,this.contextBelow(parent,child)));
+                if(!seq)return null;
+                frame.parts.push(seq);
+              }else frame.parts.push({proof:link.child,item:edge.child,context:this.contextBelow({item:current,context},edge.child),parts:null,result:null});
+            }else return null;
+            context=this.contextBelow({item:current,context},edge.previous);current=edge.previous;
+          }
+          frame.parts.reverse();
+          for(const part of frame.parts.slice().reverse())if('proof'in part)stack.push(part);
+          continue;
+        }
+        let seq=EMPTY;
+        for(const part of frame.parts){
+          const next='proof'in part?part.result:part;
+          if(!next)return null;
+          seq=concat(seq,next);
+        }
+        frame.result=concat(seq,this.closeLeaf(frame.item));stack.pop();
+      }
+      return root.result;
     }
 
     // Computes `combine(item, dependency)` for an item after every item it
@@ -18591,9 +18733,10 @@
      * @param {T} cut the value of a dependency that would close a cycle
      * @param {((item: Item, key: string) => import("./types.js").Edge[]) | null} [edgesOf]
      *   the edges whose children `combine` reads, if not all
+     * @param {TraversalContext} [initialContext]
      * @returns {T}
      */
-    traverse(root, memo, combine, cut, edgesOf = null) {
+    traverse(root, memo, combine, cut, edgesOf = null, initialContext=EMPTY_CONTEXT) {
       /** @type {(item: Item, key: string) => Item[]} */
       const dependenciesOf = (item, key) => {
         /** @type {Item[]} */
@@ -18638,38 +18781,8 @@
       // rule can complete again over the same span below the item. Keyed by
       // every rule above, the contexts would still differ by path wherever
       // two rules lead to the same one.
-      const group = this.groups;
-      /** @type {(frame: Frame, item: Item) => TraversalContext} */
-      const contextBelow = (frame, item) => {
-        if (!this.sameSpan(frame.item, item)) return EMPTY_CONTEXT;
-        if(item.slotScope && item.production.helper && !item.production.spliceOf){
-          const helpers=/** @type {NonNullable<import("./ranked-admission.js").RankedAdmission["forest"]>} */ (this.admission?.forest).helpers;
-          const kept=new Set([...frame.context].filter(key=>!helpers.has(key.slice(1))));
-          if(complete(frame.item)&&(!frame.item.production.helper || frame.item.production.spliceOf))kept.add(ruleKey(frame.item));
-          return kept.size?kept:EMPTY_CONTEXT;
-        }
-        const own = group(item.production.spliceOf ?? item.production.lhs);
-        if (own === undefined) return EMPTY_CONTEXT;
-        /** @type {TraversalContext} */
-        const context = new Set();
-        for (const key of frame.context) {
-          if (hooks.work) countWork(hooks.work, "traversal");
-          if (group(key.slice(1)) === own) context.add(key);
-        }
-        if (complete(frame.item) && group(frame.item.production.spliceOf ?? frame.item.production.lhs) === own) context.add(ruleKey(frame.item));
-        return context.size === 0 ? EMPTY_CONTEXT : context;
-      };
-      /** @type {(context: TraversalContext) => string} */
-      const contextKey = (context) => {
-        if (context.size === 0) return "";
-        /** @type {string[]} */
-        const keys = [];
-        for (const key of context) {
-          if (hooks.work) countWork(hooks.work, "traversal");
-          keys.push(key);
-        }
-        return keys.sort().join("\u0001");
-      };
+      const contextBelow=(/** @type {Frame} */ frame,/** @type {Item} */ item)=>this.contextBelow(frame,item);
+      const contextKey=(/** @type {TraversalContext} */ context)=>this.contextKey(context);
       /**
        * @typedef {object} Frame
        * @property {Item} item
@@ -18680,7 +18793,7 @@
        * @property {Item[]} [pending]
        */
       /** @type {Frame[]} */
-      const stack = [{ item: root, context: EMPTY_CONTEXT, results: new Map(), started: false }];
+      const stack = [{ item: root, context: initialContext, results: new Map(), started: false }];
       /** @type {T} */
       let answer = cut;
       /** @type {(value: T) => void} */
@@ -18748,9 +18861,9 @@
         if (hooks.work) countWork(hooks.work, "groups");
         if (seen.has(item)) continue;
         seen.add(item);
-        if (!this.configured && (this.space.steps.length || item.production.error) && !this.profileProductions.has(item.production)) {
+        if (!this.configured && (this.space.steps.length || (item.production.error || item.production.erased)) && !this.profileProductions.has(item.production)) {
           this.profileProductions.add(item.production);
-          if (item.production.error) this.profiles=true;
+          if (item.production.error || item.production.erased) this.profiles=true;
           if (!item.production.helper && this.space.possible({name:item.production.lhs})) this.profiles = true;
           if (isElided(item) && this.space.possible({terminal:item.production.elided,tags:new Set([item.production.elided,'_Elided']),value:''})) this.profiles = true;
           for (const symbol of item.production.rhs) if (symbol.terminal && this.space.possible({terminal:symbol.name})) this.profiles = true;
@@ -18840,10 +18953,12 @@
     rank(roots) {
       const forest = this.admission?.forest;
       if (forest) roots = roots.map(item => /** @type {Item} */ (forest.plain.get(item)));
+      this.rankingRoots=roots;
       this.groupRules(this.admission ? [...roots, ...this.admission.at.keys()] : roots);
       if (this.admission) for (const root of roots) this.countOf(root);
       let count;
       let ranked = roots;
+      const rootGroups=this.erasures.roots(roots);
       let tied = false;
       /** @type {Profile} */
       let profile = this.space.zero;
@@ -18852,13 +18967,19 @@
       if (this.profiles) {
         // Every complete item of `text` is an edge of one root (engine §6).
         const root = noDerivation();
-        roots.forEach((item, index) => {
-          const summary = this.profileSummary(item);
-          if (summary.total > 0) addEdge(this.space, root, index, summary.least, summary.total, /** @type {Profile} */ (summary.profile));
-        });
+        for(const indices of rootGroups){
+          const item=roots[indices[0]];
+          const summaries=indices.map(index=>this.profileSummary(roots[index]));
+          if(item.production.erased){
+            if(summaries.some(summary=>summary.canonical.total))addEdge(this.space,root,indices,1,1,this.erasedProfile(item));
+          }else{
+            const summary=summaries[0].ordinary;
+            if(summary.total>0)addEdge(this.space,root,indices,summary.least,summary.total,/** @type {Profile} */(summary.profile));
+          }
+        }
         if (this.marks !== null) {
           const marks = this.marks;
-          witnessCounted = roots.some((item) => marks.has(item.slotOriginal ?? item) && this.countOf(item).w);
+          witnessCounted = roots.some((item) => marks.has(item.slotOriginal ?? item) && (item.production.erased?this.countOf(item).member:this.countOf(item).w));
         }
         profile = /** @type {Profile} */ (root.profile);
         count = root.total;
@@ -18870,12 +18991,20 @@
         // have it (tests/README.md).
         if (this.marks !== null) {
           const marks = this.marks;
-          witnessCounted = roots.some((item) => marks.has(item.slotOriginal ?? item) && this.countOf(item).w);
+          witnessCounted = roots.some((item) => marks.has(item.slotOriginal ?? item) && (item.production.erased?this.countOf(item).member:this.countOf(item).w));
         }
       }
       /** @type {Candidate[]} */
       let kept = [];
-      for (const root of ranked) for (const entry of this.full(root)) kept = this.keep(kept, entry);
+      const retained=new Set(ranked);
+      for(const indices of rootGroups){
+        const items=indices.map(index=>roots[index]).filter(item=>retained.has(item));
+        if(!items.length)continue;
+        if(items[0].production.erased){
+          const seq=this.erasedChoice(items,item=>this.candidatePair(item));
+          if(seq)kept=this.keep(kept,{seq,alts:[],at:Infinity});
+        }else for(const entry of this.full(items[0]))kept=this.keep(kept,entry);
+      }
       // At the root nothing follows: candidates still undecided are tied
       // (engine §6), and T orders them.
       if (kept.length === 0) return null;
@@ -18906,7 +19035,7 @@
         witness = difference ? [difference.left, difference.right] : null;
       }
       if (this.admission && hooks.slotAdmission) hooks.slotAdmission(this.admission.stats);
-      return { verdict, first: main.seq, second, witness, witnessCounted, profile };
+      return { verdict, first: main.seq, second, witness, witnessCounted, profile,rawWitnessCounted:this.marks===null?null:roots.some(item=>this.countOf(item).member) };
     }
   }
 
@@ -19025,12 +19154,12 @@
   /**
    * @param {Profiles} space
    * @param {ElisionSummary} summary
-   * @param {number} index
+   * @param {number[]} indices
    * @param {number} least
    * @param {number} total
    * @param {Profile} profile
    */
-  function addEdge(space, summary, index, least, total, profile) {
+  function addEdge(space, summary, indices, least, total, profile) {
     const measureOrder=summary.profile===null?-1:compareMeasure(profile,summary.profile);
     if(measureOrder<0)summary.total=total;
     else if(measureOrder===0)summary.total=Math.min(2,summary.total+total);
@@ -19038,10 +19167,10 @@
     if (order < 0) {
       summary.profile = profile;
       summary.least = least;
-      summary.kept = new Set([index]);
+      summary.kept = new Set(indices);
     } else if (order === 0) {
       summary.least = Math.min(2, summary.least + least);
-      summary.kept.add(index);
+      for(const index of indices)summary.kept.add(index);
     }
   }
 
@@ -19315,6 +19444,10 @@
       const measures=this.measures && this.measures.sources.tokens===tokens?this.measures:new Measures(tokens);
       const pending=[root];
       for (let node=pending.pop();node;node=pending.pop()) {
+        if (!("read" in node) && node.production.erased){
+          if(!node.production.helper&&node.start<node.end)profile=this.sum(profile,this.occurrence({name:node.production.lhs,tags:this.interner?.get(node.item.tagId)??new Set()},node.start,node.end));
+          continue;
+        }
         if (!("read" in node) && node.production.error) profile=this.charge(profile,measures.own(node.start,node.end));
         if (node.start >= node.end) continue;
         if ('read' in node) {
@@ -19550,6 +19683,7 @@
     compute(item,dependency,context) {
       const choices = this.at.get(item);
       if (!choices) return null;
+      const measure=(/** @type {any} */ item)=>item.complete&&item.production.erased?ZERO_MEASURE:dependency(item).measure;
       const key = this.availabilityKey(item,context), mask = new Set();
       for (const [index,{group,candidate}] of choices) {
         let contexts = this.qualified.get(group);
@@ -19559,7 +19693,7 @@
           const viable = group.filter((/** @type {any} */ proof) => dependency(proof.edge.previous).all && dependency(proof.edge.child).all);
           kept = new Set(viable.filter((/** @type {any} */ proof) => !viable.some((/** @type {any} */ higher) =>
             higher.option < proof.option &&
-            compareMeasure(sumMeasure(dependency(higher.edge.previous).measure,dependency(higher.edge.child).measure),sumMeasure(dependency(proof.edge.previous).measure,dependency(proof.edge.child).measure)) <= 0 && boundaryDominates(higher.open,proof.open))));
+            compareMeasure(sumMeasure(measure(higher.edge.previous),measure(higher.edge.child)),sumMeasure(measure(proof.edge.previous),measure(proof.edge.child))) <= 0 && boundaryDominates(higher.open,proof.open))));
           if ([...kept].some(proof => viable.some((/** @type {any} */ higher) => higher.option < proof.option))) this.reportSplit(group);
           contexts.set(key,kept);
         }
@@ -19582,11 +19716,13 @@
   }
 
   // ---- witness.js
+  /** @typedef {{item:import("./types.js").Item,links:{item:import("./types.js").Item,index:number,child:WitnessProof|null}[]}} WitnessProof */
   /**
    * The restored chosen derivation's matched edge indices and action sequence.
    * @typedef {object} Walk
    * @property {Map<import("./types.js").Item, Set<number>>} marks
    * @property {import("./types.js").Action[]} sequence
+   * @property {WitnessProof} proof
    */
 
   /**
@@ -19718,24 +19854,35 @@
     // Bind one coherent proof to its actual reconstruction entry frames.
     /** @type {Map<import("./types.js").Derivation, import("./types.js").Item>} */
     const bound = new Map();
+    /** @type {Map<import("./types.js").Derivation,WitnessProof>} */
+    const proofs=new Map();
     /** @type {{node:import("./types.js").DerivationRule,item:import("./types.js").Item}[]} */
     const bind = [{node:/** @type {import("./types.js").DerivationRule} */ (chosen),item:/** @type {import("./types.js").Item} */ (roots.find(item => top.has(item)))}];
     while (bind.length) {
       const {node,item} = /** @type {NonNullable<ReturnType<typeof bind.pop>>} */ (bind.pop());
       bound.set(node,item);
+      proofs.set(node,{item,links:[]});
       if (witnessElided(node)) continue;
       let current = item;
       for (let index = node.children.length-1; index >= 0; index--) {
         const child = node.children[index];
-        const edge = current.edges.find((edge, number) => marks.get(current)?.has(number) && (
+        const edges=current.edges;
+        const edgeIndex = edges.findIndex((edge, number) => marks.get(current)?.has(number) && (
           "read" in child
             ? edge.kind === "scan" && edge.token === spanOf(child)[0] && edge.terminal === child.read.terminal
             : edge.kind === "complete" && found.get(child)?.has(edge.child)
         ));
+        const edge=edges[edgeIndex];
         if (!edge || !("previous" in edge)) return null;
         if (edge.kind === "complete") bind.push({node:/** @type {import("./types.js").DerivationRule} */ (child),item:edge.child});
+        /** @type {WitnessProof} */(proofs.get(node)).links.push({item:current,index:edgeIndex,child:null});
         current = edge.previous;
       }
+      /** @type {WitnessProof} */(proofs.get(node)).links.reverse();
+    }
+    for(const node of order)if(!("read" in node)&&!witnessElided(node)){
+      const proof=/** @type {WitnessProof} */(proofs.get(node));
+      for(let index=0;index<node.children.length;index++)if(!("read" in node.children[index]))proof.links[index].child=proofs.get(node.children[index])??null;
     }
     // Build actions after visiting each node's children, without ranking.
     // Each restoration reads its synthetic token and closes over it.
@@ -19751,7 +19898,7 @@
       const item = /** @type {import("./types.js").Item} */ (bound.get(node));
       sequence.push({ kind: "close", item });
     }
-    return { marks, sequence };
+    return { marks, sequence,proof:/** @type {WitnessProof} */(proofs.get(chosen)) };
   }
 
   /**
@@ -20258,7 +20405,7 @@
       }
       const rawRanking = raw.rank(roots);
       let ranking = raw === ranker ? rawRanking : ranker.rank(roots);
-      if (fault("lost:count") || rawRanking?.witnessCounted !== true) ranking = null;
+      if (fault("lost:count") || rawRanking?.rawWitnessCounted !== true) ranking = null;
       if (fault("F23")) {
         // A fault leaves the main grammar in the mode of the check.
         for (const [name, productions] of lowered.byLhs) {
@@ -20270,8 +20417,10 @@
         return old ? { kind: "pass" } : { kind: "lost", completion: records };
       }
       const profileOrder = ranker.profiles ? ranker.space.compare(ranking.profile, ranker.space.derivationProfile(chosen, tokens)) : 0;
-      const restoredWitness = ropeOf(walk.sequence);
       const excluded = ranking.witnessCounted !== true;
+      const representative=excluded?null:ranker.witnessRepresentative(walk.proof);
+      if(!excluded&&!representative)throw new Error("An admitted witness requires its class representative.");
+      const restoredWitness = representative??ropeOf(walk.sequence);
       const better = excluded || profileOrder < 0;
       // Observe candidate selection before arranging the diagnostic pair.
       const selectedRanking = ranking;
@@ -20285,7 +20434,7 @@
         ranking = { ...ranking, second: competitor, first: restoredWitness,
           witness: difference ? [difference.left, difference.right] : null };
       }
-      if (watch) watch.ranked({ ranking: better || ranker.admission ? ranking : selectedRanking, counted: rawRanking?.witnessCounted === true });
+      if (watch) watch.ranked({ ranking: better || ranker.admission ? ranking : selectedRanking, counted: rawRanking?.rawWitnessCounted === true,representative });
       if (!better && ranking.verdict !== "tie") return { kind: "pass" };
       // The readings, mapped to the stage's input (engine §7.10).
       const original = new Sources(tokens);
@@ -20350,7 +20499,7 @@
       /** @type {ElisionCheck} */
       const result = {
         kind: "ambiguous",
-        readings: ropes.map((rope, index) => better && index === 0 ? tree : remap(resultTree(derivationTree(rope), r)[0])),
+        readings: ropes.map((rope, index) => excluded && index === 0 ? tree : remap(resultTree(derivationTree(rope), r)[0])),
         // F17 counts duplicated items as a false tie between identical
         // derivations. There is no differing action in that injected state.
         // Return its malformed result for the shared case to reject.
