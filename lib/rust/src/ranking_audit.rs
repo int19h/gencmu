@@ -27,6 +27,10 @@ pub struct CountedRuleChange {
 pub struct RankingReport {
     /// The stage name.
     pub name: String,
+    /// The effects of each written erasure.
+    pub erasures: Vec<crate::ErasureReport>,
+    /// The rules whose written erasures are all inert.
+    pub idle_erasures: Vec<crate::IdleErasure>,
     /// The static label of each key step.
     pub key_steps: Vec<RankingStepReport>,
     /// Redefinitions and extensions of counted rules.
@@ -123,9 +127,12 @@ fn dead(p: &Pattern, reachable: &BTreeSet<String>, terms: &BTreeSet<String>) -> 
 }
 
 pub(crate) fn report(g: &StageGrammar) -> RankingReport {
+    let (erasures, idle_erasures) = crate::erasure_audit::notes(g);
     if g.steps.is_empty() {
         return RankingReport {
             name: g.name.clone(),
+            erasures,
+            idle_erasures,
             key_steps: Vec::new(),
             counted_changes: Vec::new(),
             diagnostic_notes: crate::diagnostic_audit::notes(g),
@@ -160,6 +167,8 @@ pub(crate) fn report(g: &StageGrammar) -> RankingReport {
     }
     let mut out = RankingReport {
         name: g.name.clone(),
+        erasures,
+        idle_erasures,
         key_steps: Vec::new(),
         counted_changes: Vec::new(),
         diagnostic_notes: crate::diagnostic_audit::notes(g),
@@ -205,11 +214,22 @@ pub fn format_ranking_reports(reports: &[RankingReport]) -> String {
         }
         for note in &report.diagnostic_notes {
             let detail = match note.kind.as_str() {
-                "query-error" => format!("query reaches error rule {}", note.target.as_deref().unwrap_or("")),
+                "query-error" => format!(
+                    "query target {} contains error productions. Witnesses exclude unerased own errors{}",
+                    note.target.as_deref().unwrap_or(""),
+                    if note.filtered {
+                        " and carried errors outside erased parts"
+                    } else {
+                        " but allow carried errors"
+                    }
+                ),
                 "unused-suppression" => format!("unused suppression code {}", note.code.as_deref().unwrap_or("")),
                 _ => format!("{} guarded tag variants", note.variants.unwrap_or(0)),
             };
             lines.push(format!("  {}: {detail}", note.rule));
+        }
+        for erasure in &report.erasures {
+            lines.push(format!("  {} erasure: {}", erasure.kind, erasure.rule));
         }
         for change in &report.counted_changes {
             lines.push(format!(

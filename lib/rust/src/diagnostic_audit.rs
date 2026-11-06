@@ -1,11 +1,14 @@
 //! Static notes for report rules and guarded tag terms.
 use crate::clauses::Part;
 use crate::dom::{Arg, Cond, EmitItem, Expr, RuleDef, Term};
+use crate::fxhash::{FxMap, FxSet};
 use crate::grammar::StageGrammar;
+use crate::work::{self, Work};
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 /// A static note about a query, suppression list, or tag expansion.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DiagnosticNote {
     /// The note category.
     pub kind: String,
@@ -19,6 +22,8 @@ pub struct DiagnosticNote {
     pub column: usize,
     /// The reachable error rule, for a query note.
     pub target: Option<String>,
+    /// Whether the query filters carried errors.
+    pub filtered: bool,
     /// The unused suppression code.
     pub code: Option<String>,
     /// The number of concrete tag variants.
@@ -30,6 +35,7 @@ fn references(expr: &Expr) -> BTreeSet<String> {
     let mut refs = BTreeSet::new();
     let mut pending = vec![expr];
     while let Some(expr) = pending.pop() {
+        work::count(Work::Walked, 1);
         match expr {
             Expr::Ref(name) => {
                 refs.insert(name.clone());
@@ -45,34 +51,110 @@ fn references(expr: &Expr) -> BTreeSet<String> {
     }
     refs
 }
-fn closure(edges: &BTreeMap<String, BTreeSet<String>>, roots: BTreeSet<String>) -> BTreeSet<String> {
-    let mut found = BTreeSet::new();
+type Targets = BTreeMap<String, u8>;
+fn closure(edges: &BTreeMap<String, BTreeSet<String>>, roots: Targets) -> Targets {
+    let mut found = Targets::new();
     let mut pending: Vec<_> = roots.into_iter().collect();
-    while let Some(name) = pending.pop() {
-        if found.insert(name.clone()) {
-            pending.extend(edges.get(&name).into_iter().flatten().cloned());
+    while let Some((name, bits)) = pending.pop() {
+        work::count(Work::Walked, 1);
+        let previous = found.entry(name.clone()).or_default();
+        let added = bits & !*previous;
+        if added != 0 {
+            *previous |= added;
+            for child in edges.get(&name).into_iter().flatten() {
+                work::count(Work::Walked, 1);
+                pending.push((child.clone(), added));
+            }
         }
     }
     found
 }
+fn key(part: Part<'_>) -> (u8, usize) {
+    match part {
+        Part::Term(term) => (0, term as *const Term as usize),
+        Part::Cond(condition) => (1, condition as *const Cond as usize),
+    }
+}
+fn targets(root: Part<'_>, cache: &mut FxMap<(u8, usize), Arc<Targets>>) -> Arc<Targets> {
+    if let Some(found) = cache.get(&key(root)) {
+        return found.clone();
+    }
+    let mut names = Targets::new();
+    let mut pending = vec![(root, false)];
+    let mut seen = FxSet::default();
+    while let Some((part, filtered)) = pending.pop() {
+        work::count(Work::Walked, 1);
+        if !seen.insert((key(part), filtered)) {
+            continue;
+        }
+        let mut found = Vec::new();
+        let mut filter = false;
+        match part {
+            Part::Cond(Cond::Matches(_, targets) | Cond::Begins(_, targets) | Cond::Ends(_, targets)) => {
+                found.extend(targets.iter().cloned())
+            }
+            Part::Term(Term::Call(method, args)) => {
+                filter = method == "error-free";
+                if method == "tags" {
+                    found.extend(args.iter().filter_map(|arg| {
+                        if let Arg::Rule(name) = arg {
+                            Some(name.clone())
+                        } else {
+                            None
+                        }
+                    }));
+                } else if method == "parse" {
+                    if let Some(Arg::Term(Term::Body(body))) = args.get(1) {
+                        found.extend(references(body));
+                    }
+                }
+            }
+            _ => {}
+        }
+        for name in found {
+            *names.entry(name).or_default() |= if filtered { 2 } else { 1 };
+        }
+        pending.extend(part.children().into_iter().map(|child| (child, filtered || filter)));
+    }
+    let found = if names.is_empty() { cache.entry((2, 0)).or_default().clone() } else { Arc::new(names) };
+    cache.insert(key(root), found.clone());
+    found
+}
+fn merge(into: &mut Targets, from: &Targets) {
+    for (name, bits) in from {
+        work::count(Work::Walked, 1);
+        *into.entry(name.clone()).or_default() |= bits;
+    }
+}
 pub(crate) fn notes(g: &StageGrammar) -> Vec<DiagnosticNote> {
-    let edges = g
-        .rules
-        .iter()
-        .map(|r| (r.name.clone(), r.alternatives.iter().flat_map(|a| references(&a.alternative.expr)).collect()))
-        .collect();
-    let warnings: BTreeSet<_> = g
-        .rules
-        .iter()
-        .filter(|r| r.alternatives.iter().any(|a| a.clauses.warning.is_some()))
-        .map(|r| r.name.clone())
-        .collect();
-    let errors: BTreeSet<_> = g
-        .rules
-        .iter()
-        .filter(|r| r.alternatives.iter().any(|a| a.clauses.error.is_some()))
-        .map(|r| r.name.clone())
-        .collect();
+    let mut refs = FxMap::<usize, BTreeSet<String>>::default();
+    let mut edges = BTreeMap::new();
+    let mut warnings = BTreeSet::new();
+    let mut errors = BTreeSet::new();
+    for rule in &g.rules {
+        let mut children = BTreeSet::new();
+        for alt in &rule.alternatives {
+            work::count(Work::Walked, 1);
+            children.extend(
+                refs.entry(&alt.alternative.expr as *const Expr as usize)
+                    .or_insert_with(|| references(&alt.alternative.expr))
+                    .iter()
+                    .cloned(),
+            );
+            if alt.clauses.warning.is_some() {
+                warnings.insert(rule.name.clone());
+            }
+            if alt.clauses.error.is_some() {
+                errors.insert(rule.name.clone());
+            }
+        }
+        edges.insert(rule.name.clone(), children);
+    }
+    let mut roots_cache = FxMap::default();
+    let mut definition_roots = FxMap::<usize, Targets>::default();
+    let mut queries = FxMap::<(usize, usize), Targets>::default();
+    let mut guarded = FxMap::<usize, bool>::default();
+    let order: BTreeMap<_, _> = g.rules.iter().enumerate().map(|(index, rule)| (rule.name.as_str(), index)).collect();
     let mut notes = Vec::new();
     for rule in g.rules.iter().filter(|rule| !rule.query) {
         for alt in &rule.alternatives {
@@ -83,61 +165,88 @@ pub(crate) fn notes(g: &StageGrammar) -> Vec<DiagnosticNote> {
                 line: alt.at.0,
                 column: alt.at.1,
                 target: None,
+                filtered: false,
                 code: None,
                 variants: None,
                 captures: Vec::new(),
             };
-            let mut pending: Vec<_> = alt.clauses.conditions.iter().map(Part::Cond).collect();
-            pending.extend(alt.alternative.tags.iter().chain(&alt.clauses.tags).map(Part::Term));
-            for item in alt.clauses.emit.iter().flatten() {
-                let tags = match item {
-                    EmitItem::Capture(_, tags, _) | EmitItem::Insert(tags, _) => tags,
-                };
-                pending.extend(tags.iter().map(Part::Term));
-            }
-            let mut roots = BTreeSet::new();
-            while let Some(part) = pending.pop() {
-                match part {
-                    Part::Cond(Cond::Matches(_, names) | Cond::Begins(_, names) | Cond::Ends(_, names)) => {
-                        roots.extend(names.iter().cloned())
-                    }
-                    Part::Term(Term::Call(name, args)) if name == "tags" => roots.extend(args.iter().filter_map(|a| {
-                        if let Arg::Rule(name) = a {
-                            Some(name.clone())
-                        } else {
-                            None
+            work::count(Work::Walked, 1);
+            let definition = Arc::as_ptr(&alt.clauses) as usize;
+            let own_roots = alt.alternative.tags.as_ref().map(|term| targets(Part::Term(term), &mut roots_cache));
+            let own =
+                own_roots.as_ref().filter(|roots| !roots.is_empty()).map_or(0, |roots| Arc::as_ptr(roots) as usize);
+            let reached = queries.entry((definition, own)).or_insert_with(|| {
+                let mut roots = definition_roots
+                    .entry(definition)
+                    .or_insert_with(|| {
+                        let mut roots = Targets::new();
+                        let mut parts: Vec<_> = alt.clauses.conditions.iter().map(Part::Cond).collect();
+                        parts.extend(alt.clauses.tags.iter().map(Part::Term));
+                        for item in alt.clauses.emit.iter().flatten() {
+                            let (tags, strings) = match item {
+                                EmitItem::Capture(_, tags, attachment) => (tags, &attachment.strings),
+                                EmitItem::Insert(tags, strings) => (tags, strings),
+                            };
+                            parts.extend(tags.iter().chain(&strings.value).chain(&strings.image).map(Part::Term));
                         }
-                    })),
-                    _ => {}
+                        for part in parts {
+                            merge(&mut roots, &targets(part, &mut roots_cache));
+                        }
+                        roots
+                    })
+                    .clone();
+                if let Some(own) = &own_roots {
+                    merge(&mut roots, own);
                 }
-                pending.extend(part.children());
-            }
-            let reached = closure(&edges, roots);
-            for target in &g.rules {
-                if reached.contains(&target.name) && errors.contains(&target.name) {
+                closure(&edges, roots)
+            });
+            let mut targets: Vec<_> = reached.iter().filter(|(name, _)| errors.contains(*name)).collect();
+            targets.sort_by_key(|(name, _)| order[name.as_str()]);
+            for (target, bits) in targets {
+                for bit in [1, 2] {
+                    if bits & bit == 0 {
+                        continue;
+                    }
                     let mut note = where_.clone();
                     note.kind = "query-error".into();
-                    note.target = Some(target.name.clone());
+                    note.target = Some(target.clone());
+                    note.filtered = bit == 2;
                     notes.push(note);
                 }
             }
-            let mut possible: BTreeSet<_> =
-                closure(&edges, references(&alt.alternative.expr)).intersection(&warnings).cloned().collect();
-            if alt.clauses.warning.is_some() {
-                possible.insert(rule.name.clone());
-            }
-            for code in &alt.clauses.suppress_warnings {
-                if (code == "_" && possible.is_empty()) || code != "_" && !possible.contains(code) {
-                    let mut note = where_.clone();
-                    note.kind = "unused-suppression".into();
-                    note.code = Some(code.clone());
-                    notes.push(note);
+            if !alt.clauses.suppress_warnings.is_empty() {
+                let roots = refs[&(&alt.alternative.expr as *const Expr as usize)]
+                    .iter()
+                    .map(|name| (name.clone(), 1))
+                    .collect();
+                let mut possible: BTreeSet<_> =
+                    closure(&edges, roots).keys().filter(|name| warnings.contains(*name)).cloned().collect();
+                if alt.clauses.warning.is_some() {
+                    possible.insert(rule.name.clone());
+                }
+                for code in &alt.clauses.suppress_warnings {
+                    if (code == "_" && possible.is_empty()) || code != "_" && !possible.contains(code) {
+                        let mut note = where_.clone();
+                        note.kind = "unused-suppression".into();
+                        note.code = Some(code.clone());
+                        notes.push(note);
+                    }
                 }
             }
-            let term = Term::Union(alt.alternative.tags.iter().chain(&alt.clauses.tags).cloned().collect());
-            if crate::guarded_tags::guards(&term).is_empty() {
+            let has_guards = alt.alternative.tags.iter().chain(&alt.clauses.tags).any(|term| {
+                *guarded.entry(term as *const Term as usize).or_insert_with(|| {
+                    let mut pending = vec![Part::Term(term)];
+                    while let Some(part) = pending.pop() {
+                        work::count(Work::Walked, 1);
+                        pending.extend(part.children());
+                    }
+                    !crate::guarded_tags::guards(term).is_empty()
+                })
+            });
+            if !has_guards {
                 continue;
             }
+            let term = Term::Union(alt.alternative.tags.iter().chain(&alt.clauses.tags).cloned().collect());
             let owner = RuleDef {
                 source: Default::default(),
                 deferred_emission: None,
@@ -168,11 +277,54 @@ pub(crate) fn notes(g: &StageGrammar) -> Vec<DiagnosticNote> {
             }
         }
     }
-    let mut unique = Vec::new();
-    for note in notes {
-        if !unique.contains(&note) {
-            unique.push(note);
+    let mut seen = FxSet::default();
+    notes.into_iter().filter(|note| seen.insert(note.clone())).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::work::{self, Work};
+    #[test]
+    fn deferred_audit_walks_shared_clauses_and_effects_once() {
+        // Design, Diagnostics and debugging: audit work grows with input and output.
+        for family in ["chain", "conditions", "emission"] {
+            let mut counts = Vec::new();
+            for n in [50, 200] {
+                let grammar = if family == "chain" {
+                    let mut grammar = "%rule text gone\n%rule gone r0\n%erased".to_string();
+                    for index in 0..n {
+                        let target = if index + 1 == n { "A".into() } else { format!("r{}", index + 1) };
+                        grammar.push_str(&format!("\n%rule r{index} {target}"));
+                    }
+                    grammar
+                } else {
+                    let alternatives = (0..n).map(|i| format!("$c{i}:A")).collect::<Vec<_>>().join(" | ");
+                    let clauses = (0..n)
+                        .map(|i| if family == "conditions" { format!("$c{i}.value=\"a\"") } else { format!("$c{i}") })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!(
+                        "%rule text {alternatives}\n%{} {clauses}",
+                        if family == "conditions" { "conditions" } else { "emits" }
+                    )
+                };
+                let pipeline = crate::load_pipeline_sources(
+                    [("p.md", format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n{grammar}\n```\n"))],
+                    "p.md",
+                )
+                .unwrap();
+                work::reset();
+                work::budget(Work::Walked, 80 * n + 100);
+                let reports = pipeline.ranking_reports();
+                let count = work::counted(Work::Walked);
+                work::reset();
+                if family == "chain" {
+                    assert!(reports[0].erasures[0].effects.iter().any(|effect| effect == "counted-parts"));
+                }
+                eprintln!("{family} n={n}: {count} audit steps");
+                counts.push(count);
+            }
+            assert!(counts[1] <= 5 * counts[0], "{family}: {counts:?}");
         }
     }
-    unique
 }
