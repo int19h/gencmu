@@ -1,11 +1,14 @@
 """Eligible body witnesses and memo dependencies (engine §4.3)."""
 
 import unittest
+from unittest.mock import patch
 
 import gencmu
+from gencmu import _testing
 from gencmu._earley import StageContext
 from gencmu._grammar import lower
 from gencmu._query_forms import body_target
+from gencmu._query_dependencies import reads_carried_errors
 from gencmu._trampoline import run
 
 
@@ -25,6 +28,19 @@ def context(grammar, dirty=False):
 
 
 class BodyWitnesses(unittest.TestCase):
+    def test_carried_error_dependencies_close_once_for_the_lowered_grammar(self):
+        # Engine §4.3: all query targets reuse one closed dependency graph.
+        loaded = pipeline("%rule text target\n%rule target A\n%conditions $.parse(A).error-free")
+        lowered = lower(loaded._grammars[0], frozenset())
+        work = {}
+        with patch.object(_testing, "work", work):
+            self.assertTrue(reads_carried_errors(lowered, lowered.rule_ids["text"]))
+            first = work.get("walkSteps", 0)
+            self.assertGreater(first, 0)
+            for number in range(len(lowered.rule_names)):
+                reads_carried_errors(lowered, number)
+            self.assertEqual(work["walkSteps"], first)
+
     def test_filter_keeps_ordinary_carried_errors_apart(self):
         # Engine §4.3: ordinary witnesses can carry errors, filtered ones cannot.
         grammar = "%rule text target\n%rule target A"

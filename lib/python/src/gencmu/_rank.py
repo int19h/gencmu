@@ -20,6 +20,9 @@ from . import _testing
 from ._patterns import local_node_matches
 from ._ranking_patterns import can_count_profiles, has_pattern_value, requires_elided
 from ._earley import RESTORE, Forest
+from ._measures import Measures, ZERO_MEASURE, sum_measure, compare_measure
+
+INFINITE_MEASURE = (math.inf, math.inf, -math.inf)
 
 Count = float
 """A number of visible actions, an exact integer, or INF."""
@@ -259,13 +262,23 @@ of the item before the step and of the completed child, and the token and
 terminal of a read or the child item of a completion."""
 
 
+def measures_of(forest):
+    measures = getattr(forest, "measures", None)
+    if measures is None:
+        measures = forest.measures = Measures(forest.tokens)
+        if forest.project is not None:
+            measures.original = Measures(forest.original_tokens), forest.project
+    return measures
+
+
 class Summaries:
     """The summaries of forest items in each cycle context."""
 
     def __init__(self, forest: Forest) -> None:
         self.forest = forest
         self.admission = None
-        self.error_counts = {}
+        self.measure_counts = {}
+        self.measures = measures_of(forest)
         self.productions = forest.lowered.productions
         self.memo: dict[Key, Any] = {}
         self.steps_memo: dict[Key, list[Step]] = {}
@@ -568,7 +581,10 @@ class Ranker(Summaries):
             inner = memo[self.inner_key(key)]
             entries, count = inner
             production = self.productions[self.forest.prod[item]]
-            self.error_counts[key] = self.error_counts.get(self.inner_key(key), INF) + (production.error is not None)
+            measure = self.measure_counts.get(self.inner_key(key), INFINITE_MEASURE)
+            if production.error is not None:
+                measure = sum_measure(measure, self.measures.own(self.forest.origin[item], self.forest.end[item]))
+            self.measure_counts[key] = measure
             close = self.close_leaf(item)
             kept: list[Entry] = []
             for entry in entries:
@@ -576,7 +592,7 @@ class Ranker(Summaries):
             return (kept, count)
         mask = self.admission.mask(key) if self.admission is not None else None
         total = 0
-        least_errors = INF
+        least_measure = INFINITE_MEASURE
         kept = []
         marked = marks.get(item) if marks is not None else None
         witnessed = self.witnessed
@@ -615,11 +631,17 @@ class Ranker(Summaries):
                     for before in pred_entries:
                         for after in child_entries:
                             produced.append(self.combine(before, after))
-            edge_errors = (self.error_counts.get(pred_key, INF) if pred_key is not None else 0) + (self.error_counts.get(child_key, INF) if child_key is not None and edge_kind == 2 else 0)
-            if not ways or edge_errors > least_errors:
+            measure = self.measure_counts.get(pred_key, INFINITE_MEASURE) if pred_key is not None else ZERO_MEASURE
+            if edge_kind in (1, RESTORE):
+                measure = sum_measure(measure, self.measures.carried[a])
+            elif edge_kind == 2:
+                child = self.productions[self.forest.prod[child_key[1]]]
+                measure = sum_measure(measure, ZERO_MEASURE if child.erased else self.measure_counts.get(child_key, INFINITE_MEASURE))
+            order = compare_measure(measure, least_measure)
+            if not ways or order > 0:
                 continue
-            if edge_errors < least_errors:
-                least_errors, total, kept, w_all = edge_errors, 0, [], False
+            if order < 0:
+                least_measure, total, kept, w_all = measure, 0, [], False
             if marked is not None and ways > 0 and index in marked and counted:
                 # The edge is W(D)'s where it is marked, and its predecessor
                 # and child are W(D)'s.
@@ -638,7 +660,7 @@ class Ranker(Summaries):
                 self.keep(kept, entry)
         total = min(total, 2)
         value = (kept, total)
-        self.error_counts[key] = least_errors
+        self.measure_counts[key] = least_measure
         if marks is not None:
             witnessed[key] = w_all
         return value
@@ -728,7 +750,7 @@ class Ranker(Summaries):
         witness; ``None`` if the input has no derivation. The root combines
         the derivations of every root item (engine §6)."""
         total = 0
-        least_errors = INF
+        least_measure = INFINITE_MEASURE
         kept: list[Entry] = []
         counted = False
         for root in roots:
@@ -736,11 +758,12 @@ class Ranker(Summaries):
             if key is None:
                 continue
             entries, count = self.solve(key)
-            errors = self.error_counts.get(key, INF)
-            if not count or errors > least_errors:
+            measure = self.measure_counts.get(key, INFINITE_MEASURE)
+            order = compare_measure(measure, least_measure)
+            if not count or order > 0:
                 continue
-            if errors < least_errors:
-                least_errors, total, kept, counted = errors, 0, [], False
+            if order < 0:
+                least_measure, total, kept, counted = measure, 0, [], False
             total += count
             if self.marks is not None:
                 counted = counted or (count > 0 and self.witnessed[key])
@@ -931,16 +954,16 @@ class Profiles:
     """The profiles of one ranking: how the key steps of its directive count
     occurrences, add profiles and compare them (engine §6)."""
 
-    def __init__(self, steps, tagtab=None, tokens=()) -> None:
+    def __init__(self, steps, tagtab=None, tokens=(), measures=None) -> None:
         self.steps = tuple(steps)
-        self.kinds = ("fewest",) + tuple(step for step, _ in self.steps)
+        self.kinds = ("fewest", "fewest", "most") + tuple(step for step, _ in self.steps)
         self.tagtab = tagtab
         self.tokens = tokens
         self.values = tuple(has_pattern_value(pattern) for _, pattern in steps)
         self.span_values = {} if any(self.values) else None
         self.answers = {}
         self.zero: Profile = tuple(() if kind == "leftmost-longest" else 0 if kind in ("fewest", "most") else None for kind in self.kinds)
-        self.error = (1, *self.zero[1:])
+        self.measures = Measures(tokens) if measures is None else measures
         self.leaves: dict[int, Elided] = {}
 
     def occurrence(self, name, tags, terminal, value, p, q) -> Profile:
@@ -959,7 +982,7 @@ class Profiles:
             if match:
                 if profile is None:
                     profile = list(self.zero)
-                profile[index + 1] = self.one(index, p, q)
+                profile[index + 3] = self.one(index, p, q)
         return self.zero if profile is None else tuple(profile)
 
     def tags(self, identity):
@@ -968,7 +991,7 @@ class Profiles:
     def one(self, index: int, p: int, q: int) -> Component:
         """One occurrence in the component of a step. An empty span counts
         nothing under ``leftmost-longest``."""
-        kind = self.kinds[index + 1]
+        kind = self.kinds[index + 3]
         if kind == "leftmost-longest":
             return ((p, q, 1),) if p < q else ()
         if kind in ("fewest", "most"):
@@ -977,6 +1000,11 @@ class Profiles:
         if leaf is None:
             leaf = self.leaves[p] = Elided(1, p, p)
         return leaf
+
+    def charge(self, profile, measure):
+        if measure is ZERO_MEASURE:
+            return profile
+        return (*sum_measure(profile[:3], measure), *profile[3:])
 
     def sum(self, left: Profile, right: Profile) -> Profile:
         """Adds profiles component by component. The positions of ``left``
@@ -1022,9 +1050,14 @@ class Profiles:
         while pending:
             node = pending.pop()
             production = getattr(node, "production", None)
+            if production is not None and production.erased:
+                if not production.helper and node.start < node.end:
+                    profile = self.sum(profile, self.occurrence(production.rule_name, self.tags(node.tag), None, None, node.start, node.end))
+                continue
             if production is not None and production.error is not None:
-                profile = self.sum(profile, self.error)
+                profile = self.charge(profile, self.measures.own(node.start, node.end))
             if production is None:
+                profile = self.charge(profile, self.measures.carried[node.token])
                 if node.start < node.end:
                     token = self.tokens[node.token]
                     profile = self.sum(profile, self.occurrence(None, frozenset(token.tags), node.terminal, token.value, node.start, node.end))
@@ -1063,9 +1096,10 @@ class Best:
         self.edges: list[int] = []
 
     def offer(self, index: int, total: int, profile: Profile, count: int) -> None:
-        if not self.found or profile[0] < self.profile[0]:
+        measure_order = compare_measure(profile[:3], self.profile[:3]) if self.found else -1
+        if measure_order < 0:
             self.total = total
-        elif profile[0] == self.profile[0]:
+        elif measure_order == 0:
             self.total += total
         order = self.space.compare(profile, self.profile) if self.found else -1
         if order < 0:
@@ -1095,6 +1129,7 @@ class Profiled(Summaries):
     def __init__(self, forest: Forest, space: Profiles, lean: str) -> None:
         super().__init__(forest)
         self.space = space
+        self.space.measures = self.measures
         self.lean = lean
         self.check = False
         self.marks: dict[int, set[int]] | None = None
@@ -1127,7 +1162,7 @@ class Profiled(Summaries):
                 terminal = production.elided
                 profile = space.sum(profile, space.occurrence(None, frozenset((terminal, "_Elided")), terminal, "", start, start))
             if production.error is not None:
-                profile = space.sum(profile, space.error)
+                profile = space.charge(profile, self.measures.own(forest.origin[item], forest.end[item]))
             return Summary(inner.total, profile, inner.count, NO_EDGES)
         mask = self.admission.mask(key) if self.admission is not None else None
         every = Best(space)
@@ -1145,7 +1180,16 @@ class Profiled(Summaries):
                     if child is None:
                         continue
                     total = min(total * child.total, 2)
-                    profile = space.sum(profile, child.profile)
+                    production = self.productions[forest.prod[child_key[1]]]
+                    if production.erased:
+                        start, end = forest.origin[child_key[1]], forest.end[child_key[1]]
+                        if forest.project is not None:
+                            start, end = forest.project[start], forest.project[end]
+                        child_profile = (space.occurrence(production.rule_name, space.tags(forest.tag.get(child_key[1])), None, None, start, end)
+                                         if not production.helper and start < end else space.zero)
+                    else:
+                        child_profile = child.profile
+                    profile = space.sum(profile, child_profile)
                     count = min(count * child.count, 2)
                 elif edge_kind == 1:
                     start, end = a, a + 1
@@ -1154,6 +1198,8 @@ class Profiled(Summaries):
                     if start < end:
                         token = forest.tokens[a]
                         profile = space.sum(profile, space.occurrence(None, frozenset(token.tags), terminal, token.value, start, end))
+            if edge_kind in (1, RESTORE):
+                profile = space.charge(profile, self.measures.carried[a])
             if mask is None or index in mask:
                 every.offer(index, total, profile, count)
         return every.summary()
@@ -1275,9 +1321,9 @@ def rank_original(forest: Forest, steps: tuple[tuple[str, str], ...], lean: str,
     decide when a step can match a reachable node (engine §6)."""
     if not forest.roots:
         return None
-    space = Profiles(steps, forest.tagtab, getattr(forest, "original_tokens", forest.tokens))
+    space = Profiles(steps, forest.tagtab, getattr(forest, "original_tokens", forest.tokens), measures_of(forest))
     ranker: Profiled | Ranker
-    if can_count_profiles(forest.lowered, steps) and not (forest.project is not None and not any(p.error is not None for p in forest.lowered.productions) and all(requires_elided(pattern) for _, pattern in steps)):
+    if any(measure[2] for measure in space.measures.carried) or can_count_profiles(forest.lowered, steps) and not (forest.project is not None and not any(p.error is not None for p in forest.lowered.productions) and all(requires_elided(pattern) for _, pattern in steps)):
         ranker = Profiled(forest, space, lean)
     else:
         ranker = Ranker(forest, lean)

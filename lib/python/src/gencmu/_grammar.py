@@ -1439,7 +1439,7 @@ class Lowered:
     implications_by_tag: dict[str, list[int]] | None = None
 
     suffix_dependencies: dict[int, bool] = field(default_factory=dict, repr=False, compare=False)
-    carried_dependencies: dict[int, bool] = field(default_factory=dict, repr=False, compare=False)
+    carried_dependencies: frozenset[int] | None = field(default=None, repr=False, compare=False)
     query_identities: dict[int, tuple[Any, str]] = field(default_factory=dict, repr=False, compare=False)
     close_rules: frozenset[int] | None = None
     close_prefixes: list | None = None

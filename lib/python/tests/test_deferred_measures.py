@@ -2,12 +2,17 @@
 
 from copy import deepcopy
 from dataclasses import replace
+from types import SimpleNamespace
 import unittest
 
 import gencmu
 from gencmu._measures import (Measures, ZERO_MEASURE, sum_measure, compare_measure,
                              record_diagnostic, diagnostic_record, copy_diagnostic_record)
 from gencmu._output import token_json, stage_json, error_json, warning_json
+from gencmu._earley import StageContext, Parser
+from gencmu._grammar import lower
+from gencmu._rank import rank, Profiles
+from gencmu._stage import DNode, DRead
 
 
 def token(source):
@@ -19,6 +24,51 @@ def diagnostic():
 
 
 class FixedCharges(unittest.TestCase):
+    def test_actual_derivation_profiles_drop_erased_charges(self):
+        # Engine §7.9: the actual witness profile drops every erased charge.
+        original = token((0, 1))
+        original.errors = [record_diagnostic(diagnostic(), (4, 0, 1))]
+        root = DNode(0, SimpleNamespace(erased=True, helper=False, rule_name="gone", error={"string": "bad"}),
+                     0, 1, [DRead(0, "A")], 0)
+        self.assertEqual(Profiles((), tokens=[original]).derivation_profile(root), ZERO_MEASURE)
+
+    def test_rankers_and_ranked_admission_use_the_same_three_part_order(self):
+        # Engine §6: source blame precedes grammar keys and ranked preferences.
+        cases = (
+            ('%rule text long | short short\n%rule long A A %error "long"\n%rule short A %error "short"', (2, 0, 2)),
+            ('%rule text long | short A\n%rule long A A %error "long"\n%rule short A %error "short"', (1, 0, 1)),
+            ('%rule text (long ≻ short A) :: ∅\n%rule long A A %error "long"\n%rule short A %error "short"', (1, 0, 1)),
+            ('%rule text (long ≻ short short) :: ∅\n%rule long A A %error "long"\n%rule short A %error "short"', (2, 0, 2)),
+        )
+        for grammar, expected in cases:
+            with self.subTest(grammar=grammar):
+                loaded = gencmu.load_pipeline_sources({
+                    "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
+                    "g.md": '```jbogenbau\n%ambiguity-resolution greedy\n' + grammar + '\n```\n',
+                }, "p.md")
+                lowered = lower(loaded._grammars[0], frozenset())
+                inputs = [token((0, 1)), token((1, 2))]
+                context = StageContext(lowered, inputs, "aa", loaded._unicode)
+                forest = Parser(context).parse(lowered.rule_ids["text"])
+                ranking = rank(forest, lowered.steps, lowered.lean)
+                self.assertEqual(ranking.verdict, "unique")
+                self.assertEqual(ranking.profile[:3], expected)
+
+    def test_reconstruction_rankers_project_own_charges(self):
+        # Engine §7.7: a synthetic source point does not extend an error charge.
+        loaded = gencmu.load_pipeline_sources({
+            "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
+            "g.md": '```jbogenbau\n%ambiguity-resolution greedy\n%rule text fault\n%rule fault A A\n%error "fault"\n```\n',
+        }, "p.md")
+        lowered = lower(loaded._grammars[0], frozenset())
+        inputs = [token((2, 5)), token((50, 50))]
+        context = StageContext(lowered, inputs, " " * 50, loaded._unicode)
+        forest = Parser(context).parse(lowered.rule_ids["text"])
+        forest.project = [0, 1, 1]
+        forest.original_tokens = [inputs[0]]
+        ranking = rank(forest, lowered.steps, lowered.lean)
+        self.assertEqual(ranking.profile[:3], (3, 0, 1))
+
     def test_sourceless_tokens_do_not_charge_the_gaps_between_them(self):
         # Engine §6: sourcelessness tests tokens, rather than the envelope.
         measures = Measures([token((2, 2)), token((9, 9)), token((7, 8))])

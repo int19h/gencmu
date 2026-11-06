@@ -4,6 +4,7 @@ from ._rank import Summaries
 from ._ranked_frame import written_prefix
 from ._earley import RESTORE
 from ._boundary import dominates
+from ._measures import compare_measure
 
 
 def prefix(forest,item):
@@ -70,7 +71,7 @@ class RankedAdmission(RankedFacts):
                         present.append((item, number, option))
                         costs[item, number] = self.cost(step)
                 kept = self.maxima[context] = frozenset((item, number) for item, number, option in present
-                    if not any(higher < option and costs[other, edge] <= costs[item, number] and dominates(self.open[other, edge], self.open[item, number])
+                    if not any(higher < option and compare_measure(costs[other, edge], costs[item, number]) <= 0 and dominates(self.open[other, edge], self.open[item, number])
                                for other, edge, higher in present))
                 if group not in self.reported and any(
                     (item, number) in kept and any(higher < option for _, _, higher in present)
