@@ -219,27 +219,23 @@ A library's own tests lose the witness on purpose, through a private switch, and
 
 Take each stage where the check of engine §7 ran and ended without an error of the grammar. Every runner also asks its library whether that check kept its witness. The library answers through a test-only export outside the documented API, such as `gencmu::tools` in Rust. It can also answer through a test module.
 
-The answer records raw W(D), which engine §7.8 reconstructs from the chosen derivation. Admission can intentionally exclude that witness. The hook observes that ranking, and it ranks nothing itself:
+The answer records concrete raw W(D) before admission and erased collapse. It separately records whether W(D) is admitted and whether its collapsed class survives ranking. Admission can intentionally exclude W(D). Replacing an admitted class's canonical interior is not an exclusion. The hook observes the check's own ranking and ranks nothing itself:
 
-- The walk: After the check recognizes R and before it ranks, a walk looks for W(D) in the chart. It takes each occurrence in the derivation tree on its own, even where the representation shares one object between occurrences. It marks the edges or links that W(D) uses. JavaScript and Python mark an edge by its index among its item's edges.
+- The walk: After reconstruction recognition, before admission or collapse, a walk locates concrete W(D) in the chart. It visits each derivation occurrence separately, including occurrences whose representation shares an object. It marks W(D)'s edges or links. JavaScript and Python use edge indexes within items.
 
-  Go marks a link. Rust marks a link as its ranker rebuilds it, by the item and the set where its predecessor stands. Where the chart does not hold W(D), the answer is no.
-- The count channel: The check passes the marks to the ranker that it uses. Each summary retains its best measure and the number of derivations attaining it, capped at two.
+  Go marks links. Rust marks links through their items and predecessor sets. Raw absence makes this channel fail. Later collapse cannot excuse raw absence.
+- The count channel: The check passes the concrete marks to its ranker. Summaries retain their best measure and the number of classes attaining it, capped at two. A separate membership bit records whether an admitted member of a counted class is W(D).
 
-  Beside that total, the ranker keeps a bit that records whether the total includes a derivation made only of marked edges. The same loop decides both, over the same edges, in the same contexts, with the same faults. So a choice that drops W(D) from the count also drops it from the bit.
+  Class membership joins across admitted members before the canonical interior is selected. It stays separate from the kept interior's edges. A class can therefore retain W(D)'s membership while displaying another interior. A genuine admission exclusion instead leaves no membership bit for W(D).
 
-  A cut that closes a cycle has no bit. If the best measure is settled, the loop can stop at two. At a marked item, the loop must also determine the bit. A root of W(D) must have the bit.
-- The selection channel: An elision-only error reports raw W(D) first, including when admission excludes it. The second reading is the T-first best admitted competitor distinct from W(D). The walk builds the witness actions in post-order for comparison.
+  A cycle cut has no membership bit. Capping a count at two cannot stop the computation before its membership bit is settled. At the root, a counted class containing admitted W(D) must retain that bit. The same ranking transitions determine the count and the bit, in the same contexts and over the same admitted edges.
+- The selection channel: The check passes only with W(D)'s admitted class as the sole best admitted class. The first ambiguity reading represents W(D). An admitted reading uses its class's kept interior, while an excluded W(D) remains the concrete raw reading. The second reading uses the T-first best admitted competitor class's kept representative. The selected representatives supply the actions for the witness comparison.
 
-Every check tracks W(D) and passes its marks to the ranker, whether or not a test watches it. The optional test hook observes the reconstruction and ranking. It does not enable runtime witness tracking.
+Every check tracks concrete raw membership, admission, and collapsed-class membership, whether or not a test watches it. The optional hook observes these facts and does not enable tracking. An intentional admission exclusion gives ordinary ambiguity, rather than witness loss. Losing membership solely through canonical interior replacement is a library defect.
 
-The hook asks about the check's own ranking because any other question is a stand-in. A chart that holds W(D) is not enough, because a faulty ranker can still lose it. A positive count is not enough, because another reading can survive without W(D). Ranking W(D) alone is insufficient because edge handling can depend on siblings.
+The hook asks about the check's own ranking because another ranking can conceal faults in sibling handling. A chart holding W(D) proves only raw membership. A positive count proves neither W(D)'s admission nor its class membership. Conversely, the kept interior need not use W(D)'s concrete edges. The tests keep these distinctions separate.
 
-W(D) alone has no siblings. Equal trees are not enough, because transparent productions can give equal trees. A loss that passes both channels changes no output of the check. The count includes W(D), and the readings belong to a set that contains it.
-
-The walk pins the shape of W(D), not its tags. The tags follow from the derivation, and the cases pin them. A runner fails a case, or a corpus case, whose answer is no.
-
-For slot reconstruction, the count channel proves membership in the raw forest before filtering. A filter can exclude that witness intentionally. The error then reports the raw witness first and an admitted competitor second.
+The walk pins concrete W(D)'s shape, with tags determined by that derivation and the cases. Every runner requires its raw presence unless a grammar error ends recognition. After admission, the runner requires the class membership and selection policy of engine §7.10. A case or corpus result that violates those requirements fails.
 
 Each library tests that a lowering error's message begins with the faulty definition's document, line and column. It also tests the error order of engine §3: a chain beside another alternative comes before an empty item of braces.
 
