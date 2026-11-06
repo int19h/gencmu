@@ -271,13 +271,18 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 	}
 	l.classifiers = tables.tables
 	lw := &lowerer{helperNodes: map[int32]*helperNode{}, rankOptions: map[int32][]int{}, commonConds: map[*sAlt]map[string][]*domCond{}, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, variants: map[*domTerm][]guardedTagVariant{}}
-	for _, r := range g.rules {
+	for _, r := range g.allRules() {
 		l.byName[r.name] = int32(len(l.rules))
-		l.rules = append(l.rules, &lrule{name: r.name, owner: r.name, scc: -1})
+		l.rules = append(l.rules, &lrule{name: r.name, owner: r.name, helper: r.query, scc: -1})
 	}
-	for _, r := range g.rules {
+	for _, r := range g.allRules() {
 		if lw.lowerRule(r); l.fault != "" {
 			return l
+		}
+		if r.query {
+			for _, production := range l.rules[l.byName[r.name]].prods {
+				production.helper, production.transparent = true, true
+			}
 		}
 	}
 	for _, target := range lw.spliceOrder {
@@ -309,6 +314,11 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 			return false
 		}
 		visited[p] = true
+		if p.t != nil && p.t.Kind == tmCall && p.t.Str == "parse" {
+			if target := g.queryTargets[p.t.Items[1].Body]; len(target) > 7 && target[:7] == "\x00query:" {
+				terminals[target[7:]] = true
+			}
+		}
 		if p.c != nil && (p.c.Kind == cdMatches || p.c.Kind == cdBegins || p.c.Kind == cdEnds) {
 			for _, t := range p.c.queryTargets() {
 				if t.Kind == tmTerminal {

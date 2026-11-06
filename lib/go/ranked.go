@@ -281,7 +281,7 @@ func rankedCondReads(cond *domCond, out map[string]bool) {
 }
 func newRankedGroups(g *stageGrammar) *rankedGroups {
 	r := &rankedGroups{expressions: map[*domExpr]*rankedGroup{}, owners: map[*domExpr]*rankedGroup{}, paths: map[*domExpr]string{}, sourceSites: map[*sAlt]GroupSite{}, analyses: map[*sAlt]*rankedClauseAnalysis{}}
-	for _, rule := range g.rules {
+	for _, rule := range g.allRules() {
 		for alternative, source := range rule.alts {
 			at := source.at
 			r.sourceSites[source] = GroupSite{Document: source.doc, At: &at, Rule: rule.name, Alternative: alternative}

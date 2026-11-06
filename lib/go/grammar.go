@@ -25,6 +25,11 @@ type defaultUse struct {
 }
 
 type stageGrammar struct {
+	queryTargets      map[*domExpr]string
+	queryIdentities   map[*domExpr]string
+	queryNames        map[string]string
+	queryRules        []*sRule
+	allRuleList       []*sRule
 	defaults          []defaultUse
 	treeComparisons   bool
 	treeExpressions   bool
@@ -69,10 +74,11 @@ type stitchChange struct {
 }
 
 type sRule struct {
-	name string
-	alts []*sAlt
-	doc  string
-	at   [2]int
+	query bool
+	name  string
+	alts  []*sAlt
+	doc   string
+	at    [2]int
 }
 
 // sAlt is an alternative with the clauses of the rule statement that wrote
@@ -401,6 +407,9 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 			}
 		}
 	}
+	if err := g.prepareBodyQueries(); err != nil {
+		return nil, err
+	}
 	g.resolveFamilies()
 	if err := g.makeTests(); err != nil {
 		return nil, err
@@ -458,7 +467,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 // makeTests gives each test of the stitched stage's bodies its value, made
 // once for every lowering.
 func (g *stageGrammar) makeTests() *Error {
-	for _, r := range g.rules {
+	for _, r := range g.allRules() {
 		for _, a := range r.alts {
 			for _, t := range testsIn(a.alt.Expr) {
 				st := &symTest{op: t.Op}

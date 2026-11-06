@@ -99,3 +99,44 @@ func TestDeferredPreparsedBodiesRejectCapturesAndNestedRemainders(t *testing.T) 
 		}
 	}
 }
+
+func TestDeferredQueriesShareStructuralTargetsAndRetainTests(t *testing.T) {
+	// Engine §3.10 and §4.3: target identity ignores groups and outer remainders.
+	pipeline := mustLoad(t, oneStage(`%ambiguity-resolution greedy
+%const $K "x"
+%rule text A
+%conditions $.parse(A), $.parse((A)), $.parse(A …), $.parse(… A), $.parse(A="x"), $.parse(A=$K), $.parse(A≠"x"), $.parse(_), $.parse(target), $.parse(A ≻ B)
+%rule target A`))
+	g := pipeline.stages[0]
+	var targets []string
+	for _, condition := range g.byName["text"].alts[0].conds {
+		targets = append(targets, g.queryTargets[condition.Left.Items[1].Body])
+	}
+	for _, i := range []int{1, 2, 3} {
+		if targets[i] != targets[0] {
+			t.Fatal("different equivalent targets", targets)
+		}
+	}
+	if targets[4] != targets[5] || targets[4] == targets[0] || targets[4] == targets[6] {
+		t.Fatal("lost structural tests", targets)
+	}
+	if targets[0] != "\x00query:A" || targets[8] != "target" {
+		t.Fatal("old and new queries use different names", targets)
+	}
+	lowered := pipeline.lower(0, map[string]bool{})
+	if lowered.fault != "" {
+		t.Fatal(lowered.fault)
+	}
+	for _, target := range targets {
+		if _, found := lowered.byName[target]; !found {
+			t.Fatal("target missing", target)
+		}
+	}
+	for _, target := range []string{targets[4], targets[6], targets[7]} {
+		for _, production := range lowered.rules[lowered.byName[target]].prods {
+			if !production.helper || production.tags == nil || production.tags.Kind != tmEmptySet {
+				t.Fatal("anonymous target does not seal its root", target)
+			}
+		}
+	}
+}
