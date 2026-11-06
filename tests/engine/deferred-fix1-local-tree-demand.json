@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4.1 and §6: a local tree comparison does not demand an erased identity from the parent.",
+  "grammar": "%rule text gone\n%rule gone $x:a | a\n%conditions $ ≇ $x\n%erased\n%rule a A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    },
+    "warnings": []
+  }
+}

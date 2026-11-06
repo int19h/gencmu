@@ -16401,6 +16401,7 @@
     /** @param {import('./tokens.js').Token[]} tokens @param {Sources} [sources] */
     constructor(tokens,sources=new Sources(tokens)){
       this.sources=sources;
+      /** @type {{measures:Measures,project:number[]}|null} */ this.original=null;
       this.nonempty=[0];
       /** @type {Measure[]} */
       this.carried=[];
@@ -16413,6 +16414,7 @@
     }
     /** @param {number} start @param {number} end @returns {Measure} */
     own(start,end){
+      if(this.original)return this.original.measures.own(this.original.project[start],this.original.project[end]);
       if(this.nonempty[end]===this.nonempty[start])return [0,1,1];
       const [low,high]=this.sources.of(start,end);
       return [high-low,0,1];
@@ -17950,8 +17952,8 @@
       let key=this.keys.get(item);
       if(key===undefined){
         key=JSON.stringify([item.production.lhs,item.origin,item.end,item.tagId,item.prefix,item.structure,
-          item.observationPrefix?.id,item.observation?.id,item.familySummary?.id,
-          /** @type {any} */(item).treePrefix,/** @type {any} */(item).treeIdentity,item.boundary?.id,
+          item.production.closeRequested?item.observationPrefix?.id:null,item.production.closeRequested?item.observation?.id:null,item.familySummary?.id,
+          item.production.treeRequested?/** @type {any} */(item).treePrefix:null,item.production.treeRequested?/** @type {any} */(item).treeIdentity:null,item.boundary?.id,
           item.strict,item.restores,!!item.production.closeRequested,!!item.production.treeRequested,
           item.production.lexicalFrame?.id,item.slotScope?.id]);
         this.keys.set(item,key);
@@ -19340,7 +19342,12 @@
         tied = root.least === 2;
         ranked = roots.filter((_, index) => root.kept.has(index));
       } else {
-        count = Math.min(2, roots.reduce((sum, item) => sum + this.count(item), 0));
+        count=0;
+        for(const indices of rootGroups){
+          const item=roots[indices[0]];
+          const ways=item.production.erased?(indices.some(index=>this.count(roots[index])>0)?1:0):this.count(item);
+          count=Math.min(2,count+ways);
+        }
         // With marks, whether the count counted W(D): a root of W(D) must
         // have it (tests/README.md).
         if (this.marks !== null) {
@@ -20740,6 +20747,7 @@
       const steps = lowered.resolution.steps;
       const ranker = slotRanker(chart, restored, steps, "none", fault("F19") ? project : null);
       ranker.profileProject = project;
+      ranker.measures.original={measures:new Measures(tokens,main.sources),project};
       ranker.check = true;
       ranker.marks = walk.marks;
       // Raw witness membership and filtered admission are separate decisions.
@@ -20750,6 +20758,7 @@
         raw.configured = true;
         raw.interner = chart.context.interner;
         raw.profileProject = project;
+        raw.measures.original=ranker.measures.original;
         raw.check = true;
         raw.marks = ranker.marks;
       }

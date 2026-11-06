@@ -1,0 +1,63 @@
+{
+  "description": "Engine §7.7: a restored token does not extend the source envelope of an erased interior error.",
+  "grammar": "%ambiguity-resolution greedy\n%elision-only\n%rule text gone | competitor\n%rule gone A (first | second)\n%erased\n%rule first [+T] B\n%error \"first\"\n%rule second [+T] only-b\n%rule only-b B\n%error \"second\"\n%rule competitor A T B",
+  "input": "a....b",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "source": [
+        0,
+        1
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "source": [
+        5,
+        6
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "readings": [
+          {
+            "rule": "text",
+            "children": [
+              {
+                "rule": "gone",
+                "children": [
+                  {
+                    "terminal": "A"
+                  },
+                  {
+                    "rule": "first"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "rule": "text",
+            "children": [
+              {
+                "rule": "competitor"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
