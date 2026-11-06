@@ -9,9 +9,11 @@ type suffixTarget struct {
 type suffixKey struct {
 	target     suffixTarget
 	start, end int
+	errorFree  bool
 }
 
 type suffixState struct {
+	errorFree bool
 	answers   map[int]bool
 	rec       *recognizer
 	dependent bool
@@ -33,7 +35,7 @@ func restoredTerm(term *domTerm) bool {
 	return false
 }
 
-func (run *stageRun) suffixState(g *lowered, rule int32, start, end int) *suffixState {
+func (run *stageRun) suffixState(g *lowered, rule int32, start, end int, errorFree bool) *suffixState {
 	ps := run.ps
 	target := suffixTarget{g, rule}
 	if ps.suffixDeps == nil {
@@ -44,7 +46,7 @@ func (run *stageRun) suffixState(g *lowered, rule int32, start, end int) *suffix
 		dependent = suffixReadsEnd(g, rule)
 		ps.suffixDeps[target] = dependent
 	}
-	key := suffixKey{target, start, -1}
+	key := suffixKey{target: target, start: start, end: -1, errorFree: errorFree}
 	if dependent {
 		key.end = end
 	}
@@ -53,7 +55,7 @@ func (run *stageRun) suffixState(g *lowered, rule int32, start, end int) *suffix
 	}
 	state := ps.suffixes[key]
 	if state == nil {
-		state = &suffixState{answers: map[int]bool{}}
+		state = &suffixState{answers: map[int]bool{}, errorFree: errorFree}
 		ps.suffixes[key] = state
 	}
 	return state
@@ -83,22 +85,15 @@ func suffixReadsEnd(g *lowered, start int32) bool {
 			}
 			found := false
 			scan := func(n clausePart) bool {
-				var span *domTerm
-				var targets []*domTerm
+				span, targets := queryParts(n, g)
 				if c := n.c; c != nil {
 					if !here.nested && (c.Kind == cdEnd || c.Kind == cdBoundary && c.Op == "followed-by") {
 						found = true
-					}
-					if c.Kind == cdMatches || c.Kind == cdBegins || c.Kind == cdEnds {
-						span, targets = c.Span, c.queryTargets()
 					}
 				}
 				if t := n.t; t != nil && t.Kind == tmCall {
 					if !here.nested && (t.Str == "onward" || t.Str == "following-tokens") {
 						found = true
-					}
-					if t.Str == "tags" && len(t.Items) == 2 {
-						span, targets = t.Items[0], t.Items[1:]
 					}
 				}
 				if span != nil {
@@ -106,24 +101,16 @@ func suffixReadsEnd(g *lowered, start int32) bool {
 						found = true
 					}
 					for _, target := range targets {
-						if target.Kind == tmRule {
-							pending = append(pending, entry{g.byName[target.Str], true})
+						if number, known := g.byName[target]; known {
+							pending = append(pending, entry{number, true})
 						}
 					}
 				}
 				return !found
 			}
-			for _, c := range p.predictConds {
-				walkClause(clausePart{c: c}, scan)
+			for _, root := range productionClauses(p) {
+				walkClause(root, scan)
 			}
-			for _, c := range p.conds {
-				walkClause(clausePart{c: c.cond}, scan)
-			}
-			for _, c := range p.rankedConditions {
-				walkClause(clausePart{c: c}, scan)
-			}
-			walkClause(clausePart{t: p.tags}, scan)
-			walkClause(clausePart{t: p.parentTags}, scan)
 			if found {
 				return true
 			}
@@ -143,7 +130,7 @@ func (r *recognizer) retainSuffix(k int) {
 			witnesses = append(witnesses, node.items...)
 		}
 	}
-	r.suffix.answers[at] = len(r.eligibleItems(witnesses, false)) > 0
+	r.suffix.answers[at] = len(r.eligibleItems(witnesses, r.suffix.errorFree)) > 0
 }
 
 // scan readies one terminal advance. Suffix recognition delays these

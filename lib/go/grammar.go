@@ -613,6 +613,8 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 			w.clauseSteps.add("clause steps")
 		}
 		switch c.Kind {
+		case cdForest:
+			return checkTerm(c.Left)
 		case cdCompare:
 			if (c.Op == "≅" || c.Op == "≇") && c.Right.Kind == tmCapture {
 				checked.treeComparisons = true

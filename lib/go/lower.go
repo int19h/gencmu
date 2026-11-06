@@ -112,15 +112,17 @@ type lrule struct {
 }
 
 type lowered struct {
-	hasErrors       bool
-	treeSites       []treeSite
-	treeDemands     map[treeDemandKey]*treeDemand
-	profileOnce     sync.Once
-	profilePossible bool
-	boundaryOnce    sync.Once
-	boundary        *boundaryMachine
-	prepareOnce     sync.Once
-	preparation     *preparation
+	carriedOnce         sync.Once
+	carriedDependencies []bool
+	hasErrors           bool
+	treeSites           []treeSite
+	treeDemands         map[treeDemandKey]*treeDemand
+	profileOnce         sync.Once
+	profilePossible     bool
+	boundaryOnce        sync.Once
+	boundary            *boundaryMachine
+	prepareOnce         sync.Once
+	preparation         *preparation
 	// memo keeps the answers of ordinary nested queries across parses
 	// (engine §4.3).
 	memo           sharedMemo

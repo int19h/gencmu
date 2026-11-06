@@ -1336,7 +1336,7 @@ func (r *recognizer) accepted(start int32) []*symNode {
 // begun says whether a start-rule constituent begins at the start of the
 // input, in any set, with an eligible proof tree: whether a prefix of the
 // input, the empty one included, parses as the start rule.
-func (r *recognizer) begun(start int32) bool {
+func (r *recognizer) begun(start int32, errorFree bool) bool {
 	var items []*item
 	for _, s := range r.sets {
 		for key, c := range s.syms {
@@ -1346,7 +1346,7 @@ func (r *recognizer) begun(start int32) bool {
 		}
 	}
 	// Only an item with an eligible proof tree counts (§4).
-	return len(r.eligibleItems(items, false)) > 0
+	return len(r.eligibleItems(items, errorFree)) > 0
 }
 
 func sortSyms(s []*symNode) {

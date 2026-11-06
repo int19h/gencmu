@@ -86,7 +86,7 @@ func TestWithoutElisionMemoActiveContext(t *testing.T) {
 	run := silentRun(t, 1)
 	g := lower(run.grammar, map[string]bool{})
 	span := spanVal{a: 0, b: 1}
-	_, _, q := run.nested(g, cdMatches, "text", span)
+	_, _, q := run.nested(g, cdMatches, "text", span, false)
 	run.ps.nested[q.key] = &nestedResult{holds: true, tags: run.ps.in.empty()}
 	run.ps.inProgress[q.at] = true
 	defer func() {
@@ -94,7 +94,7 @@ func TestWithoutElisionMemoActiveContext(t *testing.T) {
 			t.Fatal("a cached answer concealed an active query over the same original interval")
 		}
 	}()
-	run.nested(g, cdMatches, "text", span)
+	run.nested(g, cdMatches, "text", span, false)
 }
 
 func TestWithoutElisionCloseStorage(t *testing.T) {

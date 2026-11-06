@@ -2,6 +2,89 @@ package gencmu
 
 import "testing"
 
+func queryAnswer(t *testing.T, run *stageRun, grammar *lowered, kind, target string, filtered bool) bool {
+	t.Helper()
+	span := spanVal{a: 0, b: 1}
+	answer, _, pending := run.nested(grammar, kind, target, span, filtered)
+	if pending != nil {
+		run.startQuery(pending)
+		run.drive(pending.recognizer(run))
+		answer, _, pending = run.nested(grammar, kind, target, span, filtered)
+		if pending != nil {
+			t.Fatal("completed query did not retain its answer")
+		}
+	}
+	return answer
+}
+
+func queryRun(t *testing.T, pipeline *Pipeline, dirty bool) *stageRun {
+	t.Helper()
+	token := Token{Text: "a", Value: "a", Image: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}
+	if dirty {
+		token.Errors = []Warning{recordDiagnostic(Warning{Stage: "before", Code: "fault", Rule: "fault"}, fixedMeasure(1, 0, 1), nil)}
+	}
+	state := newParseState(pipeline.uni, []rune("a"))
+	state.memoLimit = defaultMemoLimit
+	return state.newRun("main", pipeline.stages[0], []Token{token})
+}
+
+func TestDeferredQueriesKeepOrdinaryAndFilteredMemosSeparate(t *testing.T) {
+	// Engine §4.3: carried errors bar only the filtered answer of a span.
+	pipeline := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text target\n%rule target A"))
+	lowered := pipeline.lower(0, map[string]bool{})
+	for _, dirty := range []bool{false, true, false} {
+		run := queryRun(t, pipeline, dirty)
+		for _, kind := range []string{cdMatches, cdBegins, cdEnds} {
+			if !queryAnswer(t, run, lowered, kind, "target", false) {
+				t.Fatal("ordinary witness lost", dirty, kind)
+			}
+			if answer := queryAnswer(t, run, lowered, kind, "target", true); answer == dirty {
+				t.Fatal("wrong filtered witness", dirty, kind, answer)
+			}
+		}
+	}
+}
+
+func TestDeferredNestedFilteredAnswersMakeTheOuterMemoErrorDependent(t *testing.T) {
+	// Engine §4.3: an ordinary outer query inherits its nested F dependency.
+	pipeline := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text target\n%rule target A\n%conditions $.parse(A).error-free"))
+	lowered := pipeline.lower(0, map[string]bool{})
+	work := &workCounts{}
+	countWorkIn(work, func() {
+		if !lowered.readsCarriedErrors(lowered.byName["target"]) {
+			t.Fatal("missing nested error dependency")
+		}
+	})
+	first := work.clauseSteps.Load() + work.ruleSetSteps.Load()
+	if first == 0 {
+		t.Fatal("dependency walk is not counted")
+	}
+	countWorkIn(work, func() {
+		for number := range lowered.rules {
+			lowered.readsCarriedErrors(int32(number))
+		}
+	})
+	if work.clauseSteps.Load()+work.ruleSetSteps.Load() != first {
+		t.Fatal("repeated the closed rule graph")
+	}
+	for _, dirty := range []bool{false, true, false} {
+		if answer := queryAnswer(t, queryRun(t, pipeline, dirty), lowered, cdMatches, "target", false); answer == dirty {
+			t.Fatal("outer memo lost error dependence", dirty, answer)
+		}
+	}
+	if len(lowered.memo.newer) == 0 {
+		t.Fatal("the test bypassed the shared memo")
+	}
+}
+
+func TestDeferredQueriesValidateRestoredReceiversDuringLoading(t *testing.T) {
+	// Engine §3.10: the new forest condition keeps ordinary receiver checks.
+	_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text A\n%conditions $.without-elision-except(missing).parse(A)"), "p.md")
+	if err == nil {
+		t.Fatal("undefined restored family was accepted")
+	}
+}
+
 func TestDeferredEligibleWitnessesSeparateCarriedErrorsAndErasure(t *testing.T) {
 	// Engine §4.3: E and F refer to the same supported proof.
 	for _, grammar := range []struct {
