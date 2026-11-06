@@ -140,7 +140,7 @@ export type WorkCounts = {
     /**
      * the steps of the readers and walks of a
      * document, of its notation's tree and of its DOM, in the library and in
-     * the tools
+     * the tools, plus candidate lookups and enumeration in competitor evidence
      */
     walkSteps: number;
     /**
@@ -244,7 +244,7 @@ export type WorkKind = "boundaryRecords" | "familySummaries" | "familySteps" | "
  *   the token's, that the closure of a token's tags reads
  * @property {number} walkSteps the steps of the readers and walks of a
  *   document, of its notation's tree and of its DOM, in the library and in
- *   the tools
+ *   the tools, plus candidate lookups and enumeration in competitor evidence
  * @property {number} lowering the symbols and captures that lowering and
  *   the checks of a definition add to a sequence or copy, the helpers
  *   that lowering moves on its list of those waiting, and the positions,

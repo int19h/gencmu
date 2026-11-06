@@ -309,7 +309,7 @@
    *   the token's, that the closure of a token's tags reads
    * @property {number} walkSteps the steps of the readers and walks of a
    *   document, of its notation's tree and of its DOM, in the library and in
-   *   the tools
+   *   the tools, plus candidate lookups and enumeration in competitor evidence
    * @property {number} lowering the symbols and captures that lowering and
    *   the checks of a definition add to a sequence or copy, the helpers
    *   that lowering moves on its list of those waiting, and the positions,
@@ -16122,14 +16122,16 @@
 
   /** Lookahead omissions that passed their entry conditions, as virtual entries.
    * @param {Chart} chart @param {number} position
-   * @param {{name?:string,accept?:(production:Production)=>boolean,cache?:Map<Production,boolean>}} [selection]
+   * @param {{name?:string,accept?:(production:Production)=>boolean,cache?:Map<Production,boolean>,candidates?:Iterable<string|Production>}} [selection]
    * @returns {Production[]} */
   function skippedProductions(chart,position,selection={}) {
     const result=[],context=chart.context,next=position<chart.end?context.tokens[position]:null;
-    for(const skipped of chart.setAt(position).skipped) {
+    for(const skipped of selection.candidates??chart.setAt(position).skipped) {
+      if(hooks.work)countWork(hooks.work,"walkSteps");
       if(selection.name!==undefined&&(typeof skipped==='string'?skipped:skipped.lhs)!==selection.name)continue;
       const productions=typeof skipped==='string'?context.lowered.byLhs.get(skipped)??[]:[skipped];
       for(const production of productions) {
+        if(hooks.work)countWork(hooks.work,"walkSteps");
         if(selection.accept&&!selection.accept(production))continue;
         const cached=selection.cache?.get(production);
         if(cached!==undefined){if(cached)result.push(production);continue;}
@@ -16247,6 +16249,7 @@
 
   // ---- competitor-rejection.js
 
+
   /** @type {WeakMap<string[],import("./source-lines.js").LineIndex>} */
   const sourceLines=new WeakMap();
   // Default rejection evidence for a diagnostic that is itself a ranked option (§12.1).
@@ -16255,6 +16258,19 @@
   /** @typedef {import('./earley.js').Item} Item */
   /** @typedef {import('./types.js').Production} Production */
   /** @typedef {{next:Item,child:Item|null}} Advance */
+
+  /** @template T @param {Map<string,Map<any,T[]>>} index @param {string} name @param {any} frame @param {T} candidate */
+  function indexCandidate(index,name,frame,candidate){
+    if(hooks.work)countWork(hooks.work,"walkSteps");
+    let frames=index.get(name);if(!frames)index.set(name,frames=new Map());
+    let list=frames.get(frame);if(!list)frames.set(frame,list=[]);
+    list.push(candidate);
+  }
+  /** @template T @param {Map<string,Map<any,T[]>>|undefined} index @param {string} name @param {any} frame @returns {T[]} */
+  function candidatesAt(index,name,frame){
+    if(hooks.work)countWork(hooks.work,"walkSteps");
+    return index?.get(name)?.get(frame)??[];
+  }
 
   /** @param {import('./diagnostic-flow.js').DiagnosticFlow} flow @param {import('./earley.js').Chart} chart */
   function competitorRejections(flow,chart) {
@@ -16272,14 +16288,34 @@
   function competitorSlice(chart,start,cap,option) {
     const group=/** @type {NonNullable<Production['rankedGroup']>} */(option.rankedGroup);
     const frames=chart.frames;
-    /** @type {Map<number,Map<string,Item[]>>} */ const entries=new Map();
+    /** @type {Map<number,Map<string,Map<any,Item[]>>>} */ const entries=new Map();
     /** @type {Map<Item,Advance[]>} */ const advances=new Map();
     /** @type {Map<Item,{previous:Item,next:Item}[]>} */ const completions=new Map();
     /** @type {Map<number,Map<Production,boolean>>} */ const skipped=new Map();
-    /** @param {number} at @param {(production:Production)=>boolean} accept @param {string} [name] */
-    const omissions=(at,accept,name)=>{
+    /** @type {Map<number,Map<string,Map<any,(string|Production)[]>>>} */ const skippedCandidates=new Map();
+    /** @param {number} at */
+    const skippedAt=at=>{
+      if(hooks.work)countWork(hooks.work,"walkSteps");
+      let index=skippedCandidates.get(at);
+      if(!index){
+        skippedCandidates.set(at,index=new Map());
+        for(const candidate of chart.setAt(at).skipped)indexCandidate(index,typeof candidate==='string'?candidate:candidate.lhs,typeof candidate==='string'?null:candidate.lexicalFrame??null,candidate);
+      }
+      return index;
+    };
+    /** @param {number} at @param {(production:Production)=>boolean} accept @param {Iterable<string|Production>} candidates */
+    const omissions=(at,accept,candidates)=>{
       let cache=skipped.get(at);if(!cache)skipped.set(at,cache=new Map());
-      return skippedProductions(chart,at,{name,accept:production=>!production.error&&accept(production),cache});
+      return skippedProductions(chart,at,{candidates,accept:production=>!production.error&&accept(production),cache});
+    };
+    /** @type {Map<number,Map<string,Set<any>>>} */ const predictions=new Map();
+    /** @param {number} at @param {string} name @param {any} frame */
+    const firstPrediction=(at,name,frame)=>{
+      if(hooks.work)countWork(hooks.work,"walkSteps");
+      let names=predictions.get(at);if(!names)predictions.set(at,names=new Map());
+      let seen=names.get(name);if(!seen)names.set(name,seen=new Set());
+      if(seen.has(frame))return false;
+      seen.add(frame);return true;
     };
     /** @type {Map<number,ChartSet>} */ const sets=new Map();
     /** @type {Set<Item>} */ const reached=new Set();
@@ -16301,15 +16337,20 @@
       const transparent=item.dot===0&&item.production.rankedGroup&&item.production.rhs.length===1&&!item.production.rhs[0].terminal;
       if(!transparent)setAt(item.end).items.push(item);
     };
+    /** @type {Map<number,Set<Production>>} */ const omitted=new Map();
     /** @param {number} at @param {Production} production */
-    const omit=(at,production)=>{const set=setAt(at);if(!set.skipped.includes(production))set.skipped.push(production);};
+    const omit=(at,production)=>{
+      if(hooks.work)countWork(hooks.work,"walkSteps");
+      let seen=omitted.get(at);if(!seen)omitted.set(at,seen=new Set());
+      if(!seen.has(production)){seen.add(production);setAt(at).skipped.push(production);}
+    };
     for(const set of chart.sets) {
       if(set.position<start||set.position>cap)continue;
       const byName=new Map();entries.set(set.position,byName);
       for(const item of set.items) {
         if(item.production.error)continue;
         if(item.dot===0) {
-          const list=byName.get(item.production.lhs)??[];list.push(item);byName.set(item.production.lhs,list);
+          indexCandidate(byName,item.production.lhs,item.production.lexicalFrame??null,item);
           if(item.origin===start&&set.position===start&&competitor(item.production))add(item);
         }
         for(const edge of item.edges)if('previous'in edge) {
@@ -16319,13 +16360,19 @@
         }
       }
     }
-    for(const production of omissions(start,competitor))omit(start,production);
+    for(const production of omissions(start,competitor,chart.setAt(start).skipped))omit(start,production);
     for(let index=0;index<queue.length;index++) {
       const item=queue[index],symbol=item.production.rhs[item.dot];
       if(symbol&&!symbol.terminal) {
         const frame=frames?.entry(item,symbol.name)??null;
-        for(const entry of entries.get(item.end)?.get(symbol.name)??[])if((entry.production.lexicalFrame??null)===frame)add(entry);
-        for(const production of omissions(item.end,p=>(p.lexicalFrame??null)===frame,symbol.name))omit(item.end,production);
+        if(firstPrediction(item.end,symbol.name,frame)){
+          for(const entry of candidatesAt(entries.get(item.end),symbol.name,frame)){
+            if(hooks.work)countWork(hooks.work,"walkSteps");
+            add(entry);
+          }
+          const candidates=candidatesAt(skippedAt(item.end),symbol.name,frame);
+          for(const production of omissions(item.end,p=>(p.lexicalFrame??null)===frame,candidates))omit(item.end,production);
+        }
       }
       for(const advance of advances.get(item)??[])if(!advance.child||reached.has(advance.child))add(advance.next);
       for(const completion of completions.get(item)??[])if(reached.has(completion.previous))add(completion.next);

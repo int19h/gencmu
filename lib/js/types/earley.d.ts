@@ -590,12 +590,13 @@ export declare function rejectionOf(chart: Chart): {
 export declare function expectedAt(chart: Chart, position: number, skipped?: Production[]): Expectation[];
 /** Lookahead omissions that passed their entry conditions, as virtual entries.
  * @param {Chart} chart @param {number} position
- * @param {{name?:string,accept?:(production:Production)=>boolean,cache?:Map<Production,boolean>}} [selection]
+ * @param {{name?:string,accept?:(production:Production)=>boolean,cache?:Map<Production,boolean>,candidates?:Iterable<string|Production>}} [selection]
  * @returns {Production[]} */
 export declare function skippedProductions(chart: Chart, position: number, selection?: {
     name?: string;
     accept?: (production: Production) => boolean;
     cache?: Map<Production, boolean>;
+    candidates?: Iterable<string | Production>;
 }): Production[];
 /**
  * @param {import("./types.js").Condition[]} conditions
