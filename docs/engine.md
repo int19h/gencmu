@@ -3781,7 +3781,7 @@ Assignment uses the first applicable rule:
 
 1. An erased constituent drops its diagnostic. An ancestor's erasure has the same effect. The diagnostic neither counts nor flows onward.
 2. The owner is the first emitted token, in emission order, whose counted parts share a counted input token with the constituent.
-3. Otherwise, the engine starts at the constituent's own executed emission and continues through its ancestors. It skips emissions that yield no tokens. In the nearest nonempty emission, the owner is its first token whose counted span ends at or after the diagnostic's position. A token without counted support uses its own span, which §11.1 leaves empty at its anchor. Without a qualifying token, the owner is that emission's last token.
+3. Otherwise, the engine starts at the constituent's own executed emission and continues through its ancestors. It skips emissions that yield no tokens. In the nearest nonempty emission, the owner is its first token whose counted span ends at or after the diagnostic's position. A token without counted support uses its own token span. An inserted token uses the empty span at its anchor. Without a qualifying token, the owner is that emission's last token.
 4. Otherwise, the owner is the first stage-output token starting at or after the position. Without a qualifying token, it is the last stage-output token.
 5. If the stage emits no tokens, its `errors` or `warnings` retain the diagnostic. Even with empty later input, reporting includes it.
 
