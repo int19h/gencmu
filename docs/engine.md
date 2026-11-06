@@ -3832,7 +3832,7 @@ After stitching, every explicit suppression code names a warning of that stage. 
 
 The reporting stage is the stage named by `until`. Without `until`, it is the pipeline's last stage. Stage order means pipeline execution order, rather than name order. Earlier stages with chosen errors evaluate messages, emit, assign carriers, and continue. They retain their verdicts and outputs. A stage that emits an empty output retains its unowned diagnostics in its stage-level `errors` and `warnings` (§11.5).
 
-For a chosen reporting derivation, the engine collects earlier stage-level diagnostics first, in stage order. It then walks the reporting derivation in preorder, skipping erased subtrees before spliced roots disappear. An own-stage occurrence supplies its diagnostic, and a token leaf supplies its carried lists. A parent precedes children, and siblings retain their written order. Errors and warnings preserve that order in separate lists. Carrier diagnostics precede attachment diagnostics, with each group ordered as §11.5 defines.
+For a chosen reporting derivation, the engine collects earlier stage-level diagnostics first, in stage order. It then walks the reporting derivation in preorder, skipping erased subtrees before spliced roots disappear. An own-stage occurrence supplies its diagnostic, and a token leaf supplies its carried lists. A parent precedes children, and siblings retain their written order. Errors and warnings preserve that order in separate lists. A token leaf supplies its carried lists in their stored order, including the carrier and attachment order that §11.5 defines.
 
 Every ending first includes the pending stage-level diagnostics of earlier stages, once by identity. Its remaining collection is as follows:
 
