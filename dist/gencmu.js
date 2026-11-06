@@ -16641,7 +16641,9 @@
     }
     /** @returns {DiagnosticLists} */
     messages(){
-      const result=emptyDiagnostics();for(const event of this.evaluated)result[event.kind].push(event.diagnostic);return result;
+      const result=emptyDiagnostics();
+      for(const event of this.evaluated)if(!this.info(event.node).erased)result[event.kind].push(event.diagnostic);
+      return result;
     }
     /** Surviving chosen preorder, before output-node omission. @returns {DiagnosticEvent[]} */
     events(){
