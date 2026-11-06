@@ -111,6 +111,7 @@ The input is `input` or `tokens`. `input` supplies scalar characters as engine �
 - Its span is its `span` member when present, otherwise `[i, i+1)`.
 - Its source is its `source` member when present, otherwise its position in the joined texts.
 - Its attachments are its `before` and `after` members, when present, each a list of tokens in this same form. A caller cannot supply attachments. So a list that is not empty is a `usage` error, and the library drops an empty one (`docs/api.md`). The Rust library, whose input tokens have no attachments, skips a case whose tokens have either member.
+- Its optional `errors` and `warnings` members are diagnostic lists. A nonempty list causes a usage error. Empty lists are accepted and dropped in every library.
 
 A usage case can supply an invalid field. The runner passes that field to the library, which reports the usage error. If the API cannot express that field, the runner records its reason for skipping the case.
 
@@ -122,7 +123,7 @@ The condition-loading cases stop before the condition's stage, so a runtime fail
 
 If `options.until` is present, it names the last stage to run (engine §13). A name that is not a stage of the pipeline is a `usage` error. No case gives an empty name, because Go cannot tell an empty name from no name (`docs/api.md`). The same restriction applies to memo configurations. Each library tests an empty name in its own tests.
 
-A pattern describes required result fields. `expect.result` is a pattern matched against the format 16 canonical result of `docs/output.md`. A pattern matches in these ways:
+A pattern describes required result fields. `expect.result` is a pattern matched against the format 17 canonical result of `docs/output.md`. A pattern matches in these ways:
 
 - An object matches when every member of the pattern matches the member of the same name.
 - An array matches when it has the same length and each element matches.
@@ -142,9 +143,11 @@ A pattern matches a result that has members beyond its own. So the invariants, a
 
 `treeRendering` pins the JavaScript tree listing in `lib/js/test/output.test.js`. Its `aliases` list supplies alternative abbreviations for U+000A. Its `text` gives the expected listing, with `ALIAS` replaced by each abbreviation. Its `decodedError` gives the error kind for rendering a result decoded from JSON. Other libraries inspect this object's shape and run the rest of the case.
 
-`expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. Each warning uses `stage`, `code`, `rule`, `span`, `source`, and `message`, with no `feature` member. So `[]` says that there are no warnings. `expect.features` is the list of features of the pipeline (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
+`expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. Each warning uses its raising `stage`, `code`, `rule`, `span`, `source`, and `message`, with no `feature` member. Warnings follow engine §12.1 rather than unconditional stage order.
 
-A result pattern pins named errors through `error.kind:"reported"` and the ordered `error.errors` array. Each diagnostic can pin its `code`, `rule`, `stage`, `span`, and `source`. Array lengths and order must agree, so the pattern also pins the number of reports.
+So `[]` says that there are no warnings. `expect.features` is the list of features of the pipeline (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
+
+A result pattern pins named errors through the ordered `error.errors` array. It also pins the envelope's kind, including `reported`, `rejected`, `grammar`, or `ambiguous` with reason `tie`. Each diagnostic can pin its `code`, `rule`, raising `stage`, original `span`, and `source`. Errors carried from earlier stages retain those coordinates. Patterns can also pin a ranked option's competitor `rejection` member. Array lengths and order must agree, so the pattern also pins the number of reports.
 
 ```json
 {"expect":{"result":{"ok":false,"error":{"kind":"reported","errors":[{"code":"unmatched-fi","span":[0,1],"source":[0,2]}]}}}}
@@ -152,7 +155,7 @@ A result pattern pins named errors through `error.kind:"reported"` and the order
 
 Named diagnostic messages come from grammar recipes and can be compared as ordinary data. The ban on result-pattern `message` assertions covers engine-generated errors, rather than named diagnostics or warnings.
 
-A reported failure retains its chosen tree and `unique` or `resolved` verdict, with no failed-stage output. Invariants also require a nonempty diagnostic list, the failed stage last, and no `elision-only` run for that chosen derivation. A tie carries no named errors or warnings from its tied stage.
+A reported failure retains its chosen tree and `unique` or `resolved` verdict, with reporting-stage output retained. Invariants require a nonempty diagnostic list, the reporting stage last, and no `elision-only` run while an error counts. A tie collects diagnostics from its two shown readings, plus pending earlier stage-level diagnostics.
 
 Expectation comparisons distinguish booleans from numbers, as JSON does.
 
@@ -176,6 +179,8 @@ A load that fails gives only its error. Its kind is `grammar` for a grammar that
 
 For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings`, `features` or `enabledFeatures`, because only a loaded pipeline gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
 
+The conservative nullable-error test is a document loading error at the definition (engine §3.6). It considers gated alternatives present and ignores conditions and tests. Empty warnings are exempt.
+
 An error that lowering finds (engine §3), such as an item of braces that can match no tokens, is not a load error. The pipeline loads, and the parse gives a result whose error has the kind `grammar`, so a case expects it with `expect.error`. Its message names the definition at fault. Unit tests cover common messages, and shared cases compare the other result fields.
 
 `expect.where`, when present, is where the error of a grammar that cannot be loaded stands. It is only for an error of kind `grammar`. It names a document of the case and a line and a column in it. For a case with `grammar`, the document is `main.md`. Its fence is line 1, so the rules start on line 3, or on line 2 when they hold their own `%ambiguity-resolution`.
@@ -195,11 +200,17 @@ Cases preserve the shared pause and foreign readings for the seven No explicit r
 An invariant is a required property of every result. Every runner also makes sure that each canonical result meets these invariants, whatever the case expects. A case cannot turn them off, and its pattern need not repeat them:
 
 - Every error result except `reported` has a null `tree`, including message, emission, and elision-check failures after choice.
-- A message recipe failure keeps the stage verdict. It has no output and reports no named errors or warnings from that stage. Earlier outputs and warnings remain.
-- Verdicts and summary totals count only derivations with the least error count. Higher-error readings never turn `unique` into `resolved` or start `elision-only`.
+- A message recipe failure keeps the stage verdict and has no output. Its grammar envelope retains evaluated own messages, carried input diagnostics, and pending earlier stage-level diagnostics.
+- Verdicts and summary totals count only derivations with the best three-part blame measure. Worse-measure readings do not change the verdict. Erased interiors collapse as engine §6 defines, while distinct outer routes remain distinct. No counted error, including a pending stage-level error, permits `elision-only`.
 - An error of kind `ambiguous` has no member `token` and no member `source`.
 - An error has no member `cycle`, `conflict`, or `chosenReading`.
 - No stage has a member `tied`.
+- Empty diagnostic arrays are omitted from canonical tokens, stages, and envelopes. Native collections remain available.
+- A completed stage with empty output retains unowned diagnostics in stage-level `errors` and `warnings`.
+- A `reported` result retains reporting-stage output. A `rejected` result has no failed-stage output.
+- Failed envelopes collect diagnostics with the cutoff and order of engine §12.1. Rejection, feature-conflict, and grammar envelope warnings equal result warnings.
+- A tie reports diagnostics only from its two shown readings, with carried identities deduplicated and own-stage objects compared by multiplicity.
+- Erasure drops carried diagnostics, own diagnostics, and measure contributions. Attachment display copies never count twice.
 - A stage whose verdict is `tie` has no member `output`, and it is the last stage of the result.
 - Such a result has `ok` false and `tree` null. Its error has kind `ambiguous`, reason `tie`, and that stage's name. It contains exactly two readings.
 - No result has an error with the code `elision-witness-lost`. Engine §7.8 proves raw witness membership when recognition meets no grammar error. Section 7.9 reports witness loss only for raw absence. So no grammar can give it, and it is a defect of the library, whatever the case expects.
@@ -213,11 +224,11 @@ The answer records raw W(D), which engine §7.8 reconstructs from the chosen der
 - The walk: After the check recognizes R and before it ranks, a walk looks for W(D) in the chart. It takes each occurrence in the derivation tree on its own, even where the representation shares one object between occurrences. It marks the edges or links that W(D) uses. JavaScript and Python mark an edge by its index among its item's edges.
 
   Go marks a link. Rust marks a link as its ranker rebuilds it, by the item and the set where its predecessor stands. Where the chart does not hold W(D), the answer is no.
-- The count channel: The check passes the marks to the ranker that it uses. Each summary retains its least error count and the number of derivations attaining it, capped at two.
+- The count channel: The check passes the marks to the ranker that it uses. Each summary retains its best measure and the number of derivations attaining it, capped at two.
 
   Beside that total, the ranker keeps a bit that records whether the total includes a derivation made only of marked edges. The same loop decides both, over the same edges, in the same contexts, with the same faults. So a choice that drops W(D) from the count also drops it from the bit.
 
-  A cut that closes a cycle has no bit. If the least error count is settled, the loop can stop at two. At a marked item, the loop must also determine the bit. A root of W(D) must have the bit.
+  A cut that closes a cycle has no bit. If the best measure is settled, the loop can stop at two. At a marked item, the loop must also determine the bit. A root of W(D) must have the bit.
 - The selection channel: An elision-only error reports raw W(D) first, including when admission excludes it. The second reading is the T-first best admitted competitor distinct from W(D). The walk builds the witness actions in post-order for comparison.
 
 Every check tracks W(D) and passes its marks to the ranker, whether or not a test watches it. The optional test hook observes the reconstruction and ranking. It does not enable runtime witness tracking.
@@ -299,7 +310,7 @@ The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin si
 
 ## Layered pattern conformance
 
-The `notation/layered-pattern-*.json` cases use the public reader and format-45 DOM. They cover node decorations, item arrays, operator binding, grouping, source spacing, parameters, and source error positions.
+The `notation/layered-pattern-*.json` cases use the public reader and format-46 DOM. They cover node decorations, item arrays, operator binding, grouping, source spacing, parameters, and source error positions.
 
 The `engine/layered-pattern-*.json` cases use the public loader. They cover exact matching, independent child searches, empty lists, seals, choices, constant binding, template families, and error positions.
 
@@ -381,7 +392,7 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 45. The library tests it as a preparsed DOM (engine §9). The `malformed` field gives the required outcome of DOM inspection.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 46. The library tests it as a preparsed DOM (engine §9). The `malformed` field gives the required outcome of DOM inspection.
 
 Instead, an item can supply `dom`, the complete DOM envelope. This form can test the envelope and interactions between declarations. An optional `message` requires that the problem contains that agreed text. An optional `code` requires the problem code before its first colon.
 
@@ -624,7 +635,9 @@ Each line is one language text and its required result:
 
 - `pipeline` is the full name of a bundled pipeline. `features`, when present, lists the features that the case turns on. `withoutFeatures` lists those that it turns off.
 - `expect` is `accept` or `reject`. For an accepted text, `verdict` is the verdict of the last stage, and `brackets` is its tree, with elided terminators hidden. For a rejected one, `stage` names the failed stage. A `reported` case requires `verdict`, the failed stage's retained `unique` or `resolved` verdict.
-- In a plain rejection, `at` is the start of the error's `source` in the text. For named errors, it is the first diagnostic's source start. It counts code points from 0. At the end of the stage's input, `at` is the end of the source of its last token. If no pause, attached indicator, or erased word follows that token, the position equals the text length. For example, `mi le ui` stops at 5, the end of `le`, which carries `ui`, and not at 8 (case `adhoc.syntax.at-end-after-attached-indicator`).
+- In a plain rejection, `at` is the start of the error's `source` in the text. For a `reported` result, it is the first diagnostic's source start. A carried diagnostic keeps its raising stage's source coordinates. It counts code points from 0.
+
+  At the end of the stage's input, `at` is the end of the source of its last token. If no pause, attached indicator, or erased word follows that token, the position equals the text length. For example, `mi le ui` stops at 5, the end of `le`, which carries `ui`, and not at 8 (case `adhoc.syntax.at-end-after-attached-indicator`).
 
   A change in a preceding stage can move the failing token's start or end. For example, splitting words differently can move `at`. A change of that position fails the case. Two different failures can stop at the same place, so `at` does not show the reason for the rejection. It and the accepted twins of a rejection make the cases stronger, and neither proves the reason.
 
@@ -632,13 +645,17 @@ Each line is one language text and its required result:
 - `error` is present for `ambiguous` and `reported` results. It is `{"kind": "ambiguous", "reason": "tie"}`, or the same with the reason `elision-only` (engine §6, §7). A named-error case uses `{"kind":"reported"}` and its ordered `errors` list below. Other results have no `error`, including plain rejections and grammar failures. A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed.
 - The `reason` inside `error` is the reason of the ambiguous error. It is a field of `error`, and it is not the case's own `reason`, which explains the expected verdict (below). A case can have both.
 - `ties`, when present, contains exactly one nonempty stage name. It requires `expect: "reject"`, and its name equals `stage`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
-- `errors` is required for a `reported` case and forbidden otherwise. Each entry is `{"code":"unmatched-fi","at":0}`. The list pins every diagnostic's code and original source start, in report order. It is nonempty, and the case's `at` equals its first entry's `at`.
-- A present `warnings` field pins every warning in result order as `{"stage":"words","code":"y-cmavo","at":3}`. `at` is that warning's original source start. An empty list requires no warnings. Message wording and other coordinates belong in shared engine cases.
+- `errors` is required for a `reported` case and whenever another failed envelope contains named errors. It is absent otherwise. Each entry is `{"code":"unmatched-fi","at":0}`, with optional `stage` to pin the raising stage. The complete nonempty list pins diagnostic count, codes, positions, and report order.
+
+  A `reported` case's `at` equals its first entry's `at`. A plain rejection keeps its rejection position. Ambiguity still has no `at`. Carried diagnostics change neither rule.
+- A present `warnings` field pins every warning in result order as `{"stage":"words","code":"y-cmavo","at":3}`. `at` is that warning's original source start. An empty list requires no warnings. The stage names the warning's origin, rather than its later reporting stage.
+
+  Pending earlier stage-level warnings precede the reporting derivation's preorder collection. Carrier warnings precede attachment warnings, with each group ordered by raising stage and source occurrence. Ties use the two-reading collection of engine §12.1. Message wording and other coordinates belong in shared engine cases.
 - `words` records the words stage's output when that output is present. The case writes each token as its image (engine §5). The pipeline's grammar recipes supply pause spaces and verbatim text.
 
 A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. Some corpus texts tie in their pipeline, and those cases expect the tie. Each library also tests that its runner refuses the result mutants above. A case uses its pipeline declarations and the caller configuration.
 
-For fields other than `warnings`, every field present in the case or result must agree. A `reported` case requires `verdict`.
+For fields other than `warnings`, every field present in the case or result must agree. Error entries compare `code` and `at`. A supplied `stage` also participates. Carried diagnostic coordinates never change to the reporting stage's token positions. A `reported` case requires `verdict`.
 
 The optional `warnings` field is an exception. If present, it compares the complete projected list exactly and in order, including `[]`. If absent, it compares nothing.
 
@@ -646,7 +663,7 @@ Every runner compares the required fields, including diagnostic codes and positi
 
 The runners differ on input that this format does not allow, such as a field whose value is null. So `node tools/sync.js --check` first makes sure that every case meets its schema (`tools/fixture-shapes.js`). Each file is UTF-8, and each line is one JSON object. No object has a member name twice, at any depth, and every string is a sequence of Unicode scalar values, with no lone surrogate.
 
-A case has only the fields above, and none of them is null. An accepted case has `verdict` and `brackets`. A `reported` case also requires `verdict`. A rejected case has `stage`. It has `at` for plain rejection or named errors, and no `at` for ambiguity.
+A case has only the fields above, and none of them is null. An accepted case has `verdict` and `brackets`. A `reported` case also requires `verdict`. A rejected case has `stage`. It has `at` for plain rejection or a `reported` result, and no `at` for ambiguity.
 
 The optional `seeded` field records a reference fixture's verdict, `"accept"` or `"reject"`. When gencmu expects a different verdict, `reason` explains that expectation in terms of its grammar. A case can also have `reason` without `seeded`, to explain a grammar change or a pipeline policy. `node tools/corpus-departures.js` lists every such case, grouped by reason. A change to the `words` or `brackets` of a case needs no field of its own. It is a change to what gencmu produces, made in the same commit as the grammar change that causes it.
 
