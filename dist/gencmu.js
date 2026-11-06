@@ -175,6 +175,84 @@
     return found;
   }
 
+  // ---- query-forms.js
+  // Body queries (engine §3.10 and §4): the outer remainder is not a symbol.
+
+
+  /** @param {any} body @returns {{body:any, mode:string, problem?:string}} */
+  function queryBody(body) {
+    const sequence = body?.seq;
+    if (Array.isArray(sequence) && sequence.some(item => item?.remainder)) {
+      const markers = sequence.map((item,index) => item?.remainder ? index : -1).filter(index => index >= 0);
+      if (Object.keys(body).length !== 1 || markers.length !== 1 || sequence.length < 2 || ![0,sequence.length-1].includes(markers[0]) ||
+          Object.keys(sequence[markers[0]]).length !== 1 || sequence[markers[0]].remainder !== true) {
+        return {body,mode:"matches",problem:"a remainder stands at one outer edge of a parse argument"};
+      }
+      const parts = sequence.filter((_,index) => index !== markers[0]);
+      return {body:parts.length === 1 ? parts[0] : {seq:parts},mode:markers[0] === 0 ? "ends" : "begins"};
+    }
+    return {body,mode:"matches"};
+  }
+
+  /** @param {any} body @returns {any | null} */
+  function queryCapture(body) {
+    const pending = [body], seen = new Set();
+    while (pending.length) {
+      const node = pending.pop();
+      if (!node || typeof node !== "object" || seen.has(node)) continue;
+      seen.add(node);
+      if (typeof node.capture === "string") return node;
+      pending.push(...expressionChildren(node).slice().reverse());
+    }
+    return null;
+  }
+
+  // Keys omit source positions and expand resolved constants. The memo owns no
+  // input-dependent facts: a body is part of one loaded grammar.
+  /** @type {WeakMap<object,string>} */
+  const identities = new WeakMap();
+  /** @param {any} body @returns {string} */
+  function queryIdentity(body) {
+    const known = identities.get(body);
+    if (known !== undefined) return known;
+    /** @param {any} node @returns {any} */
+    const normalized = node => {
+      if (node instanceof Set) return [...node].sort();
+      if (Array.isArray(node)) return node.map(normalized);
+      if (!node || typeof node !== "object") return node;
+      if (node.set && typeof node.set[Symbol.iterator] === "function") return {set:[...node.set].sort()};
+      if (node.const && node.value !== undefined) return normalized(node.value);
+      const result = {};
+      for (const key of Object.keys(node).filter(key => key !== "at").sort()) {
+        let value = normalized(node[key]);
+        if (["seq","choice"].includes(key)) value = value.flatMap((/** @type {any} */ child) => child[key] ?? [child]);
+        /** @type {any} */ (result)[key] = value;
+      }
+      return result;
+    };
+    const key = JSON.stringify(normalized(queryBody(body).body));
+    identities.set(body,key);
+    return key;
+  }
+
+  /** @param {any} body @returns {string[]} */
+  function queryReferences(body) {
+    const found = [], pending = [queryBody(body).body];
+    while (pending.length) {
+      const node = pending.pop();
+      if (node.ref) found.push(node.ref);
+      for (const child of expressionChildren(node).slice().reverse()) pending.push(child);
+    }
+    return found;
+  }
+
+  /** @param {any} lowered @param {any} body @returns {string} */
+  function bodyTarget(lowered,body) {
+    const found = lowered.queryTargets.get(queryIdentity(body));
+    if (found === undefined) throw new Error("a body query has no lowered target");
+    return found;
+  }
+
   // ---- guarded-tags.js
   // Concrete variants for neighbour guards in constituent tags (engine §3.7).
 
@@ -290,6 +368,7 @@
 
   // ---- boundary.js
 
+
   // Complete-tree neighbours, represented by finite records (engine §4.2).
 
 
@@ -372,6 +451,7 @@
         while (pending.length) {
           const part = pending.pop();
           const query = ["matches","begins","ends","tags"].includes(part?.method);
+          if (part?.method === "parse") for (const target of queryReferences(part.args[0].body)) queries.push({rule:rule.name,alternative,target});
           if (query) for (const arg of part.args) {
             if (arg.terminal || arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
           }
@@ -385,6 +465,7 @@
       while (pending.length) {
         const part = pending.pop();
         const query = ["matches","begins","ends","tags"].includes(part?.method);
+        if (part?.method === "parse") for (const target of queryReferences(part.args[0].body)) queries.push({rule:rule.name,alternative,target});
         if (query) for (const arg of part.args) {
           if (arg.terminal || arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
         }
@@ -3580,6 +3661,7 @@
   }
 
   // ---- close-observations.js
+
   // Shared close observations for aligned queries. The chart keeps summaries
   // of proofs, not completed trees. A cyclic summary remains available to
   // ordinary query eligibility, but cannot supply an aligned observation.
@@ -3904,8 +3986,8 @@
           const node = /** @type {any} */ (stack.pop());
           if (!node || typeof node !== "object" || seen.has(node)) continue;
           seen.add(node);
-          if (["matches","begins","ends","tags"].includes(node.method) ) for (const arg of node.args ?? []) {
-            const name = arg.rule ?? (arg.terminal ? "\u0000query:" + arg.terminal : null);
+          if (["matches","begins","ends","tags","parse"].includes(node.method) ) for (const arg of node.args ?? []) {
+            const name = arg.rule ?? (arg.terminal ? "\u0000query:" + arg.terminal : arg.body ? bodyTarget(lowered,arg.body) : null);
             if (!name) continue;
             pending.push(name);
             if (needsCloseObservations(node.receiver)) wanted.add(name);
@@ -3950,9 +4032,10 @@
    * Only a caller that consumes an observation asks its child to retain it.
    * A private whole capture also needs the enclosing written alternative.
    * @param {import("./types.js").Production} production
+   * @param {import("./types.js").LoweredGrammar} lowered
    * @returns {LocalCloseDemand}
    */
-  function localCloseDemand(production) {
+  function localCloseDemand(production,lowered) {
     const base = production.baseProduction ?? production;
     const old = localDemands.get(base);
     if (old) return old;
@@ -3963,9 +4046,9 @@
       const node = /** @type {any} */ (stack.pop());
       if (!node || typeof node !== "object" || seen.has(node)) continue;
       seen.add(node);
-      const value = ["matches","begins","ends","tags"].includes(node.method) ? node.receiver : undefined;
+      const value = ["matches","begins","ends","tags","parse"].includes(node.method) ? node.receiver : undefined;
       const aligned = value?.method === "onward" ? value.receiver : value;
-      const queryRules = (node.args ?? []).map((/** @type {any} */ arg) => arg.rule ?? (arg.terminal ? "\u0000query:" + arg.terminal : null)).filter((/** @type {any} */ name) => typeof name === "string");
+      const queryRules = (node.args ?? []).map((/** @type {any} */ arg) => arg.rule ?? (arg.terminal ? "\u0000query:" + arg.terminal : arg.body ? bodyTarget(lowered,arg.body) : null)).filter((/** @type {any} */ name) => typeof name === "string");
       if (["without-elision", "without-elision-except"].includes(aligned?.method) && queryRules.length) {
         const part = base.captures.find(capture => capture.name === aligned.receiver.capture);
         if (part) {
@@ -4041,38 +4124,6 @@
     }
     prefixes.set(grammar,table);
     return table;
-  }
-
-  // ---- query-forms.js
-  // Body queries (engine §3.10 and §4): the outer remainder is not a symbol.
-
-
-  /** @param {any} body @returns {{body:any, mode:string, problem?:string}} */
-  function queryBody(body) {
-    const sequence = body?.seq;
-    if (Array.isArray(sequence) && sequence.some(item => item?.remainder)) {
-      const markers = sequence.map((item,index) => item?.remainder ? index : -1).filter(index => index >= 0);
-      if (Object.keys(body).length !== 1 || markers.length !== 1 || sequence.length < 2 || ![0,sequence.length-1].includes(markers[0]) ||
-          Object.keys(sequence[markers[0]]).length !== 1 || sequence[markers[0]].remainder !== true) {
-        return {body,mode:"matches",problem:"a remainder stands at one outer edge of a parse argument"};
-      }
-      const parts = sequence.filter((_,index) => index !== markers[0]);
-      return {body:parts.length === 1 ? parts[0] : {seq:parts},mode:markers[0] === 0 ? "ends" : "begins"};
-    }
-    return {body,mode:"matches"};
-  }
-
-  /** @param {any} body @returns {any | null} */
-  function queryCapture(body) {
-    const pending = [body], seen = new Set();
-    while (pending.length) {
-      const node = pending.pop();
-      if (!node || typeof node !== "object" || seen.has(node)) continue;
-      seen.add(node);
-      if (typeof node.capture === "string") return node;
-      pending.push(...expressionChildren(node).slice().reverse());
-    }
-    return null;
   }
 
   // ---- pattern-shapes.js
@@ -9484,6 +9535,9 @@
   /** @type {AttachedToken[]} */
   const NO_ATTACHMENTS = /** @type {AttachedToken[]} */ (/** @type {unknown} */ (Object.freeze([])));
 
+  /** @type {import("./types.js").ParseWarning[]} */
+  const NO_DIAGNOSTICS = /** @type {import("./types.js").ParseWarning[]} */ (/** @type {unknown} */ (Object.freeze([])));
+
   class Token {
     /**
      * @param {TagSet} tags
@@ -9504,6 +9558,10 @@
       this.value = value;
       this.insertedBy = insertedBy;
       this.image = image;
+      /** @type {import("./types.js").ParseWarning[]} */
+      this.errors = NO_DIAGNOSTICS;
+      /** @type {import("./types.js").ParseWarning[]} */
+      this.warnings = NO_DIAGNOSTICS;
       /**
        * The tokens attached before this one (engine §11), none by default.
        * @type {AttachedToken[]}
@@ -9747,14 +9805,15 @@
    * so a permitted omission never combines with another proof tree's prefix.
    * @param {Chart} chart
    * @param {Item[]} witnesses
+   * @param {boolean} [errorFree]
    * @returns {Item[]}
    */
-  function eligibleWitnesses(chart, witnesses) {
+  function eligibleWitnesses(chart, witnesses, errorFree = false) {
     if (witnesses.length === 0) return witnesses;
     const {elidable:helpers,optional:optionals} = helpersOf(chart.context.lowered);
     let errors=errorGrammars.get(chart.context.lowered);
     if (errors===undefined) { errors=chart.context.lowered.productions.some(production=>!!production.error);errorGrammars.set(chart.context.lowered,errors); }
-    if (helpers.size === 0 && !errors) return witnesses;
+    if (helpers.size === 0 && !errors && !errorFree) return witnesses;
     // The items the witnesses rest on, children before the items made from
     // them where the edges allow, so that one sweep settles most of them.
     /** @type {Map<Item, number>} */
@@ -9795,7 +9854,7 @@
     }
     // With no omission, every item of a chart has a finite proof, made from
     // predicted items in the order in which the recognizer made it.
-    if (!omits && !errors) return witnesses;
+    if (!omits && !errors && !errorFree) return witnesses;
 
     // The prefixes that advance over a written optional, and for each item
     // before a constituent Y, the furthest end of an advance over Y that then
@@ -9895,24 +9954,50 @@
         groupFurther.set(key,Math.max(groupFurther.get(key) ?? -1,item.end));
       }
     }
-    const eligible = new Uint8Array(order.length);
-    const permits = new Uint8Array(order.length);
+    // Each mask holds distinct proof states: 1 is clean and 2 carries an
+    // error. E and P retain those states separately. The support channel
+    // keeps finite written-priority proofs through own errors for erasure.
+    const eligible = new Uint8Array(order.length), permits = new Uint8Array(order.length);
+    const support = new Uint8Array(order.length), supportPermits = new Uint8Array(order.length);
     /** @type {(item: Item) => number} */
-    const at = (item) => /** @type {number} */ (index.get(item));
-    /** @param {Item} item @param {import("./logical.js").LogicalSymbol} group @param {number} end @returns {boolean} */
-    const groupPermits = (item,group,end) => {
-      const pending = [item], seen = new Set();
+    const at = item => /** @type {number} */ (index.get(item));
+    /** @param {number} left @param {number} right */
+    const combine = (left,right) => (left & right & 1) | (left && right && ((left | right) & 2) ? 2 : 0);
+    /** @param {Edge} edge */
+    const dirtyRead = edge => (edge.kind === "scan" || edge.kind === "restore") && (chart.context.tokens[edge.token].errors?.length ?? 0) !== 0;
+    /**
+     * Find a permitted proof of one F state through a logical optional.
+     * Reverse advances retain that state, so a dirty permitted proof cannot
+     * lend permission to a clean forbidden proof of the same chart item.
+     * @param {Item} item
+     * @param {import("./logical.js").LogicalSymbol} group
+     * @param {number} end
+     * @param {Uint8Array} states
+     * @param {Uint8Array} permissions
+     * @param {number} bit
+     */
+    const groupPermits = (item,group,end,states,permissions,bit) => {
+      const pending = [{item,bit}], seen = new Set();
       while (pending.length) {
-        const current = /** @type {Item} */ (pending.pop());
-        if (seen.has(current) || !eligible[at(current)]) continue;
-        seen.add(current);
-        if (current.dot === group.from) {
-          if ((groupFurther.get(fixedKey(current,group)) ?? -1) < end) return true;
+        const current = /** @type {{item:Item,bit:number}} */ (pending.pop());
+        const key = at(current.item)*2 + (current.bit === 2 ? 1 : 0);
+        if (seen.has(key) || !(states[at(current.item)] & current.bit)) continue;
+        seen.add(key);
+        if (current.item.dot === group.from) {
+          if ((groupFurther.get(fixedKey(current.item,group)) ?? -1) < end) return true;
           continue;
         }
-        for (const edge of current.edges) {
-          if (edge.kind === "scan") pending.push(edge.previous);
-          else if (edge.kind === "complete" && eligible[at(edge.child)] && (!omitted(edge.child) || permits[at(edge.previous)])) pending.push(edge.previous);
+        for (const edge of current.item.edges) {
+          if (edge.kind === "scan") {
+            for (const before of [1,2]) if (states[at(edge.previous)] & before &&
+                (dirtyRead(edge) ? 2 : before) === current.bit) pending.push({item:edge.previous,bit:before});
+          } else if (edge.kind === "complete") {
+            const beforeStates = omitted(edge.child) ? permissions[at(edge.previous)] : states[at(edge.previous)];
+            for (const before of [1,2]) for (const child of [1,2]) {
+              if (beforeStates & before && states[at(edge.child)] & child &&
+                  combine(before,child) === current.bit) pending.push({item:edge.previous,bit:before});
+            }
+          }
         }
       }
       return false;
@@ -9921,43 +10006,42 @@
     while (changed) {
       changed = false;
       for (let x = 0; x < order.length; x++) {
-        if (eligible[x] && (permits[x] || next[x] === "none")) continue;
         const item = order[x];
-        if (item.complete && item.production.error) continue;
-        let e = 0;
-        let p = 0;
-        for (const edge of item.edges) {
-          let through = 0;
-          // Seeds and restoration edges supply a base proof state.
-          if (edge.kind === "seed" || edge.kind === "restore") through = 1;
-          else if (edge.kind === "scan") through = eligible[at(edge.previous)];
-          else {
-            const before = at(edge.previous);
-            through = (omitted(edge.child) ? permits[before] : eligible[before]) & eligible[at(edge.child)];
+        // These are semantic support channels, not separate legacy paths.
+        for (const raw of [true,false]) {
+          const states = raw ? support : eligible, permissions = raw ? supportPermits : permits;
+          let e = 0, p = 0;
+          for (const edge of item.edges) {
+            let through = 0;
+            if (edge.kind === "seed" || edge.kind === "restore") through = dirtyRead(edge) ? 2 : 1;
+            else if (edge.kind === "scan") through = dirtyRead(edge) ? states[at(edge.previous)] ? 2 : 0 : states[at(edge.previous)];
+            else through = combine(omitted(edge.child) ? permissions[at(edge.previous)] : states[at(edge.previous)],states[at(edge.child)]);
+            if (!through) continue;
+            e |= through;
+            if (next[x] === "alone" && !reads.has(item)) p |= through;
+            else if (next[x] === "group") {
+              const group = /** @type {import("./logical.js").LogicalSymbol} */ (precedingGroups.get(item));
+              for (const bit of [1,2]) if (through & bit && groupPermits(item,group,item.end,states,permissions,bit)) p |= bit;
+            } else if (next[x] === "constituent" && edge.kind === "complete") {
+              const end = further.get(edge.previous);
+              if (end === undefined || end < item.end) p |= through;
+            }
           }
-          if (!through) continue;
-          e = 1;
-          if (next[x] === "alone") {
-            if (!reads.has(item)) p = 1;
-          } else if (next[x] === "group") {
-            const group = /** @type {import("./logical.js").LogicalSymbol} */ (precedingGroups.get(item));
-            if (groupPermits(item,group,item.end)) p = 1;
-          } else if (next[x] === "constituent" && edge.kind === "complete") {
-            const end = further.get(edge.previous);
-            if (end === undefined || end < item.end) p = 1;
+          if (item.complete && item.production.erased) {
+            // This replaces the ordinary completion transition. Its finite
+            // support can contain own errors that normal E rejects.
+            e = support[x] || e ? 1 : 0;
+            p = p ? 1 : 0;
+          } else if (item.complete && item.production.error) {
+            e = raw && e ? 2 : 0;
+            p = raw && p ? 2 : 0;
           }
-        }
-        if (e && !eligible[x]) {
-          eligible[x] = 1;
-          changed = true;
-        }
-        if (p && !permits[x]) {
-          permits[x] = 1;
-          changed = true;
+          if ((states[x] | e) !== states[x]) { states[x] |= e; changed = true; }
+          if ((permissions[x] | p) !== permissions[x]) { permissions[x] |= p; changed = true; }
         }
       }
     }
-    return witnesses.filter((witness) => eligible[at(witness)]);
+    return witnesses.filter(witness => errorFree ? !!(eligible[at(witness)] & 1) : eligible[at(witness)] !== 0);
   }
 
   // ---- emission-overlap.js
@@ -10604,7 +10688,8 @@
         this.checkReferences();
         this.checkDiagnosticsAndSplices();
         this.families = closeFamilies(this.rules);
-        this.ranked = new RankedGroups(this.rules);
+        this.prepareQueries();
+        this.ranked = new RankedGroups(new Map([...this.rules,...this.queryRules]));
         if (this.defaultValues.length) {
           const defaults = new Lowering(this,new Set());
           for (const [rule,alternative,node] of this.defaultValues) defaults.elidedTerminal(node.optional,{rule,alternative,pending:[]},node.default);
@@ -11259,6 +11344,46 @@
       return found;
     }
 
+    // Anonymous query definitions join lowering and ranked-helper discovery,
+    // but never the written grammar or its public audits (engine §3.10).
+    prepareQueries() {
+      /** @type {Map<string,string>} */ this.queryTargets = new Map();
+      /** @type {Map<string,string>} */ this.queryNames = new Map();
+      /** @type {Map<string,StitchedRule>} */ this.queryRules = new Map();
+      const seen = new Set();
+      for (const rule of this.rules.values()) for (const alternative of rule.alternatives) {
+        /** @type {unknown[]} */
+        const pending = [alternative.clauses,alternative.tags].reverse();
+        while (pending.length) {
+          const part = /** @type {any} */ (pending.pop());
+          if (!part || typeof part !== "object" || seen.has(part)) continue;
+          seen.add(part);
+          if (part.method === "parse") {
+            const body = queryBody(part.args[0].body).body;
+            const key = queryIdentity(part.args[0].body);
+            if (!this.queryTargets.has(key)) {
+              let name;
+              if (body.ref && !body.ref.startsWith("_")) name = isTerminalName(body.ref) ? "\u0000query:"+body.ref : body.ref;
+              else {
+                name = "\u0000parse:"+this.queryRules.size;
+                // A forest exposes no returned tags. Discarding the anonymous
+                // root's tags also seals ranked bodies without inventing a
+                // restriction on an otherwise legal query constituent.
+                /** @type {RuleClauses} */
+                const clauses = {conditions:[],erased:false,tags:{emptySet:true},emit:undefined,value:undefined,image:undefined,error:undefined,warning:undefined,suppressWarnings:undefined};
+                const source = {...alternative,guards:[],expr:body,tags:undefined,value:undefined,image:undefined,clauses};
+                this.queryRules.set(name,{name,document:alternative.document,at:alternative.at,alternatives:[source]});
+                this.queryNames.set(name,templateBodyText(body,this.unicode));
+              }
+              this.queryTargets.set(key,name);
+            }
+          }
+          const children = clauseChildren(part);
+          for (let index = children.length-1; index >= 0; index--) pending.push(children[index]);
+        }
+      }
+    }
+
     checkReferences() {
       // A rule named anywhere must be defined: in a body, and in a clause as the
       // rule of matches, begins or tags (engine §2). The error stands at the
@@ -11644,6 +11769,7 @@
         if (["matches", "begins", "ends"].includes(part.method)) for (const arg of part.args) if (arg.terminal) terminals.add(arg.terminal);
         for (const child of clauseChildren(part)) pending.push(child);
       }
+      for (const name of this.grammar.queryTargets.values()) if (name.startsWith("\u0000query:")) terminals.add(name.slice(7));
       this.source = undefined;
       for (const [target,name] of this.spliceNames) {
         const originals=this.byLhs.get(target) ?? [];
@@ -11657,6 +11783,7 @@
       }
       for (const terminal of [...terminals].sort(compareCodePoints)) {
         const name = "\u0000query:" + terminal;
+        this.grammar.queryNames.set(name,terminal);
         this.addProduction({
           lhs: name, rhs: [{name: terminal, terminal: true}], helper: true,
           owner: name, elided: null, elidedTest: null,
@@ -11664,6 +11791,21 @@
           tags: {method: "tags", receiver: {capture: "\u0000child"}, args: []},
           emit: null, erased: false,
         });
+      }
+      for (const rule of this.grammar.queryRules.values()) {
+        for (const alternative of rule.alternatives) this.lowerAlternative(rule,alternative);
+        for (const production of this.byLhs.get(rule.name) ?? []) production.helper = true;
+      }
+      // A splice used only by an anonymous target is discovered after the
+      // written aliases. Its target still uses the same original productions.
+      for (const [target,name] of this.spliceNames) if (!this.byLhs.has(name)) {
+        for (const original of this.byLhs.get(target) ?? []) {
+          const clone={...original,id:this.productions.length,lhs:name,helper:true,spliceOf:target,sourceId:original.sourceId ?? original.id};
+          this.productions.push(clone);
+          if (!this.byLhs.has(name)) this.byLhs.set(name,[]);
+          this.byLhs.get(name)?.push(clone);
+          this.structural.push({lhs:name,rhs:original.rhs});
+        }
       }
       for (const production of this.productions) production.treeRoot = !production.helper || !!production.spliceOf;
       this.checkBraceItems();
@@ -11691,6 +11833,8 @@
         ranked: this.grammar.ranked,
         families: this.grammar.families,
         boundarySites:this.grammar.boundarySites,
+        queryTargets:this.grammar.queryTargets,
+        queryNames:this.grammar.queryNames,
       };
     }
 
@@ -12357,6 +12501,7 @@
   }
 
   // ---- earley.js
+
 
 
 
@@ -13043,6 +13188,7 @@
       this.at = at;
       this.key = key;
       this.unseen = unseen;
+      this.errorFree = false;
       /** The count of aligned queries when the query halted (engine §4.3). */
       this.asked = 0;
       /** @type {import("./types.js").AlignedSpan|null} */
@@ -13274,6 +13420,7 @@
   function requireInactive(context, rule, start, end) {
     const circular = "parse\u0001" + rule + "\u0001" + start + "\u0001" + end;
     if (context.inProgress.has(circular)) {
+      rule = context.lowered.queryNames.get(rule) ?? rule;
       throw new GencmuError("grammar",
         `a condition asks whether its own span parses as ${rule} from inside the parse of that span as ${rule}: ` +
         `the grammar defines ${rule} in terms of itself over the same text`, { rule });
@@ -13324,7 +13471,7 @@
         for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
       const constraint = query.aligned;
-      const qualified = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses)).map(item => ({
+      const qualified = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses),query.errorFree).map(item => ({
         end:item.end, tags:context.interner.get(item.tagId), observation:item.observation ?? null,
         familyAligned:chart.family ? !!item.familySummary && chart.family.accepts(item.familySummary, item.end) : null,
         direct:chart.familyTrace && context.closes ? deletionTest(context.closes.list(constraint.observation.sequence),
@@ -13346,12 +13493,12 @@
         if (set === undefined) continue;
         for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
-      answer = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses)).length > 0;
+      answer = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses),query.errorFree).length > 0;
       shared = answer;
     } else {
       // One recognition answers matches and tags, so the shared memo keeps
       // both in one entry (engine §4.3).
-      const witnesses = eligibleWitnesses(chart, boundaryWitnesses(chart,rootItems(chart, rule)));
+      const witnesses = eligibleWitnesses(chart, boundaryWitnesses(chart,rootItems(chart, rule)),query.errorFree);
       const result = new TagUnion();
       for (const item of witnesses) result.add(context.interner.get(item.tagId));
       const tags = result.result();
@@ -13465,7 +13612,7 @@
         walksTrees:!!context.trees && (!!(Number(requested)&2) || production.treeRoot && localTreeDemand(production).whole),
         treePrefixUntil:context.trees ? localTreeDemand(production).prefixUntil : 0,
         observesTrees:!!context.trees && (!!(Number(requested)&2) || production.treeRoot && localTreeDemand(production).whole || localTreeDemand(production).prefixUntil>0),
-        observesCloses:!!context.closes && (!!(Number(requested)&1) || localCloseDemand(production).whole)};
+        observesCloses:!!context.closes && (!!(Number(requested)&1) || localCloseDemand(production,lowered).whole)};
       variants.set(key, found);
       return found;
     };
@@ -13474,7 +13621,7 @@
     const requestCloses = item => {
       if (!context.closes) return false;
       if (item.production.observesCloses) return true;
-      const demand = localCloseDemand(item.production);
+      const demand = localCloseDemand(item.production,lowered);
       if (!demand.parts.has(item.dot)) return false;
       const rules = demand.queries.get(item.dot);
       const child = prefixTable?.get(item.production.rhs[item.dot].name);
@@ -13945,7 +14092,7 @@
       const chart = {sets,start,end:set.position,setAt:position => sets[position-start] || new ChartSet(position),
         furthest,context,closeRequested:false,family:null,familyTrace:null,boundaryFailures};
       const witnesses = set.items.filter(item => item.complete && item.production.lhs === rule && !item.production.closeRequested);
-      suffix.answers.set(set.position,eligibleWitnesses(chart,boundaryWitnesses(chart,witnesses)).length !== 0);
+      suffix.answers.set(set.position,eligibleWitnesses(chart,boundaryWitnesses(chart,witnesses),!!query?.errorFree).length !== 0);
     } : null;
     beginPredict(setAt(start), rule,false,null,!!query?.aligned);
 
@@ -15384,6 +15531,14 @@
     // A presence test is decided when the grammar is lowered (engine §3.6).
     if ("captured" in condition) throw new GencmuError("grammar", "a presence test outlived lowering");
     if ("method" in condition) {
+      if (condition.method === "parse" || condition.method === "error-free") {
+        let query = /** @type {any} */ (condition), errorFree = false;
+        while (query.method === "error-free") { errorFree = true; query = query.receiver; }
+        const span = spanOf(context,query.receiver,scope), target = queryTarget(context,span,scope);
+        const kind = /** @type {"matches"|"begins"|"ends"} */ (queryBody(query.args[0].body).mode);
+        return /** @type {boolean|Halt} */ (nested(target.context,kind,bodyTarget(target.context.lowered,query.args[0].body),
+          target.start,target.end,{...target,errorFree}));
+      }
       const span = spanOf(context, condition.receiver, scope);
       if (BOUNDARY_METHODS.has(condition.method)) {
         if (scope.boundaryValue !== undefined) return scope.boundaryValue;
@@ -15567,7 +15722,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan} | null} target
+   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan, errorFree?: boolean} | null} target
    *   where a query of the check came from
    * @returns {boolean | TagSet | Halt}
    */
@@ -15577,16 +15732,22 @@
     const sharing = sharingOf(context);
     if (aligned) sharing.asked++;
     // One recognition answers matches and tags, so both memos share a kind (§4.3).
-    const memoKind = kind === "tags" ? "matches" : kind;
+    const errorFree = !!target?.errorFree;
+    const memoKind = (kind === "tags" ? "matches" : kind) + (errorFree ? ":error-free" : "");
     const ancestry = aligned ? [...context.inProgress].sort(compareCodePoints) : null;
-    const key = kind === "ends" ? JSON.stringify(["suffix",rule,start,end]) : aligned ? JSON.stringify(["aligned",memoKind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation),ancestry])
+    let key = kind === "ends" ? JSON.stringify(["suffix",rule,start,end,errorFree]) : aligned ? JSON.stringify(["aligned",memoKind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation),ancestry])
       : at !== null && end - start > CONTENT_KEY_LIMIT
         ? JSON.stringify(["at", memoKind, rule, at[0], at[1]])
         : nestedKey(context, memoKind, rule, start, end);
+    if (errorFree || readsCarriedErrors(context.lowered,rule)) {
+      const parts = JSON.parse(key);
+      if (key.startsWith('["of"')) parts.push("carried-errors",...context.tokens.slice(start,end).map(token => token.errors.length !== 0));
+      key = JSON.stringify(parts);
+    }
     requireInactive(context,rule,start,end);
     let suffix = null;
     if (kind === "ends") {
-      suffix = sharing.suffixActive > 0 ? freshSuffix() : suffixState(context, rule, start, end);
+      suffix = sharing.suffixActive > 0 ? freshSuffix() : suffixState(context, rule, start, end, errorFree);
       if (suffix.answers.has(end)) {
         if (suffix.dependent) sharing.asked++;
         return /** @type {boolean} */ (suffix.answers.get(end));
@@ -15610,7 +15771,7 @@
         return queryAnswer(kind, entry);
       }
     }
-    const qualificationKey = aligned ? JSON.stringify([rule,start,end,ancestry,
+    const qualificationKey = aligned ? JSON.stringify([rule,start,end,ancestry,errorFree,
       ...(aligned.family ? [aligned.family,aligned.candidateEnd,context.closes?.identity(aligned.observation)] : [])]) : null;
     const qualified = qualificationKey !== null && sharing.suffixActive === 0 ? context.qualified.get(qualificationKey) : undefined;
     if (qualified && aligned) {
@@ -15620,6 +15781,7 @@
     }
     // A fault finds no query cycle while the check runs (F25).
     halting = new Pending(context, kind, rule, start, end, at, key, context.checking && fault("F25"));
+    halting.errorFree = errorFree;
     halting.aligned = aligned ?? null;
     halting.qualificationKey = qualificationKey;
     halting.asked = sharing.asked;
@@ -15679,13 +15841,13 @@
           if (!here.nested && ["onward","following-tokens","ends-input","followed-by"].includes(node.method)) {
             memo.set(rule,true); return true;
           }
-          if (["matches","begins","ends","tags"].includes(node.method) && node.args.length) {
+          if (["matches","begins","ends","tags","parse"].includes(node.method) && node.args.length) {
             let receiver = node.receiver;
             while (receiver.method === "onward") receiver = receiver.receiver;
             if (["without-elision","without-elision-except"].includes(receiver.method)) {
               memo.set(rule,true); return true;
             }
-            for (const arg of node.args) if (arg.rule) pending.push({rule:arg.rule,nested:true});
+            for (const arg of node.args) if (arg.rule || arg.body) pending.push({rule:arg.rule ?? bodyTarget(lowered,arg.body),nested:true});
           }
           for (const child of clauseChildren(node)) clauses.push(child);
         }
@@ -15694,14 +15856,61 @@
     memo.set(rule,false); return false;
   }
 
-  /** @param {ParseContext} context @param {string} rule @param {number} start @param {number} end @returns {SuffixState} */
-  function suffixState(context, rule, start, end) {
+  /** @param {ParseContext} context @param {string} rule @param {number} start @param {number} end @param {boolean} errorFree @returns {SuffixState} */
+  function suffixState(context, rule, start, end, errorFree) {
     let states = suffixStates.get(context);
     if (!states) suffixStates.set(context,states=new Map());
-    const key = JSON.stringify(suffixReadsEnd(context.lowered,rule) ? [rule,start,end] : [rule,start]);
+    const key = JSON.stringify(suffixReadsEnd(context.lowered,rule) ? [rule,start,end,errorFree] : [rule,start,errorFree]);
     let state = states.get(key);
     if (!state) states.set(key,state=freshSuffix());
     return state;
+  }
+
+  // A nested filtered answer makes its caller sensitive to carried errors.
+  // Discover these dependencies once per lowered grammar, including anonymous
+  // targets and calls inside the target's conditions (engine §4.3).
+  /** @type {WeakMap<LoweredGrammar,Set<string>>} */
+  const carriedDependencies = new WeakMap();
+  /** @param {LoweredGrammar} lowered @param {string} rule @returns {boolean} */
+  function readsCarriedErrors(lowered,rule) {
+    let sensitive = carriedDependencies.get(lowered);
+    if (sensitive) return sensitive.has(rule);
+    sensitive = new Set();
+    /** @type {Map<string,Set<string>>} */
+    const callers = new Map();
+    /** @param {string} target @param {string} caller */
+    const edge = (target,caller) => {
+      let users = callers.get(target);
+      if (!users) callers.set(target,users=new Set());
+      users.add(caller);
+    };
+    for (const [name,productions] of lowered.byLhs) {
+      const visited = new Set();
+      for (const production of productions) {
+        for (const symbol of production.rhs) if (!symbol.terminal) edge(symbol.name,name);
+        const clauses = productionClauses(production);
+        while (clauses.length) {
+          const part = /** @type {any} */ (clauses.pop());
+          if (!part || typeof part !== "object" || visited.has(part)) continue;
+          visited.add(part);
+          if (part.method === "error-free") sensitive.add(name);
+          if (["parse","matches","begins","ends","tags"].includes(part.method)) {
+            for (const arg of part.args) if (arg.rule || arg.body) edge(arg.rule ?? bodyTarget(lowered,arg.body),name);
+          }
+          for (const child of clauseChildren(part)) clauses.push(child);
+        }
+      }
+    }
+    const pending = [...sensitive];
+    while (pending.length) {
+      const name = /** @type {string} */ (pending.pop());
+      for (const caller of callers.get(name) ?? []) if (!sensitive.has(caller)) {
+        sensitive.add(caller);
+        pending.push(caller);
+      }
+    }
+    carriedDependencies.set(lowered,sensitive);
+    return sensitive.has(rule);
   }
 
   /**
@@ -15825,7 +16034,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan} | null} [target]
+   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan, errorFree?: boolean} | null} [target]
    * @returns {boolean | Halt}
    */
   function nestedMatches(context, rule, start, end, target = null) {
@@ -15840,7 +16049,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan} | null} [target]
+   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan, errorFree?: boolean} | null} [target]
    * @returns {boolean | Halt}
    */
   function nestedBegins(context, rule, start, end, target = null) {
@@ -15852,7 +16061,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan} | null} [target]
+   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan, errorFree?: boolean} | null} [target]
    * @returns {TagSet | Halt}
    */
   function nestedTags(context, rule, start, end, target = null) {
@@ -23384,6 +23593,9 @@
           if ([token.before,token.after].some(list => list !== undefined && (!Array.isArray(list) || list.length > 0))) {
             throw new GencmuError("usage", `token ${index} has attachments, which a caller cannot supply`);
           }
+          if ([token.errors,token.warnings].some(list => list !== undefined && (!Array.isArray(list) || list.length > 0))) {
+            throw new GencmuError("usage", `token ${index} has diagnostics, which a caller cannot supply`);
+          }
           // A source counts code points of the text, and must lie within it.
           // Sources can overlap or lie out of order (engine §11). A span
           // counts tokens of the stage before, so only its order is checked
@@ -23996,6 +24208,8 @@
    * @property {string} [image]
    * @property {unknown[]} [before]
    * @property {unknown[]} [after]
+   * @property {unknown[]} [errors]
+   * @property {unknown[]} [warnings]
    */
 
   /**
@@ -24372,6 +24586,8 @@
   /**
    * A grammar lowered for one set of features.
    * @typedef {object} LoweredGrammar
+   * @property {Map<string,string>} queryTargets
+   * @property {Map<string,string>} queryNames
    * @property {boolean} treeComparisons
    * @property {WeakMap<object,WeakMap<object,{rule:string,condition:number,order:number}>>} boundarySites
    * @property {Production[]} productions
