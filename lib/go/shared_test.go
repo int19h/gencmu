@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime/debug"
 	"sort"
 	"strings"
@@ -535,9 +536,21 @@ func checkParse(d *Pipeline, c *engineCase, options *caseOptions, expect *caseEx
 // output, with its chosen tree and completion and no position, reason or
 // readings (engine §7.9). No result has it, whatever the case expects, since
 // engine §7.8 proves that no grammar gives it.
-func namedDiagnostic(value any) bool {
+func namedDiagnostic(value any, errors ...bool) bool {
 	diagnostic, ok := value.(map[string]any)
-	if !ok || len(diagnostic) != 6 {
+	if !ok || len(diagnostic) < 6 || len(diagnostic) > 7 {
+		return false
+	}
+	allowed := map[string]bool{"stage": true, "code": true, "rule": true, "message": true, "span": true, "source": true}
+	if len(errors) > 0 && errors[0] {
+		allowed["rejection"] = true
+	}
+	for field := range diagnostic {
+		if !allowed[field] {
+			return false
+		}
+	}
+	if evidence, present := diagnostic["rejection"]; present && !rejectionEvidence(evidence) {
 		return false
 	}
 	for _, field := range []string{"stage", "code", "rule", "message"} {
@@ -565,15 +578,116 @@ func namedDiagnostic(value any) bool {
 	return true
 }
 
+func rejectionEvidence(value any) bool {
+	evidence, ok := value.(map[string]any)
+	if !ok || len(evidence) != 5 {
+		return false
+	}
+	for _, key := range []string{"token", "line", "column"} {
+		n, ok := evidence[key].(float64)
+		if !ok || caseInteger(n, key) != nil || n < 0 || key != "token" && n < 1 {
+			return false
+		}
+	}
+	source, ok := evidence["source"].([]any)
+	if !ok || len(source) != 2 {
+		return false
+	}
+	for _, n := range source {
+		value, ok := n.(float64)
+		if !ok || caseInteger(n, "source") != nil || value < 0 {
+			return false
+		}
+	}
+	if source[0].(float64) > source[1].(float64) {
+		return false
+	}
+	expected, ok := evidence["expected"].([]any)
+	if !ok {
+		return false
+	}
+	for _, value := range expected {
+		item, ok := value.(map[string]any)
+		if !ok || len(item) != 2 {
+			return false
+		}
+		if _, ok := item["terminal"].(string); !ok {
+			return false
+		}
+		rules, ok := item["rules"].([]any)
+		if !ok {
+			return false
+		}
+		for _, rule := range rules {
+			if _, ok := rule.(string); !ok {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func resultProblems(got any) []string {
 	var problems []string
 	result, _ := got.(map[string]any)
 	stages, _ := result["stages"].([]any)
+	if result["format"] != float64(resultFormat) {
+		problems = append(problems, "the result has the wrong format")
+	}
+	names := map[any]bool{}
+	for _, entry := range stages {
+		stage, _ := entry.(map[string]any)
+		names[stage["name"]] = true
+	}
+	pending := []any{result}
+	for len(pending) > 0 {
+		entry := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		switch item := entry.(type) {
+		case []any:
+			pending = append(pending, item...)
+		case map[string]any:
+			for key, value := range item {
+				if key != "errors" && key != "warnings" {
+					pending = append(pending, value)
+					continue
+				}
+				list, ok := value.([]any)
+				if !ok || len(list) == 0 {
+					problems = append(problems, key+" is not a nonempty list of named diagnostics")
+					continue
+				}
+				for _, diagnostic := range list {
+					if !namedDiagnostic(diagnostic, key == "errors") {
+						problems = append(problems, key+" contains an invalid diagnostic")
+					} else if !names[diagnostic.(map[string]any)["stage"]] {
+						problems = append(problems, "a diagnostic names an unknown raising stage")
+					}
+				}
+			}
+		}
+	}
+	for _, entry := range stages {
+		stage, _ := entry.(map[string]any)
+		if stage["errors"] != nil || stage["warnings"] != nil {
+			output, ok := stage["output"].([]any)
+			if !ok || len(output) != 0 {
+				problems = append(problems, "stage diagnostics require an empty emission")
+			}
+		}
+	}
 	if e, _ := result["error"].(map[string]any); e != nil && e["code"] != nil {
 		problems = append(problems, witnessLostProblems(e, stages)...)
 		problems = append(problems, "the result is the error elision-witness-lost, which no grammar gives")
 	}
 	error, _ := result["error"].(map[string]any)
+	if error != nil && (error["kind"] == ErrorRejected || error["kind"] == ErrorGrammar || error["kind"] == ErrorFeatureConflict) {
+		warnings, _ := error["warnings"].([]any)
+		outer, _ := result["warnings"].([]any)
+		if !reflect.DeepEqual(warnings, outer) {
+			problems = append(problems, "failure warnings differ from result warnings")
+		}
+	}
 	if error != nil && error["kind"] != ErrorReported && result["tree"] != nil {
 		problems = append(problems, "an error result other than reported has a tree")
 	}
@@ -590,15 +704,13 @@ func resultProblems(got any) []string {
 			last, _ = stages[len(stages)-1].(map[string]any)
 		}
 		_, output := last["output"]
-		if result["ok"] != false || result["tree"] == nil || last["name"] != error["stage"] || last["verdict"] != VerdictUnique && last["verdict"] != VerdictResolved || output {
-			problems = append(problems, "a reported result lacks its retained tree and verdict or has output")
+		if result["ok"] != false || result["tree"] == nil || last["name"] != error["stage"] || last["verdict"] != VerdictUnique && last["verdict"] != VerdictResolved || !output {
+			problems = append(problems, "a reported result lacks its retained tree, verdict or output")
 		}
 		errors, ok := error["errors"].([]any)
 		valid := ok && len(errors) > 0
 		for _, diagnostic := range errors {
-			if !namedDiagnostic(diagnostic) {
-				valid = false
-			} else if diagnostic.(map[string]any)["stage"] != error["stage"] {
+			if !namedDiagnostic(diagnostic, true) {
 				valid = false
 			}
 		}

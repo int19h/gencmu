@@ -157,15 +157,15 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 	return root.node
 }
 
-// reports visits chosen occurrences before tree flattening and erasure (engine §12).
-func (run *stageRun) reports(rec *recognizer, d *dn, features map[string]bool) (errors, warnings []Warning) {
-	root := occurrenceTree(d)
+// Evaluate messages after choice, before erasure and emission (engine §12.1).
+func (run *stageRun) evaluateDiagnostics(flow *diagnosticFlow, features map[string]bool) {
+	rec := flow.rec
 	strings := &stringEmitter{run: run, rec: rec, observing: true}
 	type visit struct {
 		node       *occurrence
 		suppressed map[string]bool
 	}
-	pending := []visit{{node: root, suppressed: map[string]bool{}}}
+	pending := []visit{{node: flow.root, suppressed: map[string]bool{}}}
 	for len(pending) > 0 {
 		at := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
@@ -175,17 +175,16 @@ func (run *stageRun) reports(rec *recognizer, d *dn, features map[string]bool) (
 		}
 		p := node.d.prod
 		if len(p.suppressWarnings) > 0 {
-			copy := map[string]bool{}
+			copied := map[string]bool{}
 			for code := range suppressed {
-				copy[code] = true
+				copied[code] = true
 			}
 			for _, code := range p.suppressWarnings {
-				copy[code] = true
+				copied[code] = true
 			}
-			suppressed = copy
+			suppressed = copied
 		}
-		code := p.ruleName
-		recipe := p.error
+		code, recipe := p.ruleName, p.error
 		if recipe == nil && features[code] && !suppressed[code] && !suppressed["_"] {
 			recipe = p.warning
 		}
@@ -195,17 +194,17 @@ func (run *stageRun) reports(rec *recognizer, d *dn, features map[string]bool) (
 			}
 			a, b := rec.base+int(node.d.start), rec.base+int(node.d.end)
 			report := Warning{Stage: run.name, Code: code, Rule: code, Span: [2]int{a, b}, Source: run.spanSource(a, b), Message: strings.recipe(node, recipe)}
+			measure := diagnosticMeasure{}
 			if p.error != nil {
-				errors = append(errors, report)
-			} else {
-				warnings = append(warnings, report)
+				measure = rec.ownMeasure(node.d.start, node.d.end)
 			}
+			report = recordDiagnostic(report, measure, &diagnosticIdentity{run.stageOrder, len(flow.evaluated)})
+			flow.add(node, report, p.error != nil)
 		}
-		for i := len(node.kids) - 1; i >= 0; i-- {
-			pending = append(pending, visit{node.kids[i], suppressed})
+		for index := len(node.kids) - 1; index >= 0; index-- {
+			pending = append(pending, visit{node.kids[index], suppressed})
 		}
 	}
-	return errors, warnings
 }
 
 // hasElided stops at the first elided node of the tree.

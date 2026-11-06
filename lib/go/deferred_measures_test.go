@@ -130,7 +130,11 @@ func TestDeferredCanonicalDiagnosticFieldsAndMemberOrder(t *testing.T) {
 		t.Fatal("envelope warning order differs")
 	}
 	// Output §1: absent and empty diagnostics both omit their array members.
-	empty, _ := MarshalResult(&ParseResult{Error: &ParseError{Kind: ErrorReported, Stage: "main", Errors: []Warning{}}})
+	_, err = MarshalResult(&ParseResult{Error: &ParseError{Kind: ErrorReported}})
+	if err == nil {
+		t.Fatal("accepted reported without errors")
+	}
+	empty, _ := MarshalResult(&ParseResult{})
 	if strings.Contains(string(empty), `"errors"`) {
 		t.Fatal("serialized an empty diagnostic list")
 	}

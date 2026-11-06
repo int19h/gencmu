@@ -980,28 +980,58 @@ func (d *Pipeline) parse(text []rune, tokens []Token, options ParseOptions) (res
 		tokens = ps.characterTokens()
 	}
 	outcomes := d.runStages(ps, features, options, tokens, 0, last)
-	// The warnings of every stage run, in stage order, whether or not the
-	// result is ok (§13).
 	res = &ParseResult{OK: true, Warnings: []Warning{}, Features: []string{}}
 	for name := range features {
 		res.Features = append(res.Features, name)
 	}
 	sort.Strings(res.Features)
-	for _, o := range outcomes {
+	var pending diagnosticLists
+	for index, o := range outcomes {
 		res.Stages = append(res.Stages, o.stage)
-		res.Warnings = append(res.Warnings, o.warnings...)
 		if o.err != nil {
-			res.OK, res.Error = false, o.err
+			var reporting diagnosticLists
+			switch o.err.Kind {
+			case ErrorAmbiguous:
+				reporting = o.diagnostics.collected
+			case ErrorRejected:
+				cutoff := len(o.stage.Input)
+				if o.err.Token != nil {
+					cutoff = min(cutoff, *o.err.Token+1)
+				}
+				reporting = inputDiagnostics(o.stage.Input[:cutoff])
+			default:
+				reporting = joinDiagnostics(o.diagnostics.evaluated, inputDiagnostics(o.stage.Input))
+			}
+			collected := joinDiagnostics(pending, reporting)
+			if o.err.Kind != ErrorAmbiguous || o.err.Reason == ReasonTie {
+				o.err.Errors = collected.errors
+			}
+			if o.err.Kind == ErrorRejected || o.err.Kind == ErrorGrammar || o.err.Kind == ErrorFeatureConflict {
+				o.err.Warnings = collected.warnings
+			}
+			res.OK, res.Error, res.Warnings = false, o.err, collected.warnings
+			break
 		}
+		if index == len(outcomes)-1 {
+			collected := joinDiagnostics(pending, o.diagnostics.collected)
+			res.Warnings, res.Tree = collected.warnings, o.tree
+			if len(collected.errors) > 0 {
+				res.OK = false
+				res.Error = &ParseError{Kind: ErrorReported, Stage: o.stage.Name, Errors: collected.errors, Message: "the chosen derivation reports errors"}
+			}
+			break
+		}
+		pending = joinDiagnostics(pending, diagnosticLists{o.stage.Errors, o.stage.Warnings})
 	}
-	if res.OK || res.Error != nil && res.Error.Kind == ErrorReported {
-		res.Tree = outcomes[len(outcomes)-1].tree
+	if res.Warnings == nil {
+		res.Warnings = []Warning{}
 	}
 	return res, nil
 }
 
 func (d *Pipeline) runStages(ps *parseState, features map[string]bool, options ParseOptions, tokens []Token, from, to int) []stageOutcome {
 	var out []stageOutcome
+	var pending diagnosticLists
 	for i := from; i <= to; i++ {
 		g := d.stages[i]
 		elision := g.elisionOnly
@@ -1009,6 +1039,7 @@ func (d *Pipeline) runStages(ps *parseState, features map[string]bool, options P
 			elision = *options.ElisionOnly
 		}
 		run := ps.newRun(g.name, g, tokens)
+		run.stageOrder, run.pendingErrors = i, len(pending.errors) > 0
 		var o stageOutcome
 		if failure := run.activateFeatures(g.features, features, options.WithoutFeatures); failure != nil {
 			o = stageOutcome{stage: Stage{Name: g.name, Input: tokens}, err: failure}
@@ -1019,6 +1050,7 @@ func (d *Pipeline) runStages(ps *parseState, features map[string]bool, options P
 		if o.err != nil {
 			break
 		}
+		pending = joinDiagnostics(pending, diagnosticLists{o.stage.Errors, o.stage.Warnings})
 		tokens = o.stage.Output
 	}
 	return out

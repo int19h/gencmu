@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 )
@@ -10,6 +11,9 @@ const resultFormat = 17
 
 // MarshalResult writes the canonical JSON of a result (docs/output.md).
 func MarshalResult(result *ParseResult) ([]byte, error) {
+	if result.Error != nil && result.Error.Kind == ErrorReported && len(result.Error.Errors) == 0 {
+		return nil, fmt.Errorf("a reported result requires nonempty errors")
+	}
 	var w jsonWriter
 	w.raw(`{"format":`)
 	w.int(resultFormat)

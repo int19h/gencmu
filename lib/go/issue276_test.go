@@ -218,7 +218,8 @@ func TestIssue276MessageFailure(t *testing.T) {
 	if calls != 3 || result.Error.Kind != ErrorGrammar || result.Tree != nil || len(result.Error.Errors) != 0 || result.Stages[1].Verdict != VerdictUnique || result.Stages[1].Output != nil {
 		t.Fatalf("calls=%d result=%+v error=%+v", calls, result, result.Error)
 	}
-	if len(result.Warnings) != 1 || result.Warnings[0].Code != "early" || result.Stages[0].Output[0].Value != "a" {
+	// Engine §12.1 keeps the evaluated current prefix before carried facts.
+	if len(result.Warnings) != 2 || result.Warnings[0].Code != "late" || result.Warnings[1].Code != "early" || result.Stages[0].Output[0].Value != "a" {
 		t.Fatalf("earlier reports or output lost: %+v", result)
 	}
 }

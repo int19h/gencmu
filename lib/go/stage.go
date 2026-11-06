@@ -131,6 +131,8 @@ func (ps *parseState) publicTags(tags *tagset) []string {
 }
 
 type stageRun struct {
+	stageOrder       int
+	pendingErrors    bool
 	measures         *diagnosticMeasures
 	closeArenas      map[*lowered]*closeArena
 	qualifiedQueries map[qualifiedQueryKey][]qualifiedProof
@@ -269,10 +271,10 @@ func (ps *parseState) newRun(name string, grammar *stageGrammar, toks []Token) *
 
 // stageOutcome is one stage's part of the result.
 type stageOutcome struct {
-	stage    Stage
-	tree     *Node
-	err      *ParseError
-	warnings []Warning // those of the chosen tree (§12)
+	stage       Stage
+	tree        *Node
+	err         *ParseError
+	diagnostics stageDiagnostics
 }
 
 func (run *stageRun) actions(rec *recognizer, w [2]action) []Action {
@@ -293,73 +295,61 @@ func (run *stageRun) actions(rec *recognizer, w [2]action) []Action {
 // run runs one stage over its input (engine §4-§7, §11, §12).
 func (run *stageRun) run(g *lowered, elisionOnly bool, features map[string]bool) (out stageOutcome) {
 	out.stage = Stage{Name: run.name, Input: run.toks}
+	var flows []*diagnosticFlow
 	defer func() {
 		if x := recover(); x != nil {
-			f, ok := x.(*parseFailure)
+			failure, ok := x.(*parseFailure)
 			if !ok {
 				panic(x)
 			}
-			// A fault found once the stage has chosen its tree, while
-			// emitting or in the check of elision-only, leaves it without
-			// output; it keeps its verdict and warnings, neither of which is
-			// set if the fault came earlier (§7.7, §11, §12).
-			out.stage.Output = nil
-			out.tree = nil
-			out.err = run.failure(f)
+			out.stage.Output, out.tree = nil, nil
+			out.err = run.failure(failure)
+			evaluated := make([]diagnosticLists, 0, len(flows))
+			for _, flow := range flows {
+				evaluated = append(evaluated, flow.messages())
+			}
+			out.diagnostics.evaluated = joinDiagnostics(evaluated...)
 		}
 	}()
-	// An error of the grammar that lowering for these features found is a
-	// result like one found while parsing (§3).
 	if g.fault != "" {
 		panic(&parseFailure{message: g.fault})
 	}
 	start := g.byName["text"]
 	rec := run.recognize(g, start, 0, len(run.toks))
 	top := rec.accepted(start)
-	var res *rankResult
+	var result *rankResult
 	if len(top) > 0 {
-		res = newRanker(rec, g.steps, g.lean).rank(top)
+		result = newRanker(rec, g.steps, g.lean).rank(top)
 	}
-	if res == nil {
-		if out.err == nil {
-			out.err = run.rejection(rec)
-		}
+	if result == nil {
+		out.err = run.rejection(rec)
 		return out
 	}
-	out.stage.Verdict = res.verdict
-	if res.verdict == VerdictTie {
-		// A tie is an error. The stage keeps its verdict and witness, and it
-		// has no chosen tree, no output and no warnings. The error holds the
-		// first and the second reading (§6).
-		out.stage.Witness = run.actions(rec, res.witness)
-		out.err = &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonTie,
-			Readings: []*Node{run.buildTree(rec, res.first), run.buildTree(rec, res.second)},
-			Message:  "stage " + run.name + ": the text is ambiguous: it has two best readings, a tie"}
+	out.stage.Verdict = result.verdict
+	if result.verdict == VerdictTie {
+		out.stage.Witness = run.actions(rec, result.witness)
+		for _, reading := range []*dn{result.first, result.second} {
+			flow := newDiagnosticFlow(occurrenceTree(reading), run, rec)
+			flows = append(flows, flow)
+			run.evaluateDiagnostics(flow, features)
+		}
+		out.diagnostics = stageDiagnostics{tiedDiagnostics(flows[0].events(), flows[1].events()), joinDiagnostics(flows[0].messages(), flows[1].messages())}
+		out.err = &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonTie, Readings: []*Node{run.buildTree(rec, result.first), run.buildTree(rec, result.second)}, Message: "stage " + run.name + ": the text is ambiguous: it has two best readings, a tie"}
 		return out
 	}
-	out.tree = run.buildTree(rec, res.first)
-	// Only the chosen tree gives warnings: not the check of elision-only
-	// (§12).
-	if g.warns {
-		var errors []Warning
-		errors, out.warnings = run.reports(rec, res.first, features)
-		if len(errors) > 0 {
-			out.err = &ParseError{Kind: ErrorReported, Stage: run.name, Errors: errors, Message: "the chosen derivation reports errors"}
-			return out
-		}
-	}
-	// The stage emits its tokens before the check of §7. An error found
-	// while emitting ends the stage before the check (§6).
-	out.stage.Output = run.emit(rec, res.first)
-	if elisionOnly && (res.verdict == VerdictResolved || res.verdict == VerdictUnique && hasElided(out.tree)) {
-		if err := run.checkElision(rec, res.first, out.tree); err != nil {
-			// The stage accepted its input and chose its derivation: it keeps
-			// its verdict, output and warnings, and the result has no tree
-			// (§7.10). A lost witness leaves it without output, as an error
-			// of the grammar in the check does (§7.9).
-			out.err = err
-			out.tree = nil
-			if err.Code == CodeElisionWitnessLost {
+	out.tree = run.buildTree(rec, result.first)
+	flow := newDiagnosticFlow(occurrenceTree(result.first), run, rec)
+	flows = append(flows, flow)
+	run.evaluateDiagnostics(flow, features)
+	out.diagnostics = stageDiagnostics{flow.collected(), flow.messages()}
+	out.stage.Output = run.emitFlow(rec, flow.root, flow)
+	unowned := flow.assign()
+	out.stage.Errors, out.stage.Warnings = unowned.errors, unowned.warnings
+	finishDiagnosticCarriers(out.stage.Output)
+	if elisionOnly && !run.pendingErrors && len(out.diagnostics.collected.errors) == 0 && (result.verdict == VerdictResolved || result.verdict == VerdictUnique && hasElided(out.tree)) {
+		if failure := run.checkElision(rec, result.first, out.tree); failure != nil {
+			out.err = failure
+			if failure.Kind == ErrorGrammar {
 				out.stage.Output = nil
 			}
 		}

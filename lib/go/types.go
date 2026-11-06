@@ -25,6 +25,7 @@ type Token struct {
 	After      []Token
 	Errors     []Warning
 	Warnings   []Warning
+	carrier    *diagnosticCarrier
 }
 
 // InputToken supplies stored strings before the first grammar stage.
