@@ -77,40 +77,39 @@ func suffixReadsEnd(g *lowered, start int32) bool {
 			continue
 		}
 		seen[here] = true
+		found := false
+		scan := func(n clausePart) bool {
+			span, targets := queryParts(n, g)
+			if c := n.c; c != nil {
+				if !here.nested && (c.Kind == cdEnd || c.Kind == cdBoundary && c.Op == "followed-by") {
+					found = true
+				}
+			}
+			if t := n.t; t != nil && t.Kind == tmCall {
+				if !here.nested && (t.Str == "onward" || t.Str == "following-tokens") {
+					found = true
+				}
+			}
+			if span != nil {
+				if restoredTerm(span) {
+					found = true
+				}
+				for _, target := range targets {
+					if number, known := g.byName[target]; known {
+						pending = append(pending, entry{number, true})
+					}
+				}
+			}
+			return !found
+		}
+		walk := newProductionClauseWalk(scan)
 		for _, p := range g.rules[here.rule].prods {
 			for _, s := range p.rhs {
 				if !s.term {
 					pending = append(pending, entry{s.id, here.nested})
 				}
 			}
-			found := false
-			scan := func(n clausePart) bool {
-				span, targets := queryParts(n, g)
-				if c := n.c; c != nil {
-					if !here.nested && (c.Kind == cdEnd || c.Kind == cdBoundary && c.Op == "followed-by") {
-						found = true
-					}
-				}
-				if t := n.t; t != nil && t.Kind == tmCall {
-					if !here.nested && (t.Str == "onward" || t.Str == "following-tokens") {
-						found = true
-					}
-				}
-				if span != nil {
-					if restoredTerm(span) {
-						found = true
-					}
-					for _, target := range targets {
-						if number, known := g.byName[target]; known {
-							pending = append(pending, entry{number, true})
-						}
-					}
-				}
-				return !found
-			}
-			for _, root := range productionClauses(p) {
-				walkClause(root, scan)
-			}
+			walk.production(p)
 			if found {
 				return true
 			}

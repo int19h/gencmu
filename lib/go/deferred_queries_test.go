@@ -1,6 +1,10 @@
 package gencmu
 
-import "testing"
+import (
+	"fmt"
+	"strings"
+	"testing"
+)
 
 func queryAnswer(t *testing.T, run *stageRun, grammar *lowered, kind, target string, filtered bool) bool {
 	t.Helper()
@@ -120,5 +124,34 @@ func TestDeferredEligibleWitnessesSeparateCarriedErrorsAndErasure(t *testing.T) 
 				t.Fatalf("filtered dirty=%v, %s: %v, want %v", dirty, grammar.body, got, want)
 			}
 		}
+	}
+}
+
+func TestDeferredQueryDependencyWalkSharesProductionClauses(t *testing.T) {
+	// Engine §4.3: dependency walks visit shared source clauses once per rule.
+	var counts []int64
+	for _, n := range []int{50, 200} {
+		alternatives, conditions := make([]string, n), make([]string, n)
+		for i := range n {
+			alternatives[i] = fmt.Sprintf("$x%d:A", i)
+			conditions[i] = fmt.Sprintf("$x%d ⟹ $x%d.parse(A).error-free", i, i)
+		}
+		pipeline := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text target\n%rule target "+strings.Join(alternatives, " | ")+"\n%conditions "+strings.Join(conditions, ", ")))
+		grammar := pipeline.lower(0, map[string]bool{})
+		work := &workCounts{}
+		countWorkIn(work, func() {
+			if suffixReadsEnd(grammar, grammar.byName["target"]) {
+				t.Fatal("unexpected end dependency")
+			}
+			if !grammar.readsCarriedErrors(grammar.byName["target"]) {
+				t.Fatal("missing filter dependency")
+			}
+		})
+		count := work.readerSteps.Load() + work.clauseSteps.Load() + work.ruleSetSteps.Load()
+		counts = append(counts, count)
+		t.Logf("%d alternatives: %d dependency steps", n, count)
+	}
+	if counts[1] > 5*counts[0] {
+		t.Fatalf("dependency walk is not linear: %v", counts)
 	}
 }

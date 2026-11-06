@@ -1,47 +1,85 @@
 package gencmu
 
-// Every observation that can belong to an effective production (§4.3).
-// Item conditions use the same walk as the suffix and error dependencies.
-func productionClauses(p *production) []clausePart {
-	var roots []clausePart
-	conditions := func(items []*domCond) {
-		for _, item := range items {
-			roots = append(roots, clausePart{c: item})
-		}
+// A clause walk shares source lists across the productions of one rule (§4.3).
+// Both suffix and carried-error dependencies use this complete clause walk.
+type productionClauseWalk struct {
+	visit     func(clausePart) bool
+	seen      map[clausePart]bool
+	lists     map[condsKey]bool
+	sources   map[*sAlt]bool
+	emissions map[*domEmit]bool
+}
+
+func newProductionClauseWalk(visit func(clausePart) bool) *productionClauseWalk {
+	return &productionClauseWalk{visit: visit, seen: map[clausePart]bool{}, lists: map[condsKey]bool{}, sources: map[*sAlt]bool{}, emissions: map[*domEmit]bool{}}
+}
+
+func (walk *productionClauseWalk) root(root clausePart) {
+	if walk.seen[root] {
+		return
 	}
-	terms := func(items ...*domTerm) {
-		for _, item := range items {
-			roots = append(roots, clausePart{t: item})
+	walkClause(root, func(part clausePart) bool {
+		if walk.seen[part] {
+			return false
 		}
+		walk.seen[part] = true
+		return walk.visit(part)
+	})
+}
+
+func (walk *productionClauseWalk) conditions(items []*domCond) {
+	if len(items) == 0 {
+		return
 	}
-	emission := func(emit *domEmit) {
-		if emit != nil {
-			for _, item := range emit.Items {
-				terms(item.Tags, item.Value, item.Image)
-			}
-		}
+	key := condsKey{&items[0], len(items)}
+	if walk.lists[key] {
+		return
 	}
-	conditions(p.predictConds)
+	walk.lists[key] = true
+	for _, item := range items {
+		walk.root(clausePart{c: item})
+	}
+}
+
+func (walk *productionClauseWalk) terms(items ...*domTerm) {
+	for _, item := range items {
+		walk.root(clausePart{t: item})
+	}
+}
+
+func (walk *productionClauseWalk) emission(emit *domEmit) {
+	if emit == nil || walk.emissions[emit] {
+		return
+	}
+	walk.emissions[emit] = true
+	for _, item := range emit.Items {
+		walk.terms(item.Tags, item.Value, item.Image)
+	}
+}
+
+func (walk *productionClauseWalk) source(source *sAlt) {
+	if source == nil || walk.sources[source] {
+		return
+	}
+	walk.sources[source] = true
+	walk.conditions(source.conds)
+	walk.terms(source.ruleTags, source.ruleValue, source.ruleImage, source.alt.Tags, source.alt.Value, source.alt.Image, source.error, source.warning)
+	walk.emission(source.emit)
+}
+
+func (walk *productionClauseWalk) production(p *production) {
+	walk.conditions(p.predictConds)
 	for _, condition := range p.conds {
-		roots = append(roots, clausePart{c: condition.cond})
+		walk.root(clausePart{c: condition.cond})
 	}
-	conditions(p.itemConds)
-	conditions(p.rankedConditions)
-	terms(p.tags, p.parentTags, p.value, p.image, p.error, p.warning)
-	emission(p.emit)
-	sourceClauses := func(source *sAlt) {
-		if source == nil {
-			return
-		}
-		conditions(source.conds)
-		terms(source.ruleTags, source.ruleValue, source.ruleImage, source.alt.Tags, source.alt.Value, source.alt.Image, source.error, source.warning)
-		emission(source.emit)
+	walk.conditions(p.itemConds)
+	walk.conditions(p.rankedConditions)
+	walk.terms(p.tags, p.parentTags, p.value, p.image, p.error, p.warning)
+	walk.emission(p.emit)
+	walk.source(p.sourceAlternative)
+	if p.slot != nil {
+		walk.source(p.slot.source)
 	}
-	sourceClauses(p.sourceAlternative)
-	if p.slot != nil && p.slot.source != p.sourceAlternative {
-		sourceClauses(p.slot.source)
-	}
-	return roots
 }
 
 func queryParts(part clausePart, g *lowered) (*domTerm, []string) {
@@ -70,13 +108,9 @@ func (g *lowered) readsCarriedErrors(rule int32) bool {
 		dependent := make([]bool, len(g.rules))
 		var ready []int32
 		for number, rule := range g.rules {
-			seen, targets := map[clausePart]bool{}, map[int32]bool{}
+			targets := map[int32]bool{}
 			filtered := false
 			scan := func(part clausePart) bool {
-				if seen[part] {
-					return false
-				}
-				seen[part] = true
 				if term := part.t; term != nil && term.Kind == tmCall && term.Str == "error-free" {
 					filtered = true
 				}
@@ -88,6 +122,7 @@ func (g *lowered) readsCarriedErrors(rule int32) bool {
 				}
 				return true
 			}
+			walk := newProductionClauseWalk(scan)
 			for _, production := range rule.prods {
 				if w := work.Load(); w != nil {
 					w.ruleSetSteps.add("rule set steps")
@@ -97,9 +132,7 @@ func (g *lowered) readsCarriedErrors(rule int32) bool {
 						targets[symbol.id] = true
 					}
 				}
-				for _, root := range productionClauses(production) {
-					walkClause(root, scan)
-				}
+				walk.production(production)
 			}
 			for target := range targets {
 				users[target] = append(users[target], int32(number))
