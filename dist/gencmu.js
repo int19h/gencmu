@@ -4149,6 +4149,65 @@
     return table;
   }
 
+  // ---- source-lines.js
+
+
+  /** @typedef {{characters:string[],breaks:number[]}} LineIndex */
+
+  /**
+   * @param {Iterable<string>} text
+   * @returns {LineIndex}
+   */
+  function lineIndex(text) {
+    /** @type {string[]} */
+    const characters = [];
+    for (const character of text) {
+      if (hooks.work) countWork(hooks.work, "text");
+      characters.push(character);
+    }
+    const breaks = [];
+    for (let index = 0; index < characters.length; index++) {
+      if (hooks.work) countWork(hooks.work, "text");
+      const character = characters[index];
+      if (character === "\n" || (character === "\r" && characters[index + 1] !== "\n")) breaks.push(index);
+    }
+    return { characters, breaks };
+  }
+
+  /** @param {LineIndex} lines @param {number} offset */
+  function positionAt({breaks},offset) {
+    // The number of breaks before the range's start, by binary search.
+    let low = 0;
+    let high = breaks.length;
+    while (low < high) {
+      if (hooks.work) countWork(hooks.work, "text");
+      const middle = (low + high) >> 1;
+      if (breaks[middle] < offset) low = middle + 1;
+      else high = middle;
+    }
+    return {line:low+1,column:offset-(low===0?0:breaks[low-1]+1)+1,lineStart:low===0?0:breaks[low-1]+1};
+  }
+
+  /**
+   * @param {LineIndex} lines
+   * @param {import("./types.js").Span} source code point range
+   * @returns {{line: number, column: number, excerpt: string}}
+   */
+  function excerptAt({ characters, breaks }, source) {
+    const {line,column,lineStart}=positionAt({characters,breaks},source[0]);
+    let lineEnd = lineStart;
+    while (lineEnd < characters.length && characters[lineEnd] !== "\n" && characters[lineEnd] !== "\r") {
+      if (hooks.work) countWork(hooks.work, "text");
+      lineEnd++;
+    }
+    const shown = characters.slice(lineStart, lineEnd).join("").replace(/\t/g, " ");
+    const width = Math.max(1, Math.min(source[1], lineEnd) - source[0]);
+    const gutter = `${line} | `;
+    const excerpt = `${gutter}${shown}\n${" ".repeat(gutter.length - 2)}| ${" ".repeat(column - 1)}${"^".repeat(width)}`;
+    return { line, column, excerpt };
+  }
+
+
   // ---- tree-identities.js
   // Exact structural observations for compared occurrences (engine §4.1).
 
@@ -16027,9 +16086,10 @@
    * is a terminal, and the predictions the lookahead did not make items of.
    * @param {Chart} chart
    * @param {number} position
+   * @param {Production[]} [skipped]
    * @returns {Expectation[]}
    */
-  function expectedAt(chart, position) {
+  function expectedAt(chart, position, skipped) {
     const set = chart.setAt(position);
     /** @type {Map<string, Set<string>>} */
     const expected = new Map();
@@ -16045,7 +16105,7 @@
     }
     // A skipped prediction passed its conditions before it was skipped. Those
     // it checked then use no captures, so they hold again now.
-    for (const production of skippedProductions(chart,position)) note(writtenSymbol(production.rhs[0]), production.owner);
+    for (const production of skipped??skippedProductions(chart,position)) note(writtenSymbol(production.rhs[0]), production.owner);
     return [...expected].sort((left, right) => compareCodePoints(left[0], right[0])).map(([terminal, rules]) => ({
       terminal,
       rules: [...rules].sort(compareCodePoints),
@@ -16053,14 +16113,22 @@
   }
 
   /** Lookahead omissions that passed their entry conditions, as virtual entries.
-   * @param {Chart} chart @param {number} position @returns {Production[]} */
-  function skippedProductions(chart,position) {
+   * @param {Chart} chart @param {number} position
+   * @param {{name?:string,accept?:(production:Production)=>boolean,cache?:Map<Production,boolean>}} [selection]
+   * @returns {Production[]} */
+  function skippedProductions(chart,position,selection={}) {
     const result=[],context=chart.context,next=position<chart.end?context.tokens[position]:null;
     for(const skipped of chart.setAt(position).skipped) {
+      if(selection.name!==undefined&&(typeof skipped==='string'?skipped:skipped.lhs)!==selection.name)continue;
       const productions=typeof skipped==='string'?context.lowered.byLhs.get(skipped)??[]:[skipped];
       for(const production of productions) {
-        if(!lookaheadSkips(context,production,next,position))continue;
+        if(selection.accept&&!selection.accept(production))continue;
+        const cached=selection.cache?.get(production);
+        if(cached!==undefined){if(cached)result.push(production);continue;}
+        if(hooks.work)countWork(hooks.work,"walkSteps");
+        if(!lookaheadSkips(context,production,next,position)){selection.cache?.set(production,false);continue;}
         const failed=settled(()=>failedCondition(context,production,-1,null,position,position,{scope:null,...structuralStep(context,production,0,null,null,position),observation:closeStep(context,production,0,position,null,null,position)?.observation??null}));
+        selection.cache?.set(production,!failed);
         if(!failed)result.push(production);
       }
     }
@@ -16170,6 +16238,9 @@
   }
 
   // ---- competitor-rejection.js
+
+  /** @type {WeakMap<string[],import("./source-lines.js").LineIndex>} */
+  const sourceLines=new WeakMap();
   // Default rejection evidence for a diagnostic that is itself a ranked option (§12.1).
 
 
@@ -16197,7 +16268,12 @@
     /** @type {Map<number,Map<string,Item[]>>} */ const entries=new Map();
     /** @type {Map<Item,Advance[]>} */ const advances=new Map();
     /** @type {Map<Item,{previous:Item,next:Item}[]>} */ const completions=new Map();
-    /** @type {Map<number,Production[]>} */ const skipped=new Map();
+    /** @type {Map<number,Map<Production,boolean>>} */ const skipped=new Map();
+    /** @param {number} at @param {(production:Production)=>boolean} accept @param {string} [name] */
+    const omissions=(at,accept,name)=>{
+      let cache=skipped.get(at);if(!cache)skipped.set(at,cache=new Map());
+      return skippedProductions(chart,at,{name,accept:production=>!production.error&&accept(production),cache});
+    };
     /** @type {Map<number,ChartSet>} */ const sets=new Map();
     /** @type {Set<Item>} */ const reached=new Set();
     /** @type {Item[]} */ const queue=[];
@@ -16235,15 +16311,14 @@
           if(child){const uses=completions.get(child)??[];uses.push({previous:edge.previous,next:item});completions.set(child,uses);}
         }
       }
-      const omitted=skippedProductions(chart,set.position).filter(production=>!production.error);skipped.set(set.position,omitted);
-      if(set.position===start)for(const production of omitted)if(competitor(production))omit(start,production);
     }
+    for(const production of omissions(start,competitor))omit(start,production);
     for(let index=0;index<queue.length;index++) {
       const item=queue[index],symbol=item.production.rhs[item.dot];
       if(symbol&&!symbol.terminal) {
         const frame=frames.entry(item,symbol.name);
         for(const entry of entries.get(item.end)?.get(symbol.name)??[])if((entry.production.lexicalFrame??null)===frame)add(entry);
-        for(const production of skipped.get(item.end)??[])if(production.lhs===symbol.name&&(production.lexicalFrame??null)===frame)omit(item.end,production);
+        for(const production of omissions(item.end,p=>(p.lexicalFrame??null)===frame,symbol.name))omit(item.end,production);
       }
       for(const advance of advances.get(item)??[])if(!advance.child||reached.has(advance.child))add(advance.next);
       for(const completion of completions.get(item)??[])if(reached.has(completion.previous))add(completion.next);
@@ -16253,12 +16328,10 @@
     const slice={...chart,furthest:position,setAt};
     const tokens=chart.context.tokens,end=tokens[tokens.length-1]?.source[1]??0;
     const source=position<tokens.length?tokens[position].source:[end,end];
-    let line=1,column=1;
-    for(let index=0;index<source[0]&&index<chart.context.sourceText.length;index++) {
-      const character=chart.context.sourceText[index];
-      if(character==='\n'||character==='\r'&&chart.context.sourceText[index+1]!=='\n'){line++;column=1;}else column++;
-    }
-    return {token:position,source:[source[0],source[1]],line,column,expected:expectedAt(slice,position)};
+    let lines=sourceLines.get(chart.context.sourceText);
+    if(!lines)sourceLines.set(chart.context.sourceText,lines=lineIndex(chart.context.sourceText));
+    const {line,column}=positionAt(lines,source[0]);
+    return {token:position,source:[source[0],source[1]],line,column,expected:expectedAt(slice,position,/** @type {Production[]} */(setAt(position).skipped))};
   }
 
   // ---- diagnostic-audit.js
@@ -16778,6 +16851,8 @@
 
   // ---- diagnostics.js
 
+  /** @typedef {import("./source-lines.js").LineIndex} LineIndex */
+
 
 
 
@@ -16817,32 +16892,6 @@
   // ---- Where in the text --------------------------------------------------
 
   /**
-   * A text's code points and where its line breaks are, built once so that
-   * each excerpt of the text costs its line, not the text before it.
-   * @typedef {{characters: string[], breaks: number[]}} LineIndex
-   */
-
-  /**
-   * @param {string} text
-   * @returns {LineIndex}
-   */
-  function lineIndex(text) {
-    /** @type {string[]} */
-    const characters = [];
-    for (const character of text) {
-      if (hooks.work) countWork(hooks.work, "text");
-      characters.push(character);
-    }
-    const breaks = [];
-    for (let index = 0; index < characters.length; index++) {
-      if (hooks.work) countWork(hooks.work, "text");
-      const character = characters[index];
-      if (character === "\n" || (character === "\r" && characters[index + 1] !== "\n")) breaks.push(index);
-    }
-    return { characters, breaks };
-  }
-
-  /**
    * The line of the text holding a source range, and a caret line under the
    * range: at least one caret, at the end of the line for an empty range.
    * @param {string} text
@@ -16851,36 +16900,6 @@
    */
   function sourceExcerpt(text, source) {
     return excerptAt(lineIndex(text), source);
-  }
-
-  /**
-   * @param {LineIndex} lines
-   * @param {Span} source code point range
-   * @returns {{line: number, column: number, excerpt: string}}
-   */
-  function excerptAt({ characters, breaks }, source) {
-    // The number of breaks before the range's start, by binary search.
-    let low = 0;
-    let high = breaks.length;
-    while (low < high) {
-      if (hooks.work) countWork(hooks.work, "text");
-      const middle = (low + high) >> 1;
-      if (breaks[middle] < source[0]) low = middle + 1;
-      else high = middle;
-    }
-    const line = low + 1;
-    const lineStart = low === 0 ? 0 : breaks[low - 1] + 1;
-    let lineEnd = lineStart;
-    while (lineEnd < characters.length && characters[lineEnd] !== "\n" && characters[lineEnd] !== "\r") {
-      if (hooks.work) countWork(hooks.work, "text");
-      lineEnd++;
-    }
-    const shown = characters.slice(lineStart, lineEnd).join("").replace(/\t/g, " ");
-    const column = source[0] - lineStart + 1;
-    const width = Math.max(1, Math.min(source[1], lineEnd) - source[0]);
-    const gutter = `${line} | `;
-    const excerpt = `${gutter}${shown}\n${" ".repeat(gutter.length - 2)}| ${" ".repeat(column - 1)}${"^".repeat(width)}`;
-    return { line, column, excerpt };
   }
 
   /**
@@ -16905,6 +16924,9 @@
   function explainError(result) {
     const error = result.error;
     if (!error) return "";
+    /** @type {LineIndex|null} */ let index=null;
+    /** @param {Span} source */
+    const excerpt=source=>excerptAt(index??(index=lineIndex(result.text)),source);
     const lines = [];
     if (error.kind === "rejected") {
       const report = result.stages.find((stage) => stage.name === error.stage);
@@ -16912,7 +16934,7 @@
       const at = error.token === undefined ? tokens.length : error.token;
       const what = at < tokens.length ? `at ${quoted(tokens[at].text)}` : "at the end of the text";
       lines.push(`The ${error.stage} stage cannot read the text ${what}:`);
-      if (error.source) lines.push(sourceExcerpt(result.text, error.source).excerpt);
+      if (error.source) lines.push(excerpt(error.source).excerpt);
       const byRule = new Map();
       for (const expectation of error.expected || []) {
         for (const rule of expectation.rules) {
@@ -16928,7 +16950,7 @@
     } else if (error.kind === "ambiguous" && error.reason === "tie") {
       // A tie is explained where its two readings first differ.
       const report = result.stages.find((stage) => stage.name === error.stage);
-      if (report) lines.push(explainTies({ text: result.text, stages: [report] }));
+      if (report) lines.push(tieExplanations({ text: result.text, stages: [report] },excerpt));
       else lines.push(`The ${error.stage} stage's text is ambiguous: it has two best readings, a tie.`);
     } else if (error.kind === "ambiguous") {
       const report = result.stages.find((stage) => stage.name === error.stage);
@@ -16956,11 +16978,11 @@
     for(const diagnostic of error.errors??[]) {
       lines.push(`Error ${diagnostic.code} in the ${diagnostic.stage} stage, rule ${diagnostic.rule}: ${diagnostic.message}`);
       if(owners.has(diagnostic))lines.push(/** @type {string} */(owners.get(diagnostic)));
-      lines.push(sourceExcerpt(result.text,diagnostic.source).excerpt);
+      lines.push(excerpt(diagnostic.source).excerpt);
       if(diagnostic.rejection) {
         const evidence=diagnostic.rejection;
         lines.push(`The competing readings reach token ${evidence.token}, line ${evidence.line}, column ${evidence.column}:`);
-        lines.push(sourceExcerpt(result.text,evidence.source).excerpt);
+        lines.push(excerpt(evidence.source).excerpt);
         for(const expectation of evidence.expected)lines.push(`  ${expectation.terminal}: ${expectation.rules.join(', ')}`);
         if(!evidence.expected.length)lines.push('No terminal can continue those readings.');
       }
@@ -17061,6 +17083,12 @@
    * @returns {string}
    */
   function explainTies(result) {
+    /** @type {LineIndex|null} */ let index=null;
+    return tieExplanations(result,source=>excerptAt(index??(index=lineIndex(result.text)),source));
+  }
+
+  /** @param {{text:string,stages:StageReport[]}} result @param {(source:Span)=>ReturnType<typeof excerptAt>} excerpt */
+  function tieExplanations(result,excerpt) {
     const blocks = [];
     for (const stage of result.stages) {
       if (stage.verdict !== "tie" || !stage.witness) continue;
@@ -17075,7 +17103,7 @@
         const token = tokens[Math.min(at, tokens.length - 1)];
         /** @type {Span} */
         const source = at < tokens.length ? token.source : [token.source[1], token.source[1]];
-        lines.push(sourceExcerpt(result.text, source).excerpt);
+        lines.push(excerpt(source).excerpt);
       }
       lines.push(`  the first reading ${describeAction(first, tokens)}`);
       lines.push(`  the second reading ${describeAction(second, tokens)}`);
@@ -20611,7 +20639,7 @@
         report.tree=null;report.error=runtimeGrammarError(error.withLocation({stage:undefined}),this.name);return report;
       }
       competitorRejections(flow,chart);
-      const diagnosticData={collected:flow.collected(),evaluated:flow.messages()};
+      const diagnosticData={collected:emptyDiagnostics(),evaluated:flow.messages()};
       stageDiagnostics.set(report,diagnosticData);
       try{
         report.output=emit(derivation,context,flow);
