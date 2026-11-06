@@ -2804,6 +2804,8 @@
    * @property {string} [insertedBy]
    * @property {TokenJson[]} [before] present only when not empty
    * @property {TokenJson[]} [after] present only when not empty
+   * @property {WarningJson[]} [errors]
+   * @property {WarningJson[]} [warnings]
    */
 
   /**
@@ -2827,6 +2829,7 @@
    * @property {string} [stage]
    * @property {string} [feature]
    * @property {WarningJson[]} [errors]
+   * @property {WarningJson[]} [warnings]
    * @property {"elision-witness-lost"} [code]
    * @property {"tie" | "elision-only"} [reason]
    * @property {number} [token]
@@ -2850,6 +2853,8 @@
    * @property {import("./types.js").Verdict | null} verdict
    * @property {ActionJson[]} [witness]
    * @property {TokenJson[]} [output]
+   * @property {WarningJson[]} [errors]
+   * @property {WarningJson[]} [warnings]
    */
 
   /**
@@ -2881,7 +2886,7 @@
    */
 
 
-  const RESULT_FORMAT = 16;
+  const RESULT_FORMAT = 17;
 
   /**
    * A token in the result JSON. An attached token has no span, and a list of
@@ -2906,6 +2911,8 @@
         fill: (before, after) => {
           if (before.length > 0) result.before = before;
           if (after.length > 0) result.after = after;
+          if(current.errors?.length)result.errors=current.errors.map(diagnosticJson);
+          if(current.warnings?.length)result.warnings=current.warnings.map(diagnosticJson);
         },
       };
     });
@@ -2979,7 +2986,7 @@
     if (error.stage !== undefined) result.stage = error.stage;
     if (error.feature !== undefined) result.feature = error.feature;
     if (error.code !== undefined) result.code = error.code;
-    if (error.errors !== undefined) result.errors=error.errors.map(diagnosticJson);
+
     if (error.reason !== undefined) result.reason = error.reason;
     if (error.token !== undefined) result.token = error.token;
     if (error.source !== undefined) result.source = [error.source[0], error.source[1]];
@@ -2991,6 +2998,10 @@
     // Only an error of elision-only has a witness (docs/output.md).
     if (error.kind === "ambiguous" && error.witness !== undefined && error.reason === "elision-only") result.witness = error.witness.map(actionJson);
     if (error.document !== undefined) result.document = error.document;
+    if(error.kind!=='ambiguous'||error.reason==='tie'){
+      if(error.errors?.length||error.kind==='reported'&&error.errors!==undefined)result.errors=error.errors.map(diagnosticJson);
+    }
+    if(['rejected','grammar','feature-conflict'].includes(error.kind)&&error.warnings?.length)result.warnings=error.warnings.map(diagnosticJson);
     result.message = error.message;
     // The members of elision-witness-lost follow its message (docs/output.md).
     if (error.chosen !== undefined) result.chosen = nodeJson(error.chosen);
@@ -3020,15 +3031,15 @@
         const json = { name: stage.name, verdict: stage.verdict };
         if (stage.verdict === "tie" && stage.witness) json.witness = stage.witness.map(actionJson);
         if (stage.output) json.output = stage.output.map(tokenJson);
+        if(stage.errors?.length)json.errors=stage.errors.map(diagnosticJson);
+        if(stage.warnings?.length)json.warnings=stage.warnings.map(diagnosticJson);
         return json;
       }),
       tree: result.tree ? nodeJson(result.tree) : null,
       error: result.error ? errorJson(result.error) : null,
     };
     if (result.warnings && result.warnings.length > 0) {
-      json.warnings = result.warnings.map((warning) => ({
-        stage: warning.stage, code: warning.code, rule: warning.rule, span: [warning.span[0], warning.span[1]], source: [warning.source[0], warning.source[1]], message:warning.message,
-      }));
+      json.warnings = result.warnings.map(diagnosticJson);
     }
     return json;
   }
@@ -3492,7 +3503,7 @@
    * @property {number} [at] where that stage stopped, as a position in the
    *   text
    * @property {{kind: string, reason?: string}} [error] an error kind and reason
-   * @property {{code:string,at:number}[]} [errors]
+   * @property {{stage?:string,code:string,at:number}[]} [errors]
    * @property {{stage:string,code:string,at:number}[]} [warnings] ordered warning codes and source positions
    * @property {string[]} [ties] the stages whose verdict is a tie
    * @property {string[]} [words] the images of the words stage's output
@@ -3512,10 +3523,10 @@
     if (!result.ok) got.stage = result.error ? result.error.stage : null;
     // A rejection pins where its stage stopped, as a position in the text
     // (tests/README.md).
+    if(result.error?.errors?.length)got.errors=result.error.errors.map(error=>({stage:error.stage,code:error.code,at:error.source[0]}));
     if (result.error?.kind==="reported") {
       got.error={kind:"reported"};
-      got.errors=(result.error.errors ?? []).map(error=>({code:error.code,at:error.source[0]}));
-      got.at=got.errors[0]?.at;
+      got.at=got.errors?.[0]?.at;
     }
     got.warnings=(result.warnings ?? []).map(warning=>({stage:warning.stage,code:warning.code,at:warning.source[0]}));
     if (!result.ok && result.error && result.error.source) got.at = result.error.source[0];
@@ -3541,7 +3552,14 @@
     for (const key of CASE_FIELDS) {
       if (key==="warnings" && !Object.hasOwn(expected,key)) continue;
       if (!(key in expected) && !(key in got)) continue;
-      if (!sameValue(expected[key], got[key])) {
+      let actual=got[key];
+      if(key==='errors'&&Array.isArray(expected[key])&&Array.isArray(actual)){
+        const wanted=/** @type {Record<string,unknown>[]} */(expected[key]);
+        actual=/** @type {NonNullable<CaseOutcome["errors"]>} */(actual).map((entry,index)=>{
+          const copy={...entry};if(wanted[index]&&!Object.hasOwn(wanted[index],'stage'))delete copy.stage;return copy;
+        });
+      }
+      if (!sameValue(expected[key], actual)) {
         return `${key} expected ${JSON.stringify(expected[key])}, got ${JSON.stringify(got[key])}`;
       }
     }
@@ -7692,6 +7710,461 @@
     return notes.filter(note=>{const key=JSON.stringify(note);if(seen.has(key)) return false;seen.add(key);return true;});
   }
 
+  // ---- tokens.js
+  // Tokens (engine §1): what every stage reads and writes.
+
+
+
+
+  /** @import { TagSet, Span } from "./types.js" */
+  /** @import { UnicodeTable } from "./unicode.js" */
+
+  /**
+   * A token attached to another (engine §11): a token with no span, since its
+   * span counts the input of the stage that attached it.
+   * @typedef {Omit<Token, "span">} AttachedToken
+   */
+
+  // The attachments of a token that has none: one frozen list, shared, so that
+  // a character token costs no lists of its own.
+  /** @type {AttachedToken[]} */
+  const NO_ATTACHMENTS = /** @type {AttachedToken[]} */ (/** @type {unknown} */ (Object.freeze([])));
+
+  /** @type {import("./types.js").ParseWarning[]} */
+  const NO_DIAGNOSTICS = /** @type {import("./types.js").ParseWarning[]} */ (/** @type {unknown} */ (Object.freeze([])));
+
+  class Token {
+    /**
+     * @param {TagSet} tags
+     * @param {Span} span the tokens of the stage before it this token covers
+     * @param {Span} source the code points of the text it covers
+     * @param {string} text the text it covers, as written
+     * @param {string} [value] the stored comparison string
+     * @param {string | undefined} insertedBy the rule that inserted it, for a
+     *   token no text stands for
+     * @param {string} [image] what it shows to people (engine §5): by default
+     *   its text, as for a caller-supplied token
+     */
+    constructor(tags, span, source, text, value = text, insertedBy = undefined, image = text) {
+      this.tags = tags;
+      this.span = span;
+      this.source = source;
+      this.text = text;
+      this.value = value;
+      this.insertedBy = insertedBy;
+      this.image = image;
+      /** @type {import("./types.js").ParseWarning[]} */
+      this.errors = NO_DIAGNOSTICS;
+      /** @type {import("./types.js").ParseWarning[]} */
+      this.warnings = NO_DIAGNOSTICS;
+      /**
+       * The tokens attached before this one (engine §11), none by default.
+       * @type {AttachedToken[]}
+       */
+      this.before = NO_ATTACHMENTS;
+      /**
+       * The tokens attached after this one (engine §11), none by default.
+       * @type {AttachedToken[]}
+       */
+      this.after = NO_ATTACHMENTS;
+    }
+  }
+
+  /**
+   * Whether a token has attachments (engine §11).
+   * @param {AttachedToken} token
+   * @returns {boolean}
+   */
+  function hasAttachments(token) {
+    return token.before.length > 0 || token.after.length > 0;
+  }
+
+  /**
+   * A token as an attachment: the same token without its span (engine §11).
+   * @param {Token} token
+   * @returns {AttachedToken}
+   */
+  function attached(token) {
+    const { span, ...rest } = token;
+    void span;
+    return rest;
+  }
+
+  // The source of a run of tokens (engine §1): from the least source start
+  // among them to the greatest source end. Tokens usually lie in the order of
+  // their sources, and then that is the first token's start and the last
+  // token's end. Otherwise a table of the least start and the greatest end of
+  // every run of a power of two tokens answers without a scan, so that the
+  // nested nodes of a long left-recursive rule cost no more than its tokens.
+  class Sources {
+    /** @param {Token[]} tokens */
+    constructor(tokens) {
+      this.tokens = tokens;
+      /**
+       * Made at the first question: null when the tokens are in order.
+       * @type {{lows: number[][], highs: number[][]} | null | undefined}
+       */
+      this.table = undefined;
+    }
+
+    /**
+     * The source of tokens [start, end), which must not be empty.
+     * @param {number} start
+     * @param {number} end
+     * @returns {Span}
+     */
+    of(start, end) {
+      if (this.table === undefined) this.table = sourceTable(this.tokens);
+      if (this.table === null) return [this.tokens[start].source[0], this.tokens[end - 1].source[1]];
+      // Two runs of a power of two tokens cover the span between them.
+      const level = 31 - Math.clz32(end - start);
+      const other = end - (1 << level);
+      const lows = this.table.lows[level];
+      const highs = this.table.highs[level];
+      return [Math.min(lows[start], lows[other]), Math.max(highs[start], highs[other])];
+    }
+  }
+
+  /**
+   * @param {Token[]} tokens
+   * @returns {{lows: number[][], highs: number[][]} | null}
+   */
+  function sourceTable(tokens) {
+    let ordered = true;
+    for (let index = 1; index < tokens.length && ordered; index++) {
+      const before = tokens[index - 1].source;
+      const after = tokens[index].source;
+      ordered = before[0] <= after[0] && before[1] <= after[1];
+    }
+    if (ordered) return null;
+    // lows[k][i] is the least start of tokens [i, i + 2^k), and highs[k][i]
+    // the greatest end.
+    const lows = [tokens.map((token) => token.source[0])];
+    const highs = [tokens.map((token) => token.source[1])];
+    for (let width = 1; 2 * width <= tokens.length; width *= 2) {
+      const low = lows[lows.length - 1];
+      const high = highs[highs.length - 1];
+      /** @type {number[]} */
+      const nextLow = [];
+      /** @type {number[]} */
+      const nextHigh = [];
+      for (let index = 0; index + 2 * width <= tokens.length; index++) {
+        nextLow.push(Math.min(low[index], low[index + width]));
+        nextHigh.push(Math.max(high[index], high[index + width]));
+      }
+      lows.push(nextLow);
+      highs.push(nextHigh);
+    }
+    return { lows, highs };
+  }
+
+  // The first stage's input: one token per decomposed scalar, with its
+  // original source and the scalar's engine tags (engine §1).
+  /**
+   * @param {string} text
+   * @param {UnicodeTable} unicode
+   * @returns {Token[]}
+   */
+  function characterTokens(text, unicode) {
+    if (/[\uD800-\uDFFF]/u.test(text)) throw new GencmuError("usage", "the text contains a lone surrogate");
+    const tokens = [];
+    // Recognition treats these sets as immutable. The pipeline gives each
+    // public token its own set before returning a result.
+    /** @type {Map<number,TagSet>} */
+    const profiles = new Map();
+    let index = 0;
+    const original = [...text];
+    for (const { character, origin } of unicode.decomposeWithOrigins(text)) {
+      const code = /** @type {number} */ (character.codePointAt(0));
+      let tags = profiles.get(code);
+      if (!tags) {
+        tags = tagSet(unicode.profile(code));
+        profiles.set(code,tags);
+      }
+      tokens.push(new Token(tags, [index, index + 1], [origin, origin + 1], original[origin], character, undefined, character));
+      index++;
+    }
+    return tokens;
+  }
+
+  // ---- measures.js
+  // Additive diagnostic charges and profile order (engine §1, §6).
+
+
+  /** @typedef {number|bigint} Count */
+  /** @typedef {[Count,Count,Count]} Measure */
+  /** @type {Measure} */
+  const ZERO_MEASURE=Object.freeze(/** @type {any} */([0,0,0]));
+
+  /** @param {Count} left @param {Count} right @returns {Count} */
+  function addCount(left,right){
+    if(typeof left==='number' && typeof right==='number'){
+      const sum=left+right;
+      if(sum<=Number.MAX_SAFE_INTEGER || sum===Infinity)return sum;
+    }
+    if(left===Infinity || right===Infinity)return Infinity;
+    return BigInt(left)+BigInt(right);
+  }
+
+  /** @param {Measure} left @param {Measure} right @returns {Measure} */
+  function sumMeasure(left,right){
+    if(left===ZERO_MEASURE)return right;
+    if(right===ZERO_MEASURE)return left;
+    return [addCount(left[0],right[0]),addCount(left[1],right[1]),addCount(left[2],right[2])];
+  }
+
+  /** Negative means that the left measure wins. @param {ArrayLike<any>} left @param {ArrayLike<any>} right */
+  function compareMeasure(left,right){
+    for(let index=0;index<3;index++)if(left[index]<right[index] || left[index]>right[index]){
+      const order=left[index]<right[index]?-1:1;
+      return index===2?-order:order;
+    }
+    return 0;
+  }
+
+  // Public diagnostic objects carry no charge or identity fields. Copies
+  // retain this private record rather than deriving a charge from new spans.
+  /** @type {WeakMap<object,{measure:Measure,identity:object}>} */
+  const records=new WeakMap();
+  /** @param {object} diagnostic @param {Measure} measure @param {object} [identity] */
+  function recordDiagnostic(diagnostic,measure,identity={}){
+    records.set(diagnostic,{measure:/** @type {Measure} */(Object.freeze([...measure])),identity});
+    return diagnostic;
+  }
+  /** @param {object} diagnostic */
+  function diagnosticRecord(diagnostic){
+    const record=records.get(diagnostic);
+    if(!record)throw new Error('An engine diagnostic requires a fixed charge and identity.');
+    return record;
+  }
+  /** @param {object} original @param {object} copy */
+  function copyDiagnosticRecord(original,copy){
+    const record=records.get(original);
+    if(record)records.set(copy,record);
+    return copy;
+  }
+
+  class Measures {
+    /** @param {import('./tokens.js').Token[]} tokens @param {Sources} [sources] */
+    constructor(tokens,sources=new Sources(tokens)){
+      this.sources=sources;
+      this.nonempty=[0];
+      /** @type {Measure[]} */
+      this.carried=[];
+      for(const token of tokens){
+        this.nonempty.push(this.nonempty[this.nonempty.length-1]+(token.source[0]<token.source[1]?1:0));
+        let measure=ZERO_MEASURE;
+        for(const diagnostic of token.errors)measure=sumMeasure(measure,diagnosticRecord(diagnostic).measure);
+        this.carried.push(measure);
+      }
+    }
+    /** @param {number} start @param {number} end @returns {Measure} */
+    own(start,end){
+      if(this.nonempty[end]===this.nonempty[start])return [0,1,1];
+      const [low,high]=this.sources.of(start,end);
+      return [high-low,0,1];
+    }
+  }
+
+  // ---- diagnostic-flow.js
+
+  // Diagnostic identity, reporting collections, and emission owners (§11.5, §12.1).
+
+
+  /** @typedef {import('./types.js').Derivation} Derivation */
+  /** @typedef {import('./types.js').ParseWarning} Diagnostic */
+  /** @typedef {{errors:Diagnostic[],warnings:Diagnostic[]}} DiagnosticLists */
+  /** @typedef {{node:Derivation,diagnostic:Diagnostic,kind:'errors'|'warnings',own:boolean}} DiagnosticEvent */
+  /** @typedef {{parent:Derivation|null,erased:boolean,scope:EmissionScope}} NodeInfo */
+  /** @typedef {{root:Derivation,rows:Carrier[],carrier:Carrier|null,unowned:DiagnosticLists}} EmissionScope */
+  /** @typedef {{token:import('./tokens.js').AttachedToken,span:import('./types.js').Span,part:Derivation|null,emission:Derivation,scope:EmissionScope,support:import('./types.js').Span|null,own:DiagnosticLists,groups:(EmissionScope|import('./tokens.js').AttachedToken)[]}} Carrier */
+
+  /** @returns {DiagnosticLists} */
+  function emptyDiagnostics(){return {errors:[],warnings:[]};}
+  /** @param {Diagnostic} diagnostic */
+  function diagnosticIdentity(diagnostic){return diagnosticRecord(diagnostic).identity;}
+
+  /** @param {DiagnosticLists[]} lists @returns {DiagnosticLists} */
+  function joinDiagnostics(lists){
+    const result=emptyDiagnostics();
+    for(const kind of /** @type {const} */(['errors','warnings'])){
+      const seen=new Set();
+      for(const list of lists)for(const diagnostic of list[kind]){
+        const identity=diagnosticIdentity(diagnostic);
+        if(!seen.has(identity)){seen.add(identity);result[kind].push(diagnostic);}
+      }
+    }
+    return result;
+  }
+
+  /** @param {import('./tokens.js').Token[]} tokens @param {number} [end] */
+  function inputDiagnostics(tokens,end=tokens.length){
+    return joinDiagnostics(tokens.slice(0,end).map(token=>({errors:token.errors,warnings:token.warnings})));
+  }
+
+  /** @param {Diagnostic[]} list */
+  function ordered(list){
+    return list.slice().sort((left,right)=>{
+      const a=/** @type {{stageOrder?:number,ordinal?:number}} */(diagnosticIdentity(left));
+      const b=/** @type {{stageOrder?:number,ordinal?:number}} */(diagnosticIdentity(right));
+      return (a.stageOrder??0)-(b.stageOrder??0)||(a.ordinal??0)-(b.ordinal??0);
+    });
+  }
+
+  /** @param {Diagnostic} diagnostic */
+  function objectKey(diagnostic){
+    return JSON.stringify([diagnostic.stage,diagnostic.code,diagnostic.rule,diagnostic.span,diagnostic.source,diagnostic.message,/** @type {any} */(diagnostic).rejection??null]);
+  }
+
+  /** @param {DiagnosticEvent[]} first @param {DiagnosticEvent[]} second @returns {DiagnosticLists} */
+  function tiedDiagnostics(first,second){
+    const result=emptyDiagnostics();
+    for(const kind of /** @type {const} */(['errors','warnings'])){
+      const carried=new Set(),counts=new Map(),later=new Map();
+      for(const [reading,events] of [first,second].entries())for(const event of events){
+        if(event.kind!==kind)continue;
+        const diagnostic=event.diagnostic;
+        if(!event.own){
+          const id=diagnosticIdentity(diagnostic);if(carried.has(id))continue;carried.add(id);
+        }else{
+          const key=objectKey(diagnostic),table=reading===0?counts:later,n=(table.get(key)??0)+1;
+          table.set(key,n);if(reading===1&&n<=(counts.get(key)??0))continue;
+        }
+        result[kind].push(diagnostic);
+      }
+    }
+    return result;
+  }
+
+  class DiagnosticFlow {
+    /** @param {Derivation} root @param {import('./tokens.js').Token[]} input */
+    constructor(root,input){
+      this.root=root;this.input=input;
+      /** @type {Map<Derivation,NodeInfo>} */ this.nodes=new Map();
+      /** @type {Derivation[]} */ this.order=[];
+      /** @type {Map<Derivation,DiagnosticEvent>} */ this.own=new Map();
+      /** @type {DiagnosticEvent[]} */ this.evaluated=[];
+      /** @type {Map<Derivation,EmissionScope>} */ this.scopeRoots=new Map();
+      /** @type {WeakMap<object,Carrier>} */ this.carriers=new WeakMap();
+      this.main=/** @type {EmissionScope} */({root,rows:[],carrier:null,unowned:emptyDiagnostics()});
+      this.scopes=[this.main];
+      const live=new Array(input.length).fill(0);
+      const pending=[{node:root,parent:/** @type {Derivation|null} */(null),erased:false}];
+      while(pending.length){
+        const {node,parent,erased:outer}=/** @type {NonNullable<ReturnType<typeof pending.pop>>} */(pending.pop());
+        const erased=outer||!('read'in node)&&node.production.erased;
+        this.nodes.set(node,{parent,erased,scope:this.main});this.order.push(node);
+        if('read'in node){if(!erased)live[node.read.token]=1;}
+        else for(let index=node.children.length-1;index>=0;index--)pending.push({node:node.children[index],parent:node,erased});
+      }
+      this.prefix=[0];for(const bit of live)this.prefix.push(this.prefix[this.prefix.length-1]+bit);
+      this.next=new Array(input.length+1);this.next[input.length]=input.length;
+      for(let index=input.length-1;index>=0;index--)this.next[index]=live[index]?index:this.next[index+1];
+      this.previous=[0];for(let index=0;index<input.length;index++)this.previous.push(live[index]?index+1:this.previous[index]);
+    }
+    /** @param {Derivation} node @returns {NodeInfo} */
+    info(node){const info=this.nodes.get(node);if(!info)throw new Error('An emission part requires its chosen occurrence.');return info;}
+    /** @param {Derivation} node @param {Diagnostic} diagnostic @param {'errors'|'warnings'} kind */
+    add(node,diagnostic,kind){
+      const event={node,diagnostic,kind,own:true};this.own.set(node,event);this.evaluated.push(event);
+    }
+    /** @returns {DiagnosticLists} */
+    messages(){
+      const result=emptyDiagnostics();for(const event of this.evaluated)result[event.kind].push(event.diagnostic);return result;
+    }
+    /** Surviving chosen preorder, before output-node omission. @returns {DiagnosticEvent[]} */
+    events(){
+      const result=[];
+      for(const node of this.order){
+        if(this.info(node).erased)continue;
+        const own=this.own.get(node);if(own)result.push(own);
+        if('read'in node)for(const kind of /** @type {const} */(['errors','warnings']))for(const diagnostic of this.input[node.read.token][kind])result.push({node,diagnostic,kind,own:false});
+      }
+      return result;
+    }
+    /** @returns {DiagnosticLists} */
+    collected(){
+      const result=emptyDiagnostics();
+      for(const event of this.events())result[event.kind].push(event.diagnostic);
+      return joinDiagnostics([result]);
+    }
+    /** @param {Derivation} root @returns {EmissionScope} */
+    attachment(root){
+      const scope={root,rows:[],carrier:null,unowned:emptyDiagnostics()};
+      this.scopeRoots.set(root,scope);this.scopes.push(scope);return scope;
+    }
+    /** @param {number} start @param {number} end */
+    count(start,end){return this.prefix[end]-this.prefix[start];}
+    /** @param {import('./tokens.js').Token} token @param {Derivation|null} part @param {Derivation} emission @param {EmissionScope} scope */
+    emitted(token,part,emission,scope){
+      const support=part&&this.count(part.start,part.end)?/** @type {import('./types.js').Span} */([this.next[part.start],this.previous[part.end]]):null;
+      const row={token,span:token.span,part,emission,scope,support,own:emptyDiagnostics(),groups:[]};
+      scope.rows.push(row);this.carriers.set(token,row);return row;
+    }
+    /** @param {object} original @param {import('./tokens.js').AttachedToken} copy */
+    attached(original,copy){const row=this.carriers.get(original);if(row){row.token=copy;this.carriers.set(copy,row);}}
+    /** @param {import('./tokens.js').Token} token @param {EmissionScope[]} before @param {EmissionScope[]} after @param {import('./tokens.js').AttachedToken[]} inheritedBefore @param {import('./tokens.js').AttachedToken[]} inheritedAfter */
+    attachments(token,before,after,inheritedBefore,inheritedAfter){
+      const row=this.carriers.get(token);if(!row)throw new Error('An attachment requires its emitted carrier.');row.groups=[...before,...inheritedBefore,...inheritedAfter,...after];
+      for(const scope of [...before,...after])scope.carrier=row;
+    }
+    /** @param {EmissionScope} scope @returns {DiagnosticLists} */
+    all(scope){return joinDiagnostics([scope.unowned,...scope.rows.map(row=>({errors:row.token.errors,warnings:row.token.warnings}))]);}
+    /** @returns {DiagnosticLists} */
+    assign(){
+      for(const node of this.order){
+        const info=this.info(node);info.scope=this.scopeRoots.get(node)??(info.parent?this.info(info.parent).scope:this.main);
+      }
+      const buckets=new Map(),emissions=new Map(),nearest=new Map();
+      for(const event of this.events()){
+        const scope=this.info(event.node).scope,list=buckets.get(scope)??[];list.push(event);buckets.set(scope,list);
+      }
+      for(const scope of this.scopes)for(const row of scope.rows){const list=emissions.get(row.emission)??[];list.push(row);emissions.set(row.emission,list);}
+      for(const node of this.order){
+        const info=this.info(node),rows=emissions.get(node);
+        nearest.set(node,rows?.length?rows:info.parent&&this.info(info.parent).scope===info.scope?nearest.get(info.parent):null);
+      }
+      for(const scope of this.scopes){
+        const supported=/** @type {(Carrier & {support:import("./types.js").Span})[]} */(scope.rows.filter(row=>row.support!==null));
+        /** @param {Derivation} node */
+        const owner=node=>{
+          if(this.count(node.start,node.end)){
+            let low=0,high=supported.length;
+            while(low<high){const mid=(low+high)>>>1;if(supported[mid].support[1]<=node.start)low=mid+1;else high=mid;}
+            const row=supported[low];
+            if(row&&row.support[0]<node.end&&this.count(Math.max(node.start,row.support[0]),Math.min(node.end,row.support[1])))return row;
+          }
+          const rows=nearest.get(node);
+          if(rows?.length){
+            let low=0,high=rows.length;
+            while(low<high){const mid=(low+high)>>>1;if((rows[mid].support??rows[mid].span)[1]<node.start)low=mid+1;else high=mid;}
+            return rows[low]??rows[rows.length-1];
+          }
+          let low=0,high=scope.rows.length;
+          while(low<high){const mid=(low+high)>>>1;if(scope.rows[mid].span[0]<node.start)low=mid+1;else high=mid;}
+          return scope.rows[low]??scope.rows[scope.rows.length-1]??null;
+        };
+        for(const event of buckets.get(scope)??[]){
+          const row=owner(event.node);(row?row.own:scope.unowned)[event.kind].push(event.diagnostic);
+        }
+      }
+      for(const scope of this.scopes.slice().reverse())for(const row of scope.rows){
+        const groups=row.groups.map(group=>'rows'in group?this.all(group):{errors:group.errors,warnings:group.warnings});
+        for(const kind of /** @type {const} */(['errors','warnings'])){
+          const displayed=new Set(groups.flatMap(group=>group[kind].map(diagnosticIdentity)));
+          const own=ordered(row.own[kind].filter(diagnostic=>!displayed.has(diagnosticIdentity(diagnostic))));
+          const list=joinDiagnostics([{errors:kind==='errors'?own:[],warnings:kind==='warnings'?own:[]},...groups])[kind];
+          row.token[kind]=list.length?list:NO_DIAGNOSTICS;
+        }
+      }
+      return this.main.unowned;
+    }
+  }
+
+  // The pipeline reads these collections without retaining a packed forest.
+  /** @type {WeakMap<object,{collected:DiagnosticLists,evaluated:DiagnosticLists}>} */
+  const stageDiagnostics=new WeakMap();
+
   // ---- ranked.js
 
 
@@ -9513,183 +9986,6 @@
       return end === this.start ? !!(this.image(summary.relation, 1n) & accepting)
         : !!(summary.first & 1n) && (end > this.end || !!(summary.last & accepting));
     }
-  }
-
-  // ---- tokens.js
-  // Tokens (engine §1): what every stage reads and writes.
-
-
-
-
-  /** @import { TagSet, Span } from "./types.js" */
-  /** @import { UnicodeTable } from "./unicode.js" */
-
-  /**
-   * A token attached to another (engine §11): a token with no span, since its
-   * span counts the input of the stage that attached it.
-   * @typedef {Omit<Token, "span">} AttachedToken
-   */
-
-  // The attachments of a token that has none: one frozen list, shared, so that
-  // a character token costs no lists of its own.
-  /** @type {AttachedToken[]} */
-  const NO_ATTACHMENTS = /** @type {AttachedToken[]} */ (/** @type {unknown} */ (Object.freeze([])));
-
-  /** @type {import("./types.js").ParseWarning[]} */
-  const NO_DIAGNOSTICS = /** @type {import("./types.js").ParseWarning[]} */ (/** @type {unknown} */ (Object.freeze([])));
-
-  class Token {
-    /**
-     * @param {TagSet} tags
-     * @param {Span} span the tokens of the stage before it this token covers
-     * @param {Span} source the code points of the text it covers
-     * @param {string} text the text it covers, as written
-     * @param {string} [value] the stored comparison string
-     * @param {string | undefined} insertedBy the rule that inserted it, for a
-     *   token no text stands for
-     * @param {string} [image] what it shows to people (engine §5): by default
-     *   its text, as for a caller-supplied token
-     */
-    constructor(tags, span, source, text, value = text, insertedBy = undefined, image = text) {
-      this.tags = tags;
-      this.span = span;
-      this.source = source;
-      this.text = text;
-      this.value = value;
-      this.insertedBy = insertedBy;
-      this.image = image;
-      /** @type {import("./types.js").ParseWarning[]} */
-      this.errors = NO_DIAGNOSTICS;
-      /** @type {import("./types.js").ParseWarning[]} */
-      this.warnings = NO_DIAGNOSTICS;
-      /**
-       * The tokens attached before this one (engine §11), none by default.
-       * @type {AttachedToken[]}
-       */
-      this.before = NO_ATTACHMENTS;
-      /**
-       * The tokens attached after this one (engine §11), none by default.
-       * @type {AttachedToken[]}
-       */
-      this.after = NO_ATTACHMENTS;
-    }
-  }
-
-  /**
-   * Whether a token has attachments (engine §11).
-   * @param {AttachedToken} token
-   * @returns {boolean}
-   */
-  function hasAttachments(token) {
-    return token.before.length > 0 || token.after.length > 0;
-  }
-
-  /**
-   * A token as an attachment: the same token without its span (engine §11).
-   * @param {Token} token
-   * @returns {AttachedToken}
-   */
-  function attached(token) {
-    const { span, ...rest } = token;
-    void span;
-    return rest;
-  }
-
-  // The source of a run of tokens (engine §1): from the least source start
-  // among them to the greatest source end. Tokens usually lie in the order of
-  // their sources, and then that is the first token's start and the last
-  // token's end. Otherwise a table of the least start and the greatest end of
-  // every run of a power of two tokens answers without a scan, so that the
-  // nested nodes of a long left-recursive rule cost no more than its tokens.
-  class Sources {
-    /** @param {Token[]} tokens */
-    constructor(tokens) {
-      this.tokens = tokens;
-      /**
-       * Made at the first question: null when the tokens are in order.
-       * @type {{lows: number[][], highs: number[][]} | null | undefined}
-       */
-      this.table = undefined;
-    }
-
-    /**
-     * The source of tokens [start, end), which must not be empty.
-     * @param {number} start
-     * @param {number} end
-     * @returns {Span}
-     */
-    of(start, end) {
-      if (this.table === undefined) this.table = sourceTable(this.tokens);
-      if (this.table === null) return [this.tokens[start].source[0], this.tokens[end - 1].source[1]];
-      // Two runs of a power of two tokens cover the span between them.
-      const level = 31 - Math.clz32(end - start);
-      const other = end - (1 << level);
-      const lows = this.table.lows[level];
-      const highs = this.table.highs[level];
-      return [Math.min(lows[start], lows[other]), Math.max(highs[start], highs[other])];
-    }
-  }
-
-  /**
-   * @param {Token[]} tokens
-   * @returns {{lows: number[][], highs: number[][]} | null}
-   */
-  function sourceTable(tokens) {
-    let ordered = true;
-    for (let index = 1; index < tokens.length && ordered; index++) {
-      const before = tokens[index - 1].source;
-      const after = tokens[index].source;
-      ordered = before[0] <= after[0] && before[1] <= after[1];
-    }
-    if (ordered) return null;
-    // lows[k][i] is the least start of tokens [i, i + 2^k), and highs[k][i]
-    // the greatest end.
-    const lows = [tokens.map((token) => token.source[0])];
-    const highs = [tokens.map((token) => token.source[1])];
-    for (let width = 1; 2 * width <= tokens.length; width *= 2) {
-      const low = lows[lows.length - 1];
-      const high = highs[highs.length - 1];
-      /** @type {number[]} */
-      const nextLow = [];
-      /** @type {number[]} */
-      const nextHigh = [];
-      for (let index = 0; index + 2 * width <= tokens.length; index++) {
-        nextLow.push(Math.min(low[index], low[index + width]));
-        nextHigh.push(Math.max(high[index], high[index + width]));
-      }
-      lows.push(nextLow);
-      highs.push(nextHigh);
-    }
-    return { lows, highs };
-  }
-
-  // The first stage's input: one token per decomposed scalar, with its
-  // original source and the scalar's engine tags (engine §1).
-  /**
-   * @param {string} text
-   * @param {UnicodeTable} unicode
-   * @returns {Token[]}
-   */
-  function characterTokens(text, unicode) {
-    if (/[\uD800-\uDFFF]/u.test(text)) throw new GencmuError("usage", "the text contains a lone surrogate");
-    const tokens = [];
-    // Recognition treats these sets as immutable. The pipeline gives each
-    // public token its own set before returning a result.
-    /** @type {Map<number,TagSet>} */
-    const profiles = new Map();
-    let index = 0;
-    const original = [...text];
-    for (const { character, origin } of unicode.decomposeWithOrigins(text)) {
-      const code = /** @type {number} */ (character.codePointAt(0));
-      let tags = profiles.get(code);
-      if (!tags) {
-        tags = tagSet(unicode.profile(code));
-        profiles.set(code,tags);
-      }
-      tokens.push(new Token(tags, [index, index + 1], [origin, origin + 1], original[origin], character, undefined, character));
-      index++;
-    }
-    return tokens;
   }
 
   // ---- eligible.js
@@ -17729,85 +18025,6 @@
     }
   }
 
-  // ---- measures.js
-  // Additive diagnostic charges and profile order (engine §1, §6).
-
-
-  /** @typedef {number|bigint} Count */
-  /** @typedef {[Count,Count,Count]} Measure */
-  /** @type {Measure} */
-  const ZERO_MEASURE=Object.freeze(/** @type {any} */([0,0,0]));
-
-  /** @param {Count} left @param {Count} right @returns {Count} */
-  function addCount(left,right){
-    if(typeof left==='number' && typeof right==='number'){
-      const sum=left+right;
-      if(sum<=Number.MAX_SAFE_INTEGER || sum===Infinity)return sum;
-    }
-    if(left===Infinity || right===Infinity)return Infinity;
-    return BigInt(left)+BigInt(right);
-  }
-
-  /** @param {Measure} left @param {Measure} right @returns {Measure} */
-  function sumMeasure(left,right){
-    if(left===ZERO_MEASURE)return right;
-    if(right===ZERO_MEASURE)return left;
-    return [addCount(left[0],right[0]),addCount(left[1],right[1]),addCount(left[2],right[2])];
-  }
-
-  /** Negative means that the left measure wins. @param {ArrayLike<any>} left @param {ArrayLike<any>} right */
-  function compareMeasure(left,right){
-    for(let index=0;index<3;index++)if(left[index]<right[index] || left[index]>right[index]){
-      const order=left[index]<right[index]?-1:1;
-      return index===2?-order:order;
-    }
-    return 0;
-  }
-
-  // Public diagnostic objects carry no charge or identity fields. Copies
-  // retain this private record rather than deriving a charge from new spans.
-  /** @type {WeakMap<object,{measure:Measure,identity:object}>} */
-  const records=new WeakMap();
-  /** @param {object} diagnostic @param {Measure} measure @param {object} [identity] */
-  function recordDiagnostic(diagnostic,measure,identity={}){
-    records.set(diagnostic,{measure:/** @type {Measure} */(Object.freeze([...measure])),identity});
-    return diagnostic;
-  }
-  /** @param {object} diagnostic */
-  function diagnosticRecord(diagnostic){
-    const record=records.get(diagnostic);
-    if(!record)throw new Error('An engine diagnostic requires a fixed charge and identity.');
-    return record;
-  }
-  /** @param {object} original @param {object} copy */
-  function copyDiagnosticRecord(original,copy){
-    const record=records.get(original);
-    if(record)records.set(copy,record);
-    return copy;
-  }
-
-  class Measures {
-    /** @param {import('./tokens.js').Token[]} tokens @param {Sources} [sources] */
-    constructor(tokens,sources=new Sources(tokens)){
-      this.sources=sources;
-      this.nonempty=[0];
-      /** @type {Measure[]} */
-      this.carried=[];
-      for(const token of tokens){
-        this.nonempty.push(this.nonempty[this.nonempty.length-1]+(token.source[0]<token.source[1]?1:0));
-        let measure=ZERO_MEASURE;
-        for(const diagnostic of token.errors)measure=sumMeasure(measure,diagnosticRecord(diagnostic).measure);
-        this.carried.push(measure);
-      }
-    }
-    /** @param {number} start @param {number} end @returns {Measure} */
-    own(start,end){
-      if(this.nonempty[end]===this.nonempty[start])return [0,1,1];
-      const [low,high]=this.sources.of(start,end);
-      return [high-low,0,1];
-    }
-  }
-
   // ---- restoration.js
   // Tokens and source projection shared by elision-only and restored spans.
 
@@ -20174,6 +20391,7 @@
 
 
 
+
   // Running one stage: recognition, the choice of a parse, the result tree
   // (engine §12), emission (engine §11) and elision-only (engine §7).
 
@@ -20200,6 +20418,8 @@
    * @typedef {object} StageOptions
    * @property {Set<string>} features
    * @property {boolean | null | undefined} elisionOnly
+   * @property {number} [stageOrder]
+   * @property {boolean} [pendingErrors]
    */
 
   /** @param {import("./earley.js").Chart} chart @param {Token[]} tokens @param {import("./types.js").KeyStep[]} steps @param {import("./types.js").Lean} lean @param {number[] | null} [project] */
@@ -20237,7 +20457,7 @@
     run(tokens, sourceText, unicode, options) {
       const features = options.features;
       /** @type {StageReport} */
-      const report = { name: this.name, verdict: null, witness: null, output: null, tree: null, error: null };
+      const report = { name: this.name, verdict: null, witness: null, output: null, tree: null, error: null,errors:[],warnings:[] };
       let lowered;
       let context;
       let chart;
@@ -20275,54 +20495,41 @@
         return report;
       }
       if (ranking.verdict === "tie") {
-        // A tie is an error: the stage keeps its verdict and witness, has no
-        // chosen tree, no output and no warnings, and the error holds the
-        // first and the second reading (engine §6). A tie always has a second
-        // derivation, and so a witness.
-        const readings = [ranking.first, /** @type {import("./types.js").Rope} */ (ranking.second)]
-          .map((rope) => resultTree(derivationTree(rope), context)[0]);
-        Object.assign(report, {
-          verdict: "tie",
-          witness: witnessOf(/** @type {[Action | null, Action | null]} */ (ranking.witness)),
-        });
-        report.error = {
-          kind: "ambiguous",
-          stage: this.name,
-          reason: "tie",
-          readings,
-          message: `the ${this.name} stage's text has two best readings, a tie`,
-        };
+        const derivations=[ranking.first,/** @type {import("./types.js").Rope} */(ranking.second)].map(derivationTree);
+        const flows=derivations.map(root=>new DiagnosticFlow(root,tokens));
+        Object.assign(report,{verdict:"tie",witness:witnessOf(/** @type {[Action|null,Action|null]} */(ranking.witness))});
+        try{
+          for(const flow of flows)evaluateDiagnostics(flow,context,features,this.name,options.stageOrder);
+        }catch(error){
+          if(!(error instanceof GencmuError))throw error;
+          stageDiagnostics.set(report,{collected:emptyDiagnostics(),evaluated:joinDiagnostics(flows.map(flow=>flow.messages()))});
+          report.error=runtimeGrammarError(error.withLocation({stage:undefined}),this.name);return report;
+        }
+        stageDiagnostics.set(report,{collected:tiedDiagnostics(flows[0].events(),flows[1].events()),evaluated:joinDiagnostics(flows.map(flow=>flow.messages()))});
+        report.error={kind:"ambiguous",stage:this.name,reason:"tie",readings:derivations.map(root=>resultTree(root,context)[0]),message:`the ${this.name} stage's text has two best readings, a tie`};
         return report;
       }
-      Object.assign(report, { verdict: ranking.verdict, witness: null });
-      const derivation = derivationTree(ranking.first);
-      report.tree = resultTree(derivation, context)[0];
-      try {
-        const reports=reportsOf(derivation,context,features,this.name);
-        report.warnings=reports.warnings;
-        if (reports.errors.length) {
-          report.error={kind:"reported",stage:this.name,errors:reports.errors,message:"the chosen derivation reports errors"};
-          return report;
-        }
-      } catch (error) {
-        if (!(error instanceof GencmuError)) throw error;
-        report.tree=null;
-        report.warnings=[];
-        report.error=runtimeGrammarError(error.withLocation({stage:undefined}),this.name);
-        return report;
+      Object.assign(report,{verdict:ranking.verdict,witness:null});
+      const derivation=derivationTree(ranking.first),flow=new DiagnosticFlow(derivation,tokens);
+      report.tree=resultTree(derivation,context)[0];
+      try{evaluateDiagnostics(flow,context,features,this.name,options.stageOrder);}
+      catch(error){
+        if(!(error instanceof GencmuError))throw error;
+        stageDiagnostics.set(report,{collected:emptyDiagnostics(),evaluated:flow.messages()});
+        report.tree=null;report.error=runtimeGrammarError(error.withLocation({stage:undefined}),this.name);return report;
       }
-      try {
-        report.output = emit(derivation, context);
-      } catch (error) {
-        if (error instanceof GencmuError) {
-          report.error = runtimeGrammarError(error.withLocation({stage:undefined}),this.name);
-          return report;
-        }
-        throw error;
+      const diagnosticData={collected:flow.collected(),evaluated:flow.messages()};
+      stageDiagnostics.set(report,diagnosticData);
+      try{
+        report.output=emit(derivation,context,flow);
+        const unowned=flow.assign();report.errors=unowned.errors;report.warnings=unowned.warnings;
+      }catch(error){
+        if(!(error instanceof GencmuError))throw error;
+        report.output=null;report.error=runtimeGrammarError(error.withLocation({stage:undefined}),this.name);return report;
       }
       const elisionOnly = options.elisionOnly === undefined || options.elisionOnly === null
         ? lowered.resolution.elisionOnly : options.elisionOnly;
-      if (elisionOnly && (report.verdict === "resolved" ||
+      if (elisionOnly && !options.pendingErrors && !diagnosticData.collected.errors.length && (report.verdict === "resolved" ||
           report.verdict === "unique" && hasElided(report.tree))) {
         /** @type {ElisionCheck} */
         let check;
@@ -20350,7 +20557,9 @@
           }
           throw error;
         }
-        if (check.competitorWarnings) report.warnings = [...(report.warnings || []), ...check.competitorWarnings];
+        if (check.competitorWarnings){
+          diagnosticData.collected.warnings.push(...check.competitorWarnings);
+        }
         if (check.kind === "lost") {
           // The witness of the chosen derivation is lost: a defect of the
           // engine, which ends the stage with no output (engine §7.9).
@@ -20654,30 +20863,38 @@
    * @returns {{errors:import("./types.js").ParseWarning[],warnings:import("./types.js").ParseWarning[]}}
    */
   function reportsOf(root, context, features, stage) {
-    /** @type {import("./types.js").ParseWarning[]} */
-    const warnings=[];
-    /** @type {import("./types.js").ParseWarning[]} */
-    const errors=[];
+    const flow=new DiagnosticFlow(root,context.tokens);
+    evaluateDiagnostics(flow,context,features,stage);
+    return flow.collected();
+  }
+
+  /**
+   * Evaluate own messages before erasure and preserve a prefix on failure (§12.1).
+   * @param {DiagnosticFlow} flow @param {ParseContext} context
+   * @param {Set<string>} features @param {string} stage @param {number} [stageOrder]
+   */
+  function evaluateDiagnostics(flow,context,features,stage,stageOrder=0){
     const strings=new StringWalk(context,node=>new TreeScope(node,context),false);
-    const measures=new Measures(context.tokens,context.sources);
-    const stack=[{node:root,suppressed:new Set()}];
-    while(stack.length) {
-      const {node,suppressed:inherited}=/** @type {NonNullable<ReturnType<typeof stack.pop>>} */ (stack.pop());
-      if ("read" in node) continue;
+    const measures=new Measures(context.tokens,context.sources),scope={};
+    let ordinal=0;
+    const stack=[{node:flow.root,suppressed:new Set()}];
+    while(stack.length){
+      const {node,suppressed:inherited}=/** @type {NonNullable<ReturnType<typeof stack.pop>>} */(stack.pop());
+      if('read'in node)continue;
       const production=node.production;
-      const suppressed=production.suppressWarnings?.length ? new Set([...inherited,...production.suppressWarnings]) : inherited;
-      const code=production.spliceOf ?? production.lhs;
-      const recipe=production.error ?? (production.warning && features.has(code) && !suppressed.has("_") && !suppressed.has(code) ? production.warning : undefined);
-      if (recipe) {
-        hooks.diagnosticMessage?.(node,recipe);
-        const message=strings.item(node,recipe,recipe);
-        const diagnostic={stage,code,rule:code,span:/** @type {Span} */ ([node.start,node.end]),source:sourceOf(context.sources,node.start,node.end),message};
-        recordDiagnostic(diagnostic,production.error ? measures.own(node.start,node.end) : ZERO_MEASURE);
-        (production.error ? errors : warnings).push(diagnostic);
+      const suppressed=production.suppressWarnings?.length?new Set([...inherited,...production.suppressWarnings]):inherited;
+      if(production.error||production.warning){
+        const occurrence=ordinal++,code=production.spliceOf??production.lhs;
+        const recipe=production.error??(features.has(code)&&!suppressed.has('_')&&!suppressed.has(code)?production.warning:undefined);
+        if(recipe){
+          hooks.diagnosticMessage?.(node,recipe);
+          const diagnostic={stage,code,rule:code,span:/** @type {Span} */([node.start,node.end]),source:sourceOf(context.sources,node.start,node.end),message:strings.item(node,recipe,recipe)};
+          recordDiagnostic(diagnostic,production.error?measures.own(node.start,node.end):ZERO_MEASURE,{scope,stageOrder,ordinal:occurrence,rule:code});
+          flow.add(node,diagnostic,production.error?'errors':'warnings');
+        }
       }
-      for(let index=node.children.length-1;index>=0;index--) stack.push({node:node.children[index],suppressed});
+      for(let index=node.children.length-1;index>=0;index--)stack.push({node:node.children[index],suppressed});
     }
-    return {errors,warnings};
   }
 
   /**
@@ -20793,6 +21010,7 @@
    * @property {StringWalk} strings
    * @property {boolean} forwards
    * @property {Set<import("./tokens.js").AttachedToken>} inherited
+   * @property {DiagnosticFlow} trace
    */
 
   /** @param {import("./types.js").Production} production */
@@ -20940,15 +21158,16 @@
   // attachments nest as deep as the text is long: each attachment's tokens
   // gather in a list of their own on a stack of lists.
   /**
-   * @typedef {{walk: Derivation} | {run: () => void}} EmitTask
+   * @typedef {{walk: Derivation,flow:import("./diagnostic-flow.js").EmissionScope} | {run: () => void}} EmitTask
    */
 
   /**
    * @param {Derivation} root
    * @param {ParseContext} context
+   * @param {DiagnosticFlow} [trace]
    * @returns {Token[]}
    */
-  function emit(root, context) {
+  function emit(root, context, trace=new DiagnosticFlow(root,context.tokens)) {
     // Emission atoms observe this one chosen derivation. They request no
     // recognition offers, and never split an admission group.
     const first = new Map(), last = new Map();
@@ -20965,7 +21184,7 @@
     }
     context.emissionBoundaries = {first,last};
     const strings = new StringWalk(context,node => new TreeScope(node,context));
-    return emitted(root, { context, strings, forwards: context.tokens.some(hasAttachments), inherited: new Set() });
+    return emitted(root, { context, strings, forwards: context.tokens.some(hasAttachments), inherited: new Set(),trace });
   }
 
   /**
@@ -20984,19 +21203,19 @@
     /** @type {(token: Token) => void} */
     const put = (token) => lists[lists.length - 1].push(token);
     /** @type {EmitTask[]} */
-    const tasks = [{ walk: root }];
+    const tasks = [{ walk: root,flow:emitter.trace.main }];
     for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
       if ("run" in task) {
         task.run();
         continue;
       }
-      const node = task.walk;
+      const node = task.walk,flow=task.flow;
       if ("read" in node) continue;
       const production = node.production;
       if (production.erased) continue;
       const clause = production.emit;
       if (!clause) {
-        for (let index = node.children.length - 1; index >= 0; index--) tasks.push({ walk: node.children[index] });
+        for (let index = node.children.length - 1; index >= 0; index--) tasks.push({ walk: node.children[index],flow });
         continue;
       }
       const scope = new TreeScope(node, context);
@@ -21016,10 +21235,14 @@
       const part = (name) => capturedNode(node,name);
       // An attachment: what its captured parts emit in their place, walked
       // into a list of their own (engine §11).
-      /** @type {(names: string[] | undefined) => EmitTask[]} */
-      const walks = (names) => (names ?? []).map((name) => ({ walk: part(name) }));
+      /** @param {string[]|undefined} names @param {import("./diagnostic-flow.js").EmissionScope[]} scopes @returns {EmitTask[]} */
+      const walks = (names,scopes) => (names ?? []).map(name=>{
+        const child=part(name),scope=emitter.trace.attachment(child);scopes.push(scope);return {walk:child,flow:scope};
+      });
       // The attachments gathered last, each token without its span.
-      const gathered = () => /** @type {Token[]} */ (lists.pop()).map(attached);
+      const gathered = () => /** @type {Token[]} */ (lists.pop()).map(token=>{
+        const copy=attached(token);emitter.trace.attached(token,copy);return copy;
+      });
       // Each item's anchor, the next capture item listed after it, found in
       // one backward pass rather than by a search of the rest for each.
       /** @type {(EmitItem | undefined)[]} */
@@ -21035,7 +21258,10 @@
         if (item.insert !== undefined) {
           const next = anchors[index];
           const anchor = next && next.capture !== undefined ? part(next.before?.[0] ?? next.capture) : undefined;
-          ordered.push({ run: () => put(insertedToken(item, anchor, node, valueTags(item,tagSet()), emitter)) });
+          ordered.push({ run: () => {
+            const token=insertedToken(item,anchor,node,valueTags(item,tagSet()),emitter);
+            emitter.trace.emitted(token,null,node,flow);put(token);
+          } });
         } else if (item.capture !== undefined) {
           const child = part(item.capture);
           // Before-attachments, then the carrier with its tag term, then
@@ -21045,21 +21271,25 @@
           let before = [];
           /** @type {Token | undefined} */
           let token;
+          /** @type {import("./diagnostic-flow.js").EmissionScope[]} */ const beforeScopes=[];
+          /** @type {import("./diagnostic-flow.js").EmissionScope[]} */ const afterScopes=[];
           // One push for each step: an item can have any number of
           // attachments, more than a call takes arguments.
           ordered.push({ run: () => lists.push([]) });
-          for (const step of walks(item.before)) ordered.push(step);
+          for (const step of walks(item.before,beforeScopes)) ordered.push(step);
           ordered.push(
             { run: () => {
               before = gathered();
               token = makeToken(child, valueTags(item, nodeTags(child, context)), emitter, node, item);
+              emitter.trace.emitted(token,child,node,flow);
               lists.push([]);
             } });
-          for (const step of walks(item.after)) ordered.push(step);
+          for (const step of walks(item.after,afterScopes)) ordered.push(step);
           ordered.push(
             { run: () => {
               const after = gathered();
               const carrier = /** @type {Token} */ (token);
+              emitter.trace.attachments(carrier,beforeScopes,afterScopes,carrier.before,carrier.after);
               if (before.length) carrier.before = [...before, ...carrier.before];
               if (after.length) carrier.after = [...carrier.after, ...after];
               put(carrier);
@@ -23469,6 +23699,7 @@
 
 
 
+
   // Pipelines: loading pipeline documents and their grammars, reading grammar
   // documents with the notation pipeline (engine §8), and running a text
   // through the stages (engine §13).
@@ -23996,6 +24227,7 @@
       const stages = [];
       let tokens = options.tokens || characterTokens(text, this.loader.unicode);
       const last = lastStage(this.stages, options.until);
+      let pending=emptyDiagnostics(),collected=emptyDiagnostics();
       for (let index = stages.length; index <= last; index++) {
         const stage = this.stages[index];
         /** @type {ParseError|null} */
@@ -24015,15 +24247,32 @@
           if (!(error instanceof GencmuError)) throw error;
           featureError = runtimeGrammarError(error,stage.name);
         }
-        const report = featureError ? {name:stage.name,verdict:null,witness:null,tree:null,output:null,error:featureError} : stage.run(tokens, sourceText, this.loader.unicode, {
+        const report = featureError ? {name:stage.name,verdict:null,witness:null,tree:null,output:null,error:featureError,errors:[],warnings:[]} : stage.run(tokens, sourceText, this.loader.unicode, {
           features: options.features,
-          elisionOnly: options.elisionOnly,
+          elisionOnly: options.elisionOnly,stageOrder:index,pendingErrors:pending.errors.length!==0,
         });
         report.input = tokens;
         stages.push(report);
-        if (report.error) break;
-        tokens = /** @type {Token[]} */ (report.output);
-        if (index === 0) options.inspectLexical?.(tokens);
+        const data=stageDiagnostics.get(report)??{collected:emptyDiagnostics(),evaluated:emptyDiagnostics()};
+        if(index===0&&report.output!==null)options.inspectLexical?.(report.output);
+        if(report.error){
+          const error=report.error;
+          const current=error.kind==='ambiguous'?data.collected:error.kind==='rejected'
+            ?inputDiagnostics(tokens,Math.min(tokens.length,(error.token??tokens.length)+1))
+            :joinDiagnostics([data.evaluated,inputDiagnostics(tokens)]);
+          collected=joinDiagnostics([pending,current]);
+          if(error.kind!=='ambiguous'||error.reason==='tie')if(collected.errors.length)error.errors=collected.errors;
+          if(['rejected','grammar','feature-conflict'].includes(error.kind)&&collected.warnings.length)error.warnings=collected.warnings;
+          stageDiagnostics.delete(report);break;
+        }
+        if(index===last){
+          collected=joinDiagnostics([pending,data.collected]);
+          if(collected.errors.length)report.error={kind:'reported',stage:stage.name,errors:collected.errors,message:'the chosen derivation reports errors'};
+          stageDiagnostics.delete(report);break;
+        }
+        pending=joinDiagnostics([pending,{errors:report.errors,warnings:report.warnings}]);
+        stageDiagnostics.delete(report);
+        tokens=/** @type {Token[]} */(report.output);
       }
       ownTags(stages);
       const final = stages[stages.length - 1];
@@ -24033,7 +24282,7 @@
         stages,
         tree: error && error.error?.kind!=="reported" ? null : final.tree,
         error: error ? locate(/** @type {ParseError} */ (error.error), text) : null,
-        warnings: stages.flatMap((stage) => stage.warnings || []),
+        warnings: collected.warnings,
         text,
         features: [...options.features].sort(compareCodePoints),
       };
@@ -24409,7 +24658,8 @@
    * @typedef {object} ParseError
    * @property {"rejected" | "reported" | "ambiguous" | "grammar" | "feature-conflict"} kind
    * @property {string} [feature]
-   * @property {ParseWarning[]} [errors] named diagnostics of a reported result
+   * @property {ParseWarning[]} [errors] the envelope's collected errors
+   * @property {ParseWarning[]} [warnings] warnings of a rejected, feature, or grammar failure
    * @property {string} [stage]
    * @property {"tie" | "elision-only"} [reason] why an ambiguous error is
    *   one: a tie (engine §6) or the check of elision-only (engine §7)
@@ -24523,8 +24773,8 @@
    *   that rejected its input or tied
    * @property {ParseError | null} error
    * @property {Token[]} [input] the tokens the stage read
-   * @property {ParseWarning[]} [warnings] the warnings of the chosen tree
-   *   (engine §12), absent for a stage that rejected its input or tied
+   * @property {ParseWarning[]} errors diagnostics without a token after successful empty emission
+   * @property {ParseWarning[]} warnings diagnostics without a token after successful empty emission
    */
 
   /**
@@ -24554,7 +24804,7 @@
    * @property {ResultNode | null} tree the last stage's tree
    * @property {ParseError | null} error
    * @property {string} text
-   * @property {ParseWarning[]} warnings every stage's warnings, in stage order
+   * @property {ParseWarning[]} warnings the reporting collection
    * @property {string[]} features the features enabled for this parse,
    *   including activation before failure and only stages reached.
    *   Unknown caller-enabled names are included. Not part of canonical JSON.
