@@ -194,9 +194,16 @@ fn token_list(value: &Value, usage: bool) -> R {
                 ("span", Any),
                 ("before", Any),
                 ("after", Any),
+                ("errors", Any),
+                ("warnings", Any),
             ],
         )?;
         if !usage {
+            for kind in ["errors", "warnings"] {
+                if token.get(kind).is_some_and(|value| !matches!(value,Value::Array(items) if items.is_empty())) {
+                    return Err(format!("token.{kind} requires an empty diagnostic list"));
+                }
+            }
             required(token, "text", "token")?;
             strings(required(token, "tags", "token")?, "token.tags")?;
             for name in ["text", "value", "image"] {

@@ -614,6 +614,12 @@ pub fn unexpressible_tokens(case: &Value) -> Option<&'static str> {
     let Value::Array(tokens) = tokens else { panic!("the fixture requires a token array") };
     let mut offset = 0;
     for (index, token) in tokens.iter().enumerate() {
+        if ["errors", "warnings"]
+            .iter()
+            .any(|kind| token.get(kind).is_some_and(|list| !matches!(list, Value::Array(_))))
+        {
+            return Some("unavailable caller fields: Rust InputToken requires typed diagnostic lists");
+        }
         if !matches!(token.get("text"), Some(Value::String(_))) {
             return Some("unavailable caller fields: Rust InputToken requires a text string");
         }
@@ -654,8 +660,18 @@ pub fn case_tokens(case: &Value) -> Option<Vec<gencmu::InputToken>> {
             .array()
             .iter()
             .map(|token| gencmu::InputToken {
-                errors: Vec::new(),
-                warnings: Vec::new(),
+                errors: token
+                    .get("errors")
+                    .map_or(&[][..], Value::array)
+                    .iter()
+                    .map(|_| gencmu::Warning::new(String::new(), String::new(), 0..0, 0..0, String::new()))
+                    .collect(),
+                warnings: token
+                    .get("warnings")
+                    .map_or(&[][..], Value::array)
+                    .iter()
+                    .map(|_| gencmu::Warning::new(String::new(), String::new(), 0..0, 0..0, String::new()))
+                    .collect(),
                 text: token.get("text").and_then(Value::str).unwrap_or("").to_string(),
                 tags: token
                     .get("tags")
@@ -827,28 +843,72 @@ pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), Str
 pub fn result_problems(json: &Value) -> Vec<String> {
     let mut problems = Vec::new();
     let stages = json.get("stages").map_or(&[][..], Value::array);
+    let integer = |value: Option<&Value>, minimum: f64| matches!(value,Some(Value::Number(n)) if n.is_finite() && *n>=minimum && n.fract()==0.0 && *n<=9007199254740991.0);
+    let range = |value: Option<&Value>| matches!(value,Some(Value::Array(pair)) if pair.len()==2 && pair.iter().all(|part|integer(Some(part),0.0)) && matches!((&pair[0],&pair[1]),(Value::Number(a),Value::Number(b)) if a<=b));
+    let evidence = |value: &Value| {
+        matches!(value,Value::Object(fields) if fields.len()==5)
+            && integer(value.get("token"), 0.0)
+            && integer(value.get("line"), 1.0)
+            && integer(value.get("column"), 1.0)
+            && range(value.get("source"))
+            && matches!(value.get("expected"),Some(Value::Array(items)) if items.iter().all(|item| {
+                matches!(item,Value::Object(fields) if fields.len()==2) && item.get("terminal").and_then(Value::str).is_some()
+                    && matches!(item.get("rules"),Some(Value::Array(rules)) if rules.iter().all(|rule|rule.str().is_some()))
+            }))
+    };
     let diagnostic = |value: &Value, error: bool| {
         let keys = ["stage", "code", "rule", "span", "source", "message", "rejection"];
-        if !matches!(value,Value::Object(fields) if (fields.len()==6 || error && fields.len()==7) && fields.iter().all(|(k,_)|keys.contains(&k.as_str())))
-        {
-            return false;
-        }
-        if let Some(rejection) = value.get("rejection") {
-            if !error
-                || !matches!(rejection, Value::Object(fields) if fields.len()==5)
-                || !["token", "source", "line", "column", "expected"].iter().all(|key| rejection.get(key).is_some())
-            {
-                return false;
-            }
-        }
-        if value.get("code") != value.get("rule") {
-            return false;
-        }
-        if !["stage", "code", "rule", "message"].iter().all(|k| value.get(k).and_then(Value::str).is_some()) {
-            return false;
-        }
-        ["span","source"].iter().all(|k|matches!(value.get(k),Some(Value::Array(pair)) if pair.len()==2 && pair.iter().all(|v|matches!(v,Value::Number(n) if n.is_finite()&&*n>=0.0&&n.fract()==0.0&&*n<=9007199254740991.0)) && matches!((&pair[0],&pair[1]),(Value::Number(a),Value::Number(b)) if a<=b)))
+        matches!(value,Value::Object(fields) if (fields.len()==6 || error && fields.len()==7) && fields.iter().all(|(key,_)|keys.contains(&key.as_str())))
+            && value.get("rejection").map_or(true, |value| error && evidence(value))
+            && value.get("code") == value.get("rule")
+            && ["stage", "code", "rule", "message"].iter().all(|key| value.get(key).and_then(Value::str).is_some())
+            && range(value.get("span"))
+            && range(value.get("source"))
     };
+    if json.get("format") != Some(&Value::Number(17.0)) {
+        problems.push("the result format is not 17".into());
+    }
+    let names: std::collections::BTreeSet<_> =
+        stages.iter().filter_map(|stage| stage.get("name").and_then(Value::str)).collect();
+    let mut pending = vec![json];
+    while let Some(value) = pending.pop() {
+        match value {
+            Value::Array(items) => pending.extend(items),
+            Value::Object(fields) => {
+                for (key, value) in fields {
+                    if key == "errors" || key == "warnings" {
+                        if !matches!(value,Value::Array(items) if !items.is_empty() && items.iter().all(|value|diagnostic(value,key=="errors")))
+                        {
+                            problems.push(format!("{key} is not a nonempty list of named diagnostics"));
+                        } else if value
+                            .array()
+                            .iter()
+                            .any(|value| !names.contains(value.get("stage").and_then(Value::str).unwrap_or("")))
+                        {
+                            problems.push("a diagnostic names an unknown raising stage".into());
+                        }
+                    } else {
+                        pending.push(value);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    for stage in stages {
+        if (stage.get("errors").is_some() || stage.get("warnings").is_some())
+            && !matches!(stage.get("output"),Some(Value::Array(items)) if items.is_empty())
+        {
+            problems.push("stage diagnostics require a completed empty emission".into());
+        }
+    }
+    if let Some(error) = json.get("error").filter(|error| {
+        matches!(error.get("kind").and_then(Value::str), Some("rejected" | "grammar" | "feature-conflict"))
+    }) {
+        if error.get("warnings") != json.get("warnings") {
+            problems.push("failure warnings differ from result warnings".into());
+        }
+    }
     for warning in json.get("warnings").map_or(&[][..], Value::array) {
         if !diagnostic(warning, false) {
             problems.push("a warning lacks its diagnostic fields".into());

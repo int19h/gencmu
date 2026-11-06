@@ -1094,3 +1094,34 @@ fn runtime_message_expectations_use_structured_locations() {
     }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
+
+#[test]
+fn runner_keeps_grammar_failures_after_a_tied_choice() {
+    // Engine §12.1: a failed message keeps its tie verdict without shown readings.
+    let result = parse_json(r#"{"format":17,"ok":false,"stages":[{"name":"main","verdict":"tie"}],"tree":null,"error":{"kind":"grammar","stage":"main","message":"guard"},"features":[]}"#).unwrap();
+    assert!(common::result_problems(&result).is_empty());
+    let mut wrong = result.clone();
+    if let common::Value::Object(fields) = &mut wrong {
+        let error = fields.iter_mut().find(|(key, _)| key == "error").unwrap();
+        if let common::Value::Object(fields) = &mut error.1 {
+            fields.push(("readings".into(), common::Value::Array(Vec::new())));
+        }
+    }
+    assert!(!common::result_problems(&wrong).is_empty());
+}
+
+#[test]
+fn runner_validates_diagnostics_on_every_failure_envelope() {
+    // Output §1: earlier-stage diagnostics retain their coordinates on a rejection.
+    let result = parse_json(r#"{"format":17,"ok":false,"stages":[{"name":"before","verdict":"unique","output":[]},{"name":"main"}],"tree":null,"error":{"kind":"rejected","stage":"main","errors":[{"stage":"before","code":"bad","rule":"bad","span":[0,1],"source":[0,1],"message":"bad"}],"message":"stopped"},"features":[]}"#).unwrap();
+    assert!(common::result_problems(&result).is_empty());
+    let text = result.to_text();
+    for (from, into) in [
+        ("\"code\":\"bad\"", "\"code\":\"other\""),
+        ("\"stage\":\"before\",\"code\"", "\"stage\":\"missing\",\"code\""),
+        ("\"span\":[0,1]", "\"span\":[2,1]"),
+    ] {
+        let changed = parse_json(&text.replace(from, into)).unwrap();
+        assert!(!common::result_problems(&changed).is_empty(), "{from}");
+    }
+}
