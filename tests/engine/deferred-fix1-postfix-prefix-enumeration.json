@@ -1,0 +1,29 @@
+{
+  "description": "Engine §3.6 and §4: a valid prefix enumeration retains only the error inside its actual postfix.",
+  "pipeline": "eberban/refgram",
+  "input": "a pe da a dai bu mo pei",
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "stage": "syntax",
+            "code": "chain-empty",
+            "rule": "chain-empty",
+            "span": [
+              3,
+              4
+            ],
+            "source": [
+              8,
+              9
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

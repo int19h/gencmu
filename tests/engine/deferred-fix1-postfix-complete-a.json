@@ -1,0 +1,29 @@
+{
+  "description": "Engine §3.6 and §4: recovery tests the boundary after its actual postfixes, including recovered errors.",
+  "pipeline": "eberban/refgram",
+  "input": "a da a dai mo",
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "stage": "syntax",
+            "code": "chain-empty",
+            "rule": "chain-empty",
+            "span": [
+              2,
+              3
+            ],
+            "source": [
+              5,
+              6
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

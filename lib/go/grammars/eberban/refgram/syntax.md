@@ -400,17 +400,23 @@ A written terminator never equals an elided one, so `to jie` and `to` are two ve
 
 `VI` opens a bind on a place of the preceding verb, and `FI` binds another place of the same verb. `vei` closes the group, and the speaker can leave it out at the end of a sentence. A bind holds an inner predicate. `bi` before `VI` or `FI` negates the bind.
 
+The empty-bind alternatives test the boundary after the postfixes that they read. A postfix can contain a recovered error, which a query witness cannot read. The captured splice records that boundary without adding a node to the tree.
+
 ```jbogenbau
 %rule bind-group
   bind-first [{bind-next}] [+VEI]
 
 %rule bind-first
   | [bi-free] vi-free definition
-  | [bi-free] [{prefix}] *bind-empty-vi [{postfix}]
+  | [bi-free] [{prefix}] *bind-empty-vi $p:*recovery-postfixes
+%conditions
+  $p.following-tokens.begins(missing-operand-boundary)
 
 %rule bind-next
   | [bi-free] fi-free definition
-  | [bi-free] [{prefix}] *bind-empty-fi [{postfix}]
+  | [bi-free] [{prefix}] *bind-empty-fi $p:*recovery-postfixes
+%conditions
+  $p.following-tokens.begins(missing-operand-boundary)
 
 %rule vi-free
   [{prefix}] VI [{postfix}]
@@ -863,35 +869,48 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
 
 An empty-chain recovery reads only its owner's opening token: `a`, `o`, `bi`, `be`, `ri`, `bu`, or `pe`. Its guard examines the following tokens after any postfixes. The `o` guard also passes its required target before it tests that boundary. Prefixes, postfixes, and argument markers remain outside the diagnostic.
 
+The captured `recovery-postfixes` splice reads the actual postfixes, including their recovered errors. Its following tokens start at the boundary that the guard needs. The helper groups an optional sequence, because a capture cannot bind that sequence directly.
+
 When its following chain is missing, a separator still belongs to its open enumeration. Recovery retains later separators and items, so an interior empty item does not abandon its enumeration. Each repeated segment contains a written `bu`, so it reads at least one token.
 
 The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, without reading the bind operand. At equal measures, the diagnostic preference chooses this recovery over an unmatched `be` reading. The shared message constant gives every opening token the same diagnostic code and message.
 
 ```jbogenbau
 %extend-rule a-sentence
-  [{prefix}] *chain-empty<A> [{postfix}]
+  [{prefix}] *chain-empty<A> $p:*recovery-postfixes
+%conditions
+  $p.following-tokens.begins(missing-operand-boundary)
 
 %extend-rule chain
   [{erased-chain RI}] erased-chain *chain-empty<RI>
 
 %extend-rule o-sentence
   [{prefix}] *chain-empty<O> [{postfix}] definable
+%conditions
+  $.following-tokens.begins(missing-operand-boundary)
 
 %extend-rule enumeration
-  [{prefix}] *chain-empty<PE> [{postfix}] [{bu-free chain | *empty-enumeration-item}] [+PEI]
+  [{prefix}] *chain-empty<PE> $p:*recovery-postfixes [{bu-free chain | *empty-enumeration-item}] [+PEI]
+%conditions
+  $p.following-tokens.begins(missing-operand-boundary)
 
 %extend-rule separator-form
   | *empty-arguments-list [{bu-free chain | *empty-enumeration-item}]
   | [arguments-list] {chain / bu-free} *empty-enumeration-item [{bu-free chain | *empty-enumeration-item}]
 
 %extend-rule chain-inner
-  [{prefix}] *chain-empty<BI> [{postfix}]
+  [{prefix}] *chain-empty<BI> $p:*recovery-postfixes
+%conditions
+  $p.following-tokens.begins(missing-operand-boundary)
 
 %rule empty-arguments-list
   [{KI | GI | ba-free}] *chain-empty<BE>
 
 %rule empty-enumeration-item
   [{prefix}] *chain-empty<BU>
+
+%rule recovery-postfixes
+  [{postfix}]
 
 %rule missing-operand-boundary
   starter-head | PO | RA | RI | bind-start | sentence-closer | end-of-text
@@ -902,15 +921,7 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %const $CHAIN-EMPTY-MESSAGE "a chain needs at least one non-erased verb"
 
 %rule chain-empty
-  A | BI | PE
-%conditions
-  $.following-tokens.parse([{postfix}] missing-operand-boundary …)
-%error $CHAIN-EMPTY-MESSAGE
-
-%extend-rule chain-empty
-  O
-%conditions
-  $.following-tokens.parse([{postfix}] definable missing-operand-boundary …)
+  A | BI | PE | O
 %error $CHAIN-EMPTY-MESSAGE
 
 %extend-rule chain-empty
@@ -921,18 +932,14 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 
 %rule bind-empty-vi
   VI
-%conditions
-  $.following-tokens.parse([{postfix}] missing-operand-boundary …)
 %error "vi needs a following chain"
 
 %rule bind-empty-fi
   FI
-%conditions
-  $.following-tokens.parse([{postfix}] missing-operand-boundary …)
 %error "fi needs a following chain"
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>a-sentence</code> to <code>bind-empty-fi</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>a-sentence</code> to <code>bind-empty-fi</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/a-sentence.2.svg" alt="Railroad diagram of the rule a-sentence"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain.2.svg" alt="Railroad diagram of the rule chain"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/o-sentence.2.svg" alt="Railroad diagram of the rule o-sentence"></p>
@@ -941,11 +948,11 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-inner.2.svg" alt="Railroad diagram of the rule chain-inner"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-arguments-list.svg" alt="Railroad diagram of the rule empty-arguments-list"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-enumeration-item.svg" alt="Railroad diagram of the rule empty-enumeration-item"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/recovery-postfixes.svg" alt="Railroad diagram of the rule recovery-postfixes"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/missing-operand-boundary.svg" alt="Railroad diagram of the rule missing-operand-boundary"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/bind-start.svg" alt="Railroad diagram of the rule bind-start"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-empty.svg" alt="Railroad diagram of the rule chain-empty"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-empty.2.svg" alt="Railroad diagram of the rule chain-empty"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-empty.3.svg" alt="Railroad diagram of the rule chain-empty"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/bind-empty-vi.svg" alt="Railroad diagram of the rule bind-empty-vi"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/bind-empty-fi.svg" alt="Railroad diagram of the rule bind-empty-fi"></p>
 </details>
@@ -957,15 +964,15 @@ An unclosed parenthetical reports on its whole span, from `da` through the input
 
 ```jbogenbau
 %extend-rule o-sentence
-  [{prefix}] *not-definable-o [{postfix}] [definition]
+  [{prefix}] *not-definable-o $p:*recovery-postfixes [definition]
+%conditions
+  ¬$p.following-tokens.begins(definable)
 
 %extend-rule ni-sentence
   [{prefix}] *not-definable-ni [definition]
 
 %rule not-definable-o
   O
-%conditions
-  ¬$.following-tokens.parse([{postfix}] definable …)
 %error "o needs a root, compound, freeform, or gi variable as its target"
 
 %rule not-definable-ni
