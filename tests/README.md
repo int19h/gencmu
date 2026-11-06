@@ -646,7 +646,7 @@ Each line is one language text and its required result:
   A `reported` case's `at` equals its first entry's `at`. A plain rejection keeps its rejection position. Ambiguity still has no `at`. Carried diagnostics change neither rule.
 - A present `warnings` field pins every warning in result order as `{"stage":"words","code":"y-cmavo","at":3}`. `at` is that warning's original source start. An empty list requires no warnings. The stage names the warning's origin, rather than its later reporting stage.
 
-  Pending earlier stage-level warnings precede the reporting derivation's preorder collection. Carrier warnings precede attachment warnings, with each group ordered by raising stage and source occurrence. Ties use the two-reading collection of engine §12.1. Message wording and other coordinates belong in shared engine cases.
+  Pending earlier stage-level warnings precede the reporting derivation's preorder collection. A token leaf supplies its carried warning list in its stored order, including the carrier and attachment order of engine §11.5. Ties use the two-reading collection of engine §12.1. Message wording and other coordinates belong in shared engine cases.
 - `words` records the words stage's output when that output is present. The case writes each token as its image (engine §5). The pipeline's grammar recipes supply pause spaces and verbatim text.
 
 A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. Some corpus texts tie in their pipeline, and those cases expect the tie. Each library also tests that its runner refuses the result mutants above. A case uses its pipeline declarations and the caller configuration.
