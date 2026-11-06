@@ -46,25 +46,27 @@ func (g *stageGrammar) checkDiagnosticsAndSplices() *Error {
 			if alt.error != nil && !isRuleName(rule.name, g.uni) {
 				return grammarError(alt.doc, alt.at, "an error code must be a rule name")
 			}
-			pending := []*domExpr{alt.alt.Expr}
-			for len(pending) > 0 {
-				expr := pending[len(pending)-1]
-				pending = pending[:len(pending)-1]
-				if expr == nil || expressions[expr] {
-					continue
-				}
-				expressions[expr] = true
-				if expr.Kind == exSplice {
-					splices = append(splices, splice{expr.Inner.Name, alt})
-				}
-				pending = append(pending, expr.Items...)
-				pending = append(pending, expr.Inner, expr.Sep)
+			scanExpression := func(root *domExpr) {
+				walkQueryBody(root, func(expr *domExpr) bool {
+					if expressions[expr] {
+						return false
+					}
+					expressions[expr] = true
+					if expr.Kind == exSplice {
+						splices = append(splices, splice{expr.Inner.Name, alt})
+					}
+					return true
+				}, nil)
 			}
+			scanExpression(alt.alt.Expr)
 			visit := func(part clausePart) bool {
 				if clauses[part] {
 					return false
 				}
 				clauses[part] = true
+				if part.t != nil && part.t.Kind == tmBody {
+					scanExpression(part.t.Body)
+				}
 				if part.t != nil && part.t.Pattern != nil {
 					names(part.t.Pattern)
 				}

@@ -34,8 +34,8 @@ type slotChoice struct {
 type slotLabels map[slotChoice]bool
 type slotMask map[int]bool
 type slotCount struct {
-	errors count
-	all    int
+	measure diagnosticMeasure
+	all     int
 }
 type slotCountKey struct {
 	it      *item
@@ -247,6 +247,9 @@ func (a *slotAdmission) dependencies(key slotCountKey) []slotCountKey {
 func (a *slotAdmission) edgeCount(it *item, edge link, f forbidden) (slotCount, slotCount) {
 	p, c := a.edgeKeys(it, edge, f)
 	left, right := a.value(p), a.value(c)
+	if edge.sym == nil {
+		right.measure = a.rk.rec.carriedMeasure(edge.tok)
+	}
 	return left, right
 }
 func (a *slotAdmission) admit(key slotCountKey) {
@@ -276,7 +279,7 @@ func (a *slotAdmission) admit(key slotCountKey) {
 						hl, hr := a.edgeCount(higher.item, higher.item.links[higher.index], f)
 						pl, pr := a.edgeCount(proof.item, proof.item.links[proof.index], f)
 						hasHigher = true
-						if hl.errors.add(hr.errors).cmp(pl.errors.add(pr.errors)) <= 0 && boundaryDominates(higher.open, proof.open) {
+						if hl.measure.add(hr.measure).cmp(pl.measure.add(pr.measure)) <= 0 && boundaryDominates(higher.open, proof.open) {
 							excluded = true
 							break
 						}
@@ -317,7 +320,10 @@ func (a *slotAdmission) compute(key slotCountKey) slotCount {
 			}
 			v := a.value(a.key(it, nil, f))
 			if it.prod.error != nil {
-				v.errors = v.errors.add(countOne)
+				v.measure = v.measure.add(rk.rec.ownMeasure(it.origin, it.set))
+			}
+			if it.prod.nothing {
+				v.measure = diagnosticMeasure{}
 			}
 			out.offer(v)
 		}
@@ -341,7 +347,7 @@ func (a *slotAdmission) compute(key slotCountKey) slotCount {
 		l, r := a.edgeCount(it, edge, f)
 		ways := min(l.all*r.all, 2)
 		if !filtered || mask[index] {
-			out.offer(slotCount{all: ways, errors: l.errors.add(r.errors)})
+			out.offer(slotCount{all: ways, measure: l.measure.add(r.measure)})
 		}
 	}
 	return out
@@ -401,9 +407,9 @@ func (s *slotCount) offer(value slotCount) {
 	if value.all == 0 {
 		return
 	}
-	if s.all == 0 || value.errors.cmp(s.errors) < 0 {
+	if s.all == 0 || value.measure.cmp(s.measure) < 0 {
 		*s = value
-	} else if value.errors.cmp(s.errors) == 0 {
+	} else if value.measure.cmp(s.measure) == 0 {
 		s.all = min(s.all+value.all, 2)
 	}
 }

@@ -140,3 +140,11 @@ func TestDeferredQueriesShareStructuralTargetsAndRetainTests(t *testing.T) {
 		}
 	}
 }
+
+func TestDeferredQueryBodiesKeepStageSpliceRestrictions(t *testing.T) {
+	// Engine §3.7: a parse body does not hide its splices from loading checks.
+	_, err := LoadPipelineSources(oneStage("%ambiguity-resolution fewest #·target, greedy\n%rule text A\n%conditions $.parse(*target)\n%rule target A"), "p.md")
+	if err == nil || !strings.Contains(err.Error(), "a splice of target conflicts") {
+		t.Fatalf("query splice escaped inspection: %v", err)
+	}
+}

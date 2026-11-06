@@ -294,12 +294,17 @@ func newUnfilteredRanker(rec *recognizer, steps []keyStep, lean string) *ranker 
 	rk := &ranker{rec: rec, lean: lean, space: newProfileSpace(steps), items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
 	rk.space.rec = rec
 	rk.profiles = rec.g.canCountProfiles(steps)
+	carried := false
+	for _, measure := range rec.diagnosticMeasures().carried {
+		carried = carried || !measure[2].isZero()
+	}
+	rk.profiles = rk.profiles || carried
 	if rec.recon != nil {
 		onlyOmitted := true
 		for _, step := range steps {
 			onlyOmitted = onlyOmitted && requiresElided(step.pattern)
 		}
-		if onlyOmitted && !rec.g.hasErrors {
+		if onlyOmitted && !rec.g.hasErrors && !carried {
 			rk.profiles = false
 		}
 	}
@@ -879,6 +884,7 @@ func (fr *itemFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 			if l.sym == nil {
 				var profile profile
 				if rk.profiles {
+					profile = rk.space.measureProfile(rk.rec.carriedMeasure(l.tok))
 					a, b := l.tok, l.tok+1
 					if rc := rk.rec.recon; rc != nil {
 						a, b = int32(rc.project[a]), int32(rc.project[b])
@@ -888,7 +894,7 @@ func (fr *itemFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 						if rc := rk.rec.recon; rc != nil {
 							index = rc.original[l.tok]
 						}
-						profile = rk.space.occurrence("", rk.rec.g.terminals[l.term], rk.rec.run.toks[index].Value, rk.rec.run.tagsets[index], a, b)
+						profile = rk.space.sum(profile, rk.space.occurrence("", rk.rec.g.terminals[l.term], rk.rec.run.toks[index].Value, rk.rec.run.tagsets[index], a, b))
 					}
 				}
 				fr.child, fr.phase = &entry{cands: []*cand{{d: readNode(l.tok, l.term)}}, count: 1, least: 1, profile: profile}, linkSummarize
@@ -1043,8 +1049,10 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 		}
 		profile := e.profile
 		if rk.profiles {
-			if c.prod.error != nil {
-				profile = rk.space.sum(profile, rk.space.errorProfile())
+			if c.prod.nothing {
+				profile = nil
+			} else if c.prod.error != nil {
+				profile = rk.space.sum(profile, rk.space.measureProfile(rk.rec.ownMeasure(c.origin, c.set)))
 			}
 			if c.prod.restoration() && !c.restores && rk.rec.recon == nil {
 				tags := rk.rec.run.ps.in.fromList([]string{c.prod.elided, "_Elided"})
@@ -1256,7 +1264,7 @@ func (s *summary) add(space *profileSpace, p profile, least, total int) {
 		return
 	}
 	comparison := space.compare(p, s.profile)
-	errors := p.at(0).n.cmp(s.profile.at(0).n)
+	errors := p.measure().cmp(s.profile.measure())
 	if s.total == 0 || errors < 0 {
 		s.total = min(total, 2)
 	} else if errors == 0 {
@@ -1436,6 +1444,10 @@ func (p profile) at(i int) component {
 	return p[i]
 }
 
+func (p profile) measure() diagnosticMeasure {
+	return diagnosticMeasure{p.at(0).n, p.at(1).n, p.at(2).n}
+}
+
 // profileSpace holds the key steps of one ranking: how they count
 // occurrences, add profiles and compare them (engine §6).
 type profileSpace struct {
@@ -1457,7 +1469,7 @@ type rankingNodeKey struct {
 }
 
 func newProfileSpace(steps []keyStep) *profileSpace {
-	sp := &profileSpace{kinds: []string{"fewest"}, steps: steps, answers: map[rankingNodeKey]bool{}, leaves: map[int32]*elSeq{}}
+	sp := &profileSpace{kinds: []string{"fewest", "fewest", "most"}, steps: steps, answers: map[rankingNodeKey]bool{}, leaves: map[int32]*elSeq{}}
 	for _, step := range steps {
 		sp.kinds = append(sp.kinds, step.step)
 		sp.values = append(sp.values, patternHasValue(step.pattern))
@@ -1500,12 +1512,12 @@ func (sp *profileSpace) occurrence(name, terminal, value string, tags *tagset, p
 		switch step.step {
 		case "leftmost-longest":
 			if p < q {
-				out[index+1].spans = []profileSpan{{p, q, countOne}}
+				out[index+3].spans = []profileSpan{{p, q, countOne}}
 			}
 		case "fewest", "most":
-			out[index+1].n = countOne
+			out[index+3].n = countOne
 		default:
-			out[index+1].seq = sp.leaf(p)
+			out[index+3].seq = sp.leaf(p)
 		}
 	}
 	return out
@@ -1577,6 +1589,13 @@ func (sp *profileSpace) compare(a, b profile) int {
 // order, a parent before its children, so that the sequences of late and
 // early list their positions in order.
 func (sp *profileSpace) derivationProfile(g *lowered, d *dn) profile {
+	if sp.rec.recon != nil {
+		original, rec := *sp, *sp.rec
+		rec.recon, rec.base = nil, 0
+		rec.measures = sp.rec.diagnosticMeasures().original
+		original.rec, original.spanValues = &rec, nil
+		sp = &original
+	}
 	var out profile
 	stack := []*dn{d}
 	for len(stack) > 0 {
@@ -1585,15 +1604,19 @@ func (sp *profileSpace) derivationProfile(g *lowered, d *dn) profile {
 		if n == nil {
 			continue
 		}
-		if n.kind == dClose && n.prod.error != nil {
-			out = sp.sum(out, sp.errorProfile())
+		if n.kind == dClose && n.prod.error != nil && !n.prod.nothing {
+			out = sp.sum(out, sp.measureProfile(sp.rec.ownMeasure(n.start, n.end)))
 		}
 		if n.kind == dClose && !g.rules[n.prod.lhs].helper && n.start < n.end {
 			out = sp.sum(out, sp.occurrence(g.rules[n.prod.lhs].name, "", "", n.tags, n.start, n.end))
 		} else if n.kind == dRead {
 			rec := sp.rec
 			index := rec.base + int(n.tok)
+			out = sp.sum(out, sp.measureProfile(rec.carriedMeasure(n.tok)))
 			out = sp.sum(out, sp.occurrence("", g.terminals[n.term], rec.run.toks[index].Value, rec.run.tagsets[index], n.tok, n.tok+1))
+		}
+		if n.kind == dClose && n.prod.nothing {
+			continue
 		}
 		stack = append(stack, n.b, n.a)
 	}
@@ -1660,8 +1683,13 @@ func sumSpans(x, y []profileSpan) []profileSpan {
 	return out
 }
 
-func (sp *profileSpace) errorProfile() profile {
+func (sp *profileSpace) measureProfile(measure diagnosticMeasure) profile {
+	if measure == (diagnosticMeasure{}) {
+		return nil
+	}
 	out := make(profile, len(sp.kinds))
-	out[0].n = countOne
+	for index, value := range measure {
+		out[index].n = value
+	}
 	return out
 }

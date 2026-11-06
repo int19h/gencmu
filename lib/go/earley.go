@@ -233,6 +233,7 @@ const (
 )
 
 type recognizer struct {
+	measures                              *diagnosticMeasures
 	trees                                 *treeArena
 	suffix                                *suffixState
 	scans                                 []*item

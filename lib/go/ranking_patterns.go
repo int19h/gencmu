@@ -218,7 +218,11 @@ func possibleNodeMatch(p *domPattern, name, terminal string, omitted bool, tags 
 
 func (g *lowered) canCountProfiles(steps []keyStep) bool {
 	g.profileOnce.Do(func() {
-		if g.hasErrors {
+		erased := false
+		for _, production := range g.prods {
+			erased = erased || production.nothing
+		}
+		if g.hasErrors || erased {
 			g.profilePossible = true
 			return
 		}

@@ -45,7 +45,11 @@ type diagnosticMeasures struct {
 }
 
 func newDiagnosticMeasures(tokens []Token) *diagnosticMeasures {
-	m := &diagnosticMeasures{tokens: tokens, sources: newSourceTable(tokens), nonempty: make([]int, len(tokens)+1), carried: make([]diagnosticMeasure, len(tokens))}
+	return diagnosticMeasuresFromSources(tokens, newSourceTable(tokens))
+}
+
+func diagnosticMeasuresFromSources(tokens []Token, sources *sourceTable) *diagnosticMeasures {
+	m := &diagnosticMeasures{tokens: tokens, sources: sources, nonempty: make([]int, len(tokens)+1), carried: make([]diagnosticMeasure, len(tokens))}
 	for i := range tokens {
 		m.nonempty[i+1] = m.nonempty[i]
 		if tokens[i].Source[0] < tokens[i].Source[1] {
@@ -56,6 +60,46 @@ func newDiagnosticMeasures(tokens []Token) *diagnosticMeasures {
 		}
 	}
 	return m
+}
+
+func (r *recognizer) diagnosticMeasures() *diagnosticMeasures {
+	if r.measures != nil {
+		return r.measures
+	}
+	run := r.run
+	if run.measures == nil {
+		if !run.sourcesMade {
+			run.sources, run.sourcesMade = newSourceTable(run.toks), true
+		}
+		run.measures = diagnosticMeasuresFromSources(run.toks, run.sources)
+	}
+	r.measures = run.measures
+	if r.recon != nil {
+		m := &diagnosticMeasures{original: run.measures, project: r.recon.project, carried: make([]diagnosticMeasure, len(r.recon.original))}
+		for index, original := range r.recon.original {
+			if original >= 0 {
+				m.carried[index] = run.measures.carried[original]
+			}
+		}
+		r.measures = m
+	}
+	return r.measures
+}
+
+func (r *recognizer) ownMeasure(start, end int32) diagnosticMeasure {
+	base := r.base
+	if r.recon != nil {
+		base = 0
+	}
+	return r.diagnosticMeasures().own(base+int(start), base+int(end))
+}
+
+func (r *recognizer) carriedMeasure(token int32) diagnosticMeasure {
+	base := r.base
+	if r.recon != nil {
+		base = 0
+	}
+	return r.diagnosticMeasures().carried[base+int(token)]
 }
 
 func (m *diagnosticMeasures) own(start, end int) diagnosticMeasure {

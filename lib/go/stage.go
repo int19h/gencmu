@@ -131,6 +131,7 @@ func (ps *parseState) publicTags(tags *tagset) []string {
 }
 
 type stageRun struct {
+	measures         *diagnosticMeasures
 	closeArenas      map[*lowered]*closeArena
 	qualifiedQueries map[qualifiedQueryKey][]qualifiedProof
 	patternMachines  map[*lowered]*patternMachine

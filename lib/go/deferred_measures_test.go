@@ -135,3 +135,82 @@ func TestDeferredCanonicalDiagnosticFieldsAndMemberOrder(t *testing.T) {
 		t.Fatal("serialized an empty diagnostic list")
 	}
 }
+
+func rankedMeasure(t *testing.T, grammar string, tokens []Token) (*ranker, *rankResult) {
+	t.Helper()
+	pipeline := mustLoad(t, oneStage("%ambiguity-resolution greedy\n"+grammar))
+	lowered := pipeline.lower(0, map[string]bool{})
+	if lowered.fault != "" {
+		t.Fatal(lowered.fault)
+	}
+	state := newParseState(pipeline.uni, []rune(strings.Repeat("a", len(tokens))))
+	rec := state.newRun("main", pipeline.stages[0], tokens).recognize(lowered, lowered.byName["text"], 0, len(tokens))
+	ranker := newRanker(rec, lowered.steps, lowered.lean)
+	result := ranker.rank(rec.accepted(lowered.byName["text"]))
+	if result == nil {
+		t.Fatal("no ranked derivation")
+	}
+	return ranker, result
+}
+
+func TestDeferredRankingAndAdmissionUseTheSameMeasure(t *testing.T) {
+	// Engine §6: measure precedes both grammar keys and ranked admission.
+	for _, test := range []struct {
+		grammar string
+		want    diagnosticMeasure
+	}{
+		{"%rule text long | short short\n%rule long A A %error \"long\"\n%rule short A %error \"short\"", fixedMeasure(2, 0, 2)},
+		{"%rule text long | short A\n%rule long A A %error \"long\"\n%rule short A %error \"short\"", fixedMeasure(1, 0, 1)},
+		{"%rule text (long ≻ short A) :: ∅\n%rule long A A %error \"long\"\n%rule short A %error \"short\"", fixedMeasure(1, 0, 1)},
+		{"%rule text (long ≻ short short) :: ∅\n%rule long A A %error \"long\"\n%rule short A %error \"short\"", fixedMeasure(2, 0, 2)},
+	} {
+		tokens := []Token{{Text: "a", Value: "a", Image: "a", Tags: []string{"A"}, Source: [2]int{0, 1}}, {Text: "a", Value: "a", Image: "a", Tags: []string{"A"}, Source: [2]int{1, 2}}}
+		_, result := rankedMeasure(t, test.grammar, tokens)
+		requireMeasure(t, result.profile.measure(), test.want)
+		if result.verdict != VerdictUnique {
+			t.Fatal("measure did not leave one reading", test.grammar, result.verdict)
+		}
+	}
+}
+
+func TestDeferredCarriedErrorsEnterProfilesWithoutOwnErrors(t *testing.T) {
+	// Engine §6: fixed carried charges participate even without error rules.
+	token := Token{Text: "a", Value: "a", Image: "a", Tags: []string{"A"}, Source: [2]int{0, 1},
+		Errors: []Warning{recordDiagnostic(Warning{Code: "fault", Rule: "fault"}, fixedMeasure(5, 0, 1), nil)}}
+	ranker, result := rankedMeasure(t, "%rule text A", []Token{token})
+	if !ranker.profiles {
+		t.Fatal("carried measure did not select profiles")
+	}
+	requireMeasure(t, result.profile.measure(), fixedMeasure(5, 0, 1))
+}
+
+func TestDeferredReconstructionRankingUsesProjectedOriginalSources(t *testing.T) {
+	// Engine §7.7: an error over an inserted token has no original source.
+	for _, onlySynthetic := range []bool{false, true} {
+		body := "A A"
+		inputs := []Token{{Text: "a", Value: "a", Image: "a", Tags: []string{"A"}, Source: [2]int{2, 5}}, {Tags: []string{"A"}, Source: [2]int{50, 50}}}
+		if onlySynthetic {
+			body, inputs = "A", inputs[1:]
+		}
+		pipeline := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text fault\n%rule fault "+body+"\n%error \"fault\""))
+		g := pipeline.lower(0, map[string]bool{})
+		state := newParseState(pipeline.uni, []rune(strings.Repeat(" ", 50)))
+		run := state.newRun("main", pipeline.stages[0], inputs)
+		rec := run.recognize(g, g.byName["text"], 0, len(inputs))
+		rc := &reconstruction{original: []int{0, -1}, project: []int{0, 1, 1}}
+		run.toks, run.tagsets = inputs[:1], run.tagsets[:1]
+		want := fixedMeasure(3, 0, 1)
+		if onlySynthetic {
+			rc.original, rc.project = []int{-1}, []int{0, 0}
+			run.toks, run.tagsets = nil, nil
+			want = fixedMeasure(0, 1, 1)
+		}
+		run.sources, run.sourcesMade, run.measures = nil, false, nil
+		rec.recon = rc
+		result := newRanker(rec, nil, "greedy").rank(rec.accepted(g.byName["text"]))
+		if result == nil {
+			t.Fatal("projected reading was lost")
+		}
+		requireMeasure(t, result.profile.measure(), want)
+	}
+}
