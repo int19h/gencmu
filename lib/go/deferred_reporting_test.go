@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -94,5 +95,21 @@ func TestDeferredReportingFailuresDropErasedEvaluatedDiagnostics(t *testing.T) {
 		if err != nil || strings.Contains(string(encoded), "erased error") {
 			t.Fatal("serialized erased diagnostic")
 		}
+	}
+}
+
+func TestDeferredReportingCorpusPinsCanNameARaisingStage(t *testing.T) {
+	// Tests, Corpus cases: every failure can carry a pin for an earlier stage.
+	c := loadCase(t, "../../tests/engine/deferred-report-rejected.json")
+	result := issue276Parse(t, issue276Pipeline(t, c), c)
+	raw, _ := MarshalResult(result)
+	canonical, _ := decodeJSON(raw)
+	got, err := corpusOutcomeOf(result, canonical)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := []any{map[string]any{"stage": "before", "code": "fault", "at": float64(0)}}
+	if !reflect.DeepEqual(got["errors"], expected) {
+		t.Fatalf("lost raised-stage pin: %v", got)
 	}
 }

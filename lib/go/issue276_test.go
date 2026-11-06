@@ -292,7 +292,7 @@ func TestIssue276CorpusProjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := map[string]any{"expect": "reject", "verdict": VerdictUnique, "stage": "main", "error": map[string]any{"kind": ErrorReported}, "errors": []any{map[string]any{"code": "bad", "at": float64(0)}}, "warnings": []any{}, "at": float64(0)}
+	expected := map[string]any{"expect": "reject", "verdict": VerdictUnique, "stage": "main", "error": map[string]any{"kind": ErrorReported}, "errors": []any{map[string]any{"stage": "main", "code": "bad", "at": float64(0)}}, "warnings": []any{}, "at": float64(0)}
 	if !reflect.DeepEqual(got, expected) {
 		t.Fatalf("got %+v, want %+v", got, expected)
 	}

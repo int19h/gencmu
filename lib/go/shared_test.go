@@ -56,14 +56,16 @@ type engineCase struct {
 // and after, which a caller cannot supply, go to the library as they
 // stand, so that it refuses them or drops empty ones.
 type caseToken struct {
-	Text   string      `json:"text"`
-	Tags   []string    `json:"tags"`
-	Value  *string     `json:"value"`
-	Image  *string     `json:"image"`
-	Span   *[2]int     `json:"span"`
-	Source *[2]int     `json:"source"`
-	Before []caseToken `json:"before"`
-	After  []caseToken `json:"after"`
+	Text     string      `json:"text"`
+	Tags     []string    `json:"tags"`
+	Value    *string     `json:"value"`
+	Image    *string     `json:"image"`
+	Span     *[2]int     `json:"span"`
+	Source   *[2]int     `json:"source"`
+	Before   []caseToken `json:"before"`
+	After    []caseToken `json:"after"`
+	Errors   []Warning   `json:"errors"`
+	Warnings []Warning   `json:"warnings"`
 }
 
 type caseOptions struct {
@@ -318,6 +320,7 @@ func caseTokens(specs []caseToken) ([]Token, string, error) {
 			// (tests/README.md).
 			n := len([]rune(tk.Text))
 			toks[i] = Token{Text: tk.Text, Value: tk.Text, Image: tk.Text, Tags: tk.Tags, Span: [2]int{i, i + 1}, Source: [2]int{pos, pos + n}}
+			toks[i].Errors, toks[i].Warnings = tk.Errors, tk.Warnings
 			if tk.Value != nil {
 				toks[i].Value = *tk.Value
 			}
@@ -749,6 +752,9 @@ func resultProblems(got any) []string {
 		e, _ := result["error"].(map[string]any)
 		readings, _ := e["readings"].([]any)
 		tree, hasTree := result["tree"]
+		if e != nil && e["kind"] == ErrorGrammar && e["stage"] == name && e["reason"] == nil && e["readings"] == nil && result["ok"] == false && hasTree && tree == nil {
+			continue
+		}
 		if result["ok"] != false || !hasTree || tree != nil || e == nil || e["kind"] != ErrorAmbiguous || e["reason"] != ReasonTie || e["stage"] != name || len(readings) != 2 {
 			problems = append(problems, "the tied stage "+name+" lacks its error of kind ambiguous, reason tie and two readings")
 		}
@@ -1118,7 +1124,7 @@ func inputTokensOf(tokens []Token) []InputToken {
 	out := make([]InputToken, len(tokens))
 	for i, t := range tokens {
 		value, image := t.Value, t.Image
-		out[i] = InputToken{Text: t.Text, Value: &value, Image: &image, Tags: t.Tags, Span: t.Span, Source: t.Source}
+		out[i] = InputToken{Text: t.Text, Value: &value, Image: &image, Tags: t.Tags, Span: t.Span, Source: t.Source, Errors: t.Errors, Warnings: t.Warnings}
 		if t.Before != nil {
 			out[i].Before = inputTokensOf(t.Before)
 		}
@@ -1139,7 +1145,7 @@ func unrepresentableTokenField(raw any) string {
 				return "Go InputToken cannot express an absent " + field + " member"
 			}
 		}
-		for _, field := range []string{"text", "value", "image", "tags", "span", "source", "before", "after"} {
+		for _, field := range []string{"text", "value", "image", "tags", "span", "source", "before", "after", "errors", "warnings"} {
 			if value, exists := token[field]; exists && value == nil {
 				return "Go InputToken cannot distinguish explicit null " + field + " from its default"
 			}

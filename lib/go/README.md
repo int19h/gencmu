@@ -36,17 +36,19 @@ A caller can enable or disable an unknown feature name. Unknown names do not cha
 
 ## Parsing
 
-`(*Pipeline).Parse(text, ParseOptions{Features, WithoutFeatures, Until, ElisionOnly})` parses a text. A text that is not valid UTF-8 is a usage error. The `Warnings` of a result come from enabled, unsuppressed warning rules.
+`(*Pipeline).Parse(text, ParseOptions{Features, WithoutFeatures, Until, ElisionOnly})` parses a text. A text that is not valid UTF-8 is a usage error. The `Warnings` of a result form its reporting collection. This collection includes carried warnings and enabled, unsuppressed warning rules.
 
 A `feature-conflict` result names a disabled feature whose conditional declaration holds for the stage input. Its `Stage` and `Feature` fields identify the conflict.
 
 `(*Pipeline).Features()` lists the features of the pipeline, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on. Warning features use their warning rule's code.
 
+`$x.parse(C)` reads a forest of query witnesses for body `C`. One outer `…` selects a prefix or suffix. `.error-free` excludes carried errors outside erased parts. Ordinary witnesses allow carried errors. Both forms exclude unerased own error rules.
+
 `$x.without-elision` and `$x.without-elision-except(F)` restore captured omitted terminators for an aligned query.
 
 A close family is a set of rules. `F` names that family through its written rule references, as [engine §2.2](../../docs/engine.md#22-close-families) defines. The family method permits extra witness closes that family members own. Each extra close needs a kept token or candidate record on each side. The query preserves every candidate close and ranked block.
 
-`.onward` extends either restored query through the original following input and retains its family. Other span methods return ordinary spans. Parse results use format 17. `RankingReports()` gives static notes about ranking and diagnostics. `FormatRankingReports` renders those notes.
+`.onward` extends either restored query through the original following input and retains its family. Other span methods return ordinary spans. Parse results use format 17. `RankingReports()` gives static notes about ranking, diagnostics, and semantic or inert erasures. `FormatRankingReports` renders those notes.
 
 Boundary atoms `$x.followed-by(S)` and `$x.preceded-by(S)` read neighbors of the parse that the condition belongs to. These boundary conditions filter candidate derivations before ranking. In an emission item, they read the chosen tree. Their target accepts rule names and terminal names. Constituent tags can use these atoms as guards with literal tag sets.
 
@@ -54,7 +56,7 @@ Boundary atoms `$x.followed-by(S)` and `$x.preceded-by(S)` read neighbors of the
 
 For tests and tools, `(*Pipeline).ParseTokens(text, tokens, options)` feeds `[]InputToken` to the first stage. `Value` and `Image` are optional `*string` fields. A nil pointer defaults to `Text`. A pointer to an empty string preserves that empty string.
 
-The API copies the tokens and leaves the caller's records unchanged. Nonempty `Before` or `After` fields cause a usage error. Empty attachment lists are dropped.
+The API copies the tokens and leaves the caller's records unchanged. Nonempty `Before`, `After`, `Errors`, or `Warnings` fields cause a usage error. Empty attachment and diagnostic lists are accepted.
 
 
 ## Results
@@ -63,11 +65,17 @@ A text that a stage reads in two or more best ways is a tie. Its result is not `
 
 A text that does not parse gives a result whose `OK` is false. Its error kind is `rejected`, `ambiguous`, `feature-conflict`, `reported`, or `grammar` (`docs/api.md`).
 
-Ranking first keeps derivations with the fewest error occurrences. A losing error reading does not affect the verdict.
+Ranking first minimizes blamed source width, then sourceless errors, then maximizes the error count. Carried errors keep their original charges. A losing measure does not affect the verdict.
 
-A chosen error rule produces an error of kind `reported`. The result retains its tree and verdict, reports ordered `Errors`, and stops before emission. Every other error result has a null `Tree`.
+Earlier stages emit despite chosen errors. Erasure removes their diagnostics from later reporting. When `Until` is empty, the reporting stage is the last stage. Otherwise, it is the named stage.
 
-Each named error and warning has `Stage`, `Code`, `Rule`, `Span`, `Source`, and an evaluated `Message`. Each code equals its rule name. Reports follow stage order. Within each stage, reports visit a parent before its children, before tree flattening and erasure. Suppression removes warnings from the owning occurrence and its descendants.
+If errors still count there, the result has kind `reported`. It retains its tree, verdict, and stage output, with ordered `Errors`. Every other error result has a null `Tree`.
+
+Each named error and warning has `Stage`, `Code`, `Rule`, `Span`, `Source`, and an evaluated `Message`. Each code equals its rule name. A directly ranked error can also carry `Rejection` evidence from its competitors.
+
+Reports visit the chosen derivation in preorder. A token leaf supplies its stored diagnostic lists in their existing order. Suppression removes warnings from the owning occurrence and its descendants.
+
+Emitted tokens carry `Errors` and `Warnings` to later stages. An empty emission retains unowned diagnostics in the stage fields of those names. A `grammar` ending retains evaluated messages outside erased subtrees and carried diagnostics from the whole input.
 
 Lowering can find grammar defects for a parse's features (engine §3). Examples include a chain `{... x / s}` beside another alternative, or a repeated item that can match no tokens. The pipeline loads. Parsing returns a result whose `Error` has kind `grammar`. The separate returned error is nil. The result error's `Message` starts with the faulty definition's document, line, and column, as `g.md:3:1:`.
 
@@ -114,7 +122,7 @@ The Go test runner runs independent tests and shared engine and notation cases i
 
 Tests that use process-wide controls or allocation counts stay serial. These tests use work counters, stack limits, allocation counts, or changes to the working directory. Go finishes these tests before it starts the parallel tests. The corpus uses its separate pool, which `GENCMU_CORPUS_WORKERS` controls.
 
-The tests read the shared cases in `../../tests/`. The runner skips the two explicit-null caller-string cases because Go pointer fields cannot distinguish null from an omitted field. They run every notation case and each representable engine case, the core sample of the corpus and the fixpoint of the bootstrap. For an engine case whose grammar cannot be loaded, they also compare where the error stands, when the case gives it. An engine case with `parses` loads its pipeline once and parses its input with each item's configuration in turn.
+The tests read the shared cases in `../../tests/`. The runner skips caller fields that Go cannot represent, including explicit null strings or diagnostic lists. They run every notation case and each representable engine case, the core sample of the corpus and the fixpoint of the bootstrap. For an engine case whose grammar cannot be loaded, they also compare where the error stands, when the case gives it. An engine case with `parses` loads its pipeline once and parses its input with each item's configuration in turn.
 
 The tests also compare `data/preparsed/lojban.json` with a fresh reading, with the cache both used and bypassed.
 

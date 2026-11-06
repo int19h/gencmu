@@ -193,12 +193,14 @@ func corpusOutcomeOf(res *ParseResult, canonical any) (map[string]any, error) {
 	if res.Error != nil && res.Error.Kind == ErrorReported {
 		got["verdict"] = res.Stages[len(res.Stages)-1].Verdict
 		got["error"] = map[string]any{"kind": ErrorReported}
+		got["at"] = float64(res.Error.Errors[0].Source[0])
+	}
+	if res.Error != nil && len(res.Error.Errors) > 0 {
 		errors := []any{}
-		for _, error := range res.Error.Errors {
-			errors = append(errors, map[string]any{"code": error.Code, "at": float64(error.Source[0])})
+		for _, diagnostic := range res.Error.Errors {
+			errors = append(errors, map[string]any{"stage": diagnostic.Stage, "code": diagnostic.Code, "at": float64(diagnostic.Source[0])})
 		}
 		got["errors"] = errors
-		got["at"] = float64(res.Error.Errors[0].Source[0])
 	}
 	warnings := []any{}
 	for _, warning := range res.Warnings {
@@ -397,6 +399,21 @@ func checkCorpusCase(d *Pipeline, c *corpusCase) (failure string) {
 		have, inGot := got[k]
 		if !inCase && !inGot {
 			continue
+		}
+		if k == "errors" && inCase && inGot {
+			if expected, ok := want.([]any); ok {
+				if actual, ok := have.([]any); ok && len(actual) == len(expected) {
+					normalized := make([]any, len(actual))
+					for index, item := range actual {
+						copy := copyJSON(item).(map[string]any)
+						if _, pinned := expected[index].(map[string]any)["stage"]; !pinned {
+							delete(copy, "stage")
+						}
+						normalized[index] = copy
+					}
+					have = normalized
+				}
+			}
 		}
 		if !equalJSON(want, have) {
 			w, h := encodeJSON(want, 0), encodeJSON(have, 0)

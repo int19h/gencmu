@@ -123,6 +123,7 @@ func tokenSchema(usage bool) caseSchema {
 			return nil
 		}
 		fields["span"], fields["source"] = pair, pair
+		fields["errors"], fields["warnings"] = caseArray(caseAny), caseArray(caseAny)
 		for len(pending) > 0 {
 			part := pending[len(pending)-1]
 			pending = pending[:len(pending)-1]
