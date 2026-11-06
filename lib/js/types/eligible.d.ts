@@ -24,6 +24,7 @@ import type { Chart } from "./earley.js";
  * so a permitted omission never combines with another proof tree's prefix.
  * @param {Chart} chart
  * @param {Item[]} witnesses
+ * @param {boolean} [errorFree]
  * @returns {Item[]}
  */
-export declare function eligibleWitnesses(chart: Chart, witnesses: Item[]): Item[];
+export declare function eligibleWitnesses(chart: Chart, witnesses: Item[], errorFree?: boolean): Item[];

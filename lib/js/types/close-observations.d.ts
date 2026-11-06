@@ -120,9 +120,10 @@ export type LocalCloseDemand = {
  * Only a caller that consumes an observation asks its child to retain it.
  * A private whole capture also needs the enclosing written alternative.
  * @param {import("./types.js").Production} production
+ * @param {import("./types.js").LoweredGrammar} lowered
  * @returns {LocalCloseDemand}
  */
-export declare function localCloseDemand(production: import("./types.js").Production): LocalCloseDemand;
+export declare function localCloseDemand(production: import("./types.js").Production, lowered: import("./types.js").LoweredGrammar): LocalCloseDemand;
 export type QueryPrefix = {
     nullable: boolean;
     leadingClose: boolean;

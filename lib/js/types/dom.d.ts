@@ -7,7 +7,7 @@ export declare const LEANS: Set<string>;
 export declare function validSteps(steps: unknown): boolean;
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 45;
+export declare const DOM_FORMAT = 46;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
 export declare const TEST_OPS: Set<string>;
@@ -315,7 +315,7 @@ export declare function definitionProblem(rule: any, deferEmission?: boolean): s
  * @returns {string[]}
  */
 export declare function attachmentsOf(item: any): string[];
-export type TermType = "string" | "strings" | "tags" | "span" | "pattern" | "set" | "any" | "emitted" | "condition";
+export type TermType = "string" | "strings" | "tags" | "span" | "pattern" | "set" | "any" | "emitted" | "condition" | "forest";
 export type ConstantTypes = (name: string) => TermType;
 /**
  * The kind of sets joined by ∪, ∩ or ∖, or why they cannot be joined: each

@@ -46,6 +46,7 @@ export type ElisionCheckWatch = {
     ranked: (outcome: {
         ranking: import("./rank.js").Ranking | null;
         counted: boolean;
+        representative?: import("./types.js").Rope | null;
     }) => void;
 };
 export type WorkCounts = {
@@ -206,7 +207,7 @@ export type WorkKind = "boundaryRecords" | "familySummaries" | "familySteps" | "
 /**
  * The independent witness test's ranking observer.
  * @typedef {object} ElisionCheckWatch
- * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
+ * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean,representative?:import("./types.js").Rope|null}) => void} ranked
  */
 /**
  * The counts of `hooks.work`.

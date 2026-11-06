@@ -1,3 +1,5 @@
+import { ErasedClasses } from "./erased-classes.js";
+import { Measures } from "./measures.js";
 import type { Action, Derivation, Item, KeyStep, Lean, Production, Rope, RopeLeaf, Token } from "./types.js";
 export type Candidate = {
     seq: Rope;
@@ -16,6 +18,7 @@ export type Ranking = {
     second: Rope | null;
     witness: [Action | null, Action | null] | null;
     profile: Profile;
+    rawWitnessCounted: boolean | null;
     /**
      * with the runtime witness marks,
      * whether the count counted W(D); null without marks
@@ -81,8 +84,46 @@ declare function decide(difference: {
  */
 export declare function totalOrder(left: Rope, right: Rope, lean: Lean): number;
 export type TraversalContext = Set<string>;
+export type CompletionEdge = Extract<import('./types.js').Edge, {
+    kind: 'complete';
+}>;
+export type CountSummary = {
+    all: number;
+    measure: import('./measures.js').Measure | null;
+    w: boolean;
+    member: boolean;
+};
+export type WitnessFrame = {
+    proof: import('./witness.js').WitnessProof;
+    item: Item;
+    context: TraversalContext;
+    parts: (Rope | WitnessFrame)[] | null;
+    result: Rope | null;
+    before?: Rope;
+    after?: Rope;
+};
+export type SummaryPair = {
+    ordinary: ElisionSummary;
+    canonical: ElisionSummary;
+};
+export type ActionPair = {
+    ordinary: Candidate[];
+    canonical: Candidate[];
+    measure: import("./measures.js").Measure | null;
+};
+/** @typedef {Extract<import('./types.js').Edge,{kind:'complete'}>} CompletionEdge */
+/** @typedef {{all:number,measure:import('./measures.js').Measure|null,w:boolean,member:boolean}} CountSummary */
+/** @typedef {{proof:import('./witness.js').WitnessProof,item:Item,context:TraversalContext,parts:(Rope|WitnessFrame)[]|null,result:Rope|null,before?:Rope,after?:Rope}} WitnessFrame */
+/** @typedef {{ordinary:ElisionSummary,canonical:ElisionSummary}} SummaryPair */
+/** @typedef {{ordinary:Candidate[],canonical:Candidate[],measure:import("./measures.js").Measure|null}} ActionPair */
 export declare class Ranker {
+    erasures: ErasedClasses;
+    /** @type {Item[]} */ rankingRoots: Item[];
+    /** @type {Item[]} */ bestRoots: Item[];
+    /** @type {Item|null} */ witnessRoot: Item | null;
+    /** @type {WitnessFrame|null} */ witnessTree: WitnessFrame | null;
     tokens: import("./tokens.js").Token[];
+    measures: Measures;
     /** @type {Profiles} */
     space: Profiles;
     /** @type {(left: Item, right: Item) => boolean} */
@@ -95,34 +136,24 @@ export declare class Ranker {
     profileProject: number[] | null;
     /** @type {Lean} */
     lean: Lean;
-    /** @type {{plain: Map<Item, ElisionSummary>, contextual: Map<Item, Map<string, ElisionSummary>>}} */
+    /** @type {{plain: Map<Item, SummaryPair>, contextual: Map<Item, Map<string, SummaryPair>>}} */
     summaries: {
-        plain: Map<Item, ElisionSummary>;
-        contextual: Map<Item, Map<string, ElisionSummary>>;
+        plain: Map<Item, SummaryPair>;
+        contextual: Map<Item, Map<string, SummaryPair>>;
     };
     /** @type {Map<string, number>} */
     ruleGroups: Map<string, number>;
     /** @type {(rule: string) => number | undefined} */
     groups: (rule: string) => number | undefined;
-    /** @type {{plain: Map<Item, Candidate[]>, contextual: Map<Item, Map<string, Candidate[]>>}} */
+    /** @type {{plain: Map<Item, ActionPair>, contextual: Map<Item, Map<string, ActionPair>>}} */
     memo: {
-        plain: Map<Item, Candidate[]>;
-        contextual: Map<Item, Map<string, Candidate[]>>;
+        plain: Map<Item, ActionPair>;
+        contextual: Map<Item, Map<string, ActionPair>>;
     };
-    /** @type {{plain: Map<Item, {all: number, errors: Count} & {w: boolean}>, contextual: Map<Item, Map<string, {all: number, errors: Count} & {w: boolean}>>}} */
+    /** @type {{plain:Map<Item,CountSummary>,contextual:Map<Item,Map<string,CountSummary>>}} */
     counts: {
-        plain: Map<Item, {
-            all: number;
-            errors: Count;
-        } & {
-            w: boolean;
-        }>;
-        contextual: Map<Item, Map<string, {
-            all: number;
-            errors: Count;
-        } & {
-            w: boolean;
-        }>>;
+        plain: Map<Item, CountSummary>;
+        contextual: Map<Item, Map<string, CountSummary>>;
     };
     /** @type {Map<Item, RopeLeaf>} */
     closes: Map<Item, RopeLeaf>;
@@ -148,24 +179,24 @@ export declare class Ranker {
      *   §7 gives (F19)
      */
     constructor(tokens: Token[], steps: KeyStep[], lean: Lean, project?: number[] | null);
-    /**
-     * @param {Item} item
-     * @returns {Candidate[]}
-     */
+    /** @param {Item} item @returns {Candidate[]} */
     candidateSummary(item: Item): Candidate[];
-    /**
-     * @param {Item} item
-     * @returns {ElisionSummary}
-     */
-    profileSummary(item: Item): ElisionSummary;
+    /** @param {Item} item @param {TraversalContext} [context] @returns {ActionPair} */
+    candidatePair(item: Item, context?: TraversalContext): ActionPair;
+    /** @param {Item[]} items @param {(item:Item)=>ActionPair} dependency @returns {Rope|null} */
+    erasedChoice(items: Item[], dependency: (item: Item) => ActionPair): Rope | null;
+    /** @param {Item} item @param {TraversalContext} [context] @returns {SummaryPair} */
+    profileSummary(item: Item, context?: TraversalContext): SummaryPair;
+    /** The external profile contains only the erased root. @param {Item} item @returns {Profile} */
+    erasedProfile(item: Item): Profile;
     /**
      * The summaries of an item in the context that `key` names, which
      * profileSummary has already computed.
      * @param {Item} item
      * @param {string} key
-     * @returns {ElisionSummary}
+     * @returns {SummaryPair}
      */
-    summaryAt(item: Item, key: string): ElisionSummary;
+    summaryAt(item: Item, key: string): SummaryPair;
     /**
      * The edges of an item that attain the greatest profile in its context.
      * @param {Item} item
@@ -203,30 +234,40 @@ export declare class Ranker {
     /**
      * @param {Candidate[]} kept
      * @param {Candidate} entry
+     * @param {boolean} [canonical]
      * @returns {Candidate[]}
      */
-    keep(kept: Candidate[], entry: Candidate): Candidate[];
+    keep(kept: Candidate[], entry: Candidate, canonical?: boolean): Candidate[];
     /**
      * The number of derivations, capped at two.
      * @param {Item} item
      * @returns {number}
      */
     count(item: Item): number;
+    /** @param {Item} item @param {TraversalContext} [context] @returns {CountSummary} */
+    countOf(item: Item, context?: TraversalContext): CountSummary;
+    /** @param {{item:Item,context:TraversalContext}} frame @param {Item} item @returns {TraversalContext} */
+    contextBelow(frame: {
+        item: Item;
+        context: TraversalContext;
+    }, item: Item): TraversalContext;
+    /** @param {TraversalContext} context */
+    contextKey(context: TraversalContext): string;
     /**
-     * The number of an item's least-error derivations, capped at two. With witness marks, `w`
-     * says whether the count includes a derivation made of marked edges
-     * only (tests/README.md). The same loop decides both, over the same
-     * edges, so any choice that drops W(D) from the count drops it from `w`.
-     * A dependency that closes a cycle has no derivation, and no `w`.
-     * @param {Item} item
-     * @returns {{all: number, errors: Count} & {w: boolean}}
+     * Replace only erased interiors of concrete W(D). Every outer choice
+     * follows the walk's coherent proof, not a union of witness marks (§7.10).
+     * @param {import('./witness.js').WitnessProof} proof
+     * @returns {Rope|null}
      */
-    countOf(item: Item): {
-        all: number;
-        errors: Count;
-    } & {
-        w: boolean;
-    };
+    witnessRepresentative(proof: import('./witness.js').WitnessProof): Rope | null;
+    /**
+     * T-first best class other than the admitted witness (§7.10). An outside
+     * difference changes a root or one edge on its coherent proof. Shared
+     * candidate summaries supply that edge's prefixes and children. Erased
+     * interiors supply only their class representatives.
+     * @param {Rope} witness @returns {Rope|null}
+     */
+    firstCompetitor(witness: Rope): Rope | null;
     /**
      * @template T
      * @param {Item} root
@@ -236,12 +277,13 @@ export declare class Ranker {
      * @param {T} cut the value of a dependency that would close a cycle
      * @param {((item: Item, key: string) => import("./types.js").Edge[]) | null} [edgesOf]
      *   the edges whose children `combine` reads, if not all
+     * @param {TraversalContext} [initialContext]
      * @returns {T}
      */
     traverse<T>(root: Item, memo: {
         plain: Map<Item, T>;
         contextual: Map<Item, Map<string, T>>;
-    }, combine: (item: Item, dependency: (item: Item) => T, key: string) => T, cut: T, edgesOf?: ((item: Item, key: string) => import("./types.js").Edge[]) | null): T;
+    }, combine: (item: Item, dependency: (item: Item) => T, key: string) => T, cut: T, edgesOf?: ((item: Item, key: string) => import("./types.js").Edge[]) | null, initialContext?: TraversalContext): T;
     /**
      * @param {Item[]} roots
      */
@@ -304,7 +346,7 @@ export declare const internals: {
 };
 export type SpanVector = [number, number, Count][];
 export type Component = SpanVector | Count | ElisionSeq;
-export type Profile = Component[];
+export type Profile = [Count, Count, Count, ...Component[]];
 /** @typedef {[number, number, Count][]} SpanVector */
 /**
  * One component of a profile: the counts of one key step's pattern over
@@ -313,9 +355,8 @@ export type Profile = Component[];
  * @typedef {SpanVector | Count | ElisionSeq} Component
  */
 /**
- * A derivation's counts of every pattern that a key step tests, one
- * component per key step, in the order of the steps (engine §6).
- * @typedef {Component[]} Profile
+ * A derivation's measure followed by its grammar-key components (engine §6).
+ * @typedef {[Count,Count,Count,...Component[]]} Profile
  */
 /**
  * The profiles of one ranking: how the key steps of its directive count
@@ -333,8 +374,7 @@ export declare class Profiles {
     /** @type {Map<string,number>} */ tagKeys: Map<string, number>;
     /** @type {Profile} */
     zero: Profile;
-    /** @type {Profile} */
-    error: Profile;
+    /** @type {Measures|null} */ measures: Measures | null;
     /** @type {Map<number, ElisionSeq>} */
     leaves: Map<number, ElisionSeq>;
     /** @param {KeyStep[]} steps */
@@ -374,6 +414,8 @@ export declare class Profiles {
      * @returns {number}
      */
     compare(left: Profile, right: Profile): number;
+    /** @param {Profile} profile @param {import("./measures.js").Measure} measure @returns {Profile} */
+    charge(profile: Profile, measure: import("./measures.js").Measure): Profile;
     /**
      * Counts every completed nonempty occurrence in a chosen derivation,
      * and no elision (engine §7).

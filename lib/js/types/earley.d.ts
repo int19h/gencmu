@@ -337,6 +337,7 @@ declare class Pending {
     at: [number, number] | null;
     key: string;
     unseen: boolean;
+    errorFree: boolean;
     /** The count of aligned queries when the query halted (engine §4.3). */
     asked: number;
     /** @type {import("./types.js").AlignedSpan|null} */
@@ -583,6 +584,9 @@ export declare function rejectionOf(chart: Chart): {
  * @returns {Expectation[]}
  */
 export declare function expectedAt(chart: Chart, position: number): Expectation[];
+/** Lookahead omissions that passed their entry conditions, as virtual entries.
+ * @param {Chart} chart @param {number} position @returns {Production[]} */
+export declare function skippedProductions(chart: Chart, position: number): Production[];
 /**
  * @param {import("./types.js").Condition[]} conditions
  * @param {Token[]} tokens

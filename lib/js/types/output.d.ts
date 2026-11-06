@@ -19,6 +19,8 @@ export type TokenJson = {
      * present only when not empty
      */
     after?: TokenJson[];
+    errors?: WarningJson[];
+    warnings?: WarningJson[];
 };
 export type NodeJson = {
     kind: "token";
@@ -62,6 +64,7 @@ export type ErrorJson = {
     stage?: string;
     feature?: string;
     errors?: WarningJson[];
+    warnings?: WarningJson[];
     code?: "elision-witness-lost";
     reason?: "tie" | "elision-only";
     token?: number;
@@ -86,6 +89,8 @@ export type StageJson = {
     verdict: import("./types.js").Verdict | null;
     witness?: ActionJson[];
     output?: TokenJson[];
+    errors?: WarningJson[];
+    warnings?: WarningJson[];
 };
 export type ResultJson = {
     format: number;
@@ -105,6 +110,7 @@ export type WarningJson = {
     rule: string;
     span: [number, number];
     source: [number, number];
+    rejection?: import('./types.js').CompetitorRejection;
 };
 export type DisplayValue = {
     [name: string]: DisplayValue | DisplayValue[] | string | string[] | null;

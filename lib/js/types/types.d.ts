@@ -56,9 +56,13 @@ export type ParseError = {
     kind: "rejected" | "reported" | "ambiguous" | "grammar" | "feature-conflict";
     feature?: string;
     /**
-     * named diagnostics of a reported result
+     * the envelope's collected errors
      */
     errors?: ParseWarning[];
+    /**
+     * warnings of a rejected, feature, or grammar failure
+     */
+    warnings?: ParseWarning[];
     stage?: string;
     /**
      * why an ambiguous error is
@@ -185,10 +189,13 @@ export type StageReportBase = {
      */
     input?: Token[];
     /**
-     * the warnings of the chosen tree
-     * (engine §12), absent for a stage that rejected its input or tied
+     * diagnostics without a token after successful empty emission
      */
-    warnings?: ParseWarning[];
+    errors: ParseWarning[];
+    /**
+     * diagnostics without a token after successful empty emission
+     */
+    warnings: ParseWarning[];
 };
 export type ParseWarning = {
     stage: string;
@@ -203,6 +210,17 @@ export type ParseWarning = {
      * the node's range of the original text
      */
     source: Span;
+    /**
+     * default rejection evidence for an error's competing options
+     */
+    rejection?: CompetitorRejection;
+};
+export type CompetitorRejection = {
+    token: number;
+    source: Span;
+    line: number;
+    column: number;
+    expected: Expectation[];
 };
 export type Feature = {
     name: string;
@@ -222,7 +240,7 @@ export type ParseResult = {
     error: ParseError | null;
     text: string;
     /**
-     * every stage's warnings, in stage order
+     * the reporting collection
      */
     warnings: ParseWarning[];
     /**
@@ -241,6 +259,8 @@ export type InputToken = {
     image?: string;
     before?: unknown[];
     after?: unknown[];
+    errors?: unknown[];
+    warnings?: unknown[];
 };
 export type ParseOptions = {
     /**
@@ -594,6 +614,12 @@ export type ConstantTerm = {
     value?: TermValue;
 };
 export type Argument = Term | {
+    body: Expr | {
+        seq: (Expr | {
+            remainder: true;
+        })[];
+    };
+} | {
     rule: string;
 } | {
     terminal: string;
@@ -770,6 +796,8 @@ export type Resolution = {
     elisionOnly: boolean;
 };
 export type LoweredGrammar = {
+    queryTargets: Map<string, string>;
+    queryNames: Map<string, string>;
     treeComparisons: boolean;
     boundarySites: WeakMap<object, WeakMap<object, {
         rule: string;
@@ -995,7 +1023,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} ParseError
  * @property {"rejected" | "reported" | "ambiguous" | "grammar" | "feature-conflict"} kind
  * @property {string} [feature]
- * @property {ParseWarning[]} [errors] named diagnostics of a reported result
+ * @property {ParseWarning[]} [errors] the envelope's collected errors
+ * @property {ParseWarning[]} [warnings] warnings of a rejected, feature, or grammar failure
  * @property {string} [stage]
  * @property {"tie" | "elision-only"} [reason] why an ambiguous error is
  *   one: a tie (engine §6) or the check of elision-only (engine §7)
@@ -1096,8 +1125,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   that rejected its input or tied
  * @property {ParseError | null} error
  * @property {Token[]} [input] the tokens the stage read
- * @property {ParseWarning[]} [warnings] the warnings of the chosen tree
- *   (engine §12), absent for a stage that rejected its input or tied
+ * @property {ParseWarning[]} errors diagnostics without a token after successful empty emission
+ * @property {ParseWarning[]} warnings diagnostics without a token after successful empty emission
  */
 /**
  * An enabled, unsuppressed warning from the chosen derivation (engine §12).
@@ -1108,6 +1137,16 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} message
  * @property {Span} span the node's span over the stage's input tokens
  * @property {Span} source the node's range of the original text
+ * @property {CompetitorRejection} [rejection] default rejection evidence for an error's competing options
+ */
+/**
+ * Default rejection evidence over a ranked error's competitor slice.
+ * @typedef {object} CompetitorRejection
+ * @property {number} token
+ * @property {Span} source
+ * @property {number} line
+ * @property {number} column
+ * @property {Expectation[]} expected
  */
 /**
  * One of a pipeline's features (engine §13).
@@ -1124,7 +1163,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {ResultNode | null} tree the last stage's tree
  * @property {ParseError | null} error
  * @property {string} text
- * @property {ParseWarning[]} warnings every stage's warnings, in stage order
+ * @property {ParseWarning[]} warnings the reporting collection
  * @property {string[]} features the features enabled for this parse,
  *   including activation before failure and only stages reached.
  *   Unknown caller-enabled names are included. Not part of canonical JSON.
@@ -1140,6 +1179,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} [image]
  * @property {unknown[]} [before]
  * @property {unknown[]} [after]
+ * @property {unknown[]} [errors]
+ * @property {unknown[]} [warnings]
  */
 /**
  * @typedef {object} ParseOptions
@@ -1349,7 +1390,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A function's argument: a term, the name of a rule, or the name of a
  * classifier.
- * @typedef {Term | {rule: string} | {terminal:string} | {classifier: string} | {integer: string}} Argument
+ * @typedef {Term | {body: Expr | {seq: (Expr | {remainder:true})[]}} | {rule: string} | {terminal:string} | {classifier: string} | {integer: string}} Argument
  */
 /**
  * @typedef {object} GrammarSymbol
@@ -1475,6 +1516,8 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A grammar lowered for one set of features.
  * @typedef {object} LoweredGrammar
+ * @property {Map<string,string>} queryTargets
+ * @property {Map<string,string>} queryNames
  * @property {boolean} treeComparisons
  * @property {WeakMap<object,WeakMap<object,{rule:string,condition:number,order:number}>>} boundarySites
  * @property {Production[]} productions

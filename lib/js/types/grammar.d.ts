@@ -184,6 +184,14 @@ export declare class Grammar {
      */
     lowered: Map<string, LoweredGrammar | GencmuError>;
     treeComparisons: boolean | undefined;
+    /** @type {Map<string,string>} */ queryTargets: Map<string, string>;
+    /** @type {Map<string,string>} */ queryNames: Map<string, string>;
+    /** @type {Map<string,StitchedRule>} */ queryRules: Map<string, StitchedRule>;
+    /** @type {{rule:StitchedRule,alternative:StitchedAlternative}[]} */
+    errorAlternatives: {
+        rule: StitchedRule;
+        alternative: StitchedAlternative;
+    }[];
     /**
      * @param {string} stageName
      * @param {{path: string, dom: GrammarDom}[]} documents
@@ -292,6 +300,7 @@ export declare class Grammar {
         requirements?: import("./types.js").Requirement[];
         expr?: Expr;
     }, path: string, at: ErrorLocation): SymbolTest;
+    prepareQueries(): void;
     checkReferences(): void;
     checkDiagnosticsAndSplices(): void;
     /**

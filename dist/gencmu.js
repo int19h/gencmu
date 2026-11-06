@@ -16261,6 +16261,7 @@
   }
 
   // ---- diagnostic-audit.js
+
   // Notes for diagnostic rules, suppression, and concrete tag variants.
 
 
@@ -16296,15 +16297,18 @@
     for (const rule of grammar.rules.values()) for (const alternative of rule.alternatives) {
       const clauses=alternative.clauses;
       const where={rule:rule.name,document:alternative.document,line:alternative.at.line,column:alternative.at.column};
-      /** @type {any[]} */
-      const pending=[clauses.conditions,clauses.tags,alternative.tags,clauses.emit];
-      const reached=new Set();
+      /** @type {{node:any,filtered:boolean}[]} */
+      const pending=[clauses.conditions,clauses.tags,alternative.tags,clauses.emit].map(node=>({node,filtered:false}));
+      const reached=new Map();
       while(pending.length) {
-        const node=pending.pop();
-        if (['matches','begins','ends','tags'].includes(node?.method)) for (const arg of node.args) if (arg.rule) for (const name of closure([arg.rule])) reached.add(name);
-        for (const child of clauseChildren(node)) pending.push(child);
+        const {node,filtered}=/** @type {NonNullable<ReturnType<typeof pending.pop>>} */(pending.pop());
+        const targets=['matches','begins','ends','tags'].includes(node?.method)?node.args.flatMap((/** @type {any} */ arg)=>arg.rule?[arg.rule]:[]):node?.method==='parse'?queryReferences(node.args[0].body):[];
+        for(const target of targets)for(const name of closure([target]))if(grammar.rules.get(name)?.alternatives.some(a=>a.clauses.error)) {
+          const key=JSON.stringify([name,filtered]);reached.set(key,{name,filtered});
+        }
+        for(const child of clauseChildren(node))pending.push({node:child,filtered:filtered||node?.method==='error-free'});
       }
-      for (const name of reached) if (grammar.rules.get(name)?.alternatives.some(a=>a.clauses.error)) notes.push({kind:'query-error',...where,target:name});
+      for(const {name,filtered}of reached.values())notes.push({kind:'query-error',...where,target:name,filtered});
       if (clauses.suppressWarnings) {
         const roots=new Set();
         /** @type {any[]} */
@@ -16611,6 +16615,63 @@
   /** @type {WeakMap<object,{collected:DiagnosticLists,evaluated:DiagnosticLists}>} */
   const stageDiagnostics=new WeakMap();
 
+  // ---- erasure-audit.js
+  // Conservative effects of removing one written erasure (design, Diagnostics and debugging).
+
+
+
+  const READ=1,EMIT=2,DIAGNOSTIC=4,CHOICE=8,ALL=15;
+
+  /** @param {import('./grammar.js').Grammar} grammar
+   * @param {(alternative:import('./grammar.js').StitchedAlternative)=>boolean} emits
+   * @returns {{rule:string,document:string,line:number,column:number,alternative:number,kind:'semantic'|'inert',effects:string[]}[]} */
+  function erasureAudit(grammar,emits) {
+    /** @type {Map<object,{bits:number,mask:number,references:Set<string>}>} */ const alternatives=new Map();
+    /** @type {Map<string,number>} */ const effects=new Map();
+    /** @type {Map<string,{parent:string,mask:number}[]>} */ const dependents=new Map();
+    /** @type {string[]} */ const pending=[];
+    /** @param {string} name @param {number} bits */
+    const add=(name,bits)=>{const old=effects.get(name)??0;if((old|bits)!==old){effects.set(name,old|bits);pending.push(name);}};
+    for(const rule of grammar.rules.values()) {
+      if(rule.alternatives.length>1)add(rule.name,CHOICE);
+      for(const alternative of rule.alternatives) {
+        if(hooks.work)countWork(hooks.work,'closures');
+        let bits=(alternative.clauses.error||alternative.clauses.warning?DIAGNOSTIC:0)|(emits(alternative)?EMIT:0);
+        const references=new Set(),stack=[alternative.expr];
+        while(stack.length) {
+          if(hooks.work)countWork(hooks.work,'walkSteps');
+          const node=stack.pop();
+          if(!node)continue;
+          if('ref'in node){if(grammar.rules.has(node.ref))references.add(node.ref);else bits|=READ|DIAGNOSTIC;}
+          if('literal'in node||'range'in node||'wildcard'in node)bits|=READ|DIAGNOSTIC;
+          if('optional'in node||'repeat'in node||'choice'in node||'ranked'in node||'and'in node)bits|=CHOICE;
+          for(const child of expressionChildren(node))stack.push(child);
+        }
+        const mask=alternative.clauses.emit?ALL&~EMIT:ALL;
+        alternatives.set(alternative,{bits,mask,references});
+        if(alternative.clauses.erased)continue;
+        add(rule.name,bits);
+        for(const target of references){const list=dependents.get(target)??[];list.push({parent:rule.name,mask});dependents.set(target,list);}
+      }
+    }
+    for(let index=0;index<pending.length;index++)for(const edge of dependents.get(pending[index])??[]) {
+      if(hooks.work)countWork(hooks.work,'closures');
+      add(edge.parent,(effects.get(pending[index])??0)&edge.mask);
+    }
+    /** @type {ReturnType<typeof erasureAudit>} */ const result=[];
+    for(const rule of grammar.rules.values())rule.alternatives.forEach((alternative,index)=>{
+      if(!alternative.clauses.erased)return;
+      const local=/** @type {NonNullable<ReturnType<typeof alternatives.get>>} */(alternatives.get(alternative));
+      let bits=local.bits|(rule.alternatives.length>1?CHOICE:0);
+      for(const target of local.references)bits|=(effects.get(target)??0)&local.mask;
+      const names=[];
+      if(bits&READ)names.push('counted-parts');if(bits&EMIT)names.push('emission');
+      if(bits&DIAGNOSTIC)names.push('diagnostics');if(bits&CHOICE)names.push('derivation-choice');
+      result.push({rule:rule.name,document:alternative.document,line:alternative.at.line??1,column:alternative.at.column??1,alternative:index,kind:/** @type {'semantic'|'inert'} */(bits?'semantic':'inert'),effects:names});
+    });
+    return result;
+  }
+
   // ---- ranking-audit.js
   // Static reports for node-pattern steps (docs/design.md).
 
@@ -16696,6 +16757,8 @@
   }
 
   // ---- diagnostics.js
+
+
 
 
 
@@ -16869,8 +16932,10 @@
       const where = location ? `${location}: ` : "";
       lines.push(`A grammar error${error.stage ? ` in the ${error.stage} stage` : ""}: ${where}${error.message}`);
     }
+    const owners=error.errors?.length?attachmentDiagnosticOwners(result):new Map();
     for(const diagnostic of error.errors??[]) {
       lines.push(`Error ${diagnostic.code} in the ${diagnostic.stage} stage, rule ${diagnostic.rule}: ${diagnostic.message}`);
+      if(owners.has(diagnostic))lines.push(/** @type {string} */(owners.get(diagnostic)));
       lines.push(sourceExcerpt(result.text,diagnostic.source).excerpt);
       if(diagnostic.rejection) {
         const evidence=diagnostic.rejection;
@@ -17015,11 +17080,29 @@
    */
   function explainWarnings(result) {
     const warnings = result.warnings || [];
+    if(!warnings.length)return "";
     const lines = warnings.length ? lineIndex(result.text) : null;
+    const owners=attachmentDiagnosticOwners(result);
     return warnings.map((warning) => [
       `Warning ${warning.code} in the ${warning.stage} stage, rule ${warning.rule}: ${warning.message}`,
+      ...(owners.has(warning)?[owners.get(warning)]:[]),
       excerptAt(/** @type {LineIndex} */ (lines), warning.source).excerpt,
     ].join("\n")).join("\n\n");
+  }
+
+  /** Identify display copies once, without reporting a carrier copy again.
+   * @param {ParseResult} result @returns {Map<import('./types.js').ParseWarning,string>} */
+  function attachmentDiagnosticOwners(result) {
+    const owners=new Map();
+    for(const stage of result.stages) {
+      const pending=(stage.output??[]).map((token,index)=>({token,path:`token ${index}`,attached:false}));
+      while(pending.length) {
+        const {token,path,attached}=/** @type {NonNullable<ReturnType<typeof pending.pop>>} */(pending.pop());
+        if(attached)for(const diagnostic of [...token.errors??[],...token.warnings??[]])owners.set(diagnostic,`Display owner: ${path} in the ${stage.name} stage.`);
+        for(const side of /** @type {const} */(['before','after']))for(let index=token[side].length-1;index>=0;index--)pending.push({token:/** @type {Token} */(token[side][index]),path:`${side} attachment ${index} of ${path}`,attached:true});
+      }
+    }
+    return owners;
   }
 
   // ---- Tokens --------------------------------------------------------------
@@ -17224,8 +17307,8 @@
    * @property {number} rules
    * @property {string[]} unreachable rules no derivation of `text` can reach
    * @property {import("./grammar.js").RuleChange[]} changes
-   * @property {{rule: string, document: string}[]} idleErasures rules marked `%erased` although nothing
-   *   under them could emit and no token could cover them
+   * @property {ReturnType<typeof erasureAudit>} erasures conservative kinds of every written erased alternative
+   * @property {{rule: string, document: string}[]} idleErasures erased definitions with no possible semantic effect
    * @property {Membership[]} memberships every membership of a key in a class
    *   that an entry of a classifier adds or removes, in the order of the
    *   first entry that touches it
@@ -17474,6 +17557,7 @@
         if (!current || typeof current !== "object") continue;
         const value = /** @type {Record<string, any>} */ (current);
         if (typeof value.rule === "string") into.add(value.rule);
+        if(value.method==="parse")for(const name of queryReferences(value.args[0].body))into.add(name);
         for (const child of clauseChildren(value)) remaining.push(child);
       }
     }
@@ -17493,7 +17577,7 @@
     /** @param {object} value */
     const frame = (value) => {
       if (hooks.work) countWork(hooks.work, "walkSteps");
-      return { value, children: clauseChildren(value), next: 0, found: typeof /** @type {Record<string, unknown>} */ (value).rule === "string" };
+      return { value, children: clauseChildren(value), next: 0, found: typeof /** @type {Record<string, unknown>} */ (value).rule === "string" || /** @type {any} */(value).method === "parse" };
     };
     const pending = [frame(node)];
     while (pending.length) {
@@ -17533,114 +17617,6 @@
     }
     return false;
   }
-
-  /**
-   * Which rules of a stage could emit a token (engine §11): one with an
-   * alternative whose emission lists anything, or that
-   * has no emission and walks a part that could.
-   * @param {Map<string, StitchedAlternative[]>} alternativesByRule
-   * @param {CaptureScopes} scopes
-   * @returns {Set<string>}
-   */
-  function emittingRules(alternativesByRule, scopes) {
-    /** @type {Set<string>} */
-    const emitting = new Set();
-    // A worklist: a rule found to emit makes each rule with an alternative
-    // that walks it emit, so the closure costs the size of the grammar, not
-    // a pass over it for each rule found.
-    /** @type {Map<string, string[]>} */
-    const walkers = new Map();
-    /** @type {string[]} */
-    const found = [];
-    /** @type {(name: string) => void} */
-    const add = (name) => {
-      if (emitting.has(name)) return;
-      emitting.add(name);
-      found.push(name);
-    };
-    for (const [name, alternatives] of alternativesByRule) {
-      for (const alternative of alternatives) {
-        if (hooks.work) countWork(hooks.work, "closures");
-        if (alternative.clauses.erased) continue;
-        if (alternative.clauses.emit) {
-          if (emitsAny(alternative, scopes)) add(name);
-          continue;
-        }
-        /** @type {Set<string>} */
-        const walked = new Set();
-        referencedRules(alternative.expr, walked);
-        for (const part of walked) {
-          const list = walkers.get(part);
-          if (list) list.push(name);
-          else walkers.set(part, [name]);
-        }
-      }
-    }
-    for (let name = found.pop(); name !== undefined; name = found.pop()) {
-      for (const walker of walkers.get(name) ?? []) {
-        if (hooks.work) countWork(hooks.work, "closures");
-        add(walker);
-      }
-    }
-    return emitting;
-  }
-
-  /**
-   * Which rules could value inside an emitted token, where what they read is
-   * part of the token's value unless it does not count (engine §5): those
-   * under a covering token, outside erased constituents.
-   * @param {Map<string, StitchedAlternative[]>} alternativesByRule
-   * @param {CaptureScopes} scopes
-   * @returns {Set<string>}
-   */
-  function coveredRules(alternativesByRule, scopes) {
-    const inside = new Set();
-    /** @type {string[]} */
-    const pending = [];
-    /** @type {(part: Expr) => void} */
-    const reach = (part) => {
-      /** @type {Set<string>} */
-      const found = new Set();
-      referencedRules(part, found);
-      for (const name of found) {
-        if (!inside.has(name)) {
-          inside.add(name);
-          pending.push(name);
-        }
-      }
-    };
-    // Covering tokens count input parts independently of recipes.
-    for (const alternatives of alternativesByRule.values()) {
-      for (const alternative of alternatives) {
-        const written = alternative.clauses.emit?.items ?? [];
-        if (!written.length) continue;
-        const structure = scopesFor(alternative, scopes);
-        const items = presentItems(written, (name) => structure.names.has(name), structure.names).map((index) => written[index]);
-        if (items.some((item) => item.capture === "")) {
-          reach(alternative.expr);
-          continue;
-        }
-        const emitted = new Set(items.flatMap((item) => (item.capture ? [item.capture] : [])));
-        if (emitted.size === 0) continue;
-        const parts = [alternative.expr];
-        for (let part = parts.pop(); part !== undefined; part = parts.pop()) {
-          if (hooks.work) countWork(hooks.work, "walkSteps");
-          if ("capture" in part && emitted.has(part.capture)) reach(part);
-          else for (const child of expressionChildren(part)) parts.push(child);
-        }
-      }
-    }
-    // Inside a token, everything counts but erased constituents, whatever any
-    // token under it says of its own value.
-    for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
-      for (const alternative of alternativesByRule.get(name) || []) {
-        if (alternative.clauses.erased) continue;
-        reach(alternative.expr);
-      }
-    }
-    return inside;
-  }
-
 
   /**
    * What a grammar author should know about a pipeline's grammars: per stage,
@@ -17693,40 +17669,16 @@
           }
         }
       }
-      // `%erased` says nothing if nothing under it could emit and no token
-      // could cover it (engine §5, §11).
-      const byRule = new Map([...grammar.rules].map(([name, rule]) => [name, rule.alternatives]));
-      const emitting = emittingRules(byRule, scopes);
-      const covering = coveredRules(byRule, scopes);
-      /** @type {{rule: string, document: string}[]} */
-      const idleErasures = [];
-      /** @type {Set<object>} */
-      const seen = new Set();
-      for (const rule of grammar.rules.values()) {
-        // The alternatives of each clauses, grouped once rather than found by
-        // a scan of the rule for each.
-        /** @type {Map<object, StitchedAlternative[]>} */
-        const siblings = new Map();
-        for (const alternative of rule.alternatives) {
-          if (hooks.work) countWork(hooks.work, "clauses");
-          const group = siblings.get(alternative.clauses);
-          if (group) group.push(alternative);
-          else siblings.set(alternative.clauses, [alternative]);
-        }
-        for (const alternative of rule.alternatives) {
-          if (!alternative.clauses.erased || seen.has(alternative.clauses)) continue;
-          seen.add(alternative.clauses);
-          /** @type {Set<string>} */
-          const reached = new Set();
-          for (const sibling of /** @type {StitchedAlternative[]} */ (siblings.get(alternative.clauses))) {
-            if (hooks.work) countWork(hooks.work, "clauses");
-            referencedRules(sibling.expr, reached);
-          }
-          if (!covering.has(rule.name) && ![...reached].some((name) => emitting.has(name))) {
-            idleErasures.push({ rule: rule.name, document: alternative.document });
-          }
-        }
+      const erasures=erasureAudit(grammar,alternative=>!!alternative.clauses.emit&&emitsAny(alternative,scopes));
+      // Keep the earlier inert-erasure projection beside the complete list.
+      const erasedDefinitions=new Map();
+      for(const entry of erasures) {
+        const clauses=grammar.rules.get(entry.rule)?.alternatives[entry.alternative].clauses;
+        const prior=erasedDefinitions.get(clauses);
+        if(prior)prior.inert&&=entry.kind==='inert';
+        else erasedDefinitions.set(clauses,{rule:entry.rule,document:entry.document,inert:entry.kind==='inert'});
       }
+      const idleErasures=[...erasedDefinitions.values()].filter(entry=>entry.inert).map(({rule,document})=>({rule,document}));
       // Where each membership of each classifier is added and removed.
       /** @type {Map<string, Membership>} */
       const memberships = new Map();
@@ -17751,6 +17703,7 @@
         unreachable: [...grammar.rules.keys()].filter((name) => !reachable.has(name)).sort(compareCodePoints),
         changes: grammar.changes.slice(),
         ...ranking,
+        erasures,
         idleErasures,
         memberships: [...memberships.values()],
         ...templateAudit(grammar),
@@ -17808,11 +17761,11 @@
         }
       }
       for (const note of stage.diagnosticNotes ?? []) {
-        if (note.kind==="query-error") lines.push(`  diagnostic note: ${note.target} cannot supply a zero-error query witness for ${note.rule}`);
+        if (note.kind==="query-error") lines.push(`  diagnostic note: query target ${note.target} in ${note.rule} contains error productions. Witnesses exclude unerased own errors${note.filtered?" and carried errors outside erased parts":" but allow carried errors"}`);
         else if (note.kind==="unused-suppression") lines.push(`  diagnostic note: ${note.rule} cannot raise suppressed code ${note.code}`);
         else lines.push(`  diagnostic note: ${note.rule} has ${note.variants} guarded tag variants`);
       }
-      for (const idle of stage.idleErasures) lines.push(`  ${idle.rule} in ${idle.document} erases, although nothing under it could emit and no token could cover it`);
+      for(const entry of stage.erasures??[])lines.push(`  ${entry.kind} erasure: ${entry.rule}, alternative ${entry.alternative+1}, at ${entry.document}:${entry.line}:${entry.column}${entry.effects.length?": "+entry.effects.join(", "):""}`);
       for (const family of stage.families) {
         lines.push(`  family ${family.family}, named by ${family.calls.map(call => `${call.rule} at ${call.document}:${call.line}:${call.column}`).join(", ")}: members ${family.members.join(", ")}`);
         for (const optional of family.permitted) lines.push(`    permits ${optional.terminal} of ${optional.owner} at ${optional.document}:${optional.line}:${optional.column}`);

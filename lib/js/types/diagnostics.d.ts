@@ -1,3 +1,4 @@
+import { erasureAudit } from './erasure-audit.js';
 import { UnicodeTable } from "./unicode.js";
 import type { Condition, Expr, ParseResult, Span, StageReport, Argument, Production } from "./types.js";
 import type { Token } from "./tokens.js";
@@ -115,8 +116,11 @@ export type StageAudit = {
     unreachable: string[];
     changes: import("./grammar.js").RuleChange[];
     /**
-     * rules marked `%erased` although nothing
-     * under them could emit and no token could cover them
+     * conservative kinds of every written erased alternative
+     */
+    erasures: ReturnType<typeof erasureAudit>;
+    /**
+     * erased definitions with no possible semantic effect
      */
     idleErasures: {
         rule: string;

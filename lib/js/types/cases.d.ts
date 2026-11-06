@@ -28,6 +28,7 @@ export type CaseOutcome = {
         reason?: string;
     };
     errors?: {
+        stage?: string;
         code: string;
         at: number;
     }[];
@@ -64,7 +65,7 @@ export type CaseOutcome = {
  * @property {number} [at] where that stage stopped, as a position in the
  *   text
  * @property {{kind: string, reason?: string}} [error] an error kind and reason
- * @property {{code:string,at:number}[]} [errors]
+ * @property {{stage?:string,code:string,at:number}[]} [errors]
  * @property {{stage:string,code:string,at:number}[]} [warnings] ordered warning codes and source positions
  * @property {string[]} [ties] the stages whose verdict is a tie
  * @property {string[]} [words] the images of the words stage's output
