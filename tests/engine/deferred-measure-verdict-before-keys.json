@@ -1,0 +1,44 @@
+{
+  "description": "Engine §6 and §6.1: additive blame, sourceless count, and reverse error count (verdict-before-keys).",
+  "grammar": "%ambiguity-resolution fewest #·two\n%rule text one | two\n%rule one *bad\n%rule two *bad ε\n%rule bad A %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "source": [
+        0,
+        1
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad"
+          }
+        ]
+      },
+      "tree": {
+        "children": [
+          {
+            "rule": "one"
+          }
+        ]
+      }
+    },
+    "error": "reported"
+  },
+  "input": "x"
+}
