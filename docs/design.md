@@ -107,15 +107,15 @@ The four libraries implement one specification, `docs/engine.md`. It defines the
 
 3. The recognizer is an Earley parser (a standard algorithm for any context-free grammar). Its items, the partial matches that it keeps, record the span and the identity of the tag set of each captured part. The parser evaluates each condition as soon as it reads the last capture of that condition. With `.onward` and `.following-tokens`, a condition can look past its constituent to the end of the input. A PEG (parsing expression grammar, which tries alternatives in order) has a lookahead that does the same.
 
-   Nested parses for `span.matches(rule)`, `span.begins(rule)`, `span.ends(rule)`, and `span.tags(rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. Ordinary answers of short spans can also outlive the parse, in the shared memo of engine §4.3. A nested parse asked about its own span, as the same rule, is a grammar error. A nested parse never leaves out an elidable optional that the same construct can read whole as written (see "Nested queries and elided terminators" below).
+   Nested parses for `span.parse(C)` and the four rule-query methods share their memo (a cache of answers) with the parse that started them. The memo key is the query mode, the resolved target, and either the content of a short span or the position of a long span. Ordinary answers of short spans can also outlive the parse, in the shared memo of engine §4.3. A nested parse asked about its own span, as the same rule, is a grammar error. A nested parse never leaves out an elidable optional that the same construct can read whole as written (see "Nested queries and elided terminators" below).
 
 4. The stage directive lists steps that compare parses, in order. Each key step counts the nodes that a node pattern matches. Those nodes are the constituents of a rule, for example, or the elided terminators, which carry the mark `_Elided`.
 
    The steps compare the parses' profiles first, step by step. A final `greedy` or `lazy` step then ranks parses with the greatest profile by bottom-up actions, while `late #·_<_Elided>` compares elided terminators (see "Ambiguity" below).
 
-5. The stage emits the next stage's tokens. Each has text, value, image, tags, and source metadata. A value is the string that comparisons read. An image is the string that people see. An attachment is a token that another token owns and that later stages never read.
+5. The stage emits the next stage's tokens. Each has text, value, image, tags, source metadata, and carried diagnostics. A value is the string that comparisons read. An image is the string that people see. An attachment is a token that another token owns and that later stages never read.
 
-6. The pipeline runs the stages in order, and stops at the first rejection or error.
+6. The pipeline runs stages in order. Chosen diagnostics flow onward until the reporting stage, while rejection, ambiguity, or grammar failure stops the run.
 
 `tests/engine/` tests the specification. Each case is a small grammar, an input, and a pattern that the canonical result JSON of `docs/output.md` must match. So a fifth implementation can run the cases to make sure that it follows the specification, without the Lojban grammars at all. The cases cover every specification rule, with one or more cases per rule. They settle the edge cases that decide which parse comes out, so that the Lojban corpus does not become the specification by accident:
 
@@ -541,11 +541,11 @@ An open literal records an unsettled boundary condition. An offer records a boun
 
 Ranked-group construction records groups and source references. Separate validation reports grammar errors. An admission candidate's label identifies its option and open facts.
 
-A higher option excludes a lower proof only with no greater error count and dominating open facts. Its literals must be a subset at each edge, and its offers must be equal. A smaller count alone never removes a proof with other open facts. Error annotations do not affect this comparison.
+A higher option excludes a lower proof only with a measure no worse in profile order and dominating open facts. Its literals must be a subset at each edge, and its offers must be equal. A better measure alone never removes a proof with other open facts. Error annotations do not affect this comparison.
 
 Every proof that the filter excludes has a qualifying replacement in its admission group. Sealing and the tag rule preserve that replacement's continuation. Induction preserves recognition with sealing fixed. A seal hides option structure from outside observations.
 
-The exact group key, tag closure, and algorithm belong to engine §2.1 and §6.1. [Ambiguity](notation.md#ambiguity) defines verdict changes and their effects on later stages. The ranker compares the additive error count first, then grammar key profiles, then the lean.
+The exact group key, tag closure, and algorithm belong to engine §2.1 and §6.1. [Ambiguity](notation.md#ambiguity) defines verdict changes and their effects on later stages. The ranker compares the additive blame measure first, then grammar key profiles, then the lean.
 
 Reconstruction first locates the restored chosen derivation before filtering. Filtering compares spans that include restored terminators. It ranks admitted readings by projected profiles without a stage directive. Filtering can exclude the restored derivation and cause an `elision-only` ambiguity. The error reports that derivation first and the best admitted competitor second. Only its absence before filtering reports `elision-witness-lost` ([engine §7](engine.md#7-elision-only)).
 
@@ -604,13 +604,15 @@ A document can be included in several stages. An included document can hold stag
 
 A pipeline that extends another makes two kinds of change. Most are additions, which the base grammar rejects and the pipeline accepts, such as `cu` before a bare selbri (a predicate) in the `lojban/experimental` pipeline. Some change how the pipeline reads a text that the base grammar accepts. An example is the cmevla-brivla merger, which lets a name word (cmevla) also act as a predicate word (brivla). Under the merger, `la .alis. klama` is one description. Gates change recognition, while warning rules report uses of additions.
 
-A `%warning` rule names a warning code and supplies its message recipe. A spliced call can mark an addition without adding a tree node. Its reading stays available whether the code is enabled or disabled. Each enabled unsuppressed chosen occurrence reports its code, rule, stage, span, source, and message.
+A `%warning` rule names a warning code and supplies its message recipe. A spliced call can mark an addition without adding a tree node. Its reading stays available whether the code is enabled or disabled. Each enabled unsuppressed chosen occurrence raises its code, rule, stage, span, source, and message. One emitted carrier takes it onward to the reporting stage.
 
 The `lojban/experimental` pipeline enables `experimental-cgv` by default for consonants before glides in names and borrowings. Forms marks those words with `Cgv-Warning`. The words stage warns when its chosen derivation reads a marked word.
 
 Other bundled warnings require the caller to enable them.
 
-A warning is on the chosen tree only. The parser reports no addition that only a losing reading uses. A tie has no chosen tree, so it reports no warnings. The experimental syntax is a layer over the CLL grammar. Its syntax additions do not carry warnings. The bundled Lojban warnings are `y-cmavo` in `lojban/cll` and `experimental-cgv` in `lojban/experimental`.
+A warning comes from a selected occurrence, including one of a tie's two shown readings. The parser reports no addition that only a losing reading uses. A tie has no chosen tree, but it lists warnings from its two shown readings. Erasure removes the warnings of the erased text.
+
+The experimental syntax is a layer over the CLL grammar. Its syntax additions do not carry warnings. The bundled Lojban warnings are `y-cmavo` in `lojban/cll` and `experimental-cgv` in `lojban/experimental`.
 
 A change of reading is a gate, `name?`, with the base form under `¬name?`, so that exactly one of the two is live. A warning cannot express it, because a warning rule keeps its reading whether its code is on or off. The base reading is then gone either way. A pipeline that makes such a change can declare its gate as an unconditional default. A caller who wants the base reading can disable that default. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
 
@@ -624,15 +626,15 @@ A caller selects features separately. The `lojban/experimental` pipeline uses ca
 
 The trailing clause order is conditions, diagnostic, suppression, then emission or erasure. `%suppress-warnings` names codes, or `_` for all warnings. It covers its own occurrence and every descendant, including spliced calls. Nested lists unite, and no inner rule enables a suppressed or stage-disabled code.
 
-Reports follow the chosen derivation before spliced nodes disappear, parent before children and siblings in order. Spliced and empty occurrences retain their positions. The engine evaluates each reported message once after choice. Disabled and suppressed warnings evaluate none.
+Reports follow the chosen derivation before spliced nodes disappear, parent before children and siblings in order. Spliced and empty warning occurrences retain their positions. The engine evaluates each selected message once after choice, before emission and carrier assignment. Disabled and suppressed warnings evaluate none.
 
-A failed message gives a `grammar` result with the chosen verdict, a null tree, and no output. That stage reports no named errors or warnings. Earlier stages retain their outputs and warnings.
+A failed message gives a `grammar` result with the chosen verdict, a null tree, and no output. The failure retains evaluated own messages, carried input diagnostics, and earlier stage-level diagnostics. Earlier stage outputs remain available (engine §12.1).
 
 Message recipes read captures and `$`, with string methods and `++`. They cannot query, read `.emitted`, or read absent, item, or private ranked captures. Recognition and ranking evaluate no messages.
 
-A chosen derivation with errors keeps its tree and `unique` or `resolved` verdict. Its `reported` result lists all named errors and keeps enabled unsuppressed warnings, with `ok:false`. The stage emits nothing and stops the pipeline. A tie reports ambiguity alone.
+A chosen derivation with errors keeps its tree and `unique` or `resolved` verdict. Its `reported` result lists all named errors and keeps enabled unsuppressed warnings, with `ok:false`. It retains the reporting stage's output. Earlier chosen errors flow onward on tokens instead of stopping the run. A tie reports ambiguity and the errors and warnings of its two shown readings.
 
-No erasure discards errors. A zero-error erasure reading beats structured error alternatives through the mandatory count. Error alternatives therefore stand beside flat token readings, and zero-error query witnesses preserve those readings.
+Erasure drops both own and carried diagnostics and contributes zero measure to its parent. Equal observable interiors collapse to one canonical derivation, without grammar key steps or the lean. Outer steps see the erased root alone. Each summary keeps an extra measure-only candidate so an erased and a live parent can share one item. This composes over shared edges, without enumerating complete derivations (engine §6).
 
 A splice is one transparent call, not an expression copy. It keeps conditions, tags, strings, emission, erasure, diagnostics, and suppression. Its close is transparent to action comparison, and it supplies one logical symbol for inheritance.
 
@@ -656,11 +658,15 @@ One effective production permits at most 16 variants after merging and pruning. 
 
 A specific error must add information to the actual default rejection, with its position and expected list, or state that information more briefly. A vaguer message does not qualify.
 
-Forms classify erasable malformed runs with ordinary fault marks. Syntax reports the matching named error only where no zero-error erasure wins. An unclosed foreign quote reports in forms because syntax cannot erase it. Unclassified junk retains the default rejection.
+Forms error alternatives stand beside the restrictions that they break. Separate recovering readers preserve strict foreign-quote delimiter readers. A faulty word retains the class of its word shape and carries every surviving diagnostic to syntax. Generic junk carries its own error with ranked-competitor rejection evidence. Error messages quote the faulty letters, and their spans cover those letters.
 
-Error counts precede the grammar's written preferences, and queries use only zero-error witnesses. Erasure never discards an error occurrence. Warning rules report only their chosen occurrences, under the ordinary feature and suppression rules.
+Each error adds its source-envelope length and one to the error count. An empty envelope instead adds one sourceless charge. Ranking prefers less blame, fewer sourceless errors, and then more total errors. Shorter recoveries therefore precede grammar preferences. Equal blame favors finer division into errors. Warning controls affect reports alone.
 
-The Eberban grammar records the complete mappings, fault order, and deliberate departures in its closing sections. See [word forms](../grammars/eberban/refgram/morphology.md#diagnostic-codes-and-peg-sources) and [syntax](../grammars/eberban/refgram/syntax.md#diagnostic-codes-and-peg-sources).
+A structural query reads a faulty word as a word. `.error-free` explicitly requires a zero-measure witness. Erasure removes the diagnostics inside its scope, including syntax recoveries. The grammar uses an erased inner constituent for the erased words and retains `ra-run` outside it. It prefers `fewest #·words-erasure` before `late #·(erased-sentence | erased-words)`. The `@Open` bar uses `¬$i.onward.parse(@Open …).error-free`.
+
+A named error reads at least one token. Missing parts belong to recovery rules over their openers, rather than empty gaps. An unclosed parenthetical or foreign quote covers the unclosed construct, because an opener alone loses its body to shorter recovery. A missing construct on empty stage input receives plain rejection.
+
+The grammar's closing sections record the diagnostic mappings and deliberate departures. An unfinished compound and a spaced `i` prefix report on their prefix, rather than the separate open slot or `i`. Faulty words report in every syntax position that accepts their class, including quotes and namespace steps. See [word forms](../grammars/eberban/refgram/morphology.md#diagnostic-codes-and-peg-sources) and [syntax](../grammars/eberban/refgram/syntax.md#diagnostic-codes-and-peg-sources).
 
 ## Expensive constructs behind features
 
@@ -674,11 +680,11 @@ The words stage declares `sa-su` with conditions on its input classes. It enable
 
 ## Ambiguity
 
-Ranked choices filter the parses that recognition allows before ranking. The parses that survive are admitted. The engine first prefers fewer error occurrences, then applies the stage directive to equal counts. Each error-bearing source occurrence counts once, including empty calls, splices, and chain levels. Warnings never affect ranking. If no other admitted parse beats a parse, that parse is best.
+Ranked choices filter the parses that recognition allows before ranking. The parses that survive are admitted. The engine first prefers the better three-part blame measure, then applies the stage directive to equal measures. Erasure contributes zero to its parent. Warnings never affect ranking. If no other admitted parse beats a parse, that parse is best.
 
-Verdicts count only admitted derivations with the least error count. One such derivation gives `unique`. Several with exactly one best give `resolved`. Several best derivations give a tie with two readings and an action witness.
+Verdicts count admitted derivations with the best measure. One gives `unique`, several with one best give `resolved`, and several best give a tie. Each summary keeps that measure and its verdict total, capped at two, before grammar preferences. Worse-measure readings do not change the verdict.
 
-Each ranking summary retains its least error count and the number of derivations attaining it, capped at two. Its verdict total includes losers under grammar preferences, but excludes higher-error readings. Error alternatives cannot change a zero-error text's verdict by themselves.
+Erased productions with the same span, cycle context, and observable item state collapse across productions. Their kept measure-optimal canonical derivation is the shown tree. Distinct outer erasure routes remain distinct. At equal zero measure, they can give `resolved`. Consumers treat `unique` and `resolved` alike.
 
 Ranking stops before admission preparation when the forest has no roots.
 
@@ -708,7 +714,7 @@ The elided terminators carry the mark `_Elided` on their pattern leaves, and `la
 
 `leftmost-longest` compares token spans, not reading and closing actions. For `r → r B | A`, action comparison can tie a longer outer `r` with a short one. Span comparison prefers the longer outer `r`. Presence and repeated occurrences count because each occurrence expresses the declaration. Empty occurrences contribute nothing, so the step does not reward empty wrappers.
 
-A key step can rank before the lean, so an author can state grouping independently of terminator policy. Equal profiles leave the lean to decide. A step that names a rule counts its extensions and its redefinition too, because the name is the stitched rule's. The directive states the grammar's preferences after the mandatory error count.
+A key step can rank before the lean, so an author can state grouping independently of terminator policy. Equal profiles leave the lean to decide. A step that names a rule counts its extensions and its redefinition too, because the name is the stitched rule's. The directive states the grammar's preferences after the mandatory blame measure.
 
 A document that holds the directive states the policy for every pipeline that includes it. Where pipelines differ, the shared document holds no directive, and each pipeline document states its own. A layer changes what a step counts by `%redefine-const` of a pattern constant that a step names, where the base chose to name one.
 
@@ -716,11 +722,13 @@ A document that holds the directive states the policy for every pipeline that in
 
 With `leftmost-longest #·simple-tense-modal` first, `pu va ca gi` groups as `pu va` then `ca gi`, as the official parser does. The step ranks complete parses. The official lexer instead groups tokens before syntax parsing. The notation's "Ambiguity" section explains the differences from POSIX subexpression semantics.
 
-The directive says which nodes count and how to compare them. So two preferences of one grammar keep separate counts, and the directive states which comes first. Eberban's syntax, for example, prefers the smallest erasure before the deepest resumption. `fewest` favors absence. It counts nonempty occurrences and ignores their span lengths, because a disfavored construct has no natural position to prefer. Every key step composes by addition, as an elision count does, and none can form a comparison cycle. Arithmetic over steps is left out on purpose: a weighted sum would hide the order of preferences that the steps state.
+The directive says which nodes count and how to compare them. So two preferences of one grammar keep separate counts, and the directive states which comes first. Eberban's syntax prefers the sentence erasure route, then the latest erasure start, before the deepest resumption. `fewest` favors absence.
+
+It counts nonempty occurrences and ignores their span lengths, because a disfavored construct has no natural position to prefer. Every key step composes by addition, as an elision count does, and none can form a comparison cycle. Arithmetic over steps is left out on purpose: a weighted sum can hide the order of preferences that the steps state.
 
 ### Ties are errors
 
-A tie is an error of kind `ambiguous`, with the reason `tie`. The stage emits nothing, and no later stage runs. The error shows two of the best parses, and the stage shows the witness, the pair of actions at their first difference. A tied stage gives no warnings, since it has no chosen parse.
+A tie is an error of kind `ambiguous`, with the reason `tie`. The stage emits nothing, and no later stage runs. The error shows two of the best parses, and the stage shows the witness, the pair of actions at their first difference. A tied stage lists the errors and warnings of its two shown readings. Pending earlier stage-level diagnostics occur once, before the two readings' contributions (engine §12.1).
 
 The canonical order, *T*, orders ambiguity diagnostics. Its canonical keys never turn a tie into an accepted reading. Production numbers follow the written order of alternatives. Using those numbers to accept a tied reading gives source order an unstated preference.
 
@@ -730,17 +738,17 @@ An error is better than a hidden choice. A reader of the error sees the two read
 
 CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` is one reading of that rule, for the stage whose grammar declares it. CLL does not say which parse to test, so the check tests the one that the ranking chose.
 
-A chosen derivation with errors skips the check and emits nothing. Otherwise the check runs after `resolved`, including without an elision. For `unique`, it also runs with an elided node in the chosen tree. Higher-error readings change no verdict and start no check.
+Any counted error skips the check, including a carried or pending stage-level error. The chosen derivation still emits. Otherwise the check runs after `resolved`, including without an elision. For `unique`, it also runs with an elided node in the chosen tree. Worse-measure readings change no verdict and start no check.
 
 The initial search stops at the first elided node. The check walks the chosen derivation for a profile only when a key step can count an occurrence. It follows these steps:
 
 1. Take the chosen tree's `elided` nodes in leaf order, from left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries the terminator's tag. Its recognition value is the default value. The engine marks it synthetic.
 2. Parse the token sequence with the same grammar. Use a mode where each elidable optional is restored or written. Every condition, tag and test of a rule reads the original input through a projection that leaves the synthetic tokens out. A test on a terminal reads the written-back terminator's tag and recognition value. A query parses the original input with the grammar as it is.
-3. Locate the chosen reconstruction before filtering. Its absence gives `elision-witness-lost`. Filter the reconstructed forest, then rank by error count and projected grammar profiles without a lean. The error count includes empty projected spans. The check evaluates no messages. An admitted witness passes only as the sole best admitted derivation.
+3. Locate the chosen reconstruction before filtering. Its absence gives `elision-witness-lost`. Filter the reconstructed forest, then rank by blame measure and projected grammar profiles without a lean. Synthetic tokens carry no diagnostics and contribute no blame. The check evaluates no messages. An admitted witness passes only as the sole best admitted derivation.
 
    The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the readings that engine §7.10 names, shown over the original input. An intentionally excluded witness gives ordinary ambiguity, not witness loss.
 
-The stage ranks and collects reports. If its chosen derivation has no errors, it emits and runs the applicable check. A tie ends the stage before emission and before the check. So a stage reports at most one `ambiguous` error, and a tie comes first.
+The stage ranks and collects reports. It emits after message evaluation. If no error counts, it runs the applicable check. A tie ends the stage before emission and before the check. So a stage reports at most one `ambiguous` error, and a tie comes first.
 
 An `elision-only` ambiguity keeps stage output and warnings, with a null result tree. A grammar failure during the check keeps warnings but no output, with a null result tree. Both retain the chosen verdict and stop later stages.
 
@@ -999,7 +1007,21 @@ The product provides these diagnostics and debugging tools:
   A stage with input and no verdict reports that it failed, with its diagnostic. A later stage without input is not reached.
 
   The trace position must be a finite integer. The trace clamps it to the stage's token boundaries. Printed conditions preserve method receivers with parentheses around compound terms.
-- The audit reports unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` covers text that can never emit a token and that no token can cover. The audit names each redefinition or extension of a counted rule, with the step that it affects. A counted rule is one that a key step names. The audit also labels a key step impossible where its stage cannot match it. That is the one label of a step. The audit decides reachability first. It walks body references from `text` through every alternative, including one behind a disabled gate. It does not add a rule that appears only as a query target. A terminal is unreachable when no rule on that walk reads it. Then a recursion over the resolved pattern decides whether the pattern is dead. A rule atom is dead when its rule or exact instance is unreachable. A family atom is dead when every instance is unreachable. A terminal atom is dead when its terminal is unreachable. The pattern atom `_` has its own rule. It is live where any written or omitted leaf is reachable in the stage. It is not the body wildcard terminal, so the terminal rule does not apply to it. A union is dead when every operand is, an intersection when any operand is, and a difference when its left operand is. A step with a dead pattern is impossible. A test never makes an atom dead, so the audit keeps a step whose answer a test leaves open. An example is a rule atom with a tag test, over a rule with a computed tag term. The audit says nothing more about such a step. The label is a diagnostic only. The optimization of engine §6, which decides whether a stage builds profiles, errs toward yes on its own and does not use it. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
+- The audit reports unreachable rules, every rule that a later document replaced or extended, and the kind of every `%erased` production. Speaker erasure drops diagnostics and collapses interiors, so it cannot serve merely to omit stream plumbing. An unlisted part already emits nothing. Only erasure that changes no emission, counted parts, diagnostics, or observable derivation choice is inert.
+
+  The audit names each redefinition or extension of a counted rule, with the step that it affects. A counted rule is one that a key step names. The audit also labels a key step impossible where its stage cannot match it. That is the one label of a step.
+
+  The audit decides reachability first. It walks body references from `text` through every alternative, including one behind a disabled gate. It does not add a rule that appears only as a query target. Without a reading rule on that walk, a terminal is unreachable.
+
+  Then a recursion over the resolved pattern decides whether the pattern is dead. An unreachable rule or exact instance makes its rule atom dead. A family atom with no reachable instance is dead. An unreachable terminal makes its terminal atom dead.
+
+  The pattern atom `_` has its own rule. It is live where any written or omitted leaf is reachable in the stage. It is not the body wildcard terminal, so the terminal rule does not apply to it. A union needs one live operand.
+
+  An intersection needs every operand live. A difference needs its left operand live. A step with a dead pattern is impossible. A test never makes an atom dead, so the audit keeps a step whose answer a test leaves open.
+
+  An example is a rule atom with a tag test, over a rule with a computed tag term. The audit says nothing more about such a step. The label is a diagnostic only. The optimization of engine §6, which decides whether a stage builds profiles, errs toward yes on its own and does not use it.
+
+  It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
 
   Its data lists the family's members in closure order. That order starts with the family rule and reads the members breadth first. It reads each member's alternatives in written order, and each alternative's member edges in written order. The data also lists the optionals that the family permits, each with its terminal and owning definition. They follow the members in closure order, and each member's optionals come in written order.
 
@@ -1029,7 +1051,7 @@ The audit also reports these notes:
 
 - Each rule with a boundary atom that a nested query can reach (engine §4.2). At the edges of a query's witness, such an atom gets its default answer, which an author can easily miss. The entry is a note, not an error.
 - Each boundary-atom target that only a nested query can build. Outside queries, the atom always gets its default answer there.
-- Every `%error` rule that a query target reaches. Such a rule cannot supply a query witness.
+- Every `%error` rule that a query target reaches. Such an occurrence cannot supply a query witness outside an erased witness subtree.
 - Each suppression code that its subtree can never raise, after stitching each stage.
 - Each effective production with more than 8 guarded tag variants. More than 16 is a document error.
 
