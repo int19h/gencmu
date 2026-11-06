@@ -59,3 +59,166 @@ pub(crate) fn body_terms(body: &Expr) -> Vec<&Term> {
 pub(crate) fn suffix_body(body: &Expr) -> bool {
     matches!(body,Expr::Seq(items) if matches!(items.first(),Some(Expr::Remainder)))
 }
+
+/// The old and new spellings share a target and therefore a recursion key (§4.3).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Mode {
+    Whole,
+    Prefix,
+    Suffix,
+}
+
+pub(crate) fn body_mode(body: &Expr) -> Mode {
+    match body {
+        Expr::Seq(items) if matches!(items.first(), Some(Expr::Remainder)) => Mode::Suffix,
+        Expr::Seq(items) if matches!(items.last(), Some(Expr::Remainder)) => Mode::Prefix,
+        _ => Mode::Whole,
+    }
+}
+
+pub(crate) fn body_core(body: &Expr) -> (Expr, Mode) {
+    if let Expr::Seq(items) = body {
+        if matches!(items.first(), Some(Expr::Remainder)) || matches!(items.last(), Some(Expr::Remainder)) {
+            let mode = if matches!(items.first(), Some(Expr::Remainder)) { Mode::Suffix } else { Mode::Prefix };
+            let mut parts: Vec<_> = items.iter().filter(|part| !matches!(part, Expr::Remainder)).cloned().collect();
+            return (if parts.len() == 1 { parts.pop().unwrap() } else { Expr::Seq(parts) }, mode);
+        }
+    }
+    (body.clone(), Mode::Whole)
+}
+
+fn structural_key(body: &Expr) -> String {
+    let mut raw = String::new();
+    crate::dom::write_expr(&mut raw, body);
+    let raw = crate::json::parse_unbounded(&raw).expect("a query body DOM");
+    crate::parameters::map_nodes(&raw, |mut node| {
+        work::count(Work::Walked, 1);
+        if let crate::json::Json::Obj(fields) = &mut node {
+            fields.retain(|(key, _)| key != "at" && key != crate::parameters::SOURCE);
+            for (key, value) in fields.iter_mut() {
+                if matches!(key.as_str(), "seq" | "choice") {
+                    if let crate::json::Json::Arr(items) = value {
+                        let flat = std::mem::take(items)
+                            .into_iter()
+                            .flat_map(|item| {
+                                item.get(key)
+                                    .and_then(crate::json::Json::as_array)
+                                    .map_or_else(|| vec![item.clone()], |items| items.to_vec())
+                            })
+                            .collect();
+                        *items = flat;
+                    }
+                }
+            }
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        node
+    })
+    .to_json()
+}
+
+pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), crate::error::Error> {
+    use crate::clauses::Part;
+    use crate::dom::{Alternative, Arg, Channels};
+    use crate::fxhash::{FxMap, FxSet};
+    use crate::grammar::{RuleClauses, StitchedAlternative, StitchedRule};
+    use std::sync::Arc;
+    let mut identities = FxMap::default();
+    let mut seen = FxSet::default();
+    let mut pending_rules = Vec::new();
+    let mut targets = FxMap::default();
+    for rule in &grammar.rules {
+        for alternative in &rule.alternatives {
+            let clauses = &alternative.clauses;
+            let mut pending: Vec<_> = alternative
+                .alternative
+                .tags
+                .iter()
+                .chain(&clauses.tags)
+                .chain(&clauses.error)
+                .chain(&clauses.warning)
+                .chain(&clauses.strings.value)
+                .chain(&clauses.strings.image)
+                .chain(&alternative.alternative.strings.value)
+                .chain(&alternative.alternative.strings.image)
+                .map(Part::Term)
+                .collect();
+            pending.extend(clauses.conditions.iter().map(Part::Cond));
+            for item in clauses.emit.iter().flatten() {
+                let (tags, strings) = match item {
+                    crate::dom::EmitItem::Capture(_, tags, a) => (tags, &a.strings),
+                    crate::dom::EmitItem::Insert(tags, s) => (tags, s),
+                };
+                pending.extend(tags.iter().chain(&strings.value).chain(&strings.image).map(Part::Term));
+            }
+            while let Some(part) = pending.pop() {
+                let identity = match part {
+                    Part::Term(term) => (false, term as *const Term as usize),
+                    Part::Cond(condition) => (true, condition as *const crate::dom::Cond as usize),
+                };
+                if !seen.insert(identity) {
+                    continue;
+                }
+                work::count(Work::Walked, 1);
+                if let Part::Term(Term::Call(name, args)) = part {
+                    if let ("parse", [Arg::Term(_), Arg::Term(Term::Body(body))]) = (name.as_str(), args.as_slice()) {
+                        let pointer = Arc::as_ptr(body) as usize;
+                        if let std::collections::hash_map::Entry::Vacant(entry) = targets.entry(pointer) {
+                            let (core, _) = body_core(body);
+                            let key = structural_key(&core);
+                            let target = identities
+                                .entry(key)
+                                .or_insert_with(|| {
+                                    if let Expr::Ref(name) = &core {
+                                        if !name.starts_with('_') {
+                                            return name.clone();
+                                        }
+                                    }
+                                    let name = format!("\0parse:{}", pending_rules.len());
+                                    pending_rules.push(StitchedRule {
+                                        name: name.clone(),
+                                        query: true,
+                                        document: alternative.document.clone(),
+                                        alternatives: vec![StitchedAlternative {
+                                            alternative: Alternative {
+                                                guards: Vec::new(),
+                                                expr: core,
+                                                tags: None,
+                                                strings: Channels::default(),
+                                                ranked_locations: Default::default(),
+                                            },
+                                            written: None,
+                                            written_alternative: 0,
+                                            text_order: alternative.text_order,
+                                            clauses: Arc::new(RuleClauses {
+                                                tags: Some(Term::EmptySet),
+                                                strings: Channels::default(),
+                                                emit: None,
+                                                conditions: Vec::new(),
+                                                error: None,
+                                                warning: None,
+                                                suppress_warnings: Vec::new(),
+                                            }),
+                                            erased: false,
+                                            document: alternative.document.clone(),
+                                            at: alternative.at,
+                                        }],
+                                    });
+                                    name
+                                })
+                                .clone();
+                            entry.insert(target);
+                        }
+                    }
+                }
+                pending.extend(part.children());
+            }
+        }
+    }
+    grammar.query_targets = targets;
+    for rule in pending_rules {
+        grammar.index.insert(rule.name.clone(), grammar.rules.len());
+        grammar.rules.push(rule);
+    }
+    Ok(())
+}

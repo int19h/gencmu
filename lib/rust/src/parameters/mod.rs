@@ -165,7 +165,7 @@ pub(crate) fn unresolved(root: &Json) -> bool {
             || has(n, "args") && has(n, "name") && has(n, "op")
     })
 }
-fn map_nodes(root: &Json, transform: impl Fn(Json) -> Json) -> Json {
+pub(crate) fn map_nodes(root: &Json, transform: impl Fn(Json) -> Json) -> Json {
     enum Task<'a> {
         Node(&'a Json),
         Array(usize),

@@ -74,7 +74,7 @@ pub(crate) fn notes(g: &StageGrammar) -> Vec<DiagnosticNote> {
         .map(|r| r.name.clone())
         .collect();
     let mut notes = Vec::new();
-    for rule in &g.rules {
+    for rule in g.rules.iter().filter(|rule| !rule.query) {
         for alt in &rule.alternatives {
             let where_ = DiagnosticNote {
                 kind: String::new(),

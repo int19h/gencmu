@@ -965,6 +965,7 @@ struct Scope<'a> {
     cap_pos: &'a [usize],
     rules: &'a std::collections::HashMap<String, usize>,
     query_rules: &'a FxMap<String, u32>,
+    body_targets: &'a FxMap<usize, String>,
     /// The latest position of a capture mentioned so far.
     last: Option<usize>,
     /// Whether `$` has been mentioned so far.
@@ -1082,9 +1083,25 @@ impl<'a> Scope<'a> {
         }
     }
 
+    fn forest(&mut self, term: &Term) -> Result<LCond, Missing> {
+        let Term::Call(name, args) = term else { return Err(Missing) };
+        // Filtered forest answers enter the proof solver with their F channel.
+        let ("parse", [Arg::Term(receiver), Arg::Term(Term::Body(body))]) = (name.as_str(), args.as_slice()) else {
+            return Err(Missing);
+        };
+        let target = self.body_targets.get(&(Arc::as_ptr(body) as usize)).ok_or(Missing)?;
+        let rule = self.query_target(target)?;
+        let span = self.span(receiver)?;
+        Ok(match crate::query_forms::body_mode(body) {
+            crate::query_forms::Mode::Whole => LCond::Matches(span, rule),
+            crate::query_forms::Mode::Prefix => LCond::Begins(span, rule),
+            crate::query_forms::Mode::Suffix => LCond::Ends(span, rule),
+        })
+    }
+
     fn cond(&mut self, cond: &Cond) -> Result<LCond, Missing> {
         Ok(match cond {
-            Cond::Forest(_) => return Err(Missing),
+            Cond::Forest(term) => self.forest(term)?,
             Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
             Cond::Compare(op, left, Term::Pattern(p), _) if matches!(op.as_str(), "≅" | "≇") => {
                 LCond::Tree(self.span(left)?, op == "≅", (**p).clone())
@@ -1291,7 +1308,7 @@ pub(crate) fn lower(
             splice_target: None,
             family: index as u32,
             name: rule.name.clone(),
-            helper: false,
+            helper: rule.query,
             prods: Vec::new(),
             elided: None,
             elided_test: None,
@@ -1511,7 +1528,7 @@ pub(crate) fn lower(
                 .filter_map(|(&i, _)| pending.sequence[i].1.as_ref().map(|name| (i, name.clone())))
                 .collect(),
             optionals: pending.sequence.optionals.clone(),
-            visible: !helper && pending.sequence.logical_width != 1,
+            visible: !helper && !grammar.rules[owner as usize].query && pending.sequence.logical_width != 1,
             syms,
             cap_at,
             cap_pos,
@@ -1529,7 +1546,7 @@ pub(crate) fn lower(
             suppress_warnings: Vec::new(),
             source: prods.len() as u32,
             splice: false,
-            tree_root: !helper,
+            tree_root: !helper && !grammar.rules[owner as usize].query,
             guard_conditions: Vec::new(),
             document: None,
             at: (0, 0),
@@ -1596,6 +1613,7 @@ pub(crate) fn lower(
                 cap_pos: &cap_pos,
                 rules: &grammar.index,
                 query_rules: &query_rules,
+                body_targets: &grammar.query_targets,
                 last: None,
                 whole: false,
                 site: None,
@@ -2029,7 +2047,7 @@ fn ranked_runtime(
     }
     for (id, p) in lowered.prods.iter().enumerate() {
         let Some(slot) = &p.slot else { continue };
-        if !p.tree_root {
+        if p.rule as usize >= grammar.rules.len() {
             let path = if let Some((group, _)) = slot.ranked {
                 let group = &grammar.ranked.groups[group];
                 debug_assert_eq!(slot.path, Some(group.expression));
@@ -2093,7 +2111,7 @@ fn ranked_runtime(
     let mut incoming = FxSet::default();
     let mut queue = Vec::new();
     for p in &lowered.prods {
-        if !p.tree_root {
+        if p.rule as usize >= grammar.rules.len() {
             continue;
         }
         let Some(slot) = &p.slot else { continue };
@@ -2140,6 +2158,7 @@ fn ranked_runtime(
                 cap_pos: &p.cap_pos,
                 rules: &grammar.index,
                 query_rules,
+                body_targets: &grammar.query_targets,
                 last: None,
                 whole: false,
                 site: None,
@@ -2242,6 +2261,7 @@ fn ranked_runtime(
                 cap_pos: &[],
                 rules: &grammar.index,
                 query_rules,
+                body_targets: &grammar.query_targets,
                 last: None,
                 whole: false,
                 site: None,
@@ -2496,7 +2516,8 @@ fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
         C(&'a Cond),
     }
     let mut stack = Vec::new();
-    let mut result = BTreeSet::new();
+    let mut result: BTreeSet<String> =
+        grammar.query_targets.values().filter(|name| is_terminal_name(name)).cloned().collect();
     let mut seen = FxSet::default();
     for rule in &grammar.rules {
         for a in &rule.alternatives {
@@ -2516,6 +2537,7 @@ fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
     while let Some(p) = stack.pop() {
         match p {
             Part::C(c) => match c {
+                Cond::Forest(term) => stack.push(Part::T(term)),
                 Cond::Matches(_, targets) | Cond::Begins(_, targets) | Cond::Ends(_, targets) => {
                     result.extend(targets.iter().filter(|s| is_terminal_name(s)).cloned())
                 }

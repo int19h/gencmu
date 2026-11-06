@@ -83,6 +83,7 @@ pub(crate) struct StitchedAlternative {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StitchedRule {
+    pub query: bool,
     pub name: String,
     pub alternatives: Vec<StitchedAlternative>,
     pub document: Arc<str>,
@@ -104,6 +105,7 @@ pub struct Change {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StageGrammar {
+    pub query_targets: FxMap<usize, String>,
     pub tree_comparisons: bool,
     pub tree_expressions: bool,
     pub features: Vec<(Arc<str>, crate::dom::Directive)>,
@@ -258,6 +260,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         }
     }
     let mut grammar = StageGrammar {
+        query_targets: Default::default(),
         tree_comparisons: false,
         tree_expressions: false,
         unicode: Arc::new(unicode.clone()),
@@ -370,6 +373,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                     text_order += rule.alternatives.len();
                     let error = |message: String| Err(located(message, document, rule.at));
                     let stitched = || StitchedRule {
+                        query: false,
                         name: rule.name.clone(),
                         alternatives: alternatives.clone(),
                         document: document.clone(),
@@ -550,6 +554,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         }
     }
     constants.substitute_rules(&mut grammar);
+    crate::query_forms::prepare(&mut grammar)?;
     constants.evaluate_tests(&mut grammar)?;
     grammar.implications = implications.into();
     if resolution.is_none() {
@@ -2715,6 +2720,7 @@ mod tests {
             let entries =
                 (0..n).map(|index| entry(index, true)).chain((0..n).map(|index| entry(index, false))).collect();
             StageGrammar {
+                query_targets: Default::default(),
                 tree_comparisons: false,
                 tree_expressions: false,
                 features: Vec::new(),
