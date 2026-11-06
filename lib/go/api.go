@@ -878,6 +878,9 @@ func (d *Pipeline) ParseTokens(text string, tokens []InputToken, options ParseOp
 		if len(t.Before) > 0 || len(t.After) > 0 {
 			return fail("a caller cannot supply attachments")
 		}
+		if len(t.Errors) > 0 || len(t.Warnings) > 0 {
+			return fail("a caller cannot supply diagnostics")
+		}
 		if s := t.Source; s[0] < 0 || s[0] > s[1] || s[1] > len(runes) {
 			return fail("the source is outside the text")
 		}
