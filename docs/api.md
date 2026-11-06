@@ -121,7 +121,7 @@ A `feature-conflict` error names a disabled feature whose conditional declaratio
 
 An `elision-only` error also has a witness, the pair of actions where its two readings first differ, visible if there is one (engine §7.10). Such an action can be a read of a written-back terminator, with its position and terminal. A `tie` error has no witness of its own. The tied stage holds it (`docs/output.md`).
 
-A check that cannot recognize its chosen reconstruction before filtering reports a `grammar` error with the code `elision-witness-lost` (engine §7.9). It marks a defect of the library, not of the text.
+The check passes only with the admitted restored witness's class as the sole best admitted class (engine §7.10). A check that cannot recognize its chosen reconstruction before filtering and erased collapse reports a `grammar` error with the code `elision-witness-lost` (engine §7.9). It marks a defect of the library, not of the text.
 
 Here, `grammar` is for a defect found only while parsing. One example is a nested parse asked about its own span as the same rule. Another is a classifier's entry that adds a class twice under the features of the parse.
 
