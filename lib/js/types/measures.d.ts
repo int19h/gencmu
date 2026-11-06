@@ -22,6 +22,10 @@ export declare function diagnosticRecord(diagnostic: object): {
 export declare function copyDiagnosticRecord(original: object, copy: object): object;
 export declare class Measures {
     sources: Sources;
+    /** @type {{measures:Measures,project:number[]}|null} */ original: {
+        measures: Measures;
+        project: number[];
+    } | null;
     nonempty: number[];
     /** @type {Measure[]} */
     carried: Measure[];

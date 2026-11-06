@@ -79,7 +79,6 @@ export type ErrorJson = {
     expected?: import("./types.js").Expectation[];
     readings?: NodeJson[];
     witness?: ActionJson[];
-    document?: string;
     message: string;
     chosen?: NodeJson;
     completion?: import("./types.js").Restoration[];

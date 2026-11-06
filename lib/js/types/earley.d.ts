@@ -581,12 +581,19 @@ export declare function rejectionOf(chart: Chart): {
  * is a terminal, and the predictions the lookahead did not make items of.
  * @param {Chart} chart
  * @param {number} position
+ * @param {Production[]} [skipped]
  * @returns {Expectation[]}
  */
-export declare function expectedAt(chart: Chart, position: number): Expectation[];
+export declare function expectedAt(chart: Chart, position: number, skipped?: Production[]): Expectation[];
 /** Lookahead omissions that passed their entry conditions, as virtual entries.
- * @param {Chart} chart @param {number} position @returns {Production[]} */
-export declare function skippedProductions(chart: Chart, position: number): Production[];
+ * @param {Chart} chart @param {number} position
+ * @param {{name?:string,accept?:(production:Production)=>boolean,cache?:Map<Production,boolean>}} [selection]
+ * @returns {Production[]} */
+export declare function skippedProductions(chart: Chart, position: number, selection?: {
+    name?: string;
+    accept?: (production: Production) => boolean;
+    cache?: Map<Production, boolean>;
+}): Production[];
 /**
  * @param {import("./types.js").Condition[]} conditions
  * @param {Token[]} tokens

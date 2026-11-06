@@ -1,3 +1,4 @@
+export type LineIndex = import("./source-lines.js").LineIndex;
 import { erasureAudit } from './erasure-audit.js';
 import { UnicodeTable } from "./unicode.js";
 import type { Condition, Expr, ParseResult, Span, StageReport, Argument, Production } from "./types.js";
@@ -5,10 +6,6 @@ import type { Token } from "./tokens.js";
 import type { Pipeline } from "./pipeline.js";
 import type { TraceEvent } from "./earley.js";
 import type { StitchedAlternative } from "./grammar.js";
-export type LineIndex = {
-    characters: string[];
-    breaks: number[];
-};
 /**
  * The line of the text holding a source range, and a caret line under the
  * range: at least one caret, at the end of the line for an empty range.
