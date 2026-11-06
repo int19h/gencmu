@@ -77,4 +77,7 @@ def query_references(body):
 
 
 def body_target(lowered, body):
-    return lowered.query_targets[query_identity(body)]
+    found = lowered.query_identities.get(id(body))
+    if found is None:
+        found = lowered.query_identities[id(body)] = (body, query_identity(body))
+    return lowered.grammar.query_targets[found[1]]

@@ -10,6 +10,7 @@ from dataclasses import dataclass, field, replace
 from copy import copy as shallow_copy
 from typing import AbstractSet, Any, Union, ClassVar
 
+from . import _testing
 from ._clauses import WHOLE, Emission, Prepared, captures_in, check_definition, rule_has_ranked, prepare, prepare_conditions, simplify_term, item_captures, mentioned_in
 from ._errors import ErrorData, GencmuError
 from ._memo import SharedMemo
@@ -154,6 +155,9 @@ class Grammar:
     implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
     families: dict[str, frozenset[str]] = field(default_factory=dict, repr=False, compare=False)
     query_terminals: frozenset[str] = field(default_factory=frozenset, repr=False, compare=False)
+    query_targets: dict[str, str] = field(default_factory=dict, repr=False, compare=False)
+    query_names: dict[str, str] = field(default_factory=dict, repr=False, compare=False)
+    query_rules: dict[str, Rule] = field(default_factory=dict, repr=False, compare=False)
     # The features that gate an entry of a classifier. Only these change
     # the classifiers.
     classifier_gates: frozenset[str] = field(init=False, repr=False, compare=False)
@@ -1147,7 +1151,40 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         tree_comparisons=has_trees,
     )
 
-    grammar.ranked = RankedGroups(stage, rules)
+    from ._query_forms import query_body, query_identity
+    from ._clause_walk import clause_children
+    from ._templates import _print_body
+    seen_queries = set()
+    for rule in rules.values():
+        for alt in rule.alternatives:
+            pending = [alt.conditions, alt.tags, alt.rule_tags, alt.emit]
+            while pending:
+                _testing.count("walkSteps")
+                node = pending.pop()
+                if not isinstance(node, (dict, list, tuple)) or id(node) in seen_queries:
+                    continue
+                seen_queries.add(id(node))
+                if isinstance(node, dict) and node.get("method") == "parse":
+                    body = query_body(node["args"][0]["body"])[0]
+                    key = query_identity(node["args"][0]["body"])
+                    if key not in grammar.query_targets:
+                        ref = body.get("ref")
+                        if ref is not None and not ref.startswith("_"):
+                            target = "\0query:" + ref if is_terminal_name(ref) else ref
+                        else:
+                            target = "\0parse:" + str(len(grammar.query_rules))
+                            source = replace(alt, guards=[], expr=body, tags=None, rule_tags={"emptySet": True},
+                                             conditions=[], erased=False, emit=None, value=None, image=None,
+                                             rule_value=None, rule_image=None, error=None, warning=None, suppress_warnings=())
+                            grammar.query_rules[target] = Rule(target, [source], alt.document, alt.at)
+                            grammar.query_names[target] = run(_print_body(body, unicode))
+                        grammar.query_targets[key] = target
+                pending.extend(reversed(clause_children(node)))
+    grammar.query_terminals |= frozenset(name[7:] for name in grammar.query_targets.values() if name.startswith("\0query:"))
+    for terminal in grammar.query_terminals:
+        grammar.query_names["\0query:" + terminal] = terminal
+    _resolve_tests(grammar.query_rules, constants)
+    grammar.ranked = RankedGroups(stage, {**rules, **grammar.query_rules})
     if default_nodes:
         defaults = _Lowerer(grammar, frozenset())
         for rule, alternative, node in default_nodes:
@@ -1402,6 +1439,8 @@ class Lowered:
     implications_by_tag: dict[str, list[int]] | None = None
 
     suffix_dependencies: dict[int, bool] = field(default_factory=dict, repr=False, compare=False)
+    carried_dependencies: dict[int, bool] = field(default_factory=dict, repr=False, compare=False)
+    query_identities: dict[int, tuple[Any, str]] = field(default_factory=dict, repr=False, compare=False)
     close_rules: frozenset[int] | None = None
     close_prefixes: list | None = None
     ranked_helpers: dict = field(default_factory=dict)
@@ -1480,7 +1519,7 @@ class _Lowerer:
             self._expand_plain = self._expand
             self._expand = self._expand_slot
         self.features = features
-        self.rule_names: list[str] = list(grammar.rules)
+        self.rule_names: list[str] = list(grammar.rules) + list(grammar.query_rules)
         self.rule_ids = {name: index for index, name in enumerate(self.rule_names)}
         self.rule_display: list[str] = list(self.rule_names)
         self.helper_expansions: dict[int, list[list[_Sym]]] = {}
@@ -1938,7 +1977,7 @@ class _Lowerer:
         return lowered
 
     def lower(self) -> Lowered:
-        for name, rule in self.grammar.rules.items():
+        for name, rule in itertools.chain(self.grammar.rules.items(), self.grammar.query_rules.items()):
             self.current = rule
             lhs = self.rule_ids[name]
             alternatives = [alt for alt in rule.alternatives if self.holds(alt.guards)]
@@ -1984,6 +2023,8 @@ class _Lowerer:
                 self.productions.append(replace(original, id=len(self.productions), lhs=alias, helper=True, splice_of=target, source_id=original.source_id if original.source_id is not None else original.id))
                 self.structural.append((alias, original.rhs, original.terminal))
         for production in self.productions:
+            if production.lhs < len(self.rule_names) and self.rule_names[production.lhs] in self.grammar.query_rules:
+                production.helper = True
             production.tree_root = not production.helper or production.splice_of is not None
         self.check_brace_items()
         rule_productions: list[list[int]] = [[] for _ in self.rule_names]

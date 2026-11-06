@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 NONE, ALONE, CONSTITUENT, OPTIONAL = 0, 1, 2, 3
 
 
-def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
+def eligible(forest: Forest, witnesses: list[int], error_free: bool = False) -> list[int]:
     """The completed items among ``witnesses`` that have an eligible proof
     tree in the forest's chart, in their order."""
     if not witnesses:
@@ -44,7 +44,7 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
     lowered = forest.lowered
     helpers = lowered.elidable_helpers
     errors = lowered.has_errors
-    if not helpers and not errors:
+    if not helpers and not errors and not error_free:
         return witnesses
     productions = lowered.productions
     prod, dot, edges = forest.prod, forest.dot, forest.edges
@@ -89,7 +89,7 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
             order.append(item)
     # With no omission, every item has a finite proof tree: the one in
     # which the recognizer made it.
-    if not omits and not errors:
+    if not omits and not errors and not error_free:
         return witnesses
 
     # From the whole chart, eligible or not: the items that advance over a
@@ -138,7 +138,7 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
     def boundary(item: int):
         return boundaries.get((prod[item], dot[item]), (NONE, None))
 
-    def prefixes(item: int, width: int, eligible_only: bool = False) -> set[int]:
+    def prefixes(item: int, width: int) -> set[int]:
         """Rewind the selected helper route to its own fixed prefix."""
         found = {item}
         for _ in range(width):
@@ -147,10 +147,6 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
                 for pred, kind, child, _ in edges[current]:
                     if kind not in (1, 2):
                         continue
-                    if eligible_only:
-                        permits = pred in has_p if kind == 2 and omitted(child) else pred in has_e
-                        if not permits or (kind == 2 and child not in has_e):
-                            continue
                     earlier.add(pred)
             found = earlier
         return found
@@ -189,45 +185,81 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
 
     after = {item: boundary(item) for item in order}
 
-    has_e: set[int] = set()
-    has_p: set[int] = set()
+    # Clean and dirty proof states remain separate through each E/P channel.
+    eligible_states, permits = [0] * len(edges), [0] * len(edges)
+    support, support_permits = [0] * len(edges), [0] * len(edges)
+    tokens = forest.context.tokens if forest.context is not None else forest.tokens
+    base = forest.base if forest.context is not None else 0
+
+    def combine(left, right):
+        return (left & right & 1) | (2 if left and right and (left | right) & 2 else 0)
+
+    def dirty_read(kind, child):
+        return kind in (1, 3) and bool(tokens[base + child].errors)
+
+    def group_permits(item, group, end, states, permissions, bit):
+        pending, seen = [(item, bit)], set()
+        while pending:
+            current, bit = pending.pop()
+            key = current, bit
+            if key in seen or not states[current] & bit:
+                continue
+            seen.add(key)
+            if dot[current] == group[1]:
+                if group_further.get(prefix_key(current, group), -1) < end:
+                    return True
+                continue
+            for pred, kind, child, _ in edges[current]:
+                if kind == 1:
+                    for before in (1, 2):
+                        if states[pred] & before and (2 if dirty_read(kind, child) else before) == bit:
+                            pending.append((pred, before))
+                elif kind == 2:
+                    before_states = permissions[pred] if omitted(child) else states[pred]
+                    for before in (1, 2):
+                        for child_bit in (1, 2):
+                            if before_states & before and states[child] & child_bit and combine(before, child_bit) == bit:
+                                pending.append((pred, before))
+        return False
+
     changed = True
     while changed:
         changed = False
         for item in order:
-            if forest.dot[item] == len(productions[forest.prod[item]].rhs) and productions[forest.prod[item]].error is not None:
-                continue
             what, group = after[item]
-            if item in has_e and (what == NONE or item in has_p):
-                continue
-            e = p = False
-            end = forest.end[item]
-            for pred, kind, child, _ in edges[item]:
-                if kind == 0:
-                    through = True
-                elif kind == 1:
-                    through = pred in has_e
-                else:
-                    through = (pred in has_p if omitted(child) else pred in has_e) and child in has_e
-                if not through:
-                    continue
-                e = True
-                if what == ALONE:
-                    p = item not in reads
-                elif what == CONSTITUENT and kind == 2 and further.get(pred, -1) < end:
-                    # The tree's own prefix before Y permits the omission.
-                    p = True
-                if p or what == NONE:
-                    break
-            if e and what == OPTIONAL:
-                p = any(
-                    prefix in has_e and group_further.get(prefix_key(prefix, group), -1) < end
-                    for prefix in prefixes(item, group[2], eligible_only=True)
-                )
-            if e and item not in has_e:
-                has_e.add(item)
-                changed = True
-            if p and item not in has_p:
-                has_p.add(item)
-                changed = True
-    return [witness for witness in witnesses if witness in has_e]
+            for raw in (True, False):
+                states, permissions = (support, support_permits) if raw else (eligible_states, permits)
+                e = p = 0
+                for pred, kind, child, _ in edges[item]:
+                    if kind in (0, 3):
+                        through = 2 if dirty_read(kind, child) else 1
+                    elif kind == 1:
+                        through = (2 if states[pred] else 0) if dirty_read(kind, child) else states[pred]
+                    else:
+                        through = combine(permissions[pred] if omitted(child) else states[pred], states[child])
+                    if not through:
+                        continue
+                    e |= through
+                    if what == ALONE and item not in reads:
+                        p |= through
+                    elif what == OPTIONAL:
+                        for bit in (1, 2):
+                            if through & bit and group_permits(item, group, forest.end[item], states, permissions, bit):
+                                p |= bit
+                    elif what == CONSTITUENT and kind == 2 and further.get(pred, -1) < forest.end[item]:
+                        p |= through
+                production = productions[prod[item]]
+                if dot[item] == len(production.rhs):
+                    if production.erased:
+                        e = 1 if support[item] or e else 0
+                        p = 1 if p else 0
+                    elif production.error is not None:
+                        e = 2 if raw and e else 0
+                        p = 2 if raw and p else 0
+                if states[item] | e != states[item]:
+                    states[item] |= e
+                    changed = True
+                if permissions[item] | p != permissions[item]:
+                    permissions[item] |= p
+                    changed = True
+    return [item for item in witnesses if eligible_states[item] & (1 if error_free else 3)]

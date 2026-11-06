@@ -17,7 +17,7 @@ def expression_children(expr):
 
 
 def clause_children(node):
-    if isinstance(node, list):
+    if isinstance(node, (list, tuple)):
         return node
     if not isinstance(node, dict) or "pattern" in node:
         return []
