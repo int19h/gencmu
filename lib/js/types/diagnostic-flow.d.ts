@@ -59,7 +59,6 @@ export declare class DiagnosticFlow {
     /** @type {WeakMap<object,Carrier>} */ carriers: WeakMap<object, Carrier>;
     main: EmissionScope;
     scopes: EmissionScope[];
-    /** @type {Map<EmissionScope,EmissionScope>} */ reportGroups: Map<EmissionScope, EmissionScope>;
     prefix: number[];
     next: any[];
     previous: number[];

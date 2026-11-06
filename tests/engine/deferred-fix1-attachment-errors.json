@@ -1,5 +1,5 @@
 {
-  "description": "Engine §11.5 and §12.1: attachment error groups retain raising order across tokens.",
+  "description": "Engine §11.5 and §12.1: attachment carrier errors use raising order, while reporting follows the chosen preorder.",
   "documents": {
     "p.md": "```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%rule text $a:A $b:old $c:C\n%emits $a, $b, $c\n%rule old B\n%error \"old\"\n%stage last\n%ambiguity-resolution greedy\n%rule text $p:pair $w:word\n%emits ($p) $w\n%rule pair $x:fresh $y:B\n%emits $x, $y\n%rule fresh A\n%error \"new\"\n%rule word C\n```\n"
   },
@@ -111,20 +111,6 @@
         "kind": "reported",
         "errors": [
           {
-            "stage": "before",
-            "code": "old",
-            "rule": "old",
-            "span": [
-              1,
-              2
-            ],
-            "source": [
-              2,
-              3
-            ],
-            "message": "old"
-          },
-          {
             "stage": "last",
             "code": "fresh",
             "rule": "fresh",
@@ -137,6 +123,20 @@
               1
             ],
             "message": "new"
+          },
+          {
+            "stage": "before",
+            "code": "old",
+            "rule": "old",
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ],
+            "message": "old"
           }
         ]
       }

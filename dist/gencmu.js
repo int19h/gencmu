@@ -16593,7 +16593,6 @@
       /** @type {WeakMap<object,Carrier>} */ this.carriers=new WeakMap();
       this.main=/** @type {EmissionScope} */({root,rows:[],carrier:null,unowned:emptyDiagnostics()});
       this.scopes=[this.main];
-      /** @type {Map<EmissionScope,EmissionScope>} */ this.reportGroups=new Map();
       const live=new Array(input.length).fill(0);
       const pending=[{node:root,parent:/** @type {Derivation|null} */(null),erased:false}];
       while(pending.length){
@@ -16630,19 +16629,8 @@
     }
     /** @returns {DiagnosticLists} */
     collected(){
-      const result=emptyDiagnostics(),events=this.events(),groups=new Map(),seen=new Set();
-      for(const event of events){
-        const group=this.reportGroups.get(this.info(event.node).scope);
-        if(group){const list=groups.get(group)??emptyDiagnostics();list[event.kind].push(event.diagnostic);groups.set(group,list);}
-      }
-      for(const event of events){
-        const group=this.reportGroups.get(this.info(event.node).scope);
-        if(!group){result[event.kind].push(event.diagnostic);continue;}
-        if(seen.has(group))continue;
-        seen.add(group);
-        const list=joinDiagnostics([groups.get(group)]);
-        for(const kind of /** @type {const} */(['errors','warnings']))for(const diagnostic of ordered(list[kind]))result[kind].push(diagnostic);
-      }
+      const result=emptyDiagnostics();
+      for(const event of this.events())result[event.kind].push(event.diagnostic);
       return joinDiagnostics([result]);
     }
     /** @param {Derivation} root @returns {EmissionScope} */
@@ -16675,7 +16663,6 @@
       for(const node of this.order){
         const info=this.info(node),parent=info.parent?this.info(info.parent).scope:this.main;
         info.scope=this.scopeRoots.get(node)??parent;
-        if(info.scope!==parent)this.reportGroups.set(info.scope,this.reportGroups.get(parent)??info.scope);
       }
       const buckets=new Map(),emissions=new Map(),nearest=new Map();
       for(const event of this.events()){
@@ -20658,12 +20645,11 @@
         report.tree=null;report.error=runtimeGrammarError(error.withLocation({stage:undefined}),this.name);return report;
       }
       competitorRejections(flow,chart);
-      const diagnosticData={collected:emptyDiagnostics(),evaluated:flow.messages()};
+      const diagnosticData={collected:flow.collected(),evaluated:flow.messages()};
       stageDiagnostics.set(report,diagnosticData);
       try{
         report.output=emit(derivation,context,flow);
         const unowned=flow.assign();report.errors=unowned.errors;report.warnings=unowned.warnings;
-        diagnosticData.collected=flow.collected();
       }catch(error){
         if(!(error instanceof GencmuError))throw error;
         report.output=null;report.error=runtimeGrammarError(error.withLocation({stage:undefined}),this.name);return report;
