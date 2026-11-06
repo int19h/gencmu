@@ -450,7 +450,7 @@ class Output(unittest.TestCase):
 
         def decode(text, *args, **kwargs):
             value = loads(text, *args, **kwargs)
-            if isinstance(value, dict) and value.get("format") == 16:
+            if isinstance(value, dict) and value.get("format") == 17:
                 value["ok"] = int(value["ok"])
             return value
 
@@ -465,7 +465,7 @@ class Output(unittest.TestCase):
         tags = json.dumps(sorted(result.stages[0].output[0].tags), ensure_ascii=False, separators=(",", ":"))
         self.assertTrue(
             text.startswith(
-                '{"format":16,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","value":"m","image":"m","tags":'
+                '{"format":17,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","value":"m","image":"m","tags":'
                 + tags + ',"span":[0,1],"source":[0,1]}'
             ),
             text,

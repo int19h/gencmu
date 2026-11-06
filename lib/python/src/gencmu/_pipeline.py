@@ -872,29 +872,43 @@ class Pipeline:
             return (isinstance(value, (list, tuple)) and len(value) == 2 and all(type(n) is int for n in value)
                     and 0 <= value[0] <= value[1] and (limit is None or value[1] <= limit))
 
+        if not isinstance(tokens, Sequence) or isinstance(tokens, (str, bytes)):
+            raise GencmuError("tokens requires a sequence", kind="usage")
+        supplied_tags = []
         for index, token in enumerate(tokens):
+            for field in ("errors", "warnings"):
+                values = getattr(token, field)
+                if not isinstance(values, list) or values:
+                    raise GencmuError(f"token {index} has diagnostics, which a caller cannot supply", kind="usage")
             if token.before or token.after:
                 raise GencmuError(f"token {index} has attachments, which a caller cannot supply", kind="usage")
             for field in ("text", "value", "image"):
                 value = getattr(token, field)
                 if not isinstance(value, str) or scalar_problem(value) is not None:
                     raise GencmuError(f"token {index}: {field} requires a scalar string", kind="usage")
-            if isinstance(token.tags, str) or not isinstance(token.tags, (list, tuple, set, frozenset)) or any(not is_tag(tag, self._unicode) for tag in token.tags):
+            tags = token.tags
+            if isinstance(tags, str) or not isinstance(tags, (list, tuple, set, frozenset)):
                 raise GencmuError(f"token {index}: invalid stored tags", kind="usage")
+            tags = list(tags)
+            if any(not is_tag(tag, self._unicode) for tag in tags):
+                raise GencmuError(f"token {index}: invalid stored tags", kind="usage")
+            supplied_tags.append(tags)
             if not valid_range(token.source, len(text)) or not valid_range(token.span):
                 raise GencmuError(f"token {index}: invalid source or span", kind="usage")
         enabled, off, last = self._parse_selection(features, without_features, until)
         tokens = [
             replace(
                 token,
-                tags=frozenset(self._unicode.canonical_tag(tag) if tag.startswith("_") else tag for tag in token.tags),
+                tags=frozenset(self._unicode.canonical_tag(tag) if tag.startswith("_") else tag for tag in tags),
                 span=(token.span[0], token.span[1]),
                 source=(token.source[0], token.source[1]),
                 before=[],
                 after=[],
                 inserted_by=None,
+                errors=[],
+                warnings=[],
             )
-            for token in tokens
+            for token, tags in zip(tokens, supplied_tags)
         ]
         return self._run(text, tokens, enabled, off, last, elision_only)
 
