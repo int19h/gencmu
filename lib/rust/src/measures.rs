@@ -46,8 +46,10 @@ impl Measures {
         let mut carried = Vec::with_capacity(tokens.len());
         nonempty.push(0);
         for token in tokens {
+            crate::work::count(crate::work::Work::Walked, 1);
             nonempty.push(nonempty.last().copied().unwrap() + usize::from(token.source.0 < token.source.1));
             let charge = token.errors.iter().fold(Measure::ZERO, |sum, diagnostic| {
+                crate::work::count(crate::work::Work::Walked, 1);
                 sum.add(&diagnostic.record.as_ref().expect("a carried diagnostic has a fixed charge").measure)
             });
             carried.push(charge);

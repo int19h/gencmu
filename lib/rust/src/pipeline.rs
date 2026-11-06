@@ -834,6 +834,7 @@ impl Pipeline {
         let check = elision.unwrap_or(grammar.elision_only);
         let mut ambiguous = None;
         if check
+            && ranking.profile.error_free()
             && (ranking.verdict == RankVerdict::Resolved || ranking.verdict == RankVerdict::Unique && has_elided(&tree))
         {
             match self.elision_check(index, shared, &input, &sources, &chosen, &lowered, &matchers, &grammar.steps) {

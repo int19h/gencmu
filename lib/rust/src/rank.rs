@@ -4,7 +4,7 @@
 //! When a key step of `%ambiguity-resolution` counts anything, a first pass
 //! gives every node of the forest, in each of its contexts, a *summary*:
 //! the greatest profile of its derivations, how many derivations attain it,
-//! how many there are in all, and which of its edges attain it. The entries
+//! how many attain its least measure, and which edges attain it. The entries
 //! below are then computed over only those edges, the forest of the best
 //! derivations.
 //!
@@ -24,6 +24,7 @@ use std::cmp::Ordering;
 use crate::earley::{test_holds, Cap, Chart, Item, Shared, Tok};
 use crate::grammar::{KeyStep, Lean, StepKind};
 use crate::lower::{Lowered, Sym, NO_TEST};
+use crate::measures::{Measure, Measures};
 use crate::nat::Nat;
 use crate::tags::{SetId, Tags};
 use crate::witness::{self, Fault, Marks, WitnessAct};
@@ -152,26 +153,26 @@ struct SlotCandidate {
     start: u32,
     end: u32,
     entry: String,
-    errors: Nat,
+    measure: Measure,
 }
 struct Counts {
-    errors: Nat,
+    measure: Measure,
     all: u8,
 }
 impl Default for Counts {
     fn default() -> Self {
-        Self { all: 0, errors: Nat::ZERO }
+        Self { all: 0, measure: Measure::ZERO }
     }
 }
 impl Counts {
-    fn offer(&mut self, errors: Nat, ways: u8) {
+    fn offer(&mut self, measure: Measure, ways: u8) {
         if ways == 0 {
             return;
         }
-        if self.all == 0 || errors < self.errors {
-            self.errors = errors;
+        if self.all == 0 || measure.compare(&self.measure).is_lt() {
+            self.measure = measure;
             self.all = ways.min(2);
-        } else if errors == self.errors {
+        } else if measure == self.measure {
             self.all = self.all.saturating_add(ways).min(2);
         }
     }
@@ -286,7 +287,7 @@ impl Admission {
                 let open = chart.boundaries.as_ref().map(|m| m.borrow().open(previous.boundary, cap.boundary));
                 let label = format!("{option:020}/{open:?}");
                 let candidate = SlotCandidate {
-                    errors: Nat::ZERO,
+                    measure: Measure::ZERO,
                     node,
                     edge,
                     label,
@@ -363,7 +364,7 @@ impl Ranker<'_> {
                     let ways = left.all;
                     if ways > 0 && right.all > 0 {
                         let mut candidate = candidate;
-                        candidate.errors = left.errors.add(&right.errors);
+                        candidate.measure = left.measure.add(&right.measure);
                         viable.push(candidate);
                     }
                 }
@@ -372,7 +373,7 @@ impl Ranker<'_> {
                     .filter(|proof| {
                         !viable.iter().any(|higher| {
                             higher.option < proof.option
-                                && higher.errors <= proof.errors
+                                && !higher.measure.compare(&proof.measure).is_gt()
                                 && match (&higher.open, &proof.open) {
                                     (Some(h), Some(l)) => h.dominates(l),
                                     (None, None) => true,
@@ -413,16 +414,32 @@ impl Ranker<'_> {
                     }
                     _ => true,
                 };
-                Counts { all: u8::from(valid), errors: Nat::ZERO }
+                Counts {
+                    all: u8::from(valid),
+                    measure: match self.raw_node(key.0) {
+                        Node::Read { tok, .. } => self.dag.carried_measure(tok),
+                        _ => Measure::ZERO,
+                    },
+                }
             }
             Deps::Close(None) => Counts::default(),
             Deps::Close(Some(k)) => {
                 let body = &a.counts[k];
-                let own = match self.raw_node(key.0) {
-                    Node::Close { set, index } => self.dag.g.prods[self.item(set, index).prod as usize].error.is_some(),
-                    _ => false,
+                let measure = match self.raw_node(key.0) {
+                    Node::Close { set, index } => {
+                        let item = self.item(set, index);
+                        let production = &self.dag.g.prods[item.prod as usize];
+                        if production.erased {
+                            Measure::ZERO
+                        } else if production.error.is_some() {
+                            body.measure.add(&self.dag.own_measure(item.origin, set))
+                        } else {
+                            body.measure.clone()
+                        }
+                    }
+                    _ => body.measure.clone(),
                 };
-                Counts { all: body.all, errors: if own { body.errors.add(&Nat::ONE) } else { body.errors.clone() } }
+                Counts { all: body.all, measure }
             }
             Deps::Group(members) => {
                 let mut result = Counts::default();
@@ -431,7 +448,7 @@ impl Ranker<'_> {
                         continue;
                     }
                     let c = &a.counts[k];
-                    result.offer(c.errors.clone(), c.all);
+                    result.offer(c.measure.clone(), c.all);
                 }
                 result
             }
@@ -446,7 +463,7 @@ impl Ranker<'_> {
                     let right = &a.counts[&child];
                     let ways = (left.all).saturating_mul(right.all).min(2);
                     if mask.map_or(true, |m| m[i]) {
-                        result.offer(left.errors.add(&right.errors), ways);
+                        result.offer(left.measure.add(&right.measure), ways);
                     }
                 }
                 result
@@ -689,9 +706,8 @@ impl Least {
         Least { profile, least: 1, total: 1, kept: vec![0] }
     }
 
-    /// Adds the derivations of the edge `index`. The total counts every
-    /// edge, losing ones included; the least count and the kept edges
-    /// count only those that attain the greatest profile.
+    /// Adds an edge and counts only derivations at the least measure.
+    /// The least count and kept edges also apply the written key steps.
     fn add(&mut self, profiles: &Profiles, index: u32, edge: &Least) {
         if edge.total == 0 {
             return;
@@ -699,7 +715,7 @@ impl Least {
         let error_order = if self.total == 0 {
             Ordering::Less
         } else {
-            Profiles::errors(&edge.profile).cmp(&Profiles::errors(&self.profile))
+            Profiles::measure(&edge.profile).compare(&Profiles::measure(&self.profile))
         };
         self.total = match error_order {
             Ordering::Less => edge.total.min(2),
@@ -761,6 +777,7 @@ pub(crate) struct Dag<'c> {
     g: &'c Lowered,
     chart: &'c Chart,
     tokens: &'c [Tok],
+    measures: Measures,
     /// The stored tag sets used by symbol tests (§4, §5).
     tags: &'c Tags,
     /// In the check of `elision-only`, O and π: a test of a reference reads
@@ -798,6 +815,25 @@ pub(crate) struct Ranker<'c> {
 impl<'c> Dag<'c> {
     fn item(&self, set: u32, index: u32) -> Item {
         self.chart.sets[set as usize].items[index as usize]
+    }
+
+    fn own_measure(&self, start: u32, end: u32) -> Measure {
+        match self.projection {
+            Some((_, project)) => self.measures.projected_own(project, start as usize, end as usize),
+            None => self.measures.own(start as usize, end as usize),
+        }
+    }
+    fn carried_measure(&self, tok: u32) -> Measure {
+        let at = match self.projection {
+            Some((_, project)) => {
+                if project[tok as usize] == project[tok as usize + 1] {
+                    return Measure::ZERO;
+                }
+                project[tok as usize]
+            }
+            None => tok,
+        };
+        self.measures.carried[at as usize].clone()
     }
 
     fn push(&mut self, node: DNode, vlen: Nat, flen: Nat) -> u32 {
@@ -1164,11 +1200,14 @@ impl<'c> Ranker<'c> {
         // rule can match a step. The readings then
         // come from the forest of the best derivations (§6).
         let profiles = Profiles::new(steps);
-        let decide = crate::ranking_patterns::can_count(g, steps);
+        let measures = Measures::new(tokens);
+        let decide = crate::ranking_patterns::can_count(g, steps)
+            || measures.carried.iter().any(|measure| *measure != Measure::ZERO);
         let mut dag = Dag {
             g,
             chart,
             tokens,
+            measures,
             tags: &shared.tags,
             projection: None,
             lean,
@@ -1213,8 +1252,10 @@ impl<'c> Ranker<'c> {
     /// whose tests of references read the projected span in O (§7.5).
     pub(crate) fn observing(mut self, observed: &'c [Tok], project: &'c [u32]) -> Ranker<'c> {
         self.dag.projection = Some((observed, project));
+        self.dag.measures = Measures::new(observed);
         // Every projected omission has an empty span, so these steps count nothing.
-        if !self.dag.g.prods.iter().any(|p| p.error.is_some())
+        if !self.dag.g.has_errors
+            && self.dag.measures.carried.iter().all(|measure| *measure == Measure::ZERO)
             && self.profiles.patterns.iter().all(crate::patterns::requires_elided)
         {
             self.summaries = None;
@@ -1663,6 +1704,10 @@ impl<'c> Ranker<'c> {
                         );
                     }
                 }
+                if let Node::Read { tok, .. } = node {
+                    let charge = self.profiles.measure_profile(&self.dag.carried_measure(tok));
+                    profile = self.profiles.sum(&profile, &charge);
+                }
                 plain(Least::one(profile))
             }
             Deps::Close(None) => plain(Least::NONE),
@@ -1687,8 +1732,11 @@ impl<'c> Ranker<'c> {
                 let (least, total) = (body.least, body.total);
                 let mut profile = body.profile.clone();
                 let profiles = &mut self.profiles;
-                if production.error.is_some() {
-                    profile = profiles.sum(&profile, &profiles.error());
+                if production.erased {
+                    profile = Profile::ZERO;
+                } else if production.error.is_some() {
+                    let charge = profiles.measure_profile(&self.dag.own_measure(origin, set));
+                    profile = profiles.sum(&profile, &charge);
                 }
                 if elides && self.dag.projection.is_none() {
                     let occurrence =
@@ -2031,13 +2079,16 @@ pub(crate) enum Component {
 }
 
 /// A derivation's counts of every pattern that a key step tests, one
-/// component per key step, in the order of the steps (§6). The profile
-/// with no component counts nothing.
+/// three measure components, then one per written key step (§6).
+/// The profile with no component counts nothing.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Profile(Vec<Component>);
 
 impl Profile {
     pub const ZERO: Self = Self(Vec::new());
+    pub(crate) fn error_free(&self) -> bool {
+        Profiles::measure(self).0[2] == Nat::ZERO
+    }
 }
 
 /// The profiles of one ranking: how the key steps of its directive count
@@ -2065,7 +2116,7 @@ pub(crate) struct Profiles {
 impl Profiles {
     pub(crate) fn new(steps: &[KeyStep]) -> Profiles {
         Profiles {
-            steps: std::iter::once(StepKind::Fewest).chain(steps.iter().map(|step| step.kind)).collect(),
+            steps: [StepKind::Fewest,StepKind::Fewest,StepKind::Most].into_iter().chain(steps.iter().map(|step| step.kind)).collect(),
             patterns: steps.iter().map(|step|step.pattern.clone()).collect(),
             answers: FxMap::default(),
             values: steps.iter().map(|step|step.pattern.walk().any(|part| matches!(part,crate::patterns::Part::Pattern(crate::patterns::Pattern::Test(op,_,_, _)) if op != "tags"))).collect(),
@@ -2075,15 +2126,20 @@ impl Profiles {
         }
     }
 
-    fn errors(profile: &Profile) -> Nat {
-        match profile.0.first() {
-            Some(Component::Count(n)) => n.clone(),
+    fn measure(profile: &Profile) -> Measure {
+        Measure(std::array::from_fn(|index| match profile.0.get(index) {
+            Some(Component::Count(value)) => value.clone(),
             _ => Nat::ZERO,
-        }
+        }))
     }
-    fn error(&self) -> Profile {
-        let mut components: Vec<_> = (0..self.steps.len()).map(|i| self.zero(i)).collect();
-        components[0] = Component::Count(Nat::ONE);
+    fn measure_profile(&self, measure: &Measure) -> Profile {
+        if *measure == Measure::ZERO {
+            return Profile::ZERO;
+        }
+        let mut components: Vec<_> = (0..self.steps.len()).map(|index| self.zero(index)).collect();
+        for (index, value) in measure.0.iter().enumerate() {
+            components[index] = Component::Count(value.clone());
+        }
         Profile(components)
     }
 
@@ -2133,12 +2189,12 @@ impl Profiles {
         q: u32,
     ) -> Profile {
         let mut components: Option<Vec<Component>> = None;
-        for index in 1..self.steps.len() {
+        for index in 3..self.steps.len() {
             let key = RankingNodeKey {
                 step: index,
                 name: name.map(str::to_owned),
                 terminal: terminal.map(str::to_owned),
-                value: self.values[index - 1].then(|| value.to_owned()),
+                value: self.values[index - 3].then(|| value.to_owned()),
                 set,
                 omitted,
             };
@@ -2149,7 +2205,7 @@ impl Profiles {
                     tags.list(set).iter().map(|&id| tags.name(id).to_owned()).collect()
                 };
                 crate::patterns::local_matches_with_value(
-                    &self.patterns[index - 1],
+                    &self.patterns[index - 3],
                     name,
                     terminal.map(|t| (t, value, names.as_slice())),
                     &names,
@@ -2228,25 +2284,31 @@ impl Profiles {
         tokens: &[Tok],
         tags: &Tags,
     ) -> Profile {
+        let measures = Measures::new(tokens);
         let mut error_profile = Profile::ZERO;
-        for node in &tree.nodes {
-            if let crate::tree::IKind::Close { prod, .. } = node.kind {
-                if g.prods[prod as usize].error.is_some() {
-                    error_profile = self.sum(&error_profile, &self.error());
-                }
-            }
-        }
         let mut occurrences = Vec::new();
-        for node in &tree.nodes {
+        let mut pending = vec![0usize];
+        while let Some(index) = pending.pop() {
+            work::count(Work::Walked, 1);
+            let node = &tree.nodes[index];
+            let mut erased = false;
             match node.kind {
-                crate::tree::IKind::Close { prod, start, end, tags, .. } if start < end => {
-                    let rule = &g.rules[g.prods[prod as usize].rule as usize];
-                    if !rule.helper {
+                crate::tree::IKind::Close { prod, start, end, tags, .. } => {
+                    let production = &g.prods[prod as usize];
+                    let rule = &g.rules[production.rule as usize];
+                    erased = production.erased;
+                    if !erased && production.error.is_some() {
+                        let charge = self.measure_profile(&measures.own(start as usize, end as usize));
+                        error_profile = self.sum(&error_profile, &charge);
+                    }
+                    if start < end && !rule.helper {
                         occurrences.push((start, end, Some(rule.name.as_str()), None, "", tags));
                     }
                 }
                 crate::tree::IKind::Read { tok, terminal } => {
                     let token = &tokens[tok as usize];
+                    let charge = self.measure_profile(&measures.carried[tok as usize]);
+                    error_profile = self.sum(&error_profile, &charge);
                     occurrences.push((
                         tok,
                         tok + 1,
@@ -2256,7 +2318,9 @@ impl Profiles {
                         token.tags,
                     ));
                 }
-                _ => {}
+            }
+            if !erased {
+                pending.extend(node.children.iter().rev().map(|index| *index as usize));
             }
         }
         occurrences.sort_by_key(|&(start, _, _, _, _, _)| start);
@@ -2319,6 +2383,203 @@ fn sum_spans(left: &[(u32, u32, Nat)], right: &[(u32, u32, Nat)]) -> Vec<(u32, u
 mod tests {
     use super::{Least, Nat, Ordering, Profile, Profiles, VNode, Vectors};
     use crate::work::{assert_linear, Work};
+
+    #[test]
+    fn deferred_ranking_uses_all_three_measure_components() {
+        // Engine §6: these shared cases require source fields that InputToken cannot hold.
+        for name in [
+            "shorter-blame",
+            "finer-errors",
+            "overlap-adds",
+            "source-gaps",
+            "sourceless-before-source",
+            "sourceless-clean",
+            "empty-tokens-nonempty-envelope",
+            "ranked-blame",
+            "ranked-finer-errors",
+            "verdict-before-keys",
+        ] {
+            let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join(format!("../../tests/engine/deferred-measure-{name}.json"));
+            let case = crate::json::parse(&std::fs::read_to_string(path).unwrap()).unwrap();
+            let grammar = case.get("grammar").unwrap().as_str().unwrap();
+            let resolution =
+                if grammar.contains("%ambiguity-resolution") { "" } else { "%ambiguity-resolution greedy\n" };
+            let document = format!("```jbogenbau\n%stage main\n{resolution}{grammar}\n```\n");
+            let pipeline = crate::load_pipeline_sources([("p.md", document)], "p.md").unwrap();
+            let grammar = pipeline.lowered_stage(0);
+            let chars: Vec<_> = case.get("input").unwrap().as_str().unwrap().chars().collect();
+            let mut shared = crate::earley::Shared::new(&pipeline.unicode, &chars);
+            let index = |value: &crate::json::Json| match value {
+                crate::json::Json::Int(value) => *value as usize,
+                _ => panic!("an index"),
+            };
+            let tokens: Vec<_> = case
+                .get("tokens")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|token| {
+                    let text = token.get("text").unwrap().as_str().unwrap();
+                    let source = token.get("source").unwrap().as_array().unwrap();
+                    crate::earley::Tok {
+                        text: text.into(),
+                        value: text.into(),
+                        image: text.into(),
+                        source: (index(&source[0]), index(&source[1])),
+                        tags: shared.tags.set_of(
+                            token.get("tags").unwrap().as_array().unwrap().iter().map(|tag| tag.as_str().unwrap()),
+                        ),
+                        sound: Default::default(),
+                        quiet: 0,
+                        before: Vec::new(),
+                        after: Vec::new(),
+                        errors: Vec::new(),
+                        warnings: Vec::new(),
+                    }
+                })
+                .collect();
+            let matchers = crate::earley::matchers(&grammar, &mut shared.tags);
+            let chart =
+                crate::earley::Recognizer { g: &grammar, matchers: &matchers, shared: &mut shared, recon: None }
+                    .recognize(&tokens, 0, grammar.start)
+                    .unwrap();
+            let mut ranker = super::Ranker::new(
+                &grammar,
+                &chart,
+                &tokens,
+                &shared,
+                &pipeline.stages[0].steps,
+                pipeline.stages[0].lean,
+            );
+            let ranking = ranker.rank().unwrap();
+            let expected = case.get("expect").unwrap().get("result").unwrap();
+            let verdict = match ranking.verdict {
+                super::Verdict::Unique => "unique",
+                super::Verdict::Resolved => "resolved",
+                super::Verdict::Tie => "tie",
+            };
+            assert_eq!(
+                verdict,
+                expected.get("stages").unwrap().as_array().unwrap()[0].get("verdict").unwrap().as_str().unwrap(),
+                "{name}"
+            );
+            let tree = crate::tree::build(&ranker, ranking.first);
+            let codes: Vec<_> = tree
+                .nodes
+                .iter()
+                .filter_map(|node| match node.kind {
+                    crate::tree::IKind::Close { prod, .. } if grammar.prods[prod as usize].error.is_some() => {
+                        Some(grammar.rules[grammar.prods[prod as usize].rule as usize].name.as_str())
+                    }
+                    _ => None,
+                })
+                .collect();
+            let expected_codes: Vec<_> = expected
+                .get("error")
+                .and_then(|error| error.get("errors"))
+                .and_then(crate::json::Json::as_array)
+                .into_iter()
+                .flatten()
+                .map(|error| error.get("code").unwrap().as_str().unwrap())
+                .collect();
+            assert_eq!(codes, expected_codes, "{name}");
+        }
+    }
+
+    #[test]
+    fn deferred_ranking_preserves_fixed_carried_charges() {
+        // Engine §6: public coordinates do not replace a carried diagnostic's charge.
+        let source="```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text left | right\n%rule left erased A\n%rule right A erased\n%rule erased A\n%erased\n```\n";
+        let pipeline = crate::load_pipeline_sources([("p.md", source)], "p.md").unwrap();
+        let grammar = pipeline.lowered_stage(0);
+        let text = ['a', 'a'];
+        let mut shared = crate::earley::Shared::new(&pipeline.unicode, &text);
+        let tokens: Vec<_> = [10, 1]
+            .into_iter()
+            .enumerate()
+            .map(|(index, charge)| {
+                let mut error =
+                    crate::result::Warning::new("before".into(), "fault".into(), 0..100, 0..100, "fault".into());
+                error.record = Some(std::sync::Arc::new(crate::measures::DiagnosticRecord {
+                    identity: std::sync::Arc::new(crate::measures::DiagnosticIdentity {
+                        stage_order: 0,
+                        ordinal: index,
+                    }),
+                    measure: crate::measures::Measure([Nat::Small(charge), Nat::ZERO, Nat::ONE]),
+                }));
+                crate::earley::Tok {
+                    text: "a".into(),
+                    value: "a".into(),
+                    image: "a".into(),
+                    tags: shared.tags.set_of(["A"]),
+                    source: (index, index + 1),
+                    sound: Default::default(),
+                    quiet: 0,
+                    before: Vec::new(),
+                    after: Vec::new(),
+                    errors: vec![error],
+                    warnings: Vec::new(),
+                }
+            })
+            .collect();
+        let matchers = crate::earley::matchers(&grammar, &mut shared.tags);
+        let chart = crate::earley::Recognizer { g: &grammar, matchers: &matchers, shared: &mut shared, recon: None }
+            .recognize(&tokens, 0, grammar.start)
+            .unwrap();
+        let mut ranker = super::Ranker::new(&grammar, &chart, &tokens, &shared, &[], crate::grammar::Lean::Neither);
+        let result = ranker.rank().unwrap();
+        assert_eq!(result.verdict, super::Verdict::Unique);
+        assert_eq!(Profiles::measure(&result.profile), crate::measures::Measure([Nat::ONE, Nat::ZERO, Nat::ONE]));
+        let tree = crate::tree::build(&ranker, result.first);
+        assert!(tree.nodes.iter().any(|node|matches!(node.kind,crate::tree::IKind::Close{prod,..} if grammar.rules[grammar.prods[prod as usize].rule as usize].name=="left")));
+    }
+
+    #[test]
+    fn deferred_reconstruction_projects_own_and_carried_charges() {
+        // Engine §7.7: a synthetic anchor adds no source and carries no original charge.
+        let source = "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text A\n```\n";
+        let pipeline = crate::load_pipeline_sources([("p.md", source)], "p.md").unwrap();
+        let grammar = pipeline.lowered_stage(0);
+        let shared = crate::earley::Shared::new(&pipeline.unicode, &[]);
+        let token = |source| crate::earley::Tok {
+            text: "a".into(),
+            value: "a".into(),
+            image: "a".into(),
+            tags: 0,
+            source,
+            sound: Default::default(),
+            quiet: 0,
+            before: Vec::new(),
+            after: Vec::new(),
+            errors: Vec::new(),
+            warnings: Vec::new(),
+        };
+        let mut original = vec![token((10, 11)), token((0, 1))];
+        let mut error = crate::result::Warning::new("before".into(), "fault".into(), 0..1, 0..1, "fault".into());
+        error.record = Some(std::sync::Arc::new(crate::measures::DiagnosticRecord {
+            identity: std::sync::Arc::new(crate::measures::DiagnosticIdentity { stage_order: 0, ordinal: 0 }),
+            measure: crate::measures::Measure([Nat::Small(7), Nat::ZERO, Nat::ONE]),
+        }));
+        original[1].errors.push(error);
+        let reconstruction = vec![original[0].clone(), token((500, 500)), original[1].clone()];
+        let chart = crate::earley::Chart::default();
+        let project = [0, 1, 1, 2];
+        let ranker = super::Ranker::new_unfiltered(
+            &grammar,
+            &chart,
+            &reconstruction,
+            &shared,
+            &[],
+            crate::grammar::Lean::Neither,
+        )
+        .observing(&original, &project);
+        assert_eq!(ranker.dag.own_measure(1, 3), crate::measures::Measure([Nat::ONE, Nat::ZERO, Nat::ONE]));
+        assert_eq!(ranker.dag.own_measure(1, 2), crate::measures::Measure([Nat::ZERO, Nat::ONE, Nat::ONE]));
+        assert_eq!(ranker.dag.carried_measure(1), crate::measures::Measure::ZERO);
+        assert_eq!(ranker.dag.carried_measure(2), crate::measures::Measure([Nat::Small(7), Nat::ZERO, Nat::ONE]));
+    }
 
     /// A node whose many edges all attain the least vector keeps them all,
     /// and asking of each edge whether it is kept costs about one step, not
