@@ -1,0 +1,17 @@
+{
+  "description": "Engine §3.6: conservative error nullability before feature filtering (warning).",
+  "grammar": "%rule text note A\n%rule note ε %warning \"note\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

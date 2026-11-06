@@ -1,6 +1,6 @@
 {
-  "description": "A single derivation at the least positive error count remains unique.",
-  "grammar": "%rule text one | two\n%rule one *bad\n%rule two *bad *empty\n%rule bad A %error \"bad\"\n%rule empty ε %error \"empty\"",
+  "description": "Engine §6: a single derivation at the best positive measure remains unique.",
+  "grammar": "%rule text one | two\n%rule one *bad\n%rule two *extra\n%rule bad A %error \"bad\"\n%rule extra *bad %error \"extra\"",
   "tokens": [
     {
       "text": "a",

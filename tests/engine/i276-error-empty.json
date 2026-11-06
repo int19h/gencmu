@@ -1,5 +1,5 @@
 {
-  "description": "An empty error occurrence retains its empty span and source.",
+  "description": "Engine §3.6: an empty error production fails while loading.",
   "grammar": "%rule text *bad A\n%rule bad ε %error \"empty\"",
   "tokens": [
     {
@@ -10,28 +10,6 @@
     }
   ],
   "expect": {
-    "result": {
-      "ok": false,
-      "stages": [
-        {
-          "name": "main",
-          "verdict": "unique"
-        }
-      ],
-      "error": {
-        "kind": "reported",
-        "errors": [
-          {
-            "code": "bad",
-            "rule": "bad",
-            "span": [
-              0,
-              0
-            ]
-          }
-        ]
-      }
-    },
-    "error": "reported"
+    "error": "grammar"
   }
 }
