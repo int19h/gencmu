@@ -152,7 +152,7 @@ pub(crate) fn notes(g: &StageGrammar) -> Vec<DiagnosticNote> {
     }
     let mut roots_cache = FxMap::default();
     let mut definition_roots = FxMap::<usize, Targets>::default();
-    let mut queries = FxMap::<(usize, usize), Targets>::default();
+    let mut queries = FxMap::<(usize, usize), Vec<(String, u8)>>::default();
     let mut guarded = FxMap::<usize, bool>::default();
     let order: BTreeMap<_, _> = g.rules.iter().enumerate().map(|(index, rule)| (rule.name.as_str(), index)).collect();
     let mut notes = Vec::new();
@@ -198,11 +198,17 @@ pub(crate) fn notes(g: &StageGrammar) -> Vec<DiagnosticNote> {
                 if let Some(own) = &own_roots {
                     merge(&mut roots, own);
                 }
-                closure(&edges, roots)
+                let mut targets: Vec<_> = closure(&edges, roots)
+                    .into_iter()
+                    .filter(|(name, _)| {
+                        work::count(Work::Walked, 1);
+                        errors.contains(name)
+                    })
+                    .collect();
+                targets.sort_by_key(|(name, _)| order[name.as_str()]);
+                targets
             });
-            let mut targets: Vec<_> = reached.iter().filter(|(name, _)| errors.contains(*name)).collect();
-            targets.sort_by_key(|(name, _)| order[name.as_str()]);
-            for (target, bits) in targets {
+            for (target, bits) in reached.iter() {
                 for bit in [1, 2] {
                     if bits & bit == 0 {
                         continue;
@@ -287,10 +293,22 @@ mod tests {
     #[test]
     fn deferred_audit_walks_shared_clauses_and_effects_once() {
         // Design, Diagnostics and debugging: audit work grows with input and output.
-        for family in ["chain", "conditions", "emission"] {
+        for family in ["chain", "conditions", "emission", "query annotations"] {
             let mut counts = Vec::new();
             for n in [50, 200] {
-                let grammar = if family == "chain" {
+                let grammar = if family == "query annotations" {
+                    let alternatives = (0..n).map(|i| format!("$c{i}:A :: T{i}")).collect::<Vec<_>>().join(" | ");
+                    let conditions = (0..n).map(|i| format!("$c{i}.parse(r0)")).collect::<Vec<_>>().join(", ");
+                    let mut grammar = format!("%rule text :: $.tags(r0) | {alternatives}\n%conditions {conditions}");
+                    for i in 0..n {
+                        grammar.push_str(&format!(
+                            "\n%rule r{i} {}",
+                            if i + 1 == n { "A".into() } else { format!("r{}", i + 1) }
+                        ));
+                    }
+                    grammar.push_str("\n%error \"fault\"\n%erased");
+                    grammar
+                } else if family == "chain" {
                     let mut grammar = "%rule text gone\n%rule gone r0\n%erased".to_string();
                     for index in 0..n {
                         let target = if index + 1 == n { "A".into() } else { format!("r{}", index + 1) };
@@ -320,6 +338,10 @@ mod tests {
                 work::reset();
                 if family == "chain" {
                     assert!(reports[0].erasures[0].effects.iter().any(|effect| effect == "counted-parts"));
+                }
+                if family == "query annotations" {
+                    assert_eq!(reports[0].diagnostic_notes.len(), 1);
+                    assert_eq!(reports[0].diagnostic_notes[0].target, Some(format!("r{}", n - 1)));
                 }
                 eprintln!("{family} n={n}: {count} audit steps");
                 counts.push(count);

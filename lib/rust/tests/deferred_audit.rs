@@ -60,3 +60,31 @@ fn extensions_keep_their_possible_derivation_choice() {
     assert_eq!(report.erasures.iter().map(|entry| entry.kind.as_str()).collect::<Vec<_>>(), ["semantic", "semantic"]);
     assert!(report.idle_erasures.is_empty());
 }
+
+#[test]
+fn cached_queries_keep_alternative_targets_and_extension_locations() {
+    // Engine §2: each definition retains its own clauses and annotation locations.
+    let mut grammar = "%rule text :: $.tags(common) | A :: $.tags(first) | A :: $.tags(second)\n%conditions $.parse(target), $.parse(target).error-free\n%extend-rule text A :: $.tags(first)\n%conditions $.parse(other).error-free\n".to_string();
+    for name in ["common", "first", "second", "target", "other"] {
+        grammar.push_str(&format!("%rule {name} A\n%error \"fault\"\n%erased\n"));
+    }
+    let report = report(&grammar);
+    let mut got: Vec<_> = report
+        .diagnostic_notes
+        .iter()
+        .filter(|note| note.kind == "query-error")
+        .map(|note| (note.line, note.target.as_deref().unwrap(), note.filtered))
+        .collect();
+    let mut expected = vec![
+        (4, "common", false),
+        (4, "first", false),
+        (4, "second", false),
+        (4, "target", false),
+        (4, "target", true),
+        (6, "first", false),
+        (6, "other", true),
+    ];
+    got.sort();
+    expected.sort();
+    assert_eq!(got, expected);
+}
