@@ -185,7 +185,9 @@ For these three envelopes, `warnings` equals the result's complete warning colle
     The engine counts admitted derivations with the best blame measure. It collapses erased interiors with equal observable states (engine §6). Other transparent closes and equal trees do not merge derivations. The stage's witness then names the actions where they differ.
 
     Errors and result warnings come from the two shown readings only, after pending earlier stage-level diagnostics. Carried identities deduplicate across readings. Own-stage diagnostics use maximum multiplicity of each complete diagnostic object, including `rejection`, across the readings. The second reading adds only occurrences beyond the number already collected.
-  - `elision-only`: The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. Engine §7.10 defines this decision. The stage's verdict is `unique` or `resolved`, and it keeps its output. The first reading is W(D), the restored chosen derivation. The second is its deterministic competitor (engine §7.10). This order also applies without ranked groups or key steps.
+  - `elision-only`: If filtering excludes the restored chosen derivation, the check fails. Otherwise, its collapsed class must be the sole best admitted class of the written-back text. Engine §7.10 defines this decision. The stage's verdict is `unique` or `resolved`, and it keeps its output.
+
+    The first reading represents W(D), the restored chosen derivation. An admitted reading shows its class's kept interior. An excluded W(D) remains the concrete raw restored reading. The second is its deterministic competitor (engine §7.10). This order also applies without ranked groups or key steps.
 
     The readings hold the written-back terminators as elided nodes (engine §7.10). One can be a restored optional's terminator. One can also be a terminator that a reading reads on the written route of an optional, or as a bare terminal. So the two readings can be equal as `NODE` values, as a tie's can.
 
