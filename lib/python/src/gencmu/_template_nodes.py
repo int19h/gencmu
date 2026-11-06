@@ -79,9 +79,9 @@ def map_nodes(root, transform):
 
 
 def normalize_argument(root, patterns=frozenset()):
-    def normalized(value):
+    def normalized(value, parse_argument):
         if isinstance(value, dict):
-            if 'body' in value:
+            if 'body' in value and not parse_argument:
                 return argument_of_expression(value['body'])
             for key in ('union', 'concat', 'intersection'):
                 if key == 'intersection' and not pattern_term(value, patterns):
@@ -89,7 +89,29 @@ def normalize_argument(root, patterns=frozenset()):
                 if isinstance(value.get(key), list):
                     value[key] = [v for n in value[key] for v in n.get(key, [n])]
         return value
-    return map_nodes(root, normalized)
+    result = [None]
+    pending = [(root, result, 0, False, False)]
+    while pending:
+        node, parent, key, complete, parse_argument = pending.pop()
+        if complete:
+            parent[key] = normalized(parent[key], parse_argument)
+        elif isinstance(node, (dict, list)):
+            value = copy(node)
+            parent[key] = value
+            pending.append((None, parent, key, True, parse_argument))
+            if isinstance(node, dict) and node.get('method') == 'parse':
+                for slot, child in reversed(list(node.items())):
+                    if slot == 'args':
+                        value[slot] = list(child)
+                        pending.extend((arg, value[slot], index, False, True) for index, arg in reversed(list(enumerate(child))))
+                    else:
+                        pending.append((child, value, slot, False, False))
+            else:
+                children = list(node.items()) if isinstance(node, dict) else list(enumerate(node))
+                pending.extend((child, value, slot, False, False) for slot, child in reversed(children))
+        else:
+            parent[key] = node
+    return result[0]
 
 
 def identity(value):

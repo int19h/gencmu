@@ -126,6 +126,10 @@ def _print_argument(n, unicode):
                 text = yield _print_argument(value, unicode)
                 parts.append('(' + text + ')' if term_group(value, key, i) else text)
             return op.join(parts)
+    if n.get('method') == 'parse':
+        return (yield _print_argument(n['receiver'], unicode)) + '.parse(' + (yield _print_body(n['args'][0]['body'], unicode)) + ')'
+    if 'remainder' in n:
+        return '…'
     if 'method' in n:
         separator = ' | ' if n['method'] in ('matches', 'begins', 'ends', 'followed-by', 'preceded-by') else ', '
         args = yield _print_join(n['args'], unicode, _print_argument, separator)
@@ -463,6 +467,8 @@ def expand_templates(documents, unicode):
                     replacement = env.get(arg.get('param'), {})
                     if query and 'targets' in replacement:
                         result[key].extend(convert(x, 'target', event, arg) for x in replacement['targets'])
+                    elif root['method'] == 'parse':
+                        result[key].append({'body': (yield substitute_walk(arg['body'], env, event, 'expr'))})
                     else:
                         result[key].append((yield substitute_walk(arg, env, event, 'target' if target else 'term')))
                 continue

@@ -41,7 +41,7 @@ Dom = dict[str, Any]
 _MAPPED = frozenset("""directive argument-word argument-string argument-tag argument-term rule definer ranking-directive ranking-step rule-name body headed-body alternative ranked-alternative ranked-choice guard splice error-clause warning-clause suppress-warnings-clause suppression-code alternative-tags
 choice conjunction sequence primary repetition reference string-terminal string tag wildcard name tested tag-test tag-requirement value-test default-value test test-operand capture
  group optional empty tags-clause value-clause image-clause recipe recipe-atom conditions-clause emits-clause erased-clause emit-item emit-target emit-tags emit-before
-emit-after implication any-of all-of condition comparison comparator tree-comparator negation presence method method-receiver method-selector method-name arguments argument term guarded-term
+emit-after implication any-of all-of condition comparison comparator tree-comparator negation presence method method-receiver method-selector parse-selector parse-argument method-name arguments argument term guarded-term
 union intersection concatenation term-atom tag-run string-run integer empty-set capture-reference range constant-definition constant-definer
 constant-reference classifier classifier-name classifier-entry classifier-key classifier-operator classifier-class
 implication-declaration tree-comparison pattern-literal pattern-union pattern-intersection pattern-atom pattern-brackets pattern-repeat pattern-path pattern-primary pattern-node pattern-bare pattern-children child-choice child-alternative child-set child-intersection child-sequence child-item child-path child-primary call parameter call-argument requirement-argument target-argument body-argument symbol-argument""".split())
@@ -1039,13 +1039,42 @@ class DomBuilder:
     def _method(self, node: Node) -> Walk:
         receiver = yield self._term(self.only(self.only(node, "method-receiver"), "term-atom"))
         for selector in self.some(node, "method-selector"):
-            name = self.token_value(self.token(self.only(selector, "method-name")))
+            parsed = self.one(selector, "parse-selector")
+            name = "parse" if parsed is not None else self.token_value(self.token(self.only(selector, "method-name")))
             if name not in _METHODS:
                 raise self.fail(node, 'unknown method ' + name)
             if self.closed_for and name not in ("split", "ngrams"):
                 raise self.fail(node, f"{self.closed_for} cannot read an input method")
             arguments = self.one(selector, "arguments")
             args = []
+            if parsed is not None:
+                from ._query_forms import query_body, query_capture
+                from . import _testing
+                argument = self.only(parsed, "parse-argument")
+                body = yield self._expr(self.only(argument, "choice"), True)
+                if query_capture(body):
+                    pending = [argument]
+                    binder = argument
+                    while pending:
+                        _testing.count("walkSteps")
+                        child = pending.pop()
+                        if child.kind != "rule":
+                            continue
+                        if child.rule == "capture":
+                            binder = child
+                            break
+                        pending.extend(reversed(child.children))
+                    raise self.fail(binder, "a parse argument cannot declare captures")
+                markers = [child for child in self.kids(argument) if child.kind == "token" and self.token_value(child) == "…"]
+                if len(markers) > 1:
+                    raise self.fail(markers[1], "a remainder stands at one outer edge of a parse argument")
+                if markers:
+                    first = self.kids(argument)[0] is markers[0]
+                    body = {"seq": [{"remainder": True}, body] if first else [body, {"remainder": True}]}
+                problem = query_body(body)[2]
+                if problem:
+                    raise self.fail(argument, problem)
+                args.append({"body": body})
             argument_nodes = self.some(arguments, "argument") if arguments else []
             for part in argument_nodes:
                 integer = self.one(part, "integer")
@@ -1085,7 +1114,7 @@ class DomBuilder:
             if name in ("without-elision", "without-elision-except") and set(receiver) != {"capture"}:
                 problem = "without-elision requires a bare capture: write $x.without-elision.onward" if name == "without-elision" else "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward"
             if problem is not None and not self.feature_context and not dependent:
-                if not (problem.startswith('without-elision') or problem.startswith('ends requires') or problem == 'split has an empty delimiter'):
+                if not (problem.startswith('without-elision') or problem.startswith(('ends requires', 'suffix parse requires')) or problem == 'split has an empty delimiter'):
                     if name == 'without-elision':
                         problem = 'without-elision requires a bare capture: write $x.without-elision.onward'
                     elif name == 'without-elision-except':
@@ -1100,7 +1129,7 @@ class DomBuilder:
             self.boundary_nodes[id(receiver)] = node
             kind, problem = term_type(receiver, memo=self.types)
             if problem and not self.feature_context:
-                specific = problem.startswith(("without-elision", "ends requires")) or problem == "split has an empty delimiter"
+                specific = problem.startswith(("without-elision", "ends requires", "suffix parse requires")) or problem == "split has an empty delimiter"
                 raise self.fail(node, problem if specific else "a method has the wrong receiver or arguments")
         return receiver
 

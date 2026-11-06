@@ -22,7 +22,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 45
+FORMAT = 46
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -695,7 +695,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                 keys == {"captured"}
                 and _capture(node["captured"])
                 or keys == {"method", "receiver", "args"}
-                and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by")
+                and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by")
             ):
                 return "a malformed condition"
             keep_type(None if id(node) in deferred else condition_type_fault(node, memo=types), node)
@@ -727,7 +727,18 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                 keep_type(("split has an empty delimiter", node), node)
             pending.append(("recipe-method" if recipe else "term", node["receiver"], below, False, False))
             for arg in node["args"]:
-                if isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}, {"terminal"}, {"integer"}):
+                if isinstance(arg, dict) and "body" in arg:
+                    from ._query_forms import query_body, query_capture
+                    if node["method"] != "parse" or set(arg) != {"body"}:
+                        return "a malformed parse argument"
+                    body, mode, problem = query_body(arg["body"])
+                    if problem:
+                        return problem
+                    if query_capture(body):
+                        return "a parse argument cannot declare captures"
+                    depth = below + (1 if mode != "matches" and len(arg["body"]["seq"]) == 2 else 0)
+                    pending.append(("expr", body, depth, False, True))
+                elif isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}, {"terminal"}, {"integer"}):
                     key = next(iter(arg))
                     if key == "integer":
                         if node["method"] != "ngrams" or not isinstance(arg[key], str) or re.fullmatch(r"[1-9][0-9]*", arg[key]) is None:
