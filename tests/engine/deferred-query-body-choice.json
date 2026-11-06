@@ -1,0 +1,23 @@
+{
+  "description": "Engine §3.10 and §4: parse keeps its body and uses the selected query mode.",
+  "grammar": "%rule text {_}\n%conditions $.parse(A | B).error-free",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

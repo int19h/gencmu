@@ -248,7 +248,7 @@ function normalizationRows(text) {
 // including intentional usage errors. Unknown members are always errors.
 function tokenMembers(value) {
   if (!Array.isArray(value)) return ["expected an array of token objects"];
-  const allowed = ["text", "tags", "span", "source", "value", "image", "before", "after"];
+  const allowed = ["text", "tags", "span", "source", "value", "image", "before", "after", "errors", "warnings"];
   const pending = value.map((token, index) => [token, `[${index}]`]), problems = [];
   while (pending.length) {
     const [token, at] = pending.pop();
