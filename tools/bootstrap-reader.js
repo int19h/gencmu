@@ -39,7 +39,7 @@ export function readResource(key) {
 // their own in the lexer.
 const LAYERED_SYMBOLS = new Set(["«", "»", "·"]);
 const SYMBOLS = new Set(["*", "+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=",
-  "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻", "≝"]);
+  "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻", "≝", "…"]);
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%conditions", "%error", "%warning", "%suppress-warnings", "%emits", "%erased",
   "%ambiguity-resolution", "%elision-only", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
@@ -900,6 +900,17 @@ class Parser {
       const at = this.index;
       const selector = [this.tok()];
       if (!this.is("identifier") && !this.is("call-name")) this.fail("expected a method name");
+      if (this.peek().value === "parse") {
+        const parsed = [this.tok(), this.expect("(")];
+        const argumentAt = this.index, argument = [];
+        if (this.is("…")) argument.push(this.tok());
+        argument.push(yield this.choice());
+        if (this.is("…")) argument.push(this.tok());
+        parsed.push(this.node("parse-argument", argumentAt, argument), this.expect(")"));
+        selector.push(this.node("parse-selector", at + 1, parsed));
+        children.push(this.node("method-selector", at, selector));
+        continue;
+      }
       selector.push(this.leaf("method-name"));
       if (this.is("(")) {
         selector.push(this.tok());

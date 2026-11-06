@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r $x:A<B>=\"a\"\n```\n",
   "expect": {
     "dom": {
-      "format": 45,
+      "format": 46,
       "rules": [
         {
           "name": "r",

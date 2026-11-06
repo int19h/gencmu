@@ -1,0 +1,34 @@
+{
+  "description": "Engine §4 and §9: parse retains its body and outer remainder in DOM format 46.",
+  "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%conditions $.parse(A).error-free\n```\n",
+  "cacheMisses": true,
+  "expect": {
+    "dom": {
+      "format": 46,
+      "rules": [
+        {
+          "name": "text",
+          "conditions": [
+            {
+              "method": "error-free",
+              "receiver": {
+                "method": "parse",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": [
+                  {
+                    "body": {
+                      "ref": "A"
+                    }
+                  }
+                ]
+              },
+              "args": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
