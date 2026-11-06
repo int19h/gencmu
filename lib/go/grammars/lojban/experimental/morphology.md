@@ -138,14 +138,13 @@ An extended rafsi is a whole or shortened word before a y-hyphen. It has a class
 %redefine-rule stressed-extended-rafsi  (* The stressed borrowing head excludes rafsi strings, including stressed-hy-rafsi. Only one extended form can complete at this start. *)
   stressed-hy-rafsi | stressed-fuhivla-rafsi
 
-%redefine-rule long-rafsi-vowel (* The long classical form appends an unstressed vowel to a long rafsi. *)
-  long-rafsi unstressed-vowel
+%redefine-rule hy-rafsi = hy-rafsi-of(unstressed-vowel, unstressed-diphthong, unstressed-vowel, [h])  (* The long classical form appends an unstressed vowel to a long rafsi in this layer. *)
 ```
 
-<details><summary>Railroad diagrams of the 3 rules from <code>extended-rafsi</code> to <code>long-rafsi-vowel</code></summary>
+<details><summary>Railroad diagrams of the 3 rules from <code>extended-rafsi</code> to <code>hy-rafsi</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/extended-rafsi.svg" alt="Railroad diagram of the rule extended-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/stressed-extended-rafsi.svg" alt="Railroad diagram of the rule stressed-extended-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/morphology/long-rafsi-vowel.svg" alt="Railroad diagram of the rule long-rafsi-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/morphology/hy-rafsi.svg" alt="Railroad diagram of the rule hy-rafsi"></p>
 </details>
 
 A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` rejects that start with a CCV rafsi, `'y` and the next onset, which `slihykru` tests. This onset includes CgV, so `bla'ykuiska`, `kla'ykuiska` and `bla'ytcuiska` are foreign too. Thus `kerlybla'ykla` is one word, but `bla'ykla` is not. The plain and stressed CCV choices need no order because their vowel stress differs. Only `brivla` reads `slihykru`.

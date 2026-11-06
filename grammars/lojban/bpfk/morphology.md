@@ -385,15 +385,32 @@ The slinku'i test and a borrowing's head look for a string of rafsi. That is any
 
 The core of a brivla ends it, and a pause or another word follows it. Its final syllable has a nucleus with no stress mark and is not followed by a name.
 
-```jbogenbau
-%rule gismu  (* A root ends with a valid final syllable at a complete word boundary. *)
-  gismu-start $c:consonant $v:vowel
-%conditions
-  $c.onward.begins(final-syllable),
-  $v.following-tokens.begins(post-word)
+Each rafsi shape stands once as a template.
 
-%rule gismu-start             (* `initial_pair stressed_vowel / consonant stressed_vowel consonant`. The second letter is a consonant in one form and a vowel in the other. *)
-  initial-pair stressed-vowel | consonant stressed-vowel consonant
+The stress argument of a template is one stress unit.
+
+The units are `stressed-vowel`, `unstressed-vowel`, `stressed-diphthong` and `unstressed-diphthong`.
+
+Plain `vowel` or `diphthong` as an argument means either stress.
+
+The two plain units cover the stressed unit and the unstressed unit of each kind.
+
+The tail of the `y` templates is an argument, `[h]` or `ε`.
+
+The first vowel of the apostrophe form of CVV stays unstressed in each binding.
+
+The long apostrophe-y body takes its own final-vowel argument.
+
+A layer can change that vowel without a change to the other parts.
+
+`gismu` reads the stressed long shape and one more vowel.
+
+```jbogenbau
+%rule gismu  (* A root is the stressed long shape and a vowel. It ends with a valid final syllable at a complete word boundary. *)
+  $s:stressed-long-rafsi $v:vowel
+%conditions
+  $s.last-token.onward.begins(final-syllable),
+  $v.following-tokens.begins(post-word)
 
 %rule cvv-final-rafsi  (* A CVV final rafsi ends with a valid final syllable at a complete word boundary. *)
   consonant stressed-vowel h $v:vowel
@@ -410,58 +427,86 @@ The core of a brivla ends it, and a pause or another word follows it. Its final 
 %rule short-final-body        (* `consonant diphthong / initial_pair vowel`. The second letter is a vowel in one form and a consonant in the other. *)
   consonant diphthong | initial-pair vowel
 
-%rule stressed-y-rafsi  (* A stressed long rafsi or CVC rafsi ends before y. The forms differ in their second letter, or a consonant follows the CVC prefix before the long form reaches y. *)
-  stressed-long-rafsi y | stressed-cvc-rafsi y
+%rule cvc-rafsi-of(@V)  (* A CVC rafsi has the given vowel unit between two consonants. *)
+  consonant @V consonant
+
+%rule ccv-rafsi-of(@V)  (* A CCV rafsi ends in the given vowel unit after an initial consonant pair. *)
+  initial-pair @V
+
+%rule long-rafsi-of(@V)  (* A long rafsi has the given vowel unit and one or two consonants after it. The forms differ in their second letter. *)
+  initial-pair @V consonant | consonant @V consonant consonant
+
+%rule cvv-rafsi-of(@V, @D)  (* A CVV rafsi begins with a consonant. Its apostrophe form keeps its first vowel unstressed. An r-hyphen can follow either form. *)
+  consonant (unstressed-vowel h @V | @D) [r-hyphen]
+
+%rule short-rafsi-of(@V, @D)  (* A short rafsi is a CVC, CCV or CVV rafsi with the given units. The forms differ in their second or third letter. *)
+  cvc-rafsi-of(@V) | ccv-rafsi-of(@V) | cvv-rafsi-of(@V, @D)
+
+%rule y-rafsi-of(@V, @T)  (* A long rafsi or CVC rafsi with the given unit ends before y. The tail after y is an argument. *)
+  (long-rafsi-of(@V) | cvc-rafsi-of(@V)) y @T
+
+%rule hy-rafsi-of(@V, @D, @LV, @T)  (* A classical body ends with apostrophe-y. The long body takes its own final-vowel argument. *)
+  (long-rafsi @LV | ccv-rafsi-of(@V) | cvv-rafsi-of(@V, @D)) h y @T
+
+%rule cvc-rafsi = cvc-rafsi-of(unstressed-vowel)  (* A CVC rafsi has an unstressed vowel between two consonants. *)
+
+%rule stressed-cvc-rafsi = cvc-rafsi-of(stressed-vowel)  (* A stressed CVC rafsi has a stressed vowel between two consonants. *)
+
+%rule ccv-rafsi = ccv-rafsi-of(unstressed-vowel)  (* A CCV rafsi ends in an unstressed vowel after an initial consonant pair. *)
+
+%rule stressed-ccv-rafsi = ccv-rafsi-of(stressed-vowel)  (* A stressed CCV rafsi ends in a stressed vowel after an initial consonant pair. *)
+
+%rule long-rafsi = long-rafsi-of(unstressed-vowel)  (* A long rafsi has an unstressed vowel and one or two consonants after it. *)
+
+%rule stressed-long-rafsi = long-rafsi-of(stressed-vowel)  (* A stressed long rafsi has a stressed vowel and one or two consonants after it. *)
+
+%rule cvv-rafsi = cvv-rafsi-of(unstressed-vowel, unstressed-diphthong)  (* A CVV rafsi has two unstressed vowels with an apostrophe between them, or an unstressed diphthong. *)
+
+%rule stressed-cvv-rafsi = cvv-rafsi-of(stressed-vowel, stressed-diphthong)  (* A stressed CVV rafsi stresses its second vowel or its diphthong. *)
+
+%rule y-rafsi = y-rafsi-of(unstressed-vowel, [h])  (* A long rafsi or CVC rafsi ends before y. A following rafsi cannot start with the optional apostrophe. *)
+
+%rule stressed-y-rafsi = y-rafsi-of(stressed-vowel, ε)  (* A stressed long rafsi or CVC rafsi ends before y. *)
 
 %rule stressed-y-less-rafsi  (* CVC, CCV, and CVV differ in their second or third letter. The CVC form cannot end directly before y. *)
-  | $c:stressed-cvc-rafsi
-  | stressed-ccv-rafsi
-  | stressed-cvv-rafsi
+  | $c:cvc-rafsi-of(stressed-vowel)
+  | ccv-rafsi-of(stressed-vowel)
+  | cvv-rafsi-of(stressed-vowel, stressed-diphthong)
 %conditions
   ¬$c.following-tokens.begins(y)
 
-%rule stressed-long-rafsi     (* `stressed_long_rafsi <- initial_pair stressed_vowel consonant / consonant stressed_vowel consonant consonant`. The forms differ in their second letter. *)
-  initial-pair stressed-vowel consonant | consonant stressed-vowel consonant consonant
-
-%rule stressed-cvc-rafsi      (* A stressed CVC rafsi has a stressed vowel between two consonants. *)
-  consonant stressed-vowel consonant
-
-%rule stressed-ccv-rafsi      (* A stressed CCV rafsi ends in a stressed vowel after an initial consonant pair. *)
-  initial-pair stressed-vowel
-
-%rule stressed-cvv-rafsi      (* A stressed CVV rafsi begins with a consonant. Its apostrophe form stresses the second vowel. Its diphthong form stresses the diphthong. An r-hyphen can follow either form. *)
-  consonant stressed-cvv-body [r-hyphen]
-
-%rule stressed-cvv-body       (* `unstressed_vowel h stressed_vowel / stressed_diphthong`. The second letter is an apostrophe in one form and a vowel in the other. *)
-  unstressed-vowel h stressed-vowel | stressed-diphthong
-
-%rule y-rafsi  (* A long rafsi or CVC rafsi ends before y. The forms differ in their second letter, or a consonant follows the CVC prefix before the long form reaches y. The following rafsi cannot start with apostrophe. *)
-  (long-rafsi | cvc-rafsi) y [h]
-
-%rule y-less-rafsi  (* An unhyphenated rafsi excludes y-rafsi, hy-rafsi, and their stressed forms at its start. It cannot end directly before an apostrophe. *)
+%rule y-less-rafsi  (* An unhyphenated rafsi excludes a y rafsi and an apostrophe-y rafsi of either stress at its start. It cannot end directly before an apostrophe. *)
   $r:y-less-rafsi-body
 %conditions
-  ¬$r.onward.begins(y-rafsi | stressed-y-rafsi | hy-rafsi | stressed-hy-rafsi),
+  ¬$r.onward.begins(y-rafsi-of(vowel, [h]) | hy-rafsi-of(vowel, diphthong, vowel, [h])),
   ¬$r.following-tokens.begins(h)
 
-%rule y-less-rafsi-body       (* `CVC_rafsi / CCV_rafsi / CVV_rafsi`. CVC and CCV differ in their second letter. CVC and CVV differ in their third letter. CCV and CVV differ in their second letter. *)
-  cvc-rafsi | ccv-rafsi | cvv-rafsi
+%rule y-less-rafsi-body = short-rafsi-of(unstressed-vowel, unstressed-diphthong)  (* A short rafsi is a CVC, CCV or CVV rafsi. The forms differ in their second or third letter. *)
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>gismu</code> to <code>y-less-rafsi-body</code></summary>
+<details><summary>Railroad diagrams of the 24 rules from <code>gismu</code> to <code>y-less-rafsi-body</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/gismu.svg" alt="Railroad diagram of the rule gismu"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/gismu-start.svg" alt="Railroad diagram of the rule gismu-start"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvv-final-rafsi.svg" alt="Railroad diagram of the rule cvv-final-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/short-final-rafsi.svg" alt="Railroad diagram of the rule short-final-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/short-final-body.svg" alt="Railroad diagram of the rule short-final-body"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvc-rafsi-of.svg" alt="Railroad diagram of the rule cvc-rafsi-of"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/ccv-rafsi-of.svg" alt="Railroad diagram of the rule ccv-rafsi-of"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/long-rafsi-of.svg" alt="Railroad diagram of the rule long-rafsi-of"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvv-rafsi-of.svg" alt="Railroad diagram of the rule cvv-rafsi-of"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/short-rafsi-of.svg" alt="Railroad diagram of the rule short-rafsi-of"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-rafsi-of.svg" alt="Railroad diagram of the rule y-rafsi-of"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/hy-rafsi-of.svg" alt="Railroad diagram of the rule hy-rafsi-of"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvc-rafsi.svg" alt="Railroad diagram of the rule cvc-rafsi"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-cvc-rafsi.svg" alt="Railroad diagram of the rule stressed-cvc-rafsi"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/ccv-rafsi.svg" alt="Railroad diagram of the rule ccv-rafsi"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-ccv-rafsi.svg" alt="Railroad diagram of the rule stressed-ccv-rafsi"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/long-rafsi.svg" alt="Railroad diagram of the rule long-rafsi"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-long-rafsi.svg" alt="Railroad diagram of the rule stressed-long-rafsi"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvv-rafsi.svg" alt="Railroad diagram of the rule cvv-rafsi"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-cvv-rafsi.svg" alt="Railroad diagram of the rule stressed-cvv-rafsi"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-rafsi.svg" alt="Railroad diagram of the rule y-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-y-rafsi.svg" alt="Railroad diagram of the rule stressed-y-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-y-less-rafsi.svg" alt="Railroad diagram of the rule stressed-y-less-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-long-rafsi.svg" alt="Railroad diagram of the rule stressed-long-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-cvc-rafsi.svg" alt="Railroad diagram of the rule stressed-cvc-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-ccv-rafsi.svg" alt="Railroad diagram of the rule stressed-ccv-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-cvv-rafsi.svg" alt="Railroad diagram of the rule stressed-cvv-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-cvv-body.svg" alt="Railroad diagram of the rule stressed-cvv-body"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-rafsi.svg" alt="Railroad diagram of the rule y-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-less-rafsi.svg" alt="Railroad diagram of the rule y-less-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-less-rafsi-body.svg" alt="Railroad diagram of the rule y-less-rafsi-body"></p>
 </details>
@@ -473,38 +518,9 @@ A `hy_rafsi` is a CCVCV, CVCCV, CCV, or CVV rafsi body followed by `'y`. The BPF
 A long CCVCV form leaves a consonant after its CCV prefix, where the shorter branch requires an apostrophe. The CVV form differs in its second or third letter. Thus only one branch reaches apostrophe-y.
 
 ```jbogenbau
-%rule hy-rafsi                (* An apostrophe-y rafsi ends its classical body with apostrophe-y. Another apostrophe can follow the hyphen. *)
-  hy-rafsi-body h y [h]
+%rule hy-rafsi = hy-rafsi-of(unstressed-vowel, unstressed-diphthong, vowel, [h])  (* An apostrophe-y rafsi ends its classical body with apostrophe-y. Another apostrophe can follow the hyphen. *)
 
-%rule hy-rafsi-body  (* A long CCVCV form leaves a consonant after CCV, so only one reaches apostrophe-y. CVV differs in its second or third letter. *)
-  long-rafsi-vowel | ccv-rafsi | cvv-rafsi
-
-%rule long-rafsi-vowel        (* The long classical form appends a vowel to a long rafsi. *)
-  long-rafsi vowel
-
-%rule stressed-hy-rafsi       (* A stressed apostrophe-y rafsi ends its stressed classical body with apostrophe-y. *)
-  stressed-hy-rafsi-body h y
-
-%rule stressed-hy-rafsi-body  (* CVV differs in its second or third letter. The long form differs from stressed CCV in its second letter or third-letter stress. *)
-  long-rafsi-stressed-vowel | stressed-ccv-rafsi | stressed-cvv-rafsi
-
-%rule long-rafsi-stressed-vowel  (* The stressed long classical form appends a stressed vowel to an unstressed long rafsi. *)
-  long-rafsi stressed-vowel
-
-%rule long-rafsi              (* `long_rafsi <- initial_pair unstressed_vowel consonant / consonant unstressed_vowel consonant consonant`. The forms differ in their second letter. *)
-  initial-pair unstressed-vowel consonant | consonant unstressed-vowel consonant consonant
-
-%rule cvc-rafsi               (* A CVC rafsi has an unstressed vowel between two consonants. *)
-  consonant unstressed-vowel consonant
-
-%rule ccv-rafsi               (* A CCV rafsi ends in an unstressed vowel after an initial consonant pair. *)
-  initial-pair unstressed-vowel
-
-%rule cvv-rafsi               (* A CVV rafsi begins with a consonant. It has two unstressed vowels with an apostrophe between them, or an unstressed diphthong. An r-hyphen can follow either form. *)
-  consonant cvv-body [r-hyphen]
-
-%rule cvv-body                (* `unstressed_vowel h unstressed_vowel / unstressed_diphthong`. The second letter is an apostrophe in one form and a vowel in the other. *)
-  unstressed-vowel h unstressed-vowel | unstressed-diphthong
+%rule stressed-hy-rafsi = hy-rafsi-of(stressed-vowel, stressed-diphthong, stressed-vowel, ε)  (* A stressed apostrophe-y rafsi ends its stressed classical body with apostrophe-y. *)
 
 %rule r-hyphen  (* The hyphen is r before a consonant, or n before r. Each letter reads as a full consonant, so its pair with the next letter must stand in the table. *)
   | $r:consonant="r"
@@ -515,18 +531,9 @@ A long CCVCV form leaves a consonant after its CCV prefix, where the shorter bra
 
 ```
 
-<details><summary>Railroad diagrams of the 12 rules from <code>hy-rafsi</code> to <code>r-hyphen</code></summary>
+<details><summary>Railroad diagrams of <code>hy-rafsi</code>, <code>stressed-hy-rafsi</code> and <code>r-hyphen</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/hy-rafsi.svg" alt="Railroad diagram of the rule hy-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/hy-rafsi-body.svg" alt="Railroad diagram of the rule hy-rafsi-body"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/long-rafsi-vowel.svg" alt="Railroad diagram of the rule long-rafsi-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-hy-rafsi.svg" alt="Railroad diagram of the rule stressed-hy-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-hy-rafsi-body.svg" alt="Railroad diagram of the rule stressed-hy-rafsi-body"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/long-rafsi-stressed-vowel.svg" alt="Railroad diagram of the rule long-rafsi-stressed-vowel"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/long-rafsi.svg" alt="Railroad diagram of the rule long-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvc-rafsi.svg" alt="Railroad diagram of the rule cvc-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/ccv-rafsi.svg" alt="Railroad diagram of the rule ccv-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvv-rafsi.svg" alt="Railroad diagram of the rule cvv-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvv-body.svg" alt="Railroad diagram of the rule cvv-body"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/r-hyphen.svg" alt="Railroad diagram of the rule r-hyphen"></p>
 </details>
 
