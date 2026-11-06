@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="514" height="88" viewBox="0 0 514 88" role="img" aria-label="Railroad diagram of the rule a-sentence">
+<svg xmlns="http://www.w3.org/2000/svg" width="504" height="88" viewBox="0 0 504 88" role="img" aria-label="Railroad diagram of the rule a-sentence">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="84" lengthAdjust="spacingAndGlyphs">a-sentence</text>
@@ -11,16 +11,14 @@
 <path d="M147 56H167"/>
 <path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H147a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
 <path d="M167 56h10"/>
-<g class="terminal"><rect x="177" y="44" width="25" height="24" rx="12"/><text x="189.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">A</text></g>
-<path d="M202 56h10"/>
-<path d="M212 56h20"/>
-<path d="M232 56h20"/>
-<g class="rule"><rect x="252" y="44" width="75" height="24" rx="0"/><text x="289.5" y="61" textLength="58.8" lengthAdjust="spacingAndGlyphs">postfix</text></g>
-<path d="M327 56H347"/>
-<path d="M327 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H252a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M347 56H367"/>
-<path d="M212 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H347a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M367 56h10"/>
-<g class="terminal"><rect x="377" y="44" width="117" height="24" rx="12"/><text x="435.5" y="61" textLength="100.8" lengthAdjust="spacingAndGlyphs">*chain-empty</text></g>
-<path d="M494 56h6m0 -8v16m4 -16v16"/>
+<g class="terminal"><rect x="177" y="44" width="142" height="24" rx="12"/><text x="248" y="61" textLength="126" lengthAdjust="spacingAndGlyphs">*chain-empty&lt;A&gt;</text></g>
+<path d="M319 56h10"/>
+<path d="M329 56h20"/>
+<path d="M349 56h20"/>
+<g class="rule"><rect x="369" y="44" width="75" height="24" rx="0"/><text x="406.5" y="61" textLength="58.8" lengthAdjust="spacingAndGlyphs">postfix</text></g>
+<path d="M444 56H464"/>
+<path d="M444 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H369a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M464 56H484"/>
+<path d="M329 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H464a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M484 56h6m0 -8v16m4 -16v16"/>
 </svg>

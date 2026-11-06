@@ -282,7 +282,7 @@ An inner predicate is a chain, with an optional arguments list before it. The ar
 
 %rule definition
   | [arguments-list] chain
-  | arguments-list *chain-empty
+  | *empty-arguments-list
 
 %rule arguments-list
   [{KI | GI | ba-free}] BE
@@ -405,10 +405,12 @@ A written terminator never equals an elided one, so `to jie` and `to` are two ve
   bind-first [{bind-next}] [+VEI]
 
 %rule bind-first
-  [bi-free] vi-free (definition | *bind-empty-vi)
+  | [bi-free] vi-free definition
+  | [bi-free] [{prefix}] *bind-empty-vi [{postfix}]
 
 %rule bind-next
-  [bi-free] fi-free (definition | *bind-empty-fi)
+  | [bi-free] fi-free definition
+  | [bi-free] [{prefix}] *bind-empty-fi [{postfix}]
 
 %rule vi-free
   [{prefix}] VI [{postfix}]
@@ -605,7 +607,7 @@ The [annotations chapter](https://eberban.github.io/eberban/books/refgram/book/g
   #text-of« ⋯ paragraphs-of« ⋯ sentences-of« ⋯ sentence-of« ⋯ unmatched-tail<DAI> » ⋯ » ⋯ » »
 
 %rule parenthetical
-  DA $t:text (DAI | *unclosed-parenthetical)
+  DA $t:text DAI
 %conditions
   $t ≇ $OWNED-DAI-RECOVERY
 ```
@@ -791,7 +793,7 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
   unmatched-fi | unmatched-vei | unmatched-be | unmatched-pei | unmatched-bu | unmatched-dai
 
 %rule ri-continuation
-  {RI} (definition | *chain-empty)
+  {RI} definition | [{RI}] *chain-empty<RI>
 
 %rule unmatched-fi
   fi-free
@@ -859,26 +861,37 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/modified-empty.svg" alt="Railroad diagram of the rule modified-empty"></p>
 </details>
 
-An empty-chain diagnostic follows a written `a`, a definable `o` target, `bi`, an arguments list, or an enumeration separator. It also follows `ri` in `chain` or in an erroneous tail's `ri-continuation`. An enumeration can lack its first chain too. When its following chain is missing, the separator still belongs to its open enumeration. Recovery retains later separators and items, so an interior empty item does not abandon its enumeration.
+An empty-chain recovery reads only its owner's opening token: `a`, `o`, `bi`, `be`, `ri`, `bu`, or `pe`. Its guard examines the following tokens after any postfixes. The `o` guard also passes its required target before it tests that boundary. Prefixes, postfixes, and argument markers remain outside the diagnostic.
 
-Each repeated recovery segment contains a written `bu`, so it reads at least one token. A boundary test detects the missing operand without recursively parsing recovery alternatives. It recognizes annotated `vi` and `fi`, with optional `bi`, without reading the bind operand. The diagnostic preference chooses this recovery over an unmatched `be` reading with the same error count.
+When its following chain is missing, a separator still belongs to its open enumeration. Recovery retains later separators and items, so an interior empty item does not abandon its enumeration. Each repeated segment contains a written `bu`, so it reads at least one token.
+
+The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, without reading the bind operand. At equal measures, the diagnostic preference chooses this recovery over an unmatched `be` reading. The shared message constant gives every opening token the same diagnostic code and message.
 
 ```jbogenbau
 %extend-rule a-sentence
-  [{prefix}] A [{postfix}] *chain-empty
+  [{prefix}] *chain-empty<A> [{postfix}]
 
 %extend-rule chain
-  {erased-chain RI} *chain-empty
+  [{erased-chain RI}] erased-chain *chain-empty<RI>
 
 %extend-rule o-sentence
-  [{prefix}] O [{postfix}] definable *chain-empty
+  [{prefix}] *chain-empty<O> [{postfix}] definable
+
+%extend-rule enumeration
+  [{prefix}] *chain-empty<PE> [{postfix}] [{bu-free chain | *empty-enumeration-item}] [+PEI]
 
 %extend-rule separator-form
-  | [arguments-list] *chain-empty [{bu-free (chain | *chain-empty)}]
-  | [arguments-list] {chain / bu-free} bu-free *chain-empty [{bu-free (chain | *chain-empty)}]
+  | *empty-arguments-list [{bu-free chain | *empty-enumeration-item}]
+  | [arguments-list] {chain / bu-free} *empty-enumeration-item [{bu-free chain | *empty-enumeration-item}]
 
 %extend-rule chain-inner
-  bi-free *chain-empty
+  [{prefix}] *chain-empty<BI> [{postfix}]
+
+%rule empty-arguments-list
+  [{KI | GI | ba-free}] *chain-empty<BE>
+
+%rule empty-enumeration-item
+  [{prefix}] *chain-empty<BU>
 
 %rule missing-operand-boundary
   starter-head | PO | RA | RI | bind-start | sentence-closer | end-of-text
@@ -886,72 +899,98 @@ Each repeated recovery segment contains a written `bu`, so it reads at least one
 %rule bind-start
   [bi-free] [{prefix}] (VI | FI)
 
+%const $CHAIN-EMPTY-MESSAGE "a chain needs at least one non-erased verb"
+
 %rule chain-empty
-  ε
+  A | BI | PE
 %conditions
-  $.onward.begins(missing-operand-boundary)
-%error "a chain needs at least one non-erased verb"
+  $.following-tokens.parse([{postfix}] missing-operand-boundary …)
+%error $CHAIN-EMPTY-MESSAGE
+
+%extend-rule chain-empty
+  O
+%conditions
+  $.following-tokens.parse([{postfix}] definable missing-operand-boundary …)
+%error $CHAIN-EMPTY-MESSAGE
+
+%extend-rule chain-empty
+  BE | RI | BU
+%conditions
+  $.following-tokens.begins(missing-operand-boundary)
+%error $CHAIN-EMPTY-MESSAGE
 
 %rule bind-empty-vi
-  ε
+  VI
 %conditions
-  $.onward.begins(missing-operand-boundary)
+  $.following-tokens.parse([{postfix}] missing-operand-boundary …)
 %error "vi needs a following chain"
 
 %rule bind-empty-fi
-  ε
+  FI
 %conditions
-  $.onward.begins(missing-operand-boundary)
+  $.following-tokens.parse([{postfix}] missing-operand-boundary …)
 %error "fi needs a following chain"
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>a-sentence</code> to <code>bind-empty-fi</code></summary>
+<details><summary>Railroad diagrams of the 13 rules from <code>a-sentence</code> to <code>bind-empty-fi</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/a-sentence.2.svg" alt="Railroad diagram of the rule a-sentence"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain.2.svg" alt="Railroad diagram of the rule chain"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/o-sentence.2.svg" alt="Railroad diagram of the rule o-sentence"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/enumeration.2.svg" alt="Railroad diagram of the rule enumeration"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/separator-form.2.svg" alt="Railroad diagram of the rule separator-form"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-inner.2.svg" alt="Railroad diagram of the rule chain-inner"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-arguments-list.svg" alt="Railroad diagram of the rule empty-arguments-list"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-enumeration-item.svg" alt="Railroad diagram of the rule empty-enumeration-item"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/missing-operand-boundary.svg" alt="Railroad diagram of the rule missing-operand-boundary"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/bind-start.svg" alt="Railroad diagram of the rule bind-start"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-empty.svg" alt="Railroad diagram of the rule chain-empty"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-empty.2.svg" alt="Railroad diagram of the rule chain-empty"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-empty.3.svg" alt="Railroad diagram of the rule chain-empty"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/bind-empty-vi.svg" alt="Railroad diagram of the rule bind-empty-vi"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/bind-empty-fi.svg" alt="Railroad diagram of the rule bind-empty-fi"></p>
 </details>
 
-An `o` or `ni` sentence needs a definable target before any definition. Its recovery marks the missing target at that position. A missing parenthetical end reports at the end of the input. A written `dai` closes its parenthetical instead of becoming an unmatched closer there.
+An `o` or `ni` sentence needs a definable target before any definition. Its recovery reads the opening `o` or `ni` token alone. The `o` guard looks past any postfixes to its target.
+
+An unclosed parenthetical reports on its whole span, from `da` through the input end. A diagnostic on `da` alone permits a shorter recovery that loses the body. A written `dai` closes its parenthetical instead of becoming an unmatched closer there.
 
 
 ```jbogenbau
 %extend-rule o-sentence
-  [{prefix}] O [{postfix}] *not-definable-o [definition]
+  [{prefix}] *not-definable-o [{postfix}] [definition]
 
 %extend-rule ni-sentence
-  [{prefix}] NI *not-definable-ni [definition]
+  [{prefix}] *not-definable-ni [definition]
 
 %rule not-definable-o
-  ε
+  O
 %conditions
-  ¬$.onward.begins(definable)
+  ¬$.following-tokens.parse([{postfix}] definable …)
 %error "o needs a root, compound, freeform, or gi variable as its target"
 
 %rule not-definable-ni
-  ε
+  NI
 %conditions
-  ¬$.onward.begins(definable)
+  ¬$.following-tokens.begins(definable)
 %error "ni needs a root, compound, freeform, or gi variable as its target"
 
+%extend-rule parenthetical
+  *unclosed-parenthetical
+
 %rule unclosed-parenthetical
-  ε
+  DA $t:text
 %conditions
+  $t ≇ $OWNED-DAI-RECOVERY,
   $.ends-input
 %error "the parenthetical needs its closing dai"
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>o-sentence</code> to <code>unclosed-parenthetical</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>o-sentence</code> to <code>unclosed-parenthetical</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/o-sentence.3.svg" alt="Railroad diagram of the rule o-sentence"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ni-sentence.2.svg" alt="Railroad diagram of the rule ni-sentence"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/not-definable-o.svg" alt="Railroad diagram of the rule not-definable-o"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/not-definable-ni.svg" alt="Railroad diagram of the rule not-definable-ni"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/parenthetical.2.svg" alt="Railroad diagram of the rule parenthetical"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/unclosed-parenthetical.svg" alt="Railroad diagram of the rule unclosed-parenthetical"></p>
 </details>
 
@@ -1160,12 +1199,12 @@ The named rules below reject only their chosen erroneous reading. Every erasable
 | `resume-chain-empty` | `unmatched-tail` in text recovery | [`E_ResumeChainEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L323) |
 | `select-empty` | `base-verb` | [`E_SelectEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L420) |
 | `modified-empty` | `base-verb` | [`E_ModifiedEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L421) |
-| `chain-empty` | `a-sentence`, `o-sentence`, `chain`, `chain-inner`, `definition`, `separator-form`, or `ri-continuation` | [`E_ChainEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L322) |
-| `bind-empty-vi` | `bind-first` | [`E_BindEmptyVI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L391) |
-| `bind-empty-fi` | `bind-next` | [`E_BindEmptyFI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L392) |
-| `not-definable-o` | `o-sentence` | [`E_NotDefinableO`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L297) |
-| `not-definable-ni` | `ni-sentence` | [`E_NotDefinableNI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L298) |
-| `unclosed-parenthetical` | `parenthetical`, at input end | [`E_UnclosedParenthetical`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L631) |
+| `chain-empty` | The opening `A`, `O`, `BI`, `BE`, `RI`, `BU`, or `PE` of its missing chain | [`E_ChainEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L322) |
+| `bind-empty-vi` | The `VI` token in `bind-first` | [`E_BindEmptyVI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L391) |
+| `bind-empty-fi` | The `FI` token in `bind-next` | [`E_BindEmptyFI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L392) |
+| `not-definable-o` | The opening `O` token in `o-sentence` | [`E_NotDefinableO`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L297) |
+| `not-definable-ni` | The opening `NI` token in `ni-sentence` | [`E_NotDefinableNI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L298) |
+| `unclosed-parenthetical` | The whole unclosed `parenthetical`, from `DA` through input end | [`E_UnclosedParenthetical`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L631) |
 | `spelling-empty` | `base-verb` | [`E_SpellingEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L524) |
 | `erased-must-be-followed-by-sentence-starter` | The optional final child inside `ra-run` | [`E_ErasedMustBeFollowedBySentenceStarter`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L287) |
 | `number-end-alone` | `base-verb` | [`E_NumberEndAlone`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L611) |

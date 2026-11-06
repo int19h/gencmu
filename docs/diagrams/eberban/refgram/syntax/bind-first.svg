@@ -1,20 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="424" height="112" viewBox="0 0 424 112" role="img" aria-label="Railroad diagram of the rule bind-first">
+<svg xmlns="http://www.w3.org/2000/svg" width="661" height="132" viewBox="0 0 661 132" role="img" aria-label="Railroad diagram of the rule bind-first">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="84" lengthAdjust="spacingAndGlyphs">bind-first</text>
 <path d="M10 48v16m4 -16v16M14 56h6"/>
 <path d="M20 56h20"/>
-<g class="rule"><rect x="40" y="44" width="75" height="24" rx="0"/><text x="77.5" y="61" textLength="58.8" lengthAdjust="spacingAndGlyphs">bi-free</text></g>
-<path d="M115 56H135"/>
-<path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H115a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M135 56h10"/>
-<g class="rule"><rect x="145" y="44" width="75" height="24" rx="0"/><text x="182.5" y="61" textLength="58.8" lengthAdjust="spacingAndGlyphs">vi-free</text></g>
-<path d="M220 56h10"/>
-<path d="M230 56h20"/>
+<path d="M40 56h20"/>
+<g class="rule"><rect x="60" y="44" width="75" height="24" rx="0"/><text x="97.5" y="61" textLength="58.8" lengthAdjust="spacingAndGlyphs">bi-free</text></g>
+<path d="M135 56H155"/>
+<path d="M40 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H135a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M155 56h10"/>
+<g class="rule"><rect x="165" y="44" width="75" height="24" rx="0"/><text x="202.5" y="61" textLength="58.8" lengthAdjust="spacingAndGlyphs">vi-free</text></g>
+<path d="M240 56h10"/>
 <g class="rule"><rect x="250" y="44" width="100" height="24" rx="0"/><text x="300" y="61" textLength="84" lengthAdjust="spacingAndGlyphs">definition</text></g>
-<path d="M350 56H404"/>
-<path d="M230 56a10 10 0 0 1 10 10V80a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="250" y="78" width="134" height="24" rx="12"/><text x="317" y="95" textLength="117.6" lengthAdjust="spacingAndGlyphs">*bind-empty-vi</text></g>
-<path d="M384 90H384a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M404 56h6m0 -8v16m4 -16v16"/>
+<path d="M350 56H641"/>
+<path d="M20 56a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M40 100h20"/>
+<g class="rule"><rect x="60" y="88" width="75" height="24" rx="0"/><text x="97.5" y="105" textLength="58.8" lengthAdjust="spacingAndGlyphs">bi-free</text></g>
+<path d="M135 100H155"/>
+<path d="M40 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H135a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M155 100h10"/>
+<path d="M165 100h20"/>
+<path d="M185 100h20"/>
+<g class="rule"><rect x="205" y="88" width="67" height="24" rx="0"/><text x="238.5" y="105" textLength="50.4" lengthAdjust="spacingAndGlyphs">prefix</text></g>
+<path d="M272 100H292"/>
+<path d="M272 100a10 10 0 0 1 10 10V112a10 10 0 0 1 -10 10H205a10 10 0 0 1 -10 -10V110a10 10 0 0 1 10 -10"/>
+<path d="M292 100H312"/>
+<path d="M165 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H292a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M312 100h10"/>
+<g class="terminal"><rect x="322" y="88" width="134" height="24" rx="12"/><text x="389" y="105" textLength="117.6" lengthAdjust="spacingAndGlyphs">*bind-empty-vi</text></g>
+<path d="M456 100h10"/>
+<path d="M466 100h20"/>
+<path d="M486 100h20"/>
+<g class="rule"><rect x="506" y="88" width="75" height="24" rx="0"/><text x="543.5" y="105" textLength="58.8" lengthAdjust="spacingAndGlyphs">postfix</text></g>
+<path d="M581 100H601"/>
+<path d="M581 100a10 10 0 0 1 10 10V112a10 10 0 0 1 -10 10H506a10 10 0 0 1 -10 -10V110a10 10 0 0 1 10 -10"/>
+<path d="M601 100H621"/>
+<path d="M466 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H601a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M621 100H621a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M641 56h6m0 -8v16m4 -16v16"/>
 </svg>

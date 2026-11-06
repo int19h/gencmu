@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="767" height="156" viewBox="0 0 767 156" role="img" aria-label="Railroad diagram of the rule delimited-text">
+<svg xmlns="http://www.w3.org/2000/svg" width="727" height="156" viewBox="0 0 727 156" role="img" aria-label="Railroad diagram of the rule delimited-text">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="117.6" lengthAdjust="spacingAndGlyphs">delimited-text</text>
@@ -24,13 +24,8 @@
 <path d="M458 56H478"/>
 <path d="M241 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H458a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
 <path d="M478 56h10"/>
-<path d="M488 56h20"/>
-<g class="terminal"><rect x="508" y="44" width="58" height="24" rx="12"/><text x="537" y="61" textLength="42" lengthAdjust="spacingAndGlyphs">Close</text></g>
-<path d="M566 56h10"/>
-<g class="rule"><rect x="576" y="44" width="151" height="24" rx="0"/><text x="651.5" y="61" textLength="134.4" lengthAdjust="spacingAndGlyphs">native-delimiter</text></g>
-<path d="M727 56H747"/>
-<path d="M488 56a10 10 0 0 1 10 10V80a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="508" y="78" width="210" height="24" rx="12"/><text x="613" y="95" textLength="193.2" lengthAdjust="spacingAndGlyphs">*unclosed-foreign-quote</text></g>
-<path d="M718 90H727a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M747 56h6m0 -8v16m4 -16v16"/>
+<g class="terminal"><rect x="488" y="44" width="58" height="24" rx="12"/><text x="517" y="61" textLength="42" lengthAdjust="spacingAndGlyphs">Close</text></g>
+<path d="M546 56h10"/>
+<g class="rule"><rect x="556" y="44" width="151" height="24" rx="0"/><text x="631.5" y="61" textLength="134.4" lengthAdjust="spacingAndGlyphs">native-delimiter</text></g>
+<path d="M707 56h6m0 -8v16m4 -16v16"/>
 </svg>

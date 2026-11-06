@@ -1115,11 +1115,10 @@ The value is the `co` word, a space and the text from `[` to `]`. In the second 
   simple-text | delimited-text
 
 %rule simple-text
-  Open [{quote-char}] (Close | *unclosed-foreign-quote)
+  Open [{quote-char}] Close
 
 %rule delimited-text
-  $d:native-delimiter Open [{quote-char | $c:shaped-close | $k:Close}] (Close
-    $e:native-delimiter | *unclosed-foreign-quote)
+  $d:native-delimiter Open [{quote-char | $c:shaped-close | $k:Close}] Close $e:native-delimiter
 %conditions
   $c.tokens-after-first.value ≠ $d.value,
   ¬$k.following-tokens.begins(delimiter-shape),
@@ -1143,18 +1142,35 @@ The value is the `co` word, a space and the text from `[` to `]`. In the second 
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/shaped-close.svg" alt="Railroad diagram of the rule shaped-close"></p>
 </details>
 
-A missing foreign-quote end reports at the end of the input. The delimited form still refuses an earlier matching closer. Syntax cannot erase an unclosed quote, because this stage reads quotes before erasure.
+An unclosed foreign quote reports on its whole span, from `co` through the input end. Its delimiter checks still refuse an earlier matching closer. A diagnostic on `co` alone cannot determine whether its closing delimiter is missing.
+
+The recovery keeps the quote's class, value, and emission. It leaves no later eraser token because its body reads through the input end.
 
 ```jbogenbau
+%extend-rule foreign-quote
+  *unclosed-foreign-quote
+
 %rule unclosed-foreign-quote
-  ε
+  $q:quote-co [opening-gap] $t:unclosed-quoted-text :: Word ∪ Particle ∪ CO ∪ Quote := $q.value ++ " " ++
+    $t.emitted.value :- $.source-text
 %conditions
   $.ends-input
 %error "the foreign quote needs ] followed by its opening delimiter, if any"
+%emits
+  $
+
+%rule unclosed-quoted-text
+  | Open [{quote-char}]
+  | $d:native-delimiter Open [{quote-char | $c:shaped-close | $k:Close}]
+%conditions
+  $c.tokens-after-first.value ≠ $d.value,
+  ¬$k.following-tokens.begins(delimiter-shape)
 ```
 
-<details><summary>Railroad diagram of <code>unclosed-foreign-quote</code></summary>
+<details><summary>Railroad diagrams of the 3 rules from <code>foreign-quote</code> to <code>unclosed-quoted-text</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/foreign-quote.2.svg" alt="Railroad diagram of the rule foreign-quote"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/unclosed-foreign-quote.svg" alt="Railroad diagram of the rule unclosed-foreign-quote"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/unclosed-quoted-text.svg" alt="Railroad diagram of the rule unclosed-quoted-text"></p>
 </details>
 
 ### Delimiters
@@ -1796,7 +1812,7 @@ A prefix takes its `n` or `r` before it ends. This leaves an attached `NI` compo
 | `hyphen-same-vowels` | `read-hyphen-same-vowels`, `Fault-hyphen-same-vowels` | [`Vowels`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L974) |
 | `invalid-medial-pair` | `read-invalid-medial-pair`, `Fault-invalid-medial-pair` | [`E_InvalidMedialPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L939) |
 | `freeform-multi-consonents-ending` | `read-freeform-multi-consonents-ending`, `Fault-freeform-multi-consonents-ending` | [`E_FreeformMultiConsonentsEnding`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L881) |
-| `unclosed-foreign-quote` | `unclosed-foreign-quote`, at end of input | [`E_UnclosedForeignQuote`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L520) |
+| `unclosed-foreign-quote` | The whole unclosed foreign quote, from `co` through input end | [`E_UnclosedForeignQuote`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L520) |
 
 An unclosed foreign quote reports in this stage because syntax cannot erase it. A bracket closes a simple quote. A delimited quote also needs the matching delimiter after its bracket.
 
