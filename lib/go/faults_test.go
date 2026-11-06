@@ -72,7 +72,7 @@ func catchOf(t *testing.T, fault, file string, hits map[string]bool) string {
 		c.fault, c.noHook, c.onlyHook, c.hits = fault, result, !result, hits
 		caught, err := faultCatch(c)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("%s with %s: %v", file, fault, err)
 		}
 		return caught
 	}

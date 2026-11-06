@@ -276,9 +276,9 @@ type ranker struct {
 
 // skips says whether a fault of the check skips this alternative: the last
 // of two or more links of an item, or completed items of a constituent
-// (tests/README.md).
+// (tests/README.md). Independent action summaries retain their complete candidates.
 func (rk *ranker) skips(fault, site string, i, n int) bool {
-	return rk.check && n > 1 && i == n-1 && rk.rec.run.ps.faultAt(fault, site)
+	return rk.check && !rk.witnessOnly && rk.canonical != rk && n > 1 && i == n-1 && rk.rec.run.ps.faultAt(fault, site)
 }
 
 // newRanker ranks by the key steps of a directive and then its lean,
@@ -637,6 +637,9 @@ func (rk *ranker) merge(cands []*cand) []*cand {
 // finish orders the last candidates, whose visible sequences are prefixes of
 // one another, as T does, and returns the least with its tied derivations.
 func (rk *ranker) finish(cands []*cand) *cand {
+	if len(cands) == 0 {
+		return nil
+	}
 	best := 0
 	for i := 1; i < len(cands); i++ {
 		if !rk.aFirst(rk.compare(cands[best].d, cands[i].d)) {
@@ -1166,8 +1169,10 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 			exterior = rk.space.occurrence(rk.rec.g.rules[s.rule].name, "", "", s.tags, a, b)
 		}
 		selected := rk.canonical.finish(rk.canonical.merge(candidates))
-		fr.sum.add(rk.space, exterior, 1, 1)
-		fr.vals = append(fr.vals, edgeVal{e: &entry{cands: []*cand{{d: selected.d}}, count: 1, least: 1}, profile: exterior})
+		if selected != nil {
+			fr.sum.add(rk.space, exterior, 1, 1)
+			fr.vals = append(fr.vals, edgeVal{e: &entry{cands: []*cand{{d: selected.d}}, count: 1, least: 1}, profile: exterior})
+		}
 	}
 	var cands []*cand
 	for _, v := range fr.vals {
@@ -1307,6 +1312,9 @@ func (rk *ranker) rankOriginal(top []*symNode) *rankResult {
 		cands = append(cands, e.cands...)
 	}
 	m := rk.finish(rk.merge(cands))
+	if m == nil {
+		return nil
+	}
 
 	res := &rankResult{profile: root.profile, first: m.d, witnessCounted: rk.marks != nil && counted}
 	// Without a lean, the count of the best derivations decides; with one,

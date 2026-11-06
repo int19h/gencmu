@@ -374,8 +374,12 @@ func TestWarningsSpliced(t *testing.T) {
 		if err != nil || !res.OK {
 			t.Fatalf("%s: %v %+v", c.grammar, err, res)
 		}
-		if !reflect.DeepEqual(res.Warnings, c.want) {
-			t.Errorf("%s: warnings %+v", c.grammar, res.Warnings)
+		actual := append([]Warning(nil), res.Warnings...)
+		for index := range actual {
+			actual[index].record = nil
+		}
+		if !reflect.DeepEqual(actual, c.want) {
+			t.Errorf("%s: warnings %+v", c.grammar, actual)
 		}
 	}
 }
