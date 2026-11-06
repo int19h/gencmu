@@ -1,0 +1,150 @@
+{
+  "description": "Engine §11.5 and §12.1: diagnostic ownership (attachment-display).",
+  "grammar": "%rule text $a:annotation $w:word\n%emits ($a) $w\n%rule annotation A\n%error \"annotation\"\n%emits $\n%rule word B\n%error \"word\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "note",
+      "text",
+      "gap",
+      "annotation"
+    ]
+  },
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "b",
+              "value": "b",
+              "image": "b",
+              "tags": [
+                "B"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                2,
+                3
+              ],
+              "before": [
+                {
+                  "text": "a",
+                  "value": "a",
+                  "image": "a",
+                  "tags": [
+                    "A"
+                  ],
+                  "source": [
+                    0,
+                    1
+                  ],
+                  "errors": [
+                    {
+                      "stage": "main",
+                      "code": "annotation",
+                      "rule": "annotation",
+                      "span": [
+                        0,
+                        1
+                      ],
+                      "source": [
+                        0,
+                        1
+                      ],
+                      "message": "annotation"
+                    }
+                  ]
+                }
+              ],
+              "errors": [
+                {
+                  "stage": "main",
+                  "code": "word",
+                  "rule": "word",
+                  "span": [
+                    1,
+                    2
+                  ],
+                  "source": [
+                    2,
+                    3
+                  ],
+                  "message": "word"
+                },
+                {
+                  "stage": "main",
+                  "code": "annotation",
+                  "rule": "annotation",
+                  "span": [
+                    0,
+                    1
+                  ],
+                  "source": [
+                    0,
+                    1
+                  ],
+                  "message": "annotation"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "stage": "main",
+            "code": "annotation",
+            "rule": "annotation",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "message": "annotation"
+          },
+          {
+            "stage": "main",
+            "code": "word",
+            "rule": "word",
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ],
+            "message": "word"
+          }
+        ]
+      }
+    },
+    "warnings": []
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "description": "Engine §11.5 and §12.1: diagnostic ownership (skip-empty-ancestor).",
+  "grammar": "%rule text wrapper $w:word\n%emits $w\n%rule wrapper note\n%rule note ε\n%warning \"note\"\n%rule word A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "note",
+      "text",
+      "gap",
+      "annotation"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "a",
+              "value": "a",
+              "image": "a",
+              "tags": [
+                "A"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ],
+              "warnings": [
+                {
+                  "stage": "main",
+                  "code": "note",
+                  "rule": "note",
+                  "span": [
+                    0,
+                    0
+                  ],
+                  "source": [
+                    0,
+                    0
+                  ],
+                  "message": "note"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "note",
+        "rule": "note",
+        "span": [
+          0,
+          0
+        ],
+        "source": [
+          0,
+          0
+        ],
+        "message": "note"
+      }
+    ]
+  }
+}

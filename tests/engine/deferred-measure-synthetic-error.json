@@ -1,0 +1,22 @@
+{
+  "description": "Engine §6 and §7: an error over restored synthetic tokens adds a sourceless charge and loses to the clean witness.",
+  "grammar": "%ambiguity-resolution greedy\n%elision-only\n%rule text proper | \"a\" fault\n%rule proper \"a\" [+T]\n%rule fault T\n%error \"fault\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}
