@@ -1,0 +1,28 @@
+{
+  "description": "Engine §6 and §7.10: erased classes and their canonical representatives (live-extension).",
+  "grammar": "%ambiguity-resolution fewest #·never\n%rule text gone\n%rule gone A\n%erased\n%extend-rule gone A\n%rule never B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

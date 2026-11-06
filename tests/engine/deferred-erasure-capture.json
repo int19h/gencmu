@@ -1,0 +1,23 @@
+{
+  "description": "Engine §6 and §7.10: erased classes and their canonical representatives (capture).",
+  "grammar": "%rule text gone\n%rule gone [$x:A] [A] :: ∅\n%erased",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

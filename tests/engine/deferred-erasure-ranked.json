@@ -1,0 +1,44 @@
+{
+  "description": "Engine §6: an erased interior keeps ranked admission before canonical action selection.",
+  "grammar": "%rule text gone\n%rule gone A (b ≻ c) :: ∅\n%erased\n%rule b B\n%rule c B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "gone",
+            "children": [
+              {
+                "kind": "token"
+              },
+              {
+                "rule": "b"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
