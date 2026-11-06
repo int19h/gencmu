@@ -985,7 +985,18 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	if it.tree != nil {
 		identity, sequence = it.tree.identity, it.tree.sequence
 	}
-	key := symKey{treeIdentity: identity, boundary: it.boundary, requested: p.requestedKinds(), lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: it.closes, familySummary: it.familySummary}
+	// An erased completion exposes only the observations requested by a parent.
+	// Its own comparisons already ran and do not demand an exterior identity (§6).
+	completedCloses := it.closes
+	if p.nothing {
+		if !p.treeRequested {
+			identity, sequence = 0, 0
+		}
+		if !p.closeRequested {
+			completedCloses = 0
+		}
+	}
+	key := symKey{treeIdentity: identity, boundary: it.boundary, requested: p.requestedKinds(), lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: completedCloses, familySummary: it.familySummary}
 	c := s.syms[key]
 	if c != nil {
 		c.items = append(c.items, it)
@@ -995,7 +1006,7 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 		r.step.kind = stepNext
 		return nil
 	}
-	c = &symNode{treeIdentity: identity, treeSequence: sequence, boundary: it.boundary, boundaryAnnotations: it.boundaryAnnotations, closeRequested: p.closeRequested, lexical: p.lexical, option: option, structure: it.structure, closes: it.closes, familySummary: it.familySummary, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
+	c = &symNode{treeIdentity: identity, treeSequence: sequence, boundary: it.boundary, boundaryAnnotations: it.boundaryAnnotations, closeRequested: p.closeRequested, lexical: p.lexical, option: option, structure: it.structure, closes: completedCloses, familySummary: it.familySummary, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
 	if s.syms == nil {
 		s.syms = map[symKey]*symNode{}
 	}

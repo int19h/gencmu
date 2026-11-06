@@ -250,6 +250,9 @@ func (r cmpRes) flip() cmpRes {
 type ranker struct {
 	admission         *slotAdmission
 	rawWitnessCounted *bool
+	canonical         *ranker
+	witnessOnly       bool
+	witnessShown      *dn
 	rec               *recognizer
 	// lean is greedy, lazy, or "" for no lean, where any two differing
 	// derivations tie.
@@ -309,6 +312,40 @@ func newUnfilteredRanker(rec *recognizer, steps []keyStep, lean string) *ranker 
 		}
 	}
 	return rk
+}
+
+// The extra action summary cuts only to the diagnostic measure (§6).
+// Its ordinary prefix frontier keeps actions that later context can distinguish.
+func (rk *ranker) canonicalItem(it *item, f forbidden) *entry {
+	if rk.canonical == nil {
+		canonical := newUnfilteredRanker(rk.rec, nil, "")
+		canonical.profiles = true
+		canonical.canonical = canonical
+		canonical.admission, canonical.views = rk.admission, rk.views
+		canonical.check, canonical.marks = rk.check, rk.marks
+		rk.canonical = canonical
+	}
+	return rk.canonical.itemVal(it, f)
+}
+
+// The shown W(D) preserves its exterior edges and uses kept erased interiors (§7.10).
+func (rk *ranker) witnessRepresentative(top []*symNode) *dn {
+	representative := newUnfilteredRanker(rk.rec, nil, "")
+	representative.profiles, representative.check, representative.witnessOnly = true, rk.check, true
+	representative.admission, representative.views, representative.marks = rk.admission, rk.views, rk.marks
+	if representative.views != nil {
+		mapped := make([]*symNode, len(top))
+		for index, symbol := range top {
+			mapped[index] = representative.views.plainSyms[symbol]
+		}
+		top = mapped
+	}
+	result := representative.rankOriginal(top)
+	if result == nil {
+		return nil
+	}
+	rk.witnessShown = result.first
+	return result.first
 }
 
 func (rk *ranker) itemMemo(it *item) *itemRank {
@@ -786,6 +823,9 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 // and its close follows (§7.7).
 func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 	if it.dot == 0 && !it.restores {
+		if rk.witnessOnly && rk.slotMarks(it) == nil {
+			return nil, nil
+		}
 		// A predicted item of W(D), such as an empty production's, is
 		// W(D)'s (tests/README.md).
 		if rk.slotMarks(it) != nil {
@@ -935,6 +975,9 @@ func (fr *itemFrame) summarize(rk *ranker, l link) {
 			v.admitted = mask[i]
 		}
 	}
+	if rk.witnessOnly && !fr.marked[l] {
+		v.admitted = false
+	}
 	count := prev.count * child.count
 	if rk.profiles {
 		// An edge's profile is the sum of its children's, and its least
@@ -1023,11 +1066,12 @@ type symFrame struct {
 	slot  *memoSlot
 	// The item being ranked, whether its value is asked for, and the
 	// values and summary of the items before it.
-	i     int
-	asked bool
-	vals  []edgeVal
-	sum   summary
-	w     bool
+	i      int
+	asked  bool
+	vals   []edgeVal
+	sum    summary
+	w      bool
+	erased []*edgeVal
 }
 
 func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
@@ -1035,7 +1079,9 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 	for ; fr.i < len(s.items); fr.i++ {
 		c := s.items[fr.i]
 		e := in
-		if !fr.asked {
+		if !fr.asked && rk.witnessOnly && c.prod.nothing {
+			e = rk.canonicalItem(c, fr.inner)
+		} else if !fr.asked {
 			call, v := rk.startItem(c, fr.inner)
 			if call != nil {
 				fr.asked = true
@@ -1066,6 +1112,20 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 				profile = rk.space.sum(rk.space.occurrence(rk.rec.g.rules[s.rule].name, "", "", s.tags, a, b), profile)
 			}
 		}
+		if c.prod.nothing {
+			// Equal erased completions contribute one exterior occurrence.
+			// Their selected interior comes from the independent action summary.
+			canonical := rk.canonicalItem(c, fr.inner)
+			if canonical != nil && canonical.count > 0 {
+				inside := canonical.profile
+				if c.prod.error != nil {
+					inside = rk.canonical.space.sum(inside, rk.canonical.space.measureProfile(rk.rec.ownMeasure(c.origin, c.set)))
+				}
+				fr.erased = append(fr.erased, &edgeVal{it: c, e: canonical, profile: inside})
+				fr.w = fr.w || e.w
+			}
+			continue
+		}
 		// Faults of the check skip the last of two or more completed
 		// items, in the count or in the candidates (tests/README.md).
 		if !rk.skips("lost:context", "items", fr.i, len(s.items)) {
@@ -1076,12 +1136,49 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 			fr.vals = append(fr.vals, edgeVal{it: c, e: e, profile: profile})
 		}
 	}
+	if len(fr.erased) > 0 {
+		if rk.admission != nil || rk.witnessOnly {
+			for _, c := range s.items {
+				if c.prod.nothing && rk.slotMarks(c) != nil {
+					fr.w = true
+				}
+			}
+		}
+		var interior profile
+		var candidates []*cand
+		for _, v := range fr.erased {
+			order := v.profile.measure().cmp(interior.measure())
+			if len(candidates) == 0 || order < 0 {
+				interior, candidates = v.profile, nil
+			} else if order > 0 {
+				continue
+			}
+			for _, x := range v.e.cands {
+				candidates = append(candidates, &cand{d: closeNode(v.it.prod, s.start, s.end, s.tags, x.d, s.structure, s.closes)})
+			}
+		}
+		var exterior profile
+		a, b := s.start, s.end
+		if rc := rk.rec.recon; rc != nil {
+			a, b = int32(rc.project[a]), int32(rc.project[b])
+		}
+		if rk.profiles && !rk.rec.g.rules[s.rule].helper && a < b {
+			exterior = rk.space.occurrence(rk.rec.g.rules[s.rule].name, "", "", s.tags, a, b)
+		}
+		selected := rk.canonical.finish(rk.canonical.merge(candidates))
+		fr.sum.add(rk.space, exterior, 1, 1)
+		fr.vals = append(fr.vals, edgeVal{e: &entry{cands: []*cand{{d: selected.d}}, count: 1, least: 1}, profile: exterior})
+	}
 	var cands []*cand
 	for _, v := range fr.vals {
 		if rk.profiles && rk.space.compare(v.profile, fr.sum.profile) != 0 {
 			continue
 		}
 		c := v.it
+		if c == nil {
+			cands = append(cands, v.e.cands...)
+			continue
+		}
 		for _, x := range v.e.cands {
 			n := &cand{d: closeNode(c.prod, s.start, s.end, s.tags, x.d, s.structure, s.closes)}
 			rk.inherit(n, x, count{}, func(t *dn) *dn { return closeNode(c.prod, s.start, s.end, s.tags, t, s.structure, s.closes) }, pastInf)

@@ -50,14 +50,22 @@ func (log *checkLog) lost() int { return log.bad }
 // first is not W(D), W(D) was a candidate for the second, so the second
 // does not come after W(D) in the canonical order T.
 func keeps(res *rankResult, rk *ranker, w *dn) bool {
-	if rk.rawWitnessCounted != nil {
-		return res != nil && *rk.rawWitnessCounted
+	if res == nil {
+		return false
 	}
-	if res == nil || !res.witnessCounted {
+	counted := res.witnessCounted
+	if rk.rawWitnessCounted != nil {
+		counted = *rk.rawWitnessCounted
+	}
+	if !counted {
 		return false
 	}
 	if res.verdict != VerdictTie {
 		return true
+	}
+	// The admitted class uses its kept interior in the selection channel (§7.10).
+	if rk.witnessShown != nil {
+		w = rk.witnessShown
 	}
 	first := rk.compare(res.first, w)
 	if !rk.aFirst(first) {

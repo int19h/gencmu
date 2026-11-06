@@ -138,7 +138,10 @@ func TestDeferredCanonicalDiagnosticFieldsAndMemberOrder(t *testing.T) {
 
 func rankedMeasure(t *testing.T, grammar string, tokens []Token) (*ranker, *rankResult) {
 	t.Helper()
-	pipeline := mustLoad(t, oneStage("%ambiguity-resolution greedy\n"+grammar))
+	if !strings.Contains(grammar, "%ambiguity-resolution") {
+		grammar = "%ambiguity-resolution greedy\n" + grammar
+	}
+	pipeline := mustLoad(t, oneStage(grammar))
 	lowered := pipeline.lower(0, map[string]bool{})
 	if lowered.fault != "" {
 		t.Fatal(lowered.fault)

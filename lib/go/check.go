@@ -265,6 +265,13 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	if res != nil && (!rawCounted || !preferred && !res.witnessCounted) {
 		res = nil
 	}
+	if res != nil && res.witnessCounted {
+		if representative := rk.witnessRepresentative(top); representative != nil {
+			restored = representative
+		} else {
+			res = nil
+		}
+	}
 	better := false
 	var selected *rankResult
 	if res != nil {
@@ -359,10 +366,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 		}
 		return Action{}
 	}
-	first := tree
-	if !better {
-		first = mapTree(over.buildTree(r, res.first))
-	}
+	first := mapTree(over.buildTree(r, res.first))
 	readings := []*Node{first, mapTree(over.buildTree(r, res.second))}
 	witness := make([]Action, 2)
 	for i, a := range res.witness {
