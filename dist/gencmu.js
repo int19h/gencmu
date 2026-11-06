@@ -2840,7 +2840,6 @@
    * @property {import("./types.js").Expectation[]} [expected]
    * @property {NodeJson[]} [readings]
    * @property {ActionJson[]} [witness]
-   * @property {string} [document]
    * @property {string} message
    * @property {NodeJson} [chosen]
    * @property {import("./types.js").Restoration[]} [completion]
@@ -2912,8 +2911,8 @@
         fill: (before, after) => {
           if (before.length > 0) result.before = before;
           if (after.length > 0) result.after = after;
-          if(current.errors?.length)result.errors=current.errors.map(diagnosticJson);
-          if(current.warnings?.length)result.warnings=current.warnings.map(diagnosticJson);
+          if(current.errors?.length)result.errors=current.errors.map(diagnostic=>diagnosticJson(diagnostic,"errors"));
+          if(current.warnings?.length)result.warnings=current.warnings.map(diagnostic=>diagnosticJson(diagnostic,"warnings"));
         },
       };
     });
@@ -2972,11 +2971,11 @@
     return { close: { rule: action.rule, production: action.production, span: [action.span[0], action.span[1]] } };
   }
 
-  /** @param {import("./types.js").ParseWarning} diagnostic @returns {WarningJson} */
-  function diagnosticJson(diagnostic) {
+  /** @param {import("./types.js").ParseWarning} diagnostic @param {"errors"|"warnings"} kind @returns {WarningJson} */
+  function diagnosticJson(diagnostic,kind) {
     /** @type {WarningJson} */
     const result={stage:diagnostic.stage,code:diagnostic.code,rule:diagnostic.rule,span:[...diagnostic.span],source:[...diagnostic.source],message:diagnostic.message};
-    if(diagnostic.rejection) {
+    if(kind==="errors"&&diagnostic.rejection) {
       const {token,source,line,column,expected}=diagnostic.rejection;
       Object.assign(result,{rejection:{token,source:[...source],line,column,expected:expected.map(item=>({terminal:item.terminal,rules:[...item.rules]}))}});
     }
@@ -3004,11 +3003,10 @@
     if (error.readings !== undefined) result.readings = error.readings.map(nodeJson);
     // Only an error of elision-only has a witness (docs/output.md).
     if (error.kind === "ambiguous" && error.witness !== undefined && error.reason === "elision-only") result.witness = error.witness.map(actionJson);
-    if (error.document !== undefined) result.document = error.document;
     if(error.kind!=='ambiguous'||error.reason==='tie'){
-      if(error.errors?.length||error.kind==='reported'&&error.errors!==undefined)result.errors=error.errors.map(diagnosticJson);
+      if(error.errors?.length)result.errors=error.errors.map(diagnostic=>diagnosticJson(diagnostic,"errors"));
     }
-    if(['rejected','grammar','feature-conflict'].includes(error.kind)&&error.warnings?.length)result.warnings=error.warnings.map(diagnosticJson);
+    if(['rejected','grammar','feature-conflict'].includes(error.kind)&&error.warnings?.length)result.warnings=error.warnings.map(diagnostic=>diagnosticJson(diagnostic,"warnings"));
     result.message = error.message;
     // The members of elision-witness-lost follow its message (docs/output.md).
     if (error.chosen !== undefined) result.chosen = nodeJson(error.chosen);
@@ -3038,15 +3036,15 @@
         const json = { name: stage.name, verdict: stage.verdict };
         if (stage.verdict === "tie" && stage.witness) json.witness = stage.witness.map(actionJson);
         if (stage.output) json.output = stage.output.map(tokenJson);
-        if(stage.errors?.length)json.errors=stage.errors.map(diagnosticJson);
-        if(stage.warnings?.length)json.warnings=stage.warnings.map(diagnosticJson);
+        if(stage.errors?.length)json.errors=stage.errors.map(diagnostic=>diagnosticJson(diagnostic,"errors"));
+        if(stage.warnings?.length)json.warnings=stage.warnings.map(diagnostic=>diagnosticJson(diagnostic,"warnings"));
         return json;
       }),
       tree: result.tree ? nodeJson(result.tree) : null,
       error: result.error ? errorJson(result.error) : null,
     };
     if (result.warnings && result.warnings.length > 0) {
-      json.warnings = result.warnings.map(diagnosticJson);
+      json.warnings = result.warnings.map(diagnostic=>diagnosticJson(diagnostic,"warnings"));
     }
     return json;
   }
@@ -24263,9 +24261,13 @@
       // mistake, and an empty one is dropped (docs/api.md). The parse copies
       // each token, its tags and its positions, so the caller's objects stay
       // as they are, and the result shares none of them.
-      if (options.tokens) {
+      const suppliedTokens=options.tokens;
+      if (suppliedTokens !== undefined) {
+        if(!Array.isArray(suppliedTokens))throw new GencmuError("usage","tokens must be an array");
+        /** @type {Token[]} */ const copiedTokens=[];
         const length = [...text].length;
-        options.tokens.forEach((token, index) => {
+        for (let index=0;index<suppliedTokens.length;index++) {
+          const token=suppliedTokens[index];
           if (!token || typeof token !== "object") throw new GencmuError("usage",`token ${index}: invalid input token`);
           for (const field of ["span","source"]) {
             const range = /** @type {any} */ (token)[field];
@@ -24276,7 +24278,10 @@
             if (value === undefined && field !== "text") continue;
             if (typeof value !== "string" || loneSurrogate(value) !== null) throw new GencmuError("usage", `token ${index}: ${field} must contain scalar values`);
           }
-          if (!token.tags || typeof token.tags[Symbol.iterator] !== "function" || ![...token.tags].every(tag => isTag(tag, this.loader.unicode))) throw new GencmuError("usage", `token ${index}: invalid tags`);
+          const suppliedTags=token.tags;
+          if (!suppliedTags || typeof suppliedTags[Symbol.iterator] !== "function") throw new GencmuError("usage", `token ${index}: invalid tags`);
+          const tags=[...suppliedTags];
+          if(!tags.every(tag=>isTag(tag,this.loader.unicode)))throw new GencmuError("usage", `token ${index}: invalid tags`);
           if ([token.before,token.after].some(list => list !== undefined && (!Array.isArray(list) || list.length > 0))) {
             throw new GencmuError("usage", `token ${index} has attachments, which a caller cannot supply`);
           }
@@ -24294,9 +24299,9 @@
           if (!(0 <= token.span[0] && token.span[0] <= token.span[1])) {
             throw new GencmuError("usage", `token ${index}: the span ${JSON.stringify(token.span)} is not a range of tokens: it starts below 0 or ends before it starts`);
           }
-        });
-        options = { ...options, tokens: options.tokens.map((token) =>
-          new Token(new Set([...token.tags].map(tag => tag.startsWith("_") ? /** @type {string} */ (this.loader.unicode.canonicalTag(tag)) : tag)), [token.span[0], token.span[1]], [token.source[0], token.source[1]], token.text, token.value, undefined, token.image)) };
+          copiedTokens.push(new Token(new Set(tags.map(tag => tag.startsWith("_") ? /** @type {string} */ (this.loader.unicode.canonicalTag(tag)) : tag)), [token.span[0], token.span[1]], [token.source[0], token.source[1]], token.text, token.value, undefined, token.image));
+        }
+        options = { ...options, tokens:copiedTokens };
       }
       // The features on are the pipeline's, with the caller's added and the
       // caller's turned off removed (engine §13).
