@@ -359,6 +359,7 @@ impl<'a> Reader<'a> {
             "elision-only" => args.is_empty(),
             _ => false,
         };
+
         if !valid {
             let problem = match name {
                 "stage" | "extend-stage" | "redefine-stage" => format!("%{name} takes one lowercase name"),
@@ -885,7 +886,10 @@ impl<'a> Reader<'a> {
         }
         let conjunctions = frame.conjunctions.as_ref().expect("the conjunctions");
         match conjunctions.get(frame.parts.len()) {
-            Some(&conjunction) => Ok(Step::Call(Frame::Conjunction(Conjunction::new(conjunction, false)))),
+            Some(&conjunction) => Ok(Step::Call(Frame::Conjunction(Conjunction::new(
+                conjunction,
+                frame.whole && conjunctions.len() == 1,
+            )))),
             None => Ok(Step::Done(Val::Expr(if frame.ranked {
                 self.ranked.set(self.ranked.get() - 1);
                 let separator =
@@ -1782,6 +1786,27 @@ impl<'a> Reader<'a> {
                     frame.args.push(arg);
                     frame.types.push(ty);
                 }
+                Val::Expr(mut body) if frame.reading_body => {
+                    frame.reading_body = false;
+                    let argument = frame.parse_argument.expect("a parse argument");
+                    if let Some(binder) = first_of_rule(argument, "capture") {
+                        return Err(self.error(binder, "a parse argument cannot declare captures"));
+                    }
+                    for (index, part) in self.parts(argument).iter().enumerate() {
+                        if part.kind == NodeKind::Token && self.value(part) == "…" {
+                            body = if index == 0 {
+                                Expr::Seq(vec![Expr::Remainder, body])
+                            } else {
+                                Expr::Seq(vec![body, Expr::Remainder])
+                            };
+                        }
+                    }
+                    if let Some(problem) = crate::query_forms::body_problem(&body) {
+                        return Err(self.error(argument, problem));
+                    }
+                    frame.args = vec![Arg::Term(Term::Body(std::sync::Arc::new(body)))];
+                    frame.types = vec![Some(Type::Body)];
+                }
                 _ => unreachable!("a method reads a receiver or an argument"),
             }
         }
@@ -1790,11 +1815,22 @@ impl<'a> Reader<'a> {
         }
         let selectors = frame.selectors.as_ref().unwrap();
         let selector = selectors[frame.index];
-        let name = self.value(self.token(self.one(selector, "method-name")?)?);
+        let parsed = self.rules(selector, "parse-selector").next();
+        let name = if parsed.is_some() { "parse" } else { self.value(self.token(self.one(selector, "method-name")?)?) };
         let method = known_method(name).ok_or_else(|| self.error(frame.node, format!("unknown method {name}")))?;
         if frame.arguments.is_none() {
             if let Some(closed) = self.closed_for.get().filter(|_| name != "split" && name != "ngrams") {
                 return Err(self.error(frame.node, format!("{closed} cannot read an input method")));
+            }
+            if let Some(parsed) = parsed {
+                let argument = self.one(parsed, "parse-argument")?;
+                frame.parse_argument = Some(argument);
+                frame.dependent |= self.source_unresolved(argument);
+                frame.arguments = Some(Vec::new());
+                frame.reading_body = true;
+                let mut choice = Choice::new(self.one(argument, "choice")?);
+                choice.whole = true;
+                return Ok(Step::Call(Frame::Choice(choice)));
             }
             frame.arguments = Some(match self.rules(selector, "arguments").next() {
                 Some(arguments) => self.some(arguments, "argument", 1)?,
@@ -1828,6 +1864,8 @@ impl<'a> Reader<'a> {
             matches!((name, arguments), ("value" | "image", []))
         } else {
             match (method, arguments) {
+                (MethodKind::Parse, [Arg::Term(Term::Body(_))]) => span,
+                (MethodKind::ErrorFree, []) => self.feature_context.get() || matches!(ty, Type::Forest | Type::Any),
                 (MethodKind::Span | MethodKind::Tags, []) => span,
                 (MethodKind::Restored, []) if name == "without-elision" => bare,
                 (MethodKind::Recipe, []) => bare,
@@ -1865,6 +1903,12 @@ impl<'a> Reader<'a> {
         if name == "ends" && crate::dom::restored_span(&receiver) {
             return Err(self.error(frame.node, "ends requires an ordinary span, not a restored span"));
         }
+        if name == "parse"
+            && matches!(arguments,[Arg::Term(Term::Body(body))] if crate::query_forms::suffix_body(body))
+            && crate::dom::restored_span(&receiver)
+        {
+            return Err(self.error(frame.node, "suffix parse requires an ordinary span, not a restored span"));
+        }
         if !valid {
             let problem = match name {
                 _ if self.feature_context.get() || frame.dependent => "a method has the wrong receiver or arguments",
@@ -1894,7 +1938,15 @@ impl<'a> Reader<'a> {
             name,
             "starts-input" | "ends-input" | "followed-by" | "preceded-by" | "matches" | "begins" | "ends"
         );
-        let value = if query && !last {
+        let forest = matches!(name, "parse" | "error-free");
+        let value = if forest {
+            let term = Term::Call(name.into(), args);
+            if last && frame.condition {
+                Val::Cond(Cond::Forest(term))
+            } else {
+                Val::Term(term, Type::Forest)
+            }
+        } else if query && !last {
             Val::Term(Term::Call(name.into(), args), Type::Any)
         } else if query {
             if !frame.condition {
@@ -1956,7 +2008,7 @@ impl<'a> Reader<'a> {
         }
         let Val::Term(term, ty) = value else { unreachable!() };
         frame.receiver = Some((term, ty));
-        frame.receiver_query = query;
+        frame.receiver_query = query || forest;
         frame.index += 1;
         frame.arguments = None;
         frame.types.clear();
@@ -2480,6 +2532,7 @@ impl<'a> Conjunction<'a> {
 }
 
 struct Choice<'a> {
+    whole: bool,
     ranked: bool,
     node: &'a Node,
     conjunctions: Option<Vec<&'a Node>>,
@@ -2488,7 +2541,7 @@ struct Choice<'a> {
 
 impl<'a> Choice<'a> {
     fn new(node: &'a Node) -> Self {
-        Choice { ranked: rule_name(node) == "ranked-choice", node, conjunctions: None, parts: Vec::new() }
+        Choice { whole: false, ranked: rule_name(node) == "ranked-choice", node, conjunctions: None, parts: Vec::new() }
     }
 }
 
@@ -2547,7 +2600,8 @@ fn capture_names(expr: &Expr) -> Vec<&str> {
             | Expr::Range(..)
             | Expr::Source(_)
             | Expr::Wildcard
-            | Expr::Empty => {}
+            | Expr::Empty
+            | Expr::Remainder => {}
         }
     }
     names
@@ -2642,6 +2696,8 @@ struct ArgumentFrame<'a> {
 }
 
 struct MethodFrame<'a> {
+    parse_argument: Option<&'a Node>,
+    reading_body: bool,
     node: &'a Node,
     condition: bool,
     dependent: bool,
@@ -2661,6 +2717,8 @@ impl<'a> MethodFrame<'a> {
             condition,
             dependent: false,
             receiver_query: false,
+            parse_argument: None,
+            reading_body: false,
             receiver: None,
             selectors: None,
             index: 0,
@@ -2755,6 +2813,8 @@ const KNOWN: &[&str] = &[
     "method",
     "method-receiver",
     "method-selector",
+    "parse-selector",
+    "parse-argument",
     "method-name",
     "arguments",
     "tag-run",
@@ -2893,6 +2953,8 @@ const ATOMS: &[&str] = &[
 ];
 
 enum MethodKind {
+    Parse,
+    ErrorFree,
     Span,
     Restored,
     Recipe,
@@ -2907,6 +2969,8 @@ enum MethodKind {
 /// The signature family of a supported method.
 fn known_method(name: &str) -> Option<MethodKind> {
     Some(match name {
+        "parse" => MethodKind::Parse,
+        "error-free" => MethodKind::ErrorFree,
         "value"
         | "image"
         | "source-text"
@@ -2949,6 +3013,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
         work::count(Work::Walked, 1);
         match part {
             Part::Term(term) => match term {
+                Term::Body(body) => stack.extend(crate::query_forms::body_terms(body).into_iter().map(Part::Term)),
                 Term::Call(name, args) => {
                     if matches!(name.as_str(), "tags" | "classes")
                         && matches!(&args[..], [Arg::Term(Term::Capture(name))] if name.is_empty())
@@ -2975,6 +3040,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 | Term::Capture(_) => {}
             },
             Part::Cond(cond) => match cond {
+                Cond::Forest(term) => stack.push(Part::Term(term)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Part::Term(term)),
                     _ => None,

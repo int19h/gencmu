@@ -70,6 +70,7 @@ mod output;
 mod parameters;
 mod patterns;
 mod pipeline;
+mod query_forms;
 mod rank;
 mod ranking_audit;
 mod ranking_patterns;

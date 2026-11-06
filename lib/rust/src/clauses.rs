@@ -83,6 +83,7 @@ pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
         Cond::Compare(op, left, right, location) => {
             Simple::Cond(Cond::Compare(op.clone(), simplify_value(left, has), simplify_value(right, has), *location))
         }
+        Cond::Forest(term) => Simple::Cond(Cond::Forest(simplify_value(term, has))),
         Cond::Matches(..)
         | Cond::Begins(..)
         | Cond::Ends(..)
@@ -147,6 +148,8 @@ pub(crate) enum Part<'a> {
 impl<'a> Part<'a> {
     pub(crate) fn children(self) -> Vec<Part<'a>> {
         match self {
+            Part::Term(Term::Body(body)) => crate::query_forms::body_terms(body).into_iter().map(Part::Term).collect(),
+            Part::Cond(Cond::Forest(term)) => vec![Part::Term(term)],
             Part::Term(Term::Call(_, args)) | Part::Cond(Cond::SourceQuery(_, args, _)) => args
                 .iter()
                 .filter_map(|arg| match arg {
@@ -192,6 +195,9 @@ fn walk_captures<'a>(start: Part<'a>, values: bool, presences: bool, out: &mut V
         work::count(Work::Walked, 1);
         match part {
             Part::Term(term) => match term {
+                Term::Body(body) => {
+                    stack.extend(crate::query_forms::body_terms(body).into_iter().rev().map(Part::Term))
+                }
                 Term::Capture(name) => {
                     if values {
                         out.push(name);
@@ -212,6 +218,7 @@ fn walk_captures<'a>(start: Part<'a>, values: bool, presences: bool, out: &mut V
                 }
             },
             Part::Cond(cond) => match cond {
+                Cond::Forest(term) => stack.push(Part::Term(term)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Part::Term(term)),
                     _ => None,
@@ -349,6 +356,7 @@ impl<'a> Shaped<'a> {
                     }
                 },
                 Part::Cond(cond) => match cond {
+                    Cond::Forest(_) => used,
                     Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
                     Cond::Captured(name) => {
                         if has(name) {
@@ -1041,7 +1049,8 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<&Expr> {
                 | Expr::ScalarRange(..)
                 | Expr::Range(..)
                 | Expr::Wildcard
-                | Expr::Empty => done.push(empty()),
+                | Expr::Empty
+                | Expr::Remainder => done.push(empty()),
             }
             continue;
         }
@@ -1201,7 +1210,8 @@ impl<'e> CaptureSequences<'e> {
                 | Expr::Range(..)
                 | Expr::Source(_)
                 | Expr::Wildcard
-                | Expr::Empty => {}
+                | Expr::Empty
+                | Expr::Remainder => {}
             }
         }
     }
@@ -1242,7 +1252,8 @@ impl<'e> CaptureSequences<'e> {
                     | Expr::Range(..)
                     | Expr::Source(_)
                     | Expr::Wildcard
-                    | Expr::Empty => done.push(vec![Vec::new()]),
+                    | Expr::Empty
+                    | Expr::Remainder => done.push(vec![Vec::new()]),
                 }
                 continue;
             }
@@ -1349,7 +1360,8 @@ fn item_captures_and_braces(expr: &Expr) -> ItemsAndBraces<'_> {
             | Expr::Range(..)
             | Expr::Source(_)
             | Expr::Wildcard
-            | Expr::Empty => {}
+            | Expr::Empty
+            | Expr::Remainder => {}
         }
     }
     (found, braces)
@@ -1396,7 +1408,8 @@ pub(crate) fn repeats_item_capture(expr: &Expr) -> bool {
             | Expr::Range(..)
             | Expr::Source(_)
             | Expr::Wildcard
-            | Expr::Empty => {}
+            | Expr::Empty
+            | Expr::Remainder => {}
         }
     }
     false
@@ -1427,7 +1440,8 @@ fn flat_braces_in(expr: &Expr) -> usize {
             | Expr::Range(..)
             | Expr::Source(_)
             | Expr::Wildcard
-            | Expr::Empty => {}
+            | Expr::Empty
+            | Expr::Remainder => {}
         }
     }
     count
@@ -1494,7 +1508,8 @@ pub(crate) fn braces_sequences(expr: &Expr) -> Vec<Vec<Read<'_>>> {
                 | Expr::Range(..)
                 | Expr::Source(_)
                 | Expr::Wildcard
-                | Expr::Empty => done.push(vec![Vec::new()]),
+                | Expr::Empty
+                | Expr::Remainder => done.push(vec![Vec::new()]),
             }
             continue;
         }

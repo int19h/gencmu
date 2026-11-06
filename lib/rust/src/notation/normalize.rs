@@ -77,6 +77,7 @@ pub(super) fn document(dom: &mut Dom) {
                 _ => (),
             },
             Part::Term(term) => match term {
+                Term::Body(body) => stack.push(Part::Expr(std::sync::Arc::make_mut(body))),
                 Term::Union(xs) => {
                     fold(xs, |t| if let Term::Union(xs) = t { Some(std::mem::take(xs)) } else { None });
                     stack.extend(xs.iter_mut().map(Part::Term));
@@ -104,6 +105,7 @@ pub(super) fn document(dom: &mut Dom) {
                 _ => (),
             },
             Part::Cond(cond) => match cond {
+                Cond::Forest(term) => stack.push(Part::Term(term)),
                 Cond::Any(xs) => {
                     fold(xs, |c| if let Cond::Any(xs) = c { Some(std::mem::take(xs)) } else { None });
                     stack.extend(xs.iter_mut().map(Part::Cond));

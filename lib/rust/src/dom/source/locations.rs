@@ -201,6 +201,7 @@ fn restore(mut pending: Vec<Pair<'_>>) {
                 _ => (),
             },
             Pair::Term(to, from) => match (to, from) {
+                (Term::Body(to), Term::Body(from)) => pending.push(Pair::Expr(std::sync::Arc::make_mut(to), from)),
                 (Term::Union(to), Term::Union(from)) | (Term::Intersection(to), Term::Intersection(from)) => {
                     pending.extend(to.iter_mut().zip(from).map(|(to, from)| Pair::Term(to, from)));
                 }
@@ -218,6 +219,7 @@ fn restore(mut pending: Vec<Pair<'_>>) {
                 _ => (),
             },
             Pair::Cond(to, from) => match (to, from) {
+                (Cond::Forest(to), Cond::Forest(from)) => pending.push(Pair::Term(to, from)),
                 (Cond::SourceQuery(tn, to, tl), Cond::SourceQuery(fn_, from, fl)) => {
                     if tn == fn_ {
                         *tl = fl.clone();

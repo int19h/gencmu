@@ -84,7 +84,7 @@ fn routes(
 ) -> Vec<Route> {
     let visit = |child: &Expr| routes(child, groups, needed, spans, grammar);
     match expr {
-        Expr::Empty => vec![Route::default()],
+        Expr::Empty | Expr::Remainder => vec![Route::default()],
         Expr::Seq(items) => items.iter().fold(vec![Route::default()], |left, child| product(left, visit(child))),
         Expr::Choice(items) => unique(items.iter().flat_map(visit)),
         Expr::Ranked(items, _) => {
@@ -180,6 +180,7 @@ fn capture_reads(start: ReadPart<'_>, out: &mut BTreeSet<String>) {
                 _ => {}
             },
             ReadPart::Condition(cond) => match cond {
+                Cond::Forest(term) => stack.push(ReadPart::Term(term)),
                 Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
                 Cond::Captured(name) => {
                     out.insert(name.clone());
@@ -801,7 +802,7 @@ impl TagGraph {
             return known.clone();
         }
         let result = match expr {
-            Expr::Empty => Unary { zero: true, children: vec![] },
+            Expr::Empty | Expr::Remainder => Unary { zero: true, children: vec![] },
             Expr::Seq(items) => {
                 let parts: Vec<_> =
                     items.iter().map(|child| self.describe(grammar, ranked, source, child, memo, captured)).collect();
@@ -914,7 +915,7 @@ impl WrittenSpans {
                 let id = self.count;
                 self.count += 1;
                 match expr {
-                    Expr::Empty => self.branches.push((id, vec![])),
+                    Expr::Empty | Expr::Remainder => self.branches.push((id, vec![])),
                     Expr::Seq(items) => {
                         let rhs = items.iter().map(|child| self.expression(child, grammar)).collect();
                         self.branches.push((id, rhs));

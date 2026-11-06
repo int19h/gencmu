@@ -925,7 +925,7 @@ impl<'a> Lowerer<'a> {
                 }
                 out
             }
-            Expr::Empty => vec![Sequence::new()],
+            Expr::Empty | Expr::Remainder => vec![Sequence::new()],
         }
     }
 }
@@ -951,7 +951,8 @@ fn holds_capture(expr: &Expr, include_ranked: bool) -> bool {
         | Expr::ScalarRange(..)
         | Expr::Range(..)
         | Expr::Wildcard
-        | Expr::Empty => false,
+        | Expr::Empty
+        | Expr::Remainder => false,
     }
 }
 
@@ -1041,7 +1042,7 @@ impl<'a> Scope<'a> {
             {
                 LTerm::Value(self.span(term)?)
             }
-            Term::Pattern(_) | Term::Const(..) => return Err(Missing),
+            Term::Body(_) | Term::Pattern(_) | Term::Const(..) => return Err(Missing),
             Term::If(cond, then) => LTerm::If(Box::new(self.cond(cond)?), Box::new(self.term(then)?)),
             Term::Call(name, args) => match (name.as_str(), &args[..]) {
                 ("concat", args) => LTerm::Concat(
@@ -1083,6 +1084,7 @@ impl<'a> Scope<'a> {
 
     fn cond(&mut self, cond: &Cond) -> Result<LCond, Missing> {
         Ok(match cond {
+            Cond::Forest(_) => return Err(Missing),
             Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
             Cond::Compare(op, left, Term::Pattern(p), _) if matches!(op.as_str(), "≅" | "≇") => {
                 LCond::Tree(self.span(left)?, op == "≅", (**p).clone())

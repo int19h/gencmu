@@ -227,6 +227,7 @@ pub(crate) enum Expr {
     /// The closed operand precedes the wrapped symbol in this representation.
     Tested(String, Term, Box<Expr>),
     Empty,
+    Remainder,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -255,6 +256,7 @@ pub(crate) enum Chain {
 /// The capture named `""` is `$`, the whole constituent.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Term {
+    Body(std::sync::Arc<Expr>),
     Source(SourceSymbol),
     Pattern(Box<crate::patterns::Pattern>),
     /// A string, decoded.
@@ -294,6 +296,7 @@ pub(crate) struct BoundaryLocation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Cond {
+    Forest(Term),
     SourceQuery(String, Vec<Arg>, BoundaryLocation),
     Compare(String, Term, Term, Option<(usize, usize)>),
     Matches(Term, Vec<String>),
@@ -779,6 +782,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
                     "ref" => Expr::Ref(string(value, "ref")?),
                     "literal" => Expr::Literal(term_from_json(field(value, "literal")?)?),
                     "wildcard" => Expr::Wildcard,
+                    "remainder" => Expr::Remainder,
                     "range" => match array(value, "range")? {
                         [start, end] => Expr::ScalarRange(term_from_json(start)?, term_from_json(end)?),
                         _ => return Err("a range requires two string terms".into()),
@@ -864,7 +868,12 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     children.push((field(value, "left")?, false));
                     children.push((field(value, "right")?, false));
                 }
-                "method" => children.push((field(value, "receiver")?, false)),
+                "method" => {
+                    children.push((field(value, "receiver")?, false));
+                    if matches!(value.get("method").and_then(Json::as_str), Some("parse")) {
+                        children.extend(array(value, "args")?.iter().map(|argument| (argument, false)));
+                    }
+                }
                 "not" => children.push((field(value, "not")?, true)),
                 "any" | "all" => children.extend(array(value, key)?.iter().map(|child| (child, true))),
                 "if" => {
@@ -896,7 +905,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                             .map(|arg| (arg, false)),
                     );
                 }
-                "pattern" | "string" | "tag" | "emptySet" | "capture" | "const" | "param" | "call" => {}
+                "body" | "pattern" | "string" | "tag" | "emptySet" | "capture" | "const" | "param" | "call" => {}
                 _ => return Err(format!("an unknown term {key:?}")),
             }
         }
@@ -917,6 +926,13 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                 "method" => {
                     let receiver = operands.next().unwrap().term();
                     let name = string(value, "method")?;
+                    if matches!(name.as_str(), "parse" | "error-free") {
+                        let args = std::iter::once(Arg::Term(receiver))
+                            .chain(operands.map(|operand| Arg::Term(operand.term())))
+                            .collect();
+                        values.push(ReadValue::Cond(Cond::Forest(Term::Call(name, args))));
+                        continue;
+                    }
                     if array(value, "args")?.iter().any(|arg| arg.get("param").is_some() || arg.get("call").is_some()) {
                         let mut args = vec![Arg::Term(receiver)];
                         for arg in array(value, "args")? {
@@ -967,6 +983,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
             })
         } else {
             ReadValue::Term(match key {
+                "body" => Term::Body(std::sync::Arc::new(expr_from_json(field(value, "body")?)?)),
                 "pattern" => Term::Pattern(Box::new(crate::patterns::Pattern::from_json(field(value, "pattern")?)?)),
                 "string" => Term::Str(string(value, "string")?),
                 "tag" => Term::Tag(string(value, "tag")?),
@@ -1431,6 +1448,8 @@ pub(crate) enum Type {
     Strings,
     Tags,
     Span,
+    Forest,
+    Body,
     Set,
     Any,
 }
@@ -1443,6 +1462,8 @@ impl Type {
             Type::Strings => "a set of strings",
             Type::Tags => "a tag set",
             Type::Span => "a span",
+            Type::Forest => "a forest",
+            Type::Body => "a parse body",
             Type::Set => "a set",
             Type::Any => "a value",
         }
@@ -1491,6 +1512,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
         match part {
             Nested::Source(symbol) => stack.extend(source_children(symbol).into_iter().rev()),
             Nested::Term(term) => match term {
+                Term::Body(body) => stack.push(Nested::Expr(body)),
                 Term::Source(symbol) => stack.push(Nested::Source(symbol)),
                 Term::Pattern(p) => stack.push(Nested::Pattern(p)),
                 Term::Const(name, at) if engine || !name.starts_with('_') => out.push((name, *at)),
@@ -1505,6 +1527,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) => {}
             },
             Nested::Cond(cond) => match cond {
+                Cond::Forest(term) => stack.push(Nested::Term(term)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().rev().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Nested::Term(term)),
                     _ => None,
@@ -1636,9 +1659,11 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                     stack.push((Nested::Term(a), depth));
                     stack.push((Nested::Term(b), depth));
                 }
-                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Wildcard | Expr::Empty => {}
+                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Wildcard | Expr::Empty | Expr::Remainder => {
+                }
             },
             Nested::Term(term) => match term {
+                Term::Body(body) => stack.push((Nested::Expr(body), below)),
                 Term::Source(symbol) => stack.push((Nested::Source(symbol), depth)),
                 Term::Union(items) | Term::Intersection(items) => {
                     stack.extend(items.iter().map(|item| (Nested::Term(item), below)))
@@ -1709,6 +1734,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                 }
             }
             Nested::Cond(cond) => match cond {
+                Cond::Forest(term) => stack.push((Nested::Term(term), below)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some((Nested::Term(term), below)),
                     _ => None,
@@ -1807,7 +1833,8 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
             | Expr::ScalarRange(..)
             | Expr::Range(..)
             | Expr::Wildcard
-            | Expr::Empty => {}
+            | Expr::Empty
+            | Expr::Remainder => {}
         }
     }
     found
@@ -1899,6 +1926,7 @@ pub(crate) fn call_type(call: &str) -> Type {
     match call {
         "value" | "source-text" | "decomposed-source-text" | "image" | "verbatim-text" | "concat" => Type::String,
         "split" | "ngrams" => Type::Strings,
+        "parse" | "error-free" => Type::Forest,
         "tags" | "classes" | "classify" | "requirements" | "forbid" => Type::Tags,
         _ => Type::Span,
     }
@@ -1908,6 +1936,9 @@ pub(crate) fn call_type(call: &str) -> Type {
 /// joined: each is a set, and all whose kind is known have one kind. A
 /// constant whose type is not known yet fits any set.
 pub(crate) fn joined_type(types: &[Type], operator: &str) -> Result<Type, String> {
+    if types.iter().any(|ty| matches!(ty, Type::Forest | Type::Body)) {
+        return Err(format!("{operator} requires sets, not a forest or parse body"));
+    }
     if types.contains(&Type::Span) {
         return Err(SPAN_NOT_VALUE.to_string());
     }
@@ -2024,6 +2055,8 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
         joined_type(&types, operator).map_err(|problem| Fault::in_term(problem, term))
     };
     match term {
+        Term::Body(body) => crate::query_forms::body_problem(body)
+            .map_or(Ok(Type::Body), |problem| Err(Fault::in_term(problem.into(), term))),
         Term::Pattern(p) => match p.type_fault(constants) {
             Some(f) => Err(f),
             None => Ok(Type::Pattern),
@@ -2055,6 +2088,8 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
                     let expected = match call.as_str() {
                         "split" | "ngrams" | "classify" | "concat" => Type::String,
                         "requirements" | "forbid" => Type::Tags,
+                        "parse" if index == 1 => Type::Body,
+                        "error-free" => Type::Forest,
                         _ if index == 0 => Type::Span,
                         _ => continue,
                     };
@@ -2082,6 +2117,10 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
 /// that disagrees, or `None` (engine §10).
 pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<Fault> {
     match cond {
+        Cond::Forest(term) => term_type_in(term, constants).err().or_else(|| {
+            (term_type_in(term, constants).ok() != Some(Type::Forest))
+                .then(|| Fault::in_term("a condition requires a forest".into(), term))
+        }),
         Cond::SourceQuery(_, args, _) => args.iter().find_map(|arg| match arg {
             Arg::Term(term) => term_type_in(term, constants).err(),
             _ => None,
@@ -2410,7 +2449,7 @@ impl Expr {
                 stack.push(Dropping::Term(std::mem::replace(a, Term::EmptySet)));
                 stack.push(Dropping::Term(std::mem::replace(b, Term::EmptySet)));
             }
-            Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Wildcard | Expr::Empty => {}
+            Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Wildcard | Expr::Empty | Expr::Remainder => {}
         }
     }
 }
@@ -2418,6 +2457,12 @@ impl Expr {
 impl Term {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
+            Term::Body(body) => {
+                let owned = std::mem::replace(body, std::sync::Arc::new(Expr::Empty));
+                if let Ok(expr) = std::sync::Arc::try_unwrap(owned) {
+                    stack.push(Dropping::Expr(expr));
+                }
+            }
             Self::Source(symbol) => symbol.take_parts(stack),
             Term::Union(items) | Term::Intersection(items) => stack.extend(items.drain(..).map(Dropping::Term)),
             Term::Difference(left, right) => {
@@ -2446,6 +2491,7 @@ impl Term {
 impl Cond {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
+            Cond::Forest(term) => stack.push(Dropping::Term(std::mem::replace(term, Term::EmptySet))),
             Cond::SourceQuery(_, args, _) => {
                 stack.extend(args.drain(..).filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Dropping::Term(term)),

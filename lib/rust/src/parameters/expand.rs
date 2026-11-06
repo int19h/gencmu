@@ -152,7 +152,8 @@ fn child_position<'a>(key: &str, position: &'a str) -> &'a str {
         return "term";
     }
     if position != "pattern"
-        && ["splice", "seq", "choice", "ranked", "and", "optional", "repeat", "separator", "expr"].contains(&key)
+        && ["body", "splice", "seq", "choice", "ranked", "and", "optional", "repeat", "separator", "expr"]
+            .contains(&key)
     {
         return "expr";
     }

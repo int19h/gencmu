@@ -41,6 +41,7 @@ fn partial(value: &Json, kind: &str) -> Json {
                         if matches!(
                             key.as_str(),
                             "splice"
+                                | "body"
                                 | "expr"
                                 | "seq"
                                 | "choice"

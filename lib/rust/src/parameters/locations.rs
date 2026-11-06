@@ -44,6 +44,7 @@ fn channels(channels: &mut dom::Channels, n: &Json) {
 fn term(t: &mut dom::Term, n: &Json) {
     use dom::{Arg, Term};
     match t {
+        Term::Body(body) => restore_defaults(std::sync::Arc::make_mut(body), get(n, "body")),
         Term::Union(xs) | Term::Intersection(xs) => {
             let key = if has(n, "union") { "union" } else { "intersection" };
             for (t, n) in xs.iter_mut().zip(list(get(n, key))) {
@@ -78,6 +79,7 @@ fn term(t: &mut dom::Term, n: &Json) {
 fn cond(c: &mut dom::Cond, n: &Json) {
     use dom::Cond;
     match c {
+        Cond::Forest(t) => term(t, n),
         Cond::Boundary(_, receiver, _, location) => {
             let location = std::sync::Arc::make_mut(location);
             location.at = source_at(n);
@@ -353,6 +355,11 @@ fn annotate_pattern(pattern: &crate::patterns::Pattern, n: &mut Json) {
 fn annotate_term(t: &dom::Term, n: &mut Json) {
     use dom::{Arg, Term};
     match t {
+        Term::Body(body) => {
+            if let Some(n) = slot(n, "body") {
+                annotate_expr(body, n);
+            }
+        }
         Term::Source(symbol) => annotate_source(symbol, n),
         Term::Pattern(pattern) => {
             if let Some(n) = slot(n, "pattern") {
@@ -413,6 +420,7 @@ fn annotate_term(t: &dom::Term, n: &mut Json) {
 pub(crate) fn annotate_condition(c: &dom::Cond, n: &mut Json) {
     use dom::Cond;
     match c {
+        Cond::Forest(t) => annotate_term(t, n),
         Cond::SourceQuery(_, args, location) => {
             locate(n, location.at);
             if let Some(dom::Arg::Term(receiver)) = args.first() {

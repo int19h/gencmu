@@ -74,7 +74,7 @@ pub(crate) fn canonical(n: &Json, u: &Unicode) -> String {
     if has(n, "range") {
         return list(get(n, "range")).iter().map(p).collect::<Vec<_>>().join("..");
     }
-    for (k, s) in [("wildcard", "_"), ("empty", "ε"), ("emptySet", "∅")] {
+    for (k, s) in [("wildcard", "_"), ("empty", "ε"), ("emptySet", "∅"), ("remainder", "…")] {
         if has(n, k) {
             return s.into();
         }
@@ -142,8 +142,17 @@ pub(crate) fn canonical(n: &Json, u: &Unicode) -> String {
         let sep =
             if ["matches", "begins", "ends", "followed-by", "preceded-by"].contains(&name) { " | " } else { ", " };
         let xs = list(get(n, "args"));
-        let args =
-            if xs.is_empty() { String::new() } else { format!("({})", xs.iter().map(p).collect::<Vec<_>>().join(sep)) };
+        let args = if xs.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "({})",
+                xs.iter()
+                    .map(|arg| if name == "parse" { body(get(arg, "body"), u, "") } else { p(arg) })
+                    .collect::<Vec<_>>()
+                    .join(sep)
+            )
+        };
         let r = get(n, "receiver");
         let s = p(r);
         let s = if term_group(r, "method", 0) { format!("({s})") } else { s };

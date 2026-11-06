@@ -69,7 +69,7 @@ pub(crate) fn check(grammar: &StageGrammar) -> Result<(), Error> {
                     .map(|alternative| Site::Expression(&alternative.alternative.expr)),
             ),
             Site::Expression(expression) => match expression {
-                Expr::Empty | Expr::Optional(..) => all = true,
+                Expr::Empty | Expr::Remainder | Expr::Optional(..) => all = true,
                 Expr::Seq(items) => {
                     all = true;
                     children.extend(items.iter().map(Site::Expression));

@@ -640,6 +640,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
                 _ => {}
             },
             Part::Cond(condition) => match condition {
+                Cond::Forest(term) => pending.push(Part::Term(term)),
                 Cond::Compare(_, a, b, _) => pending.extend([Part::Term(a), Part::Term(b)]),
                 Cond::Matches(t, _)
                 | Cond::Begins(t, _)
@@ -1441,6 +1442,7 @@ impl Constants<'_> {
             let mut operands = values.split_off(values.len() - children.len()).into_iter();
             let value = match term {
                 Term::Source(_) => unreachable!("source symbols expand before constant binding"),
+                Term::Body(_) => return Err(Error::grammar("a parse body cannot be a constant").in_document(document)),
                 Term::Str(text) => Value::Str(text.clone()),
                 Term::Tag(tag) => Value::Set(BTreeSet::from([tag.clone()])),
                 Term::EmptySet => Value::Set(BTreeSet::new()),
@@ -2050,7 +2052,8 @@ impl Constants<'_> {
                         | Expr::Terminal(_)
                         | Expr::Range(..)
                         | Expr::Wildcard
-                        | Expr::Empty => {}
+                        | Expr::Empty
+                        | Expr::Remainder => {}
                     }
                 }
             }
@@ -2088,6 +2091,7 @@ impl Constants<'_> {
             return;
         }
         match term {
+            Term::Body(body) => self.substitute_body(Arc::make_mut(body)),
             Term::Source(_) => (),
             Term::Const(name, _) => *term = self.values[name.as_str()].value.term(),
             Term::Union(items) | Term::Intersection(items) => {
@@ -2112,9 +2116,43 @@ impl Constants<'_> {
         }
     }
 
+    fn substitute_body(&self, body: &mut Expr) {
+        let mut pending = vec![body];
+        while let Some(expression) = pending.pop() {
+            work::count(Work::Stitched, 1);
+            match expression {
+                Expr::Literal(term) => self.substitute_term(term),
+                Expr::ScalarRange(left, right) => {
+                    self.substitute_term(left);
+                    self.substitute_term(right);
+                }
+                Expr::Tested(_, term, inner) => {
+                    self.substitute_term(term);
+                    pending.push(inner);
+                }
+                Expr::Optional(inner, _, default) => {
+                    if let Some(default) = default {
+                        self.substitute_term(&mut default.term);
+                    }
+                    pending.push(inner);
+                }
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                    pending.extend(items.iter_mut())
+                }
+                Expr::Capture(_, inner) | Expr::Splice(inner) => pending.push(inner),
+                Expr::Repeat(inner, separator, _) => {
+                    pending.push(inner);
+                    pending.extend(separator.as_deref_mut());
+                }
+                _ => {}
+            }
+        }
+    }
+
     fn substitute_cond(&self, cond: &mut Cond) {
         work::count(Work::Stitched, 1);
         match cond {
+            Cond::Forest(term) => self.substitute_term(term),
             Cond::SourceQuery(_, args, _) => {
                 for arg in args {
                     if let Arg::Term(term) = arg {
@@ -2410,7 +2448,8 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
         | Expr::ScalarRange(..)
         | Expr::Range(..)
         | Expr::Wildcard
-        | Expr::Empty => Ok(()),
+        | Expr::Empty
+        | Expr::Remainder => Ok(()),
         // The reader, or the check of a DOM, has made sure that a capture
         // wraps one symbol (§9).
         Expr::Capture(_, inner) => check_expr(grammar, inner),
@@ -2438,6 +2477,12 @@ fn check_span_references(grammar: &StageGrammar, term: &Term) -> Result<(), Stri
 
 fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Result<(), String> {
     match term {
+        Term::Body(body) => {
+            if let Some(problem) = crate::query_forms::body_problem(body) {
+                return Err(problem.into());
+            }
+            check_expr(grammar, body)
+        }
         Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
         // Stitching has checked every constant (engine §2).
         Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => Ok(()),
@@ -2457,6 +2502,14 @@ fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Resul
             check_term(grammar, then, compared)
         }
         Term::Call(name, args) => match (name.as_str(), &args[..]) {
+            ("parse", [Arg::Term(receiver), Arg::Term(Term::Body(body))]) => {
+                if crate::query_forms::suffix_body(body) && crate::dom::restored_span(receiver) {
+                    return Err("suffix parse requires an ordinary span, not a restored span".into());
+                }
+                check_span_references(grammar, receiver)?;
+                check_term(grammar, &Term::Body(body.clone()), compared)
+            }
+            ("error-free", [Arg::Term(receiver)]) => check_term(grammar, receiver, compared),
             ("value" | "image", [Arg::Term(Term::Call(method, args))]) if method == "emitted" => {
                 if let [Arg::Term(Term::Capture(_))] = &args[..] {
                     Ok(())
@@ -2530,6 +2583,7 @@ fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Resul
 fn check_cond(grammar: &StageGrammar, cond: &Cond, compared: &mut bool) -> Result<(), String> {
     work::count(Work::Stitched, 1);
     match cond {
+        Cond::Forest(term) => check_term(grammar, term, compared),
         Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
         Cond::Compare(op, left, right, _) => {
             *compared |= matches!(op.as_str(), "≅" | "≇") && matches!(right, Term::Capture(_));
