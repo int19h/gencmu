@@ -73,7 +73,12 @@ def diagnostic_notes(grammar):
             for part in (targets_of(alt.emit), own, targets_of(alt.rule_tags), targets_of(alt.conditions)):
                 for name, bits in part.items():
                     targets[name] = targets.get(name, 0) | bits
-            queries_cache[key] = closure(targets.items())
+            selected = {}
+            for name, bits in closure(targets.items()).items():
+                _testing.count("closures")
+                if name in errors:
+                    selected[name] = bits
+            queries_cache[key] = selected
         return queries_cache[key]
 
     def guarded(term):
@@ -86,6 +91,7 @@ def diagnostic_notes(grammar):
         for alt in rule.alternatives:
             where = dict(rule=name, document=alt.document, line=alt.at[0], column=alt.at[1])
             for target, bits in queries_of(alt).items():
+                _testing.count("closures")
                 if target in errors:
                     for filtered in (False, True):
                         if bits & (2 if filtered else 1):

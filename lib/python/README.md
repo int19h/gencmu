@@ -103,7 +103,7 @@ Collected errors give a `reported` result with named reports in `error.errors`. 
 
 A failed message recipe gives a `grammar` result and retains the stage verdict. The result has a null tree and no output from the failing stage. It retains carried diagnostics and messages that already evaluated outside erased subtrees. Earlier stages keep their outputs and warnings.
 
-Verdicts count only derivations with the best three-part measure. The measure minimizes blamed tokens, then source spread, then maximizes diagnostic count. A diagnostic retains its fixed charge across stages. `%erased` collapses equal completed observable states and keeps one interior for their shown tree.
+Verdicts count only derivations with the best three-part measure. The measure minimizes blamed source width, then errors without a source, then maximizes the diagnostic count. A diagnostic retains its fixed charge across stages. `%erased` collapses equal completed observable states and keeps one interior for their shown tree.
 
 `pipeline.ranking_reports()` includes notes for queries that reach error rules, unused suppression codes, and large expansions of guarded tags. `pipeline.format_ranking_reports()` formats these notes as text.
 

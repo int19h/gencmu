@@ -88,3 +88,35 @@ class DiagnosticAudit(unittest.TestCase):
             with patch.object(_testing, "work", work):
                 pipeline.ranking_reports()
             self.assertLess(work.get("walkSteps", 0), 20 * count + 100)
+
+    def test_shared_queries_and_distinct_annotations_cost_linear_work(self):
+        # Design, Diagnostics and debugging: the cached query result retains only report targets.
+        counts = []
+        for count in (50, 200):
+            alternatives = [f"$c{index}:A :: T{index}" for index in range(count)]
+            conditions = [f"$c{index}.parse(r0)" for index in range(count)]
+            rules = [f"%rule r{index} " + ("A" if index + 1 == count else f"r{index + 1}") for index in range(count)]
+            grammar = ("%rule text :: $.tags(r0) | " + " | ".join(alternatives)
+                       + "\n%conditions " + ", ".join(conditions) + "\n" + "\n".join(rules) + '\n%error "fault"\n%erased')
+            pipeline = load(grammar)
+            work = {}
+            with patch.object(_testing, "work", work):
+                notes = pipeline.ranking_reports()[0]["diagnosticNotes"]
+            self.assertEqual([(note["kind"], note["target"], note["filtered"]) for note in notes], [("query-error", f"r{count - 1}", False)])
+            total = work.get("walkSteps", 0) + work.get("closures", 0)
+            self.assertLess(total, 80 * count + 100)
+            counts.append(total)
+            print(f"query annotations n={count}: {total} audit steps")
+        self.assertLessEqual(counts[1], 5 * counts[0])
+
+    def test_cached_queries_keep_alternative_targets_and_extension_locations(self):
+        # Engine §2: extensions retain their own clauses and note locations.
+        grammar = ("%rule text :: $.tags(common) | A :: $.tags(first) | A :: $.tags(second)\n"
+                   "%conditions $.parse(target), $.parse(target).error-free\n"
+                   "%extend-rule text A :: $.tags(first)\n%conditions $.parse(other).error-free\n"
+                   + "\n".join('%rule ' + name + ' A\n%error "fault"\n%erased' for name in ("common", "first", "second", "target", "other")))
+        notes = load(grammar).ranking_reports()[0]["diagnosticNotes"]
+        self.assertEqual(sorted((note["line"], note["target"], note["filtered"]) for note in notes), sorted([
+            (3, "common", False), (3, "first", False), (3, "second", False), (3, "target", False), (3, "target", True),
+            (5, "first", False), (5, "other", True),
+        ]))
