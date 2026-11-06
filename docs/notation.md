@@ -310,7 +310,7 @@ A ranked choice writes its preferred option first: `(a ≻ b ≻ c)`. Each optio
 
 A prefix context is recognition state before the group. Only options of the same group in the same prefix context compete ([engine §6.1](engine.md#61-ranked-admission-before-ranking)).
 
-A lower proof disappears where an earlier option qualifies over the same span with dominating open facts and no greater error count ([engine §6.1](engine.md#61-ranked-admission-before-ranking)). Qualification requires its tests and ready conditions to pass. When every capture that a condition reads is bound, that condition is ready. A failing higher option removes nothing.
+An earlier option removes a lower proof only with the same span, dominating open facts, and a measure no worse in profile order. [Engine §6.1](engine.md#61-ranked-admission-before-ranking) defines that order. Qualification requires its tests and ready conditions to pass. When every capture that a condition reads is bound, that condition is ready. A failing higher option removes nothing.
 
 The parses that survive ranked filtering are admitted.
 
@@ -368,7 +368,7 @@ An action reads one token or closes a constituent. Internal named rules and read
 
 The choice must discard its returned tags locally or return a provably empty set. A common explicit tag term can replace inheritance. The loader applies the closure in engine §2.1. A private capture cannot supply that common term.
 
-`begins`, `ends`, `matches`, and `.tags` with a rule argument inspect zero-error readings before ranked filtering ([engine §4](engine.md#4-recognition)). `span.tags(rule)` remains a union over those readings.
+`begins`, `ends`, `matches`, `parse`, and `.tags` with a rule argument inspect eligible structural readings before ranked filtering ([engine §4](engine.md#4-recognition)). `span.tags(rule)` remains a union over those readings.
 
 After admission, the steps of the stage directive rank the admitted parses in order (see "Ambiguity").
 
@@ -440,15 +440,23 @@ The clause order is `%conditions`, then `%error` or `%warning`, then `%suppress-
 
 A message uses the recipe language of "Two walks and recipes", except that `.emitted` is forbidden. It reads `$` and captures of the chosen derivation, uses string methods, and joins strings with `++`. It cannot query another parse or read absent, item, or private ranked captures. Missing captures follow recipe rules, rather than condition applicability.
 
-Only occurrences in the chosen derivation report. Failing conditions create no occurrence and no report. Spliced calls report with their constituent spans. Each chain level and empty occurrence reports separately.
+An error production must read at least one token. The loader rejects a nullable error production at its definition, even behind a gate or an impossible condition. Its conservative test ignores tests and conditions and treats gated alternatives as present (engine §3.6). Warning productions can be empty because warnings contribute no blame.
 
-The engine evaluates each reported message once after choice. Recognition, queries, ranking, and reconstruction evaluate no messages. Disabled and suppressed warnings evaluate none. A message evaluation failure gives a `grammar` result and stops the pipeline.
+An empty stage input supplies no token for its own omission error. A missing construct without a consumed opener therefore retains plain rejection. An omission under an elided opener belongs to an enclosing construct that reads a token. A named omission error reads its opener or the unclosed construct, rather than an empty gap.
 
-Reports follow a preorder walk of the chosen derivation before spliced nodes disappear. A parent precedes its children, and siblings keep their order. Spliced and empty occurrences retain their positions. Errors and warnings each preserve this order in their own lists.
+A chosen occurrence raises its diagnostic in its own stage. Spliced calls retain their spans, and each chain level counts separately. Failing conditions create no occurrence. The stage evaluates messages once after choice, before emission.
 
-The engine always prefers fewer errors before every written ranking step, including within ranked admission (see "Ranked choices"). Warnings never affect ranking. An error-bearing tie reports ambiguity and no named errors or warnings.
+Disabled and suppressed warnings evaluate none. Queries, recognition, ranking, and reconstruction evaluate no messages. A message failure gives a `grammar` result and stops the run.
 
-A stage with chosen errors keeps its `unique` or `resolved` verdict and its chosen tree. Its result has `ok:false`, lists every error and enabled unsuppressed warning, and has no stage output. The pipeline stops there. Earlier stage outputs and warnings remain.
+A diagnostic travels on one emitted token to later stages. Its message and coordinates remain those of its raising stage. An erased carrier drops it. A stage that emits no tokens retains its diagnostics at stage level. The reporting stage is the caller's `until` stage, or the pipeline's last stage.
+
+The reporting stage collects pending stage-level diagnostics first, then its chosen derivation in preorder. A parent precedes its children, and siblings retain their order before spliced roots disappear. Token leaves contribute carried diagnostics at their positions. Errors and warnings keep separate ordered lists (engine §12.1).
+
+Ranking first compares source blame, with less blamed input preferred. At equal blame, fewer sourceless errors win, then more total errors win. Each error adds its source-envelope length. An empty envelope instead adds one sourceless charge.
+
+Overlapping sources still add their charges. Erased subtrees contribute zero, and warnings contribute nothing. Grammar preferences follow equal measures, including in ranked admission.
+
+A chosen error before the reporting stage does not stop the pipeline. A `reported` result at the reporting stage keeps its chosen tree, `unique` or `resolved` verdict, and emitted output. Its `ok` is false. An error-bearing tie reports ambiguity and lists the errors and warnings of its two shown readings. For overlapping lists, engine §12.1 defines identity and multiplicity.
 
 A caller enables or disables warnings by code through the feature controls. `%features` supplies defaults. A disabled warning changes no accepted reading, chosen tree, or output. An error cannot be disabled.
 
@@ -464,7 +472,7 @@ A caller enables or disables warnings by code through the feature controls. `%fe
 
 Suppression covers the whole derivation subtree, including the rule's own warning and every spliced occurrence. Nested lists unite. Nothing inside a suppressed subtree enables a suppressed warning again. A stage-disabled code stays disabled.
 
-Suppression changes reports only. It never changes recognition, ranking, emission, or the error count. It suppresses no error. A template can carry suppression, and each instance inherits it.
+Suppression changes reports only. It never changes recognition, ranking, emission, or the blame measure. It affects only warnings raised in that stage, rather than carried warnings. It suppresses no error. A template can carry suppression, and each instance inherits it.
 
 After stitching each stage, every listed code must name a warning in that stage. The audit notes each listed code that its subtree can never raise.
 
@@ -1026,7 +1034,7 @@ The parser evaluates a condition joined with `∧` only when it can evaluate all
 
 In `=` and `≠`, a capture or span converts to its input value on either or both sides. `$open = $close` therefore compares the two captured values. A capture compared with a tag set or string set remains a document error.
 
-A condition term has five types: captures or spans, strings, string sets, tag sets, and patterns. Captures and ordinary or restored spans retain their distinct receiver types. Method selection precedes conversion of a capture or span to its input value where a string is required. Captures never convert to tags or patterns. A bare capture as a condition tests presence.
+A condition term has six types: captures or spans, strings, string sets, tag sets, patterns, and query forests. Captures and ordinary or restored spans retain their distinct receiver types. Method selection precedes conversion of a capture or span to its input value where a string is required. Captures never convert to tags or patterns. A bare capture as a condition tests presence.
 
 The first type includes spans, sequences of tokens. A capture `$x` retains its matched constituent and its input span. `$` spans the whole constituent. `$x.first-token` is its first token, `$x.tokens-after-first` the rest, and `$x.last-token` the last.
 
@@ -1048,7 +1056,7 @@ An empty delimiter is an error. A literal `""` or an empty string constant as th
 
 A tag literal denotes a singleton tag set. `UI ∪ CAI` contains both tags and `Indicator` denotes that mark. Ranges are terminals only and cannot form condition sets. `_General_Category_Letter ⊆ $c.tags` tests the stored letter property. A scalar-range condition needs a grammar query over the corresponding range terminal.
 
-A whole capture's `.tags` reads its constituent tags. Another span, such as `$x.first-token`, unions its input token tags. `.tags(rule)` unions eligible zero-error whole-query readings and is empty without a match. `.classes` filters the same tag set for names starting and ending with capitals and never starting with `_`.
+A whole capture's `.tags` reads its constituent tags. Another span, such as `$x.first-token`, unions its input token tags. `.tags(rule)` unions eligible whole-query readings and is empty without a match. `.classes` filters the same tag set for names starting and ending with capitals and never starting with `_`.
 
 `string.classify(classifier)` is the set of the classes that a classifier gives the string (see "Classifiers"). It is empty for a string that the classifier does not know. The method argument is a bare name, which names a classifier of the stage. So `$c.value.classify(lexicon)` is the set of the classes of the word `$c`.
 
@@ -1091,7 +1099,17 @@ The five methods `.matches(S)`, `.begins(S)`, `.ends(S)`, `.followed-by(S)`, and
 
 Repeated targets are accepted and change nothing. Engine tags are excluded because these shared arguments identify grammar-built targets. Strings, constants, grouped choices, and commas between targets are errors. Commas inside a call separate its arguments. Parentheses around one target preserve that target.
 
-A query witness contains no error occurrence, including spliced and empty occurrences. This applies to `matches`, `begins`, `ends`, and `.tags(rule)`, including aligned queries. Queries evaluate no diagnostic message.
+An ordinary query ignores carried diagnostics and reads a faulty token like any other token. Its witness contains no own error occurrence outside erased subtrees. This applies to `matches`, `begins`, `ends`, `.tags(rule)`, and `parse`, including aligned queries. Queries evaluate no diagnostic message.
+
+`span.parse(C)` returns a forest, the shared set of eligible query witnesses. C is any body constituent. No part of its argument syntax can bind a capture. Called rules retain their own captures. The anonymous query target has structural identity after lowering. Equivalent old and new forms share memo entries and recursive-query detection (engine §4).
+
+The mark `…` denotes unread remainder at one outer edge of the argument. It occurs at most once and never inside an optional, group, or other nested constituent. `parse(C)` covers the whole view, `parse(C …)` a prefix, and `parse(… C)` a suffix. The mark cannot stand alone, but `ε` can supply an explicit empty target. It differs from the chain marker `...` and pattern gap `⋯`.
+
+The remainder is not read and belongs to no witness. Alignment and filtering see the witness alone. Suffix `parse` on a restored view is a loading error, just as `.ends` is.
+
+As a condition, a nonempty forest holds. `.error-free` keeps only witnesses with measure `(0,0,0)`. It includes carried errors in counted input parts, while errors inside erased witness subtrees contribute zero. The same holds for the witness's own erased error occurrences. Repeated filtering changes nothing. A forest has no implicit string or set conversion.
+
+For example, `¬$i.onward.parse(@Open …).error-free` bars an error-free opening structure in a template whose `@Open` supplies that target. The engine computes the filter over shared chart items without building witness trees.
 
 Query alternatives run from left to right until one holds. An error from an evaluated query ends the parse. A tag query reads one token that carries that tag. `matches` requires exactly that token, while `begins` permits later tokens and `ends` permits earlier tokens. Restored whole and prefix queries retain their alignment rules for every alternative. A restored `.ends` receiver is a load error.
 
@@ -1101,7 +1119,7 @@ For an ordinary span, `matches` and `span.tags(rule)` parse the captured span al
 
 Inside such a parse, a condition can ask about the very span that is being parsed, as the same rule. Such a condition defines the rule in terms of itself over the same text, negated or not. The parser reports it as an error of the grammar.
 
-Every nested query, whether `matches`, `begins`, `ends`, or `tags`, follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. Two Lojban examples show this. In the Zantufa pipeline, `cy to roi toi klama` gives `([cy {to roi toi}] klama)`. A nested `tag` cannot read `cy to roi` as `cy roi` with an empty parenthesis, because the parenthesis can read on to its written `toi`.
+Every nested query, including `parse`, follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. Two Lojban examples show this. In the Zantufa pipeline, `cy to roi toi klama` gives `([cy {to roi toi}] klama)`. A nested `tag` cannot read `cy to roi` as `cy roi` with an empty parenthesis, because the parenthesis can read on to its written `toi`.
 
 In the same way, the `lojban/experimental` pipeline gives `(mi [klama {na (to broda toi)}])` for `mi klama na to broda toi`. There `broda` stays inside the parenthesis. The priority has a cost: a positive query can fail where a parse without it succeeds. Take `r → A c [+T] T` and `c → B`. Then `matches` of `r` over `A B T` fails, because `[+T]` takes the written `T`. Several readings that the priority keeps do not cause an ambiguity error.
 
@@ -1339,9 +1357,9 @@ Header and alternative terms can also contain the guarded literal sets of "Neigh
 
 ## Emission
 
-If its chosen derivation has errors, the stage emits nothing. It collects diagnostic messages before emission (see "Errors and warnings").
+A chosen derivation with counted errors still emits. The stage evaluates messages before emission and then assigns diagnostic carriers (see "Errors and warnings").
 
-A splice retains its called rule's emission and erasure clauses. Tree flattening changes neither emission nor the string walk. Erasure never removes diagnostic occurrences or their error counts.
+A splice retains its called rule's emission and erasure clauses. Tree flattening changes neither emission nor the string walk. Erasure removes its subtree's diagnostic contributions and gives its parent zero measure.
 
 The stage walks a rule with no `%emits`. What it hands to the next stage is what its parts hand on, in order. A token that it reads directly hands on nothing. A rule with `%emits` hands on exactly what the list says, in the order that the list says it. The stage walks nothing else of the constituent.
 
@@ -1370,7 +1388,11 @@ An inserted item stands in its written order and records `insertedBy`. This emis
 
 The comma separates two emission items. An item can have empty tags because string terminals and `_` can read it. Engine §11 defines anchors near absent attachments and carriers.
 
-`%erased` hands on nothing and removes the constituent from counted parts. It serves text that later stages must not read, such as a hesitation or a word that removes other words. In Lojban, for example, `si` erases the preceding word, so `broda brode si bu` emits the letter word `broda bu`. The token's source still spans the erased text. Its strings exclude that text. `%emits ε` instead inserts a token and never erases.
+`%erased` hands on nothing and removes the constituent from counted parts. It serves text that later stages must not read, such as a hesitation or a word that removes other words. In Lojban, for example, `si` erases the preceding word, so `broda brode si bu` emits the letter word `broda bu`. The token's source still spans the erased text.
+
+Its strings exclude that text. Its errors and warnings also disappear, including carried diagnostics on erased input tokens. Internal derivations with the same observable state collapse to one canonical reading (engine §6). Outer ranking sees the erased root, but not its proper descendants.
+
+Grammar rule names starting with `erased-` identify `%erased` constituents only. Stream plumbing that merely omits output uses an unlisted part instead. `%emits ε` inserts a token and never erases.
 
 A capture item can carry attachments: other tokens that belong to its token, which no later stage reads. Attachments serve words that mark another word but play no part in the grammar of later stages. Each attachment is a capture in parentheses, before the item or after it, and an item can have any number on each side. The item's own capture is its carrier, and it must be a named capture. Neither a `$` item nor an inserted `ε` item can name attachment captures. `($)` is an error.
 
@@ -1620,26 +1642,27 @@ With sealing fixed, filtering only removes parses and never adds one. Compared w
 
 Ranked choices supply seals as well as filtering. Adding or removing a seal changes the grammar. It can change outside pattern answers and therefore the unique tree.
 
-A unique or resolved verdict reaches reporting. If its chosen derivation has errors, the stage retains that verdict and tree, emits nothing, and stops the pipeline.
+A unique or resolved verdict reaches message evaluation and emission. Errors before the reporting stage flow onward, while counted errors there give a `reported` result with tree, verdict, and output. A tie has no chosen tree or output, reports its two readings' diagnostics, and stops later stages.
 
-Otherwise it reaches emission. For `resolved`, the enabled elision-only check then runs. For `unique`, it runs only with an elided node in the chosen tree. [Elided terminators](#elided-terminators) defines the check. A tied verdict reaches neither, has no chosen tree, output, named errors, or warnings, and stops later stages.
+If no error counts, including pending stage-level errors, the enabled elision-only check can run. For `resolved`, it then runs even without an elision. For `unique`, it runs only with an elided node. [Elided terminators](#elided-terminators) defines the check.
 
-The engine first prefers fewer error occurrences, before every grammar step. Each source occurrence counts once, including spliced calls, empty occurrences, and every chain level. Warnings never affect ranking.
+The engine first compares the three-part blame measure before every grammar step. Smaller source blame wins, then fewer sourceless errors, then more total errors. Warnings never affect ranking. The verdict counts only admitted readings with the best measure. One gives `unique`, several with one best give `resolved`, and several best give `tie`.
 
-A verdict counts only admitted readings with the least error count. One gives `unique`. Several with exactly one best give `resolved`, and several best give `tie`. If a zero-error reading exists, error-bearing readings do not count toward the verdict.
+Readings with worse measures cannot make a text ambiguous. Erased interiors with the same observable state collapse before that count, but distinct outer erasure routes remain distinct. Grammar steps see an erased root alone (engine §6).
 
-Readings above the least error count cannot make a text ambiguous. In Eberban, `a pban ra a mo` stays `unique` despite a losing fault reading of `pban`. A higher-error reading starts no `elision-only` check.
-
-A grammar then ranks admitted parses with equal error counts by its `%ambiguity-resolution` directive. The directive lists one or more steps, separated by commas. Of two parses, the first step that tells them apart decides which beats the other. If no other admitted parse beats a parse, that parse is best. The stage takes a sole best parse. Several best parses give a tie.
+A grammar then ranks admitted parses with equal measures by its `%ambiguity-resolution` directive. The directive lists one or more steps, separated by commas. Of two parses, the first step that tells them apart decides which beats the other. If no other admitted parse beats a parse, that parse is best. The stage takes a sole best parse. Several best parses give a tie.
 
 ```jbogenbau
 %ambiguity-resolution
-  fewest #·erased-word, fewest #·passed-step, late #·_<_Elided>
+  fewest #·words-erasure, late #·(erased-sentence | erased-words),
+  fewest #·passed-step, late #·_<_Elided>
 ```
 
 Most steps count the occurrences of a node pattern (see "Tree patterns"). An occurrence is a node of the parse that the pattern matches, with the node's span. A node contributes at most one occurrence per step, including matches from several union operands.
 
-Equal spans count separately, so nested occurrences count each. Each named chain level is a node of its rule, so it counts. Empty rule nodes, generated helpers, spliced roots, and ranked seals count nothing in grammar key steps. The mandatory error count still includes empty and spliced error occurrences. Names give no priority: two rules that one pattern matches pool their occurrences.
+Equal spans count separately, so nested occurrences count each. Each named chain level is a node of its rule, so it counts. Empty rule nodes, generated helpers, spliced roots, and ranked seals count nothing in grammar key steps. The mandatory blame measure includes spliced error occurrences.
+
+Erasure resets its contribution to zero, and grammar steps see the erased root alone. Names give no priority: two rules that one pattern matches pool their occurrences.
 
 A step's pattern is exact and local. Each node test carries the prefix `·`, so the single-child search never makes a wrapper above the named node count. The pattern holds node tests with their tag and value tests, joined by `∪`, `∩` and `∖`. A step can also name a pattern constant, as a condition does, as in `late $OMITTED` after `%const $OMITTED #·_<_Elided>`. It holds no child list, no path and no bare list, because the count of a node must depend on that node alone. The prefix belongs to one node test, so a union is written `#(·a ∪ ·b)`.
 
@@ -1755,7 +1778,7 @@ The constituent of an elided terminator can end wherever a parse of the whole te
 
 A language's own rule can be narrower: a terminator can be elided only if no ambiguity results. The `elision-only` check is one reading of such a rule. The directive `%elision-only` turns it on for a stage. It examines only the parse that the ranking chose.
 
-A chosen derivation with errors skips the check. Otherwise the enabled check runs after emission for `resolved`. For `unique`, it also runs with an elided node in the chosen parse. It skips a unique parse with no elided node. Verdicts count only least-error readings, so higher-error readings never start the check. Uniqueness on the original input cannot exclude another reading of the restored input.
+Any counted error skips the check, including carried errors and pending stage-level errors. Otherwise the enabled check runs after emission for `resolved`. For `unique`, it also runs with an elided node in the chosen parse. It skips a unique parse with no elided node. Verdicts count only best-measure readings, so worse-measure readings never start the check. Uniqueness on the original input cannot exclude another reading of the restored input.
 
 With the check on, the stage restores the chosen parse's omitted terminators. A restored terminator has the default value of its optional (below) and the singleton tags `{T}`. Synthetic images are empty. Omitted pattern leaves still observe empty strings, whatever the default value.
 
@@ -1789,7 +1812,9 @@ Ranked choices compare spans in the reconstructed input, including restored term
 
 The check keeps every step of the directive but a final `greedy` or `lazy`, which it never applies. It counts occurrences over projected spans. An occurrence with an empty projected span counts nothing in each grammar step.
 
-The error count remains first and includes empty projected spans. The check evaluates no diagnostic message. A written-back terminator has an empty projected span, so it counts nothing in the check, whatever pattern matches it. If filtering excludes the restored chosen derivation, the check fails. If that derivation is not the sole best admitted reconstruction, the check also fails. Failure gives an ambiguity error, never a replacement chosen parse.
+The blame measure remains first. It uses projected original sources, and synthetic tokens carry no diagnostics or charge. The check evaluates no diagnostic message. A written-back terminator has an empty projected span, so it counts nothing in the check, whatever pattern matches it.
+
+If filtering excludes the restored chosen derivation, the check fails. If that derivation is not the sole best admitted reconstruction, the check also fails. Failure gives an ambiguity error, never a replacement chosen parse.
 
 With no grammar key step, the check requires the restored chosen parse as the only admitted zero-error reading. Recognition before filtering always keeps that parse. If a library loses it, the library has a defect and reports `elision-witness-lost` (engine §7.9). Filtering can exclude that present parse and cause ordinary ambiguity. A tie ends the stage before this check.
 
