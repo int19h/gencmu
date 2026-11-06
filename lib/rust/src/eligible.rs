@@ -133,7 +133,7 @@ impl<'a> Proofs<'a> {
             start: item.origin,
             end: place.0,
             tags: self.chart.sets[place.0 as usize].tagset[place.1 as usize],
-            structure: item.structure,
+            structure: self.chart.sets[place.0 as usize].completed_structures[place.1 as usize],
         }
     }
 

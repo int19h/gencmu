@@ -1085,15 +1085,12 @@ impl Pipeline {
                 .checking(marks);
             let chosen_profile = ranker.tree_profile(chosen, input);
             let preferred = !g.ranked.slots.is_empty();
-            let raw_counted = if preferred {
-                Ranker::new_unfiltered(g, &chart, &tokens, shared, steps, Lean::Neither)
-                    .observing(input, &recon.project)
-                    .checking(marks)
-                    .rank()
-                    .is_some_and(|r| r.witness_counted == Some(true))
-            } else {
-                true
-            };
+            let raw_counted = Ranker::new_unfiltered(g, &chart, &tokens, shared, &[], Lean::Neither)
+                .observing(input, &recon.project)
+                .checking(marks)
+                .raw_membership()
+                .rank()
+                .is_some_and(|ranking| ranking.witness_counted == Some(true));
             ranker
                 .rank()
                 .filter(|ranking| {
@@ -1102,6 +1099,7 @@ impl Pipeline {
                         && (preferred || ranking.witness_counted == Some(true))
                 })
                 .map(|mut ranking| {
+                    ranker.witness_representative();
                     let excluded = ranking.witness_counted != Some(true);
                     let better = excluded
                         || ranker.compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less;

@@ -243,6 +243,7 @@ pub(crate) struct ESet {
     processed: Vec<bool>,
     /// For a completed item, its constituent's tag set; else `u32::MAX`.
     pub tagset: Vec<SetId>,
+    pub completed_structures: Vec<u32>,
     index: FxMap<Item, u32>,
     failed: FxSet<Item>,
     waiting: FxMap<u128, Vec<u32>>,
@@ -287,6 +288,7 @@ impl ESet {
             queue,
             processed,
             tagset,
+            completed_structures,
             index,
             failed,
             waiting,
@@ -302,6 +304,7 @@ impl ESet {
         queue.clear();
         processed.clear();
         tagset.clear();
+        completed_structures.clear();
         index.clear();
         failed.clear();
         let mut keep = |mut list: Vec<u32>| {
@@ -2831,6 +2834,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let index = target.items.len() as u32;
         target.index.insert(item, index);
         target.items.push(item);
+        target.completed_structures.push(item.structure);
         if chart.suffix {
             chart.positions.get_mut().expect("suffix positions").entry(item).or_default().push(set as u32);
         }
@@ -3073,6 +3077,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let index = target.items.len() as u32;
         target.index.insert(item, index);
         target.items.push(item);
+        target.completed_structures.push(item.structure);
         target.tagset.push(u32::MAX);
         target.enqueue(index, true, false);
     }
@@ -3326,7 +3331,23 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// if a constituent of its rule, origin and tags is new here.
     fn complete(&mut self, chart: &mut Chart, e: usize, k: usize, tags: SetId) -> Step {
         let item = chart.sets[e].items[k];
-        let rule = self.g.prods[item.prod as usize].rule;
+        let production = &self.g.prods[item.prod as usize];
+        let rule = production.rule;
+        // Own conditions and tag recipes already read the full identity.
+        // A parent receives only the observations that its occurrence demands (§6).
+        let mut structure = item.structure;
+        if production.erased && structure != u32::MAX {
+            if let Some(machine) = &self.shared.machine {
+                let mut machine = machine.borrow_mut();
+                if item.close_requested & crate::tree_identity::TREE == 0 {
+                    structure = machine.with_tree(structure, 0);
+                }
+                if item.close_requested & crate::tree_identity::CLOSE == 0 {
+                    structure = machine.observing(structure, 0);
+                }
+            }
+        }
+        chart.sets[e].completed_structures[k] = structure;
         let route = self.g.route(item.prod);
         chart.sets[e].tagset[k] = tags;
         let completed = chart.sets[e].completed.entry((rule, item.origin)).or_insert_with(|| self.shared.fresh_list());
@@ -3345,7 +3366,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 start: item.origin,
                 end: e as u32,
                 tags,
-                structure: item.structure,
+                structure,
             };
             let source = chart.annotations.get(&(e as u32, item)).cloned().unwrap_or_default();
             if !source.start.is_empty() || !source.end.is_empty() {
@@ -3356,7 +3377,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             rule,
             item.origin,
             tags,
-            item.structure,
+            structure,
             item.lexical,
             item.close_requested,
             item.boundary,
@@ -3368,21 +3389,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let origin = item.origin as usize;
         let empty = origin == e;
         if empty {
-            chart.sets[e].empty.entry(rule).or_default().push((tags, item.structure, item.boundary, route));
+            chart.sets[e].empty.entry(rule).or_default().push((tags, structure, item.boundary, route));
         }
         let count = chart.sets[origin].waiting.get(&rule).map_or(0, Vec::len);
-        Step::Waiters {
-            e,
-            origin,
-            rule,
-            tags,
-            structure: item.structure,
-            boundary: item.boundary,
-            route,
-            empty,
-            count,
-            next: 0,
-        }
+        Step::Waiters { e, origin, rule, tags, structure, boundary: item.boundary, route, empty, count, next: 0 }
     }
 
     /// A constituent's tags where its production has no tag term (§3.7):

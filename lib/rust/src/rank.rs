@@ -70,6 +70,7 @@ pub(crate) enum Verdict {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Node {
+    Absent,
     Scoped(u32),
     Read {
         tok: u32,
@@ -99,6 +100,21 @@ enum Node {
         lexical: u32,
         option: usize,
     },
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct ErasedState {
+    rule: u32,
+    origin: u32,
+    end: u32,
+    tags: u32,
+    structure: u32,
+    boundary: u32,
+    requested: u8,
+    lexical: u32,
+    strict: bool,
+    restores: bool,
+    scope: usize,
 }
 
 type Key = (Node, u32);
@@ -155,6 +171,7 @@ struct SlotCandidate {
     entry: String,
     measure: Measure,
 }
+#[derive(Clone)]
 struct Counts {
     measure: Measure,
     all: u8,
@@ -178,6 +195,7 @@ impl Counts {
     }
 }
 type SlotMaxima = std::collections::BTreeSet<String>;
+#[derive(Clone)]
 struct Admission {
     groups: Vec<Vec<SlotCandidate>>,
     at: FxMap<Node, Vec<SlotCandidate>>,
@@ -204,7 +222,7 @@ fn slot_links(g: &Lowered, chart: &Chart, set: u32, item: Item) -> Vec<(Item, Ca
                 let child = chart.sets[set as usize].items[index as usize];
                 if child.close_requested == cap.close_requested
                     && child.lexical == lexical
-                    && child.structure == cap.structure
+                    && chart.sets[set as usize].completed_structures[index as usize] == cap.structure
                     && child.boundary == cap.boundary
                     && chart.sets[set as usize].tagset[index as usize] == cap.tags
                 {
@@ -443,12 +461,20 @@ impl Ranker<'_> {
             }
             Deps::Group(members) => {
                 let mut result = Counts::default();
-                for (i, k) in members.iter().enumerate() {
-                    if self.skips(Fault::LostContext, "group", i as u32, members.len()) {
-                        continue;
+                for (erased, group) in self.erased_groups(members) {
+                    for &index in &group {
+                        if self.skips(Fault::LostContext, "group", index as u32, members.len()) {
+                            continue;
+                        }
+                        let counts = &a.counts[&members[index]];
+                        if counts.all == 0 {
+                            continue;
+                        }
+                        result.offer(counts.measure.clone(), if erased { 1 } else { counts.all });
+                        if erased {
+                            break;
+                        }
                     }
-                    let c = &a.counts[k];
-                    result.offer(c.measure.clone(), c.all);
                 }
                 result
             }
@@ -793,6 +819,13 @@ pub(crate) struct Dag<'c> {
 }
 
 pub(crate) struct Ranker<'c> {
+    shared: &'c Shared<'c>,
+    canonical_only: bool,
+    witness_only: bool,
+    raw_membership: bool,
+    witness_shown: Option<u32>,
+    canonical_channel: Option<Box<Ranker<'c>>>,
+    canonical_imports: FxMap<u32, u32>,
     pub dag: Dag<'c>,
     memo: FxMap<Key, u32>,
     results: Vec<NodeResult>,
@@ -1218,6 +1251,13 @@ impl<'c> Ranker<'c> {
         };
         dag.push(DNode::Empty, Nat::ZERO, Nat::ZERO);
         let mut ranker = Ranker {
+            shared,
+            canonical_only: false,
+            witness_only: false,
+            raw_membership: false,
+            witness_shown: None,
+            canonical_channel: None,
+            canonical_imports: FxMap::default(),
             dag,
             memo: FxMap::default(),
             results: Vec::new(),
@@ -1232,6 +1272,185 @@ impl<'c> Ranker<'c> {
         };
         ranker.fset_index.insert(Vec::new(), 0);
         ranker
+    }
+
+    fn erased_state(&self, key: Key) -> Option<ErasedState> {
+        let (node, scope) = self.views.as_ref().map_or((key.0, 0), |views| views.unpack(key.0));
+        let Node::Close { set, index } = node else { return None };
+        let item = self.item(set, index);
+        let production = &self.dag.g.prods[item.prod as usize];
+        if !production.erased {
+            return None;
+        }
+        Some(ErasedState {
+            rule: production.rule,
+            origin: item.origin,
+            end: set,
+            tags: self.dag.chart.sets[set as usize].tagset[index as usize],
+            structure: self.dag.chart.sets[set as usize].completed_structures[index as usize],
+            boundary: item.boundary,
+            requested: item.close_requested,
+            lexical: item.lexical,
+            strict: self.dag.chart.sets[set as usize].is_strict(index as usize),
+            restores: production.syms.is_empty() && item.origin != set,
+            scope,
+        })
+    }
+
+    fn erased_groups(&self, members: &[Key]) -> Vec<(bool, Vec<usize>)> {
+        if self.raw_membership {
+            return (0..members.len())
+                .inspect(|_| work::count(Work::Walked, 1))
+                .map(|index| (false, vec![index]))
+                .collect();
+        }
+        let mut found: FxMap<ErasedState, usize> = FxMap::default();
+        let mut groups: Vec<(bool, Vec<usize>)> = Vec::new();
+        for (index, &member) in members.iter().enumerate() {
+            work::count(Work::Walked, 1);
+            if let Some(state) = self.erased_state(member) {
+                if let Some(&group) = found.get(&state) {
+                    groups[group].1.push(index);
+                } else {
+                    found.insert(state, groups.len());
+                    groups.push((true, vec![index]));
+                }
+            } else {
+                groups.push((false, vec![index]));
+            }
+        }
+        groups
+    }
+
+    fn action_channel(&self) -> Ranker<'c> {
+        let mut ranker =
+            Self::new_unfiltered(self.dag.g, self.dag.chart, self.dag.tokens, self.shared, &[], Lean::Neither);
+        if let Some((observed, project)) = self.dag.projection {
+            ranker = ranker.observing(observed, project);
+        }
+        ranker.summaries = Some(FxMap::default());
+        ranker.canonical_only = true;
+        ranker.admission = self.admission.clone();
+        ranker.views = self.views.clone();
+        ranker.check = self.check;
+        ranker.marks = self.marks;
+        ranker.fsets = self.fsets.clone();
+        ranker.fset_index = self.fset_index.clone();
+        ranker
+    }
+
+    /// A separate measure-only summary retains its ordinary action frontier (§6).
+    fn canonical_erased(&mut self, members: &[Key]) -> Option<u32> {
+        if self.canonical_only {
+            return self.choose_erased(members);
+        }
+        let mut channel = self.canonical_channel.take().unwrap_or_else(|| Box::new(self.action_channel()));
+        let keys: Vec<_> = members
+            .iter()
+            .map(|&(node, context)| {
+                let values = &self.fsets[context as usize];
+                let next = channel.fsets.len() as u32;
+                let context = *channel.fset_index.entry(values.clone()).or_insert_with(|| {
+                    channel.fsets.push(values.clone());
+                    next
+                });
+                (node, context)
+            })
+            .collect();
+        let result = channel.choose_erased(&keys);
+        let result = result.map(|root| self.import_canonical(&channel, root));
+        self.canonical_channel = Some(channel);
+        result
+    }
+
+    fn choose_erased(&mut self, members: &[Key]) -> Option<u32> {
+        let mut measure = None;
+        let mut selected = None;
+        for &member in members {
+            let Node::Close { set, index } = self.raw_node(member.0) else { unreachable!("an erased completion") };
+            let Deps::Close(Some(inner)) = self.deps(member) else { continue };
+            self.traverse(inner, Pass::Summaries);
+            self.traverse(inner, Pass::Entries);
+            let summary = &self.summaries.as_ref().unwrap()[&inner].all;
+            if summary.total == 0 {
+                continue;
+            }
+            let item = self.item(set, index);
+            let production = &self.dag.g.prods[item.prod as usize];
+            let mut current = Profiles::measure(&summary.profile);
+            if production.error.is_some() {
+                current = current.add(&self.dag.own_measure(item.origin, set));
+            }
+            let order = measure.as_ref().map_or(Ordering::Less, |best| current.compare(best));
+            if order.is_gt() {
+                continue;
+            }
+            if order.is_lt() {
+                measure = Some(current);
+                selected = None;
+            }
+            let entries = self.results[self.memo[&inner] as usize].entries.clone();
+            for entry in entries {
+                let candidate = self.dag.close(entry.x, set, index);
+                if selected.map_or(true, |before| self.dag.before(candidate, before)) {
+                    selected = Some(candidate);
+                }
+            }
+        }
+        selected
+    }
+
+    fn import_canonical(&mut self, channel: &Ranker<'c>, root: u32) -> u32 {
+        self.canonical_imports.entry(0).or_insert(0);
+        let mut pending = vec![(root, false)];
+        while let Some((node, ready)) = pending.pop() {
+            if self.canonical_imports.contains_key(&node) {
+                continue;
+            }
+            let source = channel.dag.arena[node as usize];
+            if !ready {
+                pending.push((node, true));
+                match source {
+                    DNode::Seq { left, right } => pending.extend([(right, false), (left, false)]),
+                    DNode::Close { body, .. } => pending.push((body, false)),
+                    _ => {}
+                }
+                continue;
+            }
+            work::count(Work::Walked, 1);
+            let copied = match source {
+                DNode::Empty => EMPTY,
+                DNode::Read { tok, terminal } => self.dag.push(DNode::Read { tok, terminal }, Nat::ONE, Nat::ONE),
+                DNode::Seq { left, right } => {
+                    self.dag.seq(self.canonical_imports[&left], self.canonical_imports[&right])
+                }
+                DNode::Close { body, set, item } => self.dag.close(self.canonical_imports[&body], set, item),
+            };
+            self.canonical_imports.insert(node, copied);
+        }
+        self.canonical_imports[&root]
+    }
+
+    pub(crate) fn raw_membership(mut self) -> Self {
+        self.raw_membership = true;
+        self.summaries = None;
+        self
+    }
+
+    pub(crate) fn witness_representative(&mut self) -> Option<u32> {
+        if self.witness_shown.is_some() {
+            return self.witness_shown;
+        }
+        self.marks?;
+        let mut ranker = self.action_channel();
+        ranker.canonical_only = false;
+        ranker.witness_only = true;
+        let ranking = ranker.rank_inner()?;
+        let imports = std::mem::take(&mut self.canonical_imports);
+        let root = self.import_canonical(&ranker, ranking.first);
+        self.canonical_imports = imports;
+        self.witness_shown = Some(root);
+        Some(root)
     }
 
     /// The profile of a chosen tree in this ranking's profiles (§7).
@@ -1282,6 +1501,9 @@ impl<'c> Ranker<'c> {
     /// W(D)'s actions as a derivation of the ranking's own, to compare with
     /// its readings in the order T.
     pub(crate) fn derivation(&mut self, sequence: &[WitnessAct]) -> u32 {
+        if let Some(shown) = self.witness_shown {
+            return shown;
+        }
         let mut stack = Vec::new();
         for act in sequence {
             match *act {
@@ -1372,6 +1594,7 @@ impl<'c> Ranker<'c> {
 
     fn raw_deps(&mut self, (node, fset): Key) -> Deps {
         match node {
+            Node::Absent => Deps::Close(None),
             Node::Scoped(_) => unreachable!("a raw forest node"),
             Node::Read { .. } => Deps::Leaf,
             Node::Item { set, index } => {
@@ -1566,7 +1789,7 @@ impl<'c> Ranker<'c> {
                                         || self.dag.g.ranked.options.get(&eset.items[index as usize].prod)
                                             == Some(&option))
                                     && (tags == ANY || eset.tagset[index as usize] == tags)
-                                    && (structure == ANY || eset.items[index as usize].structure == structure)
+                                    && (structure == ANY || eset.completed_structures[index as usize] == structure)
                                     && (boundary == ANY || eset.items[index as usize].boundary == boundary)
                             })
                             .filter(|&&index| {
@@ -1783,10 +2006,35 @@ impl<'c> Ranker<'c> {
             }
             Deps::Group(members) => {
                 let summaries = self.summaries.as_ref().expect("profiles");
+                let groups = self.erased_groups(members);
                 let mut all = Least::NONE;
-                for (index, member) in (0..).zip(members) {
-                    all.add(&self.profiles, index, &summaries[member].all);
+                for (erased, indices) in &groups {
+                    let first = indices[0] as u32;
+                    if *erased {
+                        if let Some(summary) = indices
+                            .iter()
+                            .map(|&index| &summaries[&members[index]].all)
+                            .find(|summary| summary.total > 0)
+                        {
+                            let class =
+                                Least { profile: summary.profile.clone(), least: 1, total: 1, kept: Vec::new() };
+                            all.add(&self.profiles, first, &class);
+                        }
+                    } else {
+                        all.add(&self.profiles, first, &summaries[&members[indices[0]]].all);
+                    }
                 }
+                let retained: crate::fxhash::FxSet<_> = all.kept.drain(..).collect();
+                let mut mask = vec![false; members.len()];
+                for (_, indices) in groups {
+                    if retained.contains(&(indices[0] as u32)) {
+                        for index in indices {
+                            mask[index] = true;
+                        }
+                    }
+                }
+                all.kept =
+                    mask.into_iter().enumerate().filter_map(|(index, keep)| keep.then_some(index as u32)).collect();
                 plain(all)
             }
         }
@@ -1805,6 +2053,9 @@ impl<'c> Ranker<'c> {
     }
 
     fn compute(&mut self, key: Key, deps: Deps) -> NodeResult {
+        if self.summaries.as_ref().is_some_and(|summaries| summaries[&key].all.total == 0) {
+            return NodeResult::default();
+        }
         let node = self.raw_node(key.0);
         let kept = self.kept(&key);
         // Whether an item is marked, as a leaf or as the end of a marked
@@ -1896,23 +2147,45 @@ impl<'c> Ranker<'c> {
                 let mut list = Vec::new();
                 let mut count = 0u8;
                 let mut w = false;
-                let alternatives = members.len();
-                for (number, member) in (0..).zip(members) {
-                    if !in_all(number) {
-                        continue;
+                for (erased, indices) in self.erased_groups(&members) {
+                    let mut present = Vec::new();
+                    let mut counted = false;
+                    let mut member = false;
+                    for index in indices {
+                        if !in_all(index as u32) {
+                            continue;
+                        }
+                        let result = &self.results[self.memo[&members[index]] as usize];
+                        if !self.skips(Fault::LostContext, "group", index as u32, members.len()) {
+                            if erased {
+                                counted |= result.count > 0;
+                                member |= result.count > 0 && result.w;
+                            } else {
+                                count = count.saturating_add(result.count).min(2);
+                                w |= result.count > 0 && result.w;
+                            }
+                        }
+                        if self.skips(Fault::LostSelect, "group", index as u32, members.len()) {
+                            continue;
+                        }
+                        if erased {
+                            if result.count > 0 || self.witness_only {
+                                present.push(members[index]);
+                            }
+                        } else {
+                            for entry in &result.entries {
+                                self.dag.add_entry(&mut list, entry.clone());
+                            }
+                        }
                     }
-                    let result = &self.results[self.memo[&member] as usize];
-                    // Faults of the check skip the last of two or more
-                    // members, in the count or in the entries.
-                    if !self.skips(Fault::LostContext, "group", number, alternatives) {
-                        count = count.saturating_add(result.count).min(2);
-                        w |= result.count > 0 && result.w;
-                    }
-                    if self.skips(Fault::LostSelect, "group", number, alternatives) {
-                        continue;
-                    }
-                    for entry in &result.entries {
-                        self.dag.add_entry(&mut list, entry.clone());
+                    if erased {
+                        if counted {
+                            count = count.saturating_add(1).min(2);
+                            w |= member;
+                        }
+                        if let Some(chosen) = self.canonical_erased(&present) {
+                            self.dag.add_entry(&mut list, Entry { x: chosen, comps: Vec::new() });
+                        }
                     }
                 }
                 NodeResult { entries: list, count, w }
@@ -2581,6 +2854,36 @@ mod tests {
         assert_eq!(ranker.dag.carried_measure(2), crate::measures::Measure([Nat::Small(7), Nat::ZERO, Nat::ONE]));
     }
 
+    #[test]
+    fn deferred_erased_action_summaries_cost_linear_work() {
+        // Engine §6: two shared summary channels do not enumerate erased derivations.
+        let mut counts = Vec::new();
+        for n in [2, 8, 32] {
+            crate::work::reset();
+            let mut rules = String::from("%rule text gone\n%rule gone r0\n%erased\n");
+            for index in 0..n {
+                rules.push_str(&format!("%rule r{index} r{0} | r{0}\n", index + 1));
+            }
+            rules.push_str(&format!("%rule r{n} A\n"));
+            let source = format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n{rules}```\n");
+            let pipeline = crate::load_pipeline_sources([("p.md", source)], "p.md").unwrap();
+            pipeline.lowered_stage(0);
+            crate::work::reset();
+            crate::work::budget(Work::SummaryContexts, 100 * n + 100);
+            crate::work::budget(Work::Walked, 500 * n + 500);
+            let token =
+                crate::InputToken { text: "a".into(), tags: ["A".into()].into_iter().collect(), ..Default::default() };
+            let result = pipeline.parse_tokens(&[token], &Default::default()).unwrap();
+            assert!(result.ok);
+            assert_eq!(result.stages[0].verdict, Some(crate::Verdict::Unique));
+            let contexts = crate::work::counted(Work::SummaryContexts);
+            eprintln!("erased contexts n={n}: {contexts}");
+            counts.push(contexts);
+        }
+        crate::work::reset();
+        assert!(counts[2] <= 5 * counts[1]);
+    }
+
     /// A node whose many edges all attain the least vector keeps them all,
     /// and asking of each edge whether it is kept costs about one step, not
     /// one for each kept edge.
@@ -2699,6 +3002,7 @@ struct SlotScope {
     frames: Vec<Node>,
     bounds: Vec<Node>,
 }
+#[derive(Clone)]
 struct SlotViews {
     wrapped: std::collections::BTreeSet<u32>,
     nodes: Vec<(Node, usize)>,
@@ -2836,6 +3140,57 @@ impl Ranker<'_> {
         id
     }
     fn deps(&mut self, key: Key) -> Deps {
+        let deps = self.contextual_deps(key);
+        if !self.witness_only {
+            return deps;
+        }
+        let marks = self.marks.expect("a displayed witness has marks");
+        let marked = |key: Key| matches!(self.raw_node(key.0),Node::Item{set,index}|Node::Close{set,index} if marks.items.contains(&(set,index)));
+        match deps {
+            Deps::Group(members) => {
+                let mut keep = vec![false; members.len()];
+                for (erased, indices) in self.erased_groups(&members) {
+                    if erased {
+                        if indices.iter().any(|&index| marked(members[index])) {
+                            for index in indices {
+                                keep[index] = true;
+                            }
+                        }
+                    } else {
+                        let index = indices[0];
+                        keep[index] = marked(members[index]);
+                    }
+                }
+                Deps::Group(
+                    members
+                        .into_iter()
+                        .enumerate()
+                        .map(|(index, key)| if keep[index] { key } else { (Node::Absent, 0) })
+                        .collect(),
+                )
+            }
+            Deps::Links(links) => {
+                let Node::Item { set, index } = self.raw_node(key.0) else { unreachable!() };
+                Deps::Links(
+                    links
+                        .into_iter()
+                        .map(|(before, child)| {
+                            let Node::Item { set: start, .. } = self.raw_node(before.0) else { unreachable!() };
+                            if marked(before) && marks.links.contains(&(set, index, start)) {
+                                (before, child)
+                            } else {
+                                (before, (Node::Absent, 0))
+                            }
+                        })
+                        .collect(),
+                )
+            }
+            Deps::Leaf if matches!(self.raw_node(key.0), Node::Item { .. }) && !marked(key) => Deps::Close(None),
+            _ => deps,
+        }
+    }
+
+    fn contextual_deps(&mut self, key: Key) -> Deps {
         let Some(views) = &self.views else {
             return self.raw_deps(key);
         };

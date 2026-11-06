@@ -396,7 +396,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                                 start: from,
                                 end: to,
                                 tags: set.tagset[i as usize],
-                                structure: set.items[i as usize].structure,
+                                structure: set.completed_structures[i as usize],
                             });
                         }
                     }
