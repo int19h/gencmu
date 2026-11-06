@@ -24,6 +24,32 @@ def diagnostic():
 
 
 class FixedCharges(unittest.TestCase):
+    def test_preprocessed_envelopes_need_constant_source_reads(self):
+        # Engine §6: nested spans use the source index instead of rescanning.
+        class CountedToken:
+            reads = 0
+
+            def __init__(self, source):
+                self.stored = source
+                self.errors = []
+
+            @property
+            def source(self):
+                CountedToken.reads += 1
+                return self.stored
+
+        for ordered in (True, False):
+            count = 1000
+            sources = [(index, index + 1) for index in range(count)]
+            if not ordered:
+                sources.reverse()
+            measures = Measures([CountedToken(source) for source in sources])
+            measures.own(0, count)
+            CountedToken.reads = 0
+            for end in range(1, count + 1):
+                self.assertEqual(measures.own(0, end), (end, 0, 1))
+            self.assertLessEqual(CountedToken.reads, 2 * count)
+
     def test_actual_derivation_profiles_drop_erased_charges(self):
         # Engine §7.9: the actual witness profile drops every erased charge.
         original = token((0, 1))

@@ -1098,6 +1098,9 @@ def result_problems(value: dict[str, Any]) -> list[str]:
     problems: list[str] = []
     stages = value["stages"]
     error = value["error"]
+    if value.get("format") != 17:
+        problems.append("the result format is not 17")
+    stage_names = {stage["name"] for stage in stages}
     pending = [value]
     while pending:
         item = pending.pop()
@@ -1108,8 +1111,16 @@ def result_problems(value: dict[str, Any]) -> list[str]:
                 if key in ("errors", "warnings"):
                     if not isinstance(child, list) or not child or any(not named_diagnostic(diagnostic, key) for diagnostic in child):
                         problems.append(f"{key} is not a nonempty list of named diagnostics")
+                    elif any(diagnostic["stage"] not in stage_names for diagnostic in child):
+                        problems.append("a diagnostic names an unknown raising stage")
                 else:
                     pending.append(child)
+    for stage in stages:
+        if any(kind in stage for kind in ("errors", "warnings")) and stage.get("output") != []:
+            problems.append("stage-level diagnostics require a completed empty emission")
+    if error and error.get("kind") in ("rejected", "grammar", "feature-conflict"):
+        if not same_json(error.get("warnings", []), value.get("warnings", [])):
+            problems.append("failure warnings differ from result warnings")
     if error and error.get("kind") != "reported" and value.get("tree") is not None:
         problems.append("an error result other than reported has a tree")
     for warning in value.get("warnings", []):
