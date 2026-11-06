@@ -2877,6 +2877,7 @@
    * @property {string} rule
    * @property {[number, number]} span
    * @property {[number, number]} source
+   * @property {import('./types.js').CompetitorRejection} [rejection]
    */
 
   /**
@@ -2973,7 +2974,13 @@
 
   /** @param {import("./types.js").ParseWarning} diagnostic @returns {WarningJson} */
   function diagnosticJson(diagnostic) {
-    return {stage:diagnostic.stage,code:diagnostic.code,rule:diagnostic.rule,span:[...diagnostic.span],source:[...diagnostic.source],message:diagnostic.message};
+    /** @type {WarningJson} */
+    const result={stage:diagnostic.stage,code:diagnostic.code,rule:diagnostic.rule,span:[...diagnostic.span],source:[...diagnostic.source],message:diagnostic.message};
+    if(diagnostic.rejection) {
+      const {token,source,line,column,expected}=diagnostic.rejection;
+      Object.assign(result,{rejection:{token,source:[...source],line,column,expected:expected.map(item=>({terminal:item.terminal,rules:[...item.rules]}))}});
+    }
+    return result;
   }
 
   /**
@@ -4144,6 +4151,319 @@
     return table;
   }
 
+  // ---- tree-identities.js
+  // Exact structural observations for compared occurrences (engine §4.1).
+
+
+
+  /** @param {any} root @returns {any[]} */
+  function constituentComparisons(root) {
+    const result=[], pending=[root], seen=new Set();
+    while(pending.length) {
+      const node=pending.pop();
+      if(!node || typeof node!=='object' || seen.has(node)) continue;
+      seen.add(node);
+      if((node.op==='≅' || node.op==='≇') && typeof node.right?.capture==='string') result.push(node);
+      else for (const child of clauseChildren(node).slice().reverse()) pending.push(child);
+    }
+    return result;
+  }
+
+  /**
+   * @typedef {object} TreeDemand
+   * @property {boolean} whole
+   * @property {Set<number>} parts
+   * @property {Set<string>} names
+   * @property {Set<string>} outer
+   * @property {boolean} parentPrefix
+   * @property {number} prefixUntil
+   */
+  /** @type {WeakMap<object,Map<string,TreeDemand>>} */
+  const local=new WeakMap();
+  /** @type {WeakMap<object,string>} */
+  const frameKeys=new WeakMap();
+  /** @param {any} frame */
+  function frameKey(frame) {
+    if(!frame)return '';
+    let key=frameKeys.get(frame);
+    if(key===undefined) {key=JSON.stringify([[...frame.present].sort(),[...frame.captures.keys()].sort(),[...frame.knownPrivate].sort(),!!frame.inside]);frameKeys.set(frame,key);}
+    return key;
+  }
+  /** @param {any} production @returns {TreeDemand} */
+  function localTreeDemand(production) {
+    const found=local.get(production.baseProduction ?? production)?.get(frameKey(production.lexicalFrame));
+    if(!found)throw new Error('a production has no tree demand case');
+    return found;
+  }
+
+  /** @param {any} lowered @param {any} frames */
+  function prepareTreeDemands(lowered, frames) {
+    const byKey=new Map();
+    /** @type {any[]} */
+    const states=[];
+    let nextFrame=0;
+    const contextual=new Set(lowered.productions.filter((/** @type {any} */ p)=>p.contextual).map((/** @type {any} */ p)=>p.lhs));
+    const state=(/** @type {any} */ p,/** @type {any} */ frame)=> {
+      const key=p.id+'/'+frameKey(frame);
+      if(byKey.has(key))return byKey.get(key);
+      const bound=frame ? frames.production(p,frame) : p;
+      const result={whole:false,parts:new Set(),names:new Set(),outer:new Set(),parentPrefix:false,prefixUntil:0};
+      for(const comparison of constituentComparisons([bound.conditions,bound.tags,bound.parentTags]))for(const name of [comparison.left.capture,comparison.right.capture]) {
+        result.names.add(name);
+        if(name==='') {result.whole=true;result.parentPrefix=!!p.helper&&!p.spliceOf;}
+        else {
+          const capture=p.captures.find((/** @type {any} */ c)=>c.name===name);
+          if(capture)result.parts.add(capture.index);else result.outer.add(name);
+        }
+      }
+      const entry={p,frame,demand:result,edges:[]};
+      const demands=local.get(p)??new Map();demands.set(frameKey(frame),result);local.set(p,demands);
+      states.push(entry);byKey.set(key,entry);return entry;
+    };
+    for(const p of lowered.productions)if(!p.contextual)state(p,null);
+    for(let at=0;at<states.length;at++) {
+      const entry=states[at],{p,frame}=entry;
+      const captures=p.captures.filter((/** @type {any} */ c)=>!c.name.startsWith('\u0000'));
+      const present=new Set([...frame?.present??[],...captures.map((/** @type {any} */ c)=>c.name)]);
+      const knownPrivate=new Set([...frame?.knownPrivate??[],...p.rankedPrivate??[]]);
+      const inside=!!frame?.inside||!!p.rankedGroup;
+      p.rhs.forEach((/** @type {any} */ symbol,/** @type {number} */ index)=> {
+        if(symbol.terminal||!contextual.has(symbol.name))return;
+        const ready=new Map(frame?.captures??[]);
+        for(const capture of captures)if(capture.index<index)ready.set(capture.name,null);
+        const child={id:nextFrame++,present,knownPrivate,captures:ready,inside};
+        for(const q of lowered.byLhs.get(symbol.name)??[])entry.edges.push({index,child:state(q,child)});
+      });
+    }
+    let changed=true;
+    while(changed) {
+      changed=false;
+      for(const entry of states)for(const edge of entry.edges) {
+        const d=entry.demand, child=edge.child.demand;
+        if(child.parentPrefix) {
+          if(entry.p.helper&&!d.parentPrefix) {d.parentPrefix=true;changed=true;}
+          if(!entry.frame?.inside&&!entry.p.rankedGroup&&edge.index>d.prefixUntil) {d.prefixUntil=edge.index;changed=true;}
+        }
+        for(const name of child.outer) {
+          const capture=entry.p.captures.find((/** @type {any} */ c)=>c.name===name&&c.index<edge.index);
+          if(capture) {if(!d.parts.has(capture.index)) {d.parts.add(capture.index);changed=true;}}
+          else if(entry.frame?.captures.has(name)&&!d.outer.has(name)) {d.outer.add(name);changed=true;}
+        }
+      }
+    }
+  }
+
+  class TreeIdentities {
+    constructor() {
+      /** @type {Map<string,number>} */ this.ids=new Map();
+      /** @type {{key:any[],empty:boolean}[]} */ this.nodes=[];
+      /** @type {Map<number,string>} */ this.semanticNodes=new Map();
+      /** @type {Map<number,string>} */ this.semanticSequences=new Map();
+      /** @type {[number,number][]} */ this.sequences=[[0,-1]];
+      /** @type {Map<string,number>} */ this.sequenceIds=new Map();
+      /** @type {Map<string,number>} */ this.concatenations=new Map();
+      this.emptyProjection=this.intern(['EmptyProjection'],true);
+    }
+    /** @param {any[]} key @param {boolean} [empty] */
+    intern(key,empty=false) {
+      const text=JSON.stringify(key), old=this.ids.get(text);if(old!==undefined)return old;
+      const id=this.nodes.length;this.ids.set(text,id);this.nodes.push({key,empty});return id;
+    }
+    /** @param {number} prefix @param {number} node */
+    append(prefix,node) {
+      if(this.nodes[node].empty)return prefix;
+      const key=`${prefix}/${node}`,old=this.sequenceIds.get(key);if(old!==undefined)return old;
+      const id=this.sequences.length;this.sequences.push([prefix,node]);this.sequenceIds.set(key,id);return id;
+    }
+    /** @param {number} left @param {number} right */
+    concat(left,right) {
+      if(!left)return right;if(!right)return left;
+      const key=`${left}/${right}`,old=this.concatenations.get(key);if(old!==undefined)return old;
+      const pending=[];for(let at=right;at;at=this.sequences[at][0])pending.push(this.sequences[at][1]);
+      let result=left;while(pending.length)result=this.append(result,/** @type {number} */(pending.pop()));
+      this.concatenations.set(key,result);return result;
+    }
+    /** @param {number} sequence @returns {number[]} */
+    elements(sequence) {
+      const nodes=[];
+      for(let at=sequence;at;at=this.sequences[at][0])nodes.push(this.sequences[at][1]);
+      return nodes.reverse();
+    }
+    /** @param {number|undefined} identity @returns {string|null} */
+    semantic(identity) {
+      if(identity === undefined || identity < 0)return null;
+      const pending=[identity];
+      while(pending.length) {
+        const node=pending[pending.length-1];
+        if(this.semanticNodes.has(node)) {pending.pop();continue;}
+        const key=this.nodes[node].key;
+        if(key[0] !== 'Rule' && key[0] !== 'Anonymous') {this.semanticNodes.set(node,JSON.stringify(key));continue;}
+        const children=this.elements(key[key[0] === 'Rule' ? 2 : 1]);
+        const missing=children.find(child=>!this.semanticNodes.has(child));
+        if(missing!==undefined) {pending.push(missing);continue;}
+        this.semanticNodes.set(node,'['+JSON.stringify(key[0])+(key[0] === 'Rule' ? ','+JSON.stringify(key[1]) : '')+',['+children.map(child=>this.semanticNodes.get(child)).join(',')+']]');
+      }
+      return /** @type {string} */ (this.semanticNodes.get(identity));
+    }
+    /** @param {number} sequence @returns {string} */
+    sequenceSemantic(sequence) {
+      let value=this.semanticSequences.get(sequence);
+      if(value===undefined) {value='['+this.elements(sequence).map(node=>this.semantic(node)).join(',')+']';this.semanticSequences.set(sequence,value);}
+      return value;
+    }
+    /** @param {string} name @param {number} children */
+    rule(name,children) {return this.intern(['Rule',name,children],children===0);}
+    /** @param {number} children */
+    anonymous(children) {return this.intern(['Anonymous',children]);}
+    /** @param {string} terminal @param {string} value */
+    written(terminal,value) {return this.intern(['Written',terminal,value]);}
+    /** @param {string} terminal */
+    omitted(terminal) {return this.intern(['Omitted',terminal]);}
+    /** @param {string[]} values */
+    seal(values) {return this.intern(['Seal',values]);}
+  }
+
+  /** @param {any} context @param {string} terminal @param {number} at */
+  function terminalIdentity(context,terminal,at) {
+    if(context.recon && !context.recon.raw) {
+      if(context.synthetic?.[at])return context.trees.emptyProjection;
+      return context.trees.written(terminal,context.recon.observed.tokens[context.recon.project[at]].value);
+    }
+    return context.trees.written(terminal,context.tokens[at].value);
+  }
+
+  /** @param {any} context @param {number} start @param {number} end */
+  function sealIdentity(context,start,end) {
+    const key=`${start}/${end}`;
+    const old=context.treeSeals.get(key);if(old!==undefined)return old;
+    const observed=context.recon && !context.recon.raw ? context.recon.observed : context;
+    if(observed!==context) { start=context.recon.project[start];end=context.recon.project[end]; }
+    const values=[];for(let i=start;i<end;i++)values.push(observed.tokens[i].value);
+    const result=context.trees.seal(values);context.treeSeals.set(key,result);return result;
+  }
+
+  /** @param {any} context @param {any} production @param {number} dot @param {any} previous @param {any} child @param {number} end */
+  function treeStep(context,production,dot,previous,child,end) {
+    if(!context.trees || !production.observesTrees || !production.walksTrees && dot>production.treePrefixUntil)return null;
+    const m=context.trees;
+    let prefix=previous?.treePrefix ?? 0;
+    if(previous) {
+      const symbol=production.rhs[dot-1];
+      if(symbol.slot)prefix=m.append(prefix,sealIdentity(context,child.origin,child.end));
+      else if(child)prefix=m.concat(prefix,child.treeSequence);
+      else prefix=m.append(prefix,terminalIdentity(context,symbol.name,end-1));
+    }
+    let identity=-1,sequence=prefix;
+    if(dot===production.rhs.length && production.walksTrees) {
+      if(production.spliceOf) identity=m.anonymous(prefix);
+      else if(!production.helper) { identity=m.rule(production.lhs,prefix);sequence=m.append(0,identity); }
+      else if(production.elided!==null && production.rhs.length===0) { identity=m.omitted(production.elided);sequence=m.append(0,identity); }
+    }
+    return {treePrefix:prefix,treeIdentity:identity,treeSequence:sequence};
+  }
+
+  /** @param {any} lowered @returns {{comparison:any,production:any,cycle:string[]}|null} */
+  function treeIdentityCycle(lowered) {
+    const rows=lowered.structural, byName=new Map(), nullable=new Set();
+    for(const row of rows) {const list=byName.get(row.lhs) ?? [];list.push(row);byName.set(row.lhs,list);}
+    let changed=true;
+    while(changed) {
+      changed=false;
+      for(const row of rows)if(!nullable.has(row.lhs) && row.rhs.every((/** @type {any} */ s)=>!s.terminal && nullable.has(s.name))) {nullable.add(row.lhs);changed=true;}
+    }
+    const seals=new Set(lowered.grammar.ranked.groups.map((/** @type {any} */ g)=>g.helper));
+    const edges=new Map();
+    for(const [name,productions] of byName) {
+      /** @type {any[]} */ const out=[];
+      for(const production of productions) production.rhs.forEach((/** @type {any} */ symbol,/** @type {number} */ index)=> {
+        if(!symbol.terminal && !seals.has(symbol.name))out.push({name:symbol.name,marked:production.rhs.every((/** @type {any} */ other,/** @type {number} */ i)=>i===index || !other.terminal && nullable.has(other.name))});
+      });
+      edges.set(name,out);
+    }
+    const sites=[...lowered.treeSites];
+    for(const production of lowered.productions) {
+      const bindings=new Map(production.captures.map((/** @type {any} */ c)=>[c.name,[production.rhs[c.index].terminal,production.rhs[c.index].name]]));
+      for(const comparison of constituentComparisons([production.tags,production.parentTags,production.conditions]))sites.push({comparison,production,bindings,prefix:[]});
+    }
+    const order=new Map(), hints=new Map();
+    let nextOrder=0;
+    for(const rule of lowered.grammar.rules.values()) {
+      const definitions=new Map();
+      for(const source of rule.alternatives) {
+        const alternatives=definitions.get(source.clauses)??[];alternatives.push(source);definitions.set(source.clauses,alternatives);
+      }
+      for(const [clauses,alternatives] of definitions)for(const root of [clauses.tags,...alternatives.map((/** @type {any} */ a)=>a.tags),clauses.conditions]) {
+        for(const comparison of constituentComparisons(root)) {
+          const number=nextOrder++;
+          order.set(comparison,number);
+          const key=JSON.stringify([alternatives[0].document,boundaryLocations.get(comparison)?.at,comparison]);
+          if(!hints.has(key))hints.set(key,number);
+        }
+      }
+    }
+    const ordinal=(/** @type {any} */ site)=>order.get(site.comparison)??hints.get(JSON.stringify([(site.production.logicalSource??site.production.source)?.document,boundaryLocations.get(site.comparison)?.at,site.comparison]))??nextOrder;
+    sites.sort((a,b)=>ordinal(a)-ordinal(b)||a.production.id-b.production.id);
+    for(const {comparison,production,bindings,prefix} of sites) {
+        const roots=[];
+        for(const name of [comparison.left.capture,comparison.right.capture]) {
+          if(name==='') {
+            for (const name of prefix) roots.push(name);
+            if(production.treeRoot) for (const symbol of production.rhs) if (!symbol.terminal && !seals.has(symbol.name)) roots.push(symbol.name);
+          } else {
+            const binding=bindings.get(name);
+            if(binding && !binding[0])roots.push(binding[1]);
+          }
+        }
+        const reachable=[],known=new Set(),todo=roots.slice().reverse();
+        while(todo.length) {const name=todo.pop();if(known.has(name))continue;known.add(name);reachable.push(name);for(const edge of (edges.get(name)??[]).slice().reverse())todo.push(edge.name);}
+        const done=new Set(),active=new Map();
+        /** @type {string[]} */ const path=[];
+        for(const root of reachable) {
+          if(done.has(root))continue;
+          const stack=[{name:root,next:0}];
+          while(stack.length) {
+            const frame=stack[stack.length-1];
+            if(!active.has(frame.name)) {active.set(frame.name,path.length);path.push(frame.name);}
+            const out=edges.get(frame.name)??[];
+            const edge=out[frame.next++];
+            if(!edge) {path.pop();active.delete(frame.name);done.add(frame.name);stack.pop();continue;}
+            if(!edge.marked || done.has(edge.name))continue;
+            if(active.has(edge.name)) {
+              const cycle=path.slice(active.get(edge.name)).concat(edge.name).filter(name=>!name.startsWith('\u0000'));
+              return {comparison,production,cycle};
+            }
+            stack.push({name:edge.name,next:0});
+          }
+        }
+    }
+    return null;
+  }
+
+  /** @param {any} context @param {any} root @returns {number} */
+  function derivationIdentity(context,root) {
+    context.emissionTrees ??= new TreeIdentities();
+    context.emissionTreeValues ??= new WeakMap();
+    const m=context.emissionTrees, memo=context.emissionTreeValues,pending=[root];
+    while(pending.length) {
+      const node=pending[pending.length-1];
+      if(memo.has(node)) {pending.pop();continue;}
+      if(node.read) {const identity=m.written(node.read.terminal,context.tokens[node.start].value);memo.set(node,{identity,sequence:m.append(0,identity)});continue;}
+      const child=node.children.find((/** @type {any} */ c,/** @type {number} */ i)=>!node.production.rhs[i]?.slot && !memo.has(c));
+      if(child) {pending.push(child);continue;}
+      let sequence=0;
+      node.children.forEach((/** @type {any} */ c,/** @type {number} */ i)=> {
+        if(node.production.rhs[i]?.slot) sequence=m.append(sequence,m.seal(context.tokens.slice(c.start,c.end).map((/** @type {any} */ token)=>token.value)));
+        else sequence=m.concat(sequence,memo.get(c).sequence);
+      });
+      let identity=-1;
+      if(node.production.spliceOf) identity=m.anonymous(sequence);
+      else if(!node.production.helper) {identity=m.rule(node.production.lhs,sequence);sequence=m.append(0,identity);}
+      else if(!node.children.length && node.production.elided!==null) {identity=m.omitted(node.production.elided);sequence=m.append(0,identity);}
+      memo.set(node,{identity,sequence});
+    }
+    return memo.get(root).identity;
+  }
+
   // ---- pattern-shapes.js
   /** Source positions of pattern operands and tag requirements. */
   const patternLocations = new WeakMap();
@@ -4798,6 +5118,224 @@
     return possible;
   }
 
+  // ---- family-summaries.js
+  // The deletion automaton of engine §4.1. Items retain sets and relations,
+  // never permission-marked close sequences. Dead summaries filter witnesses
+  // only. The chart and its omission blockers still retain every item.
+
+
+
+  /**
+   * A null relation is the identity of a record-free empty item.
+   * @typedef {{id:number, dead:boolean, first:bigint, last:bigint, relation:bigint[]|null}} FamilySummary
+   */
+  /** @typedef {import("./close-observations.js").CloseEvent} Event */
+
+  /** @param {Event} left @param {Event} right @returns {boolean} */
+  function sameRecord(left, right) {
+    return left.kind === right.kind && (left.kind === "close"
+      ? left.terminal === /** @type {Extract<Event,{kind:"close"}>} */ (right).terminal && left.at === /** @type {Extract<Event,{kind:"close"}>} */ (right).at
+      : left.key === /** @type {Extract<Event,{kind:"block"}>} */ (right).key && left.start === /** @type {Extract<Event,{kind:"block"}>} */ (right).start && left.end === /** @type {Extract<Event,{kind:"block"}>} */ (right).end);
+  }
+
+  /**
+   * Independent whole-group test for the library's conformance switch. It
+   * reads each witness record directly, without item sets or relation joins.
+   * @param {Event[]} candidate
+   * @param {{event:Event, permitted:boolean}[]} witness
+   * @param {number} start @param {number} end
+   * @returns {boolean}
+   */
+  function deletionTest(candidate, witness, start, end) {
+    /** @type {(event:Event) => number} */
+    const position = event => event.kind === "close" ? event.at : event.start;
+    /** @type {(event:Event) => boolean} */
+    const inside = event => position(event) <= end && !(event.kind === "block" && event.start === end && event.end > end);
+    for (const {event} of witness) if (event.kind === "block" && event.start < end && event.end > end) return false;
+    const kept = candidate.filter(inside);
+    const records = witness.filter(record => inside(record.event));
+    // A state records matched candidate records and whether the last step
+    // deleted one. A later match or a following token supplies its right anchor.
+    let states = new Set(["0/0"]);
+    for (const {event, permitted} of records) {
+      const next = new Set();
+      for (const state of states) {
+        const [index, trailing] = state.split("/").map(Number);
+        const at = position(event);
+        // Candidate records before this boundary must already be matched.
+        if (index < kept.length && position(kept[index]) < at) continue;
+        if (index < kept.length && sameRecord(event, kept[index])) next.add(`${index+1}/0`);
+        const earlierRecord = index > 0 && position(kept[index-1]) === at;
+        if (permitted && event.kind === "close" && (at > start || earlierRecord)) next.add(`${index}/1`);
+        // `trailing` stays relevant only at the final boundary.
+        void trailing;
+      }
+      states = next;
+    }
+    return states.has(`${kept.length}/0`) || (records.length !== 0 && position(records[records.length-1].event) < end && states.has(`${kept.length}/1`));
+  }
+
+  class FamilySummaries {
+    /**
+     * @param {import("./close-observations.js").CloseObservations} closes
+     * @param {import("./close-observations.js").CloseObservation} candidate
+     * @param {number} start
+     * @param {number} end
+     */
+    constructor(closes, candidate, start, end) {
+      this.start = start;
+      this.end = end;
+      /** @type {Map<number,Event[]>} */ this.groups = new Map();
+      for (const event of closes.raw.values(candidate.sequence)) {
+        const at = event.kind === "close" ? event.at : event.start;
+        const group = this.groups.get(at);
+        if (group) group.push(event);
+        else this.groups.set(at, [event]);
+      }
+      this.groupPositions = [...this.groups.keys()].sort((a, b) => a - b);
+      /** @type {Map<string,FamilySummary>} */ this.summaries = new Map();
+      /** @type {Set<number>} */ this.taken = new Set();
+      /** @type {Map<string,bigint[]>} */ this.records = new Map();
+      /** @type {Map<string,FamilySummary>} */ this.joins = new Map();
+      this.identity = this.intern(false, 0n, 0n, null);
+      this.dead = this.intern(true, 0n, 0n, null);
+    }
+
+    /** @param {number} at @returns {Event[]} */
+    group(at) { return this.groups.get(at) ?? []; }
+
+    /** @param {boolean} dead @param {bigint} first @param {bigint} last @param {bigint[]|null} relation @returns {FamilySummary} */
+    intern(dead, first, last, relation) {
+      const key = dead ? "dead" : `${first}/${last}/${relation?.join(",") ?? "identity"}`;
+      let summary = this.summaries.get(key);
+      if (!summary) {
+        summary = {id:this.summaries.size, dead, first, last, relation};
+        this.summaries.set(key, summary);
+      }
+      return summary;
+    }
+
+    /** @param {FamilySummary} summary @returns {FamilySummary} */
+    take(summary) {
+      if (!this.taken.has(summary.id)) {
+        this.taken.add(summary.id);
+        if (hooks.work) countWork(hooks.work, "familySummaries");
+      }
+      return summary;
+    }
+
+    /** @param {number} at @param {boolean} final @returns {bigint} */
+    accept(at, final = false) {
+      if (at > this.end) return 1n;
+      const group = this.group(at);
+      let count = group.length;
+      if (final && count && group[count-1].kind === "block" && /** @type {Extract<Event,{kind:"block"}>} */ (group[count-1]).end > at) count--;
+      return (final || at === this.end ? 1n : 3n) << BigInt(2*count);
+    }
+
+    /** @param {bigint[]|null} relation @param {bigint} set @returns {bigint} */
+    image(relation, set) {
+      if (relation === null) return set;
+      if (hooks.work) countWork(hooks.work, "familySteps", relation.length);
+      let result = 0n;
+      for (let index = 0; index < relation.length; index++) if (set & (1n << BigInt(index))) result |= relation[index];
+      return result;
+    }
+
+    /** @param {bigint[]|null} relation @param {bigint} set @returns {bigint} */
+    preimage(relation, set) {
+      if (relation === null) return set;
+      if (hooks.work) countWork(hooks.work, "familySteps", relation.length);
+      let result = 0n;
+      for (let index = 0; index < relation.length; index++) if (relation[index] & set) result |= 1n << BigInt(index);
+      return result;
+    }
+
+    /** @param {Event} event @param {boolean} permitted @returns {FamilySummary} */
+    record(event, permitted) {
+      const at = event.kind === "close" ? event.at : event.start;
+      if (at > this.end || event.kind === "block" && at === this.end && event.end > at) return this.identity;
+      const group = this.group(at);
+      if (hooks.work) countWork(hooks.work, "familySteps", 2*(group.length+1));
+      const key = JSON.stringify([event.kind === "close" ? [event.terminal,event.at] : [event.key,event.start,event.end], permitted]);
+      let relation = this.records.get(key);
+      if (!relation) {
+        relation = Array(2*(group.length+1)).fill(0n);
+        for (let i = 0; i <= group.length; i++) {
+          let targets = 0n;
+          if (i < group.length && sameRecord(event, group[i])) targets |= 1n << BigInt(2*(i+1));
+          if (permitted && event.kind === "close" && (i > 0 || at > this.start)) targets |= 1n << BigInt(2*i+1);
+          relation[2*i] = relation[2*i+1] = targets;
+        }
+        this.records.set(key, relation);
+      }
+      return this.intern(false, 0n, 0n, relation);
+    }
+
+    /**
+     * A token or an opaque block reads an interval. Its interior has no
+     * visible records. Candidate records there therefore make it dead.
+     * @param {number} start @param {number} end @returns {FamilySummary}
+     */
+    tokens(start, end) {
+      if (start < this.end && this.end < end) return this.dead;
+      if (end - start > 1) {
+        let low = 0, high = this.groupPositions.length;
+        while (low < high) {
+          const mid = (low + high) >>> 1;
+          if (this.groupPositions[mid] <= start) low = mid + 1;
+          else high = mid;
+        }
+        const at = this.groupPositions[low];
+        if (at !== undefined && at < end && at <= this.end) return this.dead;
+      }
+      return this.intern(false, this.accept(start), 1n, null);
+    }
+
+    /**
+     * @param {FamilySummary} left @param {FamilySummary} right
+     * @param {number} start @param {number} middle @param {number} end
+     * @returns {FamilySummary}
+     */
+    join(left, right, start, middle, end) {
+      if (left.dead || right.dead) return this.dead;
+      const key = `${left.id}/${right.id}/${start === middle}/${middle === end}`;
+      const known = this.joins.get(key);
+      if (known) {
+        // Memoization skips row computation, but the shared work metric
+        // charges the specified relation operation at each use.
+        let steps = 0;
+        if (start === middle && middle === end) {
+          if (left.relation && right.relation) steps = left.relation.length*right.relation.length;
+        } else if (start === middle) steps = left.relation?.length ?? 0;
+        else if (middle === end) steps = right.relation?.length ?? 0;
+        if (hooks.work) countWork(hooks.work, "familySteps", steps);
+        return known;
+      }
+      let summary;
+      if (start === middle && middle === end) {
+        const relation = left.relation === null ? right.relation : right.relation === null ? left.relation : left.relation.map(row => this.image(right.relation, row));
+        summary = this.intern(false, 0n, 0n, relation);
+      } else if (start === middle) {
+        summary = this.intern(false, this.preimage(left.relation, right.first), right.last, null);
+      } else if (middle === end) {
+        summary = this.intern(false, left.first, this.image(right.relation, left.last), null);
+      } else {
+        summary = left.last & right.first ? this.intern(false, left.first, right.last, null) : this.dead;
+      }
+      this.joins.set(key, summary);
+      return summary;
+    }
+
+    /** @param {FamilySummary} summary @param {number} end @returns {boolean} */
+    accepts(summary, end) {
+      if (summary.dead) return false;
+      const accepting = this.accept(end, true);
+      return end === this.start ? !!(this.image(summary.relation, 1n) & accepting)
+        : !!(summary.first & 1n) && (end > this.end || !!(summary.last & accepting));
+    }
+  }
+
   // ---- template-nodes.js
   // Shared unresolved template nodes. This module has no loader dependencies.
 
@@ -5030,6 +5568,650 @@
       receiver = receiver.receiver;
     }
     return receiver?.method === "without-elision" || receiver?.method === "without-elision-except";
+  }
+
+  // ---- tokens.js
+  // Tokens (engine §1): what every stage reads and writes.
+
+
+
+
+  /** @import { TagSet, Span } from "./types.js" */
+  /** @import { UnicodeTable } from "./unicode.js" */
+
+  /**
+   * A token attached to another (engine §11): a token with no span, since its
+   * span counts the input of the stage that attached it.
+   * @typedef {Omit<Token, "span">} AttachedToken
+   */
+
+  // The attachments of a token that has none: one frozen list, shared, so that
+  // a character token costs no lists of its own.
+  /** @type {AttachedToken[]} */
+  const NO_ATTACHMENTS = /** @type {AttachedToken[]} */ (/** @type {unknown} */ (Object.freeze([])));
+
+  /** @type {import("./types.js").ParseWarning[]} */
+  const NO_DIAGNOSTICS = /** @type {import("./types.js").ParseWarning[]} */ (/** @type {unknown} */ (Object.freeze([])));
+
+  class Token {
+    /**
+     * @param {TagSet} tags
+     * @param {Span} span the tokens of the stage before it this token covers
+     * @param {Span} source the code points of the text it covers
+     * @param {string} text the text it covers, as written
+     * @param {string} [value] the stored comparison string
+     * @param {string | undefined} insertedBy the rule that inserted it, for a
+     *   token no text stands for
+     * @param {string} [image] what it shows to people (engine §5): by default
+     *   its text, as for a caller-supplied token
+     */
+    constructor(tags, span, source, text, value = text, insertedBy = undefined, image = text) {
+      this.tags = tags;
+      this.span = span;
+      this.source = source;
+      this.text = text;
+      this.value = value;
+      this.insertedBy = insertedBy;
+      this.image = image;
+      /** @type {import("./types.js").ParseWarning[]} */
+      this.errors = NO_DIAGNOSTICS;
+      /** @type {import("./types.js").ParseWarning[]} */
+      this.warnings = NO_DIAGNOSTICS;
+      /**
+       * The tokens attached before this one (engine §11), none by default.
+       * @type {AttachedToken[]}
+       */
+      this.before = NO_ATTACHMENTS;
+      /**
+       * The tokens attached after this one (engine §11), none by default.
+       * @type {AttachedToken[]}
+       */
+      this.after = NO_ATTACHMENTS;
+    }
+  }
+
+  /**
+   * Whether a token has attachments (engine §11).
+   * @param {AttachedToken} token
+   * @returns {boolean}
+   */
+  function hasAttachments(token) {
+    return token.before.length > 0 || token.after.length > 0;
+  }
+
+  /**
+   * A token as an attachment: the same token without its span (engine §11).
+   * @param {Token} token
+   * @returns {AttachedToken}
+   */
+  function attached(token) {
+    const { span, ...rest } = token;
+    void span;
+    return rest;
+  }
+
+  // The source of a run of tokens (engine §1): from the least source start
+  // among them to the greatest source end. Tokens usually lie in the order of
+  // their sources, and then that is the first token's start and the last
+  // token's end. Otherwise a table of the least start and the greatest end of
+  // every run of a power of two tokens answers without a scan, so that the
+  // nested nodes of a long left-recursive rule cost no more than its tokens.
+  class Sources {
+    /** @param {Token[]} tokens */
+    constructor(tokens) {
+      this.tokens = tokens;
+      /**
+       * Made at the first question: null when the tokens are in order.
+       * @type {{lows: number[][], highs: number[][]} | null | undefined}
+       */
+      this.table = undefined;
+    }
+
+    /**
+     * The source of tokens [start, end), which must not be empty.
+     * @param {number} start
+     * @param {number} end
+     * @returns {Span}
+     */
+    of(start, end) {
+      if (this.table === undefined) this.table = sourceTable(this.tokens);
+      if (this.table === null) return [this.tokens[start].source[0], this.tokens[end - 1].source[1]];
+      // Two runs of a power of two tokens cover the span between them.
+      const level = 31 - Math.clz32(end - start);
+      const other = end - (1 << level);
+      const lows = this.table.lows[level];
+      const highs = this.table.highs[level];
+      return [Math.min(lows[start], lows[other]), Math.max(highs[start], highs[other])];
+    }
+  }
+
+  /**
+   * @param {Token[]} tokens
+   * @returns {{lows: number[][], highs: number[][]} | null}
+   */
+  function sourceTable(tokens) {
+    let ordered = true;
+    for (let index = 1; index < tokens.length && ordered; index++) {
+      const before = tokens[index - 1].source;
+      const after = tokens[index].source;
+      ordered = before[0] <= after[0] && before[1] <= after[1];
+    }
+    if (ordered) return null;
+    // lows[k][i] is the least start of tokens [i, i + 2^k), and highs[k][i]
+    // the greatest end.
+    const lows = [tokens.map((token) => token.source[0])];
+    const highs = [tokens.map((token) => token.source[1])];
+    for (let width = 1; 2 * width <= tokens.length; width *= 2) {
+      const low = lows[lows.length - 1];
+      const high = highs[highs.length - 1];
+      /** @type {number[]} */
+      const nextLow = [];
+      /** @type {number[]} */
+      const nextHigh = [];
+      for (let index = 0; index + 2 * width <= tokens.length; index++) {
+        nextLow.push(Math.min(low[index], low[index + width]));
+        nextHigh.push(Math.max(high[index], high[index + width]));
+      }
+      lows.push(nextLow);
+      highs.push(nextHigh);
+    }
+    return { lows, highs };
+  }
+
+  // The first stage's input: one token per decomposed scalar, with its
+  // original source and the scalar's engine tags (engine §1).
+  /**
+   * @param {string} text
+   * @param {UnicodeTable} unicode
+   * @returns {Token[]}
+   */
+  function characterTokens(text, unicode) {
+    if (/[\uD800-\uDFFF]/u.test(text)) throw new GencmuError("usage", "the text contains a lone surrogate");
+    const tokens = [];
+    // Recognition treats these sets as immutable. The pipeline gives each
+    // public token its own set before returning a result.
+    /** @type {Map<number,TagSet>} */
+    const profiles = new Map();
+    let index = 0;
+    const original = [...text];
+    for (const { character, origin } of unicode.decomposeWithOrigins(text)) {
+      const code = /** @type {number} */ (character.codePointAt(0));
+      let tags = profiles.get(code);
+      if (!tags) {
+        tags = tagSet(unicode.profile(code));
+        profiles.set(code,tags);
+      }
+      tokens.push(new Token(tags, [index, index + 1], [origin, origin + 1], original[origin], character, undefined, character));
+      index++;
+    }
+    return tokens;
+  }
+
+  // ---- eligible.js
+  // Written-terminator priority for nested queries (engine §4): which
+  // completed items of a queried rule have an eligible proof tree.
+
+  /**
+   * @import { Edge, Item, LoweredGrammar } from "./types.js"
+   * @import { Chart } from "./earley.js"
+   */
+
+
+  /** @type {WeakMap<LoweredGrammar, {elidable:Set<string>,optional:Map<string,object>}>} */
+  const helperSites = new WeakMap();
+  /** @type {WeakMap<LoweredGrammar,boolean>} */
+  const errorGrammars = new WeakMap();
+
+  /**
+   * Elidable helpers and the written sites of split plain optional helpers. A
+   * captured optional can have separate helpers for its expanded routes.
+   * @param {LoweredGrammar} lowered
+   * @returns {{elidable:Set<string>,optional:Map<string,object>}}
+   */
+  function helpersOf(lowered) {
+    let helpers = helperSites.get(lowered);
+    if (!helpers) {
+      helpers = {elidable:new Set(),optional:new Map()};
+      /** @type {Map<object,Set<string>>} */
+      const sites = new Map();
+      for (const production of lowered.productions) {
+        if (!production.helper) continue;
+        if (production.elided !== null) helpers.elidable.add(production.lhs);
+        const expression = production.writtenExpression;
+        if (expression && "optional" in expression && expression.elidable !== true) {
+          let names = sites.get(expression);
+          if (!names) sites.set(expression,names=new Set());
+          names.add(production.lhs);
+        }
+      }
+      // One helper already joins all its optional's routes in the chart.
+      // Only distinct names of one written site need the logical group key.
+      for (const [expression,names] of sites) {
+        if (names.size > 1) for (const name of names) helpers.optional.set(name,expression);
+      }
+      helperSites.set(lowered, helpers);
+    }
+    return helpers;
+  }
+
+  /**
+   * Whether a completed item is the empty helper of an elidable optional: an
+   * advance over it is an omission.
+   * @param {Item} item
+   * @returns {boolean}
+   */
+  function omitted(item) {
+    return item.production.helper && item.production.elided !== null && item.production.rhs.length === 0;
+  }
+
+  /**
+   * Whether a completed item is an elidable optional's helper over its
+   * nonempty alternative: an advance over it reads the optional as written.
+   * @param {Item} item
+   * @returns {boolean}
+   */
+  function written(item) {
+    return item.dot === item.production.rhs.length && item.production.helper && item.production.elided !== null && item.production.rhs.length > 0;
+  }
+
+  /**
+   * @param {Item} item
+   * @returns {{node:import("./logical.js").LogicalSymbol|undefined, initial:boolean}|null}
+   */
+  function logicalPredecessor(item) {
+    const roots = item.production.logical;
+    if (!roots) return null;
+    /** @param {import("./logical.js").LogicalSymbol[]} nodes @param {boolean} root @returns {{node:import("./logical.js").LogicalSymbol|undefined,initial:boolean}|null} */
+    const find = (nodes,root) => {
+      for (let index=0;index<nodes.length;index++) {
+        const node = nodes[index];
+        if (node.symbol && node.from === item.dot) return {node:nodes[index-1],initial:root && index === 1};
+        if (node.children && node.from <= item.dot && item.dot < node.to) {
+          const result = find(node.children,false);
+          if (result) return result;
+        }
+      }
+      return null;
+    };
+    return find(roots,true);
+  }
+
+  /**
+   * The completed items of the queried rule with an eligible proof tree in
+   * the chart (engine §4). An omission is an advance over the
+   * empty helper of an elidable optional at its position p. It is forbidden
+   * where the prefix that the proof tree holds fixed can go on and read the
+   * optional as written:
+   *
+   * - Where the optional has a constituent Y, the prefix is the item before Y
+   *   in the same proof tree. The omission is forbidden when the chart advances
+   *   that item over Y to some p' ≥ p, and the item so made advances over the
+   *   optional's nonempty alternative.
+   * - Otherwise the prefix is the item before the optional, and the omission
+   *   is forbidden when the chart advances that item over the nonempty
+   *   alternative.
+   *
+   * The chart is the whole recognition of the query, before any filtering,
+   * so an attempt that never completes the rule can forbid an omission.
+   *
+   * Each item has two states, computed together to the least fixpoint: it has
+   * an eligible proof tree (E), and an eligible proof tree that permits
+   * the optional after it to be empty (P). P follows the proof tree,
+   * so a permitted omission never combines with another proof tree's prefix.
+   * @param {Chart} chart
+   * @param {Item[]} witnesses
+   * @param {boolean} [errorFree]
+   * @returns {Item[]}
+   */
+  function eligibleWitnesses(chart, witnesses, errorFree = false) {
+    if (witnesses.length === 0) return witnesses;
+    const {elidable:helpers,optional:optionals} = helpersOf(chart.context.lowered);
+    let errors=errorGrammars.get(chart.context.lowered);
+    if (errors===undefined) { errors=chart.context.lowered.productions.some(production=>!!production.error);errorGrammars.set(chart.context.lowered,errors); }
+    if (helpers.size === 0 && !errors && !errorFree) return witnesses;
+    // The items the witnesses rest on, children before the items made from
+    // them where the edges allow, so that one sweep settles most of them.
+    /** @type {Map<Item, number>} */
+    const index = new Map();
+    /** @type {Item[]} */
+    const order = [];
+    let omits = false;
+    for (const witness of witnesses) {
+      if (index.has(witness)) continue;
+      index.set(witness, -1);
+      /** @type {{item: Item, edges: Edge[], next: number}[]} */
+      const stack = [{ item: witness, edges: witness.edges, next: 0 }];
+      while (stack.length > 0) {
+        const frame = stack[stack.length - 1];
+        let pushed = false;
+        while (frame.next < frame.edges.length * 2) {
+          const step = frame.next++;
+          const edge = frame.edges[step >> 1];
+          /** @type {Item | null} */
+          let below = null;
+          if ((step & 1) === 0) below = edge.kind === "seed" || edge.kind === "restore" ? null : edge.previous;
+          else if (edge.kind === "complete") {
+            below = edge.child;
+            if (omitted(edge.child)) omits = true;
+          }
+          if (below !== null && !index.has(below)) {
+            index.set(below, -1);
+            stack.push({ item: below, edges: below.edges, next: 0 });
+            pushed = true;
+            break;
+          }
+        }
+        if (pushed) continue;
+        stack.pop();
+        index.set(frame.item, order.length);
+        order.push(frame.item);
+      }
+    }
+    // With no omission, every item of a chart has a finite proof, made from
+    // predicted items in the order in which the recognizer made it.
+    if (!omits && !errors && !errorFree) return witnesses;
+
+    // The prefixes that advance over a written optional, and for each item
+    // before a constituent Y, the furthest end of an advance over Y that then
+    // reads the optional as written.
+    /** @type {Set<Item>} */
+    const reads = new Set();
+    for (const set of chart.sets) {
+      if (!set) continue;
+      for (const item of set.items) {
+        for (const edge of item.edges) if (edge.kind === "complete" && written(edge.child)) reads.add(edge.previous);
+      }
+    }
+    /** @type {Map<Item, number>} */
+    const further = new Map();
+    for (const item of reads) {
+      for (const edge of item.edges) {
+        if (edge.kind !== "complete") continue;
+        const known = further.get(edge.previous);
+        if (known === undefined || known < item.end) further.set(edge.previous, item.end);
+      }
+    }
+
+    // For each item, whether an elidable optional comes next, and whether it
+    // has a constituent: not at the start, not after a terminal, and not
+    // after the first symbol of a production whose first symbol is its own
+    // rule (engine §4).
+    /** @type {Map<Item,import("./logical.js").LogicalSymbol>} */
+    const precedingGroups = new Map();
+    /** @param {Item} item @returns {"none"|"alone"|"constituent"|"group"} */
+    const nextKind = item => {
+      const rhs = item.production.rhs;
+      const symbol = rhs[item.dot];
+      if (symbol === undefined || symbol.terminal || !helpers.has(symbol.name)) return "none";
+      const logical = logicalPredecessor(item);
+      if (logical) {
+        const previous = logical.node;
+        if (!previous || previous.symbol?.terminal) return "alone";
+        const optional = previous.symbol && optionals.get(previous.symbol.name);
+        if (previous.children || optional) {
+          // Both physical helper variants and inline expansions retain one
+          // optional boundary for the fixed prefix and all blocker routes.
+          precedingGroups.set(item,optional ? {...previous,written:optional} : previous);
+          return "group";
+        }
+        if (logical.initial && previous.symbol?.name === item.production.lhs) return "alone";
+        return "constituent";
+      }
+      if (item.dot === 0 || rhs[item.dot-1].terminal) return "alone";
+      if (item.dot === 1 && rhs[0].name === item.production.lhs) return "alone";
+      return "constituent";
+    };
+    const next = order.map(nextKind);
+    const identities = new WeakMap();
+    let identityCount = 0;
+    /** @param {object|undefined} object */
+    const identity = object => {
+      if (!object) return 0;
+      let id = identities.get(object);
+      if (id === undefined) identities.set(object,id=++identityCount);
+      return id;
+    };
+    /** @param {Item} item @param {import("./logical.js").LogicalSymbol} group */
+    const fixedKey = (item,group) => {
+      const captures = [];
+      for (let slot=item.slots;slot;slot=slot.parent) {
+        const name = item.production.captures[slot.index].name;
+        captures.push([name,slot.start,slot.end,slot.tags,slot.structure,slot.observation?.sequence]);
+      }
+      const symbols = item.production.rhs.map((symbol,index) => [symbol.name,symbol.test?.written,
+        item.production.captures.filter(capture => capture.index === index && !capture.name.startsWith("\u0000")).map(capture => capture.name)]);
+      // Only the preceding optional's route varies. Every outside expansion
+      // remains part of the same logical production and fixed prefix.
+      const outside = [...symbols.slice(0,group.from),["optional"],...symbols.slice(group.to)];
+      // A surrounding optional can also have one helper per expanded route.
+      const owner = optionals.get(item.production.lhs);
+      const scope = owner ? ["optional",identity(owner)] : item.production.lhs;
+      return JSON.stringify([identity(item.production.logicalSource ?? item.production.source),scope,identity(group.written),
+        item.origin,item.end,item.structure,item.observationPrefix?.sequence,item.boundary?.id,outside,captures.reverse()]);
+    };
+    /** @param {Item} item @param {number} dot @returns {Item[]} */
+    const boundaries = (item,dot) => {
+      const result = [], pending = [item], seen = new Set();
+      while (pending.length) {
+        const current = /** @type {Item} */ (pending.pop());
+        if (seen.has(current)) continue;
+        seen.add(current);
+        if (current.dot === dot) result.push(current);
+        else for (const edge of current.edges) if (edge.kind === "scan" || edge.kind === "complete") pending.push(edge.previous);
+      }
+      return result;
+    };
+    const groupFurther = new Map();
+    for (const item of reads) if (nextKind(item) === "group") {
+      const group = /** @type {import("./logical.js").LogicalSymbol} */ (precedingGroups.get(item));
+      for (const prefix of boundaries(item,group.from)) {
+        const key = fixedKey(prefix,group);
+        groupFurther.set(key,Math.max(groupFurther.get(key) ?? -1,item.end));
+      }
+    }
+    // Each mask holds distinct proof states: 1 is clean and 2 carries an
+    // error. E and P retain those states separately. The support channel
+    // keeps finite written-priority proofs through own errors for erasure.
+    const eligible = new Uint8Array(order.length), permits = new Uint8Array(order.length);
+    const support = new Uint8Array(order.length), supportPermits = new Uint8Array(order.length);
+    /** @type {(item: Item) => number} */
+    const at = item => /** @type {number} */ (index.get(item));
+    /** @param {number} left @param {number} right */
+    const combine = (left,right) => (left & right & 1) | (left && right && ((left | right) & 2) ? 2 : 0);
+    /** @param {Edge} edge */
+    const dirtyRead = edge => (edge.kind === "scan" || edge.kind === "restore") && (chart.context.tokens[edge.token].errors?.length ?? 0) !== 0;
+    /**
+     * Find a permitted proof of one F state through a logical optional.
+     * Reverse advances retain that state, so a dirty permitted proof cannot
+     * lend permission to a clean forbidden proof of the same chart item.
+     * @param {Item} item
+     * @param {import("./logical.js").LogicalSymbol} group
+     * @param {number} end
+     * @param {Uint8Array} states
+     * @param {Uint8Array} permissions
+     * @param {number} bit
+     */
+    const groupPermits = (item,group,end,states,permissions,bit) => {
+      const pending = [{item,bit}], seen = new Set();
+      while (pending.length) {
+        const current = /** @type {{item:Item,bit:number}} */ (pending.pop());
+        const key = at(current.item)*2 + (current.bit === 2 ? 1 : 0);
+        if (seen.has(key) || !(states[at(current.item)] & current.bit)) continue;
+        seen.add(key);
+        if (current.item.dot === group.from) {
+          if ((groupFurther.get(fixedKey(current.item,group)) ?? -1) < end) return true;
+          continue;
+        }
+        for (const edge of current.item.edges) {
+          if (edge.kind === "scan") {
+            for (const before of [1,2]) if (states[at(edge.previous)] & before &&
+                (dirtyRead(edge) ? 2 : before) === current.bit) pending.push({item:edge.previous,bit:before});
+          } else if (edge.kind === "complete") {
+            const beforeStates = omitted(edge.child) ? permissions[at(edge.previous)] : states[at(edge.previous)];
+            for (const before of [1,2]) for (const child of [1,2]) {
+              if (beforeStates & before && states[at(edge.child)] & child &&
+                  combine(before,child) === current.bit) pending.push({item:edge.previous,bit:before});
+            }
+          }
+        }
+      }
+      return false;
+    };
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let x = 0; x < order.length; x++) {
+        const item = order[x];
+        // These are semantic support channels, not separate legacy paths.
+        for (const raw of [true,false]) {
+          const states = raw ? support : eligible, permissions = raw ? supportPermits : permits;
+          let e = 0, p = 0;
+          for (const edge of item.edges) {
+            let through = 0;
+            if (edge.kind === "seed" || edge.kind === "restore") through = dirtyRead(edge) ? 2 : 1;
+            else if (edge.kind === "scan") through = dirtyRead(edge) ? states[at(edge.previous)] ? 2 : 0 : states[at(edge.previous)];
+            else through = combine(omitted(edge.child) ? permissions[at(edge.previous)] : states[at(edge.previous)],states[at(edge.child)]);
+            if (!through) continue;
+            e |= through;
+            if (next[x] === "alone" && !reads.has(item)) p |= through;
+            else if (next[x] === "group") {
+              const group = /** @type {import("./logical.js").LogicalSymbol} */ (precedingGroups.get(item));
+              for (const bit of [1,2]) if (through & bit && groupPermits(item,group,item.end,states,permissions,bit)) p |= bit;
+            } else if (next[x] === "constituent" && edge.kind === "complete") {
+              const end = further.get(edge.previous);
+              if (end === undefined || end < item.end) p |= through;
+            }
+          }
+          if (item.complete && item.production.erased) {
+            // This replaces the ordinary completion transition. Its finite
+            // support can contain own errors that normal E rejects.
+            e = support[x] || e ? 1 : 0;
+            p = p ? 1 : 0;
+          } else if (item.complete && item.production.error) {
+            e = raw && e ? 2 : 0;
+            p = raw && p ? 2 : 0;
+          }
+          if ((states[x] | e) !== states[x]) { states[x] |= e; changed = true; }
+          if ((permissions[x] | p) !== permissions[x]) { permissions[x] |= p; changed = true; }
+        }
+      }
+    }
+    return witnesses.filter(witness => errorFree ? !!(eligible[at(witness)] & 1) : eligible[at(witness)] !== 0);
+  }
+
+  // ---- nullable-errors.js
+  // Conservative empty-error test before feature filtering (engine §3.6).
+
+  /**
+   * The first error alternative that can read no tokens. Gates, conditions,
+   * and symbol tests cannot establish a positive width. Each dependency edge
+   * participates in the least fixed point once, including recursive calls.
+   * @param {Map<string,import('./grammar.js').StitchedRule>} rules
+   * @param {{rule:import('./grammar.js').StitchedRule,alternative:import('./grammar.js').StitchedAlternative}[]} errors
+   */
+  function nullableError(rules, errors) {
+    /** @typedef {{all:boolean,children:number[],users:number[],remaining:number,value:boolean}} Node */
+    /** @type {Node[]} */
+    const nodes=[];
+    /** @type {Map<object|string,number>} */
+    const identities=new Map();
+    /** @type {(object|string)[]} */
+    const pending=[];
+    /** @param {object|string} identity */
+    const intern=identity=>{
+      const previous=identities.get(identity);
+      if(previous!==undefined)return previous;
+      const id=nodes.length;
+      identities.set(identity,id);
+      nodes.push({all:false,children:[],users:[],remaining:0,value:false});
+      pending.push(identity);
+      return id;
+    };
+    const roots=errors.map(({alternative})=>intern(alternative.expr));
+    for(let index=0;index<pending.length;index++){
+      const identity=pending[index],node=nodes[index];
+      /** @type {(object|string)[]} */
+      let children=[];
+      if(typeof identity==='string')children=rules.get(identity)?.alternatives.map(alternative=>alternative.expr) ?? [];
+      else {
+        const expr=/** @type {import('./types.js').Expr} */(identity);
+        if('empty' in expr || 'optional' in expr)node.all=true;
+        else if('seq' in expr){node.all=true;children=expr.seq;}
+        else if('choice' in expr)children=expr.choice;
+        else if('ranked' in expr)children=expr.ranked;
+        else if('and' in expr)children=expr.and;
+        else if('repeat' in expr)children=[expr.repeat];
+        else if('capture' in expr || 'test' in expr)children=[expr.expr];
+        else if('splice' in expr)children=[expr.splice];
+        else if('ref' in expr && rules.has(expr.ref))children=[expr.ref];
+      }
+      node.children=children.map(intern);
+      node.remaining=node.children.length;
+      for(const child of node.children)nodes[child].users.push(index);
+    }
+    const ready=[];
+    for(let index=0;index<nodes.length;index++)if(nodes[index].all && nodes[index].remaining===0){nodes[index].value=true;ready.push(index);}
+    for(let index=0;index<ready.length;index++)for(const user of nodes[ready[index]].users){
+      const node=nodes[user];
+      if(node.value)continue;
+      if(!node.all || --node.remaining===0){node.value=true;ready.push(user);}
+    }
+    const first=roots.findIndex(root=>nodes[root].value);
+    return first<0?undefined:errors[first];
+  }
+
+  // ---- emission-overlap.js
+  // Conservative input coverage of final stitched emissions (engine §9.3).
+
+
+  /** @import { Expr } from "./types.js" */
+
+  /** @param {Expr} expr @param {Set<string>} rules @returns {boolean} */
+  function consuming(expr,rules) {
+    if ("splice" in expr) return consuming(expr.splice,rules);
+    if ("literal" in expr || "range" in expr || "wildcard" in expr) return true;
+    if ("ref" in expr) return /^[A-Z_]/.test(expr.ref) || rules.has(expr.ref);
+    if ("empty" in expr) return false;
+    if ("test" in expr || "capture" in expr) return consuming(expr.expr,rules);
+    if ("optional" in expr) return consuming(expr.optional,rules);
+    if ("repeat" in expr) return consuming(expr.repeat,rules) || expr.separator !== undefined && consuming(expr.separator,rules);
+    return (/** @type {any} */ (expr).seq ?? /** @type {any} */ (expr).choice ?? /** @type {any} */ (expr).ranked ?? /** @type {any} */ (expr).and).some((/** @type {Expr} */ child) => consuming(child,rules));
+  }
+
+  /** @param {Map<string,import("./grammar.js").StitchedRule>} definitions */
+  function validateEmissionOverlap(definitions) {
+    const marked = new Set();
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const rule of definitions.values()) if (!marked.has(rule.name) && rule.alternatives.some(alternative => consuming(alternative.expr,marked))) {
+        marked.add(rule.name);
+        changed = true;
+      }
+    }
+    for (const rule of definitions.values()) for (const alternative of rule.alternatives) {
+      const emission = alternative.clauses.emit;
+      if (!emission || emission.items.length < 2) continue;
+      const captures = new Map();
+      const pending = [alternative.expr];
+      while (pending.length) {
+        const expr = /** @type {Expr} */ (pending.pop());
+        if ("capture" in expr) captures.set(expr.capture, captures.get(expr.capture) || consuming(expr.expr,marked));
+        for (const key of ["seq","choice","ranked","and"]) for (const child of (/** @type {any} */ (expr)[key] ?? [])) pending.push(child);
+        for (const key of ["expr","splice","optional","repeat","separator"]) if (/** @type {any} */ (expr)[key]) pending.push(/** @type {any} */ (expr)[key]);
+      }
+      for (let left=0;left<emission.items.length;left++) for (let right=left+1;right<emission.items.length;right++) {
+        const a=emission.items[left], b=emission.items[right];
+        if (a.insert || b.insert || a.capture !== "" && b.capture !== "") continue;
+        const other = a.capture === "" ? b : a;
+        const overlap = other.capture === "" ? consuming(alternative.expr,marked)
+          : [...(other.before ?? []),other.capture,...(other.after ?? [])].some(name=>captures.get(name));
+        if (overlap) {
+          const at = alternative.at;
+          throw new GencmuError("grammar",`${at.document}:${at.line}:${at.column}: the emission of ${rule.name} overlaps input positions`,at);
+        }
+      }
+    }
   }
 
   // ---- dom.js
@@ -7637,534 +8819,6 @@
     return null;
   }
 
-  // ---- diagnostic-audit.js
-  // Notes for diagnostic rules, suppression, and concrete tag variants.
-
-
-
-
-  /** @param {import('./grammar.js').Grammar} grammar @returns {any[]} */
-  function diagnosticAudit(grammar) {
-    const notes=[], edges=new Map(), warnings=new Map();
-    for (const rule of grammar.rules.values()) {
-      const references=new Set(), codes=new Set();
-      for (const alternative of rule.alternatives) {
-        /** @type {any[]} */
-        const pending=[alternative.expr];
-        while(pending.length) {
-          const node=pending.pop();
-          if (node && 'ref' in node && grammar.rules.has(node.ref)) references.add(node.ref);
-          for (const child of expressionChildren(node)) pending.push(child);
-        }
-        if (alternative.clauses.warning) codes.add(rule.name);
-      }
-      edges.set(rule.name,references);warnings.set(rule.name,codes);
-    }
-    const closure=(/** @type {Iterable<string>} */ roots)=> {
-      const seen=new Set(),pending=[...roots];
-      while(pending.length) {
-        const name=pending.pop();
-        if (seen.has(name)) continue;
-        seen.add(name);
-        for (const child of edges.get(name) ?? []) pending.push(child);
-      }
-      return seen;
-    };
-    for (const rule of grammar.rules.values()) for (const alternative of rule.alternatives) {
-      const clauses=alternative.clauses;
-      const where={rule:rule.name,document:alternative.document,line:alternative.at.line,column:alternative.at.column};
-      /** @type {any[]} */
-      const pending=[clauses.conditions,clauses.tags,alternative.tags,clauses.emit];
-      const reached=new Set();
-      while(pending.length) {
-        const node=pending.pop();
-        if (['matches','begins','ends','tags'].includes(node?.method)) for (const arg of node.args) if (arg.rule) for (const name of closure([arg.rule])) reached.add(name);
-        for (const child of clauseChildren(node)) pending.push(child);
-      }
-      for (const name of reached) if (grammar.rules.get(name)?.alternatives.some(a=>a.clauses.error)) notes.push({kind:'query-error',...where,target:name});
-      if (clauses.suppressWarnings) {
-        const roots=new Set();
-        /** @type {any[]} */
-        const body=[alternative.expr];
-        while(body.length) {
-          const node=body.pop();
-          if ('ref' in node && grammar.rules.has(node.ref)) roots.add(node.ref);
-          for (const child of expressionChildren(node)) body.push(child);
-        }
-        const possible=new Set(clauses.warning?[rule.name]:[]);
-        for (const name of closure(roots)) for (const code of warnings.get(name) ?? []) possible.add(code);
-        for (const code of new Set(clauses.suppressWarnings)) if (code==='_' ? !possible.size : !possible.has(code)) notes.push({kind:'unused-suppression',...where,code});
-      }
-      const terms=[clauses.tags,alternative.tags].filter(term=>term!==undefined);
-      if (neighbourGuards(terms).length) {
-        const owner={name:rule.name,...clauses,alternatives:[alternative]};
-        for (const captures of validationCaptures(owner,alternative)) {
-          const terms=[clauses.tags,alternative.tags].filter(term=>term!==undefined).map(term=>simplifyFor(prepareClause(term),name=>captures.has(name),captures));
-          const count=guardedTagVariants(terms.length===1?terms[0]:{union:terms}).length;
-          if (count>8) notes.push({kind:'guarded-tag-variants',...where,variants:count,captures:[...captures.keys()].filter(Boolean)});
-        }
-      }
-    }
-    // Shared definition clauses can supply one note through several alternatives.
-    const seen=new Set();
-    return notes.filter(note=>{const key=JSON.stringify(note);if(seen.has(key)) return false;seen.add(key);return true;});
-  }
-
-  // ---- tokens.js
-  // Tokens (engine §1): what every stage reads and writes.
-
-
-
-
-  /** @import { TagSet, Span } from "./types.js" */
-  /** @import { UnicodeTable } from "./unicode.js" */
-
-  /**
-   * A token attached to another (engine §11): a token with no span, since its
-   * span counts the input of the stage that attached it.
-   * @typedef {Omit<Token, "span">} AttachedToken
-   */
-
-  // The attachments of a token that has none: one frozen list, shared, so that
-  // a character token costs no lists of its own.
-  /** @type {AttachedToken[]} */
-  const NO_ATTACHMENTS = /** @type {AttachedToken[]} */ (/** @type {unknown} */ (Object.freeze([])));
-
-  /** @type {import("./types.js").ParseWarning[]} */
-  const NO_DIAGNOSTICS = /** @type {import("./types.js").ParseWarning[]} */ (/** @type {unknown} */ (Object.freeze([])));
-
-  class Token {
-    /**
-     * @param {TagSet} tags
-     * @param {Span} span the tokens of the stage before it this token covers
-     * @param {Span} source the code points of the text it covers
-     * @param {string} text the text it covers, as written
-     * @param {string} [value] the stored comparison string
-     * @param {string | undefined} insertedBy the rule that inserted it, for a
-     *   token no text stands for
-     * @param {string} [image] what it shows to people (engine §5): by default
-     *   its text, as for a caller-supplied token
-     */
-    constructor(tags, span, source, text, value = text, insertedBy = undefined, image = text) {
-      this.tags = tags;
-      this.span = span;
-      this.source = source;
-      this.text = text;
-      this.value = value;
-      this.insertedBy = insertedBy;
-      this.image = image;
-      /** @type {import("./types.js").ParseWarning[]} */
-      this.errors = NO_DIAGNOSTICS;
-      /** @type {import("./types.js").ParseWarning[]} */
-      this.warnings = NO_DIAGNOSTICS;
-      /**
-       * The tokens attached before this one (engine §11), none by default.
-       * @type {AttachedToken[]}
-       */
-      this.before = NO_ATTACHMENTS;
-      /**
-       * The tokens attached after this one (engine §11), none by default.
-       * @type {AttachedToken[]}
-       */
-      this.after = NO_ATTACHMENTS;
-    }
-  }
-
-  /**
-   * Whether a token has attachments (engine §11).
-   * @param {AttachedToken} token
-   * @returns {boolean}
-   */
-  function hasAttachments(token) {
-    return token.before.length > 0 || token.after.length > 0;
-  }
-
-  /**
-   * A token as an attachment: the same token without its span (engine §11).
-   * @param {Token} token
-   * @returns {AttachedToken}
-   */
-  function attached(token) {
-    const { span, ...rest } = token;
-    void span;
-    return rest;
-  }
-
-  // The source of a run of tokens (engine §1): from the least source start
-  // among them to the greatest source end. Tokens usually lie in the order of
-  // their sources, and then that is the first token's start and the last
-  // token's end. Otherwise a table of the least start and the greatest end of
-  // every run of a power of two tokens answers without a scan, so that the
-  // nested nodes of a long left-recursive rule cost no more than its tokens.
-  class Sources {
-    /** @param {Token[]} tokens */
-    constructor(tokens) {
-      this.tokens = tokens;
-      /**
-       * Made at the first question: null when the tokens are in order.
-       * @type {{lows: number[][], highs: number[][]} | null | undefined}
-       */
-      this.table = undefined;
-    }
-
-    /**
-     * The source of tokens [start, end), which must not be empty.
-     * @param {number} start
-     * @param {number} end
-     * @returns {Span}
-     */
-    of(start, end) {
-      if (this.table === undefined) this.table = sourceTable(this.tokens);
-      if (this.table === null) return [this.tokens[start].source[0], this.tokens[end - 1].source[1]];
-      // Two runs of a power of two tokens cover the span between them.
-      const level = 31 - Math.clz32(end - start);
-      const other = end - (1 << level);
-      const lows = this.table.lows[level];
-      const highs = this.table.highs[level];
-      return [Math.min(lows[start], lows[other]), Math.max(highs[start], highs[other])];
-    }
-  }
-
-  /**
-   * @param {Token[]} tokens
-   * @returns {{lows: number[][], highs: number[][]} | null}
-   */
-  function sourceTable(tokens) {
-    let ordered = true;
-    for (let index = 1; index < tokens.length && ordered; index++) {
-      const before = tokens[index - 1].source;
-      const after = tokens[index].source;
-      ordered = before[0] <= after[0] && before[1] <= after[1];
-    }
-    if (ordered) return null;
-    // lows[k][i] is the least start of tokens [i, i + 2^k), and highs[k][i]
-    // the greatest end.
-    const lows = [tokens.map((token) => token.source[0])];
-    const highs = [tokens.map((token) => token.source[1])];
-    for (let width = 1; 2 * width <= tokens.length; width *= 2) {
-      const low = lows[lows.length - 1];
-      const high = highs[highs.length - 1];
-      /** @type {number[]} */
-      const nextLow = [];
-      /** @type {number[]} */
-      const nextHigh = [];
-      for (let index = 0; index + 2 * width <= tokens.length; index++) {
-        nextLow.push(Math.min(low[index], low[index + width]));
-        nextHigh.push(Math.max(high[index], high[index + width]));
-      }
-      lows.push(nextLow);
-      highs.push(nextHigh);
-    }
-    return { lows, highs };
-  }
-
-  // The first stage's input: one token per decomposed scalar, with its
-  // original source and the scalar's engine tags (engine §1).
-  /**
-   * @param {string} text
-   * @param {UnicodeTable} unicode
-   * @returns {Token[]}
-   */
-  function characterTokens(text, unicode) {
-    if (/[\uD800-\uDFFF]/u.test(text)) throw new GencmuError("usage", "the text contains a lone surrogate");
-    const tokens = [];
-    // Recognition treats these sets as immutable. The pipeline gives each
-    // public token its own set before returning a result.
-    /** @type {Map<number,TagSet>} */
-    const profiles = new Map();
-    let index = 0;
-    const original = [...text];
-    for (const { character, origin } of unicode.decomposeWithOrigins(text)) {
-      const code = /** @type {number} */ (character.codePointAt(0));
-      let tags = profiles.get(code);
-      if (!tags) {
-        tags = tagSet(unicode.profile(code));
-        profiles.set(code,tags);
-      }
-      tokens.push(new Token(tags, [index, index + 1], [origin, origin + 1], original[origin], character, undefined, character));
-      index++;
-    }
-    return tokens;
-  }
-
-  // ---- measures.js
-  // Additive diagnostic charges and profile order (engine §1, §6).
-
-
-  /** @typedef {number|bigint} Count */
-  /** @typedef {[Count,Count,Count]} Measure */
-  /** @type {Measure} */
-  const ZERO_MEASURE=Object.freeze(/** @type {any} */([0,0,0]));
-
-  /** @param {Count} left @param {Count} right @returns {Count} */
-  function addCount(left,right){
-    if(typeof left==='number' && typeof right==='number'){
-      const sum=left+right;
-      if(sum<=Number.MAX_SAFE_INTEGER || sum===Infinity)return sum;
-    }
-    if(left===Infinity || right===Infinity)return Infinity;
-    return BigInt(left)+BigInt(right);
-  }
-
-  /** @param {Measure} left @param {Measure} right @returns {Measure} */
-  function sumMeasure(left,right){
-    if(left===ZERO_MEASURE)return right;
-    if(right===ZERO_MEASURE)return left;
-    return [addCount(left[0],right[0]),addCount(left[1],right[1]),addCount(left[2],right[2])];
-  }
-
-  /** Negative means that the left measure wins. @param {ArrayLike<any>} left @param {ArrayLike<any>} right */
-  function compareMeasure(left,right){
-    for(let index=0;index<3;index++)if(left[index]<right[index] || left[index]>right[index]){
-      const order=left[index]<right[index]?-1:1;
-      return index===2?-order:order;
-    }
-    return 0;
-  }
-
-  // Public diagnostic objects carry no charge or identity fields. Copies
-  // retain this private record rather than deriving a charge from new spans.
-  /** @type {WeakMap<object,{measure:Measure,identity:object}>} */
-  const records=new WeakMap();
-  /** @param {object} diagnostic @param {Measure} measure @param {object} [identity] */
-  function recordDiagnostic(diagnostic,measure,identity={}){
-    records.set(diagnostic,{measure:/** @type {Measure} */(Object.freeze([...measure])),identity});
-    return diagnostic;
-  }
-  /** @param {object} diagnostic */
-  function diagnosticRecord(diagnostic){
-    const record=records.get(diagnostic);
-    if(!record)throw new Error('An engine diagnostic requires a fixed charge and identity.');
-    return record;
-  }
-  /** @param {object} original @param {object} copy */
-  function copyDiagnosticRecord(original,copy){
-    const record=records.get(original);
-    if(record)records.set(copy,record);
-    return copy;
-  }
-
-  class Measures {
-    /** @param {import('./tokens.js').Token[]} tokens @param {Sources} [sources] */
-    constructor(tokens,sources=new Sources(tokens)){
-      this.sources=sources;
-      this.nonempty=[0];
-      /** @type {Measure[]} */
-      this.carried=[];
-      for(const token of tokens){
-        this.nonempty.push(this.nonempty[this.nonempty.length-1]+(token.source[0]<token.source[1]?1:0));
-        let measure=ZERO_MEASURE;
-        for(const diagnostic of token.errors)measure=sumMeasure(measure,diagnosticRecord(diagnostic).measure);
-        this.carried.push(measure);
-      }
-    }
-    /** @param {number} start @param {number} end @returns {Measure} */
-    own(start,end){
-      if(this.nonempty[end]===this.nonempty[start])return [0,1,1];
-      const [low,high]=this.sources.of(start,end);
-      return [high-low,0,1];
-    }
-  }
-
-  // ---- diagnostic-flow.js
-
-  // Diagnostic identity, reporting collections, and emission owners (§11.5, §12.1).
-
-
-  /** @typedef {import('./types.js').Derivation} Derivation */
-  /** @typedef {import('./types.js').ParseWarning} Diagnostic */
-  /** @typedef {{errors:Diagnostic[],warnings:Diagnostic[]}} DiagnosticLists */
-  /** @typedef {{node:Derivation,diagnostic:Diagnostic,kind:'errors'|'warnings',own:boolean}} DiagnosticEvent */
-  /** @typedef {{parent:Derivation|null,erased:boolean,scope:EmissionScope}} NodeInfo */
-  /** @typedef {{root:Derivation,rows:Carrier[],carrier:Carrier|null,unowned:DiagnosticLists}} EmissionScope */
-  /** @typedef {{token:import('./tokens.js').AttachedToken,span:import('./types.js').Span,part:Derivation|null,emission:Derivation,scope:EmissionScope,support:import('./types.js').Span|null,own:DiagnosticLists,groups:(EmissionScope|import('./tokens.js').AttachedToken)[]}} Carrier */
-
-  /** @returns {DiagnosticLists} */
-  function emptyDiagnostics(){return {errors:[],warnings:[]};}
-  /** @param {Diagnostic} diagnostic */
-  function diagnosticIdentity(diagnostic){return diagnosticRecord(diagnostic).identity;}
-
-  /** @param {DiagnosticLists[]} lists @returns {DiagnosticLists} */
-  function joinDiagnostics(lists){
-    const result=emptyDiagnostics();
-    for(const kind of /** @type {const} */(['errors','warnings'])){
-      const seen=new Set();
-      for(const list of lists)for(const diagnostic of list[kind]){
-        const identity=diagnosticIdentity(diagnostic);
-        if(!seen.has(identity)){seen.add(identity);result[kind].push(diagnostic);}
-      }
-    }
-    return result;
-  }
-
-  /** @param {import('./tokens.js').Token[]} tokens @param {number} [end] */
-  function inputDiagnostics(tokens,end=tokens.length){
-    return joinDiagnostics(tokens.slice(0,end).map(token=>({errors:token.errors,warnings:token.warnings})));
-  }
-
-  /** @param {Diagnostic[]} list */
-  function ordered(list){
-    return list.slice().sort((left,right)=>{
-      const a=/** @type {{stageOrder?:number,ordinal?:number}} */(diagnosticIdentity(left));
-      const b=/** @type {{stageOrder?:number,ordinal?:number}} */(diagnosticIdentity(right));
-      return (a.stageOrder??0)-(b.stageOrder??0)||(a.ordinal??0)-(b.ordinal??0);
-    });
-  }
-
-  /** @param {Diagnostic} diagnostic */
-  function objectKey(diagnostic){
-    return JSON.stringify([diagnostic.stage,diagnostic.code,diagnostic.rule,diagnostic.span,diagnostic.source,diagnostic.message,/** @type {any} */(diagnostic).rejection??null]);
-  }
-
-  /** @param {DiagnosticEvent[]} first @param {DiagnosticEvent[]} second @returns {DiagnosticLists} */
-  function tiedDiagnostics(first,second){
-    const result=emptyDiagnostics();
-    for(const kind of /** @type {const} */(['errors','warnings'])){
-      const carried=new Set(),counts=new Map(),later=new Map();
-      for(const [reading,events] of [first,second].entries())for(const event of events){
-        if(event.kind!==kind)continue;
-        const diagnostic=event.diagnostic;
-        if(!event.own){
-          const id=diagnosticIdentity(diagnostic);if(carried.has(id))continue;carried.add(id);
-        }else{
-          const key=objectKey(diagnostic),table=reading===0?counts:later,n=(table.get(key)??0)+1;
-          table.set(key,n);if(reading===1&&n<=(counts.get(key)??0))continue;
-        }
-        result[kind].push(diagnostic);
-      }
-    }
-    return result;
-  }
-
-  class DiagnosticFlow {
-    /** @param {Derivation} root @param {import('./tokens.js').Token[]} input */
-    constructor(root,input){
-      this.root=root;this.input=input;
-      /** @type {Map<Derivation,NodeInfo>} */ this.nodes=new Map();
-      /** @type {Derivation[]} */ this.order=[];
-      /** @type {Map<Derivation,DiagnosticEvent>} */ this.own=new Map();
-      /** @type {DiagnosticEvent[]} */ this.evaluated=[];
-      /** @type {Map<Derivation,EmissionScope>} */ this.scopeRoots=new Map();
-      /** @type {WeakMap<object,Carrier>} */ this.carriers=new WeakMap();
-      this.main=/** @type {EmissionScope} */({root,rows:[],carrier:null,unowned:emptyDiagnostics()});
-      this.scopes=[this.main];
-      const live=new Array(input.length).fill(0);
-      const pending=[{node:root,parent:/** @type {Derivation|null} */(null),erased:false}];
-      while(pending.length){
-        const {node,parent,erased:outer}=/** @type {NonNullable<ReturnType<typeof pending.pop>>} */(pending.pop());
-        const erased=outer||!('read'in node)&&node.production.erased;
-        this.nodes.set(node,{parent,erased,scope:this.main});this.order.push(node);
-        if('read'in node){if(!erased)live[node.read.token]=1;}
-        else for(let index=node.children.length-1;index>=0;index--)pending.push({node:node.children[index],parent:node,erased});
-      }
-      this.prefix=[0];for(const bit of live)this.prefix.push(this.prefix[this.prefix.length-1]+bit);
-      this.next=new Array(input.length+1);this.next[input.length]=input.length;
-      for(let index=input.length-1;index>=0;index--)this.next[index]=live[index]?index:this.next[index+1];
-      this.previous=[0];for(let index=0;index<input.length;index++)this.previous.push(live[index]?index+1:this.previous[index]);
-    }
-    /** @param {Derivation} node @returns {NodeInfo} */
-    info(node){const info=this.nodes.get(node);if(!info)throw new Error('An emission part requires its chosen occurrence.');return info;}
-    /** @param {Derivation} node @param {Diagnostic} diagnostic @param {'errors'|'warnings'} kind */
-    add(node,diagnostic,kind){
-      const event={node,diagnostic,kind,own:true};this.own.set(node,event);this.evaluated.push(event);
-    }
-    /** @returns {DiagnosticLists} */
-    messages(){
-      const result=emptyDiagnostics();for(const event of this.evaluated)result[event.kind].push(event.diagnostic);return result;
-    }
-    /** Surviving chosen preorder, before output-node omission. @returns {DiagnosticEvent[]} */
-    events(){
-      const result=[];
-      for(const node of this.order){
-        if(this.info(node).erased)continue;
-        const own=this.own.get(node);if(own)result.push(own);
-        if('read'in node)for(const kind of /** @type {const} */(['errors','warnings']))for(const diagnostic of this.input[node.read.token][kind])result.push({node,diagnostic,kind,own:false});
-      }
-      return result;
-    }
-    /** @returns {DiagnosticLists} */
-    collected(){
-      const result=emptyDiagnostics();
-      for(const event of this.events())result[event.kind].push(event.diagnostic);
-      return joinDiagnostics([result]);
-    }
-    /** @param {Derivation} root @returns {EmissionScope} */
-    attachment(root){
-      const scope={root,rows:[],carrier:null,unowned:emptyDiagnostics()};
-      this.scopeRoots.set(root,scope);this.scopes.push(scope);return scope;
-    }
-    /** @param {number} start @param {number} end */
-    count(start,end){return this.prefix[end]-this.prefix[start];}
-    /** @param {import('./tokens.js').Token} token @param {Derivation|null} part @param {Derivation} emission @param {EmissionScope} scope */
-    emitted(token,part,emission,scope){
-      const support=part&&this.count(part.start,part.end)?/** @type {import('./types.js').Span} */([this.next[part.start],this.previous[part.end]]):null;
-      const row={token,span:token.span,part,emission,scope,support,own:emptyDiagnostics(),groups:[]};
-      scope.rows.push(row);this.carriers.set(token,row);return row;
-    }
-    /** @param {object} original @param {import('./tokens.js').AttachedToken} copy */
-    attached(original,copy){const row=this.carriers.get(original);if(row){row.token=copy;this.carriers.set(copy,row);}}
-    /** @param {import('./tokens.js').Token} token @param {EmissionScope[]} before @param {EmissionScope[]} after @param {import('./tokens.js').AttachedToken[]} inheritedBefore @param {import('./tokens.js').AttachedToken[]} inheritedAfter */
-    attachments(token,before,after,inheritedBefore,inheritedAfter){
-      const row=this.carriers.get(token);if(!row)throw new Error('An attachment requires its emitted carrier.');row.groups=[...before,...inheritedBefore,...inheritedAfter,...after];
-      for(const scope of [...before,...after])scope.carrier=row;
-    }
-    /** @param {EmissionScope} scope @returns {DiagnosticLists} */
-    all(scope){return joinDiagnostics([scope.unowned,...scope.rows.map(row=>({errors:row.token.errors,warnings:row.token.warnings}))]);}
-    /** @returns {DiagnosticLists} */
-    assign(){
-      for(const node of this.order){
-        const info=this.info(node);info.scope=this.scopeRoots.get(node)??(info.parent?this.info(info.parent).scope:this.main);
-      }
-      const buckets=new Map(),emissions=new Map(),nearest=new Map();
-      for(const event of this.events()){
-        const scope=this.info(event.node).scope,list=buckets.get(scope)??[];list.push(event);buckets.set(scope,list);
-      }
-      for(const scope of this.scopes)for(const row of scope.rows){const list=emissions.get(row.emission)??[];list.push(row);emissions.set(row.emission,list);}
-      for(const node of this.order){
-        const info=this.info(node),rows=emissions.get(node);
-        nearest.set(node,rows?.length?rows:info.parent&&this.info(info.parent).scope===info.scope?nearest.get(info.parent):null);
-      }
-      for(const scope of this.scopes){
-        const supported=/** @type {(Carrier & {support:import("./types.js").Span})[]} */(scope.rows.filter(row=>row.support!==null));
-        /** @param {Derivation} node */
-        const owner=node=>{
-          if(this.count(node.start,node.end)){
-            let low=0,high=supported.length;
-            while(low<high){const mid=(low+high)>>>1;if(supported[mid].support[1]<=node.start)low=mid+1;else high=mid;}
-            const row=supported[low];
-            if(row&&row.support[0]<node.end&&this.count(Math.max(node.start,row.support[0]),Math.min(node.end,row.support[1])))return row;
-          }
-          const rows=nearest.get(node);
-          if(rows?.length){
-            let low=0,high=rows.length;
-            while(low<high){const mid=(low+high)>>>1;if((rows[mid].support??rows[mid].span)[1]<node.start)low=mid+1;else high=mid;}
-            return rows[low]??rows[rows.length-1];
-          }
-          let low=0,high=scope.rows.length;
-          while(low<high){const mid=(low+high)>>>1;if(scope.rows[mid].span[0]<node.start)low=mid+1;else high=mid;}
-          return scope.rows[low]??scope.rows[scope.rows.length-1]??null;
-        };
-        for(const event of buckets.get(scope)??[]){
-          const row=owner(event.node);(row?row.own:scope.unowned)[event.kind].push(event.diagnostic);
-        }
-      }
-      for(const scope of this.scopes.slice().reverse())for(const row of scope.rows){
-        const groups=row.groups.map(group=>'rows'in group?this.all(group):{errors:group.errors,warnings:group.warnings});
-        for(const kind of /** @type {const} */(['errors','warnings'])){
-          const displayed=new Set(groups.flatMap(group=>group[kind].map(diagnosticIdentity)));
-          const own=ordered(row.own[kind].filter(diagnostic=>!displayed.has(diagnosticIdentity(diagnostic))));
-          const list=joinDiagnostics([{errors:kind==='errors'?own:[],warnings:kind==='warnings'?own:[]},...groups])[kind];
-          row.token[kind]=list.length?list:NO_DIAGNOSTICS;
-        }
-      }
-      return this.main.unowned;
-    }
-  }
-
-  // The pipeline reads these collections without retaining a packed forest.
-  /** @type {WeakMap<object,{collected:DiagnosticLists,evaluated:DiagnosticLists}>} */
-  const stageDiagnostics=new WeakMap();
-
   // ---- ranked.js
 
 
@@ -9371,1088 +10025,6 @@
         return {template:instance.call.call,arguments:templateIdentity(instance.call.args),name:instance.name??instance.canonical,binding:instance.binding??null,firstCall:{document:instance.origin.document,line:instance.origin.at[0],column:instance.origin.at[1]},events,notes:twins.length?[{kind:'argument-alias-twin',instances:twins}]:[]};
       })
     };
-  }
-
-  // ---- ranking-audit.js
-  // Static reports for node-pattern steps (docs/design.md).
-
-
-
-
-
-  /** @param {any} grammar @returns {any} */
-  function observations(grammar) {
-    const rules=new Map(),terminals=new Set(),omitted=new Set();
-    const body=(/** @type {any} */ root,/** @type {Set<string>} */ refs)=>{
-      const pending=[root];
-      while(pending.length) {
-        const expr=pending.pop();
-        if(hooks.work) countWork(hooks.work,"clauses");
-        if(expr.ref) {
-          if(grammar.rules.has(expr.ref)) refs.add(expr.ref);
-          else terminals.add(expr.ref);
-        } else if(expr.literal) {
-          const value=grammar.evaluateClosed('',expr.literal,[1,1]);
-          if('string' in value) terminals.add(stringName(value.string,grammar.unicode));
-        } else if(expr.range) terminals.add(expr.range.map((/** @type {any} */ end)=>stringName(grammar.evaluateClosed('',end,[1,1]).string,grammar.unicode)).join('..'));
-        else if(expr.wildcard) terminals.add('_');
-        if(expr.optional && expr.elidable) {
-          let head=expr.optional;
-          while(head.seq || head.capture || head.test) head=head.seq?.[0] ?? head.expr;
-          if(head.ref) {omitted.add(head.ref);}
-        }
-        for(const key of ['seq','choice','ranked','and']) if(expr[key]) for (const child of expr[key]) pending.push(child);
-        for(const key of ['expr','optional','repeat','separator']) if(expr[key]) pending.push(expr[key]);
-      }
-    };
-    for(const rule of grammar.rules.values()) {
-      const refs=new Set();
-      for(const alternative of rule.alternatives) body(alternative.expr,refs);
-      rules.set(rule.name,{refs});
-    }
-    const reachable=new Set(),pending=['text'];
-    while(pending.length) {
-      const name=pending.pop();
-      if(reachable.has(name) || !rules.has(name)) continue;
-      reachable.add(name);
-      for (const child of rules.get(name).refs) pending.push(child);
-    }
-    // Keep terminal reachability separate from query-only references.
-    const reachedTerminals=new Set(),reachedOmitted=new Set();
-    const allTerminals=new Set(terminals),allOmitted=new Set(omitted);
-    terminals.clear();omitted.clear();
-    for(const name of reachable) for(const alternative of grammar.rules.get(name).alternatives) body(alternative.expr,new Set());
-    for(const terminal of terminals) reachedTerminals.add(terminal);
-    for(const terminal of omitted) reachedOmitted.add(terminal);
-    return {rules,reachable,terminals:reachedTerminals,omitted:reachedOmitted,allTerminals,allOmitted};
-  }
-
-  /** @param {any} pattern @param {any} data @returns {boolean} */
-  function dead(pattern,data) {
-    if(pattern.union) return pattern.union.every((/** @type {any} */ p)=>dead(p,data));
-    if(pattern.intersection) return pattern.intersection.some((/** @type {any} */ p)=>dead(p,data));
-    if(pattern.difference) return dead(pattern.difference[0],data);
-    if(pattern.test) return pattern.any?false:dead(pattern.expr,data);
-    if(pattern.name) return !data.reachable.has(pattern.name);
-    if(pattern.terminal) return pattern.terminal === '_' ? !data.terminals.size && !data.omitted.size : !data.terminals.has(pattern.terminal) && !data.omitted.has(pattern.terminal);
-    return false;
-  }
-
-  /** @param {any} grammar @returns {any} */
-  function rankingAudit(grammar) {
-    const steps=grammar.resolution?.steps??[];
-    if (!steps.length) return {keySteps:[],countedChanges:[]};
-    const data=observations(grammar);
-    const reports=[],changes=[];
-    for(let index=0;index<steps.length;index++) {
-      const step=steps[index],named=new Set(),pending=[step.pattern];
-      while(pending.length) {
-        const pattern=pending.pop();
-        if(pattern.name)named.add(pattern.name);
-        for (const child of patternParts(pattern)) pending.push(child);
-      }
-      reports.push({step:index,pattern:canonicalArgument({pattern:step.pattern},grammar.unicode),...(dead(step.pattern,data)?{status:'impossible'}:{})});
-      for(const change of grammar.changes)if(named.has(change.rule))changes.push({...change,step:index});
-    }
-    return {keySteps:reports,countedChanges:changes};
-  }
-
-  // ---- tree-identities.js
-  // Exact structural observations for compared occurrences (engine §4.1).
-
-
-
-  /** @param {any} root @returns {any[]} */
-  function constituentComparisons(root) {
-    const result=[], pending=[root], seen=new Set();
-    while(pending.length) {
-      const node=pending.pop();
-      if(!node || typeof node!=='object' || seen.has(node)) continue;
-      seen.add(node);
-      if((node.op==='≅' || node.op==='≇') && typeof node.right?.capture==='string') result.push(node);
-      else for (const child of clauseChildren(node).slice().reverse()) pending.push(child);
-    }
-    return result;
-  }
-
-  /**
-   * @typedef {object} TreeDemand
-   * @property {boolean} whole
-   * @property {Set<number>} parts
-   * @property {Set<string>} names
-   * @property {Set<string>} outer
-   * @property {boolean} parentPrefix
-   * @property {number} prefixUntil
-   */
-  /** @type {WeakMap<object,Map<string,TreeDemand>>} */
-  const local=new WeakMap();
-  /** @type {WeakMap<object,string>} */
-  const frameKeys=new WeakMap();
-  /** @param {any} frame */
-  function frameKey(frame) {
-    if(!frame)return '';
-    let key=frameKeys.get(frame);
-    if(key===undefined) {key=JSON.stringify([[...frame.present].sort(),[...frame.captures.keys()].sort(),[...frame.knownPrivate].sort(),!!frame.inside]);frameKeys.set(frame,key);}
-    return key;
-  }
-  /** @param {any} production @returns {TreeDemand} */
-  function localTreeDemand(production) {
-    const found=local.get(production.baseProduction ?? production)?.get(frameKey(production.lexicalFrame));
-    if(!found)throw new Error('a production has no tree demand case');
-    return found;
-  }
-
-  /** @param {any} lowered @param {any} frames */
-  function prepareTreeDemands(lowered, frames) {
-    const byKey=new Map();
-    /** @type {any[]} */
-    const states=[];
-    let nextFrame=0;
-    const contextual=new Set(lowered.productions.filter((/** @type {any} */ p)=>p.contextual).map((/** @type {any} */ p)=>p.lhs));
-    const state=(/** @type {any} */ p,/** @type {any} */ frame)=> {
-      const key=p.id+'/'+frameKey(frame);
-      if(byKey.has(key))return byKey.get(key);
-      const bound=frame ? frames.production(p,frame) : p;
-      const result={whole:false,parts:new Set(),names:new Set(),outer:new Set(),parentPrefix:false,prefixUntil:0};
-      for(const comparison of constituentComparisons([bound.conditions,bound.tags,bound.parentTags]))for(const name of [comparison.left.capture,comparison.right.capture]) {
-        result.names.add(name);
-        if(name==='') {result.whole=true;result.parentPrefix=!!p.helper&&!p.spliceOf;}
-        else {
-          const capture=p.captures.find((/** @type {any} */ c)=>c.name===name);
-          if(capture)result.parts.add(capture.index);else result.outer.add(name);
-        }
-      }
-      const entry={p,frame,demand:result,edges:[]};
-      const demands=local.get(p)??new Map();demands.set(frameKey(frame),result);local.set(p,demands);
-      states.push(entry);byKey.set(key,entry);return entry;
-    };
-    for(const p of lowered.productions)if(!p.contextual)state(p,null);
-    for(let at=0;at<states.length;at++) {
-      const entry=states[at],{p,frame}=entry;
-      const captures=p.captures.filter((/** @type {any} */ c)=>!c.name.startsWith('\u0000'));
-      const present=new Set([...frame?.present??[],...captures.map((/** @type {any} */ c)=>c.name)]);
-      const knownPrivate=new Set([...frame?.knownPrivate??[],...p.rankedPrivate??[]]);
-      const inside=!!frame?.inside||!!p.rankedGroup;
-      p.rhs.forEach((/** @type {any} */ symbol,/** @type {number} */ index)=> {
-        if(symbol.terminal||!contextual.has(symbol.name))return;
-        const ready=new Map(frame?.captures??[]);
-        for(const capture of captures)if(capture.index<index)ready.set(capture.name,null);
-        const child={id:nextFrame++,present,knownPrivate,captures:ready,inside};
-        for(const q of lowered.byLhs.get(symbol.name)??[])entry.edges.push({index,child:state(q,child)});
-      });
-    }
-    let changed=true;
-    while(changed) {
-      changed=false;
-      for(const entry of states)for(const edge of entry.edges) {
-        const d=entry.demand, child=edge.child.demand;
-        if(child.parentPrefix) {
-          if(entry.p.helper&&!d.parentPrefix) {d.parentPrefix=true;changed=true;}
-          if(!entry.frame?.inside&&!entry.p.rankedGroup&&edge.index>d.prefixUntil) {d.prefixUntil=edge.index;changed=true;}
-        }
-        for(const name of child.outer) {
-          const capture=entry.p.captures.find((/** @type {any} */ c)=>c.name===name&&c.index<edge.index);
-          if(capture) {if(!d.parts.has(capture.index)) {d.parts.add(capture.index);changed=true;}}
-          else if(entry.frame?.captures.has(name)&&!d.outer.has(name)) {d.outer.add(name);changed=true;}
-        }
-      }
-    }
-  }
-
-  class TreeIdentities {
-    constructor() {
-      /** @type {Map<string,number>} */ this.ids=new Map();
-      /** @type {{key:any[],empty:boolean}[]} */ this.nodes=[];
-      /** @type {Map<number,string>} */ this.semanticNodes=new Map();
-      /** @type {Map<number,string>} */ this.semanticSequences=new Map();
-      /** @type {[number,number][]} */ this.sequences=[[0,-1]];
-      /** @type {Map<string,number>} */ this.sequenceIds=new Map();
-      /** @type {Map<string,number>} */ this.concatenations=new Map();
-      this.emptyProjection=this.intern(['EmptyProjection'],true);
-    }
-    /** @param {any[]} key @param {boolean} [empty] */
-    intern(key,empty=false) {
-      const text=JSON.stringify(key), old=this.ids.get(text);if(old!==undefined)return old;
-      const id=this.nodes.length;this.ids.set(text,id);this.nodes.push({key,empty});return id;
-    }
-    /** @param {number} prefix @param {number} node */
-    append(prefix,node) {
-      if(this.nodes[node].empty)return prefix;
-      const key=`${prefix}/${node}`,old=this.sequenceIds.get(key);if(old!==undefined)return old;
-      const id=this.sequences.length;this.sequences.push([prefix,node]);this.sequenceIds.set(key,id);return id;
-    }
-    /** @param {number} left @param {number} right */
-    concat(left,right) {
-      if(!left)return right;if(!right)return left;
-      const key=`${left}/${right}`,old=this.concatenations.get(key);if(old!==undefined)return old;
-      const pending=[];for(let at=right;at;at=this.sequences[at][0])pending.push(this.sequences[at][1]);
-      let result=left;while(pending.length)result=this.append(result,/** @type {number} */(pending.pop()));
-      this.concatenations.set(key,result);return result;
-    }
-    /** @param {number} sequence @returns {number[]} */
-    elements(sequence) {
-      const nodes=[];
-      for(let at=sequence;at;at=this.sequences[at][0])nodes.push(this.sequences[at][1]);
-      return nodes.reverse();
-    }
-    /** @param {number|undefined} identity @returns {string|null} */
-    semantic(identity) {
-      if(identity === undefined || identity < 0)return null;
-      const pending=[identity];
-      while(pending.length) {
-        const node=pending[pending.length-1];
-        if(this.semanticNodes.has(node)) {pending.pop();continue;}
-        const key=this.nodes[node].key;
-        if(key[0] !== 'Rule' && key[0] !== 'Anonymous') {this.semanticNodes.set(node,JSON.stringify(key));continue;}
-        const children=this.elements(key[key[0] === 'Rule' ? 2 : 1]);
-        const missing=children.find(child=>!this.semanticNodes.has(child));
-        if(missing!==undefined) {pending.push(missing);continue;}
-        this.semanticNodes.set(node,'['+JSON.stringify(key[0])+(key[0] === 'Rule' ? ','+JSON.stringify(key[1]) : '')+',['+children.map(child=>this.semanticNodes.get(child)).join(',')+']]');
-      }
-      return /** @type {string} */ (this.semanticNodes.get(identity));
-    }
-    /** @param {number} sequence @returns {string} */
-    sequenceSemantic(sequence) {
-      let value=this.semanticSequences.get(sequence);
-      if(value===undefined) {value='['+this.elements(sequence).map(node=>this.semantic(node)).join(',')+']';this.semanticSequences.set(sequence,value);}
-      return value;
-    }
-    /** @param {string} name @param {number} children */
-    rule(name,children) {return this.intern(['Rule',name,children],children===0);}
-    /** @param {number} children */
-    anonymous(children) {return this.intern(['Anonymous',children]);}
-    /** @param {string} terminal @param {string} value */
-    written(terminal,value) {return this.intern(['Written',terminal,value]);}
-    /** @param {string} terminal */
-    omitted(terminal) {return this.intern(['Omitted',terminal]);}
-    /** @param {string[]} values */
-    seal(values) {return this.intern(['Seal',values]);}
-  }
-
-  /** @param {any} context @param {string} terminal @param {number} at */
-  function terminalIdentity(context,terminal,at) {
-    if(context.recon && !context.recon.raw) {
-      if(context.synthetic?.[at])return context.trees.emptyProjection;
-      return context.trees.written(terminal,context.recon.observed.tokens[context.recon.project[at]].value);
-    }
-    return context.trees.written(terminal,context.tokens[at].value);
-  }
-
-  /** @param {any} context @param {number} start @param {number} end */
-  function sealIdentity(context,start,end) {
-    const key=`${start}/${end}`;
-    const old=context.treeSeals.get(key);if(old!==undefined)return old;
-    const observed=context.recon && !context.recon.raw ? context.recon.observed : context;
-    if(observed!==context) { start=context.recon.project[start];end=context.recon.project[end]; }
-    const values=[];for(let i=start;i<end;i++)values.push(observed.tokens[i].value);
-    const result=context.trees.seal(values);context.treeSeals.set(key,result);return result;
-  }
-
-  /** @param {any} context @param {any} production @param {number} dot @param {any} previous @param {any} child @param {number} end */
-  function treeStep(context,production,dot,previous,child,end) {
-    if(!context.trees || !production.observesTrees || !production.walksTrees && dot>production.treePrefixUntil)return null;
-    const m=context.trees;
-    let prefix=previous?.treePrefix ?? 0;
-    if(previous) {
-      const symbol=production.rhs[dot-1];
-      if(symbol.slot)prefix=m.append(prefix,sealIdentity(context,child.origin,child.end));
-      else if(child)prefix=m.concat(prefix,child.treeSequence);
-      else prefix=m.append(prefix,terminalIdentity(context,symbol.name,end-1));
-    }
-    let identity=-1,sequence=prefix;
-    if(dot===production.rhs.length && production.walksTrees) {
-      if(production.spliceOf) identity=m.anonymous(prefix);
-      else if(!production.helper) { identity=m.rule(production.lhs,prefix);sequence=m.append(0,identity); }
-      else if(production.elided!==null && production.rhs.length===0) { identity=m.omitted(production.elided);sequence=m.append(0,identity); }
-    }
-    return {treePrefix:prefix,treeIdentity:identity,treeSequence:sequence};
-  }
-
-  /** @param {any} lowered @returns {{comparison:any,production:any,cycle:string[]}|null} */
-  function treeIdentityCycle(lowered) {
-    const rows=lowered.structural, byName=new Map(), nullable=new Set();
-    for(const row of rows) {const list=byName.get(row.lhs) ?? [];list.push(row);byName.set(row.lhs,list);}
-    let changed=true;
-    while(changed) {
-      changed=false;
-      for(const row of rows)if(!nullable.has(row.lhs) && row.rhs.every((/** @type {any} */ s)=>!s.terminal && nullable.has(s.name))) {nullable.add(row.lhs);changed=true;}
-    }
-    const seals=new Set(lowered.grammar.ranked.groups.map((/** @type {any} */ g)=>g.helper));
-    const edges=new Map();
-    for(const [name,productions] of byName) {
-      /** @type {any[]} */ const out=[];
-      for(const production of productions) production.rhs.forEach((/** @type {any} */ symbol,/** @type {number} */ index)=> {
-        if(!symbol.terminal && !seals.has(symbol.name))out.push({name:symbol.name,marked:production.rhs.every((/** @type {any} */ other,/** @type {number} */ i)=>i===index || !other.terminal && nullable.has(other.name))});
-      });
-      edges.set(name,out);
-    }
-    const sites=[...lowered.treeSites];
-    for(const production of lowered.productions) {
-      const bindings=new Map(production.captures.map((/** @type {any} */ c)=>[c.name,[production.rhs[c.index].terminal,production.rhs[c.index].name]]));
-      for(const comparison of constituentComparisons([production.tags,production.parentTags,production.conditions]))sites.push({comparison,production,bindings,prefix:[]});
-    }
-    const order=new Map(), hints=new Map();
-    let nextOrder=0;
-    for(const rule of lowered.grammar.rules.values()) {
-      const definitions=new Map();
-      for(const source of rule.alternatives) {
-        const alternatives=definitions.get(source.clauses)??[];alternatives.push(source);definitions.set(source.clauses,alternatives);
-      }
-      for(const [clauses,alternatives] of definitions)for(const root of [clauses.tags,...alternatives.map((/** @type {any} */ a)=>a.tags),clauses.conditions]) {
-        for(const comparison of constituentComparisons(root)) {
-          const number=nextOrder++;
-          order.set(comparison,number);
-          const key=JSON.stringify([alternatives[0].document,boundaryLocations.get(comparison)?.at,comparison]);
-          if(!hints.has(key))hints.set(key,number);
-        }
-      }
-    }
-    const ordinal=(/** @type {any} */ site)=>order.get(site.comparison)??hints.get(JSON.stringify([(site.production.logicalSource??site.production.source)?.document,boundaryLocations.get(site.comparison)?.at,site.comparison]))??nextOrder;
-    sites.sort((a,b)=>ordinal(a)-ordinal(b)||a.production.id-b.production.id);
-    for(const {comparison,production,bindings,prefix} of sites) {
-        const roots=[];
-        for(const name of [comparison.left.capture,comparison.right.capture]) {
-          if(name==='') {
-            for (const name of prefix) roots.push(name);
-            if(production.treeRoot) for (const symbol of production.rhs) if (!symbol.terminal && !seals.has(symbol.name)) roots.push(symbol.name);
-          } else {
-            const binding=bindings.get(name);
-            if(binding && !binding[0])roots.push(binding[1]);
-          }
-        }
-        const reachable=[],known=new Set(),todo=roots.slice().reverse();
-        while(todo.length) {const name=todo.pop();if(known.has(name))continue;known.add(name);reachable.push(name);for(const edge of (edges.get(name)??[]).slice().reverse())todo.push(edge.name);}
-        const done=new Set(),active=new Map();
-        /** @type {string[]} */ const path=[];
-        for(const root of reachable) {
-          if(done.has(root))continue;
-          const stack=[{name:root,next:0}];
-          while(stack.length) {
-            const frame=stack[stack.length-1];
-            if(!active.has(frame.name)) {active.set(frame.name,path.length);path.push(frame.name);}
-            const out=edges.get(frame.name)??[];
-            const edge=out[frame.next++];
-            if(!edge) {path.pop();active.delete(frame.name);done.add(frame.name);stack.pop();continue;}
-            if(!edge.marked || done.has(edge.name))continue;
-            if(active.has(edge.name)) {
-              const cycle=path.slice(active.get(edge.name)).concat(edge.name).filter(name=>!name.startsWith('\u0000'));
-              return {comparison,production,cycle};
-            }
-            stack.push({name:edge.name,next:0});
-          }
-        }
-    }
-    return null;
-  }
-
-  /** @param {any} context @param {any} root @returns {number} */
-  function derivationIdentity(context,root) {
-    context.emissionTrees ??= new TreeIdentities();
-    context.emissionTreeValues ??= new WeakMap();
-    const m=context.emissionTrees, memo=context.emissionTreeValues,pending=[root];
-    while(pending.length) {
-      const node=pending[pending.length-1];
-      if(memo.has(node)) {pending.pop();continue;}
-      if(node.read) {const identity=m.written(node.read.terminal,context.tokens[node.start].value);memo.set(node,{identity,sequence:m.append(0,identity)});continue;}
-      const child=node.children.find((/** @type {any} */ c,/** @type {number} */ i)=>!node.production.rhs[i]?.slot && !memo.has(c));
-      if(child) {pending.push(child);continue;}
-      let sequence=0;
-      node.children.forEach((/** @type {any} */ c,/** @type {number} */ i)=> {
-        if(node.production.rhs[i]?.slot) sequence=m.append(sequence,m.seal(context.tokens.slice(c.start,c.end).map((/** @type {any} */ token)=>token.value)));
-        else sequence=m.concat(sequence,memo.get(c).sequence);
-      });
-      let identity=-1;
-      if(node.production.spliceOf) identity=m.anonymous(sequence);
-      else if(!node.production.helper) {identity=m.rule(node.production.lhs,sequence);sequence=m.append(0,identity);}
-      else if(!node.children.length && node.production.elided!==null) {identity=m.omitted(node.production.elided);sequence=m.append(0,identity);}
-      memo.set(node,{identity,sequence});
-    }
-    return memo.get(root).identity;
-  }
-
-  // ---- family-summaries.js
-  // The deletion automaton of engine §4.1. Items retain sets and relations,
-  // never permission-marked close sequences. Dead summaries filter witnesses
-  // only. The chart and its omission blockers still retain every item.
-
-
-
-  /**
-   * A null relation is the identity of a record-free empty item.
-   * @typedef {{id:number, dead:boolean, first:bigint, last:bigint, relation:bigint[]|null}} FamilySummary
-   */
-  /** @typedef {import("./close-observations.js").CloseEvent} Event */
-
-  /** @param {Event} left @param {Event} right @returns {boolean} */
-  function sameRecord(left, right) {
-    return left.kind === right.kind && (left.kind === "close"
-      ? left.terminal === /** @type {Extract<Event,{kind:"close"}>} */ (right).terminal && left.at === /** @type {Extract<Event,{kind:"close"}>} */ (right).at
-      : left.key === /** @type {Extract<Event,{kind:"block"}>} */ (right).key && left.start === /** @type {Extract<Event,{kind:"block"}>} */ (right).start && left.end === /** @type {Extract<Event,{kind:"block"}>} */ (right).end);
-  }
-
-  /**
-   * Independent whole-group test for the library's conformance switch. It
-   * reads each witness record directly, without item sets or relation joins.
-   * @param {Event[]} candidate
-   * @param {{event:Event, permitted:boolean}[]} witness
-   * @param {number} start @param {number} end
-   * @returns {boolean}
-   */
-  function deletionTest(candidate, witness, start, end) {
-    /** @type {(event:Event) => number} */
-    const position = event => event.kind === "close" ? event.at : event.start;
-    /** @type {(event:Event) => boolean} */
-    const inside = event => position(event) <= end && !(event.kind === "block" && event.start === end && event.end > end);
-    for (const {event} of witness) if (event.kind === "block" && event.start < end && event.end > end) return false;
-    const kept = candidate.filter(inside);
-    const records = witness.filter(record => inside(record.event));
-    // A state records matched candidate records and whether the last step
-    // deleted one. A later match or a following token supplies its right anchor.
-    let states = new Set(["0/0"]);
-    for (const {event, permitted} of records) {
-      const next = new Set();
-      for (const state of states) {
-        const [index, trailing] = state.split("/").map(Number);
-        const at = position(event);
-        // Candidate records before this boundary must already be matched.
-        if (index < kept.length && position(kept[index]) < at) continue;
-        if (index < kept.length && sameRecord(event, kept[index])) next.add(`${index+1}/0`);
-        const earlierRecord = index > 0 && position(kept[index-1]) === at;
-        if (permitted && event.kind === "close" && (at > start || earlierRecord)) next.add(`${index}/1`);
-        // `trailing` stays relevant only at the final boundary.
-        void trailing;
-      }
-      states = next;
-    }
-    return states.has(`${kept.length}/0`) || (records.length !== 0 && position(records[records.length-1].event) < end && states.has(`${kept.length}/1`));
-  }
-
-  class FamilySummaries {
-    /**
-     * @param {import("./close-observations.js").CloseObservations} closes
-     * @param {import("./close-observations.js").CloseObservation} candidate
-     * @param {number} start
-     * @param {number} end
-     */
-    constructor(closes, candidate, start, end) {
-      this.start = start;
-      this.end = end;
-      /** @type {Map<number,Event[]>} */ this.groups = new Map();
-      for (const event of closes.raw.values(candidate.sequence)) {
-        const at = event.kind === "close" ? event.at : event.start;
-        const group = this.groups.get(at);
-        if (group) group.push(event);
-        else this.groups.set(at, [event]);
-      }
-      this.groupPositions = [...this.groups.keys()].sort((a, b) => a - b);
-      /** @type {Map<string,FamilySummary>} */ this.summaries = new Map();
-      /** @type {Set<number>} */ this.taken = new Set();
-      /** @type {Map<string,bigint[]>} */ this.records = new Map();
-      /** @type {Map<string,FamilySummary>} */ this.joins = new Map();
-      this.identity = this.intern(false, 0n, 0n, null);
-      this.dead = this.intern(true, 0n, 0n, null);
-    }
-
-    /** @param {number} at @returns {Event[]} */
-    group(at) { return this.groups.get(at) ?? []; }
-
-    /** @param {boolean} dead @param {bigint} first @param {bigint} last @param {bigint[]|null} relation @returns {FamilySummary} */
-    intern(dead, first, last, relation) {
-      const key = dead ? "dead" : `${first}/${last}/${relation?.join(",") ?? "identity"}`;
-      let summary = this.summaries.get(key);
-      if (!summary) {
-        summary = {id:this.summaries.size, dead, first, last, relation};
-        this.summaries.set(key, summary);
-      }
-      return summary;
-    }
-
-    /** @param {FamilySummary} summary @returns {FamilySummary} */
-    take(summary) {
-      if (!this.taken.has(summary.id)) {
-        this.taken.add(summary.id);
-        if (hooks.work) countWork(hooks.work, "familySummaries");
-      }
-      return summary;
-    }
-
-    /** @param {number} at @param {boolean} final @returns {bigint} */
-    accept(at, final = false) {
-      if (at > this.end) return 1n;
-      const group = this.group(at);
-      let count = group.length;
-      if (final && count && group[count-1].kind === "block" && /** @type {Extract<Event,{kind:"block"}>} */ (group[count-1]).end > at) count--;
-      return (final || at === this.end ? 1n : 3n) << BigInt(2*count);
-    }
-
-    /** @param {bigint[]|null} relation @param {bigint} set @returns {bigint} */
-    image(relation, set) {
-      if (relation === null) return set;
-      if (hooks.work) countWork(hooks.work, "familySteps", relation.length);
-      let result = 0n;
-      for (let index = 0; index < relation.length; index++) if (set & (1n << BigInt(index))) result |= relation[index];
-      return result;
-    }
-
-    /** @param {bigint[]|null} relation @param {bigint} set @returns {bigint} */
-    preimage(relation, set) {
-      if (relation === null) return set;
-      if (hooks.work) countWork(hooks.work, "familySteps", relation.length);
-      let result = 0n;
-      for (let index = 0; index < relation.length; index++) if (relation[index] & set) result |= 1n << BigInt(index);
-      return result;
-    }
-
-    /** @param {Event} event @param {boolean} permitted @returns {FamilySummary} */
-    record(event, permitted) {
-      const at = event.kind === "close" ? event.at : event.start;
-      if (at > this.end || event.kind === "block" && at === this.end && event.end > at) return this.identity;
-      const group = this.group(at);
-      if (hooks.work) countWork(hooks.work, "familySteps", 2*(group.length+1));
-      const key = JSON.stringify([event.kind === "close" ? [event.terminal,event.at] : [event.key,event.start,event.end], permitted]);
-      let relation = this.records.get(key);
-      if (!relation) {
-        relation = Array(2*(group.length+1)).fill(0n);
-        for (let i = 0; i <= group.length; i++) {
-          let targets = 0n;
-          if (i < group.length && sameRecord(event, group[i])) targets |= 1n << BigInt(2*(i+1));
-          if (permitted && event.kind === "close" && (i > 0 || at > this.start)) targets |= 1n << BigInt(2*i+1);
-          relation[2*i] = relation[2*i+1] = targets;
-        }
-        this.records.set(key, relation);
-      }
-      return this.intern(false, 0n, 0n, relation);
-    }
-
-    /**
-     * A token or an opaque block reads an interval. Its interior has no
-     * visible records. Candidate records there therefore make it dead.
-     * @param {number} start @param {number} end @returns {FamilySummary}
-     */
-    tokens(start, end) {
-      if (start < this.end && this.end < end) return this.dead;
-      if (end - start > 1) {
-        let low = 0, high = this.groupPositions.length;
-        while (low < high) {
-          const mid = (low + high) >>> 1;
-          if (this.groupPositions[mid] <= start) low = mid + 1;
-          else high = mid;
-        }
-        const at = this.groupPositions[low];
-        if (at !== undefined && at < end && at <= this.end) return this.dead;
-      }
-      return this.intern(false, this.accept(start), 1n, null);
-    }
-
-    /**
-     * @param {FamilySummary} left @param {FamilySummary} right
-     * @param {number} start @param {number} middle @param {number} end
-     * @returns {FamilySummary}
-     */
-    join(left, right, start, middle, end) {
-      if (left.dead || right.dead) return this.dead;
-      const key = `${left.id}/${right.id}/${start === middle}/${middle === end}`;
-      const known = this.joins.get(key);
-      if (known) {
-        // Memoization skips row computation, but the shared work metric
-        // charges the specified relation operation at each use.
-        let steps = 0;
-        if (start === middle && middle === end) {
-          if (left.relation && right.relation) steps = left.relation.length*right.relation.length;
-        } else if (start === middle) steps = left.relation?.length ?? 0;
-        else if (middle === end) steps = right.relation?.length ?? 0;
-        if (hooks.work) countWork(hooks.work, "familySteps", steps);
-        return known;
-      }
-      let summary;
-      if (start === middle && middle === end) {
-        const relation = left.relation === null ? right.relation : right.relation === null ? left.relation : left.relation.map(row => this.image(right.relation, row));
-        summary = this.intern(false, 0n, 0n, relation);
-      } else if (start === middle) {
-        summary = this.intern(false, this.preimage(left.relation, right.first), right.last, null);
-      } else if (middle === end) {
-        summary = this.intern(false, left.first, this.image(right.relation, left.last), null);
-      } else {
-        summary = left.last & right.first ? this.intern(false, left.first, right.last, null) : this.dead;
-      }
-      this.joins.set(key, summary);
-      return summary;
-    }
-
-    /** @param {FamilySummary} summary @param {number} end @returns {boolean} */
-    accepts(summary, end) {
-      if (summary.dead) return false;
-      const accepting = this.accept(end, true);
-      return end === this.start ? !!(this.image(summary.relation, 1n) & accepting)
-        : !!(summary.first & 1n) && (end > this.end || !!(summary.last & accepting));
-    }
-  }
-
-  // ---- eligible.js
-  // Written-terminator priority for nested queries (engine §4): which
-  // completed items of a queried rule have an eligible proof tree.
-
-  /**
-   * @import { Edge, Item, LoweredGrammar } from "./types.js"
-   * @import { Chart } from "./earley.js"
-   */
-
-
-  /** @type {WeakMap<LoweredGrammar, {elidable:Set<string>,optional:Map<string,object>}>} */
-  const helperSites = new WeakMap();
-  /** @type {WeakMap<LoweredGrammar,boolean>} */
-  const errorGrammars = new WeakMap();
-
-  /**
-   * Elidable helpers and the written sites of split plain optional helpers. A
-   * captured optional can have separate helpers for its expanded routes.
-   * @param {LoweredGrammar} lowered
-   * @returns {{elidable:Set<string>,optional:Map<string,object>}}
-   */
-  function helpersOf(lowered) {
-    let helpers = helperSites.get(lowered);
-    if (!helpers) {
-      helpers = {elidable:new Set(),optional:new Map()};
-      /** @type {Map<object,Set<string>>} */
-      const sites = new Map();
-      for (const production of lowered.productions) {
-        if (!production.helper) continue;
-        if (production.elided !== null) helpers.elidable.add(production.lhs);
-        const expression = production.writtenExpression;
-        if (expression && "optional" in expression && expression.elidable !== true) {
-          let names = sites.get(expression);
-          if (!names) sites.set(expression,names=new Set());
-          names.add(production.lhs);
-        }
-      }
-      // One helper already joins all its optional's routes in the chart.
-      // Only distinct names of one written site need the logical group key.
-      for (const [expression,names] of sites) {
-        if (names.size > 1) for (const name of names) helpers.optional.set(name,expression);
-      }
-      helperSites.set(lowered, helpers);
-    }
-    return helpers;
-  }
-
-  /**
-   * Whether a completed item is the empty helper of an elidable optional: an
-   * advance over it is an omission.
-   * @param {Item} item
-   * @returns {boolean}
-   */
-  function omitted(item) {
-    return item.production.helper && item.production.elided !== null && item.production.rhs.length === 0;
-  }
-
-  /**
-   * Whether a completed item is an elidable optional's helper over its
-   * nonempty alternative: an advance over it reads the optional as written.
-   * @param {Item} item
-   * @returns {boolean}
-   */
-  function written(item) {
-    return item.dot === item.production.rhs.length && item.production.helper && item.production.elided !== null && item.production.rhs.length > 0;
-  }
-
-  /**
-   * @param {Item} item
-   * @returns {{node:import("./logical.js").LogicalSymbol|undefined, initial:boolean}|null}
-   */
-  function logicalPredecessor(item) {
-    const roots = item.production.logical;
-    if (!roots) return null;
-    /** @param {import("./logical.js").LogicalSymbol[]} nodes @param {boolean} root @returns {{node:import("./logical.js").LogicalSymbol|undefined,initial:boolean}|null} */
-    const find = (nodes,root) => {
-      for (let index=0;index<nodes.length;index++) {
-        const node = nodes[index];
-        if (node.symbol && node.from === item.dot) return {node:nodes[index-1],initial:root && index === 1};
-        if (node.children && node.from <= item.dot && item.dot < node.to) {
-          const result = find(node.children,false);
-          if (result) return result;
-        }
-      }
-      return null;
-    };
-    return find(roots,true);
-  }
-
-  /**
-   * The completed items of the queried rule with an eligible proof tree in
-   * the chart (engine §4). An omission is an advance over the
-   * empty helper of an elidable optional at its position p. It is forbidden
-   * where the prefix that the proof tree holds fixed can go on and read the
-   * optional as written:
-   *
-   * - Where the optional has a constituent Y, the prefix is the item before Y
-   *   in the same proof tree. The omission is forbidden when the chart advances
-   *   that item over Y to some p' ≥ p, and the item so made advances over the
-   *   optional's nonempty alternative.
-   * - Otherwise the prefix is the item before the optional, and the omission
-   *   is forbidden when the chart advances that item over the nonempty
-   *   alternative.
-   *
-   * The chart is the whole recognition of the query, before any filtering,
-   * so an attempt that never completes the rule can forbid an omission.
-   *
-   * Each item has two states, computed together to the least fixpoint: it has
-   * an eligible proof tree (E), and an eligible proof tree that permits
-   * the optional after it to be empty (P). P follows the proof tree,
-   * so a permitted omission never combines with another proof tree's prefix.
-   * @param {Chart} chart
-   * @param {Item[]} witnesses
-   * @param {boolean} [errorFree]
-   * @returns {Item[]}
-   */
-  function eligibleWitnesses(chart, witnesses, errorFree = false) {
-    if (witnesses.length === 0) return witnesses;
-    const {elidable:helpers,optional:optionals} = helpersOf(chart.context.lowered);
-    let errors=errorGrammars.get(chart.context.lowered);
-    if (errors===undefined) { errors=chart.context.lowered.productions.some(production=>!!production.error);errorGrammars.set(chart.context.lowered,errors); }
-    if (helpers.size === 0 && !errors && !errorFree) return witnesses;
-    // The items the witnesses rest on, children before the items made from
-    // them where the edges allow, so that one sweep settles most of them.
-    /** @type {Map<Item, number>} */
-    const index = new Map();
-    /** @type {Item[]} */
-    const order = [];
-    let omits = false;
-    for (const witness of witnesses) {
-      if (index.has(witness)) continue;
-      index.set(witness, -1);
-      /** @type {{item: Item, edges: Edge[], next: number}[]} */
-      const stack = [{ item: witness, edges: witness.edges, next: 0 }];
-      while (stack.length > 0) {
-        const frame = stack[stack.length - 1];
-        let pushed = false;
-        while (frame.next < frame.edges.length * 2) {
-          const step = frame.next++;
-          const edge = frame.edges[step >> 1];
-          /** @type {Item | null} */
-          let below = null;
-          if ((step & 1) === 0) below = edge.kind === "seed" || edge.kind === "restore" ? null : edge.previous;
-          else if (edge.kind === "complete") {
-            below = edge.child;
-            if (omitted(edge.child)) omits = true;
-          }
-          if (below !== null && !index.has(below)) {
-            index.set(below, -1);
-            stack.push({ item: below, edges: below.edges, next: 0 });
-            pushed = true;
-            break;
-          }
-        }
-        if (pushed) continue;
-        stack.pop();
-        index.set(frame.item, order.length);
-        order.push(frame.item);
-      }
-    }
-    // With no omission, every item of a chart has a finite proof, made from
-    // predicted items in the order in which the recognizer made it.
-    if (!omits && !errors && !errorFree) return witnesses;
-
-    // The prefixes that advance over a written optional, and for each item
-    // before a constituent Y, the furthest end of an advance over Y that then
-    // reads the optional as written.
-    /** @type {Set<Item>} */
-    const reads = new Set();
-    for (const set of chart.sets) {
-      if (!set) continue;
-      for (const item of set.items) {
-        for (const edge of item.edges) if (edge.kind === "complete" && written(edge.child)) reads.add(edge.previous);
-      }
-    }
-    /** @type {Map<Item, number>} */
-    const further = new Map();
-    for (const item of reads) {
-      for (const edge of item.edges) {
-        if (edge.kind !== "complete") continue;
-        const known = further.get(edge.previous);
-        if (known === undefined || known < item.end) further.set(edge.previous, item.end);
-      }
-    }
-
-    // For each item, whether an elidable optional comes next, and whether it
-    // has a constituent: not at the start, not after a terminal, and not
-    // after the first symbol of a production whose first symbol is its own
-    // rule (engine §4).
-    /** @type {Map<Item,import("./logical.js").LogicalSymbol>} */
-    const precedingGroups = new Map();
-    /** @param {Item} item @returns {"none"|"alone"|"constituent"|"group"} */
-    const nextKind = item => {
-      const rhs = item.production.rhs;
-      const symbol = rhs[item.dot];
-      if (symbol === undefined || symbol.terminal || !helpers.has(symbol.name)) return "none";
-      const logical = logicalPredecessor(item);
-      if (logical) {
-        const previous = logical.node;
-        if (!previous || previous.symbol?.terminal) return "alone";
-        const optional = previous.symbol && optionals.get(previous.symbol.name);
-        if (previous.children || optional) {
-          // Both physical helper variants and inline expansions retain one
-          // optional boundary for the fixed prefix and all blocker routes.
-          precedingGroups.set(item,optional ? {...previous,written:optional} : previous);
-          return "group";
-        }
-        if (logical.initial && previous.symbol?.name === item.production.lhs) return "alone";
-        return "constituent";
-      }
-      if (item.dot === 0 || rhs[item.dot-1].terminal) return "alone";
-      if (item.dot === 1 && rhs[0].name === item.production.lhs) return "alone";
-      return "constituent";
-    };
-    const next = order.map(nextKind);
-    const identities = new WeakMap();
-    let identityCount = 0;
-    /** @param {object|undefined} object */
-    const identity = object => {
-      if (!object) return 0;
-      let id = identities.get(object);
-      if (id === undefined) identities.set(object,id=++identityCount);
-      return id;
-    };
-    /** @param {Item} item @param {import("./logical.js").LogicalSymbol} group */
-    const fixedKey = (item,group) => {
-      const captures = [];
-      for (let slot=item.slots;slot;slot=slot.parent) {
-        const name = item.production.captures[slot.index].name;
-        captures.push([name,slot.start,slot.end,slot.tags,slot.structure,slot.observation?.sequence]);
-      }
-      const symbols = item.production.rhs.map((symbol,index) => [symbol.name,symbol.test?.written,
-        item.production.captures.filter(capture => capture.index === index && !capture.name.startsWith("\u0000")).map(capture => capture.name)]);
-      // Only the preceding optional's route varies. Every outside expansion
-      // remains part of the same logical production and fixed prefix.
-      const outside = [...symbols.slice(0,group.from),["optional"],...symbols.slice(group.to)];
-      // A surrounding optional can also have one helper per expanded route.
-      const owner = optionals.get(item.production.lhs);
-      const scope = owner ? ["optional",identity(owner)] : item.production.lhs;
-      return JSON.stringify([identity(item.production.logicalSource ?? item.production.source),scope,identity(group.written),
-        item.origin,item.end,item.structure,item.observationPrefix?.sequence,item.boundary?.id,outside,captures.reverse()]);
-    };
-    /** @param {Item} item @param {number} dot @returns {Item[]} */
-    const boundaries = (item,dot) => {
-      const result = [], pending = [item], seen = new Set();
-      while (pending.length) {
-        const current = /** @type {Item} */ (pending.pop());
-        if (seen.has(current)) continue;
-        seen.add(current);
-        if (current.dot === dot) result.push(current);
-        else for (const edge of current.edges) if (edge.kind === "scan" || edge.kind === "complete") pending.push(edge.previous);
-      }
-      return result;
-    };
-    const groupFurther = new Map();
-    for (const item of reads) if (nextKind(item) === "group") {
-      const group = /** @type {import("./logical.js").LogicalSymbol} */ (precedingGroups.get(item));
-      for (const prefix of boundaries(item,group.from)) {
-        const key = fixedKey(prefix,group);
-        groupFurther.set(key,Math.max(groupFurther.get(key) ?? -1,item.end));
-      }
-    }
-    // Each mask holds distinct proof states: 1 is clean and 2 carries an
-    // error. E and P retain those states separately. The support channel
-    // keeps finite written-priority proofs through own errors for erasure.
-    const eligible = new Uint8Array(order.length), permits = new Uint8Array(order.length);
-    const support = new Uint8Array(order.length), supportPermits = new Uint8Array(order.length);
-    /** @type {(item: Item) => number} */
-    const at = item => /** @type {number} */ (index.get(item));
-    /** @param {number} left @param {number} right */
-    const combine = (left,right) => (left & right & 1) | (left && right && ((left | right) & 2) ? 2 : 0);
-    /** @param {Edge} edge */
-    const dirtyRead = edge => (edge.kind === "scan" || edge.kind === "restore") && (chart.context.tokens[edge.token].errors?.length ?? 0) !== 0;
-    /**
-     * Find a permitted proof of one F state through a logical optional.
-     * Reverse advances retain that state, so a dirty permitted proof cannot
-     * lend permission to a clean forbidden proof of the same chart item.
-     * @param {Item} item
-     * @param {import("./logical.js").LogicalSymbol} group
-     * @param {number} end
-     * @param {Uint8Array} states
-     * @param {Uint8Array} permissions
-     * @param {number} bit
-     */
-    const groupPermits = (item,group,end,states,permissions,bit) => {
-      const pending = [{item,bit}], seen = new Set();
-      while (pending.length) {
-        const current = /** @type {{item:Item,bit:number}} */ (pending.pop());
-        const key = at(current.item)*2 + (current.bit === 2 ? 1 : 0);
-        if (seen.has(key) || !(states[at(current.item)] & current.bit)) continue;
-        seen.add(key);
-        if (current.item.dot === group.from) {
-          if ((groupFurther.get(fixedKey(current.item,group)) ?? -1) < end) return true;
-          continue;
-        }
-        for (const edge of current.item.edges) {
-          if (edge.kind === "scan") {
-            for (const before of [1,2]) if (states[at(edge.previous)] & before &&
-                (dirtyRead(edge) ? 2 : before) === current.bit) pending.push({item:edge.previous,bit:before});
-          } else if (edge.kind === "complete") {
-            const beforeStates = omitted(edge.child) ? permissions[at(edge.previous)] : states[at(edge.previous)];
-            for (const before of [1,2]) for (const child of [1,2]) {
-              if (beforeStates & before && states[at(edge.child)] & child &&
-                  combine(before,child) === current.bit) pending.push({item:edge.previous,bit:before});
-            }
-          }
-        }
-      }
-      return false;
-    };
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (let x = 0; x < order.length; x++) {
-        const item = order[x];
-        // These are semantic support channels, not separate legacy paths.
-        for (const raw of [true,false]) {
-          const states = raw ? support : eligible, permissions = raw ? supportPermits : permits;
-          let e = 0, p = 0;
-          for (const edge of item.edges) {
-            let through = 0;
-            if (edge.kind === "seed" || edge.kind === "restore") through = dirtyRead(edge) ? 2 : 1;
-            else if (edge.kind === "scan") through = dirtyRead(edge) ? states[at(edge.previous)] ? 2 : 0 : states[at(edge.previous)];
-            else through = combine(omitted(edge.child) ? permissions[at(edge.previous)] : states[at(edge.previous)],states[at(edge.child)]);
-            if (!through) continue;
-            e |= through;
-            if (next[x] === "alone" && !reads.has(item)) p |= through;
-            else if (next[x] === "group") {
-              const group = /** @type {import("./logical.js").LogicalSymbol} */ (precedingGroups.get(item));
-              for (const bit of [1,2]) if (through & bit && groupPermits(item,group,item.end,states,permissions,bit)) p |= bit;
-            } else if (next[x] === "constituent" && edge.kind === "complete") {
-              const end = further.get(edge.previous);
-              if (end === undefined || end < item.end) p |= through;
-            }
-          }
-          if (item.complete && item.production.erased) {
-            // This replaces the ordinary completion transition. Its finite
-            // support can contain own errors that normal E rejects.
-            e = support[x] || e ? 1 : 0;
-            p = p ? 1 : 0;
-          } else if (item.complete && item.production.error) {
-            e = raw && e ? 2 : 0;
-            p = raw && p ? 2 : 0;
-          }
-          if ((states[x] | e) !== states[x]) { states[x] |= e; changed = true; }
-          if ((permissions[x] | p) !== permissions[x]) { permissions[x] |= p; changed = true; }
-        }
-      }
-    }
-    return witnesses.filter(witness => errorFree ? !!(eligible[at(witness)] & 1) : eligible[at(witness)] !== 0);
-  }
-
-  // ---- nullable-errors.js
-  // Conservative empty-error test before feature filtering (engine §3.6).
-
-  /**
-   * The first error alternative that can read no tokens. Gates, conditions,
-   * and symbol tests cannot establish a positive width. Each dependency edge
-   * participates in the least fixed point once, including recursive calls.
-   * @param {Map<string,import('./grammar.js').StitchedRule>} rules
-   * @param {{rule:import('./grammar.js').StitchedRule,alternative:import('./grammar.js').StitchedAlternative}[]} errors
-   */
-  function nullableError(rules, errors) {
-    /** @typedef {{all:boolean,children:number[],users:number[],remaining:number,value:boolean}} Node */
-    /** @type {Node[]} */
-    const nodes=[];
-    /** @type {Map<object|string,number>} */
-    const identities=new Map();
-    /** @type {(object|string)[]} */
-    const pending=[];
-    /** @param {object|string} identity */
-    const intern=identity=>{
-      const previous=identities.get(identity);
-      if(previous!==undefined)return previous;
-      const id=nodes.length;
-      identities.set(identity,id);
-      nodes.push({all:false,children:[],users:[],remaining:0,value:false});
-      pending.push(identity);
-      return id;
-    };
-    const roots=errors.map(({alternative})=>intern(alternative.expr));
-    for(let index=0;index<pending.length;index++){
-      const identity=pending[index],node=nodes[index];
-      /** @type {(object|string)[]} */
-      let children=[];
-      if(typeof identity==='string')children=rules.get(identity)?.alternatives.map(alternative=>alternative.expr) ?? [];
-      else {
-        const expr=/** @type {import('./types.js').Expr} */(identity);
-        if('empty' in expr || 'optional' in expr)node.all=true;
-        else if('seq' in expr){node.all=true;children=expr.seq;}
-        else if('choice' in expr)children=expr.choice;
-        else if('ranked' in expr)children=expr.ranked;
-        else if('and' in expr)children=expr.and;
-        else if('repeat' in expr)children=[expr.repeat];
-        else if('capture' in expr || 'test' in expr)children=[expr.expr];
-        else if('splice' in expr)children=[expr.splice];
-        else if('ref' in expr && rules.has(expr.ref))children=[expr.ref];
-      }
-      node.children=children.map(intern);
-      node.remaining=node.children.length;
-      for(const child of node.children)nodes[child].users.push(index);
-    }
-    const ready=[];
-    for(let index=0;index<nodes.length;index++)if(nodes[index].all && nodes[index].remaining===0){nodes[index].value=true;ready.push(index);}
-    for(let index=0;index<ready.length;index++)for(const user of nodes[ready[index]].users){
-      const node=nodes[user];
-      if(node.value)continue;
-      if(!node.all || --node.remaining===0){node.value=true;ready.push(user);}
-    }
-    const first=roots.findIndex(root=>nodes[root].value);
-    return first<0?undefined:errors[first];
-  }
-
-  // ---- emission-overlap.js
-  // Conservative input coverage of final stitched emissions (engine §9.3).
-
-
-  /** @import { Expr } from "./types.js" */
-
-  /** @param {Expr} expr @param {Set<string>} rules @returns {boolean} */
-  function consuming(expr,rules) {
-    if ("splice" in expr) return consuming(expr.splice,rules);
-    if ("literal" in expr || "range" in expr || "wildcard" in expr) return true;
-    if ("ref" in expr) return /^[A-Z_]/.test(expr.ref) || rules.has(expr.ref);
-    if ("empty" in expr) return false;
-    if ("test" in expr || "capture" in expr) return consuming(expr.expr,rules);
-    if ("optional" in expr) return consuming(expr.optional,rules);
-    if ("repeat" in expr) return consuming(expr.repeat,rules) || expr.separator !== undefined && consuming(expr.separator,rules);
-    return (/** @type {any} */ (expr).seq ?? /** @type {any} */ (expr).choice ?? /** @type {any} */ (expr).ranked ?? /** @type {any} */ (expr).and).some((/** @type {Expr} */ child) => consuming(child,rules));
-  }
-
-  /** @param {Map<string,import("./grammar.js").StitchedRule>} definitions */
-  function validateEmissionOverlap(definitions) {
-    const marked = new Set();
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const rule of definitions.values()) if (!marked.has(rule.name) && rule.alternatives.some(alternative => consuming(alternative.expr,marked))) {
-        marked.add(rule.name);
-        changed = true;
-      }
-    }
-    for (const rule of definitions.values()) for (const alternative of rule.alternatives) {
-      const emission = alternative.clauses.emit;
-      if (!emission || emission.items.length < 2) continue;
-      const captures = new Map();
-      const pending = [alternative.expr];
-      while (pending.length) {
-        const expr = /** @type {Expr} */ (pending.pop());
-        if ("capture" in expr) captures.set(expr.capture, captures.get(expr.capture) || consuming(expr.expr,marked));
-        for (const key of ["seq","choice","ranked","and"]) for (const child of (/** @type {any} */ (expr)[key] ?? [])) pending.push(child);
-        for (const key of ["expr","splice","optional","repeat","separator"]) if (/** @type {any} */ (expr)[key]) pending.push(/** @type {any} */ (expr)[key]);
-      }
-      for (let left=0;left<emission.items.length;left++) for (let right=left+1;right<emission.items.length;right++) {
-        const a=emission.items[left], b=emission.items[right];
-        if (a.insert || b.insert || a.capture !== "" && b.capture !== "") continue;
-        const other = a.capture === "" ? b : a;
-        const overlap = other.capture === "" ? consuming(alternative.expr,marked)
-          : [...(other.before ?? []),other.capture,...(other.after ?? [])].some(name=>captures.get(name));
-        if (overlap) {
-          const at = alternative.at;
-          throw new GencmuError("grammar",`${at.document}:${at.line}:${at.column}: the emission of ${rule.name} overlaps input positions`,at);
-        }
-      }
-    }
   }
 
   // ---- logical.js
@@ -16472,21 +16044,26 @@
     }
     // A skipped prediction passed its conditions before it was skipped. Those
     // it checked then use no captures, so they hold again now.
-    const context = chart.context;
-    const next = position < chart.end ? context.tokens[position] : null;
-    for (const skipped of set.skipped) {
-      const productions = typeof skipped === "string" ? context.lowered.byLhs.get(skipped) ?? [] : [skipped];
-      for (const production of productions) {
-        if (!lookaheadSkips(context, production, next, position)) continue;
-        const failed = settled(() => failedCondition(context, production, -1, null, position, position, { scope: null, ...structuralStep(context, production, 0, null, null, position), observation: closeStep(context,production,0,position,null,null,position)?.observation ?? null }));
-        if (failed) continue;
-        note(writtenSymbol(production.rhs[0]), production.owner);
-      }
-    }
+    for (const production of skippedProductions(chart,position)) note(writtenSymbol(production.rhs[0]), production.owner);
     return [...expected].sort((left, right) => compareCodePoints(left[0], right[0])).map(([terminal, rules]) => ({
       terminal,
       rules: [...rules].sort(compareCodePoints),
     }));
+  }
+
+  /** Lookahead omissions that passed their entry conditions, as virtual entries.
+   * @param {Chart} chart @param {number} position @returns {Production[]} */
+  function skippedProductions(chart,position) {
+    const result=[],context=chart.context,next=position<chart.end?context.tokens[position]:null;
+    for(const skipped of chart.setAt(position).skipped) {
+      const productions=typeof skipped==='string'?context.lowered.byLhs.get(skipped)??[]:[skipped];
+      for(const production of productions) {
+        if(!lookaheadSkips(context,production,next,position))continue;
+        const failed=settled(()=>failedCondition(context,production,-1,null,position,position,{scope:null,...structuralStep(context,production,0,null,null,position),observation:closeStep(context,production,0,position,null,null,position)?.observation??null}));
+        if(!failed)result.push(production);
+      }
+    }
+    return result;
   }
 
   /** Evaluate each Boolean assignment in the existing order, across query halts.
@@ -16589,6 +16166,533 @@
       return Object.fromEntries(Object.entries(node).map(([key,value]) => [key,present(value)]));
     };
     return conditions.every(condition => settled(() => holds(context,present(condition),scope)));
+  }
+
+  // ---- competitor-rejection.js
+  // Default rejection evidence for a diagnostic that is itself a ranked option (§12.1).
+
+
+
+  /** @typedef {import('./earley.js').Item} Item */
+  /** @typedef {import('./types.js').Production} Production */
+  /** @typedef {{next:Item,child:Item|null}} Advance */
+
+  /** @param {import('./diagnostic-flow.js').DiagnosticFlow} flow @param {import('./earley.js').Chart} chart */
+  function competitorRejections(flow,chart) {
+    for(const event of flow.evaluated) {
+      if(event.kind!=='errors'||'read'in event.node||event.node.production.spliceOf)continue;
+      const parent=flow.info(event.node).parent;
+      if(!parent||'read'in parent||!parent.production.rankedGroup||parent.children.length!==1||parent.children[0]!==event.node)continue;
+      const result=competitorSlice(chart,event.node.start,event.node.end,parent.production);
+      if(result)event.diagnostic.rejection=result;
+    }
+  }
+
+  /** @param {import('./earley.js').Chart} chart @param {number} start @param {number} cap @param {Production} option
+   * @returns {import('./types.js').CompetitorRejection|null} */
+  function competitorSlice(chart,start,cap,option) {
+    const group=/** @type {NonNullable<Production['rankedGroup']>} */(option.rankedGroup);
+    const frames=rankedFrameTable(chart.context);
+    /** @type {Map<number,Map<string,Item[]>>} */ const entries=new Map();
+    /** @type {Map<Item,Advance[]>} */ const advances=new Map();
+    /** @type {Map<Item,{previous:Item,next:Item}[]>} */ const completions=new Map();
+    /** @type {Map<number,Production[]>} */ const skipped=new Map();
+    /** @type {Map<number,ChartSet>} */ const sets=new Map();
+    /** @type {Set<Item>} */ const reached=new Set();
+    /** @type {Item[]} */ const queue=[];
+    /** @param {number} at */
+    const setAt=at=>{let set=sets.get(at);if(!set)sets.set(at,set=new ChartSet(at));return set;};
+    /** @param {Production} production */
+    const competitor=production=> {
+      if(production.rankedGroup===group)return production.rankedOption!==option.rankedOption&&production.lexicalFrame===option.lexicalFrame;
+      const source=production.logicalSource;
+      return !production.helper&&production.lhs===group.parent&&source!==group.source&&source?.clauses===group.source.clauses;
+    };
+    /** @param {Item} item */
+    const add=item=>{
+      if(item.production.error||reached.has(item))return;
+      reached.add(item);queue.push(item);
+      // A ranked helper around one call is the entry of that called option,
+      // not an independent non-error attempt when the call carries %error.
+      const transparent=item.dot===0&&item.production.rankedGroup&&item.production.rhs.length===1&&!item.production.rhs[0].terminal;
+      if(!transparent)setAt(item.end).items.push(item);
+    };
+    /** @param {number} at @param {Production} production */
+    const omit=(at,production)=>{const set=setAt(at);if(!set.skipped.includes(production))set.skipped.push(production);};
+    for(const set of chart.sets) {
+      if(set.position<start||set.position>cap)continue;
+      const byName=new Map();entries.set(set.position,byName);
+      for(const item of set.items) {
+        if(item.production.error)continue;
+        if(item.dot===0) {
+          const list=byName.get(item.production.lhs)??[];list.push(item);byName.set(item.production.lhs,list);
+          if(item.origin===start&&set.position===start&&competitor(item.production))add(item);
+        }
+        for(const edge of item.edges)if('previous'in edge) {
+          const child=edge.kind==='complete'?edge.child:null;
+          const list=advances.get(edge.previous)??[];list.push({next:item,child});advances.set(edge.previous,list);
+          if(child){const uses=completions.get(child)??[];uses.push({previous:edge.previous,next:item});completions.set(child,uses);}
+        }
+      }
+      const omitted=skippedProductions(chart,set.position).filter(production=>!production.error);skipped.set(set.position,omitted);
+      if(set.position===start)for(const production of omitted)if(competitor(production))omit(start,production);
+    }
+    for(let index=0;index<queue.length;index++) {
+      const item=queue[index],symbol=item.production.rhs[item.dot];
+      if(symbol&&!symbol.terminal) {
+        const frame=frames.entry(item,symbol.name);
+        for(const entry of entries.get(item.end)?.get(symbol.name)??[])if((entry.production.lexicalFrame??null)===frame)add(entry);
+        for(const production of skipped.get(item.end)??[])if(production.lhs===symbol.name&&(production.lexicalFrame??null)===frame)omit(item.end,production);
+      }
+      for(const advance of advances.get(item)??[])if(!advance.child||reached.has(advance.child))add(advance.next);
+      for(const completion of completions.get(item)??[])if(reached.has(completion.previous))add(completion.next);
+    }
+    if(!sets.size)return null;
+    let position=start;for(const at of sets.keys())position=Math.max(position,at);
+    const slice={...chart,furthest:position,setAt};
+    const tokens=chart.context.tokens,end=tokens[tokens.length-1]?.source[1]??0;
+    const source=position<tokens.length?tokens[position].source:[end,end];
+    let line=1,column=1;
+    for(let index=0;index<source[0]&&index<chart.context.sourceText.length;index++) {
+      const character=chart.context.sourceText[index];
+      if(character==='\n'||character==='\r'&&chart.context.sourceText[index+1]!=='\n'){line++;column=1;}else column++;
+    }
+    return {token:position,source:[source[0],source[1]],line,column,expected:expectedAt(slice,position)};
+  }
+
+  // ---- diagnostic-audit.js
+  // Notes for diagnostic rules, suppression, and concrete tag variants.
+
+
+
+
+  /** @param {import('./grammar.js').Grammar} grammar @returns {any[]} */
+  function diagnosticAudit(grammar) {
+    const notes=[], edges=new Map(), warnings=new Map();
+    for (const rule of grammar.rules.values()) {
+      const references=new Set(), codes=new Set();
+      for (const alternative of rule.alternatives) {
+        /** @type {any[]} */
+        const pending=[alternative.expr];
+        while(pending.length) {
+          const node=pending.pop();
+          if (node && 'ref' in node && grammar.rules.has(node.ref)) references.add(node.ref);
+          for (const child of expressionChildren(node)) pending.push(child);
+        }
+        if (alternative.clauses.warning) codes.add(rule.name);
+      }
+      edges.set(rule.name,references);warnings.set(rule.name,codes);
+    }
+    const closure=(/** @type {Iterable<string>} */ roots)=> {
+      const seen=new Set(),pending=[...roots];
+      while(pending.length) {
+        const name=pending.pop();
+        if (seen.has(name)) continue;
+        seen.add(name);
+        for (const child of edges.get(name) ?? []) pending.push(child);
+      }
+      return seen;
+    };
+    for (const rule of grammar.rules.values()) for (const alternative of rule.alternatives) {
+      const clauses=alternative.clauses;
+      const where={rule:rule.name,document:alternative.document,line:alternative.at.line,column:alternative.at.column};
+      /** @type {any[]} */
+      const pending=[clauses.conditions,clauses.tags,alternative.tags,clauses.emit];
+      const reached=new Set();
+      while(pending.length) {
+        const node=pending.pop();
+        if (['matches','begins','ends','tags'].includes(node?.method)) for (const arg of node.args) if (arg.rule) for (const name of closure([arg.rule])) reached.add(name);
+        for (const child of clauseChildren(node)) pending.push(child);
+      }
+      for (const name of reached) if (grammar.rules.get(name)?.alternatives.some(a=>a.clauses.error)) notes.push({kind:'query-error',...where,target:name});
+      if (clauses.suppressWarnings) {
+        const roots=new Set();
+        /** @type {any[]} */
+        const body=[alternative.expr];
+        while(body.length) {
+          const node=body.pop();
+          if ('ref' in node && grammar.rules.has(node.ref)) roots.add(node.ref);
+          for (const child of expressionChildren(node)) body.push(child);
+        }
+        const possible=new Set(clauses.warning?[rule.name]:[]);
+        for (const name of closure(roots)) for (const code of warnings.get(name) ?? []) possible.add(code);
+        for (const code of new Set(clauses.suppressWarnings)) if (code==='_' ? !possible.size : !possible.has(code)) notes.push({kind:'unused-suppression',...where,code});
+      }
+      const terms=[clauses.tags,alternative.tags].filter(term=>term!==undefined);
+      if (neighbourGuards(terms).length) {
+        const owner={name:rule.name,...clauses,alternatives:[alternative]};
+        for (const captures of validationCaptures(owner,alternative)) {
+          const terms=[clauses.tags,alternative.tags].filter(term=>term!==undefined).map(term=>simplifyFor(prepareClause(term),name=>captures.has(name),captures));
+          const count=guardedTagVariants(terms.length===1?terms[0]:{union:terms}).length;
+          if (count>8) notes.push({kind:'guarded-tag-variants',...where,variants:count,captures:[...captures.keys()].filter(Boolean)});
+        }
+      }
+    }
+    // Shared definition clauses can supply one note through several alternatives.
+    const seen=new Set();
+    return notes.filter(note=>{const key=JSON.stringify(note);if(seen.has(key)) return false;seen.add(key);return true;});
+  }
+
+  // ---- measures.js
+  // Additive diagnostic charges and profile order (engine §1, §6).
+
+
+  /** @typedef {number|bigint} Count */
+  /** @typedef {[Count,Count,Count]} Measure */
+  /** @type {Measure} */
+  const ZERO_MEASURE=Object.freeze(/** @type {any} */([0,0,0]));
+
+  /** @param {Count} left @param {Count} right @returns {Count} */
+  function addCount(left,right){
+    if(typeof left==='number' && typeof right==='number'){
+      const sum=left+right;
+      if(sum<=Number.MAX_SAFE_INTEGER || sum===Infinity)return sum;
+    }
+    if(left===Infinity || right===Infinity)return Infinity;
+    return BigInt(left)+BigInt(right);
+  }
+
+  /** @param {Measure} left @param {Measure} right @returns {Measure} */
+  function sumMeasure(left,right){
+    if(left===ZERO_MEASURE)return right;
+    if(right===ZERO_MEASURE)return left;
+    return [addCount(left[0],right[0]),addCount(left[1],right[1]),addCount(left[2],right[2])];
+  }
+
+  /** Negative means that the left measure wins. @param {ArrayLike<any>} left @param {ArrayLike<any>} right */
+  function compareMeasure(left,right){
+    for(let index=0;index<3;index++)if(left[index]<right[index] || left[index]>right[index]){
+      const order=left[index]<right[index]?-1:1;
+      return index===2?-order:order;
+    }
+    return 0;
+  }
+
+  // Public diagnostic objects carry no charge or identity fields. Copies
+  // retain this private record rather than deriving a charge from new spans.
+  /** @type {WeakMap<object,{measure:Measure,identity:object}>} */
+  const records=new WeakMap();
+  /** @param {object} diagnostic @param {Measure} measure @param {object} [identity] */
+  function recordDiagnostic(diagnostic,measure,identity={}){
+    records.set(diagnostic,{measure:/** @type {Measure} */(Object.freeze([...measure])),identity});
+    return diagnostic;
+  }
+  /** @param {object} diagnostic */
+  function diagnosticRecord(diagnostic){
+    const record=records.get(diagnostic);
+    if(!record)throw new Error('An engine diagnostic requires a fixed charge and identity.');
+    return record;
+  }
+  /** @param {object} original @param {object} copy */
+  function copyDiagnosticRecord(original,copy){
+    const record=records.get(original);
+    if(record)records.set(copy,record);
+    return copy;
+  }
+
+  class Measures {
+    /** @param {import('./tokens.js').Token[]} tokens @param {Sources} [sources] */
+    constructor(tokens,sources=new Sources(tokens)){
+      this.sources=sources;
+      this.nonempty=[0];
+      /** @type {Measure[]} */
+      this.carried=[];
+      for(const token of tokens){
+        this.nonempty.push(this.nonempty[this.nonempty.length-1]+(token.source[0]<token.source[1]?1:0));
+        let measure=ZERO_MEASURE;
+        for(const diagnostic of token.errors)measure=sumMeasure(measure,diagnosticRecord(diagnostic).measure);
+        this.carried.push(measure);
+      }
+    }
+    /** @param {number} start @param {number} end @returns {Measure} */
+    own(start,end){
+      if(this.nonempty[end]===this.nonempty[start])return [0,1,1];
+      const [low,high]=this.sources.of(start,end);
+      return [high-low,0,1];
+    }
+  }
+
+  // ---- diagnostic-flow.js
+
+  // Diagnostic identity, reporting collections, and emission owners (§11.5, §12.1).
+
+
+  /** @typedef {import('./types.js').Derivation} Derivation */
+  /** @typedef {import('./types.js').ParseWarning} Diagnostic */
+  /** @typedef {{errors:Diagnostic[],warnings:Diagnostic[]}} DiagnosticLists */
+  /** @typedef {{node:Derivation,diagnostic:Diagnostic,kind:'errors'|'warnings',own:boolean}} DiagnosticEvent */
+  /** @typedef {{parent:Derivation|null,erased:boolean,scope:EmissionScope}} NodeInfo */
+  /** @typedef {{root:Derivation,rows:Carrier[],carrier:Carrier|null,unowned:DiagnosticLists}} EmissionScope */
+  /** @typedef {{token:import('./tokens.js').AttachedToken,span:import('./types.js').Span,part:Derivation|null,emission:Derivation,scope:EmissionScope,support:import('./types.js').Span|null,own:DiagnosticLists,groups:(EmissionScope|import('./tokens.js').AttachedToken)[]}} Carrier */
+
+  /** @returns {DiagnosticLists} */
+  function emptyDiagnostics(){return {errors:[],warnings:[]};}
+  /** @param {Diagnostic} diagnostic */
+  function diagnosticIdentity(diagnostic){return diagnosticRecord(diagnostic).identity;}
+
+  /** @param {DiagnosticLists[]} lists @returns {DiagnosticLists} */
+  function joinDiagnostics(lists){
+    const result=emptyDiagnostics();
+    for(const kind of /** @type {const} */(['errors','warnings'])){
+      const seen=new Set();
+      for(const list of lists)for(const diagnostic of list[kind]){
+        const identity=diagnosticIdentity(diagnostic);
+        if(!seen.has(identity)){seen.add(identity);result[kind].push(diagnostic);}
+      }
+    }
+    return result;
+  }
+
+  /** @param {import('./tokens.js').Token[]} tokens @param {number} [end] */
+  function inputDiagnostics(tokens,end=tokens.length){
+    return joinDiagnostics(tokens.slice(0,end).map(token=>({errors:token.errors,warnings:token.warnings})));
+  }
+
+  /** @param {Diagnostic[]} list */
+  function ordered(list){
+    return list.slice().sort((left,right)=>{
+      const a=/** @type {{stageOrder?:number,ordinal?:number}} */(diagnosticIdentity(left));
+      const b=/** @type {{stageOrder?:number,ordinal?:number}} */(diagnosticIdentity(right));
+      return (a.stageOrder??0)-(b.stageOrder??0)||(a.ordinal??0)-(b.ordinal??0);
+    });
+  }
+
+  /** @param {Diagnostic} diagnostic */
+  function objectKey(diagnostic){
+    return JSON.stringify([diagnostic.stage,diagnostic.code,diagnostic.rule,diagnostic.span,diagnostic.source,diagnostic.message,/** @type {any} */(diagnostic).rejection??null]);
+  }
+
+  /** @param {DiagnosticEvent[]} first @param {DiagnosticEvent[]} second @returns {DiagnosticLists} */
+  function tiedDiagnostics(first,second){
+    const result=emptyDiagnostics();
+    for(const kind of /** @type {const} */(['errors','warnings'])){
+      const carried=new Set(),counts=new Map(),later=new Map();
+      for(const [reading,events] of [first,second].entries())for(const event of events){
+        if(event.kind!==kind)continue;
+        const diagnostic=event.diagnostic;
+        if(!event.own){
+          const id=diagnosticIdentity(diagnostic);if(carried.has(id))continue;carried.add(id);
+        }else{
+          const key=objectKey(diagnostic),table=reading===0?counts:later,n=(table.get(key)??0)+1;
+          table.set(key,n);if(reading===1&&n<=(counts.get(key)??0))continue;
+        }
+        result[kind].push(diagnostic);
+      }
+    }
+    return result;
+  }
+
+  class DiagnosticFlow {
+    /** @param {Derivation} root @param {import('./tokens.js').Token[]} input */
+    constructor(root,input){
+      this.root=root;this.input=input;
+      /** @type {Map<Derivation,NodeInfo>} */ this.nodes=new Map();
+      /** @type {Derivation[]} */ this.order=[];
+      /** @type {Map<Derivation,DiagnosticEvent>} */ this.own=new Map();
+      /** @type {DiagnosticEvent[]} */ this.evaluated=[];
+      /** @type {Map<Derivation,EmissionScope>} */ this.scopeRoots=new Map();
+      /** @type {WeakMap<object,Carrier>} */ this.carriers=new WeakMap();
+      this.main=/** @type {EmissionScope} */({root,rows:[],carrier:null,unowned:emptyDiagnostics()});
+      this.scopes=[this.main];
+      const live=new Array(input.length).fill(0);
+      const pending=[{node:root,parent:/** @type {Derivation|null} */(null),erased:false}];
+      while(pending.length){
+        const {node,parent,erased:outer}=/** @type {NonNullable<ReturnType<typeof pending.pop>>} */(pending.pop());
+        const erased=outer||!('read'in node)&&node.production.erased;
+        this.nodes.set(node,{parent,erased,scope:this.main});this.order.push(node);
+        if('read'in node){if(!erased)live[node.read.token]=1;}
+        else for(let index=node.children.length-1;index>=0;index--)pending.push({node:node.children[index],parent:node,erased});
+      }
+      this.prefix=[0];for(const bit of live)this.prefix.push(this.prefix[this.prefix.length-1]+bit);
+      this.next=new Array(input.length+1);this.next[input.length]=input.length;
+      for(let index=input.length-1;index>=0;index--)this.next[index]=live[index]?index:this.next[index+1];
+      this.previous=[0];for(let index=0;index<input.length;index++)this.previous.push(live[index]?index+1:this.previous[index]);
+    }
+    /** @param {Derivation} node @returns {NodeInfo} */
+    info(node){const info=this.nodes.get(node);if(!info)throw new Error('An emission part requires its chosen occurrence.');return info;}
+    /** @param {Derivation} node @param {Diagnostic} diagnostic @param {'errors'|'warnings'} kind */
+    add(node,diagnostic,kind){
+      const event={node,diagnostic,kind,own:true};this.own.set(node,event);this.evaluated.push(event);
+    }
+    /** @returns {DiagnosticLists} */
+    messages(){
+      const result=emptyDiagnostics();for(const event of this.evaluated)result[event.kind].push(event.diagnostic);return result;
+    }
+    /** Surviving chosen preorder, before output-node omission. @returns {DiagnosticEvent[]} */
+    events(){
+      const result=[];
+      for(const node of this.order){
+        if(this.info(node).erased)continue;
+        const own=this.own.get(node);if(own)result.push(own);
+        if('read'in node)for(const kind of /** @type {const} */(['errors','warnings']))for(const diagnostic of this.input[node.read.token][kind])result.push({node,diagnostic,kind,own:false});
+      }
+      return result;
+    }
+    /** @returns {DiagnosticLists} */
+    collected(){
+      const result=emptyDiagnostics();
+      for(const event of this.events())result[event.kind].push(event.diagnostic);
+      return joinDiagnostics([result]);
+    }
+    /** @param {Derivation} root @returns {EmissionScope} */
+    attachment(root){
+      const scope={root,rows:[],carrier:null,unowned:emptyDiagnostics()};
+      this.scopeRoots.set(root,scope);this.scopes.push(scope);return scope;
+    }
+    /** @param {number} start @param {number} end */
+    count(start,end){return this.prefix[end]-this.prefix[start];}
+    /** @param {import('./tokens.js').Token} token @param {Derivation|null} part @param {Derivation} emission @param {EmissionScope} scope */
+    emitted(token,part,emission,scope){
+      const support=part&&this.count(part.start,part.end)?/** @type {import('./types.js').Span} */([this.next[part.start],this.previous[part.end]]):null;
+      const row={token,span:token.span,part,emission,scope,support,own:emptyDiagnostics(),groups:[]};
+      scope.rows.push(row);this.carriers.set(token,row);return row;
+    }
+    /** @param {object} original @param {import('./tokens.js').AttachedToken} copy */
+    attached(original,copy){const row=this.carriers.get(original);if(row){row.token=copy;this.carriers.set(copy,row);}}
+    /** @param {import('./tokens.js').Token} token @param {EmissionScope[]} before @param {EmissionScope[]} after @param {import('./tokens.js').AttachedToken[]} inheritedBefore @param {import('./tokens.js').AttachedToken[]} inheritedAfter */
+    attachments(token,before,after,inheritedBefore,inheritedAfter){
+      const row=this.carriers.get(token);if(!row)throw new Error('An attachment requires its emitted carrier.');row.groups=[...before,...inheritedBefore,...inheritedAfter,...after];
+      for(const scope of [...before,...after])scope.carrier=row;
+    }
+    /** @param {EmissionScope} scope @returns {DiagnosticLists} */
+    all(scope){return joinDiagnostics([scope.unowned,...scope.rows.map(row=>({errors:row.token.errors,warnings:row.token.warnings}))]);}
+    /** @returns {DiagnosticLists} */
+    assign(){
+      for(const node of this.order){
+        const info=this.info(node);info.scope=this.scopeRoots.get(node)??(info.parent?this.info(info.parent).scope:this.main);
+      }
+      const buckets=new Map(),emissions=new Map(),nearest=new Map();
+      for(const event of this.events()){
+        const scope=this.info(event.node).scope,list=buckets.get(scope)??[];list.push(event);buckets.set(scope,list);
+      }
+      for(const scope of this.scopes)for(const row of scope.rows){const list=emissions.get(row.emission)??[];list.push(row);emissions.set(row.emission,list);}
+      for(const node of this.order){
+        const info=this.info(node),rows=emissions.get(node);
+        nearest.set(node,rows?.length?rows:info.parent&&this.info(info.parent).scope===info.scope?nearest.get(info.parent):null);
+      }
+      for(const scope of this.scopes){
+        const supported=/** @type {(Carrier & {support:import("./types.js").Span})[]} */(scope.rows.filter(row=>row.support!==null));
+        /** @param {Derivation} node */
+        const owner=node=>{
+          if(this.count(node.start,node.end)){
+            let low=0,high=supported.length;
+            while(low<high){const mid=(low+high)>>>1;if(supported[mid].support[1]<=node.start)low=mid+1;else high=mid;}
+            const row=supported[low];
+            if(row&&row.support[0]<node.end&&this.count(Math.max(node.start,row.support[0]),Math.min(node.end,row.support[1])))return row;
+          }
+          const rows=nearest.get(node);
+          if(rows?.length){
+            let low=0,high=rows.length;
+            while(low<high){const mid=(low+high)>>>1;if((rows[mid].support??rows[mid].span)[1]<node.start)low=mid+1;else high=mid;}
+            return rows[low]??rows[rows.length-1];
+          }
+          let low=0,high=scope.rows.length;
+          while(low<high){const mid=(low+high)>>>1;if(scope.rows[mid].span[0]<node.start)low=mid+1;else high=mid;}
+          return scope.rows[low]??scope.rows[scope.rows.length-1]??null;
+        };
+        for(const event of buckets.get(scope)??[]){
+          const row=owner(event.node);(row?row.own:scope.unowned)[event.kind].push(event.diagnostic);
+        }
+      }
+      for(const scope of this.scopes.slice().reverse())for(const row of scope.rows){
+        const groups=row.groups.map(group=>'rows'in group?this.all(group):{errors:group.errors,warnings:group.warnings});
+        for(const kind of /** @type {const} */(['errors','warnings'])){
+          const displayed=new Set(groups.flatMap(group=>group[kind].map(diagnosticIdentity)));
+          const own=ordered(row.own[kind].filter(diagnostic=>!displayed.has(diagnosticIdentity(diagnostic))));
+          const list=joinDiagnostics([{errors:kind==='errors'?own:[],warnings:kind==='warnings'?own:[]},...groups])[kind];
+          row.token[kind]=list.length?list:NO_DIAGNOSTICS;
+        }
+      }
+      return this.main.unowned;
+    }
+  }
+
+  // The pipeline reads these collections without retaining a packed forest.
+  /** @type {WeakMap<object,{collected:DiagnosticLists,evaluated:DiagnosticLists}>} */
+  const stageDiagnostics=new WeakMap();
+
+  // ---- ranking-audit.js
+  // Static reports for node-pattern steps (docs/design.md).
+
+
+
+
+
+  /** @param {any} grammar @returns {any} */
+  function observations(grammar) {
+    const rules=new Map(),terminals=new Set(),omitted=new Set();
+    const body=(/** @type {any} */ root,/** @type {Set<string>} */ refs)=>{
+      const pending=[root];
+      while(pending.length) {
+        const expr=pending.pop();
+        if(hooks.work) countWork(hooks.work,"clauses");
+        if(expr.ref) {
+          if(grammar.rules.has(expr.ref)) refs.add(expr.ref);
+          else terminals.add(expr.ref);
+        } else if(expr.literal) {
+          const value=grammar.evaluateClosed('',expr.literal,[1,1]);
+          if('string' in value) terminals.add(stringName(value.string,grammar.unicode));
+        } else if(expr.range) terminals.add(expr.range.map((/** @type {any} */ end)=>stringName(grammar.evaluateClosed('',end,[1,1]).string,grammar.unicode)).join('..'));
+        else if(expr.wildcard) terminals.add('_');
+        if(expr.optional && expr.elidable) {
+          let head=expr.optional;
+          while(head.seq || head.capture || head.test) head=head.seq?.[0] ?? head.expr;
+          if(head.ref) {omitted.add(head.ref);}
+        }
+        for(const key of ['seq','choice','ranked','and']) if(expr[key]) for (const child of expr[key]) pending.push(child);
+        for(const key of ['expr','optional','repeat','separator']) if(expr[key]) pending.push(expr[key]);
+      }
+    };
+    for(const rule of grammar.rules.values()) {
+      const refs=new Set();
+      for(const alternative of rule.alternatives) body(alternative.expr,refs);
+      rules.set(rule.name,{refs});
+    }
+    const reachable=new Set(),pending=['text'];
+    while(pending.length) {
+      const name=pending.pop();
+      if(reachable.has(name) || !rules.has(name)) continue;
+      reachable.add(name);
+      for (const child of rules.get(name).refs) pending.push(child);
+    }
+    // Keep terminal reachability separate from query-only references.
+    const reachedTerminals=new Set(),reachedOmitted=new Set();
+    const allTerminals=new Set(terminals),allOmitted=new Set(omitted);
+    terminals.clear();omitted.clear();
+    for(const name of reachable) for(const alternative of grammar.rules.get(name).alternatives) body(alternative.expr,new Set());
+    for(const terminal of terminals) reachedTerminals.add(terminal);
+    for(const terminal of omitted) reachedOmitted.add(terminal);
+    return {rules,reachable,terminals:reachedTerminals,omitted:reachedOmitted,allTerminals,allOmitted};
+  }
+
+  /** @param {any} pattern @param {any} data @returns {boolean} */
+  function dead(pattern,data) {
+    if(pattern.union) return pattern.union.every((/** @type {any} */ p)=>dead(p,data));
+    if(pattern.intersection) return pattern.intersection.some((/** @type {any} */ p)=>dead(p,data));
+    if(pattern.difference) return dead(pattern.difference[0],data);
+    if(pattern.test) return pattern.any?false:dead(pattern.expr,data);
+    if(pattern.name) return !data.reachable.has(pattern.name);
+    if(pattern.terminal) return pattern.terminal === '_' ? !data.terminals.size && !data.omitted.size : !data.terminals.has(pattern.terminal) && !data.omitted.has(pattern.terminal);
+    return false;
+  }
+
+  /** @param {any} grammar @returns {any} */
+  function rankingAudit(grammar) {
+    const steps=grammar.resolution?.steps??[];
+    if (!steps.length) return {keySteps:[],countedChanges:[]};
+    const data=observations(grammar);
+    const reports=[],changes=[];
+    for(let index=0;index<steps.length;index++) {
+      const step=steps[index],named=new Set(),pending=[step.pattern];
+      while(pending.length) {
+        const pattern=pending.pop();
+        if(pattern.name)named.add(pattern.name);
+        for (const child of patternParts(pattern)) pending.push(child);
+      }
+      reports.push({step:index,pattern:canonicalArgument({pattern:step.pattern},grammar.unicode),...(dead(step.pattern,data)?{status:'impossible'}:{})});
+      for(const change of grammar.changes)if(named.has(change.rule))changes.push({...change,step:index});
+    }
+    return {keySteps:reports,countedChanges:changes};
   }
 
   // ---- diagnostics.js
@@ -16741,8 +16845,8 @@
     } else if (error.kind === "ambiguous" && error.reason === "tie") {
       // A tie is explained where its two readings first differ.
       const report = result.stages.find((stage) => stage.name === error.stage);
-      if (report) return explainTies({ text: result.text, stages: [report] });
-      lines.push(`The ${error.stage} stage's text is ambiguous: it has two best readings, a tie.`);
+      if (report) lines.push(explainTies({ text: result.text, stages: [report] }));
+      else lines.push(`The ${error.stage} stage's text is ambiguous: it has two best readings, a tie.`);
     } else if (error.kind === "ambiguous") {
       const report = result.stages.find((stage) => stage.name === error.stage);
       const tokens = (report && report.input) || [];
@@ -16757,16 +16861,24 @@
         lines.push(`  the second reading ${describeAction(error.witness[1], tokens)}`);
       }
     } else if (error.kind === "reported") {
-      for (const diagnostic of error.errors ?? []) {
-        lines.push(`Error ${diagnostic.code} in the ${diagnostic.stage} stage, rule ${diagnostic.rule}: ${diagnostic.message}`);
-        lines.push(sourceExcerpt(result.text,diagnostic.source).excerpt);
-      }
+      // The ordered named diagnostics below explain this envelope.
     } else if (error.kind === "feature-conflict") {
       lines.push(error.message);
     } else {
       const location = [error.document, error.line, error.column].filter(part => part !== undefined).join(":");
       const where = location ? `${location}: ` : "";
       lines.push(`A grammar error${error.stage ? ` in the ${error.stage} stage` : ""}: ${where}${error.message}`);
+    }
+    for(const diagnostic of error.errors??[]) {
+      lines.push(`Error ${diagnostic.code} in the ${diagnostic.stage} stage, rule ${diagnostic.rule}: ${diagnostic.message}`);
+      lines.push(sourceExcerpt(result.text,diagnostic.source).excerpt);
+      if(diagnostic.rejection) {
+        const evidence=diagnostic.rejection;
+        lines.push(`The competing readings reach token ${evidence.token}, line ${evidence.line}, column ${evidence.column}:`);
+        lines.push(sourceExcerpt(result.text,evidence.source).excerpt);
+        for(const expectation of evidence.expected)lines.push(`  ${expectation.terminal}: ${expectation.rules.join(', ')}`);
+        if(!evidence.expected.length)lines.push('No terminal can continue those readings.');
+      }
     }
     return lines.join("\n");
   }
@@ -20392,6 +20504,7 @@
 
 
 
+
   // Running one stage: recognition, the choice of a parse, the result tree
   // (engine §12), emission (engine §11) and elision-only (engine §7).
 
@@ -20505,6 +20618,7 @@
           stageDiagnostics.set(report,{collected:emptyDiagnostics(),evaluated:joinDiagnostics(flows.map(flow=>flow.messages()))});
           report.error=runtimeGrammarError(error.withLocation({stage:undefined}),this.name);return report;
         }
+        for(const flow of flows)competitorRejections(flow,chart);
         stageDiagnostics.set(report,{collected:tiedDiagnostics(flows[0].events(),flows[1].events()),evaluated:joinDiagnostics(flows.map(flow=>flow.messages()))});
         report.error={kind:"ambiguous",stage:this.name,reason:"tie",readings:derivations.map(root=>resultTree(root,context)[0]),message:`the ${this.name} stage's text has two best readings, a tie`};
         return report;
@@ -20518,6 +20632,7 @@
         stageDiagnostics.set(report,{collected:emptyDiagnostics(),evaluated:flow.messages()});
         report.tree=null;report.error=runtimeGrammarError(error.withLocation({stage:undefined}),this.name);return report;
       }
+      competitorRejections(flow,chart);
       const diagnosticData={collected:flow.collected(),evaluated:flow.messages()};
       stageDiagnostics.set(report,diagnosticData);
       try{
@@ -24786,6 +24901,17 @@
    * @property {string} message
    * @property {Span} span the node's span over the stage's input tokens
    * @property {Span} source the node's range of the original text
+   * @property {CompetitorRejection} [rejection] default rejection evidence for an error's competing options
+   */
+
+  /**
+   * Default rejection evidence over a ranked error's competitor slice.
+   * @typedef {object} CompetitorRejection
+   * @property {number} token
+   * @property {Span} source
+   * @property {number} line
+   * @property {number} column
+   * @property {Expectation[]} expected
    */
 
   /**
