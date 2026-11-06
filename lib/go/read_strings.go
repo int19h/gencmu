@@ -367,15 +367,17 @@ func (b *domBuilder) recipe(n *Node) *domTerm {
 }
 
 type methodFrame struct {
-	n           *Node
-	inCondition bool
-	started     bool
-	selectors   []*Node
-	index       int
-	receiver    *domTerm
-	dependent   bool
-	args        []*domTerm
-	arguments   []*Node
+	readingBody   bool
+	parseArgument *Node
+	n             *Node
+	inCondition   bool
+	started       bool
+	selectors     []*Node
+	index         int
+	receiver      *domTerm
+	dependent     bool
+	args          []*domTerm
+	arguments     []*Node
 }
 
 func (f *methodFrame) resume(b *domBuilder, in any) readStep {
@@ -385,7 +387,31 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 		f.dependent = b.sourceSyntaxUnresolved(receiver)
 		return ask(&termFrame{n: receiver, argument: true})
 	}
-	if f.receiver == nil {
+	if f.readingBody {
+		f.readingBody = false
+		body := in.(*domExpr)
+		if queryCapture(body) != nil {
+			binder := b.firstOfRule(f.parseArgument, "capture")
+			if binder == nil {
+				binder = f.parseArgument
+			}
+			b.fail(binder, "a parse argument cannot declare captures")
+		}
+		parts := b.parts(f.parseArgument)
+		for index, part := range parts {
+			if part.Kind == KindToken && b.tokenValue(part) == "…" {
+				if index == 0 {
+					body = &domExpr{Kind: exSeq, Items: []*domExpr{{Kind: exRemainder}, body}}
+				} else {
+					body = &domExpr{Kind: exSeq, Items: []*domExpr{body, {Kind: exRemainder}}}
+				}
+			}
+		}
+		if _, _, problem := queryBody(body); problem != "" {
+			b.fail(f.parseArgument, "%s", problem)
+		}
+		f.args = []*domTerm{{Kind: tmBody, Body: body}}
+	} else if f.receiver == nil {
 		f.receiver = in.(*domTerm)
 	} else if in != nil {
 		f.args = append(f.args, in.(*domTerm))
@@ -398,7 +424,11 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 			w.readerSteps.add("reader steps")
 		}
 		selector := f.selectors[f.index]
-		name := b.tokenValue(b.token(b.only(selector, "method-name")))
+		parsed := b.one(selector, "parse-selector")
+		name := "parse"
+		if parsed == nil {
+			name = b.tokenValue(b.token(b.only(selector, "method-name")))
+		}
 		arguments := b.one(selector, "arguments")
 		if f.arguments == nil {
 			if !knownMethod(name) {
@@ -408,6 +438,12 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 				b.fail(f.n, "%s cannot read an input method", b.closedFor)
 			}
 			f.arguments = []*Node{}
+			if parsed != nil {
+				f.parseArgument = b.only(parsed, "parse-argument")
+				f.dependent = f.dependent || b.sourceSyntaxUnresolved(f.parseArgument)
+				f.readingBody = true
+				return ask(&exprFrame{n: b.only(f.parseArgument, "choice"), whole: true})
+			}
 			if arguments != nil {
 				f.arguments = b.some(arguments, "argument", 1)
 			}
@@ -446,7 +482,7 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 		f.receiver = b.finishMethod(f.n, name, f.receiver, f.args, f.dependent)
 		f.index++
 		if f.index == len(f.selectors) {
-			isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends"
+			isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends" || name == "parse" || name == "error-free"
 			if isPredicate != f.inCondition {
 				if isPredicate {
 					b.fail(f.n, "a query method is a condition, not a term")
@@ -471,6 +507,8 @@ const (
 	methodNgrams
 	methodSplit
 	methodClassify
+	methodParse
+	methodErrorFree
 )
 
 var sourceMethods = map[string]sourceMethodKind{
@@ -483,6 +521,7 @@ var sourceMethods = map[string]sourceMethodKind{
 	"tags": methodTags, "followed-by": methodBoundary, "preceded-by": methodBoundary,
 	"matches": methodQuery, "begins": methodQuery, "ends": methodQuery,
 	"ngrams": methodNgrams, "split": methodSplit, "classify": methodClassify,
+	"parse": methodParse, "error-free": methodErrorFree,
 }
 
 func knownMethod(name string) bool { return sourceMethods[name] != 0 }
@@ -510,6 +549,19 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	span := b.featureContext || isSpanTerm(receiver)
 	valid := false
 	switch sourceMethods[name] {
+	case methodParse:
+		valid = span && len(args) == 1 && args[0].Kind == tmBody
+		if valid {
+			_, mode, problem := queryBody(args[0].Body)
+			if problem != "" {
+				b.fail(n, "%s", problem)
+			}
+			if mode == cdEnds && restoredTerm(receiver) {
+				b.fail(n, "suffix parse requires an ordinary span, not a restored span")
+			}
+		}
+	case methodErrorFree:
+		valid = len(args) == 0 && (forestTerm(receiver) || unknown(receiver))
 	case methodSpan:
 		valid = len(args) == 0 && span
 		if receiver.Kind == tmCall && receiver.Str == "emitted" {

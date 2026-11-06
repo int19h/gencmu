@@ -7,7 +7,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 45
+const domFormat = 46
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what data/preparsed/gencmu.json and data/preparsed/FAMILY.json hold.
@@ -94,22 +94,23 @@ type domGuard struct {
 
 // Expression kinds.
 const (
-	exSeq      = "seq"
-	exChoice   = "choice"
-	exRanked   = "ranked"
-	exAnd      = "and"
-	exOptional = "optional"
-	exRepeat   = "repeat"
-	exRef      = "ref"
-	exCapture  = "capture"
-	exSplice   = "splice"
-	exTest     = "test"
-	exEmpty    = "empty"
-	exRange    = "range"
-	exLiteral  = "literal"
-	exWildcard = "wildcard"
-	exParam    = "param"
-	exCall     = "call"
+	exSeq       = "seq"
+	exChoice    = "choice"
+	exRanked    = "ranked"
+	exAnd       = "and"
+	exOptional  = "optional"
+	exRepeat    = "repeat"
+	exRef       = "ref"
+	exCapture   = "capture"
+	exSplice    = "splice"
+	exTest      = "test"
+	exEmpty     = "empty"
+	exRemainder = "remainder"
+	exRange     = "range"
+	exLiteral   = "literal"
+	exWildcard  = "wildcard"
+	exParam     = "param"
+	exCall      = "call"
 )
 
 type domExpr struct {
@@ -173,9 +174,11 @@ const (
 	tmConcat       = "concat"
 	tmParam        = "param"
 	tmSourceCall   = "source-call"
+	tmBody         = "body"
 )
 
 type domTerm struct {
+	Body  *domExpr
 	Call  *domSourceCall
 	Kind  string
 	Str   string     // string, tag, call (the function), capture, rule, classifier
@@ -212,6 +215,7 @@ const (
 	cdAll      = "all"
 	cdCaptured = "captured"
 	cdIf       = "if"
+	cdForest   = "forest"
 )
 
 type domCond struct {
@@ -613,6 +617,8 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 		w.raw("}")
 	case exEmpty:
 		w.raw(`{"empty":true}`)
+	case exRemainder:
+		w.raw(`{"remainder":true}`)
 	case exRange:
 		writeStringRange(w, e.Ends)
 	}
@@ -620,6 +626,10 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 
 func (t *domTerm) writeJSON(w *jsonWriter) {
 	switch t.Kind {
+	case tmBody:
+		w.raw(`{"body":`)
+		t.Body.writeJSON(w)
+		w.raw("}")
 	case tmParam:
 		writeParameter(w, t.Str, t.At)
 	case tmSourceCall:
@@ -677,6 +687,8 @@ func (t *domTerm) writeJSON(w *jsonWriter) {
 
 func (c *domCond) writeJSON(w *jsonWriter) {
 	switch c.Kind {
+	case cdForest:
+		c.Left.writeJSON(w)
 	case cdCompare:
 		w.raw(`{"op":`)
 		w.str(c.Op)
@@ -1231,6 +1243,12 @@ func (dc *domDecoder) decodeExprObj(raw any, o domObject, depth int) (*domExpr, 
 	if !hasOneForm(o, exprForms) {
 		return nil, fmt.Errorf("a malformed expression")
 	}
+	if value, present := o[exRemainder]; present {
+		if !domTrue(value) {
+			return nil, fmt.Errorf("a malformed remainder")
+		}
+		return &domExpr{Kind: exRemainder}, nil
+	}
 	if _, ok := o["param"]; ok {
 		name, at, err := domParameter(o)
 		return &domExpr{Kind: exParam, Name: name, At: at}, err
@@ -1364,13 +1382,13 @@ func (dc *domDecoder) decodeExprObj(raw any, o domObject, depth int) (*domExpr, 
 var exprForms = [][]string{
 	{exSplice}, {exSeq}, {exChoice}, {exRanked}, {exAnd}, {exOptional, "elidable?", "default?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exCapture, "expr"},
 	{"param", "at"}, {"call", "args", "at"},
-	{exRange}, {exLiteral}, {exWildcard}, {exTest, "value?", "requirements?", "expr"}, {exEmpty},
+	{exRange}, {exLiteral}, {exWildcard}, {exTest, "value?", "requirements?", "expr"}, {exEmpty}, {exRemainder},
 }
 
 var termForms = [][]string{
 	{tmUnion}, {tmIntersection}, {tmDifference}, {tmIf, "then"}, {"method", "receiver", "args"},
 	{"param", "at"}, {"call", "args", "at"},
-	{tmString}, {tmTag}, {tmTerminal}, {tmInteger}, {tmConcat}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"}, {tmPattern},
+	{tmString}, {tmTag}, {tmTerminal}, {tmInteger}, {tmConcat}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"}, {tmPattern}, {tmBody},
 }
 
 var condForms = [][]string{
@@ -1410,6 +1428,10 @@ func (dc *domDecoder) decodeTermNode(raw any, depth int) (*domTerm, error) {
 	}
 	if !hasOneForm(o, termForms) {
 		return nil, fmt.Errorf("a malformed term")
+	}
+	if body, present := o[tmBody]; present {
+		expr, err := dc.decodeExprAt(body, depth+1)
+		return &domTerm{Kind: tmBody, Body: expr}, err
 	}
 	if _, ok := o["param"]; ok {
 		name, at, err := domParameter(o)
@@ -1509,6 +1531,8 @@ func (dc *domDecoder) decodeCondNode(raw any, depth int) (*domCond, error) {
 			return nil, err
 		}
 		switch {
+		case name == "parse" || name == "error-free":
+			return &domCond{Kind: cdForest, Left: &domTerm{Kind: tmCall, Str: name, Items: append([]*domTerm{receiver}, args...)}}, nil
 		case name == "ends-input" && len(args) == 0:
 			return &domCond{Kind: cdEnd, Span: receiver}, nil
 		case name == "starts-input" && len(args) == 0:

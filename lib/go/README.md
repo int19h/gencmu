@@ -46,7 +46,7 @@ A `feature-conflict` result names a disabled feature whose conditional declarati
 
 A close family is a set of rules. `F` names that family through its written rule references, as [engine §2.2](../../docs/engine.md#22-close-families) defines. The family method permits extra witness closes that family members own. Each extra close needs a kept token or candidate record on each side. The query preserves every candidate close and ranked block.
 
-`.onward` extends either restored query through the original following input and retains its family. Other span methods return ordinary spans. Parse results use format 16. `RankingReports()` gives static notes about ranking and diagnostics. `FormatRankingReports` renders those notes.
+`.onward` extends either restored query through the original following input and retains its family. Other span methods return ordinary spans. Parse results use format 17. `RankingReports()` gives static notes about ranking and diagnostics. `FormatRankingReports` renders those notes.
 
 Boundary atoms `$x.followed-by(S)` and `$x.preceded-by(S)` read neighbors of the parse that the condition belongs to. These boundary conditions filter candidate derivations before ranking. In an emission item, they read the chosen tree. Their target accepts rule names and terminal names. Constituent tags can use these atoms as guards with literal tag sets.
 
@@ -92,7 +92,7 @@ Each stage-zero token stores every available Unicode property membership from th
 
 Grammar documents use the same decomposition. Escaped scalars inside strings remain exact. Include paths decode escapes without decomposition. The `.decomposed-source-text` method decomposes the original source text of a span.
 
-The cache requires DOM format 45 and matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text.
+The cache requires DOM format 46 and matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text.
 
 A `Token` also has its attachments, `Before` and `After` (engine §11). These are tokens that belong to it and that no later stage reads, such as the indicators after a word. They are nil when there are none. An attached token has no span: its `Span` is zero, and the canonical JSON leaves it out.
 

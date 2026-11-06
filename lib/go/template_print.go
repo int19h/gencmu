@@ -158,6 +158,10 @@ func templateCanonical(n templateObject, uni *unicodeTable) string {
 		args := ""
 		if len(templateList(n["args"])) > 0 {
 			args = "(" + join(n["args"], sep) + ")"
+			if name == "parse" {
+				body := templateObj(templateObj(templateList(n["args"])[0])["body"])
+				args = "(" + templateBodyText(body, uni, "") + ")"
+			}
 		}
 		receiver := templateObj(n["receiver"])
 		text := p(receiver)
@@ -213,6 +217,9 @@ func templateCanonical(n templateObject, uni *unicodeTable) string {
 	panic(fmt.Sprintf("unprintable argument %v", n))
 }
 func templateBodyText(n templateObject, uni *unicodeTable, parent string) string {
+	if n["remainder"] == true {
+		return "…"
+	}
 	priority := map[string]int{"seq": 3, "and": 2, "choice": 1, "ranked": 1}
 	for _, pair := range [][2]string{{"seq", " "}, {"and", " & "}, {"choice", " | "}, {"ranked", " ≻ "}} {
 		if n[pair[0]] != nil {

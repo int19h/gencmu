@@ -234,7 +234,7 @@ func restoreSourceLocations(to, from *domDoc) {
 				a.At = b.At
 			}
 			terms(a.Items, b.Items)
-			pending = append(pending, pair{a.Call, b.Call}, pair{a.Cond, b.Cond}, pair{a.Pattern, b.Pattern})
+			pending = append(pending, pair{a.Call, b.Call}, pair{a.Cond, b.Cond}, pair{a.Pattern, b.Pattern}, pair{a.Body, b.Body})
 		case *domCond:
 			b, ok := current.source.(*domCond)
 			if !ok || a == nil || b == nil || a.Kind != b.Kind {

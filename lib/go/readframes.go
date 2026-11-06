@@ -796,6 +796,9 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		return give(&domCond{Kind: cdNot, Inner: in.(*domCond)})
 	}
 	t := in.(*domTerm)
+	if t.Str == "parse" || t.Str == "error-free" {
+		return give(&domCond{Kind: cdForest, Left: t})
+	}
 	if t.Str == "ends-input" {
 		return give(&domCond{Kind: cdEnd, Span: t.Items[0]})
 	}

@@ -870,6 +870,10 @@ func (x *templateExpander) substitute(root any, env map[string]templateObject, e
 			if k == "at" {
 				continue
 			}
+			if k == "body" && n["body"] != nil {
+				r[k] = x.substitute(v, env, e, "expr")
+				continue
+			}
 			if k == "args" && n["call"] != nil {
 				r[k] = x.substitute(v, env, e, "arg")
 				continue

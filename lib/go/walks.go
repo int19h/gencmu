@@ -16,6 +16,11 @@ type clausePart struct {
 func (p clausePart) children() []clausePart {
 	var out []clausePart
 	if p.t != nil {
+		if p.t.Kind == tmBody {
+			for _, term := range queryTerms(p.t.Body) {
+				out = append(out, clausePart{t: term})
+			}
+		}
 		if p.t.Kind == tmPattern {
 			walkPattern(p.t.Pattern, func(n *domPattern) {
 				if n.Kind == "constant" {

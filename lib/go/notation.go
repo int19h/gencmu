@@ -296,7 +296,7 @@ var domRules = map[string]bool{
 	"child-path":         true,
 	"child-primary":      true,
 
-	"splice": true, "error-clause": true, "warning-clause": true, "suppress-warnings-clause": true, "suppression-code": true, "call": true, "parameter": true, "call-argument": true, "requirement-argument": true, "target-argument": true, "body-argument": true, "symbol-argument": true,
+	"splice": true, "error-clause": true, "warning-clause": true, "suppress-warnings-clause": true, "suppression-code": true, "call": true, "parameter": true, "call-argument": true, "requirement-argument": true, "target-argument": true, "body-argument": true, "symbol-argument": true, "parse-selector": true, "parse-argument": true,
 
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
 	"directive": true, "ranking-directive": true, "ranking-step": true, "rule": true, "definer": true, "alternative": true, "choice": true, "ranked-alternative": true, "ranked-choice": true,

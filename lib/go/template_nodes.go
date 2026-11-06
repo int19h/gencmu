@@ -157,6 +157,16 @@ func templateNormalize(root any, patterns ...map[string]bool) any {
 		}
 		out := templateObject{}
 		for k, v := range n {
+			if k == "args" && n["method"] == "parse" {
+				arguments := []any{}
+				for _, raw := range templateList(v) {
+					argument := templateCopy(templateObj(raw))
+					argument["body"] = templateNormalize(argument["body"], patterns...)
+					arguments = append(arguments, argument)
+				}
+				out[k] = arguments
+				continue
+			}
 			out[k] = templateNormalize(v, patterns...)
 			if k == "union" || k == "concat" || k == "intersection" && templatePatternTerm(n, patterns...) {
 				if items, ok := out[k].([]any); ok {

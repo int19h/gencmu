@@ -461,6 +461,7 @@ func directiveOperandsOK(dir *domDirective) bool {
 }
 
 type domChecker struct {
+	parseBody       bool
 	expanded        bool
 	parameters      map[string]bool
 	unresolved      bool
@@ -655,6 +656,10 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed, chain, item, ran
 			c.fail("%s", problem)
 		}
 	case exEmpty:
+	case exRemainder:
+		if !c.parseBody {
+			c.fail("a remainder stands at one outer edge of a parse argument")
+		}
 	default:
 		c.fail("an unknown expression %q", e.Kind)
 	}
@@ -1371,6 +1376,27 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		return
 	}
 	switch t.Kind {
+	case tmBody:
+		if !c.parseBody || !argument {
+			c.fail("a body stands only in a parse argument")
+			return
+		}
+		core, _, problem := queryBody(t.Body)
+		if problem != "" {
+			c.fail("%s", problem)
+			return
+		}
+		if queryCapture(core) != nil {
+			c.fail("a parse argument cannot declare captures")
+			return
+		}
+		nested := false
+		walkQueryBody(core, func(expr *domExpr) bool { nested = nested || expr.Kind == exRemainder; return !nested }, func() bool { return !nested })
+		if nested {
+			c.fail("a remainder stands at one outer edge of a parse argument")
+			return
+		}
+		c.expr(t.Body, depth+1, true, false, false, false, false)
 	case tmString:
 		if !utf8.ValidString(t.Str) {
 			c.fail("a string is not valid UTF-8")
@@ -1497,6 +1523,21 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		}
 		var ok bool
 		switch t.Str {
+		case "parse":
+			ok = len(args) == 2 && isSpanShape(args[0]) && args[1] != nil && args[1].Kind == tmBody
+			if ok {
+				_, mode, problem := queryBody(args[1].Body)
+				if problem != "" {
+					c.fail("%s", problem)
+					return
+				}
+				if mode == cdEnds && restoredTerm(args[0]) {
+					c.fail("suffix parse requires an ordinary span, not a restored span")
+					return
+				}
+			}
+		case "error-free":
+			ok = len(args) == 1 && (forestTerm(args[0]) || unresolvedTerm(args[0]))
 		case "emitted", "verbatim-text":
 			ok = false
 		case "without-elision-except":
@@ -1529,6 +1570,13 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			return
 		}
 		for _, a := range args {
+			if a.Kind == tmBody && t.Str == "parse" {
+				previous := c.parseBody
+				c.parseBody = true
+				c.term(a, depth+1, true)
+				c.parseBody = previous
+				continue
+			}
 			if unresolvedTerm(a) {
 				c.term(a, depth+1, true)
 			} else if isRule(a) || isClassifier(a) || a.Kind == tmInteger {
@@ -1559,6 +1607,12 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		return
 	}
 	switch d.Kind {
+	case cdForest:
+		if !forestTerm(d.Left) {
+			c.fail("a condition requires a forest")
+			return
+		}
+		c.term(d.Left, depth+1, false)
 	case cdCompare:
 		switch d.Op {
 		case "=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇":
@@ -1769,9 +1823,11 @@ const (
 	tySet
 	tyAny
 	tyPattern
+	tyForest
+	tyBody
 )
 
-var typeNames = map[termType]string{tyPattern: "a tree pattern", tyString: "a string", tyStrings: "a set of strings", tyTags: "a tag set", tySpan: "a span", tySet: "a set", tyAny: "a value"}
+var typeNames = map[termType]string{tyBody: "a parse body", tyForest: "a forest", tyPattern: "a tree pattern", tyString: "a string", tyStrings: "a set of strings", tyTags: "a tag set", tySpan: "a span", tySet: "a set", tyAny: "a value"}
 
 const spanNotValue = "a span is not a value: $x.tags is the tag set of $x"
 
@@ -1799,6 +1855,8 @@ func isSetType(t termType) bool { return t == tyStrings || t == tyTags || t == t
 // callType is the type of the value a function gives.
 func callType(name string) termType {
 	switch name {
+	case "parse", "error-free":
+		return tyForest
 	case "value", "image", "source-text", "decomposed-source-text", "verbatim-text":
 		return tyString
 	case "split", "ngrams":
@@ -2017,6 +2075,13 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 		w.readerSteps.add("reader steps")
 	}
 	switch t.Kind {
+	case tmBody:
+		for _, term := range queryTerms(t.Body) {
+			if _, fault := termTypeMemo(term, ct, memo); fault != nil {
+				return 0, fault
+			}
+		}
+		return tyBody, nil
 	case tmParam, tmSourceCall:
 		return tyAny, nil
 	case tmPattern:
@@ -2138,6 +2203,9 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 					return 0, &typeFault{"a method has the wrong receiver or arguments", t}
 				}
 			}
+			if t.Str == "error-free" && ty != tyForest && ty != tyAny {
+				return 0, &typeFault{"error-free requires a forest", t}
+			}
 		}
 		return callType(t.Str), nil
 	}
@@ -2176,6 +2244,14 @@ func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 		w.readerSteps.add("reader steps")
 	}
 	switch c.Kind {
+	case cdForest:
+		ty, fault := termTypeMemo(c.Left, ct, memo)
+		if fault != nil {
+			return fault
+		}
+		if ty != tyForest && ty != tyAny {
+			return &typeFault{"a condition requires a forest", c}
+		}
 	case cdAny, cdAll, cdIf:
 		for _, it := range c.Items {
 			if f := condTypeMemo(it, ct, memo); f != nil {
