@@ -628,7 +628,7 @@ The trailing clause order is conditions, diagnostic, suppression, then emission 
 
 Reports follow the chosen derivation before spliced nodes disappear, parent before children and siblings in order. Spliced and empty warning occurrences retain their positions. The engine evaluates each selected message once after choice, before emission and carrier assignment. Disabled and suppressed warnings evaluate none.
 
-A failed message gives a `grammar` result with the chosen verdict, a null tree, and no output. The failure retains evaluated own messages, carried input diagnostics, and earlier stage-level diagnostics. Earlier stage outputs remain available (engine §12.1).
+A failed message gives a `grammar` result with the chosen verdict, a null tree, and no output. The failure retains evaluated own messages outside erased subtrees, carried input diagnostics, and earlier stage-level diagnostics. Earlier stage outputs remain available (engine §12.1).
 
 Message recipes read captures and `$`, with string methods and `++`. They cannot query, read `.emitted`, or read absent, item, or private ranked captures. Recognition and ranking evaluate no messages.
 

@@ -137,7 +137,7 @@ A `reported` result keeps the chosen tree, its `unique` or `resolved` verdict, a
 
 `until` selects the reporting stage. For example, inspection through forms reports surviving forms errors while preserving the emitted forms tokens. A tie lists errors and warnings from its two shown readings. Rejection, feature-conflict, and grammar envelopes also retain diagnostics under engine §12.1.
 
-Every other error result has a null `tree`. If a message recipe fails, the stage keeps its verdict and gives a `grammar` result. It has no output. Its envelope retains pending stage-level diagnostics, evaluated own messages, and carried input diagnostics under engine §12.1. Earlier stage outputs remain.
+Every other error result has a null `tree`. If a message recipe fails, the stage keeps its verdict and gives a `grammar` result. It has no output. Its envelope retains pending stage-level diagnostics, evaluated own messages outside erased subtrees, and carried input diagnostics under engine §12.1. Earlier stage outputs remain.
 
 The result also has `features`, the enabled feature names in code point order, without duplicates. This field stays outside canonical JSON. Go calls it `Features`.
 

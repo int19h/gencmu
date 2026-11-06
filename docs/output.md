@@ -28,7 +28,7 @@ General-category tags use long names in token tags, node tags, terminals, expect
 
 A `reported` result retains the chosen tree. With `ok:true`, `error` is `null`. With no parse warning, `warnings` is absent (engine §12, §13).
 
-If a message recipe fails, its error has kind `grammar`. The result has a null tree and no failed-stage output. The stage retains its verdict. Its failure collects pending stage-level diagnostics, evaluated own messages, and carried input diagnostics under engine §12.1. Earlier outputs remain available.
+If a message recipe fails, its error has kind `grammar`. The result has a null tree and no failed-stage output. The stage retains its verdict. Its failure collects pending stage-level diagnostics, evaluated own messages outside erased subtrees, and carried input diagnostics under engine §12.1. Earlier outputs remain available.
 
 A stage has one of these forms:
 
@@ -167,7 +167,7 @@ A rejection can also name a failed boundary condition:
 
 Diagnostic arrays in error envelopes are optional. Empty arrays are absent. A `rejected` envelope orders members as `kind, stage, token, source, line, column, expected, boundary, errors, warnings, message`. It collects pending stage-level diagnostics, then input diagnostics through its furthest token, including that token. It has no stage output.
 
-A `feature-conflict` envelope orders `kind`, `stage`, `feature`, `errors`, `warnings`, `message`. A `grammar` envelope orders `kind`, `stage`, `code`, `errors`, `warnings`, `message`, `chosen`, `completion`. Optional members retain these positions. Both collect the whole failed-stage input, without a rejection cutoff. A grammar failure after choice inserts evaluated own-stage messages before that carried list and after pending earlier stage-level diagnostics.
+A `feature-conflict` envelope orders `kind`, `stage`, `feature`, `errors`, `warnings`, `message`. A `grammar` envelope orders `kind`, `stage`, `code`, `errors`, `warnings`, `message`, `chosen`, `completion`. Optional members retain these positions. Both collect the whole failed-stage input, without a rejection cutoff. A grammar failure after choice inserts evaluated own-stage messages outside erased subtrees before that carried list and after pending earlier stage-level diagnostics.
 
 For these three envelopes, `warnings` equals the result's complete warning collection. A `reported` envelope has `kind`, `stage`, `errors`, `message`, with warnings only at result level. A tie envelope has `kind`, `stage`, `reason`, `readings`, optional `errors`, then `message`. An elision-only envelope has `kind`, `stage`, `reason`, `readings`, `witness`, `message`, with no `errors` member. Its warnings also remain at result level.
 

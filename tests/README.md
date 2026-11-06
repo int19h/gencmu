@@ -200,7 +200,7 @@ Cases preserve the shared pause and foreign readings for the seven No explicit r
 An invariant is a required property of every result. Every runner also makes sure that each canonical result meets these invariants, whatever the case expects. A case cannot turn them off, and its pattern need not repeat them:
 
 - Every error result except `reported` has a null `tree`, including message, emission, and elision-check failures after choice.
-- A message recipe failure keeps the stage verdict and has no output. Its grammar envelope retains evaluated own messages, carried input diagnostics, and pending earlier stage-level diagnostics.
+- A message recipe failure keeps the stage verdict and has no output. Its grammar envelope retains evaluated own messages outside erased subtrees, carried input diagnostics, and pending earlier stage-level diagnostics.
 - Verdicts and summary totals count only derivations with the best three-part blame measure. Worse-measure readings do not change the verdict. Erased interiors collapse as engine §6 defines, while distinct outer routes remain distinct. No counted error, including a pending stage-level error, permits `elision-only`.
 - An error of kind `ambiguous` has no member `token` and no member `source`.
 - An error has no member `cycle`, `conflict`, or `chosenReading`.

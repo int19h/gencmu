@@ -3824,7 +3824,7 @@ A diagnostic stores `stage`, `code`, `rule`, `span`, `source`, and `message`, fo
 
 After choice, the stage evaluates each own-stage diagnostic message once from its occurrence and captures. A tie evaluates its first reading and then its second, with own identities scoped by reading. Evaluation follows preorder before splice omission, including chosen erased subtrees whose diagnostics the owner walk subsequently drops. Disabled and suppressed warnings evaluate no message. The recipe follows §11.3 but excludes `.emitted`, queries, and absent, item, or private ranked captures.
 
-A message failure gives `grammar`, retains the verdict, and prevents emission and reconstruction. Previously evaluated messages remain available under the failure collection below. No message recipe can fail in the present recipe language. This failure rule is a guard.
+A message failure gives `grammar`, retains the verdict, and prevents emission and reconstruction. Previously evaluated messages outside erased subtrees remain available under the failure collection below. No message recipe can fail in the present recipe language. This failure rule is a guard.
 
 Suppression applies to the raising stage's own warning occurrences under its owning rule, including that rule and spliced calls. Nested suppression sets unite. `_` suppresses all warnings, and a disabled warning stays disabled. Suppression neither removes carried warnings from earlier stages nor affects errors, measures, recognition, ranking, or emission. Templates pass suppression to each instance.
 
@@ -3841,7 +3841,7 @@ Every ending first includes the pending stage-level diagnostics of earlier stage
 - `rejected`: No complete derivation exists. Collect carried diagnostics in input-token order through the furthest token, including that token. At input end, include every token. These are input facts, independent of a chosen reading. The result has no failed-stage output.
 - `ambiguous`, reason `tie`: Collect the two shown readings as below. Keep the tie verdict and stage witness, with a null result tree and no output. No later stage runs.
 - `ambiguous`, reason `elision-only`: Use the `ok` warning collection over the chosen derivation. No error counts, including at stage level, so the envelope has no `errors` member. Keep stage output.
-- `feature-conflict` or `grammar`: Collect carried diagnostics over the whole failed-stage input in token order. For a grammar failure after choice, insert evaluated own-stage diagnostics after pending stage-level diagnostics and before the carried list. The `grammar` ending omits evaluated own-stage diagnostics from erased subtrees. Their order is the chosen preorder, or the two readings' evaluation order for a tie. These failures have no failed-stage output and a null result tree.
+- `feature-conflict` or `grammar`: Collect carried diagnostics over the whole failed-stage input in token order. For a grammar failure after choice, insert evaluated own-stage diagnostics after pending stage-level diagnostics and before the carried list. Their order is the chosen preorder, or the two readings' evaluation order for a tie. The `grammar` ending omits evaluated own-stage diagnostics from erased subtrees. These failures have no failed-stage output and a null result tree.
 
 A failure's `errors` and `warnings` members use the envelope rules of `docs/output.md`. The result's `warnings` also contains its complete warning collection. Warning controls change neither recognition nor the selected derivation.
 
