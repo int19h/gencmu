@@ -41,15 +41,13 @@ The words stage drops hesitation outside opaque bodies, except before BU. That e
 
 A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus.
 
-The rule for `m` applies `letter-ban` and rejects another `m`, but permits `z` and a glide. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
+This layer adds the pair `mz` to the shared table of its own stitched pipeline.
+
+Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 
 ```jbogenbau
-%redefine-rule m = consonant-letter("m", m)              (* The consonant m forbids an apostrophe and another m. It permits z and a glide. *)
+%redefine-const $PERMISSIBLE $PERMISSIBLE ∪ "mz"
 ```
-
-<details><summary>Railroad diagram of <code>m</code></summary>
-<p><img src="../../../docs/diagrams/lojban/experimental/morphology/m.svg" alt="Railroad diagram of the rule m"></p>
-</details>
 
 ## Consonants before glides
 
@@ -88,13 +86,10 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 %rule cgv-onset  (* The nonempty consonant initial precedes one glide. The glide requires a following nucleus. *)
   cgv-initial glide
 
-%rule cgv-initial  (* Affricates differ from initial-parts in their consonant order. Both forms require the last consonant before the glide, and initial-parts cannot be empty. *)
-  | $a:affricate
-  | $p:initial-parts
+%rule cgv-initial  (* A CgV onset begins with the shared initial cluster. The cluster is not empty, and no consonant follows it. *)
+  $c:initial-cluster
 %conditions
-  ¬$a.following-tokens.begins(consonant),
-  ¬$p.following-tokens.begins(consonant),
-  $p.value ≠ ""
+  ¬$c.following-tokens.begins(consonant)
 
 %redefine-rule fuhivla  (* Only a complete CgV borrowing bypasses the rafsi-string exclusion. The initial-rafsi conditions exclude the competing compound, while the cluster and continuation tests constrain the borrowing. *)
   $b:brivla-head stressed-syllable [{consonantal-syllable}] final-syllable

@@ -17,7 +17,7 @@ The rules map Cyrillic letters to their Lojban phonemes. The consonant mappings 
 - The palochka `ӏ` as a period
 
 ```jbogenbau
-%rule cyrillic-consonant :: ∅
+%rule cyrillic-consonant :: Consonant
   | ("б" | "Б") := "b"
   | ("ш" | "Ш" | "щ" | "Щ") := "c"
   | ("д" | "Д") := "d"
@@ -61,47 +61,47 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
 
 ```jbogenbau
 %rule cyrillic-plain-vowel
-  | "а" :: Syllabic := "a"
-  | ("е" | "э" | "є") :: Syllabic := "e"
-  | ("и" | "і") :: Syllabic := "i"
-  | "о" :: Syllabic := "o"
-  | "у" :: Syllabic := "u"
+  | "а" :: Syllabic ∪ Vowel := "a"
+  | ("е" | "э" | "є") :: Syllabic ∪ Vowel := "e"
+  | ("и" | "і") :: Syllabic ∪ Vowel := "i"
+  | "о" :: Syllabic ∪ Vowel := "o"
+  | "у" :: Syllabic ∪ Vowel := "u"
   | ("ъ" | "ы" | "ә") :: Syllabic := "y"
-  | (("и" | "И") glide-mark | "ј" | "Ј") :: ∅ := "i"
-  | ("у" | "У") glide-mark :: ∅ := "u"
+  | (("и" | "И") glide-mark | "ј" | "Ј") :: Vowel := "i"
+  | ("у" | "У") glide-mark :: Vowel := "u"
 %emits
   $
 
 %rule cyrillic-stressed-vowel :: Stressed ∪ Syllabic
-  | "А" := "a" :- "A"
-  | ("а" | "А") stress-mark := "a" :- "A"
-  | ("Е" | "Э" | "Є") := "e" :- "E"
-  | ("е" | "э" | "є" | "Е" | "Э" | "Є") stress-mark := "e" :- "E"
-  | ("И" | "І") := "i" :- "I"
-  | ("и" | "і" | "И" | "І") stress-mark := "i" :- "I"
-  | "О" := "o" :- "O"
-  | ("о" | "О") stress-mark := "o" :- "O"
-  | "У" := "u" :- "U"
-  | ("у" | "У") stress-mark := "u" :- "U"
+  | "А" :: Vowel := "a" :- "A"
+  | ("а" | "А") stress-mark :: Vowel := "a" :- "A"
+  | ("Е" | "Э" | "Є") :: Vowel := "e" :- "E"
+  | ("е" | "э" | "є" | "Е" | "Э" | "Є") stress-mark :: Vowel := "e" :- "E"
+  | ("И" | "І") :: Vowel := "i" :- "I"
+  | ("и" | "і" | "И" | "І") stress-mark :: Vowel := "i" :- "I"
+  | "О" :: Vowel := "o" :- "O"
+  | ("о" | "О") stress-mark :: Vowel := "o" :- "O"
+  | "У" :: Vowel := "u" :- "U"
+  | ("у" | "У") stress-mark :: Vowel := "u" :- "U"
   | ("Ъ" | "Ы" | "Ә") := "y" :- "Y"
   | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark := "y" :- "Y"
 %emits
   $
 
 %rule cyrillic-folded-vowel
-  | "А" :: Syllabic := "a"
-  | ("Е" | "Э" | "Є") :: Syllabic := "e"
-  | ("И" | "І") :: Syllabic := "i"
-  | "О" :: Syllabic := "o"
-  | "У" :: Syllabic := "u"
+  | "А" :: Syllabic ∪ Vowel := "a"
+  | ("Е" | "Э" | "Є") :: Syllabic ∪ Vowel := "e"
+  | ("И" | "І") :: Syllabic ∪ Vowel := "i"
+  | "О" :: Syllabic ∪ Vowel := "o"
+  | "У" :: Syllabic ∪ Vowel := "u"
   | ("Ъ" | "Ы" | "Ә") :: Syllabic := "y"
-  | ("И" glide-mark | "Ј") :: ∅ := "i"
-  | "У" glide-mark :: ∅ := "u"
-  | "А" stress-mark :: Stressed ∪ Syllabic := "a" :- "A"
-  | ("Е" | "Э" | "Є") stress-mark :: Stressed ∪ Syllabic := "e" :- "E"
-  | ("И" | "І") stress-mark :: Stressed ∪ Syllabic := "i" :- "I"
-  | "О" stress-mark :: Stressed ∪ Syllabic := "o" :- "O"
-  | "У" stress-mark :: Stressed ∪ Syllabic := "u" :- "U"
+  | ("И" glide-mark | "Ј") :: Vowel := "i"
+  | "У" glide-mark :: Vowel := "u"
+  | "А" stress-mark :: Stressed ∪ Syllabic ∪ Vowel := "a" :- "A"
+  | ("Е" | "Э" | "Є") stress-mark :: Stressed ∪ Syllabic ∪ Vowel := "e" :- "E"
+  | ("И" | "І") stress-mark :: Stressed ∪ Syllabic ∪ Vowel := "i" :- "I"
+  | "О" stress-mark :: Stressed ∪ Syllabic ∪ Vowel := "o" :- "O"
+  | "У" stress-mark :: Stressed ∪ Syllabic ∪ Vowel := "u" :- "U"
   | ("Ъ" | "Ы" | "Ә") stress-mark :: Stressed ∪ Syllabic := "y" :- "Y"
 %emits
   $

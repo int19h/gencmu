@@ -20,7 +20,9 @@
               "text": "0",
               "value": "n",
               "image": "n",
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "span": [
                 0,
                 1
@@ -34,7 +36,9 @@
               "text": "",
               "value": "o",
               "image": "o",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "span": [
                 1,
                 1

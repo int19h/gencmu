@@ -14,6 +14,12 @@ The terminals of the stage are exact strings, such as `"a"`, scalar ranges, such
 
 The stage emits phoneme values and images for every script. A tag marks a token by an identifier. Consonant and vowel values are lowercase. A stressed vowel carries `Stressed`, and its image shows the stress as a capital vowel. The forms stage receives these values, images, and tags directly.
 
+Each consonant token carries the tag `Consonant`.
+
+Each vowel token with value `a`, `e`, `i`, `o` or `u` carries the tag `Vowel`.
+
+The letter `y` carries neither tag.
+
 The phoneme values are the letters of CLL[^cll-c3]:
 
 - The consonants `"b"`, `"c"`, `"d"` and so on through `"z"`
@@ -247,7 +253,7 @@ Names can stress any syllable.[^cll-s3-9][^cll-s4-8] A cmavo is a particle. Cmav
 CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does not write the apostrophe. This stage treats `h` as foreign text. [../common/latin.md](../common/latin.md) reads `h` as the apostrophe.
 
 ```jbogenbau
-%rule consonant :: ∅
+%rule consonant :: Consonant
   | ("b" | "B") := "b"
   | ("c" | "C") := "c"
   | ("d" | "D") := "d"
@@ -269,16 +275,16 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
   $
 
 %rule plain-vowel :: ∅
-  | "a" | "e" | "i" | "o" | "u" | "y"
+  | "a" :: Vowel | "e" :: Vowel | "i" :: Vowel | "o" :: Vowel | "u" :: Vowel | "y"
 %emits
   $
 
 %rule stressed-vowel-with(@A, @E, @I, @O, @U, @Y) :: Stressed
-  | @A := "a" :- "A"
-  | @E := "e" :- "E"
-  | @I := "i" :- "I"
-  | @O := "o" :- "O"
-  | @U := "u" :- "U"
+  | @A :: Vowel := "a" :- "A"
+  | @E :: Vowel := "e" :- "E"
+  | @I :: Vowel := "i" :- "I"
+  | @O :: Vowel := "o" :- "O"
+  | @U :: Vowel := "u" :- "U"
   | @Y := "y" :- "Y"
 %emits
   $

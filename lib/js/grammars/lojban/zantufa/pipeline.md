@@ -57,6 +57,10 @@ The syntax is [`syntax.md`](syntax.md), a grammar of its own that translates Zan
   ```jbogenbau
   %include "../common/forms.md"
   ```
+- [Consonant tables](../common/consonant-tables.md): the shared consonant pair tables
+  ```jbogenbau
+  %include "../common/consonant-tables.md"
+  ```
 - [BPFK word forms](../bpfk/morphology.md)
   ```jbogenbau
   %include "../bpfk/morphology.md"

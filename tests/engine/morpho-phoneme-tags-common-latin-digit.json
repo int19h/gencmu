@@ -1,0 +1,46 @@
+{
+  "description": "A digit expansion tags its first letter Consonant and its second letter Vowel.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "2",
+  "options": {
+    "until": "phonemes"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "r",
+              "image": "r",
+              "source": [
+                0,
+                1
+              ],
+              "tags": [
+                "Consonant"
+              ]
+            },
+            {
+              "value": "e",
+              "image": "e",
+              "source": [
+                1,
+                1
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

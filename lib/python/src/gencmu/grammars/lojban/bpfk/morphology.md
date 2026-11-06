@@ -506,9 +506,9 @@ A long CCVCV form leaves a consonant after its CCV prefix, where the shorter bra
 %rule cvv-body                (* `unstressed_vowel h unstressed_vowel / unstressed_diphthong`. The second letter is an apostrophe in one form and a vowel in the other. *)
   unstressed-vowel h unstressed-vowel | unstressed-diphthong
 
-%rule r-hyphen  (* The hyphen is r before a consonant, or n before r. A following rafsi cannot begin with either resulting pair. *)
-  | $r:r
-  | $n:n
+%rule r-hyphen  (* The hyphen is r before a consonant, or n before r. Each letter reads as a full consonant, so its pair with the next letter must stand in the table. *)
+  | $r:consonant="r"
+  | $n:consonant="n"
 %conditions
   $r.following-tokens.begins(consonant),
   $n.following-tokens.begins(r)
@@ -757,129 +757,144 @@ A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `
 
 ## Consonants
 
-An initial pair is two consonants that can begin a word. `initial` says which: an affricate, or a sibilant, another consonant and a liquid, each optional, where no consonant or glide follows. An affricate joins a stopped sound with friction. A sibilant is a hissing consonant. The liquids here are `l` and `r`.
+An initial pair is two consonants that can begin a word.
+
+`initial` reads a cluster where each pair of neighbours stands in `$INITIAL`.
+
+An affricate can stand only as the whole cluster.
+
+That limit is a departure from CLL 4.7, and the closing section lists it.
+
+A sibilant, another consonant and a liquid give the usual shape of a long cluster.
+
+One prose sentence states that shape here, and the table states the law.
+
+No consonant or glide can follow the cluster, and the empty onset always stands.
+
+The pair law reads raw consonant tokens against `$PERMISSIBLE`.
+
+The old letter rules read each consonant through its own rule.
+
+The two laws can differ on one consonant query inside a bad run, as in `btb`.
+
+They give the same words, because each consonant of a divided run passes its own test.
+
+A run with a consonant that fails stays foreign under both laws.
+
+The `bu` test is the only lookahead that leaves a run.
+
+Its `post-word` chain reads whole words, so it reads each letter of the run.
 
 ```jbogenbau
 %rule cluster                 (* `cluster <- consonant consonant+`. The first two consonants decide this lookahead. *)
   consonant consonant
 
-%rule initial-pair  (* An initial pair starts a legal initial and contains exactly two consonants. *)
-  $a:consonant $b:consonant
+%rule initial-pair  (* An initial pair is in $INITIAL, and no third consonant follows it. *)
+  consonant consonant
 %conditions
-  $a.onward.begins(initial),
-  ¬$b.following-tokens.begins(consonant)
+  $.value ∈ $INITIAL,
+  ¬$.following-tokens.begins(consonant)
 
-%rule initial  (* An initial ends before any next consonant or glide. The parts branch leaves an affricate's second consonant, so only the affricate branch completes. *)
-  | $a:affricate
-  | $p:initial-parts
+%rule initial  (* An initial is a cluster from the table, or no consonant at all. No consonant or glide follows it. *)
+  [initial-cluster]
 %conditions
-  ¬$a.following-tokens.begins(consonant | glide),
-  ¬$p.following-tokens.begins(consonant | glide)
+  ¬$.following-tokens.begins(consonant | glide)
 
-%rule initial-parts  (* Each initial part is optional. Leaving any available consonant unread fails the final consonant exclusion of initial. *)
-  [sibilant] [other] [liquid]
-
-%rule affricate               (* `affricate <- t c / t s / d j / d z`. The forms differ in their first or second letter. *)
-  t c | t s | d j | d z
-
-%rule liquid                  (* liquid <- l / r *)
-  l | r
-
-%rule other  (* The other initial consonants forbid tl, dl, and n before a liquid. *)
-  | p | $t:t | k | f | x | b | $d:d | g | v | m | $n:n
+%rule initial-cluster  (* Each pair of neighbours is in $INITIAL. An affricate stands only as the whole cluster. *)
+  {consonant}
 %conditions
-  ¬$t.following-tokens.begins(l),
-  ¬$d.following-tokens.begins(l),
-  ¬$n.following-tokens.begins(liquid)
+  $.value.ngrams(2) ⊆ $INITIAL,
+  $.value ∈ $AFFRICATES ∨ $.value.ngrams(2) ∩ $AFFRICATES = ∅
 
-%rule sibilant  (* A sibilant forbids sx, and j or z before n or a liquid. *)
-  | c
-  | $s:s
-  | $j:j-or-z
+%rule affricate  (* An affricate is a pair from $AFFRICATES. *)
+  consonant consonant
 %conditions
-  ¬$s.following-tokens.begins(x),
-  ¬$j.following-tokens.begins(n | liquid)
+  $.value ∈ $AFFRICATES
 
-%rule j-or-z                  (* j / z *)
-  j | z
+%rule n-affricate  (* The letter n and an affricate after it. *)
+  "n" affricate
 
-%rule consonant               (* consonant <- voiced / unvoiced / syllabic *)
-  voiced | unvoiced | syllabic
+%rule consonant  (* A consonant token cannot stand before a banned sound, an impermissible pair, or n with an affricate. *)
+  $c:_<Consonant>
+%conditions
+  ¬$c.following-tokens.begins(letter-ban),
+  ¬$c.onward.begins(impermissible-pair),
+  ¬$c.onward.begins(n-affricate)
 
-%rule syllabic                (* syllabic <- l / m / n / r *)
-  l | m | n | r
+%rule impermissible-pair  (* Two raw consonant tokens whose pair is outside $PERMISSIBLE. Only a lookahead. *)
+  _<Consonant> _<Consonant>
+%conditions
+  $.value ∉ $PERMISSIBLE
 
-%rule voiced                  (* voiced <- b / d / g / j / v / z *)
-  b | d | g | j | v | z
+%const $SYLLABIC-CONSONANTS
+  "l" "m" "n" "r"
 
-%rule unvoiced                (* unvoiced <- c / f / k / p / s / t / x *)
-  c | f | k | p | s | t | x
+%rule syllabic  (* A syllabic consonant is a consonant token with one of the four syllabic values. *)
+  _<Consonant>
+%conditions
+  $.value ∈ $SYLLABIC-CONSONANTS
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>cluster</code> to <code>unvoiced</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>cluster</code> to <code>syllabic</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cluster.svg" alt="Railroad diagram of the rule cluster"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/initial-pair.svg" alt="Railroad diagram of the rule initial-pair"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/initial.svg" alt="Railroad diagram of the rule initial"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/initial-parts.svg" alt="Railroad diagram of the rule initial-parts"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/initial-cluster.svg" alt="Railroad diagram of the rule initial-cluster"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/affricate.svg" alt="Railroad diagram of the rule affricate"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/liquid.svg" alt="Railroad diagram of the rule liquid"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/other.svg" alt="Railroad diagram of the rule other"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/sibilant.svg" alt="Railroad diagram of the rule sibilant"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/j-or-z.svg" alt="Railroad diagram of the rule j-or-z"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/n-affricate.svg" alt="Railroad diagram of the rule n-affricate"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/impermissible-pair.svg" alt="Railroad diagram of the rule impermissible-pair"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/syllabic.svg" alt="Railroad diagram of the rule syllabic"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/voiced.svg" alt="Railroad diagram of the rule voiced"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/unvoiced.svg" alt="Railroad diagram of the rule unvoiced"></p>
 </details>
 
 
 
-The `letter-ban` hook reads a following syllable-initial apostrophe or glide. Each consonant letter refuses what it reads and the same consonant. Each voiced or unvoiced letter also refuses consonants of the other voicing, and some letters refuse other letters, as CLL[^cll-s3-6] says.
+The `letter-ban` hook reads a following syllable-initial apostrophe or glide.
 
-The `consonant-letter` template takes the character and its forbidden targets. Each letter keeps its reference name through a named instance.
+The pair table and this hook state the whole consonant law of CLL[^cll-s3-6].
+
+A named letter rule reads one consonant token with that value.
 
 ```jbogenbau
 %rule letter-ban  (* Consonant letters cannot precede a syllable-initial apostrophe or glide. *)
   h | glide
 
-%rule consonant-letter(@S, @B)
-  $c:@S
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | @B)
+%rule consonant-letter(@S)
+  @S<Consonant>
 
-%rule l = consonant-letter("l", l)  (* This consonant applies the shared letter ban and forbids a repeated letter. *)
+%rule l = consonant-letter("l")  (* The consonant l. *)
 
-%rule m = consonant-letter("m", m | z)  (* This consonant applies the shared letter ban and forbids a repeated letter. It forbids z. *)
+%rule m = consonant-letter("m")  (* The consonant m. *)
 
-%rule n = consonant-letter("n", n | affricate)  (* This consonant applies the shared letter ban and forbids a repeated letter. It forbids an affricate. *)
+%rule n = consonant-letter("n")  (* The consonant n. *)
 
-%rule r = consonant-letter("r", r)  (* This consonant applies the shared letter ban and forbids a repeated letter. *)
+%rule r = consonant-letter("r")  (* The consonant r. *)
 
-%rule b = consonant-letter("b", b | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
+%rule b = consonant-letter("b")  (* The consonant b. *)
 
-%rule d = consonant-letter("d", d | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
+%rule d = consonant-letter("d")  (* The consonant d. *)
 
-%rule g = consonant-letter("g", g | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
+%rule g = consonant-letter("g")  (* The consonant g. *)
 
-%rule v = consonant-letter("v", v | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
+%rule v = consonant-letter("v")  (* The consonant v. *)
 
-%rule j = consonant-letter("j", j | z | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids z. *)
+%rule j = consonant-letter("j")  (* The consonant j. *)
 
-%rule z = consonant-letter("z", z | j | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids j. *)
+%rule z = consonant-letter("z")  (* The consonant z. *)
 
-%rule s = consonant-letter("s", s | c | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c. *)
+%rule s = consonant-letter("s")  (* The consonant s. *)
 
-%rule c = consonant-letter("c", c | s | x | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids s and x. *)
+%rule c = consonant-letter("c")  (* The consonant c. *)
 
-%rule x = consonant-letter("x", x | c | k | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c and k. *)
+%rule x = consonant-letter("x")  (* The consonant x. *)
 
-%rule k = consonant-letter("k", k | x | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids x. *)
+%rule k = consonant-letter("k")  (* The consonant k. *)
 
-%rule f = consonant-letter("f", f | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
+%rule f = consonant-letter("f")  (* The consonant f. *)
 
-%rule p = consonant-letter("p", p | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
+%rule p = consonant-letter("p")  (* The consonant p. *)
 
-%rule t = consonant-letter("t", t | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
+%rule t = consonant-letter("t")  (* The consonant t. *)
 ```
 
 <details><summary>Railroad diagrams of the 19 rules from <code>letter-ban</code> to <code>t</code></summary>

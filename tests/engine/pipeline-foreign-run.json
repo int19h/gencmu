@@ -20,7 +20,9 @@
               "text": "z",
               "value": "z",
               "image": "z",
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "span": [
                 0,
                 1
@@ -34,7 +36,9 @@
               "text": "o",
               "value": "o",
               "image": "o",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "span": [
                 1,
                 2
@@ -48,7 +52,9 @@
               "text": "i",
               "value": "i",
               "image": "i",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "span": [
                 2,
                 3
@@ -78,7 +84,9 @@
               "text": "g",
               "value": "g",
               "image": "g",
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "span": [
                 4,
                 5
@@ -155,7 +163,9 @@
               "text": "g",
               "value": "g",
               "image": "g",
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "span": [
                 13,
                 14

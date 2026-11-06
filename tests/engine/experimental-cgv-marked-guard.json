@@ -20,34 +20,47 @@
               "output": [
                 {
                   "value": "l",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "a",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": "n",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "u",
                   "tags": [
                     "Glide",
-                    "Onglide"
+                    "Onglide",
+                    "Vowel"
                   ]
                 },
                 {
                   "value": "a",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": "g",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "e",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 }
               ]
             },
@@ -87,34 +100,47 @@
               "output": [
                 {
                   "value": "l",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "a",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": "n",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "u",
                   "tags": [
                     "Glide",
-                    "Onglide"
+                    "Onglide",
+                    "Vowel"
                   ]
                 },
                 {
                   "value": "a",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": "g",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "e",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 }
               ]
             },
@@ -151,34 +177,47 @@
               "output": [
                 {
                   "value": "l",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "a",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": "n",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "u",
                   "tags": [
                     "Glide",
-                    "Onglide"
+                    "Onglide",
+                    "Vowel"
                   ]
                 },
                 {
                   "value": "a",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": "g",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "e",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 }
               ]
             },

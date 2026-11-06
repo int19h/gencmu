@@ -23,7 +23,9 @@
                 0,
                 1
               ],
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "text": "m",
               "value": "m"
             },
@@ -37,7 +39,9 @@
                 1,
                 2
               ],
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "text": "i",
               "value": "i"
             },
@@ -85,7 +89,9 @@
                 4,
                 5
               ],
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "text": "z",
               "value": "z"
             },
@@ -99,7 +105,9 @@
                 5,
                 6
               ],
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "text": "o",
               "value": "o"
             },
@@ -127,7 +135,9 @@
                 7,
                 8
               ],
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "text": "o",
               "value": "o"
             },
@@ -141,7 +151,9 @@
                 8,
                 9
               ],
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "text": "i",
               "value": "i"
             },
@@ -171,7 +183,9 @@
                 10,
                 11
               ],
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "text": "f",
               "value": "f"
             },
@@ -185,7 +199,9 @@
                 11,
                 12
               ],
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "text": "o",
               "value": "o"
             },
@@ -199,7 +215,9 @@
                 12,
                 13
               ],
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "text": "o",
               "value": "o"
             },

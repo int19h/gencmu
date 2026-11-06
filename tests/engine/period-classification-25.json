@@ -19,7 +19,9 @@
             {
               "value": "z",
               "image": "z",
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "source": [
                 0,
                 1
@@ -28,7 +30,9 @@
             {
               "value": "o",
               "image": "o",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "source": [
                 1,
                 2
@@ -63,7 +67,9 @@
             {
               "value": "b",
               "image": "b",
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "source": [
                 5,
                 6
@@ -72,7 +78,9 @@
             {
               "value": "r",
               "image": "r",
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "source": [
                 6,
                 7
@@ -81,7 +89,9 @@
             {
               "value": "o",
               "image": "o",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "source": [
                 7,
                 8
@@ -90,7 +100,9 @@
             {
               "value": "d",
               "image": "d",
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "source": [
                 8,
                 9
@@ -99,7 +111,9 @@
             {
               "value": "a",
               "image": "a",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "source": [
                 9,
                 10

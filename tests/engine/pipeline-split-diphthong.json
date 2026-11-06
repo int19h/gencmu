@@ -21,7 +21,8 @@
               "value": "a",
               "image": "A",
               "tags": [
-                "Stressed"
+                "Stressed",
+                "Vowel"
               ],
               "span": [
                 0,
@@ -36,7 +37,9 @@
               "text": "",
               "value": "i",
               "image": "i",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "span": [
                 3,
                 3

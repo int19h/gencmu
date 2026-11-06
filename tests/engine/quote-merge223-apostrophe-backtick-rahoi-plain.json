@@ -20,7 +20,9 @@
                 0,
                 1
               ],
-              "tags": []
+              "tags": [
+                "Consonant"
+              ]
             },
             {
               "image": "a",
@@ -29,7 +31,9 @@
                 1,
                 2
               ],
-              "tags": []
+              "tags": [
+                "Vowel"
+              ]
             },
             {
               "image": "'",
@@ -47,7 +51,9 @@
                 3,
                 4
               ],
-              "tags": []
+              "tags": [
+                "Vowel"
+              ]
             },
             {
               "image": "i",
@@ -56,7 +62,9 @@
                 4,
                 5
               ],
-              "tags": []
+              "tags": [
+                "Vowel"
+              ]
             },
             {
               "image": " ",
@@ -76,7 +84,9 @@
                 6,
                 7
               ],
-              "tags": []
+              "tags": [
+                "Consonant"
+              ]
             },
             {
               "image": "'",
@@ -94,7 +104,9 @@
                 8,
                 9
               ],
-              "tags": []
+              "tags": [
+                "Vowel"
+              ]
             },
             {
               "image": "m",
@@ -103,7 +115,9 @@
                 9,
                 10
               ],
-              "tags": []
+              "tags": [
+                "Consonant"
+              ]
             },
             {
               "image": "o",
@@ -112,7 +126,9 @@
                 10,
                 11
               ],
-              "tags": []
+              "tags": [
+                "Vowel"
+              ]
             },
             {
               "image": "u",
@@ -121,7 +137,9 @@
                 11,
                 12
               ],
-              "tags": []
+              "tags": [
+                "Vowel"
+              ]
             },
             {
               "image": "r",
@@ -130,7 +148,9 @@
                 12,
                 13
               ],
-              "tags": []
+              "tags": [
+                "Consonant"
+              ]
             }
           ]
         },

@@ -245,7 +245,7 @@ A letter rule tests only the marks that mean something on its letter. Any other 
 A Latin consonant takes any marks and ignores them, and so does `h`, the apostrophe (see "Quotation marks"). So `ć` is `c` and `ŝ` is `s`.
 
 ```jbogenbau
-%redefine-rule consonant :: ∅
+%redefine-rule consonant :: Consonant
   | ("b" | "B") [letter-marks] := "b"
   | ("c" | "C") [letter-marks] := "c"
   | ("d" | "D") [letter-marks] := "d"
@@ -289,31 +289,31 @@ A breve on `i` or `u` makes a glide letter, which the next section reads. The vo
 
 ```jbogenbau
 %rule latin-vowel :: ($m ⟹ $m.tags ∩ Dieresis)
-  | "a" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] := "a"
-  | "a" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed := "a" :- "A"
-  | "A" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed Capital Accented := "a" :- "A"
-  | "A" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] :: Stressed Capital := "a" :- "A"
-  | "A" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] :: Folded Capital := "a"
-  | "e" [$m:letter-marks<¬Accent ¬Ogonek>] := "e"
-  | "e" $m:letter-marks<Accent ¬Ogonek> :: Stressed := "e" :- "E"
-  | "E" $m:letter-marks<Accent ¬Ogonek> :: Stressed Capital Accented := "e" :- "E"
-  | "E" [$m:letter-marks<¬Accent ¬Ogonek>] :: Stressed Capital := "e" :- "E"
-  | "E" [$m:letter-marks<¬Accent ¬Ogonek>] :: Folded Capital := "e"
-  | "i" [$m:letter-marks<¬Accent ¬Breve>] := "i"
-  | "i" $m:letter-marks<Accent ¬Breve> :: Stressed := "i" :- "I"
-  | "I" $m:letter-marks<Accent ¬Breve> :: Stressed Capital Accented := "i" :- "I"
-  | "I" [$m:letter-marks<¬Accent ¬Breve>] :: Stressed Capital := "i" :- "I"
-  | "I" [$m:letter-marks<¬Accent ¬Breve>] :: Folded Capital := "i"
-  | "o" [$m:letter-marks<¬Accent ¬Ogonek>] := "o"
-  | "o" $m:letter-marks<Accent ¬Ogonek> :: Stressed := "o" :- "O"
-  | "O" $m:letter-marks<Accent ¬Ogonek> :: Stressed Capital Accented := "o" :- "O"
-  | "O" [$m:letter-marks<¬Accent ¬Ogonek>] :: Stressed Capital := "o" :- "O"
-  | "O" [$m:letter-marks<¬Accent ¬Ogonek>] :: Folded Capital := "o"
-  | "u" [$m:letter-marks<¬Accent ¬Breve>] := "u"
-  | "u" $m:letter-marks<Accent ¬Breve> :: Stressed := "u" :- "U"
-  | "U" $m:letter-marks<Accent ¬Breve> :: Stressed Capital Accented := "u" :- "U"
-  | "U" [$m:letter-marks<¬Accent ¬Breve>] :: Stressed Capital := "u" :- "U"
-  | "U" [$m:letter-marks<¬Accent ¬Breve>] :: Folded Capital := "u"
+  | "a" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] :: Vowel := "a"
+  | "a" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed ∪ Vowel := "a" :- "A"
+  | "A" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed Capital Accented ∪ Vowel := "a" :- "A"
+  | "A" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] :: Stressed Capital ∪ Vowel := "a" :- "A"
+  | "A" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] :: Folded Capital ∪ Vowel := "a"
+  | "e" [$m:letter-marks<¬Accent ¬Ogonek>] :: Vowel := "e"
+  | "e" $m:letter-marks<Accent ¬Ogonek> :: Stressed ∪ Vowel := "e" :- "E"
+  | "E" $m:letter-marks<Accent ¬Ogonek> :: Stressed Capital Accented ∪ Vowel := "e" :- "E"
+  | "E" [$m:letter-marks<¬Accent ¬Ogonek>] :: Stressed Capital ∪ Vowel := "e" :- "E"
+  | "E" [$m:letter-marks<¬Accent ¬Ogonek>] :: Folded Capital ∪ Vowel := "e"
+  | "i" [$m:letter-marks<¬Accent ¬Breve>] :: Vowel := "i"
+  | "i" $m:letter-marks<Accent ¬Breve> :: Stressed ∪ Vowel := "i" :- "I"
+  | "I" $m:letter-marks<Accent ¬Breve> :: Stressed Capital Accented ∪ Vowel := "i" :- "I"
+  | "I" [$m:letter-marks<¬Accent ¬Breve>] :: Stressed Capital ∪ Vowel := "i" :- "I"
+  | "I" [$m:letter-marks<¬Accent ¬Breve>] :: Folded Capital ∪ Vowel := "i"
+  | "o" [$m:letter-marks<¬Accent ¬Ogonek>] :: Vowel := "o"
+  | "o" $m:letter-marks<Accent ¬Ogonek> :: Stressed ∪ Vowel := "o" :- "O"
+  | "O" $m:letter-marks<Accent ¬Ogonek> :: Stressed Capital Accented ∪ Vowel := "o" :- "O"
+  | "O" [$m:letter-marks<¬Accent ¬Ogonek>] :: Stressed Capital ∪ Vowel := "o" :- "O"
+  | "O" [$m:letter-marks<¬Accent ¬Ogonek>] :: Folded Capital ∪ Vowel := "o"
+  | "u" [$m:letter-marks<¬Accent ¬Breve>] :: Vowel := "u"
+  | "u" $m:letter-marks<Accent ¬Breve> :: Stressed ∪ Vowel := "u" :- "U"
+  | "U" $m:letter-marks<Accent ¬Breve> :: Stressed Capital Accented ∪ Vowel := "u" :- "U"
+  | "U" [$m:letter-marks<¬Accent ¬Breve>] :: Stressed Capital ∪ Vowel := "u" :- "U"
+  | "U" [$m:letter-marks<¬Accent ¬Breve>] :: Folded Capital ∪ Vowel := "u"
   | "y" [$m:letter-marks<¬Accent>] := "y"
   | "y" $m:letter-marks<Accent> :: Stressed := "y" :- "Y"
   | "Y" $m:letter-marks<Accent> :: Stressed Capital Accented := "y" :- "Y"
@@ -321,7 +321,7 @@ A breve on `i` or `u` makes a glide letter, which the next section reads. The vo
   | "Y" [$m:letter-marks<¬Accent>] :: Folded Capital := "y"
   | $g:glide-letter :: $g.tags
 %emits
-  $ :: $.tags ∩ (Stressed ∪ Glide ∪ Onglide)
+  $ :: $.tags ∩ (Stressed ∪ Glide ∪ Onglide ∪ Vowel)
 
 %redefine-rule plain-vowel :: ∅
   | latin-vowel<¬Stressed ¬Folded ¬Dieresis>
@@ -355,7 +355,7 @@ A glide letter is a glide wherever it stands. This stage reads it as `i` or `u` 
 A capital glide letter is plain. A glide is never stressed, so an accent on a glide letter is ignored: `ĭ́` is the glide `i`.
 
 ```jbogenbau
-%rule glide-letter :: Glide ∪ ($m ⟹ $m.tags ∩ Dieresis)
+%rule glide-letter :: Glide ∪ Vowel ∪ ($m ⟹ $m.tags ∩ Dieresis)
   | ("ɩ" | "q") [$m:letter-marks] :: Onglide := "i"
   | ("Ɩ" | "Q") [$m:letter-marks] :: Onglide Capital := "i"
   | "w" [$m:letter-marks] :: Onglide := "u"
@@ -400,7 +400,7 @@ An ogonek and a caron together on `a` give no reading, so the run is foreign. On
   | "O" $m:letter-marks<Ogonek ¬Accent> :: Stressed Capital := "o" :- "O"
   | "O" $m:letter-marks<Ogonek ¬Accent> :: Folded Capital := "o"
 %emits
-  $ :: $.tags ∩ Stressed, ε :: ∅ := "i"
+  $ :: ($.tags ∩ Stressed) ∪ Vowel, ε :: Vowel := "i"
 
 %rule latin-diphthong-u :: ($m ⟹ $m.tags ∩ Dieresis)
   | "a" $m:letter-marks<Caron ¬Accent ¬Ogonek> := "a"
@@ -414,7 +414,7 @@ An ogonek and a caron together on `a` give no reading, so the run is foreign. On
   | "Ꜷ" [$m:letter-marks<¬Accent>] :: Stressed Capital := "a" :- "A"
   | "Ꜷ" [$m:letter-marks<¬Accent>] :: Folded Capital := "a"
 %emits
-  $ :: $.tags ∩ Stressed, ε :: ∅ := "u"
+  $ :: ($.tags ∩ Stressed) ∪ Vowel, ε :: Vowel := "u"
 
 %extend-rule vowel
   latin-diphthong-i<¬Folded ¬Dieresis> | latin-diphthong-u<¬Folded ¬Dieresis>

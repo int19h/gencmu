@@ -20,7 +20,9 @@
                 0,
                 1
               ],
-              "tags": []
+              "tags": [
+                "Consonant"
+              ]
             },
             {
               "image": "o",
@@ -29,7 +31,9 @@
                 1,
                 2
               ],
-              "tags": []
+              "tags": [
+                "Vowel"
+              ]
             },
             {
               "image": " ",
@@ -49,7 +53,9 @@
                 3,
                 4
               ],
-              "tags": []
+              "tags": [
+                "Consonant"
+              ]
             },
             {
               "image": "a",
@@ -58,7 +64,9 @@
                 4,
                 5
               ],
-              "tags": []
+              "tags": [
+                "Vowel"
+              ]
             },
             {
               "image": "'",
@@ -76,7 +84,9 @@
                 9,
                 10
               ],
-              "tags": []
+              "tags": [
+                "Vowel"
+              ]
             }
           ]
         },

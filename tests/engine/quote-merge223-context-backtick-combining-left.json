@@ -20,7 +20,9 @@
                 0,
                 1
               ],
-              "tags": []
+              "tags": [
+                "Consonant"
+              ]
             },
             {
               "image": "o",
@@ -29,7 +31,9 @@
                 1,
                 2
               ],
-              "tags": []
+              "tags": [
+                "Vowel"
+              ]
             },
             {
               "image": " ",
@@ -49,7 +53,9 @@
                 3,
                 4
               ],
-              "tags": []
+              "tags": [
+                "Consonant"
+              ]
             },
             {
               "image": "A",
@@ -59,7 +65,8 @@
                 5
               ],
               "tags": [
-                "Stressed"
+                "Stressed",
+                "Vowel"
               ]
             },
             {
@@ -78,7 +85,9 @@
                 6,
                 7
               ],
-              "tags": []
+              "tags": [
+                "Vowel"
+              ]
             }
           ]
         },

@@ -23,7 +23,9 @@
                 0,
                 1
               ],
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "text": "m",
               "value": "m"
             },
@@ -37,7 +39,9 @@
                 1,
                 2
               ],
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "text": "i",
               "value": "i"
             },
@@ -85,7 +89,9 @@
                 4,
                 5
               ],
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "text": "z",
               "value": "z"
             },
@@ -99,7 +105,9 @@
                 5,
                 6
               ],
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "text": "o",
               "value": "o"
             },
@@ -129,7 +137,9 @@
                 7,
                 8
               ],
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "text": "c",
               "value": "c"
             },
@@ -143,7 +153,9 @@
                 8,
                 9
               ],
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "text": "o",
               "value": "o"
             },
@@ -157,7 +169,9 @@
                 9,
                 10
               ],
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "text": "i",
               "value": "i"
             },

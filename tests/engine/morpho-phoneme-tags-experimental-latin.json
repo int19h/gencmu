@@ -1,0 +1,46 @@
+{
+  "description": "The experimental Latin orthography tags each consonant token Consonant and each vowel token Vowel.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "ba",
+  "options": {
+    "until": "phonemes"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "b",
+              "image": "b",
+              "source": [
+                0,
+                1
+              ],
+              "tags": [
+                "Consonant"
+              ]
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "source": [
+                1,
+                2
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

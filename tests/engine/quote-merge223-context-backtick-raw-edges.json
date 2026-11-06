@@ -23,7 +23,9 @@
                 0,
                 1
               ],
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "text": "z",
               "value": "z"
             },
@@ -37,7 +39,9 @@
                 1,
                 2
               ],
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "text": "o",
               "value": "o"
             },
@@ -65,7 +69,9 @@
                 3,
                 4
               ],
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "text": "o",
               "value": "o"
             },
@@ -79,7 +85,9 @@
                 4,
                 5
               ],
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "text": "i",
               "value": "i"
             },

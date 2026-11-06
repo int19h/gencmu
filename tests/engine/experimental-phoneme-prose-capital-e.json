@@ -23,7 +23,9 @@
                 0,
                 1
               ],
-              "tags": []
+              "tags": [
+                "Consonant"
+              ]
             },
             {
               "value": "e",
@@ -33,7 +35,8 @@
                 3
               ],
               "tags": [
-                "Stressed"
+                "Stressed",
+                "Vowel"
               ]
             },
             {
@@ -43,7 +46,9 @@
                 3,
                 3
               ],
-              "tags": []
+              "tags": [
+                "Vowel"
+              ]
             }
           ]
         }

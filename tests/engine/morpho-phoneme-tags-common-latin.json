@@ -1,0 +1,79 @@
+{
+  "description": "The Latin conventions tag each consonant token Consonant and each folded capital vowel token Vowel.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "KLAMA",
+  "options": {
+    "until": "phonemes"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "k",
+              "image": "k",
+              "source": [
+                0,
+                1
+              ],
+              "tags": [
+                "Consonant"
+              ]
+            },
+            {
+              "value": "l",
+              "image": "l",
+              "source": [
+                1,
+                2
+              ],
+              "tags": [
+                "Consonant"
+              ]
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "source": [
+                2,
+                3
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            },
+            {
+              "value": "m",
+              "image": "m",
+              "source": [
+                3,
+                4
+              ],
+              "tags": [
+                "Consonant"
+              ]
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "source": [
+                4,
+                5
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

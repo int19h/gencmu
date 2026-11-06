@@ -19,18 +19,11 @@ The rule names follow Zantufa, while their comments state its morphology constra
 
 ## The pair mz
 
-A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus. The rule for `m` applies the shared `letter-ban` and rejects another `m`, but permits `z`. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
+A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus. This layer adds the pair `mz` to the shared table of its own stitched pipeline. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 
 ```jbogenbau
-%redefine-rule m              (* The consonant m forbids an apostrophe, glide, and another m. It permits z. *)
-  $c:"m"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | m)
+%redefine-const $PERMISSIBLE $PERMISSIBLE ∪ "mz"
 ```
-
-<details><summary>Railroad diagram of <code>m</code></summary>
-<p><img src="../../../docs/diagrams/lojban/zantufa/morphology/m.svg" alt="Railroad diagram of the rule m"></p>
-</details>
 
 ## Hesitation and space
 

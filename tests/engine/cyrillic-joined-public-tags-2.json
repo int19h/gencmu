@@ -23,7 +23,9 @@
                 0,
                 1
               ],
-              "tags": []
+              "tags": [
+                "Consonant"
+              ]
             },
             {
               "value": "a",
@@ -33,7 +35,8 @@
                 2
               ],
               "tags": [
-                "Syllabic"
+                "Syllabic",
+                "Vowel"
               ]
             },
             {
@@ -54,7 +57,8 @@
               ],
               "tags": [
                 "Stressed",
-                "Syllabic"
+                "Syllabic",
+                "Vowel"
               ]
             },
             {
@@ -64,7 +68,9 @@
                 3,
                 4
               ],
-              "tags": []
+              "tags": [
+                "Consonant"
+              ]
             },
             {
               "value": "a",
@@ -74,7 +80,8 @@
                 5
               ],
               "tags": [
-                "Syllabic"
+                "Syllabic",
+                "Vowel"
               ]
             }
           ]
