@@ -235,6 +235,17 @@ impl<'a> DiagnosticFlow<'a> {
     pub(crate) fn ordinal(&self) -> usize {
         self.evaluated.len()
     }
+    pub(crate) fn evaluated(&self) -> &[Event] {
+        &self.evaluated
+    }
+    pub(crate) fn parent(&self, node: u32) -> Option<u32> {
+        self.parents[node as usize]
+    }
+    pub(crate) fn rejection(&mut self, index: usize, evidence: crate::result::RejectionEvidence) {
+        let event = &mut self.evaluated[index];
+        event.diagnostic.rejection = Some(evidence.clone());
+        self.own[event.node as usize].as_mut().unwrap().diagnostic.rejection = Some(evidence);
+    }
     pub(crate) fn messages(&self) -> Lists {
         let mut result = Lists::default();
         for event in &self.evaluated {
@@ -493,13 +504,14 @@ mod tests {
     }
     fn close(prod: u32, start: u32, end: u32, children: &[u32]) -> INode {
         INode {
+            lexical: 0,
             structure: u32::MAX,
             kind: IKind::Close { prod, start, end, tags: 0, caps: Vec::new() },
             children: children.into(),
         }
     }
     fn read(tok: u32) -> INode {
-        INode { structure: u32::MAX, kind: IKind::Read { tok, terminal: 0 }, children: Vec::new() }
+        INode { lexical: 0, structure: u32::MAX, kind: IKind::Read { tok, terminal: 0 }, children: Vec::new() }
     }
     fn codes(lists: &[Warning]) -> Vec<&str> {
         lists.iter().map(|diagnostic| diagnostic.code.as_str()).collect()

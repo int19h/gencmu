@@ -27,6 +27,7 @@ pub(crate) enum IKind {
 
 #[derive(Debug, Clone)]
 pub(crate) struct INode {
+    pub lexical: u32,
     pub structure: u32,
     pub kind: IKind,
     pub children: Vec<u32>,
@@ -46,12 +47,18 @@ pub(crate) fn build(ranker: &Ranker, root: u32) -> ITree {
         let index = nodes.len() as u32;
         match ranker.dag.arena[id as usize] {
             DNode::Read { tok, terminal, .. } => {
-                nodes.push(INode { structure: u32::MAX, kind: IKind::Read { tok, terminal }, children: Vec::new() });
+                nodes.push(INode {
+                    lexical: 0,
+                    structure: u32::MAX,
+                    kind: IKind::Read { tok, terminal },
+                    children: Vec::new(),
+                });
             }
             DNode::Close { body, set, item } => {
                 let it = ranker.item(set, item);
                 let tags = ranker.chart().sets[set as usize].tagset[item as usize];
                 nodes.push(INode {
+                    lexical: it.lexical,
                     structure: it.structure,
                     kind: IKind::Close {
                         prod: it.prod,

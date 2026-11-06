@@ -327,13 +327,6 @@ impl Prod {
         }
         &self.conds[first..past]
     }
-
-    /// Whether any condition is evaluated at `dot`: one comparison of the
-    /// bounds, which examines no condition.
-    #[inline]
-    pub(crate) fn has_conds_at(&self, dot: usize) -> bool {
-        self.cond_at[dot] != self.cond_at[dot + 1]
-    }
 }
 
 #[derive(Debug, Clone)]

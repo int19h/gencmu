@@ -6,10 +6,10 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::diagnostic_flow::{self, DiagnosticFlow, Lists};
 use crate::dom::{FeatureKind, Guard};
-use crate::earley::{matchers, Chart, EngineError, Matcher, Recognizer, Recon, Shared, Tok};
+use crate::earley::{matchers, EngineError, Matcher, Recognizer, Recon, Shared, Tok};
 use crate::error::Error;
 use crate::grammar::{Change, ClassifierTables, KeyStep, Lean, StageGrammar};
-use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest};
+use crate::lower::{lower, Lowered, SymbolTest};
 use crate::rank::{Act, Ranker, Verdict as RankVerdict};
 use crate::recent::Recent;
 use crate::result::{
@@ -317,30 +317,6 @@ fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec
         .into_iter()
         .map(|(name, kind)| Feature { name: name.to_string(), kind, default: defaults.contains(name) })
         .collect())
-}
-
-/// Line and column, from 1, of a code point offset (lines end at `\n`,
-/// `\r\n` or `\r`).
-pub(crate) fn line_column(text: &[char], offset: usize) -> (usize, usize) {
-    let mut line = 1;
-    let mut column = 1;
-    let mut index = 0;
-    while index < offset.min(text.len()) {
-        match text[index] {
-            '\n' => {
-                line += 1;
-                column = 1;
-            }
-            '\r' if text.get(index + 1) == Some(&'\n') => column += 1,
-            '\r' => {
-                line += 1;
-                column = 1;
-            }
-            _ => column += 1,
-        }
-        index += 1;
-    }
-    (line, column)
 }
 
 impl Pipeline {
@@ -783,7 +759,17 @@ impl Pipeline {
             None
         };
         let Some((ranking, chosen, second)) = ranked else {
-            let (position, expected) = rejection_of(&lowered, &chart);
+            let evidence = {
+                let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared, recon: None };
+                crate::competitor_rejection::rejection(&chart, &mut recognizer, &input)
+            };
+            let (position, expected) = match evidence {
+                Ok(evidence) => evidence,
+                Err(error) => {
+                    run.stages.push(stage);
+                    return Err(Box::new(self.grammar_error(index, error)));
+                }
+            };
             let mut error = self.rejection(index, shared, &input, position, expected);
             error.boundary = chart
                 .boundary_failures
@@ -799,9 +785,11 @@ impl Pipeline {
             run.stages.push(stage);
             return Err(Box::new(error));
         };
-        let tag_set = |set: u32| shared.tags.to_set(set);
         let sources = Sources::new(&input);
-        let context = TreeContext { g: &lowered, sources: &sources, tag_map: &tag_set, reading: None };
+        let make_tree = |shared: &Shared, tree: &ITree| {
+            let tag_set = |set: u32| shared.tags.to_set(set);
+            public_tree(tree, &TreeContext { g: &lowered, sources: &sources, tag_map: &tag_set, reading: None })
+        };
         stage.verdict = Some(match ranking.verdict {
             RankVerdict::Unique => Verdict::Unique,
             RankVerdict::Resolved => Verdict::Resolved,
@@ -846,13 +834,41 @@ impl Pipeline {
                 run.stages.push(stage);
                 return Err(Box::new(self.grammar_error(index, error)));
             }
+            let evidence = {
+                let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared, recon: None };
+                crate::competitor_rejection::reports(grammar, &mut recognizer, &chart, &input, &chosen, &mut flow)
+                    .and_then(|()| {
+                        crate::competitor_rejection::reports(
+                            grammar,
+                            &mut recognizer,
+                            &chart,
+                            &input,
+                            &second,
+                            &mut second_flow,
+                        )
+                    })
+            };
+            run.evaluated = diagnostic_flow::join([flow.messages().parts(), second_flow.messages().parts()]);
+            if let Err(error) = evidence {
+                run.stages.push(stage);
+                return Err(Box::new(self.grammar_error(index, error)));
+            }
             run.collected = diagnostic_flow::tied(&flow.events(), &second_flow.events());
-            let readings = vec![public_tree(&chosen, &context), public_tree(&second, &context)];
+            let readings = vec![make_tree(shared, &chosen), make_tree(shared, &second)];
             let error = self.tie(index, readings);
             run.stages.push(stage);
             return Err(Box::new(error));
         }
-        let tree = public_tree(&chosen, &context);
+        let evidence = {
+            let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared, recon: None };
+            crate::competitor_rejection::reports(grammar, &mut recognizer, &chart, &input, &chosen, &mut flow)
+        };
+        run.evaluated = flow.messages();
+        if let Err(error) = evidence {
+            run.stages.push(stage);
+            return Err(Box::new(self.grammar_error(index, error)));
+        }
+        let tree = make_tree(shared, &chosen);
         run.collected = flow.collected();
         let emitted = {
             let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared, recon: None };
@@ -1005,7 +1021,7 @@ impl Pipeline {
         expected: Vec<Expected>,
     ) -> ParseError {
         let source = source_at(input, position);
-        let (line, column) = line_column(shared.text, source.start);
+        let (line, column) = shared.position(source.start);
         let stage = &self.stages[index].name;
         let found = input.get(position).map_or("the end of the input".to_string(), |token| format!("{:?}", token.text));
         let wanted: Vec<&str> = expected.iter().map(|expected| expected.terminal.as_str()).collect();
@@ -1297,42 +1313,9 @@ enum Check {
     Lost(Vec<Restoration>),
 }
 
-/// Where a rejected input stopped (§4): the furthest position any item
-/// reached, and the terminals the items there could have read next, each
-/// with the rules those items belong to.
-fn rejection_of(g: &Lowered, chart: &Chart) -> (usize, Vec<Expected>) {
-    let furthest = chart.reached;
-    let mut expected: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    let mut expect = |production: &Prod, dot: usize| {
-        if let Some(Sym::T(terminal)) = production.syms.get(dot) {
-            // A tested terminal is written with its test, and sorts by that
-            // text (docs/output.md).
-            let test = production.test(dot).map(|test| &g.tests[test as usize]);
-            expected
-                .entry(written_symbol(&g.terminals[*terminal as usize], test))
-                .or_default()
-                .insert(g.rules[production.owner as usize].name.clone());
-        }
-    };
-    for item in &chart.sets[furthest].items {
-        expect(&g.prods[item.prod as usize], item.dot as usize);
-    }
-    // The predictions the recognizer did not add, since the next token
-    // could not continue them. Those whose condition failed are not among
-    // them, since their items do not exist.
-    for &production in &chart.sets[furthest].skipped {
-        expect(&g.prods[production as usize], 0);
-    }
-    let expected = expected
-        .into_iter()
-        .map(|(terminal, rules)| Expected { terminal, rules: rules.into_iter().collect() })
-        .collect();
-    (furthest, expected)
-}
-
 /// A terminal as the diagnostics write it: its name, followed by its test
 /// if it has one, such as LE="la" (docs/output.md).
-fn written_symbol(name: &str, test: Option<&SymbolTest>) -> String {
+pub(crate) fn written_symbol(name: &str, test: Option<&SymbolTest>) -> String {
     match test {
         None => name.to_string(),
         Some(test) => format!("{name}{}", test.written),

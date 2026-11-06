@@ -45,6 +45,7 @@ mod test_common;
 
 mod boundary;
 mod clauses;
+mod competitor_rejection;
 mod diagnostic_audit;
 mod diagnostic_flow;
 mod diagnostics;

@@ -4,7 +4,7 @@
 
 mod suffix;
 use crate::patterns::{Machine, Pattern};
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, OnceCell, RefCell};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -259,7 +259,7 @@ pub(crate) struct ESet {
     /// The productions that prediction skipped here because the next token
     /// lacked their first terminal. A production whose condition failed is
     /// not one of them.
-    pub skipped: Vec<u32>,
+    pub skipped: Vec<Item>,
 }
 
 /// The bit of a queue entry that marks an item processed again (§7.4).
@@ -867,6 +867,7 @@ pub(crate) struct Shared<'a> {
     pub tags: Tags,
     pub unicode: &'a Unicode,
     pub text: &'a [char],
+    source_lines: OnceCell<Vec<usize>>,
     /// Whether a span parses as a rule, and its tags as it: what `matches`
     /// and `tags` read of one nested parse.
     memo: FxMap<NestedKey, Answer>,
@@ -907,6 +908,7 @@ impl<'a> Shared<'a> {
             tags: Tags::new(),
             unicode,
             text,
+            source_lines: OnceCell::new(),
             memo: FxMap::default(),
             contents: Contents::default(),
             qualified: FxMap::default(),
@@ -919,6 +921,25 @@ impl<'a> Shared<'a> {
             spare: Vec::new(),
             lists: Vec::new(),
         }
+    }
+
+    pub(crate) fn position(&self, offset: usize) -> (usize, usize) {
+        let starts = self.source_lines.get_or_init(|| {
+            let mut starts = vec![0];
+            for (index, &character) in self.text.iter().enumerate() {
+                work::count(Work::Walked, 1);
+                if character == '\n' || character == '\r' && self.text.get(index + 1) != Some(&'\n') {
+                    starts.push(index + 1);
+                }
+            }
+            starts
+        });
+        let offset = offset.min(self.text.len());
+        let line = starts.partition_point(|&start| {
+            work::count(Work::Walked, 1);
+            start <= offset
+        });
+        (line, offset - starts[line - 1] + 1)
     }
 
     fn prepare_errors(&mut self, tokens: &[Tok], base: usize) {
@@ -2000,7 +2021,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let first = self.shared.fresh_set();
         let mut run = Run::new(tokens, base, start, self.recon, first);
         // A non-stage root is a query whose completed items need eligibility.
-        run.chart.record_links |= start != self.g.start;
+        run.chart.record_links |= start != self.g.start || self.g.has_errors;
         run.chart.machine = self.shared.machine.clone();
         run.chart.boundaries = self.shared.boundaries.clone();
         Ok(self.drive(run)?.0)
@@ -2976,22 +2997,23 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // A production that must first read a terminal the next token lacks
         // gives a dead item, so prediction skips it. The set records it, and
         // the rejection report adds back the terminal it expected.
-        let has_conditions = chart.lexical_frame(lexical).map_or_else(
-            || lowered.has_conds_at(0),
-            |frame| {
-                !g.ranked.plans
-                    [&(production, frame.declared.clone(), frame.available.clone(), frame.known_private.clone())]
-                    .conditions[0]
-                    .is_empty()
-            },
-        );
-        if let (Some(Sym::T(terminal)), false, false) = (lowered.syms.first(), has_conditions, chart.suffix) {
+        if let (Some(Sym::T(terminal)), false) = (lowered.syms.first(), chart.suffix) {
             let matcher = self.matchers[*terminal as usize];
             if e >= tokens.len()
                 || !self.shared.reads(matcher, &tokens[e], self.recon.is_some_and(|recon| recon.synthetic[e]))
             {
                 if before.is_none() {
-                    chart.sets[e].skipped.push(production);
+                    chart.sets[e].skipped.push(Item {
+                        boundary: 0,
+                        close_requested: requested,
+                        lexical,
+                        prod: production,
+                        dot: 0,
+                        origin: e as u32,
+                        caps: 0,
+                        prefix: 0,
+                        structure: u32::MAX,
+                    });
                 }
                 return Ok(());
             }
@@ -4185,6 +4207,43 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             last = Some(out);
         }
         Ok(last.expect("a value"))
+    }
+
+    /// Tests an omitted prediction only when rejection evidence requests it (§12.1).
+    pub(crate) fn omitted_allowed(
+        &mut self,
+        chart: &Chart,
+        tokens: &[Tok],
+        mut item: Item,
+    ) -> Result<bool, EngineError> {
+        let at = item.origin as usize;
+        self.finish_structure(chart.family, chart.lexical_frame(item.lexical), &mut item, at, 0, tokens);
+        let production = &self.g.prods[item.prod as usize];
+        let conds = chart.lexical_frame(item.lexical).map_or_else(
+            || production.conds_at(0),
+            |frame| {
+                self.g.ranked.plans
+                    [&(item.prod, frame.declared.clone(), frame.available.clone(), frame.known_private.clone())]
+                    .conditions[0]
+                    .as_slice()
+            },
+        );
+        if conds.is_empty() {
+            return Ok(true);
+        }
+        let state = Held::new(Eval::conditions(conds, Vec::new()), item, item.origin as usize, false);
+        let search = CapSearch::new(chart, 0);
+        let mut frame = state.frame(&search, None);
+        self.lexical_whole_structure(&mut frame, item.prefix, 0, tokens);
+        let mut eval = state.eval;
+        loop {
+            match self.evaluate(&mut eval, &frame, tokens, 0) {
+                Ok(out) => return Ok(out.holds()),
+                Err(Halt::Invalid) => return Ok(false),
+                Err(Halt::Error(error)) => return Err(error),
+                Err(Halt::Pending(request)) => eval.answer = Some(self.answer(*request)?),
+            }
+        }
     }
 
     /// Evaluates a tag term over a constituent, for emission (§11). A
