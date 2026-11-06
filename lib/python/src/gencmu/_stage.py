@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from copy import copy
+
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
 from typing import Any, Union
@@ -735,41 +737,40 @@ class StageRunner:
             walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
         marks = walk.marks if walk is not None else None
         preferred = bool(lowered.ranked_helpers)
-        raw_counted = True
-        if preferred and walk is not None:
-            raw = rank(forest, steps, "none", marks=marks, check=True, unfiltered=True)
-            raw_counted = raw is not None and raw.witness_counted is True
         ranking = _rank_check(forest, marks) if walk is not None else None
+        raw = rank(forest, steps, "none", marks=marks, check=True, unfiltered=True) if preferred and walk is not None else ranking
+        raw_counted = raw is not None and raw.raw_witness_counted is True
         better = False
-        watched_selection = False
+        if not raw_counted:
+            ranking = None
         if ranking is not None:
-            assert walk is not None
             order = space.compare(ranking.profile, chosen_profile)
-            if not raw_counted or not preferred and ranking.witness_counted is not True:
-                ranking = None
-            else:
-                restored_rope = None
+            excluded = ranking.witness_counted is not True
+            representative = None if excluded else ranking._ranker.witness_representative(walk.proof)
+            if not excluded and representative is None:
+                raise RuntimeError("An admitted witness requires its class representative.")
+            restored_rope = representative
+            if restored_rope is None:
                 for act in walk.sequence:
                     restored_rope = concat(restored_rope, leaf(act))
-                excluded = ranking.witness_counted is not True
-                better = excluded or order < 0
-                if watch is not None and not better and not preferred:
-                    watch.ranked(ranking)
-                    watched_selection = True
-                if better or ranking.verdict == "tie":
-                    competitor = ranking.first if first_difference(restored_rope, ranking.first, False) is not None else ranking.second
-                    if competitor is None:
-                        raise RuntimeError("Reconstruction requires a distinct best admitted competitor.")
-                    ranking.first, ranking.second = restored_rope, competitor
-                    difference = first_difference(restored_rope, competitor, True)
-                    if difference is None or difference[1] is None or difference[2] is None:
-                        difference = first_difference(restored_rope, competitor, False)
-                    assert difference is not None
-                    ranking.witness = (difference[1], difference[2])
-                if preferred:
-                    ranking.raw_witness_counted = raw_counted
-        if watch is not None and not watched_selection:
-            watch.ranked(ranking)
+            better = excluded or order < 0
+            selected = copy(ranking)
+            selected.raw_witness_counted, selected.representative = raw_counted, representative
+            if better or ranking.verdict == "tie":
+                competitor = ranking.first if first_difference(restored_rope, ranking.first, False) is not None else ranking.second
+                if competitor is None:
+                    raise RuntimeError("Reconstruction requires a distinct best admitted competitor.")
+                ranking.first, ranking.second = restored_rope, competitor
+                difference = first_difference(restored_rope, competitor, True)
+                if difference is None or difference[1] is None or difference[2] is None:
+                    difference = first_difference(restored_rope, competitor, False)
+                assert difference is not None
+                ranking.witness = difference[1], difference[2]
+            ranking.raw_witness_counted, ranking.representative = raw_counted, representative
+            if watch is not None:
+                watch.ranked(ranking if better or preferred else selected)
+        elif watch is not None:
+            watch.ranked(None)
         if ranking is None:
             # The witness of the chosen derivation is lost: a defect of the
             # engine (engine §7.9).
@@ -786,7 +787,7 @@ class StageRunner:
         readings = []
         original = Sources(tokens)
         for rope in (ranking.first, ranking.second):
-            if better and rope is ranking.first:
+            if better and excluded and rope is ranking.first:
                 readings.append(tree)
                 continue
             reading = Tree(derivation(forest, rope), context.sources, context.tagtab).root
