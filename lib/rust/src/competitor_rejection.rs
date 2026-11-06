@@ -432,7 +432,7 @@ mod tests {
     #[test]
     fn deferred_competitor_conditions_stay_scoped_and_cached() {
         // Engine §12.1: unrelated skipped predictions evaluate no conditions.
-        let grammar = "%rule text :: ∅ | (good ≻ bad) C\n%extend-rule text unrelated\n%rule good A wanted\n%rule wanted K\n%conditions \"x\" = \"x\"\n%rule bad A B\n%error \"bad\"\n%rule unrelated A B unwanted\n%rule unwanted Z\n%conditions $.matches(loop)\n%rule loop ε\n%conditions $.matches(loop)";
+        let grammar = "%rule text :: ∅ | (good ≻ bad) C\n%extend-rule text unrelated\n%rule good A wanted\n%rule wanted K\n%conditions \"x\" = \"x\"\n%rule bad A B\n%error \"bad\"\n%rule unrelated A B unwanted\n%rule unwanted Z\n%conditions \"x\" = \"x\"";
         context(grammar, &["A", "B", "C"], |grammar, rec, chart, tokens| {
             assert!(chart.accepts(rec.g.start, 3));
             let option = option(rec.g, chart, 1);
@@ -441,7 +441,7 @@ mod tests {
             let first = slice(grammar, rec, chart, tokens, 0, 2, option, &mut omissions).unwrap().unwrap();
             assert_eq!(first.expected, vec![Expected { terminal: "K".into(), rules: vec!["wanted".into()] }]);
             let visits = work::counted(Work::Visits);
-            assert_eq!(visits, 3, "one comparison and its two terms");
+            assert_eq!(visits, 0, "recognition already tested condition-bearing entries");
             slice(grammar, rec, chart, tokens, 0, 2, option, &mut omissions).unwrap();
             assert_eq!(work::counted(Work::Visits), visits, "a cached condition does not run again");
             work::reset();

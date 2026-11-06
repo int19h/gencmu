@@ -41,9 +41,15 @@ fn counted_and_pending_errors_bar_reconstruction() {
 #[test]
 fn failed_messages_drop_erased_evaluations_and_keep_carried_facts() {
     // Engine §12.1: recipes run under erasure, but the grammar ending omits their diagnostics.
-    for tied in [false, true] {
-        let body = if tied { "first gone fail | first gone fail" } else { "first gone fail" };
-        let source = format!("```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%rule text $a:A $b:older $c:C\n%emits $a, $b, $c\n%rule older B\n%error \"input fault\"\n%stage last\n%ambiguity-resolution greedy\n%rule text {body}\n%rule first A\n%warning \"kept\"\n%rule gone bad notice\n%erased\n%rule bad B\n%error \"erased error\"\n%rule notice ε\n%warning \"erased warning\"\n%rule fail C\n%warning \"stop\"\n```\n");
+    for (tied, later) in [(false, false), (true, false), (true, true)] {
+        let body = if later {
+            "first gone pass | first gone fail"
+        } else if tied {
+            "first gone fail | first gone fail"
+        } else {
+            "first gone fail"
+        };
+        let source = format!("```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%rule text $a:A $b:older $c:C\n%emits $a, $b, $c\n%rule older B\n%error \"input fault\"\n%stage last\n%ambiguity-resolution greedy\n%rule text {body}\n%rule first A\n%warning \"kept\"\n%rule gone bad notice\n%erased\n%rule bad B\n%error \"erased error\"\n%rule notice ε\n%warning \"erased warning\"\n%rule fail C\n%warning \"stop\"\n%rule pass C\n%warning \"pass\"\n```\n");
         let pipeline = gencmu::load_pipeline_sources([("p.md", source)], "p.md").unwrap();
         let tokens: Vec<_> = [("a", "A"), ("b", "B"), ("c", "C")]
             .into_iter()
@@ -53,16 +59,24 @@ fn failed_messages_drop_erased_evaluations_and_keep_carried_facts() {
                 ..Default::default()
             })
             .collect();
-        let options =
-            ParseOptions { features: vec!["first".into(), "notice".into(), "fail".into()], ..Default::default() };
+        let options = ParseOptions {
+            features: vec!["first".into(), "notice".into(), "fail".into(), "pass".into()],
+            ..Default::default()
+        };
         let (result, calls) =
             gencmu::with_diagnostic_messages(Some("fail"), || pipeline.parse_tokens(&tokens, &options).unwrap());
-        assert_eq!(calls, ["older", "first", "bad", "notice", "fail"]);
+        let expected = if later {
+            vec!["older", "first", "bad", "notice", "pass", "first", "bad", "notice", "fail"]
+        } else {
+            vec!["older", "first", "bad", "notice", "fail"]
+        };
+        assert_eq!(calls, expected);
         let error = result.error.as_ref().unwrap();
         assert_eq!(error.kind, ParseErrorKind::Grammar);
         assert_eq!(codes(&error.errors), ["older"]);
-        assert_eq!(codes(&error.warnings), ["first"]);
-        assert_eq!(codes(&result.warnings), ["first"]);
+        let warnings = if later { vec!["first", "pass", "first"] } else { vec!["first"] };
+        assert_eq!(codes(&error.warnings), warnings);
+        assert_eq!(codes(&result.warnings), warnings);
         assert!(result.tree.is_none());
         assert!(result.stages.last().unwrap().output.is_none());
         assert_eq!(

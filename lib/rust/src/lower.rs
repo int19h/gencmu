@@ -327,6 +327,10 @@ impl Prod {
         }
         &self.conds[first..past]
     }
+    /// Whether a condition runs at this dot, without a scan of its clauses.
+    pub(crate) fn has_conds_at(&self, dot: usize) -> bool {
+        self.cond_at[dot] != self.cond_at[dot + 1]
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -2066,7 +2070,8 @@ fn ranked_runtime(
                 slot.path.and_then(|path| grammar.ranked.paths.get(&path)).cloned().unwrap_or_default()
             };
             runtime.written.insert(p.rule, format!("{:?}/{path}", slot.source));
-            if source_private.contains_key(&slot.source) || item_alts.contains_key(&slot.source) {
+            // A splice starts the called rule's own frame. Inline helpers inherit their caller's frame.
+            if !p.tree_root && (source_private.contains_key(&slot.source) || item_alts.contains_key(&slot.source)) {
                 runtime.contextual.insert(p.rule);
             }
         }

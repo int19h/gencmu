@@ -2997,7 +2997,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // A production that must first read a terminal the next token lacks
         // gives a dead item, so prediction skips it. The set records it, and
         // the rejection report adds back the terminal it expected.
-        if let (Some(Sym::T(terminal)), false) = (lowered.syms.first(), chart.suffix) {
+        // Entry conditions run before lookahead. Their chart entries supply evidence without another evaluation.
+        let has_conditions = chart.lexical_frame(lexical).map_or_else(
+            || lowered.has_conds_at(0),
+            |frame| {
+                !g.ranked.plans
+                    [&(production, frame.declared.clone(), frame.available.clone(), frame.known_private.clone())]
+                    .conditions[0]
+                    .is_empty()
+            },
+        );
+        if let (Some(Sym::T(terminal)), false, false) = (lowered.syms.first(), has_conditions, chart.suffix) {
             let matcher = self.matchers[*terminal as usize];
             if e >= tokens.len()
                 || !self.shared.reads(matcher, &tokens[e], self.recon.is_some_and(|recon| recon.synthetic[e]))

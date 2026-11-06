@@ -288,7 +288,7 @@ fn a_check_that_loses_its_witness_is_the_grammar_error_elision_witness_lost() {
         assert!(result.tree.is_none());
         let error = json.get("error").unwrap();
         let keys: Vec<&str> = error.object().iter().map(|(key, _)| key.as_str()).collect();
-        assert_eq!(keys, ["kind", "stage", "code", "message", "chosen", "completion"], "{loss:?}");
+        assert_eq!(keys, ["kind", "stage", "code", "warnings", "message", "chosen", "completion"], "{loss:?}");
         assert_eq!(error.get("kind").and_then(Value::str), Some("grammar"));
         assert_eq!(error.get("stage").and_then(Value::str), Some("main"));
         assert_eq!(error.get("code").and_then(Value::str), Some("elision-witness-lost"));
