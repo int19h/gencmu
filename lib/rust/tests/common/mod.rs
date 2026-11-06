@@ -823,16 +823,23 @@ pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), Str
 /// What a canonical result breaks of the invariants that every runner
 /// checks on every result, whatever the case expects (tests/README.md): no
 /// stage has a tied tree, and a stage whose verdict is `tie` has no output,
-/// comes last, and has the result's ambiguous error with the reason `tie`
-/// and two readings.
+/// comes last, and has either its ambiguous error or a grammar failure after choice.
 pub fn result_problems(json: &Value) -> Vec<String> {
     let mut problems = Vec::new();
     let stages = json.get("stages").map_or(&[][..], Value::array);
-    let diagnostic = |value: &Value| {
-        let keys = ["stage", "code", "rule", "span", "source", "message"];
-        if !matches!(value,Value::Object(fields) if fields.len()==6 && fields.iter().all(|(k,_)|keys.contains(&k.as_str())))
+    let diagnostic = |value: &Value, error: bool| {
+        let keys = ["stage", "code", "rule", "span", "source", "message", "rejection"];
+        if !matches!(value,Value::Object(fields) if (fields.len()==6 || error && fields.len()==7) && fields.iter().all(|(k,_)|keys.contains(&k.as_str())))
         {
             return false;
+        }
+        if let Some(rejection) = value.get("rejection") {
+            if !error
+                || !matches!(rejection, Value::Object(fields) if fields.len()==5)
+                || !["token", "source", "line", "column", "expected"].iter().all(|key| rejection.get(key).is_some())
+            {
+                return false;
+            }
         }
         if value.get("code") != value.get("rule") {
             return false;
@@ -843,7 +850,7 @@ pub fn result_problems(json: &Value) -> Vec<String> {
         ["span","source"].iter().all(|k|matches!(value.get(k),Some(Value::Array(pair)) if pair.len()==2 && pair.iter().all(|v|matches!(v,Value::Number(n) if n.is_finite()&&*n>=0.0&&n.fract()==0.0&&*n<=9007199254740991.0)) && matches!((&pair[0],&pair[1]),(Value::Number(a),Value::Number(b)) if a<=b)))
     };
     for warning in json.get("warnings").map_or(&[][..], Value::array) {
-        if !diagnostic(warning) {
+        if !diagnostic(warning, false) {
             problems.push("a warning lacks its diagnostic fields".into());
         }
     }
@@ -856,12 +863,12 @@ pub fn result_problems(json: &Value) -> Vec<String> {
                 || !last.is_some_and(|s| {
                     s.get("name") == error.get("stage")
                         && matches!(s.get("verdict").and_then(Value::str), Some("unique" | "resolved"))
-                        && s.get("output").is_none()
+                        && matches!(s.get("output"), Some(Value::Array(_)))
                 })
             {
-                problems.push("a reported result lacks its retained tree and verdict or has output".into());
+                problems.push("a reported result lacks its retained tree, verdict or output".into());
             }
-            if !matches!(error.get("errors"),Some(Value::Array(reports)) if !reports.is_empty() && reports.iter().all(|r|diagnostic(r)&&r.get("stage")==error.get("stage")))
+            if !matches!(error.get("errors"),Some(Value::Array(reports)) if !reports.is_empty() && reports.iter().all(|r|diagnostic(r,true)))
             {
                 problems.push("a reported result lacks its ordered named errors".into());
             }
@@ -893,10 +900,11 @@ pub fn result_problems(json: &Value) -> Vec<String> {
         let readings = error.and_then(|error| error.get("readings"));
         if json.get("ok") != Some(&Value::Bool(false))
             || json.get("tree") != Some(&Value::Null)
-            || field("kind") != Some("ambiguous")
-            || field("reason") != Some("tie")
             || field("stage") != Some(name)
-            || !matches!(readings, Some(Value::Array(readings)) if readings.len() == 2)
+            || !(field("kind") == Some("grammar") && field("reason").is_none() && readings.is_none()
+                || field("kind") == Some("ambiguous")
+                    && field("reason") == Some("tie")
+                    && matches!(readings, Some(Value::Array(readings)) if readings.len() == 2))
         {
             problems
                 .push(format!("the tied stage {name} lacks its error of kind ambiguous, reason tie and two readings"));

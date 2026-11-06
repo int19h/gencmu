@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use std::sync::{Arc, Mutex, OnceLock};
 
+use crate::diagnostic_flow::{self, DiagnosticFlow, Lists};
 use crate::dom::{FeatureKind, Guard};
 use crate::earley::{matchers, Chart, EngineError, Matcher, Recognizer, Recon, Shared, Tok};
 use crate::error::Error;
@@ -15,7 +16,7 @@ use crate::result::{
     Action, AmbiguityReason, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Restoration,
     Stage, Tags, Token, Verdict, Warning,
 };
-use crate::tree::{build, emit, public_tree, reports_of, IKind, ITree, ReadingMap, Sources, TreeContext};
+use crate::tree::{build, emit, evaluate_reports, public_tree, IKind, ITree, ReadingMap, Sources, TreeContext};
 use crate::unicode::Unicode;
 use crate::witness::{self, CheckForest};
 
@@ -194,6 +195,35 @@ struct Run {
     error: Option<ParseError>,
     /// The warnings of the stages run so far, in stage order (§12).
     warnings: Vec<Warning>,
+    pending: Lists,
+    collected: Lists,
+    evaluated: Lists,
+}
+
+impl Run {
+    fn failed(&mut self, mut error: ParseError) {
+        let input = &self.stages.last().expect("a failed stage").input;
+        let reporting = match error.kind {
+            ParseErrorKind::Ambiguous => self.collected.clone(),
+            ParseErrorKind::Rejected => {
+                let cutoff = error.token.unwrap_or(input.len()).saturating_add(1).min(input.len());
+                diagnostic_flow::join(
+                    input[..cutoff].iter().map(|token| (token.errors.as_slice(), token.warnings.as_slice())),
+                )
+            }
+            _ => {
+                let carried = diagnostic_flow::join(
+                    input.iter().map(|token| (token.errors.as_slice(), token.warnings.as_slice())),
+                );
+                diagnostic_flow::join([self.evaluated.parts(), carried.parts()])
+            }
+        };
+        let lists = diagnostic_flow::join([self.pending.parts(), reporting.parts()]);
+        error.errors = lists.errors;
+        error.warnings = lists.warnings.clone();
+        self.warnings = lists.warnings;
+        self.error = Some(error);
+    }
 }
 
 /// A pipeline's features (engine §13): names from guards and pipeline or
@@ -536,7 +566,17 @@ impl Pipeline {
         let mut shared = Shared::new(&self.unicode, &chars);
         let (mut input, public_input) = first(&mut shared.tags, &chars);
         crate::earley::mark_quiet(&mut input);
-        let fresh = Run { stages: Vec::new(), input, public_input, tree: None, error: None, warnings: Vec::new() };
+        let fresh = Run {
+            stages: Vec::new(),
+            input,
+            public_input,
+            tree: None,
+            error: None,
+            warnings: Vec::new(),
+            pending: Lists::default(),
+            collected: Lists::default(),
+            evaluated: Lists::default(),
+        };
         let mut run = fresh;
         self.stages_between(&mut shared, &mut run, &mut features, (off, last, options.elision_only), &mut inspect)?;
         let ok = run.error.is_none();
@@ -565,6 +605,8 @@ impl Pipeline {
         let (off, to, elision) = selection;
         for index in 0..=to {
             shared.next_stage();
+            run.collected = Lists::default();
+            run.evaluated = Lists::default();
             let mut failure = None;
             for (_, directive) in &self.stages[index].features {
                 let held = match &directive.conditions {
@@ -617,15 +659,32 @@ impl Pipeline {
                     verdict: None,
                     witness: None,
                 });
-                run.error = Some(error);
+                run.failed(error);
                 return Ok(());
             }
             if let Err(error) = self.stage(index, shared, run, features, elision, index == to) {
-                run.error = Some(*error);
+                run.failed(*error);
                 return Ok(());
             }
             if index == 0 {
                 inspect(run.stages.last().unwrap().output.as_ref().unwrap())?;
+            }
+            if index == to {
+                let lists = diagnostic_flow::join([run.pending.parts(), run.collected.parts()]);
+                if !lists.errors.is_empty() {
+                    let mut error = self.grammar_error(
+                        index,
+                        EngineError { message: "the chosen derivation reports errors".into(), rule: None },
+                    );
+                    error.kind = ParseErrorKind::Reported;
+                    error.errors = lists.errors;
+                    error.warnings = lists.warnings.clone();
+                    run.error = Some(error);
+                }
+                run.warnings = lists.warnings;
+            } else {
+                let stage = run.stages.last().unwrap();
+                run.pending = diagnostic_flow::join([run.pending.parts(), (&stage.errors, &stage.warnings)]);
             }
         }
         Ok(())
@@ -751,47 +810,60 @@ impl Pipeline {
         if let Some((first, second)) = ranking.witness {
             stage.witness = Some([action(&lowered, first), action(&lowered, second)]);
         }
-        // A tie is an error that ends the stage at its ranking: it has no
-        // chosen tree, no output and no warnings, and the error holds the
-        // first and the second reading (§6).
+        let mut flow = DiagnosticFlow::new(&lowered, &chosen, &input);
+        let reports = evaluate_reports(
+            &chosen,
+            &lowered,
+            &sources,
+            features,
+            &grammar.name,
+            index,
+            &input,
+            shared.text,
+            &mut flow,
+        );
+        run.evaluated = flow.messages();
+        if let Err(error) = reports {
+            run.stages.push(stage);
+            return Err(Box::new(self.grammar_error(index, error)));
+        }
         if ranking.verdict == RankVerdict::Tie {
-            let readings = vec![
-                public_tree(&chosen, &context),
-                public_tree(&second.expect("a tie has a second reading"), &context),
-            ];
+            let second = second.expect("a tie has a second reading");
+            let mut second_flow = DiagnosticFlow::new(&lowered, &second, &input);
+            let reports = evaluate_reports(
+                &second,
+                &lowered,
+                &sources,
+                features,
+                &grammar.name,
+                index,
+                &input,
+                shared.text,
+                &mut second_flow,
+            );
+            run.evaluated = diagnostic_flow::join([run.evaluated.parts(), second_flow.messages().parts()]);
+            if let Err(error) = reports {
+                run.stages.push(stage);
+                return Err(Box::new(self.grammar_error(index, error)));
+            }
+            run.collected = diagnostic_flow::tied(&flow.events(), &second_flow.events());
+            let readings = vec![public_tree(&chosen, &context), public_tree(&second, &context)];
             let error = self.tie(index, readings);
             run.stages.push(stage);
             return Err(Box::new(error));
         }
         let tree = public_tree(&chosen, &context);
-        // The chosen tree's warnings, which stand even if the emission or
-        // the `elision-only` check then fails (§12).
-        let reports = reports_of(&chosen, &lowered, &sources, features, &grammar.name, &input, shared.text);
-        let (errors, warnings) = match reports {
-            Ok(reports) => reports,
-            Err(error) => {
-                run.stages.push(stage);
-                return Err(Box::new(self.grammar_error(index, error)));
-            }
-        };
-        run.warnings.extend(warnings);
-        if !errors.is_empty() {
-            let mut error = self.grammar_error(
-                index,
-                EngineError { message: "the chosen derivation reports errors".into(), rule: None },
-            );
-            error.kind = ParseErrorKind::Reported;
-            error.errors = errors;
-            run.tree = Some(tree);
-            run.stages.push(stage);
-            return Err(Box::new(error));
-        }
+        run.collected = flow.collected();
         let emitted = {
             let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared, recon: None };
-            emit(&mut recognizer, &chosen, &input, &sources)
+            emit(&mut recognizer, &chosen, &input, &sources, &mut flow)
         };
         let emitted = match emitted {
-            Ok(emitted) => emitted,
+            Ok((emitted, unowned)) => {
+                stage.errors = unowned.errors;
+                stage.warnings = unowned.warnings;
+                emitted
+            }
             Err(error) => {
                 let error = self.grammar_error(index, error);
                 run.stages.push(stage);
@@ -834,6 +906,8 @@ impl Pipeline {
         let check = elision.unwrap_or(grammar.elision_only);
         let mut ambiguous = None;
         if check
+            && run.pending.errors.is_empty()
+            && run.collected.errors.is_empty()
             && ranking.profile.error_free()
             && (ranking.verdict == RankVerdict::Resolved || ranking.verdict == RankVerdict::Unique && has_elided(&tree))
         {

@@ -447,12 +447,11 @@ impl<'a> Proofs<'a> {
         while changed {
             changed = false;
             for x in 0..order.len() {
-                for channel in 0..2 {
+                for (channel, &ceiling) in ceilings.iter().enumerate() {
                     self.count();
                     let raw_support = raw[x];
                     let (states, permissions) = if channel == 0 { (&mut raw, &mut raw_p) } else { (&mut e, &mut p) };
-                    if states[x] == ceilings[channel] && (permissions[x] == ceilings[channel] || next[x] == Next::Other)
-                    {
+                    if states[x] == ceiling && (permissions[x] == ceiling || next[x] == Next::Other) {
                         continue;
                     }
                     let place = order[x];

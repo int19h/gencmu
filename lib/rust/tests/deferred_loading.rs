@@ -22,7 +22,7 @@ fn error_nullability_uses_the_final_structural_grammar() {
         "%rule text bad\n%rule bad empty\n%error \"bad\"\n%rule empty A\n%redefine-rule empty ε",
         "%rule text bad\n%rule bad empty\n%error \"bad\"\n%rule empty A\n%extend-rule empty ε",
     ] {
-        let error = load(grammar).err().expect("a nullable error must fail loading");
+        let error = load(grammar).expect_err("a nullable error must fail loading");
         assert!(error.message.contains("can match no tokens"), "{error:?}");
         assert_eq!(error.stage.as_deref(), Some("main"));
     }

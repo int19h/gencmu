@@ -96,7 +96,7 @@ fn failed_message_preserves_earlier_stages() {
     assert_eq!(result.stages[1].verdict, Some(gencmu::Verdict::Unique));
     assert!(result.stages[0].output.is_some());
     assert!(result.stages[1].output.is_none());
-    assert_eq!(result.warnings.iter().map(|w| w.code.as_str()).collect::<Vec<_>>(), ["early"]);
+    assert_eq!(result.warnings.iter().map(|w| w.code.as_str()).collect::<Vec<_>>(), ["late", "early"]);
 }
 #[test]
 fn suppressed_messages_do_not_run() {

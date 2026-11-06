@@ -713,8 +713,9 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                         pending.push((Part::String, left, depth));
                         pending.push((Part::String, right, depth));
                     }
-                } else if exact(value, &["remainder"], &[]) && is_true(value.get("remainder")) && flags.query {
-                } else if exact(value, &["empty"], &[]) && is_true(value.get("empty")) {
+                } else if exact(value, &["remainder"], &[]) && is_true(value.get("remainder")) && flags.query
+                    || exact(value, &["empty"], &[]) && is_true(value.get("empty"))
+                {
                 } else if let Some(inner) = value.get("splice") {
                     if !exact(value, &["splice"], &[])
                         || !(inner.get("call").is_some()
