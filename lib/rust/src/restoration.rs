@@ -633,6 +633,8 @@ mod tests {
                 .unwrap_or(&[])
                 .iter()
                 .map(|t| crate::InputToken {
+                    errors: Vec::new(),
+                    warnings: Vec::new(),
                     image: None,
                     text: t.get("text").and_then(Json::as_str).unwrap_or("").into(),
                     tags: t

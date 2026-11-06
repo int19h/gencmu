@@ -318,6 +318,8 @@ pub(crate) fn reports_of(
         for (recipe, is_error) in production.error.iter().map(|r| (r, true)).chain(warning.map(|r| (r, false))) {
             crate::diagnostics::message(code)?;
             let report = Warning {
+                record: None,
+                rejection: None,
                 stage: stage.to_string(),
                 code: code.clone(),
                 rule: code.clone(),
@@ -349,6 +351,8 @@ pub(crate) struct Emitted {
     /// The tokens attached before it and after it (§11).
     pub before: Vec<Attachment>,
     pub after: Vec<Attachment>,
+    pub errors: Vec<crate::result::Warning>,
+    pub warnings: Vec<crate::result::Warning>,
 }
 
 enum Work<'g> {
@@ -419,8 +423,18 @@ fn cover(
         (at, at)
     };
     let (value, image) = (String::new(), String::new());
-    let mut token =
-        Emitted { span, source, tags, value, image, inserted_by: None, before: Vec::new(), after: Vec::new() };
+    let mut token = Emitted {
+        errors: Vec::new(),
+        warnings: Vec::new(),
+        span,
+        source,
+        tags,
+        value,
+        image,
+        inserted_by: None,
+        before: Vec::new(),
+        after: Vec::new(),
+    };
     // Counted parts decide attachment forwarding (§11).
     if forwarding.on {
         if let Some(from) = forwarded(recognizer.g, tree, tokens, index)? {
@@ -480,6 +494,8 @@ fn forwarded(g: &Lowered, tree: &ITree, tokens: &[Tok], root: u32) -> Result<Opt
 /// (§11), with its tags and its text as the result has them.
 fn attachment(recognizer: &Recognizer, token: Emitted) -> Attachment {
     Attachment {
+        errors: token.errors,
+        warnings: token.warnings,
         text: recognizer.shared.source_text(token.source.0, token.source.1),
         value: token.value,
         image: token.image,
@@ -892,6 +908,8 @@ pub(crate) fn emit(
                 // Inserted tokens receive their strings from item recipes.
                 let (value, image) = strings.item(node, None, channels)?;
                 out.push(Emitted {
+                    errors: Vec::new(),
+                    warnings: Vec::new(),
                     span: (at as usize, at as usize),
                     source: (source, source),
                     tags: set,

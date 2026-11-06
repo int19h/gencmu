@@ -654,6 +654,8 @@ pub fn case_tokens(case: &Value) -> Option<Vec<gencmu::InputToken>> {
             .array()
             .iter()
             .map(|token| gencmu::InputToken {
+                errors: Vec::new(),
+                warnings: Vec::new(),
                 text: token.get("text").and_then(Value::str).unwrap_or("").to_string(),
                 tags: token
                     .get("tags")

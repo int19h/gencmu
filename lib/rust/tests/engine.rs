@@ -370,6 +370,8 @@ fn lowering_error(sources: &[(&str, &str)], features: &[&str]) -> String {
         gencmu::load_pipeline_sources(sources.iter().map(|(path, text)| (path.to_string(), text.to_string())), "p.md")
             .expect("an error of lowering is no load error");
     let token = gencmu::InputToken {
+        errors: Vec::new(),
+        warnings: Vec::new(),
         text: "a".into(),
         tags: ["A".to_string()].into_iter().collect(),
         value: None,

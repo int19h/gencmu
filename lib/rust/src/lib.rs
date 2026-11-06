@@ -62,6 +62,7 @@ mod json;
 mod loader;
 mod lower;
 mod markdown;
+mod measures;
 mod nat;
 mod notation;
 mod output;
@@ -98,7 +99,7 @@ pub use output::{to_brackets, to_json};
 pub use pipeline::{Feature, InputToken, ParseOptions, Pipeline};
 pub use result::{
     Action, AmbiguityReason, Attachment, BoundaryFailure, ErrorCode, Expected, Node, NodeKind, ParseError,
-    ParseErrorKind, ParseResult, Restoration, Stage, Tags, Token, Verdict, Warning,
+    ParseErrorKind, ParseResult, RejectionEvidence, Restoration, Stage, Tags, Token, Verdict, Warning,
 };
 
 /// Helpers for tests and tools: reading one grammar document to its DOM,

@@ -1687,7 +1687,7 @@ fn deferred_recipe_precedes_empty_emission() {
 fn template_definition_keeps_its_specific_problem() {
     for params in ["", r#","params":["X"]"#] {
         let raw = format!(
-            r#"{{"format":45,"rules":[{{"name":"pair"{params},"op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"tags":{{"method":"tags","receiver":{{"capture":"y"}},"args":[]}},"conditions":[],"at":[2,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
+            r#"{{"format":46,"rules":[{{"name":"pair"{params},"op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"tags":{{"method":"tags","receiver":{{"capture":"y"}},"args":[]}},"conditions":[],"at":[2,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
         );
         let problem = gencmu::tools::check_dom(&raw).unwrap().unwrap();
         assert!(problem.contains("$y") && problem.contains("pair"), "{problem}");
@@ -1724,7 +1724,7 @@ fn substituted_condition_keeps_its_type_reason() {
 
 #[test]
 fn span_tag_hint_uses_source_spelling() {
-    let raw = r#"{"format":45,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"tags":{"union":[{"capture":"x"},{"tag":"B"}]},"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}"#;
+    let raw = r#"{"format":46,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"tags":{"union":[{"capture":"x"},{"tag":"B"}]},"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}"#;
     let problem = gencmu::tools::check_dom(raw).unwrap().unwrap();
     assert!(problem.contains("$x.tags") && !problem.contains("tags($x)"), "{problem}");
 }

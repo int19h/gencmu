@@ -3085,6 +3085,8 @@ fn call_name_lookup_precedes_argument_lookup() {
         .into_iter()
         .enumerate()
         .map(|(index, value)| Token {
+            errors: Vec::new(),
+            warnings: Vec::new(),
             text: value.into(),
             value: value.into(),
             image: value.into(),

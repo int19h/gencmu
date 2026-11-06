@@ -240,13 +240,8 @@ fn gates_turn_off_and_warnings_follow_the_chosen_tree() {
     let warned = pipeline.parse("bcb", &ParseOptions { features: vec!["w".into(), "w-part".into()], ..off }).unwrap();
     assert!(warned.ok);
     assert_eq!(gencmu::to_brackets(&warned, false), "(b c b)");
-    let warning = |rule: &str, span: std::ops::Range<usize>| Warning {
-        stage: "main".to_string(),
-        code: rule.to_string(),
-        message: format!("warning {rule}"),
-        rule: rule.to_string(),
-        span: span.clone(),
-        source: span,
+    let warning = |rule: &str, span: std::ops::Range<usize>| {
+        Warning::new("main".into(), rule.into(), span.clone(), span, format!("warning {rule}"))
     };
     assert_eq!(warned.warnings, [warning("w", 0..3), warning("w-part", 0..1), warning("w-part", 2..3)]);
     assert!(gencmu::to_json(&warned).contains(
@@ -401,7 +396,7 @@ fn results_outlive_the_pipeline_and_cross_threads() {
         pipeline.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":16,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":17,\"ok\":true"));
 
     let pipeline = std::sync::Arc::new(gencmu::load_pipeline("gencmu/jbogenbau").unwrap());
     let threads: Vec<_> = (0..4)
@@ -520,6 +515,8 @@ fn deep_tokens_and_ties_do_not_overflow() {
         .unwrap();
         let tokens: Vec<gencmu::InputToken> = (0..6000)
             .map(|index| gencmu::InputToken {
+                errors: Vec::new(),
+                warnings: Vec::new(),
                 image: None,
                 text: if index % 2 == 0 { "a".into() } else { "b".into() },
                 tags: [if index % 2 == 0 { "A" } else { "B" }.to_string()].into_iter().collect(),
@@ -764,6 +761,8 @@ fn input_tokens_get_sources_within_the_text() {
     let tokens: Vec<gencmu::InputToken> = ["mi", "", "dô"]
         .iter()
         .map(|text| gencmu::InputToken {
+            errors: Vec::new(),
+            warnings: Vec::new(),
             image: None,
             text: text.to_string(),
             tags: ["W".to_string()].into(),
@@ -786,6 +785,8 @@ fn a_classifier_error_names_its_entry() {
     let rules = "%ambiguity-resolution greedy\n%classifier lex\n  \"mi\" ∈ KOhA\n  f? \"mi\" ∈ KOhA\n%rule text $w:W :: $w.value.classify(lex)\n%emits\n  $";
     let pipeline = gencmu::load_pipeline_sources(single(rules), "p.md").expect("a pipeline");
     let tokens = [gencmu::InputToken {
+        errors: Vec::new(),
+        warnings: Vec::new(),
         image: None,
         text: "mi".to_string(),
         tags: ["W".to_string()].into(),
@@ -981,6 +982,8 @@ fn exponentially_long_derivations_keep_exact_counts() {
         // first closes the long rule.
         let pipeline = doubling("greedy", depth, &format!("A | r{depth} A"));
         let a = gencmu::InputToken {
+            errors: Vec::new(),
+            warnings: Vec::new(),
             image: None,
             text: "a".into(),
             tags: ["A".to_string()].into_iter().collect(),
@@ -1010,6 +1013,7 @@ fn the_witness_lost_error_writes_its_members_in_order() {
         children: Vec::new(),
     };
     let error = ParseError {
+        warnings: Vec::new(),
         errors: Vec::new(),
         feature: None,
         boundary: None,
@@ -1043,7 +1047,7 @@ fn the_witness_lost_error_writes_its_members_in_order() {
     assert_eq!(
         gencmu::to_json(&result),
         concat!(
-            r#"{"format":16,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
+            r#"{"format":17,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
             r#""message":"the syntax stage could not reconstruct its chosen derivation for elision-only","#,
             r#""chosen":{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]},"#,
             r#""completion":[{"terminal":"KU","at":3,"source":[9,9]},{"terminal":"VAU","at":5,"source":[16,16],"value":"vau"}]}}"#
@@ -1074,6 +1078,8 @@ fn ranked_groups_grow_with_forest_positions() {
     for length in [1, 2, 4, 8, 16] {
         let tokens: Vec<_> = (0..length * 2)
             .map(|i| gencmu::InputToken {
+                errors: Vec::new(),
+                warnings: Vec::new(),
                 image: None,
                 text: if i % 2 == 0 { "x" } else { "y" }.into(),
                 tags: [if i % 2 == 0 { "X" } else { "Y" }.into()].into_iter().collect(),

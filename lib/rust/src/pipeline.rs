@@ -84,6 +84,10 @@ pub struct InputToken {
     pub value: Option<String>,
     /// The visible string. None uses the text.
     pub image: Option<String>,
+    /// Only empty diagnostic lists are accepted from a caller.
+    pub errors: Vec<crate::result::Warning>,
+    /// Only empty warning lists are accepted from a caller.
+    pub warnings: Vec<crate::result::Warning>,
 }
 
 type LoweredResult = Result<Arc<Lowered>, Error>;
@@ -442,6 +446,9 @@ impl Pipeline {
     /// tests and tools (see [`InputToken`]).
     pub fn parse_tokens(&self, tokens: &[InputToken], options: &ParseOptions) -> Result<ParseResult, Error> {
         for token in tokens {
+            if !token.errors.is_empty() || !token.warnings.is_empty() {
+                return Err(Error::usage("a caller cannot supply diagnostics"));
+            }
             if let Some(tag) = token
                 .tags
                 .iter()
@@ -470,6 +477,8 @@ impl Pipeline {
                     // A caller token defaults its image to its text only when
                     // `image` is `None` (§5).
                     public.push(Token {
+                        errors: Vec::new(),
+                        warnings: Vec::new(),
                         text: token.text.clone(),
                         value: token.value.clone().unwrap_or_else(|| token.text.clone()),
                         image: token.image.clone().unwrap_or_else(|| token.text.clone()),
@@ -481,6 +490,8 @@ impl Pipeline {
                         after: Vec::new(),
                     });
                     input.push(Tok {
+                        errors: Vec::new(),
+                        warnings: Vec::new(),
                         text: token.text.clone(),
                         tags: set,
                         value: token.value.clone().unwrap_or_else(|| token.text.clone()),
@@ -598,6 +609,8 @@ impl Pipeline {
             }
             if let Some(error) = failure {
                 run.stages.push(Stage {
+                    errors: Vec::new(),
+                    warnings: Vec::new(),
                     name: self.stages[index].name.clone(),
                     input: std::mem::take(&mut run.public_input),
                     output: None,
@@ -628,6 +641,7 @@ impl Pipeline {
             None => error.message,
         };
         ParseError {
+            warnings: Vec::new(),
             errors: Vec::new(),
             feature: None,
             boundary: None,
@@ -662,8 +676,15 @@ impl Pipeline {
         let grammar = &self.stages[index];
         let input = std::mem::take(&mut run.input);
         let public_input = std::mem::take(&mut run.public_input);
-        let mut stage =
-            Stage { name: grammar.name.clone(), input: public_input, output: None, verdict: None, witness: None };
+        let mut stage = Stage {
+            errors: Vec::new(),
+            warnings: Vec::new(),
+            name: grammar.name.clone(),
+            input: public_input,
+            output: None,
+            verdict: None,
+            witness: None,
+        };
         let lowered = match self.lowered(index, features) {
             Ok(lowered) => lowered,
             Err(error) => {
@@ -782,6 +803,8 @@ impl Pipeline {
         for token in emitted {
             let text = shared.source_text(token.source.0, token.source.1);
             public.push(Token {
+                errors: token.errors.clone(),
+                warnings: token.warnings.clone(),
                 text: text.clone(),
                 value: token.value.clone(),
                 image: token.image.clone(),
@@ -793,6 +816,8 @@ impl Pipeline {
                 after: token.after.clone(),
             });
             next.push(Tok {
+                errors: token.errors.clone(),
+                warnings: token.warnings.clone(),
                 text,
                 tags: token.tags,
                 value: token.value,
@@ -819,6 +844,7 @@ impl Pipeline {
                 Ok(Check::Lost(completion)) => {
                     let name = &grammar.name;
                     let error = ParseError {
+                        warnings: Vec::new(),
                         errors: Vec::new(),
                         feature: None,
                         boundary: None,
@@ -871,6 +897,7 @@ impl Pipeline {
     fn tie(&self, index: usize, readings: Vec<Node>) -> ParseError {
         let stage = &self.stages[index].name;
         ParseError {
+            warnings: Vec::new(),
             errors: Vec::new(),
             feature: None,
             boundary: None,
@@ -913,6 +940,7 @@ impl Pipeline {
             format!("stage {stage} cannot read {found}; it expected {}", wanted.join(", "))
         };
         ParseError {
+            warnings: Vec::new(),
             errors: Vec::new(),
             feature: None,
             boundary: None,
@@ -993,6 +1021,8 @@ impl Pipeline {
             while let Some((number, record)) = next.next_if(|(_, record)| record.at == position) {
                 record_at.push(tokens.len() as u32);
                 tokens.push(Tok {
+                    errors: Vec::new(),
+                    warnings: Vec::new(),
                     text: String::new(),
                     tags: shared.tags.set_of([record.terminal.as_str()]),
                     value: record.value.clone().unwrap_or_default(),
@@ -1160,7 +1190,7 @@ impl Pipeline {
         let context = TreeContext { g, sources, tag_map: &tag_set, reading: Some(&map) };
         let readings = trees.iter().map(|t| public_tree(t, &context)).collect();
         let stage = &self.stages[index].name;
-        Ok(Check::Ambiguous(Box::new(ParseError {
+        Ok(Check::Ambiguous(Box::new(ParseError {warnings: Vec::new(),
             errors: Vec::new(),
             feature: None, boundary: None,
             kind: ParseErrorKind::Ambiguous,
@@ -1280,6 +1310,8 @@ fn character_tokens(unicode: &Unicode, tags: &mut crate::tags::Tags, chars: &[ch
         });
         // A character token shows its decomposed scalar (§1).
         public.push(Token {
+            errors: Vec::new(),
+            warnings: Vec::new(),
             text: text.clone(),
             value: value.clone(),
             image: value.clone(),
@@ -1291,6 +1323,8 @@ fn character_tokens(unicode: &Unicode, tags: &mut crate::tags::Tags, chars: &[ch
             after: Vec::new(),
         });
         input.push(Tok {
+            errors: Vec::new(),
+            warnings: Vec::new(),
             image: value.clone(),
             text: text.clone(),
             tags: set,

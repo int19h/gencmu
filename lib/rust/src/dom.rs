@@ -71,7 +71,7 @@ use crate::tags::is_name;
 use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 45;
+pub const DOM_FORMAT: i64 = 46;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {

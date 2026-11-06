@@ -983,6 +983,8 @@ mod tests {
             .iter()
             .enumerate()
             .map(|(index, &terminal)| Tok {
+                errors: Vec::new(),
+                warnings: Vec::new(),
                 text: "x".to_string(),
                 tags: shared.tags.set_of([terminal]),
                 value: String::new(),
@@ -1066,6 +1068,8 @@ mod tests {
         ];
         let pipeline = crate::load_pipeline_sources(sources, "grammars/test/p.md").expect("the pipeline");
         let token = |text: &str, tags: Vec<String>| crate::InputToken {
+            errors: Vec::new(),
+            warnings: Vec::new(),
             image: None,
             text: text.to_string(),
             tags: tags.into_iter().collect(),
@@ -1105,6 +1109,8 @@ mod tests {
         let mut shared = Shared::new(&pipeline.unicode, &chars);
         let input: Vec<Tok> = (0..=n + c)
             .map(|index| Tok {
+                errors: Vec::new(),
+                warnings: Vec::new(),
                 text: "x".to_string(),
                 tags: shared.tags.set_of([if index < n {
                     "A"

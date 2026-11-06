@@ -63,6 +63,8 @@ pub(crate) struct Tok {
     /// operation sees: only emission forwards them.
     pub before: Vec<Attachment>,
     pub after: Vec<Attachment>,
+    pub errors: Vec<crate::result::Warning>,
+    pub warnings: Vec<crate::result::Warning>,
 }
 
 impl Tok {
@@ -2890,6 +2892,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let set = self.shared.tags.set(vec![own]);
                 let sound = helper.elided_value.clone().unwrap_or_default();
                 let synthetic = Tok {
+                    errors: Vec::new(),
+                    warnings: Vec::new(),
                     text: String::new(),
                     tags: set,
                     value: sound,
@@ -4184,6 +4188,8 @@ mod tests {
         for n in [1000, 4000] {
             let mut tokens: Vec<Tok> = (0..n)
                 .map(|index| Tok {
+                    errors: Vec::new(),
+                    warnings: Vec::new(),
                     text: "x".to_string(),
                     tags: 0,
                     value: if index + 1 == n { "a".into() } else { String::new() },
@@ -4231,6 +4237,8 @@ mod tests {
                 let tokens: Vec<Tok> = names
                     .iter()
                     .map(|name| Tok {
+                        errors: Vec::new(),
+                        warnings: Vec::new(),
                         text: "x".to_string(),
                         tags: shared.tags.set_of([name.as_str()]),
                         value: String::new(),
@@ -4390,6 +4398,8 @@ mod tests {
         let mut shared = Shared::new(&pipeline.unicode, &chars);
         let input: Vec<Tok> = (0..n)
             .map(|index| Tok {
+                errors: Vec::new(),
+                warnings: Vec::new(),
                 text: "a".to_string(),
                 tags: shared.tags.set_of(["A"]),
                 value: String::new(),
@@ -4610,6 +4620,8 @@ mod tests {
         let mut shared = Shared::new(&pipeline.unicode, &chars);
         let tokens: Vec<Tok> = (0..n)
             .map(|index| Tok {
+                errors: Vec::new(),
+                warnings: Vec::new(),
                 text: "a".to_string(),
                 tags: shared.tags.set_of(["A"]),
                 value: "a".to_string(),
@@ -4680,6 +4692,8 @@ mod tests {
         assert_linear(Work::Spanned, 1000, &mut |n| {
             let mut tokens: Vec<Tok> = (0..n)
                 .map(|index| Tok {
+                    errors: Vec::new(),
+                    warnings: Vec::new(),
                     text: "a".to_string(),
                     tags: 0,
                     value: if index + 1 == n { "a".into() } else { String::new() },
