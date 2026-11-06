@@ -1139,7 +1139,7 @@ Nullability is the least fixed point over this structural grammar, including hel
 
 The loader examines definitions in expanded rule order and then written alternative order. Ordinary syntax, type, capture, and clause errors precede this test. A `%warning` production is exempt because warnings contribute no measure. Even with empty sources throughout, an error production therefore reads at least one token.
 
-A stage cannot raise its own named error over an empty token sequence. It uses plain rejection for an omission without a consumed opener. An omission under an elided opener belongs to an enclosing construct that reads a token. Its span is that enclosing construct's span.
+A stage cannot raise its own named error over an empty token sequence. It uses plain rejection for an omission without a consumed opener. An omission under an elided opener belongs to an enclosing construct that reads a token. The error reads that construct's opener token, and its span is that token.
 
 Diagnostic recipes follow recipe capture validation too (§11), with no absent-message pruning. They cannot read absent, item, or private ranked captures. A template cannot carry `%error` or `%warning`, but it can carry `%suppress-warnings`.
 
@@ -1219,13 +1219,15 @@ Every expansion of the alternative that goes through a helper's place shares tha
 
 ### 3.10 Query helpers
 
-For each distinct tag named by `matches`, `begins`, or `ends`, stage lowering creates one query helper. Every occurrence of that terminal target shares the helper. Its single production reads one token through that terminal. The helper has no symbol tests, conditions, or written clauses. It inherits the token's tags.
+For each distinct user tag named by `matches`, `begins`, `ends`, or undecorated `parse`, stage lowering creates one query helper. Every occurrence of that terminal target shares the helper. Its single production reads one token through that terminal. The helper has no symbol tests, conditions, or written clauses. It inherits the token's tags.
 
-Query helpers follow every production from the written grammar, including its helpers, in tag-name order. Anonymous composite query targets follow the terminal helpers in first written-use order. No body can name a query helper. Query helpers appear in no grammar DOM, written-grammar analysis, output tree, or audit.
+Query helpers follow every production from the written grammar, including its helpers, in tag-name order. Other anonymous query targets follow the terminal helpers in first written-use order. No body can name a query helper. Query helpers appear in no grammar DOM, written-grammar analysis, output tree, or audit.
 
 `parse(C)` lowers its capture-free constituent to an anonymous query target. Its identity is structural, keyed by the lowered constituent after substitution and reference resolution. Grouping, source positions, and the remainder mark do not distinguish targets. The memo retains the query mode separately.
 
-A single rule call uses that rule identity, and a single terminal uses its query helper. Thus `begins(x)` and `parse(x …)` share their target, memo entry, and recursive-query test. Lowering fixes only identity and target. Recognition uses the same whole, prefix, or suffix machinery as the corresponding query. An anonymous target's diagnostic name is its canonical constituent spelling, without remainder. A single nominal target keeps its public name.
+An undecorated rule call reuses that rule's query target. An undecorated user-tag terminal reuses its helper, including a tag that only `parse` names. Every other constituent uses a structurally keyed anonymous target that retains its tests and decorations. This includes literals, ranges, wildcards, engine tags, and tested symbols.
+
+Thus `begins(x)` and `parse(x …)` share their target, memo entry, and recursive-query test. Lowering fixes only identity and target. Recognition uses the same whole, prefix, or suffix machinery as the corresponding query. An anonymous target's diagnostic name is its canonical constituent spelling, without remainder. A single nominal target keeps its public name.
 
 ### 3.11 Spliced calls
 
@@ -1334,7 +1336,7 @@ A proof tree of an item shows how the rules of recognition justify the item from
 
 An eligible query proof tree has no unerased error production of its own and no forbidden omission (below). A carried error never bars an ordinary query witness. Queries ask whether a structure exists, and a faulty token retains its ordinary class and value. An erased subtree contributes no live errors, including the witness's own error occurrences there. Queries evaluate no diagnostic message. Main recognition applies no query filter, and reconstruction follows §7.4.
 
-The `.error-free` filter additionally requires zero carried blame outside erased witness subtrees. Eligibility and this filter concern the same proof, rather than independent proofs that happen to share an item. Both use the erasure composition of §6. Raw chart items remain available regardless of either answer.
+The `.error-free` filter additionally requires zero carried measure outside erased witness subtrees. Eligibility and this filter concern the same proof, rather than independent proofs that happen to share an item. Both use the erasure composition of §6. Raw chart items remain available regardless of either answer.
 
 An ordinary query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The query methods, including `parse` and aligned forms, read eligible proof trees before ranked admission (§6.1) or ranking. Their structural observations still use the sealed leaves of §4.1:
 
@@ -1378,11 +1380,18 @@ Two proof trees reach the omission of `[+T]` after `y`. In the first, `[A]` is e
 
 In the second tree, `[A]` reads `A` and `y → B z [+U]`, so the omission of `[+T]` is permitted. But that tree is not eligible. Its omission of `[+U]` is forbidden, because `z` can read `C T`, and then the written `U` follows. Without the `[+U]` of `y → B z [+U]`, the second tree is eligible, and `begins` holds.
 
-An implementation computes written-terminator priority and live-error eligibility over the recorded advances. It retains correlated Boolean states per item for one proof's eligibility and permission for the next omission. A prediction supplies a finite proof seed. An ordinary advance combines its predecessor's state with its child's state. An omission additionally needs its fixed prefix's permission.
+An implementation computes E and P over the recorded advances. E says that one proof is eligible. P says that the same proof permits the next optional to be empty. A third flag F says that this proof has measure `(0,0,0)` for `.error-free`. The flags always describe the same proof, and distinct combinations remain separate.
 
-Completing an unerased error occurrence makes that proof ineligible as a query witness. Completing an erased occurrence clears its interior's error contribution. The priority state still requires a finite proof with no forbidden omission. The extra `.error-free` flag combines carried errors in the same way. Finite priority-eligible proofs retain their nonzero error flags so an erased parent can clear them.
+The transitions are:
 
-These states reach the least fixed point, so a cycle without a finite seed supplies no witness. Computation visits shared items and advances, without constructing witness trees.
+- A predicted item has E unless it is a completed unerased error occurrence. Its F flag holds for a zero measure.
+- An advance that is not an omission gives E from an E predecessor. A completion also needs E in its completed child. F holds only with F in both contributing proofs. A token read preserves F only without carried errors.
+- An omission gives E only from a predecessor with P. It keeps that predecessor's F flag.
+- Before an optional with preceding logical nonterminal Y, P follows an E advance over Y whose fixed prefix permits the omission. P retains that advance's F flag.
+- Before an optional without such a nonterminal, P requires E and permission for that fixed prefix's omission. P retains the F flag of that proof.
+- A completed unerased own error has no ordinary E, P, or F. An erased completion instead uses its interior's written-priority support and resets its measure, so it has E and F. The ordinary fixed-prefix rules determine P.
+
+The implementation also retains written-priority support through the same E and P transitions without the own-error filter. Erased completions use that support, so interior own errors do not destroy their witnesses. This support still requires a finite proof without forbidden omissions. These computations reach the least fixed point, so a cycle alone supplies no proof. They visit shared items and advances without constructing witness trees.
 
 Eligibility filtering reads only the chart, and it evaluates no conditions. A query's answer determines which expressions the enclosing condition evaluates. The recursive-query error rule (below) applies to those evaluations.
 
@@ -1648,7 +1657,7 @@ A pending literal counts as holding for the rest of its step. So the step evalua
 
 Two literals are equal when their directions, targets and signs are equal. Each literal also carries an annotation, the set of rule and condition index pairs whose items produced it. The annotation is not part of the record. When two items merge, or a literal joins an equal one, their annotations join. The annotation serves only the `boundary` member of a rejection. A target is equal to another when it holds the same names.
 
-Guarded tag variants keep their concrete tags and appended literals apart until those literals settle. Contradictory assignments pruned by §3.7 never enter this recognition. Surviving variants retain one source occurrence, so settlement creates no duplicate diagnostic or error count.
+Guarded tag variants keep their concrete tags and appended literals apart until those literals settle. Contradictory assignments pruned by §3.7 never enter this recognition. Surviving variants retain one source occurrence, so settlement creates no duplicate diagnostic or charge.
 
 An item carries a boundary record, which is part of its identity. Two items merge only when their records are equal. Proof edges stay within one record. Records hold literals, and offers of targets only.
 
@@ -1726,7 +1735,9 @@ A shared key holds what the content key of one parse holds, with each token's ta
 
 `matches`, `tags`, and whole `parse` share a mode. `begins` and prefix `parse` share another, while `ends` and suffix `parse` share a third.
 
-Ordinary shared answers contain no carried-error information. A filtered answer additionally keys on the presence of carried errors on each token of the view. It also retains any nested query's dependency on that presence. An ordinary answer that depends on a nested filtered answer is also error-sensitive and needs that distinction. Alternatively, an implementation applies `.error-free` per view instead of sharing the filtered answer. Carried identities, messages, and warning presence never distinguish ordinary structural answers.
+An ordinary shared answer without a nested filtered dependency contains no carried-error information. A filtered answer additionally keys on the presence of carried errors on each token of the view. It also retains any nested query's dependency on that presence. If a nested query uses `.error-free`, the enclosing answer's memo key retains its carried-error dependencies. This also applies to an enclosing query without a filter.
+
+Alternatively, an implementation applies `.error-free` per view instead of sharing the filtered answer. Carried identities, messages, and warning presence never distinguish ordinary structural answers.
 
 Only a nested parse that completes leaves an entry. A parse that ends in an error of the grammar leaves none, so every parse that meets the error finds it again. An entry for `matches` and `tags` holds whether the span is accepted, and the names of its tags.
 
@@ -1851,9 +1862,11 @@ Each key step compares two derivations by its counts:
 
 The blame measure is `(b,s,n)`. Its components are source blame b, sourceless error count s, and total error count n. Smaller b wins, then smaller s, then larger n. Thus `(0,0,0)` beats every faulty reading. Any number of sourceless errors costs less than one blamed source code point.
 
-If its source envelope has positive length L, an error occurrence adds `(L,0,1)`. With an empty source envelope, it adds `(0,1,1)` instead. The source envelope uses §1, including gaps between nonadjacent sources. Preprocessed source bounds permit an O(1) envelope lookup for each span. Ranking never rescans a span's tokens to compute its charge.
+If every token that an error occurrence reads has an empty source, the occurrence adds `(0,1,1)`. Otherwise it adds `(L,0,1)`, where L is its source-envelope length under §1, gaps included. Empty sources at different points still receive the sourceless charge, despite their nonempty envelope.
 
-A constituent adds its own charge, its children's measures, and the carried charges of directly read input tokens. A wrapper error therefore adds its own source length even around another error. Overlapping source intervals charge separately, rather than forming a union. A token's carried measure sums the fixed charges of the diagnostics that it carries. Warnings contribute nothing. Attached display copies contribute nothing independently of their carrier (§11.5).
+A prefix count of tokens with nonempty sources supplies the all-empty test in O(1) after O(N) preprocessing. Preprocessed source bounds permit an O(1) envelope lookup for each span. Ranking never rescans a span's tokens to compute its charge.
+
+A constituent adds its own charge, its children's measures, and the carried charges of directly read input tokens. A wrapper error therefore adds its own charge even around another error. Overlapping source intervals charge separately, rather than forming a union. A token's carried measure sums the fixed charges of the diagnostics that it carries. Warnings contribute nothing. Attached display copies contribute nothing independently of their carrier (§11.5).
 
 An erased occurrence contributes `(0,0,0)` to its parent, whatever its interior measure. Pending diagnostics of earlier stages that emit no tokens add once at stage level (§12.1). That common contribution changes no comparison between the stage's derivations. It does affect whether any error counts for reporting and §7.
 
@@ -1865,7 +1878,7 @@ With no grammar key step, profiles contain only the measure. The lean ranks equa
 
 Of two derivations with different profiles, the one with the greater profile beats the other. Of two with equal profiles, the one that the lean prefers beats the other. Without a lean, neither beats the other. A derivation is best if no other derivation beats it.
 
-The verdict counts only admitted derivations with the best measure. If a zero-measure derivation exists, positive-measure derivations do not count toward the verdict. The verdict is one of these:
+The verdict counts only admitted derivations with the best measure. If a zero-measure derivation exists, derivations with a worse measure do not count toward the verdict. The verdict is one of these:
 
 - `unique` for one admitted derivation with the best measure.
 - `resolved` for several admitted derivations with that measure and exactly one best derivation.
@@ -1989,15 +2002,19 @@ The root compares its items by the same profile. Without a lean, a verdict total
 
 The best derivations form a smaller forest. For each summary, the implementation keeps the edges that attain its greatest profile. Each kept edge leads to the summaries of its children, in their own contexts. The stage finds `m` and `t` by a ranking with no lean over that forest. That ranking keeps the same contexts, so it reaches a child only through the summary that its context allows.
 
-Inside one recognition and cycle context, completed erased productions of one rule collapse on equal spans and observable states. Observable state is the completed item's identity (§4) without production and dot. It includes tags, captures and their spans and states, structural prefix state, demanded restoration observations, demanded tree identities, and the boundary record (§4.2). Different observable states remain separate.
+Inside one recognition and cycle context, completed erased productions of one rule collapse on equal spans and observable states. Observable state is the completed item's identity (§4) without production, dot, and private captures. It includes tags and returned captures with their spans and states. It also includes structural prefix state, demanded restoration observations, demanded tree identities, and the boundary record (§4.2). Different observable states remain separate. A private capture cannot distinguish interiors because no parent reads it and its conditions already ran.
 
 The collapse crosses productions that carry `%erased`, but not productions without that clause. Extensions inherit no erasure. Each collapsed occurrence contributes one derivation to the verdict total. Internally, it chooses the best pre-erasure measure and then canonical action keys, without grammar key steps or a lean. Only its contribution to its parent resets to zero.
 
 The action order is the order of T with grammar key steps and the lean removed. The output shows that kept derivation, never a collapsed alternative.
 
-Each summary also keeps one candidate independent of grammar preferences. Its profile contains only the measure, and canonical action keys order equal measures. It composes bottom-up over the same shared edges, including edges that ordinary key selection discards. An erased parent reads this candidate, while a live parent reads the ordinary one. This adds a constant factor to summary composition, with one pass over shared items and edges rather than complete derivations.
+Each ranking summary also keeps an additional action summary independent of grammar preferences. Its profile contains only the measure. It retains prefix-related candidates until their common continuation settles their canonical action order, as the ordinary action summary does. A common suffix need not preserve the order of prefix-related sequences.
 
-For an erased occurrence, outer key steps see its root alone. Thus `late #·erased-sentence` can count the root, but no step counts its proper descendants. Internal alternatives alone cannot make the text ambiguous. At equal measures, two distinct outer erasure routes still count separately. Their grammar preferences can yield `resolved`.
+The additional summary composes bottom-up over shared edges, including edges that ordinary key selection discards. An erased parent reads this summary, while a live parent reads the ordinary one. This adds a constant factor through an additional summary channel over shared items and edges. It never enumerates complete derivations.
+
+In reconstruction, two derivations belong to one class only through the erased collapses above. Every choice outside those collapsed interiors remains distinct. Raw witness membership tests concrete W(D) before admission or collapse (§7.10). After admission, membership follows the class containing admitted W(D). Class membership joins across admitted members before canonical interior selection. Keeping another canonical interior does not remove that membership.
+
+For an erased occurrence, outer key steps see its root alone. Thus `late #·erased-sentence` can count the root, but no step counts its proper descendants. Differences within one collapsed class cannot make the text ambiguous. At equal measures, two distinct outer erasure routes still count separately. Their grammar preferences can yield `resolved`.
 
 A step has up to N + 1 boundaries and N(N + 1)/2 spans. So a sparse vector, or a shared sequence of occurrences, keeps the cost of each addition and comparison small.
 
@@ -2011,7 +2028,7 @@ The same decision is made per terminal for reads and per elidable helper for omi
 
 Structural state forms part of each summary's item identity. Ranked admission keeps query eligibility and same-span cycle contexts separate (§6.1). A summary cannot substitute an edge from another structural state.
 
-Within each full state and context, retain the best measure and its verdict total, capped at two. Compute that total before grammar key steps and the lean. Equal observations do not merge distinct best-measure derivations. Profiles compose within each full state and context.
+Within each full state and context, retain the best measure and its verdict total, capped at two. Compute that total before grammar key steps and the lean. Outside the erased collapse, equal observations do not merge distinct best-measure derivations. Profiles compose within each full state and context.
 
 For k independent Boolean observations, a product can contain up to `2^k` states. Sequence prefixes and captures add further factors. Finite sharing does not imply constant memory use.
 
@@ -2058,7 +2075,7 @@ A candidate must pass its tests and ready conditions in the requested recognitio
 
 After admission, ranking summaries retain the best measure and its verdict total, capped at two (§6). The total includes grammar-step losers with that measure. Rank by profile, then by the lean. With no grammar key step, the measure precedes the lean.
 
-Candidate construction visits only edges that admission and profile selection retain. If an error or grammar key step can count an occurrence, profile summaries run. Their internal names and failure messages identify profile summaries. Admission needs existence counts. The separate ranking pass supplies witness membership where reconstruction requires it.
+Each action summary visits edges retained by admission and its own profile selection. The ordinary summary selects the full profile, while the additional summary selects only the measure. If an error or grammar key step can count an occurrence, profile summaries run. Their internal names and failure messages identify profile summaries. Admission needs existence counts. The separate ranking pass supplies witness membership where reconstruction requires it.
 
 Without a lean, a best count of two agrees exactly with a second tied derivation. A disagreement is a library defect. Admission records each group that retains a lower proof beside a qualified higher proof at most once per ranking. Recording that fact takes constant expected time per group.
 
@@ -2100,7 +2117,7 @@ The reconstructed input R is O with one synthetic token for each record. The syn
 
 A synthetic token has recognition tags and a recognition value. Its recognition tags are its terminal alone. Its recognition value is the default value of its record (§3.8). Without a default value, its recognition value is the empty string. Its synthetic image is empty.
 
-A synthetic token has no attachments or diagnostics. It contributes zero blame and no error count. It is not emitted, so no implication applies to it (§11). An original token's recognition tags and value are its stored tags and value (§5).
+A synthetic token has no attachments, diagnostics, or carried charge. It is not emitted, so no implication applies to it (§11). An original token's recognition tags and value are its stored tags and value (§5).
 
 Each token of R has a provenance, which the engine keeps to itself. It is an original token, with its index in O, or a synthetic token, with the index of its record. Nothing else tells them apart. An earlier stage can emit a token with an empty span, an empty source, empty text or `insertedBy` (§11). Such a token of O is still an original token.
 
@@ -2231,9 +2248,9 @@ Cycles are found over spans of R, as §4 says. Two constituents of one rule whos
 
 If reconstruction has no root or no walk for W(D), the check reports witness loss without preparing admission or ranking.
 
-Locate raw W(D) before applying ranked admission. Admission groups options by their physical spans in R, including synthetic tokens. The reconstruction rules, including the omission ban and strictness test of §7.4, still apply. Equal projected O spans do not establish equal admission spans. Rank admitted derivations by profiles over projected spans `[π(a),π(b))` in O. Reconstruction summaries retain their best measure and its total, capped at two, under §6.
+Locate concrete raw W(D) before applying ranked admission or erased collapse. Admission groups options by their physical spans in R, including synthetic tokens. The reconstruction rules, including the omission ban and strictness test of §7.4, still apply. Equal projected O spans do not establish equal admission spans. Rank admitted derivations by profiles over projected spans `[π(a),π(b))` in O. Reconstruction summaries retain their best measure and its total, capped at two, under §6.
 
-No lean applies, whatever the directive ends with. The measure remains the first profile component. It uses projected original sources, while a synthetic token contributes nothing. Each grammar key step ignores occurrences whose projected spans are empty.
+No lean applies, whatever the directive ends with. The measure remains the first profile component. An error occurrence uses its projected original token sources under §6. A synthetic token has an empty projected source and no carried charge. An error over synthetic tokens alone therefore adds `(0,1,1)` before erasure. Each grammar key step ignores occurrences whose projected spans are empty.
 
 Reconstruction evaluates no diagnostic message. So a restoration and a bare synthetic read count nothing, whatever pattern matches them. A step that matches omitted leaves alone decides nothing in the check.
 
@@ -2298,19 +2315,19 @@ The message is the same in every library. Section 7.10 gives witness loss priori
 
 ### 7.10 Readings
 
-This policy applies to every grammar, including grammars without ranked groups or key steps. Raw witness membership tests the concrete derivation. A competitor is a best admitted derivation other than W(D).
+This policy applies to every grammar, including grammars without ranked groups or key steps. Raw witness membership tests concrete W(D) before admission and erased collapse. After admission, membership follows its class under §6. A class represents W(D) only through an admitted reconstruction of W(D), independently of the class's kept interior.
 
-Runtime witness tracking is mandatory. An optional observer only inspects the result and never supplies the runtime witness marks.
+Runtime witness tracking is mandatory. It records class membership separately from the kept interior's edges. An optional observer only inspects the result and never supplies the runtime witness marks.
 
 If recognition ends without a grammar error, decide in this order.
 
-1. Locate W(D) in the raw reconstruction forest. If it is absent, report `elision-witness-lost` (§7.9).
+1. Locate concrete W(D) in the raw reconstruction forest. If it is absent, report `elision-witness-lost` (§7.9).
 2. Apply ranked admission without preserving W(D) artificially.
-3. Rank admitted readings by projected profiles with no lean.
-4. If W(D) is admitted and is the sole best admitted derivation, preserve the main result.
+3. Collapse equivalent erased interiors and rank admitted classes by projected profiles without a lean.
+4. If the class containing admitted W(D) is the sole best admitted class, preserve the main result.
 5. Otherwise, report `ambiguous` with reason `elision-only`, with W(D) first and one competitor second.
 
-The competitor is the T-first best admitted derivation distinct from W(D). This rule applies whether admission excludes W(D) or retains it. Transparent actions remain part of T (§6).
+The competitor comes from the T-first best admitted class that does not represent admitted W(D). If admission excludes W(D), the competitor comes from the T-first best admitted class. The kept representative supplies each admitted reading's tree and actions. An excluded W(D) remains the concrete raw restored reading. Transparent actions remain part of T (§6).
 
 A smaller filtered best profile does not prove witness loss. Intentional exclusion gives an expected ambiguity.
 
@@ -2679,7 +2696,7 @@ Recognition names describe productions. The following mapping specifies the name
 | Before and after `attachment` | `emit-before` and `emit-after`, each with `capture-reference` parts |
 | `requirement` | `tag-requirement`, whose operand has a `test-operand` wrapper |
 | `method-chain` | `method` with `method-receiver` and selector parts |
-| `parse-selector` | `method` named `parse`, with one `parse-argument` |
+| `parse-selector` | `parse-selector` with one `parse-argument` |
 | `parse-argument` | One `choice`, with an optional outer remainder token |
 | `tags-clause` by owner | Header `tags-clause`, `alternative-tags`, or `emit-tags` |
 | `directive-argument` | `argument-word`, `argument-string`, `argument-tag`, or `argument-term` by written form |
@@ -2882,7 +2899,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `method` | `method-receiver`, then one or more `method-selector` parts | Fold selectors left into receiver-first method nodes |
 | `method-receiver` | One `term-atom` | Initial receiver, retaining its actual type |
 | `method-selector` | `parse-selector` or ordinary method name and arguments | Convert the selected route, then inspect its signature. |
-| `parse-selector` | One `parse-argument` | Fold into a `parse` method with one body argument. |
+| `parse-selector` | One `parse-argument` | The enclosing `method` supplies the receiver and folds this selector into a method named `parse`, with one body argument. |
 | `parse-argument` | One `choice`, with an optional outer `…` token | Convert the expression and retain the remainder as an outer `remainder:true` leaf in its sequence. Reject captures at their binders. |
 | `method-name` | One method-name token | Exact method identifier |
 | `arguments` | One or more `argument` parts | Ordered argument array. Absent arguments gives `args:[]`. |
@@ -3579,7 +3596,7 @@ The tags that an item gives its token are the token's explicit tags. For each im
 
 Implications apply to every token that the stage emits, an inserted one included, and to nothing else. They do not change a constituent's tags, the value of a term or classifier, or a token of the stage's input. A later stage applies only its own implications. The synthetic tokens of §7 are not emitted, so no implication applies to them. No derivation of the check of §7 emits or attaches anything.
 
-An item can emit an empty tag set. A string terminal or `_` can read such a token. Recipe or ownership errors during emission retain the stage's verdict and warnings, with no output and a null result tree. The elision-only check does not then run.
+An item can emit an empty tag set. A string terminal or `_` can read such a token. Recipe or ownership errors during emission retain the stage's verdict and warnings, with no output and a null result tree. Their diagnostics follow the `grammar` collection of §12.1. The elision-only check does not then run.
 
 A token's constituent is its whole `$` carrier or captured carrier. Its span covers that part's stage-input tokens. Its source is their envelope, or the empty-node source of §12. Its text is the original source interval. A recipe changes neither source nor text, even when its image includes neighboring punctuation.
 
@@ -3744,7 +3761,7 @@ Attachment ownership counts non-erased input tokens independently of all recipes
 
 If a token has exactly one part, and that part is an input token with attachments, the token inherits those attachments. This holds whatever tags its item gives the token. The token's own attachments from its item are outer. So its outer before-attachments come before the inherited ones, and its outer after-attachments come after them.
 
-A token combining an attached input token with any other counted input token causes a grammar error. Recipes cannot hide or merge their ownership. Exactly one counted input token can forward its attachments. The token's strings can still come from explicit recipes.
+A token combining an attached input token with any other counted input token causes a grammar error. Its diagnostics follow the `grammar` collection of §12.1. Recipes cannot hide or merge their ownership. Exactly one counted input token can forward its attachments. The token's strings can still come from explicit recipes.
 
 Two emitted covering items cannot claim the same nonempty input span. A whole carrier also cannot overlap a consuming attachment capture of another item (§9.3). Together, these restrictions prevent duplicate attachment ownership. Multiple whole items require a structurally always-empty production under §9.3's conservative overlap analysis. Such items cover no counted input token or inherited attachments.
 
@@ -3762,7 +3779,7 @@ Assignment uses the first applicable rule:
 
 1. An erased constituent drops its diagnostic. An ancestor's erasure has the same effect. The diagnostic neither counts nor flows onward.
 2. The owner is the first emitted token, in emission order, whose counted parts share a counted input token with the constituent.
-3. Otherwise, the engine searches executed emitting ancestors from the constituent itself outward. It skips emissions that yield no tokens. In the nearest nonempty emission, the owner is its first token whose counted span ends at or after the diagnostic's position. A token without counted support uses its anchored input span instead. Without a qualifying token, the owner is that emission's last token.
+3. Otherwise, the engine starts at the constituent's own executed emission and continues through its ancestors. It skips emissions that yield no tokens. In the nearest nonempty emission, the owner is its first token whose counted span ends at or after the diagnostic's position. A token without counted support uses its own span, which §11.1 leaves empty at its anchor. Without a qualifying token, the owner is that emission's last token.
 4. Otherwise, the owner is the first stage-output token starting at or after the position. Without a qualifying token, it is the last stage-output token.
 5. If the stage emits no tokens, its `errors` or `warnings` retain the diagnostic. Even with empty later input, reporting includes it.
 
@@ -3834,7 +3851,7 @@ After message evaluation, an error whose occurrence is itself a ranked option ca
 
 Starting at those entries, traverse the chart items and advances reachable through productions without `%error`. Include descendants at their own origins, rather than restricting every item to the group's origin. This is the competitor slice. Compute ordinary rejection evidence over that slice, with the furthest boundary capped at the error occurrence's end. Take expected terminals from slice items at that boundary. If the slice contains no item, omit the member.
 
-The member holds `token`, `source`, `line`, `column`, and `expected`, in that order. Flow preserves its raising-stage coordinates. Computing it costs one reachability pass over the chart per qualifying reported error. A tie computes it separately for each shown reading after its messages. Ranked choices among error productions alone supply no error-free competitor evidence.
+The member holds `token`, `source`, `line`, `column`, and `expected`, in that order. Flow preserves its raising-stage coordinates. Computing it costs one reachability pass over the chart per qualifying reported error. A tie computes it separately for each shown reading after its messages. An all-error ranked group can obtain evidence from a non-error alternative of its enclosing definition. Only an empty competitor slice omits the member.
 
 ## 13. The pipeline
 
