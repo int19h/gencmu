@@ -2002,7 +2002,7 @@ The root compares its items by the same profile. Without a lean, a verdict total
 
 The best derivations form a smaller forest. For each summary, the implementation keeps the edges that attain its greatest profile. Each kept edge leads to the summaries of its children, in their own contexts. The stage finds `m` and `t` by a ranking with no lean over that forest. That ranking keeps the same contexts, so it reaches a child only through the summary that its context allows.
 
-Inside one recognition and cycle context, completed erased productions of one rule collapse on equal spans and observable states. Observable state is the completed item's identity (§4) without production, dot, or captures bound by the erased production. This excludes ordinary captures and captures inside ranked options alike. Frame captures supplied by an enclosing item to a contextual helper remain in its state because its matching depends on them. 
+Inside one recognition and cycle context, completed erased productions of one rule collapse on equal spans and observable states. Observable state is the completed item's identity (§4) without production, dot, or captures bound by the erased production. This excludes ordinary captures and captures inside ranked options alike. Frame captures supplied by an enclosing item to a contextual helper remain in its state because its matching depends on them.
 
 The state also includes tags. It also includes structural prefix state, demanded restoration observations, demanded tree identities, and the boundary record (§4.2). Different observable states remain separate. A capture bound by the erased production cannot distinguish interiors because no parent reads it and its conditions already ran.
 
