@@ -650,7 +650,7 @@ Each summary keeps an additional action summary whose profile contains only the 
 
 A splice is one transparent call, not an expression copy. It keeps conditions, tags, strings, emission, erasure, diagnostics, and suppression. Its close is transparent to action comparison, and it supplies one logical symbol for inheritance.
 
-A capture of a splice, and `$` inside it, observes an anonymous constituent. It retains the call's span, tags, strings, and flattened child sequence. Presence is true even for an empty call. Tree equality compares anonymous child sequences, and a root-name test for the spliced rule fails.
+A capture of a splice observes its anonymous exported view. Its own `$` observes the anonymous working view. Each view retains the call's span, tags, strings, and observed child sequence. Presence is true even for an empty call. Tree equality compares anonymous child sequences, and a root-name test for the spliced rule fails.
 
 The loader rejects a splice of a rule named by a stage ranking pattern, another pattern, or a neighbour target. Resolution follows constants, choices, families, and exact instance keys. Query targets do not prohibit splicing. A splice cannot stand in a pattern or supply the stage root.
 
@@ -812,7 +812,7 @@ The span method keeps `.matches`, `.begins`, and `.tags(rule)` queries. `$x.with
 
 Restored tokens record the constraint without creating additional mandatory words. A rival cannot read an omitted BOI as a bare required BOI. An omitted optional requires none of its remaining content. A prefix compares every close at its endpoint. These rules express a relation between original readings, rather than ordinary replay of completed spelling.
 
-A seal hides a ranked group's content. Outside restoration observations retain an opaque block, so private closes cannot change its common continuation. A private capture inside an option keeps its own closes for ready conditions. This preserves the replacement guarantee of engine §6.1.
+The seal of a ranked group hides that group's content. Outside restoration observations retain an opaque block, so private closes cannot change its common continuation. A private capture inside an option keeps its own closes for ready conditions. This preserves the replacement guarantee of engine §6.1.
 
 The span method requires observations from each candidate during recognition. Candidates over the same words can omit different terminators, and their queries can give different answers. Shared observation states preserve those distinctions without enumerating complete trees. Named-rule cycles use original spans, while active-query errors use the original context. Separate memo keys retain close groups, blocks, context, and features.
 
