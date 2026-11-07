@@ -271,7 +271,9 @@
                                                       0,
                                                       1
                                                     ],
-                                                    "tags": [],
+                                                    "tags": [
+                                                      "Consonant"
+                                                    ],
                                                     "children": [
                                                       {
                                                         "kind": "token",
@@ -483,7 +485,9 @@
                                                   3,
                                                   4
                                                 ],
-                                                "tags": [],
+                                                "tags": [
+                                                  "Consonant"
+                                                ],
                                                 "children": [
                                                   {
                                                     "kind": "token",

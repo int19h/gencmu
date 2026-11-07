@@ -208,7 +208,9 @@
                                                           0,
                                                           1
                                                         ],
-                                                        "tags": [],
+                                                        "tags": [
+                                                          "Consonant"
+                                                        ],
                                                         "children": [
                                                           {
                                                             "kind": "rule",
@@ -221,7 +223,9 @@
                                                               0,
                                                               1
                                                             ],
-                                                            "tags": [],
+                                                            "tags": [
+                                                              "Consonant"
+                                                            ],
                                                             "children": [
                                                               {
                                                                 "kind": "token",
@@ -251,7 +255,9 @@
                                                           1,
                                                           2
                                                         ],
-                                                        "tags": [],
+                                                        "tags": [
+                                                          "Vowel"
+                                                        ],
                                                         "children": [
                                                           {
                                                             "kind": "token",
@@ -311,7 +317,9 @@
                                                   3,
                                                   4
                                                 ],
-                                                "tags": [],
+                                                "tags": [
+                                                  "Vowel"
+                                                ],
                                                 "children": [
                                                   {
                                                     "kind": "token",
@@ -341,7 +349,9 @@
                                               4,
                                               5
                                             ],
-                                            "tags": [],
+                                            "tags": [
+                                              "Consonant"
+                                            ],
                                             "children": [
                                               {
                                                 "kind": "token",
@@ -371,7 +381,9 @@
                                           5,
                                           6
                                         ],
-                                        "tags": [],
+                                        "tags": [
+                                          "Consonant"
+                                        ],
                                         "children": [
                                           {
                                             "kind": "token",
@@ -401,7 +413,9 @@
                                       6,
                                       7
                                     ],
-                                    "tags": [],
+                                    "tags": [
+                                      "Vowel"
+                                    ],
                                     "children": [
                                       {
                                         "kind": "token",
@@ -461,7 +475,9 @@
                               8,
                               9
                             ],
-                            "tags": [],
+                            "tags": [
+                              "Vowel"
+                            ],
                             "children": [
                               {
                                 "kind": "token",
