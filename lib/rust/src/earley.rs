@@ -388,6 +388,113 @@ pub(crate) struct LexicalFrame {
     pub restoration_seal: Option<(usize, u32, usize)>,
 }
 
+/// Ranking aliases project restoration identities without changing chart items (§6).
+#[derive(Default)]
+pub(crate) struct RestorationView {
+    pub aliases: Vec<Vec<u32>>,
+    pub members: FxMap<(u32, u32), Vec<u32>>,
+    states: FxMap<u32, u32>,
+    caps: Vec<u32>,
+    lexical: Vec<u32>,
+}
+impl RestorationView {
+    pub fn state(&self, state: u32) -> u32 {
+        self.states.get(&state).copied().unwrap_or(state)
+    }
+    pub fn cap(&self, mut cap: Cap) -> Cap {
+        cap.structure = self.state(cap.structure);
+        cap.proof_structure = cap.proof_structure.map(|s| self.state(s));
+        cap
+    }
+    pub fn item(&self, mut item: Item) -> Item {
+        item.prefix = self.state(item.prefix);
+        item.structure = self.state(item.structure);
+        item.caps = self.caps[item.caps as usize];
+        item.lexical = self.frame(item.lexical);
+        item
+    }
+    pub fn frame(&self, frame: u32) -> u32 {
+        self.lexical[frame as usize]
+    }
+}
+impl Chart {
+    pub(crate) fn restoration_view(&self, g: &Lowered) -> Option<Rc<RestorationView>> {
+        let machine = self.machine.as_ref()?;
+        machine.borrow().observations.as_ref()?;
+        if !g.prods.iter().any(|p| p.erased) {
+            return None;
+        }
+        let mut view = RestorationView::default();
+        let mut state =
+            |value| *view.states.entry(value).or_insert_with(|| machine.borrow_mut().restoration_state(value));
+        for set in &self.sets {
+            for (i, item) in set.items.iter().enumerate() {
+                work::count(Work::Walked, 1);
+                state(item.prefix);
+                state(item.structure);
+                state(set.completed_structures[i]);
+            }
+        }
+        for entry in &self.caps {
+            state(entry.cap.structure);
+            if let Some(s) = entry.cap.proof_structure {
+                state(s);
+            }
+        }
+        for frame in &self.lexical {
+            state(frame.prefix);
+            state(frame.seal_prefix);
+            for cap in frame.captures.values() {
+                work::count(Work::Walked, 1);
+                state(cap.structure);
+                if let Some(s) = cap.proof_structure {
+                    state(s);
+                }
+            }
+        }
+        let mut captures = FxMap::default();
+        view.caps.push(0);
+        for entry in self.caps.iter().skip(1) {
+            work::count(Work::Walked, 1);
+            let key = (view.caps[entry.parent as usize], view.cap(entry.cap));
+            let next = captures.len() as u32 + 1;
+            view.caps.push(*captures.entry(key).or_insert(next));
+        }
+        let mut frames = FxMap::default();
+        view.lexical.push(0);
+        for (index, raw) in self.lexical.iter().enumerate() {
+            work::count(Work::Walked, 1);
+            let mut frame = raw.clone();
+            frame.prefix = view.state(frame.prefix);
+            frame.seal_prefix = view.state(frame.seal_prefix);
+            for cap in frame.captures.values_mut() {
+                work::count(Work::Walked, 1);
+                *cap = view.cap(*cap);
+            }
+            let key = format!("{frame:?}");
+            view.lexical.push(*frames.entry(key).or_insert(index as u32 + 1));
+        }
+        for (set, data) in self.sets.iter().enumerate() {
+            let mut found = FxMap::default();
+            let mut aliases = Vec::new();
+            for (index, item) in data.items.iter().enumerate() {
+                work::count(Work::Walked, 1);
+                let key = (
+                    view.item(*item),
+                    data.tagset[index],
+                    view.state(data.completed_structures[index]),
+                    data.is_strict(index),
+                );
+                let first = *found.entry(key).or_insert(index as u32);
+                aliases.push(first);
+                view.members.entry((set as u32, first)).or_default().push(index as u32);
+            }
+            view.aliases.push(aliases);
+        }
+        Some(Rc::new(view))
+    }
+}
+
 fn lexical_rule(rule: u32, lexical: u32, requested: u8) -> u128 {
     (u128::from(requested) << 64) | (u128::from(lexical) << 32) | u128::from(rule)
 }

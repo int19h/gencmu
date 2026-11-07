@@ -20,8 +20,9 @@
 
 use crate::fxhash::FxMap;
 use std::cmp::Ordering;
+use std::rc::Rc;
 
-use crate::earley::{test_holds, Cap, Chart, Item, Shared, Tok};
+use crate::earley::{test_holds, Cap, Chart, Item, RestorationView, Shared, Tok};
 use crate::grammar::{KeyStep, Lean, StepKind};
 use crate::lower::{Lowered, Sym, NO_TEST};
 use crate::measures::{Measure, Measures};
@@ -108,7 +109,7 @@ struct ErasedState {
     origin: u32,
     end: u32,
     tags: u32,
-    structure: u32,
+    structure: (u32, u32),
     boundary: u32,
     requested: u8,
     lexical: u32,
@@ -207,7 +208,7 @@ struct Admission {
 }
 /// The packed chart keeps raw proofs together. Admission separates the
 /// options at a slot edge while retaining every proof of each option.
-fn slot_links(g: &Lowered, chart: &Chart, set: u32, item: Item) -> Vec<(Item, Cap, usize)> {
+fn raw_slot_links(g: &Lowered, chart: &Chart, set: u32, item: Item) -> Vec<(Item, Cap, usize)> {
     let mut out = vec![];
     let rule = match g.prods[item.prod as usize].syms[item.dot as usize - 1] {
         Sym::N(r) => Some(r),
@@ -236,7 +237,64 @@ fn slot_links(g: &Lowered, chart: &Chart, set: u32, item: Item) -> Vec<(Item, Ca
     }
     out
 }
-fn written_frame(g: &Lowered, chart: &Chart, item: Item, at: u32) -> String {
+fn slot_links(
+    g: &Lowered,
+    chart: &Chart,
+    set: u32,
+    item: Item,
+    view: Option<&RestorationView>,
+) -> Vec<(Item, Cap, usize)> {
+    let Some(view) = view else { return raw_slot_links(g, chart, set, item) };
+    let index = chart.sets[set as usize].find(&item).expect("a ranked item");
+    let mut seen = crate::fxhash::FxSet::default();
+    let mut links = Vec::new();
+    for &raw in &view.members[&(set, view.aliases[set as usize][index as usize])] {
+        for (before, cap, option) in raw_slot_links(g, chart, set, chart.sets[set as usize].items[raw as usize]) {
+            work::count(Work::Walked, 1);
+            let previous = chart.sets[cap.start as usize].find(&before).expect("a ranked predecessor");
+            let mut observed = view.cap(cap);
+            observed.structure = observed.proof_structure.unwrap_or(observed.structure);
+            observed.proof_structure = None;
+            observed.route = 0;
+            let key = (
+                cap.start,
+                view.aliases[cap.start as usize][previous as usize],
+                observed,
+                view.frame(chart.expected_lexical(before, cap.start)),
+                option,
+            );
+            if seen.insert(key) {
+                links.push((before, cap, option));
+            }
+        }
+    }
+    links
+}
+impl RestorationView {
+    fn node(&self, node: Node) -> Node {
+        match node {
+            Node::Item { set, index } => Node::Item { set, index: self.aliases[set as usize][index as usize] },
+            Node::Close { set, index } => Node::Close { set, index: self.aliases[set as usize][index as usize] },
+            Node::Group { requested, route, rule, origin, set, tags, test, structure, boundary, lexical, option } => {
+                Node::Group {
+                    requested,
+                    route,
+                    rule,
+                    origin,
+                    set,
+                    tags,
+                    test,
+                    structure: self.state(structure),
+                    boundary,
+                    lexical: self.frame(lexical),
+                    option,
+                }
+            }
+            _ => node,
+        }
+    }
+}
+fn written_frame(g: &Lowered, chart: &Chart, item: Item, at: u32, projection: Option<&RestorationView>) -> String {
     let p = &g.prods[item.prod as usize];
     let control: Vec<_> = p
         .syms
@@ -257,9 +315,9 @@ fn written_frame(g: &Lowered, chart: &Chart, item: Item, at: u32) -> String {
         .names
         .iter()
         .zip(chart.caps(item.caps))
-        .filter_map(|(name, cap)| name.as_ref().map(|name| (name, cap)))
+        .filter_map(|(name, cap)| name.as_ref().map(|name| (name, projection.map_or(cap, |v| v.cap(cap)))))
         .collect();
-    let lexical = item.lexical;
+    let lexical = projection.map_or(item.lexical, |v| v.frame(item.lexical));
     let path = g.ranked.written.get(&p.rule);
     let index = chart.sets[at as usize].find(&item).expect("a written prefix");
     format!(
@@ -267,13 +325,19 @@ fn written_frame(g: &Lowered, chart: &Chart, item: Item, at: u32) -> String {
         p.slot.as_ref().unwrap().source,
         item.dot,
         item.origin,
-        item.prefix,
+        projection.map_or(item.prefix, |v| v.state(item.prefix)),
         item.boundary,
         chart.sets[at as usize].is_strict(index as usize)
     )
 }
 impl Admission {
-    fn new(g: &Lowered, chart: &Chart, views: Option<&SlotViews>, nodes: &[Node]) -> Self {
+    fn new(
+        g: &Lowered,
+        chart: &Chart,
+        views: Option<&SlotViews>,
+        nodes: &[Node],
+        projection: Option<&RestorationView>,
+    ) -> Self {
         let mut groups = Vec::<Vec<SlotCandidate>>::new();
         let mut ids = FxMap::<String, usize>::default();
         let mut at = FxMap::<Node, Vec<SlotCandidate>>::default();
@@ -294,9 +358,9 @@ impl Admission {
             }
             let Sym::N(rule) = p.syms[item.dot as usize - 1] else { continue };
             let Some(group_id) = g.ranked.slots.get(&rule) else { continue };
-            for (edge, (previous, cap, option)) in slot_links(g, chart, end, item).into_iter().enumerate() {
-                let prefix = written_frame(g, chart, previous, cap.start);
-                let ancestry = views.map(|v| v.ranked_prefix_key(scope, g, chart));
+            for (edge, (previous, cap, option)) in slot_links(g, chart, end, item, projection).into_iter().enumerate() {
+                let prefix = written_frame(g, chart, previous, cap.start, projection);
+                let ancestry = views.map(|v| v.ranked_prefix_key(scope, g, chart, projection));
                 let key = format!("{group_id}/{prefix}/{ancestry:?}/{}/{}", cap.start, cap.end);
                 let group = *ids.entry(key.clone()).or_insert_with(|| {
                     groups.push(vec![]);
@@ -820,6 +884,8 @@ pub(crate) struct Dag<'c> {
 
 pub(crate) struct Ranker<'c> {
     shared: &'c Shared<'c>,
+    restoration: Option<Rc<RestorationView>>,
+    projected_marks: Option<Rc<Marks>>,
     canonical_only: bool,
     witness_only: bool,
     raw_membership: bool,
@@ -1213,10 +1279,12 @@ impl<'c> Ranker<'c> {
         lean: Lean,
     ) -> Ranker<'c> {
         let mut ranker = Self::new_unfiltered(g, chart, tokens, shared, steps, lean);
+        ranker.restoration = chart.restoration_view(g);
         if !g.ranked.slots.is_empty() {
             ranker.views = SlotViews::new(g);
             let nodes = ranker.prepare_views();
-            ranker.admission = Some(Admission::new(g, chart, ranker.views.as_ref(), &nodes));
+            ranker.admission =
+                Some(Admission::new(g, chart, ranker.views.as_ref(), &nodes, ranker.restoration.as_deref()));
         }
         ranker
     }
@@ -1252,6 +1320,8 @@ impl<'c> Ranker<'c> {
         dag.push(DNode::Empty, Nat::ZERO, Nat::ZERO);
         let mut ranker = Ranker {
             shared,
+            restoration: None,
+            projected_marks: None,
             canonical_only: false,
             witness_only: false,
             raw_membership: false,
@@ -1287,10 +1357,13 @@ impl<'c> Ranker<'c> {
             origin: item.origin,
             end: set,
             tags: self.dag.chart.sets[set as usize].tagset[index as usize],
-            structure: self.dag.chart.sets[set as usize].completed_structures[index as usize],
+            structure: {
+                let state = self.dag.chart.sets[set as usize].completed_structures[index as usize];
+                self.dag.chart.machine.as_ref().map_or((state, 0), |m| m.borrow_mut().restoration_key(state))
+            },
             boundary: item.boundary,
             requested: item.close_requested,
-            lexical: item.lexical,
+            lexical: self.restoration.as_ref().map_or(item.lexical, |v| v.frame(item.lexical)),
             strict: self.dag.chart.sets[set as usize].is_strict(index as usize),
             restores: production.syms.is_empty() && item.origin != set,
             scope,
@@ -1332,6 +1405,8 @@ impl<'c> Ranker<'c> {
         ranker.canonical_only = true;
         ranker.admission = self.admission.clone();
         ranker.views = self.views.clone();
+        ranker.restoration = self.restoration.clone();
+        ranker.projected_marks = self.projected_marks.clone();
         ranker.check = self.check;
         ranker.marks = self.marks;
         ranker.fsets = self.fsets.clone();
@@ -1488,6 +1563,20 @@ impl<'c> Ranker<'c> {
         self.check = true;
         self.dag.canonical_companions = true;
         self.marks = marks;
+        if let (Some(view), Some(marks)) = (&self.restoration, marks) {
+            self.projected_marks = Some(Rc::new(Marks {
+                items: marks
+                    .items
+                    .iter()
+                    .map(|&(set, index)| (set, view.aliases[set as usize][index as usize]))
+                    .collect(),
+                links: marks
+                    .links
+                    .iter()
+                    .map(|&(set, index, start)| (set, view.aliases[set as usize][index as usize], start))
+                    .collect(),
+            }));
+        }
         self
     }
 
@@ -1592,7 +1681,28 @@ impl<'c> Ranker<'c> {
         id
     }
 
-    fn raw_deps(&mut self, (node, fset): Key) -> Deps {
+    fn raw_deps(&mut self, key: Key) -> Deps {
+        let deps = self.unprojected_deps(key);
+        let Some(view) = &self.restoration else { return deps };
+        let map = |(node, context)| {
+            work::count(Work::Walked, 1);
+            (view.node(node), context)
+        };
+        match deps {
+            Deps::Close(child) => Deps::Close(child.map(map)),
+            Deps::Group(nodes) => {
+                let mut seen = crate::fxhash::FxSet::default();
+                Deps::Group(nodes.into_iter().map(map).filter(|n| seen.insert(*n)).collect())
+            }
+            Deps::Links(links) => {
+                let mut seen = crate::fxhash::FxSet::default();
+                Deps::Links(links.into_iter().map(|(a, b)| (map(a), map(b))).filter(|n| seen.insert(*n)).collect())
+            }
+            _ => deps,
+        }
+    }
+    fn unprojected_deps(&mut self, (node, fset): Key) -> Deps {
+        let node = self.restoration.as_ref().map_or(node, |v| v.node(node));
         match node {
             Node::Absent => Deps::Close(None),
             Node::Scoped(_) => unreachable!("a raw forest node"),
@@ -1607,7 +1717,7 @@ impl<'c> Ranker<'c> {
                     let p = &g.prods[item.prod as usize];
                     let position = item.dot as usize - 1;
                     let mut links = Vec::new();
-                    for (before, cap, option) in slot_links(g, self.dag.chart, set, item) {
+                    for (before, cap, option) in slot_links(g, self.dag.chart, set, item, self.restoration.as_deref()) {
                         let m = cap.start;
                         let Some(index) = self.dag.chart.sets[m as usize].find(&before) else {
                             continue;
@@ -1783,13 +1893,22 @@ impl<'c> Ranker<'c> {
                             .iter()
                             .filter(|&&index| {
                                 (route == 0 || self.dag.g.route(eset.items[index as usize].prod) == route)
-                                    && (eset.items[index as usize].lexical == lexical)
+                                    && (self.restoration.as_ref().map_or(eset.items[index as usize].lexical, |v| {
+                                        v.frame(eset.items[index as usize].lexical)
+                                    }) == lexical)
                                     && eset.items[index as usize].close_requested == requested
                                     && (option == usize::MAX
                                         || self.dag.g.ranked.options.get(&eset.items[index as usize].prod)
                                             == Some(&option))
                                     && (tags == ANY || eset.tagset[index as usize] == tags)
-                                    && (structure == ANY || eset.completed_structures[index as usize] == structure)
+                                    && (structure == ANY
+                                        || self
+                                            .restoration
+                                            .as_ref()
+                                            .map_or(eset.completed_structures[index as usize], |v| {
+                                                v.state(eset.completed_structures[index as usize])
+                                            })
+                                            == structure)
                                     && (boundary == ANY || eset.items[index as usize].boundary == boundary)
                             })
                             .filter(|&&index| {
@@ -2060,7 +2179,8 @@ impl<'c> Ranker<'c> {
         let kept = self.kept(&key);
         // Whether an item is marked, as a leaf or as the end of a marked
         // link (tests/README.md).
-        let marks = self.marks;
+        let projected_marks = self.projected_marks.clone();
+        let marks = projected_marks.as_deref().or(self.marks);
         let marked = |set: u32, index: u32| marks.is_some_and(|marks| marks.items.contains(&(set, index)));
         // The kept edges are sorted (`Least::keeps`).
         let in_all = |index: u32| kept.as_ref().map_or(true, |all| holds(all, index));
@@ -3072,14 +3192,20 @@ impl SlotViews {
         };
         Some(g.prods[chart.sets[set as usize].items[index as usize].prod as usize].rule)
     }
-    fn ranked_prefix_key(&self, scope: usize, g: &Lowered, chart: &Chart) -> String {
+    fn ranked_prefix_key(
+        &self,
+        scope: usize,
+        g: &Lowered,
+        chart: &Chart,
+        projection: Option<&RestorationView>,
+    ) -> String {
         let state = &self.scopes[scope];
         let frames: Vec<_> = state
             .frames
             .iter()
             .map(|node| {
                 let Node::Item { set, index } = *node else { unreachable!() };
-                written_frame(g, chart, chart.sets[set as usize].items[index as usize], set)
+                written_frame(g, chart, chart.sets[set as usize].items[index as usize], set, projection)
             })
             .collect();
         let bounds: Vec<_> = state
@@ -3144,7 +3270,8 @@ impl Ranker<'_> {
         if !self.witness_only {
             return deps;
         }
-        let marks = self.marks.expect("a displayed witness has marks");
+        let projected_marks = self.projected_marks.clone();
+        let marks = projected_marks.as_deref().or(self.marks).expect("a displayed witness has marks");
         let marked = |key: Key| matches!(self.raw_node(key.0),Node::Item{set,index}|Node::Close{set,index} if marks.items.contains(&(set,index)));
         match deps {
             Deps::Group(members) => {

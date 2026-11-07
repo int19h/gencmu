@@ -188,3 +188,23 @@ fn ranked_entry_ignores_close_sound_in_common_captures() {
     let result = pipeline.parse_tokens(&tokens, &gencmu::ParseOptions::default()).unwrap();
     assert!(result.ok, "{:?}", result.error);
 }
+
+#[test]
+fn erased_prefixes_share_ranked_frames_with_demanded_closes() {
+    // Engine §6 and §7.10: named closes do not split an outside ranked entry.
+    for checking in ["", "%elision-only\n"] {
+        let grammar = format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n{checking}%rule text $p:p\n%conditions $p.without-elision.matches(w)\n%rule p e (e ≻ e) :: ∅\n%rule w p\n%rule e a | b\n%erased\n%rule a A\n%rule b A\n```\n");
+        let pipeline = gencmu::load_pipeline_sources([("p.md", grammar)], "p.md").unwrap();
+        let token = gencmu::InputToken {
+            text: "a".into(),
+            tags: ["A".into()].into_iter().collect(),
+            value: None,
+            image: None,
+            errors: vec![],
+            warnings: vec![],
+        };
+        let result = pipeline.parse_tokens(&[token.clone(), token], &gencmu::ParseOptions::default()).unwrap();
+        assert!(result.ok, "{}", gencmu::to_json(&result));
+        assert_eq!(result.stages[0].verdict, Some(gencmu::Verdict::Unique));
+    }
+}
