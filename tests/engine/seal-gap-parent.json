@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (gap-parent).",
+  "description": "Engine §4.1 and §6: a sibling gap consumes an empty erased root before the final C token.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $t:body\n%conditions $t ≅ #·body« ⋯ ·C »\n%rule body r2 C\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (d1).",
+  "description": "Engine §4.1 and §6: empty and ranked interiors of one erased root form one class without demanded patterns.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text r2 C\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (root-step).",
+  "description": "Engine §4.1 and §6: a grammar key ignores an empty erased root despite its retained structural seal.",
   "grammar": "%ambiguity-resolution fewest #·r2\n%rule text $r:r2 C\n%conditions $r ≅ #·r2\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
   "tokens": [
     {

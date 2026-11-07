@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (private-capture).",
+  "description": "Engine §4.1 and §6: private capture observations do not split exported erased classes.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text e\n%rule e $a:a\n%conditions $a ≅ #a\n%erased\n%rule a A\n%rule zz B B B",
   "tokens": [
     {

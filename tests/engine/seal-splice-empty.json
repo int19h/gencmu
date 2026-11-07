@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (splice-empty).",
+  "description": "Engine §4.1 and §6: a captured empty erased splice fails a bare empty list because it retains one seal.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $e:*e C\n%conditions $e ≅ #« »\n%rule e ε\n%erased\n%rule zz B B B",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (exported-interior-tag-negative).",
+  "description": "Engine §4.1 and §6: an outside tag test rejects an erased interior that publishes no matching tag.",
   "grammar": "%rule text $h:hidden\n%conditions $h ≅ #·hidden<Has-A>\n%rule hidden :: ($ ≅ #« A » ⟹ Has-A)\n  | A | B\n%erased",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (admission-diagnostic).",
+  "description": "Engine §4.1 and §6: a guarded higher option fails at an erased interior, so ranked admission keeps the named error.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $e:e ($g:A ≻ bad) :: ∅\n%conditions $g ⟹ $e ≅ #(·e ∩ « a »)\n%rule e a\n%erased\n%rule a A\n%rule bad A\n%error \"bad\"\n%rule zz B B B",
   "tokens": [
     {

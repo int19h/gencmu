@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (empty-parent-neg).",
+  "description": "Engine §4.1 and §6: an empty erased sibling makes a negated sole-child search succeed.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text e C\n%conditions $ ≇ #C\n%rule e ε\n%erased\n%rule zz B B B",
   "tokens": [
     {

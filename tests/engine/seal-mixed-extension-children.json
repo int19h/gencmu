@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (mixed-extension-children).",
+  "description": "Engine §4.1 and §6: an unerased extension permits and satisfies a child list on the mixed rule.",
   "grammar": "%rule text $e:e\n%conditions $e ≅ #·e« A »\n%rule e A\n%erased\n%extend-rule e A",
   "tokens": [
     {

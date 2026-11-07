@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (splice-exemption-valid).",
+  "description": "Engine §4.1 and §6: an unused splice does not conflict with a pattern on a different terminal capture.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text r2 $c:C\n%conditions $c ≅ #·C\n%rule unused *r2\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
   "tokens": [
     {

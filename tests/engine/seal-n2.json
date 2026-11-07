@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (n2).",
+  "description": "Engine §4.1 and §6: an empty erased root retains its seal and yields unique with the canonical text(r2 C) tree.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $r:r2 C\n%conditions $r ≅ #·r2\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
   "tokens": [
     {

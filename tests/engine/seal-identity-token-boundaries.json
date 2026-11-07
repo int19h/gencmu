@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1: erased working and exported views (identity-token-boundaries).",
+  "description": "Engine §4.1 and §6: seal identity compares ordered token values rather than their concatenated string.",
   "grammar": "%rule text $x:e $y:e\n%conditions $x ≇ $y\n%rule e A | A B\n%erased",
   "tokens": [
     {

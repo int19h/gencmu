@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1: erased working and exported views (root-value).",
+  "description": "Engine §4.1 and §6: an erased root retains its input span value for an outside pattern.",
   "grammar": "%rule text $e:e\n%conditions $e ≅ #·e=\"ab\"\n%rule e A B\n%erased",
   "tokens": [
     {

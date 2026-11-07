@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (zero-span-ranking).",
+  "description": "Engine §4.1 and §6: an empty erased root counts nothing in a grammar key step despite its seal.",
   "grammar": "%ambiguity-resolution most #·e\n%rule text e C | C\n%rule e ε\n%erased",
   "tokens": [
     {

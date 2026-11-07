@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (two-occurrences-reject-control).",
+  "description": "Engine §4.1 and §6: contradictory root conditions still reject beside multiple erased occurrences.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $w:w r2 C\n%conditions $w ≅ #r2, $w ≇ #r2\n%rule w r2\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
   "tokens": [
     {

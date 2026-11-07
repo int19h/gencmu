@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (wrapper-positive).",
+  "description": "Engine §4.1 and §6: a wrapper root search reaches the erased root and keeps one canonical class.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $w:w C\n%conditions $w ≅ #r2\n%rule w r2\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
   "tokens": [
     {

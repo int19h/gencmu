@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (identity-n2).",
+  "description": "Engine §4.1 and §6: equal sealed identities merge two captured erased roots and keep their canonical empty interiors.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $a:r2 $b:r2 C\n%conditions $a ≅ #·r2, $a ≅ $b\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
   "tokens": [
     {

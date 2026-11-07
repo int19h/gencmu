@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (neg-desc).",
+  "description": "Engine §4.1 and §6: a negative descendant test cannot inspect the erased interior and leaves one class.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $r:r2 C\n%conditions $r ≇ #(⋮ ·B)\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (own-identity-cycle).",
+  "description": "Engine §9.3: a local comparison still rejects a growing identity cycle inside an erased definition.",
   "grammar": "%rule text e\n%rule e $x:a $y:a\n%conditions $x ≅ $y\n%erased\n%rule a a | ε",
   "tokens": [],
   "expect": {

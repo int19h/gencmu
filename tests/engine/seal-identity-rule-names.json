@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1: erased working and exported views (identity-rule-names).",
+  "description": "Engine §4.1 and §6: erased occurrences of different rules retain different named identities.",
   "grammar": "%rule text $x:e $y:f\n%conditions $x ≇ $y\n%rule e A\n%erased\n%rule f A\n%erased",
   "tokens": [
     {

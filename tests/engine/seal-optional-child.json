@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (optional-child).",
+  "description": "Engine §9.3: an attached optional child list on a fully erased rule is a loader error.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $r:r2 C\n%conditions $r ≅ #·r2« [r4] »\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
   "tokens": [
     {

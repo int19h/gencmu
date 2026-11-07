@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (outside-negative-descendant).",
+  "description": "Engine §4.1 and §6: a negative outside path stops at the seal and keeps the real canonical other child in output.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $r:r2\n%conditions $r ≇ #(⋮ ·other)\n%rule r2 other | direct\n%erased\n%rule other C\n%rule direct C\n%rule zz Z Z Z",
   "tokens": [
     {

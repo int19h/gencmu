@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (outside-child).",
+  "description": "Engine §4.1 and §6: an outside bare child list cannot inspect an erased child.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $e:e\n%conditions $e ≅ #« a »\n%rule e a\n%erased\n%rule a A\n%rule zz B B B",
   "tokens": [
     {

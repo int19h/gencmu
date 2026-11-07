@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (nonempty-unrelated-site).",
+  "description": "Engine §4.1 and §6: an unused descendant pattern does not split another erased completion.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $w:w $e:e\n%conditions $w ≅ #w, $e ≅ #·e\n%rule w W\n%rule probe $p:e\n%conditions $p ≅ #(⋮ a)\n%rule e a | b\n%erased\n%rule a A\n%rule b A\n%rule zz B B B",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (nullable-identity).",
+  "description": "Engine §4.1 and §6: exported identity demand stops at an erased nullable cycle.",
   "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $x:e $y:e C\n%conditions $x ≅ $y\n%rule e e | ε\n%erased\n%rule zz B B B",
   "tokens": [
     {

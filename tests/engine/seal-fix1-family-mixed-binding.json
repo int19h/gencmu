@@ -1,0 +1,25 @@
+{
+  "description": "Engine §9.3: a mixed family loads and matches the unerased definition through an instance binding.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule atom(@T) @T\n%erased\n%rule ia = atom(A)\n%rule ib = atom(B)\n%extend-rule atom(B) B\n%rule text $i:ib\n%conditions $i ≅ #·atom« B »\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

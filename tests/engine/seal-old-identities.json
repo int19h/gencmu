@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (old-identities).",
+  "description": "Engine §4.1 and §6: sealed identities merge interiors that differ only in their private trees.",
   "grammar": "%ambiguity-resolution fewest #·text\n%rule text $x:e $y:e\n%conditions $x ≅ #·e, $x ≅ $y\n%rule e a | b\n%erased\n%rule a A\n%rule b A",
   "tokens": [
     {

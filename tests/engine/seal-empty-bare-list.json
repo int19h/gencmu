@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1, §6 and §9.3: erased seals (empty-bare-list).",
+  "description": "Engine §4.1 and §6: a directly captured empty erased root contains a seal and fails an exact empty list.",
   "grammar": "%rule text $e:e C\n%conditions $e ≅ #·«»\n%rule e ε\n%erased",
   "tokens": [
     {

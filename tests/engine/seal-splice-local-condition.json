@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4.1: erased working and exported views (splice-local-condition).",
+  "description": "Engine §4.1 and §6: a spliced erased definition tests its working anonymous structure before export.",
   "grammar": "%rule text *e\n%rule e a\n%conditions $ ≅ #a\n%erased\n%rule a A",
   "tokens": [
     {
