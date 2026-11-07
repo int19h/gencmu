@@ -536,7 +536,7 @@ If a coda stands before another syllable, omitting it leaves consonants that can
 
 ```jbogenbau
 %rule any-syllable  (* A vowel-bearing syllable has a nucleus. A consonantal syllable has none, so they cannot consume the same complete syllable. *)
-  onset-nucleus-coda | consonantal-syllable
+  syllable-of(nucleus) | consonantal-syllable
 
 %rule syllable-onset  (* This hook supplies the shared onset for syllables, stress tests, the brivla head and coda lookahead. *)
   onset
@@ -544,12 +544,7 @@ If a coda stands before another syllable, omitting it leaves consonants that can
 %rule syllable-of(@N)  (* A vowel-bearing syllable has the given nucleus and an optional nonempty coda. Omitting a required coda leaves consonants that cannot start the following syllable. *)
   syllable-onset @N [coda]
 
-%rule onset-nucleus-coda = syllable-of(nucleus)  (* A vowel-bearing syllable has an optional nonempty coda. *)
-
-%rule vowel-or-diphthong-nucleus  (* A nucleus that is a vowel or a diphthong, never y. *)
-  vowel | diphthong
-
-%rule syllable = syllable-of(vowel-or-diphthong-nucleus)  (* A counted syllable has a vowel or diphthong as its nucleus, never y. Its optional nonempty coda leaves no duplicate empty reading at a pause. *)
+%rule syllable = syllable-of((vowel | diphthong))  (* A counted syllable has a vowel or diphthong as its nucleus, never y. Its optional nonempty coda leaves no duplicate empty reading at a pause. *)
 
 %rule consonantal-syllable  (* The second consonant must be syllabic. The nonempty coda contains it. *)
   $c:consonant coda
@@ -575,10 +570,9 @@ If a coda stands before another syllable, omitting it leaves consonants that can
   ¬$y.following-tokens.begins(nucleus)
 
 %rule glide  (* A glide is i or u directly before a nucleus. *)
-  | $g:"i"
-  | $g:"u"
+  "i" | "u"
 %conditions
-  $g.following-tokens.begins(nucleus)
+  $.following-tokens.begins(nucleus)
 
 %rule diphthong  (* A diphthong cannot end directly before another nucleus. *)
   $d:diphthong-letters
@@ -600,12 +594,10 @@ If a coda stands before another syllable, omitting it leaves consonants that can
   ¬$v.following-tokens.begins(nucleus)
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>any-syllable</code> to <code>vowel</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>any-syllable</code> to <code>vowel</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/any-syllable.svg" alt="Railroad diagram of the rule any-syllable"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/syllable-onset.svg" alt="Railroad diagram of the rule syllable-onset"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/syllable-of.svg" alt="Railroad diagram of the rule syllable-of"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/onset-nucleus-coda.svg" alt="Railroad diagram of the rule onset-nucleus-coda"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/vowel-or-diphthong-nucleus.svg" alt="Railroad diagram of the rule vowel-or-diphthong-nucleus"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/syllable.svg" alt="Railroad diagram of the rule syllable"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/consonantal-syllable.svg" alt="Railroad diagram of the rule consonantal-syllable"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/coda.svg" alt="Railroad diagram of the rule coda"></p>
