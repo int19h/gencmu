@@ -187,3 +187,17 @@ func TestDeferredErasedCloseProjectionKeepsValidity(t *testing.T) {
 		t.Fatal("invalid and valid observations share a key")
 	}
 }
+
+func TestDeferredErasedRootProjectionKeepsFirstOrder(t *testing.T) {
+	// Engine §6 and §7.10: root classes count once without changing raw evidence.
+	a, b, c, p, q := &symNode{}, &symNode{}, &symNode{}, &symNode{}, &symNode{}
+	v := &restorationViews{syms: map[*symNode]*symNode{a: p, b: p, c: q}}
+	raw := []*symNode{c, a, b, c, p}
+	projected := v.roots(raw)
+	if len(projected) != 2 || projected[0] != q || projected[1] != p {
+		t.Fatal("projected roots lost their first order or kept a duplicate", projected)
+	}
+	if len(raw) != 5 || raw[0] != c || raw[1] != a || raw[2] != b || raw[3] != c || raw[4] != p {
+		t.Fatal("projection changed the concrete witness roots", raw)
+	}
+}

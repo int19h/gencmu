@@ -346,14 +346,7 @@ func (rk *ranker) witnessRepresentative(top []*symNode) *dn {
 	representative.admission, representative.views, representative.marks = rk.admission, rk.views, rk.marks
 	representative.restoration = rk.restoration
 	if rk.restoration != nil {
-		mapped := make([]*symNode, len(top))
-		for i, s := range top {
-			mapped[i] = rk.restoration.syms[s]
-			if mapped[i] == nil {
-				mapped[i] = s
-			}
-		}
-		top = mapped
+		top = rk.restoration.roots(top)
 	}
 	if representative.views != nil {
 		mapped := make([]*symNode, len(top))
@@ -1295,14 +1288,7 @@ type rankResult struct {
 // nil when every derivation is cyclic.
 func (rk *ranker) rank(top []*symNode) *rankResult {
 	if rk.restoration != nil {
-		mapped := make([]*symNode, len(top))
-		for i, s := range top {
-			mapped[i] = rk.restoration.syms[s]
-			if mapped[i] == nil {
-				mapped[i] = s
-			}
-		}
-		top = mapped
+		top = rk.restoration.roots(top)
 	}
 	if rk.admission != nil && rk.views != nil {
 		mapped := make([]*symNode, len(top))

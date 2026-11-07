@@ -213,6 +213,27 @@ func capsParent(ids []int32, id int32) int32 {
 	return ids[id]
 }
 
+// roots counts each projected symbol once, in the raw roots' first order.
+// Concrete witness membership retains the unchanged raw slice (§7.10).
+func (v *restorationViews) roots(raw []*symNode) []*symNode {
+	mapped := make([]*symNode, 0, len(raw))
+	seen := make(map[*symNode]bool, len(raw))
+	for _, symbol := range raw {
+		if w := work.Load(); w != nil {
+			w.visits.add("visits")
+		}
+		projected := v.syms[symbol]
+		if projected == nil {
+			projected = symbol
+		}
+		if !seen[projected] {
+			seen[projected] = true
+			mapped = append(mapped, projected)
+		}
+	}
+	return mapped
+}
+
 func (rk *ranker) restorationMarks(it *item) map[link]bool {
 	if rk.restoration == nil {
 		return rk.marks[it]
