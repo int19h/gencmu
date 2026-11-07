@@ -272,6 +272,7 @@ class _Constants:
         self.stage = stage
         self.unicode = unicode
         self.values: dict[str, _Constant] = {}
+        self.closed_patterns: list[tuple[Dom, str, Any]] | None = []
         self.versions: list[Dom] = []
         self.latest: dict[str, Dom] = {}
         # The definitions of rules that use constants, which the loader
@@ -469,7 +470,10 @@ class _Constants:
 
         if "pattern" in term:
             check_depth()
-            return {"pattern":(yield self._closed_pattern(path, term["pattern"], item))}
+            pattern = yield self._closed_pattern(path, term["pattern"], item)
+            if self.closed_patterns is not None:
+                self.closed_patterns.append((pattern, path, item))
+            return {"pattern": pattern}
         if any(key in term for key in ("union", "intersection", "difference")) and (expected == "pattern" or self._is_pattern(term)):
             check_depth()
             key = next(key for key in ("union", "intersection", "difference") if key in term)
@@ -1111,6 +1115,9 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
             children = node.get("children")
             if node.get("name") in erased and children is not None and children != [{"siblings": True}]:
                 raise _error(f"a pattern of erased rule {node['name']} permits only the child list « ⋯ »", path, getattr(node, "at", None) or at, stage)
+    for pattern, path, at in constants.closed_patterns or ():
+        erased_pattern(pattern, path, at)
+    constants.closed_patterns = None
     for _, pattern in key_steps:
         erased_pattern(pattern, documents[0][0], None)
     prohibited = {n["name"] for _, pattern in key_steps for n in nodes(pattern) if isinstance(n.get("name"), str)}
