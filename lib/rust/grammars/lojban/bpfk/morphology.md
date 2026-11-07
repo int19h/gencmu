@@ -125,7 +125,7 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 %rule lujvo  (* A compound is a predicate word that is neither a root nor a borrowing. *)
   $b:brivla
 %conditions
-  ¬$b.onward.begins(gismu | fuhivla)
+  ¬$b.matches(gismu | fuhivla)
 
 %rule post-word  (* A word ends before a pause or a legal next word. Without a pause, the next word cannot start with a nucleus. *)
   | pause
@@ -152,6 +152,22 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 </details>
 
 
+
+The test on `lujvo` reads the whole word, and a test at its start gives the same result.
+
+A root or borrowing that stands as a proper prefix of a longer brivla needs a stressed syllable of its own.
+
+Stress by position needs a pause after that syllable, and a longer brivla has letters there.
+
+Stress by a mark cannot stand in an unstressed initial rafsi of the longer brivla.
+
+The mark also cannot stand in the final syllable, which `final-syllable` protects.
+
+So the marked syllable is the stressed syllable of the longer brivla itself.
+
+One counted syllable follows it in both readings, and the letters fix both ends.
+
+Each reading therefore ends at the same nucleus, and no proper prefix exists.
 
 ## Cmevla
 

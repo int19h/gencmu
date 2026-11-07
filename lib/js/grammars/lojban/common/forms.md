@@ -131,7 +131,6 @@ The BPFK word forms set only `Onset` and `Continued`, with the meaning that the 
   | $r:run-words $v:later-word
       :: $v.tags ∪ (Uncounted ⊆ $v.tags ⟹ Open-Stress ∩ $r.tags)
 %conditions
-  (Continued ∪ Cy ∪ Name-Intro ∪ Open-Stress) ∩ $r.tags ≠ ∅,
   Cy ⊆ $r.tags ∧ Cy ⊆ $v.tags
     ∨ Continued ⊆ $r.tags ∧ Open-Stress ⊈ $r.tags ∧ Onset ⊆ $v.tags
     ∨ Name-Intro ⊆ $r.tags ∧ Name-Onset ⊆ $v.tags
@@ -150,9 +149,11 @@ A join permits two words without a pause. No two joins apply to the same pair. T
 
 For example, in the CLL word family, a word tagged `Cy` never carries `Continued`. So only the `Cy` rule joins two `Cy` letters there, and the general join, a continued word followed by an onset, never follows one. The BPFK word forms tag no word `Cy`. They join a `Cy`-shaped word such as `fy` by the general join, so `fyno` is `fy` and `no`.
 
-The first condition of `run-words` follows from the second. Each join of the second needs one of four tags on the words before: `Continued`, `Cy`, `Name-Intro` or `Open-Stress`. The first condition stays because it uses only `$r`.
+Each join needs one of four tags on the word before it.
 
-The parser tests it as soon as it reads `$r`. If the condition fails, the parser drops the join before reading another word. Engine §4 gives this order of evaluation. Without the condition, the parser tries every word shape after a word that no word can join.
+The four tags are `Continued`, `Cy`, `Name-Intro` and `Open-Stress`.
+
+No other condition states that fact, because the join list states it in full.
 
 Before the cmavo `bu`, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. In the BPFK word family, the `post_word` test requires the whole cmavo, so `yy buntu` keeps `yy` whole. In the CLL word family, the test reads only the letters `bu`, so `yy buntu` splits `yy`. Both pieces stay hesitation, so the split changes no reading there.
 

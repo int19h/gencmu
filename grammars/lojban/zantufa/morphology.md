@@ -64,7 +64,7 @@ A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a w
 
 This document extends the rule `word-run` of [../common/forms.md](../common/forms.md) to read a run in which a form follows `ra'oi`, as in `mira'oibroda`. So `unsegmentable-run` of [../common/forms.md](../common/forms.md) never takes such a run.
 
-The redefined `run-words` keeps the join conditions of [../common/forms.md](../common/forms.md). The condition that requires a joining tag follows from the condition that lists permitted tag combinations. The separate tag test lets the parser drop a join early, as [../common/forms.md](../common/forms.md) explains.
+The redefined `run-words` keeps the join conditions of [../common/forms.md](../common/forms.md).
 
 ```jbogenbau
 %redefine-rule runs
@@ -101,7 +101,6 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   Y-Letters ⊈ $r.tags ∨ Y-Letters ⊈ $v.tags,
   Hesitation ⊈ $v.tags ∨ (Spacing ∪ Opener-Space) ∩ $r.tags = ∅ ∧ $r.classes ∩ $TEXT-OPENERS = ∅,
   RAhOI ⊈ $r.tags ∨ ¬$v.onward.begins(rahoi-form),
-  (Continued ∪ Cy ∪ Name-Intro ∪ Open-Stress) ∩ $r.tags ≠ ∅,
   Cy ⊆ $r.tags ∧ Cy ⊆ $v.tags
     ∨ Continued ⊆ $r.tags ∧ Open-Stress ⊈ $r.tags ∧ Onset ⊆ $v.tags
     ∨ Name-Intro ⊆ $r.tags ∧ Name-Onset ⊆ $v.tags
