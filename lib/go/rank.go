@@ -36,16 +36,17 @@ const (
 // dn is a derivation of a constituent (a read or a close) or a partial one
 // (a part: the derivation of an item's children so far).
 type dn struct {
-	structure  int
-	closes     int
-	kind       uint8
-	tok        int32 // read: the token, relative to the recognizer's base
-	term       int32
-	prod       *production // close
-	start, end int32       // close
-	tags       *tagset     // close
-	a          *dn         // part: the children before; close: its children
-	b          *dn         // part: the last child
+	workingStructure int
+	structure        int
+	closes           int
+	kind             uint8
+	tok              int32 // read: the token, relative to the recognizer's base
+	term             int32
+	prod             *production // close
+	start, end       int32       // close
+	tags             *tagset     // close
+	a                *dn         // part: the children before; close: its children
+	b                *dn         // part: the last child
 	// vis and whole are the numbers of its visible actions and of all its
 	// actions, and sizes holds both instead where either does not fit in an
 	// int64: a derivation over an empty span can have exponentially many.
@@ -98,6 +99,9 @@ func closeNode(p *production, start, end int32, tags *tagset, kids *dn, structur
 	}
 	if len(structure) > 1 {
 		n.closes = structure[1]
+	}
+	if len(structure) > 2 {
+		n.workingStructure = structure[2]
 	}
 	vis, whole := count{}, countOne
 	if !p.transparent {
@@ -1157,7 +1161,7 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 				continue
 			}
 			for _, x := range v.e.cands {
-				candidates = append(candidates, &cand{d: closeNode(v.it.prod, s.start, s.end, s.tags, x.d, s.structure, s.closes)})
+				candidates = append(candidates, &cand{d: closeNode(v.it.prod, s.start, s.end, s.tags, x.d, s.structure, s.closes, v.it.structure)})
 			}
 		}
 		var exterior profile
@@ -1185,8 +1189,10 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 			continue
 		}
 		for _, x := range v.e.cands {
-			n := &cand{d: closeNode(c.prod, s.start, s.end, s.tags, x.d, s.structure, s.closes)}
-			rk.inherit(n, x, count{}, func(t *dn) *dn { return closeNode(c.prod, s.start, s.end, s.tags, t, s.structure, s.closes) }, pastInf)
+			n := &cand{d: closeNode(c.prod, s.start, s.end, s.tags, x.d, s.structure, s.closes, c.structure)}
+			rk.inherit(n, x, count{}, func(t *dn) *dn {
+				return closeNode(c.prod, s.start, s.end, s.tags, t, s.structure, s.closes, c.structure)
+			}, pastInf)
 			cands = append(cands, n)
 		}
 	}

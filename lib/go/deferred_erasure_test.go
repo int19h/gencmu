@@ -124,11 +124,33 @@ func TestDeferredErasedInteriorsShareLinearSummaries(t *testing.T) {
 	}
 }
 
-func TestDeferredErasureUndemandedPatternStatesAreEqual(t *testing.T) {
-	// Engine §4.1: an empty predicate set has one structural observation.
+func TestDeferredErasurePatternStatesInternEqualParts(t *testing.T) {
+	// Engine §4.1: a seal retains its width without semantic minimization.
 	machine := newPatternMachine(nil)
 	node := machine.node("r", machine.empty, "", "", nil)
-	if node != machine.empty || machine.seal != machine.empty || machine.concat(node, machine.seal) != machine.empty {
-		t.Fatal("undemanded states differ")
+	if machine.seal == machine.empty || machine.node("r", machine.empty, "", "", nil) != node || machine.states[machine.concat(node, machine.seal)].count != 1 {
+		t.Fatal("wrong part equality or seal width")
+	}
+}
+
+func TestDeferredErasurePostSelectionWorkingView(t *testing.T) {
+	// Engine §4.1: own clauses retain working observations after the choice.
+	rk, result := rankedMeasure(t, "%rule text e\n%rule e a\n%conditions $ ≅ #« a »\n%erased\n%rule a A", deferredTokens("A"))
+	node := derivationNamed(result.first, "e")
+	if rk.rec.derivationStructure(node, true) == rk.rec.derivationStructure(node, false) {
+		t.Fatal("the erased working view was sealed")
+	}
+	em := &stringEmitter{run: rk.rec.run, rec: rk.rec}
+	occurrence := occurrenceTree(node)
+	exported, private := em.treeIdentity(occurrence), em.treeIdentity(occurrence, true)
+	if exported == private {
+		t.Fatal("the working identity was sealed")
+	}
+	children := em.trees.elements(em.trees.nodes[exported].children)
+	if len(children) != 1 || em.trees.nodes[children[0]].kind != "Seal" {
+		t.Fatal("the exterior identity was not sealed")
+	}
+	if em.treeIdentity(occurrence) != exported {
+		t.Fatal("the private identity replaced the export")
 	}
 }

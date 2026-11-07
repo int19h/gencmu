@@ -234,8 +234,9 @@ type condsKey struct {
 }
 
 type structuralProduction struct {
-	lhs int32
-	rhs []symbol
+	lhs    int32
+	rhs    []symbol
+	erased bool
 }
 
 type braceItem struct {
@@ -300,7 +301,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 			p.source = sourceProduction(original)
 			l.prods = append(l.prods, &p)
 			l.rules[alias].prods = append(l.rules[alias].prods, &p)
-			lw.structural = append(lw.structural, structuralProduction{alias, p.rhs})
+			lw.structural = append(lw.structural, structuralProduction{alias, p.rhs, p.nothing})
 		}
 	}
 	for _, p := range l.prods {
@@ -577,7 +578,7 @@ func (lw *lowerer) lowerRule(r *sRule) {
 					}
 				}
 				for optionIndex, b := range h.bodies {
-					lw.structural = append(lw.structural, structuralProduction{h.rule, symbolsOf(b)})
+					lw.structural = append(lw.structural, structuralProduction{h.rule, symbolsOf(b), false})
 					p := lw.newProduction(h.rule, b)
 					p.sourceAlternative = h.owner
 					p.helperExpression = h.path
@@ -751,7 +752,7 @@ func (lw *lowerer) newProduction(lhs int32, body []slot) *production {
 func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	// The structural grammar counts the production, whatever its
 	// conditions (§3.3).
-	lw.structural = append(lw.structural, structuralProduction{lhs, symbolsOf(body)})
+	lw.structural = append(lw.structural, structuralProduction{lhs, symbolsOf(body), a.erased})
 	rawBody := body
 	body, _, _ = logicalBody(body)
 	position := map[string]int{}

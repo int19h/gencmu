@@ -17,6 +17,8 @@ type stringEmitter struct {
 	observing                    bool
 	trees                        *treeArena
 	treeStates                   map[*occurrence]treeState
+	workingTreeStates            map[*occurrence]treeState
+	treeSeals                    map[[2]int]int
 	boundaryStarts, boundaryEnds map[string]map[int]bool
 	run                          *stageRun
 	rec                          *recognizer
@@ -507,9 +509,9 @@ func (run *stageRun) emitFlow(rec *recognizer, root *occurrence, flow *diagnosti
 				ev := run.evaluator(rec.g, func(name string) (spanVal, bool) {
 					o := em.capture(f.o, name)
 					x, y, tags := em.span(o)
-					span := spanVal{a: x, b: y, whole: true, tags: tags, machine: rec.machine, structure: rec.derivationStructure(o.d), arena: rec.closes, closes: rec.derivationCloses(o.d)}
+					span := spanVal{a: x, b: y, whole: true, tags: tags, machine: rec.machine, structure: rec.derivationStructure(o.d, name == ""), arena: rec.closes, closes: rec.derivationCloses(o.d)}
 					if rec.g.stage.treeExpressions {
-						span.treeReader = func() int { return em.treeIdentity(o) }
+						span.treeReader = func() int { return em.treeIdentity(o, name == "") }
 					}
 					return span, true
 				})

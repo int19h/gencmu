@@ -399,9 +399,28 @@ func (m *treeArena) sequenceSemantic(sequence int) string {
 	return text
 }
 
-func (em *stringEmitter) treeIdentity(root *occurrence) int {
+func (em *stringEmitter) treeIdentity(root *occurrence, working ...bool) int {
 	if em.trees == nil {
 		em.trees, em.treeStates = newTreeArena(), map[*occurrence]treeState{}
+		em.workingTreeStates = map[*occurrence]treeState{}
+		em.treeSeals = map[[2]int]int{}
+	}
+	own := len(working) > 0 && working[0]
+	table := func(o *occurrence) map[*occurrence]treeState {
+		if own && o == root {
+			return em.workingTreeStates
+		}
+		return em.treeStates
+	}
+	seal := func(o *occurrence) int {
+		a, b, _ := em.span(o)
+		key := [2]int{a, b}
+		if id, found := em.treeSeals[key]; found {
+			return id
+		}
+		id := em.trees.intern(treeNodeKey{kind: "Seal", value: treeSealValues(em.run, a, b)})
+		em.treeSeals[key] = id
+		return id
 	}
 	type frame struct {
 		node     *occurrence
@@ -411,16 +430,18 @@ func (em *stringEmitter) treeIdentity(root *occurrence) int {
 	for len(pending) > 0 {
 		f := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
-		if _, found := em.treeStates[f.node]; found {
+		cache := table(f.node)
+		if _, found := cache[f.node]; found {
 			continue
 		}
 		n := f.node.d
 		if n.kind == dRead {
 			id := em.trees.intern(treeNodeKey{kind: "Written", name: em.rec.g.terminals[n.term], value: em.run.toks[em.rec.base+int(n.tok)].Value})
-			em.treeStates[f.node] = treeState{identity: id, sequence: em.trees.append(0, id)}
+			cache[f.node] = treeState{identity: id, sequence: em.trees.append(0, id)}
 			continue
 		}
-		if !f.expanded {
+		sealed := n.prod.nothing && !(own && f.node == root)
+		if !sealed && !f.expanded {
 			pending = append(pending, frame{f.node, true})
 			for i := len(f.node.kids) - 1; i >= 0; i-- {
 				child := f.node.kids[i]
@@ -431,11 +452,14 @@ func (em *stringEmitter) treeIdentity(root *occurrence) int {
 			continue
 		}
 		sequence := 0
-		for i, child := range f.node.kids {
+		kids := f.node.kids
+		if sealed {
+			sequence = em.trees.append(0, seal(f.node))
+			kids = nil
+		}
+		for i, child := range kids {
 			if symbol := n.prod.rhs[i]; !symbol.term && em.rec.g.rankedHelpers[symbol.id] != nil {
-				a, b, _ := em.span(child)
-				seal := em.trees.intern(treeNodeKey{kind: "Seal", value: treeSealValues(em.run, a, b)})
-				sequence = em.trees.append(sequence, seal)
+				sequence = em.trees.append(sequence, seal(child))
 			} else {
 				sequence = em.trees.concat(sequence, em.treeStates[child].sequence)
 			}
@@ -450,9 +474,9 @@ func (em *stringEmitter) treeIdentity(root *occurrence) int {
 			state.identity = em.trees.intern(treeNodeKey{kind: "Omitted", name: n.prod.elided})
 			state.sequence = em.trees.append(0, state.identity)
 		}
-		em.treeStates[f.node] = state
+		cache[f.node] = state
 	}
-	return em.treeStates[root].identity
+	return table(root)[root].identity
 }
 
 func (r *recognizer) finishTree(key *itemKey) {
@@ -535,6 +559,9 @@ func (g *lowered) checkTreeCycles(rows []structuralProduction) {
 	}
 	edges := make([][]edge, len(g.rules))
 	for _, row := range rows {
+		if row.erased {
+			continue
+		}
 		for index, symbol := range row.rhs {
 			if symbol.term || g.rankedHelpers[symbol.id] != nil {
 				continue

@@ -989,16 +989,31 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	}
 	// An erased completion exposes only the observations requested by a parent.
 	// Its own comparisons already ran and do not demand an exterior identity (§6).
+	structure := it.structure
 	completedCloses := it.closes
 	if p.nothing {
-		if !p.treeRequested {
+		if r.machine != nil {
+			structure = r.machine.sealed()
+			if !p.helper {
+				structure = r.machine.node(p.ruleName, structure, "", r.patternValue(it.origin, int32(k)), ts)
+			}
+		}
+		if p.treeRequested {
+			sequence = r.trees.append(0, r.sealIdentity(it.origin, int32(k)))
+			if p.spliceTarget != nil {
+				identity = r.trees.intern(treeNodeKey{kind: "Anonymous", children: sequence})
+			} else {
+				identity = r.trees.intern(treeNodeKey{kind: "Rule", name: p.ruleName, children: sequence})
+				sequence = r.trees.append(0, identity)
+			}
+		} else {
 			identity, sequence = 0, 0
 		}
 		if !p.closeRequested {
 			completedCloses = 0
 		}
 	}
-	key := symKey{treeIdentity: identity, boundary: it.boundary, requested: p.requestedKinds(), lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: completedCloses, familySummary: it.familySummary}
+	key := symKey{treeIdentity: identity, boundary: it.boundary, requested: p.requestedKinds(), lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: structure, closes: completedCloses, familySummary: it.familySummary}
 	c := s.syms[key]
 	if c != nil {
 		c.items = append(c.items, it)
@@ -1008,7 +1023,7 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 		r.step.kind = stepNext
 		return nil
 	}
-	c = &symNode{treeIdentity: identity, treeSequence: sequence, boundary: it.boundary, boundaryAnnotations: it.boundaryAnnotations, closeRequested: p.closeRequested, lexical: p.lexical, option: option, structure: it.structure, closes: completedCloses, familySummary: it.familySummary, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
+	c = &symNode{treeIdentity: identity, treeSequence: sequence, boundary: it.boundary, boundaryAnnotations: it.boundaryAnnotations, closeRequested: p.closeRequested, lexical: p.lexical, option: option, structure: structure, closes: completedCloses, familySummary: it.familySummary, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
 	if s.syms == nil {
 		s.syms = map[symKey]*symNode{}
 	}

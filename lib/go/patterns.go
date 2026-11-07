@@ -371,10 +371,6 @@ func (m *patternMachine) sequence(p *domPattern) patternNFA {
 	return n
 }
 func (m *patternMachine) intern(s patternState) int {
-	// Without demanded predicates every structural observation is equal (§4.1).
-	if len(m.predicates) == 0 {
-		s.count, s.bits, s.empty = 0, nil, false
-	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "%d/%s/%s/%s/", s.count, s.first.Text(16), s.last.Text(16), s.any.Text(16))
 	for _, r := range s.relations {
@@ -847,11 +843,14 @@ func (r *recognizer) omissionAllowed(p *production) bool {
 	sound := elidedValue(t)
 	return testHoldsOf(t, func(s string) bool { return s == sound }, r.run.ps.in.fromList([]string{p.elided}))
 }
-func (r *recognizer) derivationStructure(d *dn) int {
+func (r *recognizer) derivationStructure(d *dn, working bool) int {
 	if r.machine == nil {
 		return 0
 	}
 	if d.kind != dRead {
+		if working && d.prod.nothing {
+			return d.workingStructure
+		}
 		return d.structure
 	}
 	return r.terminalStructure(nil, -1, int(d.tok), d.term)

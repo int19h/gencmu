@@ -13,19 +13,35 @@ var diagnosticMessage atomic.Pointer[messageHook]
 func (g *stageGrammar) checkDiagnosticsAndSplices() *Error {
 	warnings := map[string]bool{}
 	prohibited := map[string]bool{}
-	names := func(pattern *domPattern) {
+	erased := map[string]bool{}
+	for _, rule := range g.rules {
+		all := true
+		for _, alt := range rule.alts {
+			all = all && alt.erased
+		}
+		erased[rule.name] = all
+	}
+	var problem *Error
+	names := func(pattern *domPattern, doc string, at [2]int) {
 		walkPattern(pattern, func(node *domPattern) {
 			if node.Kind == "name" {
 				prohibited[node.Name] = true
+				if problem == nil && erased[node.Name] && node.Attached != nil && !(len(node.Attached) == 1 && node.Attached[0].Kind == "siblings") {
+					pos := node.At
+					if pos == [2]int{} {
+						pos = at
+					}
+					problem = grammarError(doc, pos, "a pattern of erased rule %s permits only the child list « ⋯ »", node.Name)
+				}
 			}
 		})
 	}
 	for _, step := range g.steps {
-		names(step.pattern)
+		names(step.pattern, "", [2]int{})
 	}
 	for _, constant := range g.constants {
 		if constant.value != nil && constant.value.pattern != nil {
-			names(constant.value.pattern)
+			names(constant.value.pattern, constant.doc, [2]int{})
 		}
 	}
 	type splice struct {
@@ -68,7 +84,7 @@ func (g *stageGrammar) checkDiagnosticsAndSplices() *Error {
 					scanExpression(part.t.Body)
 				}
 				if part.t != nil && part.t.Pattern != nil {
-					names(part.t.Pattern)
+					names(part.t.Pattern, alt.doc, alt.at)
 				}
 				if part.c != nil && part.c.Kind == cdBoundary {
 					for _, target := range part.c.Targets {
@@ -102,6 +118,9 @@ func (g *stageGrammar) checkDiagnosticsAndSplices() *Error {
 				}
 			}
 		}
+	}
+	if problem != nil {
+		return problem
 	}
 	for _, splice := range splices {
 		if prohibited[splice.name] {
