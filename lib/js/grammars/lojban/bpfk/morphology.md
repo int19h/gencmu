@@ -570,7 +570,7 @@ A long CCVCV form leaves a consonant after its CCV prefix, where the shorter bra
   | $n:consonant="n"
 %conditions
   $r.following-tokens.begins(consonant),
-  $n.following-tokens.begins(r)
+  $n.following-tokens.first-token.value = "r"
 
 ```
 
@@ -897,74 +897,15 @@ Its `post-word` chain reads whole words, so it reads each letter of the run.
 
 
 
-The `letter-ban` hook reads a following syllable-initial apostrophe or glide.
-
-The pair table and this hook state the whole consonant law of CLL[^cll-s3-6].
-
-A named letter rule reads one consonant token with that value.
+The `letter-ban` hook reads a following syllable-initial apostrophe or glide. The pair table and this hook state the whole consonant law of CLL[^cll-s3-6]. No rule names one consonant letter, because the `Consonant` tag and a value test state each letter that a rule needs.
 
 ```jbogenbau
 %rule letter-ban  (* Consonant letters cannot precede a syllable-initial apostrophe or glide. *)
   h | glide
-
-%rule consonant-letter(@S)
-  @S<Consonant>
-
-%rule l = consonant-letter("l")  (* The consonant l. *)
-
-%rule m = consonant-letter("m")  (* The consonant m. *)
-
-%rule n = consonant-letter("n")  (* The consonant n. *)
-
-%rule r = consonant-letter("r")  (* The consonant r. *)
-
-%rule b = consonant-letter("b")  (* The consonant b. *)
-
-%rule d = consonant-letter("d")  (* The consonant d. *)
-
-%rule g = consonant-letter("g")  (* The consonant g. *)
-
-%rule v = consonant-letter("v")  (* The consonant v. *)
-
-%rule j = consonant-letter("j")  (* The consonant j. *)
-
-%rule z = consonant-letter("z")  (* The consonant z. *)
-
-%rule s = consonant-letter("s")  (* The consonant s. *)
-
-%rule c = consonant-letter("c")  (* The consonant c. *)
-
-%rule x = consonant-letter("x")  (* The consonant x. *)
-
-%rule k = consonant-letter("k")  (* The consonant k. *)
-
-%rule f = consonant-letter("f")  (* The consonant f. *)
-
-%rule p = consonant-letter("p")  (* The consonant p. *)
-
-%rule t = consonant-letter("t")  (* The consonant t. *)
 ```
 
-<details><summary>Railroad diagrams of the 19 rules from <code>letter-ban</code> to <code>t</code></summary>
+<details><summary>Railroad diagram of <code>letter-ban</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/letter-ban.svg" alt="Railroad diagram of the rule letter-ban"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/consonant-letter.svg" alt="Railroad diagram of the rule consonant-letter"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/l.svg" alt="Railroad diagram of the rule l"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/m.svg" alt="Railroad diagram of the rule m"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/n.svg" alt="Railroad diagram of the rule n"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/r.svg" alt="Railroad diagram of the rule r"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/b.svg" alt="Railroad diagram of the rule b"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/d.svg" alt="Railroad diagram of the rule d"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/g.svg" alt="Railroad diagram of the rule g"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/v.svg" alt="Railroad diagram of the rule v"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/j.svg" alt="Railroad diagram of the rule j"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/z.svg" alt="Railroad diagram of the rule z"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/s.svg" alt="Railroad diagram of the rule s"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/c.svg" alt="Railroad diagram of the rule c"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/x.svg" alt="Railroad diagram of the rule x"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/k.svg" alt="Railroad diagram of the rule k"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/f.svg" alt="Railroad diagram of the rule f"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/p.svg" alt="Railroad diagram of the rule p"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/t.svg" alt="Railroad diagram of the rule t"></p>
 </details>
 
 

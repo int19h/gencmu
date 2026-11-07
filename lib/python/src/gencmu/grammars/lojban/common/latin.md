@@ -326,7 +326,7 @@ A combining mark that no letter rule takes makes its run foreign, whatever its c
 
 Each digit emits the letters of its number word, so `2` is `re`. The first emission covers the character. The second is inserted at the end of that span, with empty source and text. It names the digit rule in `insertedBy`. Their values and images spell the number word.
 
-The `two-phonemes` template takes a character and two output strings. The named instances keep each digit rule and the decimal-point rule as the `insertedBy` rule.
+The `digit-phonemes` template takes a character and two output strings. The named instances keep each digit rule and the decimal-point rule as the `insertedBy` rule.
 
 A single period between two digits is the decimal point, `pi`. The decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
 
@@ -367,11 +367,6 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 %rule digit
   digit-0 | digit-1 | digit-2 | digit-3 | digit-4 | digit-5 | digit-6 | digit-7 | digit-8 | digit-9
 
-%rule two-phonemes(@C, @A, @B)
-  @C
-%emits
-  $ :: ∅ := @A, ε :: ∅ := @B
-
 %rule digit-phonemes(@C, @A, @B)
   @C
 %emits
@@ -400,7 +395,7 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 %rule decimal-point = digit-phonemes(".", "p", "i")
 ```
 
-<details><summary>Railroad diagrams of the 20 rules from <code>items</code> to <code>decimal-point</code></summary>
+<details><summary>Railroad diagrams of the 19 rules from <code>items</code> to <code>decimal-point</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/latin/items.svg" alt="Railroad diagram of the rule items"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/non-vowels.svg" alt="Railroad diagram of the rule non-vowels"></p>
@@ -408,7 +403,6 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 <p><img src="../../../docs/diagrams/lojban/common/latin/lojban-chars.svg" alt="Railroad diagram of the rule lojban-chars"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/chars-with-non-lojban-char.svg" alt="Railroad diagram of the rule chars-with-non-lojban-char"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/digit.svg" alt="Railroad diagram of the rule digit"></p>
-<p><img src="../../../docs/diagrams/lojban/common/latin/two-phonemes.svg" alt="Railroad diagram of the rule two-phonemes"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/digit-phonemes.svg" alt="Railroad diagram of the rule digit-phonemes"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/digit-0.svg" alt="Railroad diagram of the rule digit-0"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/digit-1.svg" alt="Railroad diagram of the rule digit-1"></p>
