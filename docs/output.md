@@ -491,7 +491,7 @@ A first remainder selects suffix mode, and a last remainder selects prefix mode.
 
 `.ngrams` takes exactly one `{"integer":"2"}` argument. Its digits match `[1-9][0-9]*`, without a size limit. This argument is not a value term and occurs only in `.ngrams`.
 
-`.without-elision` requires a bare capture receiver, including `{"capture":""}` for `$`. `.onward` can wrap its restored result. The DOM contains no runtime restoration records or ranked seals. Readers reject `$x.onward.without-elision` and direct the author to `$x.without-elision.onward`.
+`.without-elision` requires a bare capture receiver, including `{"capture":""}` for `$`. `.onward` can wrap its restored result. The DOM contains no runtime restoration records or seals. Readers reject `$x.onward.without-elision` and direct the author to `$x.without-elision.onward`.
 
 `.without-elision-except` takes the same receiver and exactly one rule argument. `.onward` can wrap its result too. Readers reject `$x.onward.without-elision-except(f)` in the same way.
 
@@ -582,7 +582,7 @@ Pattern tag requirements must resolve to tag sets, as ordinary symbol requiremen
 
 PATTERN tests one structural tree. An item consumes part of an ordered list of siblings. A pattern term has exactly one member, `pattern`, whose value is a PATTERN. Pattern terms also support `const`, `union`, `intersection`, `difference`, and contextual `emptySet`. Mixed pattern and tag-set operations are malformed.
 
-Node decorations are exact prefixes, tests, or child lists. Observable nodes are rule nodes and terminal leaves. Terminal leaves can be written or omitted. Ranked seals are not observable nodes.
+Node decorations are exact prefixes, tests, or child lists. Observable nodes are rule nodes and terminal leaves. Terminal leaves can be written or omitted. Seals are not observable nodes.
 
 An undecorated node test has one of these forms:
 
@@ -620,7 +620,7 @@ A bare child list has exactly this form, with optional `exact` before `children`
 {"any":true,"exact":true,"children":[ITEM...]}
 ```
 
-`any` requires `children`. It denotes an observable node, without a name or terminal test. It never matches a ranked seal. `_` instead uses `wildcard`, which matches any written or omitted leaf, whatever terminal read it.
+`any` requires `children`. It denotes an observable node, without a name or terminal test. It never matches a seal. `_` instead uses `wildcard`, which matches any written or omitted leaf, whatever terminal read it.
 
 PATTERN is a node test, a bare child list, or one of these compound forms:
 
