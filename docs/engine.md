@@ -1233,9 +1233,9 @@ Thus `begins(x)` and `parse(x …)` share their target, memo entry, and recursiv
 
 `*r` lowers to one call of r with a transparent occurrence marker. It never copies r's expression into its caller. The call keeps every target clause, including emission, erasure, diagnostic, and suppression. Its logical slot contributes r's computed tags.
 
-Recognition retains the target rule identity for cycle exclusion. A spliced and an ordinary call share the same rule-and-span cycle key. Tree construction, patterns, and tree identities omit the spliced root and flatten its children in order. Action comparison ignores its close, regardless of its symbol count. Rejection expectations retain the called definition as their owner.
+Recognition retains the target rule identity for cycle exclusion. A spliced and an ordinary call share the same rule-and-span cycle key. Output trees omit the spliced root and flatten its children in order. Patterns and tree identities use its anonymous exported view (§4.1). Action comparison ignores its close, regardless of its symbol count. Rejection expectations retain the called definition as their owner.
 
-A capture of a splice retains that anonymous constituent, including its span, tags, strings, and ordered child sequence. Presence holds even over an empty span. `$` inside the spliced call has the same anonymous structure. Anonymous constituents compare by their child sequences, and a root-name test for r fails.
+A capture of a splice retains that anonymous constituent, including its span, tags, strings, and ordered child sequence. Presence holds even over an empty span. Its own `$` uses the anonymous working view (§4.1). Anonymous constituents compare by their child sequences, and a root-name test for r fails.
 
 If a stage ranking pattern, other pattern, or neighbour target names its rule, the loader rejects that splice. It resolves pattern constants, choices, template families, and exact instance keys for this inspection. Query targets do not prohibit splicing. A splice cannot supply a stage root or occur in a pattern.
 
@@ -1522,11 +1522,11 @@ A structural state is a finite summary of demanded tree predicates. Compile only
 
 Patterns observe the structural tree defined in `docs/notation.md`. Rule names, terminal identities and demanded test answers form a finite alphabet for a lowered stage. A leaf transition records terminal identity and demanded value-test and tag-test answers. A named completion records the answers of the tag tests and value tests that a demanded pattern asks of that node. It reads the tags from the completed item's one tag set (§4), and the value from the input value of its span. An omitted T has empty observed value, empty image, and pattern tags `{T, _Elided}`. These leaf observations never replace constituent tags. The pattern atom `_` matches every written or omitted leaf, whatever terminal read it, and no rule node or seal.
 
-A spliced occurrence uses an anonymous child-sequence observation instead of its named constructor. Recognition retains the transparent call mode wherever structural predicates or tree identities distinguish it. That mode never changes the rule-and-span cycle key. A capture of it, and `$` inside it, observe that same anonymous sequence. `#foo` cannot match the root of `*foo`.
+A spliced occurrence uses an anonymous child-sequence observation instead of its named constructor. Recognition retains the transparent call mode wherever structural predicates or tree identities distinguish it. That mode never changes the rule-and-span cycle key. A caller captures its exported anonymous sequence. Its own `$` uses the anonymous working sequence. `#foo` cannot match the root of `*foo`.
 
 Compile each child-sequence expression into a finite sequence machine. Prefix states advance as children complete. Ellipses permit arbitrary sibling gaps, and flat repetitions use sequence loops. Helpers concatenate their child sequences without a named constructor.
 
-Ordinary named completion adds its own constructor transition, including named chain levels. Spliced completion concatenates its children without that constructor. Empty named children disappear from parent sequences, but their directly captured roots remain observable.
+Ordinary named completion adds its own constructor transition, including named chain levels. An unerased spliced completion concatenates its children without that constructor. Structurally empty named children disappear from parent sequences, but their directly captured roots remain observable.
 
 Each sibling gap has a private consuming loop. Its loop cannot consume children for another choice arm or an absent optional. Each repetition compiles its body once. Its separator returns to that body's entry after each completed occurrence. Nested repetitions add states in proportion to their written size.
 
@@ -1619,7 +1619,7 @@ EmptyProjection
 Anonymous(child identity sequence)
 ```
 
-The rule identity names the resolved rule or template instance, not a production and not a helper. The terminal identity is the one of §9. An anonymous splice compares by its flattened ordered child sequence, including an empty sequence. Its identity differs from every named rule identity.
+The rule identity names the resolved rule or template instance, not a production and not a helper. The terminal identity is the one of §9. An anonymous splice compares by its ordered observed child sequence, including an empty sequence. Its identity differs from every named rule identity.
 
 An erased named occurrence exports `Rule(rule identity, [Seal(original token-value sequence)])`. An erased splice exports `Anonymous([Seal(original token-value sequence)])`. It contributes the single-seal sequence to its parent.
 
@@ -1862,7 +1862,7 @@ A stage first ranks admitted derivations by their blame measure, defined below. 
 
 The last two are leans. A directive has one or more steps, and a lean can stand only last. The steps other than a lean are the key steps.
 
-A grammar key step counts matching observable nodes of the actual derivation (§4.1). These are ordinary rule constituents, written leaves, and omitted terminators. Nodes inside ranked options remain visible to ranking, because seals affect condition patterns only.
+A grammar key step counts matching observable nodes of the actual derivation (§4.1). These are ordinary rule constituents, written leaves, and omitted terminators. Nodes inside ranked options remain visible to ranking, which walks actual derivations.
 
 Helpers and spliced roots supply no node for grammar key steps. Empty ordinary rule constituents contribute no occurrence. The mandatory measure includes spliced error occurrences. Grammar key steps see an erased root but none of its proper descendants. The ordinary exclusions of empty nodes and spliced roots still apply to that root. A structural seal does not make a zero-span occurrence count in a grammar key step.
 
