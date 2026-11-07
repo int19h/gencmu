@@ -1,0 +1,22 @@
+{
+  "description": "Engine §4.1: a tag test leaves empty-child removal unchanged in an erased definition's own working view.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $x:e\n%conditions $x ≇ #·e<Z>\n%rule e a b\n%conditions $ ≅ #·« b »\n%erased\n%rule a ε\n%rule b B\n%rule zz Z Z Z",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

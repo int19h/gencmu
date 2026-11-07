@@ -506,7 +506,7 @@ func (m *patternMachine) node(name string, children int, terminal, sound string,
 			bits.SetBit(bits, i, 1)
 		}
 	}
-	id := m.nodeState(bits, tags == nil && s.count == 0)
+	id := m.nodeState(bits, terminal == "" && s.count == 0)
 	m.transitions[key] = id
 	return id
 }
