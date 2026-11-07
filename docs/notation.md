@@ -708,7 +708,7 @@ The left operand must be a bare capture or `$`. The type of the right operand de
 
 ### The structural tree
 
-Patterns observe named rules, terminal reads, and omitted terminators before bracket output collapses unary nodes. Generated helpers and spliced calls flatten their children in order. Named chain levels retain their nodes unless their occurrence is spliced. An absent plain optional contributes no child. Recipes do not change this structural observation.
+Patterns observe named rules, terminal reads, and omitted terminators before bracket output collapses unary nodes. Generated helpers and unerased spliced calls flatten their children in order. Named chain levels retain their nodes unless their occurrence is spliced. An absent plain optional contributes no child. Recipes do not change this structural observation.
 
 Observable nodes are rule nodes and terminal leaves. Terminal leaves can be written or omitted. Seals are not observable nodes.
 
@@ -796,9 +796,9 @@ A separate `«` or `·` requires whitespace or a comment after a node test, `»`
 
 A bare list has no name test. `#« a b »` tests any observable node whose children match a then b. `#·« a b »` tests those children only at the candidate itself. `#« a »` requires one child and remains distinct from `#a`.
 
-A child list attaches only to a rule name, emoji rule, template family, exact call, or compatible parameter. Terminals, `_`, tested atoms, and string constants cannot carry child lists. A seal passes no node test, including a bare list.
+A child list attaches only to a rule name, emoji rule, template family, exact call, or compatible parameter. Terminals, `_`, tested atoms, and string constants cannot carry child lists. A seal passes no node test, including a bare list. On an anonymous splice capture, `#« ⋯ »` tests the seal itself and fails, while `#·e« ⋯ »` tests the named root above it.
 
-Take an atom that names a rule whose every definition carries `%erased`. An attached child list is a document error unless it contains only one sibling gap, `« ⋯ »`. That permitted list always holds on such a node.
+Take an atom that names a rule whose every definition carries `%erased`. An attached child list is a document error unless it contains only one sibling gap, `« ⋯ »`. That permitted list always holds on such a node. A template-family atom triggers this error only when at least one instance exists and every instance is fully erased. A parameter as the atom postpones this check until substitution. A child-list parameter occupies one element, so a known erased atom takes this check on its written list.
 
 `«»` is an empty list, distinct from an absent list. It can match a terminal leaf or a directly captured empty rule. It does not assert that the input span is empty.
 
@@ -863,7 +863,7 @@ The compared tree is the structural tree above. Helpers are flattened, chain lev
 - If the token values of the spans of two seals are equal sequences, the seals are equal. The sequence has one value for each original token of the span, in order, and an empty value is an element. The chosen interior, private captures, tags and omissions take no part. A seal of an empty span is still a seal.
 - In the `elision-only` check, a capture of a terminal that reads a written-back terminator has the empty projection (engine §7.5). Two empty projections are equal, and an empty projection equals nothing else. Such a capture is present.
 
-An erased named constituent compares as its rule with one seal child over its span. When their ordered token-value sequences are equal, two occurrences of one rule compare equal. Their internal brackets do not distinguish them. An erased splice compares as an anonymous sequence containing that seal.
+An erased named constituent compares as its rule with one seal child over its span. When their ordered token-value sequences are equal, two erased occurrences of one rule compare equal. Their internal brackets do not distinguish them. An erased splice compares as an anonymous sequence containing that seal.
 
 Nothing else counts. Tags, images, source spans, attachments and emission take no part. Tags stay out as a matter of policy. A tag term can read the tags of a token or the words around a span, so two equal trees can carry different tags. So the comparison tests the tree, not the tokens. Its answer depends only on the derivations of the two constituents, as the answer of a pattern does.
 
