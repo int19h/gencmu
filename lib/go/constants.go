@@ -270,6 +270,9 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 			return nil, err
 		}
 		p, err := g.resolvePatternValue(doc, t.Pattern, item)
+		if err == nil && !g.erasurePatternsDone {
+			g.erasurePatterns = append(g.erasurePatterns, erasurePatternUse{p, doc, item})
+		}
 		return &constValue{ty: tyPattern, pattern: p}, err
 	case tmString:
 		return &constValue{ty: tyString, s: t.Str}, nil

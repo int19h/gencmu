@@ -10,6 +10,12 @@ type messageHook struct {
 
 var diagnosticMessage atomic.Pointer[messageHook]
 
+type erasurePatternUse struct {
+	pattern *domPattern
+	doc     string
+	at      [2]int
+}
+
 func (g *stageGrammar) checkDiagnosticsAndSplices() *Error {
 	warnings := map[string]bool{}
 	prohibited := map[string]bool{}
@@ -22,10 +28,12 @@ func (g *stageGrammar) checkDiagnosticsAndSplices() *Error {
 		erased[rule.name] = all
 	}
 	var problem *Error
-	names := func(pattern *domPattern, doc string, at [2]int) {
+	names := func(pattern *domPattern, doc string, at [2]int, collect bool) {
 		walkPattern(pattern, func(node *domPattern) {
 			if node.Kind == "name" {
-				prohibited[node.Name] = true
+				if collect {
+					prohibited[node.Name] = true
+				}
 				if problem == nil && erased[node.Name] && node.Attached != nil && !(len(node.Attached) == 1 && node.Attached[0].Kind == "siblings") {
 					pos := node.At
 					if pos == [2]int{} {
@@ -36,12 +44,19 @@ func (g *stageGrammar) checkDiagnosticsAndSplices() *Error {
 			}
 		})
 	}
+	for _, use := range g.erasurePatterns {
+		names(use.pattern, use.doc, use.at, false)
+	}
+	g.erasurePatterns, g.erasurePatternsDone = nil, true
+	if problem != nil {
+		return problem
+	}
 	for _, step := range g.steps {
-		names(step.pattern, "", [2]int{})
+		names(step.pattern, "", [2]int{}, true)
 	}
 	for _, constant := range g.constants {
 		if constant.value != nil && constant.value.pattern != nil {
-			names(constant.value.pattern, constant.doc, [2]int{})
+			names(constant.value.pattern, constant.doc, [2]int{}, true)
 		}
 	}
 	type splice struct {
@@ -84,7 +99,7 @@ func (g *stageGrammar) checkDiagnosticsAndSplices() *Error {
 					scanExpression(part.t.Body)
 				}
 				if part.t != nil && part.t.Pattern != nil {
-					names(part.t.Pattern, alt.doc, alt.at)
+					names(part.t.Pattern, alt.doc, alt.at, true)
 				}
 				if part.c != nil && part.c.Kind == cdBoundary {
 					for _, target := range part.c.Targets {

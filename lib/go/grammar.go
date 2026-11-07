@@ -25,27 +25,29 @@ type defaultUse struct {
 }
 
 type stageGrammar struct {
-	queryTargets      map[*domExpr]string
-	queryIdentities   map[*domExpr]string
-	queryNames        map[string]string
-	queryRules        []*sRule
-	allRuleList       []*sRule
-	defaults          []defaultUse
-	treeComparisons   bool
-	treeExpressions   bool
-	arguments         map[argumentSite][]constArgument
-	features          []stageFeature
-	families          map[string]map[string]bool
-	ranked            *rankedGroups
-	deferredEmissions []*Error
-	templateDeferred  []*Error
-	name              string
-	uni               *unicodeTable // the loader's table, for the tags of a range in a constant's value
-	constants         map[string]*stageConst
-	constVersions     []*constVersion
-	constLatest       map[string]int
-	rules             []*sRule
-	byName            map[string]*sRule
+	erasurePatterns     []erasurePatternUse
+	erasurePatternsDone bool
+	queryTargets        map[*domExpr]string
+	queryIdentities     map[*domExpr]string
+	queryNames          map[string]string
+	queryRules          []*sRule
+	allRuleList         []*sRule
+	defaults            []defaultUse
+	treeComparisons     bool
+	treeExpressions     bool
+	arguments           map[argumentSite][]constArgument
+	features            []stageFeature
+	families            map[string]map[string]bool
+	ranked              *rankedGroups
+	deferredEmissions   []*Error
+	templateDeferred    []*Error
+	name                string
+	uni                 *unicodeTable // the loader's table, for the tags of a range in a constant's value
+	constants           map[string]*stageConst
+	constVersions       []*constVersion
+	constLatest         map[string]int
+	rules               []*sRule
+	byName              map[string]*sRule
 	// steps are the key steps of the stage's %ambiguity-resolution, in
 	// order, and lean its last step if that is greedy or lazy, or "" for no
 	// lean (engine §6). elisionOnly says whether the stage declares
