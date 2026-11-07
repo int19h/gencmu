@@ -16961,7 +16961,7 @@
           if(head.ref) {omitted.add(head.ref);}
         }
         for(const key of ['seq','choice','ranked','and']) if(expr[key]) for (const child of expr[key]) pending.push(child);
-        for(const key of ['expr','optional','repeat','separator']) if(expr[key]) pending.push(expr[key]);
+        for(const key of ['expr','splice','optional','repeat','separator']) if(expr[key]) pending.push(expr[key]);
       }
     };
     for(const rule of grammar.rules.values()) {
