@@ -114,6 +114,7 @@ export declare class Grammar {
         kind: number;
         check: () => void;
     }[];
+    erasureChecks: any;
     templates: any;
     instances: any;
     /** @type {WeakMap<DomEntry,string[]>} */

@@ -4429,7 +4429,7 @@
       else if(!production.helper) { identity=m.rule(production.lhs,prefix);sequence=m.append(0,identity); }
       else if(production.elided!==null && production.rhs.length===0) { identity=m.omitted(production.elided);sequence=m.append(0,identity); }
     }
-    return {treePrefix:prefix,treeIdentity:identity,treeSequence:sequence};
+    return {treePrefix:sealed?sequence:prefix,treeIdentity:identity,treeSequence:sequence};
   }
 
   /** @param {any} lowered @returns {{comparison:any,production:any,cycle:string[]}|null} */
@@ -9645,6 +9645,8 @@
   /** @param {any[]} documents @param {any} unicode @returns {any} */
   function expandTemplates(documents,unicode) {
     if(!documents.some((/** @type {any} */ d)=>hasUnresolved(d.dom))) return {documents,order:null,templates:[],instances:[]};
+    /** @type {{names:string[],name:string,where:{document:string,line:number|undefined,column:number|undefined}}[]} */
+    const erasureChecks=[];
     const patterns=patternConstantNames(documents.flatMap(d=>d.dom.constants));
     const normalize=(/** @type {any} */ value)=>normalizeTemplateArgument(value,patterns);
     const templates=new Map(), names=new Map(), instances=new Map();
@@ -9980,13 +9982,25 @@
     const rewrite=(root,event,position='term')=>{
       if(!root || typeof root!=='object') return root;
       if(Array.isArray(root)) return root.map((/** @type {any} */ x)=>rewrite(x,event,position));
+      /** @param {string[]} names @param {string} name */
+      const erasedCheck=(names,name)=> {
+        if(position==='pattern' && root.children && !(root.children.length===1 && root.children[0].siblings)) {
+          const at=patternLocations.get(root) ?? root.at ?? event.rule.at;
+          erasureChecks.push({names,name,where:{document:event.path,line:at?.[0],column:at?.[1]}});
+        }
+      };
+      if(root.name && !templates.has(root.name)) erasedCheck([root.name],root.name);
       if(root.call) {
         const instance=instances.get(JSON.stringify(templateIdentity(normalize({call:root.call,args:root.args,at:root.at}))));
         const name=instance?effective(instance):canonicalArgument(root,unicode);
+        erasedCheck([name],name);
         return position==='pattern'?{name,...(root.exact?{exact:true}:{}),...(root.children?{children:rewrite(root.children,event,'pattern-item')}:{ }),at:root.at}:position==='expr'?{ref:name}:{rule:name};
       }
       if(position==='pattern' && root.name && templates.has(root.name)) {
-        const members=queue.filter((/** @type {any} */ x)=>x.call.call===root.name).map((/** @type {any} */ x)=>({...root,name:effective(x),...(root.children?{children:rewrite(root.children,event,'pattern-item')}:{})}));
+        const instances=queue.filter((/** @type {any} */ x)=>x.call.call===root.name);
+        erasedCheck(instances.map(effective),root.name);
+        const children=root.children ? rewrite(root.children,event,'pattern-item') : undefined;
+        const members=instances.map((/** @type {any} */ x)=>({...root,name:effective(x),...(children?{children}: {})}));
         return members.length===1?members[0]:members.length?{union:members}:{difference:[{name:'text',at:root.at,...(root.exact?{exact:true}:{})},{name:'text',at:root.at,...(root.exact?{exact:true}:{})}]};
       }
       if(root.ref && templates.has(root.ref) || root.rule && templates.has(root.rule)) fail(event,root,'a bare template reference must name one instance');
@@ -10039,7 +10053,7 @@
       rewrittenDefinitions.set(event,rewritten);
     };
     for(const event of events) {
-      if(event.rule.params) validation.push(event);
+      if(event.rule.params) {rewrite(event.rule,event);validation.push(event);}
       else if(!event.rule.args && !event.rule.instance) rewriteDefinition(event);
     }
     for(const instance of queue) for(const event of instance.definitions) rewriteDefinition(event,{...event.rule,name:effective(instance)});
@@ -10057,7 +10071,7 @@
     for(const instance of queue) for(const event of instance.definitions) output.push(rewrittenDefinitions.get(event));
     const expandedDocs=documents.map((/** @type {any} */ d,inspectionRun)=>({...d,inspectionRun,dom:{...d.dom,rules:[],...Object.fromEntries(['constants','directives','classifiers','implications'].map(key=>[key,d.dom[key].map((/** @type {any} */ item)=>rewrite(item,{path:d.path,rule:item}))]))}}));
     for(const event of output) expandedDocs.push({path:event.path,inspectionRun:event.inspectionRun,dom:{format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]}});
-    return {documents:expandedDocs,validation,argumentsToCheck,order:[...slots.filter((/** @type {any} */ n)=>current.has(n)||ordinary.has(n)),...queue.filter((/** @type {any} */ x)=>!x.name).map(effective)],templates:[...templates.values()],instances:queue};
+    return {documents:expandedDocs,validation,argumentsToCheck,erasureChecks,order:[...slots.filter((/** @type {any} */ n)=>current.has(n)||ordinary.has(n)),...queue.filter((/** @type {any} */ x)=>!x.name).map(effective)],templates:[...templates.values()],instances:queue};
   }
 
   /** @param {any} grammar @returns {{templates:any[],instances:any[]}} */
@@ -10609,6 +10623,7 @@
           argumentsBySite.get(key).push(argument);
         }
         argumentUses.set(this,argumentsBySite);
+        this.erasureChecks=expansion.erasureChecks;
         this.templates=expansion.templates;
         this.instances=expansion.instances;
         for (const [index, {path, dom, inspectionRun = index}] of expansion.documents.entries()) {
@@ -11466,13 +11481,16 @@
       const names=(pattern,where={},collect=true)=> {
         if (pattern?.name) {
           if(collect)prohibited.add(pattern.name);
-          if(erased.has(pattern.name) && pattern.children && !(pattern.children.length===1 && pattern.children[0].siblings)) {
+          if(!this.erasureChecks && erased.has(pattern.name) && pattern.children && !(pattern.children.length===1 && pattern.children[0].siblings)) {
             const at=patternLocations.get(pattern) ?? pattern.at;
             throw new GencmuError("grammar",`a pattern of erased rule ${pattern.name} permits only the child list « ⋯ »`,{...where,...(at ? {line:at[0],column:at[1]} : {})});
           }
         }
         for(const child of patternParts(pattern ?? {})) names(child,where,collect);
       };
+      for (const check of this.erasureChecks ?? []) if(check.names.length && check.names.every((/** @type {string} */ name)=>erased.has(name))) {
+        throw new GencmuError("grammar",`a pattern of erased rule ${check.name} permits only the child list « ⋯ »`,check.where);
+      }
       for (const use of erasurePatternUses.get(this) ?? []) names(use.pattern,use.where,false);
       erasurePatternUses.delete(this);
       for (const step of this.resolution?.steps ?? []) names(step.pattern);
@@ -11497,6 +11515,7 @@
       for (const rule of this.rules.values()) for (const alternative of rule.alternatives) {
         for (const code of alternative.clauses.suppressWarnings ?? []) if(code!=="_" && !warnings.has(code)) throw new GencmuError("grammar",`suppression code ${code} is not a warning of stage ${this.stageName}`,alternative.at);
       }
+      delete this.erasureChecks;
       for (const {name,alternative} of splices) if (prohibited.has(name)) throw new GencmuError("grammar",`a splice of ${name} conflicts with a pattern or neighbour target`,alternative.at);
     }
 
