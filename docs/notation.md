@@ -720,7 +720,7 @@ An erased occurrence exports its named root with one seal as its only child. The
 
 A spliced erased occurrence exports the seal without a named root. A capture of that splice sees an anonymous child sequence containing the seal. The splice does not expose the erased children.
 
-The erased definition's own clauses use its ordinary structure before export. Its own `$` retains that working view, including its splice mode. Captures inside the definition retain the ordinary views of the occurrences that they bind. An erased child supplies its own sealed view.
+The erased definition's own clauses use its ordinary structure before export. Its own `$` retains that working view, including its splice mode. Captures inside the definition retain the ordinary views of the occurrences that they bind. An erased child supplies its own sealed view. A chain level or recursive occurrence of an erased definition is an erased child, so its parent level sees it sealed.
 
 An outside capture receives the exported view. Outside patterns can test the erased root's name, tags, value, and child list. Every node test fails at its only child, the seal. Every downward walk stops there. A sibling gap can consume it.
 
@@ -799,6 +799,8 @@ A bare list has no name test. `#« a b »` tests any observable node whose child
 A child list attaches only to a rule name, emoji rule, template family, exact call, or compatible parameter. Terminals, `_`, tested atoms, and string constants cannot carry child lists. A seal passes no node test, including a bare list. On an erased splice capture, `#« ⋯ »` fails at the seal, while `#·e« ⋯ »` holds on an ordinary erased `e` root.
 
 Take an atom that names a rule whose every definition carries `%erased`. An attached child list is a document error unless it contains only one sibling gap, `« ⋯ »`. That permitted list always holds on such a node.
+
+For a fully erased rule, its own clauses test real children with bare lists such as `#·« A »` because the named form is an error.
 
 For a template-family atom, this error requires at least one instance and fully erased definitions in every instance. A parameter as the atom postpones this check until substitution. A child-list parameter occupies one element, so a known erased atom takes this check on its written list.
 
